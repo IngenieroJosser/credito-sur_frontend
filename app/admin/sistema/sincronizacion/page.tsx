@@ -630,7 +630,7 @@ const SyncStatusPage = () => {
                 <span>Sistema de sincronización activo</span>
               </div>
               <div className="text-gray-300">•</div>
-              <span>v2.0.1 • Build 2024.01</span>
+              <span>v2.0.1 • Construido 2026.01</span>
             </div>
             <div className="flex items-center space-x-2">
               <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></div>
