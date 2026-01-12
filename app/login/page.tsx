@@ -249,7 +249,7 @@ const LoginPage = () => {
               Acceso restringido • Solo personal autorizado
             </p>
             <p className="text-[9px] text-gray-300">
-              © {currentYear} CrediFinance • Todos los derechos reservados
+              © {currentYear} CrediFinanzas • Todos los derechos reservados
             </p>
           </div>
         </div>
