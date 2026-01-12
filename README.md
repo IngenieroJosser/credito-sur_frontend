@@ -1,7 +1,6 @@
 <p align="center">
   <img src="public/android-chrome-512x512.png" alt="Creditos del sur - Logo oficial" width="160">
 </p>
----
 
 ## Créditos del Sur — Sistema de Gestión de Créditos y Cobranzas
 
