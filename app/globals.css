@@ -3,7 +3,6 @@
 :root {
   --background: #ffffff;
   --foreground: #171717;
-  --font-setting: var(--font-setting);
 }
 
 @theme inline {
