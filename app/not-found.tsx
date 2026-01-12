@@ -2,294 +2,436 @@
 
 import Link from 'next/link'
 import Image from 'next/image'
-import { Home, Search, AlertTriangle, ChevronLeft } from 'lucide-react'
+import { ArrowLeft, Home, Search, X, Grid, ChevronRight, AlertCircle } from 'lucide-react'
 import { useState, useEffect } from 'react'
 
 const NotFoundPage = () => {
   const [path, setPath] = useState('')
-  const [isOnline, setIsOnline] = useState(true)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [isVisible, setIsVisible] = useState(false)
+  const [activeModule, setActiveModule] = useState<number | null>(null)
+
+  const modules = [
+    { id: 1, label: 'Dashboard', path: '/dashboard', icon: Grid },
+    { id: 2, label: 'Créditos', path: '/creditos' },
+    { id: 3, label: 'Préstamos', path: '/prestamos' },
+    { id: 4, label: 'Cobranzas', path: '/cobranzas' },
+    { id: 5, label: 'Clientes', path: '/clientes' },
+    { id: 6, label: 'Reportes', path: '/reportes' },
+  ]
 
   useEffect(() => {
-    // Obtener la ruta actual
     setPath(window.location.pathname)
+    setIsVisible(true)
     
-    // Verificar estado de conexión
-    setIsOnline(navigator.onLine)
+    // Animación de entrada sutil
+    const timer = setTimeout(() => {
+      document.querySelectorAll('.fade-in').forEach((el, i) => {
+        (el as HTMLElement).style.animationDelay = `${i * 0.1}s`
+      })
+    }, 100)
     
-    // Efecto de partículas sutil
-    const particles = document.querySelectorAll('.particle') as NodeListOf<HTMLElement>
-    particles.forEach((particle, i) => {
-      particle.style.animationDelay = `${i * 0.5}s`
-    })
+    return () => clearTimeout(timer)
   }, [])
 
   const goBack = () => {
-    if (window.history.length > 1) {
-      window.history.back()
-    } else {
-      window.location.href = '/'
-    }
+    window.history.length > 1 ? window.history.back() : window.location.href = '/'
   }
 
-  const searchSuggestions = [
-    { label: 'Dashboard Principal', path: '/dashboard' },
-    { label: 'Gestión de Créditos', path: '/creditos' },
-    { label: 'Cartera de Préstamos', path: '/prestamos' },
-    { label: 'Gestión de Cobranzas', path: '/cobranzas' },
-    { label: 'Reportes Financieros', path: '/reportes' },
-    { label: 'Clientes', path: '/clientes' },
-  ]
-
   return (
-    <div className="min-h-screen bg-gradient-to-br from-white via-gray-50 to-gray-100 flex items-center justify-center p-4 relative overflow-hidden">
-      {/* Fondo minimalista - Coherente con login */}
-      <div className="absolute inset-0 overflow-hidden">
-        <div className="absolute top-1/4 -left-24 w-96 h-96 bg-gradient-to-br from-[#08557f]/[0.02] to-transparent rounded-full blur-3xl"></div>
-        <div className="absolute bottom-1/4 -right-24 w-96 h-96 bg-gradient-to-tr from-[#fb851b]/[0.02] to-transparent rounded-full blur-3xl"></div>
+    <div className="min-h-screen bg-white relative overflow-hidden">
+      {/* Fondo ultra minimalista - Líneas arquitectónicas */}
+      <div className="absolute inset-0">
+        {/* Líneas de cuadrícula sutiles */}
+        <div className="absolute inset-0 opacity-[0.02]">
+          <div className="absolute inset-0" style={{
+            backgroundImage: `
+              linear-gradient(to right, #08557f 1px, transparent 1px),
+              linear-gradient(to bottom, #08557f 1px, transparent 1px)
+            `,
+            backgroundSize: '64px 64px'
+          }}></div>
+        </div>
         
-        {/* Líneas de estructura financiera sutiles */}
-        <div className="absolute top-0 left-0 w-full h-px bg-gradient-to-r from-transparent via-[#08557f]/10 to-transparent"></div>
-        <div className="absolute bottom-0 left-0 w-full h-px bg-gradient-to-r from-transparent via-[#08557f]/10 to-transparent"></div>
+        {/* Acentos de color extremadamente sutiles */}
+        <div className="absolute top-0 right-0 w-96 h-96 bg-gradient-to-bl from-[#08557f]/[0.015] to-transparent"></div>
+        <div className="absolute bottom-0 left-0 w-96 h-96 bg-gradient-to-tr from-[#fb851b]/[0.01] to-transparent"></div>
         
-        {/* Partículas decorativas */}
-        {[...Array(6)].map((_, i) => (
-          <div
-            key={i}
-            className="particle absolute w-px h-16 bg-gradient-to-b from-transparent via-[#08557f]/5 to-transparent"
-            style={{
-              left: `${10 + i * 15}%`,
-              top: '20%',
-              transform: `rotate(${15 * i}deg)`,
-            }}
-          ></div>
-        ))}
+        {/* Líneas horizontales decorativas */}
+        <div className="absolute top-32 left-0 right-0 h-px bg-gradient-to-r from-transparent via-[#08557f]/5 to-transparent"></div>
+        <div className="absolute bottom-32 left-0 right-0 h-px bg-gradient-to-r from-transparent via-[#08557f]/5 to-transparent"></div>
       </div>
 
       {/* Contenedor principal */}
-      <div className="w-full max-w-4xl relative z-10">
-        {/* Encabezado con logo */}
-        <div className="text-center mb-12">
-          <div className="flex items-center justify-center mb-6">
-            <div className="relative">
-              <div className="w-16 h-16 bg-white border border-gray-200 rounded-xl flex items-center justify-center shadow-sm">
-                {/* Logo del sistema - Usando la imagen proporcionada */}
-                <div className="relative w-12 h-12">
+      <div className="relative z-10 min-h-screen flex flex-col">
+        {/* Header minimalista */}
+        <div className="px-8 py-6">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-3">
+              {/* Logo extremadamente discreto */}
+              <Link href="/" className="flex items-center space-x-3 group">
+                <div className="relative w-10 h-10 opacity-80 transition-opacity duration-300 group-hover:opacity-100">
                   <Image
                     src="/android-chrome-512x512.png"
-                    alt="CrediFinanzas Logo"
-                    width={48}
-                    height={48}
-                    className="object-contain"
+                    alt="CrediFinanzas"
+                    width={40}
+                    height={40}
+                    className="object-contain drop-shadow-sm"
                     priority
                   />
-                  {/* Indicador de estado del sistema */}
-                  <div className={`absolute -top-1 -right-1 w-3 h-3 rounded-full border border-white ${
-                    isOnline ? 'bg-green-400' : 'bg-red-400'
-                  }`}></div>
                 </div>
+                <div className="flex flex-col">
+                  <span className="text-sm font-normal text-gray-800 tracking-tight leading-none">
+                    CREDI<span className="text-[#08557f] font-semibold">FINANZAS</span>
+                  </span>
+                  <span className="text-[10px] text-gray-400 font-light tracking-widest uppercase mt-0.5">
+                    Sistema Financiero
+                  </span>
+                </div>
+              </Link>
+            </div>
+            
+            {/* Acción mínima */}
+            <button
+              onClick={goBack}
+              className="group flex items-center space-x-2 px-3 py-2 rounded-lg hover:bg-gray-50 transition-all duration-300"
+            >
+              <div className="relative w-5 h-5 overflow-hidden">
+                <ArrowLeft className="w-4 h-4 text-gray-400 group-hover:text-[#08557f] transition-all duration-300 absolute inset-0 group-hover:-translate-x-0.5" />
+                <ArrowLeft className="w-4 h-4 text-[#fb851b] transition-all duration-300 absolute inset-0 translate-x-4 group-hover:translate-x-0" />
               </div>
-              {/* Indicador de error */}
-              <div className="absolute -top-2 -right-2 w-6 h-6 bg-gradient-to-br from-[#fb851b] to-[#e07415] rounded-full flex items-center justify-center">
-                <AlertTriangle className="w-3 h-3 text-white" />
+              <span className="text-sm text-gray-500 font-light group-hover:text-[#08557f] transition-colors duration-300">
+                Regresar
+              </span>
+            </button>
+          </div>
+        </div>
+
+        {/* Contenido central - Error 404 */}
+        <div className="flex-1 flex flex-col items-center justify-center px-8 py-12">
+          {/* Número de error - Ultra minimalista */}
+          <div className={`relative mb-16 fade-in ${
+            isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'
+          } transition-all duration-700`}>
+            <div className="text-[280px] font-light tracking-tighter leading-none text-gray-100 select-none">
+              404
+            </div>
+            
+            {/* Imagen superpuesta sutilmente */}
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div className="relative w-48 h-48 opacity-10">
+                <Image
+                  src="/android-chrome-512x512.png"
+                  alt="CrediFinanzas"
+                  fill
+                  className="object-contain"
+                  priority
+                />
+              </div>
+            </div>
+            
+            {/* Mensaje de error */}
+            <div className="absolute inset-0 flex flex-col items-center justify-center">
+              <div className="text-center">
+                <div className="mb-6 flex justify-center">
+                  <div className="inline-flex items-center space-x-2 px-4 py-2 bg-white/80 backdrop-blur-sm border border-gray-200 rounded-full">
+                    <AlertCircle className="w-4 h-4 text-[#fb851b]" />
+                    <span className="text-sm font-medium text-gray-700">
+                      Recurso no encontrado
+                    </span>
+                  </div>
+                </div>
+                <div className="text-gray-600 font-light text-lg max-w-md mx-auto tracking-wide leading-relaxed">
+                  La dirección solicitada no existe en el sistema
+                </div>
               </div>
             </div>
           </div>
-          
-          <h1 className="text-4xl font-light text-gray-800 tracking-tight mb-2">
-            <span className="font-normal text-[#08557f]">Credi</span>Finanzas
-          </h1>
-          <p className="text-xs text-gray-400 tracking-widest uppercase mt-2">
-            Sistema de Gestión Financiera • 404
-          </p>
-        </div>
 
-        {/* Contenido principal del error */}
-        <div className="bg-white/80 backdrop-blur-sm border border-gray-200 rounded-2xl shadow-sm p-8 mb-8">
-          {/* Código de error destacado */}
-          <div className="text-center mb-10">
-            <div className="inline-flex items-baseline mb-4">
-              <span className="text-9xl font-light text-[#08557f]/10 tracking-tighter">4</span>
-              <span className="text-9xl font-light text-[#08557f]/10 tracking-tighter mx-2">0</span>
-              <span className="text-9xl font-light text-[#08557f]/10 tracking-tighter">4</span>
-            </div>
-            
-            <div className="mb-6">
-              <h2 className="text-2xl font-medium text-gray-800 mb-2">
-                Recurso No Encontrado
-              </h2>
-              <p className="text-gray-600 max-w-md mx-auto">
-                La ruta especificada no existe o ha sido movida a otra ubicación.
-              </p>
-            </div>
-
-            {/* Detalles técnicos (solo visibles para roles técnicos) */}
-            <div className="inline-block bg-gray-50/80 border border-gray-200 rounded-lg px-4 py-3 mb-6">
+          {/* Path actual - Muy discreto */}
+          <div className={`mb-12 fade-in ${
+            isVisible ? 'opacity-100' : 'opacity-0'
+          } transition-opacity duration-700 delay-300`}>
+            <div className="px-4 py-3 bg-white/60 backdrop-blur-sm border border-gray-200/50 rounded-xl shadow-sm">
               <div className="flex items-center space-x-3">
-                <div className="w-2 h-2 bg-[#08557f] rounded-full animate-pulse"></div>
-                <code className="text-sm text-gray-500 font-mono">
-                  Ruta: <span className="text-gray-700">{path}</span>
+                <div className="w-2 h-2 bg-gradient-to-br from-[#08557f] to-[#063a58] rounded-full"></div>
+                <code className="text-xs text-gray-500 font-mono tracking-wide">
+                  RUTA ACTUAL: <span className="text-gray-700 font-medium">{path}</span>
                 </code>
               </div>
             </div>
           </div>
 
-          {/* Acciones principales */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
-            {/* Botón para volver */}
-            <button
-              onClick={goBack}
-              className="group relative overflow-hidden bg-white border border-gray-300 hover:border-[#08557f]/30 rounded-xl p-5 transition-all duration-300 hover:shadow-sm"
-            >
-              <div className="absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b from-gray-400 to-gray-300 transition-all duration-300 group-hover:from-[#08557f] group-hover:to-[#063a58]"></div>
-              
-              <div className="flex items-center space-x-4">
-                <div className="w-10 h-10 bg-gray-100 group-hover:bg-[#08557f]/5 rounded-lg flex items-center justify-center transition-colors duration-300">
-                  <ChevronLeft className="w-5 h-5 text-gray-500 group-hover:text-[#08557f] transition-colors duration-300" />
-                </div>
-                <div className="text-left">
-                  <div className="font-medium text-gray-800 group-hover:text-[#08557f] transition-colors duration-300">
-                    Volver atrás
+          {/* Búsqueda elegante */}
+          <div className={`w-full max-w-md mb-12 fade-in ${
+            isVisible ? 'opacity-100 scale-100' : 'opacity-0 scale-95'
+          } transition-all duration-500 delay-500`}>
+            <div className="relative group">
+              <div className="absolute inset-0 bg-gradient-to-r from-white to-gray-50 border border-gray-200 rounded-2xl transition-all duration-500 group-hover:border-[#08557f]/30 group-hover:shadow-sm"></div>
+              <div className="relative px-4 py-1">
+                <div className="flex items-center space-x-3">
+                  <div className="w-8 h-8 flex items-center justify-center bg-gray-100/50 rounded-lg transition-colors duration-300 group-hover:bg-[#08557f]/5">
+                    <Search className="w-4 h-4 text-gray-400 transition-colors duration-300 group-hover:text-[#08557f]" />
                   </div>
-                  <div className="text-sm text-gray-500">
-                    Regresar a la página anterior
+                  <div className="flex-1">
+                    <input
+                      type="text"
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      placeholder="Buscar en el sistema..."
+                      className="w-full bg-transparent border-none outline-none text-gray-700 placeholder-gray-400 text-sm tracking-wide py-3"
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && searchQuery.trim()) {
+                          console.log('Buscando:', searchQuery)
+                        }
+                      }}
+                    />
                   </div>
+                  {searchQuery && (
+                    <button
+                      onClick={() => setSearchQuery('')}
+                      className="w-8 h-8 flex items-center justify-center hover:bg-gray-100 rounded-lg transition-colors"
+                    >
+                      <X className="w-4 h-4 text-gray-400" />
+                    </button>
+                  )}
                 </div>
               </div>
-            </button>
+            </div>
+          </div>
 
-            {/* Botón para ir al dashboard */}
+          {/* Módulos de navegación - Grid elegante */}
+          <div className={`w-full max-w-2xl fade-in ${
+            isVisible ? 'opacity-100' : 'opacity-0'
+          } transition-opacity duration-500 delay-700`}>
+            <div className="mb-4 text-center">
+              <div className="text-sm font-medium text-gray-500 uppercase tracking-widest mb-2">
+                Navegación Rápida
+              </div>
+              <div className="w-16 h-px bg-gradient-to-r from-transparent via-[#08557f]/30 to-transparent mx-auto"></div>
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+              {modules.map((module, index) => {
+                const Icon = module.icon || ChevronRight
+                return (
+                  <Link
+                    key={module.id}
+                    href={module.path}
+                    className="group relative"
+                    onMouseEnter={() => setActiveModule(module.id)}
+                    onMouseLeave={() => setActiveModule(null)}
+                  >
+                    <div className={`
+                      relative overflow-hidden rounded-xl p-4 transition-all duration-500
+                      ${activeModule === module.id 
+                        ? 'bg-white border border-[#08557f]/20 shadow-sm' 
+                        : 'bg-gray-50/50 border border-gray-200/50 hover:bg-white hover:border-gray-300'
+                      }
+                    `}>
+                      {/* Efecto de acento naranja sutil */}
+                      {activeModule === module.id && (
+                        <div className="absolute top-0 left-0 w-full h-px bg-gradient-to-r from-[#fb851b]/0 via-[#fb851b]/40 to-[#fb851b]/0"></div>
+                      )}
+                      
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <div className="text-sm font-medium text-gray-800 group-hover:text-[#08557f] transition-colors duration-300 mb-0.5">
+                            {module.label}
+                          </div>
+                          <div className="text-xs text-gray-400 font-light tracking-wide">
+                            Acceder al módulo
+                          </div>
+                        </div>
+                        <div className={`
+                          p-2 rounded-lg transition-all duration-300
+                          ${activeModule === module.id 
+                            ? 'bg-[#08557f]/10' 
+                            : 'bg-gray-100/50 group-hover:bg-gray-100'
+                          }
+                        `}>
+                          <Icon className={`
+                            w-4 h-4 transition-all duration-300
+                            ${activeModule === module.id 
+                              ? 'text-[#08557f] translate-x-0.5' 
+                              : 'text-gray-400 group-hover:text-gray-600'
+                            }
+                          `} />
+                        </div>
+                      </div>
+                    </div>
+                  </Link>
+                )
+              })}
+            </div>
+          </div>
+
+          {/* Acción principal */}
+          <div className={`mt-16 fade-in ${
+            isVisible ? 'opacity-100' : 'opacity-0'
+          } transition-opacity duration-500 delay-900`}>
             <Link
               href="/dashboard"
-              className="group relative overflow-hidden bg-white border border-gray-300 hover:border-[#08557f]/30 rounded-xl p-5 transition-all duration-300 hover:shadow-sm"
+              className="group relative overflow-hidden"
             >
-              <div className="absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b from-gray-400 to-gray-300 transition-all duration-300 group-hover:from-[#08557f] group-hover:to-[#063a58]"></div>
+              <div className="absolute inset-0 bg-gradient-to-r from-white to-gray-50 border border-gray-200 rounded-2xl transition-all duration-500 group-hover:border-[#08557f]/30 group-hover:shadow-sm"></div>
               
-              <div className="flex items-center space-x-4">
-                <div className="w-10 h-10 bg-gray-100 group-hover:bg-[#08557f]/5 rounded-lg flex items-center justify-center transition-colors duration-300">
-                  <Home className="w-5 h-5 text-gray-500 group-hover:text-[#08557f] transition-colors duration-300" />
+              {/* Efecto de acento naranja */}
+              <div className="absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b from-[#fb851b]/0 via-[#fb851b] to-[#fb851b]/0 transition-all duration-500 group-hover:w-full group-hover:opacity-5"></div>
+              
+              <div className="relative px-6 py-4 flex items-center justify-between">
+                <div className="flex items-center space-x-4">
+                  <div className="w-10 h-10 bg-gradient-to-br from-[#08557f] to-[#063a58] rounded-xl flex items-center justify-center">
+                    <div className="relative w-6 h-6">
+                      <Image
+                        src="/android-chrome-512x512.png"
+                        alt="Dashboard"
+                        fill
+                        className="object-contain opacity-90"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <div className="font-medium text-gray-800 group-hover:text-[#08557f] transition-colors duration-300">
+                      Ir al Dashboard Principal
+                    </div>
+                    <div className="text-sm text-gray-500 font-light">
+                      Acceder al panel de control del sistema
+                    </div>
+                  </div>
                 </div>
-                <div className="text-left">
-                  <div className="font-medium text-gray-800 group-hover:text-[#08557f] transition-colors duration-300">
-                    Ir al Dashboard
-                  </div>
-                  <div className="text-sm text-gray-500">
-                    Acceder al panel principal
-                  </div>
+                <div className="relative overflow-hidden w-5 h-5">
+                  <ChevronRight className="w-5 h-5 text-gray-400 group-hover:text-[#08557f] transition-all duration-300 absolute inset-0 group-hover:translate-x-1" />
+                  <ChevronRight className="w-5 h-5 text-[#fb851b] transition-all duration-300 absolute inset-0 -translate-x-4 group-hover:translate-x-0" />
                 </div>
               </div>
             </Link>
           </div>
-
-          {/* Búsqueda y sugerencias */}
-          <div className="mb-8">
-            <div className="mb-4">
-              <div className="flex items-center space-x-2 mb-3">
-                <Search className="w-4 h-4 text-gray-400" />
-                <span className="text-sm font-medium text-gray-700">
-                  Buscar en el sistema
-                </span>
-              </div>
-              
-              <div className="relative">
-                <input
-                  type="text"
-                  placeholder="Buscar módulos, clientes, reportes..."
-                  className="w-full px-4 py-3 bg-white border border-gray-300 rounded-xl focus:border-[#08557f] focus:outline-none focus:ring-1 focus:ring-[#08557f]/20 transition-all duration-300 text-gray-700 placeholder-gray-400"
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      // Implementar búsqueda
-                      console.log('Buscar:', e.currentTarget.value)
-                    }
-                  }}
-                />
-                <button className="absolute right-3 top-1/2 -translate-y-1/2 p-1.5 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors duration-200">
-                  <Search className="w-4 h-4 text-gray-500" />
-                </button>
-              </div>
-            </div>
-
-            {/* Sugerencias de navegación */}
-            <div>
-              <div className="text-sm font-medium text-gray-700 mb-3">
-                Páginas frecuentes
-              </div>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                {searchSuggestions.map((item, index) => (
-                  <Link
-                    key={index}
-                    href={item.path}
-                    className="px-3 py-2.5 bg-gray-50 hover:bg-[#08557f]/5 border border-gray-200 hover:border-[#08557f]/30 rounded-lg transition-all duration-200 group"
-                  >
-                    <div className="flex items-center space-x-2">
-                      <div className="w-1.5 h-1.5 bg-gray-400 rounded-full group-hover:bg-[#08557f] transition-colors duration-300"></div>
-                      <span className="text-sm text-gray-600 group-hover:text-[#08557f] transition-colors duration-300">
-                        {item.label}
-                      </span>
-                    </div>
-                  </Link>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          {/* Información de soporte */}
-          <div className="border-t border-gray-200 pt-6">
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-              <div className="flex items-center space-x-3">
-                <div className="w-2 h-2 rounded-full bg-gradient-to-r from-[#08557f] to-[#063a58]"></div>
-                <span className="text-sm text-gray-600">
-                  Si el problema persiste, contacte al soporte técnico
-                </span>
-              </div>
-              
-              <div className="flex items-center space-x-2">
-                <div className={`w-2 h-2 rounded-full ${isOnline ? 'bg-green-400' : 'bg-red-400'}`}></div>
-                <span className="text-xs text-gray-500">
-                  {isOnline ? 'Sistema en línea' : 'Sin conexión'}
-                </span>
-              </div>
-            </div>
-          </div>
         </div>
 
-        {/* Pie de página */}
-        <div className="text-center space-y-4">
-          {/* Información de versión */}
-          <div className="inline-flex items-center space-x-4 px-4 py-2 bg-white/50 backdrop-blur-sm border border-gray-200 rounded-full">
-            <span className="text-xs text-gray-500">v1.0.0</span>
-            <div className="w-1 h-1 bg-gray-300 rounded-full"></div>
-            <span className="text-xs text-gray-500">ID: ERROR_404</span>
-            <div className="w-1 h-1 bg-gray-300 rounded-full"></div>
-            <span className="text-xs text-gray-500">{new Date().toLocaleDateString()}</span>
-          </div>
-
-          {/* Información legal */}
-          <div className="space-y-1">
-            <p className="text-[10px] text-gray-400 tracking-widest uppercase">
-              Sistema de Gestión Financiera • Solo uso autorizado
-            </p>
-            <p className="text-[9px] text-gray-300">
-              © {new Date().getFullYear()} CrediFinanzas • Código de error 404-NSF
-            </p>
+        {/* Footer ultra minimalista */}
+        <div className="px-8 py-6 border-t border-gray-100/50">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-4">
+              <div className="flex items-center space-x-2">
+                <div className="relative w-6 h-6 opacity-60">
+                  <Image
+                    src="/android-chrome-512x512.png"
+                    alt="CF"
+                    width={24}
+                    height={24}
+                    className="object-contain"
+                  />
+                </div>
+                <span className="text-xs text-gray-400 font-light tracking-wide">
+                  <span className="text-gray-500">ERROR 404</span> • v1.0.0
+                </span>
+              </div>
+            </div>
+            <div className="flex items-center space-x-3">
+              <div className="flex items-center space-x-2">
+                <div className="w-2 h-2 bg-gradient-to-r from-green-400 to-emerald-400 rounded-full animate-pulse"></div>
+                <span className="text-xs text-gray-400 font-light">SISTEMA ACTIVO</span>
+              </div>
+              <div className="w-px h-4 bg-gray-200"></div>
+              <div className="text-xs text-gray-400 font-light">
+                {new Date().toLocaleDateString('es-ES', { 
+                  day: '2-digit', 
+                  month: 'short', 
+                  year: 'numeric' 
+                })}
+              </div>
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Efecto de animación para las partículas */}
-      <style jsx>{`
+      {/* Efectos visuales sutiles */}
+      <div className="fixed inset-0 pointer-events-none">
+        {/* Partículas flotantes sutiles */}
+        {[...Array(4)].map((_, i) => (
+          <div
+            key={i}
+            className="absolute w-[1px] h-32 bg-gradient-to-b from-transparent via-[#08557f]/[0.03] to-transparent"
+            style={{
+              left: `${10 + i * 25}%`,
+              top: '20%',
+              transform: `rotate(${i * 15}deg)`,
+              animation: `float 25s ease-in-out ${i * 4}s infinite`
+            }}
+          ></div>
+        ))}
+        
+        {/* Destello naranja sutil en hover sobre módulos */}
+        {activeModule && (
+          <div 
+            className="absolute w-96 h-96 rounded-full bg-gradient-to-r from-[#fb851b]/[0.02] to-transparent blur-3xl transition-all duration-1000"
+            style={{
+              left: '50%',
+              top: '60%',
+              transform: 'translate(-50%, -50%)',
+              opacity: 0.4
+            }}
+          ></div>
+        )}
+      </div>
+
+      <style jsx global>{`
         @keyframes float {
-          0%, 100% {
-            transform: translateY(0) rotate(var(--tw-rotate));
+          0%, 100% { 
+            transform: translateY(0) rotate(var(--tw-rotate)); 
             opacity: 0;
           }
-          50% {
-            transform: translateY(-40px) rotate(var(--tw-rotate));
-            opacity: 0.5;
+          50% { 
+            transform: translateY(-80px) rotate(var(--tw-rotate)); 
+            opacity: 0.1;
           }
         }
         
-        .particle {
-          animation: float 8s ease-in-out infinite;
+        .fade-in {
+          animation: fadeInUp 0.8s ease-out forwards;
+        }
+        
+        @keyframes fadeInUp {
+          from {
+            opacity: 0;
+            transform: translateY(20px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+        
+        /* Estilos de scroll personalizados */
+        ::-webkit-scrollbar {
+          width: 6px;
+          height: 6px;
+        }
+        
+        ::-webkit-scrollbar-track {
+          background: rgba(8, 85, 127, 0.05);
+          border-radius: 3px;
+        }
+        
+        ::-webkit-scrollbar-thumb {
+          background: rgba(8, 85, 127, 0.2);
+          border-radius: 3px;
+          transition: background 0.3s ease;
+        }
+        
+        ::-webkit-scrollbar-thumb:hover {
+          background: rgba(8, 85, 127, 0.3);
+        }
+        
+        /* Selección de texto sutil */
+        ::selection {
+          background: rgba(8, 85, 127, 0.15);
+          color: #08557f;
+        }
+        
+        ::-moz-selection {
+          background: rgba(8, 85, 127, 0.15);
+          color: #08557f;
         }
       `}</style>
     </div>
