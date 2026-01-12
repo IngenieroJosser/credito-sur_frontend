@@ -85,7 +85,7 @@ const LoginPage = () => {
             </div>
           </div>
           <h1 className="text-4xl font-light text-gray-800 tracking-tight mb-2">
-            <span className="font-normal text-[#08557f]">Credi</span>Finance
+            <span className="font-normal text-[#08557f]">Credi</span>Finanzas
           </h1>
           <p className="text-xs text-gray-400 tracking-widest uppercase mt-4">Plataforma Financiera</p>
         </div>
