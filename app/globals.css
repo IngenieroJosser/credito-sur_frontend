@@ -3,7 +3,6 @@
 :root {
   --background: #ffffff;
   --foreground: #171717;
-  --font-setting: var(--font-setting);
 }
 
 @theme inline {
@@ -23,4 +22,14 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-setting);
+}
+
+::selection {
+  background-color: #08557f;
+  color: #ffffff;
+}
+
+::-moz-selection {
+  background-color: #08557f;
+  color: #ffffff;
 }
