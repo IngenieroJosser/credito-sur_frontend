@@ -1,4 +1,3 @@
-// app/components/prestamos/ListadoPrestamos.tsx
 'use client';
 
 import React, { useState, useEffect } from 'react';
@@ -7,7 +6,9 @@ import {
   AlertCircle, CheckCircle, XCircle, ChevronRight,
   Eye, MoreVertical, Download, TrendingUp, TrendingDown,
   ChevronLeft, ChevronRight as ChevronRightIcon, Plus,
-  RefreshCw, BarChart, Shield, FileText, CreditCard
+  RefreshCw, BarChart, Shield, FileText, CreditCard,
+  Grid3x3, List, Settings, Bell, ArrowUpDown,
+  Percent, CalendarDays, Package, Zap
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
@@ -30,6 +31,7 @@ interface Prestamo {
   diasMora?: number;
   moraAcumulada?: number;
   riesgo: 'bajo' | 'medio' | 'alto';
+  icono: React.ReactNode;
 }
 
 interface Filtros {
@@ -41,7 +43,7 @@ interface Filtros {
   busqueda: string;
 }
 
-const ListadoPrestamos = () => {
+const ListadoPrestamosElegante = () => {
   const router = useRouter();
   const [prestamos, setPrestamos] = useState<Prestamo[]>([]);
   const [filtros, setFiltros] = useState<Filtros>({
@@ -53,9 +55,18 @@ const ListadoPrestamos = () => {
     busqueda: ''
   });
   const [paginaActual, setPaginaActual] = useState(1);
-  const [prestamosPorPagina] = useState(10);
+  const [prestamosPorPagina] = useState(8);
   const [mostrarFiltros, setMostrarFiltros] = useState(false);
   const [cargando, setCargando] = useState(true);
+  const [vista, setVista] = useState<'lista' | 'grid'>('lista');
+
+  // Iconos para productos
+  const iconosProductos = [
+    <Package className="w-4 h-4" key="package" />,
+    <CreditCard className="w-4 h-4" key="credit" />,
+    <Zap className="w-4 h-4" key="zap" />,
+    <DollarSign className="w-4 h-4" key="dollar" />
+  ];
 
   // Datos de ejemplo
   useEffect(() => {
@@ -71,13 +82,14 @@ const ListadoPrestamos = () => {
         cuotasTotales: 12,
         cuotasPagadas: 7,
         cuotasPendientes: 5,
-        fechaInicio: '15/01/2023',
-        fechaVencimiento: '15/12/2023',
-        proximoPago: '15/08/2023',
+        fechaInicio: '15 Ene 2023',
+        fechaVencimiento: '15 Dic 2023',
+        proximoPago: '15 Ago 2023',
         estado: 'activo',
         tasaInteres: 1.5,
         diasMora: 0,
-        riesgo: 'medio'
+        riesgo: 'medio',
+        icono: iconosProductos[0]
       },
       {
         id: 'PR-2023-002',
@@ -90,12 +102,13 @@ const ListadoPrestamos = () => {
         cuotasTotales: 10,
         cuotasPagadas: 10,
         cuotasPendientes: 0,
-        fechaInicio: '10/06/2022',
-        fechaVencimiento: '10/03/2023',
+        fechaInicio: '10 Jun 2022',
+        fechaVencimiento: '10 Mar 2023',
         proximoPago: '-',
         estado: 'pagado',
         tasaInteres: 1.8,
-        riesgo: 'bajo'
+        riesgo: 'bajo',
+        icono: iconosProductos[1]
       },
       {
         id: 'PR-2023-003',
@@ -108,14 +121,15 @@ const ListadoPrestamos = () => {
         cuotasTotales: 8,
         cuotasPagadas: 4,
         cuotasPendientes: 4,
-        fechaInicio: '05/03/2023',
-        fechaVencimiento: '05/10/2023',
-        proximoPago: '05/08/2023',
+        fechaInicio: '05 Mar 2023',
+        fechaVencimiento: '05 Oct 2023',
+        proximoPago: '05 Ago 2023',
         estado: 'atrasado',
         tasaInteres: 1.6,
         diasMora: 7,
         moraAcumulada: 12.50,
-        riesgo: 'alto'
+        riesgo: 'alto',
+        icono: iconosProductos[2]
       },
       {
         id: 'PR-2023-004',
@@ -128,12 +142,13 @@ const ListadoPrestamos = () => {
         cuotasTotales: 12,
         cuotasPagadas: 2,
         cuotasPendientes: 10,
-        fechaInicio: '01/04/2023',
-        fechaVencimiento: '01/03/2024',
-        proximoPago: '01/06/2023',
+        fechaInicio: '01 Abr 2023',
+        fechaVencimiento: '01 Mar 2024',
+        proximoPago: '01 Jun 2023',
         estado: 'activo',
         tasaInteres: 1.4,
-        riesgo: 'bajo'
+        riesgo: 'bajo',
+        icono: iconosProductos[3]
       },
       {
         id: 'PR-2023-005',
@@ -146,14 +161,15 @@ const ListadoPrestamos = () => {
         cuotasTotales: 18,
         cuotasPagadas: 3,
         cuotasPendientes: 15,
-        fechaInicio: '20/05/2023',
-        fechaVencimiento: '20/10/2024',
-        proximoPago: '20/08/2023',
+        fechaInicio: '20 May 2023',
+        fechaVencimiento: '20 Oct 2024',
+        proximoPago: '20 Ago 2023',
         estado: 'moroso',
         tasaInteres: 1.7,
         diasMora: 45,
         moraAcumulada: 67.80,
-        riesgo: 'alto'
+        riesgo: 'alto',
+        icono: iconosProductos[0]
       },
       {
         id: 'PR-2023-006',
@@ -166,12 +182,13 @@ const ListadoPrestamos = () => {
         cuotasTotales: 6,
         cuotasPagadas: 6,
         cuotasPendientes: 0,
-        fechaInicio: '15/11/2022',
-        fechaVencimiento: '15/04/2023',
+        fechaInicio: '15 Nov 2022',
+        fechaVencimiento: '15 Abr 2023',
         proximoPago: '-',
         estado: 'pagado',
         tasaInteres: 1.3,
-        riesgo: 'bajo'
+        riesgo: 'bajo',
+        icono: iconosProductos[1]
       },
       {
         id: 'PR-2023-007',
@@ -184,12 +201,13 @@ const ListadoPrestamos = () => {
         cuotasTotales: 12,
         cuotasPagadas: 6,
         cuotasPendientes: 6,
-        fechaInicio: '10/02/2023',
-        fechaVencimiento: '10/01/2024',
-        proximoPago: '10/08/2023',
+        fechaInicio: '10 Feb 2023',
+        fechaVencimiento: '10 Ene 2024',
+        proximoPago: '10 Ago 2023',
         estado: 'activo',
         tasaInteres: 1.5,
-        riesgo: 'medio'
+        riesgo: 'medio',
+        icono: iconosProductos[2]
       },
       {
         id: 'PR-2023-008',
@@ -202,12 +220,13 @@ const ListadoPrestamos = () => {
         cuotasTotales: 10,
         cuotasPagadas: 0,
         cuotasPendientes: 10,
-        fechaInicio: '01/06/2023',
-        fechaVencimiento: '01/03/2024',
-        proximoPago: '01/07/2023',
+        fechaInicio: '01 Jun 2023',
+        fechaVencimiento: '01 Mar 2024',
+        proximoPago: '01 Jul 2023',
         estado: 'cancelado',
         tasaInteres: 1.8,
-        riesgo: 'alto'
+        riesgo: 'alto',
+        icono: iconosProductos[3]
       }
     ];
 
@@ -239,19 +258,6 @@ const ListadoPrestamos = () => {
         !prestamo.producto.toLowerCase().includes(filtros.busqueda.toLowerCase()) &&
         !prestamo.id.toLowerCase().includes(filtros.busqueda.toLowerCase())) return false;
     
-    // Filtro por fechas
-    if (filtros.fechaDesde) {
-      const fechaInicio = new Date(prestamo.fechaInicio.split('/').reverse().join('-'));
-      const fechaDesde = new Date(filtros.fechaDesde);
-      if (fechaInicio < fechaDesde) return false;
-    }
-    
-    if (filtros.fechaHasta) {
-      const fechaInicio = new Date(prestamo.fechaInicio.split('/').reverse().join('-'));
-      const fechaHasta = new Date(filtros.fechaHasta);
-      if (fechaInicio > fechaHasta) return false;
-    }
-    
     return true;
   });
 
@@ -267,12 +273,12 @@ const ListadoPrestamos = () => {
 
   const getEstadoColor = (estado: string) => {
     switch(estado) {
-      case 'activo': return 'bg-green-100 text-green-800 border-green-200';
-      case 'atrasado': return 'bg-yellow-100 text-yellow-800 border-yellow-200';
-      case 'moroso': return 'bg-red-100 text-red-800 border-red-200';
-      case 'pagado': return 'bg-blue-100 text-blue-800 border-blue-200';
-      case 'cancelado': return 'bg-gray-100 text-gray-800 border-gray-200';
-      default: return 'bg-gray-100 text-gray-800 border-gray-200';
+      case 'activo': return 'bg-[#08557f]/10 text-[#08557f]';
+      case 'atrasado': return 'bg-[#fb851b]/10 text-[#fb851b]';
+      case 'moroso': return 'bg-red-100 text-red-600';
+      case 'pagado': return 'bg-green-100 text-green-600';
+      case 'cancelado': return 'bg-gray-100 text-gray-600';
+      default: return 'bg-gray-100 text-gray-600';
     }
   };
 
@@ -290,7 +296,7 @@ const ListadoPrestamos = () => {
   const getRiesgoColor = (riesgo: string) => {
     switch(riesgo) {
       case 'bajo': return 'text-green-600';
-      case 'medio': return 'text-yellow-600';
+      case 'medio': return 'text-[#fb851b]';
       case 'alto': return 'text-red-600';
       default: return 'text-gray-600';
     }
@@ -299,7 +305,9 @@ const ListadoPrestamos = () => {
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('es-ES', {
       style: 'currency',
-      currency: 'USD'
+      currency: 'COP',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0
     }).format(amount);
   };
 
@@ -330,63 +338,41 @@ const ListadoPrestamos = () => {
 
   return (
     <div className="min-h-screen bg-white">
-      {/* Header */}
-      <div className="border-b border-gray-200 px-6 py-4">
+      {/* Header Elegante */}
+      <div className="px-8 py-6 border-b border-gray-100">
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-light text-gray-900">Préstamos</h1>
             <p className="text-sm text-gray-500 mt-1">Gestión y seguimiento de créditos</p>
           </div>
-          <button
-            onClick={irANuevoPrestamo}
-            className="px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors text-sm font-medium flex items-center gap-2"
-          >
-            <Plus className="w-4 h-4" />
-            Nuevo Préstamo
-          </button>
-        </div>
-      </div>
-
-      {/* Estadísticas */}
-      <div className="px-6 py-4 border-b border-gray-200">
-        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-4">
-          <div className="text-center">
-            <p className="text-2xl font-light text-gray-900">{estadisticas.total}</p>
-            <p className="text-xs text-gray-500">Total</p>
-          </div>
-          <div className="text-center">
-            <p className="text-2xl font-light text-green-600">{estadisticas.activos}</p>
-            <p className="text-xs text-gray-500">Activos</p>
-          </div>
-          <div className="text-center">
-            <p className="text-2xl font-light text-yellow-600">{estadisticas.atrasados}</p>
-            <p className="text-xs text-gray-500">Atrasados</p>
-          </div>
-          <div className="text-center">
-            <p className="text-2xl font-light text-red-600">{estadisticas.morosos}</p>
-            <p className="text-xs text-gray-500">Morosos</p>
-          </div>
-          <div className="text-center">
-            <p className="text-2xl font-light text-blue-600">{estadisticas.pagados}</p>
-            <p className="text-xs text-gray-500">Pagados</p>
-          </div>
-          <div className="text-center">
-            <p className="text-2xl font-light text-gray-600">{estadisticas.cancelados}</p>
-            <p className="text-xs text-gray-500">Cancelados</p>
-          </div>
-          <div className="text-center">
-            <p className="text-2xl font-light text-gray-900">{formatCurrency(estadisticas.montoTotal)}</p>
-            <p className="text-xs text-gray-500">Monto Total</p>
-          </div>
-          <div className="text-center">
-            <p className="text-2xl font-light text-gray-900">{formatCurrency(estadisticas.montoPendiente)}</p>
-            <p className="text-xs text-gray-500">Pendiente</p>
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setVista('lista')}
+                className={`p-2 rounded-lg transition-colors ${vista === 'lista' ? 'bg-[#08557f] text-white' : 'text-gray-500 hover:bg-gray-100'}`}
+              >
+                <List className="w-4 h-4" />
+              </button>
+              <button
+                onClick={() => setVista('grid')}
+                className={`p-2 rounded-lg transition-colors ${vista === 'grid' ? 'bg-[#08557f] text-white' : 'text-gray-500 hover:bg-gray-100'}`}
+              >
+                <Grid3x3 className="w-4 h-4" />
+              </button>
+            </div>
+            <button
+              onClick={irANuevoPrestamo}
+              className="px-5 py-2.5 bg-[#08557f] text-white rounded-lg hover:bg-[#07496d] transition-colors text-sm font-medium flex items-center gap-2"
+            >
+              <Plus className="w-4 h-4" />
+              Nuevo Préstamo
+            </button>
           </div>
         </div>
       </div>
 
-      {/* Barra de búsqueda y filtros */}
-      <div className="px-6 py-4 border-b border-gray-200">
+      {/* Barra de herramientas */}
+      <div className="px-8 py-4 border-b border-gray-100 bg-gray-50/50">
         <div className="flex flex-col md:flex-row md:items-center gap-4">
           <div className="flex-1 relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
@@ -395,22 +381,22 @@ const ListadoPrestamos = () => {
               placeholder="Buscar préstamos, clientes o productos..."
               value={filtros.busqueda}
               onChange={(e) => handleFiltroChange('busqueda', e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-gray-900 focus:border-gray-900 text-sm"
+              className="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#08557f] focus:border-[#08557f] text-sm placeholder-gray-400"
             />
           </div>
           
           <div className="flex items-center gap-2">
             <button
               onClick={() => setMostrarFiltros(!mostrarFiltros)}
-              className="px-3 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium text-gray-700 flex items-center gap-2"
+              className="px-4 py-2.5 border border-gray-200 bg-white rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium text-gray-700 flex items-center gap-2"
             >
               <Filter className="w-4 h-4" />
-              Filtros
+              {mostrarFiltros ? 'Ocultar filtros' : 'Mostrar filtros'}
             </button>
             
             <button
               onClick={resetFiltros}
-              className="px-3 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium text-gray-700 flex items-center gap-2"
+              className="px-4 py-2.5 border border-gray-200 bg-white rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium text-gray-700 flex items-center gap-2"
             >
               <RefreshCw className="w-4 h-4" />
               Limpiar
@@ -420,14 +406,14 @@ const ListadoPrestamos = () => {
 
         {/* Filtros expandidos */}
         {mostrarFiltros && (
-          <div className="mt-4 p-4 border border-gray-200 rounded-lg bg-gray-50">
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="mt-4 p-5 border border-gray-200 rounded-lg bg-white shadow-sm">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-5">
               <div>
-                <label className="block text-xs font-medium text-gray-700 mb-2">Estado</label>
+                <label className="block text-xs font-medium text-gray-700 mb-2">Estado del préstamo</label>
                 <select
                   value={filtros.estado}
                   onChange={(e) => handleFiltroChange('estado', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                  className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:border-[#08557f] focus:ring-1 focus:ring-[#08557f]"
                 >
                   <option value="todos">Todos los estados</option>
                   <option value="activo">Activo</option>
@@ -439,11 +425,25 @@ const ListadoPrestamos = () => {
               </div>
               
               <div>
+                <label className="block text-xs font-medium text-gray-700 mb-2">Nivel de riesgo</label>
+                <select
+                  value={filtros.riesgo}
+                  onChange={(e) => handleFiltroChange('riesgo', e.target.value)}
+                  className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:border-[#08557f] focus:ring-1 focus:ring-[#08557f]"
+                >
+                  <option value="todos">Todos los riesgos</option>
+                  <option value="bajo">Bajo</option>
+                  <option value="medio">Medio</option>
+                  <option value="alto">Alto</option>
+                </select>
+              </div>
+              
+              <div>
                 <label className="block text-xs font-medium text-gray-700 mb-2">Cliente</label>
                 <select
                   value={filtros.cliente}
                   onChange={(e) => handleFiltroChange('cliente', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                  className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:border-[#08557f] focus:ring-1 focus:ring-[#08557f]"
                 >
                   <option value="todos">Todos los clientes</option>
                   {Array.from(new Set(prestamos.map(p => p.clienteId))).map(clienteId => {
@@ -458,28 +458,14 @@ const ListadoPrestamos = () => {
               </div>
               
               <div>
-                <label className="block text-xs font-medium text-gray-700 mb-2">Riesgo</label>
-                <select
-                  value={filtros.riesgo}
-                  onChange={(e) => handleFiltroChange('riesgo', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
-                >
-                  <option value="todos">Todos los riesgos</option>
-                  <option value="bajo">Bajo</option>
-                  <option value="medio">Medio</option>
-                  <option value="alto">Alto</option>
-                </select>
-              </div>
-              
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-2">Fecha de inicio</label>
+                <label className="block text-xs font-medium text-gray-700 mb-2">Rango de fechas</label>
                 <div className="flex gap-2">
                   <div className="flex-1">
                     <input
                       type="date"
                       value={filtros.fechaDesde}
                       onChange={(e) => handleFiltroChange('fechaDesde', e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                      className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:border-[#08557f] focus:ring-1 focus:ring-[#08557f]"
                     />
                   </div>
                   <div className="flex-1">
@@ -487,7 +473,7 @@ const ListadoPrestamos = () => {
                       type="date"
                       value={filtros.fechaHasta}
                       onChange={(e) => handleFiltroChange('fechaHasta', e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                      className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:border-[#08557f] focus:ring-1 focus:ring-[#08557f]"
                     />
                   </div>
                 </div>
@@ -497,154 +483,266 @@ const ListadoPrestamos = () => {
         )}
       </div>
 
-      {/* Tabla de préstamos */}
-      <div className="px-6 py-4">
+      {/* Estadísticas elegantes */}
+      <div className="px-8 py-6">
+        <div className="grid grid-cols-2 md:grid-cols-6 gap-4">
+          <div className="p-4 rounded-xl border border-gray-200 bg-white">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-xs font-medium text-gray-500">TOTAL</span>
+              <FileText className="w-4 h-4 text-gray-400" />
+            </div>
+            <p className="text-2xl font-light text-gray-900">{estadisticas.total}</p>
+            <div className="mt-2 text-xs text-gray-500">préstamos</div>
+          </div>
+          
+          <div className="p-4 rounded-xl border border-gray-200 bg-white">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-xs font-medium text-[#08557f]">ACTIVOS</span>
+              <TrendingUp className="w-4 h-4 text-[#08557f]" />
+            </div>
+            <p className="text-2xl font-light text-gray-900">{estadisticas.activos}</p>
+            <div className="mt-2 text-xs text-gray-500">{((estadisticas.activos / estadisticas.total) * 100).toFixed(0)}% del total</div>
+          </div>
+          
+          <div className="p-4 rounded-xl border border-gray-200 bg-white">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-xs font-medium text-[#fb851b]">EN MORA</span>
+              <AlertCircle className="w-4 h-4 text-[#fb851b]" />
+            </div>
+            <p className="text-2xl font-light text-gray-900">{estadisticas.atrasados + estadisticas.morosos}</p>
+            <div className="mt-2 text-xs text-gray-500">requieren atención</div>
+          </div>
+          
+          <div className="p-4 rounded-xl border border-gray-200 bg-white">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-xs font-medium text-gray-500">MONTO TOTAL</span>
+              <DollarSign className="w-4 h-4 text-gray-400" />
+            </div>
+            <p className="text-2xl font-light text-gray-900">{formatCurrency(estadisticas.montoTotal)}</p>
+            <div className="mt-2 text-xs text-gray-500">en cartera</div>
+          </div>
+          
+          <div className="p-4 rounded-xl border border-gray-200 bg-white">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-xs font-medium text-gray-500">PENDIENTE</span>
+              <Clock className="w-4 h-4 text-gray-400" />
+            </div>
+            <p className="text-2xl font-light text-gray-900">{formatCurrency(estadisticas.montoPendiente)}</p>
+            <div className="mt-2 text-xs text-gray-500">por cobrar</div>
+          </div>
+          
+          <div className="p-4 rounded-xl border border-gray-200 bg-white">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-xs font-medium text-red-600">MORA</span>
+              <Shield className="w-4 h-4 text-red-600" />
+            </div>
+            <p className="text-2xl font-light text-gray-900">{formatCurrency(estadisticas.moraTotal)}</p>
+            <div className="mt-2 text-xs text-gray-500">acumulada</div>
+          </div>
+        </div>
+      </div>
+
+      {/* Listado de préstamos */}
+      <div className="px-8 pb-8">
         {cargando ? (
           <div className="flex justify-center items-center py-12">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#08557f]"></div>
           </div>
         ) : (
           <>
-            {/* Encabezados de tabla - Solo visible en desktop */}
-            <div className="hidden md:grid md:grid-cols-12 gap-4 px-4 py-3 border-b border-gray-200 text-xs font-medium text-gray-500 uppercase tracking-wider">
-              <div className="col-span-3">Préstamo / Cliente</div>
-              <div className="col-span-2">Producto</div>
-              <div className="col-span-2">Monto / Estado</div>
-              <div className="col-span-2">Progreso / Próximo Pago</div>
-              <div className="col-span-1">Riesgo</div>
-              <div className="col-span-2 text-right">Acciones</div>
-            </div>
+            {/* Vista de lista */}
+            {vista === 'lista' && (
+              <div className="rounded-xl border border-gray-200 overflow-hidden bg-white">
+                {/* Encabezados */}
+                <div className="grid grid-cols-12 gap-4 px-6 py-4 border-b border-gray-100 bg-gray-50/50">
+                  <div className="col-span-4 text-xs font-medium text-gray-500">PRÉSTAMO / CLIENTE</div>
+                  <div className="col-span-2 text-xs font-medium text-gray-500">DETALLES</div>
+                  <div className="col-span-2 text-xs font-medium text-gray-500">PROGRESO</div>
+                  <div className="col-span-2 text-xs font-medium text-gray-500">ESTADO</div>
+                  <div className="col-span-2 text-xs font-medium text-gray-500 text-right">ACCIÓN</div>
+                </div>
 
-            {/* Lista de préstamos */}
-            <div className="divide-y divide-gray-200">
-              {prestamosPaginados.map((prestamo) => (
-                <div 
-                  key={prestamo.id}
-                  className="py-4 px-4 hover:bg-gray-50 transition-colors"
-                >
-                  <div className="grid grid-cols-1 md:grid-cols-12 md:gap-4">
-                    {/* Columna 1: Préstamo y Cliente */}
-                    <div className="col-span-3 mb-4 md:mb-0">
-                      <div className="flex items-start gap-3">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-1">
-                            <div className="text-sm font-medium text-gray-900">{prestamo.id}</div>
-                            <div className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs border ${getEstadoColor(prestamo.estado)}`}>
+                {/* Lista de préstamos */}
+                <div className="divide-y divide-gray-100">
+                  {prestamosPaginados.map((prestamo) => (
+                    <div 
+                      key={prestamo.id}
+                      className="px-6 py-4 hover:bg-gray-50/50 transition-colors"
+                    >
+                      <div className="grid grid-cols-12 gap-4 items-center">
+                        {/* Préstamo y Cliente */}
+                        <div className="col-span-4">
+                          <div className="flex items-start gap-3">
+                            <div className="p-2 rounded-lg bg-[#08557f]/5">
+                              {prestamo.icono}
+                            </div>
+                            <div>
+                              <div className="flex items-center gap-2 mb-1">
+                                <div className="font-medium text-gray-900">{prestamo.id}</div>
+                                <div className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs ${getEstadoColor(prestamo.estado)}`}>
+                                  {getEstadoIcono(prestamo.estado)}
+                                  {prestamo.estado.toUpperCase()}
+                                </div>
+                              </div>
+                              <div className="text-sm text-gray-900 font-medium">{prestamo.cliente}</div>
+                              <div className="text-xs text-gray-500">{prestamo.producto}</div>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Detalles */}
+                        <div className="col-span-2">
+                          <div className="space-y-1">
+                            <div className="text-sm text-gray-900">{formatCurrency(prestamo.montoTotal)}</div>
+                            <div className="text-xs text-gray-500">
+                              {prestamo.cuotasTotales} cuotas • {prestamo.tasaInteres}%
+                            </div>
+                            <div className="text-xs text-gray-500">{prestamo.fechaInicio} - {prestamo.fechaVencimiento}</div>
+                          </div>
+                        </div>
+
+                        {/* Progreso */}
+                        <div className="col-span-2">
+                          <div className="space-y-2">
+                            <div>
+                              <div className="flex justify-between text-xs text-gray-600 mb-1">
+                                <span>{prestamo.cuotasPagadas}/{prestamo.cuotasTotales} cuotas</span>
+                                <span>{formatCurrency(prestamo.montoPagado)}</span>
+                              </div>
+                              <div className="w-full h-1.5 bg-gray-200 rounded-full overflow-hidden">
+                                <div 
+                                  className="h-full bg-[#08557f] rounded-full"
+                                  style={{ width: `${(prestamo.cuotasPagadas / prestamo.cuotasTotales) * 100}%` }}
+                                />
+                              </div>
+                            </div>
+                            <div className="text-xs text-gray-500">
+                              Próximo: {prestamo.proximoPago}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Estado */}
+                        <div className="col-span-2">
+                          <div className="space-y-2">
+                            <div className={`text-sm font-medium ${getRiesgoColor(prestamo.riesgo)}`}>
+                              RIESGO {prestamo.riesgo.toUpperCase()}
+                            </div>
+                            {prestamo.moraAcumulada && prestamo.moraAcumulada > 0 && (
+                              <div className="text-xs text-red-600">
+                                Mora: {formatCurrency(prestamo.moraAcumulada)}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Acción */}
+                        <div className="col-span-2 flex justify-end">
+                          <button
+                            onClick={() => irADetallePrestamo(prestamo.id)}
+                            className="px-4 py-2 bg-[#08557f] text-white rounded-lg hover:bg-[#07496d] transition-colors text-sm font-medium flex items-center gap-2"
+                          >
+                            <Eye className="w-4 h-4" />
+                            Ver
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Vista de grid */}
+            {vista === 'grid' && (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                {prestamosPaginados.map((prestamo) => (
+                  <div 
+                    key={prestamo.id}
+                    className="border border-gray-200 rounded-xl p-5 hover:border-[#08557f]/30 hover:shadow-sm transition-all bg-white"
+                  >
+                    <div className="space-y-4">
+                      {/* Header */}
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <div className="flex items-center gap-2 mb-2">
+                            <div className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs ${getEstadoColor(prestamo.estado)}`}>
                               {getEstadoIcono(prestamo.estado)}
                               {prestamo.estado.toUpperCase()}
                             </div>
+                            <div className={`text-xs font-medium ${getRiesgoColor(prestamo.riesgo)}`}>
+                              • {prestamo.riesgo.toUpperCase()}
+                            </div>
                           </div>
-                          <div className="flex items-center gap-2 text-sm text-gray-600">
-                            <User className="w-3 h-3" />
-                            {prestamo.cliente}
-                          </div>
-                          <div className="text-xs text-gray-500 mt-1">
-                            {prestamo.fechaInicio} - {prestamo.fechaVencimiento}
-                          </div>
+                          <h3 className="font-medium text-gray-900">{prestamo.id}</h3>
+                        </div>
+                        <div className="p-2 rounded-lg bg-[#08557f]/5">
+                          {prestamo.icono}
                         </div>
                       </div>
-                    </div>
 
-                    {/* Columna 2: Producto */}
-                    <div className="col-span-2 mb-4 md:mb-0">
-                      <div className="text-sm text-gray-900">{prestamo.producto}</div>
-                      <div className="text-xs text-gray-500 mt-1">
-                        {prestamo.cuotasTotales} cuotas • {prestamo.tasaInteres}%
+                      {/* Cliente y Producto */}
+                      <div>
+                        <div className="flex items-center gap-2 text-sm text-gray-900 mb-1">
+                          <User className="w-3 h-3" />
+                          {prestamo.cliente}
+                        </div>
+                        <p className="text-sm text-gray-600">{prestamo.producto}</p>
                       </div>
-                    </div>
 
-                    {/* Columna 3: Monto y Estado */}
-                    <div className="col-span-2 mb-4 md:mb-0">
-                      <div className="space-y-2">
+                      {/* Monto y Tasa */}
+                      <div className="grid grid-cols-2 gap-4">
                         <div>
-                          <div className="text-sm font-medium text-gray-900">
-                            {formatCurrency(prestamo.montoTotal)}
-                          </div>
-                          <div className="text-xs text-gray-500">
-                            Pagado: {formatCurrency(prestamo.montoPagado)}
-                          </div>
+                          <div className="text-xs text-gray-500">Monto total</div>
+                          <div className="font-medium text-gray-900">{formatCurrency(prestamo.montoTotal)}</div>
                         </div>
-                        {prestamo.diasMora && prestamo.diasMora > 0 && (
-                          <div className="flex items-center gap-2 text-xs text-red-600">
-                            <AlertCircle className="w-3 h-3" />
-                            {prestamo.diasMora} días de mora
-                          </div>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Columna 4: Progreso y Próximo Pago */}
-                    <div className="col-span-2 mb-4 md:mb-0">
-                      <div className="space-y-2">
                         <div>
-                          <div className="flex justify-between text-xs text-gray-600 mb-1">
-                            <span>Progreso</span>
-                            <span>{prestamo.cuotasPagadas}/{prestamo.cuotasTotales}</span>
-                          </div>
-                          <div className="w-full h-1 bg-gray-200 rounded-full overflow-hidden">
-                            <div 
-                              className="h-full bg-gray-900 rounded-full"
-                              style={{ width: `${(prestamo.cuotasPagadas / prestamo.cuotasTotales) * 100}%` }}
-                            />
-                          </div>
-                        </div>
-                        <div className="text-xs text-gray-600">
-                          Próximo: {prestamo.proximoPago}
+                          <div className="text-xs text-gray-500">Tasa</div>
+                          <div className="font-medium text-gray-900">{prestamo.tasaInteres}%</div>
                         </div>
                       </div>
-                    </div>
 
-                    {/* Columna 5: Riesgo */}
-                    <div className="col-span-1 mb-4 md:mb-0">
-                      <div className={`text-sm font-medium ${getRiesgoColor(prestamo.riesgo)}`}>
-                        {prestamo.riesgo.toUpperCase()}
+                      {/* Progreso */}
+                      <div>
+                        <div className="flex justify-between text-xs text-gray-600 mb-2">
+                          <span>Progreso ({prestamo.cuotasPagadas}/{prestamo.cuotasTotales})</span>
+                          <span>{((prestamo.cuotasPagadas / prestamo.cuotasTotales) * 100).toFixed(0)}%</span>
+                        </div>
+                        <div className="w-full h-1.5 bg-gray-200 rounded-full overflow-hidden">
+                          <div 
+                            className="h-full bg-[#08557f] rounded-full"
+                            style={{ width: `${(prestamo.cuotasPagadas / prestamo.cuotasTotales) * 100}%` }}
+                          />
+                        </div>
                       </div>
-                    </div>
 
-                    {/* Columna 6: Acciones */}
-                    <div className="col-span-2 flex justify-end">
-                      <div className="flex items-center gap-2">
+                      {/* Fechas */}
+                      <div className="grid grid-cols-2 gap-4 text-xs text-gray-500">
+                        <div>
+                          <div>Inicio</div>
+                          <div className="font-medium text-gray-900">{prestamo.fechaInicio}</div>
+                        </div>
+                        <div>
+                          <div>Próximo pago</div>
+                          <div className="font-medium text-gray-900">{prestamo.proximoPago}</div>
+                        </div>
+                      </div>
+
+                      {/* Acciones */}
+                      <div className="pt-4 border-t border-gray-100">
                         <button
                           onClick={() => irADetallePrestamo(prestamo.id)}
-                          className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
-                          title="Ver detalle"
+                          className="w-full px-4 py-2.5 bg-[#08557f] text-white rounded-lg hover:bg-[#07496d] transition-colors text-sm font-medium flex items-center justify-center gap-2"
                         >
                           <Eye className="w-4 h-4" />
-                        </button>
-                        <button className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors">
-                          <MoreVertical className="w-4 h-4" />
+                          Ver detalles
                         </button>
                       </div>
                     </div>
                   </div>
-
-                  {/* Vista móvil adicional */}
-                  <div className="md:hidden mt-4 pt-4 border-t border-gray-200">
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <div className="text-xs text-gray-500">Monto pendiente</div>
-                        <div className="text-sm font-medium text-gray-900">
-                          {formatCurrency(prestamo.montoPendiente)}
-                        </div>
-                      </div>
-                      <div>
-                        <div className="text-xs text-gray-500">Cuotas pendientes</div>
-                        <div className="text-sm font-medium text-gray-900">
-                          {prestamo.cuotasPendientes}
-                        </div>
-                      </div>
-                      {prestamo.moraAcumulada && prestamo.moraAcumulada > 0 && (
-                        <div className="col-span-2">
-                          <div className="text-xs text-red-600">
-                            Mora: {formatCurrency(prestamo.moraAcumulada)}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
 
             {/* Mensaje cuando no hay resultados */}
             {prestamosPaginados.length === 0 && (
@@ -661,7 +759,7 @@ const ListadoPrestamos = () => {
                 {(filtros.estado !== 'todos' || filtros.busqueda || filtros.fechaDesde) && (
                   <button
                     onClick={resetFiltros}
-                    className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium text-gray-700"
+                    className="px-4 py-2 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium text-gray-700"
                   >
                     Limpiar filtros
                   </button>
@@ -669,11 +767,11 @@ const ListadoPrestamos = () => {
               </div>
             )}
 
-            {/* Paginación */}
+            {/* Paginación elegante */}
             {prestamosFiltrados.length > prestamosPorPagina && (
               <div className="mt-8 flex flex-col sm:flex-row sm:items-center sm:justify-between">
                 <div className="text-sm text-gray-500 mb-4 sm:mb-0">
-                  Mostrando {indicePrimero + 1} - {Math.min(indiceUltimo, prestamosFiltrados.length)} de {prestamosFiltrados.length} préstamos
+                  Mostrando <span className="font-medium text-gray-900">{indicePrimero + 1}-{Math.min(indiceUltimo, prestamosFiltrados.length)}</span> de <span className="font-medium text-gray-900">{prestamosFiltrados.length}</span> préstamos
                 </div>
                 
                 <div className="flex items-center gap-2">
@@ -683,7 +781,7 @@ const ListadoPrestamos = () => {
                     className={`p-2 rounded-lg border ${
                       paginaActual === 1
                         ? 'border-gray-200 text-gray-400'
-                        : 'border-gray-300 text-gray-700 hover:bg-gray-50'
+                        : 'border-gray-200 text-gray-700 hover:bg-gray-50 hover:border-gray-300'
                     }`}
                   >
                     <ChevronLeft className="w-4 h-4" />
@@ -705,10 +803,10 @@ const ListadoPrestamos = () => {
                       <button
                         key={pagina}
                         onClick={() => cambiarPagina(pagina)}
-                        className={`px-3 py-1 rounded-lg text-sm ${
+                        className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
                           pagina === paginaActual
-                            ? 'bg-gray-900 text-white'
-                            : 'border border-gray-300 text-gray-700 hover:bg-gray-50'
+                            ? 'bg-[#08557f] text-white'
+                            : 'border border-gray-200 text-gray-700 hover:bg-gray-50'
                         }`}
                       >
                         {pagina}
@@ -722,7 +820,7 @@ const ListadoPrestamos = () => {
                     className={`p-2 rounded-lg border ${
                       paginaActual === totalPaginas
                         ? 'border-gray-200 text-gray-400'
-                        : 'border-gray-300 text-gray-700 hover:bg-gray-50'
+                        : 'border-gray-200 text-gray-700 hover:bg-gray-50 hover:border-gray-300'
                     }`}
                   >
                     <ChevronRightIcon className="w-4 h-4" />
@@ -734,26 +832,19 @@ const ListadoPrestamos = () => {
         )}
       </div>
 
-      {/* Footer con acciones rápidas */}
-      <div className="border-t border-gray-200 px-6 py-4">
-        <div className="flex flex-col md:flex-row md:items-center justify-between">
-          <div className="text-sm text-gray-500 mb-4 md:mb-0">
-            Sistema de Gestión Crediticia • Última actualización: {new Date().toLocaleDateString()}
-          </div>
-          <div className="flex items-center gap-3">
-            <button className="px-3 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium text-gray-700 flex items-center gap-2">
-              <Download className="w-4 h-4" />
-              Exportar
-            </button>
-            <button className="px-3 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium text-gray-700 flex items-center gap-2">
-              <BarChart className="w-4 h-4" />
-              Reporte
-            </button>
-          </div>
+      {/* Footer minimalista */}
+      <div className="border-t border-gray-100 px-8 py-4">
+        <div className="text-xs text-gray-500 text-center">
+          Sistema de Gestión Crediticia • {new Date().toLocaleDateString('es-ES', { 
+            weekday: 'long', 
+            year: 'numeric', 
+            month: 'long', 
+            day: 'numeric' 
+          })}
         </div>
       </div>
     </div>
   );
 };
 
-export default ListadoPrestamos;
+export default ListadoPrestamosElegante;
