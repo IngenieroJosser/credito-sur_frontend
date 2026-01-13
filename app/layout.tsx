@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import { Sora } from "next/font/google";
 import "./globals.css";
 
-const geistSans = Inter ({
+const geistSans = Sora ({
   variable: "--font-setting",
   subsets: ["latin"],
 });
