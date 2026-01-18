@@ -377,6 +377,17 @@ const CreacionPrestamoElegante = () => {
     }
   };
 
+  // MODIFICACIÓN PRINCIPAL: Función para manejar el cambio de monto con validación
+  const handleMontoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = parseFloat(e.target.value) || 0;
+    const clienteLimite = clienteSeleccionado?.limiteCredito || 50000;
+    const maxPermitido = Math.min(50000, clienteLimite); // Límite máximo entre el general y el del cliente
+    
+    if (value >= 100 && value <= maxPermitido) {
+      setForm(prev => ({ ...prev, montoTotal: value }));
+    }
+  };
+
   return (
     <div className="min-h-screen bg-white p-4 md:p-6 lg:p-8">
       {/* Header Ultra Minimalista */}
@@ -625,29 +636,99 @@ const CreacionPrestamoElegante = () => {
                             <label className="text-sm font-medium text-gray-700">
                               Monto Solicitado
                             </label>
-                            <div className="relative">
-                              <input
-                                type="range"
-                                name="montoTotal"
-                                value={form.montoTotal}
-                                onChange={handleInputChange}
-                                min="100"
-                                max="50000"
-                                step="100"
-                                className="w-full h-1 bg-gray-200 rounded-lg appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-[#08557f]"
-                              />
-                              <div className="flex justify-between mt-8">
-                                <div className="text-center">
-                                  <div className="text-xs text-gray-500 mb-1">Mínimo</div>
-                                  <div className="font-medium">$100</div>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                              <div className="space-y-4">
+                                <div className="relative">
+                                  <input
+                                    type="range"
+                                    name="montoTotal"
+                                    value={form.montoTotal}
+                                    onChange={handleInputChange}
+                                    min="100"
+                                    max="50000"
+                                    step="100"
+                                    className="w-full h-1 bg-gray-200 rounded-lg appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-[#08557f]"
+                                  />
+                                  <div className="flex justify-between mt-8">
+                                    <div className="text-center">
+                                      <div className="text-xs text-gray-500 mb-1">Mínimo</div>
+                                      <div className="font-medium">$100</div>
+                                    </div>
+                                    <div className="text-center">
+                                      <div className="text-xs text-gray-500 mb-1">Actual</div>
+                                      <div className="text-xl font-medium text-[#08557f]">
+                                        {formatCurrency(form.montoTotal)}
+                                      </div>
+                                    </div>
+                                    <div className="text-center">
+                                      <div className="text-xs text-gray-500 mb-1">Máximo</div>
+                                      <div className="font-medium">$50,000</div>
+                                    </div>
+                                  </div>
                                 </div>
-                                <div className="text-center">
-                                  <div className="text-3xl font-light text-[#08557f]">{formatCurrency(form.montoTotal)}</div>
-                                  <div className="text-xs text-gray-500 mt-2">Monto solicitado</div>
+                              </div>
+
+                              {/* CAMPO DE ENTRADA PARA EL MONTO MANUAL */}
+                              <div className="space-y-4">
+                                <div>
+                                  <label className="text-sm font-medium text-gray-700 block mb-2">
+                                    Ingresar Monto Manualmente
+                                  </label>
+                                  <div className="relative">
+                                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                      <span className="text-gray-500 sm:text-sm">$</span>
+                                    </div>
+                                    <input
+                                      type="number"
+                                      value={form.montoTotal}
+                                      onChange={handleMontoChange}
+                                      min="100"
+                                      max="50000"
+                                      step="100"
+                                      className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:border-[#08557f] focus:ring-1 focus:ring-[#08557f]/10 transition-all text-lg"
+                                      placeholder="Ej: 15000"
+                                    />
+                                    <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                                      <span className="text-gray-500 text-sm">COP</span>
+                                    </div>
+                                  </div>
+                                  <div className="mt-2 text-xs text-gray-500">
+                                    <p>Rango permitido: $100 - {formatCurrency(Math.min(50000, clienteSeleccionado?.limiteCredito || 50000))}</p>
+                                    {clienteSeleccionado && (
+                                      <p className="mt-1">
+                                        Límite del cliente: {formatCurrency(clienteSeleccionado.limiteCredito)}
+                                      </p>
+                                    )}
+                                  </div>
                                 </div>
-                                <div className="text-center">
-                                  <div className="text-xs text-gray-500 mb-1">Máximo</div>
-                                  <div className="font-medium">$50,000</div>
+
+                                {/* Botones de montos rápidos */}
+                                <div>
+                                  <label className="text-sm font-medium text-gray-700 block mb-2">
+                                    Montos Sugeridos
+                                  </label>
+                                  <div className="grid grid-cols-3 gap-2">
+                                    {[5000, 10000, 15000, 20000, 25000, 30000].map((monto) => (
+                                      <button
+                                        key={monto}
+                                        type="button"
+                                        onClick={() => {
+                                          const maxPermitido = Math.min(50000, clienteSeleccionado?.limiteCredito || 50000);
+                                          if (monto <= maxPermitido) {
+                                            setForm(prev => ({ ...prev, montoTotal: monto }));
+                                          }
+                                        }}
+                                        className={`py-2 px-3 text-sm rounded-lg transition-all duration-300 ${
+                                          form.montoTotal === monto
+                                            ? 'bg-[#08557f] text-white shadow-sm'
+                                            : 'border border-gray-300 text-gray-700 hover:border-gray-400 hover:bg-gray-50'
+                                        } ${monto > (clienteSeleccionado?.limiteCredito || 50000) ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                        disabled={monto > (clienteSeleccionado?.limiteCredito || 50000)}
+                                      >
+                                        {formatCurrency(monto)}
+                                      </button>
+                                    ))}
+                                  </div>
                                 </div>
                               </div>
                             </div>
