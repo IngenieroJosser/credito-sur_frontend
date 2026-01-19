@@ -1,7 +1,7 @@
 'use client'
 
-import { useState, FormEvent } from 'react';
-import { Eye, EyeOff, Lock, User, ChevronRight } from 'lucide-react';
+import { useState, FormEvent, useEffect } from 'react';
+import { Eye, EyeOff, Lock, User, ChevronRight, Check } from 'lucide-react';
 import { iniciarSesion } from '@/services/autenticacion-service';
 import { LoginData } from '@/lib/types/autenticacion-type';
 import { useRouter } from 'next/navigation';
@@ -10,6 +10,11 @@ import { RolUsuario } from '@/lib/types/autenticacion-type';
 interface LoginFormData {
   nombres: string;
   password: string;
+}
+
+interface WelcomeState {
+  show: boolean;
+  name: string;
 }
 
 const LoginPage = () => {
@@ -21,10 +26,21 @@ const LoginPage = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [focusedField, setFocusedField] = useState<string | null>(null);
+  const [welcome, setWelcome] = useState<WelcomeState>({ show: false, name: '' });
   const router = useRouter();
 
   // Obtener año actual dinámico
   const currentYear = new Date().getFullYear();
+
+  // Efecto para limpiar el mensaje de bienvenida después de 3 segundos
+  useEffect(() => {
+    if (welcome.show) {
+      const timer = setTimeout(() => {
+        setWelcome({ show: false, name: '' });
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [welcome.show]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -39,7 +55,6 @@ const LoginPage = () => {
     COBRADOR: '/cobranzas',
     CONTADOR: '/contabilidad',
   };
-  
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -59,18 +74,33 @@ const LoginPage = () => {
       };
   
       const response = await iniciarSesion(payload);
-      const rol = response.usuario.rol as RolUsuario;
-  
-      const redirectPath =
-        ROLE_REDIRECT_MAP[rol] ?? '/';
-  
-      router.replace(redirectPath);
+      const userName = response.usuario.nombres || 'Usuario';
+      
+      // Mostrar mensaje de bienvenida
+      setWelcome({ show: true, name: userName });
+      
+      // Esperar 1.5 segundos para mostrar el mensaje y luego redirigir
+      setTimeout(() => {
+        const rol = response.usuario.rol as RolUsuario;
+        const redirectPath = ROLE_REDIRECT_MAP[rol] ?? '/';
+        router.replace(redirectPath);
+      }, 1500);
+      
     } catch (err) {
       setError('Credenciales inválidas');
     } finally {
       setIsLoading(false);
     }
-  };  
+  };
+
+  // Opciones de acceso rápido para demostración
+  const demoCredentials = [
+    { role: 'Administrador', user: 'admin', pass: 'demo123', initial: 'A' },
+    { role: 'Coordinador', user: 'coord', pass: 'demo123', initial: 'C' },
+    { role: 'Supervisor', user: 'super', pass: 'demo123', initial: 'S' },
+    { role: 'Cobrador', user: 'cobrador', pass: 'demo123', initial: 'B' },
+    { role: 'Contable', user: 'contable', pass: 'demo123', initial: 'T' },
+  ];
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-white via-gray-50 to-gray-100 flex items-center justify-center p-4 relative">
@@ -84,6 +114,37 @@ const LoginPage = () => {
         <div className="absolute bottom-0 left-0 w-full h-px bg-gradient-to-r from-transparent via-[#08557f]/10 to-transparent"></div>
       </div>
 
+      {/* Mensaje de Bienvenida (Overlay) */}
+      {welcome.show && (
+        <div className="fixed inset-0 bg-black/10 backdrop-blur-sm flex items-center justify-center z-50 animate-in fade-in duration-300">
+          <div className="bg-white rounded-2xl p-8 max-w-md w-full mx-4 shadow-2xl transform transition-all duration-500 scale-100 animate-in zoom-in">
+            <div className="text-center">
+              <div className="w-20 h-20 mx-auto mb-6 rounded-full bg-gradient-to-br from-emerald-50 to-emerald-100 flex items-center justify-center">
+                <Check className="w-10 h-10 text-emerald-600" />
+              </div>
+              
+              <h2 className="text-2xl font-light text-gray-900 mb-3">
+                ¡Bienvenid@,{' '}
+                <span className="font-medium bg-gradient-to-r from-[#08557f] to-[#063a58] bg-clip-text text-transparent">
+                  {welcome.name}
+                </span>
+                !
+              </h2>
+              
+              <p className="text-gray-600 mb-6">
+                Has iniciado sesión exitosamente. Redirigiendo a tu panel de control...
+              </p>
+              
+              <div className="flex items-center justify-center space-x-2">
+                <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></div>
+                <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse delay-150"></div>
+                <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse delay-300"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Contenedor principal */}
       <div className="w-full max-w-sm relative z-10">
         {/* Encabezado ultra minimalista */}
@@ -91,13 +152,11 @@ const LoginPage = () => {
           <div className="flex items-center justify-center mb-6">
             <div className="relative group">
               <div className="w-14 h-14 bg-white border border-gray-200 rounded-xl flex items-center justify-center shadow-sm group-hover:shadow-md transition-all duration-300">
-                {/* Aquí va el favicon - ajusta según tu archivo */}
                 <div className="w-8 h-8 flex items-center justify-center">
                   <div className="w-6 h-6 bg-gradient-to-br from-[#08557f] to-[#063a58] rounded"></div>
                   <div className="absolute w-2 h-2 bg-[#fb851b] rounded-full -translate-y-1 translate-x-1"></div>
                 </div>
               </div>
-              {/* Acento naranja sutil */}
               <div className="absolute -top-1 -right-1 w-3 h-3 bg-gradient-to-br from-[#fb851b] to-[#e07415] rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
             </div>
           </div>
@@ -226,26 +285,38 @@ const LoginPage = () => {
         {/* Accesos rápidos ultra sutiles */}
         <div className="mb-12">
           <div className="flex items-center justify-center space-x-1">
-            {['A', 'C', 'S', 'B', 'T'].map((role, index) => (
+            {demoCredentials.map((cred, index) => (
               <button
                 key={index}
-                onClick={() => setFormData({ 
-                  nombres: ['admin', 'coord', 'super', 'cobrador', 'contable'][index], 
-                  password: 'demo123' 
-                })}
+                onClick={() => {
+                  setFormData({ 
+                    nombres: cred.user, 
+                    password: cred.pass 
+                  });
+                  // Feedback visual
+                  const button = document.getElementById(`demo-btn-${index}`);
+                  button?.classList.add('animate-pulse');
+                  setTimeout(() => {
+                    button?.classList.remove('animate-pulse');
+                  }, 300);
+                }}
+                id={`demo-btn-${index}`}
                 className="w-8 h-8 flex items-center justify-center text-xs text-gray-400 hover:text-gray-600 transition-colors duration-200 relative group"
               >
                 {/* Indicador de hover */}
                 <div className="absolute inset-0 border border-gray-200 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-                <span className="relative">{role}</span>
+                <span className="relative">{cred.initial}</span>
                 
                 {/* Tooltip sutil */}
-                <div className="absolute -bottom-8 left-1/2 -translate-x-1/2 px-2 py-1 bg-gray-800 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity duration-300 whitespace-nowrap pointer-events-none">
-                  {['Administrador', 'Coordinador', 'Supervisor', 'Cobrador', 'Contable'][index]}
+                <div className="absolute -bottom-8 left-1/2 -translate-x-1/2 px-2 py-1 bg-gray-800 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity duration-300 whitespace-nowrap pointer-events-none z-20">
+                  {cred.role}
                 </div>
               </button>
             ))}
           </div>
+          <p className="text-center text-xs text-gray-400 mt-4">
+            Acceso rápido para demostración
+          </p>
         </div>
 
         {/* Información de seguridad y versión */}
