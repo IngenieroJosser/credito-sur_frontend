@@ -11,14 +11,21 @@ import {
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
+// Enums alineados con Prisma
+type FrecuenciaPago = 'DIARIO' | 'SEMANAL' | 'QUINCENAL' | 'MENSUAL';
+type NivelRiesgo = 'VERDE' | 'AMARILLO' | 'ROJO' | 'LISTA_NEGRA';
+
+// Interfaces alineadas con Prisma (Simuladas para Frontend)
 interface Cliente {
   id: string;
   nombre: string;
   apellido: string;
-  identificacion: string;
+  identificacion: string; // DNI/Cédula
   telefono: string;
   email: string;
-  scoreCrediticio: number;
+  nivelRiesgo: NivelRiesgo;
+  // Campos adicionales para UI
+  scoreCrediticio: number; // 0-100 (derivado o almacenado)
   limiteCredito: number;
   saldoDisponible: number;
   ingresosMensuales: number;
@@ -29,16 +36,18 @@ interface Cliente {
 
 interface FormularioPrestamo {
   clienteId: string;
-  montoTotal: number;
-  proposito: string;
-  tasaInteres: number;
-  plazo: number;
-  frecuenciaPago: 'semanal' | 'quincenal' | 'mensual';
-  fechaInicio: string;
-  tasaMora: number;
-  cuotaInicial: number;
-  gastosAdministrativos: number;
-  comision: number;
+  montoTotal: number; // monto
+  proposito: string; // tipoPrestamo (mapeado o libre)
+  tasaInteres: number; // tasaInteres
+  plazoMeses: number; // plazoMeses
+  frecuenciaPago: FrecuenciaPago; // frecuenciaPago
+  fechaInicio: string; // fechaInicio
+  tasaInteresMora: number; // tasaInteresMora
+  
+  // Campos adicionales de negocio (no necesariamente en Prestamo model directo, o calculados)
+  cuotaInicial: number; // Puede ser un pago inicial
+  gastosAdministrativos: number; // Puede ser un Gasto asociado
+  comision: number; // %
   observaciones: string;
 }
 
@@ -50,6 +59,16 @@ interface CuotaCalculada {
   total: number;
   saldo: number;
 }
+
+// Utilidad para formateo de moneda VES
+const formatCurrency = (amount: number) => {
+  return new Intl.NumberFormat('es-VE', {
+    style: 'currency',
+    currency: 'VES',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  }).format(amount);
+};
 
 const calcularCuotasYResumen = (form: FormularioPrestamo) => {
   if (!form.clienteId) {
@@ -68,52 +87,82 @@ const calcularCuotasYResumen = (form: FormularioPrestamo) => {
     };
   }
 
+  // Lógica de Negocio: Monto a Financiar
+  // Monto Solicitado - Cuota Inicial + Comisión (si se financia)
+  // Aquí asumimos: (Monto - CuotaInicial) + (Monto * Comision%)
   const montoNeto = form.montoTotal - form.cuotaInicial;
   const comisionTotal = (form.montoTotal * form.comision) / 100;
+  
+  // Decisión de negocio: ¿La comisión se descuenta del desembolso o se suma a la deuda?
+  // Asumiremos que se suma a la deuda para financiarla.
   const montoFinanciado = montoNeto + comisionTotal;
+  
   const tasaMensual = form.tasaInteres / 100;
 
   const cuotasCalculadas: CuotaCalculada[] = [];
   let saldo = montoFinanciado;
 
+  // Factores para convertir tasa mensual a tasa del periodo
+  // Y calcular número de cuotas basado en meses
   const factorFrecuencia = {
-    semanal: 4.33,
-    quincenal: 2,
-    mensual: 1
+    DIARIO: 30,
+    SEMANAL: 4.33,
+    QUINCENAL: 2,
+    MENSUAL: 1
   };
 
-  const cuotasTotales = form.plazo * factorFrecuencia[form.frecuenciaPago];
+  // Cuotas totales = Meses * Frecuencia por mes
+  const cuotasTotales = Math.ceil(form.plazoMeses * factorFrecuencia[form.frecuenciaPago]);
+  
+  // Tasa del periodo = Tasa Mensual / Frecuencia por mes
   const tasaPeriodo = tasaMensual / factorFrecuencia[form.frecuenciaPago];
 
-  const cuotaFija =
-    (montoFinanciado * tasaPeriodo) /
-    (1 - Math.pow(1 + tasaPeriodo, -cuotasTotales));
+  // Fórmula de Amortización Francesa (Cuota Fija)
+  // P = L * [c * (1 + c)^n] / [(1 + c)^n - 1]
+  // P: Cuota, L: Monto, c: Tasa Periodo, n: Cuotas Totales
+  let cuotaFija = 0;
+  if (tasaPeriodo > 0) {
+    cuotaFija = (montoFinanciado * tasaPeriodo) / (1 - Math.pow(1 + tasaPeriodo, -cuotasTotales));
+  } else {
+    cuotaFija = montoFinanciado / cuotasTotales;
+  }
 
   const fechaPago = new Date(form.fechaInicio);
 
   for (let i = 1; i <= cuotasTotales; i++) {
     const interes = saldo * tasaPeriodo;
     const capital = cuotaFija - interes;
-    saldo -= capital;
+    
+    // Ajuste final para no dejar saldo negativo infinitesimal
+    let capitalFinal = capital;
+    if (i === cuotasTotales) {
+        capitalFinal = saldo;
+        // Recalcular cuota final si es necesario (o ajustar en la última)
+    }
 
-    if (form.frecuenciaPago === 'semanal') {
+    saldo -= capitalFinal;
+
+    // Incrementar fecha según frecuencia
+    if (form.frecuenciaPago === 'DIARIO') {
+        fechaPago.setDate(fechaPago.getDate() + 1);
+    } else if (form.frecuenciaPago === 'SEMANAL') {
       fechaPago.setDate(fechaPago.getDate() + 7);
-    } else if (form.frecuenciaPago === 'quincenal') {
+    } else if (form.frecuenciaPago === 'QUINCENAL') {
       fechaPago.setDate(fechaPago.getDate() + 15);
-    } else {
+    } else { // MENSUAL
       fechaPago.setMonth(fechaPago.getMonth() + 1);
     }
 
     cuotasCalculadas.push({
       numero: i,
-      fecha: fechaPago.toLocaleDateString('es-ES', {
+      fecha: fechaPago.toLocaleDateString('es-VE', {
         day: '2-digit',
         month: 'short',
         year: 'numeric'
       }),
-      capital: Number(capital.toFixed(2)),
+      capital: Number(capitalFinal.toFixed(2)),
       interes: Number(interes.toFixed(2)),
-      total: Number(cuotaFija.toFixed(2)),
+      total: Number((capitalFinal + interes).toFixed(2)),
       saldo: Number(Math.max(0, saldo).toFixed(2))
     });
   }
@@ -123,11 +172,15 @@ const calcularCuotasYResumen = (form: FormularioPrestamo) => {
     0
   );
   const totalPagar = montoFinanciado + totalInteres;
+  
+  // TEA (Tasa Efectiva Anual) = (1 + i_mensual)^12 - 1
   const tea = Math.pow(1 + tasaMensual, 12) - 1;
-  const tae = Math.pow(1 + tasaPeriodo, cuotasTotales) - 1;
+  
+  // TAE del crédito específico (Tasa Anual Equivalente aprox)
+  const tae = Math.pow(1 + tasaPeriodo, cuotasTotales) - 1; // Esto es tasa efectiva del periodo total, no TAE estandar, pero sirve de ref.
 
   return {
-    cuotas: cuotasCalculadas.slice(0, 6),
+    cuotas: cuotasCalculadas.slice(0, 6), // Preview primeras 6
     resumenPrestamo: {
       totalFinanciado: montoFinanciado,
       totalInteres: Number(totalInteres.toFixed(2)),
@@ -148,12 +201,7 @@ const CreacionPrestamoElegante = () => {
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [mostrarNuevoCliente, setMostrarNuevoCliente] = useState(false);
   const [animating, setAnimating] = useState(false);
-  const [formExpanded, setFormExpanded] = useState({
-    basic: true,
-    terms: false,
-    details: false
-  });
-
+  
   // Estados para nuevo cliente
   const [nuevoCliente, setNuevoCliente] = useState({
     nombre: '',
@@ -166,51 +214,54 @@ const CreacionPrestamoElegante = () => {
     direccion: ''
   });
 
-  // Clientes iniciales
+  // Clientes simulados (Reemplazar con fetch real)
   const [clientes, setClientes] = useState<Cliente[]>([
     {
       id: 'CL-001',
       nombre: 'Carlos',
       apellido: 'Rodríguez',
-      identificacion: '12.345.678',
-      telefono: '+1 234 567 8900',
+      identificacion: 'V-12.345.678',
+      telefono: '0414-1234567',
       email: 'carlos@email.com',
+      nivelRiesgo: 'VERDE',
       scoreCrediticio: 78,
       limiteCredito: 15000,
       saldoDisponible: 5200,
       ingresosMensuales: 3500,
       antiguedadLaboral: 24,
-      direccion: 'Av. Principal 123',
+      direccion: 'Av. Principal 123, Maracaibo',
       createdAt: '2022-03-15'
     },
     {
       id: 'CL-002',
       nombre: 'Ana',
       apellido: 'Gómez',
-      identificacion: '23.456.789',
-      telefono: '+1 345 678 9012',
+      identificacion: 'V-23.456.789',
+      telefono: '0424-9876543',
       email: 'ana@email.com',
+      nivelRiesgo: 'VERDE',
       scoreCrediticio: 92,
       limiteCredito: 20000,
       saldoDisponible: 8500,
       ingresosMensuales: 4200,
       antiguedadLaboral: 36,
-      direccion: 'Calle Secundaria 456',
+      direccion: 'Calle Secundaria 456, Valencia',
       createdAt: '2021-11-22'
     },
     {
       id: 'CL-003',
       nombre: 'Roberto',
       apellido: 'Sánchez',
-      identificacion: '34.567.890',
-      telefono: '+1 456 789 0123',
+      identificacion: 'V-34.567.890',
+      telefono: '0412-5556666',
       email: 'roberto@email.com',
+      nivelRiesgo: 'AMARILLO',
       scoreCrediticio: 65,
       limiteCredito: 10000,
       saldoDisponible: 3200,
       ingresosMensuales: 2800,
       antiguedadLaboral: 18,
-      direccion: 'Boulevard 789',
+      direccion: 'Boulevard 789, Caracas',
       createdAt: '2023-01-10'
     }
   ]);
@@ -219,15 +270,15 @@ const CreacionPrestamoElegante = () => {
   const [form, setForm] = useState<FormularioPrestamo>({
     clienteId: '',
     montoTotal: 5000,
-    proposito: 'Capital de trabajo',
-    tasaInteres: 1.5,
-    plazo: 12,
-    frecuenciaPago: 'mensual',
+    proposito: 'PERSONAL',
+    tasaInteres: 5.0, // Tasa mensual ejemplo
+    plazoMeses: 6,
+    frecuenciaPago: 'QUINCENAL',
     fechaInicio: new Date().toISOString().split('T')[0],
-    tasaMora: 5.0,
-    cuotaInicial: 500,
-    gastosAdministrativos: 50,
-    comision: 2.5,
+    tasaInteresMora: 2.0,
+    cuotaInicial: 0,
+    gastosAdministrativos: 10,
+    comision: 1.0,
     observaciones: ''
   });
 
@@ -246,7 +297,7 @@ const CreacionPrestamoElegante = () => {
         ? parseFloat(value) || 0
         : name === 'montoTotal' || name === 'cuotaInicial' || name === 'ingresosMensuales'
         ? parseFloat(value) || 0
-        : name === 'plazo' || name === 'antiguedadLaboral'
+        : name === 'plazoMeses' || name === 'antiguedadLaboral'
         ? parseInt(value) || 0
         : value
     }));
@@ -273,6 +324,7 @@ const CreacionPrestamoElegante = () => {
       identificacion: nuevoCliente.identificacion,
       telefono: nuevoCliente.telefono,
       email: nuevoCliente.email,
+      nivelRiesgo: score >= 70 ? 'VERDE' : score >= 50 ? 'AMARILLO' : 'ROJO',
       scoreCrediticio: score,
       limiteCredito: limite,
       saldoDisponible: limite,
@@ -299,8 +351,8 @@ const CreacionPrestamoElegante = () => {
 
   const calcularScore = (ingresos: number, antiguedad: number): number => {
     let score = 50;
-    if (ingresos > 3000) score += 20;
-    if (ingresos > 2000) score += 10;
+    if (ingresos > 300) score += 20; // Ajustado a realidad VES/USD
+    if (ingresos > 150) score += 10;
     if (antiguedad > 24) score += 20;
     if (antiguedad > 12) score += 10;
     return Math.min(score, 100);
@@ -332,62 +384,13 @@ const CreacionPrestamoElegante = () => {
     }
   };
 
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('es-ES', {
-      style: 'currency',
-      currency: 'COP',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0
-    }).format(amount);
-  };
-
-  const formatCurrencyDecimal = (amount: number) => {
-    return new Intl.NumberFormat('es-ES', {
-      style: 'currency',
-      currency: 'COP',
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2
-    }).format(amount);
-  };
-
-  const getScoreColor = (score: number) => {
-    if (score >= 80) return 'text-primary';
-    if (score >= 70) return 'text-secondary';
-    return 'text-red-500';
-  };
-
-  const getScoreBgColor = (score: number) => {
-    if (score >= 80) return 'bg-primary';
-    if (score >= 70) return 'bg-secondary';
-    return 'bg-red-500';
-  };
-
   const getAvatarColor = (id: string) => {
     const colors = [
       'bg-gradient-to-br from-primary/5 to-primary/10',
       'bg-gradient-to-br from-secondary/5 to-secondary/10',
       'bg-gradient-to-br from-gray-100 to-gray-200'
     ];
-    return colors[parseInt(id.split('-')[1]) % 3];
-  };
-
-  const toggleFormSection = (section: keyof typeof formExpanded) => {
-    setFormExpanded(prev => ({
-      ...prev,
-      [section]: !prev[section]
-    }));
-  };
-
-  const getPurposeIcon = (purpose: string) => {
-    switch (purpose) {
-      case 'Capital de trabajo': return '';
-      case 'Inversión': return '';
-      case 'Consolidación de deudas': return '';
-      case 'Emergencia': return '';
-      case 'Educación': return '';
-      case 'Salud': return '';
-      default: return '';
-    }
+    return colors[parseInt(id.split('-')[1] || '0') % 3];
   };
 
   // Función para manejar el cambio de monto SIN LÍMITES
@@ -519,7 +522,7 @@ const CreacionPrestamoElegante = () => {
                                 onChange={handleNuevoClienteChange}
                                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:border-primary focus:ring-1 focus:ring-primary/10 transition-all"
                                 placeholder="Ingrese dirección completa"
-                              />
+                                />
                             </div>
                           </div>
 
@@ -566,41 +569,31 @@ const CreacionPrestamoElegante = () => {
                               <h3 className="font-medium text-gray-900 group-hover:text-primary transition-colors">
                                 {cliente.nombre} {cliente.apellido}
                               </h3>
-                              <p className="text-sm text-gray-500 mt-1">Identificación: {cliente.identificacion}</p>
+                              <p className="text-sm text-gray-500">{cliente.identificacion}</p>
                             </div>
                           </div>
-                          
-                          {form.clienteId === cliente.id && (
-                            <div className="w-6 h-6 rounded-full bg-[#08557f] flex items-center justify-center">
-                              <CheckCircle className="w-3 h-3 text-white" />
-                            </div>
-                          )}
+                          <div className={`w-5 h-5 rounded-full border flex items-center justify-center transition-all ${
+                            form.clienteId === cliente.id
+                              ? 'border-primary bg-primary text-white'
+                              : 'border-gray-300 group-hover:border-gray-400'
+                          }`}>
+                            {form.clienteId === cliente.id && <CheckCircle className="w-3.5 h-3.5" />}
+                          </div>
                         </div>
 
-                        <div className="space-y-4">
+                        <div className="grid grid-cols-2 gap-4 pt-4 border-t border-gray-100">
                           <div>
-                            <div className="flex items-center justify-between mb-2">
-                              <span className="text-xs font-medium text-gray-500">Score Crediticio</span>
-                              <span className={`text-sm font-medium ${getScoreColor(cliente.scoreCrediticio)}`}>
-                                {cliente.scoreCrediticio}/100
-                              </span>
-                            </div>
-                            <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                              <div 
-                                className={`h-full rounded-full ${getScoreBgColor(cliente.scoreCrediticio)}`}
-                                style={{ width: `${cliente.scoreCrediticio}%` }}
-                              ></div>
-                            </div>
+                            <p className="text-xs text-gray-500 mb-1">Disponible</p>
+                            <p className="font-medium text-gray-900">{formatCurrency(cliente.saldoDisponible)}</p>
                           </div>
-
-                          <div className="grid grid-cols-2 gap-3">
-                            <div className="p-3 rounded-lg bg-white border border-gray-100">
-                              <p className="text-xs text-gray-500 mb-1">Límite</p>
-                              <p className="font-medium text-gray-900">{formatCurrency(cliente.limiteCredito)}</p>
-                            </div>
-                            <div className="p-3 rounded-lg bg-white border border-gray-100">
-                              <p className="text-xs text-gray-500 mb-1">Ingresos</p>
-                              <p className="font-medium text-gray-900">{formatCurrency(cliente.ingresosMensuales)}</p>
+                          <div className="text-right">
+                            <p className="text-xs text-gray-500 mb-1">Score</p>
+                            <div className="flex items-center justify-end gap-1">
+                              <Shield className={`w-3 h-3 ${
+                                cliente.scoreCrediticio >= 80 ? 'text-primary' : 
+                                cliente.scoreCrediticio >= 60 ? 'text-secondary' : 'text-red-500'
+                              }`} />
+                              <span className="font-medium text-gray-900">{cliente.scoreCrediticio}</span>
                             </div>
                           </div>
                         </div>
@@ -612,383 +605,137 @@ const CreacionPrestamoElegante = () => {
 
               {/* Paso 2: Configuración del Préstamo */}
               {step === 2 && (
-                <div className="space-y-8">
-                  <div className="mb-8">
-                    <h2 className="text-xl font-light text-gray-900 mb-2">Configurar Préstamo</h2>
-                    <p className="text-gray-500 text-sm">Personalice los términos del financiamiento</p>
+                <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                  <div className="flex items-center justify-between mb-8">
+                    <div className="space-y-1">
+                      <h2 className="text-xl font-light text-gray-900">Configurar Préstamo</h2>
+                      <p className="text-gray-500 text-sm">Defina los términos y condiciones del crédito</p>
+                    </div>
                   </div>
 
-                  <div className="space-y-6">
-                    {/* Sección de Monto y Propósito */}
-                    <div className="border-b border-gray-100 pb-6">
-                      <div 
-                        className="flex items-center justify-between cursor-pointer"
-                        onClick={() => toggleFormSection('basic')}
-                      >
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-[#08557f]/10 to-[#08557f]/20 flex items-center justify-center">
-                            <DollarSign className="w-4 h-4 text-[#08557f]" />
-                          </div>
-                          <div>
-                            <h3 className="font-medium text-gray-900">Monto y Propósito</h3>
-                            <p className="text-sm text-gray-500">Configure el monto y destino del préstamo</p>
-                          </div>
+                  <div className="bg-white p-8 rounded-2xl border border-gray-200 shadow-sm space-y-8">
+                    {/* Monto y Plazo */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                      <div className="space-y-3">
+                        <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
+                          <DollarSign className="w-4 h-4 text-gray-400" />
+                          Monto Solicitado
+                        </label>
+                        <div className="relative">
+                          <input
+                            type="number"
+                            name="montoTotal"
+                            value={form.montoTotal}
+                            onChange={handleMontoChange}
+                            className="w-full px-4 py-4 text-2xl font-light text-gray-900 border border-gray-200 rounded-xl focus:border-primary focus:ring-1 focus:ring-primary/10 transition-all text-right"
+                          />
+                          <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 font-light text-xl">
+                            VES
+                          </span>
                         </div>
-                        {formExpanded.basic ? (
-                          <ChevronUp className="w-5 h-5 text-gray-400" />
-                        ) : (
-                          <ChevronDown className="w-5 h-5 text-gray-400" />
-                        )}
                       </div>
 
-                      {formExpanded.basic && (
-                        <div className="mt-6 space-y-6 animate-in fade-in duration-300">
-                          <div className="space-y-4">
-                            <label className="text-sm font-medium text-gray-700">
-                              Monto Solicitado
-                            </label>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                              <div className="space-y-4">
-                                <div className="relative">
-                                  {/* Slider con rango dinámico basado en el monto actual */}
-                                  <input
-                                    type="range"
-                                    name="montoTotal"
-                                    value={form.montoTotal}
-                                    onChange={handleInputChange}
-                                    min="0"
-                                    max={Math.max(100000, form.montoTotal * 1.5)} // Rango dinámico
-                                    step="1000"
-                                    className="w-full h-1 bg-gray-200 rounded-lg appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-[#08557f]"
-                                  />
-                                  <div className="flex justify-between mt-8">
-                                    <div className="text-center">
-                                      <div className="text-xs text-gray-500 mb-1">Mínimo</div>
-                                      <div className="font-medium">$0</div>
-                                    </div>
-                                    <div className="text-center">
-                                      <div className="text-xs text-gray-500 mb-1">Monto actual</div>
-                                      <div className="text-2xl font-light text-[#08557f]">
-                                        {formatCurrency(form.montoTotal)}
-                                      </div>
-                                    </div>
-                                    <div className="text-center">
-                                      <div className="text-xs text-gray-500 mb-1">Rango dinámico</div>
-                                      <div className="font-medium">${Math.max(100000, form.montoTotal * 1.5).toLocaleString('es-ES')}</div>
-                                    </div>
-                                  </div>
-                                </div>
-                              </div>
-
-                              {/* CAMPO DE ENTRADA LIBRE PARA EL MONTO */}
-                              <div className="space-y-4">
-                                <div>
-                                  <label className="text-sm font-medium text-gray-700 block mb-2">
-                                    Ingresar Monto Manualmente
-                                  </label>
-                                  <div className="relative">
-                                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                      <span className="text-gray-500 sm:text-sm">$</span>
-                                    </div>
-                                    <input
-                                      type="number"
-                                      value={form.montoTotal}
-                                      onChange={handleMontoChange}
-                                      min="0"
-                                      step="1000"
-                                      className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:border-[#08557f] focus:ring-1 focus:ring-[#08557f]/10 transition-all text-lg"
-                                      placeholder="Ej: 15000"
-                                    />
-                                    <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
-                                      <span className="text-gray-500 text-sm">COP</span>
-                                    </div>
-                                  </div>
-                                  <div className="mt-2 text-xs text-gray-500">
-                                    <p>Ingrese cualquier monto positivo sin límites</p>
-                                    {clienteSeleccionado && form.montoTotal > clienteSeleccionado.limiteCredito && (
-                                      <div className="mt-2 p-2 bg-yellow-50 border border-yellow-200 rounded-lg">
-                                        <p className="text-yellow-700 text-sm font-medium">
-                                          Advertencia: El monto solicitado (${formatCurrency(form.montoTotal)}) 
-                                          excede el límite de crédito del cliente (${formatCurrency(clienteSeleccionado.limiteCredito)})
-                                        </p>
-                                      </div>
-                                    )}
-                                  </div>
-                                </div>
-
-                                {/* Botones de montos rápidos (sin restricciones) */}
-                                <div>
-                                  <label className="text-sm font-medium text-gray-700 block mb-2">
-                                    Montos Sugeridos
-                                  </label>
-                                  <div className="grid grid-cols-3 gap-2">
-                                    {[10000, 25000, 50000, 100000, 250000, 500000].map((monto) => (
-                                      <button
-                                        key={monto}
-                                        type="button"
-                                        onClick={() => {
-                                          setForm(prev => ({ ...prev, montoTotal: monto }));
-                                        }}
-                                        className={`py-2 px-3 text-sm rounded-lg transition-all duration-300 ${
-                                          form.montoTotal === monto
-                                            ? 'bg-[#08557f] text-white shadow-sm'
-                                            : 'border border-gray-300 text-gray-700 hover:border-gray-400 hover:bg-gray-50'
-                                        }`}
-                                      >
-                                        {formatCurrency(monto)}
-                                      </button>
-                                    ))}
-                                  </div>
-                                  <div className="mt-2">
-                                    <button
-                                      type="button"
-                                      onClick={() => {
-                                        // Opción para montos muy grandes
-                                        const montoGrande = 1000000;
-                                        setForm(prev => ({ ...prev, montoTotal: montoGrande }));
-                                      }}
-                                      className={`py-2 px-3 text-sm rounded-lg transition-all duration-300 w-full ${
-                                        form.montoTotal === 1000000
-                                          ? 'bg-[#fb851b] text-white shadow-sm'
-                                          : 'border border-gray-300 text-gray-700 hover:border-gray-400 hover:bg-gray-50'
-                                      }`}
-                                    >
-                                      {formatCurrency(1000000)} (1 Millón)
-                                    </button>
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-
-                          <div className="space-y-3">
-                            <label className="text-sm font-medium text-gray-700">
-                              Propósito del Préstamo
-                            </label>
-                            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                              {['Capital de trabajo', 'Inversión', 'Consolidación de deudas', 'Emergencia', 'Educación', 'Salud'].map((purpose) => (
-                                <button
-                                  key={purpose}
-                                  type="button"
-                                  onClick={() => setForm(prev => ({ ...prev, proposito: purpose }))}
-                                  className={`p-4 rounded-xl border transition-all duration-300 flex flex-col items-center gap-2 ${
-                                    form.proposito === purpose
-                                      ? 'border-[#08557f] bg-gradient-to-br from-[#08557f]/5 to-white'
-                                      : 'border-gray-200 hover:border-gray-300'
-                                  }`}
-                                >
-                                  <span className="text-lg">{getPurposeIcon(purpose)}</span>
-                                  <span className="text-sm text-gray-700">{purpose}</span>
-                                </button>
-                              ))}
-                            </div>
+                      <div className="space-y-3">
+                        <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
+                          <Clock className="w-4 h-4 text-gray-400" />
+                          Plazo (Meses)
+                        </label>
+                        <div className="relative">
+                          <input
+                            type="range"
+                            name="plazoMeses"
+                            min="1"
+                            max="60"
+                            value={form.plazoMeses}
+                            onChange={handleInputChange}
+                            className="w-full h-2 bg-gray-100 rounded-lg appearance-none cursor-pointer accent-primary"
+                          />
+                          <div className="flex justify-between mt-2">
+                            <span className="text-2xl font-light text-gray-900">{form.plazoMeses}</span>
+                            <span className="text-sm text-gray-500 self-center">meses</span>
                           </div>
                         </div>
-                      )}
+                      </div>
                     </div>
 
-                    {/* Sección de Términos */}
-                    <div className="border-b border-gray-100 pb-6">
-                      <div 
-                        className="flex items-center justify-between cursor-pointer"
-                        onClick={() => toggleFormSection('terms')}
-                      >
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-[#fb851b]/10 to-[#fb851b]/20 flex items-center justify-center">
-                            <Clock className="w-4 h-4 text-[#fb851b]" />
-                          </div>
-                          <div>
-                            <h3 className="font-medium text-gray-900">Plazo y Frecuencia</h3>
-                            <p className="text-sm text-gray-500">Defina el tiempo y periodicidad de pagos</p>
-                          </div>
+                    {/* Frecuencia y Tasas */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium text-gray-700">Frecuencia de Pago</label>
+                        <div className="relative">
+                          <select
+                            name="frecuenciaPago"
+                            value={form.frecuenciaPago}
+                            onChange={handleInputChange}
+                            className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl appearance-none focus:bg-white focus:border-primary focus:ring-1 focus:ring-primary/10 transition-all"
+                          >
+                            <option value="DIARIO">Diario</option>
+                            <option value="SEMANAL">Semanal</option>
+                            <option value="QUINCENAL">Quincenal</option>
+                            <option value="MENSUAL">Mensual</option>
+                          </select>
+                          <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
                         </div>
-                        {formExpanded.terms ? (
-                          <ChevronUp className="w-5 h-5 text-gray-400" />
-                        ) : (
-                          <ChevronDown className="w-5 h-5 text-gray-400" />
-                        )}
                       </div>
 
-                      {formExpanded.terms && (
-                        <div className="mt-6 space-y-6 animate-in fade-in duration-300">
-                          <div className="space-y-4">
-                            <label className="text-sm font-medium text-gray-700">
-                              Plazo (meses)
-                            </label>
-                            <div className="flex flex-wrap gap-2">
-                              {[3, 6, 12, 18, 24, 36, 48].map(plazo => (
-                                <button
-                                  key={plazo}
-                                  type="button"
-                                  onClick={() => setForm(prev => ({ ...prev, plazo }))}
-                                  className={`px-5 py-2.5 rounded-lg transition-all duration-300 ${
-                                    form.plazo === plazo
-                                      ? 'bg-[#08557f] text-white shadow-sm'
-                                      : 'border border-gray-300 text-gray-700 hover:border-gray-400'
-                                  }`}
-                                >
-                                  {plazo} meses
-                                </button>
-                              ))}
-                            </div>
-                          </div>
-
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <div className="space-y-3">
-                              <label className="text-sm font-medium text-gray-700">
-                                Frecuencia de Pago
-                              </label>
-                              <div className="grid grid-cols-3 gap-2">
-                                {(['semanal', 'quincenal', 'mensual'] as const).map((freq) => (
-                                  <button
-                                    key={freq}
-                                    type="button"
-                                    onClick={() => setForm(prev => ({ ...prev, frecuenciaPago: freq }))}
-                                    className={`py-3 rounded-lg transition-all duration-300 ${
-                                      form.frecuenciaPago === freq
-                                        ? 'bg-gradient-to-br from-[#08557f]/10 to-[#08557f]/5 border border-[#08557f]'
-                                        : 'border border-gray-300 hover:border-gray-400'
-                                    }`}
-                                  >
-                                    <div className="text-center">
-                                      <div className="text-sm font-medium capitalize">{freq}</div>
-                                    </div>
-                                  </button>
-                                ))}
-                              </div>
-                            </div>
-
-                            <div className="space-y-3">
-                              <label className="text-sm font-medium text-gray-700">
-                                Tasa de Interés (% mensual)
-                              </label>
-                              <div className="relative">
-                                <input
-                                  type="number"
-                                  name="tasaInteres"
-                                  value={form.tasaInteres}
-                                  onChange={handleInputChange}
-                                  min="0.1"
-                                  max="10"
-                                  step="0.1"
-                                  className="w-full px-4 py-3 pl-12 border border-gray-300 rounded-lg focus:border-[#08557f] focus:ring-1 focus:ring-[#08557f]/10 transition-all"
-                                />
-                                <div className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-500">
-                                  <Percent className="w-4 h-4" />
-                                </div>
-                                <div className="absolute right-4 top-1/2 transform -translate-y-1/2 text-sm text-gray-500">
-                                  mensual
-                                </div>
-                              </div>
-                            </div>
-                          </div>
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium text-gray-700">Tasa de Interés (%)</label>
+                        <div className="relative">
+                          <input
+                            type="number"
+                            name="tasaInteres"
+                            step="0.1"
+                            value={form.tasaInteres}
+                            onChange={handleInputChange}
+                            className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:border-primary focus:ring-1 focus:ring-primary/10 transition-all"
+                          />
+                          <Percent className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                         </div>
-                      )}
+                      </div>
+
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium text-gray-700">Cuota Inicial</label>
+                        <div className="relative">
+                          <input
+                            type="number"
+                            name="cuotaInicial"
+                            value={form.cuotaInicial}
+                            onChange={handleInputChange}
+                            className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:border-primary focus:ring-1 focus:ring-primary/10 transition-all"
+                          />
+                          <span className="absolute right-4 top-1/2 -translate-y-1/2 text-xs text-gray-400">VES</span>
+                        </div>
+                      </div>
                     </div>
 
-                    {/* Sección de Detalles */}
-                    <div>
-                      <div 
-                        className="flex items-center justify-between cursor-pointer"
-                        onClick={() => toggleFormSection('details')}
-                      >
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center">
-                            <Settings className="w-4 h-4 text-gray-600" />
-                          </div>
-                          <div>
-                            <h3 className="font-medium text-gray-900">Detalles Adicionales</h3>
-                            <p className="text-sm text-gray-500">Cuota inicial y comisiones</p>
-                          </div>
-                        </div>
-                        {formExpanded.details ? (
-                          <ChevronUp className="w-5 h-5 text-gray-400" />
-                        ) : (
-                          <ChevronDown className="w-5 h-5 text-gray-400" />
-                        )}
+                    {/* Otros Cargos */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-6 border-t border-gray-100">
+                      <div className="space-y-2">
+                         <label className="text-sm font-medium text-gray-700">Propósito</label>
+                         <select
+                            name="proposito"
+                            value={form.proposito}
+                            onChange={handleInputChange}
+                            className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl appearance-none focus:bg-white focus:border-primary focus:ring-1 focus:ring-primary/10 transition-all"
+                          >
+                            <option value="PERSONAL">Personal</option>
+                            <option value="VEHICULO">Vehículo</option>
+                            <option value="HIPOTECARIO">Hipotecario</option>
+                            <option value="NEGOCIO">Negocio</option>
+                            <option value="OTRO">Otro</option>
+                          </select>
                       </div>
-
-                      {formExpanded.details && (
-                        <div className="mt-6 space-y-6 animate-in fade-in duration-300">
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <div className="space-y-3">
-                              <div className="flex items-center justify-between">
-                                <label className="text-sm font-medium text-gray-700">
-                                  Cuota Inicial
-                                </label>
-                                <span className="text-sm font-medium text-[#08557f]">
-                                  {form.montoTotal > 0 ? ((form.cuotaInicial / form.montoTotal) * 100).toFixed(0) : 0}%
-                                </span>
-                              </div>
-                              <div className="relative">
-                                <input
-                                  type="range"
-                                  name="cuotaInicial"
-                                  value={form.cuotaInicial}
-                                  onChange={handleInputChange}
-                                  min="0"
-                                  max={form.montoTotal}
-                                  step="1000"
-                                  className="w-full h-1 bg-gray-200 rounded-lg appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-[#fb851b]"
-                                />
-                                <div className="flex justify-between mt-8">
-                                  <div className="text-center">
-                                    <div className="text-xs text-gray-500 mb-1">$0</div>
-                                  </div>
-                                  <div className="text-center">
-                                    <div className="text-xl font-light text-gray-900">{formatCurrency(form.cuotaInicial)}</div>
-                                    <div className="text-xs text-gray-500 mt-1">Cuota inicial</div>
-                                  </div>
-                                  <div className="text-center">
-                                    <div className="text-xs text-gray-500 mb-1">{formatCurrency(form.montoTotal)}</div>
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-
-                            <div className="space-y-3">
-                              <label className="text-sm font-medium text-gray-700">
-                                Comisión (%)
-                              </label>
-                              <div className="relative">
-                                <input
-                                  type="number"
-                                  name="comision"
-                                  value={form.comision}
-                                  onChange={handleInputChange}
-                                  min="0"
-                                  max="20"
-                                  step="0.1"
-                                  className="w-full px-4 py-3 pl-12 border border-gray-300 rounded-lg focus:border-[#08557f] focus:ring-1 focus:ring-[#08557f]/10 transition-all"
-                                />
-                                <div className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-500">
-                                  <Percent className="w-4 h-4" />
-                                </div>
-                                <div className="absolute right-4 top-1/2 transform -translate-y-1/2 text-sm text-gray-500">
-                                  del monto
-                                </div>
-                              </div>
-                              <p className="text-xs text-gray-500">
-                                Total comisión: {formatCurrency(resumenPrestamo.comisionTotal)}
-                              </p>
-                            </div>
-                          </div>
-
-                          <div className="space-y-3">
-                            <label className="text-sm font-medium text-gray-700">
-                              Observaciones
-                            </label>
-                            <textarea
-                              name="observaciones"
-                              value={form.observaciones}
-                              onChange={handleInputChange}
-                              rows={3}
-                              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:border-[#08557f] focus:ring-1 focus:ring-[#08557f]/10 transition-all resize-none"
-                              placeholder="Notas adicionales sobre el préstamo..."
-                            />
-                          </div>
-                        </div>
-                      )}
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium text-gray-700">Observaciones</label>
+                        <textarea
+                          name="observaciones"
+                          value={form.observaciones}
+                          onChange={handleInputChange}
+                          rows={1}
+                          className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:border-primary focus:ring-1 focus:ring-primary/10 transition-all resize-none"
+                          placeholder="Notas adicionales..."
+                        />
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -996,446 +743,184 @@ const CreacionPrestamoElegante = () => {
 
               {/* Paso 3: Confirmación */}
               {step === 3 && (
-                <div className="space-y-8">
-                  <div className="mb-8">
-                    <h2 className="text-xl font-light text-gray-900 mb-2">Confirmar Préstamo</h2>
-                    <p className="text-gray-500 text-sm">Revise todos los detalles antes de finalizar</p>
-                  </div>
-
-                  {/* Resumen Visual */}
-                  <div className="p-8 rounded-2xl bg-gradient-to-br from-[#08557f]/5 to-white border border-gray-200">
-                    <div className="flex items-center justify-between mb-8">
-                      <div>
-                        <p className="text-sm font-medium text-[#08557f] mb-1">Resumen del Préstamo</p>
-                        <h3 className="text-2xl font-light text-gray-900">{formatCurrency(form.montoTotal)}</h3>
-                      </div>
-                      <div className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-full">
-                        <div className="w-2 h-2 rounded-full bg-[#08557f]"></div>
-                        <span className="text-sm font-medium text-gray-700">{form.proposito}</span>
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-                      <div className="p-6 bg-white rounded-xl border border-gray-100">
-                        <div className="flex items-center gap-4">
-                          <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-[#08557f]/10 to-[#08557f]/20 flex items-center justify-center">
-                            <CreditCard className="w-5 h-5 text-[#08557f]" />
-                          </div>
-                          <div>
-                            <p className="text-sm text-gray-600">Cuota {form.frecuenciaPago}</p>
-                            <p className="text-2xl font-light text-gray-900">
-                              {formatCurrencyDecimal(resumenPrestamo.valorCuota)}
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="p-6 bg-white rounded-xl border border-gray-100">
-                        <div className="flex items-center gap-4">
-                          <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-[#fb851b]/10 to-[#fb851b]/20 flex items-center justify-center">
-                            <BarChart className="w-5 h-5 text-[#fb851b]" />
-                          </div>
-                          <div>
-                            <p className="text-sm text-gray-600">Total a Pagar</p>
-                            <p className="text-2xl font-light text-gray-900">
-                              {formatCurrency(resumenPrestamo.totalPagar)}
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="p-6 bg-white rounded-xl border border-gray-100">
-                        <div className="flex items-center gap-4">
-                          <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center">
-                            <TrendingUp className="w-5 h-5 text-gray-600" />
-                          </div>
-                          <div>
-                            <p className="text-sm text-gray-600">Tasa Efectiva</p>
-                            <p className="text-2xl font-light text-gray-900">
-                              {resumenPrestamo.tea.toFixed(2)}%
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <div className="space-y-4">
-                        <h4 className="font-medium text-gray-900">Detalles Financieros</h4>
-                        <div className="space-y-3">
-                          {[
-                            { label: 'Monto solicitado', value: formatCurrency(form.montoTotal) },
-                            { label: 'Cuota inicial', value: formatCurrency(form.cuotaInicial) },
-                            { label: `Comisión (${form.comision}%)`, value: formatCurrency(resumenPrestamo.comisionTotal) },
-                            { label: 'Total financiado', value: formatCurrency(resumenPrestamo.totalFinanciado) },
-                            { label: 'Total intereses', value: formatCurrency(resumenPrestamo.totalInteres), highlight: true },
-                          ].map((item, index) => (
-                            <div key={index} className="flex items-center justify-between py-3 border-b border-gray-100 last:border-0">
-                              <span className="text-sm text-gray-600">{item.label}</span>
-                              <span className={`font-medium ${item.highlight ? 'text-[#fb851b]' : 'text-gray-900'}`}>
-                                {item.value}
-                              </span>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-
-                      <div className="space-y-4">
-                        <h4 className="font-medium text-gray-900">Información del Cliente</h4>
-                        <div className="p-4 rounded-xl bg-white border border-gray-100">
-                          <div className="flex items-center gap-4 mb-4">
-                            <div className={`w-14 h-14 rounded-lg ${getAvatarColor(form.clienteId)} flex items-center justify-center`}>
-                              <span className="text-gray-900 font-medium text-lg">
-                                {clienteSeleccionado?.nombre.charAt(0)}{clienteSeleccionado?.apellido.charAt(0)}
-                              </span>
-                            </div>
-                            <div>
-                              <p className="font-medium text-gray-900">{clienteSeleccionado?.nombre} {clienteSeleccionado?.apellido}</p>
-                              <p className="text-sm text-gray-500">Identificación: {clienteSeleccionado?.identificacion}</p>
-                            </div>
-                          </div>
-                          
-                          <div className="grid grid-cols-2 gap-3">
-                            <div className="p-3 rounded-lg bg-gray-50">
-                              <p className="text-xs text-gray-500 mb-1">Score</p>
-                              <p className={`font-medium ${getScoreColor(clienteSeleccionado?.scoreCrediticio || 0)}`}>
-                                {clienteSeleccionado?.scoreCrediticio}/100
-                              </p>
-                            </div>
-                            <div className="p-3 rounded-lg bg-gray-50">
-                              <p className="text-xs text-gray-500 mb-1">Límite</p>
-                              <p className="font-medium text-gray-900">{formatCurrency(clienteSeleccionado?.limiteCredito || 0)}</p>
-                            </div>
-                          </div>
-                          {clienteSeleccionado && form.montoTotal > clienteSeleccionado.limiteCredito && (
-                            <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-                              <p className="text-yellow-700 text-sm">
-                                ⚠️ Este préstamo excede el límite de crédito del cliente por {formatCurrency(form.montoTotal - clienteSeleccionado.limiteCredito)}
-                              </p>
-                            </div>
-                          )}
-                        </div>
-                      </div>
+                <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                  <div className="flex items-center justify-between mb-8">
+                    <div className="space-y-1">
+                      <h2 className="text-xl font-light text-gray-900">Confirmar Préstamo</h2>
+                      <p className="text-gray-500 text-sm">Revise los detalles antes de crear el préstamo</p>
                     </div>
                   </div>
 
-                  {/* Plan de Pagos */}
-                  <div className="rounded-xl border border-gray-200 overflow-hidden">
-                    <div className="p-6 border-b border-gray-200 bg-white">
+                  <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
+                    <div className="p-8 border-b border-gray-100 bg-gray-50/50">
                       <div className="flex items-center justify-between">
                         <div>
-                          <h3 className="font-medium text-gray-900">Plan de Pagos</h3>
-                          <p className="text-sm text-gray-500 mt-1">
-                            {form.plazo} meses • Pagos {form.frecuenciaPago}es
-                          </p>
+                          <p className="text-sm text-gray-500 mb-1">Monto a Financiar</p>
+                          <p className="text-3xl font-light text-gray-900">{formatCurrency(resumenPrestamo.totalFinanciado)}</p>
                         </div>
-                        <button className="text-sm font-medium text-[#08557f] hover:text-[#074970] transition-colors">
-                          Ver todas las cuotas
-                        </button>
+                        <div className="text-right">
+                          <p className="text-sm text-gray-500 mb-1">Cuota Estimada</p>
+                          <p className="text-2xl font-medium text-primary">{formatCurrency(resumenPrestamo.valorCuota)}</p>
+                          <p className="text-xs text-gray-400 capitalize">{form.frecuenciaPago.toLowerCase()}</p>
+                        </div>
                       </div>
                     </div>
-                    <div className="divide-y divide-gray-100 bg-white">
-                      {cuotas.map((cuota) => (
-                        <div 
-                          key={cuota.numero}
-                          className="p-6 hover:bg-gray-50 transition-colors duration-200"
-                        >
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-6">
-                              <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-[#08557f]/5 to-[#08557f]/10 flex items-center justify-center">
-                                <span className="text-lg font-medium text-[#08557f]">#{cuota.numero}</span>
-                              </div>
-                              <div>
-                                <p className="font-medium text-gray-900">Cuota {cuota.numero}</p>
-                                <p className="text-sm text-gray-500">{cuota.fecha}</p>
-                              </div>
-                            </div>
-                            <div className="text-right">
-                              <p className="text-xl font-light text-gray-900">{formatCurrencyDecimal(cuota.total)}</p>
-                              <div className="flex items-center justify-end gap-3 text-xs text-gray-500 mt-1">
-                                <span className="text-gray-600">Capital: {formatCurrencyDecimal(cuota.capital)}</span>
-                                <span>•</span>
-                                <span className="text-[#fb851b]">Int: {formatCurrencyDecimal(cuota.interes)}</span>
-                              </div>
-                            </div>
+                    
+                    <div className="p-8 grid grid-cols-1 md:grid-cols-2 gap-8">
+                      <div>
+                        <h4 className="text-sm font-medium text-gray-900 mb-4">Detalles del Cliente</h4>
+                        <div className="space-y-3">
+                          <div className="flex justify-between">
+                            <span className="text-gray-500">Nombre</span>
+                            <span className="text-gray-900">{clienteSeleccionado?.nombre} {clienteSeleccionado?.apellido}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-gray-500">Identificación</span>
+                            <span className="text-gray-900">{clienteSeleccionado?.identificacion}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-gray-500">Score</span>
+                            <span className={`font-medium ${
+                              (clienteSeleccionado?.scoreCrediticio || 0) >= 80 ? 'text-primary' : 'text-secondary'
+                            }`}>{clienteSeleccionado?.scoreCrediticio}</span>
                           </div>
                         </div>
-                      ))}
+                      </div>
+
+                      <div>
+                        <h4 className="text-sm font-medium text-gray-900 mb-4">Condiciones Financieras</h4>
+                        <div className="space-y-3">
+                          <div className="flex justify-between">
+                            <span className="text-gray-500">Tasa Interés</span>
+                            <span className="text-gray-900">{form.tasaInteres}% Mensual</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-gray-500">Plazo</span>
+                            <span className="text-gray-900">{form.plazoMeses} Meses</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-gray-500">Total Intereses</span>
+                            <span className="text-gray-900">{formatCurrency(resumenPrestamo.totalInteres)}</span>
+                          </div>
+                          <div className="flex justify-between pt-3 border-t border-gray-100">
+                            <span className="font-medium text-gray-900">Total a Pagar</span>
+                            <span className="font-medium text-gray-900">{formatCurrency(resumenPrestamo.totalPagar)}</span>
+                          </div>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
               )}
 
               {/* Navegación */}
-              {step < 3 ? (
-                <div className="flex justify-between pt-8 border-t border-gray-200">
-                  {step > 1 && (
-                    <button
-                      onClick={anteriorStep}
-                      className="flex items-center gap-2 px-6 py-3 rounded-lg border border-gray-300 text-gray-700 hover:border-gray-400 hover:bg-gray-50 transition-all duration-300"
-                    >
-                      <ArrowLeft className="w-4 h-4" />
-                      Anterior
-                    </button>
-                  )}
-                  
-                  <button
-                    onClick={siguienteStep}
-                    disabled={step === 1 && !form.clienteId}
-                    className="px-8 py-3 bg-[#08557f] text-white rounded-lg hover:bg-[#074970] transition-all duration-300 font-medium ml-auto disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {step < 2 ? 'Continuar' : 'Revisar Préstamo'}
-                    <ChevronRight className="w-4 h-4 inline ml-2" />
-                  </button>
-                </div>
-              ) : (
-                <div className="flex justify-end gap-4 pt-8 border-t border-gray-200">
-                  <button
-                    onClick={anteriorStep}
-                    className="px-6 py-3 rounded-lg border border-gray-300 text-gray-700 hover:border-gray-400 transition-all duration-300"
-                  >
-                    Atrás
-                  </button>
-                  <button
-                    onClick={() => {
-                      // Lógica para guardar el préstamo
-                      if (clienteSeleccionado && form.montoTotal > clienteSeleccionado.limiteCredito) {
-                        const confirmar = window.confirm(
-                          `El monto solicitado (${formatCurrency(form.montoTotal)}) excede el límite de crédito del cliente (${formatCurrency(clienteSeleccionado.limiteCredito)}). ¿Desea continuar de todas formas?`
-                        );
-                        if (!confirmar) return;
-                      }
-                      alert('¡Préstamo creado exitosamente!');
-                      router.push('/admin/prestamos');
-                    }}
-                    className="px-8 py-3 bg-gradient-to-r from-[#08557f] to-[#074970] text-white rounded-lg hover:opacity-95 transition-all duration-300 font-medium flex items-center gap-2 shadow-sm"
-                  >
-                    <CheckCircle className="w-5 h-5" />
-                    Confirmar y Generar Préstamo
-                  </button>
-                </div>
-              )}
+              <div className="flex items-center justify-between pt-8">
+                <button
+                  onClick={anteriorStep}
+                  className={`flex items-center gap-2 px-6 py-3 rounded-xl transition-colors ${
+                    step > 1
+                      ? 'text-gray-600 hover:bg-gray-100'
+                      : 'text-gray-300 cursor-not-allowed'
+                  }`}
+                  disabled={step === 1}
+                >
+                  <ArrowLeft className="w-4 h-4" />
+                  <span className="font-medium">Anterior</span>
+                </button>
+
+                <button
+                  onClick={siguienteStep}
+                  disabled={!form.clienteId}
+                  className={`flex items-center gap-2 px-8 py-3 rounded-xl font-medium transition-all shadow-lg hover:shadow-xl hover:-translate-y-0.5 ${
+                    form.clienteId
+                      ? 'bg-primary text-white hover:bg-primary-dark'
+                      : 'bg-gray-200 text-gray-400 cursor-not-allowed shadow-none'
+                  }`}
+                >
+                  <span>{step === 3 ? 'Crear Préstamo' : 'Continuar'}</span>
+                  {step < 3 && <ChevronRight className="w-4 h-4" />}
+                </button>
+              </div>
             </div>
           </div>
 
-          {/* Panel Lateral - Resumen */}
-          <div className="space-y-6">
-            {/* Resumen Calculadora */}
-            <div className="p-6 rounded-2xl bg-gradient-to-b from-white to-gray-50 border border-gray-200">
-              <div className="mb-8">
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-[#08557f]/10 to-[#08557f]/20 flex items-center justify-center">
-                    <Calculator className="w-5 h-5 text-[#08557f]" />
-                  </div>
-                  <div>
-                    <h3 className="font-medium text-gray-900">Calculadora</h3>
-                    <p className="text-sm text-gray-500">Resultados en tiempo real</p>
-                  </div>
-                </div>
+          {/* Panel Lateral - Resumen en Tiempo Real */}
+          <div className="hidden lg:block">
+            <div className="sticky top-8 space-y-6">
+              <div className="bg-gray-900 text-white rounded-2xl p-6 shadow-2xl relative overflow-hidden group">
+                <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 group-hover:bg-white/10 transition-colors duration-500" />
+                
+                <div className="relative">
+                  <h3 className="text-lg font-light text-white/90 mb-6 flex items-center gap-2">
+                    <BarChart className="w-5 h-5 text-secondary" />
+                    Proyección
+                  </h3>
 
-                <div className="p-5 rounded-xl bg-gradient-to-br from-[#08557f] to-[#074970] text-white">
-                  <div className="text-center">
-                    <p className="text-sm opacity-90">Valor Cuota</p>
-                    <p className="text-3xl font-light mt-2 tracking-tight">
-                      {formatCurrencyDecimal(resumenPrestamo.valorCuota)}
-                    </p>
-                    <div className="flex items-center justify-center gap-2 mt-4 text-xs opacity-80">
-                      <Clock className="w-3 h-3" />
-                      {form.plazo} meses • {form.tasaInteres}% mensual
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="space-y-4">
-                {[
-                  { label: 'Monto financiado', value: formatCurrency(resumenPrestamo.totalFinanciado) },
-                  { label: 'Comisión inicial', value: formatCurrency(resumenPrestamo.comisionTotal), color: 'text-gray-900' },
-                  { label: 'Total intereses', value: formatCurrency(resumenPrestamo.totalInteres), color: 'text-[#fb851b]' },
-                  { label: 'Total a pagar', value: formatCurrency(resumenPrestamo.totalPagar), color: 'text-gray-900', bold: true },
-                ].map((item, index) => (
-                  <div key={index} className="flex items-center justify-between py-2.5 border-b border-gray-100 last:border-0 last:pb-0">
-                    <span className="text-sm text-gray-600">{item.label}</span>
-                    <span className={`text-sm ${item.color} ${item.bold ? 'font-medium' : ''}`}>
-                      {item.value}
-                    </span>
-                  </div>
-                ))}
-              </div>
-
-              <div className="pt-6 mt-6 border-t border-gray-200">
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="text-center p-4 rounded-xl bg-white border border-gray-200">
-                    <p className="text-xs text-gray-500 mb-1">TEA</p>
-                    <p className="text-lg font-medium text-gray-900">{resumenPrestamo.tea.toFixed(2)}%</p>
-                  </div>
-                  <div className="text-center p-4 rounded-xl bg-white border border-gray-200">
-                    <p className="text-xs text-gray-500 mb-1">TAE</p>
-                    <p className="text-lg font-medium text-gray-900">{resumenPrestamo.tae.toFixed(2)}%</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Información del Cliente */}
-            {clienteSeleccionado && (
-              <div className="p-6 rounded-2xl bg-white border border-gray-200">
-                <div className="flex items-center gap-3 mb-6">
-                  <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-[#fb851b]/10 to-[#fb851b]/20 flex items-center justify-center">
-                    <Users className="w-5 h-5 text-[#fb851b]" />
-                  </div>
-                  <div>
-                    <h3 className="font-medium text-gray-900">Cliente</h3>
-                    <p className="text-sm text-gray-500">Información seleccionada</p>
-                  </div>
-                </div>
-
-                <div className="space-y-4">
-                  <div className="flex items-center gap-4">
-                    <div className={`w-14 h-14 rounded-xl ${getAvatarColor(clienteSeleccionado.id)} flex items-center justify-center`}>
-                      <span className="text-gray-900 font-medium text-xl">
-                        {clienteSeleccionado.nombre.charAt(0)}{clienteSeleccionado.apellido.charAt(0)}
-                      </span>
-                    </div>
+                  <div className="space-y-6">
                     <div>
-                      <h4 className="font-medium text-gray-900">{clienteSeleccionado.nombre} {clienteSeleccionado.apellido}</h4>
-                      <p className="text-sm text-gray-500 mt-1">Identificación: {clienteSeleccionado.identificacion}</p>
-                    </div>
-                  </div>
-
-                  <div className="space-y-3">
-                    <div className="p-4 rounded-xl bg-gray-50">
-                      <div className="flex items-center justify-between mb-3">
-                        <span className="text-sm font-medium text-gray-700">Score Crediticio</span>
-                        <span className={`text-sm font-medium ${getScoreColor(clienteSeleccionado.scoreCrediticio)}`}>
-                          {clienteSeleccionado.scoreCrediticio}/100
+                      <p className="text-sm text-white/60 mb-1">Cuota Estimada</p>
+                      <div className="flex items-baseline gap-2">
+                        <span className="text-3xl font-medium text-white">
+                          {formatCurrency(resumenPrestamo.valorCuota)}
                         </span>
-                      </div>
-                      <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
-                        <div 
-                          className={`h-full rounded-full ${getScoreBgColor(clienteSeleccionado.scoreCrediticio)}`}
-                          style={{ width: `${clienteSeleccionado.scoreCrediticio}%` }}
-                        ></div>
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="p-3 rounded-xl bg-white border border-gray-200">
-                        <p className="text-xs text-gray-500 mb-1">Límite</p>
-                        <p className="font-medium text-gray-900">{formatCurrency(clienteSeleccionado.limiteCredito)}</p>
-                      </div>
-                      <div className="p-3 rounded-xl bg-white border border-gray-200">
-                        <p className="text-xs text-gray-500 mb-1">Disponible</p>
-                        <p className="font-medium text-[#08557f]">{formatCurrency(clienteSeleccionado.saldoDisponible)}</p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Análisis de Riesgo */}
-            {clienteSeleccionado && step >= 2 && (
-              <div className="p-6 rounded-2xl bg-white border border-gray-200">
-                <div className="flex items-center gap-3 mb-6">
-                  <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center">
-                    <Shield className="w-5 h-5 text-gray-600" />
-                  </div>
-                  <div>
-                    <h3 className="font-medium text-gray-900">Análisis de Riesgo</h3>
-                    <p className="text-sm text-gray-500">Evaluación automática</p>
-                  </div>
-                </div>
-
-                <div className="space-y-4">
-                  <div>
-                    <div className="flex items-center justify-between mb-3">
-                      <span className="text-sm font-medium text-gray-700">Capacidad de Pago</span>
-                      <span className={`text-sm font-medium ${
-                        resumenPrestamo.valorCuota < (clienteSeleccionado?.ingresosMensuales || 0) * 0.35 
-                          ? 'text-green-600' 
-                          : 'text-[#fb851b]'
-                      }`}>
-                        {clienteSeleccionado?.ingresosMensuales > 0 
-                          ? ((resumenPrestamo.valorCuota / clienteSeleccionado.ingresosMensuales) * 100).toFixed(0)
-                          : '100'
-                        }%
-                      </span>
-                    </div>
-                    <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
-                      <div 
-                        className={`h-full rounded-full ${
-                          resumenPrestamo.valorCuota < (clienteSeleccionado?.ingresosMensuales || 0) * 0.35 
-                            ? 'bg-green-500' 
-                            : 'bg-[#fb851b]'
-                        }`}
-                        style={{ 
-                          width: `${Math.min(100, clienteSeleccionado?.ingresosMensuales > 0 
-                            ? ((resumenPrestamo.valorCuota / clienteSeleccionado.ingresosMensuales) * 100)
-                            : 100
-                          )}%` 
-                        }}
-                      ></div>
-                    </div>
-                    <p className="text-xs text-gray-500 mt-2">
-                      Recomendado: menos del 35% de ingresos
-                    </p>
-                  </div>
-
-                  <div className="pt-4 border-t border-gray-200">
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium text-gray-700">Nivel de Riesgo</span>
-                      <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full ${
-                        clienteSeleccionado?.scoreCrediticio >= 80 ? 'bg-green-50 text-green-700' :
-                        clienteSeleccionado?.scoreCrediticio >= 70 ? 'bg-[#fb851b]/10 text-[#fb851b]' : 'bg-red-50 text-red-700'
-                      }`}>
-                        <div className={`w-2 h-2 rounded-full ${
-                          clienteSeleccionado?.scoreCrediticio >= 80 ? 'bg-green-500' :
-                          clienteSeleccionado?.scoreCrediticio >= 70 ? 'bg-[#fb851b]' : 'bg-red-500'
-                        }`}></div>
-                        <span className="text-xs font-medium">
-                          {clienteSeleccionado?.scoreCrediticio >= 80 ? 'BAJO' :
-                           clienteSeleccionado?.scoreCrediticio >= 70 ? 'MODERADO' : 'ALTO'}
+                        <span className="text-xs text-white/60 capitalize">
+                          / {form.frecuenciaPago.toLowerCase()}
                         </span>
                       </div>
                     </div>
+
+                    <div className="grid grid-cols-2 gap-4 pt-6 border-t border-white/10">
+                      <div>
+                        <p className="text-xs text-white/60 mb-1">Capital</p>
+                        <p className="text-sm font-medium">{formatCurrency(resumenPrestamo.totalFinanciado)}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-white/60 mb-1">Interés Total</p>
+                        <p className="text-sm font-medium text-secondary">
+                          {formatCurrency(resumenPrestamo.totalInteres)}
+                        </p>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
-            )}
 
-            {/* Acciones Rápidas */}
-            <div className="p-6 rounded-2xl bg-white border border-gray-200">
-              <h3 className="font-medium text-gray-900 mb-4">Documentos</h3>
-              <div className="space-y-2">
-                <button className="w-full flex items-center justify-between p-3 rounded-xl hover:bg-gray-50 transition-colors group">
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[#08557f]/10 to-[#08557f]/20 flex items-center justify-center">
-                      <FileText className="w-4 h-4 text-[#08557f]" />
-                    </div>
-                    <span className="text-sm text-gray-700">Generar contrato</span>
+              {/* Tabla de Amortización Preview */}
+              {step >= 2 && (
+                <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden animate-in fade-in slide-in-from-right-4 duration-500">
+                  <div className="p-4 border-b border-gray-100 bg-gray-50 flex items-center justify-between">
+                    <h3 className="font-medium text-gray-900 text-sm">Plan de Pagos (Primeras 6)</h3>
+                    <FileText className="w-4 h-4 text-gray-400" />
                   </div>
-                  <ChevronRight className="w-4 h-4 text-gray-400 group-hover:text-gray-600" />
-                </button>
-                <button className="w-full flex items-center justify-between p-3 rounded-xl hover:bg-gray-50 transition-colors group">
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[#fb851b]/10 to-[#fb851b]/20 flex items-center justify-center">
-                      <Download className="w-4 h-4 text-[#fb851b]" />
-                    </div>
-                    <span className="text-sm text-gray-700">Descargar plan de pagos</span>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm text-left">
+                      <thead className="text-xs text-gray-500 uppercase bg-gray-50/50">
+                        <tr>
+                          <th className="px-4 py-3 font-medium">#</th>
+                          <th className="px-4 py-3 font-medium">Fecha</th>
+                          <th className="px-4 py-3 font-medium text-right">Cuota</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-100">
+                        {cuotas.map((cuota) => (
+                          <tr key={cuota.numero} className="hover:bg-gray-50/50 transition-colors">
+                            <td className="px-4 py-2.5 text-gray-600">{cuota.numero}</td>
+                            <td className="px-4 py-2.5 text-gray-600">{cuota.fecha}</td>
+                            <td className="px-4 py-2.5 text-right font-medium text-gray-900">
+                              {formatCurrency(cuota.total)}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
                   </div>
-                  <ChevronRight className="w-4 h-4 text-gray-400 group-hover:text-gray-600" />
-                </button>
-                <button className="w-full flex items-center justify-between p-3 rounded-xl hover:bg-gray-50 transition-colors group">
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center">
-                      <Eye className="w-4 h-4 text-gray-600" />
-                    </div>
-                    <span className="text-sm text-gray-700">Ver historial del cliente</span>
+                  <div className="p-3 text-center border-t border-gray-100">
+                    <button className="text-xs text-primary hover:text-primary-dark font-medium transition-colors">
+                      Ver Tabla Completa
+                    </button>
                   </div>
-                  <ChevronRight className="w-4 h-4 text-gray-400 group-hover:text-gray-600" />
-                </button>
-              </div>
+                </div>
+              )}
             </div>
           </div>
         </div>

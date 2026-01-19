@@ -11,6 +11,7 @@ const geistSans = Sora ({
 export const metadata: Metadata = {
   title: "Créditos del Sur | Sistema de Gestión",
   description: "Sistema profesional para gestión de créditos, préstamos y cobranzas",
+  manifest: "/site.webmanifest",
 };
 
 export default function RootLayout({

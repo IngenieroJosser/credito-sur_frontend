@@ -1,53 +1,117 @@
 import { Metadata } from 'next';
-import { ChevronLeft, UserPlus, BarChart3 } from 'lucide-react';
-import ClienteDetalleElegante from '@/components/cliente/DetalleCliente';
+import { ChevronLeft, BarChart3, Smartphone, Zap, CreditCard as CreditCardIcon, DollarSign } from 'lucide-react';
+import ClienteDetalleElegante, { Cliente, Prestamo, Pago, Comentario } from '@/components/cliente/DetalleCliente';
 import Link from 'next/link';
 
-// Datos de ejemplo
-const clientesEjemplo = {
-  'cliente-001': {
-    nombre: 'Carlos',
-    apellido: 'Rodríguez',
-    rolRecomendado: 'administrador' as const,
-    score: 78,
-    riesgo: 'medio' as const
-  },
-  'cliente-002': {
-    nombre: 'Ana',
-    apellido: 'Gómez',
-    rolRecomendado: 'supervisor' as const,
-    score: 92,
-    riesgo: 'bajo' as const
-  },
-  'cliente-003': {
-    nombre: 'Roberto',
-    apellido: 'Sánchez',
-    rolRecomendado: 'cobrador' as const,
-    score: 65,
-    riesgo: 'alto' as const
-  },
-  'cliente-004': {
-    nombre: 'María',
-    apellido: 'López',
-    rolRecomendado: 'contable' as const,
-    score: 85,
-    riesgo: 'bajo' as const
-  }
+// Datos de ejemplo adaptados a las nuevas interfaces
+const clienteEjemplo: Cliente = {
+  id: 'CLI-001',
+  codigo: 'C001',
+  dni: '0912345678',
+  nombres: 'Carlos Andrés',
+  apellidos: 'Rodríguez Pérez',
+  correo: 'carlos.rodriguez@email.com',
+  telefono: '0991234567',
+  direccion: 'Av. 9 de Octubre y Boyacá',
+  referencia: 'Frente al parque central',
+  nivelRiesgo: 'AMARILLO',
+  puntaje: 78,
+  enListaNegra: false,
+  estadoAprobacion: 'APROBADO',
+  fechaRegistro: '15 Mar 2023',
+  ocupacion: 'Comerciante',
+  avatarColor: 'bg-blue-600'
 };
+
+const prestamosEjemplo: Prestamo[] = [
+  {
+    id: 'PR-2023-001',
+    producto: 'Refrigeradora Samsung',
+    montoTotal: 1200,
+    montoPagado: 720,
+    montoPendiente: 480,
+    cuotasTotales: 12,
+    cuotasPagadas: 7,
+    cuotasPendientes: 5,
+    fechaInicio: '15/01/2023',
+    fechaVencimiento: '15/12/2023',
+    proximoPago: '15/08/2023',
+    estado: 'ACTIVO',
+    tasaInteres: 15,
+    diasMora: 0,
+    icono: <Smartphone className="w-5 h-5" />,
+    categoria: 'Electrodomésticos'
+  },
+  {
+    id: 'PR-2023-012',
+    producto: 'Cocina a Gas',
+    montoTotal: 650,
+    montoPagado: 325,
+    montoPendiente: 325,
+    cuotasTotales: 8,
+    cuotasPagadas: 4,
+    cuotasPendientes: 4,
+    fechaInicio: '05/03/2023',
+    fechaVencimiento: '05/10/2023',
+    proximoPago: '05/08/2023',
+    estado: 'EN_MORA',
+    tasaInteres: 12,
+    diasMora: 7,
+    moraAcumulada: 12.50,
+    icono: <Zap className="w-5 h-5" />,
+    categoria: 'Electrodomésticos'
+  }
+];
+
+const pagosEjemplo: Pago[] = [
+  {
+    id: 'PA-00123',
+    fecha: '15 Jul 2023',
+    monto: 100,
+    cuota: 7,
+    metodo: 'Transferencia',
+    estado: 'confirmado',
+    referencia: 'TRX-789456',
+    icono: <CreditCardIcon className="w-5 h-5" />
+  },
+  {
+    id: 'PA-00122',
+    fecha: '15 Jun 2023',
+    monto: 100,
+    cuota: 6,
+    metodo: 'Efectivo',
+    estado: 'confirmado',
+    icono: <DollarSign className="w-5 h-5" />
+  }
+];
+
+const comentariosEjemplo: Comentario[] = [
+  {
+    id: 'COM-001',
+    fecha: '10 Ago 2023',
+    autor: 'Ana Martínez',
+    rolAutor: 'Supervisor',
+    contenido: 'Cliente cumplió acuerdo de pago. Se comprometió a ponerse al día antes del 20/08.',
+    tipo: 'llamada',
+    avatarColor: 'bg-purple-600'
+  },
+  {
+    id: 'COM-002',
+    fecha: '05 Ago 2023',
+    autor: 'Roberto Sánchez',
+    rolAutor: 'Cobrador',
+    contenido: 'Visita domiciliaria realizada. Cliente presentó justificativo médico por retraso.',
+    tipo: 'visita',
+    avatarColor: 'bg-blue-600'
+  }
+];
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
   const { id } = await params;
-  const clienteInfo = id ? clientesEjemplo[id as keyof typeof clientesEjemplo] : undefined;
-  
   return {
-    title: `${clienteInfo ? `${clienteInfo.nombre} ${clienteInfo.apellido}` : 'Cliente'} • Gestión Crediticia`,
-    description: `Panel de gestión y análisis para ${clienteInfo ? `${clienteInfo.nombre} ${clienteInfo.apellido}` : 'cliente'}`
+    title: `Detalle de Cliente • Gestión Crediticia`,
+    description: `Panel de gestión y análisis para el cliente ${id}`
   };
-}
-
-async function getClienteData(id: string) {
-  // Simulación de API call
-  return clientesEjemplo[id as keyof typeof clientesEjemplo] || clientesEjemplo['cliente-001'];
 }
 
 export default async function ClienteDetallePage({ 
@@ -56,16 +120,14 @@ export default async function ClienteDetallePage({
   params: Promise<{ id: string }>
 }) {
   const { id } = await params;
-  const clienteData = await getClienteData(id);
   
-  // En producción, esto vendría de la sesión
-  const rolUsuario: 'administrador' | 'coordinador' | 'supervisor' | 'cobrador' | 'contable' = 
-    clienteData?.rolRecomendado || 'administrador';
+  // Simulamos datos específicos si el ID cambia, o usamos el default
+  const cliente = { ...clienteEjemplo, id };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-25 to-gray-50">
-      {/* Header sofisticado */}
-      <header className="sticky top-0 z-10 bg-white/80 backdrop-blur-md border-b border-gray-200">
+    <div className="min-h-screen bg-gray-50/50">
+      {/* Header General de la Página */}
+      <header className="sticky top-0 z-10 bg-white border-b border-gray-200">
         <div className="px-6 lg:px-8 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
@@ -76,92 +138,27 @@ export default async function ClienteDetallePage({
                 <ChevronLeft className="w-5 h-5 text-gray-600" />
               </Link>
               <div className="flex items-center gap-3">
-                <div className="p-2 rounded-lg bg-gradient-to-br from-blue-50 to-blue-100">
-                  <BarChart3 className="w-5 h-5 text-[#08557f]" />
+                <div className="p-2 rounded-lg bg-blue-50">
+                  <BarChart3 className="w-5 h-5 text-primary" />
                 </div>
                 <div>
-                  <h1 className="text-lg font-light text-gray-900">Gestión Crediticia</h1>
-                  <p className="text-sm text-gray-500">Panel de análisis de clientes</p>
+                  <h1 className="text-lg font-light text-gray-900">Gestión de Clientes</h1>
+                  <p className="text-sm text-gray-500">Detalle y análisis de cartera</p>
                 </div>
               </div>
-            </div>
-            
-            <div className="flex items-center gap-3">
-              <div className="hidden md:flex items-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-br from-gray-50 to-gray-100">
-                <div className="w-2 h-2 rounded-full bg-green-500"></div>
-                <span className="text-sm font-medium text-gray-700">{rolUsuario}</span>
-              </div>
-              <button className="px-4 py-2 bg-gradient-to-r from-[#08557f] to-[#0a6a9e] text-white rounded-lg hover:opacity-90 transition-all duration-200 text-sm font-medium flex items-center gap-2 shadow-sm">
-                <UserPlus className="w-4 h-4" />
-                Nuevo Cliente
-              </button>
             </div>
           </div>
         </div>
       </header>
 
-      {/* Contenido principal */}
-      <main className="px-4 lg:px-8 py-6">
-        {/* Breadcrumb elegante */}
-        <div className="mb-6">
-          <nav className="flex items-center text-sm text-gray-500">
-            <Link href="/admin" className="hover:text-primary transition-colors">
-              Dashboard
-            </Link>
-            <ChevronLeft className="w-4 h-4 mx-2" />
-            <Link href="/admin/clientes" className="hover:text-primary transition-colors">
-              Clientes
-            </Link>
-            <ChevronLeft className="w-4 h-4 mx-2" />
-            <span className="text-primary font-medium">
-              {clienteData?.nombre} {clienteData?.apellido}
-            </span>
-          </nav>
-          
-          <div className="mt-2 flex items-center justify-between">
-            <div>
-              <h2 className="text-3xl font-light text-gray-900">
-                {clienteData?.nombre} {clienteData?.apellido}
-              </h2>
-              <p className="text-gray-500 mt-1">Análisis detallado del perfil crediticio</p>
-            </div>
-            
-            <div className="hidden lg:flex items-center gap-3">
-              <div className="text-right">
-                <div className="text-sm text-gray-500">Score Crediticio</div>
-                <div className="flex items-center gap-2">
-                  <div className="w-32 h-1.5 bg-gray-200 rounded-full overflow-hidden">
-                    <div 
-                      className="h-full bg-gradient-to-r from-green-400 to-green-600 rounded-full"
-                      style={{ width: `${clienteData?.score || 78}%` }}
-                    />
-                  </div>
-                  <span className="font-medium text-gray-900">{clienteData?.score || 78}/100</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Componente de detalle */}
+      <main>
         <ClienteDetalleElegante 
-          clienteId={id}
-          rolUsuario={rolUsuario}
+          cliente={cliente}
+          prestamos={prestamosEjemplo}
+          pagos={pagosEjemplo}
+          comentarios={comentariosEjemplo}
+          rolUsuario="administrador"
         />
-
-        {/* Footer sofisticado */}
-        <footer className="mt-8 pt-6 border-t border-gray-200">
-          <div className="flex flex-col md:flex-row justify-between items-center text-sm text-gray-500">
-            <div className="flex items-center gap-4">
-              <span>Sistema de Gestión Crediticia v2.0</span>
-              <span className="hidden md:inline">•</span>
-              <span className="hidden md:inline">Datos actualizados al {new Date().toLocaleDateString()}</span>
-            </div>
-            <div className="mt-4 md:mt-0">
-              <span className="text-gray-400">© 2024 Créditos Plus</span>
-            </div>
-          </div>
-        </footer>
       </main>
     </div>
   );

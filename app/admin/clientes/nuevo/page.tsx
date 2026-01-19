@@ -1,6 +1,8 @@
-'use client'
+'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import {
   Save,
   User,
@@ -14,40 +16,33 @@ import {
   BarChart3,
   ChevronRight,
   CreditCard,
-  Target
+  Target,
+  ArrowLeft,
+  FileText
 } from 'lucide-react';
 
+// Tipos alineados con Prisma Schema
 interface ClienteFormData {
   // Datos personales
-  nombre: string;
-  apellido: string;
-  documento: string;
-  fechaNacimiento: string;
-  genero: string;
+  nombres: string;
+  apellidos: string;
+  dni: string;
   
   // Contacto
   telefono: string;
-  email: string;
+  correo: string;
   direccion: string;
-  ciudad: string;
+  referencia: string;
   
-  // Laboral
-  ocupacion: string;
-  ingresoMensual: number;
-  
-  // Financiero
-  scoreCredito: number;
-  limiteCredito: number;
-  
-  // Cobro
-  rutaCobro: string;
-  diaPago: number;
-  metodoPago: string;
-  
-  // Seguridad
+  // Financiero / Riesgo
+  puntaje: number; // 0-100
+  nivelRiesgo: 'VERDE' | 'AMARILLO' | 'ROJO' | 'LISTA_NEGRA';
   enListaNegra: boolean;
+  razonListaNegra: string;
+  
+  // Operativo
+  rutaId: string; // Para asignación inicial
   observaciones: string;
-  nivelRiesgo: string;
 }
 
 const ScoreMeter = ({ score }: { score: number }) => {
@@ -71,8 +66,8 @@ const ScoreMeter = ({ score }: { score: number }) => {
         <span>50</span>
         <span>100</span>
       </div>
-      <div className="absolute top-0 left-0" style={{ left: `${score - 2}%` }}>
-        <div className="w-4 h-4 rounded-full bg-white border-2 border-current shadow-sm transform -translate-y-1/2"
+      <div className="absolute top-0 left-0" style={{ left: `${score}%`, transform: 'translateX(-50%)' }}>
+        <div className="w-4 h-4 rounded-full bg-white border-2 border-current shadow-sm mt-[-6px]"
              style={{ borderColor: getScoreColor(score).replace('bg-', 'text-') }}>
         </div>
       </div>
@@ -81,49 +76,37 @@ const ScoreMeter = ({ score }: { score: number }) => {
 };
 
 const ClienteFormPage = () => {
-  const [isEditMode] = useState(false);
+  const router = useRouter();
+  const [isEditMode] = useState(false); // Podría venir de props/params
   const [activeSection, setActiveSection] = useState('personal');
   const [formData, setFormData] = useState<ClienteFormData>({
-    nombre: '',
-    apellido: '',
-    documento: '',
-    fechaNacimiento: '',
-    genero: '',
-    
+    nombres: '',
+    apellidos: '',
+    dni: '',
     telefono: '',
-    email: '',
+    correo: '',
     direccion: '',
-    ciudad: '',
-    
-    ocupacion: '',
-    ingresoMensual: 0,
-    
-    scoreCredito: 75,
-    limiteCredito: 10000,
-    
-    rutaCobro: '',
-    diaPago: 15,
-    metodoPago: '',
-    
+    referencia: '',
+    puntaje: 100, // Empieza con buen score
+    nivelRiesgo: 'VERDE',
     enListaNegra: false,
-    observaciones: '',
-    nivelRiesgo: 'medio'
+    razonListaNegra: '',
+    rutaId: '',
+    observaciones: ''
   });
 
   const sections = [
-    { id: 'personal', label: 'Personal', icon: <User className="h-4 w-4" /> },
-    { id: 'contacto', label: 'Contacto', icon: <Phone className="h-4 w-4" /> },
-    { id: 'laboral', label: 'Laboral', icon: <Briefcase className="h-4 w-4" /> },
-    { id: 'financiero', label: 'Financiero', icon: <DollarSign className="h-4 w-4" /> },
-    { id: 'cobro', label: 'Cobro', icon: <BarChart3 className="h-4 w-4" /> },
-    { id: 'seguridad', label: 'Seguridad', icon: <Shield className="h-4 w-4" /> }
+    { id: 'personal', label: 'Datos Personales', icon: <User className="h-4 w-4" /> },
+    { id: 'contacto', label: 'Contacto y Ubicación', icon: <MapPin className="h-4 w-4" /> },
+    { id: 'riesgo', label: 'Perfil de Riesgo', icon: <Shield className="h-4 w-4" /> },
+    { id: 'operativo', label: 'Asignación y Notas', icon: <Briefcase className="h-4 w-4" /> }
   ];
 
-  const rutasCobro = [
-    'Ruta Centro - Carlos Pérez',
-    'Ruta Este - María Rodríguez',
-    'Ruta Oeste - Juan López',
-    'Ruta Norte - Ana Gómez'
+  // Mock de rutas disponibles
+  const rutasDisponibles = [
+    { id: 'ruta-1', nombre: 'Ruta Centro - Carlos Pérez' },
+    { id: 'ruta-2', nombre: 'Ruta Norte - Ana Gómez' },
+    { id: 'ruta-3', nombre: 'Ruta Sur - Juan López' }
   ];
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
@@ -131,7 +114,12 @@ const ClienteFormPage = () => {
     
     if (type === 'checkbox') {
       const checked = (e.target as HTMLInputElement).checked;
-      setFormData(prev => ({ ...prev, [name]: checked }));
+      setFormData(prev => ({ 
+        ...prev, 
+        [name]: checked,
+        // Auto-asignar riesgo si se marca lista negra
+        ...(name === 'enListaNegra' && checked ? { nivelRiesgo: 'LISTA_NEGRA', puntaje: 0 } : {})
+      }));
     } else if (type === 'number') {
       setFormData(prev => ({ ...prev, [name]: parseFloat(value) || 0 }));
     } else {
@@ -142,177 +130,196 @@ const ClienteFormPage = () => {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     console.log('Formulario enviado:', formData);
-    alert(isEditMode ? 'Cliente actualizado' : 'Cliente creado');
+    // Aquí iría la llamada a la API
+    alert(isEditMode ? 'Cliente actualizado' : 'Cliente creado exitosamente');
+    router.push('/admin/clientes');
   };
 
   const getRiesgoColor = (nivel: string) => {
     switch (nivel) {
-      case 'bajo': return 'text-green-500';
-      case 'medio': return 'text-yellow-500';
-      case 'alto': return 'text-orange-500';
-      case 'critico': return 'text-red-500';
-      default: return 'text-gray-500';
+      case 'VERDE': return 'text-green-600';
+      case 'AMARILLO': return 'text-yellow-600';
+      case 'ROJO': return 'text-red-600';
+      case 'LISTA_NEGRA': return 'text-gray-800';
+      default: return 'text-gray-600';
     }
   };
 
   const getRiesgoBg = (nivel: string) => {
     switch (nivel) {
-      case 'bajo': return 'bg-green-500/10';
-      case 'medio': return 'bg-yellow-500/10';
-      case 'alto': return 'bg-orange-500/10';
-      case 'critico': return 'bg-red-500/10';
-      default: return 'bg-gray-500/10';
+      case 'VERDE': return 'bg-green-100';
+      case 'AMARILLO': return 'bg-yellow-100';
+      case 'ROJO': return 'bg-red-100';
+      case 'LISTA_NEGRA': return 'bg-gray-200';
+      default: return 'bg-gray-100';
     }
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-white via-gray-50 to-gray-100">
-      {/* Header elegante */}
-      <div className="sticky top-0 z-40 bg-white/80 backdrop-blur-sm border-b border-gray-100">
+    <div className="min-h-screen bg-gray-50/50">
+      {/* Header */}
+      <div className="sticky top-0 z-40 bg-white/80 backdrop-blur-sm border-b border-gray-200/50">
         <div className="px-6 py-4">
           <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-3">
-              <div className="w-8 h-8 bg-gradient-to-br from-primary to-primary-dark rounded-lg flex items-center justify-center">
-                <User className="h-4 w-4 text-white" />
-              </div>
-              <div>
-                <h1 className="text-lg font-light text-gray-800">
-                  {isEditMode ? 'Editar Cliente' : 'Nuevo Cliente'}
-                </h1>
+            <div className="flex items-center space-x-4">
+              <Link 
+                href="/admin/clientes"
+                className="p-2 hover:bg-gray-100 rounded-lg transition-colors text-gray-500"
+              >
+                <ArrowLeft className="h-5 w-5" />
+              </Link>
+              <div className="flex items-center space-x-3">
+                <div className="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center text-primary">
+                  <User className="h-5 w-5" />
+                </div>
+                <div>
+                  <h1 className="text-xl font-semibold text-gray-900">
+                    {isEditMode ? 'Editar Cliente' : 'Nuevo Cliente'}
+                  </h1>
+                  <p className="text-sm text-gray-500">
+                    {isEditMode ? 'Actualizar información del cliente' : 'Registrar un nuevo cliente en el sistema'}
+                  </p>
+                </div>
               </div>
             </div>
 
-            <div className="flex items-center space-x-2">
-              <button className="px-4 py-2 text-gray-600 hover:text-gray-800 transition-colors text-sm">
+            <div className="flex items-center space-x-3">
+              <Link
+                href="/admin/clientes"
+                className="px-4 py-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors text-sm font-medium"
+              >
                 Cancelar
-              </button>
+              </Link>
               <button
                 onClick={handleSubmit}
-                className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark transition-colors text-sm flex items-center space-x-2"
+                className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark transition-colors text-sm font-medium flex items-center space-x-2 shadow-sm hover:shadow-md"
               >
                 <Save className="h-4 w-4" />
-                <span>{isEditMode ? 'Actualizar' : 'Guardar'}</span>
+                <span>{isEditMode ? 'Actualizar Cliente' : 'Guardar Cliente'}</span>
               </button>
             </div>
           </div>
         </div>
       </div>
 
-      <div className="p-6">
+      <div className="p-6 max-w-7xl mx-auto">
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-          {/* Navegación lateral elegante */}
-          <div className="lg:col-span-1">
-            <div className="bg-white border border-gray-100 rounded-xl p-4">
-              <div className="space-y-1">
-                {sections.map((section) => (
-                  <button
-                    key={section.id}
-                    onClick={() => setActiveSection(section.id)}
-                    className={`w-full flex items-center justify-between p-3 rounded-lg transition-all duration-200 ${
-                      activeSection === section.id
-                        ? 'bg-primary/10 text-primary'
-                        : 'text-gray-600 hover:text-gray-800 hover:bg-gray-50'
-                    }`}
-                  >
-                    <div className="flex items-center space-x-3">
-                      <div className={`p-1.5 rounded ${
-                        activeSection === section.id ? 'bg-primary/20' : 'bg-gray-100'
-                      }`}>
-                        {section.icon}
-                      </div>
-                      <span className="text-sm font-medium">{section.label}</span>
+          {/* Navegación lateral */}
+          <div className="lg:col-span-1 space-y-6">
+            <div className="bg-white border border-gray-200 rounded-xl p-2 shadow-sm">
+              {sections.map((section) => (
+                <button
+                  key={section.id}
+                  onClick={() => setActiveSection(section.id)}
+                  className={`w-full flex items-center justify-between p-3 rounded-lg transition-all duration-200 ${
+                    activeSection === section.id
+                      ? 'bg-primary/5 text-primary font-medium'
+                      : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+                  }`}
+                >
+                  <div className="flex items-center space-x-3">
+                    <div className={`p-2 rounded-lg ${
+                      activeSection === section.id ? 'bg-primary/10' : 'bg-gray-100'
+                    }`}>
+                      {section.icon}
                     </div>
-                    {activeSection === section.id && (
-                      <ChevronRight className="h-4 w-4" />
-                    )}
-                  </button>
-                ))}
+                    <span className="text-sm">{section.label}</span>
+                  </div>
+                  {activeSection === section.id && (
+                    <ChevronRight className="h-4 w-4" />
+                  )}
+                </button>
+              ))}
+            </div>
+
+            {/* Resumen de Riesgo */}
+            <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
+              <h3 className="text-sm font-semibold text-gray-900 mb-4">Resumen de Riesgo</h3>
+              
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm text-gray-600">Nivel</span>
+                <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${getRiesgoBg(formData.nivelRiesgo)} ${getRiesgoColor(formData.nivelRiesgo)}`}>
+                  {formData.nivelRiesgo.replace('_', ' ')}
+                </span>
+              </div>
+              
+              <div className="mb-4">
+                <div className="flex justify-between items-end mb-1">
+                  <span className="text-xs text-gray-500">Puntaje</span>
+                  <span className="text-lg font-semibold text-gray-900">{formData.puntaje}/100</span>
+                </div>
+                <ScoreMeter score={formData.puntaje} />
               </div>
 
-              {/* Indicador de riesgo */}
-              <div className="mt-6 p-4 border border-gray-100 rounded-lg">
-                <div className="flex items-center justify-between mb-3">
-                  <span className="text-sm font-medium text-gray-700">Riesgo</span>
-                  <div className={`px-2 py-1 rounded text-xs font-medium ${getRiesgoBg(formData.nivelRiesgo)} ${getRiesgoColor(formData.nivelRiesgo)}`}>
-                    {formData.nivelRiesgo.toUpperCase()}
+              {formData.enListaNegra && (
+                <div className="p-3 bg-red-50 rounded-lg border border-red-100">
+                  <div className="flex items-start space-x-2">
+                    <AlertCircle className="h-4 w-4 text-red-600 mt-0.5" />
+                    <div className="text-xs text-red-700">
+                      <span className="font-semibold block mb-1">En Lista Negra</span>
+                      Cliente marcado como no apto para créditos.
+                    </div>
                   </div>
                 </div>
-                <div className="text-2xl font-light text-gray-800 mb-2">{formData.scoreCredito}</div>
-                <ScoreMeter score={formData.scoreCredito} />
-              </div>
+              )}
             </div>
           </div>
 
-          {/* Formulario principal */}
+          {/* Formulario */}
           <div className="lg:col-span-3">
-            <form onSubmit={handleSubmit} className="space-y-6">
+            <form onSubmit={handleSubmit} className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
               {/* Sección Personal */}
               {activeSection === 'personal' && (
-                <div className="bg-white border border-gray-100 rounded-xl p-6">
-                  <div className="space-y-6">
+                <div className="p-6 space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
+                  <div className="flex items-center space-x-2 border-b border-gray-100 pb-4 mb-6">
+                    <User className="h-5 w-5 text-gray-400" />
+                    <h2 className="text-lg font-medium text-gray-900">Datos Personales</h2>
+                  </div>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
-                      <h2 className="text-base font-medium text-gray-800 mb-4">Datos Personales</h2>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                          <label className="block text-sm text-gray-600 mb-2">Nombre</label>
-                          <input
-                            type="text"
-                            name="nombre"
-                            value={formData.nombre}
-                            onChange={handleInputChange}
-                            className="w-full px-3 py-2 bg-transparent border-0 border-b border-gray-200 focus:border-primary focus:outline-none transition-colors"
-                            placeholder="Nombre"
-                            required
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-sm text-gray-600 mb-2">Apellido</label>
-                          <input
-                            type="text"
-                            name="apellido"
-                            value={formData.apellido}
-                            onChange={handleInputChange}
-                            className="w-full px-3 py-2 bg-transparent border-0 border-b border-gray-200 focus:border-primary focus:outline-none transition-colors"
-                            placeholder="Apellido"
-                            required
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-sm text-gray-600 mb-2">Documento</label>
-                          <input
-                            type="text"
-                            name="documento"
-                            value={formData.documento}
-                            onChange={handleInputChange}
-                            className="w-full px-3 py-2 bg-transparent border-0 border-b border-gray-200 focus:border-primary focus:outline-none transition-colors"
-                            placeholder="V-12345678"
-                            required
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-sm text-gray-600 mb-2">Fecha Nacimiento</label>
-                          <input
-                            type="date"
-                            name="fechaNacimiento"
-                            value={formData.fechaNacimiento}
-                            onChange={handleInputChange}
-                            className="w-full px-3 py-2 bg-transparent border-0 border-b border-gray-200 focus:border-primary focus:outline-none transition-colors"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-sm text-gray-600 mb-2">Género</label>
-                          <select
-                            name="genero"
-                            value={formData.genero}
-                            onChange={handleInputChange}
-                            className="w-full px-3 py-2 bg-transparent border-0 border-b border-gray-200 focus:border-primary focus:outline-none transition-colors"
-                          >
-                            <option value="">Seleccionar</option>
-                            <option value="masculino">Masculino</option>
-                            <option value="femenino">Femenino</option>
-                            <option value="otro">Otro</option>
-                          </select>
-                        </div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Nombres <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        name="nombres"
+                        value={formData.nombres}
+                        onChange={handleInputChange}
+                        className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                        placeholder="Ej. Juan Carlos"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Apellidos <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        name="apellidos"
+                        value={formData.apellidos}
+                        onChange={handleInputChange}
+                        className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                        placeholder="Ej. Pérez Rodriguez"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        DNI / Cédula <span className="text-red-500">*</span>
+                      </label>
+                      <div className="relative">
+                        <Shield className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                        <input
+                          type="text"
+                          name="dni"
+                          value={formData.dni}
+                          onChange={handleInputChange}
+                          className="w-full pl-10 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                          placeholder="V-12345678"
+                          required
+                        />
                       </div>
                     </div>
                   </div>
@@ -321,356 +328,227 @@ const ClienteFormPage = () => {
 
               {/* Sección Contacto */}
               {activeSection === 'contacto' && (
-                <div className="bg-white border border-gray-100 rounded-xl p-6">
-                  <div className="space-y-6">
+                <div className="p-6 space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
+                  <div className="flex items-center space-x-2 border-b border-gray-100 pb-4 mb-6">
+                    <MapPin className="h-5 w-5 text-gray-400" />
+                    <h2 className="text-lg font-medium text-gray-900">Contacto y Ubicación</h2>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
-                      <h2 className="text-base font-medium text-gray-800 mb-4">Información de Contacto</h2>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                          <label className="block text-sm text-gray-600 mb-2">Teléfono</label>
-                          <div className="flex items-center">
-                            <Phone className="h-4 w-4 text-gray-400 mr-2" />
-                            <input
-                              type="tel"
-                              name="telefono"
-                              value={formData.telefono}
-                              onChange={handleInputChange}
-                              className="w-full px-3 py-2 bg-transparent border-0 border-b border-gray-200 focus:border-primary focus:outline-none transition-colors"
-                              placeholder="+58 412 555 1212"
-                              required
-                            />
-                          </div>
-                        </div>
-                        <div>
-                          <label className="block text-sm text-gray-600 mb-2">Email</label>
-                          <div className="flex items-center">
-                            <Mail className="h-4 w-4 text-gray-400 mr-2" />
-                            <input
-                              type="email"
-                              name="email"
-                              value={formData.email}
-                              onChange={handleInputChange}
-                              className="w-full px-3 py-2 bg-transparent border-0 border-b border-gray-200 focus:border-primary focus:outline-none transition-colors"
-                              placeholder="cliente@email.com"
-                            />
-                          </div>
-                        </div>
-                        <div className="md:col-span-2">
-                          <label className="block text-sm text-gray-600 mb-2">Dirección</label>
-                          <div className="flex items-center">
-                            <MapPin className="h-4 w-4 text-gray-400 mr-2" />
-                            <input
-                              type="text"
-                              name="direccion"
-                              value={formData.direccion}
-                              onChange={handleInputChange}
-                              className="w-full px-3 py-2 bg-transparent border-0 border-b border-gray-200 focus:border-primary focus:outline-none transition-colors"
-                              placeholder="Dirección completa"
-                            />
-                          </div>
-                        </div>
-                        <div>
-                          <label className="block text-sm text-gray-600 mb-2">Ciudad</label>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Teléfono Principal <span className="text-red-500">*</span>
+                      </label>
+                      <div className="relative">
+                        <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                        <input
+                          type="tel"
+                          name="telefono"
+                          value={formData.telefono}
+                          onChange={handleInputChange}
+                          className="w-full pl-10 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                          placeholder="+58 412 123 4567"
+                          required
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Correo Electrónico
+                      </label>
+                      <div className="relative">
+                        <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                        <input
+                          type="email"
+                          name="correo"
+                          value={formData.correo}
+                          onChange={handleInputChange}
+                          className="w-full pl-10 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                          placeholder="cliente@ejemplo.com"
+                        />
+                      </div>
+                    </div>
+                    <div className="md:col-span-2">
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Dirección Exacta <span className="text-red-500">*</span>
+                      </label>
+                      <textarea
+                        name="direccion"
+                        value={formData.direccion}
+                        onChange={handleInputChange}
+                        rows={3}
+                        className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all resize-none"
+                        placeholder="Calle, número de casa, sector, parroquia..."
+                        required
+                      />
+                    </div>
+                    <div className="md:col-span-2">
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Punto de Referencia
+                      </label>
+                      <input
+                        type="text"
+                        name="referencia"
+                        value={formData.referencia}
+                        onChange={handleInputChange}
+                        className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                        placeholder="Ej. Frente a la panadería, casa de rejas azules..."
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Sección Riesgo */}
+              {activeSection === 'riesgo' && (
+                <div className="p-6 space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
+                  <div className="flex items-center space-x-2 border-b border-gray-100 pb-4 mb-6">
+                    <Shield className="h-5 w-5 text-gray-400" />
+                    <h2 className="text-lg font-medium text-gray-900">Perfil de Riesgo</h2>
+                  </div>
+
+                  <div className="grid grid-cols-1 gap-6">
+                    <div className="bg-gray-50 rounded-xl p-4 border border-gray-200">
+                      <div className="flex items-start space-x-3">
+                        <div className="flex items-center h-5">
                           <input
-                            type="text"
-                            name="ciudad"
-                            value={formData.ciudad}
+                            id="enListaNegra"
+                            name="enListaNegra"
+                            type="checkbox"
+                            checked={formData.enListaNegra}
                             onChange={handleInputChange}
-                            className="w-full px-3 py-2 bg-transparent border-0 border-b border-gray-200 focus:border-primary focus:outline-none transition-colors"
-                            placeholder="Ciudad"
+                            className="focus:ring-red-500 h-4 w-4 text-red-600 border-gray-300 rounded"
                           />
                         </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Sección Laboral */}
-              {activeSection === 'laboral' && (
-                <div className="bg-white border border-gray-100 rounded-xl p-6">
-                  <div className="space-y-6">
-                    <div>
-                      <h2 className="text-base font-medium text-gray-800 mb-4">Información Laboral</h2>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                          <label className="block text-sm text-gray-600 mb-2">Ocupación</label>
-                          <div className="flex items-center">
-                            <Briefcase className="h-4 w-4 text-gray-400 mr-2" />
-                            <input
-                              type="text"
-                              name="ocupacion"
-                              value={formData.ocupacion}
-                              onChange={handleInputChange}
-                              className="w-full px-3 py-2 bg-transparent border-0 border-b border-gray-200 focus:border-primary focus:outline-none transition-colors"
-                              placeholder="Profesión u oficio"
-                            />
-                          </div>
-                        </div>
-                        <div>
-                          <label className="block text-sm text-gray-600 mb-2">Ingreso Mensual</label>
-                          <div className="flex items-center">
-                            <DollarSign className="h-4 w-4 text-gray-400 mr-2" />
-                            <input
-                              type="number"
-                              name="ingresoMensual"
-                              value={formData.ingresoMensual}
-                              onChange={handleInputChange}
-                              className="w-full px-3 py-2 bg-transparent border-0 border-b border-gray-200 focus:border-primary focus:outline-none transition-colors"
-                              placeholder="0.00"
-                            />
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Sección Financiero */}
-              {activeSection === 'financiero' && (
-                <div className="bg-white border border-gray-100 rounded-xl p-6">
-                  <div className="space-y-6">
-                    <div>
-                      <h2 className="text-base font-medium text-gray-800 mb-4">Información Financiera</h2>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div className="space-y-4">
-                          <div>
-                            <label className="block text-sm text-gray-600 mb-2">Score Crediticio</label>
-                            <div className="text-3xl font-light text-gray-800 mb-2">{formData.scoreCredito}</div>
-                            <div className="relative">
-                              <input
-                                type="range"
-                                name="scoreCredito"
-                                min="0"
-                                max="100"
-                                value={formData.scoreCredito}
-                                onChange={handleInputChange}
-                                className="w-full h-1 bg-gray-200 rounded-full appearance-none cursor-pointer"
-                              />
-                              <div className="flex justify-between text-xs text-gray-400 mt-1">
-                                <span>Bajo</span>
-                                <span>Alto</span>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                        <div className="space-y-4">
-                          <div>
-                            <label className="block text-sm text-gray-600 mb-2">Límite de Crédito</label>
-                            <div className="flex items-center">
-                              <CreditCard className="h-4 w-4 text-gray-400 mr-2" />
-                              <input
-                                type="number"
-                                name="limiteCredito"
-                                value={formData.limiteCredito}
-                                onChange={handleInputChange}
-                                className="w-full px-3 py-2 bg-transparent border-0 border-b border-gray-200 focus:border-primary focus:outline-none transition-colors"
-                                placeholder="10000"
-                              />
-                            </div>
-                          </div>
-                          <div>
-                            <label className="block text-sm text-gray-600 mb-2">Nivel de Riesgo</label>
-                            <div className="flex items-center space-x-2">
-                              <select
-                                name="nivelRiesgo"
-                                value={formData.nivelRiesgo}
-                                onChange={handleInputChange}
-                                className="flex-1 px-3 py-2 bg-transparent border-0 border-b border-gray-200 focus:border-primary focus:outline-none transition-colors"
-                              >
-                                <option value="bajo">Bajo</option>
-                                <option value="medio">Medio</option>
-                                <option value="alto">Alto</option>
-                                <option value="critico">Crítico</option>
-                              </select>
-                              <div className={`w-3 h-3 rounded-full ${getRiesgoBg(formData.nivelRiesgo)} ${getRiesgoColor(formData.nivelRiesgo)}`}></div>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Sección Cobro */}
-              {activeSection === 'cobro' && (
-                <div className="bg-white border border-gray-100 rounded-xl p-6">
-                  <div className="space-y-6">
-                    <div>
-                      <h2 className="text-base font-medium text-gray-800 mb-4">Ruta de Cobro</h2>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div className="space-y-4">
-                          <div>
-                            <label className="block text-sm text-gray-600 mb-2">Asignar Ruta</label>
-                            <select
-                              name="rutaCobro"
-                              value={formData.rutaCobro}
-                              onChange={handleInputChange}
-                              className="w-full px-3 py-2 bg-transparent border-0 border-b border-gray-200 focus:border-primary focus:outline-none transition-colors"
-                            >
-                              <option value="">Seleccionar ruta...</option>
-                              {rutasCobro.map((ruta, idx) => (
-                                <option key={idx} value={ruta}>{ruta}</option>
-                              ))}
-                            </select>
-                          </div>
-                          <div>
-                            <label className="block text-sm text-gray-600 mb-2">Día de Pago</label>
-                            <div className="flex items-center space-x-3">
-                              <Target className="h-4 w-4 text-gray-400" />
-                              <input
-                                type="range"
-                                name="diaPago"
-                                min="1"
-                                max="31"
-                                value={formData.diaPago}
-                                onChange={handleInputChange}
-                                className="flex-1 h-1 bg-gray-200 rounded-full appearance-none cursor-pointer"
-                              />
-                              <span className="text-sm font-medium text-gray-700 min-w-[2rem] text-center">
-                                {formData.diaPago}
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-                        <div className="space-y-4">
-                          <div>
-                            <label className="block text-sm text-gray-600 mb-2">Método de Pago</label>
-                            <select
-                              name="metodoPago"
-                              value={formData.metodoPago}
-                              onChange={handleInputChange}
-                              className="w-full px-3 py-2 bg-transparent border-0 border-b border-gray-200 focus:border-primary focus:outline-none transition-colors"
-                            >
-                              <option value="">Seleccionar método...</option>
-                              <option value="efectivo">Efectivo</option>
-                              <option value="transferencia">Transferencia</option>
-                              <option value="tarjeta">Tarjeta</option>
-                              <option value="pago_movil">Pago Móvil</option>
-                            </select>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Sección Seguridad */}
-              {activeSection === 'seguridad' && (
-                <div className="bg-white border border-gray-100 rounded-xl p-6">
-                  <div className="space-y-6">
-                    <div>
-                      <h2 className="text-base font-medium text-gray-800 mb-4">Controles de Seguridad</h2>
-                      <div className="space-y-6">
-                        <div className="flex items-center justify-between p-4 border border-gray-100 rounded-lg">
-                          <div className="flex items-center space-x-3">
-                            <div className="p-2 bg-red-50 rounded-lg">
-                              <AlertCircle className="h-5 w-5 text-red-500" />
-                            </div>
-                            <div>
-                              <div className="text-sm font-medium text-gray-800">Lista Negra</div>
-                              <div className="text-xs text-gray-500">Bloquear acceso al cliente</div>
-                            </div>
-                          </div>
-                          <label className="relative inline-flex items-center cursor-pointer">
-                            <input
-                              type="checkbox"
-                              name="enListaNegra"
-                              checked={formData.enListaNegra}
-                              onChange={handleInputChange}
-                              className="sr-only peer"
-                            />
-                            <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-red-600"></div>
+                        <div className="ml-3 text-sm">
+                          <label htmlFor="enListaNegra" className="font-medium text-gray-900">
+                            Marcar en Lista Negra
                           </label>
-                        </div>
-
-                        {formData.enListaNegra && (
-                          <div className="p-4 border border-red-100 bg-red-50/50 rounded-lg">
-                            <label className="block text-sm text-gray-600 mb-2">Motivo</label>
-                            <textarea
-                              name="observaciones"
-                              value={formData.observaciones}
-                              onChange={handleInputChange}
-                              rows={3}
-                              className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-red-500 focus:border-red-500"
-                              placeholder="Describa el motivo de inclusión en lista negra..."
-                            />
-                          </div>
-                        )}
-
-                        <div>
-                          <label className="block text-sm text-gray-600 mb-2">Observaciones Internas</label>
-                          <textarea
-                            name="observaciones"
-                            value={formData.observaciones}
-                            onChange={handleInputChange}
-                            rows={4}
-                            className="w-full px-3 py-2 bg-transparent border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary transition-colors"
-                            placeholder="Notas privadas para uso interno..."
-                          />
+                          <p className="text-gray-500">
+                            El cliente no podrá solicitar nuevos préstamos mientras esté en lista negra.
+                          </p>
                         </div>
                       </div>
+                    </div>
+
+                    {formData.enListaNegra && (
+                      <div className="animate-in fade-in slide-in-from-top-2">
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Razón de Lista Negra <span className="text-red-500">*</span>
+                        </label>
+                        <textarea
+                          name="razonListaNegra"
+                          value={formData.razonListaNegra}
+                          onChange={handleInputChange}
+                          rows={3}
+                          className="w-full px-4 py-2 bg-white border border-red-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500 transition-all"
+                          placeholder="Explique el motivo por el cual el cliente está en lista negra..."
+                          required={formData.enListaNegra}
+                        />
+                      </div>
+                    )}
+
+                    {!formData.enListaNegra && (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Puntaje Inicial (Score)
+                          </label>
+                          <input
+                            type="number"
+                            name="puntaje"
+                            min="0"
+                            max="100"
+                            value={formData.puntaje}
+                            onChange={handleInputChange}
+                            className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                          />
+                          <p className="mt-1 text-xs text-gray-500">Valor entre 0 y 100</p>
+                        </div>
+                        
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Nivel de Riesgo Manual
+                          </label>
+                          <select
+                            name="nivelRiesgo"
+                            value={formData.nivelRiesgo}
+                            onChange={handleInputChange}
+                            className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                          >
+                            <option value="VERDE">Verde (Bajo Riesgo)</option>
+                            <option value="AMARILLO">Amarillo (Riesgo Medio)</option>
+                            <option value="ROJO">Rojo (Alto Riesgo)</option>
+                          </select>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Sección Operativo */}
+              {activeSection === 'operativo' && (
+                <div className="p-6 space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
+                  <div className="flex items-center space-x-2 border-b border-gray-100 pb-4 mb-6">
+                    <Briefcase className="h-5 w-5 text-gray-400" />
+                    <h2 className="text-lg font-medium text-gray-900">Asignación y Notas</h2>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Asignar Ruta
+                      </label>
+                      <select
+                        name="rutaId"
+                        value={formData.rutaId}
+                        onChange={handleInputChange}
+                        className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                      >
+                        <option value="">Seleccionar Ruta...</option>
+                        {rutasDisponibles.map(ruta => (
+                          <option key={ruta.id} value={ruta.id}>
+                            {ruta.nombre}
+                          </option>
+                        ))}
+                      </select>
+                      <p className="mt-1 text-xs text-gray-500">
+                        El cliente será visitado por el cobrador asignado a esta ruta.
+                      </p>
+                    </div>
+
+                    <div className="md:col-span-2">
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Observaciones Generales
+                      </label>
+                      <textarea
+                        name="observaciones"
+                        value={formData.observaciones}
+                        onChange={handleInputChange}
+                        rows={4}
+                        className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all resize-none"
+                        placeholder="Notas adicionales sobre el cliente, horarios de visita preferidos, etc."
+                      />
                     </div>
                   </div>
                 </div>
               )}
 
-              {/* Navegación inferior */}
-              <div className="flex justify-between">
-                <button
-                  type="button"
-                  onClick={() => {
-                    const currentIndex = sections.findIndex(s => s.id === activeSection);
-                    if (currentIndex > 0) {
-                      setActiveSection(sections[currentIndex - 1].id);
-                    }
-                  }}
-                  className="px-4 py-2 text-gray-600 hover:text-gray-800 transition-colors text-sm flex items-center space-x-2"
+              {/* Footer del formulario */}
+              <div className="px-6 py-4 bg-gray-50 border-t border-gray-200 flex justify-end space-x-3">
+                <Link
+                  href="/admin/clientes"
+                  className="px-4 py-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors text-sm font-medium"
                 >
-                  <ChevronRight className="h-4 w-4 transform rotate-180" />
-                  <span>Anterior</span>
-                </button>
+                  Cancelar
+                </Link>
                 <button
-                  type="button"
-                  onClick={() => {
-                    const currentIndex = sections.findIndex(s => s.id === activeSection);
-                    if (currentIndex < sections.length - 1) {
-                      setActiveSection(sections[currentIndex + 1].id);
-                    }
-                  }}
-                  className="px-4 py-2 text-gray-600 hover:text-gray-800 transition-colors text-sm flex items-center space-x-2"
+                  onClick={handleSubmit}
+                  className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark transition-colors text-sm font-medium shadow-sm"
                 >
-                  <span>Siguiente</span>
-                  <ChevronRight className="h-4 w-4" />
+                  {isEditMode ? 'Guardar Cambios' : 'Crear Cliente'}
                 </button>
-              </div>
-
-              {/* Botón guardar fijo */}
-              <div className="sticky bottom-6 mt-8">
-                <div className="bg-white border border-gray-100 rounded-xl p-4 shadow-lg">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-3">
-                      <div className="w-8 h-8 bg-primary/10 rounded-lg flex items-center justify-center">
-                        <Save className="h-4 w-4 text-primary" />
-                      </div>
-                      <div>
-                        <div className="text-sm font-medium text-gray-800">
-                          {isEditMode ? 'Actualizar Cliente' : 'Crear Cliente'}
-                        </div>
-                        <div className="text-xs text-gray-500">Guardar todos los cambios</div>
-                      </div>
-                    </div>
-                    <button
-                      type="submit"
-                      className="px-6 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark transition-colors text-sm font-medium"
-                    >
-                      Guardar
-                    </button>
-                  </div>
-                </div>
               </div>
             </form>
           </div>
