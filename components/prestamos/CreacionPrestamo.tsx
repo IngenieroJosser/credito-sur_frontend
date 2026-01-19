@@ -377,6 +377,15 @@ const CreacionPrestamoElegante = () => {
     }
   };
 
+  // Función para manejar el cambio de monto SIN LÍMITES
+  const handleMontoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = parseFloat(e.target.value) || 0;
+    // Solo validamos que no sea negativo
+    if (value >= 0) {
+      setForm(prev => ({ ...prev, montoTotal: value }));
+    }
+  };
+
   return (
     <div className="min-h-screen bg-white p-4 md:p-6 lg:p-8">
       {/* Header Ultra Minimalista */}
@@ -625,29 +634,115 @@ const CreacionPrestamoElegante = () => {
                             <label className="text-sm font-medium text-gray-700">
                               Monto Solicitado
                             </label>
-                            <div className="relative">
-                              <input
-                                type="range"
-                                name="montoTotal"
-                                value={form.montoTotal}
-                                onChange={handleInputChange}
-                                min="100"
-                                max="50000"
-                                step="100"
-                                className="w-full h-1 bg-gray-200 rounded-lg appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-[#08557f]"
-                              />
-                              <div className="flex justify-between mt-8">
-                                <div className="text-center">
-                                  <div className="text-xs text-gray-500 mb-1">Mínimo</div>
-                                  <div className="font-medium">$100</div>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                              <div className="space-y-4">
+                                <div className="relative">
+                                  {/* Slider con rango dinámico basado en el monto actual */}
+                                  <input
+                                    type="range"
+                                    name="montoTotal"
+                                    value={form.montoTotal}
+                                    onChange={handleInputChange}
+                                    min="0"
+                                    max={Math.max(100000, form.montoTotal * 1.5)} // Rango dinámico
+                                    step="1000"
+                                    className="w-full h-1 bg-gray-200 rounded-lg appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-[#08557f]"
+                                  />
+                                  <div className="flex justify-between mt-8">
+                                    <div className="text-center">
+                                      <div className="text-xs text-gray-500 mb-1">Mínimo</div>
+                                      <div className="font-medium">$0</div>
+                                    </div>
+                                    <div className="text-center">
+                                      <div className="text-xs text-gray-500 mb-1">Monto actual</div>
+                                      <div className="text-2xl font-light text-[#08557f]">
+                                        {formatCurrency(form.montoTotal)}
+                                      </div>
+                                    </div>
+                                    <div className="text-center">
+                                      <div className="text-xs text-gray-500 mb-1">Rango dinámico</div>
+                                      <div className="font-medium">${Math.max(100000, form.montoTotal * 1.5).toLocaleString('es-ES')}</div>
+                                    </div>
+                                  </div>
                                 </div>
-                                <div className="text-center">
-                                  <div className="text-3xl font-light text-[#08557f]">{formatCurrency(form.montoTotal)}</div>
-                                  <div className="text-xs text-gray-500 mt-2">Monto solicitado</div>
+                              </div>
+
+                              {/* CAMPO DE ENTRADA LIBRE PARA EL MONTO */}
+                              <div className="space-y-4">
+                                <div>
+                                  <label className="text-sm font-medium text-gray-700 block mb-2">
+                                    Ingresar Monto Manualmente
+                                  </label>
+                                  <div className="relative">
+                                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                      <span className="text-gray-500 sm:text-sm">$</span>
+                                    </div>
+                                    <input
+                                      type="number"
+                                      value={form.montoTotal}
+                                      onChange={handleMontoChange}
+                                      min="0"
+                                      step="1000"
+                                      className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:border-[#08557f] focus:ring-1 focus:ring-[#08557f]/10 transition-all text-lg"
+                                      placeholder="Ej: 15000"
+                                    />
+                                    <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                                      <span className="text-gray-500 text-sm">COP</span>
+                                    </div>
+                                  </div>
+                                  <div className="mt-2 text-xs text-gray-500">
+                                    <p>Ingrese cualquier monto positivo sin límites</p>
+                                    {clienteSeleccionado && form.montoTotal > clienteSeleccionado.limiteCredito && (
+                                      <div className="mt-2 p-2 bg-yellow-50 border border-yellow-200 rounded-lg">
+                                        <p className="text-yellow-700 text-sm font-medium">
+                                          Advertencia: El monto solicitado (${formatCurrency(form.montoTotal)}) 
+                                          excede el límite de crédito del cliente (${formatCurrency(clienteSeleccionado.limiteCredito)})
+                                        </p>
+                                      </div>
+                                    )}
+                                  </div>
                                 </div>
-                                <div className="text-center">
-                                  <div className="text-xs text-gray-500 mb-1">Máximo</div>
-                                  <div className="font-medium">$50,000</div>
+
+                                {/* Botones de montos rápidos (sin restricciones) */}
+                                <div>
+                                  <label className="text-sm font-medium text-gray-700 block mb-2">
+                                    Montos Sugeridos
+                                  </label>
+                                  <div className="grid grid-cols-3 gap-2">
+                                    {[10000, 25000, 50000, 100000, 250000, 500000].map((monto) => (
+                                      <button
+                                        key={monto}
+                                        type="button"
+                                        onClick={() => {
+                                          setForm(prev => ({ ...prev, montoTotal: monto }));
+                                        }}
+                                        className={`py-2 px-3 text-sm rounded-lg transition-all duration-300 ${
+                                          form.montoTotal === monto
+                                            ? 'bg-[#08557f] text-white shadow-sm'
+                                            : 'border border-gray-300 text-gray-700 hover:border-gray-400 hover:bg-gray-50'
+                                        }`}
+                                      >
+                                        {formatCurrency(monto)}
+                                      </button>
+                                    ))}
+                                  </div>
+                                  <div className="mt-2">
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        // Opción para montos muy grandes
+                                        const montoGrande = 1000000;
+                                        setForm(prev => ({ ...prev, montoTotal: montoGrande }));
+                                      }}
+                                      className={`py-2 px-3 text-sm rounded-lg transition-all duration-300 w-full ${
+                                        form.montoTotal === 1000000
+                                          ? 'bg-[#fb851b] text-white shadow-sm'
+                                          : 'border border-gray-300 text-gray-700 hover:border-gray-400 hover:bg-gray-50'
+                                      }`}
+                                    >
+                                      {formatCurrency(1000000)} (1 Millón)
+                                    </button>
+                                  </div>
                                 </div>
                               </div>
                             </div>
@@ -708,7 +803,7 @@ const CreacionPrestamoElegante = () => {
                               Plazo (meses)
                             </label>
                             <div className="flex flex-wrap gap-2">
-                              {[3, 6, 12, 18, 24].map(plazo => (
+                              {[3, 6, 12, 18, 24, 36, 48].map(plazo => (
                                 <button
                                   key={plazo}
                                   type="button"
@@ -760,8 +855,8 @@ const CreacionPrestamoElegante = () => {
                                   name="tasaInteres"
                                   value={form.tasaInteres}
                                   onChange={handleInputChange}
-                                  min="0.5"
-                                  max="5"
+                                  min="0.1"
+                                  max="10"
                                   step="0.1"
                                   className="w-full px-4 py-3 pl-12 border border-gray-300 rounded-lg focus:border-[#08557f] focus:ring-1 focus:ring-[#08557f]/10 transition-all"
                                 />
@@ -809,7 +904,7 @@ const CreacionPrestamoElegante = () => {
                                   Cuota Inicial
                                 </label>
                                 <span className="text-sm font-medium text-[#08557f]">
-                                  {((form.cuotaInicial / form.montoTotal) * 100).toFixed(0)}%
+                                  {form.montoTotal > 0 ? ((form.cuotaInicial / form.montoTotal) * 100).toFixed(0) : 0}%
                                 </span>
                               </div>
                               <div className="relative">
@@ -820,7 +915,7 @@ const CreacionPrestamoElegante = () => {
                                   onChange={handleInputChange}
                                   min="0"
                                   max={form.montoTotal}
-                                  step="100"
+                                  step="1000"
                                   className="w-full h-1 bg-gray-200 rounded-lg appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-[#fb851b]"
                                 />
                                 <div className="flex justify-between mt-8">
@@ -849,7 +944,7 @@ const CreacionPrestamoElegante = () => {
                                   value={form.comision}
                                   onChange={handleInputChange}
                                   min="0"
-                                  max="10"
+                                  max="20"
                                   step="0.1"
                                   className="w-full px-4 py-3 pl-12 border border-gray-300 rounded-lg focus:border-[#08557f] focus:ring-1 focus:ring-[#08557f]/10 transition-all"
                                 />
@@ -995,10 +1090,17 @@ const CreacionPrestamoElegante = () => {
                               </p>
                             </div>
                             <div className="p-3 rounded-lg bg-gray-50">
-                              <p className="text-xs text-gray-500 mb-1">Ingresos</p>
-                              <p className="font-medium text-gray-900">{formatCurrency(clienteSeleccionado?.ingresosMensuales || 0)}</p>
+                              <p className="text-xs text-gray-500 mb-1">Límite</p>
+                              <p className="font-medium text-gray-900">{formatCurrency(clienteSeleccionado?.limiteCredito || 0)}</p>
                             </div>
                           </div>
+                          {clienteSeleccionado && form.montoTotal > clienteSeleccionado.limiteCredito && (
+                            <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                              <p className="text-yellow-700 text-sm">
+                                ⚠️ Este préstamo excede el límite de crédito del cliente por {formatCurrency(form.montoTotal - clienteSeleccionado.limiteCredito)}
+                              </p>
+                            </div>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -1084,6 +1186,12 @@ const CreacionPrestamoElegante = () => {
                   <button
                     onClick={() => {
                       // Lógica para guardar el préstamo
+                      if (clienteSeleccionado && form.montoTotal > clienteSeleccionado.limiteCredito) {
+                        const confirmar = window.confirm(
+                          `El monto solicitado (${formatCurrency(form.montoTotal)}) excede el límite de crédito del cliente (${formatCurrency(clienteSeleccionado.limiteCredito)}). ¿Desea continuar de todas formas?`
+                        );
+                        if (!confirmar) return;
+                      }
                       alert('¡Préstamo creado exitosamente!');
                       router.push('/admin/prestamos');
                     }}
@@ -1235,7 +1343,10 @@ const CreacionPrestamoElegante = () => {
                           ? 'text-green-600' 
                           : 'text-[#fb851b]'
                       }`}>
-                        {((resumenPrestamo.valorCuota / (clienteSeleccionado?.ingresosMensuales || 1)) * 100).toFixed(0)}%
+                        {clienteSeleccionado?.ingresosMensuales > 0 
+                          ? ((resumenPrestamo.valorCuota / clienteSeleccionado.ingresosMensuales) * 100).toFixed(0)
+                          : '100'
+                        }%
                       </span>
                     </div>
                     <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
@@ -1245,7 +1356,12 @@ const CreacionPrestamoElegante = () => {
                             ? 'bg-green-500' 
                             : 'bg-[#fb851b]'
                         }`}
-                        style={{ width: `${Math.min(100, ((resumenPrestamo.valorCuota / (clienteSeleccionado?.ingresosMensuales || 1)) * 100))}%` }}
+                        style={{ 
+                          width: `${Math.min(100, clienteSeleccionado?.ingresosMensuales > 0 
+                            ? ((resumenPrestamo.valorCuota / clienteSeleccionado.ingresosMensuales) * 100)
+                            : 100
+                          )}%` 
+                        }}
                       ></div>
                     </div>
                     <p className="text-xs text-gray-500 mt-2">
