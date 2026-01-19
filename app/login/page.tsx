@@ -2,21 +2,26 @@
 
 import { useState, FormEvent } from 'react';
 import { Eye, EyeOff, Lock, User, ChevronRight } from 'lucide-react';
+import { iniciarSesion } from '@/services/autenticacion-service';
+import { LoginData } from '@/lib/types/autenticacion-type';
+import { useRouter } from 'next/navigation';
+import { RolUsuario } from '@/lib/types/autenticacion-type';
 
 interface LoginFormData {
-  usuario: string;
+  nombres: string;
   password: string;
 }
 
 const LoginPage = () => {
   const [formData, setFormData] = useState<LoginFormData>({
-    usuario: '',
+    nombres: '',
     password: ''
   });
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [focusedField, setFocusedField] = useState<string | null>(null);
+  const router = useRouter();
 
   // Obtener año actual dinámico
   const currentYear = new Date().getFullYear();
@@ -27,33 +32,45 @@ const LoginPage = () => {
     if (error) setError('');
   };
 
+  const ROLE_REDIRECT_MAP: Record<RolUsuario, string> = {
+    SUPER_ADMINISTRADOR: '/admin',
+    COORDINADOR: '/coordinacion',
+    SUPERVISOR: '/supervision',
+    COBRADOR: '/cobranzas',
+    CONTADOR: '/contabilidad',
+  };
+  
+
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    
-    if (!formData.usuario.trim() || !formData.password.trim()) {
+  
+    if (!formData.nombres.trim() || !formData.password.trim()) {
       setError('Credenciales requeridas');
       return;
     }
-
+  
     setIsLoading(true);
     setError('');
-
-    // Simulación de autenticación
-    await new Promise(resolve => setTimeout(resolve, 800));
-
-    const validCredentials = {
-      usuario: 'admin',
-      password: 'demo123'
-    };
-
-    if (formData.usuario === validCredentials.usuario && formData.password === validCredentials.password) {
-      console.log('Login exitoso');
-    } else {
-      setError('Acceso no autorizado');
+  
+    try {
+      const payload: LoginData = {
+        nombres: formData.nombres,
+        contrasena: formData.password,
+      };
+  
+      const response = await iniciarSesion(payload);
+      const rol = response.usuario.rol as RolUsuario;
+  
+      const redirectPath =
+        ROLE_REDIRECT_MAP[rol] ?? '/';
+  
+      router.replace(redirectPath);
+    } catch (err) {
+      setError('Credenciales inválidas');
+    } finally {
+      setIsLoading(false);
     }
-
-    setIsLoading(false);
-  };
+  };  
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-white via-gray-50 to-gray-100 flex items-center justify-center p-4 relative">
@@ -96,7 +113,7 @@ const LoginPage = () => {
             {/* Campo Usuario */}
             <div className="relative">
               <div className={`absolute left-0 top-1/2 -translate-y-1/2 transition-all duration-300 ${
-                focusedField === 'usuario' || formData.usuario 
+                focusedField === 'usuario' || formData.nombres 
                   ? 'opacity-100 translate-x-0' 
                   : 'opacity-0 -translate-x-2'
               }`}>
@@ -105,10 +122,10 @@ const LoginPage = () => {
                 } transition-colors`} />
               </div>
               <input
-                id="usuario"
-                name="usuario"
+                id="nombres"
+                name="nombres"
                 type="text"
-                value={formData.usuario}
+                value={formData.nombres}
                 onChange={handleInputChange}
                 onFocus={() => setFocusedField('usuario')}
                 onBlur={() => setFocusedField(null)}
@@ -213,7 +230,7 @@ const LoginPage = () => {
               <button
                 key={index}
                 onClick={() => setFormData({ 
-                  usuario: ['admin', 'coord', 'super', 'cobrador', 'contable'][index], 
+                  nombres: ['admin', 'coord', 'super', 'cobrador', 'contable'][index], 
                   password: 'demo123' 
                 })}
                 className="w-8 h-8 flex items-center justify-center text-xs text-gray-400 hover:text-gray-600 transition-colors duration-200 relative group"
