@@ -1,12 +1,12 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
-  Calculator, Calendar, DollarSign, Percent, Clock,
-  UserPlus, Users, CreditCard, TrendingUp, FileText,
+  Calculator, DollarSign, Percent, Clock,
+  Users, CreditCard, TrendingUp, FileText,
   BarChart, Shield, CheckCircle, ArrowLeft,
-  Wallet, Banknote, Sparkles, PlusCircle,
-  Edit2, Trash2, Eye, Download, Settings,
+  PlusCircle,
+  Eye, Download, Settings,
   ChevronRight, ChevronDown, ChevronUp
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
@@ -50,6 +50,98 @@ interface CuotaCalculada {
   total: number;
   saldo: number;
 }
+
+const calcularCuotasYResumen = (form: FormularioPrestamo) => {
+  if (!form.clienteId) {
+    return {
+      cuotas: [] as CuotaCalculada[],
+      resumenPrestamo: {
+        totalFinanciado: 0,
+        totalInteres: 0,
+        totalPagar: 0,
+        valorCuota: 0,
+        costoTotalCredito: 0,
+        tea: 0,
+        tae: 0,
+        comisionTotal: 0
+      }
+    };
+  }
+
+  const montoNeto = form.montoTotal - form.cuotaInicial;
+  const comisionTotal = (form.montoTotal * form.comision) / 100;
+  const montoFinanciado = montoNeto + comisionTotal;
+  const tasaMensual = form.tasaInteres / 100;
+
+  const cuotasCalculadas: CuotaCalculada[] = [];
+  let saldo = montoFinanciado;
+
+  const factorFrecuencia = {
+    semanal: 4.33,
+    quincenal: 2,
+    mensual: 1
+  };
+
+  const cuotasTotales = form.plazo * factorFrecuencia[form.frecuenciaPago];
+  const tasaPeriodo = tasaMensual / factorFrecuencia[form.frecuenciaPago];
+
+  const cuotaFija =
+    (montoFinanciado * tasaPeriodo) /
+    (1 - Math.pow(1 + tasaPeriodo, -cuotasTotales));
+
+  const fechaPago = new Date(form.fechaInicio);
+
+  for (let i = 1; i <= cuotasTotales; i++) {
+    const interes = saldo * tasaPeriodo;
+    const capital = cuotaFija - interes;
+    saldo -= capital;
+
+    if (form.frecuenciaPago === 'semanal') {
+      fechaPago.setDate(fechaPago.getDate() + 7);
+    } else if (form.frecuenciaPago === 'quincenal') {
+      fechaPago.setDate(fechaPago.getDate() + 15);
+    } else {
+      fechaPago.setMonth(fechaPago.getMonth() + 1);
+    }
+
+    cuotasCalculadas.push({
+      numero: i,
+      fecha: fechaPago.toLocaleDateString('es-ES', {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric'
+      }),
+      capital: Number(capital.toFixed(2)),
+      interes: Number(interes.toFixed(2)),
+      total: Number(cuotaFija.toFixed(2)),
+      saldo: Number(Math.max(0, saldo).toFixed(2))
+    });
+  }
+
+  const totalInteres = cuotasCalculadas.reduce(
+    (sum, c) => sum + c.interes,
+    0
+  );
+  const totalPagar = montoFinanciado + totalInteres;
+  const tea = Math.pow(1 + tasaMensual, 12) - 1;
+  const tae = Math.pow(1 + tasaPeriodo, cuotasTotales) - 1;
+
+  return {
+    cuotas: cuotasCalculadas.slice(0, 6),
+    resumenPrestamo: {
+      totalFinanciado: montoFinanciado,
+      totalInteres: Number(totalInteres.toFixed(2)),
+      totalPagar: Number(totalPagar.toFixed(2)),
+      valorCuota: Number(cuotaFija.toFixed(2)),
+      costoTotalCredito: Number(
+        (totalInteres + form.gastosAdministrativos + comisionTotal).toFixed(2)
+      ),
+      tea: Number((tea * 100).toFixed(2)),
+      tae: Number((tae * 100).toFixed(2)),
+      comisionTotal: Number(comisionTotal.toFixed(2))
+    }
+  };
+};
 
 const CreacionPrestamoElegante = () => {
   const router = useRouter();
@@ -139,91 +231,12 @@ const CreacionPrestamoElegante = () => {
     observaciones: ''
   });
 
-  // Cuotas calculadas
-  const [cuotas, setCuotas] = useState<CuotaCalculada[]>([]);
-  const [resumenPrestamo, setResumenPrestamo] = useState({
-    totalFinanciado: 0,
-    totalInteres: 0,
-    totalPagar: 0,
-    valorCuota: 0,
-    costoTotalCredito: 0,
-    tea: 0,
-    tae: 0,
-    comisionTotal: 0
-  });
+  const { cuotas, resumenPrestamo } = useMemo(
+    () => calcularCuotasYResumen(form),
+    [form]
+  );
 
   const clienteSeleccionado = clientes.find(c => c.id === form.clienteId);
-
-  // Calcular cuotas automáticamente
-  useEffect(() => {
-    if (form.clienteId) {
-      calcularCuotas();
-    }
-  }, [form.montoTotal, form.tasaInteres, form.plazo, form.frecuenciaPago, form.cuotaInicial, form.comision]);
-
-  const calcularCuotas = () => {
-    const montoNeto = form.montoTotal - form.cuotaInicial;
-    const comisionTotal = (form.montoTotal * form.comision) / 100;
-    const montoFinanciado = montoNeto + comisionTotal;
-    const tasaMensual = form.tasaInteres / 100;
-    
-    let cuotasCalculadas: CuotaCalculada[] = [];
-    let saldo = montoFinanciado;
-
-    const factorFrecuencia = {
-      semanal: 4.33,
-      quincenal: 2,
-      mensual: 1
-    };
-
-    const cuotasTotales = form.plazo * factorFrecuencia[form.frecuenciaPago];
-    const tasaPeriodo = tasaMensual / factorFrecuencia[form.frecuenciaPago];
-
-    const cuotaFija = (montoFinanciado * tasaPeriodo) / (1 - Math.pow(1 + tasaPeriodo, -cuotasTotales));
-
-    let fechaPago = new Date(form.fechaInicio);
-    
-    for (let i = 1; i <= cuotasTotales; i++) {
-      const interes = saldo * tasaPeriodo;
-      const capital = cuotaFija - interes;
-      saldo -= capital;
-
-      if (form.frecuenciaPago === 'semanal') {
-        fechaPago.setDate(fechaPago.getDate() + 7);
-      } else if (form.frecuenciaPago === 'quincenal') {
-        fechaPago.setDate(fechaPago.getDate() + 15);
-      } else {
-        fechaPago.setMonth(fechaPago.getMonth() + 1);
-      }
-
-      cuotasCalculadas.push({
-        numero: i,
-        fecha: fechaPago.toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' }),
-        capital: Number(capital.toFixed(2)),
-        interes: Number(interes.toFixed(2)),
-        total: Number(cuotaFija.toFixed(2)),
-        saldo: Number(Math.max(0, saldo).toFixed(2))
-      });
-    }
-
-    setCuotas(cuotasCalculadas.slice(0, 6));
-
-    const totalInteres = cuotasCalculadas.reduce((sum, c) => sum + c.interes, 0);
-    const totalPagar = montoFinanciado + totalInteres;
-    const tea = Math.pow(1 + tasaMensual, 12) - 1;
-    const tae = Math.pow(1 + tasaPeriodo, cuotasTotales) - 1;
-
-    setResumenPrestamo({
-      totalFinanciado: montoFinanciado,
-      totalInteres: Number(totalInteres.toFixed(2)),
-      totalPagar: Number(totalPagar.toFixed(2)),
-      valorCuota: Number(cuotaFija.toFixed(2)),
-      costoTotalCredito: Number((totalInteres + form.gastosAdministrativos + comisionTotal).toFixed(2)),
-      tea: Number((tea * 100).toFixed(2)),
-      tae: Number((tae * 100).toFixed(2)),
-      comisionTotal: Number(comisionTotal.toFixed(2))
-    });
-  };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -338,21 +351,21 @@ const CreacionPrestamoElegante = () => {
   };
 
   const getScoreColor = (score: number) => {
-    if (score >= 80) return 'text-[#08557f]';
-    if (score >= 70) return 'text-[#fb851b]';
+    if (score >= 80) return 'text-primary';
+    if (score >= 70) return 'text-secondary';
     return 'text-red-500';
   };
 
   const getScoreBgColor = (score: number) => {
-    if (score >= 80) return 'bg-[#08557f]';
-    if (score >= 70) return 'bg-[#fb851b]';
+    if (score >= 80) return 'bg-primary';
+    if (score >= 70) return 'bg-secondary';
     return 'bg-red-500';
   };
 
   const getAvatarColor = (id: string) => {
     const colors = [
-      'bg-gradient-to-br from-[#08557f]/5 to-[#08557f]/10',
-      'bg-gradient-to-br from-[#fb851b]/5 to-[#fb851b]/10',
+      'bg-gradient-to-br from-primary/5 to-primary/10',
+      'bg-gradient-to-br from-secondary/5 to-secondary/10',
       'bg-gradient-to-br from-gray-100 to-gray-200'
     ];
     return colors[parseInt(id.split('-')[1]) % 3];
@@ -405,14 +418,14 @@ const CreacionPrestamoElegante = () => {
                 <div key={num} className="flex items-center gap-2">
                   <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-medium transition-all duration-300 ${
                     step >= num 
-                      ? 'bg-[#08557f] text-white'
+                      ? 'bg-primary text-white'
                       : 'border border-gray-300 text-gray-400'
                   }`}>
                     {step > num ? '✓' : num}
                   </div>
                   {num < 3 && (
                     <div className={`w-8 h-px transition-colors duration-300 ${
-                      step > num ? 'bg-[#08557f]' : 'bg-gray-200'
+                      step > num ? 'bg-primary' : 'bg-gray-200'
                     }`} />
                   )}
                 </div>
@@ -426,8 +439,8 @@ const CreacionPrestamoElegante = () => {
 
         <div className="mb-10">
           <div className="flex items-center gap-3 mb-3">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[#08557f]/10 to-[#08557f]/20 flex items-center justify-center">
-              <DollarSign className="w-4 h-4 text-[#08557f]" />
+            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary/10 to-primary/20 flex items-center justify-center">
+              <DollarSign className="w-4 h-4 text-primary" />
             </div>
             <h1 className="text-2xl md:text-3xl font-light text-gray-900">
               Nuevo Préstamo
@@ -456,7 +469,7 @@ const CreacionPrestamoElegante = () => {
                       onClick={() => setMostrarNuevoCliente(true)}
                       className="flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-300 text-gray-700 rounded-lg hover:border-gray-400 hover:bg-gray-50 transition-all duration-200 group"
                     >
-                      <PlusCircle className="w-4 h-4 text-gray-500 group-hover:text-[#08557f] transition-colors" />
+                      <PlusCircle className="w-4 h-4 text-gray-500 group-hover:text-primary transition-colors" />
                       <span className="text-sm font-medium">Nuevo Cliente</span>
                     </button>
                   </div>
@@ -490,7 +503,7 @@ const CreacionPrestamoElegante = () => {
                                   name={field}
                                   value={nuevoCliente[field as keyof typeof nuevoCliente]}
                                   onChange={handleNuevoClienteChange}
-                                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:border-[#08557f] focus:ring-1 focus:ring-[#08557f]/10 transition-all"
+                                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:border-primary focus:ring-1 focus:ring-primary/10 transition-all"
                                   placeholder={`Ingrese ${field.replace(/([A-Z])/g, ' $1').toLowerCase()}`}
                                 />
                               </div>
@@ -504,7 +517,7 @@ const CreacionPrestamoElegante = () => {
                                 name="direccion"
                                 value={nuevoCliente.direccion}
                                 onChange={handleNuevoClienteChange}
-                                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:border-[#08557f] focus:ring-1 focus:ring-[#08557f]/10 transition-all"
+                                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:border-primary focus:ring-1 focus:ring-primary/10 transition-all"
                                 placeholder="Ingrese dirección completa"
                               />
                             </div>
@@ -520,7 +533,7 @@ const CreacionPrestamoElegante = () => {
                             <button
                               onClick={agregarCliente}
                               disabled={!nuevoCliente.nombre || !nuevoCliente.identificacion}
-                              className="px-6 py-2.5 bg-[#08557f] text-white rounded-lg hover:bg-[#074970] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                              className="px-6 py-2.5 bg-primary text-white rounded-lg hover:bg-primary-dark transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                               Crear Cliente
                             </button>
@@ -538,7 +551,7 @@ const CreacionPrestamoElegante = () => {
                         onClick={() => setForm(prev => ({ ...prev, clienteId: cliente.id }))}
                         className={`group p-6 rounded-xl border transition-all duration-300 cursor-pointer ${
                           form.clienteId === cliente.id
-                            ? 'border-[#08557f] bg-gradient-to-br from-[#08557f]/5 to-white shadow-sm'
+                            ? 'border-primary bg-gradient-to-br from-primary/5 to-white shadow-sm'
                             : 'border-gray-200 hover:border-gray-300 hover:shadow-sm'
                         }`}
                       >
@@ -550,7 +563,7 @@ const CreacionPrestamoElegante = () => {
                               </span>
                             </div>
                             <div>
-                              <h3 className="font-medium text-gray-900 group-hover:text-[#08557f] transition-colors">
+                              <h3 className="font-medium text-gray-900 group-hover:text-primary transition-colors">
                                 {cliente.nombre} {cliente.apellido}
                               </h3>
                               <p className="text-sm text-gray-500 mt-1">Identificación: {cliente.identificacion}</p>

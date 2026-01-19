@@ -2,13 +2,12 @@
 
 import React, { useState, useEffect } from 'react';
 import { 
-  Search, Filter, Calendar, User, DollarSign, Clock, 
-  AlertCircle, CheckCircle, XCircle, ChevronRight,
-  Eye, MoreVertical, Download, TrendingUp, TrendingDown,
+  Search, Filter, User, DollarSign, TrendingUp, Clock, 
+  AlertCircle, CheckCircle, XCircle,
+  Eye,
   ChevronLeft, ChevronRight as ChevronRightIcon, Plus,
-  RefreshCw, BarChart, Shield, FileText, CreditCard,
-  Grid3x3, List, Settings, Bell, ArrowUpDown,
-  Percent, CalendarDays, Package, Zap
+  RefreshCw, Shield, FileText, CreditCard,
+  Grid3x3, List, Package, Zap
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
@@ -60,14 +59,6 @@ const ListadoPrestamosElegante = () => {
   const [cargando, setCargando] = useState(true);
   const [vista, setVista] = useState<'lista' | 'grid'>('lista');
 
-  // Iconos para productos
-  const iconosProductos = [
-    <Package className="w-4 h-4" key="package" />,
-    <CreditCard className="w-4 h-4" key="credit" />,
-    <Zap className="w-4 h-4" key="zap" />,
-    <DollarSign className="w-4 h-4" key="dollar" />
-  ];
-
   // Datos de ejemplo
   useEffect(() => {
     const datosEjemplo: Prestamo[] = [
@@ -89,7 +80,7 @@ const ListadoPrestamosElegante = () => {
         tasaInteres: 1.5,
         diasMora: 0,
         riesgo: 'medio',
-        icono: iconosProductos[0]
+        icono: <Package className="w-4 h-4" />
       },
       {
         id: 'PR-2023-002',
@@ -108,7 +99,7 @@ const ListadoPrestamosElegante = () => {
         estado: 'pagado',
         tasaInteres: 1.8,
         riesgo: 'bajo',
-        icono: iconosProductos[1]
+        icono: <CreditCard className="w-4 h-4" />
       },
       {
         id: 'PR-2023-003',
@@ -129,7 +120,7 @@ const ListadoPrestamosElegante = () => {
         diasMora: 7,
         moraAcumulada: 12.50,
         riesgo: 'alto',
-        icono: iconosProductos[2]
+        icono: <Zap className="w-4 h-4" />
       },
       {
         id: 'PR-2023-004',
@@ -148,7 +139,7 @@ const ListadoPrestamosElegante = () => {
         estado: 'activo',
         tasaInteres: 1.4,
         riesgo: 'bajo',
-        icono: iconosProductos[3]
+        icono: <DollarSign className="w-4 h-4" />
       },
       {
         id: 'PR-2023-005',
@@ -169,7 +160,7 @@ const ListadoPrestamosElegante = () => {
         diasMora: 45,
         moraAcumulada: 67.80,
         riesgo: 'alto',
-        icono: iconosProductos[0]
+        icono: <Package className="w-4 h-4" />
       },
       {
         id: 'PR-2023-006',
@@ -188,7 +179,7 @@ const ListadoPrestamosElegante = () => {
         estado: 'pagado',
         tasaInteres: 1.3,
         riesgo: 'bajo',
-        icono: iconosProductos[1]
+        icono: <CreditCard className="w-4 h-4" />
       },
       {
         id: 'PR-2023-007',
@@ -207,7 +198,7 @@ const ListadoPrestamosElegante = () => {
         estado: 'activo',
         tasaInteres: 1.5,
         riesgo: 'medio',
-        icono: iconosProductos[2]
+        icono: <Zap className="w-4 h-4" />
       },
       {
         id: 'PR-2023-008',
@@ -226,7 +217,7 @@ const ListadoPrestamosElegante = () => {
         estado: 'cancelado',
         tasaInteres: 1.8,
         riesgo: 'alto',
-        icono: iconosProductos[3]
+        icono: <DollarSign className="w-4 h-4" />
       }
     ];
 
@@ -273,8 +264,8 @@ const ListadoPrestamosElegante = () => {
 
   const getEstadoColor = (estado: string) => {
     switch(estado) {
-      case 'activo': return 'bg-[#08557f]/10 text-[#08557f]';
-      case 'atrasado': return 'bg-[#fb851b]/10 text-[#fb851b]';
+      case 'activo': return 'bg-primary/10 text-primary';
+      case 'atrasado': return 'bg-secondary/10 text-secondary';
       case 'moroso': return 'bg-red-100 text-red-600';
       case 'pagado': return 'bg-green-100 text-green-600';
       case 'cancelado': return 'bg-gray-100 text-gray-600';
@@ -296,7 +287,7 @@ const ListadoPrestamosElegante = () => {
   const getRiesgoColor = (riesgo: string) => {
     switch(riesgo) {
       case 'bajo': return 'text-green-600';
-      case 'medio': return 'text-[#fb851b]';
+      case 'medio': return 'text-secondary';
       case 'alto': return 'text-red-600';
       default: return 'text-gray-600';
     }
@@ -349,20 +340,20 @@ const ListadoPrestamosElegante = () => {
             <div className="flex items-center gap-2">
               <button
                 onClick={() => setVista('lista')}
-                className={`p-2 rounded-lg transition-colors ${vista === 'lista' ? 'bg-[#08557f] text-white' : 'text-gray-500 hover:bg-gray-100'}`}
+                className={`p-2 rounded-lg transition-colors ${vista === 'lista' ? 'bg-primary text-white' : 'text-gray-500 hover:bg-gray-100'}`}
               >
                 <List className="w-4 h-4" />
               </button>
               <button
                 onClick={() => setVista('grid')}
-                className={`p-2 rounded-lg transition-colors ${vista === 'grid' ? 'bg-[#08557f] text-white' : 'text-gray-500 hover:bg-gray-100'}`}
+                className={`p-2 rounded-lg transition-colors ${vista === 'grid' ? 'bg-primary text-white' : 'text-gray-500 hover:bg-gray-100'}`}
               >
                 <Grid3x3 className="w-4 h-4" />
               </button>
             </div>
             <button
               onClick={irANuevoPrestamo}
-              className="px-5 py-2.5 bg-[#08557f] text-white rounded-lg hover:bg-[#07496d] transition-colors text-sm font-medium flex items-center gap-2"
+              className="px-5 py-2.5 bg-primary text-white rounded-lg hover:bg-primary-dark transition-colors text-sm font-medium flex items-center gap-2"
             >
               <Plus className="w-4 h-4" />
               Nuevo Préstamo
@@ -381,7 +372,7 @@ const ListadoPrestamosElegante = () => {
               placeholder="Buscar préstamos, clientes o productos..."
               value={filtros.busqueda}
               onChange={(e) => handleFiltroChange('busqueda', e.target.value)}
-              className="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#08557f] focus:border-[#08557f] text-sm placeholder-gray-400"
+              className="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary text-sm placeholder-gray-400"
             />
           </div>
           
@@ -413,7 +404,7 @@ const ListadoPrestamosElegante = () => {
                 <select
                   value={filtros.estado}
                   onChange={(e) => handleFiltroChange('estado', e.target.value)}
-                  className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:border-[#08557f] focus:ring-1 focus:ring-[#08557f]"
+                  className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:border-primary focus:ring-1 focus:ring-primary"
                 >
                   <option value="todos">Todos los estados</option>
                   <option value="activo">Activo</option>
@@ -429,7 +420,7 @@ const ListadoPrestamosElegante = () => {
                 <select
                   value={filtros.riesgo}
                   onChange={(e) => handleFiltroChange('riesgo', e.target.value)}
-                  className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:border-[#08557f] focus:ring-1 focus:ring-[#08557f]"
+                  className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:border-primary focus:ring-1 focus:ring-primary"
                 >
                   <option value="todos">Todos los riesgos</option>
                   <option value="bajo">Bajo</option>
@@ -443,7 +434,7 @@ const ListadoPrestamosElegante = () => {
                 <select
                   value={filtros.cliente}
                   onChange={(e) => handleFiltroChange('cliente', e.target.value)}
-                  className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:border-[#08557f] focus:ring-1 focus:ring-[#08557f]"
+                  className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:border-primary focus:ring-1 focus:ring-primary"
                 >
                   <option value="todos">Todos los clientes</option>
                   {Array.from(new Set(prestamos.map(p => p.clienteId))).map(clienteId => {
@@ -465,7 +456,7 @@ const ListadoPrestamosElegante = () => {
                       type="date"
                       value={filtros.fechaDesde}
                       onChange={(e) => handleFiltroChange('fechaDesde', e.target.value)}
-                      className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:border-[#08557f] focus:ring-1 focus:ring-[#08557f]"
+                      className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:border-primary focus:ring-1 focus:ring-primary"
                     />
                   </div>
                   <div className="flex-1">
@@ -473,7 +464,7 @@ const ListadoPrestamosElegante = () => {
                       type="date"
                       value={filtros.fechaHasta}
                       onChange={(e) => handleFiltroChange('fechaHasta', e.target.value)}
-                      className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:border-[#08557f] focus:ring-1 focus:ring-[#08557f]"
+                      className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:border-primary focus:ring-1 focus:ring-primary"
                     />
                   </div>
                 </div>
@@ -497,8 +488,8 @@ const ListadoPrestamosElegante = () => {
           
           <div className="p-4 rounded-xl border border-gray-200 bg-white">
             <div className="flex items-center justify-between mb-3">
-              <span className="text-xs font-medium text-[#08557f]">ACTIVOS</span>
-              <TrendingUp className="w-4 h-4 text-[#08557f]" />
+              <span className="text-xs font-medium text-primary">ACTIVOS</span>
+              <TrendingUp className="w-4 h-4 text-primary" />
             </div>
             <p className="text-2xl font-light text-gray-900">{estadisticas.activos}</p>
             <div className="mt-2 text-xs text-gray-500">{((estadisticas.activos / estadisticas.total) * 100).toFixed(0)}% del total</div>
@@ -506,8 +497,8 @@ const ListadoPrestamosElegante = () => {
           
           <div className="p-4 rounded-xl border border-gray-200 bg-white">
             <div className="flex items-center justify-between mb-3">
-              <span className="text-xs font-medium text-[#fb851b]">EN MORA</span>
-              <AlertCircle className="w-4 h-4 text-[#fb851b]" />
+              <span className="text-xs font-medium text-secondary">EN MORA</span>
+              <AlertCircle className="w-4 h-4 text-secondary" />
             </div>
             <p className="text-2xl font-light text-gray-900">{estadisticas.atrasados + estadisticas.morosos}</p>
             <div className="mt-2 text-xs text-gray-500">requieren atención</div>
@@ -546,7 +537,7 @@ const ListadoPrestamosElegante = () => {
       <div className="px-8 pb-8">
         {cargando ? (
           <div className="flex justify-center items-center py-12">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#08557f]"></div>
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
           </div>
         ) : (
           <>
@@ -573,7 +564,7 @@ const ListadoPrestamosElegante = () => {
                         {/* Préstamo y Cliente */}
                         <div className="col-span-4">
                           <div className="flex items-start gap-3">
-                            <div className="p-2 rounded-lg bg-[#08557f]/5">
+                            <div className="p-2 rounded-lg bg-primary/5">
                               {prestamo.icono}
                             </div>
                             <div>
@@ -611,7 +602,7 @@ const ListadoPrestamosElegante = () => {
                               </div>
                               <div className="w-full h-1.5 bg-gray-200 rounded-full overflow-hidden">
                                 <div 
-                                  className="h-full bg-[#08557f] rounded-full"
+                                  className="h-full bg-primary rounded-full"
                                   style={{ width: `${(prestamo.cuotasPagadas / prestamo.cuotasTotales) * 100}%` }}
                                 />
                               </div>
@@ -640,7 +631,7 @@ const ListadoPrestamosElegante = () => {
                         <div className="col-span-2 flex justify-end">
                           <button
                             onClick={() => irADetallePrestamo(prestamo.id)}
-                            className="px-4 py-2 bg-[#08557f] text-white rounded-lg hover:bg-[#07496d] transition-colors text-sm font-medium flex items-center gap-2"
+                            className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark transition-colors text-sm font-medium flex items-center gap-2"
                           >
                             <Eye className="w-4 h-4" />
                             Ver
@@ -659,7 +650,7 @@ const ListadoPrestamosElegante = () => {
                 {prestamosPaginados.map((prestamo) => (
                   <div 
                     key={prestamo.id}
-                    className="border border-gray-200 rounded-xl p-5 hover:border-[#08557f]/30 hover:shadow-sm transition-all bg-white"
+                    className="border border-gray-200 rounded-xl p-5 hover:border-primary/30 hover:shadow-sm transition-all bg-white"
                   >
                     <div className="space-y-4">
                       {/* Header */}
@@ -676,7 +667,7 @@ const ListadoPrestamosElegante = () => {
                           </div>
                           <h3 className="font-medium text-gray-900">{prestamo.id}</h3>
                         </div>
-                        <div className="p-2 rounded-lg bg-[#08557f]/5">
+                        <div className="p-2 rounded-lg bg-primary/5">
                           {prestamo.icono}
                         </div>
                       </div>
@@ -710,7 +701,7 @@ const ListadoPrestamosElegante = () => {
                         </div>
                         <div className="w-full h-1.5 bg-gray-200 rounded-full overflow-hidden">
                           <div 
-                            className="h-full bg-[#08557f] rounded-full"
+                            className="h-full bg-primary rounded-full"
                             style={{ width: `${(prestamo.cuotasPagadas / prestamo.cuotasTotales) * 100}%` }}
                           />
                         </div>
@@ -732,7 +723,7 @@ const ListadoPrestamosElegante = () => {
                       <div className="pt-4 border-t border-gray-100">
                         <button
                           onClick={() => irADetallePrestamo(prestamo.id)}
-                          className="w-full px-4 py-2.5 bg-[#08557f] text-white rounded-lg hover:bg-[#07496d] transition-colors text-sm font-medium flex items-center justify-center gap-2"
+                          className="w-full px-4 py-2.5 bg-primary text-white rounded-lg hover:bg-primary-dark transition-colors text-sm font-medium flex items-center justify-center gap-2"
                         >
                           <Eye className="w-4 h-4" />
                           Ver detalles
@@ -805,7 +796,7 @@ const ListadoPrestamosElegante = () => {
                         onClick={() => cambiarPagina(pagina)}
                         className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
                           pagina === paginaActual
-                            ? 'bg-[#08557f] text-white'
+                            ? 'bg-primary text-white'
                             : 'border border-gray-200 text-gray-700 hover:bg-gray-50'
                         }`}
                       >
