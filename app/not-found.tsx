@@ -2,14 +2,15 @@
 
 import Link from 'next/link'
 import Image from 'next/image'
-import { ArrowLeft, Home, Search, X, Grid, ChevronRight, AlertCircle } from 'lucide-react'
-import { useState, useEffect } from 'react'
+import { ArrowLeft, Search, X, Grid, ChevronRight, AlertCircle } from 'lucide-react'
+import { useState } from 'react'
 
 const NotFoundPage = () => {
-  const [path, setPath] = useState('')
   const [searchQuery, setSearchQuery] = useState('')
-  const [isVisible, setIsVisible] = useState(false)
+  const isVisible = true
   const [activeModule, setActiveModule] = useState<number | null>(null)
+
+  const rutaActual = typeof window !== 'undefined' ? window.location.pathname : ''
 
   const modules = [
     { id: 1, label: 'Dashboard', path: '/dashboard', icon: Grid },
@@ -20,46 +21,39 @@ const NotFoundPage = () => {
     { id: 6, label: 'Reportes', path: '/reportes' },
   ]
 
-  useEffect(() => {
-    setPath(window.location.pathname)
-    setIsVisible(true)
-    
-    // Animación de entrada sutil
-    const timer = setTimeout(() => {
-      document.querySelectorAll('.fade-in').forEach((el, i) => {
-        (el as HTMLElement).style.animationDelay = `${i * 0.1}s`
-      })
-    }, 100)
-    
-    return () => clearTimeout(timer)
-  }, [])
-
   const goBack = () => {
-    window.history.length > 1 ? window.history.back() : window.location.href = '/'
+    if (window.history.length > 1) {
+      window.history.back()
+    } else {
+      window.location.href = '/'
+    }
   }
 
   return (
     <div className="min-h-screen bg-white relative overflow-hidden">
       {/* Fondo ultra minimalista - Líneas arquitectónicas */}
-      <div className="absolute inset-0">
+        <div className="absolute inset-0">
         {/* Líneas de cuadrícula sutiles */}
-        <div className="absolute inset-0 opacity-[0.02]">
-          <div className="absolute inset-0" style={{
-            backgroundImage: `
-              linear-gradient(to right, #08557f 1px, transparent 1px),
-              linear-gradient(to bottom, #08557f 1px, transparent 1px)
-            `,
-            backgroundSize: '64px 64px'
-          }}></div>
+        <div className="absolute inset-0 opacity-5">
+          <div
+            className="absolute inset-0"
+            style={{
+              backgroundImage: `
+                linear-gradient(to right, var(--primary) 1px, transparent 1px),
+                linear-gradient(to bottom, var(--primary) 1px, transparent 1px)
+              `,
+              backgroundSize: '64px 64px',
+            }}
+          ></div>
         </div>
         
         {/* Acentos de color extremadamente sutiles */}
-        <div className="absolute top-0 right-0 w-96 h-96 bg-gradient-to-bl from-[#08557f]/[0.015] to-transparent"></div>
-        <div className="absolute bottom-0 left-0 w-96 h-96 bg-gradient-to-tr from-[#fb851b]/[0.01] to-transparent"></div>
+        <div className="absolute top-0 right-0 w-96 h-96 bg-gradient-to-bl from-primary/5 to-transparent"></div>
+        <div className="absolute bottom-0 left-0 w-96 h-96 bg-gradient-to-tr from-secondary/10 to-transparent"></div>
         
         {/* Líneas horizontales decorativas */}
-        <div className="absolute top-32 left-0 right-0 h-px bg-gradient-to-r from-transparent via-[#08557f]/5 to-transparent"></div>
-        <div className="absolute bottom-32 left-0 right-0 h-px bg-gradient-to-r from-transparent via-[#08557f]/5 to-transparent"></div>
+        <div className="absolute top-32 left-0 right-0 h-px bg-gradient-to-r from-transparent via-primary/5 to-transparent"></div>
+        <div className="absolute bottom-32 left-0 right-0 h-px bg-gradient-to-r from-transparent via-primary/5 to-transparent"></div>
       </div>
 
       {/* Contenedor principal */}
@@ -82,7 +76,7 @@ const NotFoundPage = () => {
                 </div>
                 <div className="flex flex-col">
                   <span className="text-sm font-normal text-gray-800 tracking-tight leading-none">
-                    CREDI<span className="text-[#08557f] font-semibold">FINANZAS</span>
+                    CREDI<span className="text-primary font-semibold">FINANZAS</span>
                   </span>
                   <span className="text-[10px] text-gray-400 font-light tracking-widest uppercase mt-0.5">
                     Sistema Financiero
@@ -97,10 +91,10 @@ const NotFoundPage = () => {
               className="group flex items-center space-x-2 px-3 py-2 rounded-lg hover:bg-gray-50 transition-all duration-300"
             >
               <div className="relative w-5 h-5 overflow-hidden">
-                <ArrowLeft className="w-4 h-4 text-gray-400 group-hover:text-[#08557f] transition-all duration-300 absolute inset-0 group-hover:-translate-x-0.5" />
-                <ArrowLeft className="w-4 h-4 text-[#fb851b] transition-all duration-300 absolute inset-0 translate-x-4 group-hover:translate-x-0" />
+                <ArrowLeft className="w-4 h-4 text-gray-400 group-hover:text-primary transition-all duration-300 absolute inset-0 group-hover:-translate-x-0.5" />
+                <ArrowLeft className="w-4 h-4 text-secondary transition-all duration-300 absolute inset-0 translate-x-4 group-hover:translate-x-0" />
               </div>
-              <span className="text-sm text-gray-500 font-light group-hover:text-[#08557f] transition-colors duration-300">
+              <span className="text-sm text-gray-500 font-light group-hover:text-primary transition-colors duration-300">
                 Regresar
               </span>
             </button>
@@ -135,7 +129,7 @@ const NotFoundPage = () => {
               <div className="text-center">
                 <div className="mb-6 flex justify-center">
                   <div className="inline-flex items-center space-x-2 px-4 py-2 bg-white/80 backdrop-blur-sm border border-gray-200 rounded-full">
-                    <AlertCircle className="w-4 h-4 text-[#fb851b]" />
+                    <AlertCircle className="w-4 h-4 text-secondary" />
                     <span className="text-sm font-medium text-gray-700">
                       Recurso no encontrado
                     </span>
@@ -154,9 +148,9 @@ const NotFoundPage = () => {
           } transition-opacity duration-700 delay-300`}>
             <div className="px-4 py-3 bg-white/60 backdrop-blur-sm border border-gray-200/50 rounded-xl shadow-sm">
               <div className="flex items-center space-x-3">
-                <div className="w-2 h-2 bg-gradient-to-br from-[#08557f] to-[#063a58] rounded-full"></div>
+                <div className="w-2 h-2 bg-gradient-to-br from-primary to-primary-dark rounded-full"></div>
                 <code className="text-xs text-gray-500 font-mono tracking-wide">
-                  RUTA ACTUAL: <span className="text-gray-700 font-medium">{path}</span>
+                  RUTA ACTUAL: <span className="text-gray-700 font-medium">{rutaActual}</span>
                 </code>
               </div>
             </div>
@@ -167,11 +161,11 @@ const NotFoundPage = () => {
             isVisible ? 'opacity-100 scale-100' : 'opacity-0 scale-95'
           } transition-all duration-500 delay-500`}>
             <div className="relative group">
-              <div className="absolute inset-0 bg-gradient-to-r from-white to-gray-50 border border-gray-200 rounded-2xl transition-all duration-500 group-hover:border-[#08557f]/30 group-hover:shadow-sm"></div>
+              <div className="absolute inset-0 bg-gradient-to-r from-white to-gray-50 border border-gray-200 rounded-2xl transition-all duration-500 group-hover:border-primary/30 group-hover:shadow-sm"></div>
               <div className="relative px-4 py-1">
                 <div className="flex items-center space-x-3">
-                  <div className="w-8 h-8 flex items-center justify-center bg-gray-100/50 rounded-lg transition-colors duration-300 group-hover:bg-[#08557f]/5">
-                    <Search className="w-4 h-4 text-gray-400 transition-colors duration-300 group-hover:text-[#08557f]" />
+                  <div className="w-8 h-8 flex items-center justify-center bg-gray-100/50 rounded-lg transition-colors duration-300 group-hover:bg-primary/5">
+                    <Search className="w-4 h-4 text-gray-400 transition-colors duration-300 group-hover:text-primary" />
                   </div>
                   <div className="flex-1">
                     <input
@@ -208,10 +202,10 @@ const NotFoundPage = () => {
               <div className="text-sm font-medium text-gray-500 uppercase tracking-widest mb-2">
                 Navegación Rápida
               </div>
-              <div className="w-16 h-px bg-gradient-to-r from-transparent via-[#08557f]/30 to-transparent mx-auto"></div>
+              <div className="w-16 h-px bg-gradient-to-r from-transparent via-primary/30 to-transparent mx-auto"></div>
             </div>
             <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-              {modules.map((module, index) => {
+              {modules.map((module) => {
                 const Icon = module.icon || ChevronRight
                 return (
                   <Link
@@ -224,18 +218,18 @@ const NotFoundPage = () => {
                     <div className={`
                       relative overflow-hidden rounded-xl p-4 transition-all duration-500
                       ${activeModule === module.id 
-                        ? 'bg-white border border-[#08557f]/20 shadow-sm' 
+                        ? 'bg-white border border-primary/20 shadow-sm' 
                         : 'bg-gray-50/50 border border-gray-200/50 hover:bg-white hover:border-gray-300'
                       }
                     `}>
                       {/* Efecto de acento naranja sutil */}
                       {activeModule === module.id && (
-                        <div className="absolute top-0 left-0 w-full h-px bg-gradient-to-r from-[#fb851b]/0 via-[#fb851b]/40 to-[#fb851b]/0"></div>
+                        <div className="absolute top-0 left-0 w-full h-px bg-gradient-to-r from-secondary/0 via-secondary/40 to-secondary/0"></div>
                       )}
                       
                       <div className="flex items-center justify-between">
                         <div>
-                          <div className="text-sm font-medium text-gray-800 group-hover:text-[#08557f] transition-colors duration-300 mb-0.5">
+                          <div className="text-sm font-medium text-gray-800 group-hover:text-primary transition-colors duration-300 mb-0.5">
                             {module.label}
                           </div>
                           <div className="text-xs text-gray-400 font-light tracking-wide">
@@ -245,14 +239,14 @@ const NotFoundPage = () => {
                         <div className={`
                           p-2 rounded-lg transition-all duration-300
                           ${activeModule === module.id 
-                            ? 'bg-[#08557f]/10' 
+                            ? 'bg-primary/10' 
                             : 'bg-gray-100/50 group-hover:bg-gray-100'
                           }
                         `}>
                           <Icon className={`
                             w-4 h-4 transition-all duration-300
                             ${activeModule === module.id 
-                              ? 'text-[#08557f] translate-x-0.5' 
+                              ? 'text-primary translate-x-0.5' 
                               : 'text-gray-400 group-hover:text-gray-600'
                             }
                           `} />
@@ -273,14 +267,14 @@ const NotFoundPage = () => {
               href="/dashboard"
               className="group relative overflow-hidden"
             >
-              <div className="absolute inset-0 bg-gradient-to-r from-white to-gray-50 border border-gray-200 rounded-2xl transition-all duration-500 group-hover:border-[#08557f]/30 group-hover:shadow-sm"></div>
+              <div className="absolute inset-0 bg-gradient-to-r from-white to-gray-50 border border-gray-200 rounded-2xl transition-all duration-500 group-hover:border-primary/30 group-hover:shadow-sm"></div>
               
               {/* Efecto de acento naranja */}
-              <div className="absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b from-[#fb851b]/0 via-[#fb851b] to-[#fb851b]/0 transition-all duration-500 group-hover:w-full group-hover:opacity-5"></div>
+              <div className="absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b from-secondary/0 via-secondary to-secondary/0 transition-all duration-500 group-hover:w-full group-hover:opacity-5"></div>
               
               <div className="relative px-6 py-4 flex items-center justify-between">
                 <div className="flex items-center space-x-4">
-                  <div className="w-10 h-10 bg-gradient-to-br from-[#08557f] to-[#063a58] rounded-xl flex items-center justify-center">
+                  <div className="w-10 h-10 bg-gradient-to-br from-primary to-primary-dark rounded-xl flex items-center justify-center">
                     <div className="relative w-6 h-6">
                       <Image
                         src="/android-chrome-512x512.png"
@@ -291,7 +285,7 @@ const NotFoundPage = () => {
                     </div>
                   </div>
                   <div>
-                    <div className="font-medium text-gray-800 group-hover:text-[#08557f] transition-colors duration-300">
+                    <div className="font-medium text-gray-800 group-hover:text-primary transition-colors duration-300">
                       Ir al Dashboard Principal
                     </div>
                     <div className="text-sm text-gray-500 font-light">
@@ -300,8 +294,8 @@ const NotFoundPage = () => {
                   </div>
                 </div>
                 <div className="relative overflow-hidden w-5 h-5">
-                  <ChevronRight className="w-5 h-5 text-gray-400 group-hover:text-[#08557f] transition-all duration-300 absolute inset-0 group-hover:translate-x-1" />
-                  <ChevronRight className="w-5 h-5 text-[#fb851b] transition-all duration-300 absolute inset-0 -translate-x-4 group-hover:translate-x-0" />
+                  <ChevronRight className="w-5 h-5 text-gray-400 group-hover:text-primary transition-all duration-300 absolute inset-0 group-hover:translate-x-1" />
+                  <ChevronRight className="w-5 h-5 text-secondary transition-all duration-300 absolute inset-0 -translate-x-4 group-hover:translate-x-0" />
                 </div>
               </div>
             </Link>
@@ -351,7 +345,7 @@ const NotFoundPage = () => {
         {[...Array(4)].map((_, i) => (
           <div
             key={i}
-            className="absolute w-[1px] h-32 bg-gradient-to-b from-transparent via-[#08557f]/[0.03] to-transparent"
+            className="absolute w-px h-32 bg-gradient-to-b from-transparent via-primary/10 to-transparent"
             style={{
               left: `${10 + i * 25}%`,
               top: '20%',
@@ -364,7 +358,7 @@ const NotFoundPage = () => {
         {/* Destello naranja sutil en hover sobre módulos */}
         {activeModule && (
           <div 
-            className="absolute w-96 h-96 rounded-full bg-gradient-to-r from-[#fb851b]/[0.02] to-transparent blur-3xl transition-all duration-1000"
+            className="absolute w-96 h-96 rounded-full bg-gradient-to-r from-secondary/10 to-transparent blur-3xl transition-all duration-1000"
             style={{
               left: '50%',
               top: '60%',
@@ -409,29 +403,29 @@ const NotFoundPage = () => {
         }
         
         ::-webkit-scrollbar-track {
-          background: rgba(8, 85, 127, 0.05);
+          background: rgba(var(--primary-rgb), 0.05);
           border-radius: 3px;
         }
         
         ::-webkit-scrollbar-thumb {
-          background: rgba(8, 85, 127, 0.2);
+          background: rgba(var(--primary-rgb), 0.2);
           border-radius: 3px;
           transition: background 0.3s ease;
         }
         
         ::-webkit-scrollbar-thumb:hover {
-          background: rgba(8, 85, 127, 0.3);
+          background: rgba(var(--primary-rgb), 0.3);
         }
         
         /* Selección de texto sutil */
         ::selection {
-          background: rgba(8, 85, 127, 0.15);
-          color: #08557f;
+          background: rgba(var(--primary-rgb), 0.15);
+          color: var(--primary);
         }
         
         ::-moz-selection {
-          background: rgba(8, 85, 127, 0.15);
-          color: #08557f;
+          background: rgba(var(--primary-rgb), 0.15);
+          color: var(--primary);
         }
       `}</style>
     </div>

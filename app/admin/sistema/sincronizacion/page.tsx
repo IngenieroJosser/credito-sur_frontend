@@ -3,10 +3,10 @@
 import { useState, useEffect } from 'react'
 import Image from 'next/image'
 import { 
-  Wifi, WifiOff, Network, RefreshCw, 
+  RefreshCw, 
   Clock, AlertTriangle, CheckCircle, 
   UploadCloud, DownloadCloud, Server,
-  ChevronDown, ChevronUp, HardDrive, 
+  ChevronDown, ChevronUp, 
   Activity, Shield, Cpu, Database,
   Cloud, CloudOff, Router
 } from 'lucide-react'
@@ -37,7 +37,6 @@ interface Conflict {
 
 const SyncStatusPage = () => {
   const [syncStatus, setSyncStatus] = useState<SyncStatus>('online')
-  const [lastSync, setLastSync] = useState<string>('')
   const [clientTime, setClientTime] = useState<string>('')
   const [transactions, setTransactions] = useState<Transaction[]>([
     {
@@ -45,7 +44,7 @@ const SyncStatusPage = () => {
       type: 'payment',
       description: 'Pago mensual - Cliente #1456',
       amount: 1250.75,
-      timestamp: '',
+      timestamp: '2026-01-18T10:00:00.000Z',
       status: 'pending',
       retries: 0,
       priority: 'high'
@@ -55,7 +54,7 @@ const SyncStatusPage = () => {
       type: 'credit',
       description: 'Aprobación crédito rápido',
       amount: 5000,
-      timestamp: '',
+      timestamp: '2026-01-18T09:55:00.000Z',
       status: 'syncing',
       retries: 1,
       priority: 'normal'
@@ -65,7 +64,7 @@ const SyncStatusPage = () => {
       type: 'client',
       description: 'Actualización datos cliente',
       amount: 0,
-      timestamp: '',
+      timestamp: '2026-01-18T09:50:00.000Z',
       status: 'completed',
       retries: 0,
       priority: 'low'
@@ -75,7 +74,7 @@ const SyncStatusPage = () => {
       type: 'adjustment',
       description: 'Ajuste tasa interés',
       amount: -150.25,
-      timestamp: '',
+      timestamp: '2026-01-18T09:45:00.000Z',
       status: 'failed',
       retries: 2,
       priority: 'high'
@@ -85,7 +84,7 @@ const SyncStatusPage = () => {
       type: 'payment',
       description: 'Pago anticipado - Cliente #0892',
       amount: 3200,
-      timestamp: '',
+      timestamp: '2026-01-18T09:40:00.000Z',
       status: 'conflict',
       retries: 1,
       priority: 'high'
@@ -106,28 +105,12 @@ const SyncStatusPage = () => {
   const [expandedSection, setExpandedSection] = useState<'status' | 'queue' | 'conflicts'>('status')
   const [isSyncing, setIsSyncing] = useState(false)
   const [bandwidth, setBandwidth] = useState({ upload: 1.2, download: 0.8 })
-  const [mounted, setMounted] = useState(false)
 
-  // Inicializar timestamps solo en el cliente
   useEffect(() => {
-    setMounted(true)
-    
-    const now = new Date()
-    setLastSync(now.toISOString())
-    setClientTime(now.toLocaleTimeString('es-ES', { hour12: false }))
-    
-    // Inicializar timestamps de transacciones
-    setTransactions(prev => prev.map((tx, index) => ({
-      ...tx,
-      timestamp: new Date(Date.now() - (1000 * 60 * (5 * (index + 1)))).toISOString()
-    })))
-
-    // Configurar intervalo para tiempo en cliente
     const timeInterval = setInterval(() => {
       setClientTime(new Date().toLocaleTimeString('es-ES', { hour12: false }))
     }, 1000)
 
-    // Simular cambios de estado de conexión
     const statusInterval = setInterval(() => {
       const statuses: SyncStatus[] = ['online', 'offline', 'lan']
       const randomStatus = statuses[Math.floor(Math.random() * statuses.length)]
@@ -136,7 +119,6 @@ const SyncStatusPage = () => {
       }
     }, 15000)
 
-    // Simular actualización de ancho de banda
     const bandwidthInterval = setInterval(() => {
       if (syncStatus === 'online' && isSyncing) {
         setBandwidth({
@@ -155,7 +137,6 @@ const SyncStatusPage = () => {
 
   const handleSyncNow = () => {
     setIsSyncing(true)
-    setLastSync(new Date().toISOString())
     
     setTimeout(() => {
       setIsSyncing(false)
@@ -232,7 +213,7 @@ const SyncStatusPage = () => {
   }
 
   const formatTimeAgo = (dateString: string) => {
-    if (!mounted || !dateString) return ''
+    if (!dateString) return ''
     
     const date = new Date(dateString)
     const seconds = Math.floor((new Date().getTime() - date.getTime()) / 1000)

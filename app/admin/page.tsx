@@ -1,13 +1,13 @@
 'use client'
 
-import { useState, useEffect } from 'react';
+import Link from 'next/link';
+import { useState } from 'react';
 import { 
   TrendingUp, 
   TrendingDown,
-  Clock,
-  CheckCircle,
   AlertCircle,
   Users,
+  User,
   CreditCard,
   Banknote,
   PieChart,
@@ -17,7 +17,6 @@ import {
   Filter,
   Download,
   ChevronRight,
-  MoreVertical,
   Calendar,
   ArrowUpRight,
   Activity,
@@ -25,7 +24,9 @@ import {
   Shield,
   Settings,
   Menu,
-  X
+  X,
+  Package,
+  Route
 } from 'lucide-react';
 
 interface MetricCard {
@@ -43,6 +44,7 @@ interface QuickAccessItem {
   icon: React.ReactNode;
   color: string;
   badge?: number;
+  href: string;
 }
 
 const DashboardPage = () => {
@@ -105,26 +107,30 @@ const DashboardPage = () => {
       subtitle: 'Registro rápido',
       icon: <CreditCard className="h-5 w-5" />,
       color: '#08557f',
-      badge: 3
+      badge: 3,
+      href: '/admin/prestamos/nuevo'
     },
     {
       title: 'Cobranza',
       subtitle: 'Gestionar pagos',
       icon: <Wallet className="h-5 w-5" />,
       color: '#10b981',
-      badge: 12
+      badge: 12,
+      href: '/admin/pagos/registro'
     },
     {
       title: 'Clientes',
       subtitle: 'Base de datos',
       icon: <Users className="h-5 w-5" />,
-      color: '#8b5cf6'
+      color: '#8b5cf6',
+      href: '/admin/clientes'
     },
     {
       title: 'Análisis',
       subtitle: 'Reportes avanzados',
       icon: <PieChart className="h-5 w-5" />,
-      color: '#fb851b'
+      color: '#fb851b',
+      href: '/admin/reportes/operativos'
     }
   ];
 
@@ -146,13 +152,20 @@ const DashboardPage = () => {
     accountant: { name: 'Contable', initials: 'CT' }
   };
 
-  // Navegación minimalista
   const navigation = [
-    { name: 'Dashboard', icon: <Activity className="h-4 w-4" /> },
-    { name: 'Créditos', icon: <CreditCard className="h-4 w-4" /> },
-    { name: 'Cobranza', icon: <Banknote className="h-4 w-4" /> },
-    { name: 'Clientes', icon: <Users className="h-4 w-4" /> },
-    { name: 'Reportes', icon: <PieChart className="h-4 w-4" /> }
+    { name: 'Dashboard', href: '/admin', icon: <Activity className="h-4 w-4" /> },
+    { name: 'Créditos', href: '/admin/prestamos', icon: <CreditCard className="h-4 w-4" /> },
+    { name: 'Cobranza', href: '/admin/pagos/registro', icon: <Banknote className="h-4 w-4" /> },
+    { name: 'Clientes', href: '/admin/clientes', icon: <Users className="h-4 w-4" /> },
+    { name: 'Cuentas en mora', href: '/admin/cuentas-mora', icon: <AlertCircle className="h-4 w-4" /> },
+    { name: 'Rutas', href: '/admin/rutas', icon: <Route className="h-4 w-4" /> },
+    { name: 'Artículos', href: '/admin/articulos', icon: <Package className="h-4 w-4" /> },
+    { name: 'Módulo contable', href: '/admin/contable', icon: <PieChart className="h-4 w-4" /> },
+    { name: 'Usuarios', href: '/admin/users', icon: <User className="h-4 w-4" /> },
+    { name: 'Roles y permisos', href: '/admin/roles-permisos', icon: <Shield className="h-4 w-4" /> },
+    { name: 'Reportes operativos', href: '/admin/reportes/operativos', icon: <PieChart className="h-4 w-4" /> },
+    { name: 'Reportes financieros', href: '/admin/reportes/financieros', icon: <PieChart className="h-4 w-4" /> },
+    { name: 'Perfil', href: '/admin/perfil', icon: <User className="h-4 w-4" /> }
   ];
 
   return (
@@ -245,14 +258,14 @@ const DashboardPage = () => {
               <div className="text-xs font-medium text-gray-400 uppercase tracking-wider mb-4">Principal</div>
               <div className="space-y-1">
                 {navigation.map((item) => (
-                  <a
+                  <Link
                     key={item.name}
-                    href="#"
+                    href={item.href}
                     className="flex items-center space-x-3 px-3 py-2 text-gray-600 hover:text-[#08557f] hover:bg-gray-50 rounded-lg transition-all duration-200"
                   >
                     {item.icon}
                     <span className="text-sm font-medium">{item.name}</span>
-                  </a>
+                  </Link>
                 ))}
               </div>
             </div>
@@ -261,10 +274,34 @@ const DashboardPage = () => {
             <div>
               <div className="text-xs font-medium text-gray-400 uppercase tracking-wider mb-4">Sistema</div>
               <div className="space-y-1">
-                <a href="#" className="flex items-center space-x-3 px-3 py-2 text-gray-600 hover:text-gray-800 hover:bg-gray-50 rounded-lg transition-all duration-200">
+                <Link
+                  href="/admin/sistema/configuracion"
+                  className="flex items-center space-x-3 px-3 py-2 text-gray-600 hover:text-gray-800 hover:bg-gray-50 rounded-lg transition-all duration-200"
+                >
                   <Settings className="h-4 w-4" />
                   <span className="text-sm font-medium">Configuración</span>
-                </a>
+                </Link>
+                <Link
+                  href="/admin/sistema/sincronizacion"
+                  className="flex items-center space-x-3 px-3 py-2 text-gray-600 hover:text-gray-800 hover:bg-gray-50 rounded-lg transition-all duration-200"
+                >
+                  <Activity className="h-4 w-4" />
+                  <span className="text-sm font-medium">Sincronización</span>
+                </Link>
+                <Link
+                  href="/admin/sistema/backups"
+                  className="flex items-center space-x-3 px-3 py-2 text-gray-600 hover:text-gray-800 hover:bg-gray-50 rounded-lg transition-all duration-200"
+                >
+                  <Wallet className="h-4 w-4" />
+                  <span className="text-sm font-medium">Backups</span>
+                </Link>
+                <Link
+                  href="/admin/auditoria"
+                  className="flex items-center space-x-3 px-3 py-2 text-gray-600 hover:text-gray-800 hover:bg-gray-50 rounded-lg transition-all duration-200"
+                >
+                  <Shield className="h-4 w-4" />
+                  <span className="text-sm font-medium">Auditoría</span>
+                </Link>
               </div>
             </div>
 
@@ -367,8 +404,9 @@ const DashboardPage = () => {
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   {quickAccess.map((item, index) => (
-                    <button
+                    <Link
                       key={index}
+                      href={item.href}
                       className="group p-4 border border-gray-100 rounded-lg hover:border-gray-200 hover:shadow-sm transition-all duration-300 text-left"
                     >
                       <div className="flex items-center justify-between mb-3">
@@ -386,7 +424,7 @@ const DashboardPage = () => {
                       <h3 className="font-medium text-gray-800 mb-1">{item.title}</h3>
                       <p className="text-sm text-gray-500">{item.subtitle}</p>
                       <ArrowUpRight className="h-4 w-4 text-gray-400 ml-auto mt-2 opacity-0 group-hover:opacity-100 transition-opacity" />
-                    </button>
+                    </Link>
                   ))}
                 </div>
               </div>

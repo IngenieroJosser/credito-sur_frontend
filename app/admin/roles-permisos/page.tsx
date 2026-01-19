@@ -1,28 +1,16 @@
 'use client'
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import {
   Shield,
   Lock,
   Check,
   X,
   Search,
-  Filter,
-  Settings,
   Edit2,
   Plus,
   AlertCircle,
-  Users,
-  CreditCard,
-  BarChart3,
-  FileText,
-  Bell,
-  ChevronRight,
   Key,
-  MoreVertical,
-  Eye,
-  EyeOff,
-  Save,
   Trash2
 } from 'lucide-react';
 
@@ -96,7 +84,7 @@ const RoleManagementPage = () => {
     }
   ]);
 
-  const [allPermissions] = useState<Permission[]>([
+  const [allPermissions, setAllPermissions] = useState<Permission[]>([
     // Sistema
     { id: '1', codigo: 'full_access', nombre: 'Acceso Total', descripcion: 'Acceso completo', modulo: 'Sistema', categoria: 'administracion', activo: true },
     { id: '2', codigo: 'user_management', nombre: 'Gestión Usuarios', descripcion: 'Crear y editar usuarios', modulo: 'Sistema', categoria: 'administracion', activo: true },
@@ -128,7 +116,6 @@ const RoleManagementPage = () => {
   const [filterModule, setFilterModule] = useState<string>('all');
   const [filterCategory, setFilterCategory] = useState<string>('all');
   const [selectedRole, setSelectedRole] = useState<Role | null>(null);
-  const [isEditRoleModalOpen, setIsEditRoleModalOpen] = useState(false);
   const [isCreateRoleModalOpen, setIsCreateRoleModalOpen] = useState(false);
   const [isDeleteRoleModalOpen, setIsDeleteRoleModalOpen] = useState(false);
   const [isPermissionsModalOpen, setIsPermissionsModalOpen] = useState(false);
@@ -182,7 +169,6 @@ const RoleManagementPage = () => {
       nivel: role.nivel
     });
     setSelectedPermissions(role.permisos);
-    setIsEditRoleModalOpen(true);
   };
 
   const handleOpenPermissionsModal = (role: Role) => {
@@ -221,23 +207,6 @@ const RoleManagementPage = () => {
     setIsCreateRoleModalOpen(false);
   };
 
-  const handleUpdateRole = () => {
-    if (!selectedRole) return;
-    
-    const updatedRoles = roles.map(role => 
-      role.id === selectedRole.id 
-        ? { 
-            ...role, 
-            ...roleFormData,
-            permisos: selectedPermissions
-          }
-        : role
-    );
-    
-    setRoles(updatedRoles);
-    setIsEditRoleModalOpen(false);
-  };
-
   const handleDeleteRole = () => {
     if (!selectedRole) return;
     
@@ -269,7 +238,7 @@ const RoleManagementPage = () => {
         <div className="px-6 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3">
-              <div className="w-8 h-8 bg-gradient-to-br from-[#08557f] to-[#063a58] rounded-lg flex items-center justify-center">
+              <div className="w-8 h-8 bg-gradient-to-br from-primary to-primary-dark rounded-lg flex items-center justify-center">
                 <Shield className="h-4 w-4 text-white" />
               </div>
               <div>
@@ -281,7 +250,7 @@ const RoleManagementPage = () => {
             <div className="flex items-center space-x-3">
               <button
                 onClick={handleOpenCreateRoleModal}
-                className="flex items-center space-x-2 px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg hover:border-[#08557f] hover:text-[#08557f] transition-all duration-200"
+                className="flex items-center space-x-2 px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg hover:border-primary hover:text-primary transition-all duration-200"
               >
                 <Plus className="h-4 w-4" />
                 <span className="text-sm font-medium">Nuevo Rol</span>
@@ -324,18 +293,18 @@ const RoleManagementPage = () => {
                 {roles.map(role => (
                   <div
                     key={role.id}
-                    className={`p-3 border rounded-lg transition-all ${role.esSistema ? 'border-[#08557f]/20' : 'border-gray-100 hover:border-gray-200'}`}
+                    className={`p-3 border rounded-lg transition-all ${role.esSistema ? 'border-primary/20' : 'border-gray-100 hover:border-gray-200'}`}
                   >
                     <div className="flex items-start justify-between mb-2">
                       <div className="flex items-center space-x-2">
-                        <div className={`w-2 h-2 rounded-full ${role.esSistema ? 'bg-[#08557f]' : 'bg-gray-300'}`}></div>
+                        <div className={`w-2 h-2 rounded-full ${role.esSistema ? 'bg-primary' : 'bg-gray-300'}`}></div>
                         <div>
                           <div className="font-medium text-gray-800 text-sm">{role.nombre}</div>
                           <div className="text-xs text-gray-500">{role.usuariosAsignados} usuarios</div>
                         </div>
                       </div>
                       {role.esSistema && (
-                        <span className="text-[10px] font-medium px-2 py-1 bg-[#08557f]/10 text-[#08557f] rounded">
+                        <span className="text-[10px] font-medium px-2 py-1 bg-primary/10 text-primary rounded">
                           Sistema
                         </span>
                       )}
@@ -353,7 +322,7 @@ const RoleManagementPage = () => {
                           onClick={() => handleOpenPermissionsModal(role)}
                           className={`p-1.5 rounded transition-colors ${role.esSistema
                               ? 'text-gray-200 cursor-not-allowed'
-                              : 'text-gray-400 hover:text-[#fb851b] hover:bg-gray-100'
+                              : 'text-gray-400 hover:text-secondary hover:bg-gray-100'
                             }`}
                           disabled={role.esSistema}
                         >
@@ -363,7 +332,7 @@ const RoleManagementPage = () => {
                           onClick={() => handleOpenEditRoleModal(role)}
                           className={`p-1.5 rounded transition-colors ${role.esSistema
                               ? 'text-gray-200 cursor-not-allowed'
-                              : 'text-gray-400 hover:text-[#08557f] hover:bg-gray-100'
+                              : 'text-gray-400 hover:text-primary hover:bg-gray-100'
                             }`}
                           disabled={role.esSistema}
                         >
@@ -400,7 +369,7 @@ const RoleManagementPage = () => {
                   <select
                     value={filterModule}
                     onChange={(e) => setFilterModule(e.target.value)}
-                    className="px-3 py-1.5 border border-gray-200 rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-[#08557f]"
+                    className="px-3 py-1.5 border border-gray-200 rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-primary"
                   >
                     <option value="all">Todos los módulos</option>
                     {modules.map(module => (
@@ -411,7 +380,7 @@ const RoleManagementPage = () => {
                   <select
                     value={filterCategory}
                     onChange={(e) => setFilterCategory(e.target.value)}
-                    className="px-3 py-1.5 border border-gray-200 rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-[#08557f]"
+                    className="px-3 py-1.5 border border-gray-200 rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-primary"
                   >
                     <option value="all">Todas las categorías</option>
                     <option value="lectura">Lectura</option>
@@ -429,7 +398,7 @@ const RoleManagementPage = () => {
                   placeholder="Buscar permisos..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-9 pr-4 py-2.5 bg-gray-50 border border-gray-100 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#08557f] text-sm"
+                  className="w-full pl-9 pr-4 py-2.5 bg-gray-50 border border-gray-100 rounded-lg focus:outline-none focus:ring-1 focus:ring-primary text-sm"
                 />
               </div>
 
@@ -453,11 +422,13 @@ const RoleManagementPage = () => {
                         
                         <button
                           onClick={() => {
-                            const updatedPermissions = allPermissions.map(p =>
-                              p.id === permission.id ? { ...p, activo: !p.activo } : p
+                            setAllPermissions(prev =>
+                              prev.map(p =>
+                                p.id === permission.id
+                                  ? { ...p, activo: !p.activo }
+                                  : p
+                              )
                             );
-                            // En una app real, actualizarías el estado
-                            console.log('Actualizar permiso:', permission.id);
                           }}
                           className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${permission.activo ? 'bg-green-500' : 'bg-gray-300'}`}
                         >
@@ -476,9 +447,9 @@ const RoleManagementPage = () => {
             </div>
 
             {/* Nota de seguridad elegante */}
-            <div className="mt-6 p-4 bg-gradient-to-r from-[#08557f]/5 to-transparent rounded-lg">
+            <div className="mt-6 p-4 bg-gradient-to-r from-primary/5 to-transparent rounded-lg">
               <div className="flex items-center space-x-2">
-                <AlertCircle className="h-4 w-4 text-[#08557f]" />
+                <AlertCircle className="h-4 w-4 text-primary" />
                 <p className="text-xs text-gray-600">
                   Los permisos definen capacidades específicas. Asigne con cuidado.
                 </p>
@@ -511,8 +482,8 @@ const RoleManagementPage = () => {
                   <input
                     type="text"
                     value={roleFormData.nombre}
-                    onChange={(e) => setRoleFormData({...roleFormData, nombre: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#08557f] text-sm"
+                    onChange={(e) => setRoleFormData({ ...roleFormData, nombre: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-primary text-sm"
                     placeholder="Ej: Auditor"
                   />
                 </div>
@@ -521,8 +492,8 @@ const RoleManagementPage = () => {
                   <label className="block text-xs font-medium text-gray-700 mb-1.5">Descripción</label>
                   <textarea
                     value={roleFormData.descripcion}
-                    onChange={(e) => setRoleFormData({...roleFormData, descripcion: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#08557f] text-sm"
+                    onChange={(e) => setRoleFormData({ ...roleFormData, descripcion: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-primary text-sm"
                     rows={2}
                     placeholder="Descripción breve"
                   />
@@ -552,7 +523,7 @@ const RoleManagementPage = () => {
                 </button>
                 <button
                   onClick={handleCreateRole}
-                  className="px-4 py-2 bg-[#08557f] text-white rounded-lg hover:bg-[#063a58] transition-colors text-sm"
+                  className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark transition-colors text-sm"
                 >
                   Crear Rol
                 </button>
@@ -587,7 +558,7 @@ const RoleManagementPage = () => {
                   <div
                     key={permission.id}
                     className={`p-3 border rounded-lg cursor-pointer transition-all ${selectedPermissions.includes(permission.codigo)
-                        ? 'border-[#08557f] bg-[#08557f]/5'
+                        ? 'border-primary bg-primary/5'
                         : 'border-gray-100 hover:border-gray-200'
                       }`}
                     onClick={() => {
@@ -601,7 +572,7 @@ const RoleManagementPage = () => {
                     <div className="flex items-start justify-between">
                       <div className="flex items-center space-x-2">
                         <div className={`w-4 h-4 rounded border flex items-center justify-center ${selectedPermissions.includes(permission.codigo)
-                            ? 'bg-[#08557f] border-[#08557f]'
+                            ? 'bg-primary border-primary'
                             : 'border-gray-300'
                           }`}>
                           {selectedPermissions.includes(permission.codigo) && (
@@ -630,8 +601,8 @@ const RoleManagementPage = () => {
                 <button
                   onClick={() => {
                     if (selectedRole) {
-                      const updatedRoles = roles.map(role => 
-                        role.id === selectedRole.id 
+                      const updatedRoles = roles.map(role =>
+                        role.id === selectedRole.id
                           ? { ...role, permisos: selectedPermissions }
                           : role
                       );
@@ -639,7 +610,7 @@ const RoleManagementPage = () => {
                       setIsPermissionsModalOpen(false);
                     }
                   }}
-                  className="px-4 py-2 bg-[#08557f] text-white rounded-lg hover:bg-[#063a58] transition-colors text-sm"
+                  className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark transition-colors text-sm"
                 >
                   Guardar Cambios
                 </button>
@@ -660,7 +631,7 @@ const RoleManagementPage = () => {
                 </div>
                 <h3 className="text-base font-medium text-gray-800 mb-2">Eliminar Rol</h3>
                 <p className="text-gray-600 text-sm mb-6">
-                  ¿Eliminar "{selectedRole.nombre}"? {selectedRole.usuariosAsignados > 0 
+                  ¿Eliminar el rol {selectedRole.nombre}? {selectedRole.usuariosAsignados > 0 
                     ? `${selectedRole.usuariosAsignados} usuarios perderán acceso.`
                     : 'No hay usuarios asignados.'}
                 </p>

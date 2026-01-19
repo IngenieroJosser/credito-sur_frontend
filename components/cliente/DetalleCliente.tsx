@@ -3,16 +3,13 @@
 import React, { useState } from 'react';
 import { 
   User, Phone, Mail, MapPin, Calendar, FileText, 
-  DollarSign, TrendingUp, AlertCircle, 
+  DollarSign, TrendingUp, AlertCircle, CheckCircle,
   Edit, Download, Printer, MessageSquare, 
   Shield, CreditCard, PieChart, Filter, MoreVertical,
-  ArrowUpRight, ArrowDownRight, Eye, Plus, Clock,
-  CheckCircle, XCircle, ChevronDown, ExternalLink,
-  BarChart, Home, Briefcase, Wallet, Tag,
-  Smartphone, Wifi, Tv, Zap, RefreshCw, Bell,
-  Search, Settings, LogOut, UserCircle, BellRing,
-  CalendarDays, CreditCard as CreditCardIcon,
-  LineChart, History, FileCheck, ClipboardList
+  Plus, ExternalLink,
+  BarChart,
+  Smartphone, Zap, RefreshCw, Bell,
+  CreditCard as CreditCardIcon
 } from 'lucide-react';
 
 // Interfaces refinadas
@@ -80,10 +77,10 @@ interface Comentario {
 
 interface ClienteDetalleProps {
   clienteId: string;
-  rolUsuario: 'administrador' | 'coordinador' | 'supervisor' | 'cobrador' | 'contable';
+  rolUsuario?: 'administrador' | 'coordinador' | 'supervisor' | 'cobrador' | 'contable';
 }
 
-const ClienteDetalleElegante: React.FC<ClienteDetalleProps> = ({ clienteId, rolUsuario }) => {
+const ClienteDetalleElegante: React.FC<ClienteDetalleProps> = ({ clienteId }) => {
   const [activeTab, setActiveTab] = useState<'prestamos' | 'pagos' | 'comentarios' | 'analitica'>('prestamos');
   
   // Datos del cliente con diseño minimalista
@@ -105,17 +102,8 @@ const ClienteDetalleElegante: React.FC<ClienteDetalleProps> = ({ clienteId, rolU
     ocupacion: 'Ingeniero de Sistemas',
     referenciaPersonal: 'María González',
     telefonoReferencia: '+1 (555) 987-6543',
-    avatarColor: 'bg-gradient-to-br from-[#08557f] to-[#0a6a9e]'
+    avatarColor: 'bg-gradient-to-br from-primary to-primary-light'
   });
-
-  // Iconos para préstamos
-  const iconosProductos = {
-    refrigeradora: <Smartphone className="w-5 h-5" />,
-    lavadora: <RefreshCw className="w-5 h-5" />,
-    cocina: <Zap className="w-5 h-5" />,
-    tv: <Tv className="w-5 h-5" />,
-    computadora: <Wifi className="w-5 h-5" />
-  };
 
   const [prestamos] = useState<Prestamo[]>([
     {
@@ -297,7 +285,7 @@ const ClienteDetalleElegante: React.FC<ClienteDetalleProps> = ({ clienteId, rolU
               <Edit className="w-4 h-4" />
               Editar
             </button>
-            <button className="px-4 py-2 bg-[#08557f] text-white rounded-lg hover:bg-[#07496d] transition-all duration-200 text-sm font-medium flex items-center gap-2 shadow-sm">
+            <button className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark transition-all duration-200 text-sm font-medium flex items-center gap-2 shadow-sm">
               <MessageSquare className="w-4 h-4" />
               Contactar
             </button>
@@ -308,7 +296,7 @@ const ClienteDetalleElegante: React.FC<ClienteDetalleProps> = ({ clienteId, rolU
         <div className="mt-6 grid grid-cols-1 md:grid-cols-4 gap-3">
           <div className="flex items-center gap-3 p-4 bg-white/80 backdrop-blur-sm rounded-xl border border-gray-200">
             <div className="p-2 rounded-lg bg-blue-50">
-              <Phone className="w-5 h-5 text-[#08557f]" />
+              <Phone className="w-5 h-5 text-primary" />
             </div>
             <div>
               <p className="text-sm text-gray-500">Teléfono</p>
@@ -318,7 +306,7 @@ const ClienteDetalleElegante: React.FC<ClienteDetalleProps> = ({ clienteId, rolU
           
           <div className="flex items-center gap-3 p-4 bg-white/80 backdrop-blur-sm rounded-xl border border-gray-200">
             <div className="p-2 rounded-lg bg-blue-50">
-              <Mail className="w-5 h-5 text-[#08557f]" />
+              <Mail className="w-5 h-5 text-primary" />
             </div>
             <div>
               <p className="text-sm text-gray-500">Email</p>
@@ -328,7 +316,7 @@ const ClienteDetalleElegante: React.FC<ClienteDetalleProps> = ({ clienteId, rolU
           
           <div className="flex items-center gap-3 p-4 bg-white/80 backdrop-blur-sm rounded-xl border border-gray-200">
             <div className="p-2 rounded-lg bg-blue-50">
-              <MapPin className="w-5 h-5 text-[#08557f]" />
+              <MapPin className="w-5 h-5 text-primary" />
             </div>
             <div>
               <p className="text-sm text-gray-500">Dirección</p>
@@ -338,7 +326,7 @@ const ClienteDetalleElegante: React.FC<ClienteDetalleProps> = ({ clienteId, rolU
           
           <div className="flex items-center gap-3 p-4 bg-white/80 backdrop-blur-sm rounded-xl border border-gray-200">
             <div className="p-2 rounded-lg bg-blue-50">
-              <Calendar className="w-5 h-5 text-[#08557f]" />
+              <Calendar className="w-5 h-5 text-primary" />
             </div>
             <div>
               <p className="text-sm text-gray-500">Registro</p>
@@ -359,7 +347,7 @@ const ClienteDetalleElegante: React.FC<ClienteDetalleProps> = ({ clienteId, rolU
                 <p className="text-2xl font-light text-gray-900 mt-1">${totales.totalPrestamos.toLocaleString()}</p>
               </div>
               <div className="p-3 rounded-xl bg-gradient-to-br from-blue-50 to-blue-100">
-                <DollarSign className="w-6 h-6 text-[#08557f]" />
+                <DollarSign className="w-6 h-6 text-primary" />
               </div>
             </div>
             <div className="flex items-center justify-between">
@@ -375,10 +363,10 @@ const ClienteDetalleElegante: React.FC<ClienteDetalleProps> = ({ clienteId, rolU
             <div className="flex items-center justify-between mb-4">
               <div>
                 <p className="text-gray-500 text-sm font-medium">Saldo Pendiente</p>
-                <p className="text-2xl font-light text-[#08557f] mt-1">${totales.totalPendiente.toLocaleString()}</p>
+                <p className="text-2xl font-light text-primary mt-1">${totales.totalPendiente.toLocaleString()}</p>
               </div>
               <div className="p-3 rounded-xl bg-gradient-to-br from-orange-50 to-orange-100">
-                <FileText className="w-6 h-6 text-[#fb851b]" />
+                <FileText className="w-6 h-6 text-secondary" />
               </div>
             </div>
             <div className="flex items-center justify-between">
@@ -392,7 +380,7 @@ const ClienteDetalleElegante: React.FC<ClienteDetalleProps> = ({ clienteId, rolU
             </div>
             <div className="mt-3 h-1.5 bg-gray-200 rounded-full overflow-hidden">
               <div 
-                className="h-full bg-gradient-to-r from-[#08557f] to-[#0a6a9e] rounded-full"
+                className="h-full bg-gradient-to-r from-primary to-primary-light rounded-full"
                 style={{ width: `${getProgressPercentage(totales.totalPagado, totales.totalPrestamos)}%` }}
               />
             </div>
@@ -446,7 +434,7 @@ const ClienteDetalleElegante: React.FC<ClienteDetalleProps> = ({ clienteId, rolU
             onClick={() => setActiveTab('prestamos')}
             className={`px-6 py-3 rounded-xl text-sm font-medium transition-all duration-200 flex items-center gap-2 flex-1 justify-center ${
               activeTab === 'prestamos' 
-                ? 'bg-white text-[#08557f] shadow-sm' 
+                ? 'bg-white text-primary shadow-sm' 
                 : 'text-gray-600 hover:text-gray-900'
             }`}
           >
@@ -457,7 +445,7 @@ const ClienteDetalleElegante: React.FC<ClienteDetalleProps> = ({ clienteId, rolU
             onClick={() => setActiveTab('pagos')}
             className={`px-6 py-3 rounded-xl text-sm font-medium transition-all duration-200 flex items-center gap-2 flex-1 justify-center ${
               activeTab === 'pagos' 
-                ? 'bg-white text-[#08557f] shadow-sm' 
+                ? 'bg-white text-primary shadow-sm' 
                 : 'text-gray-600 hover:text-gray-900'
             }`}
           >
@@ -468,7 +456,7 @@ const ClienteDetalleElegante: React.FC<ClienteDetalleProps> = ({ clienteId, rolU
             onClick={() => setActiveTab('comentarios')}
             className={`px-6 py-3 rounded-xl text-sm font-medium transition-all duration-200 flex items-center gap-2 flex-1 justify-center ${
               activeTab === 'comentarios' 
-                ? 'bg-white text-[#08557f] shadow-sm' 
+                ? 'bg-white text-primary shadow-sm' 
                 : 'text-gray-600 hover:text-gray-900'
             }`}
           >
@@ -479,7 +467,7 @@ const ClienteDetalleElegante: React.FC<ClienteDetalleProps> = ({ clienteId, rolU
             onClick={() => setActiveTab('analitica')}
             className={`px-6 py-3 rounded-xl text-sm font-medium transition-all duration-200 flex items-center gap-2 flex-1 justify-center ${
               activeTab === 'analitica' 
-                ? 'bg-white text-[#08557f] shadow-sm' 
+                ? 'bg-white text-primary shadow-sm' 
                 : 'text-gray-600 hover:text-gray-900'
             }`}
           >
@@ -504,7 +492,7 @@ const ClienteDetalleElegante: React.FC<ClienteDetalleProps> = ({ clienteId, rolU
                   <Filter className="w-4 h-4" />
                   Filtrar
                 </button>
-                <button className="px-4 py-2 bg-gradient-to-r from-[#08557f] to-[#0a6a9e] text-white rounded-lg hover:opacity-90 transition-all duration-200 text-sm font-medium flex items-center gap-2 shadow-sm">
+                <button className="px-4 py-2 bg-gradient-to-r from-primary to-primary-light text-white rounded-lg hover:opacity-90 transition-all duration-200 text-sm font-medium flex items-center gap-2 shadow-sm">
                   <Plus className="w-4 h-4" />
                   Nuevo Préstamo
                 </button>
@@ -513,7 +501,7 @@ const ClienteDetalleElegante: React.FC<ClienteDetalleProps> = ({ clienteId, rolU
 
             <div className="space-y-4">
               {prestamos.map((prestamo) => (
-                <div key={prestamo.id} className="group p-6 rounded-xl border border-gray-200 hover:border-[#08557f]/30 hover:shadow-md transition-all duration-300">
+                <div key={prestamo.id} className="group p-6 rounded-xl border border-gray-200 hover:border-primary/30 hover:shadow-md transition-all duration-300">
                   <div className="flex items-start justify-between">
                     <div className="flex items-start gap-4">
                       <div className="p-3 rounded-lg bg-gradient-to-br from-blue-50 to-blue-100">
@@ -542,7 +530,7 @@ const ClienteDetalleElegante: React.FC<ClienteDetalleProps> = ({ clienteId, rolU
                           </div>
                           <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
                             <div 
-                              className="h-full bg-gradient-to-r from-[#08557f] to-[#0a6a9e] rounded-full"
+                              className="h-full bg-gradient-to-r from-primary to-primary-light rounded-full"
                               style={{ width: `${getProgressPercentage(prestamo.montoPagado, prestamo.montoTotal)}%` }}
                             />
                           </div>
@@ -564,7 +552,7 @@ const ClienteDetalleElegante: React.FC<ClienteDetalleProps> = ({ clienteId, rolU
                           {prestamo.diasMora} días de mora
                         </div>
                       )}
-                      <button className="p-2 text-gray-400 hover:text-[#08557f] transition-colors">
+                      <button className="p-2 text-gray-400 hover:text-primary transition-colors">
                         <MoreVertical className="w-5 h-5" />
                       </button>
                     </div>
@@ -588,7 +576,7 @@ const ClienteDetalleElegante: React.FC<ClienteDetalleProps> = ({ clienteId, rolU
                   <Download className="w-4 h-4" />
                   Exportar
                 </button>
-                <button className="px-4 py-2 bg-gradient-to-r from-[#08557f] to-[#0a6a9e] text-white rounded-lg hover:opacity-90 transition-all duration-200 text-sm font-medium flex items-center gap-2 shadow-sm">
+                <button className="px-4 py-2 bg-gradient-to-r from-primary to-primary-light text-white rounded-lg hover:opacity-90 transition-all duration-200 text-sm font-medium flex items-center gap-2 shadow-sm">
                   <Plus className="w-4 h-4" />
                   Registrar Pago
                 </button>
@@ -597,7 +585,7 @@ const ClienteDetalleElegante: React.FC<ClienteDetalleProps> = ({ clienteId, rolU
 
             <div className="space-y-3">
               {pagos.map((pago) => (
-                <div key={pago.id} className="group p-5 rounded-xl border border-gray-200 hover:border-[#08557f]/30 hover:shadow-sm transition-all duration-200">
+                <div key={pago.id} className="group p-5 rounded-xl border border-gray-200 hover:border-primary/30 hover:shadow-sm transition-all duration-200">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-4">
                       <div className="p-3 rounded-lg bg-gradient-to-br from-blue-50 to-blue-100">
@@ -632,7 +620,7 @@ const ClienteDetalleElegante: React.FC<ClienteDetalleProps> = ({ clienteId, rolU
                         <p className="text-xl font-light text-gray-900">${pago.monto}</p>
                         <p className="text-sm text-gray-500">Monto</p>
                       </div>
-                      <button className="p-2 text-gray-400 hover:text-[#08557f] transition-colors">
+                      <button className="p-2 text-gray-400 hover:text-primary transition-colors">
                         <ExternalLink className="w-5 h-5" />
                       </button>
                     </div>
@@ -809,7 +797,7 @@ const ClienteDetalleElegante: React.FC<ClienteDetalleProps> = ({ clienteId, rolU
           <span>{prestamos.length} préstamos gestionados</span>
         </div>
         <div className="flex items-center gap-2">
-          <div className="w-2 h-2 rounded-full bg-[#fb851b]"></div>
+          <div className="w-2 h-2 rounded-full bg-secondary"></div>
           <span>Último pago: 15 Jul 2023</span>
         </div>
       </div>
