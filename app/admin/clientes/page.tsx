@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import {
   Search,
   Filter,
@@ -13,25 +13,18 @@ import {
   DollarSign,
   AlertCircle,
   CheckCircle,
-  Clock,
-  TrendingUp,
   Eye,
   Edit2,
   MessageCircle,
-  Download,
   Calendar,
   Shield,
   X,
   Save,
   MapPin,
   Briefcase,
-  Home,
   CreditCard,
-  FileText,
-  PieChart,
   History,
-  Bell,
-  Tag
+  Bell
 } from 'lucide-react';
 
 interface Cliente {
@@ -318,7 +311,7 @@ const ClientesPage = () => {
         <div className="px-6 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3">
-              <div className="w-8 h-8 bg-gradient-to-br from-[#08557f] to-[#063a58] rounded-lg flex items-center justify-center">
+              <div className="w-8 h-8 bg-gradient-to-br from-primary to-primary-dark rounded-lg flex items-center justify-center">
                 <User className="h-4 w-4 text-white" />
               </div>
               <div>
@@ -330,7 +323,7 @@ const ClientesPage = () => {
             <div className="flex items-center space-x-3">
               <button
                 onClick={() => setIsCreateModalOpen(true)}
-                className="flex items-center space-x-2 px-4 py-2 bg-[#08557f] text-white rounded-lg hover:bg-[#063a58] transition-colors"
+                className="flex items-center space-x-2 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark transition-colors"
               >
                 <UserPlus className="h-4 w-4" />
                 <span className="text-sm font-medium">Nuevo Cliente</span>
@@ -347,7 +340,7 @@ const ClientesPage = () => {
             { 
               label: 'Total', 
               value: stats.total.toString(), 
-              color: '#08557f', 
+              color: 'var(--primary)', 
               icon: <User className="h-4 w-4" /> 
             },
             { 
@@ -411,7 +404,7 @@ const ClientesPage = () => {
                     }}
                     className={`px-3 py-1.5 text-xs rounded-lg transition-all ${
                       filterEstado === filtro.id 
-                        ? 'bg-[#08557f] text-white' 
+                        ? 'bg-primary text-white' 
                         : 'text-gray-600 hover:text-gray-800 hover:bg-gray-100'
                     }`}
                   >
@@ -431,7 +424,7 @@ const ClientesPage = () => {
                   setSearchTerm(e.target.value);
                   setCurrentPage(1);
                 }}
-                className="w-full md:w-64 pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#08557f]/20 text-sm"
+                className="w-full md:w-64 pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 text-sm"
               />
             </div>
           </div>
@@ -531,12 +524,12 @@ const ClientesPage = () => {
                       <div className="flex items-center space-x-1">
                         <button
                           onClick={() => handleOpenDetail(cliente)}
-                          className="p-2 text-gray-400 hover:text-[#08557f] hover:bg-gray-100 rounded-lg transition-colors"
+                          className="p-2 text-gray-400 hover:text-primary hover:bg-gray-100 rounded-lg transition-colors"
                           title="Ver detalles"
                         >
                           <Eye className="h-4 w-4" />
                         </button>
-                        <button className="p-2 text-gray-400 hover:text-[#fb851b] hover:bg-gray-100 rounded-lg transition-colors">
+                        <button className="p-2 text-gray-400 hover:text-secondary hover:bg-gray-100 rounded-lg transition-colors">
                           <Edit2 className="h-4 w-4" />
                         </button>
                       </div>
@@ -631,7 +624,7 @@ const ClientesPage = () => {
                     name="nombre"
                     value={newCliente.nombre}
                     onChange={handleInputChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#08557f]/20"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20"
                     placeholder="Nombre"
                     required
                   />
@@ -644,7 +637,7 @@ const ClientesPage = () => {
                     name="apellido"
                     value={newCliente.apellido}
                     onChange={handleInputChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#08557f]/20"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20"
                     placeholder="Apellido"
                     required
                   />
@@ -657,7 +650,7 @@ const ClientesPage = () => {
                     name="documento"
                     value={newCliente.documento}
                     onChange={handleInputChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#08557f]/20"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20"
                     placeholder="V-12345678"
                     required
                   />
@@ -670,7 +663,7 @@ const ClientesPage = () => {
                     name="telefono"
                     value={newCliente.telefono}
                     onChange={handleInputChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#08557f]/20"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20"
                     placeholder="+58 412 555 1212"
                     required
                   />
@@ -683,7 +676,7 @@ const ClientesPage = () => {
                     name="email"
                     value={newCliente.email}
                     onChange={handleInputChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#08557f]/20"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20"
                     placeholder="cliente@email.com"
                   />
                 </div>
@@ -695,7 +688,7 @@ const ClientesPage = () => {
                     name="fechaNacimiento"
                     value={newCliente.fechaNacimiento}
                     onChange={handleInputChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#08557f]/20"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20"
                   />
                 </div>
                 
@@ -706,7 +699,7 @@ const ClientesPage = () => {
                     name="ocupacion"
                     value={newCliente.ocupacion}
                     onChange={handleInputChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#08557f]/20"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20"
                     placeholder="Profesión u oficio"
                   />
                 </div>
@@ -718,7 +711,7 @@ const ClientesPage = () => {
                     name="direccion"
                     value={newCliente.direccion}
                     onChange={handleInputChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#08557f]/20"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20"
                     placeholder="Dirección completa"
                   />
                 </div>
@@ -734,7 +727,7 @@ const ClientesPage = () => {
                       name="contactoEmergenciaNombre"
                       value={newCliente.contactoEmergenciaNombre}
                       onChange={handleInputChange}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#08557f]/20"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20"
                       placeholder="Nombre completo"
                     />
                   </div>
@@ -746,7 +739,7 @@ const ClientesPage = () => {
                       name="contactoEmergenciaTelefono"
                       value={newCliente.contactoEmergenciaTelefono}
                       onChange={handleInputChange}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#08557f]/20"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20"
                       placeholder="Teléfono"
                     />
                   </div>
@@ -758,7 +751,7 @@ const ClientesPage = () => {
                       name="contactoEmergenciaParentesco"
                       value={newCliente.contactoEmergenciaParentesco}
                       onChange={handleInputChange}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#08557f]/20"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20"
                       placeholder="Ej: Esposo/a, Padre, etc."
                     />
                   </div>
@@ -775,7 +768,7 @@ const ClientesPage = () => {
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 bg-[#08557f] text-white rounded-lg hover:bg-[#063a58] transition-colors text-sm font-medium flex items-center space-x-2"
+                  className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark transition-colors text-sm font-medium flex items-center space-x-2"
                 >
                   <Save className="h-4 w-4" />
                   <span>Crear Cliente</span>
@@ -793,7 +786,7 @@ const ClientesPage = () => {
             <div className="p-6 border-b border-gray-200">
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-3">
-                  <div className="w-10 h-10 bg-gradient-to-br from-[#08557f] to-[#063a58] rounded-lg flex items-center justify-center">
+                  <div className="w-10 h-10 bg-gradient-to-br from-primary to-primary-dark rounded-lg flex items-center justify-center">
                     <User className="h-5 w-5 text-white" />
                   </div>
                   <div>
