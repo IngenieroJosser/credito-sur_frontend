@@ -105,15 +105,15 @@ export default async function ClienteDetallePage({
         {/* Breadcrumb elegante */}
         <div className="mb-6">
           <nav className="flex items-center text-sm text-gray-500">
-            <Link href="/admin" className="hover:text-[#08557f] transition-colors">
+            <Link href="/admin" className="hover:text-primary transition-colors">
               Dashboard
             </Link>
             <ChevronLeft className="w-4 h-4 mx-2" />
-            <Link href="/admin/clientes" className="hover:text-[#08557f] transition-colors">
+            <Link href="/admin/clientes" className="hover:text-primary transition-colors">
               Clientes
             </Link>
             <ChevronLeft className="w-4 h-4 mx-2" />
-            <span className="text-[#08557f] font-medium">
+            <span className="text-primary font-medium">
               {clienteData?.nombre} {clienteData?.apellido}
             </span>
           </nav>

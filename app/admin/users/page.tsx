@@ -129,13 +129,13 @@ const UserManagementPage = () => {
 
   const [searchTerm, setSearchTerm] = useState('');
   const [filterRole, setFilterRole] = useState<string>('all');
-  const [filterStatus, setFilterStatus] = useState<string>('all');
+  const [filterStatus] = useState<string>('all');
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
-  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [, setIsEditModalOpen] = useState(false);
   const [isPermissionsModalOpen, setIsPermissionsModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
-  const [currentUserRole, setCurrentUserRole] = useState<'admin' | 'coordinator'>('admin');
+  const [currentUserRole] = useState<'admin' | 'coordinator'>('admin');
 
   const [formData, setFormData] = useState({
     nombre: '',
@@ -252,23 +252,6 @@ const UserManagementPage = () => {
 
     setUsers([...users, newUser]);
     setIsCreateModalOpen(false);
-  };
-
-  const handleUpdateUser = () => {
-    if (!selectedUser) return;
-
-    const updatedUsers = users.map(user =>
-      user.id === selectedUser.id
-        ? {
-          ...user,
-          ...formData,
-          permisos: selectedPermissions
-        }
-        : user
-    );
-
-    setUsers(updatedUsers);
-    setIsEditModalOpen(false);
   };
 
   const handleToggleUserStatus = () => {

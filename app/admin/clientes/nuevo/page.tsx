@@ -3,32 +3,18 @@
 import { useState } from 'react';
 import {
   Save,
-  X,
   User,
   Phone,
   Mail,
   MapPin,
   Briefcase,
-  Calendar,
   Shield,
   DollarSign,
   AlertCircle,
-  CheckCircle,
-  Clock,
-  Plus,
-  Trash2,
-  FileText,
   BarChart3,
-  Users,
   ChevronRight,
   CreditCard,
-  Home,
-  Building,
-  Tag,
-  ShieldCheck,
-  Bell,
-  Target,
-  Percent
+  Target
 } from 'lucide-react';
 
 interface ClienteFormData {
@@ -63,6 +49,36 @@ interface ClienteFormData {
   observaciones: string;
   nivelRiesgo: string;
 }
+
+const ScoreMeter = ({ score }: { score: number }) => {
+  const getScoreColor = (s: number) => {
+    if (s >= 80) return 'bg-green-500';
+    if (s >= 60) return 'bg-yellow-500';
+    if (s >= 40) return 'bg-orange-500';
+    return 'bg-red-500';
+  };
+
+  return (
+    <div className="relative pt-2">
+      <div className="h-1 bg-gray-200 rounded-full overflow-hidden">
+        <div 
+          className={`h-full ${getScoreColor(score)} transition-all duration-300`}
+          style={{ width: `${score}%` }}
+        />
+      </div>
+      <div className="flex justify-between text-xs text-gray-500 mt-1">
+        <span>0</span>
+        <span>50</span>
+        <span>100</span>
+      </div>
+      <div className="absolute top-0 left-0" style={{ left: `${score - 2}%` }}>
+        <div className="w-4 h-4 rounded-full bg-white border-2 border-current shadow-sm transform -translate-y-1/2"
+             style={{ borderColor: getScoreColor(score).replace('bg-', 'text-') }}>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 const ClienteFormPage = () => {
   const [isEditMode] = useState(false);
@@ -149,36 +165,6 @@ const ClienteFormPage = () => {
     }
   };
 
-  const ScoreMeter = ({ score }: { score: number }) => {
-    const getScoreColor = (s: number) => {
-      if (s >= 80) return 'bg-green-500';
-      if (s >= 60) return 'bg-yellow-500';
-      if (s >= 40) return 'bg-orange-500';
-      return 'bg-red-500';
-    };
-
-    return (
-      <div className="relative pt-2">
-        <div className="h-1 bg-gray-200 rounded-full overflow-hidden">
-          <div 
-            className={`h-full ${getScoreColor(score)} transition-all duration-300`}
-            style={{ width: `${score}%` }}
-          />
-        </div>
-        <div className="flex justify-between text-xs text-gray-500 mt-1">
-          <span>0</span>
-          <span>50</span>
-          <span>100</span>
-        </div>
-        <div className="absolute top-0 left-0" style={{ left: `${score - 2}%` }}>
-          <div className="w-4 h-4 rounded-full bg-white border-2 border-current shadow-sm transform -translate-y-1/2"
-               style={{ borderColor: getScoreColor(score).replace('bg-', 'text-') }}>
-          </div>
-        </div>
-      </div>
-    );
-  };
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-white via-gray-50 to-gray-100">
       {/* Header elegante */}
@@ -186,7 +172,7 @@ const ClienteFormPage = () => {
         <div className="px-6 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3">
-              <div className="w-8 h-8 bg-gradient-to-br from-[#08557f] to-[#063a58] rounded-lg flex items-center justify-center">
+              <div className="w-8 h-8 bg-gradient-to-br from-primary to-primary-dark rounded-lg flex items-center justify-center">
                 <User className="h-4 w-4 text-white" />
               </div>
               <div>
@@ -202,7 +188,7 @@ const ClienteFormPage = () => {
               </button>
               <button
                 onClick={handleSubmit}
-                className="px-4 py-2 bg-[#08557f] text-white rounded-lg hover:bg-[#063a58] transition-colors text-sm flex items-center space-x-2"
+                className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark transition-colors text-sm flex items-center space-x-2"
               >
                 <Save className="h-4 w-4" />
                 <span>{isEditMode ? 'Actualizar' : 'Guardar'}</span>
@@ -224,13 +210,13 @@ const ClienteFormPage = () => {
                     onClick={() => setActiveSection(section.id)}
                     className={`w-full flex items-center justify-between p-3 rounded-lg transition-all duration-200 ${
                       activeSection === section.id
-                        ? 'bg-[#08557f]/10 text-[#08557f]'
+                        ? 'bg-primary/10 text-primary'
                         : 'text-gray-600 hover:text-gray-800 hover:bg-gray-50'
                     }`}
                   >
                     <div className="flex items-center space-x-3">
                       <div className={`p-1.5 rounded ${
-                        activeSection === section.id ? 'bg-[#08557f]/20' : 'bg-gray-100'
+                        activeSection === section.id ? 'bg-primary/20' : 'bg-gray-100'
                       }`}>
                         {section.icon}
                       </div>
@@ -274,7 +260,7 @@ const ClienteFormPage = () => {
                             name="nombre"
                             value={formData.nombre}
                             onChange={handleInputChange}
-                            className="w-full px-3 py-2 bg-transparent border-0 border-b border-gray-200 focus:border-[#08557f] focus:outline-none transition-colors"
+                            className="w-full px-3 py-2 bg-transparent border-0 border-b border-gray-200 focus:border-primary focus:outline-none transition-colors"
                             placeholder="Nombre"
                             required
                           />
@@ -286,7 +272,7 @@ const ClienteFormPage = () => {
                             name="apellido"
                             value={formData.apellido}
                             onChange={handleInputChange}
-                            className="w-full px-3 py-2 bg-transparent border-0 border-b border-gray-200 focus:border-[#08557f] focus:outline-none transition-colors"
+                            className="w-full px-3 py-2 bg-transparent border-0 border-b border-gray-200 focus:border-primary focus:outline-none transition-colors"
                             placeholder="Apellido"
                             required
                           />
@@ -298,7 +284,7 @@ const ClienteFormPage = () => {
                             name="documento"
                             value={formData.documento}
                             onChange={handleInputChange}
-                            className="w-full px-3 py-2 bg-transparent border-0 border-b border-gray-200 focus:border-[#08557f] focus:outline-none transition-colors"
+                            className="w-full px-3 py-2 bg-transparent border-0 border-b border-gray-200 focus:border-primary focus:outline-none transition-colors"
                             placeholder="V-12345678"
                             required
                           />
@@ -310,7 +296,7 @@ const ClienteFormPage = () => {
                             name="fechaNacimiento"
                             value={formData.fechaNacimiento}
                             onChange={handleInputChange}
-                            className="w-full px-3 py-2 bg-transparent border-0 border-b border-gray-200 focus:border-[#08557f] focus:outline-none transition-colors"
+                            className="w-full px-3 py-2 bg-transparent border-0 border-b border-gray-200 focus:border-primary focus:outline-none transition-colors"
                           />
                         </div>
                         <div>
@@ -319,7 +305,7 @@ const ClienteFormPage = () => {
                             name="genero"
                             value={formData.genero}
                             onChange={handleInputChange}
-                            className="w-full px-3 py-2 bg-transparent border-0 border-b border-gray-200 focus:border-[#08557f] focus:outline-none transition-colors"
+                            className="w-full px-3 py-2 bg-transparent border-0 border-b border-gray-200 focus:border-primary focus:outline-none transition-colors"
                           >
                             <option value="">Seleccionar</option>
                             <option value="masculino">Masculino</option>
@@ -349,7 +335,7 @@ const ClienteFormPage = () => {
                               name="telefono"
                               value={formData.telefono}
                               onChange={handleInputChange}
-                              className="w-full px-3 py-2 bg-transparent border-0 border-b border-gray-200 focus:border-[#08557f] focus:outline-none transition-colors"
+                              className="w-full px-3 py-2 bg-transparent border-0 border-b border-gray-200 focus:border-primary focus:outline-none transition-colors"
                               placeholder="+58 412 555 1212"
                               required
                             />
@@ -364,7 +350,7 @@ const ClienteFormPage = () => {
                               name="email"
                               value={formData.email}
                               onChange={handleInputChange}
-                              className="w-full px-3 py-2 bg-transparent border-0 border-b border-gray-200 focus:border-[#08557f] focus:outline-none transition-colors"
+                              className="w-full px-3 py-2 bg-transparent border-0 border-b border-gray-200 focus:border-primary focus:outline-none transition-colors"
                               placeholder="cliente@email.com"
                             />
                           </div>
@@ -378,7 +364,7 @@ const ClienteFormPage = () => {
                               name="direccion"
                               value={formData.direccion}
                               onChange={handleInputChange}
-                              className="w-full px-3 py-2 bg-transparent border-0 border-b border-gray-200 focus:border-[#08557f] focus:outline-none transition-colors"
+                              className="w-full px-3 py-2 bg-transparent border-0 border-b border-gray-200 focus:border-primary focus:outline-none transition-colors"
                               placeholder="Dirección completa"
                             />
                           </div>
@@ -390,7 +376,7 @@ const ClienteFormPage = () => {
                             name="ciudad"
                             value={formData.ciudad}
                             onChange={handleInputChange}
-                            className="w-full px-3 py-2 bg-transparent border-0 border-b border-gray-200 focus:border-[#08557f] focus:outline-none transition-colors"
+                            className="w-full px-3 py-2 bg-transparent border-0 border-b border-gray-200 focus:border-primary focus:outline-none transition-colors"
                             placeholder="Ciudad"
                           />
                         </div>
@@ -416,7 +402,7 @@ const ClienteFormPage = () => {
                               name="ocupacion"
                               value={formData.ocupacion}
                               onChange={handleInputChange}
-                              className="w-full px-3 py-2 bg-transparent border-0 border-b border-gray-200 focus:border-[#08557f] focus:outline-none transition-colors"
+                              className="w-full px-3 py-2 bg-transparent border-0 border-b border-gray-200 focus:border-primary focus:outline-none transition-colors"
                               placeholder="Profesión u oficio"
                             />
                           </div>
@@ -430,7 +416,7 @@ const ClienteFormPage = () => {
                               name="ingresoMensual"
                               value={formData.ingresoMensual}
                               onChange={handleInputChange}
-                              className="w-full px-3 py-2 bg-transparent border-0 border-b border-gray-200 focus:border-[#08557f] focus:outline-none transition-colors"
+                              className="w-full px-3 py-2 bg-transparent border-0 border-b border-gray-200 focus:border-primary focus:outline-none transition-colors"
                               placeholder="0.00"
                             />
                           </div>
@@ -479,7 +465,7 @@ const ClienteFormPage = () => {
                                 name="limiteCredito"
                                 value={formData.limiteCredito}
                                 onChange={handleInputChange}
-                                className="w-full px-3 py-2 bg-transparent border-0 border-b border-gray-200 focus:border-[#08557f] focus:outline-none transition-colors"
+                                className="w-full px-3 py-2 bg-transparent border-0 border-b border-gray-200 focus:border-primary focus:outline-none transition-colors"
                                 placeholder="10000"
                               />
                             </div>
@@ -491,7 +477,7 @@ const ClienteFormPage = () => {
                                 name="nivelRiesgo"
                                 value={formData.nivelRiesgo}
                                 onChange={handleInputChange}
-                                className="flex-1 px-3 py-2 bg-transparent border-0 border-b border-gray-200 focus:border-[#08557f] focus:outline-none transition-colors"
+                                className="flex-1 px-3 py-2 bg-transparent border-0 border-b border-gray-200 focus:border-primary focus:outline-none transition-colors"
                               >
                                 <option value="bajo">Bajo</option>
                                 <option value="medio">Medio</option>
@@ -522,7 +508,7 @@ const ClienteFormPage = () => {
                               name="rutaCobro"
                               value={formData.rutaCobro}
                               onChange={handleInputChange}
-                              className="w-full px-3 py-2 bg-transparent border-0 border-b border-gray-200 focus:border-[#08557f] focus:outline-none transition-colors"
+                              className="w-full px-3 py-2 bg-transparent border-0 border-b border-gray-200 focus:border-primary focus:outline-none transition-colors"
                             >
                               <option value="">Seleccionar ruta...</option>
                               {rutasCobro.map((ruta, idx) => (
@@ -556,7 +542,7 @@ const ClienteFormPage = () => {
                               name="metodoPago"
                               value={formData.metodoPago}
                               onChange={handleInputChange}
-                              className="w-full px-3 py-2 bg-transparent border-0 border-b border-gray-200 focus:border-[#08557f] focus:outline-none transition-colors"
+                              className="w-full px-3 py-2 bg-transparent border-0 border-b border-gray-200 focus:border-primary focus:outline-none transition-colors"
                             >
                               <option value="">Seleccionar método...</option>
                               <option value="efectivo">Efectivo</option>
@@ -622,7 +608,7 @@ const ClienteFormPage = () => {
                             value={formData.observaciones}
                             onChange={handleInputChange}
                             rows={4}
-                            className="w-full px-3 py-2 bg-transparent border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#08557f] focus:border-[#08557f] transition-colors"
+                            className="w-full px-3 py-2 bg-transparent border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary transition-colors"
                             placeholder="Notas privadas para uso interno..."
                           />
                         </div>
@@ -667,8 +653,8 @@ const ClienteFormPage = () => {
                 <div className="bg-white border border-gray-100 rounded-xl p-4 shadow-lg">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-3">
-                      <div className="w-8 h-8 bg-[#08557f]/10 rounded-lg flex items-center justify-center">
-                        <Save className="h-4 w-4 text-[#08557f]" />
+                      <div className="w-8 h-8 bg-primary/10 rounded-lg flex items-center justify-center">
+                        <Save className="h-4 w-4 text-primary" />
                       </div>
                       <div>
                         <div className="text-sm font-medium text-gray-800">
@@ -679,7 +665,7 @@ const ClienteFormPage = () => {
                     </div>
                     <button
                       type="submit"
-                      className="px-6 py-2 bg-[#08557f] text-white rounded-lg hover:bg-[#063a58] transition-colors text-sm font-medium"
+                      className="px-6 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark transition-colors text-sm font-medium"
                     >
                       Guardar
                     </button>
