@@ -488,7 +488,7 @@ const SyncStatusPage = () => {
                                   })}
                                 </div>
                               )}
-                              <div className="text-xs text-gray-400 mt-1">
+                              <div className="text-xs text-gray-400 mt-1" suppressHydrationWarning>
                                 {formatTimeAgo(transaction.timestamp)}
                               </div>
                             </div>

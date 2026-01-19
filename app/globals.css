@@ -7,6 +7,10 @@
   --primary-dark: #063a58;
   --primary-light: #0a6a9e;
   --secondary: #fb851b;
+  --success: #10b981;
+  --danger: #ef4444;
+  --warning: #f59e0b;
+  --info: #3b82f6;
 }
 
 @theme inline {
@@ -17,6 +21,10 @@
   --color-primary-dark: var(--primary-dark);
   --color-primary-light: var(--primary-light);
   --color-secondary: var(--secondary);
+  --color-success: var(--success);
+  --color-danger: var(--danger);
+  --color-warning: var(--warning);
+  --color-info: var(--info);
 }
 
 @media (prefers-color-scheme: dark) {

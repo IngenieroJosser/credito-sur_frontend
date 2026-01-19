@@ -3,13 +3,17 @@
 import React, { useState, useEffect } from 'react';
 import { 
   Search, Filter, User, DollarSign, TrendingUp, Clock, 
-  AlertCircle, CheckCircle, XCircle,
+  AlertCircle, CheckCircle,
   Eye,
   ChevronLeft, ChevronRight as ChevronRightIcon, Plus,
   RefreshCw, Shield, FileText, CreditCard,
-  Grid3x3, List, Package, Zap
+  Grid3x3, List, Package, Zap, Ban
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+
+// Tipos alineados con Prisma Schema
+type EstadoPrestamo = 'BORRADOR' | 'PENDIENTE_APROBACION' | 'ACTIVO' | 'EN_MORA' | 'PAGADO' | 'INCUMPLIDO' | 'PERDIDA';
+type NivelRiesgo = 'VERDE' | 'AMARILLO' | 'ROJO' | 'LISTA_NEGRA';
 
 interface Prestamo {
   id: string;
@@ -25,11 +29,11 @@ interface Prestamo {
   fechaInicio: string;
   fechaVencimiento: string;
   proximoPago: string;
-  estado: 'activo' | 'atrasado' | 'moroso' | 'pagado' | 'cancelado';
+  estado: EstadoPrestamo;
   tasaInteres: number;
   diasMora?: number;
   moraAcumulada?: number;
-  riesgo: 'bajo' | 'medio' | 'alto';
+  riesgo: NivelRiesgo;
   icono: React.ReactNode;
 }
 
@@ -76,10 +80,10 @@ const ListadoPrestamosElegante = () => {
         fechaInicio: '15 Ene 2023',
         fechaVencimiento: '15 Dic 2023',
         proximoPago: '15 Ago 2023',
-        estado: 'activo',
+        estado: 'ACTIVO',
         tasaInteres: 1.5,
         diasMora: 0,
-        riesgo: 'medio',
+        riesgo: 'AMARILLO',
         icono: <Package className="w-4 h-4" />
       },
       {
@@ -96,9 +100,9 @@ const ListadoPrestamosElegante = () => {
         fechaInicio: '10 Jun 2022',
         fechaVencimiento: '10 Mar 2023',
         proximoPago: '-',
-        estado: 'pagado',
+        estado: 'PAGADO',
         tasaInteres: 1.8,
-        riesgo: 'bajo',
+        riesgo: 'VERDE',
         icono: <CreditCard className="w-4 h-4" />
       },
       {
@@ -115,11 +119,11 @@ const ListadoPrestamosElegante = () => {
         fechaInicio: '05 Mar 2023',
         fechaVencimiento: '05 Oct 2023',
         proximoPago: '05 Ago 2023',
-        estado: 'atrasado',
+        estado: 'EN_MORA',
         tasaInteres: 1.6,
         diasMora: 7,
         moraAcumulada: 12.50,
-        riesgo: 'alto',
+        riesgo: 'ROJO',
         icono: <Zap className="w-4 h-4" />
       },
       {
@@ -136,9 +140,9 @@ const ListadoPrestamosElegante = () => {
         fechaInicio: '01 Abr 2023',
         fechaVencimiento: '01 Mar 2024',
         proximoPago: '01 Jun 2023',
-        estado: 'activo',
+        estado: 'ACTIVO',
         tasaInteres: 1.4,
-        riesgo: 'bajo',
+        riesgo: 'VERDE',
         icono: <DollarSign className="w-4 h-4" />
       },
       {
@@ -155,11 +159,11 @@ const ListadoPrestamosElegante = () => {
         fechaInicio: '20 May 2023',
         fechaVencimiento: '20 Oct 2024',
         proximoPago: '20 Ago 2023',
-        estado: 'moroso',
+        estado: 'INCUMPLIDO',
         tasaInteres: 1.7,
         diasMora: 45,
         moraAcumulada: 67.80,
-        riesgo: 'alto',
+        riesgo: 'ROJO',
         icono: <Package className="w-4 h-4" />
       },
       {
@@ -176,9 +180,9 @@ const ListadoPrestamosElegante = () => {
         fechaInicio: '15 Nov 2022',
         fechaVencimiento: '15 Abr 2023',
         proximoPago: '-',
-        estado: 'pagado',
+        estado: 'PAGADO',
         tasaInteres: 1.3,
-        riesgo: 'bajo',
+        riesgo: 'VERDE',
         icono: <CreditCard className="w-4 h-4" />
       },
       {
@@ -195,9 +199,9 @@ const ListadoPrestamosElegante = () => {
         fechaInicio: '10 Feb 2023',
         fechaVencimiento: '10 Ene 2024',
         proximoPago: '10 Ago 2023',
-        estado: 'activo',
+        estado: 'ACTIVO',
         tasaInteres: 1.5,
-        riesgo: 'medio',
+        riesgo: 'AMARILLO',
         icono: <Zap className="w-4 h-4" />
       },
       {
@@ -214,9 +218,9 @@ const ListadoPrestamosElegante = () => {
         fechaInicio: '01 Jun 2023',
         fechaVencimiento: '01 Mar 2024',
         proximoPago: '01 Jul 2023',
-        estado: 'cancelado',
+        estado: 'PERDIDA',
         tasaInteres: 1.8,
-        riesgo: 'alto',
+        riesgo: 'LISTA_NEGRA',
         icono: <DollarSign className="w-4 h-4" />
       }
     ];
@@ -230,11 +234,11 @@ const ListadoPrestamosElegante = () => {
   // Estadísticas
   const estadisticas = {
     total: prestamos.length,
-    activos: prestamos.filter(p => p.estado === 'activo').length,
-    atrasados: prestamos.filter(p => p.estado === 'atrasado').length,
-    morosos: prestamos.filter(p => p.estado === 'moroso').length,
-    pagados: prestamos.filter(p => p.estado === 'pagado').length,
-    cancelados: prestamos.filter(p => p.estado === 'cancelado').length,
+    activos: prestamos.filter(p => p.estado === 'ACTIVO').length,
+    atrasados: prestamos.filter(p => p.estado === 'EN_MORA').length,
+    morosos: prestamos.filter(p => p.estado === 'INCUMPLIDO' || p.estado === 'PERDIDA').length,
+    pagados: prestamos.filter(p => p.estado === 'PAGADO').length,
+    cancelados: prestamos.filter(p => p.estado === 'PERDIDA').length, // Asumiendo perdida como cancelado contablemente
     montoTotal: prestamos.reduce((sum, p) => sum + p.montoTotal, 0),
     montoPendiente: prestamos.reduce((sum, p) => sum + p.montoPendiente, 0),
     moraTotal: prestamos.reduce((sum, p) => sum + (p.moraAcumulada || 0), 0)
@@ -262,43 +266,46 @@ const ListadoPrestamosElegante = () => {
     setPaginaActual(pagina);
   };
 
-  const getEstadoColor = (estado: string) => {
+  const getEstadoColor = (estado: EstadoPrestamo) => {
     switch(estado) {
-      case 'activo': return 'bg-primary/10 text-primary';
-      case 'atrasado': return 'bg-secondary/10 text-secondary';
-      case 'moroso': return 'bg-red-100 text-red-600';
-      case 'pagado': return 'bg-green-100 text-green-600';
-      case 'cancelado': return 'bg-gray-100 text-gray-600';
+      case 'ACTIVO': return 'bg-primary/10 text-primary';
+      case 'PENDIENTE_APROBACION': return 'bg-yellow-100 text-yellow-600';
+      case 'EN_MORA': return 'bg-orange-100 text-orange-600';
+      case 'INCUMPLIDO': return 'bg-red-100 text-red-600';
+      case 'PERDIDA': return 'bg-gray-800 text-white';
+      case 'PAGADO': return 'bg-green-100 text-green-600';
       default: return 'bg-gray-100 text-gray-600';
     }
   };
 
-  const getEstadoIcono = (estado: string) => {
+  const getEstadoIcono = (estado: EstadoPrestamo) => {
     switch(estado) {
-      case 'activo': return <TrendingUp className="w-3 h-3" />;
-      case 'atrasado': return <Clock className="w-3 h-3" />;
-      case 'moroso': return <AlertCircle className="w-3 h-3" />;
-      case 'pagado': return <CheckCircle className="w-3 h-3" />;
-      case 'cancelado': return <XCircle className="w-3 h-3" />;
+      case 'ACTIVO': return <TrendingUp className="w-3 h-3" />;
+      case 'PENDIENTE_APROBACION': return <Clock className="w-3 h-3" />;
+      case 'EN_MORA': return <Clock className="w-3 h-3" />;
+      case 'INCUMPLIDO': return <AlertCircle className="w-3 h-3" />;
+      case 'PERDIDA': return <Ban className="w-3 h-3" />;
+      case 'PAGADO': return <CheckCircle className="w-3 h-3" />;
       default: return null;
     }
   };
 
-  const getRiesgoColor = (riesgo: string) => {
+  const getRiesgoColor = (riesgo: NivelRiesgo) => {
     switch(riesgo) {
-      case 'bajo': return 'text-green-600';
-      case 'medio': return 'text-secondary';
-      case 'alto': return 'text-red-600';
+      case 'VERDE': return 'text-green-600';
+      case 'AMARILLO': return 'text-yellow-600';
+      case 'ROJO': return 'text-red-600';
+      case 'LISTA_NEGRA': return 'text-gray-800';
       default: return 'text-gray-600';
     }
   };
 
   const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('es-ES', {
+    return new Intl.NumberFormat('es-VE', {
       style: 'currency',
-      currency: 'COP',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0
+      currency: 'VES',
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
     }).format(amount);
   };
 
@@ -407,11 +414,11 @@ const ListadoPrestamosElegante = () => {
                   className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:border-primary focus:ring-1 focus:ring-primary"
                 >
                   <option value="todos">Todos los estados</option>
-                  <option value="activo">Activo</option>
-                  <option value="atrasado">Atrasado</option>
-                  <option value="moroso">Moroso</option>
-                  <option value="pagado">Pagado</option>
-                  <option value="cancelado">Cancelado</option>
+                  <option value="ACTIVO">Activo</option>
+                  <option value="EN_MORA">En Mora</option>
+                  <option value="INCUMPLIDO">Incumplido</option>
+                  <option value="PAGADO">Pagado</option>
+                  <option value="PERDIDA">Pérdida</option>
                 </select>
               </div>
               
@@ -423,9 +430,10 @@ const ListadoPrestamosElegante = () => {
                   className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:border-primary focus:ring-1 focus:ring-primary"
                 >
                   <option value="todos">Todos los riesgos</option>
-                  <option value="bajo">Bajo</option>
-                  <option value="medio">Medio</option>
-                  <option value="alto">Alto</option>
+                  <option value="VERDE">Normal (Verde)</option>
+                  <option value="AMARILLO">Riesgo (Amarillo)</option>
+                  <option value="ROJO">Alto (Rojo)</option>
+                  <option value="LISTA_NEGRA">Lista Negra</option>
                 </select>
               </div>
               
@@ -492,7 +500,7 @@ const ListadoPrestamosElegante = () => {
               <TrendingUp className="w-4 h-4 text-primary" />
             </div>
             <p className="text-2xl font-light text-gray-900">{estadisticas.activos}</p>
-            <div className="mt-2 text-xs text-gray-500">{((estadisticas.activos / estadisticas.total) * 100).toFixed(0)}% del total</div>
+            <div className="mt-2 text-xs text-gray-500">{estadisticas.total > 0 ? ((estadisticas.activos / estadisticas.total) * 100).toFixed(0) : 0}% del total</div>
           </div>
           
           <div className="p-4 rounded-xl border border-gray-200 bg-white">
@@ -543,9 +551,9 @@ const ListadoPrestamosElegante = () => {
           <>
             {/* Vista de lista */}
             {vista === 'lista' && (
-              <div className="rounded-xl border border-gray-200 overflow-hidden bg-white">
-                {/* Encabezados */}
-                <div className="grid grid-cols-12 gap-4 px-6 py-4 border-b border-gray-100 bg-gray-50/50">
+              <div className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
+                {/* Header de la tabla */}
+                <div className="grid grid-cols-12 gap-4 p-4 bg-gray-50/50 border-b border-gray-100">
                   <div className="col-span-4 text-xs font-medium text-gray-500">PRÉSTAMO / CLIENTE</div>
                   <div className="col-span-2 text-xs font-medium text-gray-500">DETALLES</div>
                   <div className="col-span-2 text-xs font-medium text-gray-500">PROGRESO</div>
@@ -572,7 +580,7 @@ const ListadoPrestamosElegante = () => {
                                 <div className="font-medium text-gray-900">{prestamo.id}</div>
                                 <div className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs ${getEstadoColor(prestamo.estado)}`}>
                                   {getEstadoIcono(prestamo.estado)}
-                                  {prestamo.estado.toUpperCase()}
+                                  {prestamo.estado.replace('_', ' ')}
                                 </div>
                               </div>
                               <div className="text-sm text-gray-900 font-medium">{prestamo.cliente}</div>
@@ -607,23 +615,25 @@ const ListadoPrestamosElegante = () => {
                                 />
                               </div>
                             </div>
-                            <div className="text-xs text-gray-500">
-                              Próximo: {prestamo.proximoPago}
-                            </div>
                           </div>
                         </div>
 
                         {/* Estado */}
                         <div className="col-span-2">
-                          <div className="space-y-2">
-                            <div className={`text-sm font-medium ${getRiesgoColor(prestamo.riesgo)}`}>
-                              RIESGO {prestamo.riesgo.toUpperCase()}
+                          <div className="space-y-1">
+                            <div className={`text-sm font-medium ${
+                              prestamo.estado === 'EN_MORA' || prestamo.estado === 'INCUMPLIDO' ? 'text-red-600' : 
+                              prestamo.estado === 'PAGADO' ? 'text-green-600' : 'text-gray-900'
+                            }`}>
+                              {prestamo.estado === 'EN_MORA' ? `${prestamo.diasMora} días mora` : 
+                               prestamo.estado === 'PAGADO' ? 'Completado' : 'Al día'}
                             </div>
-                            {prestamo.moraAcumulada && prestamo.moraAcumulada > 0 && (
-                              <div className="text-xs text-red-600">
-                                Mora: {formatCurrency(prestamo.moraAcumulada)}
-                              </div>
-                            )}
+                            <div className="text-xs text-gray-500">
+                              Próximo: {prestamo.proximoPago}
+                            </div>
+                            <div className={`text-xs font-medium ${getRiesgoColor(prestamo.riesgo)}`}>
+                              Riesgo: {prestamo.riesgo.replace('_', ' ')}
+                            </div>
                           </div>
                         </div>
 
@@ -659,10 +669,10 @@ const ListadoPrestamosElegante = () => {
                           <div className="flex items-center gap-2 mb-2">
                             <div className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs ${getEstadoColor(prestamo.estado)}`}>
                               {getEstadoIcono(prestamo.estado)}
-                              {prestamo.estado.toUpperCase()}
+                              {prestamo.estado.replace('_', ' ')}
                             </div>
                             <div className={`text-xs font-medium ${getRiesgoColor(prestamo.riesgo)}`}>
-                              • {prestamo.riesgo.toUpperCase()}
+                              • {prestamo.riesgo.replace('_', ' ')}
                             </div>
                           </div>
                           <h3 className="font-medium text-gray-900">{prestamo.id}</h3>
@@ -750,7 +760,7 @@ const ListadoPrestamosElegante = () => {
                 {(filtros.estado !== 'todos' || filtros.busqueda || filtros.fechaDesde) && (
                   <button
                     onClick={resetFiltros}
-                    className="px-4 py-2 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium text-gray-700"
+                    className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark transition-colors text-sm font-medium"
                   >
                     Limpiar filtros
                   </button>
@@ -758,60 +768,40 @@ const ListadoPrestamosElegante = () => {
               </div>
             )}
 
-            {/* Paginación elegante */}
-            {prestamosFiltrados.length > prestamosPorPagina && (
-              <div className="mt-8 flex flex-col sm:flex-row sm:items-center sm:justify-between">
-                <div className="text-sm text-gray-500 mb-4 sm:mb-0">
-                  Mostrando <span className="font-medium text-gray-900">{indicePrimero + 1}-{Math.min(indiceUltimo, prestamosFiltrados.length)}</span> de <span className="font-medium text-gray-900">{prestamosFiltrados.length}</span> préstamos
+            {/* Paginación */}
+            {prestamosFiltrados.length > 0 && (
+              <div className="flex items-center justify-between mt-6 pt-4 border-t border-gray-100">
+                <div className="text-sm text-gray-500">
+                  Mostrando {indicePrimero + 1} a {Math.min(indiceUltimo, prestamosFiltrados.length)} de {prestamosFiltrados.length} resultados
                 </div>
-                
-                <div className="flex items-center gap-2">
+                <div className="flex gap-2">
                   <button
                     onClick={() => cambiarPagina(paginaActual - 1)}
                     disabled={paginaActual === 1}
-                    className={`p-2 rounded-lg border ${
-                      paginaActual === 1
-                        ? 'border-gray-200 text-gray-400'
-                        : 'border-gray-200 text-gray-700 hover:bg-gray-50 hover:border-gray-300'
+                    className={`p-2 rounded-lg border border-gray-200 transition-colors ${
+                      paginaActual === 1 ? 'text-gray-300 cursor-not-allowed' : 'text-gray-600 hover:bg-gray-50'
                     }`}
                   >
                     <ChevronLeft className="w-4 h-4" />
                   </button>
-                  
-                  {Array.from({ length: Math.min(5, totalPaginas) }, (_, i) => {
-                    let pagina: number;
-                    if (totalPaginas <= 5) {
-                      pagina = i + 1;
-                    } else if (paginaActual <= 3) {
-                      pagina = i + 1;
-                    } else if (paginaActual >= totalPaginas - 2) {
-                      pagina = totalPaginas - 4 + i;
-                    } else {
-                      pagina = paginaActual - 2 + i;
-                    }
-                    
-                    return (
-                      <button
-                        key={pagina}
-                        onClick={() => cambiarPagina(pagina)}
-                        className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-                          pagina === paginaActual
-                            ? 'bg-primary text-white'
-                            : 'border border-gray-200 text-gray-700 hover:bg-gray-50'
-                        }`}
-                      >
-                        {pagina}
-                      </button>
-                    );
-                  })}
-                  
+                  {Array.from({ length: totalPaginas }).map((_, i) => (
+                    <button
+                      key={i}
+                      onClick={() => cambiarPagina(i + 1)}
+                      className={`w-8 h-8 rounded-lg text-sm font-medium transition-colors ${
+                        paginaActual === i + 1
+                          ? 'bg-primary text-white'
+                          : 'text-gray-600 hover:bg-gray-50'
+                      }`}
+                    >
+                      {i + 1}
+                    </button>
+                  ))}
                   <button
                     onClick={() => cambiarPagina(paginaActual + 1)}
                     disabled={paginaActual === totalPaginas}
-                    className={`p-2 rounded-lg border ${
-                      paginaActual === totalPaginas
-                        ? 'border-gray-200 text-gray-400'
-                        : 'border-gray-200 text-gray-700 hover:bg-gray-50 hover:border-gray-300'
+                    className={`p-2 rounded-lg border border-gray-200 transition-colors ${
+                      paginaActual === totalPaginas ? 'text-gray-300 cursor-not-allowed' : 'text-gray-600 hover:bg-gray-50'
                     }`}
                   >
                     <ChevronRightIcon className="w-4 h-4" />
@@ -821,18 +811,6 @@ const ListadoPrestamosElegante = () => {
             )}
           </>
         )}
-      </div>
-
-      {/* Footer minimalista */}
-      <div className="border-t border-gray-100 px-8 py-4">
-        <div className="text-xs text-gray-500 text-center">
-          Sistema de Gestión Crediticia • {new Date().toLocaleDateString('es-ES', { 
-            weekday: 'long', 
-            year: 'numeric', 
-            month: 'long', 
-            day: 'numeric' 
-          })}
-        </div>
       </div>
     </div>
   );
