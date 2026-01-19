@@ -6,11 +6,9 @@ import {
   DollarSign,
   Plus,
   Search,
-  Filter,
   ChevronRight,
   Tag,
-  Archive,
-  AlertCircle
+  Archive
 } from 'lucide-react'
 import Link from 'next/link'
 
@@ -197,7 +195,7 @@ const ArticulosPage = () => {
             <input
               type="text"
               placeholder="Buscar por nombre, código o marca..."
-              className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#08557f]/20 focus:border-[#08557f] transition-all"
+              className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
               value={busqueda}
               onChange={(e) => setBusqueda(e.target.value)}
             />

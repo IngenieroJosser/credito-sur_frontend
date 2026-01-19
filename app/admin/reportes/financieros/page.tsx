@@ -1,50 +1,29 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { 
   LineChart, 
   DollarSign, 
-  Calendar, 
   Download, 
   TrendingUp, 
   TrendingDown, 
   PieChart, 
   ArrowUpRight, 
-  ArrowDownRight,
   Target
 } from 'lucide-react'
+import { 
+  getFinancialSummary, 
+  getMonthlyEvolution, 
+  getExpenseDistribution,
+  FinancialSummary,
+  MonthlyEvolution,
+  ExpenseDistribution
+} from '@/services/reportes-service'
 
 // Interfaces
-interface ResumenMensual {
-  mes: string
-  ingresos: number
-  egresos: number
-  utilidad: number
-}
-
-interface DesgloseCategoria {
-  categoria: string
-  monto: number
+type ExpenseWithPercentage = ExpenseDistribution & {
   porcentaje: number
 }
-
-// Mock Data
-const datosMensuales: ResumenMensual[] = [
-  { mes: 'Ene', ingresos: 25000, egresos: 12000, utilidad: 13000 },
-  { mes: 'Feb', ingresos: 28000, egresos: 13500, utilidad: 14500 },
-  { mes: 'Mar', ingresos: 26500, egresos: 12800, utilidad: 13700 },
-  { mes: 'Abr', ingresos: 30000, egresos: 14000, utilidad: 16000 },
-  { mes: 'May', ingresos: 32000, egresos: 15500, utilidad: 16500 },
-  { mes: 'Jun', ingresos: 35000, egresos: 16000, utilidad: 19000 },
-]
-
-const gastosPorCategoria: DesgloseCategoria[] = [
-  { categoria: 'Nómina y Comisiones', monto: 8500, porcentaje: 53 },
-  { categoria: 'Gastos Operativos', monto: 4200, porcentaje: 26 },
-  { categoria: 'Infraestructura', monto: 1800, porcentaje: 11 },
-  { categoria: 'Marketing', monto: 900, porcentaje: 6 },
-  { categoria: 'Otros', monto: 600, porcentaje: 4 },
-]
 
 const formatCurrency = (amount: number) => {
   return new Intl.NumberFormat('es-VE', {
@@ -57,10 +36,63 @@ const formatCurrency = (amount: number) => {
 
 const ReportesFinancierosPage = () => {
   const [periodo, setPeriodo] = useState('ANUAL')
-  const totalIngresos = datosMensuales.reduce((acc, curr) => acc + curr.ingresos, 0)
-  const totalEgresos = datosMensuales.reduce((acc, curr) => acc + curr.egresos, 0)
-  const utilidadNeta = totalIngresos - totalEgresos
-  const margenPromedio = (utilidadNeta / totalIngresos) * 100
+  const [loading, setLoading] = useState(true)
+  
+  const [summary, setSummary] = useState<FinancialSummary>({
+    ingresos: 0,
+    egresos: 0,
+    utilidad: 0,
+    margen: 0
+  })
+  
+  const [monthlyData, setMonthlyData] = useState<MonthlyEvolution[]>([])
+  const [expenseData, setExpenseData] = useState<ExpenseWithPercentage[]>([])
+
+  useEffect(() => {
+    const fetchData = async () => {
+      setLoading(true)
+      try {
+        const currentYear = new Date().getFullYear()
+        
+        // Ejecutar peticiones en paralelo
+        const [summaryRes, monthlyRes, expenseRes] = await Promise.all([
+          getFinancialSummary(), // Por defecto año actual/mes actual según backend logic o ajustar params
+          getMonthlyEvolution(currentYear),
+          getExpenseDistribution()
+        ])
+
+        setSummary(summaryRes)
+        setMonthlyData(monthlyRes)
+
+        // Calcular porcentajes para gastos
+        const totalGastos = expenseRes.reduce((acc, curr) => acc + curr.monto, 0)
+        const expensesWithPercentage = expenseRes.map(item => ({
+          categoria: item.categoria,
+          monto: item.monto,
+          porcentaje: totalGastos > 0 ? Math.round((item.monto / totalGastos) * 100) : 0
+        })).sort((a, b) => b.monto - a.monto) // Ordenar por monto descendente
+
+        setExpenseData(expensesWithPercentage)
+      } catch (error) {
+        console.error('Error fetching financial reports:', error)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchData()
+  }, [periodo]) // Recargar si cambia el periodo (aunque por ahora periodo es solo UI, se podría conectar a la API)
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <div className="w-16 h-16 border-4 border-[#08557f] border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-gray-500 font-medium">Cargando reportes financieros...</p>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-100 px-4 py-6">
@@ -108,7 +140,7 @@ const ReportesFinancierosPage = () => {
             <div className="flex justify-between items-start mb-4">
               <div>
                 <p className="text-xs font-medium text-gray-500 uppercase tracking-wider">Ingresos Totales</p>
-                <h3 className="text-2xl font-bold text-gray-900 mt-1">{formatCurrency(totalIngresos)}</h3>
+                <h3 className="text-2xl font-bold text-gray-900 mt-1">{formatCurrency(summary.ingresos)}</h3>
               </div>
               <div className="p-2 bg-emerald-50 rounded-lg">
                 <TrendingUp className="h-5 w-5 text-emerald-600" />
@@ -116,7 +148,7 @@ const ReportesFinancierosPage = () => {
             </div>
             <div className="flex items-center text-xs text-emerald-600 font-medium">
               <ArrowUpRight className="h-3 w-3 mr-1" />
-              <span>+12% vs año anterior</span>
+              <span>Actualizado hoy</span>
             </div>
           </div>
 
@@ -124,7 +156,7 @@ const ReportesFinancierosPage = () => {
             <div className="flex justify-between items-start mb-4">
               <div>
                 <p className="text-xs font-medium text-gray-500 uppercase tracking-wider">Egresos Totales</p>
-                <h3 className="text-2xl font-bold text-gray-900 mt-1">{formatCurrency(totalEgresos)}</h3>
+                <h3 className="text-2xl font-bold text-gray-900 mt-1">{formatCurrency(summary.egresos)}</h3>
               </div>
               <div className="p-2 bg-red-50 rounded-lg">
                 <TrendingDown className="h-5 w-5 text-red-600" />
@@ -132,7 +164,7 @@ const ReportesFinancierosPage = () => {
             </div>
             <div className="flex items-center text-xs text-red-600 font-medium">
               <ArrowUpRight className="h-3 w-3 mr-1" />
-              <span>+5% vs año anterior</span>
+              <span>Actualizado hoy</span>
             </div>
           </div>
 
@@ -140,7 +172,7 @@ const ReportesFinancierosPage = () => {
             <div className="flex justify-between items-start mb-4">
               <div>
                 <p className="text-xs font-medium text-gray-500 uppercase tracking-wider">Utilidad Neta</p>
-                <h3 className="text-2xl font-bold text-gray-900 mt-1">{formatCurrency(utilidadNeta)}</h3>
+                <h3 className="text-2xl font-bold text-gray-900 mt-1">{formatCurrency(summary.utilidad)}</h3>
               </div>
               <div className="p-2 bg-blue-50 rounded-lg">
                 <DollarSign className="h-5 w-5 text-blue-600" />
@@ -148,7 +180,7 @@ const ReportesFinancierosPage = () => {
             </div>
             <div className="flex items-center text-xs text-emerald-600 font-medium">
               <ArrowUpRight className="h-3 w-3 mr-1" />
-              <span>+18% vs año anterior</span>
+              <span>Rentable</span>
             </div>
           </div>
 
@@ -156,7 +188,7 @@ const ReportesFinancierosPage = () => {
             <div className="flex justify-between items-start mb-4">
               <div>
                 <p className="text-xs font-medium text-gray-500 uppercase tracking-wider">Margen Promedio</p>
-                <h3 className="text-2xl font-bold text-gray-900 mt-1">{margenPromedio.toFixed(1)}%</h3>
+                <h3 className="text-2xl font-bold text-gray-900 mt-1">{summary.margen.toFixed(1)}%</h3>
               </div>
               <div className="p-2 bg-purple-50 rounded-lg">
                 <PieChart className="h-5 w-5 text-purple-600" />
@@ -189,8 +221,8 @@ const ReportesFinancierosPage = () => {
             
             {/* Custom Bar Chart Visualization */}
             <div className="h-64 flex items-end justify-between gap-2 md:gap-4">
-              {datosMensuales.map((item) => {
-                const maxVal = Math.max(...datosMensuales.map(d => d.ingresos))
+              {monthlyData.map((item) => {
+                const maxVal = Math.max(...monthlyData.map(d => d.ingresos), 1) // Avoid division by zero
                 const heightIngreso = (item.ingresos / maxVal) * 100
                 const heightEgreso = (item.egresos / maxVal) * 100
                 
@@ -220,27 +252,31 @@ const ReportesFinancierosPage = () => {
           <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
             <h3 className="text-lg font-semibold text-gray-900 mb-6">Distribución de Gastos</h3>
             <div className="space-y-6">
-              {gastosPorCategoria.map((cat) => (
-                <div key={cat.categoria}>
-                  <div className="flex justify-between text-sm mb-1">
-                    <span className="text-gray-700 font-medium">{cat.categoria}</span>
-                    <span className="text-gray-500">{cat.porcentaje}%</span>
+              {expenseData.length > 0 ? (
+                expenseData.map((cat) => (
+                  <div key={cat.categoria}>
+                    <div className="flex justify-between text-sm mb-1">
+                      <span className="text-gray-700 font-medium">{cat.categoria}</span>
+                      <span className="text-gray-500">{cat.porcentaje}%</span>
+                    </div>
+                    <div className="w-full bg-gray-100 rounded-full h-2 overflow-hidden">
+                      <div 
+                        className="bg-gray-800 h-2 rounded-full" 
+                        style={{ width: `${cat.porcentaje}%` }}
+                      ></div>
+                    </div>
+                    <p className="text-xs text-gray-400 mt-1 text-right">{formatCurrency(cat.monto)}</p>
                   </div>
-                  <div className="w-full bg-gray-100 rounded-full h-2 overflow-hidden">
-                    <div 
-                      className="bg-gray-800 h-2 rounded-full" 
-                      style={{ width: `${cat.porcentaje}%` }}
-                    ></div>
-                  </div>
-                  <p className="text-xs text-gray-400 mt-1 text-right">{formatCurrency(cat.monto)}</p>
-                </div>
-              ))}
+                ))
+              ) : (
+                <p className="text-sm text-gray-500 text-center py-4">No hay gastos registrados en este periodo.</p>
+              )}
             </div>
             
             <div className="mt-8 p-4 bg-gray-50 rounded-lg border border-gray-100">
               <h4 className="text-sm font-semibold text-gray-900 mb-2">Observación del Contador</h4>
               <p className="text-xs text-gray-500 leading-relaxed">
-                Los gastos operativos se han mantenido estables. Se recomienda revisar el presupuesto de marketing para el próximo trimestre para impulsar la adquisición de nuevos clientes en la zona norte.
+                Los gastos operativos se han mantenido estables. Se recomienda revisar el presupuesto de marketing para el próximo trimestre.
               </p>
             </div>
           </div>
@@ -265,13 +301,15 @@ const ReportesFinancierosPage = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {datosMensuales.map((row) => (
+                {monthlyData.map((row) => (
                   <tr key={row.mes} className="hover:bg-gray-50/50 transition-colors">
-                    <td className="px-6 py-4 font-medium text-gray-900">{row.mes} 2024</td>
+                    <td className="px-6 py-4 font-medium text-gray-900">{row.mes} {new Date().getFullYear()}</td>
                     <td className="px-6 py-4 text-right text-gray-600">{formatCurrency(row.ingresos)}</td>
                     <td className="px-6 py-4 text-right text-red-500">-{formatCurrency(row.egresos)}</td>
                     <td className="px-6 py-4 text-right font-semibold text-gray-900">{formatCurrency(row.utilidad)}</td>
-                    <td className="px-6 py-4 text-right text-gray-600">{((row.utilidad / row.ingresos) * 100).toFixed(1)}%</td>
+                    <td className="px-6 py-4 text-right text-gray-600">
+                      {row.ingresos > 0 ? ((row.utilidad / row.ingresos) * 100).toFixed(1) : '0.0'}%
+                    </td>
                     <td className="px-6 py-4 text-center">
                       <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-800">
                         Cerrado

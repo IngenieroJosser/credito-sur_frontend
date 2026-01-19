@@ -9,13 +9,11 @@ import {
   User,
   Phone,
   Mail,
-  DollarSign,
   AlertCircle,
   CheckCircle,
   Eye,
   Edit2,
   Shield,
-  MapPin,
   AlertTriangle,
   Ban
 } from 'lucide-react';
@@ -48,7 +46,7 @@ interface Cliente {
 
 const ClientesPage = () => {
   // Datos simulados alineados con la estructura
-  const [clientes, setClientes] = useState<Cliente[]>([
+  const [clientes] = useState<Cliente[]>([
     {
       id: '1',
       codigo: 'CL-001',

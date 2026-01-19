@@ -285,7 +285,7 @@ const ModuloContablePage = () => {
               <select 
                 className="rounded-lg border border-gray-300 px-3 py-2 text-sm bg-white focus:border-[#08557f] outline-none"
                 value={filtroTipo}
-                onChange={(e) => setFiltroTipo(e.target.value as any)}
+                onChange={(e) => setFiltroTipo(e.target.value as 'TODOS' | 'INGRESO' | 'EGRESO')}
               >
                 <option value="TODOS">Todos los tipos</option>
                 <option value="INGRESO">Ingresos</option>

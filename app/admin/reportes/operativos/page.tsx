@@ -1,6 +1,6 @@
 'use client'
 
-import { BarChart3, Calendar, Filter, Download, TrendingUp, Users, FilePlus, DollarSign, MapPin } from 'lucide-react'
+import { BarChart3, Calendar, Download, TrendingUp, Users, FilePlus, DollarSign, MapPin } from 'lucide-react'
 
 const ReportesOperativosPage = () => {
   // Mock Data

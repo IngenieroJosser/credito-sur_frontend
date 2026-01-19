@@ -85,7 +85,7 @@ const RoleManagementPage = () => {
     }
   ]);
 
-  const [allPermissions, setAllPermissions] = useState<Permission[]>([
+  const [allPermissions] = useState<Permission[]>([
     // Sistema
     { id: '1', modulo: 'Sistema', accion: 'full_access', nombre: 'Acceso Total', descripcion: 'Control total del sistema', categoria: 'administracion', activo: true },
     { id: '2', modulo: 'Sistema', accion: 'user_manage', nombre: 'Gestión Usuarios', descripcion: 'Crear, editar y eliminar usuarios', categoria: 'administracion', activo: true },
@@ -115,7 +115,7 @@ const RoleManagementPage = () => {
 
   const [searchTerm, setSearchTerm] = useState('');
   const [filterModule, setFilterModule] = useState<string>('all');
-  const [filterCategory, setFilterCategory] = useState<string>('all');
+  const [filterCategory] = useState<string>('all');
   const [selectedRole, setSelectedRole] = useState<Role | null>(null);
   const [isCreateRoleModalOpen, setIsCreateRoleModalOpen] = useState(false);
   const [isDeleteRoleModalOpen, setIsDeleteRoleModalOpen] = useState(false);

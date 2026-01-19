@@ -6,7 +6,6 @@ import {
   CreditCard,
   Wallet,
   Calendar,
-  DollarSign,
   AlertCircle,
   CheckCircle2,
   ChevronRight,

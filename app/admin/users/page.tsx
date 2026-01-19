@@ -36,13 +36,6 @@ interface User {
   permisos: string[];
 }
 
-interface Permission {
-  id: string;
-  nombre: string;
-  categoria: string;
-  descripcion: string;
-}
-
 interface Role {
   id: RolUsuario;
   nombre: string;
@@ -134,7 +127,7 @@ const UserManagementPage = () => {
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [, setIsEditModalOpen] = useState(false);
-  const [isPermissionsModalOpen, setIsPermissionsModalOpen] = useState(false);
+  const [, setIsPermissionsModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [currentUserRole] = useState<RolUsuario>('SUPER_ADMINISTRADOR');
 
@@ -146,19 +139,6 @@ const UserManagementPage = () => {
     departamento: '',
     estado: 'ACTIVO' as User['estado']
   });
-
-  const [permissions] = useState<Permission[]>([
-    { id: 'full_access', nombre: 'Acceso Total', categoria: 'Sistema', descripcion: 'Acceso completo a todas las funciones' },
-    { id: 'user_management', nombre: 'Gestión de Usuarios', categoria: 'Sistema', descripcion: 'Crear, editar y desactivar usuarios' },
-    { id: 'financial_reports', nombre: 'Reportes Financieros', categoria: 'Finanzas', descripcion: 'Acceso a reportes financieros detallados' },
-    { id: 'loan_approval', nombre: 'Aprobación de Préstamos', categoria: 'Operaciones', descripcion: 'Aprobar o rechazar solicitudes de préstamo' },
-    { id: 'team_management', nombre: 'Gestión de Equipo', categoria: 'Operaciones', descripcion: 'Supervisar y asignar tareas al equipo' },
-    { id: 'collection_supervision', nombre: 'Supervisión de Cobranza', categoria: 'Cobranza', descripcion: 'Supervisar actividades de cobranza' },
-    { id: 'collection_management', nombre: 'Gestión de Cobranza', categoria: 'Cobranza', descripcion: 'Realizar actividades de cobranza' },
-    { id: 'client_view', nombre: 'Visualización de Clientes', categoria: 'Clientes', descripcion: 'Ver información de clientes' },
-    { id: 'financial_operations', nombre: 'Operaciones Financieras', categoria: 'Finanzas', descripcion: 'Realizar operaciones financieras' },
-    { id: 'reports_view', nombre: 'Visualización de Reportes', categoria: 'Reportes', descripcion: 'Ver reportes generales' }
-  ]);
 
   const [selectedPermissions, setSelectedPermissions] = useState<string[]>([]);
 

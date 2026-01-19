@@ -11,7 +11,6 @@ import {
   Banknote,
   PieChart,
   Target,
-  Search,
   Filter,
   Download,
   ChevronRight,
@@ -140,7 +139,7 @@ const DashboardPage = () => {
         <div className="flex items-start justify-between">
           <div>
             <h1 className="text-2xl font-light text-gray-800 mb-2">Panel de Control</h1>
-            <p className="text-sm text-gray-500">{formatDate(currentDate)}</p>
+            <p className="text-sm text-gray-500" suppressHydrationWarning>{formatDate(currentDate)}</p>
           </div>
           <button className="flex items-center space-x-2 px-4 py-2 bg-white border border-gray-200 rounded-lg hover:border-gray-300 transition-colors">
             <Download className="h-4 w-4 text-gray-500" />

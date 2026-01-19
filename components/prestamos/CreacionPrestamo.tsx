@@ -2,12 +2,11 @@
 
 import React, { useState, useMemo } from 'react';
 import {
-  Calculator, DollarSign, Percent, Clock,
-  Users, CreditCard, TrendingUp, FileText,
+  DollarSign, Percent, Clock,
+  FileText,
   BarChart, Shield, CheckCircle, ArrowLeft,
   PlusCircle,
-  Eye, Download, Settings,
-  ChevronRight, ChevronDown, ChevronUp
+  ChevronRight, ChevronDown
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
@@ -642,18 +641,16 @@ const CreacionPrestamoElegante = () => {
                         </label>
                         <div className="relative">
                           <input
-                            type="range"
+                            type="number"
                             name="plazoMeses"
                             min="1"
-                            max="60"
                             value={form.plazoMeses}
                             onChange={handleInputChange}
-                            className="w-full h-2 bg-gray-100 rounded-lg appearance-none cursor-pointer accent-primary"
+                            className="w-full px-4 py-4 text-2xl font-light text-gray-900 border border-gray-200 rounded-xl focus:border-primary focus:ring-1 focus:ring-primary/10 transition-all text-right"
                           />
-                          <div className="flex justify-between mt-2">
-                            <span className="text-2xl font-light text-gray-900">{form.plazoMeses}</span>
-                            <span className="text-sm text-gray-500 self-center">meses</span>
-                          </div>
+                          <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 font-light text-xl">
+                            Meses
+                          </span>
                         </div>
                       </div>
                     </div>

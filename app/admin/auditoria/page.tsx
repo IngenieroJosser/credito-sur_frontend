@@ -4,12 +4,9 @@ import React, { useState } from 'react'
 import { 
   Shield, 
   Search, 
-  Filter, 
   Clock, 
   User, 
-  FileText, 
   AlertCircle,
-  CheckCircle2,
   Calendar,
   Download,
   Eye
@@ -33,7 +30,7 @@ const AuditoriaSistemaPage = () => {
   const [filtroNivel, setFiltroNivel] = useState<'TODOS' | 'INFO' | 'WARNING' | 'CRITICAL'>('TODOS')
 
   // Datos de ejemplo
-  const logs: LogAuditoria[] = [
+  const [logs] = useState<LogAuditoria[]>([
     {
       id: 'LOG-001',
       usuario: 'Carlos Pérez',
@@ -41,7 +38,7 @@ const AuditoriaSistemaPage = () => {
       accion: 'REGISTRO_PAGO',
       modulo: 'COBRANZAS',
       detalle: 'Registró pago de cuota #5 para préstamo P-1024 (Monto: 50.00 VES)',
-      fecha: new Date(),
+      fecha: new Date('2024-01-24T10:30:00'),
       ip: '192.168.1.10',
       nivel: 'INFO'
     },
@@ -52,7 +49,7 @@ const AuditoriaSistemaPage = () => {
       accion: 'APROBACION_PRESTAMO',
       modulo: 'PRESTAMOS',
       detalle: 'Aprobó préstamo P-1025 por 500.00 VES para cliente C-203',
-      fecha: new Date(Date.now() - 3600000), // Hace 1 hora
+      fecha: new Date('2024-01-24T09:15:00'),
       ip: '192.168.1.5',
       nivel: 'CRITICAL'
     },
@@ -63,7 +60,7 @@ const AuditoriaSistemaPage = () => {
       accion: 'LOGIN_FALLIDO',
       modulo: 'AUTH',
       detalle: 'Intento de acceso fallido usuario desconocido',
-      fecha: new Date(Date.now() - 7200000), // Hace 2 horas
+      fecha: new Date('2024-01-24T08:00:00'),
       ip: '201.12.34.56',
       nivel: 'WARNING'
     },
@@ -74,7 +71,7 @@ const AuditoriaSistemaPage = () => {
       accion: 'CREACION_CLIENTE',
       modulo: 'CLIENTES',
       detalle: 'Creó nuevo cliente "Maria Rodriguez" en Ruta Norte',
-      fecha: new Date(Date.now() - 86400000), // Ayer
+      fecha: new Date('2024-01-23T15:45:00'),
       ip: '192.168.1.10',
       nivel: 'INFO'
     },
@@ -85,11 +82,11 @@ const AuditoriaSistemaPage = () => {
       accion: 'MODIFICACION_TASA',
       modulo: 'CONFIGURACION',
       detalle: 'Cambió tasa de interés global de 10% a 12%',
-      fecha: new Date(Date.now() - 172800000), // Hace 2 días
+      fecha: new Date('2024-01-22T11:20:00'),
       ip: '192.168.1.5',
       nivel: 'CRITICAL'
     }
-  ]
+  ]);
 
   const logsFiltrados = logs.filter(log => {
     const coincideTexto = 

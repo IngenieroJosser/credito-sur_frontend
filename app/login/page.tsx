@@ -5,7 +5,6 @@ import { Eye, EyeOff, Lock, User, ChevronRight } from 'lucide-react';
 import { iniciarSesion } from '@/services/autenticacion-service';
 import { LoginData } from '@/lib/types/autenticacion-type';
 import { useRouter } from 'next/navigation';
-import { RolUsuario } from '@/lib/types/autenticacion-type';
 
 interface LoginFormData {
   nombres: string;
@@ -55,14 +54,6 @@ const LoginPage = () => {
     if (error) setError('');
   };
 
-  const ROLE_REDIRECT_MAP: Record<RolUsuario, string> = {
-    SUPER_ADMINISTRADOR: '/admin',
-    COORDINADOR: '/coordinacion',
-    SUPERVISOR: '/supervision',
-    COBRADOR: '/cobranzas',
-    CONTADOR: '/contabilidad',
-  };
-
   const showToast = (message: string, userName: string = '', type: ToastState['type'] = 'success') => {
     setToast({ 
       show: true, 
@@ -108,7 +99,7 @@ const LoginPage = () => {
         router.replace('/admin');
       }, 1500);
       
-    } catch (err) {
+    } catch {
       setError('Credenciales inválidas');
       showToast('Credenciales incorrectas', '', 'error');
     } finally {

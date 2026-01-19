@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { 
   Search, Filter, User, DollarSign, TrendingUp, Clock, 
-  AlertCircle, CheckCircle, XCircle,
+  AlertCircle, CheckCircle,
   Eye,
   ChevronLeft, ChevronRight as ChevronRightIcon, Plus,
   RefreshCw, Shield, FileText, CreditCard,

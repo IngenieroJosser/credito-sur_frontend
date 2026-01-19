@@ -1,4 +1,4 @@
-type CacheEntry<T = any> = {
+type CacheEntry<T = unknown> = {
   data: T;
   expiresAt: number;
 };

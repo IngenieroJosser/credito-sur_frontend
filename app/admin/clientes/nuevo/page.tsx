@@ -11,14 +11,9 @@ import {
   MapPin,
   Briefcase,
   Shield,
-  DollarSign,
   AlertCircle,
-  BarChart3,
   ChevronRight,
-  CreditCard,
-  Target,
-  ArrowLeft,
-  FileText
+  ArrowLeft
 } from 'lucide-react';
 
 // Tipos alineados con Prisma Schema

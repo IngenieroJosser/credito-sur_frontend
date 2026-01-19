@@ -8,8 +8,7 @@ import {
   Shield, CreditCard, PieChart, Filter,
   Plus, ExternalLink,
   BarChart,
-  Smartphone, Zap, RefreshCw,
-  CreditCard as CreditCardIcon
+  Download, Bell
 } from 'lucide-react';
 
 // Interfaces alineadas con Prisma y el Dominio
@@ -94,7 +93,6 @@ const ClienteDetalleElegante: React.FC<ClienteDetalleProps> = ({
   prestamos, 
   pagos, 
   comentarios,
-  rolUsuario,
   onEdit,
   onContact,
   onNewLoan
