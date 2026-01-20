@@ -5,6 +5,7 @@ import { Eye, EyeOff, Lock, User, ChevronRight } from 'lucide-react';
 import { iniciarSesion } from '@/services/autenticacion-service';
 import { LoginData } from '@/lib/types/autenticacion-type';
 import { useRouter } from 'next/navigation';
+import { RolUsuario } from '@/lib/types/autenticacion-type';
 
 interface LoginFormData {
   nombres: string;
@@ -54,6 +55,14 @@ const LoginPage = () => {
     if (error) setError('');
   };
 
+  const ROLE_REDIRECT_MAP: Record<RolUsuario, string> = {
+    SUPER_ADMINISTRADOR: '/admin',
+    COORDINADOR: '/coordinador',
+    SUPERVISOR: '/supervision',
+    COBRADOR: '/cobranzas',
+    CONTADOR: '/contabilidad',
+  };
+
   const showToast = (message: string, userName: string = '', type: ToastState['type'] = 'success') => {
     setToast({ 
       show: true, 
@@ -84,22 +93,17 @@ const LoginPage = () => {
       const response = await iniciarSesion(payload);
       const userName = response.usuario.nombres || 'Usuario';
       
-      // Guardar sesión
-      if (typeof window !== 'undefined') {
-        localStorage.setItem('token', response.access_token);
-        localStorage.setItem('user', JSON.stringify(response.usuario));
-      }
-      
       // Mostrar toast de éxito
       showToast('Bienvenido', userName, 'success');
       
       // Redirigir después de 2 segundos
       setTimeout(() => {
-        // Redirección centralizada al dashboard administrativo
-        router.replace('/admin');
-      }, 1500);
+        const rol = response.usuario.rol as RolUsuario;
+        const redirectPath = ROLE_REDIRECT_MAP[rol] ?? '/';
+        router.replace(redirectPath);
+      }, 2000);
       
-    } catch {
+    } catch (err) {
       setError('Credenciales inválidas');
       showToast('Credenciales incorrectas', '', 'error');
     } finally {
@@ -194,12 +198,12 @@ const LoginPage = () => {
 
       {/* Fondo minimalista */}
       <div className="absolute inset-0 overflow-hidden">
-        <div className="absolute top-1/4 -left-24 w-96 h-96 bg-gradient-to-br from-primary/[0.02] to-transparent rounded-full blur-3xl"></div>
-        <div className="absolute bottom-1/4 -right-24 w-96 h-96 bg-gradient-to-tr from-secondary/[0.02] to-transparent rounded-full blur-3xl"></div>
+        <div className="absolute top-1/4 -left-24 w-96 h-96 bg-gradient-to-br from-[#08557f]/[0.02] to-transparent rounded-full blur-3xl"></div>
+        <div className="absolute bottom-1/4 -right-24 w-96 h-96 bg-gradient-to-tr from-[#fb851b]/[0.02] to-transparent rounded-full blur-3xl"></div>
         
         {/* Líneas decorativas sutiles */}
-        <div className="absolute top-0 left-0 w-full h-px bg-gradient-to-r from-transparent via-primary/5 to-transparent"></div>
-        <div className="absolute bottom-0 left-0 w-full h-px bg-gradient-to-r from-transparent via-primary/5 to-transparent"></div>
+        <div className="absolute top-0 left-0 w-full h-px bg-gradient-to-r from-transparent via-[#08557f]/5 to-transparent"></div>
+        <div className="absolute bottom-0 left-0 w-full h-px bg-gradient-to-r from-transparent via-[#08557f]/5 to-transparent"></div>
       </div>
 
       {/* Contenedor principal */}
@@ -210,14 +214,14 @@ const LoginPage = () => {
             <div className="relative">
               <div className="w-14 h-14 bg-white border border-gray-200 rounded-xl flex items-center justify-center">
                 <div className="w-8 h-8 flex items-center justify-center">
-                  <div className="w-6 h-6 bg-gradient-to-br from-primary to-primary-dark rounded"></div>
-                  <div className="absolute w-2 h-2 bg-secondary rounded-full -translate-y-1 translate-x-1"></div>
+                  <div className="w-6 h-6 bg-gradient-to-br from-[#08557f] to-[#063a58] rounded"></div>
+                  <div className="absolute w-2 h-2 bg-[#fb851b] rounded-full -translate-y-1 translate-x-1"></div>
                 </div>
               </div>
             </div>
           </div>
           <h1 className="text-3xl font-light text-gray-800 mb-2">
-            <span className="font-normal text-primary">Créditos</span> del Sur
+            <span className="font-normal text-[#08557f]">Credi</span>Finanzas
           </h1>
           <p className="text-xs text-gray-400 uppercase tracking-wider mt-4">Plataforma Financiera</p>
         </div>
@@ -242,11 +246,11 @@ const LoginPage = () => {
                 onChange={handleInputChange}
                 onFocus={() => setFocusedField('usuario')}
                 onBlur={() => setFocusedField(null)}
-                className="w-full pl-8 pr-4 py-3 bg-transparent border-0 border-b border-gray-200 focus:border-primary focus:outline-none transition-all duration-300 text-gray-700 placeholder-gray-400 text-sm"
+                className="w-full pl-8 pr-4 py-3 bg-transparent border-0 border-b border-gray-200 focus:border-[#08557f] focus:outline-none transition-all duration-300 text-gray-700 placeholder-gray-400 text-sm"
                 placeholder="Usuario"
                 autoComplete="username"
               />
-              <div className={`h-px bg-gradient-to-r from-primary to-transparent absolute bottom-0 left-0 transition-all duration-500 ${
+              <div className={`h-px bg-gradient-to-r from-[#08557f] to-transparent absolute bottom-0 left-0 transition-all duration-500 ${
                 focusedField === 'usuario' ? 'w-full' : 'w-0'
               }`}></div>
             </div>
@@ -268,7 +272,7 @@ const LoginPage = () => {
                 onChange={handleInputChange}
                 onFocus={() => setFocusedField('password')}
                 onBlur={() => setFocusedField(null)}
-                className="w-full pl-8 pr-12 py-3 bg-transparent border-0 border-b border-gray-200 focus:border-primary focus:outline-none transition-all duration-300 text-gray-700 placeholder-gray-400 text-sm"
+                className="w-full pl-8 pr-12 py-3 bg-transparent border-0 border-b border-gray-200 focus:border-[#08557f] focus:outline-none transition-all duration-300 text-gray-700 placeholder-gray-400 text-sm"
                 placeholder="Contraseña"
                 autoComplete="current-password"
               />
@@ -283,7 +287,7 @@ const LoginPage = () => {
                   <Eye className="h-4 w-4" />
                 )}
               </button>
-              <div className={`h-px bg-gradient-to-r from-primary to-transparent absolute bottom-0 left-0 transition-all duration-500 ${
+              <div className={`h-px bg-gradient-to-r from-[#08557f] to-transparent absolute bottom-0 left-0 transition-all duration-500 ${
                 focusedField === 'password' ? 'w-full' : 'w-0'
               }`}></div>
             </div>
