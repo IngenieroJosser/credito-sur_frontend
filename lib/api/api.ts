@@ -15,13 +15,13 @@ export type ApiRequestConfig = AxiosRequestConfig & {
 export interface ApiError {
   statusCode: number;
   message: string;
-  error?: any;
+  error?: unknown;
 }
 
 export const apiRequest = async <T>(
   method: Method,
   endpoint: string,
-  data?: any,
+  data?: unknown,
   config?: ApiRequestConfig
 ): Promise<T> => {
   const token =
@@ -67,7 +67,7 @@ export const apiRequest = async <T>(
 
     return response.data;
   } catch (error) {
-    const err = error as AxiosError<any>;
+    const err = error as AxiosError<{ message?: string } & Record<string, unknown>>;
 
     // Manejo específico de timeout
     if (err.code === 'ECONNABORTED' || err.message?.includes('timeout')) {
@@ -131,6 +131,7 @@ export const apiRequest = async <T>(
 };
 
 // Función auxiliar para formatear errores para el estado del componente
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const formatErrorForComponent = (error: any): string => {
   if (typeof error === 'string') return error;
   

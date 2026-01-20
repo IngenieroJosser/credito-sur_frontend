@@ -4,7 +4,7 @@ export interface LoginData {
 }
 
 export interface AuthResponse {
-  token: string;
+  access_token: string;
   usuario: {
     id: string;
     correo: string;
@@ -12,7 +12,7 @@ export interface AuthResponse {
     apellidos: string;
     rol: string;
     estado: string;
-    debeCambiarContrasena: boolean;
+    debeCambiarContrasena?: boolean;
     ultimoIngreso: string | null;
   };
 }

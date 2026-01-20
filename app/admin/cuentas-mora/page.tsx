@@ -5,329 +5,338 @@ import {
   AlertCircle,
   Search,
   Filter,
-  Calendar,
   TrendingUp,
-  TrendingDown,
   User,
-  Clock,
-  ChevronRight
+  ChevronRight,
+  Phone,
+  MapPin,
+  FileWarning
 } from 'lucide-react'
+import Link from 'next/link'
 
-type NivelRiesgo = 'verde' | 'amarillo' | 'rojo'
+// Enums alineados con Prisma
+type NivelRiesgo = 'VERDE' | 'AMARILLO' | 'ROJO' | 'LISTA_NEGRA';
+type EstadoPrestamo = 'EN_MORA' | 'INCUMPLIDO' | 'PERDIDA';
 
 interface CuentaMora {
   id: string
-  cliente: string
-  documento: string
+  numeroPrestamo: string
+  cliente: {
+    nombre: string
+    documento: string
+    telefono: string
+    direccion: string
+  }
   diasMora: number
   montoMora: number
-  montoCuota: number
+  montoTotalDeuda: number
+  cuotasVencidas: number
   ruta: string
   cobrador: string
   nivelRiesgo: NivelRiesgo
+  estado: EstadoPrestamo
+  ultimoPago?: string
 }
 
 const CuentasMoraPage = () => {
-  const [filtroRiesgo, setFiltroRiesgo] = useState<NivelRiesgo | 'todos'>(
-    'todos'
-  )
   const [busqueda, setBusqueda] = useState('')
+  const [filtroRiesgo, setFiltroRiesgo] = useState<NivelRiesgo | 'TODOS'>('TODOS')
 
+  // Datos de ejemplo
   const cuentas: CuentaMora[] = [
     {
-      id: 'CM-001',
-      cliente: 'Carlos Rodríguez',
-      documento: 'V-23456789',
-      diasMora: 12,
-      montoMora: 1250,
-      montoCuota: 850,
+      id: '1',
+      numeroPrestamo: 'P-2024-001',
+      cliente: {
+        nombre: 'Juan Pérez',
+        documento: 'V-12345678',
+        telefono: '0414-1234567',
+        direccion: 'Av. Bolívar, Casa 5'
+      },
+      diasMora: 45,
+      montoMora: 1500.00,
+      montoTotalDeuda: 4500.00,
+      cuotasVencidas: 3,
       ruta: 'Ruta Centro',
-      cobrador: 'Juan Pérez',
-      nivelRiesgo: 'rojo'
+      cobrador: 'Carlos Ruiz',
+      nivelRiesgo: 'ROJO',
+      estado: 'EN_MORA',
+      ultimoPago: '2023-12-15'
     },
     {
-      id: 'CM-002',
-      cliente: 'Ana Martínez',
-      documento: 'V-34567890',
-      diasMora: 5,
-      montoMora: 450,
-      montoCuota: 300,
+      id: '2',
+      numeroPrestamo: 'P-2024-045',
+      cliente: {
+        nombre: 'María Rodríguez',
+        documento: 'V-87654321',
+        telefono: '0424-7654321',
+        direccion: 'Barrio La Paz, Calle 3'
+      },
+      diasMora: 15,
+      montoMora: 500.00,
+      montoTotalDeuda: 2500.00,
+      cuotasVencidas: 1,
       ruta: 'Ruta Norte',
-      cobrador: 'María Gómez',
-      nivelRiesgo: 'amarillo'
+      cobrador: 'Ana López',
+      nivelRiesgo: 'AMARILLO',
+      estado: 'EN_MORA',
+      ultimoPago: '2024-01-05'
     },
     {
-      id: 'CM-003',
-      cliente: 'Luis Fernández',
-      documento: 'V-45678901',
-      diasMora: 1,
-      montoMora: 150,
-      montoCuota: 150,
-      ruta: 'Ruta Este',
-      cobrador: 'Pedro López',
-      nivelRiesgo: 'verde'
+      id: '3',
+      numeroPrestamo: 'P-2023-189',
+      cliente: {
+        nombre: 'Roberto Gómez',
+        documento: 'V-11223344',
+        telefono: '0412-1122334',
+        direccion: 'Urb. Los Pinos, Apto 4B'
+      },
+      diasMora: 95,
+      montoMora: 3200.00,
+      montoTotalDeuda: 3200.00,
+      cuotasVencidas: 8,
+      ruta: 'Ruta Sur',
+      cobrador: 'Pedro Sánchez',
+      nivelRiesgo: 'LISTA_NEGRA',
+      estado: 'PERDIDA',
+      ultimoPago: '2023-10-20'
     }
   ]
 
-  const cuentasFiltradas = cuentas.filter((cuenta) => {
-    if (filtroRiesgo !== 'todos' && cuenta.nivelRiesgo !== filtroRiesgo) {
-      return false
-    }
-    if (
-      busqueda &&
-      !`${cuenta.cliente} ${cuenta.documento} ${cuenta.ruta}`
-        .toLowerCase()
-        .includes(busqueda.toLowerCase())
-    ) {
-      return false
-    }
-    return true
-  })
-
-  const totalMora = cuentas.reduce((acc, cuenta) => acc + cuenta.montoMora, 0)
-  const promedioDias = cuentas.reduce((acc, cuenta) => acc + cuenta.diasMora, 0) / cuentas.length
-
-  const getChipClasses = (nivel: NivelRiesgo) => {
-    if (nivel === 'verde') return 'bg-emerald-50 text-emerald-700 border-emerald-100'
-    if (nivel === 'amarillo') return 'bg-amber-50 text-amber-700 border-amber-100'
-    return 'bg-red-50 text-red-600 border-red-100'
+  // Formateador de moneda (VES)
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('es-VE', {
+      style: 'currency',
+      currency: 'VES',
+      minimumFractionDigits: 2
+    }).format(amount)
   }
 
+  const getRiesgoColor = (riesgo: NivelRiesgo) => {
+    switch (riesgo) {
+      case 'VERDE': return 'bg-green-100 text-green-800 border-green-200';
+      case 'AMARILLO': return 'bg-yellow-100 text-yellow-800 border-yellow-200';
+      case 'ROJO': return 'bg-red-100 text-red-800 border-red-200';
+      case 'LISTA_NEGRA': return 'bg-gray-900 text-white border-gray-700';
+      default: return 'bg-gray-100 text-gray-800 border-gray-200';
+    }
+  }
+
+  const cuentasFiltradas = cuentas.filter((cuenta) => {
+    const coincideBusqueda = 
+      cuenta.cliente.nombre.toLowerCase().includes(busqueda.toLowerCase()) ||
+      cuenta.cliente.documento.toLowerCase().includes(busqueda.toLowerCase()) ||
+      cuenta.ruta.toLowerCase().includes(busqueda.toLowerCase())
+    
+    const coincideRiesgo = filtroRiesgo === 'TODOS' || cuenta.nivelRiesgo === filtroRiesgo
+
+    return coincideBusqueda && coincideRiesgo
+  })
+
+  // Calcular totales
+  const totalMora = cuentasFiltradas.reduce((acc, curr) => acc + curr.montoMora, 0)
+  const totalDeuda = cuentasFiltradas.reduce((acc, curr) => acc + curr.montoTotalDeuda, 0)
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-100 px-4 py-6">
-      <div className="max-w-6xl mx-auto space-y-6">
-        <header className="space-y-3">
-          <div className="inline-flex items-center gap-2 self-start px-3 py-1 rounded-full bg-red-50 text-xs text-red-600 tracking-wide">
-            <AlertCircle className="h-3 w-3" />
-            <span>Cuentas en mora</span>
+    <div className="min-h-screen bg-gray-50/50 p-6">
+      <div className="max-w-7xl mx-auto space-y-6">
+        {/* Header */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-light text-gray-800">Cuentas en Mora</h1>
+            <p className="text-sm text-gray-500 mt-1">Gestión y seguimiento de cartera vencida</p>
           </div>
-          <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
-            <div className="space-y-1">
-              <h1 className="text-2xl md:text-3xl font-light text-gray-900 tracking-tight">
-                Radar de riesgo y mora
-              </h1>
-              <p className="text-sm text-gray-500 max-w-xl">
-                Identifica de forma instantánea los clientes en mora, prioriza gestiones y controla intereses adicionales autorizados por coordinación.
-              </p>
-            </div>
-            <div className="flex gap-3">
-              <button className="inline-flex items-center gap-2 rounded-full border border-gray-200 bg-white px-4 py-2 text-xs text-gray-700 hover:border-gray-300">
-                <TrendingDown className="h-4 w-4 text-red-500" />
-                <span>Reducir cartera vencida</span>
-              </button>
-            </div>
+          <div className="flex gap-2">
+            <button className="px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 text-sm font-medium transition-colors shadow-sm">
+              Exportar Reporte
+            </button>
+            <button className="px-4 py-2 bg-[#08557f] text-white rounded-lg hover:bg-[#063a58] text-sm font-medium transition-colors shadow-sm">
+              Gestionar Cobranza
+            </button>
           </div>
-        </header>
+        </div>
 
-        <section className="grid gap-6 md:grid-cols-[minmax(0,1.4fr)_minmax(0,1.6fr)]">
-          <div className="space-y-4">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="rounded-2xl border border-gray-100 bg-white p-5 space-y-3">
-                <div className="flex items-center justify-between">
-                  <div className="text-xs uppercase tracking-[0.2em] text-gray-500">
-                    Monto en mora
-                  </div>
-                  <TrendingUp className="h-4 w-4 text-red-500" />
-                </div>
-                <div className="text-2xl font-light text-gray-900">
-                  ${totalMora.toFixed(2)}
-                </div>
-                <p className="text-xs text-gray-400">
-                  Incluye cuotas vencidas y recargos por mora.
-                </p>
+        {/* Resumen de métricas */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm">
+            <div className="flex items-center gap-3 mb-2">
+              <div className="p-2 bg-red-50 text-red-600 rounded-lg">
+                <AlertCircle className="h-5 w-5" />
               </div>
-
-              <div className="rounded-2xl border border-gray-100 bg-white p-5 space-y-3">
-                <div className="flex items-center justify-between">
-                  <div className="text-xs uppercase tracking-[0.2em] text-gray-500">
-                    Antigüedad promedio
-                  </div>
-                  <Clock className="h-4 w-4 text-amber-500" />
-                </div>
-                <div className="text-2xl font-light text-gray-900">
-                  {Math.round(promedioDias)} días
-                </div>
-                <p className="text-xs text-gray-400">
-                  Desde el primer día de vencimiento hasta regularización.
-                </p>
-              </div>
+              <span className="text-sm font-medium text-gray-500">Total en Mora</span>
             </div>
+            <div className="text-2xl font-semibold text-gray-900">{formatCurrency(totalMora)}</div>
+            <p className="text-xs text-red-500 mt-1 flex items-center">
+              <TrendingUp className="h-3 w-3 mr-1" /> +5.2% vs mes anterior
+            </p>
+          </div>
+          
+          <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm">
+            <div className="flex items-center gap-3 mb-2">
+              <div className="p-2 bg-orange-50 text-orange-600 rounded-lg">
+                <FileWarning className="h-5 w-5" />
+              </div>
+              <span className="text-sm font-medium text-gray-500">Deuda Total Riesgo</span>
+            </div>
+            <div className="text-2xl font-semibold text-gray-900">{formatCurrency(totalDeuda)}</div>
+            <p className="text-xs text-gray-400 mt-1">Capital + Intereses + Mora</p>
+          </div>
 
-            <div className="rounded-2xl border border-gray-100 bg-white p-5 space-y-4">
-              <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                <div className="flex flex-1 gap-2">
-                  <div className="relative flex-1">
-                    <div className="pointer-events-none absolute inset-y-0 left-3 flex items-center">
-                      <Search className="h-4 w-4 text-gray-400" />
+          <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm">
+            <div className="flex items-center gap-3 mb-2">
+              <div className="p-2 bg-blue-50 text-blue-600 rounded-lg">
+                <User className="h-5 w-5" />
+              </div>
+              <span className="text-sm font-medium text-gray-500">Clientes Afectados</span>
+            </div>
+            <div className="text-2xl font-semibold text-gray-900">{cuentasFiltradas.length}</div>
+            <p className="text-xs text-gray-400 mt-1">
+              {cuentasFiltradas.filter(c => c.nivelRiesgo === 'ROJO').length} en estado crítico
+            </p>
+          </div>
+        </div>
+
+        {/* Filtros */}
+        <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm flex flex-col md:flex-row gap-4 items-center justify-between">
+          <div className="relative w-full md:w-96">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+            <input
+              type="text"
+              placeholder="Buscar por cliente, documento o ruta..."
+              className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#08557f]/20 focus:border-[#08557f] transition-all"
+              value={busqueda}
+              onChange={(e) => setBusqueda(e.target.value)}
+            />
+          </div>
+          
+          <div className="flex items-center gap-2">
+            <Filter className="h-4 w-4 text-gray-400" />
+            <select
+              className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#08557f]/20 focus:border-[#08557f] bg-white"
+              value={filtroRiesgo}
+              onChange={(e) => setFiltroRiesgo(e.target.value as NivelRiesgo | 'TODOS')}
+            >
+              <option value="TODOS">Todos los riesgos</option>
+              <option value="AMARILLO">Riesgo Moderado (Amarillo)</option>
+              <option value="ROJO">Alto Riesgo (Rojo)</option>
+              <option value="LISTA_NEGRA">Lista Negra</option>
+            </select>
+          </div>
+        </div>
+
+        {/* Lista de cuentas */}
+        <div className="space-y-4">
+          {cuentasFiltradas.map((cuenta) => (
+            <div key={cuenta.id} className="bg-white rounded-xl border border-gray-100 shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden">
+              <div className="p-5 flex flex-col md:flex-row gap-6">
+                {/* Info Cliente */}
+                <div className="flex-1 space-y-3">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <h3 className="font-medium text-gray-900 text-lg">{cuenta.cliente.nombre}</h3>
+                      <p className="text-sm text-gray-500">{cuenta.cliente.documento}</p>
                     </div>
-                    <input
-                      value={busqueda}
-                      onChange={(e) => setBusqueda(e.target.value)}
-                      placeholder="Buscar por cliente, documento o ruta"
-                      className="w-full rounded-full border border-gray-200 bg-white pl-9 pr-3 py-2.5 text-sm text-gray-800 outline-none focus:border-[#08557f] focus:ring-2 focus:ring-[#08557f]/10 transition-all"
-                    />
+                    <span className={`px-3 py-1 rounded-full text-xs font-bold border ${getRiesgoColor(cuenta.nivelRiesgo)}`}>
+                      {cuenta.nivelRiesgo.replace('_', ' ')}
+                    </span>
                   </div>
-                  <button className="inline-flex items-center gap-2 rounded-full border border-gray-200 bg-white px-3 py-2 text-xs text-gray-700 hover:border-gray-300">
-                    <Filter className="h-4 w-4" />
-                    <span>Filtros</span>
-                  </button>
+                  
+                  <div className="flex flex-col gap-1 text-sm text-gray-600">
+                    <div className="flex items-center gap-2">
+                      <Phone className="h-3 w-3 text-gray-400" />
+                      <span>{cuenta.cliente.telefono}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <MapPin className="h-3 w-3 text-gray-400" />
+                      <span className="truncate max-w-xs">{cuenta.cliente.direccion}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Info Deuda */}
+                <div className="flex-1 grid grid-cols-2 gap-4 border-l border-gray-100 pl-0 md:pl-6">
+                  <div>
+                    <p className="text-xs text-gray-500 uppercase tracking-wide">Mora Acumulada</p>
+                    <p className="text-lg font-semibold text-red-600">{formatCurrency(cuenta.montoMora)}</p>
+                    <p className="text-xs text-red-500">{cuenta.diasMora} días de retraso</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-500 uppercase tracking-wide">Deuda Total</p>
+                    <p className="text-lg font-medium text-gray-900">{formatCurrency(cuenta.montoTotalDeuda)}</p>
+                    <p className="text-xs text-gray-500">{cuenta.cuotasVencidas} cuotas vencidas</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-500 uppercase tracking-wide">Ruta</p>
+                    <p className="text-sm font-medium text-gray-800">{cuenta.ruta}</p>
+                    <p className="text-xs text-gray-500">{cuenta.cobrador}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-500 uppercase tracking-wide">Último Pago</p>
+                    <p className="text-sm font-medium text-gray-800">{cuenta.ultimoPago || 'Sin registros'}</p>
+                  </div>
+                </div>
+
+                {/* Acciones */}
+                <div className="flex md:flex-col justify-center gap-2 border-t md:border-t-0 md:border-l border-gray-100 pt-4 md:pt-0 md:pl-6">
+                  <Link
+                    href={`/admin/clientes/${cuenta.id}`}
+                    className="flex-1 md:flex-none inline-flex items-center justify-center px-4 py-2 bg-gray-50 text-gray-700 rounded-lg hover:bg-gray-100 text-sm font-medium transition-colors"
+                  >
+                    <User className="h-4 w-4 mr-2" />
+                    Perfil
+                  </Link>
+                  <Link
+                    href={`/admin/prestamos/${cuenta.numeroPrestamo}`}
+                    className="flex-1 md:flex-none inline-flex items-center justify-center px-4 py-2 bg-[#08557f]/10 text-[#08557f] rounded-lg hover:bg-[#08557f]/20 text-sm font-medium transition-colors"
+                  >
+                    <ChevronRight className="h-4 w-4 mr-2" />
+                    Detalle
+                  </Link>
                 </div>
               </div>
+              
+              {/* Barra de estado visual */}
+              <div className={`h-1 w-full ${
+                cuenta.nivelRiesgo === 'ROJO' ? 'bg-red-500' : 
+                cuenta.nivelRiesgo === 'AMARILLO' ? 'bg-yellow-500' : 
+                cuenta.nivelRiesgo === 'LISTA_NEGRA' ? 'bg-gray-800' : 'bg-green-500'
+              }`} />
+            </div>
+          ))}
 
-              <div className="flex flex-wrap items-center gap-2 text-xs">
-                <button
-                  onClick={() => setFiltroRiesgo('todos')}
-                  className={`rounded-full px-3 py-1 border ${
-                    filtroRiesgo === 'todos'
-                      ? 'border-gray-800 bg-gray-900 text-white'
-                      : 'border-gray-200 bg-white text-gray-600'
-                  }`}
-                >
-                  Todos
-                </button>
-                <button
-                  onClick={() => setFiltroRiesgo('verde')}
-                  className={`rounded-full px-3 py-1 border ${
-                    filtroRiesgo === 'verde'
-                      ? 'border-emerald-400 bg-emerald-50 text-emerald-700'
-                      : 'border-gray-200 bg-white text-gray-600'
-                  }`}
-                >
-                  Verde
-                </button>
-                <button
-                  onClick={() => setFiltroRiesgo('amarillo')}
-                  className={`rounded-full px-3 py-1 border ${
-                    filtroRiesgo === 'amarillo'
-                      ? 'border-amber-400 bg-amber-50 text-amber-700'
-                      : 'border-gray-200 bg-white text-gray-600'
-                  }`}
-                >
-                  Amarillo
-                </button>
-                <button
-                  onClick={() => setFiltroRiesgo('rojo')}
-                  className={`rounded-full px-3 py-1 border ${
-                    filtroRiesgo === 'rojo'
-                      ? 'border-red-400 bg-red-50 text-red-600'
-                      : 'border-gray-200 bg-white text-gray-600'
-                  }`}
-                >
-                  Rojo
-                </button>
+          {cuentasFiltradas.length === 0 && (
+            <div className="text-center py-12 bg-white rounded-xl border border-gray-100 border-dashed">
+              <div className="inline-flex p-4 rounded-full bg-gray-50 mb-4">
+                <CheckCircle className="h-8 w-8 text-green-500" />
               </div>
+              <h3 className="text-lg font-medium text-gray-900 mb-1">Todo en orden</h3>
+              <p className="text-gray-500">No se encontraron cuentas en mora con los filtros actuales.</p>
             </div>
-          </div>
-
-          <div className="rounded-2xl border border-gray-100 bg-white p-5 space-y-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2 text-xs text-gray-500 uppercase tracking-[0.18em]">
-                <Calendar className="h-3.5 w-3.5 text-gray-400" />
-                <span>Detalle de cuentas en mora</span>
-              </div>
-              <span className="text-[11px] text-gray-400">
-                {cuentasFiltradas.length} clientes en la vista actual
-              </span>
-            </div>
-
-            <div className="overflow-x-auto">
-              <table className="min-w-full text-sm">
-                <thead>
-                  <tr className="border-b border-gray-100 bg-gray-50/60 text-xs text-gray-500 uppercase tracking-[0.18em]">
-                    <th className="px-3 py-3 text-left">Cliente</th>
-                    <th className="px-3 py-3 text-left">Días</th>
-                    <th className="px-3 py-3 text-left">Mora</th>
-                    <th className="px-3 py-3 text-left">Cuota</th>
-                    <th className="px-3 py-3 text-left">Ruta</th>
-                    <th className="px-3 py-3 text-left">Riesgo</th>
-                    <th className="px-3 py-3 text-right">Acciones</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {cuentasFiltradas.map((cuenta) => (
-                    <tr
-                      key={cuenta.id}
-                      className="border-b border-gray-50 hover:bg-gray-50/80 transition-colors"
-                    >
-                      <td className="px-3 py-3 align-middle">
-                        <div className="flex items-center gap-2">
-                          <div className="w-7 h-7 rounded-full bg-[#08557f]/10 flex items-center justify-center">
-                            <User className="h-3.5 w-3.5 text-[#08557f]" />
-                          </div>
-                          <div className="flex flex-col">
-                            <span className="text-sm text-gray-800">
-                              {cuenta.cliente}
-                            </span>
-                            <span className="text-[11px] text-gray-500">
-                              {cuenta.documento}
-                            </span>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-3 py-3 align-middle">
-                        <span className="text-sm text-gray-800">
-                          {cuenta.diasMora} días
-                        </span>
-                      </td>
-                      <td className="px-3 py-3 align-middle">
-                        <span className="text-sm font-medium text-red-600">
-                          ${cuenta.montoMora.toFixed(2)}
-                        </span>
-                      </td>
-                      <td className="px-3 py-3 align-middle">
-                        <span className="text-sm text-gray-700">
-                          ${cuenta.montoCuota.toFixed(2)}
-                        </span>
-                      </td>
-                      <td className="px-3 py-3 align-middle">
-                        <div className="flex flex-col">
-                          <span className="text-sm text-gray-800">
-                            {cuenta.ruta}
-                          </span>
-                          <span className="text-[11px] text-gray-500">
-                            {cuenta.cobrador}
-                          </span>
-                        </div>
-                      </td>
-                      <td className="px-3 py-3 align-middle">
-                        <span
-                          className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-medium ${getChipClasses(
-                            cuenta.nivelRiesgo
-                          )}`}
-                        >
-                          <span className="w-1.5 h-1.5 rounded-full bg-current opacity-70" />
-                          <span className="capitalize">
-                            {cuenta.nivelRiesgo}
-                          </span>
-                        </span>
-                      </td>
-                      <td className="px-3 py-3 align-middle text-right">
-                        <button className="inline-flex items-center gap-1 rounded-full border border-gray-200 bg-white px-3 py-1.5 text-xs text-gray-700 hover:border-gray-300">
-                          <span>Opciones</span>
-                          <ChevronRight className="h-3.5 w-3.5" />
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                  {cuentasFiltradas.length === 0 && (
-                    <tr>
-                      <td
-                        colSpan={7}
-                        className="px-3 py-10 text-center text-sm text-gray-500"
-                      >
-                        No hay cuentas en mora con los filtros actuales.
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </section>
+          )}
+        </div>
       </div>
     </div>
   )
 }
 
-export default CuentasMoraPage
+function CheckCircle({ className }: { className?: string }) {
+  return (
+    <svg 
+      xmlns="http://www.w3.org/2000/svg" 
+      width="24" 
+      height="24" 
+      viewBox="0 0 24 24" 
+      fill="none" 
+      stroke="currentColor" 
+      strokeWidth="2" 
+      strokeLinecap="round" 
+      strokeLinejoin="round" 
+      className={className}
+    >
+      <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+      <polyline points="22 4 12 14.01 9 11.01"></polyline>
+    </svg>
+  )
+}
 
+export default CuentasMoraPage
