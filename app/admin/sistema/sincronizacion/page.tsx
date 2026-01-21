@@ -5,11 +5,12 @@ import Image from 'next/image'
 import { 
   RefreshCw, 
   Clock, AlertTriangle, CheckCircle, 
-  UploadCloud, DownloadCloud, Server,
+  UploadCloud, DownloadCloud,
   ChevronDown, ChevronUp, 
   Activity, Shield, Cpu, Database,
   Cloud, CloudOff, Router
 } from 'lucide-react'
+import { formatCurrency } from '@/lib/utils'
 
 type SyncStatus = 'online' | 'offline' | 'lan'
 type TransactionStatus = 'pending' | 'syncing' | 'completed' | 'failed' | 'conflict'
@@ -20,7 +21,7 @@ interface Transaction {
   type: 'credit' | 'payment' | 'client' | 'adjustment'
   description: string
   amount: number
-  timestamp: string // Cambiado a string para SSR consistency
+  timestamp: string
   status: TransactionStatus
   retries: number
   priority: 'high' | 'normal' | 'low'
@@ -38,12 +39,13 @@ interface Conflict {
 const SyncStatusPage = () => {
   const [syncStatus, setSyncStatus] = useState<SyncStatus>('online')
   const [clientTime, setClientTime] = useState<string>('')
+  
   const [transactions, setTransactions] = useState<Transaction[]>([
     {
       id: 'TRX-001',
       type: 'payment',
       description: 'Pago mensual - Cliente #1456',
-      amount: 1250.75,
+      amount: 1250750, // Updated to COP values
       timestamp: '2026-01-18T10:00:00.000Z',
       status: 'pending',
       retries: 0,
@@ -53,7 +55,7 @@ const SyncStatusPage = () => {
       id: 'TRX-002',
       type: 'credit',
       description: 'Aprobación crédito rápido',
-      amount: 5000,
+      amount: 5000000, // Updated to COP values
       timestamp: '2026-01-18T09:55:00.000Z',
       status: 'syncing',
       retries: 1,
@@ -73,7 +75,7 @@ const SyncStatusPage = () => {
       id: 'TRX-004',
       type: 'adjustment',
       description: 'Ajuste tasa interés',
-      amount: -150.25,
+      amount: -150250, // Updated to COP values
       timestamp: '2026-01-18T09:45:00.000Z',
       status: 'failed',
       retries: 2,
@@ -83,7 +85,7 @@ const SyncStatusPage = () => {
       id: 'TRX-005',
       type: 'payment',
       description: 'Pago anticipado - Cliente #0892',
-      amount: 3200,
+      amount: 3200000, // Updated to COP values
       timestamp: '2026-01-18T09:40:00.000Z',
       status: 'conflict',
       retries: 1,
@@ -106,11 +108,21 @@ const SyncStatusPage = () => {
   const [isSyncing, setIsSyncing] = useState(false)
   const [bandwidth, setBandwidth] = useState({ upload: 1.2, download: 0.8 })
 
+  // UseEffect para el reloj
   useEffect(() => {
-    const timeInterval = setInterval(() => {
-      setClientTime(new Date().toLocaleTimeString('es-ES', { hour12: false }))
-    }, 1000)
+    // Inicializar reloj después del montaje para evitar errores de hidratación
+    const updateTime = () => {
+      setClientTime(new Date().toLocaleTimeString('es-CO', { hour12: true }))
+    }
+    updateTime()
+    
+    const timeInterval = setInterval(updateTime, 1000)
 
+    return () => clearInterval(timeInterval)
+  }, [])
+
+  // UseEffect para simulación de estados y ancho de banda
+  useEffect(() => {
     const statusInterval = setInterval(() => {
       const statuses: SyncStatus[] = ['online', 'offline', 'lan']
       const randomStatus = statuses[Math.floor(Math.random() * statuses.length)]
@@ -129,7 +141,6 @@ const SyncStatusPage = () => {
     }, 3000)
 
     return () => {
-      clearInterval(timeInterval)
       clearInterval(statusInterval)
       clearInterval(bandwidthInterval)
     }
@@ -178,7 +189,7 @@ const SyncStatusPage = () => {
 
   const getStatusColor = (status: SyncStatus) => {
     switch (status) {
-      case 'online': return 'text-emerald-400'
+      case 'online': return 'text-emerald-500'
       case 'offline': return 'text-gray-400'
       case 'lan': return 'text-[#08557f]'
     }
@@ -186,9 +197,9 @@ const SyncStatusPage = () => {
 
   const getStatusBgColor = (status: SyncStatus) => {
     switch (status) {
-      case 'online': return 'bg-emerald-400/10'
-      case 'offline': return 'bg-gray-400/10'
-      case 'lan': return 'bg-[#08557f]/10'
+      case 'online': return 'bg-emerald-50'
+      case 'offline': return 'bg-gray-100'
+      case 'lan': return 'bg-[#08557f]/5'
     }
   }
 
@@ -204,11 +215,11 @@ const SyncStatusPage = () => {
 
   const getTransactionStatusColor = (status: TransactionStatus) => {
     switch (status) {
-      case 'pending': return 'text-amber-400'
+      case 'pending': return 'text-amber-500'
       case 'syncing': return 'text-[#08557f]'
-      case 'completed': return 'text-emerald-400'
-      case 'failed': return 'text-rose-400'
-      case 'conflict': return 'text-[#fb851b]'
+      case 'completed': return 'text-emerald-500'
+      case 'failed': return 'text-rose-500'
+      case 'conflict': return 'text-orange-500'
     }
   }
 
@@ -269,10 +280,6 @@ const SyncStatusPage = () => {
           backgroundSize: '1px 96px',
           opacity: 0.03
         }}></div>
-        
-        {/* Acentos de color sutiles */}
-        <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-gradient-to-br from-[#08557f]/[0.015] to-transparent"></div>
-        <div className="absolute bottom-0 left-0 w-[600px] h-[600px] bg-gradient-to-tr from-[#fb851b]/[0.01] to-transparent"></div>
       </div>
 
       <div className="relative z-10 max-w-6xl mx-auto px-4 py-6">
@@ -285,7 +292,7 @@ const SyncStatusPage = () => {
                   <div className="relative w-6 h-6 opacity-80">
                     <Image
                       src="/android-chrome-512x512.png"
-                      alt="CrediFinanzas"
+                      alt="CrediSur"
                       width={24}
                       height={24}
                       className="object-contain"
@@ -353,7 +360,7 @@ const SyncStatusPage = () => {
         {/* Contenido principal */}
         <div className="space-y-3">
           {/* Tarjeta de estado principal */}
-          <div className="bg-white/80 backdrop-blur-sm border border-gray-200/50 rounded-xl overflow-hidden">
+          <div className="bg-white/80 backdrop-blur-sm border border-gray-200/50 rounded-xl overflow-hidden shadow-sm">
             <div className="p-5">
               <div className="flex items-start justify-between mb-4">
                 <div>
@@ -379,7 +386,7 @@ const SyncStatusPage = () => {
               </div>
               
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="p-4 bg-gray-50/50 rounded-lg">
+                <div className="p-4 bg-gray-50/50 rounded-lg border border-gray-100/50">
                   <div className="flex items-center space-x-3 mb-3">
                     <Database className="w-4 h-4 text-gray-400" />
                     <span className="text-sm font-medium text-gray-700">Base Local</span>
@@ -390,7 +397,7 @@ const SyncStatusPage = () => {
                   <div className="text-xs text-gray-400 mt-1">transacciones</div>
                 </div>
                 
-                <div className="p-4 bg-gray-50/50 rounded-lg">
+                <div className="p-4 bg-gray-50/50 rounded-lg border border-gray-100/50">
                   <div className="flex items-center space-x-3 mb-3">
                     <UploadCloud className="w-4 h-4 text-gray-400" />
                     <span className="text-sm font-medium text-gray-700">Subida</span>
@@ -401,7 +408,7 @@ const SyncStatusPage = () => {
                   <div className="text-xs text-gray-400 mt-1">Mbps</div>
                 </div>
                 
-                <div className="p-4 bg-gray-50/50 rounded-lg">
+                <div className="p-4 bg-gray-50/50 rounded-lg border border-gray-100/50">
                   <div className="flex items-center space-x-3 mb-3">
                     <DownloadCloud className="w-4 h-4 text-gray-400" />
                     <span className="text-sm font-medium text-gray-700">Descarga</span>
@@ -416,7 +423,7 @@ const SyncStatusPage = () => {
           </div>
 
           {/* Tarjeta de transacciones */}
-          <div className="bg-white/80 backdrop-blur-sm border border-gray-200/50 rounded-xl overflow-hidden">
+          <div className="bg-white/80 backdrop-blur-sm border border-gray-200/50 rounded-xl overflow-hidden shadow-sm">
             <div className="p-5">
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center space-x-3">
@@ -451,7 +458,7 @@ const SyncStatusPage = () => {
                     >
                       <div className="absolute -left-3 top-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full bg-gray-300 group-hover:bg-[#08557f] transition-colors"></div>
                       
-                      <div className="p-3 hover:bg-gray-50/50 rounded-lg transition-colors duration-300">
+                      <div className="p-3 hover:bg-gray-50/50 rounded-lg transition-colors duration-300 border border-transparent hover:border-gray-100">
                         <div className="flex items-center justify-between">
                           <div className="flex items-center space-x-3">
                             <div className={`p-2 rounded-lg ${getTransactionStatusColor(transaction.status)}/10`}>
@@ -463,9 +470,9 @@ const SyncStatusPage = () => {
                                   {transaction.id}
                                 </span>
                                 <span className={`text-xs px-2 py-0.5 rounded ${
-                                  transaction.priority === 'high' ? 'bg-rose-400/10 text-rose-600' :
-                                  transaction.priority === 'normal' ? 'bg-amber-400/10 text-amber-600' :
-                                  'bg-gray-400/10 text-gray-600'
+                                  transaction.priority === 'high' ? 'bg-rose-50 text-rose-600' :
+                                  transaction.priority === 'normal' ? 'bg-amber-50 text-amber-600' :
+                                  'bg-gray-100 text-gray-600'
                                 }`}>
                                   {transaction.priority}
                                 </span>
@@ -482,10 +489,7 @@ const SyncStatusPage = () => {
                                 <div className={`text-sm font-medium ${
                                   transaction.amount > 0 ? 'text-emerald-600' : 'text-rose-600'
                                 }`}>
-                                  {transaction.amount > 0 ? '+' : ''}${Math.abs(transaction.amount).toLocaleString('es-ES', {
-                                    minimumFractionDigits: 2,
-                                    maximumFractionDigits: 2
-                                  })}
+                                  {transaction.amount > 0 ? '+' : ''}{formatCurrency(Math.abs(transaction.amount))}
                                 </div>
                               )}
                               <div className="text-xs text-gray-400 mt-1" suppressHydrationWarning>
@@ -513,125 +517,61 @@ const SyncStatusPage = () => {
 
           {/* Tarjeta de conflictos */}
           {conflicts.length > 0 && (
-            <div className="bg-white/80 backdrop-blur-sm border border-gray-200/50 rounded-xl overflow-hidden">
+            <div className="bg-white/80 backdrop-blur-sm border border-gray-200/50 rounded-xl overflow-hidden shadow-sm">
               <div className="p-5">
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center space-x-3">
-                    <div className="p-2 rounded-lg bg-[#fb851b]/10">
-                      <AlertTriangle className="w-5 h-5 text-[#fb851b]" />
+                    <div className="p-2 rounded-lg bg-orange-50">
+                      <Shield className="w-5 h-5 text-orange-500" />
                     </div>
                     <div>
                       <h2 className="text-base font-medium text-gray-800">
-                        Conflictos Detectados
+                        Conflictos de Datos
                       </h2>
                       <p className="text-sm text-gray-500">
-                        Diferencias entre versiones locales y remotas
+                        {conflicts.filter(c => c.resolved === 'pending').length} requieren atención
                       </p>
                     </div>
                   </div>
-                  <button
-                    onClick={() => setExpandedSection(expandedSection === 'conflicts' ? 'status' : 'conflicts')}
-                    className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-                  >
-                    {expandedSection === 'conflicts' ? (
-                      <ChevronUp className="w-4 h-4 text-gray-400" />
-                    ) : (
-                      <ChevronDown className="w-4 h-4 text-gray-400" />
-                    )}
-                  </button>
                 </div>
-                
-                {expandedSection === 'conflicts' && (
-                  <div className="space-y-3 pt-4 border-t border-gray-200/30">
-                    {conflicts.map((conflict) => (
-                      <div
-                        key={conflict.id}
-                        className="p-4 bg-amber-50/30 border border-amber-200/30 rounded-lg"
-                      >
-                        <div className="flex items-start justify-between">
-                          <div className="space-y-2">
-                            <div className="flex items-center space-x-3">
-                              <span className="text-sm font-medium text-gray-800">
-                                {conflict.id}
-                              </span>
-                              <span className="text-xs text-gray-500">
-                                • {conflict.transactionId}
-                              </span>
+
+                <div className="space-y-3">
+                  {conflicts.map((conflict) => (
+                    <div key={conflict.id} className="p-4 bg-orange-50/30 rounded-lg border border-orange-100">
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <h3 className="text-sm font-medium text-gray-800">
+                            Conflicto en {conflict.transactionId}
+                          </h3>
+                          <p className="text-sm text-gray-600 mt-1">
+                            {conflict.description}
+                          </p>
+                          <div className="flex items-center gap-4 mt-3 text-xs text-gray-500">
+                            <div>
+                              <span className="font-medium text-gray-700">Local:</span> {conflict.localVersion}
                             </div>
-                            
-                            <p className="text-sm text-gray-600">
-                              {conflict.description}
-                            </p>
-                            
-                            <div className="flex items-center space-x-4">
-                              <div className="flex items-center space-x-2">
-                                <div className="text-xs font-medium text-[#08557f]">
-                                  {conflict.localVersion}
-                                </div>
-                                <div className="text-xs text-gray-400">→</div>
-                                <div className="text-xs font-medium text-gray-600">
-                                  {conflict.serverVersion}
-                                </div>
-                              </div>
+                            <div>
+                              <span className="font-medium text-gray-700">Servidor:</span> {conflict.serverVersion}
                             </div>
                           </div>
-                          
-                          {conflict.resolved === 'pending' && (
-                            <div className="flex flex-col space-y-2">
-                              <button
-                                onClick={() => handleResolveConflict(conflict.id, 'resolved')}
-                                className="px-3 py-1.5 text-xs font-medium text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"
-                              >
-                                Usar remoto
-                              </button>
-                              <button
-                                onClick={() => handleResolveConflict(conflict.id, 'ignored')}
-                                className="px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
-                              >
-                                Mantener local
-                              </button>
-                            </div>
-                          )}
+                        </div>
+                        <div className="flex space-x-2">
+                          <button
+                            onClick={() => handleResolveConflict(conflict.id, 'resolved')}
+                            className="px-3 py-1.5 text-xs font-medium bg-white border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                          >
+                            Resolver
+                          </button>
                         </div>
                       </div>
-                    ))}
-                  </div>
-                )}
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
           )}
         </div>
-
-        {/* Footer minimalista */}
-        <div className="mt-8 pt-6 border-t border-gray-200/30">
-          <div className="flex items-center justify-between text-xs text-gray-400">
-            <div className="flex items-center space-x-4">
-              <div className="flex items-center space-x-2">
-                <Server className="w-3.5 h-3.5" />
-                <span>Sistema de sincronización activo</span>
-              </div>
-              <div className="text-gray-300">•</div>
-              <span>v2.0.1 • Construido 2026.01</span>
-            </div>
-            <div className="flex items-center space-x-2">
-              <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></div>
-              <span>Servidor respondiendo</span>
-            </div>
-          </div>
-        </div>
       </div>
-
-      {/* Indicador de sincronización flotante */}
-      {isSyncing && (
-        <div className="fixed bottom-8 right-8">
-          <div className="relative">
-            <div className="absolute inset-0 bg-gradient-to-r from-[#08557f] to-[#063a58] rounded-full blur-xl opacity-20 animate-pulse"></div>
-            <div className="relative w-12 h-12 bg-white border border-gray-200 rounded-full flex items-center justify-center shadow-lg">
-              <RefreshCw className="w-5 h-5 text-[#08557f] animate-spin" />
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   )
 }

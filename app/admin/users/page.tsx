@@ -1,9 +1,8 @@
 'use client'
 
-import { useState } from 'react';
+import React, { useState } from 'react';
 import {
   Search,
-  Filter,
   UserPlus,
   Edit2,
   Key,
@@ -18,6 +17,7 @@ import {
   AlertCircle,
   Sparkles
 } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 // Tipos adaptados a los enums de Prisma
 type RolUsuario = 'SUPER_ADMINISTRADOR' | 'COORDINADOR' | 'SUPERVISOR' | 'COBRADOR' | 'CONTADOR';
@@ -42,16 +42,20 @@ interface Role {
   label: string;
   descripcion: string;
   color: string;
+  bgColor: string;
   icon: React.ReactNode;
 }
 
 const UserManagementPage = () => {
+  // Mock del rol actual (en una implementación real vendría del contexto de autenticación)
+  const currentUserRole: RolUsuario = 'SUPER_ADMINISTRADOR';
+
   const [users, setUsers] = useState<User[]>([
     {
       id: '1',
       nombre: 'María Rodríguez',
-      email: 'maria.rodriguez@credifinance.com',
-      telefono: '+52 55 1234 5678',
+      email: 'maria.rodriguez@credisur.com',
+      telefono: '+57 300 123 4567',
       rol: 'SUPER_ADMINISTRADOR',
       departamento: 'Administración',
       estado: 'ACTIVO',
@@ -62,8 +66,8 @@ const UserManagementPage = () => {
     {
       id: '2',
       nombre: 'Carlos Méndez',
-      email: 'carlos.mendez@credifinance.com',
-      telefono: '+52 55 2345 6789',
+      email: 'carlos.mendez@credisur.com',
+      telefono: '+57 310 234 5678',
       rol: 'COORDINADOR',
       departamento: 'Operaciones',
       estado: 'ACTIVO',
@@ -74,8 +78,8 @@ const UserManagementPage = () => {
     {
       id: '3',
       nombre: 'Ana López',
-      email: 'ana.lopez@credifinance.com',
-      telefono: '+52 55 3456 7890',
+      email: 'ana.lopez@credisur.com',
+      telefono: '+57 320 345 6789',
       rol: 'SUPERVISOR',
       departamento: 'Supervisión',
       estado: 'ACTIVO',
@@ -86,8 +90,8 @@ const UserManagementPage = () => {
     {
       id: '4',
       nombre: 'Pedro Gómez',
-      email: 'pedro.gomez@credifinance.com',
-      telefono: '+52 55 4567 8901',
+      email: 'pedro.gomez@credisur.com',
+      telefono: '+57 315 456 7890',
       rol: 'COBRADOR',
       departamento: 'Cobranza',
       estado: 'ACTIVO',
@@ -98,8 +102,8 @@ const UserManagementPage = () => {
     {
       id: '5',
       nombre: 'Laura Sánchez',
-      email: 'laura.sanchez@credifinance.com',
-      telefono: '+52 55 5678 9012',
+      email: 'laura.sanchez@credisur.com',
+      telefono: '+57 316 567 8901',
       rol: 'CONTADOR',
       departamento: 'Contabilidad',
       estado: 'INACTIVO',
@@ -110,8 +114,8 @@ const UserManagementPage = () => {
     {
       id: '6',
       nombre: 'Roberto Vargas',
-      email: 'roberto.vargas@credifinance.com',
-      telefono: '+52 55 6789 0123',
+      email: 'roberto.vargas@credisur.com',
+      telefono: '+57 311 678 0123',
       rol: 'COBRADOR',
       departamento: 'Cobranza',
       estado: 'ACTIVO',
@@ -122,36 +126,36 @@ const UserManagementPage = () => {
   ]);
 
   const [searchTerm, setSearchTerm] = useState('');
-  const [filterRole, setFilterRole] = useState<string>('all');
-  const [filterStatus] = useState<string>('all');
+  const [filterRole, setFilterRole] = useState('all');
+  const [filterStatus] = useState('all');
+  
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
+  const [selectedPermissions, setSelectedPermissions] = useState<string[]>([]);
+  
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
-  const [, setIsEditModalOpen] = useState(false);
-  const [, setIsPermissionsModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isPermissionsModalOpen, setIsPermissionsModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
-  const [currentUserRole] = useState<RolUsuario>('SUPER_ADMINISTRADOR');
 
   const [formData, setFormData] = useState({
     nombre: '',
     email: '',
     telefono: '',
-    rol: 'COBRADOR' as User['rol'],
+    rol: 'COBRADOR' as RolUsuario,
     departamento: '',
-    estado: 'ACTIVO' as User['estado']
+    estado: 'ACTIVO' as EstadoUsuario
   });
 
-  const [selectedPermissions, setSelectedPermissions] = useState<string[]>([]);
-
   const roles: Role[] = [
-    { id: 'SUPER_ADMINISTRADOR', nombre: 'Administrador', label: 'Administrador', descripcion: 'Acceso total al sistema', color: 'var(--primary)', icon: <Shield className="h-3 w-3" /> },
-    { id: 'COORDINADOR', nombre: 'Coordinador', label: 'Coordinador', descripcion: 'Gestión operativa', color: 'var(--success)', icon: <Users className="h-3 w-3" /> },
-    { id: 'SUPERVISOR', nombre: 'Supervisor', label: 'Supervisor', descripcion: 'Supervisión y control', color: 'var(--info)', icon: <Eye className="h-3 w-3" /> },
-    { id: 'COBRADOR', nombre: 'Cobrador', label: 'Cobrador', descripcion: 'Gestión de cobranza', color: 'var(--warning)', icon: <Briefcase className="h-3 w-3" /> },
-    { id: 'CONTADOR', nombre: 'Contable', label: 'Contable', descripcion: 'Operaciones financieras', color: 'var(--danger)', icon: <Sparkles className="h-3 w-3" /> }
+    { id: 'SUPER_ADMINISTRADOR', nombre: 'Administrador', label: 'Administrador', descripcion: 'Acceso total al sistema', color: 'text-purple-600', bgColor: 'bg-purple-50', icon: <Shield className="h-3.5 w-3.5" /> },
+    { id: 'COORDINADOR', nombre: 'Coordinador', label: 'Coordinador', descripcion: 'Gestión operativa', color: 'text-blue-600', bgColor: 'bg-blue-50', icon: <Users className="h-3.5 w-3.5" /> },
+    { id: 'SUPERVISOR', nombre: 'Supervisor', label: 'Supervisor', descripcion: 'Supervisión y control', color: 'text-indigo-600', bgColor: 'bg-indigo-50', icon: <Eye className="h-3.5 w-3.5" /> },
+    { id: 'COBRADOR', nombre: 'Cobrador', label: 'Cobrador', descripcion: 'Gestión de cobranza', color: 'text-emerald-600', bgColor: 'bg-emerald-50', icon: <Briefcase className="h-3.5 w-3.5" /> },
+    { id: 'CONTADOR', nombre: 'Contable', label: 'Contable', descripcion: 'Operaciones financieras', color: 'text-orange-600', bgColor: 'bg-orange-50', icon: <Sparkles className="h-3.5 w-3.5" /> }
   ];
 
   const roleFilters = [
-    { id: 'all', label: 'Todos', nombre: 'Todos', color: 'gray' },
+    { id: 'all', label: 'Todos', nombre: 'Todos', color: 'text-gray-600', bgColor: 'bg-gray-100' },
     ...roles
   ];
 
@@ -226,8 +230,8 @@ const UserManagementPage = () => {
     const newUser: User = {
       id: (users.length + 1).toString(),
       ...formData,
-      fechaCreacion: new Date().toLocaleDateString('es-ES'),
-      ultimoAcceso: 'Hoy ' + new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }),
+      fechaCreacion: new Date().toLocaleDateString('es-CO'),
+      ultimoAcceso: 'Hoy ' + new Date().toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' }),
       permisos: selectedPermissions
     };
 
@@ -254,12 +258,67 @@ const UserManagementPage = () => {
     setIsDeleteModalOpen(false);
   };
 
+  const handleUpdateUser = () => {
+    if (!selectedUser) return;
+    
+    const updatedUsers = users.map(user => {
+      if (user.id === selectedUser.id) {
+        return {
+          ...user,
+          ...formData
+        };
+      }
+      return user;
+    });
+
+    setUsers(updatedUsers);
+    setIsEditModalOpen(false);
+  };
+
+  const handleUpdatePermissions = () => {
+    if (!selectedUser) return;
+
+    const updatedUsers = users.map(user => {
+      if (user.id === selectedUser.id) {
+        return {
+          ...user,
+          permisos: selectedPermissions
+        };
+      }
+      return user;
+    });
+
+    setUsers(updatedUsers);
+    setIsPermissionsModalOpen(false);
+  };
+
+  const availablePermissions = [
+    { id: 'full_access', label: 'Acceso Total', description: 'Control total del sistema' },
+    { id: 'user_management', label: 'Gestión de Usuarios', description: 'Crear y editar usuarios' },
+    { id: 'financial_reports', label: 'Reportes Financieros', description: 'Ver reportes contables' },
+    { id: 'loan_approval', label: 'Aprobar Préstamos', description: 'Autorizar nuevos créditos' },
+    { id: 'team_management', label: 'Gestión de Equipo', description: 'Administrar cobradores' },
+    { id: 'collection_supervision', label: 'Supervisión de Cobranza', description: 'Monitorear rutas' },
+    { id: 'reports_view', label: 'Ver Reportes', description: 'Acceso a reportes básicos' },
+    { id: 'collection_management', label: 'Gestión de Cobro', description: 'Registrar pagos y visitas' },
+    { id: 'client_view', label: 'Ver Clientes', description: 'Consultar información de clientes' },
+    { id: 'financial_operations', label: 'Operaciones Financieras', description: 'Gestionar gastos y cajas' }
+  ];
+
+  const handleTogglePermission = (permissionId: string) => {
+    if (selectedPermissions.includes(permissionId)) {
+      setSelectedPermissions(selectedPermissions.filter(p => p !== permissionId));
+    } else {
+      setSelectedPermissions([...selectedPermissions, permissionId]);
+    }
+  };
+
   const getStatusColor = (estado: User['estado']) => {
     switch (estado) {
-      case 'ACTIVO': return 'text-green-600';
-      case 'INACTIVO': return 'text-gray-400';
-      case 'SUSPENDIDO': return 'text-red-500';
-      default: return 'text-gray-400';
+      case 'ACTIVO': return 'text-emerald-700 bg-emerald-50 border-emerald-100';
+      case 'INACTIVO': return 'text-gray-600 bg-gray-50 border-gray-100';
+      case 'SUSPENDIDO': return 'text-red-700 bg-red-50 border-red-100';
+      default: return 'text-gray-600 bg-gray-50 border-gray-100';
     }
   };
 
@@ -272,284 +331,256 @@ const UserManagementPage = () => {
     }
   };
 
-  const getStatusIcon = (estado: User['estado']) => {
-    switch (estado) {
-      case 'ACTIVO': return <div className="w-2 h-2 bg-green-500 rounded-full"></div>;
-      case 'INACTIVO': return <div className="w-2 h-2 bg-gray-400 rounded-full"></div>;
-      case 'SUSPENDIDO': return <div className="w-2 h-2 bg-red-500 rounded-full"></div>;
-      default: return <div className="w-2 h-2 bg-gray-400 rounded-full"></div>;
-    }
-  };
-
   return (
-    <div className="min-h-screen bg-gradient-to-br from-white via-gray-50 to-gray-100">
-      {/* Header elegante */}
-      <header className="sticky top-0 z-40 bg-white/80 backdrop-blur-sm border-b border-gray-200/50">
-        <div className="px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4">
-              <div className="flex items-center">
-                <div className="w-8 h-8 bg-gradient-to-br from-primary to-primary-dark rounded-lg flex items-center justify-center">
-                  <Users className="h-4 w-4 text-white" />
-                </div>
-                <h1 className="ml-3 text-lg font-light text-gray-800">
-                  <span className="font-normal text-primary">Gestión</span> de Usuarios
-                </h1>
-              </div>
+    <div className="min-h-screen bg-white p-6 md:p-12 transition-all duration-500 ease-in-out relative">
+      {/* Fondo arquitectónico ultra sutil */}
+      <div className="fixed inset-0 pointer-events-none">
+        <div className="absolute inset-0 bg-gradient-to-br from-white via-gray-50/50 to-white"></div>
+        {/* Líneas de estructura */}
+        <div className="absolute inset-0" style={{
+          backgroundImage: `linear-gradient(to right, #08557f 0.5px, transparent 0.5px)`,
+          backgroundSize: '96px 1px',
+          opacity: 0.03
+        }}></div>
+        <div className="absolute inset-0" style={{
+          backgroundImage: `linear-gradient(to bottom, #08557f 0.5px, transparent 0.5px)`,
+          backgroundSize: '1px 96px',
+          opacity: 0.03
+        }}></div>
+      </div>
 
-              {/* Indicador de rol sutil */}
-              <div className="hidden md:block">
-                <div className="px-3 py-1 bg-gray-100 text-gray-600 text-xs font-medium rounded-full">
-                  {currentUserRole === 'SUPER_ADMINISTRADOR' ? 'Administrador' : 'Coordinador'}
-                </div>
-              </div>
+      <div className="mx-auto max-w-7xl space-y-12 relative z-10">
+        {/* Header */}
+        <header className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between animate-in fade-in slide-in-from-bottom-4 duration-700">
+          <div className="space-y-4">
+            <div className="inline-flex items-center gap-2 rounded-full bg-[#08557f]/10 px-3 py-1 text-xs font-medium text-[#08557f] tracking-wide mb-2 border border-[#08557f]/10">
+              <Users className="h-3.5 w-3.5" />
+              <span>Gestión de Usuarios</span>
             </div>
-
-            <div className="flex items-center space-x-3">
-              {/* Barra de búsqueda sútil */}
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                <input
-                  type="text"
-                  placeholder="Buscar usuarios..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10 pr-4 py-2 w-40 md:w-56 bg-transparent border-0 border-b border-gray-200 focus:border-primary focus:outline-none text-sm placeholder-gray-400"
-                />
-              </div>
-
-              {/* Botón crear usuario */}
-              <button
-                onClick={handleOpenCreateModal}
-                className="flex items-center space-x-2 px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg hover:border-primary hover:text-primary transition-all duration-200"
-              >
-                <UserPlus className="h-4 w-4" />
-                <span className="text-sm font-medium">Nuevo</span>
-              </button>
-            </div>
+            <h1 className="text-4xl md:text-5xl font-light tracking-tight text-gray-900">
+              Usuarios del <span className="font-semibold">Sistema</span>
+            </h1>
+            <p className="text-lg text-gray-500 max-w-2xl font-light leading-relaxed">
+              Administra el acceso, roles y permisos de los usuarios de CrediSur.
+            </p>
           </div>
-        </div>
-      </header>
 
-      <main className="p-6">
-        {/* Estadísticas elegantes */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+          <div className="flex flex-col md:flex-row items-center gap-4">
+            <div className="relative w-full md:w-auto">
+              <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <input
+                type="text"
+                placeholder="Buscar usuarios..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-11 pr-4 py-3 w-full md:w-64 bg-white border-none rounded-xl text-sm text-gray-900 focus:ring-2 focus:ring-[#08557f]/5 transition-all shadow-sm placeholder:text-gray-400"
+              />
+            </div>
+            <button
+              onClick={handleOpenCreateModal}
+              className="inline-flex items-center gap-2 rounded-xl bg-[#08557f] px-6 py-3 text-sm font-medium text-white shadow-lg shadow-[#08557f]/20 hover:bg-[#064366] hover:scale-[1.02] active:scale-[0.98] transition-all duration-300 whitespace-nowrap"
+            >
+              <UserPlus className="h-4 w-4" />
+              <span>Nuevo Usuario</span>
+            </button>
+          </div>
+        </header>
+
+        {/* Stats */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
           {[
-            { label: 'Usuarios Totales', value: stats.total, color: 'var(--primary)', icon: <Users className="h-4 w-4" /> },
-            { label: 'Activos', value: stats.active, color: 'var(--success)', icon: <Check className="h-4 w-4" /> },
-            { label: 'Administradores', value: stats.admins, color: 'var(--info)', icon: <Shield className="h-4 w-4" /> },
-            { label: 'Inactivos', value: stats.inactive, color: 'var(--warning)', icon: <EyeOff className="h-4 w-4" /> }
+            { label: 'Usuarios Totales', value: stats.total, color: 'text-blue-600', bgColor: 'bg-blue-50', icon: <Users className="h-5 w-5" /> },
+            { label: 'Activos', value: stats.active, color: 'text-emerald-600', bgColor: 'bg-emerald-50', icon: <Check className="h-5 w-5" /> },
+            { label: 'Administradores', value: stats.admins, color: 'text-purple-600', bgColor: 'bg-purple-50', icon: <Shield className="h-5 w-5" /> },
+            { label: 'Inactivos', value: stats.inactive, color: 'text-gray-500', bgColor: 'bg-gray-100', icon: <EyeOff className="h-5 w-5" /> }
           ].map((stat, index) => (
             <div
               key={index}
-              className="bg-white border border-gray-200 rounded-xl p-5 hover:shadow-sm transition-all duration-300"
+              className="group relative overflow-hidden bg-white p-6 rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-all duration-300"
             >
-              <div className="flex items-center justify-between">
+              <div className="flex items-start justify-between">
                 <div>
-                  <div className="text-2xl font-light text-gray-800 mb-1">{stat.value}</div>
-                  <div className="text-sm text-gray-500">{stat.label}</div>
+                  <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">{stat.label}</p>
+                  <h3 className="text-3xl font-light text-gray-900 mt-2 tracking-tight">{stat.value}</h3>
                 </div>
-                <div className={`p-2 rounded-lg`} style={{ backgroundColor: `${stat.color}10` }}>
-                  <div style={{ color: stat.color }}>
-                    {stat.icon}
-                  </div>
+                <div className={cn("p-3 rounded-xl group-hover:scale-110 transition-transform duration-300", stat.bgColor, stat.color)}>
+                  {stat.icon}
                 </div>
               </div>
             </div>
           ))}
         </div>
 
-        {/* Filtros elegantes */}
-        <div className="bg-white border border-gray-200 rounded-xl p-4 mb-6">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div className="flex items-center space-x-4">
-              <div className="flex items-center space-x-2">
-                <Filter className="h-4 w-4 text-gray-400" />
-                <span className="text-sm text-gray-600">Filtros:</span>
-              </div>
-
-              {/* Filtro por rol - diseño minimalista */}
-              <div className="flex items-center space-x-2">
-                {roleFilters.map((role) => (
-                  <button
-                    key={role.id}
-                    onClick={() => setFilterRole(role.id)}
-                    className={`px-3 py-1.5 text-xs rounded-lg transition-all ${filterRole === role.id
-                        ? 'bg-primary text-white'
-                        : 'text-gray-600 hover:text-gray-800 hover:bg-gray-100'
-                      }`}
-                  >
-                    {role.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="text-sm text-gray-500 font-light">
-              Mostrando {filteredUsers.length} de {users.length} usuarios
-            </div>
-          </div>
+        {/* Filtros */}
+        <div className="flex flex-wrap items-center gap-1 bg-white p-1.5 rounded-xl border border-gray-100 shadow-sm w-fit overflow-x-auto">
+          {roleFilters.map((role) => (
+            <button
+              key={role.id}
+              onClick={() => setFilterRole(role.id)}
+              className={cn(
+                "px-4 py-2 text-xs font-medium rounded-lg transition-all whitespace-nowrap",
+                filterRole === role.id
+                  ? 'bg-[#08557f] text-white shadow-sm'
+                  : 'text-gray-500 hover:text-[#08557f] hover:bg-[#08557f]/5'
+              )}
+            >
+              {role.label}
+            </button>
+          ))}
         </div>
 
-        {/* Tabla de usuarios elegante */}
-        <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
+        {/* Tabla */}
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-gray-200">
-                  <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Usuario</th>
-                  <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Rol</th>
-                  <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Estado</th>
-                  <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Último Acceso</th>
-                  <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Acciones</th>
+            <table className="w-full text-sm text-left">
+              <thead className="text-xs text-gray-500 uppercase bg-gray-50/50 border-b border-gray-100">
+                <tr>
+                  <th className="px-8 py-5 font-bold tracking-wider">Usuario</th>
+                  <th className="px-6 py-5 font-bold tracking-wider">Rol</th>
+                  <th className="px-6 py-5 font-bold tracking-wider">Estado</th>
+                  <th className="px-6 py-5 font-bold tracking-wider">Último Acceso</th>
+                  <th className="px-8 py-5 font-bold tracking-wider text-right">Acciones</th>
                 </tr>
               </thead>
-              <tbody>
-                {filteredUsers.map((user) => (
-                  <tr
-                    key={user.id}
-                    className="border-b border-gray-100 last:border-0 hover:bg-gray-50/50 transition-colors"
-                  >
-                    <td className="px-6 py-4">
-                      <div className="flex items-center">
-                        <div className="w-9 h-9 bg-gradient-to-br from-gray-100 to-gray-200 rounded-lg flex items-center justify-center">
-                          <span className="text-sm font-medium text-gray-600">
+              <tbody className="divide-y divide-gray-100">
+                {filteredUsers.map((user) => {
+                  const role = roles.find(r => r.id === user.rol);
+                  return (
+                    <tr
+                      key={user.id}
+                      className="hover:bg-gray-50/50 transition-colors group"
+                    >
+                      <td className="px-8 py-5">
+                        <div className="flex items-center gap-4">
+                          <div className="w-10 h-10 bg-gray-100 rounded-xl flex items-center justify-center border border-gray-200 text-gray-600 font-bold text-xs shadow-sm">
                             {user.nombre.split(' ').map(n => n[0]).join('')}
-                          </span>
-                        </div>
-                        <div className="ml-4">
-                          <div className="font-medium text-gray-800">{user.nombre}</div>
-                          <div className="text-sm text-gray-500 flex items-center">
-                            <Mail className="h-3 w-3 mr-1" />
-                            {user.email}
+                          </div>
+                          <div>
+                            <div className="font-bold text-gray-900">{user.nombre}</div>
+                            <div className="text-xs text-gray-500 flex items-center gap-1 mt-0.5">
+                              <Mail className="h-3 w-3" />
+                              {user.email}
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="flex items-center">
-                        <div
-                          className="w-8 h-8 rounded-lg flex items-center justify-center mr-3"
-                          style={{
-                            backgroundColor: `${roles.find(r => r.id === user.rol)?.color}10`,
-                            color: roles.find(r => r.id === user.rol)?.color
-                          }}
-                        >
-                          {roles.find(r => r.id === user.rol)?.icon}
-                        </div>
-                        <div>
-                          <div className="font-medium text-gray-800">{roles.find(r => r.id === user.rol)?.nombre}</div>
-                          <div className="text-xs text-gray-500">{user.departamento}</div>
-                        </div>
-                        {user.rol === 'SUPER_ADMINISTRADOR' && (
-                          <div className="ml-2">
-                            <Shield className="h-3 w-3 text-primary" />
+                      </td>
+                      <td className="px-6 py-5">
+                        <div className="flex items-center gap-3">
+                          <div className={cn("p-2 rounded-lg", role?.bgColor, role?.color)}>
+                            {role?.icon}
                           </div>
-                        )}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="flex items-center">
-                        {getStatusIcon(user.estado)}
-                        <span className={`ml-2 text-sm font-medium ${getStatusColor(user.estado)}`}>
+                          <div>
+                            <div className="font-medium text-gray-900">{role?.nombre}</div>
+                            <div className="text-xs text-gray-500">{user.departamento}</div>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-6 py-5">
+                        <span className={cn(
+                          "inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold tracking-wide uppercase border",
+                          getStatusColor(user.estado)
+                        )}>
                           {getStatusText(user.estado)}
                         </span>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="text-sm text-gray-600">{user.ultimoAcceso}</div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="flex items-center space-x-1">
-                        <button
-                          onClick={() => handleOpenEditModal(user)}
-                          className="p-2 text-gray-400 hover:text-primary hover:bg-gray-100 rounded-lg transition-colors"
-                          title="Editar"
-                          disabled={user.rol === 'SUPER_ADMINISTRADOR' && currentUserRole !== 'SUPER_ADMINISTRADOR'}
-                        >
-                          <Edit2 className="h-4 w-4" />
-                        </button>
-                        <button
-                          onClick={() => handleOpenPermissionsModal(user)}
-                          className="p-2 text-gray-400 hover:text-secondary hover:bg-gray-100 rounded-lg transition-colors"
-                          title="Permisos"
-                          disabled={user.rol === 'SUPER_ADMINISTRADOR' && currentUserRole !== 'SUPER_ADMINISTRADOR'}
-                        >
-                          <Key className="h-4 w-4" />
-                        </button>
-                        <button
-                          onClick={() => handleOpenDeleteModal(user)}
-                          className="p-2 text-gray-400 hover:text-red-500 hover:bg-gray-100 rounded-lg transition-colors"
-                          title={user.estado === 'ACTIVO' ? 'Desactivar' : 'Activar'}
-                          disabled={user.rol === 'SUPER_ADMINISTRADOR'}
-                        >
-                          {user.estado === 'ACTIVO' ? (
-                            <EyeOff className="h-4 w-4" />
-                          ) : (
-                            <Eye className="h-4 w-4" />
-                          )}
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                      </td>
+                      <td className="px-6 py-5 text-gray-500 font-medium">
+                        {user.ultimoAcceso}
+                      </td>
+                      <td className="px-8 py-5 text-right">
+                        <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                          <button
+                            onClick={() => handleOpenEditModal(user)}
+                            className="p-2 text-gray-400 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+                            title="Editar"
+                            disabled={user.rol === 'SUPER_ADMINISTRADOR' && currentUserRole !== 'SUPER_ADMINISTRADOR'}
+                          >
+                            <Edit2 className="h-4 w-4" />
+                          </button>
+                          <button
+                            onClick={() => handleOpenPermissionsModal(user)}
+                            className="p-2 text-gray-400 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+                            title="Permisos"
+                            disabled={user.rol === 'SUPER_ADMINISTRADOR' && currentUserRole !== 'SUPER_ADMINISTRADOR'}
+                          >
+                            <Key className="h-4 w-4" />
+                          </button>
+                          <button
+                            onClick={() => handleOpenDeleteModal(user)}
+                            className={cn(
+                              "p-2 rounded-lg transition-colors",
+                              user.estado === 'ACTIVO' ? 'text-gray-400 hover:text-red-600 hover:bg-red-50' : 'text-gray-400 hover:text-emerald-600 hover:bg-emerald-50'
+                            )}
+                            title={user.estado === 'ACTIVO' ? 'Desactivar' : 'Activar'}
+                            disabled={user.rol === 'SUPER_ADMINISTRADOR'}
+                          >
+                            {user.estado === 'ACTIVO' ? (
+                              <EyeOff className="h-4 w-4" />
+                            ) : (
+                              <Eye className="h-4 w-4" />
+                            )}
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
         </div>
-      </main>
+      </div>
 
-      {/* Modales (Simplificados para esta vista) */}
+      {/* Modales */}
       {isCreateModalOpen && (
-        <div className="fixed inset-0 bg-black/10 flex items-center justify-center p-4 z-50 backdrop-blur-sm">
-          <div className="bg-white rounded-xl w-full max-w-md border border-gray-100 shadow-lg p-6">
-            <h2 className="text-lg font-medium mb-4 text-gray-800">Nuevo Usuario</h2>
-            <div className="space-y-4">
+        <div className="fixed inset-0 bg-gray-900/40 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in duration-200">
+          <div className="bg-white rounded-2xl w-full max-w-md border border-gray-100 shadow-2xl p-8 transform scale-100 animate-in zoom-in-95 duration-200">
+            <h2 className="text-2xl font-light text-gray-900 mb-8 tracking-tight">Nuevo <span className="font-semibold">Usuario</span></h2>
+            <div className="space-y-5">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Nombre Completo</label>
+                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Nombre Completo</label>
                 <input
                   type="text"
                   value={formData.nombre}
                   onChange={(e) => setFormData({...formData, nombre: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:border-primary focus:outline-none"
+                  className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:border-gray-900 focus:ring-1 focus:ring-gray-900 transition-all text-sm"
                   placeholder="Ej. Juan Pérez"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Email</label>
                 <input
                   type="email"
                   value={formData.email}
                   onChange={(e) => setFormData({...formData, email: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:border-primary focus:outline-none"
-                  placeholder="Ej. juan@empresa.com"
+                  className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:border-gray-900 focus:ring-1 focus:ring-gray-900 transition-all text-sm"
+                  placeholder="Ej. juan@credisur.com"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Rol</label>
+                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Rol</label>
                 <div className="relative">
                   <select
                     value={formData.rol}
                     onChange={(e) => setFormData({...formData, rol: e.target.value as RolUsuario})}
-                    className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:border-primary focus:outline-none appearance-none bg-white"
+                    className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:border-gray-900 focus:ring-1 focus:ring-gray-900 appearance-none bg-white text-sm"
                   >
                     {roles.map(role => (
                       <option key={role.id} value={role.id}>{role.label}</option>
                     ))}
                   </select>
-                  <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
+                  <ChevronDown className="absolute right-4 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
                 </div>
               </div>
-              <div className="flex justify-end space-x-3 mt-6">
+              <div className="flex justify-end gap-3 mt-8 pt-4 border-t border-gray-50">
                 <button
                   onClick={() => setIsCreateModalOpen(false)}
-                  className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                  className="px-5 py-2.5 text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-50 rounded-xl transition-colors"
                 >
                   Cancelar
                 </button>
                 <button
                   onClick={handleCreateUser}
-                  className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark transition-colors"
+                  className="px-5 py-2.5 text-sm font-medium text-white bg-gray-900 hover:bg-gray-800 rounded-xl shadow-lg shadow-gray-900/10 transition-all transform active:scale-95"
                 >
                   Crear Usuario
                 </button>
@@ -559,36 +590,43 @@ const UserManagementPage = () => {
         </div>
       )}
 
+      {/* Delete Confirmation Modal */}
       {isDeleteModalOpen && selectedUser && (
-        <div className="fixed inset-0 bg-black/10 flex items-center justify-center p-4 z-50 backdrop-blur-sm">
-          <div className="bg-white rounded-xl w-full max-w-sm border border-gray-100 shadow-lg p-6 text-center">
-            <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <AlertCircle className="h-6 w-6 text-red-500" />
-            </div>
-            <h3 className="text-lg font-medium text-gray-900 mb-2">
-              {selectedUser.estado === 'ACTIVO' ? '¿Desactivar usuario?' : '¿Activar usuario?'}
-            </h3>
-            <p className="text-sm text-gray-500 mb-6">
-              {selectedUser.estado === 'ACTIVO' 
-                ? `El usuario ${selectedUser.nombre} perderá acceso al sistema.`
-                : `El usuario ${selectedUser.nombre} recuperará el acceso al sistema.`
-              }
-            </p>
-            <div className="flex justify-center space-x-3">
-              <button
-                onClick={() => setIsDeleteModalOpen(false)}
-                className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
-              >
-                Cancelar
-              </button>
-              <button
-                onClick={handleToggleUserStatus}
-                className={`px-4 py-2 text-white rounded-lg transition-colors ${
-                  selectedUser.estado === 'ACTIVO' ? 'bg-red-500 hover:bg-red-600' : 'bg-green-500 hover:bg-green-600'
-                }`}
-              >
-                {selectedUser.estado === 'ACTIVO' ? 'Desactivar' : 'Activar'}
-              </button>
+        <div className="fixed inset-0 bg-gray-900/40 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in duration-200">
+          <div className="bg-white rounded-2xl w-full max-w-sm border border-gray-100 shadow-2xl p-8 transform scale-100 animate-in zoom-in-95 duration-200">
+            <div className="flex flex-col items-center text-center">
+              <div className={cn(
+                "w-12 h-12 rounded-full flex items-center justify-center mb-4",
+                selectedUser.estado === 'ACTIVO' ? 'bg-red-50 text-red-600' : 'bg-emerald-50 text-emerald-600'
+              )}>
+                {selectedUser.estado === 'ACTIVO' ? <AlertCircle className="h-6 w-6" /> : <Check className="h-6 w-6" />}
+              </div>
+              <h3 className="text-lg font-bold text-gray-900 mb-2">
+                {selectedUser.estado === 'ACTIVO' ? '¿Desactivar usuario?' : '¿Activar usuario?'}
+              </h3>
+              <p className="text-sm text-gray-500 mb-6">
+                {selectedUser.estado === 'ACTIVO' 
+                  ? `Estás a punto de desactivar el acceso de ${selectedUser.nombre}.` 
+                  : `Se restablecerá el acceso para ${selectedUser.nombre}.`
+                }
+              </p>
+              <div className="flex gap-3 w-full">
+                <button
+                  onClick={() => setIsDeleteModalOpen(false)}
+                  className="flex-1 px-4 py-2.5 text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-50 rounded-xl transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={handleToggleUserStatus}
+                  className={cn(
+                    "flex-1 px-4 py-2.5 text-sm font-medium text-white rounded-xl shadow-lg transition-all transform active:scale-95",
+                    selectedUser.estado === 'ACTIVO' ? 'bg-red-600 hover:bg-red-700 shadow-red-600/20' : 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-600/20'
+                  )}
+                >
+                  Confirmar
+                </button>
+              </div>
             </div>
           </div>
         </div>

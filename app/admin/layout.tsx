@@ -76,7 +76,7 @@ export default function AdminLayout({
                   <Shield className="h-4 w-4 text-white" />
                 </div>
                 <h1 className="ml-3 text-lg font-light text-gray-800">
-                  <span className="font-normal text-[#08557f]">Credi</span>Finanzas
+                  <span className="font-normal text-[#08557f]">Credi</span>Sur
                 </h1>
               </div>
 

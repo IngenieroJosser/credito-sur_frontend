@@ -9,6 +9,8 @@ import {
   ChevronRight, ChevronDown
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { formatCurrency } from '@/lib/utils';
+import { FileUploader } from '@/components/ui/FileUploader';
 
 // Enums alineados con Prisma
 type FrecuenciaPago = 'DIARIO' | 'SEMANAL' | 'QUINCENAL' | 'MENSUAL';
@@ -58,16 +60,6 @@ interface CuotaCalculada {
   total: number;
   saldo: number;
 }
-
-// Utilidad para formateo de moneda VES
-const formatCurrency = (amount: number) => {
-  return new Intl.NumberFormat('es-VE', {
-    style: 'currency',
-    currency: 'VES',
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2
-  }).format(amount);
-};
 
 const calcularCuotasYResumen = (form: FormularioPrestamo) => {
   if (!form.clienteId) {
@@ -154,7 +146,7 @@ const calcularCuotasYResumen = (form: FormularioPrestamo) => {
 
     cuotasCalculadas.push({
       numero: i,
-      fecha: fechaPago.toLocaleDateString('es-VE', {
+      fecha: fechaPago.toLocaleDateString('es-CO', {
         day: '2-digit',
         month: 'short',
         year: 'numeric'
@@ -197,10 +189,14 @@ const calcularCuotasYResumen = (form: FormularioPrestamo) => {
 
 const CreacionPrestamoElegante = () => {
   const router = useRouter();
-  const [step, setStep] = useState<1 | 2 | 3>(1);
+  const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
   const [mostrarNuevoCliente, setMostrarNuevoCliente] = useState(false);
   const [animating, setAnimating] = useState(false);
   
+  // Estado para archivos
+  const [fotosPropiedad, setFotosPropiedad] = useState<File[]>([]);
+  const [videosPropiedad, setVideosPropiedad] = useState<File[]>([]);
+
   // Estados para nuevo cliente
   const [nuevoCliente, setNuevoCliente] = useState({
     nombre: '',
@@ -219,48 +215,48 @@ const CreacionPrestamoElegante = () => {
       id: 'CL-001',
       nombre: 'Carlos',
       apellido: 'Rodríguez',
-      identificacion: 'V-12.345.678',
-      telefono: '0414-1234567',
+      identificacion: '12.345.678',
+      telefono: '300-1234567',
       email: 'carlos@email.com',
       nivelRiesgo: 'VERDE',
       scoreCrediticio: 78,
-      limiteCredito: 15000,
-      saldoDisponible: 5200,
-      ingresosMensuales: 3500,
+      limiteCredito: 15000000,
+      saldoDisponible: 5200000,
+      ingresosMensuales: 3500000,
       antiguedadLaboral: 24,
-      direccion: 'Av. Principal 123, Maracaibo',
+      direccion: 'Cra 15 #123-45, Bogotá',
       createdAt: '2022-03-15'
     },
     {
       id: 'CL-002',
       nombre: 'Ana',
       apellido: 'Gómez',
-      identificacion: 'V-23.456.789',
-      telefono: '0424-9876543',
+      identificacion: '23.456.789',
+      telefono: '310-9876543',
       email: 'ana@email.com',
       nivelRiesgo: 'VERDE',
       scoreCrediticio: 92,
-      limiteCredito: 20000,
-      saldoDisponible: 8500,
-      ingresosMensuales: 4200,
+      limiteCredito: 20000000,
+      saldoDisponible: 8500000,
+      ingresosMensuales: 4200000,
       antiguedadLaboral: 36,
-      direccion: 'Calle Secundaria 456, Valencia',
+      direccion: 'Cll 85 #11-22, Medellín',
       createdAt: '2021-11-22'
     },
     {
       id: 'CL-003',
       nombre: 'Roberto',
       apellido: 'Sánchez',
-      identificacion: 'V-34.567.890',
-      telefono: '0412-5556666',
+      identificacion: '34.567.890',
+      telefono: '320-5556666',
       email: 'roberto@email.com',
       nivelRiesgo: 'AMARILLO',
       scoreCrediticio: 65,
-      limiteCredito: 10000,
-      saldoDisponible: 3200,
-      ingresosMensuales: 2800,
+      limiteCredito: 10000000,
+      saldoDisponible: 3200000,
+      ingresosMensuales: 2800000,
       antiguedadLaboral: 18,
-      direccion: 'Boulevard 789, Caracas',
+      direccion: 'Av 6N #23-45, Cali',
       createdAt: '2023-01-10'
     }
   ]);
@@ -268,7 +264,7 @@ const CreacionPrestamoElegante = () => {
   // Formulario principal
   const [form, setForm] = useState<FormularioPrestamo>({
     clienteId: '',
-    montoTotal: 5000,
+    montoTotal: 1000000,
     proposito: 'PERSONAL',
     tasaInteres: 5.0, // Tasa mensual ejemplo
     plazoMeses: 6,
@@ -276,7 +272,7 @@ const CreacionPrestamoElegante = () => {
     fechaInicio: new Date().toISOString().split('T')[0],
     tasaInteresMora: 2.0,
     cuotaInicial: 0,
-    gastosAdministrativos: 10,
+    gastosAdministrativos: 10000,
     comision: 1.0,
     observaciones: ''
   });
@@ -350,8 +346,8 @@ const CreacionPrestamoElegante = () => {
 
   const calcularScore = (ingresos: number, antiguedad: number): number => {
     let score = 50;
-    if (ingresos > 300) score += 20; // Ajustado a realidad VES/USD
-    if (ingresos > 150) score += 10;
+    if (ingresos > 1200000) score += 20; // Ajustado a realidad COP
+    if (ingresos > 600000) score += 10;
     if (antiguedad > 24) score += 20;
     if (antiguedad > 12) score += 10;
     return Math.min(score, 100);
@@ -364,10 +360,10 @@ const CreacionPrestamoElegante = () => {
   };
 
   const siguienteStep = () => {
-    if (step < 3 && form.clienteId) {
+    if (step < 4 && form.clienteId) {
       setAnimating(true);
       setTimeout(() => {
-        setStep((step + 1) as 1 | 2 | 3);
+        setStep((step + 1) as 1 | 2 | 3 | 4);
         setAnimating(false);
       }, 200);
     }
@@ -377,7 +373,7 @@ const CreacionPrestamoElegante = () => {
     if (step > 1) {
       setAnimating(true);
       setTimeout(() => {
-        setStep((step - 1) as 1 | 2 | 3);
+        setStep((step - 1) as 1 | 2 | 3 | 4);
         setAnimating(false);
       }, 200);
     }
@@ -535,7 +531,7 @@ const CreacionPrestamoElegante = () => {
                             <button
                               onClick={agregarCliente}
                               disabled={!nuevoCliente.nombre || !nuevoCliente.identificacion}
-                              className="px-6 py-2.5 bg-primary text-white rounded-lg hover:bg-primary-dark transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                              className="px-6 py-2.5 bg-[#08557f] text-white rounded-lg hover:bg-[#064364] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                               Crear Cliente
                             </button>
@@ -629,7 +625,7 @@ const CreacionPrestamoElegante = () => {
                             className="w-full px-4 py-4 text-2xl font-light text-gray-900 border border-gray-200 rounded-xl focus:border-primary focus:ring-1 focus:ring-primary/10 transition-all text-right"
                           />
                           <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 font-light text-xl">
-                            VES
+                            COP
                           </span>
                         </div>
                       </div>
@@ -700,7 +696,7 @@ const CreacionPrestamoElegante = () => {
                             onChange={handleInputChange}
                             className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:border-primary focus:ring-1 focus:ring-primary/10 transition-all"
                           />
-                          <span className="absolute right-4 top-1/2 -translate-y-1/2 text-xs text-gray-400">VES</span>
+                          <span className="absolute right-4 top-1/2 -translate-y-1/2 text-xs text-gray-400">COP</span>
                         </div>
                       </div>
                     </div>
@@ -738,8 +734,48 @@ const CreacionPrestamoElegante = () => {
                 </div>
               )}
 
-              {/* Paso 3: Confirmación */}
+              {/* Paso 3: Documentos y Garantías */}
               {step === 3 && (
+                <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                  <div className="flex items-center justify-between mb-8">
+                    <div className="space-y-1">
+                      <h2 className="text-xl font-light text-gray-900">Documentos y Garantías</h2>
+                      <p className="text-gray-500 text-sm">Adjunte fotos y videos de la propiedad o garantías del préstamo</p>
+                    </div>
+                  </div>
+
+                  <div className="bg-white p-8 rounded-2xl border border-gray-200 shadow-sm space-y-8">
+                    <div className="space-y-6">
+                      <div>
+                        <FileUploader
+                          files={fotosPropiedad}
+                          onFilesChange={setFotosPropiedad}
+                          label="Fotos de la Propiedad / Garantía"
+                          description="Soporta JPG, PNG (Máx. 5MB)"
+                          multiple={true}
+                          maxSize={5 * 1024 * 1024}
+                          accept="image/*"
+                        />
+                      </div>
+                      
+                      <div className="pt-6 border-t border-gray-100">
+                         <FileUploader
+                          files={videosPropiedad}
+                          onFilesChange={setVideosPropiedad}
+                          label="Videos de la Propiedad"
+                          description="Soporta MP4, WEBM (Máx. 50MB)"
+                          multiple={true}
+                          maxSize={50 * 1024 * 1024}
+                          accept="video/*"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Paso 4: Confirmación */}
+              {step === 4 && (
                 <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
                   <div className="flex items-center justify-between mb-8">
                     <div className="space-y-1">
@@ -826,7 +862,7 @@ const CreacionPrestamoElegante = () => {
                 </button>
 
                 <button
-                  onClick={siguienteStep}
+                  onClick={step === 4 ? handleCrearPrestamo : siguienteStep}
                   disabled={!form.clienteId}
                   className={`flex items-center gap-2 px-8 py-3 rounded-xl font-medium transition-all shadow-lg hover:shadow-xl hover:-translate-y-0.5 ${
                     form.clienteId
@@ -834,8 +870,8 @@ const CreacionPrestamoElegante = () => {
                       : 'bg-gray-200 text-gray-400 cursor-not-allowed shadow-none'
                   }`}
                 >
-                  <span>{step === 3 ? 'Crear Préstamo' : 'Continuar'}</span>
-                  {step < 3 && <ChevronRight className="w-4 h-4" />}
+                  <span>{step === 4 ? 'Crear Préstamo' : 'Continuar'}</span>
+                  {step < 4 && <ChevronRight className="w-4 h-4" />}
                 </button>
               </div>
             </div>

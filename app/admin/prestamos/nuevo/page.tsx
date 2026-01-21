@@ -2,7 +2,7 @@ import { Metadata } from 'next';
 import CreacionPrestamoElegante from '@/components/prestamos/CreacionPrestamo';
 
 export const metadata: Metadata = {
-  title: 'Nuevo Préstamo • Créditos Plus',
+  title: 'Nuevo Préstamo • CrediSur',
   description: 'Creación sofisticada de préstamos para electrodomésticos'
 };
 
