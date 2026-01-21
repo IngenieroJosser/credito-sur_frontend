@@ -15,7 +15,9 @@ import {
   Mail,
   Briefcase,
   AlertCircle,
-  Sparkles
+  Sparkles,
+  LayoutGrid,
+  List
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -128,6 +130,7 @@ const UserManagementPage = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterRole, setFilterRole] = useState('all');
   const [filterStatus] = useState('all');
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('list');
   
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [selectedPermissions, setSelectedPermissions] = useState<string[]>([]);
@@ -411,26 +414,54 @@ const UserManagementPage = () => {
           ))}
         </div>
 
-        {/* Filtros */}
-        <div className="flex flex-wrap items-center gap-1 bg-white p-1.5 rounded-xl border border-gray-100 shadow-sm w-fit overflow-x-auto">
-          {roleFilters.map((role) => (
+        {/* Filtros y Vistas */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="flex flex-wrap items-center gap-1 bg-white p-1.5 rounded-xl border border-gray-100 shadow-sm w-fit overflow-x-auto">
+            {roleFilters.map((role) => (
+              <button
+                key={role.id}
+                onClick={() => setFilterRole(role.id)}
+                className={cn(
+                  "px-4 py-2 text-xs font-medium rounded-lg transition-all whitespace-nowrap",
+                  filterRole === role.id
+                    ? 'bg-[#08557f] text-white shadow-sm'
+                    : 'text-gray-500 hover:text-[#08557f] hover:bg-[#08557f]/5'
+                )}
+              >
+                {role.label}
+              </button>
+            ))}
+          </div>
+
+          <div className="flex bg-white p-1 rounded-xl border border-gray-100 shadow-sm">
             <button
-              key={role.id}
-              onClick={() => setFilterRole(role.id)}
+              onClick={() => setViewMode('grid')}
               className={cn(
-                "px-4 py-2 text-xs font-medium rounded-lg transition-all whitespace-nowrap",
-                filterRole === role.id
-                  ? 'bg-[#08557f] text-white shadow-sm'
-                  : 'text-gray-500 hover:text-[#08557f] hover:bg-[#08557f]/5'
+                "p-2 rounded-lg transition-all",
+                viewMode === 'grid'
+                  ? 'bg-gray-50 text-[#08557f] shadow-sm ring-1 ring-black/5'
+                  : 'text-gray-400 hover:text-gray-600'
               )}
             >
-              {role.label}
+              <LayoutGrid className="h-4 w-4" />
             </button>
-          ))}
+            <button
+              onClick={() => setViewMode('list')}
+              className={cn(
+                "p-2 rounded-lg transition-all",
+                viewMode === 'list'
+                  ? 'bg-gray-50 text-[#08557f] shadow-sm ring-1 ring-black/5'
+                  : 'text-gray-400 hover:text-gray-600'
+              )}
+            >
+              <List className="h-4 w-4" />
+            </button>
+          </div>
         </div>
 
-        {/* Tabla */}
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+        {/* Vista Lista (Tabla) */}
+        {viewMode === 'list' ? (
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-500">
           <div className="overflow-x-auto">
             <table className="w-full text-sm text-left">
               <thead className="text-xs text-gray-500 uppercase bg-gray-50/50 border-b border-gray-100">
@@ -528,6 +559,92 @@ const UserManagementPage = () => {
             </table>
           </div>
         </div>
+        ) : (
+          /* Vista Grid (Tarjetas) */
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+            {filteredUsers.map((user) => {
+              const role = roles.find(r => r.id === user.rol);
+              return (
+                <div key={user.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-all duration-300 p-6 flex flex-col gap-4 group">
+                  <div className="flex justify-between items-start">
+                    <div className="flex items-center gap-3">
+                      <div className="w-12 h-12 bg-gray-50 rounded-xl flex items-center justify-center border border-gray-100 text-gray-600 font-bold text-sm shadow-sm group-hover:bg-[#08557f]/5 group-hover:text-[#08557f] transition-colors">
+                        {user.nombre.split(' ').map(n => n[0]).join('')}
+                      </div>
+                      <div>
+                        <h3 className="font-bold text-gray-900 line-clamp-1">{user.nombre}</h3>
+                        <p className="text-xs text-gray-500">{user.email}</p>
+                      </div>
+                    </div>
+                    <span className={cn(
+                      "inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold tracking-wide uppercase border",
+                      getStatusColor(user.estado)
+                    )}>
+                      {getStatusText(user.estado)}
+                    </span>
+                  </div>
+                  
+                  <div className="space-y-3 pt-2">
+                    <div className="flex items-center gap-3 p-3 rounded-xl bg-gray-50/50 border border-gray-100">
+                      <div className={cn("p-2 rounded-lg", role?.bgColor, role?.color)}>
+                        {role?.icon}
+                      </div>
+                      <div>
+                        <div className="text-xs font-medium text-gray-500">Rol asignado</div>
+                        <div className="font-medium text-gray-900 text-sm">{role?.nombre}</div>
+                      </div>
+                    </div>
+                    
+                    <div className="grid grid-cols-2 gap-2 text-xs">
+                      <div className="p-2 rounded-lg bg-gray-50 border border-gray-100">
+                        <span className="text-gray-400 block mb-0.5">Departamento</span>
+                        <span className="font-medium text-gray-700">{user.departamento}</span>
+                      </div>
+                      <div className="p-2 rounded-lg bg-gray-50 border border-gray-100">
+                        <span className="text-gray-400 block mb-0.5">Último acceso</span>
+                        <span className="font-medium text-gray-700">{user.ultimoAcceso}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-end gap-2 pt-4 border-t border-gray-50 mt-auto">
+                    <button
+                      onClick={() => handleOpenEditModal(user)}
+                      className="p-2 text-gray-400 hover:text-[#08557f] hover:bg-[#08557f]/5 rounded-lg transition-colors"
+                      title="Editar"
+                      disabled={user.rol === 'SUPER_ADMINISTRADOR' && currentUserRole !== 'SUPER_ADMINISTRADOR'}
+                    >
+                      <Edit2 className="h-4 w-4" />
+                    </button>
+                    <button
+                      onClick={() => handleOpenPermissionsModal(user)}
+                      className="p-2 text-gray-400 hover:text-[#08557f] hover:bg-[#08557f]/5 rounded-lg transition-colors"
+                      title="Permisos"
+                      disabled={user.rol === 'SUPER_ADMINISTRADOR' && currentUserRole !== 'SUPER_ADMINISTRADOR'}
+                    >
+                      <Key className="h-4 w-4" />
+                    </button>
+                    <button
+                      onClick={() => handleOpenDeleteModal(user)}
+                      className={cn(
+                        "p-2 rounded-lg transition-colors",
+                        user.estado === 'ACTIVO' ? 'text-gray-400 hover:text-red-600 hover:bg-red-50' : 'text-gray-400 hover:text-emerald-600 hover:bg-emerald-50'
+                      )}
+                      title={user.estado === 'ACTIVO' ? 'Desactivar' : 'Activar'}
+                      disabled={user.rol === 'SUPER_ADMINISTRADOR'}
+                    >
+                      {user.estado === 'ACTIVO' ? (
+                        <EyeOff className="h-4 w-4" />
+                      ) : (
+                        <Eye className="h-4 w-4" />
+                      )}
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       {/* Modales */}

@@ -12,7 +12,9 @@ import {
   ChevronRight,
   Search,
   TrendingUp,
-  AlertTriangle
+  AlertTriangle,
+  LayoutGrid,
+  List
 } from 'lucide-react'
 import { formatCurrency, cn } from '@/lib/utils'
 
@@ -35,6 +37,7 @@ interface RutaCobro {
 const RutasPage = () => {
   const [estadoFiltro, setEstadoFiltro] = useState<EstadoRuta | 'TODAS'>('TODAS')
   const [busqueda, setBusqueda] = useState('')
+  const [vista, setVista] = useState<'grid' | 'list'>('grid')
   const [rutas] = useState<RutaCobro[]>([
     {
       id: 'RT-001',
@@ -224,113 +227,224 @@ const RutasPage = () => {
               </button>
             ))}
           </div>
-        </div>
-
-        {/* Grid de Rutas */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-          {rutasFiltradas.map((ruta) => (
-            <div 
-              key={ruta.id} 
-              className="group bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 overflow-hidden flex flex-col"
+          
+          <div className="flex bg-gray-50 p-1 rounded-xl">
+            <button
+              onClick={() => setVista('grid')}
+              className={cn(
+                "p-2.5 rounded-lg transition-all",
+                vista === 'grid'
+                  ? 'bg-white text-[#08557f] shadow-sm ring-1 ring-black/5'
+                  : 'text-gray-400 hover:text-gray-600'
+              )}
             >
-              <div className="p-8 flex-1 space-y-6">
-                <div className="flex justify-between items-start">
-                  <div>
-                    <span className="inline-flex items-center px-2.5 py-1 rounded-md bg-gray-100 text-xs font-semibold text-gray-600 tracking-wide">
-                      {ruta.codigo}
-                    </span>
-                    <h3 className="text-xl font-bold text-gray-900 mt-3 group-hover:text-[#08557f] transition-colors">
-                      {ruta.nombre}
-                    </h3>
-                  </div>
-                  <div className={cn(
-                    "px-3 py-1 rounded-full text-xs font-medium border",
-                    ruta.estado === 'ACTIVA' 
-                      ? 'bg-emerald-50 text-emerald-700 border-emerald-100' 
-                      : 'bg-gray-50 text-gray-600 border-gray-100'
-                  )}>
-                    {ruta.estado}
-                  </div>
-                </div>
-
-                <div className="space-y-4 pt-2">
-                  <div className="flex items-center gap-4 group/item">
-                    <div className="p-2 bg-gray-50 rounded-lg text-gray-400 group-hover/item:bg-[#08557f]/5 group-hover/item:text-[#08557f] transition-colors">
-                      <User className="h-4 w-4" />
-                    </div>
-                    <div>
-                      <p className="text-[10px] uppercase tracking-wider text-gray-400 font-semibold">Cobrador</p>
-                      <p className="font-medium text-gray-900">{ruta.cobrador}</p>
-                    </div>
-                  </div>
-                  
-                  <div className="flex items-center gap-4 group/item">
-                    <div className="p-2 bg-gray-50 rounded-lg text-gray-400 group-hover/item:bg-[#08557f]/5 group-hover/item:text-[#08557f] transition-colors">
-                      <Users className="h-4 w-4" />
-                    </div>
-                    <div>
-                      <p className="text-[10px] uppercase tracking-wider text-gray-400 font-semibold">Cartera</p>
-                      <p className="font-medium text-gray-900">{ruta.clientesAsignados} clientes</p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-4 group/item">
-                    <div className="p-2 bg-gray-50 rounded-lg text-gray-400 group-hover/item:bg-[#08557f]/5 group-hover/item:text-[#08557f] transition-colors">
-                      <Clock className="h-4 w-4" />
-                    </div>
-                    <div>
-                      <p className="text-[10px] uppercase tracking-wider text-gray-400 font-semibold">Frecuencia</p>
-                      <p className="font-medium text-gray-900">{ruta.frecuenciaVisita}</p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Barra de progreso de meta diaria */}
-                {ruta.estado === 'ACTIVA' && (
-                  <div className="pt-6 border-t border-gray-50">
-                    <div className="flex justify-between items-end mb-2">
-                      <div>
-                        <p className="text-[10px] uppercase tracking-wider text-gray-400 font-semibold mb-1">Recaudo Diario</p>
-                        <p className="font-bold text-gray-900">{formatCurrency(ruta.cobranzaDelDia)}</p>
-                      </div>
-                      <span className="text-sm font-medium text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md">
-                        {((ruta.cobranzaDelDia / ruta.metaDelDia) * 100).toFixed(0)}%
-                      </span>
-                    </div>
-                    <div className="w-full bg-gray-100 rounded-full h-1.5 overflow-hidden">
-                      <div 
-                        className="bg-[#08557f] h-1.5 rounded-full transition-all duration-1000 ease-out"
-                        style={{ width: `${Math.min((ruta.cobranzaDelDia / ruta.metaDelDia) * 100, 100)}%` }}
-                      ></div>
-                    </div>
-                    <p className="text-xs text-right text-gray-400 mt-2">
-                      Meta: {formatCurrency(ruta.metaDelDia)}
-                    </p>
-                  </div>
-                )}
-              </div>
-
-              <div className="p-4 bg-gray-50/50 border-t border-gray-100 flex justify-between items-center group-hover:bg-[#08557f]/5 transition-colors">
-                <span className="text-xs text-gray-400 font-medium">ID: {ruta.id}</span>
-                <button className="text-sm font-medium text-[#08557f] hover:text-[#064364] flex items-center gap-1 transition-colors">
-                  Ver detalle
-                  <ChevronRight className="h-4 w-4" />
-                </button>
-              </div>
-            </div>
-          ))}
-
-          {/* Card para añadir nueva ruta */}
-          <button className="group flex flex-col items-center justify-center p-8 rounded-2xl border-2 border-dashed border-gray-200 hover:border-[#08557f] hover:bg-[#08557f]/5 transition-all duration-300 min-h-[400px]">
-            <div className="p-6 rounded-full bg-gray-50 group-hover:bg-white group-hover:shadow-md transition-all mb-6 duration-300">
-              <Plus className="h-8 w-8 text-gray-400 group-hover:text-[#08557f]" />
-            </div>
-            <h3 className="text-xl font-medium text-gray-900 group-hover:text-[#08557f]">Crear nueva ruta</h3>
-            <p className="text-sm text-gray-500 mt-3 text-center max-w-[200px] leading-relaxed">
-              Define un nuevo territorio y asigna un cobrador responsable.
-            </p>
-          </button>
+              <LayoutGrid className="h-5 w-5" />
+            </button>
+            <button
+              onClick={() => setVista('list')}
+              className={cn(
+                "p-2.5 rounded-lg transition-all",
+                vista === 'list'
+                  ? 'bg-white text-[#08557f] shadow-sm ring-1 ring-black/5'
+                  : 'text-gray-400 hover:text-gray-600'
+              )}
+            >
+              <List className="h-5 w-5" />
+            </button>
+          </div>
         </div>
+
+        {/* Contenido Principal */}
+        {vista === 'grid' ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {rutasFiltradas.map((ruta) => (
+              <div 
+                key={ruta.id} 
+                className="group bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 overflow-hidden flex flex-col"
+              >
+                <div className="p-8 flex-1 space-y-6">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <span className="inline-flex items-center px-2.5 py-1 rounded-md bg-gray-100 text-xs font-semibold text-gray-600 tracking-wide">
+                        {ruta.codigo}
+                      </span>
+                      <h3 className="text-xl font-bold text-gray-900 mt-3 group-hover:text-[#08557f] transition-colors">
+                        {ruta.nombre}
+                      </h3>
+                    </div>
+                    <div className={cn(
+                      "px-3 py-1 rounded-full text-xs font-medium border",
+                      ruta.estado === 'ACTIVA' 
+                        ? 'bg-emerald-50 text-emerald-700 border-emerald-100' 
+                        : 'bg-gray-50 text-gray-600 border-gray-100'
+                    )}>
+                      {ruta.estado}
+                    </div>
+                  </div>
+
+                  <div className="space-y-4 pt-2">
+                    <div className="flex items-center gap-4 group/item">
+                      <div className="p-2 bg-gray-50 rounded-lg text-gray-400 group-hover/item:bg-[#08557f]/5 group-hover/item:text-[#08557f] transition-colors">
+                        <User className="h-4 w-4" />
+                      </div>
+                      <div>
+                        <p className="text-[10px] uppercase tracking-wider text-gray-400 font-semibold">Cobrador</p>
+                        <p className="font-medium text-gray-900">{ruta.cobrador}</p>
+                      </div>
+                    </div>
+                    
+                    <div className="flex items-center gap-4 group/item">
+                      <div className="p-2 bg-gray-50 rounded-lg text-gray-400 group-hover/item:bg-[#08557f]/5 group-hover/item:text-[#08557f] transition-colors">
+                        <Users className="h-4 w-4" />
+                      </div>
+                      <div>
+                        <p className="text-[10px] uppercase tracking-wider text-gray-400 font-semibold">Cartera</p>
+                        <p className="font-medium text-gray-900">{ruta.clientesAsignados} clientes</p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-4 group/item">
+                      <div className="p-2 bg-gray-50 rounded-lg text-gray-400 group-hover/item:bg-[#08557f]/5 group-hover/item:text-[#08557f] transition-colors">
+                        <Clock className="h-4 w-4" />
+                      </div>
+                      <div>
+                        <p className="text-[10px] uppercase tracking-wider text-gray-400 font-semibold">Frecuencia</p>
+                        <p className="font-medium text-gray-900">{ruta.frecuenciaVisita}</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Barra de progreso de meta diaria */}
+                  {ruta.estado === 'ACTIVA' && (
+                    <div className="pt-6 border-t border-gray-50">
+                      <div className="flex justify-between items-end mb-2">
+                        <div>
+                          <p className="text-[10px] uppercase tracking-wider text-gray-400 font-semibold mb-1">Recaudo Diario</p>
+                          <p className="font-bold text-gray-900">{formatCurrency(ruta.cobranzaDelDia)}</p>
+                        </div>
+                        <span className="text-sm font-medium text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md">
+                          {ruta.metaDelDia > 0 ? ((ruta.cobranzaDelDia / ruta.metaDelDia) * 100).toFixed(0) : 0}%
+                        </span>
+                      </div>
+                      <div className="w-full bg-gray-100 rounded-full h-1.5 overflow-hidden">
+                        <div 
+                          className="bg-[#08557f] h-1.5 rounded-full transition-all duration-1000 ease-out"
+                          style={{ width: `${ruta.metaDelDia > 0 ? Math.min((ruta.cobranzaDelDia / ruta.metaDelDia) * 100, 100) : 0}%` }}
+                        ></div>
+                      </div>
+                      <p className="text-xs text-right text-gray-400 mt-2">
+                        Meta: {formatCurrency(ruta.metaDelDia)}
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                <div className="p-4 bg-gray-50/50 border-t border-gray-100 flex justify-between items-center group-hover:bg-[#08557f]/5 transition-colors">
+                  <span className="text-xs text-gray-400 font-medium">ID: {ruta.id}</span>
+                  <button className="text-sm font-medium text-[#08557f] hover:text-[#064364] flex items-center gap-1 transition-colors">
+                    Ver detalle
+                    <ChevronRight className="h-4 w-4" />
+                  </button>
+                </div>
+              </div>
+            ))}
+
+            {/* Card para añadir nueva ruta */}
+            <button className="group flex flex-col items-center justify-center p-8 rounded-2xl border-2 border-dashed border-gray-200 hover:border-[#08557f] hover:bg-[#08557f]/5 transition-all duration-300 min-h-[400px]">
+              <div className="p-6 rounded-full bg-gray-50 group-hover:bg-white group-hover:shadow-md transition-all mb-6 duration-300">
+                <Plus className="h-8 w-8 text-gray-400 group-hover:text-[#08557f]" />
+              </div>
+              <h3 className="text-xl font-medium text-gray-900 group-hover:text-[#08557f]">Crear nueva ruta</h3>
+              <p className="text-sm text-gray-500 mt-3 text-center max-w-[200px] leading-relaxed">
+                Define un nuevo territorio y asigna un cobrador responsable.
+              </p>
+            </button>
+          </div>
+        ) : (
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden animate-in fade-in slide-in-from-bottom-2 duration-500">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm text-left">
+                <thead className="text-xs text-gray-500 uppercase bg-gray-50/50 border-b border-gray-100">
+                  <tr>
+                    <th className="px-6 py-4 font-medium tracking-wider">Ruta / Código</th>
+                    <th className="px-6 py-4 font-medium tracking-wider">Estado</th>
+                    <th className="px-6 py-4 font-medium tracking-wider">Cobrador</th>
+                    <th className="px-6 py-4 font-medium tracking-wider">Clientes</th>
+                    <th className="px-6 py-4 font-medium tracking-wider">Avance Diario</th>
+                    <th className="px-6 py-4 font-medium tracking-wider text-right">Acciones</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {rutasFiltradas.map((ruta) => (
+                    <tr 
+                      key={ruta.id} 
+                      className="hover:bg-gray-50/50 transition-colors group cursor-pointer"
+                    >
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-xl bg-[#08557f]/5 text-[#08557f] flex items-center justify-center">
+                            <Route className="w-5 h-5" />
+                          </div>
+                          <div>
+                            <div className="font-medium text-gray-900">{ruta.nombre}</div>
+                            <div className="text-xs text-gray-500">{ruta.codigo}</div>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className={cn(
+                          "inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border",
+                          ruta.estado === 'ACTIVA' 
+                            ? 'bg-emerald-50 text-emerald-700 border-emerald-100' 
+                            : 'bg-gray-50 text-gray-600 border-gray-100'
+                        )}>
+                          {ruta.estado}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-2">
+                          <div className="w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center text-xs font-medium text-gray-600">
+                            {ruta.cobrador.charAt(0)}
+                          </div>
+                          <span className="text-gray-700">{ruta.cobrador}</span>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-1.5 text-gray-600">
+                          <Users className="w-4 h-4 text-gray-400" />
+                          <span>{ruta.clientesAsignados}</span>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4">
+                        {ruta.estado === 'ACTIVA' ? (
+                          <div className="w-32 space-y-1">
+                            <div className="flex justify-between text-xs">
+                              <span className="font-medium text-gray-900">{((ruta.cobranzaDelDia / ruta.metaDelDia) * 100).toFixed(0)}%</span>
+                              <span className="text-gray-500">{formatCurrency(ruta.cobranzaDelDia)}</span>
+                            </div>
+                            <div className="w-full bg-gray-100 rounded-full h-1.5 overflow-hidden">
+                              <div 
+                                className="bg-[#08557f] h-1.5 rounded-full"
+                                style={{ width: `${Math.min((ruta.cobranzaDelDia / ruta.metaDelDia) * 100, 100)}%` }}
+                              ></div>
+                            </div>
+                          </div>
+                        ) : (
+                          <span className="text-xs text-gray-400">-</span>
+                        )}
+                      </td>
+                      <td className="px-6 py-4 text-right">
+                        <button className="p-2 text-gray-400 hover:text-[#08557f] hover:bg-[#08557f]/5 rounded-lg transition-colors">
+                          <ChevronRight className="w-4 h-4" />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )
