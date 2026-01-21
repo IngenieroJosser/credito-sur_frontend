@@ -28,8 +28,8 @@ const LoginPage = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [focusedField, setFocusedField] = useState<string | null>(null);
-  const [toast, setToast] = useState<ToastState>({ 
-    show: false, 
+  const [toast, setToast] = useState<ToastState>({
+    show: false,
     message: '',
     userName: '',
     type: 'success'
@@ -64,11 +64,11 @@ const LoginPage = () => {
   };
 
   const showToast = (message: string, userName: string = '', type: ToastState['type'] = 'success') => {
-    setToast({ 
-      show: true, 
+    setToast({
+      show: true,
       message,
       userName,
-      type 
+      type
     });
   };
 
@@ -93,17 +93,23 @@ const LoginPage = () => {
       const response = await iniciarSesion(payload);
       const userName = response.usuario.nombres || 'Usuario';
       
+      // Guardar token y datos del usuario en localStorage
+      localStorage.setItem('token', response.access_token);
+      localStorage.setItem('user', JSON.stringify(response.usuario));
+      
       // Mostrar toast de éxito
       showToast('Bienvenido', userName, 'success');
       
-      // Redirigir después de 2 segundos
-      setTimeout(() => {
-        const rol = response.usuario.rol as RolUsuario;
-        const redirectPath = ROLE_REDIRECT_MAP[rol] ?? '/';
-        router.replace(redirectPath);
-      }, 2000);
+      // Redirigir inmediatamente - quita el setTimeout
+      const rol = response.usuario.rol as RolUsuario;
+      const redirectPath = ROLE_REDIRECT_MAP[rol] ?? '/';
+      console.log('Redirigiendo a:', redirectPath, 'para rol:', rol);
+      
+      // Usar replace inmediatamente
+      router.replace(redirectPath);
       
     } catch (err) {
+      console.error('Error en login:', err);
       setError('Credenciales inválidas');
       showToast('Credenciales incorrectas', '', 'error');
     } finally {
@@ -134,15 +140,14 @@ const LoginPage = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-white via-gray-50 to-gray-100 flex items-center justify-center p-4 relative">
       {/* Toast Ultra Minimalista */}
-      <div className={`fixed top-6 right-6 z-50 transform transition-all duration-500 ease-out ${
-        toast.show ? 'translate-x-0 opacity-100' : 'translate-x-full opacity-0'
-      }`}>
+      <div className={`fixed top-6 right-6 z-50 transform transition-all duration-500 ease-out ${toast.show ? 'translate-x-0 opacity-100' : 'translate-x-full opacity-0'
+        }`}>
         <div className="relative">
           {/* Tarjeta minimalista */}
           <div className={`${styles.base} rounded-xl shadow-lg min-w-[280px] overflow-hidden backdrop-blur-sm bg-white/95`}>
             {/* Línea superior sutil */}
             <div className={`h-0.5 bg-gradient-to-r ${styles.accent}`}></div>
-            
+
             {/* Contenido */}
             <div className="p-4">
               <div className="flex items-start justify-between">
@@ -158,14 +163,14 @@ const LoginPage = () => {
                       </span>
                     )}
                   </div>
-                  
+
                   {/* Detalle sutil */}
                   <p className={`text-xs ${styles.detail} mt-1`}>
-                    {toast.type === 'success' && toast.userName 
+                    {toast.type === 'success' && toast.userName
                       ? 'Redirigiendo...'
                       : 'Verifica tus credenciales'}
                   </p>
-                  
+
                   {/* Indicador de tiempo ultra sutil */}
                   {toast.type === 'success' && (
                     <div className="mt-3">
@@ -179,18 +184,18 @@ const LoginPage = () => {
                     </div>
                   )}
                 </div>
-                
+
                 {/* Punto indicador de tiempo */}
                 <div className="flex-shrink-0 pl-3">
                   <div className={`w-1.5 h-1.5 rounded-full ${styles.time}`}></div>
                 </div>
               </div>
             </div>
-            
+
             {/* Efecto de luz sutil */}
             <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-white/50 to-transparent"></div>
           </div>
-          
+
           {/* Sombra ultra sutil */}
           <div className="absolute -inset-2 -z-10 bg-gradient-to-br from-gray-200/10 to-transparent blur-sm"></div>
         </div>
@@ -200,7 +205,7 @@ const LoginPage = () => {
       <div className="absolute inset-0 overflow-hidden">
         <div className="absolute top-1/4 -left-24 w-96 h-96 bg-gradient-to-br from-[#08557f]/[0.02] to-transparent rounded-full blur-3xl"></div>
         <div className="absolute bottom-1/4 -right-24 w-96 h-96 bg-gradient-to-tr from-[#fb851b]/[0.02] to-transparent rounded-full blur-3xl"></div>
-        
+
         {/* Líneas decorativas sutiles */}
         <div className="absolute top-0 left-0 w-full h-px bg-gradient-to-r from-transparent via-[#08557f]/5 to-transparent"></div>
         <div className="absolute bottom-0 left-0 w-full h-px bg-gradient-to-r from-transparent via-[#08557f]/5 to-transparent"></div>
@@ -221,7 +226,8 @@ const LoginPage = () => {
             </div>
           </div>
           <h1 className="text-3xl font-light text-gray-800 mb-2">
-            <span className="font-normal text-[#08557f]">Credi</span>Finanzas
+            <span className="font-normal text-[#08557f]">Credi</span>
+            <span className="text-[#fb851b]">Sur</span>
           </h1>
           <p className="text-xs text-gray-400 uppercase tracking-wider mt-4">Plataforma Financiera</p>
         </div>
@@ -231,11 +237,10 @@ const LoginPage = () => {
           <form onSubmit={handleSubmit} className="space-y-6">
             {/* Campo Usuario */}
             <div className="relative">
-              <div className={`absolute left-0 top-1/2 -translate-y-1/2 transition-all duration-300 ${
-                focusedField === 'usuario' || formData.nombres 
-                  ? 'opacity-100' 
+              <div className={`absolute left-0 top-1/2 -translate-y-1/2 transition-all duration-300 ${focusedField === 'usuario' || formData.nombres
+                  ? 'opacity-100'
                   : 'opacity-0'
-              }`}>
+                }`}>
                 <User className="h-4 w-4 text-gray-400" />
               </div>
               <input
@@ -250,18 +255,16 @@ const LoginPage = () => {
                 placeholder="Usuario"
                 autoComplete="username"
               />
-              <div className={`h-px bg-gradient-to-r from-[#08557f] to-transparent absolute bottom-0 left-0 transition-all duration-500 ${
-                focusedField === 'usuario' ? 'w-full' : 'w-0'
-              }`}></div>
+              <div className={`h-px bg-gradient-to-r from-[#08557f] to-transparent absolute bottom-0 left-0 transition-all duration-500 ${focusedField === 'usuario' ? 'w-full' : 'w-0'
+                }`}></div>
             </div>
 
             {/* Campo Contraseña */}
             <div className="relative">
-              <div className={`absolute left-0 top-1/2 -translate-y-1/2 transition-all duration-300 ${
-                focusedField === 'password' || formData.password 
-                  ? 'opacity-100' 
+              <div className={`absolute left-0 top-1/2 -translate-y-1/2 transition-all duration-300 ${focusedField === 'password' || formData.password
+                  ? 'opacity-100'
                   : 'opacity-0'
-              }`}>
+                }`}>
                 <Lock className="h-4 w-4 text-gray-400" />
               </div>
               <input
@@ -287,9 +290,8 @@ const LoginPage = () => {
                   <Eye className="h-4 w-4" />
                 )}
               </button>
-              <div className={`h-px bg-gradient-to-r from-[#08557f] to-transparent absolute bottom-0 left-0 transition-all duration-500 ${
-                focusedField === 'password' ? 'w-full' : 'w-0'
-              }`}></div>
+              <div className={`h-px bg-gradient-to-r from-[#08557f] to-transparent absolute bottom-0 left-0 transition-all duration-500 ${focusedField === 'password' ? 'w-full' : 'w-0'
+                }`}></div>
             </div>
 
             {/* Botón de acceso minimalista */}
@@ -300,14 +302,13 @@ const LoginPage = () => {
                 className="w-full group relative overflow-hidden"
               >
                 <div className="absolute inset-0 bg-white border border-gray-200 rounded-lg transition-all duration-300 group-hover:border-[#08557f]"></div>
-                
+
                 <div className="relative py-3 px-4 flex items-center justify-between">
                   <span className="text-sm font-medium text-gray-700 group-hover:text-[#08557f] transition-colors duration-300">
                     {isLoading ? 'Verificando...' : 'Acceder'}
                   </span>
-                  <div className={`transition-all duration-300 ${
-                    isLoading ? 'opacity-0 translate-x-4' : 'opacity-100'
-                  }`}>
+                  <div className={`transition-all duration-300 ${isLoading ? 'opacity-0 translate-x-4' : 'opacity-100'
+                    }`}>
                     <ChevronRight className="h-4 w-4 text-gray-400 group-hover:text-[#08557f] group-hover:translate-x-1 transition-all duration-300" />
                   </div>
                 </div>
