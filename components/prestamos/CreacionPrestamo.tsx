@@ -44,7 +44,7 @@ interface FormularioPrestamo {
   frecuenciaPago: FrecuenciaPago; // frecuenciaPago
   fechaInicio: string; // fechaInicio
   tasaInteresMora: number; // tasaInteresMora
-  
+
   // Campos adicionales de negocio (no necesariamente en Prestamo model directo, o calculados)
   cuotaInicial: number; // Puede ser un pago inicial
   gastosAdministrativos: number; // Puede ser un Gasto asociado
@@ -83,11 +83,11 @@ const calcularCuotasYResumen = (form: FormularioPrestamo) => {
   // Aquí asumimos: (Monto - CuotaInicial) + (Monto * Comision%)
   const montoNeto = form.montoTotal - form.cuotaInicial;
   const comisionTotal = (form.montoTotal * form.comision) / 100;
-  
+
   // Decisión de negocio: ¿La comisión se descuenta del desembolso o se suma a la deuda?
   // Asumiremos que se suma a la deuda para financiarla.
   const montoFinanciado = montoNeto + comisionTotal;
-  
+
   const tasaMensual = form.tasaInteres / 100;
 
   const cuotasCalculadas: CuotaCalculada[] = [];
@@ -104,7 +104,7 @@ const calcularCuotasYResumen = (form: FormularioPrestamo) => {
 
   // Cuotas totales = Meses * Frecuencia por mes
   const cuotasTotales = Math.ceil(form.plazoMeses * factorFrecuencia[form.frecuenciaPago]);
-  
+
   // Tasa del periodo = Tasa Mensual / Frecuencia por mes
   const tasaPeriodo = tasaMensual / factorFrecuencia[form.frecuenciaPago];
 
@@ -123,19 +123,19 @@ const calcularCuotasYResumen = (form: FormularioPrestamo) => {
   for (let i = 1; i <= cuotasTotales; i++) {
     const interes = saldo * tasaPeriodo;
     const capital = cuotaFija - interes;
-    
+
     // Ajuste final para no dejar saldo negativo infinitesimal
     let capitalFinal = capital;
     if (i === cuotasTotales) {
-        capitalFinal = saldo;
-        // Recalcular cuota final si es necesario (o ajustar en la última)
+      capitalFinal = saldo;
+      // Recalcular cuota final si es necesario (o ajustar en la última)
     }
 
     saldo -= capitalFinal;
 
     // Incrementar fecha según frecuencia
     if (form.frecuenciaPago === 'DIARIO') {
-        fechaPago.setDate(fechaPago.getDate() + 1);
+      fechaPago.setDate(fechaPago.getDate() + 1);
     } else if (form.frecuenciaPago === 'SEMANAL') {
       fechaPago.setDate(fechaPago.getDate() + 7);
     } else if (form.frecuenciaPago === 'QUINCENAL') {
@@ -163,10 +163,10 @@ const calcularCuotasYResumen = (form: FormularioPrestamo) => {
     0
   );
   const totalPagar = montoFinanciado + totalInteres;
-  
+
   // TEA (Tasa Efectiva Anual) = (1 + i_mensual)^12 - 1
   const tea = Math.pow(1 + tasaMensual, 12) - 1;
-  
+
   // TAE del crédito específico (Tasa Anual Equivalente aprox)
   const tae = Math.pow(1 + tasaPeriodo, cuotasTotales) - 1; // Esto es tasa efectiva del periodo total, no TAE estandar, pero sirve de ref.
 
@@ -192,7 +192,8 @@ const CreacionPrestamoElegante = () => {
   const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
   const [mostrarNuevoCliente, setMostrarNuevoCliente] = useState(false);
   const [animating, setAnimating] = useState(false);
-  
+  const [creandoPrestamo, setCreandoPrestamo] = useState(false);
+
   // Estado para archivos
   const [fotosPropiedad, setFotosPropiedad] = useState<File[]>([]);
   const [videosPropiedad, setVideosPropiedad] = useState<File[]>([]);
@@ -288,13 +289,13 @@ const CreacionPrestamoElegante = () => {
     const { name, value } = e.target;
     setForm(prev => ({
       ...prev,
-      [name]: name.includes('tasa') || name.includes('gastos') || name.includes('comision') 
+      [name]: name.includes('tasa') || name.includes('gastos') || name.includes('comision')
         ? parseFloat(value) || 0
         : name === 'montoTotal' || name === 'cuotaInicial' || name === 'ingresosMensuales'
-        ? parseFloat(value) || 0
-        : name === 'plazoMeses' || name === 'antiguedadLaboral'
-        ? parseInt(value) || 0
-        : value
+          ? parseFloat(value) || 0
+          : name === 'plazoMeses' || name === 'antiguedadLaboral'
+            ? parseInt(value) || 0
+            : value
     }));
   };
 
@@ -308,10 +309,77 @@ const CreacionPrestamoElegante = () => {
     }));
   };
 
+  const handleCrearPrestamo = async () => {
+    if (!clienteSeleccionado) {
+      alert('Por favor, seleccione un cliente.');
+      return;
+    }
+
+    // Validar que el monto no exceda el límite del cliente
+    if (form.montoTotal > (clienteSeleccionado?.saldoDisponible || 0)) {
+      alert('El monto solicitado excede el límite disponible del cliente.');
+      return;
+    }
+
+    setCreandoPrestamo(true);
+
+    try {
+      // Preparar los datos para la API
+      const datosPrestamo = {
+        clienteId: form.clienteId,
+        montoTotal: form.montoTotal,
+        proposito: form.proposito,
+        tasaInteres: form.tasaInteres,
+        tasaInteresMora: form.tasaInteresMora,
+        plazoMeses: form.plazoMeses,
+        frecuenciaPago: form.frecuenciaPago,
+        fechaInicio: form.fechaInicio,
+        cuotaInicial: form.cuotaInicial,
+        gastosAdministrativos: form.gastosAdministrativos,
+        comision: form.comision,
+        observaciones: form.observaciones,
+      };
+
+      console.log('Enviando datos del préstamo:', datosPrestamo);
+
+      // TODO: Reemplazar con llamada real a tu API
+      // const response = await fetch('/api/prestamos', {
+      //   method: 'POST',
+      //   headers: {
+      //     'Content-Type': 'application/json',
+      //     'Authorization': `Bearer ${localStorage.getItem('token')}`
+      //   },
+      //   body: JSON.stringify(datosPrestamo)
+      // });
+
+      // Simular delay de API
+      await new Promise(resolve => setTimeout(resolve, 1500));
+
+      // Simular respuesta exitosa
+      const resultado = {
+        id: 'PR-' + Date.now().toString().slice(-6),
+        numeroPrestamo: 'PR-' + Math.floor(100000 + Math.random() * 900000),
+        fechaCreacion: new Date().toISOString()
+      };
+
+      // Mostrar alerta de éxito
+      alert(`✅ Préstamo creado exitosamente\n\n📋 Número: ${resultado.numeroPrestamo}\n👤 Cliente: ${clienteSeleccionado.nombre} ${clienteSeleccionado.apellido}\n💰 Monto: ${formatCurrency(form.montoTotal)}\n📅 Cuota: ${formatCurrency(resumenPrestamo.valorCuota)} ${form.frecuenciaPago.toLowerCase()}`);
+
+      // Redirigir
+      router.push('/admin/prestamos');
+
+    } catch (error) {
+      console.error('Error al crear el préstamo:', error);
+      alert('❌ Error al crear el préstamo. Por favor, intente nuevamente.');
+    } finally {
+      setCreandoPrestamo(false);
+    }
+  };
+
   const agregarCliente = () => {
     const score = calcularScore(nuevoCliente.ingresosMensuales, nuevoCliente.antiguedadLaboral);
     const limite = calcularLimiteCredito(score, nuevoCliente.ingresosMensuales);
-    
+
     const nuevoClienteCompleto: Cliente = {
       id: `CL-${(clientes.length + 1).toString().padStart(3, '0')}`,
       nombre: nuevoCliente.nombre,
@@ -402,29 +470,27 @@ const CreacionPrestamoElegante = () => {
       {/* Header Ultra Minimalista */}
       <div className="mb-12">
         <div className="flex items-center justify-between mb-10">
-          <button 
+          <button
             onClick={() => router.back()}
             className="flex items-center gap-2 text-gray-500 hover:text-gray-900 transition-colors group"
           >
             <ArrowLeft className="w-5 h-5 group-hover:-translate-x-0.5 transition-transform duration-200" />
             <span className="text-sm font-medium">Volver</span>
           </button>
-          
+
           <div className="flex items-center gap-6">
             <div className="hidden md:flex items-center gap-4">
               {[1, 2, 3].map((num) => (
                 <div key={num} className="flex items-center gap-2">
-                  <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-medium transition-all duration-300 ${
-                    step >= num 
+                  <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-medium transition-all duration-300 ${step >= num
                       ? 'bg-primary text-white'
                       : 'border border-gray-300 text-gray-400'
-                  }`}>
+                    }`}>
                     {step > num ? '✓' : num}
                   </div>
                   {num < 3 && (
-                    <div className={`w-8 h-px transition-colors duration-300 ${
-                      step > num ? 'bg-primary' : 'bg-gray-200'
-                    }`} />
+                    <div className={`w-8 h-px transition-colors duration-300 ${step > num ? 'bg-primary' : 'bg-gray-200'
+                      }`} />
                   )}
                 </div>
               ))}
@@ -454,7 +520,7 @@ const CreacionPrestamoElegante = () => {
           {/* Panel Principal */}
           <div className="lg:col-span-2">
             <div className={`space-y-8 transition-opacity duration-300 ${animating ? 'opacity-70' : 'opacity-100'}`}>
-              
+
               {/* Paso 1: Selección de Cliente */}
               {step === 1 && (
                 <div className="space-y-8">
@@ -489,7 +555,7 @@ const CreacionPrestamoElegante = () => {
                               ×
                             </button>
                           </div>
-                          
+
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             {['nombre', 'apellido', 'identificacion', 'telefono', 'ingresosMensuales', 'antiguedadLaboral'].map((field) => (
                               <div key={field} className="space-y-2">
@@ -517,7 +583,7 @@ const CreacionPrestamoElegante = () => {
                                 onChange={handleNuevoClienteChange}
                                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:border-primary focus:ring-1 focus:ring-primary/10 transition-all"
                                 placeholder="Ingrese dirección completa"
-                                />
+                              />
                             </div>
                           </div>
 
@@ -547,11 +613,10 @@ const CreacionPrestamoElegante = () => {
                       <div
                         key={cliente.id}
                         onClick={() => setForm(prev => ({ ...prev, clienteId: cliente.id }))}
-                        className={`group p-6 rounded-xl border transition-all duration-300 cursor-pointer ${
-                          form.clienteId === cliente.id
+                        className={`group p-6 rounded-xl border transition-all duration-300 cursor-pointer ${form.clienteId === cliente.id
                             ? 'border-primary bg-gradient-to-br from-primary/5 to-white shadow-sm'
                             : 'border-gray-200 hover:border-gray-300 hover:shadow-sm'
-                        }`}
+                          }`}
                       >
                         <div className="flex items-start justify-between mb-6">
                           <div className="flex items-center gap-4">
@@ -567,11 +632,10 @@ const CreacionPrestamoElegante = () => {
                               <p className="text-sm text-gray-500">{cliente.identificacion}</p>
                             </div>
                           </div>
-                          <div className={`w-5 h-5 rounded-full border flex items-center justify-center transition-all ${
-                            form.clienteId === cliente.id
+                          <div className={`w-5 h-5 rounded-full border flex items-center justify-center transition-all ${form.clienteId === cliente.id
                               ? 'border-primary bg-primary text-white'
                               : 'border-gray-300 group-hover:border-gray-400'
-                          }`}>
+                            }`}>
                             {form.clienteId === cliente.id && <CheckCircle className="w-3.5 h-3.5" />}
                           </div>
                         </div>
@@ -584,10 +648,9 @@ const CreacionPrestamoElegante = () => {
                           <div className="text-right">
                             <p className="text-xs text-gray-500 mb-1">Score</p>
                             <div className="flex items-center justify-end gap-1">
-                              <Shield className={`w-3 h-3 ${
-                                cliente.scoreCrediticio >= 80 ? 'text-primary' : 
-                                cliente.scoreCrediticio >= 60 ? 'text-secondary' : 'text-red-500'
-                              }`} />
+                              <Shield className={`w-3 h-3 ${cliente.scoreCrediticio >= 80 ? 'text-primary' :
+                                  cliente.scoreCrediticio >= 60 ? 'text-secondary' : 'text-red-500'
+                                }`} />
                               <span className="font-medium text-gray-900">{cliente.scoreCrediticio}</span>
                             </div>
                           </div>
@@ -704,19 +767,19 @@ const CreacionPrestamoElegante = () => {
                     {/* Otros Cargos */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-6 border-t border-gray-100">
                       <div className="space-y-2">
-                         <label className="text-sm font-medium text-gray-700">Propósito</label>
-                         <select
-                            name="proposito"
-                            value={form.proposito}
-                            onChange={handleInputChange}
-                            className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl appearance-none focus:bg-white focus:border-primary focus:ring-1 focus:ring-primary/10 transition-all"
-                          >
-                            <option value="PERSONAL">Personal</option>
-                            <option value="VEHICULO">Vehículo</option>
-                            <option value="HIPOTECARIO">Hipotecario</option>
-                            <option value="NEGOCIO">Negocio</option>
-                            <option value="OTRO">Otro</option>
-                          </select>
+                        <label className="text-sm font-medium text-gray-700">Propósito</label>
+                        <select
+                          name="proposito"
+                          value={form.proposito}
+                          onChange={handleInputChange}
+                          className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl appearance-none focus:bg-white focus:border-primary focus:ring-1 focus:ring-primary/10 transition-all"
+                        >
+                          <option value="PERSONAL">Personal</option>
+                          <option value="VEHICULO">Vehículo</option>
+                          <option value="HIPOTECARIO">Hipotecario</option>
+                          <option value="NEGOCIO">Negocio</option>
+                          <option value="OTRO">Otro</option>
+                        </select>
                       </div>
                       <div className="space-y-2">
                         <label className="text-sm font-medium text-gray-700">Observaciones</label>
@@ -757,9 +820,9 @@ const CreacionPrestamoElegante = () => {
                           accept="image/*"
                         />
                       </div>
-                      
+
                       <div className="pt-6 border-t border-gray-100">
-                         <FileUploader
+                        <FileUploader
                           files={videosPropiedad}
                           onFilesChange={setVideosPropiedad}
                           label="Videos de la Propiedad"
@@ -798,7 +861,7 @@ const CreacionPrestamoElegante = () => {
                         </div>
                       </div>
                     </div>
-                    
+
                     <div className="p-8 grid grid-cols-1 md:grid-cols-2 gap-8">
                       <div>
                         <h4 className="text-sm font-medium text-gray-900 mb-4">Detalles del Cliente</h4>
@@ -813,9 +876,8 @@ const CreacionPrestamoElegante = () => {
                           </div>
                           <div className="flex justify-between">
                             <span className="text-gray-500">Score</span>
-                            <span className={`font-medium ${
-                              (clienteSeleccionado?.scoreCrediticio || 0) >= 80 ? 'text-primary' : 'text-secondary'
-                            }`}>{clienteSeleccionado?.scoreCrediticio}</span>
+                            <span className={`font-medium ${(clienteSeleccionado?.scoreCrediticio || 0) >= 80 ? 'text-primary' : 'text-secondary'
+                              }`}>{clienteSeleccionado?.scoreCrediticio}</span>
                           </div>
                         </div>
                       </div>
@@ -850,11 +912,10 @@ const CreacionPrestamoElegante = () => {
               <div className="flex items-center justify-between pt-8">
                 <button
                   onClick={anteriorStep}
-                  className={`flex items-center gap-2 px-6 py-3 rounded-xl transition-colors ${
-                    step > 1
+                  className={`flex items-center gap-2 px-6 py-3 rounded-xl transition-colors ${step > 1
                       ? 'text-gray-600 hover:bg-gray-100'
                       : 'text-gray-300 cursor-not-allowed'
-                  }`}
+                    }`}
                   disabled={step === 1}
                 >
                   <ArrowLeft className="w-4 h-4" />
@@ -864,11 +925,10 @@ const CreacionPrestamoElegante = () => {
                 <button
                   onClick={step === 4 ? handleCrearPrestamo : siguienteStep}
                   disabled={!form.clienteId}
-                  className={`flex items-center gap-2 px-8 py-3 rounded-xl font-medium transition-all shadow-lg hover:shadow-xl hover:-translate-y-0.5 ${
-                    form.clienteId
+                  className={`flex items-center gap-2 px-8 py-3 rounded-xl font-medium transition-all shadow-lg hover:shadow-xl hover:-translate-y-0.5 ${form.clienteId
                       ? 'bg-primary text-white hover:bg-primary-dark'
                       : 'bg-gray-200 text-gray-400 cursor-not-allowed shadow-none'
-                  }`}
+                    }`}
                 >
                   <span>{step === 4 ? 'Crear Préstamo' : 'Continuar'}</span>
                   {step < 4 && <ChevronRight className="w-4 h-4" />}
@@ -882,7 +942,7 @@ const CreacionPrestamoElegante = () => {
             <div className="sticky top-8 space-y-6">
               <div className="bg-gray-900 text-white rounded-2xl p-6 shadow-2xl relative overflow-hidden group">
                 <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 group-hover:bg-white/10 transition-colors duration-500" />
-                
+
                 <div className="relative">
                   <h3 className="text-lg font-light text-white/90 mb-6 flex items-center gap-2">
                     <BarChart className="w-5 h-5 text-secondary" />
