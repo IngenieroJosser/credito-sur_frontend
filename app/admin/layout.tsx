@@ -58,7 +58,6 @@ export default function AdminLayout({
         const userData = localStorage.getItem('user')
         if (userData) {
           const parsedUser = JSON.parse(userData)
-          console.log('Usuario cargado:', parsedUser) // Para debug
           setUser(parsedUser)
         }
       } catch (error) {
@@ -146,7 +145,7 @@ export default function AdminLayout({
   ]
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-white">
+    <div className="min-h-screen bg-linear-to-br from-gray-50 to-white">
       {/* Header ultra minimalista */}
       <header className="fixed top-0 left-0 right-0 z-50 bg-white/80 backdrop-blur-sm border-b border-gray-100">
         <div className="px-4 sm:px-6 lg:px-8 py-3">
@@ -161,7 +160,7 @@ export default function AdminLayout({
               </button>
               
               <div className="flex items-center">
-                <div className="w-8 h-8 bg-gradient-to-br from-[#08557f] to-[#063a58] rounded-lg flex items-center justify-center">
+                <div className="w-8 h-8 bg-linear-to-br from-[#08557f] to-[#063a58] rounded-lg flex items-center justify-center">
                   <Shield className="h-4 w-4 text-white" />
                 </div>
                 <h1 className="ml-3 text-lg font-light text-gray-800">
@@ -222,9 +221,7 @@ export default function AdminLayout({
                     </div>
                     <div className="text-xs text-gray-500 flex items-center gap-1">
                       <Mail className="h-3 w-3" />
-                      <span className="truncate max-w-[150px]" title={user?.correo || ''}>
-                        {user?.correo || 'usuario@ejemplo.com'}
-                      </span>
+                      <span className="truncate max-w-[120px]">{user?.correo}</span>
                     </div>
                   </div>
                   <ChevronDown className={`h-4 w-4 text-gray-400 transition-transform ${showUserMenu ? 'rotate-180' : ''}`} />
@@ -239,7 +236,7 @@ export default function AdminLayout({
                     />
                     <div className="absolute right-0 mt-2 w-80 bg-white rounded-xl shadow-xl border border-gray-100 py-2 z-50 animate-in fade-in slide-in-from-top-2">
                       {/* Header mejorado */}
-                      <div className="px-4 py-4 bg-gradient-to-r from-[#08557f]/5 to-[#063a58]/5 border-b border-gray-100">
+                      <div className="px-4 py-4 bg-linear-to-r from-[#08557f]/5 to-[#063a58]/5 border-b border-gray-100">
                         <div className="flex items-center gap-3">
                           <div 
                             className="relative w-14 h-14 rounded-full flex items-center justify-center text-white text-lg font-semibold shadow-lg"
@@ -256,19 +253,20 @@ export default function AdminLayout({
                             </div>
                           </div>
                           <div className="flex-1 min-w-0">
-                            <h3 className="font-semibold text-gray-900 text-sm truncate" title={getUserFullName()}>
+                            <h3 className="font-semibold text-gray-900 text-sm truncate">
                               {getUserFullName()}
                             </h3>
-                            <div className="flex items-center gap-2 mt-1 flex-wrap">
+                            <div className="flex items-center gap-2 mt-1">
                               <div 
-                                className="text-xs font-medium px-2 py-0.5 rounded-full text-white whitespace-nowrap"
+                                className="text-xs font-medium px-2 py-0.5 rounded-full text-white"
                                 style={{ backgroundColor: getRoleColor() }}
                               >
                                 {getUserRoleName()}
                               </div>
-                              <div className="text-xs text-gray-500 truncate max-w-full">
-                                {user?.correo || 'usuario@ejemplo.com'}
-                              </div>
+                              <span className="text-xs text-gray-500">•</span>
+                              <span className="text-xs text-gray-500 truncate">
+                                {user?.correo}
+                              </span>
                             </div>
                           </div>
                         </div>
@@ -277,7 +275,7 @@ export default function AdminLayout({
                       {/* Información detallada */}
                       {user && (
                         <div className="px-4 py-3 space-y-3 border-b border-gray-100">
-                          {/* Correo con icono - Siempre visible */}
+                          {/* Correo con icono */}
                           <div className="flex items-start gap-3">
                             <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center flex-shrink-0">
                               <Mail className="h-4 w-4 text-blue-600" />
@@ -285,7 +283,7 @@ export default function AdminLayout({
                             <div className="flex-1 min-w-0">
                               <div className="text-xs text-gray-500">Correo electrónico</div>
                               <div className="text-sm font-medium text-gray-900 truncate" title={user.correo}>
-                                {user.correo || 'No especificado'}
+                                {user.correo}
                               </div>
                             </div>
                           </div>
@@ -405,7 +403,7 @@ export default function AdminLayout({
           <div className="space-y-6">
             {/* Info del usuario en sidebar móvil */}
             {user && (
-              <div className="lg:hidden mb-6 p-4 bg-gradient-to-r from-gray-50 to-white rounded-xl border border-gray-100 shadow-sm">
+              <div className="lg:hidden mb-6 p-4 bg-linear-to-r from-gray-50 to-white rounded-xl border border-gray-100 shadow-sm">
                 <div className="flex items-center gap-3">
                   <div 
                     className="relative w-12 h-12 rounded-full flex items-center justify-center text-white text-sm font-medium shadow-md"
@@ -422,19 +420,17 @@ export default function AdminLayout({
                     </div>
                   </div>
                   <div className="flex-1 min-w-0">
-                    <div className="font-medium text-gray-900 text-sm truncate" title={getUserFullName()}>
+                    <div className="font-medium text-gray-900 text-sm truncate">
                       {getUserFullName()}
                     </div>
-                    <div className="text-xs text-gray-500 mt-0.5">
-                      <div className="truncate" title={user.correo}>
-                        {user.correo || 'usuario@ejemplo.com'}
-                      </div>
+                    <div className="text-xs text-gray-500 flex items-center gap-2 mt-0.5">
                       <div 
-                        className="text-xs font-medium px-2 py-0.5 rounded-full text-white inline-block mt-1"
+                        className="text-xs font-medium px-2 py-0.5 rounded-full text-white"
                         style={{ backgroundColor: getRoleColor() }}
                       >
                         {getUserRoleName()}
                       </div>
+                      <span className="truncate">{user.correo}</span>
                     </div>
                   </div>
                 </div>
@@ -509,7 +505,7 @@ export default function AdminLayout({
 
             {/* Resumen del mes elegante */}
             <div className="pt-8 border-t border-gray-100">
-              <div className="p-4 bg-gradient-to-br from-gray-900 to-gray-800 rounded-xl text-white shadow-lg">
+              <div className="p-4 bg-linear-to-br from-gray-900 to-gray-800 rounded-xl text-white shadow-lg">
                 <div className="flex items-center justify-between mb-2">
                   <div className="text-xs text-gray-300">Rendimiento</div>
                   <div className="text-xs text-gray-300 flex items-center gap-2">
@@ -521,7 +517,7 @@ export default function AdminLayout({
                 <div className="text-2xl font-light mb-3">94.2%</div>
                 <div className="h-1.5 bg-gray-700 rounded-full overflow-hidden">
                   <div 
-                    className="h-full bg-gradient-to-r from-[#08557f] to-[#10b981] rounded-full"
+                    className="h-full bg-linear-to-r from-[#08557f] to-[#10b981] rounded-full"
                     style={{ width: '94.2%' }}
                   ></div>
                 </div>
