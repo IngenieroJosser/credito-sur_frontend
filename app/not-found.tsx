@@ -67,7 +67,7 @@ const NotFoundPage = () => {
                 <div className="relative w-10 h-10 opacity-80 transition-opacity duration-300 group-hover:opacity-100">
                   <Image
                     src="/android-chrome-512x512.png"
-                    alt="CrediFinanzas"
+                    alt="CrediSur"
                     width={40}
                     height={40}
                     className="object-contain drop-shadow-sm"
@@ -76,7 +76,7 @@ const NotFoundPage = () => {
                 </div>
                 <div className="flex flex-col">
                   <span className="text-sm font-normal text-gray-800 tracking-tight leading-none">
-                    CREDI<span className="text-primary font-semibold">FINANZAS</span>
+                    CREDI<span className="text-primary font-semibold">SUR</span>
                   </span>
                   <span className="text-[10px] text-gray-400 font-light tracking-widest uppercase mt-0.5">
                     Sistema Financiero
@@ -116,7 +116,7 @@ const NotFoundPage = () => {
               <div className="relative w-48 h-48 opacity-10">
                 <Image
                   src="/android-chrome-512x512.png"
-                  alt="CrediFinanzas"
+                  alt="CrediSur"
                   fill
                   className="object-contain"
                   priority

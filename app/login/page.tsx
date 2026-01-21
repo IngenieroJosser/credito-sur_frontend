@@ -3,7 +3,7 @@
 import { useState, FormEvent, useEffect } from 'react';
 import { Eye, EyeOff, Lock, User, ChevronRight } from 'lucide-react';
 import { iniciarSesion } from '@/services/autenticacion-service';
-import { LoginData } from '@/lib/types/autenticacion-type';
+import { LoginData, AuthResponse } from '@/lib/types/autenticacion-type';
 import { useRouter } from 'next/navigation';
 
 interface LoginFormData {
@@ -42,16 +42,38 @@ const LoginPage = () => {
   useEffect(() => {
     if (toast.show) {
       const timer = setTimeout(() => {
-        setToast({ ...toast, show: false });
+        setToast(prev => ({ ...prev, show: false }));
       }, 3000);
       return () => clearTimeout(timer);
     }
   }, [toast]);
 
+  // Verificar si ya hay una sesión activa y redirigir a /admin
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    const user = localStorage.getItem('user');
+    
+    if (token && user) {
+      // Siempre redirigir a /admin si hay sesión activa
+      router.replace('/admin');
+    }
+  }, [router]);
+
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
     if (error) setError('');
+  };
+
+  const formatRol = (rol: string): string => {
+    const roles: Record<string, string> = {
+      'SUPER_ADMINISTRADOR': 'Super Administrador',
+      'COORDINADOR': 'Coordinador',
+      'SUPERVISOR': 'Supervisor',
+      'COBRADOR': 'Cobrador',
+      'CONTADOR': 'Contador',
+    };
+    return roles[rol] || rol;
   };
 
   const showToast = (message: string, userName: string = '', type: ToastState['type'] = 'success') => {
@@ -81,27 +103,101 @@ const LoginPage = () => {
         contrasena: formData.password,
       };
   
-      const response = await iniciarSesion(payload);
-      const userName = response.usuario.nombres || 'Usuario';
+      // Depuración: Verificar qué se envía
+      console.log('Enviando payload:', payload);
       
-      // Guardar sesión
-      if (typeof window !== 'undefined') {
-        localStorage.setItem('token', response.access_token);
-        localStorage.setItem('user', JSON.stringify(response.usuario));
+      const response = await iniciarSesion(payload);
+      
+      // Depuración: Verificar la respuesta completa
+      console.log('Respuesta completa:', response);
+      console.log('Tipo de respuesta:', typeof response);
+      
+      // Verificar si la respuesta es válida
+      if (!response || typeof response !== 'object') {
+        throw new Error('No se recibió respuesta del servidor');
       }
       
-      // Mostrar toast de éxito
-      showToast('Bienvenido', userName, 'success');
+      // Verificar si la respuesta tiene la estructura AuthResponse esperada
+      if (!response.access_token) {
+        console.error('Respuesta no tiene access_token:', response);
+        throw new Error('Respuesta de autenticación inválida');
+      }
       
-      // Redirigir después de 2 segundos
+      // Verificar si tiene la propiedad usuario
+      if (!response.usuario) {
+        console.error('Respuesta no tiene usuario:', response);
+        
+        // Si no tiene usuario, crear un objeto básico con la información disponible
+        const userFullName = formData.nombres;
+        const userData = {
+          id: 'temp-' + Date.now(),
+          nombres: formData.nombres,
+          apellidos: '',
+          rol: 'SUPER_ADMINISTRADOR' as const,
+          nombreCompleto: formData.nombres
+        };
+        
+        // Guardar datos en localStorage
+        localStorage.setItem('token', response.access_token);
+        localStorage.setItem('user', JSON.stringify(userData));
+        
+        showToast('Bienvenido', userFullName, 'success');
+        
+        setTimeout(() => {
+          router.replace('/admin');
+        }, 2000);
+        return;
+      }
+      
+      // Si tiene usuario, extraer los datos correctamente
+      const userName = response.usuario.nombres || formData.nombres;
+      const userFullName = `${response.usuario.nombres || ''} ${response.usuario.apellidos || ''}`.trim() || formData.nombres;
+      
+      // Construir datos del usuario para localStorage
+      const userData = {
+        ...response.usuario,
+        nombreCompleto: userFullName
+      };
+      
+      // Guardar token y datos del usuario en localStorage
+      localStorage.setItem('token', response.access_token);
+      localStorage.setItem('user', JSON.stringify(userData));
+      
+      // Mostrar toast de éxito con información del rol
+      showToast('Bienvenido', `${userName} (${formatRol(response.usuario.rol)})`, 'success');
+      
+      // Siempre redirigir a /admin después de 2 segundos
       setTimeout(() => {
-        // Redirección centralizada al dashboard administrativo
+        console.log('Redirigiendo a /admin para usuario:', userFullName);
         router.replace('/admin');
-      }, 1500);
+      }, 2000);
       
-    } catch {
-      setError('Credenciales inválidas');
-      showToast('Credenciales incorrectas', '', 'error');
+    } catch (err: any) {
+      console.error('Error en login:', err);
+      console.error('Mensaje de error:', err.message);
+      console.error('Respuesta de error:', err.response?.data);
+      console.error('Status de error:', err.response?.status);
+      
+      // Manejo de errores específicos
+      if (err.response?.status === 401) {
+        setError('Credenciales inválidas');
+        showToast('Credenciales incorrectas', '', 'error');
+      } else if (err.response?.status === 404) {
+        setError('Usuario no encontrado');
+        showToast('Usuario no encontrado', '', 'error');
+      } else if (err.message === 'Network Error') {
+        setError('Error de conexión');
+        showToast('Error de conexión al servidor', '', 'error');
+      } else if (err.message === 'No se recibió respuesta del servidor') {
+        setError('No se recibió respuesta del servidor');
+        showToast('Error del servidor', '', 'error');
+      } else if (err.message === 'Respuesta de autenticación inválida') {
+        setError('Error en la autenticación');
+        showToast('Error en la autenticación', '', 'error');
+      } else {
+        setError('Error al iniciar sesión');
+        showToast('Error al iniciar sesión', '', 'error');
+      }
     } finally {
       setIsLoading(false);
     }
@@ -158,7 +254,7 @@ const LoginPage = () => {
                   {/* Detalle sutil */}
                   <p className={`text-xs ${styles.detail} mt-1`}>
                     {toast.type === 'success' && toast.userName 
-                      ? 'Redirigiendo...'
+                      ? 'Redirigiendo al panel de administración...'
                       : 'Verifica tus credenciales'}
                   </p>
                   
@@ -194,12 +290,12 @@ const LoginPage = () => {
 
       {/* Fondo minimalista */}
       <div className="absolute inset-0 overflow-hidden">
-        <div className="absolute top-1/4 -left-24 w-96 h-96 bg-gradient-to-br from-primary/[0.02] to-transparent rounded-full blur-3xl"></div>
-        <div className="absolute bottom-1/4 -right-24 w-96 h-96 bg-gradient-to-tr from-secondary/[0.02] to-transparent rounded-full blur-3xl"></div>
+        <div className="absolute top-1/4 -left-24 w-96 h-96 bg-gradient-to-br from-[#08557f]/[0.02] to-transparent rounded-full blur-3xl"></div>
+        <div className="absolute bottom-1/4 -right-24 w-96 h-96 bg-gradient-to-tr from-[#fb851b]/[0.02] to-transparent rounded-full blur-3xl"></div>
         
         {/* Líneas decorativas sutiles */}
-        <div className="absolute top-0 left-0 w-full h-px bg-gradient-to-r from-transparent via-primary/5 to-transparent"></div>
-        <div className="absolute bottom-0 left-0 w-full h-px bg-gradient-to-r from-transparent via-primary/5 to-transparent"></div>
+        <div className="absolute top-0 left-0 w-full h-px bg-gradient-to-r from-transparent via-[#08557f]/5 to-transparent"></div>
+        <div className="absolute bottom-0 left-0 w-full h-px bg-gradient-to-r from-transparent via-[#08557f]/5 to-transparent"></div>
       </div>
 
       {/* Contenedor principal */}
@@ -210,14 +306,14 @@ const LoginPage = () => {
             <div className="relative">
               <div className="w-14 h-14 bg-white border border-gray-200 rounded-xl flex items-center justify-center">
                 <div className="w-8 h-8 flex items-center justify-center">
-                  <div className="w-6 h-6 bg-gradient-to-br from-primary to-primary-dark rounded"></div>
-                  <div className="absolute w-2 h-2 bg-secondary rounded-full -translate-y-1 translate-x-1"></div>
+                  <div className="w-6 h-6 bg-gradient-to-br from-[#08557f] to-[#063a58] rounded"></div>
+                  <div className="absolute w-2 h-2 bg-[#fb851b] rounded-full -translate-y-1 translate-x-1"></div>
                 </div>
               </div>
             </div>
           </div>
           <h1 className="text-3xl font-light text-gray-800 mb-2">
-            <span className="font-normal text-primary">Créditos</span> del Sur
+            <span className="font-normal text-[#08557f]">Credi</span>Finanzas
           </h1>
           <p className="text-xs text-gray-400 uppercase tracking-wider mt-4">Plataforma Financiera</p>
         </div>
@@ -242,11 +338,12 @@ const LoginPage = () => {
                 onChange={handleInputChange}
                 onFocus={() => setFocusedField('usuario')}
                 onBlur={() => setFocusedField(null)}
-                className="w-full pl-8 pr-4 py-3 bg-transparent border-0 border-b border-gray-200 focus:border-primary focus:outline-none transition-all duration-300 text-gray-700 placeholder-gray-400 text-sm"
+                className="w-full pl-8 pr-4 py-3 bg-transparent border-0 border-b border-gray-200 focus:border-[#08557f] focus:outline-none transition-all duration-300 text-gray-700 placeholder-gray-400 text-sm"
                 placeholder="Usuario"
                 autoComplete="username"
+                disabled={isLoading}
               />
-              <div className={`h-px bg-gradient-to-r from-primary to-transparent absolute bottom-0 left-0 transition-all duration-500 ${
+              <div className={`h-px bg-gradient-to-r from-[#08557f] to-transparent absolute bottom-0 left-0 transition-all duration-500 ${
                 focusedField === 'usuario' ? 'w-full' : 'w-0'
               }`}></div>
             </div>
@@ -268,14 +365,16 @@ const LoginPage = () => {
                 onChange={handleInputChange}
                 onFocus={() => setFocusedField('password')}
                 onBlur={() => setFocusedField(null)}
-                className="w-full pl-8 pr-12 py-3 bg-transparent border-0 border-b border-gray-200 focus:border-primary focus:outline-none transition-all duration-300 text-gray-700 placeholder-gray-400 text-sm"
+                className="w-full pl-8 pr-12 py-3 bg-transparent border-0 border-b border-gray-200 focus:border-[#08557f] focus:outline-none transition-all duration-300 text-gray-700 placeholder-gray-400 text-sm"
                 placeholder="Contraseña"
                 autoComplete="current-password"
+                disabled={isLoading}
               />
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
                 className="absolute right-0 top-1/2 -translate-y-1/2 p-1 text-gray-400 hover:text-gray-600 transition-colors"
+                disabled={isLoading}
               >
                 {showPassword ? (
                   <EyeOff className="h-4 w-4" />
@@ -283,7 +382,7 @@ const LoginPage = () => {
                   <Eye className="h-4 w-4" />
                 )}
               </button>
-              <div className={`h-px bg-gradient-to-r from-primary to-transparent absolute bottom-0 left-0 transition-all duration-500 ${
+              <div className={`h-px bg-gradient-to-r from-[#08557f] to-transparent absolute bottom-0 left-0 transition-all duration-500 ${
                 focusedField === 'password' ? 'w-full' : 'w-0'
               }`}></div>
             </div>
@@ -293,13 +392,13 @@ const LoginPage = () => {
               <button
                 type="submit"
                 disabled={isLoading}
-                className="w-full group relative overflow-hidden"
+                className="w-full group relative overflow-hidden disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <div className="absolute inset-0 bg-white border border-gray-200 rounded-lg transition-all duration-300 group-hover:border-[#08557f]"></div>
                 
                 <div className="relative py-3 px-4 flex items-center justify-between">
                   <span className="text-sm font-medium text-gray-700 group-hover:text-[#08557f] transition-colors duration-300">
-                    {isLoading ? 'Verificando...' : 'Acceder'}
+                    {isLoading ? 'Verificando...' : 'Acceder al Panel'}
                   </span>
                   <div className={`transition-all duration-300 ${
                     isLoading ? 'opacity-0 translate-x-4' : 'opacity-100'

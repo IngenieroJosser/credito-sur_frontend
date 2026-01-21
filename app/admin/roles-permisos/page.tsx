@@ -14,8 +14,10 @@ import {
   Trash2,
   Save,
   Info,
-  Users
+  Users,
+  Settings
 } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 // Tipos alineados con Prisma Schema
 interface Permission {
@@ -142,8 +144,8 @@ const RoleManagementPage = () => {
 
   const getCategoryColor = (categoria: string) => {
     switch (categoria) {
-      case 'lectura': return 'text-blue-600 bg-blue-50 border-blue-100';
-      case 'escritura': return 'text-green-600 bg-green-50 border-green-100';
+      case 'lectura': return 'text-[#08557f] bg-[#08557f]/5 border-[#08557f]/10';
+      case 'escritura': return 'text-emerald-600 bg-emerald-50 border-emerald-100';
       case 'eliminacion': return 'text-red-600 bg-red-50 border-red-100';
       case 'administracion': return 'text-purple-600 bg-purple-50 border-purple-100';
       default: return 'text-gray-600 bg-gray-50 border-gray-100';
@@ -243,46 +245,71 @@ const RoleManagementPage = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50/50">
-      {/* Header */}
-      <div className="sticky top-0 z-40 bg-white/80 backdrop-blur-md border-b border-gray-100">
-        <div className="px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center text-primary">
-                <Shield className="h-5 w-5" />
-              </div>
-              <div>
-                <h1 className="text-xl font-semibold text-gray-900">Roles y Permisos</h1>
-                <p className="text-sm text-gray-500">Gestión de acceso y seguridad del sistema</p>
-              </div>
-            </div>
-
-            <div className="flex items-center space-x-3">
-              <button
-                onClick={handleOpenCreateRoleModal}
-                className="flex items-center space-x-2 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark transition-all duration-200 shadow-sm hover:shadow-md"
-              >
-                <Plus className="h-4 w-4" />
-                <span className="text-sm font-medium">Nuevo Rol</span>
-              </button>
-            </div>
-          </div>
-        </div>
+    <div className="min-h-screen bg-white">
+      {/* Fondo arquitectónico ultra sutil */}
+      <div className="fixed inset-0 pointer-events-none">
+        <div className="absolute inset-0 bg-gradient-to-br from-white via-gray-50/50 to-white"></div>
+        {/* Líneas de estructura */}
+        <div className="absolute inset-0" style={{
+          backgroundImage: `linear-gradient(to right, #08557f 0.5px, transparent 0.5px)`,
+          backgroundSize: '96px 1px',
+          opacity: 0.03
+        }}></div>
+        <div className="absolute inset-0" style={{
+          backgroundImage: `linear-gradient(to bottom, #08557f 0.5px, transparent 0.5px)`,
+          backgroundSize: '1px 96px',
+          opacity: 0.03
+        }}></div>
       </div>
 
-      <div className="p-6 max-w-7xl mx-auto">
-        {/* Estadísticas */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+      <div className="relative z-10 mx-auto max-w-7xl space-y-8 p-6 md:p-8 lg:p-12">
+        {/* Header */}
+        <header className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+          <div className="space-y-1">
+            <div className="inline-flex items-center gap-2 rounded-full bg-[#08557f]/5 px-2.5 py-0.5 text-xs font-medium text-[#08557f] mb-2">
+              <Shield className="h-3.5 w-3.5" />
+              <span>Seguridad del Sistema</span>
+            </div>
+            <h1 className="text-3xl font-light tracking-tight text-gray-900">
+              Roles y <span className="font-semibold">Permisos</span>
+            </h1>
+            <p className="text-base text-gray-500 max-w-2xl font-light">
+              Gestiona los niveles de acceso y responsabilidades de los usuarios en CrediSur.
+            </p>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <button
+              onClick={handleOpenCreateRoleModal}
+              className="inline-flex items-center gap-2 rounded-lg bg-[#08557f] px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-[#064364] transition-colors"
+            >
+              <Plus className="h-4 w-4" />
+              <span>Nuevo Rol</span>
+            </button>
+          </div>
+        </header>
+
+        {/* Stats */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           {[
-            { label: 'Total Roles', value: roles.length, color: 'text-blue-600', bg: 'bg-blue-50' },
-            { label: 'Total Permisos', value: allPermissions.length, color: 'text-green-600', bg: 'bg-green-50' },
-            { label: 'Roles Sistema', value: roles.filter(r => r.esSistema).length, color: 'text-purple-600', bg: 'bg-purple-50' },
-            { label: 'Roles Personalizados', value: roles.filter(r => !r.esSistema).length, color: 'text-orange-600', bg: 'bg-orange-50' }
+            { label: 'Total Roles', value: roles.length, color: 'text-[#08557f]', bgColor: 'bg-[#08557f]/5', icon: <Shield className="h-5 w-5" /> },
+            { label: 'Total Permisos', value: allPermissions.length, color: 'text-emerald-600', bgColor: 'bg-emerald-50', icon: <Key className="h-5 w-5" /> },
+            { label: 'Roles Sistema', value: roles.filter(r => r.esSistema).length, color: 'text-gray-600', bgColor: 'bg-gray-100', icon: <Settings className="h-5 w-5" /> },
+            { label: 'Roles Personalizados', value: roles.filter(r => !r.esSistema).length, color: 'text-amber-600', bgColor: 'bg-amber-50', icon: <Users className="h-5 w-5" /> }
           ].map((stat, index) => (
-            <div key={index} className="bg-white border border-gray-100 rounded-xl p-5 shadow-sm">
-              <div className={`text-2xl font-bold mb-1 ${stat.color}`}>{stat.value}</div>
-              <div className="text-sm text-gray-500 font-medium">{stat.label}</div>
+            <div
+              key={index}
+              className="group relative overflow-hidden bg-white p-5 rounded-2xl border border-gray-200/50 hover:shadow-sm transition-all duration-300"
+            >
+              <div className="flex items-start justify-between">
+                <div>
+                  <p className="text-xs font-medium text-gray-500 uppercase tracking-wider">{stat.label}</p>
+                  <h3 className="text-2xl font-light text-gray-900 mt-2 tracking-tight">{stat.value}</h3>
+                </div>
+                <div className={cn("p-2.5 rounded-lg transition-colors", stat.bgColor, stat.color)}>
+                  {stat.icon}
+                </div>
+              </div>
             </div>
           ))}
         </div>
@@ -290,42 +317,42 @@ const RoleManagementPage = () => {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Lista de Roles */}
           <div className="lg:col-span-1 space-y-6">
-            <div className="bg-white border border-gray-100 rounded-xl shadow-sm overflow-hidden">
+            <div className="bg-white border border-gray-200/50 rounded-2xl shadow-sm overflow-hidden">
               <div className="p-5 border-b border-gray-100 flex justify-between items-center">
-                <h2 className="font-semibold text-gray-800">Roles Definidos</h2>
-                <span className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded-full">{roles.length}</span>
+                <h2 className="font-medium text-gray-900">Roles Definidos</h2>
+                <span className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded-full font-medium">{roles.length}</span>
               </div>
               
               <div className="divide-y divide-gray-50">
                 {roles.map(role => (
                   <div
                     key={role.id}
-                    className="p-4 hover:bg-gray-50 transition-colors group relative"
+                    className="p-5 hover:bg-gray-50/50 transition-colors group relative"
                   >
                     <div className="flex justify-between items-start mb-2">
                       <div className="flex items-center space-x-2">
-                        <div className={`w-2 h-2 rounded-full ${role.esSistema ? 'bg-primary' : 'bg-orange-400'}`}></div>
+                        <div className={`w-1.5 h-1.5 rounded-full ${role.esSistema ? 'bg-[#08557f]' : 'bg-amber-500'}`}></div>
                         <h3 className="font-medium text-gray-900">{role.nombre}</h3>
                       </div>
                       {role.esSistema && (
-                        <span className="text-[10px] font-medium px-2 py-0.5 bg-gray-100 text-gray-600 rounded-full border border-gray-200">
+                        <span className="text-[10px] font-medium px-2 py-0.5 bg-gray-100 text-gray-600 rounded-full border border-gray-200 uppercase tracking-wide">
                           Sistema
                         </span>
                       )}
                     </div>
                     
-                    <p className="text-sm text-gray-500 mb-3 line-clamp-2">{role.descripcion}</p>
+                    <p className="text-sm text-gray-500 mb-4 line-clamp-2 leading-relaxed font-light">{role.descripcion}</p>
                     
-                    <div className="flex items-center justify-between mt-4">
-                      <div className="text-xs text-gray-400 flex items-center">
-                        <Users className="h-3 w-3 mr-1" />
+                    <div className="flex items-center justify-between">
+                      <div className="text-xs font-medium text-gray-400 flex items-center bg-gray-50 px-2 py-1 rounded-md">
+                        <Users className="h-3 w-3 mr-1.5" />
                         {role.usuariosAsignados} usuarios
                       </div>
                       
                       <div className="flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
                         <button
                           onClick={() => handleOpenPermissionsModal(role)}
-                          className="p-1.5 text-gray-400 hover:text-primary hover:bg-primary/5 rounded-lg transition-colors"
+                          className="p-2 text-gray-400 hover:text-[#08557f] hover:bg-[#08557f]/5 rounded-lg transition-colors"
                           title="Gestionar Permisos"
                         >
                           <Key className="h-4 w-4" />
@@ -334,14 +361,14 @@ const RoleManagementPage = () => {
                           <>
                             <button
                               onClick={() => handleOpenEditRoleModal(role)}
-                              className="p-1.5 text-gray-400 hover:text-blue-500 hover:bg-blue-50 rounded-lg transition-colors"
+                              className="p-2 text-gray-400 hover:text-[#08557f] hover:bg-[#08557f]/5 rounded-lg transition-colors"
                               title="Editar Rol"
                             >
                               <Edit2 className="h-4 w-4" />
                             </button>
                             <button
                               onClick={() => handleOpenDeleteRoleModal(role)}
-                              className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                              className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                               title="Eliminar Rol"
                             >
                               <Trash2 className="h-4 w-4" />
@@ -355,29 +382,29 @@ const RoleManagementPage = () => {
               </div>
             </div>
             
-            <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 flex items-start space-x-3">
-              <Info className="h-5 w-5 text-blue-500 mt-0.5 shrink-0" />
-              <p className="text-sm text-blue-700">
-                Los roles de sistema no pueden ser eliminados ni renombrados, pero puedes ajustar sus permisos específicos según sea necesario.
+            <div className="bg-[#08557f]/5 border border-[#08557f]/10 rounded-2xl p-5 flex items-start space-x-3">
+              <Info className="h-5 w-5 text-[#08557f] mt-0.5 shrink-0" />
+              <p className="text-sm text-[#08557f] leading-relaxed font-light">
+                Los roles de sistema no pueden ser eliminados ni renombrados para garantizar la integridad de CrediSur, pero puedes ajustar sus permisos específicos.
               </p>
             </div>
           </div>
 
           {/* Panel de Permisos */}
           <div className="lg:col-span-2">
-            <div className="bg-white border border-gray-100 rounded-xl shadow-sm h-full flex flex-col">
+            <div className="bg-white border border-gray-200/50 rounded-2xl shadow-sm h-full flex flex-col overflow-hidden">
               <div className="p-5 border-b border-gray-100">
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                   <div>
-                    <h2 className="font-semibold text-gray-800">Catálogo de Permisos</h2>
-                    <p className="text-sm text-gray-500 mt-1">Capacidades disponibles en el sistema</p>
+                    <h2 className="font-medium text-gray-900">Catálogo de Permisos</h2>
+                    <p className="text-sm text-gray-500 mt-1 font-light">Capacidades disponibles en el sistema</p>
                   </div>
                   
                   <div className="flex items-center space-x-2">
                     <select
                       value={filterModule}
                       onChange={(e) => setFilterModule(e.target.value)}
-                      className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                      className="px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-[#08557f] focus:border-[#08557f] cursor-pointer hover:border-gray-300 transition-colors"
                     >
                       <option value="all">Todos los módulos</option>
                       {modules.map(module => (
@@ -394,28 +421,28 @@ const RoleManagementPage = () => {
                     placeholder="Buscar permiso por nombre o descripción..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                    className="w-full pl-10 pr-4 py-2 bg-gray-50/50 border border-gray-200 rounded-lg text-sm text-gray-900 focus:outline-none focus:ring-1 focus:ring-[#08557f] focus:border-[#08557f] transition-all"
                   />
                 </div>
               </div>
 
-              <div className="flex-1 overflow-y-auto p-2">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 p-3">
+              <div className="flex-1 overflow-y-auto p-4 bg-gray-50/30">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   {filteredPermissions.map(permission => (
                     <div 
                       key={permission.id} 
-                      className="border border-gray-100 rounded-lg p-3 hover:border-primary/30 hover:shadow-sm transition-all bg-white"
+                      className="group bg-white border border-gray-200/60 rounded-xl p-4 hover:border-[#08557f]/30 hover:shadow-sm transition-all duration-200"
                     >
                       <div className="flex justify-between items-start mb-2">
-                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded uppercase tracking-wide ${getCategoryColor(permission.categoria)} border`}>
+                        <span className={cn("text-[10px] font-medium px-2 py-0.5 rounded-full uppercase tracking-wide border", getCategoryColor(permission.categoria))}>
                           {permission.modulo}
                         </span>
-                        <span className={`text-[10px] font-medium px-2 py-0.5 rounded ${getCategoryColor(permission.categoria)}`}>
+                        <span className={cn("text-[10px] font-medium px-2 py-0.5 rounded-full", getCategoryColor(permission.categoria))}>
                           {getCategoryLabel(permission.categoria)}
                         </span>
                       </div>
-                      <h3 className="font-medium text-gray-800 text-sm mb-1">{permission.nombre}</h3>
-                      <p className="text-xs text-gray-500 leading-relaxed">{permission.descripcion}</p>
+                      <h3 className="font-medium text-gray-900 text-sm mb-1 group-hover:text-[#08557f] transition-colors">{permission.nombre}</h3>
+                      <p className="text-xs text-gray-500 leading-relaxed font-light">{permission.descripcion}</p>
                     </div>
                   ))}
                 </div>
@@ -427,121 +454,52 @@ const RoleManagementPage = () => {
 
       {/* Modal de Crear/Editar Rol */}
       {isCreateRoleModalOpen && (
-        <div className="fixed inset-0 bg-black/20 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-xl w-full max-w-lg shadow-xl border border-gray-100">
-            <div className="p-6 border-b border-gray-100 flex justify-between items-center">
-              <h2 className="text-lg font-semibold text-gray-800">
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-2xl w-full max-w-lg shadow-2xl border border-gray-100 transform transition-all">
+            <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50/50 rounded-t-2xl">
+              <h2 className="text-lg font-bold text-gray-900">
                 {selectedRole ? 'Editar Rol' : 'Nuevo Rol'}
               </h2>
-              <button onClick={() => setIsCreateRoleModalOpen(false)} className="text-gray-400 hover:text-gray-600">
+              <button onClick={() => setIsCreateRoleModalOpen(false)} className="text-gray-400 hover:text-gray-600 p-1 hover:bg-gray-100 rounded-full transition-colors">
                 <X className="h-5 w-5" />
               </button>
             </div>
             
             <div className="p-6 space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Nombre del Rol</label>
+                <label className="block text-sm font-semibold text-gray-700 mb-1.5">Nombre del Rol</label>
                 <input
                   type="text"
                   value={roleFormData.nombre}
                   onChange={(e) => setRoleFormData({...roleFormData, nombre: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none"
+                  className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-gray-900 focus:border-transparent outline-none transition-all text-sm"
                   placeholder="Ej. Auditor Externo"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Descripción</label>
+                <label className="block text-sm font-semibold text-gray-700 mb-1.5">Descripción</label>
                 <textarea
                   value={roleFormData.descripcion}
                   onChange={(e) => setRoleFormData({...roleFormData, descripcion: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none h-24 resize-none"
+                  className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-gray-900 focus:border-transparent outline-none transition-all text-sm h-24 resize-none"
                   placeholder="Describe las responsabilidades de este rol..."
                 />
               </div>
             </div>
-
-            <div className="p-6 border-t border-gray-100 flex justify-end space-x-3 bg-gray-50/50 rounded-b-xl">
+            
+            <div className="p-6 border-t border-gray-100 bg-gray-50/50 rounded-b-2xl flex justify-end space-x-3">
               <button
                 onClick={() => setIsCreateRoleModalOpen(false)}
-                className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors font-medium text-sm"
+                className="px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
               >
                 Cancelar
               </button>
               <button
                 onClick={handleSaveRole}
-                className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark transition-colors shadow-sm font-medium text-sm flex items-center"
+                className="px-4 py-2 text-sm font-medium text-white bg-gray-900 hover:bg-gray-800 rounded-lg shadow-sm transition-colors flex items-center gap-2"
               >
-                <Save className="h-4 w-4 mr-2" />
+                <Save className="h-4 w-4" />
                 Guardar Rol
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Modal de Gestión de Permisos */}
-      {isPermissionsModalOpen && selectedRole && (
-        <div className="fixed inset-0 bg-black/20 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-xl w-full max-w-4xl shadow-xl border border-gray-100 max-h-[90vh] flex flex-col">
-            <div className="p-6 border-b border-gray-100 flex justify-between items-center">
-              <div>
-                <h2 className="text-lg font-semibold text-gray-800">Permisos del Rol: <span className="text-primary">{selectedRole.nombre}</span></h2>
-                <p className="text-sm text-gray-500">Configura qué acciones puede realizar este rol</p>
-              </div>
-              <button onClick={() => setIsPermissionsModalOpen(false)} className="text-gray-400 hover:text-gray-600">
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-            
-            <div className="flex-1 overflow-y-auto p-6 bg-gray-50">
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {allPermissions.map(permission => (
-                  <div 
-                    key={permission.id}
-                    onClick={() => togglePermission(permission.accion)}
-                    className={`
-                      cursor-pointer border rounded-xl p-4 transition-all duration-200 relative overflow-hidden
-                      ${selectedPermissions.includes(permission.accion) 
-                        ? 'bg-white border-primary shadow-sm ring-1 ring-primary/10' 
-                        : 'bg-white border-gray-200 hover:border-gray-300'
-                      }
-                    `}
-                  >
-                    <div className="flex justify-between items-start mb-2">
-                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded uppercase ${getCategoryColor(permission.categoria)}`}>
-                        {permission.modulo}
-                      </span>
-                      {selectedPermissions.includes(permission.accion) && (
-                        <div className="bg-primary text-white rounded-full p-0.5">
-                          <Check className="h-3 w-3" />
-                        </div>
-                      )}
-                    </div>
-                    <h3 className={`font-medium text-sm mb-1 ${selectedPermissions.includes(permission.accion) ? 'text-primary' : 'text-gray-700'}`}>
-                      {permission.nombre}
-                    </h3>
-                    <p className="text-xs text-gray-500 leading-snug">{permission.descripcion}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="p-6 border-t border-gray-100 flex justify-end space-x-3 bg-white rounded-b-xl">
-              <button
-                onClick={() => setIsPermissionsModalOpen(false)}
-                className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors font-medium text-sm"
-              >
-                Cancelar
-              </button>
-              <button
-                onClick={() => {
-                  setRoles(roles.map(r => r.id === selectedRole.id ? { ...r, permisos: selectedPermissions } : r));
-                  setIsPermissionsModalOpen(false);
-                }}
-                className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark transition-colors shadow-sm font-medium text-sm flex items-center"
-              >
-                <Save className="h-4 w-4 mr-2" />
-                Guardar Cambios
               </button>
             </div>
           </div>
@@ -550,30 +508,143 @@ const RoleManagementPage = () => {
 
       {/* Modal de Eliminar Rol */}
       {isDeleteRoleModalOpen && selectedRole && (
-        <div className="fixed inset-0 bg-black/20 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-xl w-full max-w-md shadow-xl border border-gray-100">
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl border border-gray-100">
             <div className="p-6 text-center">
-              <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <AlertCircle className="h-6 w-6 text-red-600" />
+              <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <AlertCircle className="h-8 w-8 text-red-600" />
               </div>
-              <h2 className="text-lg font-semibold text-gray-900 mb-2">¿Eliminar rol?</h2>
-              <p className="text-sm text-gray-600 mb-6">
-                Estás a punto de eliminar el rol <span className="font-medium text-gray-900">{selectedRole.nombre}</span>. 
-                Esta acción no se puede deshacer y afectará a los usuarios que tengan este rol asignado.
+              <h3 className="text-xl font-bold text-gray-900 mb-2">¿Eliminar rol?</h3>
+              <p className="text-gray-500 text-sm mb-6">
+                Estás a punto de eliminar el rol <span className="font-bold text-gray-800">{selectedRole.nombre}</span>. 
+                Esta acción no se puede deshacer y afectará a {selectedRole.usuariosAsignados} usuarios asignados.
               </p>
               
               <div className="flex justify-center space-x-3">
                 <button
                   onClick={() => setIsDeleteRoleModalOpen(false)}
-                  className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors font-medium text-sm"
+                  className="px-5 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-xl transition-colors"
                 >
                   Cancelar
                 </button>
                 <button
                   onClick={handleDeleteRole}
-                  className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors shadow-sm font-medium text-sm"
+                  className="px-5 py-2.5 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-xl shadow-sm transition-colors flex items-center gap-2"
                 >
-                  Eliminar
+                  <Trash2 className="h-4 w-4" />
+                  Sí, eliminar
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Gestión de Permisos */}
+      {isPermissionsModalOpen && selectedRole && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-2xl w-full max-w-4xl h-[80vh] flex flex-col shadow-2xl border border-gray-100">
+            <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50/50 rounded-t-2xl">
+              <div>
+                <h2 className="text-lg font-bold text-gray-900">
+                  Permisos: {selectedRole.nombre}
+                </h2>
+                <p className="text-sm text-gray-500">
+                  {selectedPermissions.length} permisos activos
+                </p>
+              </div>
+              <button onClick={() => setIsPermissionsModalOpen(false)} className="text-gray-400 hover:text-gray-600 p-1 hover:bg-gray-100 rounded-full transition-colors">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            
+            <div className="flex-1 overflow-y-auto p-6 bg-gray-50/30">
+              <div className="space-y-6">
+                {modules.map(module => {
+                  const modulePermissions = allPermissions.filter(p => p.modulo === module);
+                  return (
+                    <div key={module} className="bg-white border border-gray-100 rounded-xl overflow-hidden shadow-sm">
+                      <div className="px-4 py-3 bg-gray-50 border-b border-gray-100 flex justify-between items-center">
+                        <h3 className="font-semibold text-gray-900 flex items-center gap-2">
+                          <span className="w-1.5 h-1.5 rounded-full bg-blue-500"></span>
+                          {module}
+                        </h3>
+                        <div className="flex gap-2">
+                          <button 
+                            className="text-xs text-blue-600 hover:text-blue-800 font-medium px-2 py-1 rounded hover:bg-blue-50 transition-colors"
+                            onClick={() => {
+                              const moduleIds = modulePermissions.map(p => p.accion);
+                              const allSelected = moduleIds.every(id => selectedPermissions.includes(id));
+                              
+                              if (allSelected) {
+                                setSelectedPermissions(prev => prev.filter(id => !moduleIds.includes(id)));
+                              } else {
+                                setSelectedPermissions(prev => [...new Set([...prev, ...moduleIds])]);
+                              }
+                            }}
+                          >
+                            Seleccionar todos
+                          </button>
+                        </div>
+                      </div>
+                      <div className="p-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                        {modulePermissions.map(permission => {
+                          const isSelected = selectedPermissions.includes(permission.accion);
+                          return (
+                            <div 
+                              key={permission.id}
+                              onClick={() => togglePermission(permission.accion)}
+                              className={cn(
+                                "cursor-pointer border rounded-xl p-3 transition-all duration-200 flex items-start gap-3",
+                                isSelected 
+                                  ? "bg-[#08557f]/5 border-[#08557f]/20 shadow-sm" 
+                                  : "bg-white border-gray-100 hover:border-gray-300 hover:bg-gray-50"
+                              )}
+                            >
+                              <div className={cn(
+                                "mt-0.5 w-5 h-5 rounded border flex items-center justify-center shrink-0 transition-colors",
+                                isSelected ? "bg-blue-600 border-blue-600 text-white" : "border-gray-300 bg-white"
+                              )}>
+                                {isSelected && <Check className="h-3.5 w-3.5" />}
+                              </div>
+                              <div>
+                                <h4 className={cn("text-sm font-medium mb-0.5", isSelected ? "text-blue-900" : "text-gray-900")}>
+                                  {permission.nombre}
+                                </h4>
+                                <p className={cn("text-xs leading-relaxed", isSelected ? "text-blue-700" : "text-gray-500")}>
+                                  {permission.descripcion}
+                                </p>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+            
+            <div className="p-6 border-t border-gray-100 bg-gray-50/50 rounded-b-2xl flex justify-between items-center">
+              <span className="text-xs text-gray-500">
+                Los cambios se aplicarán inmediatamente después de guardar.
+              </span>
+              <div className="flex space-x-3">
+                <button
+                  onClick={() => setIsPermissionsModalOpen(false)}
+                  className="px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={() => {
+                    handleSaveRole(); // Reuses logic to save permissions
+                    setIsPermissionsModalOpen(false);
+                  }}
+                  className="px-4 py-2 text-sm font-medium text-white bg-gray-900 hover:bg-gray-800 rounded-lg shadow-sm transition-colors flex items-center gap-2"
+                >
+                  <Save className="h-4 w-4" />
+                  Guardar Permisos
                 </button>
               </div>
             </div>
