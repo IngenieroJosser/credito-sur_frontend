@@ -919,7 +919,7 @@ const CreacionPrestamoElegante = () => {
                   disabled={step === 1}
                 >
                   <ArrowLeft className="w-4 h-4" />
-                  <span className="font-medium">Anterior</span> 
+                  <span className="font-medium">Anterior</span>
                 </button>
 
                 <button
