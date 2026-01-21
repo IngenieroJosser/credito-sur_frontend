@@ -916,7 +916,7 @@ const CreacionPrestamoElegante = () => {
                       ? 'text-gray-600 hover:bg-gray-100'
                       : 'text-gray-300 cursor-not-allowed'
                     }`}
-                  disabled={step === 1} 
+                  disabled={step === 1}
                 >
                   <ArrowLeft className="w-4 h-4" />
                   <span className="font-medium">Anterior</span>
