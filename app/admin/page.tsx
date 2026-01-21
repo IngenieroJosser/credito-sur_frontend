@@ -18,6 +18,7 @@ import {
   Wallet
 } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils';
+import { useRouter } from 'next/navigation';
 
 interface MetricCard {
   title: string;
@@ -37,9 +38,45 @@ interface QuickAccessItem {
   href: string;
 }
 
+interface UserData {
+  id: string;
+  nombres: string;
+  apellidos: string;
+  rol: string;
+  correo?: string;
+  telefono?: string;
+  nombreCompleto?: string;
+}
+
 const DashboardPage = () => {
   const [timeFilter, setTimeFilter] = useState<'today' | 'week' | 'month' | 'quarter'>('month');
   const [currentDate, setCurrentDate] = useState<Date | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [userData, setUserData] = useState<UserData | null>(null);
+  const router = useRouter();
+  
+  // Verificar sesión
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    const user = localStorage.getItem('user');
+    
+    if (!token || !user) {
+      // Si no hay sesión, redirigir al login
+      router.replace('/');
+      return;
+    }
+    
+    try {
+      const parsedUser = JSON.parse(user);
+      setUserData(parsedUser);
+      setIsLoading(false);
+    } catch (error) {
+      console.error('Error al parsear datos del usuario:', error);
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      router.replace('/');
+    }
+  }, [router]);
   
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -137,6 +174,25 @@ const DashboardPage = () => {
     { id: 4, client: 'Ramírez P.', action: 'Pago anticipado', amount: 2100000, time: '13:20', status: 'success' },
     { id: 5, client: 'Sánchez L.', action: 'Consulta saldo', amount: null, time: '14:45', status: 'info' }
   ];
+
+  // Función para cerrar sesión
+  const handleLogout = () => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    router.replace('/');
+  };
+
+  // Mostrar loading mientras se verifica la sesión
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-white flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-8 h-8 border-2 border-[#08557f] border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-gray-600">Verificando sesión...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-white relative">
@@ -403,7 +459,7 @@ const DashboardPage = () => {
         {/* Footer sutil */}
         <div className="mt-8 text-center pb-6">
           <p className="text-[10px] text-gray-400 uppercase tracking-widest">
-            CrediSur • Sistema de Gestión v1.0
+            CrediSur • Sistema de Gestión v1.0 • Sesión activa
           </p>
         </div>
       </div>
