@@ -16,55 +16,26 @@ import {
   ArrowUpRight,
   Activity,
   Wallet,
-  CheckCircle,
+  CheckCircle2,
   Route,
   Map,
   Receipt,
-  UserPlus,
+  ShoppingBag,
+  Archive,
+  FileText,
   DollarSign,
-  AlertTriangle,
-  FileX,
   Percent,
   Package,
   Calculator,
   Inbox,
-  FileCheck,
-  CheckCircle as CheckCircleIcon,
-  DollarSign as DollarSignIcon,
-  AlertTriangle as AlertTriangleIcon,
-  Map as MapIcon,
-  Receipt as ReceiptIcon,
-  UserPlus as UserPlusIcon,
-  Banknote as BanknoteIcon,
-  FileX as FileXIcon,
-  Percent as PercentIcon,
-  Package as PackageIcon,
-  Calculator as CalculatorIcon,
-  Inbox as InboxIcon,
-  FileCheck as FileCheckIcon
+  Filter,
+  BarChart3,
+  Shield
 } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils';
 import { useRouter } from 'next/navigation';
-import { obtenerPermisosUsuario, getIconComponent, Rol, getDashboardComponent } from '@/lib/permissions';
+import { Rol, obtenerModulosPorRol, getIconComponent } from '@/lib/permissions';
 import VistaCobradorPage from '../cobranzas/page';
-
-interface MetricCard {
-  title: string;
-  value: number | string;
-  isCurrency: boolean;
-  change: number;
-  icon: React.ReactNode;
-  color: string;
-}
-
-interface QuickAccessItem {
-  title: string;
-  subtitle: string;
-  icon: React.ReactNode;
-  color: string;
-  badge?: number;
-  href: string;
-}
 
 interface UserData {
   id: string;
@@ -81,12 +52,11 @@ const DashboardPage = () => {
   const [currentDate, setCurrentDate] = useState<Date | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [userData, setUserData] = useState<UserData | null>(null);
-  const [mainMetrics, setMainMetrics] = useState<MetricCard[]>([]);
-  const [quickAccess, setQuickAccess] = useState<QuickAccessItem[]>([]);
-  const [dashboardType, setDashboardType] = useState<string>('default');
+  const [quickAccess, setQuickAccess] = useState<any[]>([]);
+  const [mainMetrics, setMainMetrics] = useState<any[]>([]);
   const router = useRouter();
   
-  // Verificar sesión y cargar datos del usuario
+  // Verificar sesión
   useEffect(() => {
     const token = localStorage.getItem('token');
     const user = localStorage.getItem('user');
@@ -100,32 +70,8 @@ const DashboardPage = () => {
       const parsedUser = JSON.parse(user) as UserData;
       setUserData(parsedUser);
       
-      // Obtener permisos según el rol
-      if (parsedUser.rol) {
-        const permisos = obtenerPermisosUsuario(parsedUser.rol);
-        const dashboardComponent = getDashboardComponent(parsedUser.rol);
-        
-        setDashboardType(dashboardComponent);
-        
-        // Solo cargar métricas y accesos rápidos si no es cobrador
-        if (dashboardComponent !== 'cobrador') {
-          // Convertir métricas del rol a formato de componente
-          const metricsConverted = permisos.metricas.mainMetrics.map(metric => ({
-            ...metric,
-            icon: getIconComponent(metric.icon),
-            value: metric.isCurrency ? Number(metric.value) : metric.value
-          }));
-          
-          // Convertir accesos rápidos del rol a formato de componente
-          const quickAccessConverted = permisos.metricas.quickAccess.map(item => ({
-            ...item,
-            icon: getIconComponent(item.icon)
-          }));
-          
-          setMainMetrics(metricsConverted);
-          setQuickAccess(quickAccessConverted);
-        }
-      }
+      // Configurar métricas y accesos rápidos según el rol
+      configurarDashboardPorRol(parsedUser.rol);
       
       setIsLoading(false);
     } catch (error) {
@@ -142,6 +88,344 @@ const DashboardPage = () => {
     }, 0);
     return () => clearTimeout(timer);
   }, []);
+  
+  const configurarDashboardPorRol = (rol: Rol) => {
+    // Configurar métricas según el rol
+    const metricsConfig: Record<Rol, any[]> = {
+      SUPER_ADMINISTRADOR: [
+        {
+          title: 'Capital Activo',
+          value: 2850000000,
+          isCurrency: true,
+          change: 8.2,
+          icon: <TrendingUp className="h-4 w-4" />,
+          color: '#08557f'
+        },
+        {
+          title: 'Recuperación',
+          value: '94.2%',
+          isCurrency: false,
+          change: 2.1,
+          icon: <Target className="h-4 w-4" />,
+          color: '#10b981'
+        },
+        {
+          title: 'Cartera Vencida',
+          value: 45000000,
+          isCurrency: true,
+          change: -3.4,
+          icon: <AlertCircle className="h-4 w-4" />,
+          color: '#ef4444'
+        },
+        {
+          title: 'Eficiencia',
+          value: '87.3%',
+          isCurrency: false,
+          change: 1.8,
+          icon: <Activity className="h-4 w-4" />,
+          color: '#fb851b'
+        }
+      ],
+      COORDINADOR: [
+        {
+          title: 'Préstamos Pendientes',
+          value: 15,
+          isCurrency: false,
+          change: 8.2,
+          icon: <CreditCard className="h-4 w-4" />,
+          color: '#08557f'
+        },
+        {
+          title: 'Aprobaciones',
+          value: 8,
+          isCurrency: false,
+          change: -2.1,
+          icon: <CheckCircle2 className="h-4 w-4" />,
+          color: '#10b981'
+        },
+        {
+          title: 'Cuentas en Mora',
+          value: 23,
+          isCurrency: false,
+          change: -3.4,
+          icon: <AlertCircle className="h-4 w-4" />,
+          color: '#ef4444'
+        },
+        {
+          title: 'Rutas Activas',
+          value: 12,
+          isCurrency: false,
+          change: 1.8,
+          icon: <Route className="h-4 w-4" />,
+          color: '#fb851b'
+        }
+      ],
+      SUPERVISOR: [
+        {
+          title: 'Clientes Atendidos',
+          value: 89,
+          isCurrency: false,
+          change: 5.2,
+          icon: <Users className="h-4 w-4" />,
+          color: '#08557f'
+        },
+        {
+          title: 'Gastos Aprobados',
+          value: 2350000,
+          isCurrency: true,
+          change: -1.3,
+          icon: <Receipt className="h-4 w-4" />,
+          color: '#10b981'
+        },
+        {
+          title: 'Mora Crítica',
+          value: 12,
+          isCurrency: false,
+          change: -3.4,
+          icon: <AlertCircle className="h-4 w-4" />,
+          color: '#ef4444'
+        },
+        {
+          title: 'Cobertura Ruta',
+          value: '89.7%',
+          isCurrency: false,
+          change: 2.1,
+          icon: <Map className="h-4 w-4" />,
+          color: '#fb851b'
+        }
+      ],
+      COBRADOR: [
+        {
+          title: 'Clientes por Visitar',
+          value: 24,
+          isCurrency: false,
+          change: -2,
+          icon: <Users className="h-4 w-4" />,
+          color: '#08557f'
+        },
+        {
+          title: 'Recaudo Hoy',
+          value: 1250000,
+          isCurrency: true,
+          change: 15.3,
+          icon: <Wallet className="h-4 w-4" />,
+          color: '#10b981'
+        },
+        {
+          title: 'Gastos de Ruta',
+          value: 45000,
+          isCurrency: true,
+          change: -5.2,
+          icon: <Receipt className="h-4 w-4" />,
+          color: '#ef4444'
+        },
+        {
+          title: 'Eficiencia Personal',
+          value: '94.2%',
+          isCurrency: false,
+          change: 2.8,
+          icon: <Target className="h-4 w-4" />,
+          color: '#fb851b'
+        }
+      ],
+      CONTADOR: [
+        {
+          title: 'Flujo de Caja',
+          value: 32500000,
+          isCurrency: true,
+          change: 12.5,
+          icon: <TrendingUp className="h-4 w-4" />,
+          color: '#08557f'
+        },
+        {
+          title: 'Cuentas Incobrables',
+          value: 3,
+          isCurrency: false,
+          change: -1.2,
+          icon: <FileText className="h-4 w-4" />,
+          color: '#ef4444'
+        },
+        {
+          title: 'Margen Utilidad',
+          value: '42.3%',
+          isCurrency: false,
+          change: 3.1,
+          icon: <Percent className="h-4 w-4" />,
+          color: '#10b981'
+        },
+        {
+          title: 'Inventario Activo',
+          value: '₡185M',
+          isCurrency: false,
+          change: 8.7,
+          icon: <Package className="h-4 w-4" />,
+          color: '#fb851b'
+        }
+      ]
+    };
+
+    // Configurar accesos rápidos según el rol
+    const quickAccessConfig: Record<Rol, any[]> = {
+      SUPER_ADMINISTRADOR: [
+        {
+          title: 'Nuevo Crédito',
+          subtitle: 'Registro rápido',
+          icon: <CreditCard className="h-5 w-5" />,
+          color: '#08557f',
+          badge: 3,
+          href: '/admin/prestamos/nuevo'
+        },
+        {
+          title: 'Cobranza',
+          subtitle: 'Gestionar pagos',
+          icon: <Wallet className="h-5 w-5" />,
+          color: '#10b981',
+          badge: 12,
+          href: '/admin/pagos/registro'
+        },
+        {
+          title: 'Clientes',
+          subtitle: 'Base de datos',
+          icon: <Users className="h-5 w-5" />,
+          color: '#8b5cf6',
+          href: '/admin/clientes'
+        },
+        {
+          title: 'Análisis',
+          subtitle: 'Reportes avanzados',
+          icon: <PieChart className="h-5 w-5" />,
+          color: '#fb851b',
+          href: '/admin/reportes/operativos'
+        }
+      ],
+      COORDINADOR: [
+        {
+          title: 'Aprobaciones',
+          subtitle: 'Pendientes de revisión',
+          icon: <Inbox className="h-5 w-5" />,
+          color: '#08557f',
+          badge: 8,
+          href: '/admin/aprobaciones'
+        },
+        {
+          title: 'Nuevo Crédito',
+          subtitle: 'Crear préstamo',
+          icon: <CreditCard className="h-5 w-5" />,
+          color: '#10b981',
+          href: '/admin/prestamos/nuevo'
+        },
+        {
+          title: 'Rutas',
+          subtitle: 'Gestión de cobradores',
+          icon: <Route className="h-5 w-5" />,
+          color: '#8b5cf6',
+          href: '/admin/rutas'
+        },
+        {
+          title: 'Reportes',
+          subtitle: 'Métricas diarias',
+          icon: <PieChart className="h-5 w-5" />,
+          color: '#fb851b',
+          href: '/admin/reportes/operativos'
+        }
+      ],
+      SUPERVISOR: [
+        {
+          title: 'Monitoreo Cartera',
+          subtitle: 'Clientes atrasados',
+          icon: <Activity className="h-5 w-5" />,
+          color: '#08557f',
+          href: '/admin/cuentas-mora'
+        },
+        {
+          title: 'Gastos Pendientes',
+          subtitle: 'Aprobar gastos de ruta',
+          icon: <Filter className="h-5 w-5" />,
+          color: '#10b981',
+          badge: 5,
+          href: '/admin/gastos-ruta'
+        },
+        {
+          title: 'Reportes',
+          subtitle: 'Métricas por ruta',
+          icon: <PieChart className="h-5 w-5" />,
+          color: '#8b5cf6',
+          href: '/admin/reportes/operativos'
+        },
+        {
+          title: 'Clientes',
+          subtitle: 'Consulta de cartera',
+          icon: <Users className="h-5 w-5" />,
+          color: '#fb851b',
+          href: '/admin/clientes'
+        }
+      ],
+      COBRADOR: [
+        {
+          title: 'Mi Ruta',
+          subtitle: 'Clientes del día',
+          icon: <Map className="h-5 w-5" />,
+          color: '#08557f',
+          badge: 24,
+          href: '/admin/ruta-diaria'
+        },
+        {
+          title: 'Registrar Pago',
+          subtitle: 'Cobranza inmediata',
+          icon: <Wallet className="h-5 w-5" />,
+          color: '#10b981',
+          href: '/admin/pagos/registro'
+        },
+        {
+          title: 'Nuevo Cliente',
+          subtitle: 'Registro rápido',
+          icon: <Users className="h-5 w-5" />,
+          color: '#8b5cf6',
+          href: '/admin/clientes/nuevo'
+        },
+        {
+          title: 'Base de Efectivo',
+          subtitle: 'Solicitar dinero',
+          icon: <Banknote className="h-5 w-5" />,
+          color: '#fb851b',
+          href: '/admin/base-dinero'
+        }
+      ],
+      CONTADOR: [
+        {
+          title: 'Control de Cajas',
+          subtitle: 'Caja principal y ruta',
+          icon: <Calculator className="h-5 w-5" />,
+          color: '#08557f',
+          href: '/admin/contable'
+        },
+        {
+          title: 'Tesorería',
+          subtitle: 'Ingresos y transferencias',
+          icon: <Banknote className="h-5 w-5" />,
+          color: '#10b981',
+          href: '/admin/tesoreria'
+        },
+        {
+          title: 'Inventario',
+          subtitle: 'Gestión de productos',
+          icon: <Package className="h-5 w-5" />,
+          color: '#8b5cf6',
+          href: '/admin/articulos'
+        },
+        {
+          title: 'Reportes Financieros',
+          subtitle: 'Análisis detallado',
+          icon: <BarChart3 className="h-5 w-5" />,
+          color: '#fb851b',
+          href: '/admin/reportes/financieros'
+        }
+      ]
+    };
+
+    setMainMetrics(metricsConfig[rol] || []);
+    setQuickAccess(quickAccessConfig[rol] || []);
+  };
 
   // Formatear fecha elegante
   const formatDate = (date: Date) => {
@@ -152,6 +436,21 @@ const DashboardPage = () => {
       year: 'numeric'
     };
     return date.toLocaleDateString('es-CO', options);
+  };
+
+  // Obtener título del dashboard según rol
+  const getDashboardTitle = () => {
+    if (!userData) return 'Panel de Control';
+    
+    const titulos: Record<Rol, string> = {
+      'SUPER_ADMINISTRADOR': 'Panel de Control',
+      'COORDINADOR': 'Coordinación de Operaciones',
+      'SUPERVISOR': 'Supervisión de Campo',
+      'COBRADOR': 'Mi Gestión de Cobranza',
+      'CONTADOR': 'Control Financiero'
+    };
+    
+    return titulos[userData.rol] || 'Panel de Control';
   };
 
   // Función para cerrar sesión
@@ -167,14 +466,14 @@ const DashboardPage = () => {
       <div className="min-h-screen bg-white flex items-center justify-center">
         <div className="text-center">
           <div className="w-8 h-8 border-2 border-[#08557f] border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-600">Cargando dashboard...</p>
+          <p className="text-gray-600">Verificando sesión...</p>
         </div>
       </div>
     );
   }
 
   // Si el usuario es COBRADOR, mostrar el componente específico
-  if (dashboardType === 'cobrador' && userData?.rol === 'COBRADOR') {
+  if (userData?.rol === 'COBRADOR') {
     return <VistaCobradorPage />;
   }
 
@@ -202,11 +501,14 @@ const DashboardPage = () => {
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
           <div>
             <h1 className="text-4xl font-light text-slate-900 tracking-tight mb-2">
-              Panel de <span className="font-semibold text-[#08557f]">Control</span>
+              {getDashboardTitle()}
             </h1>
             <p className="text-slate-500 font-medium flex items-center gap-2 text-sm">
               <Calendar className="h-4 w-4 text-[#08557f]/60" />
               {currentDate ? formatDate(currentDate) : ''}
+              <span className="ml-2 px-2 py-1 bg-slate-100 rounded text-xs">
+                {userData?.rol?.replace('_', ' ') || 'Usuario'}
+              </span>
             </p>
           </div>
           
@@ -257,7 +559,7 @@ const DashboardPage = () => {
            })}
         </div>
 
-        {/* Métricas principales ultra minimalistas */}
+        {/* Métricas principales */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {mainMetrics.map((metric, index) => (
             <div
@@ -295,7 +597,7 @@ const DashboardPage = () => {
           {/* Columna Principal (Izquierda) */}
           <div className="lg:col-span-2 space-y-8">
             
-            {/* Accesos Rápidos elegantes */}
+            {/* Accesos Rápidos */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
               {quickAccess.map((item, index) => (
                 <Link
@@ -383,7 +685,6 @@ const DashboardPage = () => {
               
               <div className="p-6 flex-1 overflow-y-auto max-h-[500px] scrollbar-thin scrollbar-thumb-slate-200">
                 <div className="space-y-6 relative before:absolute before:left-[15px] before:top-2 before:bottom-2 before:w-[2px] before:bg-slate-100">
-                  {/* Actividad reciente genérica para otros roles */}
                   {[
                     { id: 1, client: 'González M.', action: 'Pago completado', amount: 1250000, time: '09:42', status: 'success' },
                     { id: 2, client: 'López C.', action: 'Renegociación', amount: 3500000, time: '10:15', status: 'pending' },

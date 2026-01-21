@@ -27,25 +27,18 @@ import {
   MapPin,
   Key,
   ChevronDown,
-  CreditCard as CreditCardIcon,
-  Inbox,
-  FileCheck,
-  Map,
-  Receipt,
-  Calculator,
-  Banknote as BanknoteIcon,
-  FileText,
+  CreditCard as CreditCardIo,
+  ShoppingBag,
   Archive,
-  TrendingUp,
-  Lock,
-  Database,
-  History,
-  CheckSquare,
-  DollarSign,
-  ClipboardCheck,
-  BarChart
+  CheckCircle2,
+  Receipt,
+  Map,
+  HardDrive,
+  Calculator,
+  BarChart3,
+  FileText
 } from 'lucide-react'
-import { Rol, obtenerPermisosUsuario } from '@/lib/permissions'
+import { Rol, obtenerModulosPorRol, getIconComponent, tieneAcceso } from '@/lib/permissions'
 
 interface Usuario {
   nombres: string
@@ -93,89 +86,19 @@ export default function AdminLayout({
           const parsedUser = JSON.parse(userData) as Usuario
           setUser(parsedUser)
           
-          // Obtener permisos según el rol
+          // Obtener módulos según el rol del usuario
           if (parsedUser.rol) {
-            const permisos = obtenerPermisosUsuario(parsedUser.rol)
+            const modulos = obtenerModulosPorRol(parsedUser.rol)
             
-            // Mapear los módulos a elementos de navegación con iconos
-            const navItems = permisos.modulos.map(modulo => {
-              let icon = <Activity className="h-4 w-4" />;
-              
-              // Asignar iconos según el ID del módulo
-              switch(modulo.id) {
-                case 'dashboard':
-                  icon = <Activity className="h-4 w-4" />;
-                  break;
-                case 'prestamos':
-                  icon = <CreditCard className="h-4 w-4" />;
-                  break;
-                case 'cobranza':
-                  icon = <Banknote className="h-4 w-4" />;
-                  break;
-                case 'clientes':
-                  icon = <Users className="h-4 w-4" />;
-                  break;
-                case 'mora':
-                  icon = <AlertCircle className="h-4 w-4" />;
-                  break;
-                case 'rutas':
-                  icon = <Route className="h-4 w-4" />;
-                  break;
-                case 'articulos':
-                  icon = <Package className="h-4 w-4" />;
-                  break;
-                case 'contable':
-                  icon = <Calculator className="h-4 w-4" />;
-                  break;
-                case 'usuarios':
-                  icon = <Users className="h-4 w-4" />;
-                  break;
-                case 'roles':
-                  icon = <Lock className="h-4 w-4" />;
-                  break;
-                case 'reportes-operativos':
-                  icon = <BarChart className="h-4 w-4" />;
-                  break;
-                case 'reportes-financieros':
-                  icon = <TrendingUp className="h-4 w-4" />;
-                  break;
-                case 'perfil':
-                  icon = <User className="h-4 w-4" />;
-                  break;
-                case 'aprobar-cobrador':
-                  icon = <Inbox className="h-4 w-4" />;
-                  break;
-                case 'gastos-ruta':
-                  icon = <Receipt className="h-4 w-4" />;
-                  break;
-                case 'base-dinero':
-                  icon = <BanknoteIcon className="h-4 w-4" />;
-                  break;
-                case 'ruta-diaria':
-                  icon = <Map className="h-4 w-4" />;
-                  break;
-                case 'tesoreria':
-                  icon = <DollarSign className="h-4 w-4" />;
-                  break;
-                case 'auditoria':
-                  icon = <History className="h-4 w-4" />;
-                  break;
-                case 'backups':
-                  icon = <Database className="h-4 w-4" />;
-                  break;
-                default:
-                  icon = <Activity className="h-4 w-4" />;
-              }
-              
-              return {
-                name: modulo.nombre,
-                href: modulo.path,
-                icon: icon,
-                id: modulo.id
-              };
-            });
+            // Convertir módulos a formato de navegación
+            const navItems = modulos.map(modulo => ({
+              name: modulo.nombre,
+              href: modulo.path,
+              icon: getIconComponent(modulo.icono),
+              id: modulo.id
+            }))
             
-            setNavigation(navItems);
+            setNavigation(navItems)
           }
         }
       } catch (error) {
@@ -189,7 +112,7 @@ export default function AdminLayout({
   const handleLogout = () => {
     localStorage.removeItem('token')
     localStorage.removeItem('user')
-    router.push('/')
+    router.push('/login')
   }
 
   const getUserInitials = () => {
@@ -207,7 +130,7 @@ export default function AdminLayout({
   const getUserRoleName = () => {
     if (!user) return 'Administrador'
     
-    const roleNames: Record<Rol, string> = {
+    const roleNames: Record<string, string> = {
       'SUPER_ADMINISTRADOR': 'Super Administrador',
       'COORDINADOR': 'Coordinador',
       'SUPERVISOR': 'Supervisor',
@@ -221,7 +144,7 @@ export default function AdminLayout({
   const getRoleColor = () => {
     if (!user) return '#08557f'
     
-    const roleColors: Record<Rol, string> = {
+    const roleColors: Record<string, string> = {
       'SUPER_ADMINISTRADOR': '#08557f',
       'COORDINADOR': '#10b981',
       'SUPERVISOR': '#8b5cf6',
@@ -235,7 +158,7 @@ export default function AdminLayout({
   const getRoleIcon = () => {
     if (!user) return <Shield className="h-4 w-4" />
     
-    const roleIcons: Record<Rol, React.ReactNode> = {
+    const roleIcons: Record<string, React.ReactNode> = {
       'SUPER_ADMINISTRADOR': <Shield className="h-4 w-4" />,
       'COORDINADOR': <User className="h-4 w-4" />,
       'SUPERVISOR': <Activity className="h-4 w-4" />,
@@ -246,50 +169,26 @@ export default function AdminLayout({
     return roleIcons[user.rol] || <User className="h-4 w-4" />
   }
 
-  // Navegación del sistema (común para todos los roles con permisos)
-  const systemNavigation = [
-    { 
-      name: 'Configuración', 
-      href: '/admin/sistema/configuracion', 
-      icon: <Settings className="h-4 w-4" />,
-      roles: ['SUPER_ADMINISTRADOR'] as Rol[]
-    },
-    { 
-      name: 'Sincronización', 
-      href: '/admin/sistema/sincronizacion', 
-      icon: <Activity className="h-4 w-4" />,
-      roles: ['SUPER_ADMINISTRADOR'] as Rol[]
-    },
-    { 
-      name: 'Backups', 
-      href: '/admin/sistema/backups', 
-      icon: <Database className="h-4 w-4" />,
-      roles: ['SUPER_ADMINISTRADOR'] as Rol[]
-    },
-    { 
-      name: 'Auditoría', 
-      href: '/admin/auditoria', 
-      icon: <History className="h-4 w-4" />,
-      roles: ['SUPER_ADMINISTRADOR'] as Rol[]
-    }
-  ].filter(item => user?.rol && item.roles.includes(user.rol));
-  const navigation = [
-    { name: 'Dashboard', href: '/admin', icon: <Activity className="h-4 w-4" /> },
-    { name: 'Préstamos Dinero', href: '/admin/prestamos', icon: <CreditCard className="h-4 w-4" /> },
-    { name: 'Créditos Artículos', href: '/admin/creditos-articulos', icon: <ShoppingBag className="h-4 w-4" /> },
-    { name: 'Cobranza', href: '/admin/pagos/registro', icon: <Banknote className="h-4 w-4" /> },
-    { name: 'Clientes', href: '/admin/clientes', icon: <Users className="h-4 w-4" /> },
-    { name: 'Cuentas en mora', href: '/admin/cuentas-mora', icon: <AlertCircle className="h-4 w-4" /> },
-    { name: 'Rutas', href: '/admin/rutas', icon: <Route className="h-4 w-4" /> },
-    { name: 'Artículos (Inventario)', href: '/admin/articulos', icon: <Package className="h-4 w-4" /> },
-    { name: 'Módulo contable', href: '/admin/contable', icon: <PieChart className="h-4 w-4" /> },
-    { name: 'Usuarios', href: '/admin/users', icon: <User className="h-4 w-4" /> },
-    { name: 'Archivados', href: '/admin/archivados', icon: <Archive className="h-4 w-4" /> },
-    { name: 'Roles y permisos', href: '/admin/roles-permisos', icon: <Shield className="h-4 w-4" /> },
-    { name: 'Reportes operativos', href: '/admin/reportes/operativos', icon: <PieChart className="h-4 w-4" /> },
-    { name: 'Reportes financieros', href: '/admin/reportes/financieros', icon: <PieChart className="h-4 w-4" /> },
-    { name: 'Perfil', href: '/admin/perfil', icon: <User className="h-4 w-4" /> }
-  ]
+  // Filtrar navegación móvil (solo 4 elementos principales)
+  const getMobileNavigation = () => {
+    if (!user) return []
+    
+    const modulos = obtenerModulosPorRol(user.rol)
+    
+    // Tomar los primeros 4 módulos importantes para móvil
+    const importantModules = ['dashboard', 'prestamos-dinero', 'cobranza', 'perfil']
+    
+    return modulos
+      .filter(modulo => importantModules.includes(modulo.id))
+      .slice(0, 4)
+      .map(modulo => ({
+        name: modulo.nombre,
+        href: modulo.path,
+        icon: getIconComponent(modulo.icono),
+      }))
+  }
+
+  const mobileNavItems = getMobileNavigation()
 
   return (
     <div className="min-h-screen bg-linear-to-br from-gray-50 to-white">
@@ -332,28 +231,19 @@ export default function AdminLayout({
             {/* Controles de la derecha */}
             <div className="flex items-center space-x-2">
               {/* Barra de búsqueda sutil (solo para ciertos roles) */}
-              {(user?.rol === 'SUPER_ADMINISTRADOR' || user?.rol === 'COORDINADOR' || user?.rol === 'SUPERVISOR') && (
+              {user?.rol && ['SUPER_ADMINISTRADOR', 'COORDINADOR', 'SUPERVISOR'].includes(user.rol) && (
                 <div className="relative hidden md:block">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                   <input
                     type="text"
                     placeholder="Buscar..."
-                    className="pl-10 pr-4 py-2 w-40 md:w-56 bg-transparent border-0 border-b border-gray-200 focus:border-[#08557f] focus:outline-none text-sm placeholder-gray-400"
+                    className="pl-10 pr-4 py-2 w-40 md:w-56 bg-transparent border-0 border-b border-gray-200 focus:border-[#08557f] focus:outline-none text-sm text-gray-900 placeholder-gray-400"
                   />
                 </div>
               )}
-              {/* Barra de búsqueda sutil */}
-              <div className="relative hidden md:block">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                <input
-                  type="text"
-                  placeholder="Buscar..."
-                  className="pl-10 pr-4 py-2 w-40 md:w-56 bg-transparent border-0 border-b border-gray-200 focus:border-[#08557f] focus:outline-none text-sm text-gray-900 placeholder-gray-400"
-                />
-              </div>
 
               {/* Notificaciones (solo para ciertos roles) */}
-              {(user?.rol === 'SUPER_ADMINISTRADOR' || user?.rol === 'COORDINADOR' || user?.rol === 'COBRADOR') && (
+              {user?.rol && ['SUPER_ADMINISTRADOR', 'COORDINADOR', 'COBRADOR'].includes(user.rol) && (
                 <button className="relative p-2 hover:bg-gray-100 rounded-lg transition-colors">
                   <Bell className="h-5 w-5 text-gray-500" />
                   <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 bg-[#fb851b] rounded-full"></span>
@@ -602,20 +492,52 @@ export default function AdminLayout({
             )}
 
             {/* Navegación principal filtrada por rol */}
-            {navigation.length > 0 && (
+            <div>
+              <div className="text-xs font-medium text-gray-400 uppercase tracking-wider mb-4">Principal</div>
+              <div className="space-y-1">
+                {navigation.map((item) => {
+                  const isActive = pathname === item.href || pathname?.startsWith(`${item.href}/`)
+                  return (
+                    <Link
+                      key={item.name}
+                      href={item.href}
+                      className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-75 border group ${
+                        isActive 
+                          ? 'text-[#08557f] bg-gradient-to-r from-[#08557f]/10 to-[#063a58]/5 font-medium border-[#08557f]/20' 
+                          : 'text-gray-600 border-transparent hover:text-[#08557f] hover:bg-gray-50 hover:border-gray-200'
+                      }`}
+                      onClick={() => setIsMenuOpen(false)}
+                    >
+                      <div className={`transition-colors ${isActive ? 'text-[#08557f]' : 'text-gray-400 group-hover:text-[#08557f]'}`}>
+                        {item.icon}
+                      </div>
+                      <span className="text-sm">{item.name}</span>
+                    </Link>
+                  )
+                })}
+              </div>
+            </div>
+
+            {/* Sección de sistema (solo para SUPER_ADMINISTRADOR) */}
+            {user?.rol === 'SUPER_ADMINISTRADOR' && (
               <div>
-                <div className="text-xs font-medium text-gray-400 uppercase tracking-wider mb-4">Principal</div>
+                <div className="text-xs font-medium text-gray-400 uppercase tracking-wider mb-4">Sistema</div>
                 <div className="space-y-1">
-                  {navigation.map((item) => {
-                    const isActive = pathname === item.href || pathname?.startsWith(`${item.href}/`)
+                  {[
+                    { name: 'Configuración', href: '/admin/sistema/configuracion', icon: <Settings className="h-4 w-4" /> },
+                    { name: 'Sincronización', href: '/admin/sistema/sincronizacion', icon: <Activity className="h-4 w-4" /> },
+                    { name: 'Backups', href: '/admin/sistema/backups', icon: <HardDrive className="h-4 w-4" /> },
+                    { name: 'Auditoría', href: '/admin/auditoria', icon: <FileText className="h-4 w-4" /> }
+                  ].map((item) => {
+                    const isActive = pathname === item.href
                     return (
                       <Link
                         key={item.name}
                         href={item.href}
-                        className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 group ${
+                        className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-75 border group ${
                           isActive 
-                            ? 'text-[#08557f] bg-gradient-to-r from-[#08557f]/10 to-[#063a58]/5 font-medium border border-[#08557f]/20' 
-                            : 'text-gray-600 hover:text-[#08557f] hover:bg-gray-50 hover:border hover:border-gray-200'
+                            ? 'text-[#08557f] bg-gradient-to-r from-[#08557f]/10 to-[#063a58]/5 font-medium border-[#08557f]/20' 
+                            : 'text-gray-600 border-transparent hover:text-[#08557f] hover:bg-gray-50 hover:border-gray-200'
                         }`}
                         onClick={() => setIsMenuOpen(false)}
                       >
@@ -629,112 +551,6 @@ export default function AdminLayout({
                 </div>
               </div>
             )}
-            {/* Navegación principal */}
-            <div>
-              <div className="text-xs font-medium text-gray-400 uppercase tracking-wider mb-4">Principal</div>
-              <div className="space-y-1">
-                {navigation.map((item) => {
-                  const isActive = pathname === item.href
-                  return (
-                    <Link
-                      key={item.name}
-                      href={item.href}
-                      className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-75 border group ${
-                    isActive 
-                      ? 'text-[#08557f] bg-gradient-to-r from-[#08557f]/10 to-[#063a58]/5 font-medium border-[#08557f]/20' 
-                      : 'text-gray-600 border-transparent hover:text-[#08557f] hover:bg-gray-50 hover:border-gray-200'
-                  }`}
-                      onClick={() => setIsMenuOpen(false)}
-                    >
-                      <div className={`transition-colors ${isActive ? 'text-[#08557f]' : 'text-gray-400 group-hover:text-[#08557f]'}`}>
-                        {item.icon}
-                      </div>
-                      <span className="text-sm">{item.name}</span>
-                    </Link>
-                  )
-                })}
-              </div>
-            </div>
-
-            {/* Sección de sistema (solo para admin) */}
-            {systemNavigation.length > 0 && (
-              <div>
-                <div className="text-xs font-medium text-gray-400 uppercase tracking-wider mb-4">Sistema</div>
-                <div className="space-y-1">
-                  {systemNavigation.map((item) => (
-                    <Link
-                      key={item.name}
-                      href={item.href}
-                      className="flex items-center gap-3 px-3 py-2.5 text-gray-600 hover:text-gray-800 hover:bg-gray-50 hover:border hover:border-gray-200 rounded-xl transition-all duration-200 group"
-                      onClick={() => setIsMenuOpen(false)}
-                    >
-                      <div className="text-gray-400 group-hover:text-gray-600">
-                        {item.icon}
-                      </div>
-                      <span className="text-sm font-medium">{item.name}</span>
-                    </Link>
-                  ))}
-                </div>
-            {/* Sección de sistema */}
-            <div>
-              <div className="text-xs font-medium text-gray-400 uppercase tracking-wider mb-4">Sistema</div>
-              <div className="space-y-1">
-                {[
-                  { name: 'Configuración', href: '/admin/sistema/configuracion', icon: <Settings className="h-4 w-4" /> },
-                  { name: 'Sincronización', href: '/admin/sistema/sincronizacion', icon: <Activity className="h-4 w-4" /> },
-                  { name: 'Backups', href: '/admin/sistema/backups', icon: <Wallet className="h-4 w-4" /> },
-                  { name: 'Auditoría', href: '/admin/auditoria', icon: <Shield className="h-4 w-4" /> }
-                ].map((item) => {
-                  const isActive = pathname === item.href
-                  return (
-                    <Link
-                      key={item.name}
-                      href={item.href}
-                      className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-75 border group ${
-                    isActive 
-                      ? 'text-[#08557f] bg-gradient-to-r from-[#08557f]/10 to-[#063a58]/5 font-medium border-[#08557f]/20' 
-                      : 'text-gray-600 border-transparent hover:text-[#08557f] hover:bg-gray-50 hover:border-gray-200'
-                  }`}
-                      onClick={() => setIsMenuOpen(false)}
-                    >
-                      <div className={`transition-colors ${isActive ? 'text-[#08557f]' : 'text-gray-400 group-hover:text-[#08557f]'}`}>
-                        {item.icon}
-                      </div>
-                      <span className="text-sm">{item.name}</span>
-                    </Link>
-                  )
-                })}
-              </div>
-            )}
-
-            {/* Resumen del mes elegante (solo para ciertos roles) */}
-            {(user?.rol === 'SUPER_ADMINISTRADOR' || user?.rol === 'COORDINADOR' || user?.rol === 'SUPERVISOR') && (
-              <div className="pt-8 border-t border-gray-100">
-                <div className="p-4 bg-linear-to-br from-gray-900 to-gray-800 rounded-xl text-white shadow-lg">
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="text-xs text-gray-300">Rendimiento</div>
-                    <div className="text-xs text-gray-300 flex items-center gap-2">
-                      <div className="w-6 h-6 rounded-full bg-gradient-to-br from-[#08557f] to-[#063a58] flex items-center justify-center text-xs">
-                        {getUserInitials()}
-                      </div>
-                    </div>
-                  </div>
-                  <div className="text-2xl font-light mb-3">94.2%</div>
-                  <div className="h-1.5 bg-gray-700 rounded-full overflow-hidden">
-                    <div 
-                      className="h-full bg-linear-to-r from-[#08557f] to-[#10b981] rounded-full"
-                      style={{ width: '94.2%' }}
-                    ></div>
-                  </div>
-                  <div className="flex justify-between text-xs text-gray-400 mt-2">
-                    <span>Meta: 95%</span>
-                    <span className="text-green-400">+2.1%</span>
-                  </div>
-                </div>
-              </div>
-            )}
-            {/* Resumen del mes elegante - Eliminado por limpieza */}
-
           </div>
         </nav>
       </aside>
@@ -747,7 +563,7 @@ export default function AdminLayout({
       {/* Sidebar móvil */}
       <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-50 shadow-lg">
         <div className="flex items-center justify-around py-3 px-2">
-          {navigation.slice(0, 4).map((item) => (
+          {mobileNavItems.map((item) => (
             <Link
               key={item.name}
               href={item.href}
@@ -764,7 +580,7 @@ export default function AdminLayout({
               <span className={`text-xs mt-1 transition-colors ${
                 pathname === item.href ? 'font-medium text-[#08557f]' : 'text-gray-600'
               }`}>
-                {item.name.length > 12 ? `${item.name.substring(0, 10)}...` : item.name}
+                {item.name.length > 10 ? `${item.name.substring(0, 9)}...` : item.name}
               </span>
             </Link>
           ))}
@@ -813,4 +629,3 @@ export default function AdminLayout({
     </div>
   )
 }
-
