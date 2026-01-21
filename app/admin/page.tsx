@@ -45,7 +45,8 @@ import {
 } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils';
 import { useRouter } from 'next/navigation';
-import { obtenerPermisosUsuario, getIconComponent, Rol } from '@/lib/permissions';
+import { obtenerPermisosUsuario, getIconComponent, Rol, getDashboardComponent } from '@/lib/permissions';
+import VistaCobradorPage from '../cobranzas/page';
 
 interface MetricCard {
   title: string;
@@ -82,6 +83,7 @@ const DashboardPage = () => {
   const [userData, setUserData] = useState<UserData | null>(null);
   const [mainMetrics, setMainMetrics] = useState<MetricCard[]>([]);
   const [quickAccess, setQuickAccess] = useState<QuickAccessItem[]>([]);
+  const [dashboardType, setDashboardType] = useState<string>('default');
   const router = useRouter();
   
   // Verificar sesión y cargar datos del usuario
@@ -101,22 +103,28 @@ const DashboardPage = () => {
       // Obtener permisos según el rol
       if (parsedUser.rol) {
         const permisos = obtenerPermisosUsuario(parsedUser.rol);
+        const dashboardComponent = getDashboardComponent(parsedUser.rol);
         
-        // Convertir métricas del rol a formato de componente
-        const metricsConverted = permisos.metricas.mainMetrics.map(metric => ({
-          ...metric,
-          icon: getIconComponent(metric.icon),
-          value: metric.isCurrency ? Number(metric.value) : metric.value
-        }));
+        setDashboardType(dashboardComponent);
         
-        // Convertir accesos rápidos del rol a formato de componente
-        const quickAccessConverted = permisos.metricas.quickAccess.map(item => ({
-          ...item,
-          icon: getIconComponent(item.icon)
-        }));
-        
-        setMainMetrics(metricsConverted);
-        setQuickAccess(quickAccessConverted);
+        // Solo cargar métricas y accesos rápidos si no es cobrador
+        if (dashboardComponent !== 'cobrador') {
+          // Convertir métricas del rol a formato de componente
+          const metricsConverted = permisos.metricas.mainMetrics.map(metric => ({
+            ...metric,
+            icon: getIconComponent(metric.icon),
+            value: metric.isCurrency ? Number(metric.value) : metric.value
+          }));
+          
+          // Convertir accesos rápidos del rol a formato de componente
+          const quickAccessConverted = permisos.metricas.quickAccess.map(item => ({
+            ...item,
+            icon: getIconComponent(item.icon)
+          }));
+          
+          setMainMetrics(metricsConverted);
+          setQuickAccess(quickAccessConverted);
+        }
       }
       
       setIsLoading(false);
@@ -134,7 +142,7 @@ const DashboardPage = () => {
     }, 0);
     return () => clearTimeout(timer);
   }, []);
-  
+
   // Formatear fecha elegante
   const formatDate = (date: Date) => {
     const options: Intl.DateTimeFormatOptions = {
@@ -144,121 +152,6 @@ const DashboardPage = () => {
       year: 'numeric'
     };
     return date.toLocaleDateString('es-CO', options);
-  };
-
-  // Obtener título del dashboard según rol
-  const getDashboardTitle = () => {
-    if (!userData) return 'Panel de Control';
-    
-    const titulos: Record<Rol, string> = {
-      'SUPER_ADMINISTRADOR': 'Panel de Control',
-      'COORDINADOR': 'Coordinación de Operaciones',
-      'SUPERVISOR': 'Supervisión de Campo',
-      'COBRADOR': 'Mi Gestión de Cobranza',
-      'CONTADOR': 'Control Financiero'
-    };
-    
-    return titulos[userData.rol] || 'Panel de Control';
-  };
-
-  // Obtener subtítulo según rol
-  const getDashboardSubtitle = () => {
-    if (!userData) return 'Dashboard principal';
-    
-    const subtitulos: Record<Rol, string> = {
-      'SUPER_ADMINISTRADOR': 'Visión completa del sistema',
-      'COORDINADOR': 'Gestión de créditos y rutas',
-      'SUPERVISOR': 'Monitoreo operativo',
-      'COBRADOR': 'Ruta diaria y cobros',
-      'CONTADOR': 'Gestión financiera y contable'
-    };
-    
-    return subtitulos[userData.rol] || 'Dashboard principal';
-  };
-
-  // Actividad reciente adaptada por rol
-  const getRecentActivity = () => {
-    if (!userData) return [];
-    
-    const actividades: Record<Rol, any[]> = {
-      'SUPER_ADMINISTRADOR': [
-        { id: 1, client: 'González M.', action: 'Pago completado', amount: 1250000, time: '09:42', status: 'success' },
-        { id: 2, client: 'López C.', action: 'Renegociación', amount: 3500000, time: '10:15', status: 'pending' },
-        { id: 3, client: 'Martínez A.', action: 'Mora detectada', amount: 750000, time: '11:30', status: 'alert' },
-        { id: 4, client: 'Ramírez P.', action: 'Pago anticipado', amount: 2100000, time: '13:20', status: 'success' },
-        { id: 5, client: 'Sánchez L.', action: 'Consulta saldo', amount: null, time: '14:45', status: 'info' }
-      ],
-      'COORDINADOR': [
-        { id: 1, client: 'González M.', action: 'Crédito pendiente', amount: 2500000, time: '09:42', status: 'pending' },
-        { id: 2, client: 'López C.', action: 'Solicitud de base', amount: 500000, time: '10:15', status: 'pending' },
-        { id: 3, client: 'Martínez A.', action: 'Mora autorizada', amount: 750000, time: '11:30', status: 'success' },
-        { id: 4, client: 'Ramírez P.', action: 'Ruta asignada', amount: null, time: '13:20', status: 'info' },
-        { id: 5, client: 'Sánchez L.', action: 'Prórroga aprobada', amount: null, time: '14:45', status: 'success' }
-      ],
-      'SUPERVISOR': [
-        { id: 1, client: 'González M.', action: 'Gasto pendiente', amount: 45000, time: '09:42', status: 'pending' },
-        { id: 2, client: 'López C.', action: 'Visita completada', amount: null, time: '10:15', status: 'success' },
-        { id: 3, client: 'Martínez A.', action: 'Cliente en mora', amount: 750000, time: '11:30', status: 'alert' },
-        { id: 4, client: 'Cobrador R.', action: 'Reporte enviado', amount: null, time: '13:20', status: 'info' },
-        { id: 5, client: 'Sánchez L.', action: 'Pago registrado', amount: 2100000, time: '14:45', status: 'success' }
-      ],
-      'COBRADOR': [
-        { id: 1, client: 'González M.', action: 'Pago recibido', amount: 125000, time: '09:42', status: 'success' },
-        { id: 2, client: 'López C.', action: 'Próxima visita', amount: null, time: '10:15', status: 'info' },
-        { id: 3, client: 'Martínez A.', action: 'Cliente no encontrado', amount: null, time: '11:30', status: 'alert' },
-        { id: 4, client: 'Ramírez P.', action: 'Gasto de ruta', amount: 25000, time: '13:20', status: 'pending' },
-        { id: 5, client: 'Sánchez L.', action: 'Solicitud de base', amount: 300000, time: '14:45', status: 'pending' }
-      ],
-      'CONTADOR': [
-        { id: 1, client: 'Transferencia', action: 'Ingreso bancario', amount: 3250000, time: '09:42', status: 'success' },
-        { id: 2, client: 'López C.', action: 'Cuenta archivada', amount: 1500000, time: '10:15', status: 'alert' },
-        { id: 3, client: 'Inventario', action: 'Producto actualizado', amount: null, time: '11:30', status: 'info' },
-        { id: 4, client: 'Caja Principal', action: 'Gasto autorizado', amount: 450000, time: '13:20', status: 'success' },
-        { id: 5, client: 'Reporte', action: 'Generado automático', amount: null, time: '14:45', status: 'info' }
-      ]
-    };
-    
-    return actividades[userData.rol] || actividades.SUPER_ADMINISTRADOR;
-  };
-
-  // Stats adicionales por rol
-  const getAdditionalStats = () => {
-    if (!userData) return [];
-    
-    const stats: Record<Rol, any[]> = {
-      'SUPER_ADMINISTRADOR': [
-        { label: 'Clientes Activos', value: '1,247', icon: <Users className="h-5 w-5" />, color: 'text-[#08557f]', bg: 'bg-[#08557f]/10' },
-        { label: 'Préstamos Activos', value: '856', icon: <CreditCard className="h-5 w-5" />, color: 'text-emerald-600', bg: 'bg-emerald-50' },
-        { label: 'Cobros Hoy', value: 4582000, isCurrency: true, icon: <Banknote className="h-5 w-5" />, color: 'text-orange-600', bg: 'bg-orange-50' },
-        { label: 'En Morosidad', value: '3.6%', icon: <AlertCircle className="h-5 w-5" />, color: 'text-rose-600', bg: 'bg-rose-50' }
-      ],
-      'COORDINADOR': [
-        { label: 'Créditos Pendientes', value: '15', icon: <CreditCard className="h-5 w-5" />, color: 'text-[#08557f]', bg: 'bg-[#08557f]/10' },
-        { label: 'Solicitudes Base', value: '3', icon: <Wallet className="h-5 w-5" />, color: 'text-emerald-600', bg: 'bg-emerald-50' },
-        { label: 'Cuentas Reprogramadas', value: '7', icon: <Calendar className="h-5 w-5" />, color: 'text-orange-600', bg: 'bg-orange-50' },
-        { label: 'Rutas Activas', value: '12', icon: <Route className="h-5 w-5" />, color: 'text-rose-600', bg: 'bg-rose-50' }
-      ],
-      'SUPERVISOR': [
-        { label: 'Visitas Completadas', value: '89', icon: <CheckCircle className="h-5 w-5" />, color: 'text-[#08557f]', bg: 'bg-[#08557f]/10' },
-        { label: 'Gastos Pendientes', value: '5', icon: <Receipt className="h-5 w-5" />, color: 'text-emerald-600', bg: 'bg-emerald-50' },
-        { label: 'Clientes en Mora', value: '23', icon: <AlertTriangle className="h-5 w-5" />, color: 'text-orange-600', bg: 'bg-orange-50' },
-        { label: 'Cobradores Activos', value: '8', icon: <Users className="h-5 w-5" />, color: 'text-rose-600', bg: 'bg-rose-50' }
-      ],
-      'COBRADOR': [
-        { label: 'Clientes por Visitar', value: '24', icon: <Users className="h-5 w-5" />, color: 'text-[#08557f]', bg: 'bg-[#08557f]/10' },
-        { label: 'Pagos Realizados', value: '18', icon: <CheckCircle className="h-5 w-5" />, color: 'text-emerald-600', bg: 'bg-emerald-50' },
-        { label: 'Recaudo Total', value: 1250000, isCurrency: true, icon: <Wallet className="h-5 w-5" />, color: 'text-orange-600', bg: 'bg-orange-50' },
-        { label: 'Gastos Reportados', value: 45000, isCurrency: true, icon: <Receipt className="h-5 w-5" />, color: 'text-rose-600', bg: 'bg-rose-50' }
-      ],
-      'CONTADOR': [
-        { label: 'Ingresos del Día', value: 12500000, isCurrency: true, icon: <DollarSign className="h-5 w-5" />, color: 'text-[#08557f]', bg: 'bg-[#08557f]/10' },
-        { label: 'Cuentas Archivadas', value: '3', icon: <FileX className="h-5 w-5" />, color: 'text-emerald-600', bg: 'bg-emerald-50' },
-        { label: 'Productos Activos', value: '156', icon: <Package className="h-5 w-5" />, color: 'text-orange-600', bg: 'bg-orange-50' },
-        { label: 'Transferencias', value: '7', icon: <Banknote className="h-5 w-5" />, color: 'text-rose-600', bg: 'bg-rose-50' }
-      ]
-    };
-    
-    return stats[userData.rol] || stats.SUPER_ADMINISTRADOR;
   };
 
   // Función para cerrar sesión
@@ -280,9 +173,12 @@ const DashboardPage = () => {
     );
   }
 
-  const recentActivity = getRecentActivity();
-  const additionalStats = getAdditionalStats();
+  // Si el usuario es COBRADOR, mostrar el componente específico
+  if (dashboardType === 'cobrador' && userData?.rol === 'COBRADOR') {
+    return <VistaCobradorPage />;
+  }
 
+  // Para otros roles, mostrar el dashboard normal
   return (
     <div className="min-h-screen bg-white relative">
       {/* Fondo arquitectónico ultra sutil */}
@@ -302,20 +198,16 @@ const DashboardPage = () => {
       </div>
 
       <div className="relative z-10 p-6 lg:p-12 space-y-12">
-        {/* Header Minimalista con título según rol */}
+        {/* Header Minimalista */}
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
           <div>
             <h1 className="text-4xl font-light text-slate-900 tracking-tight mb-2">
-              {getDashboardTitle()}
+              Panel de <span className="font-semibold text-[#08557f]">Control</span>
             </h1>
             <p className="text-slate-500 font-medium flex items-center gap-2 text-sm">
               <Calendar className="h-4 w-4 text-[#08557f]/60" />
               {currentDate ? formatDate(currentDate) : ''}
-              <span className="ml-2 px-2 py-1 bg-slate-100 rounded text-xs">
-                {userData?.rol?.replace('_', ' ') || 'Usuario'}
-              </span>
             </p>
-            <p className="text-slate-400 text-sm mt-1">{getDashboardSubtitle()}</p>
           </div>
           
           <div className="flex items-center gap-4">
@@ -338,12 +230,10 @@ const DashboardPage = () => {
               })}
             </div>
             
-            {userData?.rol === 'SUPER_ADMINISTRADOR' || userData?.rol === 'CONTADOR' ? (
-              <button className="flex items-center space-x-2 px-6 py-3 bg-white hover:bg-slate-50 text-slate-700 rounded-xl shadow-sm border border-slate-200 hover:border-[#08557f]/30 transition-all font-medium group">
-                <Download className="h-4 w-4 text-slate-400 group-hover:text-[#08557f] transition-colors" />
-                <span>Exportar</span>
-              </button>
-            ) : null}
+            <button className="flex items-center space-x-2 px-6 py-3 bg-white hover:bg-slate-50 text-slate-700 rounded-xl shadow-sm border border-slate-200 hover:border-[#08557f]/30 transition-all font-medium group">
+              <Download className="h-4 w-4 text-slate-400 group-hover:text-[#08557f] transition-colors" />
+              <span>Exportar</span>
+            </button>
           </div>
         </div>
         
@@ -367,7 +257,7 @@ const DashboardPage = () => {
            })}
         </div>
 
-        {/* Métricas principales según rol */}
+        {/* Métricas principales ultra minimalistas */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {mainMetrics.map((metric, index) => (
             <div
@@ -405,7 +295,7 @@ const DashboardPage = () => {
           {/* Columna Principal (Izquierda) */}
           <div className="lg:col-span-2 space-y-8">
             
-            {/* Accesos Rápidos según rol */}
+            {/* Accesos Rápidos elegantes */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
               {quickAccess.map((item, index) => (
                 <Link
@@ -481,7 +371,7 @@ const DashboardPage = () => {
             {/* Actividad Reciente */}
             <div className="bg-white rounded-2xl shadow-[0_4px_20px_-4px_rgba(0,0,0,0.03)] border border-slate-100 overflow-hidden flex flex-col h-full">
               <div className="p-6 pb-4 flex items-center justify-between border-b border-slate-50">
-                <h2 className="text-lg font-bold text-slate-800">Actividad Reciente</h2>
+                <h2 className="text-lg font-bold text-slate-800">Actividad</h2>
                 <div className="flex items-center gap-2 px-2.5 py-1 bg-emerald-50 rounded-full">
                   <span className="relative flex h-2 w-2">
                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
@@ -493,7 +383,14 @@ const DashboardPage = () => {
               
               <div className="p-6 flex-1 overflow-y-auto max-h-[500px] scrollbar-thin scrollbar-thumb-slate-200">
                 <div className="space-y-6 relative before:absolute before:left-[15px] before:top-2 before:bottom-2 before:w-[2px] before:bg-slate-100">
-                  {recentActivity.map((item) => (
+                  {/* Actividad reciente genérica para otros roles */}
+                  {[
+                    { id: 1, client: 'González M.', action: 'Pago completado', amount: 1250000, time: '09:42', status: 'success' },
+                    { id: 2, client: 'López C.', action: 'Renegociación', amount: 3500000, time: '10:15', status: 'pending' },
+                    { id: 3, client: 'Martínez A.', action: 'Mora detectada', amount: 750000, time: '11:30', status: 'alert' },
+                    { id: 4, client: 'Ramírez P.', action: 'Pago anticipado', amount: 2100000, time: '13:20', status: 'success' },
+                    { id: 5, client: 'Sánchez L.', action: 'Consulta saldo', amount: null, time: '14:45', status: 'info' }
+                  ].map((item) => (
                     <div key={item.id} className="relative pl-8 group">
                       {/* Punto de tiempo */}
                       <div className={`absolute left-[9px] top-1.5 h-3 w-3 rounded-full border-2 border-white ring-2 ring-slate-100 bg-white group-hover:scale-125 transition-transform duration-300 z-10`}>
@@ -531,9 +428,14 @@ const DashboardPage = () => {
           </div>
         </div>
 
-        {/* Stats adicionales según rol */}
+        {/* Stats adicionales */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {additionalStats.map((stat, index) => (
+          {[
+            { label: 'Clientes Activos', value: '1,247', icon: <Users className="h-5 w-5" />, color: 'text-[#08557f]', bg: 'bg-[#08557f]/10' },
+            { label: 'Préstamos Activos', value: '856', icon: <CreditCard className="h-5 w-5" />, color: 'text-emerald-600', bg: 'bg-emerald-50' },
+            { label: 'Cobros Hoy', value: 4582000, isCurrency: true, icon: <Banknote className="h-5 w-5" />, color: 'text-orange-600', bg: 'bg-orange-50' },
+            { label: 'En Morosidad', value: '3.6%', icon: <AlertCircle className="h-5 w-5" />, color: 'text-rose-600', bg: 'bg-rose-50' }
+          ].map((stat, index) => (
             <div key={index} className="bg-white rounded-xl p-5 shadow-[0_2px_10px_-3px_rgba(0,0,0,0.05)] flex items-center space-x-4 border border-slate-100 hover:border-[#08557f]/20 transition-all">
               <div className={`p-3 rounded-lg ${stat.bg} ${stat.color}`}>
                 {stat.icon}
@@ -551,7 +453,7 @@ const DashboardPage = () => {
         {/* Footer sutil */}
         <div className="mt-8 text-center pb-6">
           <p className="text-[10px] text-gray-400 uppercase tracking-widest">
-            CrediSur • Sistema de Gestión v1.0 • {userData?.rol?.replace('_', ' ') || 'Usuario'}
+            CrediSur • Sistema de Gestión v1.0 • Sesión activa
           </p>
         </div>
       </div>

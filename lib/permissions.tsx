@@ -114,6 +114,7 @@ export const permisosPorRol: Record<
   {
     modulos: ModuloPermiso[];
     metricas: MetricasRol;
+    dashboardComponent?: string;
   }
 > = {
   SUPER_ADMINISTRADOR: {
@@ -198,6 +199,7 @@ export const permisosPorRol: Record<
         },
       ],
     },
+    dashboardComponent: 'default'
   },
 
   COORDINADOR: {
@@ -220,6 +222,7 @@ export const permisosPorRol: Record<
       ],
       quickAccess: [],
     },
+    dashboardComponent: 'default'
   },
 
   SUPERVISOR: {
@@ -232,18 +235,87 @@ export const permisosPorRol: Record<
       mainMetrics: [],
       quickAccess: [],
     },
+    dashboardComponent: 'default'
   },
 
   COBRADOR: {
     modulos: [
-      { id: 'dashboard', nombre: 'Dashboard', path: '/admin', roles: ['COBRADOR'] },
-      { id: 'ruta', nombre: 'Mi Ruta', path: '/admin/ruta-diaria', roles: ['COBRADOR'] },
-      { id: 'perfil', nombre: 'Perfil', path: '/admin/perfil', roles: ['COBRADOR'] },
+      { id: 'dashboard', nombre: 'Mi Ruta', path: '/admin', roles: ['COBRADOR'] },
+      { id: 'ruta-diaria', nombre: 'Mi Ruta Diaria', path: '/admin/ruta-diaria', roles: ['COBRADOR'] },
+      { id: 'prestamos', nombre: 'Solicitar Crédito', path: '/admin/prestamos/nuevo', roles: ['COBRADOR'] },
+      { id: 'clientes', nombre: 'Nuevo Cliente', path: '/admin/clientes/nuevo', roles: ['COBRADOR'] },
+      { id: 'base-dinero', nombre: 'Base de Efectivo', path: '/admin/base-dinero', roles: ['COBRADOR'] },
+      { id: 'cobranza', nombre: 'Registrar Pago', path: '/admin/pagos/registro', roles: ['COBRADOR'] },
+      { id: 'perfil', nombre: 'Mi Perfil', path: '/admin/perfil', roles: ['COBRADOR'] },
     ],
     metricas: {
-      mainMetrics: [],
-      quickAccess: [],
+      mainMetrics: [
+        {
+          title: 'Clientes por Visitar',
+          value: 24,
+          isCurrency: false,
+          change: -2,
+          icon: 'Users',
+          color: '#08557f'
+        },
+        {
+          title: 'Recaudo Hoy',
+          value: 1250000,
+          isCurrency: true,
+          change: 15.3,
+          icon: 'Wallet',
+          color: '#10b981'
+        },
+        {
+          title: 'Gastos de Ruta',
+          value: 45000,
+          isCurrency: true,
+          change: -5.2,
+          icon: 'Receipt',
+          color: '#ef4444'
+        },
+        {
+          title: 'Eficiencia Personal',
+          value: '94.2%',
+          isCurrency: false,
+          change: 2.8,
+          icon: 'Target',
+          color: '#fb851b'
+        }
+      ],
+      quickAccess: [
+        {
+          title: 'Mi Ruta',
+          subtitle: 'Clientes del día',
+          icon: 'Map',
+          color: '#08557f',
+          badge: 24,
+          href: '/admin/ruta-diaria'
+        },
+        {
+          title: 'Registrar Pago',
+          subtitle: 'Cobranza inmediata',
+          icon: 'Wallet',
+          color: '#10b981',
+          href: '/admin/pagos/registro'
+        },
+        {
+          title: 'Nuevo Cliente',
+          subtitle: 'Registro rápido',
+          icon: 'UserPlus',
+          color: '#8b5cf6',
+          href: '/admin/clientes/nuevo'
+        },
+        {
+          title: 'Base de Efectivo',
+          subtitle: 'Solicitar dinero',
+          icon: 'Banknote',
+          color: '#fb851b',
+          href: '/admin/base-dinero'
+        }
+      ]
     },
+    dashboardComponent: 'cobrador' // Especificamos que use componente especial
   },
 
   CONTADOR: {
@@ -256,6 +328,7 @@ export const permisosPorRol: Record<
       mainMetrics: [],
       quickAccess: [],
     },
+    dashboardComponent: 'default'
   },
 };
 
@@ -271,4 +344,10 @@ export const tieneAcceso = (rol: Rol, path: string): boolean => {
   const permisos = permisosPorRol[rol];
   if (!permisos) return false;
   return permisos.modulos.some((modulo) => modulo.path === path);
+};
+
+
+// Función para obtener el componente de dashboard según el rol
+export const getDashboardComponent = (rol: Rol): string => {
+  return permisosPorRol[rol]?.dashboardComponent || 'default';
 };
