@@ -50,7 +50,9 @@ const ListadoPrestamosElegante = () => {
     // Usamos setTimeout para evitar advertencias de setState síncrono y simular carga
     const timer = setTimeout(() => {
       setMounted(true);
-      setPrestamos(PRESTAMOS_MOCK);
+      // Filtramos para mostrar solo préstamos en efectivo
+      const prestamosDinero = PRESTAMOS_MOCK.filter(p => p.tipoProducto === 'efectivo');
+      setPrestamos(prestamosDinero);
       setCargando(false);
     }, 500);
 
@@ -72,9 +74,15 @@ const ListadoPrestamosElegante = () => {
 
   // Filtrado de préstamos
   const prestamosFiltrados = prestamos.filter(prestamo => {
+    // Primero filtrar solo préstamos de dinero (efectivo)
+    if (prestamo.tipoProducto !== 'efectivo') return false;
+
     if (filtros.estado !== 'todos' && prestamo.estado !== filtros.estado) return false;
     if (filtros.cliente !== 'todos' && prestamo.clienteId !== filtros.cliente) return false;
     if (filtros.riesgo !== 'todos' && prestamo.riesgo !== filtros.riesgo) return false;
+    // Solo mostrar préstamos de tipo efectivo
+    if (prestamo.tipoProducto !== 'efectivo') return false;
+
     if (filtros.busqueda && !prestamo.cliente.toLowerCase().includes(filtros.busqueda.toLowerCase()) &&
         !prestamo.producto.toLowerCase().includes(filtros.busqueda.toLowerCase()) &&
         !prestamo.id.toLowerCase().includes(filtros.busqueda.toLowerCase())) return false;
@@ -217,10 +225,11 @@ const ListadoPrestamosElegante = () => {
           <div className="relative w-full md:w-96">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
             <input
+              type="text"
+              placeholder="Buscar por cliente, ID o producto..."
+              className="w-full pl-11 pr-4 py-3 rounded-xl border-none bg-gray-50/50 shadow-sm ring-1 ring-gray-200 focus:ring-2 focus:ring-[#08557f]/10 transition-all text-sm font-medium text-gray-900 placeholder:text-gray-400"
               value={filtros.busqueda}
               onChange={(e) => setFiltros(prev => ({ ...prev, busqueda: e.target.value }))}
-              placeholder="Buscar por cliente, producto o ID..."
-              className="w-full pl-11 pr-4 py-3 rounded-xl border-none bg-gray-50/50 shadow-sm ring-1 ring-gray-200 focus:ring-2 focus:ring-[#08557f]/10 transition-all text-sm font-medium placeholder:text-gray-400"
             />
           </div>
           
@@ -228,7 +237,7 @@ const ListadoPrestamosElegante = () => {
             <select
               value={filtros.estado}
               onChange={(e) => setFiltros(prev => ({ ...prev, estado: e.target.value }))}
-              className="px-4 py-2.5 rounded-xl border-none bg-gray-50 text-sm font-medium text-gray-600 focus:ring-2 focus:ring-[#08557f]/10 cursor-pointer hover:bg-gray-100 transition-colors"
+              className="px-4 py-2.5 rounded-xl border-none bg-gray-50 text-sm font-medium text-gray-900 focus:ring-2 focus:ring-[#08557f]/10 cursor-pointer hover:bg-gray-100 transition-colors"
             >
               <option value="todos">Todos los estados</option>
               <option value="ACTIVO">Activos</option>

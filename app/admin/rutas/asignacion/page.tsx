@@ -234,8 +234,8 @@ const AsignacionCobradoresPage = () => {
                   className="group rounded-xl border border-gray-100 bg-white p-1 hover:border-gray-200 hover:shadow-sm transition-all duration-300"
                 >
                   <div className="flex items-center gap-4 p-4 rounded-lg bg-gray-50/30 group-hover:bg-white transition-colors">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-orange-50 group-hover:bg-orange-100/50 transition-colors">
-                      <Route className="h-5 w-5 text-orange-600" />
+                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#08557f]/5 group-hover:bg-[#08557f]/10 transition-colors">
+                      <Route className="h-5 w-5 text-[#08557f]" />
                     </div>
                     <div className="flex-1 space-y-1">
                       <div className="flex flex-wrap items-center gap-2">
