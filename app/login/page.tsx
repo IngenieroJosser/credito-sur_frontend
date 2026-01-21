@@ -313,10 +313,6 @@ const LoginPage = () => {
           <div className="flex items-center justify-center mb-6">
             <div className="relative">
               <div className="w-14 h-14 bg-white border border-gray-200 rounded-xl flex items-center justify-center">
-                {/* <div className="w-8 h-8 flex items-center justify-center">
-                  <div className="w-6 h-6 bg-gradient-to-br from-[#08557f] to-[#063a58] rounded"></div>
-                  <div className="absolute w-2 h-2 bg-[#fb851b] rounded-full -translate-y-1 translate-x-1"></div>
-                </div> */}
                 <Image 
                   src='/favicon-32x32.png'
                   alt='Logo Oficial - Credisur'
