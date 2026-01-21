@@ -12,11 +12,12 @@ import {
   AlertCircle,
   CheckCircle,
   Eye,
-  Edit2,
-  Shield,
+  Pencil,
   AlertTriangle,
-  Ban
+  Ban,
+  DollarSign
 } from 'lucide-react';
+import { formatCurrency } from '@/lib/utils';
 
 // Tipos alineados con Prisma Schema
 type NivelRiesgo = 'VERDE' | 'AMARILLO' | 'ROJO' | 'LISTA_NEGRA';
@@ -50,19 +51,19 @@ const ClientesPage = () => {
     {
       id: '1',
       codigo: 'CL-001',
-      dni: 'V-12345678',
+      dni: '1.020.123.456',
       nombres: 'María',
       apellidos: 'González',
       correo: 'maria.gonzalez@email.com',
-      telefono: '+58 412 555 1212',
-      direccion: 'Av. Principal #123, Caracas',
+      telefono: '310 555 1212',
+      direccion: 'Av. El Dorado #123, Bogotá',
       referencia: 'Frente a la panadería',
       nivelRiesgo: 'VERDE',
       puntaje: 95,
       enListaNegra: false,
       estadoAprobacion: 'APROBADO',
       prestamosActivos: 2,
-      montoTotal: 12500,
+      montoTotal: 12500000,
       montoMora: 0,
       diasMora: 0,
       ultimoPago: '15/03/2024'
@@ -70,39 +71,39 @@ const ClientesPage = () => {
     {
       id: '2',
       codigo: 'CL-002',
-      dni: 'V-23456789',
+      dni: '52.345.678',
       nombres: 'Carlos',
       apellidos: 'Rodríguez',
       correo: 'carlos.rodriguez@email.com',
-      telefono: '+58 414 555 2323',
-      direccion: 'Calle 45 #67-89, Valencia',
+      telefono: '315 555 2323',
+      direccion: 'Calle 45 #67-89, Medellín',
       referencia: 'Casa azul rejas negras',
       nivelRiesgo: 'ROJO',
       puntaje: 45,
       enListaNegra: false,
       estadoAprobacion: 'APROBADO',
       prestamosActivos: 1,
-      montoTotal: 8500,
-      montoMora: 1250,
+      montoTotal: 8500000,
+      montoMora: 1250000,
       diasMora: 12,
       ultimoPago: '28/02/2024'
     },
     {
       id: '3',
       codigo: 'CL-003',
-      dni: 'V-34567890',
+      dni: '79.456.789',
       nombres: 'Ana',
       apellidos: 'Martínez',
       correo: 'ana.martinez@email.com',
-      telefono: '+58 424 555 3434',
-      direccion: 'Urb. Las Acacias, Maracaibo',
+      telefono: '300 555 3434',
+      direccion: 'Urb. Las Acacias, Cali',
       referencia: null,
       nivelRiesgo: 'AMARILLO',
       puntaje: 72,
       enListaNegra: false,
       estadoAprobacion: 'APROBADO',
       prestamosActivos: 3,
-      montoTotal: 28500,
+      montoTotal: 28500000,
       montoMora: 0,
       diasMora: 5,
       ultimoPago: '10/03/2024'
@@ -110,11 +111,11 @@ const ClientesPage = () => {
     {
       id: '4',
       codigo: 'CL-004',
-      dni: 'V-99999999',
+      dni: '99.999.999',
       nombres: 'Pedro',
       apellidos: 'Pérez',
       correo: null,
-      telefono: '+58 416 555 9999',
+      telefono: '316 555 9999',
       direccion: 'Barrio Central',
       referencia: null,
       nivelRiesgo: 'LISTA_NEGRA',
@@ -122,8 +123,8 @@ const ClientesPage = () => {
       enListaNegra: true,
       estadoAprobacion: 'APROBADO',
       prestamosActivos: 0,
-      montoTotal: 5000, // Deuda incobrable
-      montoMora: 5000,
+      montoTotal: 5000000, // Deuda incobrable
+      montoMora: 5000000,
       diasMora: 120,
       ultimoPago: '01/01/2024'
     }
@@ -183,166 +184,172 @@ const ClientesPage = () => {
     }
   };
 
-  const formatNumber = (num: number): string => {
-    return num.toLocaleString('es-VE', { minimumFractionDigits: 2 });
-  };
-
   return (
-    <div className="min-h-screen bg-gray-50/50">
-      {/* Header */}
-      <div className="sticky top-0 z-40 bg-white/80 backdrop-blur-sm border-b border-gray-200/50">
-        <div className="px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center text-primary">
-                <User className="h-5 w-5" />
-              </div>
-              <div>
-                <h1 className="text-xl font-semibold text-gray-900">Clientes</h1>
-                <p className="text-sm text-gray-500">Gestión de cartera y riesgos</p>
-              </div>
-            </div>
+    <div className="min-h-screen bg-white relative">
+      {/* Fondo arquitectónico ultra sutil */}
+      <div className="fixed inset-0 pointer-events-none z-0">
+        <div className="absolute inset-0 bg-gradient-to-br from-white via-gray-50/50 to-white"></div>
+        {/* Líneas de estructura */}
+        <div className="absolute inset-0" style={{
+          backgroundImage: `linear-gradient(to right, #08557f 0.5px, transparent 0.5px)`,
+          backgroundSize: '96px 1px',
+          opacity: 0.03
+        }}></div>
+        <div className="absolute inset-0" style={{
+          backgroundImage: `linear-gradient(to bottom, #08557f 0.5px, transparent 0.5px)`,
+          backgroundSize: '1px 96px',
+          opacity: 0.03
+        }}></div>
+      </div>
 
+      <div className="relative z-10">
+        {/* Header Elegante */}
+        <div className="px-8 py-6 border-b border-gray-100 bg-white/80 backdrop-blur-sm sticky top-0 z-20">
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#08557f]/5 text-xs text-[#08557f] tracking-wide font-medium border border-[#08557f]/10 mb-2">
+                <User className="h-3.5 w-3.5" />
+                <span>Gestión de Cartera</span>
+              </div>
+              <h1 className="text-3xl font-light text-gray-900 tracking-tight">
+                Listado de <span className="font-semibold text-[#08557f]">Clientes</span>
+              </h1>
+            </div>
             <Link
               href="/admin/clientes/nuevo"
-              className="flex items-center space-x-2 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark transition-colors shadow-sm hover:shadow-md"
+              className="px-5 py-2.5 bg-[#08557f] text-white rounded-xl hover:bg-[#064364] transition-all text-sm font-medium flex items-center gap-2 shadow-lg shadow-[#08557f]/20 hover:shadow-[#08557f]/30 hover:-translate-y-0.5 transform duration-200"
             >
-              <UserPlus className="h-4 w-4" />
-              <span className="font-medium">Nuevo Cliente</span>
+              <UserPlus className="w-4 h-4" />
+              Nuevo Cliente
             </Link>
           </div>
         </div>
-      </div>
 
-      <div className="p-6 max-w-7xl mx-auto space-y-6">
-        {/* Estadísticas */}
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-          <div className="bg-white border border-gray-100 rounded-xl p-4 shadow-sm">
-            <div className="flex items-center justify-between mb-2">
-              <div className="text-2xl font-semibold text-gray-900">{stats.total}</div>
-              <div className="p-2 bg-blue-50 text-blue-600 rounded-lg">
-                <User className="h-4 w-4" />
-              </div>
+        <div className="p-8 space-y-8">
+        {/* Estadísticas Elegantes */}
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-6">
+          <div className="p-5 rounded-2xl border border-gray-100 bg-white shadow-sm hover:shadow-md transition-shadow">
+            <div className="flex items-center justify-between mb-4">
+              <span className="text-xs font-medium text-gray-500 uppercase tracking-wider">Total Clientes</span>
+              <User className="w-4 h-4 text-gray-400" />
             </div>
-            <div className="text-xs text-gray-500 font-medium">Total Clientes</div>
+            <p className="text-3xl font-light text-gray-900">{stats.total}</p>
+            <div className="mt-2 text-xs text-gray-400">registrados</div>
           </div>
           
-          <div className="bg-white border border-gray-100 rounded-xl p-4 shadow-sm">
-            <div className="flex items-center justify-between mb-2">
-              <div className="text-2xl font-semibold text-gray-900">{stats.verde}</div>
-              <div className="p-2 bg-green-50 text-green-600 rounded-lg">
-                <CheckCircle className="h-4 w-4" />
-              </div>
+          <div className="p-5 rounded-2xl border border-gray-100 bg-white shadow-sm hover:shadow-md transition-shadow">
+            <div className="flex items-center justify-between mb-4">
+              <span className="text-xs font-medium text-[#08557f] uppercase tracking-wider">Buen Estado</span>
+              <CheckCircle className="w-4 h-4 text-[#08557f]" />
             </div>
-            <div className="text-xs text-gray-500 font-medium">Buen Comportamiento</div>
+            <p className="text-3xl font-light text-gray-900">{stats.verde}</p>
+            <div className="mt-2 text-xs text-gray-400">clientes al día</div>
           </div>
 
-          <div className="bg-white border border-gray-100 rounded-xl p-4 shadow-sm">
-            <div className="flex items-center justify-between mb-2">
-              <div className="text-2xl font-semibold text-gray-900">{stats.amarillo}</div>
-              <div className="p-2 bg-yellow-50 text-yellow-600 rounded-lg">
-                <AlertTriangle className="h-4 w-4" />
-              </div>
+          <div className="p-5 rounded-2xl border border-gray-100 bg-white shadow-sm hover:shadow-md transition-shadow">
+            <div className="flex items-center justify-between mb-4">
+              <span className="text-xs font-medium text-yellow-600 uppercase tracking-wider">Riesgo Medio</span>
+              <AlertTriangle className="w-4 h-4 text-yellow-600" />
             </div>
-            <div className="text-xs text-gray-500 font-medium">Riesgo Medio</div>
+            <p className="text-3xl font-light text-gray-900">{stats.amarillo}</p>
+            <div className="mt-2 text-xs text-gray-400">seguimiento</div>
           </div>
 
-          <div className="bg-white border border-gray-100 rounded-xl p-4 shadow-sm">
-            <div className="flex items-center justify-between mb-2">
-              <div className="text-2xl font-semibold text-gray-900">{stats.rojo}</div>
-              <div className="p-2 bg-red-50 text-red-600 rounded-lg">
-                <AlertCircle className="h-4 w-4" />
-              </div>
+          <div className="p-5 rounded-2xl border border-gray-100 bg-white shadow-sm hover:shadow-md transition-shadow">
+            <div className="flex items-center justify-between mb-4">
+              <span className="text-xs font-medium text-red-600 uppercase tracking-wider">Alto Riesgo</span>
+              <AlertCircle className="w-4 h-4 text-red-600" />
             </div>
-            <div className="text-xs text-gray-500 font-medium">Alto Riesgo</div>
+            <p className="text-3xl font-light text-gray-900">{stats.rojo}</p>
+            <div className="mt-2 text-xs text-gray-400">acción requerida</div>
           </div>
 
-          <div className="bg-white border border-gray-100 rounded-xl p-4 shadow-sm">
-            <div className="flex items-center justify-between mb-2">
-              <div className="text-2xl font-semibold text-gray-900">{stats.listaNegra}</div>
-              <div className="p-2 bg-gray-100 text-gray-600 rounded-lg">
-                <Ban className="h-4 w-4" />
-              </div>
+          <div className="p-5 rounded-2xl border border-gray-100 bg-white shadow-sm hover:shadow-md transition-shadow">
+            <div className="flex items-center justify-between mb-4">
+              <span className="text-xs font-medium text-gray-500 uppercase tracking-wider">Mora Total</span>
+              <DollarSign className="w-4 h-4 text-gray-400" />
             </div>
-            <div className="text-xs text-gray-500 font-medium">Lista Negra</div>
+            <p className="text-3xl font-light text-gray-900">{formatCurrency(stats.totalMora)}</p>
+            <div className="mt-2 text-xs text-gray-400">acumulada</div>
           </div>
         </div>
 
-        {/* Filtros */}
-        <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div className="flex items-center space-x-2 overflow-x-auto pb-2 md:pb-0">
-              <Filter className="h-4 w-4 text-gray-400 shrink-0" />
-              <span className="text-sm text-gray-600 mr-2">Filtrar:</span>
-              
-              {[
-                { id: 'all', label: 'Todos' },
-                { id: 'VERDE', label: 'Normal' },
-                { id: 'AMARILLO', label: 'Riesgo' },
-                { id: 'ROJO', label: 'Mora' },
-                { id: 'LISTA_NEGRA', label: 'Lista Negra' }
-              ].map((filtro) => (
-                <button
-                  key={filtro.id}
-                  onClick={() => {
-                    setFilterRiesgo(filtro.id);
-                    setCurrentPage(1);
-                  }}
-                  className={`px-3 py-1.5 text-xs font-medium rounded-full transition-all whitespace-nowrap ${
-                    filterRiesgo === filtro.id 
-                      ? 'bg-primary text-white shadow-sm' 
-                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                  }`}
-                >
-                  {filtro.label}
-                </button>
-              ))}
-            </div>
+        {/* Filtros y Búsqueda */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-gray-50/50 p-4 rounded-2xl border border-gray-100">
+          <div className="flex items-center gap-2 overflow-x-auto pb-2 md:pb-0 scrollbar-hide">
+            <Filter className="h-4 w-4 text-gray-400 shrink-0 mr-2" />
             
-            <div className="relative w-full md:w-64">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-              <input
-                type="text"
-                placeholder="Buscar por nombre, DNI..."
-                value={searchTerm}
-                onChange={(e) => {
-                  setSearchTerm(e.target.value);
+            {[
+              { id: 'all', label: 'Todos' },
+              { id: 'VERDE', label: 'Al Día' },
+              { id: 'AMARILLO', label: 'Riesgo' },
+              { id: 'ROJO', label: 'Mora' },
+              { id: 'LISTA_NEGRA', label: 'Lista Negra' }
+            ].map((filtro) => (
+              <button
+                key={filtro.id}
+                onClick={() => {
+                  setFilterRiesgo(filtro.id);
                   setCurrentPage(1);
                 }}
-                className="w-full pl-10 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 text-sm transition-all focus:bg-white"
-              />
-            </div>
+                className={`px-4 py-2 text-xs font-medium rounded-full transition-all whitespace-nowrap ${
+                  filterRiesgo === filtro.id 
+                    ? 'bg-[#08557f] text-white shadow-md shadow-[#08557f]/20' 
+                    : 'bg-white text-gray-600 hover:bg-gray-100 border border-gray-200'
+                }`}
+              >
+                {filtro.label}
+              </button>
+            ))}
+          </div>
+          
+          <div className="relative w-full md:w-80">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+            <input
+              type="text"
+              placeholder="Buscar cliente, DNI o teléfono..."
+              value={searchTerm}
+              onChange={(e) => {
+                setSearchTerm(e.target.value);
+                setCurrentPage(1);
+              }}
+              className="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#08557f]/20 focus:border-[#08557f] text-sm text-gray-900 transition-all"
+            />
           </div>
         </div>
 
-        {/* Tabla */}
-        <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
+        {/* Tabla Elegante */}
+        <div className="bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
-                <tr className="bg-gray-50/50 border-b border-gray-200">
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Cliente / DNI</th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Riesgo / Estado</th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Deuda</th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Contacto</th>
-                  <th className="px-6 py-4 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">Acciones</th>
+                <tr className="bg-gray-50/50 border-b border-gray-100">
+                  <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Cliente</th>
+                  <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Estado</th>
+                  <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Finanzas</th>
+                  <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Contacto</th>
+                  <th className="px-6 py-4 text-right text-xs font-medium text-gray-500 uppercase tracking-wider"></th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
                 {currentItems.map((cliente) => (
                   <tr
                     key={cliente.id}
-                    className="hover:bg-gray-50/50 transition-colors group"
+                    className="hover:bg-gray-50/30 transition-colors group"
                   >
                     <td className="px-6 py-4">
                       <div className="flex items-center">
-                        <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center text-gray-500 font-medium text-sm">
+                        <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-medium ${
+                          cliente.nivelRiesgo === 'VERDE' ? 'bg-green-50 text-green-600' :
+                          cliente.nivelRiesgo === 'AMARILLO' ? 'bg-yellow-50 text-yellow-600' :
+                          cliente.nivelRiesgo === 'ROJO' ? 'bg-red-50 text-red-600' :
+                          'bg-gray-100 text-gray-600'
+                        }`}>
                           {cliente.nombres.charAt(0)}{cliente.apellidos.charAt(0)}
                         </div>
                         <div className="ml-4">
                           <div className="font-medium text-gray-900">{cliente.nombres} {cliente.apellidos}</div>
-                          <div className="text-xs text-gray-500 flex items-center mt-0.5">
-                            <Shield className="h-3 w-3 mr-1 text-gray-400" />
+                          <div className="text-xs text-gray-500 flex items-center mt-0.5 font-mono">
                             {cliente.dni}
                           </div>
                         </div>
@@ -350,15 +357,15 @@ const ClientesPage = () => {
                     </td>
                     
                     <td className="px-6 py-4">
-                      <div className="space-y-2">
-                        <div className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${getRiesgoColor(cliente.nivelRiesgo)} border-current bg-opacity-10`}>
+                      <div className="space-y-1">
+                        <div className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${getRiesgoColor(cliente.nivelRiesgo)} bg-opacity-10 border border-current border-opacity-20`}>
                           <span className="mr-1.5">{getRiesgoIcon(cliente.nivelRiesgo)}</span>
                           {cliente.nivelRiesgo.replace('_', ' ')}
                         </div>
                         {cliente.enListaNegra && (
-                          <div className="flex items-center text-xs text-red-600 font-medium">
+                          <div className="flex items-center text-xs text-red-600 font-medium px-1">
                             <Ban className="h-3 w-3 mr-1" />
-                            En Lista Negra
+                            Lista Negra
                           </div>
                         )}
                       </div>
@@ -367,12 +374,11 @@ const ClientesPage = () => {
                     <td className="px-6 py-4">
                       <div className="space-y-1">
                         <div className="text-sm font-medium text-gray-900">
-                          ${formatNumber(cliente.montoTotal)}
+                          {formatCurrency(cliente.montoTotal)}
                         </div>
                         {cliente.montoMora > 0 && (
                           <div className="text-xs text-red-600 flex items-center">
-                            <AlertCircle className="h-3 w-3 mr-1" />
-                            Mora: ${formatNumber(cliente.montoMora)}
+                            Mora: {formatCurrency(cliente.montoMora)}
                           </div>
                         )}
                       </div>
@@ -394,20 +400,20 @@ const ClientesPage = () => {
                     </td>
                     
                     <td className="px-6 py-4 text-right">
-                      <div className="flex items-center justify-end space-x-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                         <Link
                           href={`/admin/clientes/${cliente.id}`}
-                          className="p-2 text-gray-400 hover:text-primary hover:bg-primary/5 rounded-lg transition-colors"
-                          title="Ver detalles"
+                          className="p-2 text-gray-400 hover:text-[#08557f] hover:bg-[#08557f]/5 rounded-lg transition-colors"
+                          title="Ver Expediente"
                         >
                           <Eye className="h-4 w-4" />
                         </Link>
                         <Link
                           href={`/admin/clientes/${cliente.id}/editar`}
-                          className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                          title="Editar"
+                          className="p-2 text-gray-400 hover:text-[#08557f] hover:bg-[#08557f]/5 rounded-lg transition-colors"
+                          title="Editar cliente"
                         >
-                          <Edit2 className="h-4 w-4" />
+                          <Pencil className="h-4 w-4" />
                         </Link>
                       </div>
                     </td>
@@ -417,9 +423,9 @@ const ClientesPage = () => {
             </table>
           </div>
           
-          {/* Paginación */}
+          {/* Paginación Elegante */}
           {totalPages > 1 && (
-            <div className="px-6 py-4 border-t border-gray-200 bg-gray-50/50">
+            <div className="px-6 py-4 border-t border-gray-100 bg-gray-50/30">
               <div className="flex items-center justify-between">
                 <span className="text-xs text-gray-500">
                   Mostrando {indexOfFirstItem + 1}-{Math.min(indexOfLastItem, filteredClientes.length)} de {filteredClientes.length}
@@ -428,14 +434,14 @@ const ClientesPage = () => {
                   <button
                     onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                     disabled={currentPage === 1}
-                    className="px-3 py-1 text-xs border rounded hover:bg-white disabled:opacity-50"
+                    className="px-4 py-2 text-xs font-medium border border-gray-200 rounded-lg hover:bg-white hover:shadow-sm disabled:opacity-50 disabled:hover:shadow-none transition-all"
                   >
                     Anterior
                   </button>
                   <button
                     onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
                     disabled={currentPage === totalPages}
-                    className="px-3 py-1 text-xs border rounded hover:bg-white disabled:opacity-50"
+                    className="px-4 py-2 text-xs font-medium border border-gray-200 rounded-lg hover:bg-white hover:shadow-sm disabled:opacity-50 disabled:hover:shadow-none transition-all"
                   >
                     Siguiente
                   </button>
@@ -444,6 +450,7 @@ const ClientesPage = () => {
             </div>
           )}
         </div>
+      </div>
       </div>
     </div>
   );

@@ -12,6 +12,7 @@ import {
   Download,
   AlertCircle
 } from 'lucide-react'
+import { formatCurrency, cn } from '@/lib/utils'
 
 type EstadoPago = 'completado' | 'pendiente' | 'fallido' | 'en_revision'
 
@@ -38,7 +39,7 @@ const HistorialPagosPage = () => {
       cliente: 'María González',
       cobrador: 'Carlos Pérez',
       ruta: 'Ruta Centro',
-      monto: 125.5,
+      monto: 125500,
       metodo: 'Efectivo',
       estado: 'completado'
     },
@@ -48,7 +49,7 @@ const HistorialPagosPage = () => {
       cliente: 'Carlos Rodríguez',
       cobrador: 'Ana López',
       ruta: 'Ruta Este',
-      monto: 80,
+      monto: 80000,
       metodo: 'Transferencia',
       estado: 'en_revision'
     },
@@ -58,7 +59,7 @@ const HistorialPagosPage = () => {
       cliente: 'Ana Martínez',
       cobrador: 'Pedro Gómez',
       ruta: 'Ruta Norte',
-      monto: 150,
+      monto: 150000,
       metodo: 'Efectivo',
       estado: 'pendiente'
     },
@@ -68,7 +69,7 @@ const HistorialPagosPage = () => {
       cliente: 'Luis Fernández',
       cobrador: 'Carlos Pérez',
       ruta: 'Ruta Centro',
-      monto: 95.75,
+      monto: 95750,
       metodo: 'Transferencia',
       estado: 'completado'
     }
@@ -95,32 +96,42 @@ const HistorialPagosPage = () => {
   })
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-100 px-4 py-6">
-      <div className="max-w-6xl mx-auto space-y-6">
-        <header className="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
+    <div className="min-h-screen bg-white relative">
+      {/* Fondo arquitectónico ultra sutil */}
+      <div className="fixed inset-0 pointer-events-none">
+        <div className="absolute inset-0 bg-gradient-to-br from-white via-gray-50/50 to-white"></div>
+        <div className="absolute inset-0" style={{
+          backgroundImage: `linear-gradient(to right, #08557f 0.5px, transparent 0.5px)`,
+          backgroundSize: '96px 1px',
+          opacity: 0.03
+        }}></div>
+      </div>
+
+      <div className="relative max-w-6xl mx-auto px-4 py-8 space-y-8">
+        <header className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
           <div className="space-y-2">
-            <div className="inline-flex items-center gap-2 self-start px-3 py-1 rounded-full bg-[#08557f]/5 text-xs text-[#08557f] tracking-wide">
-              <Wallet className="h-3 w-3" />
+            <div className="inline-flex items-center gap-2 self-start px-3 py-1 rounded-full bg-[#08557f]/5 text-xs font-medium text-[#08557f] tracking-wide border border-[#08557f]/10">
+              <Wallet className="h-3.5 w-3.5" />
               <span>Historial de pagos</span>
             </div>
-            <h1 className="text-2xl md:text-3xl font-light text-gray-900 tracking-tight">
+            <h1 className="text-3xl font-light text-gray-900 tracking-tight">
               Seguimiento de cuotas cobradas
             </h1>
-            <p className="text-sm text-gray-500 max-w-xl">
+            <p className="text-sm text-gray-500 max-w-xl font-light leading-relaxed">
               Visualiza en tiempo real los pagos registrados por cliente, cobrador y ruta, con
               estados claros para conciliación contable.
             </p>
           </div>
           <div className="flex gap-2">
-            <button className="inline-flex items-center gap-2 rounded-full border border-gray-200 bg-white px-4 py-2 text-xs text-gray-700 hover:border-gray-300">
-              <Download className="h-4 w-4" />
+            <button className="inline-flex items-center gap-2 rounded-full border border-gray-200 bg-white px-5 py-2.5 text-xs font-medium text-gray-700 hover:border-gray-300 hover:bg-gray-50 transition-all shadow-sm">
+              <Download className="h-4 w-4 text-gray-400" />
               <span>Exportar</span>
             </button>
           </div>
         </header>
 
-        <section className="space-y-4">
-          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+        <section className="space-y-6">
+          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
             <div className="flex flex-1 gap-3">
               <div className="relative flex-1 max-w-md">
                 <div className="pointer-events-none absolute inset-y-0 left-3 flex items-center">
@@ -130,53 +141,57 @@ const HistorialPagosPage = () => {
                   value={busqueda}
                   onChange={(e) => setBusqueda(e.target.value)}
                   placeholder="Buscar por cliente, cobrador o ruta"
-                  className="w-full rounded-full border border-gray-200 bg-white pl-9 pr-3 py-2.5 text-sm text-gray-800 outline-none focus:border-[#08557f] focus:ring-2 focus:ring-[#08557f]/10 transition-all"
+                  className="w-full rounded-full border border-gray-200 bg-white pl-10 pr-4 py-2.5 text-sm text-gray-800 outline-none focus:border-[#08557f] focus:ring-2 focus:ring-[#08557f]/5 transition-all placeholder:text-gray-400 hover:border-gray-300"
                 />
               </div>
-              <button className="inline-flex items-center gap-2 rounded-full border border-gray-200 bg-white px-3 py-2 text-xs text-gray-700 hover:border-gray-300">
-                <Filter className="h-4 w-4" />
+              <button className="inline-flex items-center gap-2 rounded-full border border-gray-200 bg-white px-4 py-2 text-xs font-medium text-gray-700 hover:border-gray-300 hover:bg-gray-50 transition-all">
+                <Filter className="h-4 w-4 text-gray-400" />
                 <span>Filtros</span>
               </button>
             </div>
 
-            <div className="flex flex-wrap items-center gap-2 text-xs">
+            <div className="flex flex-wrap items-center gap-2">
               <button
                 onClick={() => setEstadoFiltro('todos')}
-                className={`rounded-full px-3 py-1 border text-xs ${
+                className={cn(
+                  "rounded-full px-4 py-1.5 border text-xs font-medium transition-all",
                   estadoFiltro === 'todos'
-                    ? 'border-[#08557f] bg-[#08557f]/5 text-[#08557f]'
-                    : 'border-gray-200 bg-white text-gray-600'
-                }`}
+                    ? "border-[#08557f] bg-[#08557f] text-white shadow-md shadow-[#08557f]/20"
+                    : "border-gray-200 bg-white text-gray-600 hover:bg-gray-50"
+                )}
               >
                 Todos
               </button>
               <button
                 onClick={() => setEstadoFiltro('completado')}
-                className={`rounded-full px-3 py-1 border text-xs ${
+                className={cn(
+                  "rounded-full px-4 py-1.5 border text-xs font-medium transition-all",
                   estadoFiltro === 'completado'
-                    ? 'border-emerald-400 bg-emerald-50 text-emerald-700'
-                    : 'border-gray-200 bg-white text-gray-600'
-                }`}
+                    ? "border-emerald-500 bg-emerald-500 text-white shadow-md shadow-emerald-500/20"
+                    : "border-gray-200 bg-white text-gray-600 hover:bg-gray-50"
+                )}
               >
                 Completado
               </button>
               <button
                 onClick={() => setEstadoFiltro('pendiente')}
-                className={`rounded-full px-3 py-1 border text-xs ${
+                className={cn(
+                  "rounded-full px-4 py-1.5 border text-xs font-medium transition-all",
                   estadoFiltro === 'pendiente'
-                    ? 'border-amber-400 bg-amber-50 text-amber-700'
-                    : 'border-gray-200 bg-white text-gray-600'
-                }`}
+                    ? "border-amber-500 bg-amber-500 text-white shadow-md shadow-amber-500/20"
+                    : "border-gray-200 bg-white text-gray-600 hover:bg-gray-50"
+                )}
               >
                 Pendiente
               </button>
               <button
                 onClick={() => setEstadoFiltro('en_revision')}
-                className={`rounded-full px-3 py-1 border text-xs ${
+                className={cn(
+                  "rounded-full px-4 py-1.5 border text-xs font-medium transition-all",
                   estadoFiltro === 'en_revision'
-                    ? 'border-blue-400 bg-blue-50 text-blue-700'
-                    : 'border-gray-200 bg-white text-gray-600'
-                }`}
+                    ? "border-blue-500 bg-blue-500 text-white shadow-md shadow-blue-500/20"
+                    : "border-gray-200 bg-white text-gray-600 hover:bg-gray-50"
+                )}
               >
                 En revisión
               </button>
@@ -184,86 +199,89 @@ const HistorialPagosPage = () => {
           </div>
 
           <div className="bg-white border border-gray-100 rounded-2xl shadow-sm overflow-hidden">
-            <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-50 bg-gray-50/30">
               <div className="flex items-center gap-2 text-xs text-gray-500">
                 <Calendar className="h-4 w-4 text-gray-400" />
                 <span>
                   Hoy se han registrado{' '}
-                  <span className="font-semibold text-gray-800">{pagos.length}</span> pagos
+                  <span className="font-semibold text-gray-900">{pagos.length}</span> pagos
                 </span>
               </div>
-              <div className="flex items-center gap-2 text-[11px] text-gray-400">
-                <AlertCircle className="h-3.5 w-3.5" />
-                <span>Datos de ejemplo para diseño de interfaz</span>
+              <div className="flex items-center gap-2 text-[10px] text-gray-400 bg-white px-2 py-1 rounded border border-gray-100">
+                <AlertCircle className="h-3 w-3" />
+                <span>Datos de ejemplo</span>
               </div>
             </div>
 
             <div className="overflow-x-auto">
               <table className="min-w-full text-sm">
                 <thead>
-                  <tr className="border-b border-gray-100 bg-gray-50/60 text-xs text-gray-500 uppercase tracking-[0.18em]">
-                    <th className="px-4 py-3 text-left">Pago</th>
-                    <th className="px-4 py-3 text-left">Cliente</th>
-                    <th className="px-4 py-3 text-left">Cobrador / Ruta</th>
-                    <th className="px-4 py-3 text-left">Monto</th>
-                    <th className="px-4 py-3 text-left">Método</th>
-                    <th className="px-4 py-3 text-left">Estado</th>
+                  <tr className="border-b border-gray-100 text-xs text-gray-400 uppercase tracking-[0.1em] font-medium">
+                    <th className="px-6 py-4 text-left bg-gray-50/20">Pago</th>
+                    <th className="px-6 py-4 text-left bg-gray-50/20">Cliente</th>
+                    <th className="px-6 py-4 text-left bg-gray-50/20">Cobrador / Ruta</th>
+                    <th className="px-6 py-4 text-left bg-gray-50/20">Monto</th>
+                    <th className="px-6 py-4 text-left bg-gray-50/20">Método</th>
+                    <th className="px-6 py-4 text-left bg-gray-50/20">Estado</th>
                   </tr>
                 </thead>
-                <tbody>
+                <tbody className="divide-y divide-gray-50">
                   {pagosFiltrados.map((pago) => (
                     <tr
                       key={pago.id}
-                      className="border-b border-gray-50 hover:bg-gray-50/80 transition-colors"
+                      className="hover:bg-gray-50/50 transition-colors group"
                     >
-                      <td className="px-4 py-3 align-middle">
+                      <td className="px-6 py-4 align-middle">
                         <div className="flex flex-col">
-                          <span className="text-xs font-semibold text-gray-800">
+                          <span className="text-xs font-bold text-gray-900 group-hover:text-[#08557f] transition-colors">
                             {pago.id}
                           </span>
-                          <span className="text-[11px] text-gray-500">
+                          <span className="text-[11px] text-gray-400 font-medium">
                             {pago.fecha}
                           </span>
                         </div>
                       </td>
-                      <td className="px-4 py-3 align-middle">
-                        <div className="flex items-center gap-2">
-                          <div className="w-7 h-7 rounded-full bg-[#08557f]/10 flex items-center justify-center">
-                            <User className="h-3.5 w-3.5 text-[#08557f]" />
+                      <td className="px-6 py-4 align-middle">
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-full bg-gray-50 border border-gray-100 flex items-center justify-center group-hover:border-[#08557f]/20 group-hover:bg-[#08557f]/5 transition-colors">
+                            <User className="h-3.5 w-3.5 text-gray-400 group-hover:text-[#08557f] transition-colors" />
                           </div>
                           <div className="flex flex-col">
-                            <span className="text-sm text-gray-800">{pago.cliente}</span>
-                            <span className="text-[11px] text-gray-500">
+                            <span className="text-sm font-medium text-gray-700 group-hover:text-gray-900 transition-colors">{pago.cliente}</span>
+                            <span className="text-[10px] text-gray-400 uppercase tracking-wide">
                               Cliente activo
                             </span>
                           </div>
                         </div>
                       </td>
-                      <td className="px-4 py-3 align-middle">
-                        <div className="flex flex-col">
-                          <span className="text-sm text-gray-800">
+                      <td className="px-6 py-4 align-middle">
+                        <div className="flex flex-col gap-0.5">
+                          <span className="text-sm text-gray-700">
                             {pago.cobrador}
                           </span>
-                          <span className="text-[11px] text-gray-500">
+                          <span className="text-[11px] text-gray-400 flex items-center gap-1">
+                            <span className="w-1 h-1 rounded-full bg-gray-300" />
                             {pago.ruta}
                           </span>
                         </div>
                       </td>
-                      <td className="px-4 py-3 align-middle">
-                        <span className="text-sm font-medium text-gray-800">
-                          ${pago.monto.toFixed(2)}
+                      <td className="px-6 py-4 align-middle">
+                        <span className="text-sm font-semibold text-gray-900 font-mono">
+                          {formatCurrency(pago.monto)}
                         </span>
                       </td>
-                      <td className="px-4 py-3 align-middle">
-                        <span className="text-xs text-gray-600">{pago.metodo}</span>
+                      <td className="px-6 py-4 align-middle">
+                        <span className="text-xs font-medium text-gray-500 bg-gray-50 px-2 py-1 rounded border border-gray-100">
+                          {pago.metodo}
+                        </span>
                       </td>
-                      <td className="px-4 py-3 align-middle">
+                      <td className="px-6 py-4 align-middle">
                         <span
-                          className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-medium ${getEstadoChipClasses(
+                          className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-medium ${getEstadoChipClasses(
                             pago.estado
                           )}`}
                         >
-                          <span className="w-1.5 h-1.5 rounded-full bg-current opacity-70" />
+                          <span className="w-1.5 h-1.5 rounded-full bg-current opacity-60" />
                           <span>
                             {pago.estado === 'completado' && 'Completado'}
                             {pago.estado === 'pendiente' && 'Pendiente'}
@@ -278,9 +296,15 @@ const HistorialPagosPage = () => {
                     <tr>
                       <td
                         colSpan={6}
-                        className="px-4 py-10 text-center text-sm text-gray-500"
+                        className="px-6 py-12 text-center"
                       >
-                        No se encontraron pagos con los filtros actuales.
+                        <div className="flex flex-col items-center gap-2">
+                          <div className="p-3 rounded-full bg-gray-50">
+                            <Search className="h-5 w-5 text-gray-300" />
+                          </div>
+                          <p className="text-sm font-medium text-gray-900">No se encontraron resultados</p>
+                          <p className="text-xs text-gray-500">Intenta ajustar los filtros de búsqueda</p>
+                        </div>
                       </td>
                     </tr>
                   )}
@@ -288,27 +312,24 @@ const HistorialPagosPage = () => {
               </table>
             </div>
 
-            <div className="flex items-center justify-between border-t border-gray-100 px-4 py-3 text-xs text-gray-500">
-              <div className="flex items-center gap-2">
-                <span>Mostrando</span>
-                <span className="font-medium text-gray-700">
-                  {pagosFiltrados.length}
-                </span>
-                <span>registros</span>
+            <div className="flex items-center justify-between border-t border-gray-100 px-6 py-4 bg-gray-50/30">
+              <div className="text-xs text-gray-500">
+                Mostrando <span className="font-semibold text-gray-900">{pagosFiltrados.length}</span> registros
               </div>
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2">
                 <button
                   onClick={() =>
                     setPaginaActual((prev) => Math.max(1, prev - 1))
                   }
-                  className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-500 hover:border-gray-300"
+                  disabled={paginaActual === 1}
+                  className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-500 hover:border-gray-300 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
                 >
                   <ChevronLeft className="h-4 w-4" />
                 </button>
-                <span>Página {paginaActual}</span>
+                <span className="text-xs font-medium text-gray-700 px-2">Página {paginaActual}</span>
                 <button
                   onClick={() => setPaginaActual((prev) => prev + 1)}
-                  className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-500 hover:border-gray-300"
+                  className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-500 hover:border-gray-300 hover:bg-gray-50 transition-all"
                 >
                   <ChevronRight className="h-4 w-4" />
                 </button>
@@ -322,4 +343,3 @@ const HistorialPagosPage = () => {
 }
 
 export default HistorialPagosPage
-
