@@ -109,7 +109,7 @@ const comentariosEjemplo: Comentario[] = [
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
   const { id } = await params;
   return {
-    title: `Detalle de Cliente • Gestión Crediticia`,
+    title: `Detalle de Cliente • CrediSur`,
     description: `Panel de gestión y análisis para el cliente ${id}`
   };
 }
@@ -125,25 +125,40 @@ export default async function ClienteDetallePage({
   const cliente = { ...clienteEjemplo, id };
 
   return (
-    <div className="min-h-screen bg-gray-50/50">
+    <div className="min-h-screen bg-white relative">
+      {/* Fondo arquitectónico ultra sutil */}
+      <div className="fixed inset-0 pointer-events-none z-0">
+        <div className="absolute inset-0 bg-gradient-to-br from-white via-gray-50/50 to-white"></div>
+        <div className="absolute inset-0" style={{
+          backgroundImage: `linear-gradient(to right, #08557f 0.5px, transparent 0.5px)`,
+          backgroundSize: '96px 1px',
+          opacity: 0.03
+        }}></div>
+        <div className="absolute inset-0" style={{
+          backgroundImage: `linear-gradient(to bottom, #08557f 0.5px, transparent 0.5px)`,
+          backgroundSize: '1px 96px',
+          opacity: 0.03
+        }}></div>
+      </div>
+
       {/* Header General de la Página */}
-      <header className="sticky top-0 z-10 bg-white border-b border-gray-200">
+      <header className="sticky top-0 z-10 bg-white/80 backdrop-blur-sm border-b border-gray-100">
         <div className="px-6 lg:px-8 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               <Link 
                 href="/admin/clientes" 
-                className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
+                className="p-2 rounded-lg hover:bg-gray-50 transition-colors text-gray-500 hover:text-[#08557f]"
               >
-                <ChevronLeft className="w-5 h-5 text-gray-600" />
+                <ChevronLeft className="w-5 h-5" />
               </Link>
               <div className="flex items-center gap-3">
-                <div className="p-2 rounded-lg bg-blue-50">
-                  <BarChart3 className="w-5 h-5 text-primary" />
+                <div className="p-2 rounded-lg bg-[#08557f]/10 text-[#08557f]">
+                  <BarChart3 className="w-5 h-5" />
                 </div>
                 <div>
-                  <h1 className="text-lg font-light text-gray-900">Gestión de Clientes</h1>
-                  <p className="text-sm text-gray-500">Detalle y análisis de cartera</p>
+                  <h1 className="text-lg font-light text-gray-900 tracking-tight">Gestión de Clientes</h1>
+                  <p className="text-sm text-gray-500 font-light">Detalle y análisis de cartera</p>
                 </div>
               </div>
             </div>
@@ -151,7 +166,7 @@ export default async function ClienteDetallePage({
         </div>
       </header>
 
-      <main>
+      <main className="relative z-10">
         <ClienteDetalleElegante 
           cliente={cliente}
           prestamos={prestamosEjemplo}

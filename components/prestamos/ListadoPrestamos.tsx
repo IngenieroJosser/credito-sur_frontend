@@ -1,41 +1,25 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { 
-  Search, Filter, User, DollarSign, TrendingUp, Clock, 
-  AlertCircle, CheckCircle,
-  Eye,
-  ChevronLeft, ChevronRight as ChevronRightIcon, Plus,
-  RefreshCw, Shield, FileText, CreditCard,
-  Grid3x3, List, Package, Zap, Ban
-} from 'lucide-react';
+import { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-
-// Tipos alineados con Prisma Schema
-type EstadoPrestamo = 'BORRADOR' | 'PENDIENTE_APROBACION' | 'ACTIVO' | 'EN_MORA' | 'PAGADO' | 'INCUMPLIDO' | 'PERDIDA';
-type NivelRiesgo = 'VERDE' | 'AMARILLO' | 'ROJO' | 'LISTA_NEGRA';
-
-interface Prestamo {
-  id: string;
-  cliente: string;
-  clienteId: string;
-  producto: string;
-  montoTotal: number;
-  montoPagado: number;
-  montoPendiente: number;
-  cuotasTotales: number;
-  cuotasPagadas: number;
-  cuotasPendientes: number;
-  fechaInicio: string;
-  fechaVencimiento: string;
-  proximoPago: string;
-  estado: EstadoPrestamo;
-  tasaInteres: number;
-  diasMora?: number;
-  moraAcumulada?: number;
-  riesgo: NivelRiesgo;
-  icono: React.ReactNode;
-}
+import {
+  Search,
+  TrendingUp,
+  Clock,
+  AlertCircle,
+  CheckCircle,
+  ChevronLeft,
+  ChevronRight as ChevronRightIcon,
+  Plus,
+  CreditCard,
+  Package,
+  Zap,
+  Ban,
+  DollarSign
+} from 'lucide-react';
+import { formatCurrency, cn } from '@/lib/utils';
+import { PRESTAMOS_MOCK, Prestamo, EstadoPrestamo } from './data';
 
 interface Filtros {
   estado: string;
@@ -59,176 +43,18 @@ const ListadoPrestamosElegante = () => {
   });
   const [paginaActual, setPaginaActual] = useState(1);
   const [prestamosPorPagina] = useState(8);
-  const [mostrarFiltros, setMostrarFiltros] = useState(false);
   const [cargando, setCargando] = useState(true);
-  const [vista, setVista] = useState<'lista' | 'grid'>('lista');
+  const [mounted, setMounted] = useState(false);
 
-  // Datos de ejemplo
   useEffect(() => {
-    const datosEjemplo: Prestamo[] = [
-      {
-        id: 'PR-2023-001',
-        cliente: 'Carlos Rodríguez',
-        clienteId: 'CL-001',
-        producto: 'Refrigeradora Samsung',
-        montoTotal: 1200,
-        montoPagado: 720,
-        montoPendiente: 480,
-        cuotasTotales: 12,
-        cuotasPagadas: 7,
-        cuotasPendientes: 5,
-        fechaInicio: '15 Ene 2023',
-        fechaVencimiento: '15 Dic 2023',
-        proximoPago: '15 Ago 2023',
-        estado: 'ACTIVO',
-        tasaInteres: 1.5,
-        diasMora: 0,
-        riesgo: 'AMARILLO',
-        icono: <Package className="w-4 h-4" />
-      },
-      {
-        id: 'PR-2023-002',
-        cliente: 'Ana Gómez',
-        clienteId: 'CL-002',
-        producto: 'Lavadora LG',
-        montoTotal: 850,
-        montoPagado: 850,
-        montoPendiente: 0,
-        cuotasTotales: 10,
-        cuotasPagadas: 10,
-        cuotasPendientes: 0,
-        fechaInicio: '10 Jun 2022',
-        fechaVencimiento: '10 Mar 2023',
-        proximoPago: '-',
-        estado: 'PAGADO',
-        tasaInteres: 1.8,
-        riesgo: 'VERDE',
-        icono: <CreditCard className="w-4 h-4" />
-      },
-      {
-        id: 'PR-2023-003',
-        cliente: 'Roberto Sánchez',
-        clienteId: 'CL-003',
-        producto: 'Cocina a Gas',
-        montoTotal: 650,
-        montoPagado: 325,
-        montoPendiente: 325,
-        cuotasTotales: 8,
-        cuotasPagadas: 4,
-        cuotasPendientes: 4,
-        fechaInicio: '05 Mar 2023',
-        fechaVencimiento: '05 Oct 2023',
-        proximoPago: '05 Ago 2023',
-        estado: 'EN_MORA',
-        tasaInteres: 1.6,
-        diasMora: 7,
-        moraAcumulada: 12.50,
-        riesgo: 'ROJO',
-        icono: <Zap className="w-4 h-4" />
-      },
-      {
-        id: 'PR-2023-004',
-        cliente: 'María López',
-        clienteId: 'CL-004',
-        producto: 'Televisor 55"',
-        montoTotal: 950,
-        montoPagado: 190,
-        montoPendiente: 760,
-        cuotasTotales: 12,
-        cuotasPagadas: 2,
-        cuotasPendientes: 10,
-        fechaInicio: '01 Abr 2023',
-        fechaVencimiento: '01 Mar 2024',
-        proximoPago: '01 Jun 2023',
-        estado: 'ACTIVO',
-        tasaInteres: 1.4,
-        riesgo: 'VERDE',
-        icono: <DollarSign className="w-4 h-4" />
-      },
-      {
-        id: 'PR-2023-005',
-        cliente: 'Luis Fernández',
-        clienteId: 'CL-005',
-        producto: 'Aire Acondicionado',
-        montoTotal: 1800,
-        montoPagado: 450,
-        montoPendiente: 1350,
-        cuotasTotales: 18,
-        cuotasPagadas: 3,
-        cuotasPendientes: 15,
-        fechaInicio: '20 May 2023',
-        fechaVencimiento: '20 Oct 2024',
-        proximoPago: '20 Ago 2023',
-        estado: 'INCUMPLIDO',
-        tasaInteres: 1.7,
-        diasMora: 45,
-        moraAcumulada: 67.80,
-        riesgo: 'ROJO',
-        icono: <Package className="w-4 h-4" />
-      },
-      {
-        id: 'PR-2023-006',
-        cliente: 'Carlos Rodríguez',
-        clienteId: 'CL-001',
-        producto: 'Microondas',
-        montoTotal: 350,
-        montoPagado: 350,
-        montoPendiente: 0,
-        cuotasTotales: 6,
-        cuotasPagadas: 6,
-        cuotasPendientes: 0,
-        fechaInicio: '15 Nov 2022',
-        fechaVencimiento: '15 Abr 2023',
-        proximoPago: '-',
-        estado: 'PAGADO',
-        tasaInteres: 1.3,
-        riesgo: 'VERDE',
-        icono: <CreditCard className="w-4 h-4" />
-      },
-      {
-        id: 'PR-2023-007',
-        cliente: 'Ana Gómez',
-        clienteId: 'CL-002',
-        producto: 'Refrigeradora Samsung',
-        montoTotal: 1200,
-        montoPagado: 600,
-        montoPendiente: 600,
-        cuotasTotales: 12,
-        cuotasPagadas: 6,
-        cuotasPendientes: 6,
-        fechaInicio: '10 Feb 2023',
-        fechaVencimiento: '10 Ene 2024',
-        proximoPago: '10 Ago 2023',
-        estado: 'ACTIVO',
-        tasaInteres: 1.5,
-        riesgo: 'AMARILLO',
-        icono: <Zap className="w-4 h-4" />
-      },
-      {
-        id: 'PR-2023-008',
-        cliente: 'Pedro Martínez',
-        clienteId: 'CL-006',
-        producto: 'Lavadora LG',
-        montoTotal: 850,
-        montoPagado: 0,
-        montoPendiente: 850,
-        cuotasTotales: 10,
-        cuotasPagadas: 0,
-        cuotasPendientes: 10,
-        fechaInicio: '01 Jun 2023',
-        fechaVencimiento: '01 Mar 2024',
-        proximoPago: '01 Jul 2023',
-        estado: 'PERDIDA',
-        tasaInteres: 1.8,
-        riesgo: 'LISTA_NEGRA',
-        icono: <DollarSign className="w-4 h-4" />
-      }
-    ];
-
-    setTimeout(() => {
-      setPrestamos(datosEjemplo);
+    // Usamos setTimeout para evitar advertencias de setState síncrono y simular carga
+    const timer = setTimeout(() => {
+      setMounted(true);
+      setPrestamos(PRESTAMOS_MOCK);
       setCargando(false);
     }, 500);
+
+    return () => clearTimeout(timer);
   }, []);
 
   // Estadísticas
@@ -238,7 +64,7 @@ const ListadoPrestamosElegante = () => {
     atrasados: prestamos.filter(p => p.estado === 'EN_MORA').length,
     morosos: prestamos.filter(p => p.estado === 'INCUMPLIDO' || p.estado === 'PERDIDA').length,
     pagados: prestamos.filter(p => p.estado === 'PAGADO').length,
-    cancelados: prestamos.filter(p => p.estado === 'PERDIDA').length, // Asumiendo perdida como cancelado contablemente
+    cancelados: prestamos.filter(p => p.estado === 'PERDIDA').length,
     montoTotal: prestamos.reduce((sum, p) => sum + p.montoTotal, 0),
     montoPendiente: prestamos.reduce((sum, p) => sum + p.montoPendiente, 0),
     moraTotal: prestamos.reduce((sum, p) => sum + (p.moraAcumulada || 0), 0)
@@ -268,13 +94,13 @@ const ListadoPrestamosElegante = () => {
 
   const getEstadoColor = (estado: EstadoPrestamo) => {
     switch(estado) {
-      case 'ACTIVO': return 'bg-primary/10 text-primary';
-      case 'PENDIENTE_APROBACION': return 'bg-yellow-100 text-yellow-600';
-      case 'EN_MORA': return 'bg-orange-100 text-orange-600';
-      case 'INCUMPLIDO': return 'bg-red-100 text-red-600';
-      case 'PERDIDA': return 'bg-gray-800 text-white';
-      case 'PAGADO': return 'bg-green-100 text-green-600';
-      default: return 'bg-gray-100 text-gray-600';
+      case 'ACTIVO': return 'bg-emerald-50 text-emerald-700 border-emerald-100';
+      case 'PENDIENTE_APROBACION': return 'bg-amber-50 text-amber-700 border-amber-100';
+      case 'EN_MORA': return 'bg-orange-50 text-orange-700 border-orange-100';
+      case 'INCUMPLIDO': return 'bg-rose-50 text-rose-700 border-rose-100';
+      case 'PERDIDA': return 'bg-gray-100 text-gray-700 border-gray-200';
+      case 'PAGADO': return 'bg-blue-50 text-blue-700 border-blue-100';
+      default: return 'bg-gray-50 text-gray-600 border-gray-100';
     }
   };
 
@@ -290,527 +116,258 @@ const ListadoPrestamosElegante = () => {
     }
   };
 
-  const getRiesgoColor = (riesgo: NivelRiesgo) => {
-    switch(riesgo) {
-      case 'VERDE': return 'text-green-600';
-      case 'AMARILLO': return 'text-yellow-600';
-      case 'ROJO': return 'text-red-600';
-      case 'LISTA_NEGRA': return 'text-gray-800';
-      default: return 'text-gray-600';
+  const getProductoIcono = (tipo?: string) => {
+    switch(tipo) {
+      case 'electrodomestico': return <Package className="w-4 h-4" />;
+      case 'efectivo': return <DollarSign className="w-4 h-4" />;
+      case 'mueble': return <Package className="w-4 h-4" />;
+      default: return <Zap className="w-4 h-4" />;
     }
-  };
-
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('es-VE', {
-      style: 'currency',
-      currency: 'VES',
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2
-    }).format(amount);
-  };
-
-  const handleFiltroChange = (key: keyof Filtros, value: string) => {
-    setFiltros(prev => ({ ...prev, [key]: value }));
-    setPaginaActual(1);
-  };
-
-  const resetFiltros = () => {
-    setFiltros({
-      estado: 'todos',
-      cliente: 'todos',
-      fechaDesde: '',
-      fechaHasta: '',
-      riesgo: 'todos',
-      busqueda: ''
-    });
-    setPaginaActual(1);
   };
 
   const irADetallePrestamo = (id: string) => {
     router.push(`/admin/prestamos/${id}`);
   };
 
-  const irANuevoPrestamo = () => {
-    router.push('/admin/prestamos/nuevo');
-  };
+  if (!mounted) return null;
 
   return (
-    <div className="min-h-screen bg-white">
-      {/* Header Elegante */}
-      <div className="px-8 py-6 border-b border-gray-100">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-light text-gray-900">Préstamos</h1>
-            <p className="text-sm text-gray-500 mt-1">Gestión y seguimiento de créditos</p>
-          </div>
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => setVista('lista')}
-                className={`p-2 rounded-lg transition-colors ${vista === 'lista' ? 'bg-primary text-white' : 'text-gray-500 hover:bg-gray-100'}`}
-              >
-                <List className="w-4 h-4" />
-              </button>
-              <button
-                onClick={() => setVista('grid')}
-                className={`p-2 rounded-lg transition-colors ${vista === 'grid' ? 'bg-primary text-white' : 'text-gray-500 hover:bg-gray-100'}`}
-              >
-                <Grid3x3 className="w-4 h-4" />
-              </button>
-            </div>
-            <button
-              onClick={irANuevoPrestamo}
-              className="px-5 py-2.5 bg-primary text-white rounded-lg hover:bg-primary-dark transition-colors text-sm font-medium flex items-center gap-2"
-            >
-              <Plus className="w-4 h-4" />
-              Nuevo Préstamo
-            </button>
-          </div>
-        </div>
+    <div className="min-h-screen bg-white relative">
+      {/* Fondo arquitectónico ultra sutil */}
+      <div className="fixed inset-0 pointer-events-none z-0">
+        <div className="absolute inset-0 bg-gradient-to-br from-white via-gray-50/50 to-white"></div>
+        {/* Líneas de estructura */}
+        <div className="absolute inset-0" style={{
+          backgroundImage: `linear-gradient(to right, #08557f 0.5px, transparent 0.5px)`,
+          backgroundSize: '96px 1px',
+          opacity: 0.03
+        }}></div>
+        <div className="absolute inset-0" style={{
+          backgroundImage: `linear-gradient(to bottom, #08557f 0.5px, transparent 0.5px)`,
+          backgroundSize: '1px 96px',
+          opacity: 0.03
+        }}></div>
       </div>
 
-      {/* Barra de herramientas */}
-      <div className="px-8 py-4 border-b border-gray-100 bg-gray-50/50">
-        <div className="flex flex-col md:flex-row md:items-center gap-4">
-          <div className="flex-1 relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+      <div className="relative z-10 p-6 md:p-8 space-y-8">
+        {/* Header */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 animate-in fade-in slide-in-from-top-4 duration-500">
+          <div>
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#08557f]/5 text-xs text-[#08557f] tracking-wide font-medium border border-[#08557f]/10 mb-2">
+              <CreditCard className="h-3.5 w-3.5" />
+              <span>Gestión de Créditos</span>
+            </div>
+            <h1 className="text-3xl font-light text-gray-900 tracking-tight">
+              Listado de <span className="font-semibold text-[#08557f]">Préstamos</span>
+            </h1>
+            <p className="text-gray-500 mt-1 font-light">
+              Administra y monitorea la cartera de créditos activos y morosos.
+            </p>
+          </div>
+          <Link 
+            href="/admin/prestamos/nuevo"
+            className="inline-flex items-center justify-center gap-2 bg-[#08557f] text-white px-5 py-3 rounded-xl hover:bg-[#064364] transition-all shadow-lg shadow-[#08557f]/20 hover:shadow-[#08557f]/30 hover:-translate-y-0.5"
+          >
+            <Plus className="w-4 h-4" />
+            <span className="font-medium">Nuevo Préstamo</span>
+          </Link>
+        </div>
+
+        {/* Estadísticas Minimalistas */}
+        <div className="grid grid-cols-2 md:grid-cols-6 gap-4 animate-in fade-in slide-in-from-bottom-4 duration-700">
+          <div className="p-5 rounded-2xl border border-gray-100 bg-white shadow-sm hover:shadow-md transition-all group">
+            <p className="text-xs font-medium text-gray-400 uppercase tracking-wider mb-2 group-hover:text-[#08557f] transition-colors">Total</p>
+            <p className="text-2xl font-light text-gray-900">{estadisticas.total}</p>
+          </div>
+          
+          <div className="p-5 rounded-2xl border border-gray-100 bg-white shadow-sm hover:shadow-md transition-all group">
+            <p className="text-xs font-medium text-emerald-600 uppercase tracking-wider mb-2">Activos</p>
+            <p className="text-2xl font-light text-gray-900">{estadisticas.activos}</p>
+          </div>
+          
+          <div className="p-5 rounded-2xl border border-gray-100 bg-white shadow-sm hover:shadow-md transition-all group">
+            <p className="text-xs font-medium text-amber-600 uppercase tracking-wider mb-2">En Mora</p>
+            <p className="text-2xl font-light text-gray-900">{estadisticas.atrasados + estadisticas.morosos}</p>
+          </div>
+          
+          <div className="p-5 rounded-2xl border border-gray-100 bg-white shadow-sm hover:shadow-md transition-all group">
+            <p className="text-xs font-medium text-gray-400 uppercase tracking-wider mb-2 group-hover:text-[#08557f] transition-colors">Cartera</p>
+            <p className="text-lg font-light text-gray-900 truncate" title={formatCurrency(estadisticas.montoTotal)}>
+              {formatCurrency(estadisticas.montoTotal)}
+            </p>
+          </div>
+          
+          <div className="p-5 rounded-2xl border border-gray-100 bg-white shadow-sm hover:shadow-md transition-all group">
+            <p className="text-xs font-medium text-gray-400 uppercase tracking-wider mb-2 group-hover:text-[#08557f] transition-colors">Pendiente</p>
+            <p className="text-lg font-light text-gray-900 truncate" title={formatCurrency(estadisticas.montoPendiente)}>
+              {formatCurrency(estadisticas.montoPendiente)}
+            </p>
+          </div>
+          
+          <div className="p-5 rounded-2xl border border-gray-100 bg-white shadow-sm hover:shadow-md transition-all group">
+            <p className="text-xs font-medium text-rose-600 uppercase tracking-wider mb-2">Mora Total</p>
+            <p className="text-lg font-light text-gray-900 truncate" title={formatCurrency(estadisticas.moraTotal)}>
+              {formatCurrency(estadisticas.moraTotal)}
+            </p>
+          </div>
+        </div>
+
+        {/* Barra de Filtros y Búsqueda */}
+        <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm flex flex-col md:flex-row gap-4 justify-between items-center">
+          <div className="relative w-full md:w-96">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
             <input
-              type="text"
-              placeholder="Buscar préstamos, clientes o productos..."
               value={filtros.busqueda}
-              onChange={(e) => handleFiltroChange('busqueda', e.target.value)}
-              className="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary text-sm placeholder-gray-400"
+              onChange={(e) => setFiltros(prev => ({ ...prev, busqueda: e.target.value }))}
+              placeholder="Buscar por cliente, producto o ID..."
+              className="w-full pl-11 pr-4 py-3 rounded-xl border-none bg-gray-50/50 shadow-sm ring-1 ring-gray-200 focus:ring-2 focus:ring-[#08557f]/10 transition-all text-sm font-medium placeholder:text-gray-400"
             />
           </div>
           
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setMostrarFiltros(!mostrarFiltros)}
-              className="px-4 py-2.5 border border-gray-200 bg-white rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium text-gray-700 flex items-center gap-2"
+          <div className="flex gap-2 w-full md:w-auto overflow-x-auto pb-2 md:pb-0">
+            <select
+              value={filtros.estado}
+              onChange={(e) => setFiltros(prev => ({ ...prev, estado: e.target.value }))}
+              className="px-4 py-2.5 rounded-xl border-none bg-gray-50 text-sm font-medium text-gray-600 focus:ring-2 focus:ring-[#08557f]/10 cursor-pointer hover:bg-gray-100 transition-colors"
             >
-              <Filter className="w-4 h-4" />
-              {mostrarFiltros ? 'Ocultar filtros' : 'Mostrar filtros'}
-            </button>
-            
-            <button
-              onClick={resetFiltros}
-              className="px-4 py-2.5 border border-gray-200 bg-white rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium text-gray-700 flex items-center gap-2"
-            >
-              <RefreshCw className="w-4 h-4" />
-              Limpiar
-            </button>
+              <option value="todos">Todos los estados</option>
+              <option value="ACTIVO">Activos</option>
+              <option value="EN_MORA">En Mora</option>
+              <option value="PAGADO">Pagados</option>
+            </select>
           </div>
         </div>
 
-        {/* Filtros expandidos */}
-        {mostrarFiltros && (
-          <div className="mt-4 p-5 border border-gray-200 rounded-lg bg-white shadow-sm">
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-5">
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-2">Estado del préstamo</label>
-                <select
-                  value={filtros.estado}
-                  onChange={(e) => handleFiltroChange('estado', e.target.value)}
-                  className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:border-primary focus:ring-1 focus:ring-primary"
-                >
-                  <option value="todos">Todos los estados</option>
-                  <option value="ACTIVO">Activo</option>
-                  <option value="EN_MORA">En Mora</option>
-                  <option value="INCUMPLIDO">Incumplido</option>
-                  <option value="PAGADO">Pagado</option>
-                  <option value="PERDIDA">Pérdida</option>
-                </select>
-              </div>
-              
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-2">Nivel de riesgo</label>
-                <select
-                  value={filtros.riesgo}
-                  onChange={(e) => handleFiltroChange('riesgo', e.target.value)}
-                  className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:border-primary focus:ring-1 focus:ring-primary"
-                >
-                  <option value="todos">Todos los riesgos</option>
-                  <option value="VERDE">Normal (Verde)</option>
-                  <option value="AMARILLO">Riesgo (Amarillo)</option>
-                  <option value="ROJO">Alto (Rojo)</option>
-                  <option value="LISTA_NEGRA">Lista Negra</option>
-                </select>
-              </div>
-              
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-2">Cliente</label>
-                <select
-                  value={filtros.cliente}
-                  onChange={(e) => handleFiltroChange('cliente', e.target.value)}
-                  className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:border-primary focus:ring-1 focus:ring-primary"
-                >
-                  <option value="todos">Todos los clientes</option>
-                  {Array.from(new Set(prestamos.map(p => p.clienteId))).map(clienteId => {
-                    const cliente = prestamos.find(p => p.clienteId === clienteId);
-                    return (
-                      <option key={clienteId} value={clienteId}>
-                        {cliente?.cliente}
-                      </option>
-                    );
-                  })}
-                </select>
-              </div>
-              
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-2">Rango de fechas</label>
-                <div className="flex gap-2">
-                  <div className="flex-1">
-                    <input
-                      type="date"
-                      value={filtros.fechaDesde}
-                      onChange={(e) => handleFiltroChange('fechaDesde', e.target.value)}
-                      className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:border-primary focus:ring-1 focus:ring-primary"
-                    />
-                  </div>
-                  <div className="flex-1">
-                    <input
-                      type="date"
-                      value={filtros.fechaHasta}
-                      onChange={(e) => handleFiltroChange('fechaHasta', e.target.value)}
-                      className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:border-primary focus:ring-1 focus:ring-primary"
-                    />
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Estadísticas elegantes */}
-      <div className="px-8 py-6">
-        <div className="grid grid-cols-2 md:grid-cols-6 gap-4">
-          <div className="p-4 rounded-xl border border-gray-200 bg-white">
-            <div className="flex items-center justify-between mb-3">
-              <span className="text-xs font-medium text-gray-500">TOTAL</span>
-              <FileText className="w-4 h-4 text-gray-400" />
-            </div>
-            <p className="text-2xl font-light text-gray-900">{estadisticas.total}</p>
-            <div className="mt-2 text-xs text-gray-500">préstamos</div>
-          </div>
-          
-          <div className="p-4 rounded-xl border border-gray-200 bg-white">
-            <div className="flex items-center justify-between mb-3">
-              <span className="text-xs font-medium text-primary">ACTIVOS</span>
-              <TrendingUp className="w-4 h-4 text-primary" />
-            </div>
-            <p className="text-2xl font-light text-gray-900">{estadisticas.activos}</p>
-            <div className="mt-2 text-xs text-gray-500">{estadisticas.total > 0 ? ((estadisticas.activos / estadisticas.total) * 100).toFixed(0) : 0}% del total</div>
-          </div>
-          
-          <div className="p-4 rounded-xl border border-gray-200 bg-white">
-            <div className="flex items-center justify-between mb-3">
-              <span className="text-xs font-medium text-secondary">EN MORA</span>
-              <AlertCircle className="w-4 h-4 text-secondary" />
-            </div>
-            <p className="text-2xl font-light text-gray-900">{estadisticas.atrasados + estadisticas.morosos}</p>
-            <div className="mt-2 text-xs text-gray-500">requieren atención</div>
-          </div>
-          
-          <div className="p-4 rounded-xl border border-gray-200 bg-white">
-            <div className="flex items-center justify-between mb-3">
-              <span className="text-xs font-medium text-gray-500">MONTO TOTAL</span>
-              <DollarSign className="w-4 h-4 text-gray-400" />
-            </div>
-            <p className="text-2xl font-light text-gray-900">{formatCurrency(estadisticas.montoTotal)}</p>
-            <div className="mt-2 text-xs text-gray-500">en cartera</div>
-          </div>
-          
-          <div className="p-4 rounded-xl border border-gray-200 bg-white">
-            <div className="flex items-center justify-between mb-3">
-              <span className="text-xs font-medium text-gray-500">PENDIENTE</span>
-              <Clock className="w-4 h-4 text-gray-400" />
-            </div>
-            <p className="text-2xl font-light text-gray-900">{formatCurrency(estadisticas.montoPendiente)}</p>
-            <div className="mt-2 text-xs text-gray-500">por cobrar</div>
-          </div>
-          
-          <div className="p-4 rounded-xl border border-gray-200 bg-white">
-            <div className="flex items-center justify-between mb-3">
-              <span className="text-xs font-medium text-red-600">MORA</span>
-              <Shield className="w-4 h-4 text-red-600" />
-            </div>
-            <p className="text-2xl font-light text-gray-900">{formatCurrency(estadisticas.moraTotal)}</p>
-            <div className="mt-2 text-xs text-gray-500">acumulada</div>
-          </div>
-        </div>
-      </div>
-
-      {/* Listado de préstamos */}
-      <div className="px-8 pb-8">
-        {cargando ? (
-          <div className="flex justify-center items-center py-12">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-          </div>
-        ) : (
-          <>
-            {/* Vista de lista */}
-            {vista === 'lista' && (
-              <div className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
-                {/* Header de la tabla */}
-                <div className="grid grid-cols-12 gap-4 p-4 bg-gray-50/50 border-b border-gray-100">
-                  <div className="col-span-4 text-xs font-medium text-gray-500">PRÉSTAMO / CLIENTE</div>
-                  <div className="col-span-2 text-xs font-medium text-gray-500">DETALLES</div>
-                  <div className="col-span-2 text-xs font-medium text-gray-500">PROGRESO</div>
-                  <div className="col-span-2 text-xs font-medium text-gray-500">ESTADO</div>
-                  <div className="col-span-2 text-xs font-medium text-gray-500 text-right">ACCIÓN</div>
-                </div>
-
-                {/* Lista de préstamos */}
-                <div className="divide-y divide-gray-100">
-                  {prestamosPaginados.map((prestamo) => (
-                    <div 
-                      key={prestamo.id}
-                      className="px-6 py-4 hover:bg-gray-50/50 transition-colors"
+        {/* Tabla de Préstamos */}
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm text-left">
+              <thead className="text-xs text-gray-500 uppercase bg-gray-50/50 border-b border-gray-100">
+                <tr>
+                  <th className="px-6 py-4 font-medium tracking-wider">Préstamo / Cliente</th>
+                  <th className="px-6 py-4 font-medium tracking-wider">Producto</th>
+                  <th className="px-6 py-4 font-medium tracking-wider">Estado</th>
+                  <th className="px-6 py-4 font-medium tracking-wider text-right">Monto</th>
+                  <th className="px-6 py-4 font-medium tracking-wider text-right">Pendiente</th>
+                  <th className="px-6 py-4 font-medium tracking-wider text-center">Progreso</th>
+                  <th className="px-6 py-4 font-medium tracking-wider text-right">Acciones</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-50">
+                {cargando ? (
+                  Array.from({ length: 5 }).map((_, i) => (
+                    <tr key={i} className="animate-pulse">
+                      <td className="px-6 py-4"><div className="h-10 bg-gray-100 rounded-lg w-48"></div></td>
+                      <td className="px-6 py-4"><div className="h-4 bg-gray-100 rounded w-32"></div></td>
+                      <td className="px-6 py-4"><div className="h-6 bg-gray-100 rounded-full w-24"></div></td>
+                      <td className="px-6 py-4"><div className="h-4 bg-gray-100 rounded w-20 ml-auto"></div></td>
+                      <td className="px-6 py-4"><div className="h-4 bg-gray-100 rounded w-20 ml-auto"></div></td>
+                      <td className="px-6 py-4"><div className="h-2 bg-gray-100 rounded-full w-24 mx-auto"></div></td>
+                      <td className="px-6 py-4"><div className="h-8 bg-gray-100 rounded-lg w-8 ml-auto"></div></td>
+                    </tr>
+                  ))
+                ) : prestamosPaginados.length > 0 ? (
+                  prestamosPaginados.map((prestamo) => (
+                    <tr 
+                      key={prestamo.id} 
+                      onClick={() => irADetallePrestamo(prestamo.id)}
+                      className="hover:bg-gray-50/80 transition-colors group cursor-pointer"
                     >
-                      <div className="grid grid-cols-12 gap-4 items-center">
-                        {/* Préstamo y Cliente */}
-                        <div className="col-span-4">
-                          <div className="flex items-start gap-3">
-                            <div className="p-2 rounded-lg bg-primary/5">
-                              {prestamo.icono}
-                            </div>
-                            <div>
-                              <div className="flex items-center gap-2 mb-1">
-                                <div className="font-medium text-gray-900">{prestamo.id}</div>
-                                <div className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs ${getEstadoColor(prestamo.estado)}`}>
-                                  {getEstadoIcono(prestamo.estado)}
-                                  {prestamo.estado.replace('_', ' ')}
-                                </div>
-                              </div>
-                              <div className="text-sm text-gray-900 font-medium">{prestamo.cliente}</div>
-                              <div className="text-xs text-gray-500">{prestamo.producto}</div>
-                            </div>
+                      <td className="px-6 py-4">
+                        <div className="flex flex-col">
+                          <span className="font-medium text-gray-900 group-hover:text-[#08557f] transition-colors">{prestamo.id}</span>
+                          <span className="text-xs text-gray-500">{prestamo.cliente}</span>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-2 text-gray-600">
+                          {getProductoIcono(prestamo.tipoProducto)}
+                          <span>{prestamo.producto}</span>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className={cn(
+                          "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold tracking-wide uppercase border",
+                          getEstadoColor(prestamo.estado)
+                        )}>
+                          {getEstadoIcono(prestamo.estado)}
+                          {prestamo.estado.replace(/_/g, ' ')}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 text-right font-medium text-gray-900">
+                        {formatCurrency(prestamo.montoTotal)}
+                      </td>
+                      <td className="px-6 py-4 text-right">
+                        <span className={cn(
+                          "font-medium",
+                          prestamo.montoPendiente > 0 ? "text-gray-700" : "text-emerald-600"
+                        )}>
+                          {formatCurrency(prestamo.montoPendiente)}
+                        </span>
+                        {prestamo.moraAcumulada && prestamo.moraAcumulada > 0 && (
+                          <div className="text-[10px] text-rose-500 font-medium mt-0.5">
+                            + {formatCurrency(prestamo.moraAcumulada)} mora
                           </div>
-                        </div>
-
-                        {/* Detalles */}
-                        <div className="col-span-2">
-                          <div className="space-y-1">
-                            <div className="text-sm text-gray-900">{formatCurrency(prestamo.montoTotal)}</div>
-                            <div className="text-xs text-gray-500">
-                              {prestamo.cuotasTotales} cuotas • {prestamo.tasaInteres}%
-                            </div>
-                            <div className="text-xs text-gray-500">{prestamo.fechaInicio} - {prestamo.fechaVencimiento}</div>
+                        )}
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="flex flex-col gap-1 items-center">
+                          <div className="w-24 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                            <div 
+                              className="h-full bg-[#08557f] rounded-full transition-all duration-500"
+                              style={{ width: `${(prestamo.cuotasPagadas / prestamo.cuotasTotales) * 100}%` }}
+                            />
                           </div>
+                          <span className="text-[10px] text-gray-400 font-medium">
+                            {prestamo.cuotasPagadas}/{prestamo.cuotasTotales} cuotas
+                          </span>
                         </div>
-
-                        {/* Progreso */}
-                        <div className="col-span-2">
-                          <div className="space-y-2">
-                            <div>
-                              <div className="flex justify-between text-xs text-gray-600 mb-1">
-                                <span>{prestamo.cuotasPagadas}/{prestamo.cuotasTotales} cuotas</span>
-                                <span>{formatCurrency(prestamo.montoPagado)}</span>
-                              </div>
-                              <div className="w-full h-1.5 bg-gray-200 rounded-full overflow-hidden">
-                                <div 
-                                  className="h-full bg-primary rounded-full"
-                                  style={{ width: `${(prestamo.cuotasPagadas / prestamo.cuotasTotales) * 100}%` }}
-                                />
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Estado */}
-                        <div className="col-span-2">
-                          <div className="space-y-1">
-                            <div className={`text-sm font-medium ${
-                              prestamo.estado === 'EN_MORA' || prestamo.estado === 'INCUMPLIDO' ? 'text-red-600' : 
-                              prestamo.estado === 'PAGADO' ? 'text-green-600' : 'text-gray-900'
-                            }`}>
-                              {prestamo.estado === 'EN_MORA' ? `${prestamo.diasMora} días mora` : 
-                               prestamo.estado === 'PAGADO' ? 'Completado' : 'Al día'}
-                            </div>
-                            <div className="text-xs text-gray-500">
-                              Próximo: {prestamo.proximoPago}
-                            </div>
-                            <div className={`text-xs font-medium ${getRiesgoColor(prestamo.riesgo)}`}>
-                              Riesgo: {prestamo.riesgo.replace('_', ' ')}
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Acción */}
-                        <div className="col-span-2 flex justify-end">
-                          <button
-                            onClick={() => irADetallePrestamo(prestamo.id)}
-                            className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark transition-colors text-sm font-medium flex items-center gap-2"
-                          >
-                            <Eye className="w-4 h-4" />
-                            Ver
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Vista de grid */}
-            {vista === 'grid' && (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                {prestamosPaginados.map((prestamo) => (
-                  <div 
-                    key={prestamo.id}
-                    className="border border-gray-200 rounded-xl p-5 hover:border-primary/30 hover:shadow-sm transition-all bg-white"
-                  >
-                    <div className="space-y-4">
-                      {/* Header */}
-                      <div className="flex items-start justify-between">
-                        <div>
-                          <div className="flex items-center gap-2 mb-2">
-                            <div className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs ${getEstadoColor(prestamo.estado)}`}>
-                              {getEstadoIcono(prestamo.estado)}
-                              {prestamo.estado.replace('_', ' ')}
-                            </div>
-                            <div className={`text-xs font-medium ${getRiesgoColor(prestamo.riesgo)}`}>
-                              • {prestamo.riesgo.replace('_', ' ')}
-                            </div>
-                          </div>
-                          <h3 className="font-medium text-gray-900">{prestamo.id}</h3>
-                        </div>
-                        <div className="p-2 rounded-lg bg-primary/5">
-                          {prestamo.icono}
-                        </div>
-                      </div>
-
-                      {/* Cliente y Producto */}
-                      <div>
-                        <div className="flex items-center gap-2 text-sm text-gray-900 mb-1">
-                          <User className="w-3 h-3" />
-                          {prestamo.cliente}
-                        </div>
-                        <p className="text-sm text-gray-600">{prestamo.producto}</p>
-                      </div>
-
-                      {/* Monto y Tasa */}
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <div className="text-xs text-gray-500">Monto total</div>
-                          <div className="font-medium text-gray-900">{formatCurrency(prestamo.montoTotal)}</div>
-                        </div>
-                        <div>
-                          <div className="text-xs text-gray-500">Tasa</div>
-                          <div className="font-medium text-gray-900">{prestamo.tasaInteres}%</div>
-                        </div>
-                      </div>
-
-                      {/* Progreso */}
-                      <div>
-                        <div className="flex justify-between text-xs text-gray-600 mb-2">
-                          <span>Progreso ({prestamo.cuotasPagadas}/{prestamo.cuotasTotales})</span>
-                          <span>{((prestamo.cuotasPagadas / prestamo.cuotasTotales) * 100).toFixed(0)}%</span>
-                        </div>
-                        <div className="w-full h-1.5 bg-gray-200 rounded-full overflow-hidden">
-                          <div 
-                            className="h-full bg-primary rounded-full"
-                            style={{ width: `${(prestamo.cuotasPagadas / prestamo.cuotasTotales) * 100}%` }}
-                          />
-                        </div>
-                      </div>
-
-                      {/* Fechas */}
-                      <div className="grid grid-cols-2 gap-4 text-xs text-gray-500">
-                        <div>
-                          <div>Inicio</div>
-                          <div className="font-medium text-gray-900">{prestamo.fechaInicio}</div>
-                        </div>
-                        <div>
-                          <div>Próximo pago</div>
-                          <div className="font-medium text-gray-900">{prestamo.proximoPago}</div>
-                        </div>
-                      </div>
-
-                      {/* Acciones */}
-                      <div className="pt-4 border-t border-gray-100">
-                        <button
-                          onClick={() => irADetallePrestamo(prestamo.id)}
-                          className="w-full px-4 py-2.5 bg-primary text-white rounded-lg hover:bg-primary-dark transition-colors text-sm font-medium flex items-center justify-center gap-2"
-                        >
-                          <Eye className="w-4 h-4" />
-                          Ver detalles
+                      </td>
+                      <td className="px-6 py-4 text-right">
+                        <button className="p-2 text-gray-400 hover:text-[#08557f] hover:bg-[#08557f]/5 rounded-lg transition-all">
+                          <ChevronRightIcon className="h-4 w-4" />
                         </button>
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan={7} className="py-16 text-center">
+                      <div className="inline-flex p-4 rounded-full bg-gray-50 mb-4">
+                        <Search className="h-8 w-8 text-gray-300" />
                       </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {/* Mensaje cuando no hay resultados */}
-            {prestamosPaginados.length === 0 && (
-              <div className="text-center py-12">
-                <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gray-100 flex items-center justify-center">
-                  <FileText className="w-8 h-8 text-gray-400" />
-                </div>
-                <h3 className="text-lg font-light text-gray-900 mb-2">No se encontraron préstamos</h3>
-                <p className="text-gray-500 mb-6">
-                  {filtros.estado !== 'todos' || filtros.busqueda || filtros.fechaDesde ? 
-                    'Intenta cambiar los filtros de búsqueda' : 
-                    'No hay préstamos registrados en el sistema'}
-                </p>
-                {(filtros.estado !== 'todos' || filtros.busqueda || filtros.fechaDesde) && (
-                  <button
-                    onClick={resetFiltros}
-                    className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark transition-colors text-sm font-medium"
-                  >
-                    Limpiar filtros
-                  </button>
+                      <h3 className="text-lg font-medium text-gray-900">No se encontraron préstamos</h3>
+                      <p className="text-gray-500 mt-1">Intenta ajustar los filtros de búsqueda.</p>
+                    </td>
+                  </tr>
                 )}
-              </div>
-            )}
+              </tbody>
+            </table>
+          </div>
 
-            {/* Paginación */}
-            {prestamosFiltrados.length > 0 && (
-              <div className="flex items-center justify-between mt-6 pt-4 border-t border-gray-100">
-                <div className="text-sm text-gray-500">
-                  Mostrando {indicePrimero + 1} a {Math.min(indiceUltimo, prestamosFiltrados.length)} de {prestamosFiltrados.length} resultados
-                </div>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => cambiarPagina(paginaActual - 1)}
-                    disabled={paginaActual === 1}
-                    className={`p-2 rounded-lg border border-gray-200 transition-colors ${
-                      paginaActual === 1 ? 'text-gray-300 cursor-not-allowed' : 'text-gray-600 hover:bg-gray-50'
-                    }`}
-                  >
-                    <ChevronLeft className="w-4 h-4" />
-                  </button>
-                  {Array.from({ length: totalPaginas }).map((_, i) => (
-                    <button
-                      key={i}
-                      onClick={() => cambiarPagina(i + 1)}
-                      className={`w-8 h-8 rounded-lg text-sm font-medium transition-colors ${
-                        paginaActual === i + 1
-                          ? 'bg-primary text-white'
-                          : 'text-gray-600 hover:bg-gray-50'
-                      }`}
-                    >
-                      {i + 1}
-                    </button>
-                  ))}
-                  <button
-                    onClick={() => cambiarPagina(paginaActual + 1)}
-                    disabled={paginaActual === totalPaginas}
-                    className={`p-2 rounded-lg border border-gray-200 transition-colors ${
-                      paginaActual === totalPaginas ? 'text-gray-300 cursor-not-allowed' : 'text-gray-600 hover:bg-gray-50'
-                    }`}
-                  >
-                    <ChevronRightIcon className="w-4 h-4" />
-                  </button>
-                </div>
-              </div>
-            )}
-          </>
-        )}
+          {/* Paginación */}
+          <div className="p-4 border-t border-gray-100 bg-gray-50/30 flex justify-between items-center text-xs text-gray-500">
+            <span className="font-medium">
+              Mostrando {prestamosPaginados.length} de {prestamosFiltrados.length} resultados
+            </span>
+            <div className="flex gap-2">
+              <button 
+                onClick={() => cambiarPagina(paginaActual - 1)}
+                disabled={paginaActual === 1}
+                className="px-4 py-2 rounded-lg border border-gray-200 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed font-medium flex items-center gap-1 transition-colors"
+              >
+                <ChevronLeft className="h-3 w-3" /> Anterior
+              </button>
+              <button 
+                onClick={() => cambiarPagina(paginaActual + 1)}
+                disabled={paginaActual === totalPaginas || totalPaginas === 0}
+                className="px-4 py-2 rounded-lg border border-gray-200 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed font-medium flex items-center gap-1 transition-colors"
+              >
+                Siguiente <ChevronRightIcon className="h-3 w-3" />
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );

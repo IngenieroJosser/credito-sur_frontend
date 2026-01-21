@@ -10,6 +10,7 @@ import {
   BarChart,
   Download, Bell
 } from 'lucide-react';
+import { formatCurrency } from '@/lib/utils';
 
 // Interfaces alineadas con Prisma y el Dominio
 export type NivelRiesgo = 'VERDE' | 'AMARILLO' | 'ROJO' | 'LISTA_NEGRA';
@@ -235,7 +236,7 @@ const ClienteDetalleElegante: React.FC<ClienteDetalleProps> = ({
             <div className="flex items-center justify-between mb-4">
               <div>
                 <p className="text-gray-500 text-sm font-medium">Crédito Total</p>
-                <p className="text-2xl font-light text-gray-900 mt-1">${totales.totalPrestamos.toLocaleString()}</p>
+                <p className="text-2xl font-light text-gray-900 mt-1">{formatCurrency(totales.totalPrestamos)}</p>
               </div>
               <div className="p-3 rounded-xl bg-blue-50">
                 <DollarSign className="w-6 h-6 text-primary" />
@@ -263,7 +264,7 @@ const ClienteDetalleElegante: React.FC<ClienteDetalleProps> = ({
             <div className="flex items-center justify-between">
               <div className="text-xs text-gray-500 flex items-center">
                 <CheckCircle className="w-3 h-3 mr-1 text-green-500" />
-                ${totales.totalPagado.toLocaleString()} pagado
+                {formatCurrency(totales.totalPagado)} pagado
               </div>
               <div className="text-xs font-medium text-green-600">
                 {(getProgressPercentage(totales.totalPagado, totales.totalPrestamos)).toFixed(1)}%
@@ -452,7 +453,7 @@ const ClienteDetalleElegante: React.FC<ClienteDetalleProps> = ({
                     </div>
 
                     <div className="text-right">
-                      <p className="text-2xl font-light text-gray-900">${prestamo.montoTotal}</p>
+                      <p className="text-2xl font-light text-gray-900">{formatCurrency(prestamo.montoTotal)}</p>
                       <p className="text-sm text-gray-500 mb-4">Monto Total</p>
                       <button className="px-4 py-2 bg-gray-50 text-gray-700 rounded-lg hover:bg-gray-100 transition-colors text-sm font-medium">
                         Ver Detalles

@@ -13,8 +13,10 @@ import {
   Shield,
   AlertCircle,
   ChevronRight,
-  ArrowLeft
+  ArrowLeft,
+  Camera
 } from 'lucide-react';
+import { FileUploader } from '@/components/ui/FileUploader';
 
 // Tipos alineados con Prisma Schema
 interface ClienteFormData {
@@ -93,9 +95,13 @@ const ClienteFormPage = () => {
   const sections = [
     { id: 'personal', label: 'Datos Personales', icon: <User className="h-4 w-4" /> },
     { id: 'contacto', label: 'Contacto y Ubicación', icon: <MapPin className="h-4 w-4" /> },
+    { id: 'fotos', label: 'Fotos y Documentos', icon: <Camera className="h-4 w-4" /> },
     { id: 'riesgo', label: 'Perfil de Riesgo', icon: <Shield className="h-4 w-4" /> },
     { id: 'operativo', label: 'Asignación y Notas', icon: <Briefcase className="h-4 w-4" /> }
   ];
+
+  // Estado para archivos
+  const [fotosCliente, setFotosCliente] = useState<File[]>([]);
 
   // Mock de rutas disponibles
   const rutasDisponibles = [
@@ -124,7 +130,6 @@ const ClienteFormPage = () => {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    console.log('Formulario enviado:', formData);
     // Aquí iría la llamada a la API
     alert(isEditMode ? 'Cliente actualizado' : 'Cliente creado exitosamente');
     router.push('/admin/clientes');
@@ -151,7 +156,24 @@ const ClienteFormPage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50/50">
+    <div className="min-h-screen bg-white relative">
+      {/* Fondo arquitectónico ultra sutil */}
+      <div className="fixed inset-0 pointer-events-none z-0">
+        <div className="absolute inset-0 bg-gradient-to-br from-white via-gray-50/50 to-white"></div>
+        {/* Líneas de estructura */}
+        <div className="absolute inset-0" style={{
+          backgroundImage: `linear-gradient(to right, #08557f 0.5px, transparent 0.5px)`,
+          backgroundSize: '96px 1px',
+          opacity: 0.03
+        }}></div>
+        <div className="absolute inset-0" style={{
+          backgroundImage: `linear-gradient(to bottom, #08557f 0.5px, transparent 0.5px)`,
+          backgroundSize: '1px 96px',
+          opacity: 0.03
+        }}></div>
+      </div>
+
+      <div className="relative z-10">
       {/* Header */}
       <div className="sticky top-0 z-40 bg-white/80 backdrop-blur-sm border-b border-gray-200/50">
         <div className="px-6 py-4">
@@ -164,7 +186,7 @@ const ClienteFormPage = () => {
                 <ArrowLeft className="h-5 w-5" />
               </Link>
               <div className="flex items-center space-x-3">
-                <div className="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center text-primary">
+                <div className="w-10 h-10 bg-[#08557f]/10 rounded-xl flex items-center justify-center text-[#08557f]">
                   <User className="h-5 w-5" />
                 </div>
                 <div>
@@ -187,7 +209,7 @@ const ClienteFormPage = () => {
               </Link>
               <button
                 onClick={handleSubmit}
-                className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark transition-colors text-sm font-medium flex items-center space-x-2 shadow-sm hover:shadow-md"
+                className="px-4 py-2 bg-[#08557f] text-white rounded-lg hover:bg-[#064364] transition-colors text-sm font-medium flex items-center space-x-2 shadow-sm hover:shadow-md"
               >
                 <Save className="h-4 w-4" />
                 <span>{isEditMode ? 'Actualizar Cliente' : 'Guardar Cliente'}</span>
@@ -208,13 +230,13 @@ const ClienteFormPage = () => {
                   onClick={() => setActiveSection(section.id)}
                   className={`w-full flex items-center justify-between p-3 rounded-lg transition-all duration-200 ${
                     activeSection === section.id
-                      ? 'bg-primary/5 text-primary font-medium'
+                      ? 'bg-[#08557f]/5 text-[#08557f] font-medium'
                       : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
                   }`}
                 >
                   <div className="flex items-center space-x-3">
                     <div className={`p-2 rounded-lg ${
-                      activeSection === section.id ? 'bg-primary/10' : 'bg-gray-100'
+                      activeSection === section.id ? 'bg-[#08557f]/10' : 'bg-gray-100'
                     }`}>
                       {section.icon}
                     </div>
@@ -281,7 +303,7 @@ const ClienteFormPage = () => {
                         name="nombres"
                         value={formData.nombres}
                         onChange={handleInputChange}
-                        className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                        className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#08557f]/20 focus:border-[#08557f] transition-all"
                         placeholder="Ej. Juan Carlos"
                         required
                       />
@@ -295,7 +317,7 @@ const ClienteFormPage = () => {
                         name="apellidos"
                         value={formData.apellidos}
                         onChange={handleInputChange}
-                        className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                        className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#08557f]/20 focus:border-[#08557f] transition-all"
                         placeholder="Ej. Pérez Rodriguez"
                         required
                       />
@@ -311,8 +333,8 @@ const ClienteFormPage = () => {
                           name="dni"
                           value={formData.dni}
                           onChange={handleInputChange}
-                          className="w-full pl-10 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
-                          placeholder="V-12345678"
+                          className="w-full pl-10 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#08557f]/20 focus:border-[#08557f] transition-all"
+                          placeholder="1.020.345.678"
                           required
                         />
                       </div>
@@ -341,8 +363,8 @@ const ClienteFormPage = () => {
                           name="telefono"
                           value={formData.telefono}
                           onChange={handleInputChange}
-                          className="w-full pl-10 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
-                          placeholder="+58 412 123 4567"
+                          className="w-full pl-10 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#08557f]/20 focus:border-[#08557f] transition-all"
+                          placeholder="310 123 4567"
                           required
                         />
                       </div>
@@ -358,7 +380,7 @@ const ClienteFormPage = () => {
                           name="correo"
                           value={formData.correo}
                           onChange={handleInputChange}
-                          className="w-full pl-10 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                          className="w-full pl-10 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#08557f]/20 focus:border-[#08557f] transition-all text-gray-900"
                           placeholder="cliente@ejemplo.com"
                         />
                       </div>
@@ -372,7 +394,7 @@ const ClienteFormPage = () => {
                         value={formData.direccion}
                         onChange={handleInputChange}
                         rows={3}
-                        className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all resize-none"
+                        className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#08557f]/20 focus:border-[#08557f] transition-all resize-none text-gray-900"
                         placeholder="Calle, número de casa, sector, parroquia..."
                         required
                       />
@@ -386,8 +408,36 @@ const ClienteFormPage = () => {
                         name="referencia"
                         value={formData.referencia}
                         onChange={handleInputChange}
-                        className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                        className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#08557f]/20 focus:border-[#08557f] transition-all"
                         placeholder="Ej. Frente a la panadería, casa de rejas azules..."
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Sección Fotos y Documentos */}
+              {activeSection === 'fotos' && (
+                <div className="p-6 space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
+                  <div className="flex items-center space-x-2 border-b border-gray-100 pb-4 mb-6">
+                    <Camera className="h-5 w-5 text-gray-400" />
+                    <h2 className="text-lg font-medium text-gray-900">Fotos y Documentos</h2>
+                  </div>
+
+                  <div className="space-y-6">
+                    <div>
+                      <h3 className="text-sm font-medium text-gray-700 mb-2">Documentos de Identidad y Fotos del Cliente</h3>
+                      <p className="text-sm text-gray-500 mb-4">
+                        Sube fotos del documento de identidad (frente y reverso) y fotos del cliente.
+                      </p>
+                      <FileUploader
+                        files={fotosCliente}
+                        onFilesChange={(newFiles) => setFotosCliente(newFiles)}
+                        label="Arrastra fotos del cliente o documentos aquí"
+                        description="Soporta JPG, PNG, PDF (Máx. 5MB)"
+                        multiple={true}
+                        maxSize={5 * 1024 * 1024}
+                        accept="image/*,application/pdf"
                       />
                     </div>
                   </div>
@@ -456,7 +506,7 @@ const ClienteFormPage = () => {
                             max="100"
                             value={formData.puntaje}
                             onChange={handleInputChange}
-                            className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                            className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#08557f]/20 focus:border-[#08557f] transition-all"
                           />
                           <p className="mt-1 text-xs text-gray-500">Valor entre 0 y 100</p>
                         </div>
@@ -469,7 +519,7 @@ const ClienteFormPage = () => {
                             name="nivelRiesgo"
                             value={formData.nivelRiesgo}
                             onChange={handleInputChange}
-                            className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                            className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#08557f]/20 focus:border-[#08557f] transition-all"
                           >
                             <option value="VERDE">Verde (Bajo Riesgo)</option>
                             <option value="AMARILLO">Amarillo (Riesgo Medio)</option>
@@ -499,7 +549,7 @@ const ClienteFormPage = () => {
                         name="rutaId"
                         value={formData.rutaId}
                         onChange={handleInputChange}
-                        className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                        className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#08557f]/20 focus:border-[#08557f] transition-all"
                       >
                         <option value="">Seleccionar Ruta...</option>
                         {rutasDisponibles.map(ruta => (
@@ -522,7 +572,7 @@ const ClienteFormPage = () => {
                         value={formData.observaciones}
                         onChange={handleInputChange}
                         rows={4}
-                        className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all resize-none"
+                        className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#08557f]/20 focus:border-[#08557f] transition-all resize-none"
                         placeholder="Notas adicionales sobre el cliente, horarios de visita preferidos, etc."
                       />
                     </div>
@@ -540,7 +590,7 @@ const ClienteFormPage = () => {
                 </Link>
                 <button
                   onClick={handleSubmit}
-                  className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark transition-colors text-sm font-medium shadow-sm"
+                  className="px-4 py-2 bg-[#08557f] text-white rounded-lg hover:bg-[#064364] transition-colors text-sm font-medium shadow-sm"
                 >
                   {isEditMode ? 'Guardar Cambios' : 'Crear Cliente'}
                 </button>
@@ -548,6 +598,7 @@ const ClienteFormPage = () => {
             </form>
           </div>
         </div>
+      </div>
       </div>
     </div>
   );

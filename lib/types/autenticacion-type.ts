@@ -7,19 +7,27 @@ export interface AuthResponse {
   access_token: string;
   usuario: {
     id: string;
-    correo: string;
     nombres: string;
     apellidos: string;
-    rol: string;
-    estado: string;
-    debeCambiarContrasena?: boolean;
-    ultimoIngreso: string | null;
+    rol: RolUsuario;
+    correo?: string;
+    telefono?: string;
   };
 }
 
-export type RolUsuario =
-  | 'SUPER_ADMINISTRADOR'
-  | 'COORDINADOR'
-  | 'SUPERVISOR'
-  | 'COBRADOR'
+export interface UserProfile {
+  id: string;
+  nombres: string;
+  apellidos: string;
+  rol: RolUsuario;
+  correo?: string;
+  telefono?: string;
+  estado?: string;
+}
+
+export type RolUsuario = 
+  | 'SUPER_ADMINISTRADOR' 
+  | 'COORDINADOR' 
+  | 'SUPERVISOR' 
+  | 'COBRADOR' 
   | 'CONTADOR';
