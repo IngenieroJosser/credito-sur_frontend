@@ -409,12 +409,13 @@ export default function ArticulosPage() {
           <div className="relative w-full max-w-4xl bg-white rounded-2xl shadow-2xl ring-1 ring-slate-900/5 transform transition-all animate-in fade-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-slate-50/50 sticky top-0 z-10 backdrop-blur-sm">
               <div className="flex items-center gap-3">
-                <div className="p-2 bg-blue-50 text-blue-600 rounded-lg">
+                <div className="p-2 bg-blue-50 text-orange-500 rounded-lg">
                   <Package className="h-5 w-5" />
                 </div>
                 <div>
-                  <h3 className="text-lg font-bold text-slate-900">
-                    {formData.codigo ? 'Editar Artículo' : 'Nuevo Artículo'}
+                  <h3 className="text-lg font-bold">
+                    <span className="text-blue-600">{formData.codigo ? 'Editar ' : 'Nuevo '}</span>
+                    <span className="text-orange-500">Artículo</span>
                   </h3>
                   <p className="text-xs text-slate-500 font-medium">Gestione la información del producto</p>
                 </div>
@@ -579,7 +580,7 @@ export default function ArticulosPage() {
                     <button
                       type="button"
                       onClick={addPrecioPlazo}
-                      className="px-4 py-2.5 bg-slate-900 text-white rounded-xl hover:bg-slate-800 transition-all font-bold text-sm"
+                      className="px-4 py-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-all font-bold text-sm"
                     >
                       Agregar
                     </button>
@@ -618,7 +619,7 @@ export default function ArticulosPage() {
                 <button
                   type="submit"
                   disabled={loading}
-                  className="px-6 py-2 bg-slate-900 text-white rounded-xl hover:bg-slate-800 transition-all text-sm font-bold flex items-center gap-2 shadow-lg shadow-slate-900/20 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="px-6 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-all text-sm font-bold flex items-center gap-2 shadow-lg shadow-blue-600/20 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {loading ? (
                     <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
