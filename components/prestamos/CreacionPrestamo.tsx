@@ -677,6 +677,14 @@ const CreacionPrestamoElegante = () => {
                             Máximo: {formatCurrency(clienteSeleccionado?.saldoDisponible || 0)}
                           </span>
                         </div>
+                        <div className="mt-2 flex justify-end">
+                          <button 
+                            onClick={() => window.open('/admin/solicitudes', '_blank')}
+                            className="text-xs font-bold text-blue-600 hover:text-blue-800 flex items-center gap-1"
+                          >
+                            ¿Fondos insuficientes? Solicitar dinero
+                          </button>
+                        </div>
                       </div>
 
                       <div className="space-y-3">

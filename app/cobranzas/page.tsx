@@ -1110,6 +1110,131 @@ const VistaCobradorPage = () => {
             </div>
           </div>
         )}
+        {/* Modal de Pago */}
+        {showPaymentModal && visitaSeleccionada && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4">
+            <div className="w-full max-w-md bg-white rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
+              <div className="p-6">
+                <div className="flex items-center justify-between mb-6">
+                  <h3 className="text-lg font-bold text-slate-900">Registrar Pago</h3>
+                  <button 
+                    onClick={() => setShowPaymentModal(false)}
+                    className="p-2 bg-slate-100 rounded-full text-slate-500 hover:bg-slate-200 transition-colors"
+                  >
+                    <X className="h-5 w-5" />
+                  </button>
+                </div>
+                
+                <div className="space-y-6">
+                  <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
+                    <p className="text-sm text-slate-500 font-medium mb-1">Cliente</p>
+                    <p className="text-base font-bold text-slate-900">
+                      {visitasCobrador.find(v => v.id === visitaSeleccionada)?.cliente}
+                    </p>
+                    <div className="flex justify-between mt-3 pt-3 border-t border-slate-200">
+                      <div>
+                        <p className="text-xs text-slate-500">Cuota Esperada</p>
+                        <p className="text-sm font-bold text-slate-900">
+                          {formatCurrency(visitasCobrador.find(v => v.id === visitaSeleccionada)?.montoCuota || 0)}
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-xs text-slate-500">Saldo Total</p>
+                        <p className="text-sm font-bold text-slate-900">
+                          {formatCurrency(visitasCobrador.find(v => v.id === visitaSeleccionada)?.saldoTotal || 0)}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-bold text-slate-700 mb-2">
+                      Monto Recibido
+                    </label>
+                    <div className="relative">
+                      <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
+                      <input 
+                        type="number" 
+                        autoFocus
+                        className="w-full pl-10 pr-4 py-3 bg-white border-2 border-slate-200 rounded-xl focus:border-slate-900 focus:ring-0 text-lg font-bold text-slate-900 placeholder:text-slate-300"
+                        placeholder="0"
+                      />
+                    </div>
+                    <div className="flex gap-2 mt-2">
+                      <button className="px-3 py-1 bg-slate-100 text-xs font-bold text-slate-600 rounded-lg hover:bg-slate-200">
+                        Completo
+                      </button>
+                      <button className="px-3 py-1 bg-slate-100 text-xs font-bold text-slate-600 rounded-lg hover:bg-slate-200">
+                        Abono
+                      </button>
+                    </div>
+                  </div>
+
+                  <button 
+                    onClick={() => {
+                      // Simulación de pago
+                      const visita = visitasCobrador.find(v => v.id === visitaSeleccionada);
+                      if (visita) {
+                        handleRegistrarPago(visita.id, visita.montoCuota);
+                      }
+                    }}
+                    className="w-full bg-emerald-600 text-white font-bold py-3.5 rounded-xl shadow-lg shadow-emerald-600/20 hover:bg-emerald-700 active:scale-[0.98] transition-all flex items-center justify-center gap-2"
+                  >
+                    <CheckCircle2 className="h-5 w-5" />
+                    Confirmar Pago
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Modal Nueva Solicitud (Base) */}
+        {showBaseRequestModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4">
+            <div className="w-full max-w-md bg-white rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
+              <div className="p-6">
+                <div className="flex items-center justify-between mb-6">
+                  <h3 className="text-lg font-bold text-slate-900">Solicitar Dinero</h3>
+                  <button 
+                    onClick={() => setShowBaseRequestModal(false)}
+                    className="p-2 bg-slate-100 rounded-full text-slate-500 hover:bg-slate-200 transition-colors"
+                  >
+                    <X className="h-5 w-5" />
+                  </button>
+                </div>
+                
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-bold text-slate-700 mb-2">Monto Solicitado</label>
+                    <div className="relative">
+                      <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
+                      <input 
+                        type="number" 
+                        className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-slate-900 focus:ring-0 font-bold text-slate-900"
+                        placeholder="0"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-bold text-slate-700 mb-2">Motivo / Descripción</label>
+                    <textarea 
+                      className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-slate-900 focus:ring-0 font-medium text-slate-900 resize-none"
+                      rows={3}
+                      placeholder="Ej: Para préstamo cliente X..."
+                    ></textarea>
+                  </div>
+                  <button 
+                    onClick={() => handleSolicitarBase(50000, 'Solicitud manual')}
+                    className="w-full bg-slate-900 text-white font-bold py-3.5 rounded-xl shadow-lg shadow-slate-900/20 hover:bg-slate-800 active:scale-[0.98] transition-all"
+                  >
+                    Enviar Solicitud
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )

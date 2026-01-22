@@ -136,9 +136,12 @@ export default function DetallePrestamo({ prestamo }: DetallePrestamoProps) {
             </div>
           </div>
           <div className="pt-4 mt-4 border-t border-slate-100">
-            <button className="w-full py-2 bg-slate-900 hover:bg-slate-800 text-white text-sm font-bold rounded-xl transition-all shadow-lg shadow-slate-900/20 active:scale-[0.98]">
+            <Link 
+              href={`/admin/pagos/registrar/${prestamo.clienteId}`}
+              className="w-full py-2 bg-slate-900 hover:bg-slate-800 text-white text-sm font-bold rounded-xl transition-all shadow-lg shadow-slate-900/20 active:scale-[0.98] block text-center"
+            >
               Registrar Pago
-            </button>
+            </Link>
           </div>
         </div>
       </div>

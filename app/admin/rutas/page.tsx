@@ -1,6 +1,8 @@
 'use client'
 
 import { useState } from 'react'
+import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import {
   MapPin,
   Route,
@@ -35,6 +37,7 @@ interface RutaCobro {
 }
 
 const RutasPage = () => {
+  const router = useRouter()
   const [estadoFiltro, setEstadoFiltro] = useState<EstadoRuta | 'TODAS'>('TODAS')
   const [busqueda, setBusqueda] = useState('')
   const [vista, setVista] = useState<'grid' | 'list'>('grid')
@@ -89,7 +92,18 @@ const RutasPage = () => {
     }
   ])
 
+  // Simulamos el usuario actual (esto vendría del contexto de autenticación)
+  const currentUser = {
+    role: 'ADMIN', // Cambiar a 'COBRADOR' para probar la vista restringida
+    nombre: 'Carlos Pérez'
+  };
+
   const rutasFiltradas = rutas.filter((ruta) => {
+    // Filtro por rol: Cobrador solo ve sus rutas
+    if (currentUser.role === 'COBRADOR' && ruta.cobrador !== currentUser.nombre) {
+      return false;
+    }
+
     const cumpleEstado = estadoFiltro === 'TODAS' || ruta.estado === estadoFiltro
     const cumpleBusqueda = 
       ruta.nombre.toLowerCase().includes(busqueda.toLowerCase()) ||
@@ -129,10 +143,15 @@ const RutasPage = () => {
             </p>
           </div>
           <div className="flex gap-4">
-            <button className="inline-flex items-center gap-2 rounded-xl bg-primary px-6 py-2.5 text-sm font-bold text-white shadow-lg shadow-primary/20 hover:bg-primary-dark hover:scale-[1.02] active:scale-[0.98] transition-all duration-300">
-              <Plus className="h-4 w-4" />
-              <span>Nueva Ruta</span>
-            </button>
+            {currentUser.role !== 'COBRADOR' && (
+              <Link 
+                href="/admin/rutas/nueva"
+                className="inline-flex items-center gap-2 rounded-xl bg-primary px-6 py-2.5 text-sm font-bold text-white shadow-lg shadow-primary/20 hover:bg-primary-dark hover:scale-[1.02] active:scale-[0.98] transition-all duration-300"
+              >
+                <Plus className="h-4 w-4" />
+                <span>Nueva Ruta</span>
+              </Link>
+            )}
           </div>
         </div>
 
@@ -341,10 +360,13 @@ const RutasPage = () => {
 
                   <div className="p-4 bg-slate-50/50 border-t border-slate-100 flex justify-between items-center group-hover:bg-blue-50/30 transition-colors">
                     <span className="text-xs text-slate-400 font-bold">ID: {ruta.id}</span>
-                    <button className="text-sm font-bold text-blue-600 hover:text-blue-800 flex items-center gap-1 transition-colors">
+                    <Link 
+                      href={`/admin/rutas/${ruta.id}`}
+                      className="text-sm font-bold text-blue-600 hover:text-blue-800 flex items-center gap-1 transition-colors"
+                    >
                       Ver detalle
                       <ChevronRight className="h-4 w-4" />
-                    </button>
+                    </Link>
                   </div>
                 </div>
               ))}
@@ -378,6 +400,7 @@ const RutasPage = () => {
                     {rutasFiltradas.map((ruta) => (
                       <tr 
                         key={ruta.id} 
+                        onClick={() => router.push(`/admin/rutas/${ruta.id}`)}
                         className="hover:bg-slate-50/50 transition-colors group cursor-pointer"
                       >
                         <td className="px-6 py-4">
