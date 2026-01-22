@@ -265,7 +265,7 @@ export default function CreditosArticulosPage() {
                     className="hover:bg-slate-50/80 transition-colors group"
                   >
                     <td className="px-6 py-4">
-                      <Link href={`/admin/prestamos/${credito.id}`} className="block">
+                      <Link href={`/admin/creditos-articulos/${credito.id}`} className="block">
                         <div className="flex items-center gap-3">
                         <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-300 shadow-sm border ${
                             credito.riesgo === 'ROJO' ? 'bg-rose-50 text-rose-500 border-rose-100' : 
@@ -288,14 +288,14 @@ export default function CreditosArticulosPage() {
                       </Link>
                     </td>
                     <td className="px-6 py-4">
-                      <Link href={`/admin/prestamos/${credito.id}`} className="block">
+                      <Link href={`/admin/creditos-articulos/${credito.id}`} className="block">
                       <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold border ${getEstadoColor(credito.estado)}`}>
                         {credito.estado.replace('_', ' ')}
                       </span>
                       </Link>
                     </td>
                     <td className="px-6 py-4">
-                      <Link href={`/admin/prestamos/${credito.id}`} className="block">
+                      <Link href={`/admin/creditos-articulos/${credito.id}`} className="block">
                       <div className="flex items-center gap-2 text-slate-600">
                         <Calendar className="w-4 h-4 text-slate-400" />
                         <span className="text-xs font-bold">{credito.proximoPago}</span>
@@ -303,7 +303,7 @@ export default function CreditosArticulosPage() {
                       </Link>
                     </td>
                     <td className="px-6 py-4">
-                      <Link href={`/admin/prestamos/${credito.id}`} className="block">
+                      <Link href={`/admin/creditos-articulos/${credito.id}`} className="block">
                       <div className="w-full max-w-[140px]">
                         <div className="flex justify-between text-xs mb-1.5">
                           <span className="text-slate-500 font-medium">{credito.cuotasPagadas}/{credito.cuotasTotales} cuotas</span>
@@ -325,7 +325,7 @@ export default function CreditosArticulosPage() {
                       </Link>
                     </td>
                     <td className="px-6 py-4">
-                      <Link href={`/admin/prestamos/${credito.id}`} className="block">
+                      <Link href={`/admin/creditos-articulos/${credito.id}`} className="block">
                       <div>
                         <div className="font-bold text-slate-900">{formatCurrency(credito.montoPendiente)}</div>
                         <div className="text-xs text-slate-500 mt-0.5 font-medium">Total: {formatCurrency(credito.montoTotal)}</div>
@@ -333,7 +333,7 @@ export default function CreditosArticulosPage() {
                       </Link>
                     </td>
                     <td className="px-6 py-4 text-right">
-                      <Link href={`/admin/prestamos/${credito.id}`} className="inline-block p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors" title="Ver Detalle">
+                      <Link href={`/admin/creditos-articulos/${credito.id}`} className="inline-block p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors" title="Ver Detalle">
                         <Eye className="w-4 h-4" />
                       </Link>
                     </td>
