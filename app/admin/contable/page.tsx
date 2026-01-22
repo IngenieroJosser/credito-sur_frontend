@@ -17,7 +17,10 @@ import {
   Download,
   CheckCircle2,
   XCircle,
-  AlertCircle
+  AlertCircle,
+  Eye,
+  Edit2,
+  Lock
 } from 'lucide-react'
 import { formatCurrency, cn } from '@/lib/utils'
 import { ExportButton } from '@/components/ui/ExportButton'
@@ -334,9 +337,28 @@ const ModuloContablePage = () => {
                 </div>
                 <div className="pt-4 border-t border-slate-100 flex justify-between items-center">
                   <span className="text-xs text-slate-400 font-medium">Act: {caja.ultimaActualizacion}</span>
-                  <button className="text-sm font-bold text-blue-600 hover:text-blue-700 transition-colors">
-                    Ver Detalles →
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <button 
+                      className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                      title="Ver Detalles"
+                    >
+                      <Eye className="h-4 w-4" />
+                    </button>
+                    <button 
+                      className="p-2 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
+                      title="Editar Caja"
+                    >
+                      <Edit2 className="h-4 w-4" />
+                    </button>
+                    {caja.estado === 'ABIERTA' && (
+                      <button 
+                        className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
+                        title="Cerrar Caja"
+                      >
+                        <Lock className="h-4 w-4" />
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
             ))}
@@ -384,6 +406,7 @@ const ModuloContablePage = () => {
                   <th className="px-6 py-4">Categoría</th>
                   <th className="px-6 py-4">Responsable</th>
                   <th className="px-6 py-4 text-right">Monto</th>
+                  <th className="px-6 py-4 text-right">Acciones</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -423,6 +446,14 @@ const ModuloContablePage = () => {
                         mov.tipo === 'INGRESO' ? "text-emerald-600" : "text-rose-600"
                       )}>
                         {mov.tipo === 'INGRESO' ? '+' : '-'}{formatCurrency(mov.monto)}
+                      </td>
+                      <td className="px-6 py-4 text-right">
+                        <button 
+                          className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                          title="Ver Detalle"
+                        >
+                          <Eye className="h-4 w-4" />
+                        </button>
                       </td>
                     </tr>
                   ))

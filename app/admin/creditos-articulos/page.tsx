@@ -17,7 +17,8 @@ import {
   Armchair,
   Calendar,
   CreditCard,
-  Package
+  Package,
+  Eye
 } from 'lucide-react'
 import { formatCurrency } from '@/lib/utils'
 import { PRESTAMOS_MOCK, EstadoPrestamo, NivelRiesgo } from '@/components/prestamos/data'
@@ -332,8 +333,8 @@ export default function CreditosArticulosPage() {
                       </Link>
                     </td>
                     <td className="px-6 py-4 text-right">
-                      <Link href={`/admin/prestamos/${credito.id}`} className="inline-block p-2 text-slate-400 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors">
-                        <ChevronRight className="w-4 h-4" />
+                      <Link href={`/admin/prestamos/${credito.id}`} className="inline-block p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors" title="Ver Detalle">
+                        <Eye className="w-4 h-4" />
                       </Link>
                     </td>
                   </tr>

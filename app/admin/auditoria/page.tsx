@@ -210,7 +210,10 @@ const AuditoriaSistemaPage = () => {
                       </span>
                     </td>
                     <td className="px-6 py-4 text-right">
-                      <button className="text-slate-400 hover:text-slate-900 p-2 hover:bg-slate-100 rounded-lg transition-all">
+                      <button 
+                        className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                        title="Ver Detalle"
+                      >
                         <Eye className="h-4 w-4" />
                       </button>
                     </td>

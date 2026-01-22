@@ -15,7 +15,8 @@ import {
   Pencil,
   AlertTriangle,
   Ban,
-  DollarSign
+  DollarSign,
+  Trash2
 } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils';
 
@@ -388,18 +389,24 @@ const ClientesPage = () => {
                       <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                         <Link
                           href={`/admin/clientes/${cliente.id}`}
-                          className="p-2 text-slate-400 hover:text-primary hover:bg-slate-100 rounded-lg transition-colors"
+                          className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
                           title="Ver Expediente"
                         >
                           <Eye className="h-4 w-4" />
                         </Link>
                         <Link
                           href={`/admin/clientes/${cliente.id}/editar`}
-                          className="p-2 text-slate-400 hover:text-primary hover:bg-slate-100 rounded-lg transition-colors"
+                          className="p-2 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
                           title="Editar cliente"
                         >
                           <Pencil className="h-4 w-4" />
                         </Link>
+                        <button
+                          className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
+                          title="Eliminar cliente"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
                       </div>
                     </td>
                   </tr>

@@ -512,8 +512,14 @@ const UserManagementPage = () => {
                       <td className="px-8 py-5 text-right">
                         <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
                           <button
+                            className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                            title="Ver detalle"
+                          >
+                            <Eye className="h-4 w-4" />
+                          </button>
+                          <button
                             onClick={() => handleOpenEditModal(user)}
-                            className="p-2 text-slate-400 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors"
+                            className="p-2 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
                             title="Editar"
                             disabled={user.rol === 'SUPER_ADMINISTRADOR' && currentUserRole !== 'SUPER_ADMINISTRADOR'}
                           >
@@ -521,7 +527,7 @@ const UserManagementPage = () => {
                           </button>
                           <button
                             onClick={() => handleOpenPermissionsModal(user)}
-                            className="p-2 text-slate-400 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors"
+                            className="p-2 text-slate-400 hover:text-violet-600 hover:bg-violet-50 rounded-lg transition-colors"
                             title="Permisos"
                             disabled={user.rol === 'SUPER_ADMINISTRADOR' && currentUserRole !== 'SUPER_ADMINISTRADOR'}
                           >
@@ -601,8 +607,14 @@ const UserManagementPage = () => {
 
                   <div className="flex items-center justify-end gap-2 pt-4 border-t border-slate-100 mt-auto">
                     <button
+                      className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                      title="Ver detalle"
+                    >
+                      <Eye className="h-4 w-4" />
+                    </button>
+                    <button
                       onClick={() => handleOpenEditModal(user)}
-                      className="p-2 text-slate-400 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors"
+                      className="p-2 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
                       title="Editar"
                       disabled={user.rol === 'SUPER_ADMINISTRADOR' && currentUserRole !== 'SUPER_ADMINISTRADOR'}
                     >
@@ -610,7 +622,7 @@ const UserManagementPage = () => {
                     </button>
                     <button
                       onClick={() => handleOpenPermissionsModal(user)}
-                      className="p-2 text-slate-400 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors"
+                      className="p-2 text-slate-400 hover:text-violet-600 hover:bg-violet-50 rounded-lg transition-colors"
                       title="Permisos"
                       disabled={user.rol === 'SUPER_ADMINISTRADOR' && currentUserRole !== 'SUPER_ADMINISTRADOR'}
                     >

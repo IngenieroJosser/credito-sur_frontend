@@ -8,7 +8,8 @@ import {
   TrendingDown, 
   PieChart, 
   ArrowUpRight, 
-  Target
+  Target,
+  Eye
 } from 'lucide-react'
 import { formatCurrency, cn } from '@/lib/utils'
 import { ExportButton } from '@/components/ui/ExportButton'
@@ -349,6 +350,7 @@ const ReportesFinancierosPage = () => {
                   <th className="px-8 py-4 text-right">Utilidad Bruta</th>
                   <th className="px-8 py-4 text-right">Margen</th>
                   <th className="px-8 py-4 text-center">Estado</th>
+                  <th className="px-8 py-4 text-right">Acciones</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -365,6 +367,14 @@ const ReportesFinancierosPage = () => {
                       <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-700 border border-emerald-200">
                         Cerrado
                       </span>
+                    </td>
+                    <td className="px-8 py-5 text-right">
+                      <button 
+                        className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                        title="Ver Detalles"
+                      >
+                        <Eye className="h-4 w-4" />
+                      </button>
                     </td>
                   </tr>
                 ))}

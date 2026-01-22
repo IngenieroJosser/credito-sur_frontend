@@ -368,7 +368,7 @@ const CuentasMoraPage = () => {
                   <div className="pt-4 border-t border-slate-100 flex gap-2">
                     <Link
                       href={`/admin/clientes/${cuenta.id}`}
-                      className="flex-1 inline-flex items-center justify-center px-4 py-2 bg-slate-50 text-slate-700 rounded-xl hover:bg-slate-100 text-sm font-bold transition-colors"
+                      className="flex-1 inline-flex items-center justify-center px-4 py-2 bg-slate-50 text-slate-700 rounded-xl hover:bg-blue-50 hover:text-blue-700 text-sm font-bold transition-colors"
                     >
                       <User className="h-4 w-4 mr-2" />
                       Perfil
@@ -445,10 +445,10 @@ const CuentasMoraPage = () => {
                       </td>
                       <td className="px-6 py-4 text-right">
                         <div className="flex items-center justify-end gap-2">
-                          <Link href={`/admin/clientes/${cuenta.id}`} className="p-2 text-slate-400 hover:text-primary hover:bg-slate-100 rounded-lg transition-colors" title="Ver Perfil">
+                          <Link href={`/admin/clientes/${cuenta.id}`} className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors" title="Ver Perfil">
                             <User className="w-4 h-4" />
                           </Link>
-                          <Link href={`/admin/prestamos/${cuenta.numeroPrestamo}`} className="p-2 text-slate-400 hover:text-primary hover:bg-slate-100 rounded-lg transition-colors" title="Ver Detalle">
+                          <Link href={`/admin/prestamos/${cuenta.numeroPrestamo}`} className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors" title="Ver Detalle">
                             <ChevronRight className="w-4 h-4" />
                           </Link>
                         </div>

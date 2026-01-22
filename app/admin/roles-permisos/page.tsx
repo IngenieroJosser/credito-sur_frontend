@@ -15,7 +15,8 @@ import {
   Save,
   Info,
   Users,
-  Settings
+  Settings,
+  Ban
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -37,6 +38,7 @@ interface Role {
   esSistema: boolean;
   usuariosAsignados: number; // UI helper (count)
   permisos: string[]; // IDs de permisos
+  activo: boolean;
 }
 
 const RoleManagementPage = () => {
@@ -51,7 +53,8 @@ const RoleManagementPage = () => {
       descripcion: 'Control total del sistema y configuración',
       esSistema: true,
       usuariosAsignados: 1,
-      permisos: ['all']
+      permisos: ['all'],
+      activo: true
     },
     {
       id: 'COORDINADOR',
@@ -59,7 +62,8 @@ const RoleManagementPage = () => {
       descripcion: 'Gestión operativa, aprobación de préstamos y rutas',
       esSistema: true,
       usuariosAsignados: 2,
-      permisos: ['loan_approve', 'route_manage', 'user_view', 'report_view']
+      permisos: ['loan_approve', 'route_manage', 'user_view', 'report_view'],
+      activo: true
     },
     {
       id: 'SUPERVISOR',
@@ -67,7 +71,8 @@ const RoleManagementPage = () => {
       descripcion: 'Supervisión de campo y control de gastos',
       esSistema: true,
       usuariosAsignados: 3,
-      permisos: ['expense_approve', 'route_view', 'report_view']
+      permisos: ['expense_approve', 'route_view', 'report_view'],
+      activo: true
     },
     {
       id: 'COBRADOR',
@@ -75,7 +80,8 @@ const RoleManagementPage = () => {
       descripcion: 'Operaciones de campo, cobros y registro de clientes',
       esSistema: true,
       usuariosAsignados: 8,
-      permisos: ['payment_create', 'client_create', 'loan_request']
+      permisos: ['payment_create', 'client_create', 'loan_request'],
+      activo: true
     },
     {
       id: 'CONTADOR',
@@ -83,7 +89,8 @@ const RoleManagementPage = () => {
       descripcion: 'Gestión financiera, cajas y auditoría de costos',
       esSistema: true,
       usuariosAsignados: 1,
-      permisos: ['accounting_manage', 'report_financial']
+      permisos: ['accounting_manage', 'report_financial'],
+      activo: true
     }
   ]);
 
@@ -220,11 +227,16 @@ const RoleManagementPage = () => {
         ...roleFormData,
         esSistema: false,
         usuariosAsignados: 0,
-        permisos: selectedPermissions
+        permisos: selectedPermissions,
+        activo: true
       };
       setRoles([...roles, newRole]);
     }
     setIsCreateRoleModalOpen(false);
+  };
+
+  const handleToggleRoleStatus = (role: Role) => {
+    setRoles(roles.map(r => r.id === role.id ? { ...r, activo: !r.activo } : r));
   };
 
   const handleDeleteRole = () => {
@@ -418,10 +430,22 @@ const RoleManagementPage = () => {
                           <>
                             <button
                               onClick={(e) => { e.stopPropagation(); handleOpenEditRoleModal(role); }}
-                              className="p-1.5 text-slate-400 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors"
+                              className="p-1.5 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
                               title="Editar Rol"
                             >
                               <Edit2 className="h-3.5 w-3.5" />
+                            </button>
+                            <button
+                              onClick={(e) => { e.stopPropagation(); handleToggleRoleStatus(role); }}
+                              className={cn(
+                                "p-1.5 rounded-lg transition-colors",
+                                role.activo 
+                                  ? "text-slate-400 hover:text-orange-600 hover:bg-orange-50" 
+                                  : "text-slate-400 hover:text-emerald-600 hover:bg-emerald-50"
+                              )}
+                              title={role.activo ? "Desactivar Rol" : "Activar Rol"}
+                            >
+                              {role.activo ? <Ban className="h-3.5 w-3.5" /> : <Check className="h-3.5 w-3.5" />}
                             </button>
                             <button
                               onClick={(e) => { e.stopPropagation(); handleOpenDeleteRoleModal(role); }}

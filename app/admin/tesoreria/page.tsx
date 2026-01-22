@@ -14,7 +14,8 @@ import {
   X,
   Save,
   Calculator,
-  AlertCircle
+  AlertCircle,
+  Eye
 } from 'lucide-react'
 import { formatCurrency, cn } from '@/lib/utils'
 import { ExportButton } from '@/components/ui/ExportButton'
@@ -194,6 +195,7 @@ const TesoreriaPage = () => {
                   <th className="px-6 py-4">Tipo</th>
                   <th className="px-6 py-4">Responsable</th>
                   <th className="px-6 py-4 text-right">Monto</th>
+                  <th className="px-6 py-4 text-right">Acciones</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -225,6 +227,14 @@ const TesoreriaPage = () => {
                       trx.tipo === 'INGRESO' ? "text-emerald-600" : "text-rose-600"
                     )}>
                       {trx.tipo === 'INGRESO' ? '+' : '-'}{formatCurrency(trx.monto)}
+                    </td>
+                    <td className="px-6 py-4 text-right">
+                      <button 
+                        className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                        title="Ver Detalle"
+                      >
+                        <Eye className="h-4 w-4" />
+                      </button>
                     </td>
                   </tr>
                 ))}

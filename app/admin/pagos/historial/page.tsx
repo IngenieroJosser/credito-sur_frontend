@@ -12,7 +12,8 @@ import {
   Download,
   AlertCircle,
   LayoutGrid,
-  List
+  List,
+  Eye
 } from 'lucide-react'
 import { formatCurrency, cn } from '@/lib/utils'
 import { ExportButton } from '@/components/ui/ExportButton'
@@ -262,6 +263,7 @@ const HistorialPagosPage = () => {
                       <th className="px-6 py-4 text-left bg-slate-50/30">Monto</th>
                       <th className="px-6 py-4 text-left bg-slate-50/30">Método</th>
                       <th className="px-6 py-4 text-left bg-slate-50/30">Estado</th>
+                      <th className="px-6 py-4 text-right bg-slate-50/30">Acciones</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
@@ -328,6 +330,14 @@ const HistorialPagosPage = () => {
                               {pago.estado === 'en_revision' && 'En revisión'}
                             </span>
                           </span>
+                        </td>
+                        <td className="px-6 py-4 align-middle text-right">
+                          <button 
+                            className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                            title="Ver Detalle"
+                          >
+                            <Eye className="h-4 w-4" />
+                          </button>
                         </td>
                       </tr>
                     ))}
@@ -439,7 +449,7 @@ const HistorialPagosPage = () => {
                         {formatCurrency(pago.monto)}
                       </p>
                     </div>
-                    <button className="p-2 rounded-lg hover:bg-slate-50 text-slate-400 hover:text-slate-900 transition-colors border border-transparent hover:border-slate-200">
+                    <button className="p-2 rounded-lg hover:bg-blue-50 text-slate-400 hover:text-blue-600 transition-colors border border-transparent hover:border-blue-100">
                       <ChevronRight className="h-5 w-5" />
                     </button>
                   </div>

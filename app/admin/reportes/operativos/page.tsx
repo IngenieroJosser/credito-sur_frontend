@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { BarChart3, Calendar, TrendingUp, Users, FilePlus, DollarSign, MapPin } from 'lucide-react'
+import { BarChart3, Calendar, TrendingUp, Users, FilePlus, DollarSign, MapPin, Eye } from 'lucide-react'
 import { formatCurrency, cn } from '@/lib/utils'
 import { ExportButton } from '@/components/ui/ExportButton'
 
@@ -168,6 +168,7 @@ const ReportesOperativosPage = () => {
                   <th className="px-6 py-4 tracking-wider text-center">Eficiencia</th>
                   <th className="px-6 py-4 tracking-wider text-center">Nuevos Prést.</th>
                   <th className="px-6 py-4 tracking-wider text-center">Nuevos Clientes</th>
+                  <th className="px-6 py-4 tracking-wider text-right">Acciones</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -200,6 +201,14 @@ const ReportesOperativosPage = () => {
                     </td>
                     <td className="px-6 py-4 text-center text-slate-600 font-medium">{item.nuevosPrestamos}</td>
                     <td className="px-6 py-4 text-center text-slate-600 font-medium">{item.nuevosClientes}</td>
+                    <td className="px-6 py-4 text-right">
+                      <button 
+                        className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                        title="Ver Detalles"
+                      >
+                        <Eye className="h-4 w-4" />
+                      </button>
+                    </td>
                   </tr>
                 ))}
               </tbody>

@@ -18,7 +18,10 @@ import {
   Ban,
   DollarSign,
   Filter,
-  RefreshCw
+  RefreshCw,
+  Eye,
+  Edit2,
+  Trash2
 } from 'lucide-react';
 import { formatCurrency, cn } from '@/lib/utils';
 import { PRESTAMOS_MOCK, Prestamo, EstadoPrestamo } from './data';
@@ -326,9 +329,27 @@ const ListadoPrestamosElegante = () => {
                         </div>
                       </td>
                       <td className="px-6 py-4 text-right">
-                        <button className="p-2 text-slate-400 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-all">
-                          <ChevronRightIcon className="h-4 w-4" />
-                        </button>
+                        <div className="flex items-center justify-end gap-1">
+                          <button 
+                            onClick={() => irADetallePrestamo(prestamo.id)}
+                            className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
+                            title="Ver detalle"
+                          >
+                            <Eye className="h-4 w-4" />
+                          </button>
+                          <button 
+                            className="p-2 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-all"
+                            title="Editar préstamo"
+                          >
+                            <Edit2 className="h-4 w-4" />
+                          </button>
+                          <button 
+                            className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all"
+                            title="Eliminar préstamo"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))
