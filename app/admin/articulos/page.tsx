@@ -13,21 +13,35 @@ import {
   AlertCircle,
   TrendingUp,
   Tag,
-  DollarSign
+  DollarSign,
+  X,
+  Save,
+  Activity,
+  Layers,
+  Box,
+  Pencil
 } from 'lucide-react'
 import { formatCurrency } from '@/lib/utils'
 
 // Mock Data
+interface PrecioPlazo {
+  meses: number
+  precio: number
+}
+
 interface Articulo {
   id: string
   nombre: string
   codigo: string
+  descripcion?: string
   categoria: string
+  marca: string
+  modelo: string
   costo: number
-  precioBase: number
   stock: number
   stockMinimo: number
   estado: 'activo' | 'inactivo'
+  precios: PrecioPlazo[]
 }
 
 const ARTICULOS_MOCK: Articulo[] = [
@@ -35,56 +49,52 @@ const ARTICULOS_MOCK: Articulo[] = [
     id: '1',
     nombre: 'Televisor Smart TV 50"',
     codigo: 'TV-50-SMART',
+    descripcion: 'Televisor 4K UHD con Smart Hub',
     categoria: 'Electrónica',
+    marca: 'Samsung',
+    modelo: 'UN50AU7000',
     costo: 1200000,
-    precioBase: 1800000,
     stock: 15,
     stockMinimo: 5,
-    estado: 'activo'
+    estado: 'activo',
+    precios: [
+      { meses: 1, precio: 1800000 },
+      { meses: 3, precio: 2100000 },
+      { meses: 6, precio: 2400000 }
+    ]
   },
   {
     id: '2',
     nombre: 'Lavadora 18kg Carga Superior',
     codigo: 'LAV-18-CS',
     categoria: 'Hogar',
+    marca: 'LG',
+    modelo: 'WT18WP',
     costo: 1500000,
-    precioBase: 2300000,
     stock: 8,
     stockMinimo: 3,
-    estado: 'activo'
+    estado: 'activo',
+    precios: [
+      { meses: 1, precio: 2300000 },
+      { meses: 6, precio: 2900000 },
+      { meses: 12, precio: 3500000 }
+    ]
   },
   {
     id: '3',
     nombre: 'Celular Gama Media 128GB',
     codigo: 'CEL-GM-128',
     categoria: 'Tecnología',
+    marca: 'Xiaomi',
+    modelo: 'Redmi Note 12',
     costo: 600000,
-    precioBase: 950000,
     stock: 4,
     stockMinimo: 10,
-    estado: 'activo'
-  },
-  {
-    id: '4',
-    nombre: 'Juego de Sala L',
-    codigo: 'SALA-L-01',
-    categoria: 'Muebles',
-    costo: 2000000,
-    precioBase: 3500000,
-    stock: 2,
-    stockMinimo: 2,
-    estado: 'activo'
-  },
-  {
-    id: '5',
-    nombre: 'Licuadora Industrial',
-    codigo: 'LIC-IND-01',
-    categoria: 'Electrodomésticos',
-    costo: 150000,
-    precioBase: 280000,
-    stock: 25,
-    stockMinimo: 5,
-    estado: 'activo'
+    estado: 'activo',
+    precios: [
+      { meses: 1, precio: 950000 },
+      { meses: 3, precio: 1100000 }
+    ]
   }
 ]
 
@@ -92,7 +102,69 @@ export default function ArticulosPage() {
   const [articulos, setArticulos] = useState<Articulo[]>(ARTICULOS_MOCK)
   const [busqueda, setBusqueda] = useState('')
   const [modalOpen, setModalOpen] = useState(false)
-  const [articuloEditar, setArticuloEditar] = useState<Articulo | undefined>(undefined)
+  const [loading, setLoading] = useState(false)
+  
+  // Form State
+  const initialFormState = {
+    nombre: '',
+    codigo: '',
+    descripcion: '',
+    categoria: '',
+    marca: '',
+    modelo: '',
+    costo: 0,
+    stock: 0,
+    stockMinimo: 0,
+    precios: [] as PrecioPlazo[]
+  }
+  const [formData, setFormData] = useState(initialFormState)
+  const [nuevoPlazo, setNuevoPlazo] = useState({ meses: 1, precio: 0 })
+
+  const handleOpenModal = (articulo?: Articulo) => {
+    if (articulo) {
+      setFormData({
+        nombre: articulo.nombre,
+        codigo: articulo.codigo,
+        descripcion: articulo.descripcion || '',
+        categoria: articulo.categoria,
+        marca: articulo.marca,
+        modelo: articulo.modelo,
+        costo: articulo.costo,
+        stock: articulo.stock,
+        stockMinimo: articulo.stockMinimo,
+        precios: [...articulo.precios]
+      })
+    } else {
+      setFormData(initialFormState)
+    }
+    setModalOpen(true)
+  }
+
+  const handleSave = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setLoading(true)
+    await new Promise(resolve => setTimeout(resolve, 1000))
+    setLoading(false)
+    setModalOpen(false)
+    // Lógica de guardado real aquí
+  }
+
+  const addPrecioPlazo = () => {
+    if (nuevoPlazo.meses > 0 && nuevoPlazo.precio > 0) {
+      setFormData(prev => ({
+        ...prev,
+        precios: [...prev.precios, nuevoPlazo].sort((a, b) => a.meses - b.meses)
+      }))
+      setNuevoPlazo({ meses: 1, precio: 0 })
+    }
+  }
+
+  const removePrecioPlazo = (index: number) => {
+    setFormData(prev => ({
+      ...prev,
+      precios: prev.precios.filter((_, i) => i !== index)
+    }))
+  }
 
   const articulosFiltrados = articulos.filter(
     (a) =>
@@ -131,14 +203,11 @@ export default function ArticulosPage() {
               </p>
             </div>
             <button
-              onClick={() => {
-                setArticuloEditar(undefined)
-                setModalOpen(true)
-              }}
-              className="inline-flex items-center gap-2 px-6 py-3 bg-slate-900 text-white rounded-xl hover:bg-slate-800 transition-all duration-300 text-sm font-bold shadow-lg shadow-slate-900/20 hover:shadow-slate-900/30 hover:scale-[1.02] active:scale-[0.98]"
+              onClick={() => handleOpenModal()}
+              className="inline-flex items-center gap-2 px-6 py-2.5 bg-white border border-slate-300 text-slate-700 rounded-xl hover:border-slate-400 hover:bg-slate-50 transition-all duration-200 shadow-sm font-bold text-sm group"
             >
-              <Plus className="w-4 h-4" />
-              Nuevo Artículo
+              <Plus className="w-4 h-4 text-slate-500 group-hover:text-slate-900 transition-colors" />
+              <span>Nuevo Artículo</span>
             </button>
         </header>
 
@@ -235,7 +304,7 @@ export default function ArticulosPage() {
                   <th className="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Artículo</th>
                   <th className="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Categoría</th>
                   <th className="px-6 py-4 text-right text-xs font-bold text-slate-500 uppercase tracking-wider">Costo</th>
-                  <th className="px-6 py-4 text-right text-xs font-bold text-slate-500 uppercase tracking-wider">Precio Venta</th>
+                  <th className="px-6 py-4 text-right text-xs font-bold text-slate-500 uppercase tracking-wider">Precio Base (1 mes)</th>
                   <th className="px-6 py-4 text-center text-xs font-bold text-slate-500 uppercase tracking-wider">Stock</th>
                   <th className="px-6 py-4 text-right text-xs font-bold text-slate-500 uppercase tracking-wider">Acciones</th>
                 </tr>
@@ -263,9 +332,13 @@ export default function ArticulosPage() {
                       {formatCurrency(articulo.costo)}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right">
-                      <div className="text-sm font-bold text-slate-900">{formatCurrency(articulo.precioBase)}</div>
-                      <div className="text-xs text-emerald-600 font-medium">
-                        Margin: {Math.round(((articulo.precioBase - articulo.costo) / articulo.precioBase) * 100)}%
+                      <div className="text-sm font-bold text-slate-900">
+                        {articulo.precios.length > 0 
+                          ? formatCurrency(articulo.precios[0].precio)
+                          : '$0'}
+                      </div>
+                      <div className="text-xs text-slate-500 font-medium">
+                        {articulo.precios.length} opciones de plazo
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-center">
@@ -280,17 +353,22 @@ export default function ArticulosPage() {
                     <td className="px-6 py-4 whitespace-nowrap text-right">
                       <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                         <button 
-                          onClick={() => {
-                            setArticuloEditar(articulo)
-                            setModalOpen(true)
-                          }}
-                          className="p-2 text-slate-400 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors"
+                          className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                          title="Ver detalle"
                         >
-                          <Edit2 className="w-4 h-4" />
+                          <Activity className="w-4 h-4" />
+                        </button>
+                        <button 
+                          onClick={() => handleOpenModal(articulo)}
+                          className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                          title="Editar"
+                        >
+                          <Pencil className="w-4 h-4" />
                         </button>
                         <button 
                           onClick={() => handleEliminar(articulo.id)}
                           className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
+                          title="Eliminar"
                         >
                           <Trash2 className="w-4 h-4" />
                         </button>
@@ -319,6 +397,243 @@ export default function ArticulosPage() {
         </div>
       </div>
       </div>
+
+      {/* Modal Nuevo/Editar Artículo */}
+      {modalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6">
+          <div 
+            className="absolute inset-0 bg-slate-900/30 backdrop-blur-sm transition-opacity"
+            onClick={() => setModalOpen(false)}
+          />
+          
+          <div className="relative w-full max-w-4xl bg-white rounded-2xl shadow-2xl ring-1 ring-slate-900/5 transform transition-all animate-in fade-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-slate-50/50 sticky top-0 z-10 backdrop-blur-sm">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-blue-50 text-blue-600 rounded-lg">
+                  <Package className="h-5 w-5" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-slate-900">
+                    {formData.codigo ? 'Editar Artículo' : 'Nuevo Artículo'}
+                  </h3>
+                  <p className="text-xs text-slate-500 font-medium">Gestione la información del producto</p>
+                </div>
+              </div>
+              <button 
+                onClick={() => setModalOpen(false)}
+                className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSave} className="p-6 space-y-8">
+              {/* Información General */}
+              <div className="space-y-4">
+                <h4 className="flex items-center gap-2 text-sm font-bold text-slate-900 uppercase tracking-wider">
+                  <Layers className="w-4 h-4 text-blue-600" />
+                  Información Básica
+                </h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-slate-500">Nombre del Producto</label>
+                    <input
+                      type="text"
+                      value={formData.nombre}
+                      onChange={e => setFormData({...formData, nombre: e.target.value})}
+                      className="w-full px-4 py-2.5 rounded-xl border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-blue-600/20 focus:border-blue-600 transition-all font-medium text-slate-900"
+                      placeholder="Ej: Televisor Smart TV 50"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-slate-500">Código (SKU)</label>
+                    <input
+                      type="text"
+                      value={formData.codigo}
+                      onChange={e => setFormData({...formData, codigo: e.target.value})}
+                      className="w-full px-4 py-2.5 rounded-xl border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-blue-600/20 focus:border-blue-600 transition-all font-medium text-slate-900"
+                      placeholder="Ej: TV-50-SMART"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-slate-500">Categoría</label>
+                    <select
+                      value={formData.categoria}
+                      onChange={e => setFormData({...formData, categoria: e.target.value})}
+                      className="w-full px-4 py-2.5 rounded-xl border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-blue-600/20 focus:border-blue-600 transition-all font-medium text-slate-900"
+                    >
+                      <option value="">Seleccionar...</option>
+                      <option value="Electrónica">Electrónica</option>
+                      <option value="Hogar">Hogar</option>
+                      <option value="Tecnología">Tecnología</option>
+                      <option value="Muebles">Muebles</option>
+                    </select>
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-slate-500">Descripción</label>
+                    <textarea
+                      rows={2}
+                      value={formData.descripcion}
+                      onChange={e => setFormData({...formData, descripcion: e.target.value})}
+                      className="w-full px-4 py-2.5 rounded-xl border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-blue-600/20 focus:border-blue-600 transition-all font-medium text-slate-900 resize-none"
+                      placeholder="Breve descripción del producto..."
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <label className="text-xs font-bold text-slate-500">Marca</label>
+                      <input
+                        type="text"
+                        value={formData.marca}
+                        onChange={e => setFormData({...formData, marca: e.target.value})}
+                        className="w-full px-4 py-2.5 rounded-xl border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-blue-600/20 focus:border-blue-600 transition-all font-medium text-slate-900"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-xs font-bold text-slate-500">Modelo</label>
+                      <input
+                        type="text"
+                        value={formData.modelo}
+                        onChange={e => setFormData({...formData, modelo: e.target.value})}
+                        className="w-full px-4 py-2.5 rounded-xl border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-blue-600/20 focus:border-blue-600 transition-all font-medium text-slate-900"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="h-px bg-slate-100" />
+
+              {/* Inventario y Costos */}
+              <div className="space-y-4">
+                <h4 className="flex items-center gap-2 text-sm font-bold text-slate-900 uppercase tracking-wider">
+                  <Box className="w-4 h-4 text-orange-500" />
+                  Inventario y Costos
+                </h4>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-slate-500">Costo Unitario</label>
+                    <div className="relative">
+                      <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                      <input
+                        type="number"
+                        value={formData.costo}
+                        onChange={e => setFormData({...formData, costo: Number(e.target.value)})}
+                        className="w-full pl-9 pr-4 py-2.5 rounded-xl border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-blue-600/20 focus:border-blue-600 transition-all font-medium text-slate-900"
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-slate-500">Stock Actual</label>
+                    <input
+                      type="number"
+                      value={formData.stock}
+                      onChange={e => setFormData({...formData, stock: Number(e.target.value)})}
+                      className="w-full px-4 py-2.5 rounded-xl border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-blue-600/20 focus:border-blue-600 transition-all font-medium text-slate-900"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-slate-500">Stock Mínimo</label>
+                    <input
+                      type="number"
+                      value={formData.stockMinimo}
+                      onChange={e => setFormData({...formData, stockMinimo: Number(e.target.value)})}
+                      className="w-full px-4 py-2.5 rounded-xl border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-blue-600/20 focus:border-blue-600 transition-all font-medium text-slate-900"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="h-px bg-slate-100" />
+
+              {/* Precios a Crédito */}
+              <div className="space-y-4">
+                <h4 className="flex items-center gap-2 text-sm font-bold text-slate-900 uppercase tracking-wider">
+                  <TrendingUp className="w-4 h-4 text-emerald-600" />
+                  Precios de Venta a Crédito
+                </h4>
+                <div className="bg-slate-50 rounded-xl p-4 space-y-4">
+                  <div className="flex gap-4 items-end">
+                    <div className="space-y-2 flex-1">
+                      <label className="text-xs font-bold text-slate-500">Plazo (Meses)</label>
+                      <input
+                        type="number"
+                        min="1"
+                        value={nuevoPlazo.meses}
+                        onChange={e => setNuevoPlazo({...nuevoPlazo, meses: Number(e.target.value)})}
+                        className="w-full px-4 py-2.5 rounded-xl border-slate-200 bg-white focus:ring-2 focus:ring-blue-600/20 focus:border-blue-600 transition-all font-medium text-slate-900"
+                      />
+                    </div>
+                    <div className="space-y-2 flex-1">
+                      <label className="text-xs font-bold text-slate-500">Precio Total</label>
+                      <div className="relative">
+                        <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                        <input
+                          type="number"
+                          value={nuevoPlazo.precio}
+                          onChange={e => setNuevoPlazo({...nuevoPlazo, precio: Number(e.target.value)})}
+                          className="w-full pl-9 pr-4 py-2.5 rounded-xl border-slate-200 bg-white focus:ring-2 focus:ring-blue-600/20 focus:border-blue-600 transition-all font-medium text-slate-900"
+                        />
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={addPrecioPlazo}
+                      className="px-4 py-2.5 bg-slate-900 text-white rounded-xl hover:bg-slate-800 transition-all font-bold text-sm"
+                    >
+                      Agregar
+                    </button>
+                  </div>
+
+                  {formData.precios.length > 0 && (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 pt-2">
+                      {formData.precios.map((precio, index) => (
+                        <div key={index} className="flex items-center justify-between p-3 bg-white border border-slate-200 rounded-xl shadow-sm">
+                          <div>
+                            <div className="text-sm font-bold text-slate-900">{precio.meses} Meses</div>
+                            <div className="text-xs text-emerald-600 font-bold">{formatCurrency(precio.precio)}</div>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => removePrecioPlazo(index)}
+                            className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setModalOpen(false)}
+                  className="px-4 py-2 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors text-sm font-bold"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="px-6 py-2 bg-slate-900 text-white rounded-xl hover:bg-slate-800 transition-all text-sm font-bold flex items-center gap-2 shadow-lg shadow-slate-900/20 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {loading ? (
+                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  ) : (
+                    <>
+                      <Save className="h-4 w-4" />
+                      <span>Guardar Artículo</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

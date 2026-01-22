@@ -235,7 +235,7 @@ const SyncStatusPage = () => {
             <button 
               onClick={handleSyncNow}
               disabled={isSyncing}
-              className="inline-flex items-center gap-2 px-6 py-2.5 bg-slate-900 text-white rounded-xl hover:bg-slate-800 disabled:opacity-50 transition-all font-bold text-sm shadow-lg shadow-slate-900/20 active:scale-95"
+              className="inline-flex items-center gap-2 px-6 py-2.5 bg-white border border-slate-200 text-slate-700 rounded-xl hover:bg-slate-50 disabled:opacity-50 transition-all font-bold text-sm shadow-sm active:scale-95"
             >
               <RefreshCw className={`w-4 h-4 ${isSyncing ? 'animate-spin' : ''}`} />
               {isSyncing ? 'Sincronizando...' : 'Sincronizar Ahora'}

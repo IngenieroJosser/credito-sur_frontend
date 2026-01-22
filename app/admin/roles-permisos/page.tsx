@@ -88,31 +88,45 @@ const RoleManagementPage = () => {
   ]);
 
   const [allPermissions] = useState<Permission[]>([
-    // Sistema
-    { id: '1', modulo: 'Sistema', accion: 'full_access', nombre: 'Acceso Total', descripcion: 'Control total del sistema', categoria: 'administracion', activo: true },
-    { id: '2', modulo: 'Sistema', accion: 'user_manage', nombre: 'Gestión Usuarios', descripcion: 'Crear, editar y eliminar usuarios', categoria: 'administracion', activo: true },
-    
-    // Créditos
-    { id: '3', modulo: 'Créditos', accion: 'loan_create', nombre: 'Crear Préstamos', descripcion: 'Registrar nuevos préstamos', categoria: 'escritura', activo: true },
-    { id: '4', modulo: 'Créditos', accion: 'loan_approve', nombre: 'Aprobar Préstamos', descripcion: 'Autorizar solicitudes de crédito', categoria: 'administracion', activo: true },
-    { id: '5', modulo: 'Créditos', accion: 'loan_view', nombre: 'Ver Préstamos', descripcion: 'Consultar listado y detalles', categoria: 'lectura', activo: true },
-    
-    // Cobranza
-    { id: '6', modulo: 'Cobranza', accion: 'payment_create', nombre: 'Registrar Pagos', descripcion: 'Ingresar pagos de cuotas', categoria: 'escritura', activo: true },
-    { id: '7', modulo: 'Cobranza', accion: 'late_fee_manage', nombre: 'Gestionar Moras', descripcion: 'Configurar intereses por mora', categoria: 'administracion', activo: true },
-    
+    // Usuarios & Sistema
+    { id: 'sys_1', modulo: 'Usuarios', accion: 'user_view', nombre: 'Ver Usuarios', descripcion: 'Visualizar lista de usuarios', categoria: 'lectura', activo: true },
+    { id: 'sys_2', modulo: 'Usuarios', accion: 'user_manage', nombre: 'Gestionar Usuarios', descripcion: 'Crear, editar y eliminar usuarios', categoria: 'administracion', activo: true },
+    { id: 'sys_3', modulo: 'Sistema', accion: 'role_manage', nombre: 'Gestionar Roles', descripcion: 'Configurar roles y permisos', categoria: 'administracion', activo: true },
+    { id: 'sys_4', modulo: 'Sistema', accion: 'audit_view', nombre: 'Auditoría', descripcion: 'Ver registro de eventos', categoria: 'lectura', activo: true },
+    { id: 'sys_5', modulo: 'Sistema', accion: 'backup_manage', nombre: 'Respaldos', descripcion: 'Gestionar copias de seguridad', categoria: 'administracion', activo: true },
+
     // Clientes
-    { id: '8', modulo: 'Clientes', accion: 'client_create', nombre: 'Crear Clientes', descripcion: 'Registrar nuevos clientes', categoria: 'escritura', activo: true },
-    { id: '9', modulo: 'Clientes', accion: 'client_view', nombre: 'Ver Clientes', descripcion: 'Consultar base de clientes', categoria: 'lectura', activo: true },
-    { id: '10', modulo: 'Clientes', accion: 'client_blacklist', nombre: 'Lista Negra', descripcion: 'Gestionar lista negra', categoria: 'eliminacion', activo: true },
-    
+    { id: 'cli_1', modulo: 'Clientes', accion: 'client_view', nombre: 'Ver Clientes', descripcion: 'Consultar base de clientes', categoria: 'lectura', activo: true },
+    { id: 'cli_2', modulo: 'Clientes', accion: 'client_create', nombre: 'Crear Clientes', descripcion: 'Registrar nuevos clientes', categoria: 'escritura', activo: true },
+    { id: 'cli_3', modulo: 'Clientes', accion: 'client_edit', nombre: 'Editar Clientes', descripcion: 'Modificar datos de clientes', categoria: 'escritura', activo: true },
+    { id: 'cli_4', modulo: 'Clientes', accion: 'client_approve', nombre: 'Aprobar Clientes', descripcion: 'Validar nuevos clientes', categoria: 'administracion', activo: true },
+    { id: 'cli_5', modulo: 'Clientes', accion: 'client_blacklist', nombre: 'Lista Negra', descripcion: 'Gestionar lista negra', categoria: 'eliminacion', activo: true },
+
+    // Préstamos
+    { id: 'loan_1', modulo: 'Préstamos', accion: 'loan_view', nombre: 'Ver Préstamos', descripcion: 'Consultar préstamos', categoria: 'lectura', activo: true },
+    { id: 'loan_2', modulo: 'Préstamos', accion: 'loan_create', nombre: 'Crear Préstamos', descripcion: 'Registrar solicitudes', categoria: 'escritura', activo: true },
+    { id: 'loan_3', modulo: 'Préstamos', accion: 'loan_approve', nombre: 'Aprobar Préstamos', descripcion: 'Autorizar créditos', categoria: 'administracion', activo: true },
+    { id: 'loan_4', modulo: 'Préstamos', accion: 'loan_reschedule', nombre: 'Reprogramar', descripcion: 'Autorizar cambios de fecha', categoria: 'administracion', activo: true },
+    { id: 'loan_5', modulo: 'Préstamos', accion: 'loan_special_interest', nombre: 'Intereses Especiales', descripcion: 'Autorizar tasas especiales', categoria: 'administracion', activo: true },
+
+    // Cobranzas
+    { id: 'coll_1', modulo: 'Cobranzas', accion: 'payment_view', nombre: 'Ver Pagos', descripcion: 'Consultar historial de pagos', categoria: 'lectura', activo: true },
+    { id: 'coll_2', modulo: 'Cobranzas', accion: 'payment_create', nombre: 'Registrar Pagos', descripcion: 'Ingresar abonos y cuotas', categoria: 'escritura', activo: true },
+    { id: 'coll_3', modulo: 'Cobranzas', accion: 'late_fee_manage', nombre: 'Gestionar Moras', descripcion: 'Configurar/Perdonar moras', categoria: 'administracion', activo: true },
+
+    // Rutas
+    { id: 'route_1', modulo: 'Rutas', accion: 'route_view', nombre: 'Ver Rutas', descripcion: 'Visualizar rutas asignadas', categoria: 'lectura', activo: true },
+    { id: 'route_2', modulo: 'Rutas', accion: 'route_manage', nombre: 'Gestionar Rutas', descripcion: 'Crear y asignar rutas', categoria: 'administracion', activo: true },
+
+    // Contabilidad
+    { id: 'acc_1', modulo: 'Contabilidad', accion: 'accounting_view', nombre: 'Ver Contabilidad', descripcion: 'Consultar movimientos', categoria: 'lectura', activo: true },
+    { id: 'acc_2', modulo: 'Contabilidad', accion: 'cost_manage', nombre: 'Costos Productos', descripcion: 'Gestionar costos base', categoria: 'administracion', activo: true },
+    { id: 'acc_3', modulo: 'Contabilidad', accion: 'expense_manage', nombre: 'Gastos Operativos', descripcion: 'Registrar gastos', categoria: 'escritura', activo: true },
+    { id: 'acc_4', modulo: 'Contabilidad', accion: 'cash_manage', nombre: 'Control de Cajas', descripcion: 'Arqueos y cierres', categoria: 'administracion', activo: true },
+
     // Reportes
-    { id: '11', modulo: 'Reportes', accion: 'report_view', nombre: 'Ver Reportes', descripcion: 'Visualizar reportes operativos', categoria: 'lectura', activo: true },
-    { id: '12', modulo: 'Reportes', accion: 'report_financial', nombre: 'Reportes Financieros', descripcion: 'Acceso a datos sensibles', categoria: 'administracion', activo: true },
-    
-    // Finanzas
-    { id: '13', modulo: 'Finanzas', accion: 'accounting_manage', nombre: 'Gestión Contable', descripcion: 'Costos y gastos operativos', categoria: 'administracion', activo: true },
-    { id: '14', modulo: 'Finanzas', accion: 'cash_manage', nombre: 'Control de Cajas', descripcion: 'Arqueos y movimientos', categoria: 'administracion', activo: true }
+    { id: 'rep_1', modulo: 'Reportes', accion: 'report_view', nombre: 'Ver Reportes', descripcion: 'Reportes operativos básicos', categoria: 'lectura', activo: true },
+    { id: 'rep_2', modulo: 'Reportes', accion: 'report_financial', nombre: 'Reportes Financieros', descripcion: 'Reportes de dinero y utilidad', categoria: 'administracion', activo: true },
   ]);
 
   const [searchTerm, setSearchTerm] = useState('');
@@ -245,6 +259,7 @@ const RoleManagementPage = () => {
   }
 
   return (
+    <>
     <div className="min-h-screen bg-slate-50 relative">
       {/* Fondo arquitectónico standard */}
       <div className="fixed inset-0 pointer-events-none">
@@ -271,7 +286,7 @@ const RoleManagementPage = () => {
           <div className="flex items-center gap-3">
             <button
               onClick={handleOpenCreateRoleModal}
-              className="inline-flex items-center gap-2 rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-bold text-white shadow-lg shadow-slate-900/20 hover:bg-slate-800 hover:scale-[1.02] active:scale-[0.98] transition-all duration-300 whitespace-nowrap"
+              className="inline-flex items-center gap-2 rounded-xl bg-white px-4 py-2.5 text-sm font-bold text-slate-900 border border-slate-200 shadow-sm hover:bg-slate-50 hover:border-slate-300 transition-all duration-300 whitespace-nowrap"
             >
               <Plus className="h-4 w-4" />
               <span>Nuevo Rol</span>
@@ -306,8 +321,8 @@ const RoleManagementPage = () => {
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 animate-in fade-in slide-in-from-bottom-4 duration-500 delay-300">
           {/* Lista de Roles */}
-          <div className="lg:col-span-1 space-y-6">
-            <div className="bg-white/80 backdrop-blur-sm border border-slate-200 rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] h-full flex flex-col overflow-hidden">
+          <div className="lg:col-span-1 flex flex-col gap-6">
+            <div className="bg-white/80 backdrop-blur-sm border border-slate-200 rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] flex-1 min-h-0 flex flex-col overflow-hidden">
               <div className="p-6 border-b border-slate-100">
                 <div className="flex items-center justify-between">
                   <h2 className="font-bold text-slate-900 text-lg">Roles Definidos</h2>
@@ -316,6 +331,17 @@ const RoleManagementPage = () => {
                   </span>
                 </div>
                 <p className="text-sm text-slate-500 mt-1 font-medium">Selecciona un rol para ver sus permisos</p>
+              </div>
+
+              <div className="px-4 pt-4">
+                <div className="bg-sky-50/50 border border-sky-100 rounded-xl p-4 flex items-start gap-3 backdrop-blur-sm">
+                  <div className="p-2 bg-sky-100/50 rounded-lg shrink-0">
+                    <Info className="h-4 w-4 text-sky-700" />
+                  </div>
+                  <p className="text-xs text-sky-800 leading-relaxed font-medium">
+                    Los roles de sistema no pueden ser eliminados ni renombrados para garantizar la integridad de CrediSur, pero puedes ajustar sus permisos específicos.
+                  </p>
+                </div>
               </div>
               
               <div className="flex-1 overflow-y-auto p-4 space-y-3">
@@ -412,15 +438,6 @@ const RoleManagementPage = () => {
                 ))}
               </div>
             </div>
-            
-            <div className="bg-sky-50/50 border border-sky-100 rounded-2xl p-5 flex items-start gap-3 backdrop-blur-sm">
-              <div className="p-2 bg-sky-100/50 rounded-lg shrink-0">
-                <Info className="h-4 w-4 text-sky-700" />
-              </div>
-              <p className="text-xs text-sky-800 leading-relaxed font-medium">
-                Los roles de sistema no pueden ser eliminados ni renombrados para garantizar la integridad de CrediSur, pero puedes ajustar sus permisos específicos.
-              </p>
-            </div>
           </div>
 
           {/* Panel de Permisos */}
@@ -484,13 +501,14 @@ const RoleManagementPage = () => {
           </div>
         </div>
       </div>
+    </div>
 
       {/* Modal de Crear/Editar Rol */}
       {isCreateRoleModalOpen && (
         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-2xl w-full max-w-lg shadow-2xl border border-slate-100 transform transition-all">
-            <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50 rounded-t-2xl">
-              <h2 className="text-lg font-bold text-slate-900">
+          <div className="bg-white rounded-2xl w-full max-w-4xl h-[90vh] flex flex-col shadow-2xl border border-slate-100 transform transition-all">
+            <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50 rounded-t-2xl shrink-0">
+              <h2 className="text-xl font-bold text-slate-900">
                 {selectedRole ? 'Editar Rol' : 'Nuevo Rol'}
               </h2>
               <button onClick={() => setIsCreateRoleModalOpen(false)} className="text-slate-400 hover:text-slate-600 p-1 hover:bg-slate-100 rounded-full transition-colors">
@@ -498,29 +516,122 @@ const RoleManagementPage = () => {
               </button>
             </div>
             
-            <div className="p-6 space-y-4">
-              <div>
-                <label className="block text-sm font-bold text-slate-700 mb-1.5">Nombre del Rol</label>
-                <input
-                  type="text"
-                  value={roleFormData.nombre}
-                  onChange={(e) => setRoleFormData({...roleFormData, nombre: e.target.value})}
-                  className="w-full px-4 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-slate-900 focus:border-transparent outline-none transition-all text-sm font-medium"
-                  placeholder="Ej. Auditor Externo"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-bold text-slate-700 mb-1.5">Descripción</label>
-                <textarea
-                  value={roleFormData.descripcion}
-                  onChange={(e) => setRoleFormData({...roleFormData, descripcion: e.target.value})}
-                  className="w-full px-4 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-slate-900 focus:border-transparent outline-none transition-all text-sm font-medium h-24 resize-none"
-                  placeholder="Describe las responsabilidades de este rol..."
-                />
+            <div className="flex-1 overflow-y-auto">
+              <div className="p-6 space-y-8">
+                {/* Información General */}
+                <div className="space-y-4">
+                  <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider flex items-center gap-2">
+                    <Shield className="h-4 w-4" />
+                    Información General
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-bold text-slate-700 mb-1.5">Nombre del Rol <span className="text-rose-500">*</span></label>
+                      <input
+                        type="text"
+                        value={roleFormData.nombre}
+                        onChange={(e) => setRoleFormData({...roleFormData, nombre: e.target.value})}
+                        className="w-full px-4 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-slate-900 focus:border-transparent outline-none transition-all text-sm font-medium"
+                        placeholder="Ej. Auditor Externo"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-bold text-slate-700 mb-1.5">Descripción</label>
+                      <input
+                        type="text"
+                        value={roleFormData.descripcion}
+                        onChange={(e) => setRoleFormData({...roleFormData, descripcion: e.target.value})}
+                        className="w-full px-4 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-slate-900 focus:border-transparent outline-none transition-all text-sm font-medium"
+                        placeholder="Breve descripción de responsabilidades"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Selección de Permisos */}
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider flex items-center gap-2">
+                      <Key className="h-4 w-4" />
+                      Permisos del Sistema
+                    </h3>
+                    <span className="text-xs font-bold text-slate-500 bg-slate-100 px-2 py-1 rounded-lg">
+                      {selectedPermissions.length} seleccionados
+                    </span>
+                  </div>
+
+                  <div className="space-y-4">
+                    {modules.map(module => {
+                      const modulePermissions = allPermissions.filter(p => p.modulo === module);
+                      const moduleIds = modulePermissions.map(p => p.accion);
+                      const allSelected = moduleIds.every(id => selectedPermissions.includes(id));
+                      const someSelected = moduleIds.some(id => selectedPermissions.includes(id));
+
+                      return (
+                        <div key={module} className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm">
+                          <div className="px-4 py-3 bg-slate-50 border-b border-slate-200 flex justify-between items-center">
+                            <div className="flex items-center gap-3">
+                              <button
+                                onClick={() => {
+                                  if (allSelected) {
+                                    setSelectedPermissions(prev => prev.filter(id => !moduleIds.includes(id)));
+                                  } else {
+                                    setSelectedPermissions(prev => [...new Set([...prev, ...moduleIds])]);
+                                  }
+                                }}
+                                className={cn(
+                                  "w-5 h-5 rounded border flex items-center justify-center transition-colors",
+                                  allSelected ? "bg-slate-900 border-slate-900 text-white" : 
+                                  someSelected ? "bg-slate-900 border-slate-900 text-white" : "border-slate-300 bg-white"
+                                )}
+                              >
+                                {allSelected && <Check className="h-3.5 w-3.5" />}
+                                {!allSelected && someSelected && <div className="w-2 h-0.5 bg-white rounded-full" />}
+                              </button>
+                              <h3 className="font-bold text-slate-900">{module}</h3>
+                            </div>
+                          </div>
+                          <div className="p-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                            {modulePermissions.map(permission => {
+                              const isSelected = selectedPermissions.includes(permission.accion);
+                              return (
+                                <div 
+                                  key={permission.id}
+                                  onClick={() => togglePermission(permission.accion)}
+                                  className={cn(
+                                    "cursor-pointer border rounded-xl p-3 transition-all duration-200 flex items-start gap-3 select-none",
+                                    isSelected 
+                                      ? "bg-slate-900/5 border-slate-900/20 shadow-sm" 
+                                      : "bg-white border-slate-100 hover:border-slate-300 hover:bg-slate-50"
+                                  )}
+                                >
+                                  <div className={cn(
+                                    "mt-0.5 w-5 h-5 rounded border flex items-center justify-center shrink-0 transition-colors",
+                                    isSelected ? "bg-slate-900 border-slate-900 text-white" : "border-slate-300 bg-white"
+                                  )}>
+                                    {isSelected && <Check className="h-3.5 w-3.5" />}
+                                  </div>
+                                  <div>
+                                    <h4 className={cn("text-sm font-bold mb-0.5", isSelected ? "text-slate-900" : "text-slate-700")}>
+                                      {permission.nombre}
+                                    </h4>
+                                    <p className={cn("text-xs leading-relaxed font-medium", isSelected ? "text-slate-600" : "text-slate-500")}>
+                                      {permission.descripcion}
+                                    </p>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
               </div>
             </div>
             
-            <div className="p-6 border-t border-slate-100 bg-slate-50/50 rounded-b-2xl flex justify-end space-x-3">
+            <div className="p-6 border-t border-slate-100 bg-slate-50/50 rounded-b-2xl flex justify-end space-x-3 shrink-0">
               <button
                 onClick={() => setIsCreateRoleModalOpen(false)}
                 className="px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-200 rounded-xl transition-colors"
@@ -684,7 +795,7 @@ const RoleManagementPage = () => {
           </div>
         </div>
       )}
-    </div>
+    </>
   );
 };
 

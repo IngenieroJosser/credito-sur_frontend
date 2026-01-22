@@ -1,6 +1,7 @@
 'use client'
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import {
   Search,
   UserPlus,
@@ -27,11 +28,11 @@ type EstadoUsuario = 'ACTIVO' | 'INACTIVO' | 'SUSPENDIDO';
 
 interface User {
   id: string;
-  nombre: string;
-  email: string;
+  nombres: string;
+  apellidos: string;
+  correo: string;
   telefono: string;
   rol: RolUsuario;
-  departamento: string;
   estado: EstadoUsuario;
   fechaCreacion: string;
   ultimoAcceso: string;
@@ -55,11 +56,11 @@ const UserManagementPage = () => {
   const [users, setUsers] = useState<User[]>([
     {
       id: '1',
-      nombre: 'María Rodríguez',
-      email: 'maria.rodriguez@credisur.com',
+      nombres: 'María',
+      apellidos: 'Rodríguez',
+      correo: 'maria.rodriguez@credisur.com',
       telefono: '+57 300 123 4567',
       rol: 'SUPER_ADMINISTRADOR',
-      departamento: 'Administración',
       estado: 'ACTIVO',
       fechaCreacion: '2023-01-15',
       ultimoAcceso: 'Hoy 09:42',
@@ -67,11 +68,11 @@ const UserManagementPage = () => {
     },
     {
       id: '2',
-      nombre: 'Carlos Méndez',
-      email: 'carlos.mendez@credisur.com',
+      nombres: 'Carlos',
+      apellidos: 'Méndez',
+      correo: 'carlos.mendez@credisur.com',
       telefono: '+57 310 234 5678',
       rol: 'COORDINADOR',
-      departamento: 'Operaciones',
       estado: 'ACTIVO',
       fechaCreacion: '2023-03-20',
       ultimoAcceso: 'Hoy 08:30',
@@ -79,11 +80,11 @@ const UserManagementPage = () => {
     },
     {
       id: '3',
-      nombre: 'Ana López',
-      email: 'ana.lopez@credisur.com',
+      nombres: 'Ana',
+      apellidos: 'López',
+      correo: 'ana.lopez@credisur.com',
       telefono: '+57 320 345 6789',
       rol: 'SUPERVISOR',
-      departamento: 'Supervisión',
       estado: 'ACTIVO',
       fechaCreacion: '2023-05-10',
       ultimoAcceso: 'Ayer 14:20',
@@ -91,11 +92,11 @@ const UserManagementPage = () => {
     },
     {
       id: '4',
-      nombre: 'Pedro Gómez',
-      email: 'pedro.gomez@credisur.com',
+      nombres: 'Pedro',
+      apellidos: 'Gómez',
+      correo: 'pedro.gomez@credisur.com',
       telefono: '+57 315 456 7890',
       rol: 'COBRADOR',
-      departamento: 'Cobranza',
       estado: 'ACTIVO',
       fechaCreacion: '2023-07-25',
       ultimoAcceso: 'Hoy 10:15',
@@ -103,27 +104,15 @@ const UserManagementPage = () => {
     },
     {
       id: '5',
-      nombre: 'Laura Sánchez',
-      email: 'laura.sanchez@credisur.com',
+      nombres: 'Laura',
+      apellidos: 'Sánchez',
+      correo: 'laura.sanchez@credisur.com',
       telefono: '+57 316 567 8901',
       rol: 'CONTADOR',
-      departamento: 'Contabilidad',
       estado: 'INACTIVO',
       fechaCreacion: '2023-09-05',
       ultimoAcceso: '10 Mar 16:45',
       permisos: ['financial_operations', 'reports_view']
-    },
-    {
-      id: '6',
-      nombre: 'Roberto Vargas',
-      email: 'roberto.vargas@credisur.com',
-      telefono: '+57 311 678 0123',
-      rol: 'COBRADOR',
-      departamento: 'Cobranza',
-      estado: 'ACTIVO',
-      fechaCreacion: '2023-11-15',
-      ultimoAcceso: 'Hoy 11:20',
-      permisos: ['collection_management']
     }
   ]);
 
@@ -139,13 +128,19 @@ const UserManagementPage = () => {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isPermissionsModalOpen, setIsPermissionsModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const [formData, setFormData] = useState({
-    nombre: '',
-    email: '',
+    nombres: '',
+    apellidos: '',
+    correo: '',
     telefono: '',
+    contrasena: '',
     rol: 'COBRADOR' as RolUsuario,
-    departamento: '',
     estado: 'ACTIVO' as EstadoUsuario
   });
 
@@ -163,9 +158,10 @@ const UserManagementPage = () => {
   ];
 
   const filteredUsers = users.filter(user => {
+    const fullName = `${user.nombres} ${user.apellidos}`.toLowerCase();
     const matchesSearch =
-      user.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      user.email.toLowerCase().includes(searchTerm.toLowerCase());
+      fullName.includes(searchTerm.toLowerCase()) ||
+      user.correo.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesRole = filterRole === 'all' || user.rol === filterRole;
     const matchesStatus = filterStatus === 'all' || user.estado === filterStatus;
 
@@ -181,11 +177,12 @@ const UserManagementPage = () => {
 
   const handleOpenCreateModal = () => {
     setFormData({
-      nombre: '',
-      email: '',
+      nombres: '',
+      apellidos: '',
+      correo: '',
       telefono: '',
+      contrasena: '',
       rol: 'COBRADOR',
-      departamento: '',
       estado: 'ACTIVO'
     });
     setSelectedPermissions([]);
@@ -199,11 +196,12 @@ const UserManagementPage = () => {
 
     setSelectedUser(user);
     setFormData({
-      nombre: user.nombre,
-      email: user.email,
+      nombres: user.nombres,
+      apellidos: user.apellidos,
+      correo: user.correo,
       telefono: user.telefono,
+      contrasena: '', // No password on edit
       rol: user.rol,
-      departamento: user.departamento,
       estado: user.estado
     });
     setSelectedPermissions(user.permisos);
@@ -335,6 +333,7 @@ const UserManagementPage = () => {
   };
 
   return (
+    <>
     <div className="min-h-screen bg-slate-50 relative">
       {/* Fondo arquitectónico standard */}
       <div className="fixed inset-0 pointer-events-none">
@@ -361,7 +360,7 @@ const UserManagementPage = () => {
             <div className="flex items-center gap-4">
               <button
                 onClick={handleOpenCreateModal}
-                className="inline-flex items-center gap-2 rounded-xl bg-slate-900 px-6 py-2.5 text-sm font-bold text-white shadow-lg shadow-slate-900/20 hover:bg-slate-800 hover:scale-[1.02] active:scale-[0.98] transition-all duration-300 whitespace-nowrap"
+                className="inline-flex items-center gap-2 rounded-xl bg-white border border-slate-200 px-6 py-2.5 text-sm font-bold text-slate-700 shadow-sm hover:bg-slate-50 hover:text-slate-900 transition-all duration-300 whitespace-nowrap"
               >
                 <UserPlus className="h-4 w-4" />
                 <span>Nuevo Usuario</span>
@@ -478,13 +477,13 @@ const UserManagementPage = () => {
                       <td className="px-8 py-5">
                         <div className="flex items-center gap-4">
                           <div className="w-10 h-10 bg-slate-100 rounded-xl flex items-center justify-center border border-slate-200 text-slate-600 font-bold text-xs shadow-sm">
-                            {user.nombre.split(' ').map(n => n[0]).join('')}
+                            {user.nombres.charAt(0)}{user.apellidos.charAt(0)}
                           </div>
                           <div>
-                            <div className="font-bold text-slate-900">{user.nombre}</div>
+                            <div className="font-bold text-slate-900">{user.nombres} {user.apellidos}</div>
                             <div className="text-xs text-slate-500 flex items-center gap-1 mt-0.5 font-medium">
                               <Mail className="h-3 w-3" />
-                              {user.email}
+                              {user.correo}
                             </div>
                           </div>
                         </div>
@@ -496,7 +495,6 @@ const UserManagementPage = () => {
                           </div>
                           <div>
                             <div className="font-bold text-slate-900">{role?.nombre}</div>
-                            <div className="text-xs text-slate-500 font-medium">{user.departamento}</div>
                           </div>
                         </div>
                       </td>
@@ -563,11 +561,11 @@ const UserManagementPage = () => {
                   <div className="flex justify-between items-start">
                     <div className="flex items-center gap-3">
                       <div className="w-12 h-12 bg-slate-100 rounded-xl flex items-center justify-center border border-slate-200 text-slate-600 font-bold text-sm shadow-sm group-hover:bg-slate-200 group-hover:text-slate-900 transition-colors">
-                        {user.nombre.split(' ').map(n => n[0]).join('')}
+                        {user.nombres.charAt(0)}{user.apellidos.charAt(0)}
                       </div>
                       <div>
-                        <h3 className="font-bold text-slate-900 line-clamp-1">{user.nombre}</h3>
-                        <p className="text-xs text-slate-500 font-medium">{user.email}</p>
+                        <h3 className="font-bold text-slate-900 line-clamp-1">{user.nombres} {user.apellidos}</h3>
+                        <p className="text-xs text-slate-500 font-medium">{user.correo}</p>
                       </div>
                     </div>
                     <span className={cn(
@@ -639,33 +637,74 @@ const UserManagementPage = () => {
             })}
           </div>
         )}
+      </div>
+    </div>
 
       {/* Modals */}
-      {isCreateModalOpen && (
-        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in duration-200">
-          <div className="bg-white rounded-2xl w-full max-w-md border border-slate-200 shadow-2xl p-8 transform scale-100 animate-in zoom-in-95 duration-200">
+      {mounted && createPortal(
+        <>
+          {isCreateModalOpen && (
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-md flex items-center justify-center p-4 z-50 animate-in fade-in duration-200">
+          <div className="bg-white rounded-2xl w-full max-w-lg border border-slate-200 shadow-2xl p-8 transform scale-100 animate-in zoom-in-95 duration-200">
             <h2 className="text-2xl font-bold text-slate-900 mb-8 tracking-tight">Nuevo <span className="font-light text-slate-500">Usuario</span></h2>
             <div className="space-y-5">
-              <div>
-                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Nombre Completo</label>
-                <input
-                  type="text"
-                  value={formData.nombre}
-                  onChange={(e) => setFormData({...formData, nombre: e.target.value})}
-                  className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:border-slate-900 focus:ring-1 focus:ring-slate-900 transition-all text-sm font-medium text-slate-900 placeholder:text-slate-400"
-                  placeholder="Ej. Juan Pérez"
-                />
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Nombres</label>
+                  <input
+                    type="text"
+                    value={formData.nombres}
+                    onChange={(e) => setFormData({...formData, nombres: e.target.value})}
+                    className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:border-slate-900 focus:ring-1 focus:ring-slate-900 transition-all text-sm font-medium text-slate-900 placeholder:text-slate-400"
+                    placeholder="Ej. Juan"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Apellidos</label>
+                  <input
+                    type="text"
+                    value={formData.apellidos}
+                    onChange={(e) => setFormData({...formData, apellidos: e.target.value})}
+                    className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:border-slate-900 focus:ring-1 focus:ring-slate-900 transition-all text-sm font-medium text-slate-900 placeholder:text-slate-400"
+                    placeholder="Ej. Pérez"
+                  />
+                </div>
               </div>
+              
               <div>
-                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Email</label>
+                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Correo Electrónico</label>
                 <input
                   type="email"
-                  value={formData.email}
-                  onChange={(e) => setFormData({...formData, email: e.target.value})}
+                  value={formData.correo}
+                  onChange={(e) => setFormData({...formData, correo: e.target.value})}
                   className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:border-slate-900 focus:ring-1 focus:ring-slate-900 transition-all text-sm font-medium text-slate-900 placeholder:text-slate-400"
                   placeholder="Ej. juan@credisur.com"
                 />
               </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Teléfono</label>
+                  <input
+                    type="tel"
+                    value={formData.telefono}
+                    onChange={(e) => setFormData({...formData, telefono: e.target.value})}
+                    className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:border-slate-900 focus:ring-1 focus:ring-slate-900 transition-all text-sm font-medium text-slate-900 placeholder:text-slate-400"
+                    placeholder="Ej. 300 123 4567"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Contraseña</label>
+                  <input
+                    type="password"
+                    value={formData.contrasena}
+                    onChange={(e) => setFormData({...formData, contrasena: e.target.value})}
+                    className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:border-slate-900 focus:ring-1 focus:ring-slate-900 transition-all text-sm font-medium text-slate-900 placeholder:text-slate-400"
+                    placeholder="••••••••"
+                  />
+                </div>
+              </div>
+
               <div>
                 <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Rol</label>
                 <div className="relative">
@@ -741,8 +780,10 @@ const UserManagementPage = () => {
           </div>
         </div>
       )}
-      </div>
-    </div>
+        </>,
+        document.body
+      )}
+    </>
   );
 };
 

@@ -87,6 +87,13 @@ export default async function PrestamoDetallePage({
                 </div>
               </div>
             </div>
+            
+            <Link
+              href={`/admin/prestamos/${id}/editar`}
+              className="px-4 py-2 bg-white border border-slate-200 text-slate-700 font-bold rounded-xl hover:bg-slate-50 transition-all text-sm shadow-sm"
+            >
+              Editar Préstamo
+            </Link>
           </div>
         </div>
       </header>

@@ -1,6 +1,6 @@
 'use client'
 
-import { Settings, CreditCard, Bell, Shield, Users } from 'lucide-react'
+import { Settings, CreditCard, Bell, Shield, Users, Database, Wallet, Calculator } from 'lucide-react'
 
 const ConfiguracionSistemaPage = () => {
   return (
@@ -11,11 +11,12 @@ const ConfiguracionSistemaPage = () => {
         <div className="absolute left-0 right-0 top-0 -z-10 m-auto h-[310px] w-[310px] rounded-full bg-slate-400 opacity-20 blur-[100px]"></div>
       </div>
 
-      <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+      <div className="relative z-10 w-full p-8 space-y-8">
         <header className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between animate-in fade-in slide-in-from-bottom-4 duration-700">
           <div>
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-slate-100 text-xs text-slate-600 tracking-wide font-bold border border-slate-200 mb-2">
               <Settings className="h-3.5 w-3.5" />
+
               <span>Configuración general</span>
             </div>
             <h1 className="text-3xl md:text-4xl font-bold tracking-tight">
@@ -28,6 +29,45 @@ const ConfiguracionSistemaPage = () => {
         </header>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <section className="group bg-white p-6 rounded-2xl border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all duration-300">
+            <div className="flex items-center gap-4 mb-6">
+              <div className="p-3 bg-blue-50 text-blue-600 rounded-xl group-hover:scale-110 transition-transform duration-300">
+                <Database className="h-6 w-6" />
+              </div>
+              <div>
+                <h2 className="text-lg font-bold text-slate-900">Copias de Seguridad</h2>
+                <p className="text-xs text-slate-500 mt-1 font-medium">Respaldo y recuperación</p>
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <div className="flex items-center justify-between p-4 bg-slate-50/50 rounded-xl border border-slate-100">
+                <div>
+                  <div className="text-sm font-bold text-slate-900">Respaldo Local</div>
+                  <div className="text-xs text-slate-500 mt-0.5 font-medium">Frecuencia automática</div>
+                </div>
+                <span className="px-3 py-1 bg-white border border-slate-200 rounded-lg text-sm font-bold text-slate-600 shadow-sm">
+                  Diario (23:00)
+                </span>
+              </div>
+
+              <div className="flex items-center justify-between p-4 bg-slate-50/50 rounded-xl border border-slate-100">
+                <div>
+                  <div className="text-sm font-bold text-slate-900">Sincronización Nube (VPS)</div>
+                  <div className="text-xs text-slate-500 mt-0.5 font-medium">Respaldo remoto automático</div>
+                </div>
+                <button className="w-11 h-6 bg-emerald-500 rounded-full relative transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500">
+                  <span className="absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform translate-x-5 shadow-sm"></span>
+                </button>
+              </div>
+
+              <button className="w-full py-2.5 bg-slate-900 text-white rounded-xl font-bold text-sm hover:bg-slate-800 transition-all shadow-lg shadow-slate-900/20 flex items-center justify-center gap-2">
+                <Database className="h-4 w-4" />
+                Realizar Respaldo Manual
+              </button>
+            </div>
+          </section>
+
           <section className="group bg-white p-6 rounded-2xl border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all duration-300">
             <div className="flex items-center gap-4 mb-6">
               <div className="p-3 bg-slate-100 text-slate-600 rounded-xl group-hover:scale-110 transition-transform duration-300">
@@ -59,8 +99,64 @@ const ConfiguracionSistemaPage = () => {
                   <div className="bg-rose-500 h-1.5 rounded-full" style={{ width: '25%' }}></div>
                 </div>
               </div>
+
+              <div className="flex items-center justify-between p-4 bg-slate-50/50 rounded-xl border border-slate-100">
+                <div>
+                  <div className="text-sm font-bold text-slate-900">Tipo de Interés</div>
+                  <div className="text-xs text-slate-500 mt-0.5 font-medium">Cálculo predeterminado</div>
+                </div>
+                <span className="px-3 py-1 bg-white border border-slate-200 rounded-lg text-sm font-bold text-slate-600 shadow-sm">
+                  Simple
+                </span>
+              </div>
+
+              <div className="flex items-center justify-between p-4 bg-slate-50/50 rounded-xl border border-slate-100">
+                <div>
+                  <div className="text-sm font-bold text-slate-900">Frecuencias Habilitadas</div>
+                  <div className="text-xs text-slate-500 mt-0.5 font-medium">Diario, Semanal, Quincenal, Mensual</div>
+                </div>
+                <button className="text-xs font-bold text-blue-600 hover:text-blue-700">Editar</button>
+              </div>
             </div>
           </section>
+
+          <section className="group bg-white p-6 rounded-2xl border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all duration-300">
+            <div className="flex items-center gap-4 mb-6">
+              <div className="p-3 bg-violet-50 text-violet-600 rounded-xl group-hover:scale-110 transition-transform duration-300">
+                <Wallet className="h-6 w-6" />
+              </div>
+              <div>
+                <h2 className="text-lg font-bold text-slate-900">Métodos de Pago</h2>
+                <p className="text-xs text-slate-500 mt-1 font-medium">Opciones de cobro habilitadas</p>
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <div className="flex items-center justify-between p-4 bg-slate-50/50 rounded-xl border border-slate-100">
+                <span className="text-sm text-slate-700 font-medium">Efectivo</span>
+                <button className="w-11 h-6 bg-emerald-500 rounded-full relative transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500">
+                  <span className="absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform translate-x-5 shadow-sm"></span>
+                </button>
+              </div>
+              <div className="flex items-center justify-between p-4 bg-slate-50/50 rounded-xl border border-slate-100">
+                <span className="text-sm text-slate-700 font-medium">Transferencia Bancaria</span>
+                <button className="w-11 h-6 bg-emerald-500 rounded-full relative transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500">
+                  <span className="absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform translate-x-5 shadow-sm"></span>
+                </button>
+              </div>
+              <div className="p-4 bg-amber-50 rounded-xl border border-amber-100">
+                 <div className="flex items-start gap-3">
+                   <div className="mt-0.5">
+                     <Bell className="h-4 w-4 text-amber-600" />
+                   </div>
+                   <p className="text-xs text-amber-800 font-medium leading-relaxed">
+                     Los cobradores deben confirmar las transferencias con soporte de imagen obligatorio.
+                   </p>
+                 </div>
+              </div>
+            </div>
+          </section>
+
 
           <section className="group bg-white p-6 rounded-2xl border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all duration-300">
             <div className="flex items-center gap-4 mb-6">

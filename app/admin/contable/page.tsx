@@ -14,12 +14,25 @@ import {
   ArrowDownLeft,
   Briefcase,
   Wallet,
-  Download
+  Download,
+  CheckCircle2,
+  XCircle,
+  AlertCircle
 } from 'lucide-react'
 import { formatCurrency, cn } from '@/lib/utils'
 import { ExportButton } from '@/components/ui/ExportButton'
 
 // Interfaces alineadas con el dominio
+interface Caja {
+  id: string
+  nombre: string
+  tipo: 'PRINCIPAL' | 'RUTA'
+  responsable: string
+  saldo: number
+  estado: 'ABIERTA' | 'CERRADA'
+  ultimaActualizacion: string
+}
+
 interface MovimientoContable {
   id: string
   fecha: string // Changed to string for serialization safety
@@ -40,9 +53,40 @@ interface ResumenFinanciero {
 }
 
 const ModuloContablePage = () => {
-  const [activeTab, setActiveTab] = useState<'MOVIMIENTOS' | 'GASTOS' | 'REPORTES'>('MOVIMIENTOS')
+  const [activeTab, setActiveTab] = useState<'MOVIMIENTOS' | 'CAJAS'>('CAJAS')
   const [busqueda, setBusqueda] = useState('')
   const [filtroTipo, setFiltroTipo] = useState<'TODOS' | 'INGRESO' | 'EGRESO'>('TODOS')
+
+  // Mock Data: Cajas
+  const [cajas] = useState<Caja[]>([
+    {
+      id: 'CAJA-MAIN',
+      nombre: 'Caja Principal Oficina',
+      tipo: 'PRINCIPAL',
+      responsable: 'Ana Admin',
+      saldo: 5200000,
+      estado: 'ABIERTA',
+      ultimaActualizacion: 'Hace 10 min'
+    },
+    {
+      id: 'CAJA-R1',
+      nombre: 'Caja Ruta Norte',
+      tipo: 'RUTA',
+      responsable: 'Carlos Cobrador',
+      saldo: 850000,
+      estado: 'ABIERTA',
+      ultimaActualizacion: 'Hace 2 horas'
+    },
+    {
+      id: 'CAJA-R2',
+      nombre: 'Caja Ruta Sur',
+      tipo: 'RUTA',
+      responsable: 'Pedro Supervisor',
+      saldo: 120000,
+      estado: 'CERRADA',
+      ultimaActualizacion: 'Ayer 6:00 PM'
+    }
+  ])
 
   const handleExportExcel = () => {
     console.log('Exporting Excel...')
@@ -151,7 +195,7 @@ const ModuloContablePage = () => {
                 onExportExcel={handleExportExcel} 
                 onExportPDF={handleExportPDF} 
               />
-              <button className="inline-flex items-center gap-2 rounded-xl bg-slate-900 px-5 py-2.5 text-sm font-bold text-white hover:bg-slate-800 transition-all shadow-lg shadow-slate-900/20 transform active:scale-95">
+              <button className="inline-flex items-center gap-2 rounded-xl bg-orange-500 px-5 py-2.5 text-sm font-bold text-white hover:bg-orange-600 transition-all shadow-lg shadow-orange-500/20 transform active:scale-95">
                 <Calendar className="h-4 w-4" />
                 Cierre de Caja
               </button>
@@ -235,44 +279,73 @@ const ModuloContablePage = () => {
         <div className="border-b border-slate-200">
           <nav className="-mb-px flex gap-8">
             <button
+              onClick={() => setActiveTab('CAJAS')}
+              className={cn(
+                "py-4 text-sm font-bold border-b-2 transition-all flex items-center gap-2",
+                activeTab === 'CAJAS' 
+                  ? "border-slate-900 text-slate-900" 
+                  : "border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300"
+              )}
+            >
+              <Wallet className="h-4 w-4" />
+              Control de Cajas
+            </button>
+            <button
               onClick={() => setActiveTab('MOVIMIENTOS')}
               className={cn(
-                "py-4 text-sm font-bold border-b-2 transition-all",
+                "py-4 text-sm font-bold border-b-2 transition-all flex items-center gap-2",
                 activeTab === 'MOVIMIENTOS' 
                   ? "border-slate-900 text-slate-900" 
                   : "border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300"
               )}
             >
+              <FileText className="h-4 w-4" />
               Movimientos
-            </button>
-            <button
-              onClick={() => setActiveTab('GASTOS')}
-              className={cn(
-                "py-4 text-sm font-bold border-b-2 transition-all",
-                activeTab === 'GASTOS' 
-                  ? "border-slate-900 text-slate-900" 
-                  : "border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300"
-              )}
-            >
-              Control de Gastos
-            </button>
-            <button
-              onClick={() => setActiveTab('REPORTES')}
-              className={cn(
-                "py-4 text-sm font-bold border-b-2 transition-all",
-                activeTab === 'REPORTES' 
-                  ? "border-slate-900 text-slate-900" 
-                  : "border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300"
-              )}
-            >
-              Reportes
             </button>
           </nav>
         </div>
 
         {/* Contenido Principal */}
-        <div className="bg-white/80 backdrop-blur-sm rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-          {/* Barra de Herramientas */}
+        {activeTab === 'CAJAS' && (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {cajas.map((caja) => (
+              <div key={caja.id} className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm hover:shadow-md transition-all group">
+                <div className="flex justify-between items-start mb-4">
+                  <div className={cn(
+                    "p-3 rounded-xl",
+                    caja.tipo === 'PRINCIPAL' ? "bg-blue-50 text-blue-600" : "bg-slate-100 text-slate-600"
+                  )}>
+                    <Wallet className="h-6 w-6" />
+                  </div>
+                  <span className={cn(
+                    "px-2.5 py-1 rounded-full text-xs font-bold border",
+                    caja.estado === 'ABIERTA' 
+                      ? "bg-emerald-50 text-emerald-600 border-emerald-100" 
+                      : "bg-slate-100 text-slate-500 border-slate-200"
+                  )}>
+                    {caja.estado}
+                  </span>
+                </div>
+                <h3 className="text-lg font-bold text-slate-900 mb-1">{caja.nombre}</h3>
+                <p className="text-sm text-slate-500 font-medium mb-4">{caja.responsable}</p>
+                <div className="flex items-baseline gap-1 mb-4">
+                  <span className="text-2xl font-bold text-slate-900">{formatCurrency(caja.saldo)}</span>
+                  <span className="text-xs text-slate-400 font-medium">COP</span>
+                </div>
+                <div className="pt-4 border-t border-slate-100 flex justify-between items-center">
+                  <span className="text-xs text-slate-400 font-medium">Act: {caja.ultimaActualizacion}</span>
+                  <button className="text-sm font-bold text-blue-600 hover:text-blue-700 transition-colors">
+                    Ver Detalles →
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {activeTab === 'MOVIMIENTOS' && (
+          <div className="bg-white/80 backdrop-blur-sm rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+            {/* Barra de Herramientas */}
           <div className="p-5 border-b border-slate-200 flex flex-col md:flex-row gap-4 justify-between items-center bg-white/50">
             <div className="relative w-full md:w-96">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
@@ -378,7 +451,8 @@ const ModuloContablePage = () => {
               <button className="px-3 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 font-bold text-slate-700 transition-colors">Siguiente</button>
             </div>
           </div>
-        </div>
+          </div>
+        )}
       </div>
     </div>
   )

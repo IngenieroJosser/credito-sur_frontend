@@ -16,7 +16,6 @@ export const permisosPorRol: Record<Rol, ModuloPermiso[]> = {
     { id: 'dashboard', nombre: 'Dashboard', icono: 'Activity', path: '/admin', roles: ['SUPER_ADMINISTRADOR', 'COORDINADOR', 'SUPERVISOR', 'COBRADOR', 'CONTADOR'] },
     { id: 'prestamos-dinero', nombre: 'Préstamos Dinero', icono: 'CreditCard', path: '/admin/prestamos', roles: ['SUPER_ADMINISTRADOR', 'COORDINADOR'] },
     { id: 'creditos-articulos', nombre: 'Créditos Artículos', icono: 'ShoppingBag', path: '/admin/creditos-articulos', roles: ['SUPER_ADMINISTRADOR', 'COORDINADOR'] },
-    { id: 'cobranza', nombre: 'Cobranza', icono: 'Banknote', path: '/admin/pagos/registro', roles: ['SUPER_ADMINISTRADOR', 'COORDINADOR', 'COBRADOR'] },
     { id: 'clientes', nombre: 'Clientes', icono: 'Users', path: '/admin/clientes', roles: ['SUPER_ADMINISTRADOR', 'COORDINADOR', 'COBRADOR', 'CONTADOR'] },
     { id: 'cuentas-mora', nombre: 'Cuentas en mora', icono: 'AlertCircle', path: '/admin/cuentas-mora', roles: ['SUPER_ADMINISTRADOR', 'COORDINADOR', 'SUPERVISOR', 'CONTADOR'] },
     { id: 'rutas', nombre: 'Rutas', icono: 'Route', path: '/admin/rutas', roles: ['SUPER_ADMINISTRADOR', 'COORDINADOR'] },
@@ -29,10 +28,7 @@ export const permisosPorRol: Record<Rol, ModuloPermiso[]> = {
     { id: 'reportes-financieros', nombre: 'Reportes financieros', icono: 'PieChart', path: '/admin/reportes/financieros', roles: ['SUPER_ADMINISTRADOR', 'CONTADOR'] },
     { id: 'perfil', nombre: 'Perfil', icono: 'User', path: '/admin/perfil', roles: ['SUPER_ADMINISTRADOR', 'COORDINADOR', 'SUPERVISOR', 'COBRADOR', 'CONTADOR'] },
     { id: 'aprobar-cobrador', nombre: 'Aprobaciones', icono: 'CheckCircle2', path: '/admin/aprobaciones', roles: ['SUPER_ADMINISTRADOR', 'COORDINADOR'] },
-    { id: 'gastos-ruta', nombre: 'Gastos de Ruta', icono: 'Receipt', path: '/admin/gastos-ruta', roles: ['SUPER_ADMINISTRADOR', 'SUPERVISOR'] },
-    { id: 'base-dinero', nombre: 'Base de Efectivo', icono: 'Wallet', path: '/admin/base-dinero', roles: ['SUPER_ADMINISTRADOR', 'COORDINADOR', 'COBRADOR'] },
-    { id: 'ruta-diaria', nombre: 'Mi Ruta', icono: 'Map', path: '/admin/ruta-diaria', roles: ['SUPER_ADMINISTRADOR', 'COBRADOR'] },
-    { id: 'tesoreria', nombre: 'Tesorería', icono: 'CreditCard', path: '/admin/tesoreria', roles: ['SUPER_ADMINISTRADOR', 'CONTADOR'] },
+    { id: 'tesoreria', nombre: 'Tesorería', icono: 'Landmark', path: '/admin/tesoreria', roles: ['SUPER_ADMINISTRADOR', 'CONTADOR'] },
     { id: 'auditoria', nombre: 'Auditoría', icono: 'Shield', path: '/admin/auditoria', roles: ['SUPER_ADMINISTRADOR'] },
     { id: 'configuracion', nombre: 'Configuración', icono: 'Settings', path: '/admin/sistema/configuracion', roles: ['SUPER_ADMINISTRADOR'] },
     { id: 'sincronizacion', nombre: 'Sincronización', icono: 'Activity', path: '/admin/sistema/sincronizacion', roles: ['SUPER_ADMINISTRADOR'] },
@@ -43,12 +39,10 @@ export const permisosPorRol: Record<Rol, ModuloPermiso[]> = {
     { id: 'dashboard', nombre: 'Dashboard', icono: 'Activity', path: '/admin', roles: ['COORDINADOR'] },
     { id: 'prestamos-dinero', nombre: 'Préstamos Dinero', icono: 'CreditCard', path: '/admin/prestamos', roles: ['COORDINADOR'] },
     { id: 'creditos-articulos', nombre: 'Créditos Artículos', icono: 'ShoppingBag', path: '/admin/creditos-articulos', roles: ['COORDINADOR'] },
-    { id: 'cobranza', nombre: 'Cobranza', icono: 'Banknote', path: '/admin/pagos/registro', roles: ['COORDINADOR'] },
     { id: 'clientes', nombre: 'Clientes', icono: 'Users', path: '/admin/clientes', roles: ['COORDINADOR'] },
     { id: 'cuentas-mora', nombre: 'Cuentas en mora', icono: 'AlertCircle', path: '/admin/cuentas-mora', roles: ['COORDINADOR'] },
     { id: 'rutas', nombre: 'Rutas', icono: 'Route', path: '/admin/rutas', roles: ['COORDINADOR'] },
     { id: 'aprobar-cobrador', nombre: 'Aprobaciones', icono: 'CheckCircle2', path: '/admin/aprobaciones', roles: ['COORDINADOR'] },
-    { id: 'base-dinero', nombre: 'Base de Efectivo', icono: 'Wallet', path: '/admin/base-dinero', roles: ['COORDINADOR'] },
     { id: 'reportes-operativos', nombre: 'Reportes operativos', icono: 'PieChart', path: '/admin/reportes/operativos', roles: ['COORDINADOR'] },
     { id: 'perfil', nombre: 'Perfil', icono: 'User', path: '/admin/perfil', roles: ['COORDINADOR'] },
   ],
@@ -57,18 +51,16 @@ export const permisosPorRol: Record<Rol, ModuloPermiso[]> = {
     { id: 'dashboard', nombre: 'Dashboard', icono: 'Activity', path: '/admin', roles: ['SUPERVISOR'] },
     { id: 'clientes', nombre: 'Clientes', icono: 'Users', path: '/admin/clientes', roles: ['SUPERVISOR'] },
     { id: 'cuentas-mora', nombre: 'Cuentas en mora', icono: 'AlertCircle', path: '/admin/cuentas-mora', roles: ['SUPERVISOR'] },
-    { id: 'gastos-ruta', nombre: 'Gastos de Ruta', icono: 'Receipt', path: '/admin/gastos-ruta', roles: ['SUPERVISOR'] },
     { id: 'reportes-operativos', nombre: 'Reportes operativos', icono: 'PieChart', path: '/admin/reportes/operativos', roles: ['SUPERVISOR'] },
     { id: 'perfil', nombre: 'Perfil', icono: 'User', path: '/admin/perfil', roles: ['SUPERVISOR'] },
   ],
 
   COBRADOR: [
-    { id: 'dashboard', nombre: 'Mi Ruta', icono: 'Activity', path: '/admin', roles: ['COBRADOR'] },
-    { id: 'ruta-diaria', nombre: 'Mi Ruta Diaria', icono: 'Map', path: '/admin/ruta-diaria', roles: ['COBRADOR'] },
+    { id: 'dashboard', nombre: 'Inicio', icono: 'Activity', path: '/admin', roles: ['COBRADOR'] },
+    { id: 'rutas', nombre: 'Mi Ruta', icono: 'Map', path: '/admin/rutas', roles: ['COBRADOR'] },
     { id: 'prestamos-dinero', nombre: 'Solicitar Crédito', icono: 'CreditCard', path: '/admin/prestamos/nuevo', roles: ['COBRADOR'] },
     { id: 'clientes', nombre: 'Nuevo Cliente', icono: 'Users', path: '/admin/clientes/nuevo', roles: ['COBRADOR'] },
-    { id: 'cobranza', nombre: 'Registrar Pago', icono: 'Banknote', path: '/admin/pagos/registro', roles: ['COBRADOR'] },
-    { id: 'base-dinero', nombre: 'Base de Efectivo', icono: 'Wallet', path: '/admin/base-dinero', roles: ['COBRADOR'] },
+    { id: 'solicitudes', nombre: 'Solicitudes', icono: 'ClipboardList', path: '/admin/solicitudes', roles: ['COBRADOR'] },
     { id: 'perfil', nombre: 'Mi Perfil', icono: 'User', path: '/admin/perfil', roles: ['COBRADOR'] },
   ],
 
@@ -105,6 +97,8 @@ import {
   Wallet,
   Map,
   HardDrive,
+  Landmark,
+  ClipboardList,
   // Agregar más iconos según necesites
 } from 'lucide-react';
 
@@ -127,6 +121,8 @@ export const iconosMap: Record<string, React.ReactNode> = {
   'Wallet': <Wallet className="h-4 w-4" />,
   'Map': <Map className="h-4 w-4" />,
   'HardDrive': <HardDrive className="h-4 w-4" />,
+  'Landmark': <Landmark className="h-4 w-4" />,
+  'ClipboardList': <ClipboardList className="h-4 w-4" />,
 };
 
 // Obtener icono por nombre

@@ -5,8 +5,8 @@ import {
   DollarSign, Percent, Clock,
   FileText,
   BarChart, Shield, CheckCircle, ArrowLeft,
-  PlusCircle,
-  ChevronRight, ChevronDown
+  PlusCircle, User, CreditCard, Phone, MapPin, Mail,
+  ChevronRight, ChevronDown, Search, Filter
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { formatCurrency } from '@/lib/utils';
@@ -193,6 +193,10 @@ const CreacionPrestamoElegante = () => {
   const [mostrarNuevoCliente, setMostrarNuevoCliente] = useState(false);
   const [animating, setAnimating] = useState(false);
   const [creandoPrestamo, setCreandoPrestamo] = useState(false);
+  
+  // Estados para filtros de clientes
+  const [busquedaCliente, setBusquedaCliente] = useState('');
+  const [filtroRiesgo, setFiltroRiesgo] = useState<NivelRiesgo | 'TODOS'>('TODOS');
 
   // Estado para archivos
   const [fotosPropiedad, setFotosPropiedad] = useState<File[]>([]);
@@ -285,6 +289,18 @@ const CreacionPrestamoElegante = () => {
 
   const clienteSeleccionado = clientes.find(c => c.id === form.clienteId);
 
+  // Filtrado de clientes
+  const clientesFiltrados = clientes.filter(cliente => {
+    const cumpleBusqueda = 
+      cliente.nombre.toLowerCase().includes(busquedaCliente.toLowerCase()) || 
+      cliente.apellido.toLowerCase().includes(busquedaCliente.toLowerCase()) || 
+      cliente.identificacion.includes(busquedaCliente);
+    
+    const cumpleFiltro = filtroRiesgo === 'TODOS' || cliente.nivelRiesgo === filtroRiesgo;
+
+    return cumpleBusqueda && cumpleFiltro;
+  });
+
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setForm(prev => ({
@@ -367,8 +383,12 @@ const CreacionPrestamoElegante = () => {
   };
 
   const agregarCliente = () => {
-    const score = calcularScore(nuevoCliente.ingresosMensuales, nuevoCliente.antiguedadLaboral);
-    const limite = calcularLimiteCredito(score, nuevoCliente.ingresosMensuales);
+    // Asignar valores por defecto para clientes rápidos (salario mínimo y 1 año antigüedad)
+    const ingresosDefault = nuevoCliente.ingresosMensuales || 1300000;
+    const antiguedadDefault = nuevoCliente.antiguedadLaboral || 12;
+
+    const score = calcularScore(ingresosDefault, antiguedadDefault);
+    const limite = calcularLimiteCredito(score, ingresosDefault);
 
     const nuevoClienteCompleto: Cliente = {
       id: `CL-${(clientes.length + 1).toString().padStart(3, '0')}`,
@@ -456,10 +476,16 @@ const CreacionPrestamoElegante = () => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50/50 p-8">
-      {/* Header Ultra Minimalista */}
-      <div className="mb-12 sticky top-0 z-30 backdrop-blur-xl bg-slate-50/80 -mx-8 px-8 py-4 border-b border-slate-200/60">
-        <div className="flex items-center justify-between">
+    <div className="min-h-screen bg-slate-50 relative">
+      {/* Fondo arquitectónico */}
+      <div className="fixed inset-0 pointer-events-none z-0">
+        <div className="fixed inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px]"></div>
+        <div className="fixed left-0 right-0 top-0 -z-10 m-auto h-[310px] w-[310px] rounded-full bg-indigo-500 opacity-20 blur-[100px]"></div>
+      </div>
+
+      <div className="relative z-10 px-8 pt-8">
+        {/* Header Ultra Minimalista */}
+        <div className="mb-8 flex items-center justify-between">
           <button
             onClick={() => router.back()}
             className="flex items-center gap-2 text-slate-500 hover:text-slate-900 transition-colors group"
@@ -473,13 +499,13 @@ const CreacionPrestamoElegante = () => {
               {[1, 2, 3].map((num) => (
                 <div key={num} className="flex items-center gap-2">
                   <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-300 ${step >= num
-                      ? 'bg-slate-900 text-white'
+                      ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/30'
                       : 'border border-slate-300 text-slate-400'
                     }`}>
                     {step > num ? '✓' : num}
                   </div>
                   {num < 3 && (
-                    <div className={`w-8 h-px transition-colors duration-300 ${step > num ? 'bg-slate-900' : 'bg-slate-200'
+                    <div className={`w-8 h-px transition-colors duration-300 ${step > num ? 'bg-blue-600' : 'bg-slate-200'
                       }`} />
                   )}
                 </div>
@@ -491,13 +517,13 @@ const CreacionPrestamoElegante = () => {
           </div>
         </div>
 
-        <div className="mt-4">
+        <div className="mb-8">
           <div className="flex items-center gap-3 mb-1">
-            <div className="w-8 h-8 rounded-lg bg-slate-900 flex items-center justify-center">
+            <div className="w-8 h-8 rounded-lg bg-orange-500 flex items-center justify-center shadow-lg shadow-orange-500/30">
               <DollarSign className="w-4 h-4 text-white" />
             </div>
-            <h1 className="text-2xl md:text-3xl font-bold text-slate-900 tracking-tight">
-              Nuevo Préstamo
+            <h1 className="text-2xl md:text-3xl font-bold tracking-tight">
+              <span className="text-blue-600">Nuevo</span> <span className="text-orange-500">Préstamo</span>
             </h1>
           </div>
           <p className="text-slate-500 text-sm pl-11 font-medium">Gestión de financiamiento personalizado</p>
@@ -505,11 +531,10 @@ const CreacionPrestamoElegante = () => {
       </div>
 
       {/* Contenido Principal */}
-      <div className="w-full max-w-[1600px] mx-auto">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Panel Principal */}
-          <div className="lg:col-span-2">
-            <div className={`space-y-8 transition-opacity duration-300 ${animating ? 'opacity-70' : 'opacity-100'}`}>
+      <div className="w-full px-8 pb-12">
+        {/* Panel Principal */}
+        <div className="w-full">
+          <div className={`space-y-8 transition-opacity duration-300 ${animating ? 'opacity-70' : 'opacity-100'}`}>
 
               {/* Paso 1: Selección de Cliente */}
               {step === 1 && (
@@ -519,19 +544,22 @@ const CreacionPrestamoElegante = () => {
                       <h2 className="text-xl font-bold text-slate-900">Seleccionar Cliente</h2>
                       <p className="text-slate-500 text-sm font-medium">Elija un cliente existente o cree uno nuevo</p>
                     </div>
-                    <button
-                      onClick={() => setMostrarNuevoCliente(true)}
-                      className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-300 text-slate-700 rounded-lg hover:border-slate-400 hover:bg-slate-50 transition-all duration-200 group shadow-sm font-bold text-sm"
-                    >
-                      <PlusCircle className="w-4 h-4 text-slate-500 group-hover:text-slate-900 transition-colors" />
-                      <span>Nuevo Cliente</span>
-                    </button>
+                    <div className="flex items-center gap-3">
+                      <button
+                        onClick={() => setMostrarNuevoCliente(true)}
+                        className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-300 text-slate-700 rounded-lg hover:border-slate-400 hover:bg-slate-50 transition-all duration-200 group shadow-sm font-bold text-sm"
+                      >
+                        <PlusCircle className="w-4 h-4 text-slate-500 group-hover:text-slate-900 transition-colors" />
+                        <span>Nuevo Cliente</span>
+                      </button>
+                    </div>
                   </div>
 
                   {/* Modal Nuevo Cliente */}
                   {mostrarNuevoCliente && (
-                    <div className="fixed inset-0 bg-slate-900/20 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-                      <div className="bg-white/90 backdrop-blur-md rounded-2xl w-full max-w-2xl shadow-[0_8px_30px_rgb(0,0,0,0.12)] animate-in fade-in duration-300 border border-slate-100">
+                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+                      <div className="fixed inset-0 bg-slate-900/20 backdrop-blur-sm transition-opacity" onClick={() => setMostrarNuevoCliente(false)} />
+                      <div className="relative bg-white/90 backdrop-blur-md rounded-2xl w-full max-w-2xl shadow-[0_8px_30px_rgb(0,0,0,0.12)] animate-in fade-in duration-300 border border-slate-100 z-10">
                         <div className="p-8">
                           <div className="flex items-center justify-between mb-8">
                             <div>
@@ -547,31 +575,98 @@ const CreacionPrestamoElegante = () => {
                           </div>
 
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            {['nombre', 'apellido', 'identificacion', 'telefono', 'ingresosMensuales', 'antiguedadLaboral'].map((field) => (
-                              <div key={field} className="space-y-2">
-                                <label className="text-sm font-bold text-slate-700 capitalize">
-                                  {field.replace(/([A-Z])/g, ' $1').replace('mensuales', 'Mensuales')}
-                                </label>
-                                <input
-                                  type={field.includes('ingresos') || field.includes('antiguedad') ? 'number' : 'text'}
-                                  name={field}
-                                  value={nuevoCliente[field as keyof typeof nuevoCliente]}
-                                  onChange={handleNuevoClienteChange}
-                                  className="w-full px-4 py-2.5 rounded-lg border-slate-200 bg-slate-50 focus:ring-2 focus:ring-slate-900/10 transition-all font-medium text-slate-900"
-                                  placeholder={`Ingrese ${field}`}
-                                />
-                              </div>
-                            ))}
-                            <div className="col-span-full space-y-2">
-                              <label className="text-sm font-bold text-slate-700">Dirección</label>
+                            {/* Información Personal */}
+                            <div className="col-span-full pb-2 border-b border-slate-100 mb-2">
+                              <h4 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                                <User className="w-4 h-4 text-blue-500" />
+                                Información Personal
+                              </h4>
+                            </div>
+
+                            <div className="space-y-2">
+                              <label className="text-xs font-bold text-slate-700 uppercase tracking-wide">Nombres</label>
                               <input
                                 type="text"
-                                name="direccion"
-                                value={nuevoCliente.direccion}
+                                name="nombre"
+                                value={nuevoCliente.nombre}
                                 onChange={handleNuevoClienteChange}
-                                className="w-full px-4 py-2.5 rounded-lg border-slate-200 bg-slate-50 focus:ring-2 focus:ring-slate-900/10 transition-all font-medium text-slate-900"
-                                placeholder="Dirección completa"
+                                className="w-full px-4 py-2.5 rounded-xl border-slate-200 bg-slate-50 focus:ring-2 focus:ring-blue-500/10 focus:border-blue-500 transition-all font-medium text-slate-900 placeholder:text-slate-400"
+                                placeholder="Ej: Juan"
                               />
+                            </div>
+
+                            <div className="space-y-2">
+                              <label className="text-xs font-bold text-slate-700 uppercase tracking-wide">Apellidos</label>
+                              <input
+                                type="text"
+                                name="apellido"
+                                value={nuevoCliente.apellido}
+                                onChange={handleNuevoClienteChange}
+                                className="w-full px-4 py-2.5 rounded-xl border-slate-200 bg-slate-50 focus:ring-2 focus:ring-blue-500/10 focus:border-blue-500 transition-all font-medium text-slate-900 placeholder:text-slate-400"
+                                placeholder="Ej: Pérez"
+                              />
+                            </div>
+
+                            <div className="col-span-full space-y-2">
+                              <label className="text-xs font-bold text-slate-700 uppercase tracking-wide">Documento de Identidad (CC)</label>
+                              <div className="relative">
+                                <CreditCard className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                                <input
+                                  type="text"
+                                  name="identificacion"
+                                  value={nuevoCliente.identificacion}
+                                  onChange={handleNuevoClienteChange}
+                                  className="w-full pl-11 pr-4 py-2.5 rounded-xl border-slate-200 bg-slate-50 focus:ring-2 focus:ring-blue-500/10 focus:border-blue-500 transition-all font-medium text-slate-900 placeholder:text-slate-400"
+                                  placeholder="Número de cédula"
+                                />
+                              </div>
+                            </div>
+
+                            {/* Información de Contacto */}
+                            <div className="col-span-full pb-2 border-b border-slate-100 mb-2 mt-2">
+                              <h4 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                                <Phone className="w-4 h-4 text-blue-500" />
+                                Contacto
+                              </h4>
+                            </div>
+
+                            <div className="space-y-2">
+                              <label className="text-xs font-bold text-slate-700 uppercase tracking-wide">Teléfono / Celular</label>
+                              <input
+                                type="tel"
+                                name="telefono"
+                                value={nuevoCliente.telefono}
+                                onChange={handleNuevoClienteChange}
+                                className="w-full px-4 py-2.5 rounded-xl border-slate-200 bg-slate-50 focus:ring-2 focus:ring-blue-500/10 focus:border-blue-500 transition-all font-medium text-slate-900 placeholder:text-slate-400"
+                                placeholder="Ej: 300 123 4567"
+                              />
+                            </div>
+
+                            <div className="space-y-2">
+                              <label className="text-xs font-bold text-slate-700 uppercase tracking-wide">Email (Opcional)</label>
+                              <input
+                                type="email"
+                                name="email"
+                                value={nuevoCliente.email}
+                                onChange={handleNuevoClienteChange}
+                                className="w-full px-4 py-2.5 rounded-xl border-slate-200 bg-slate-50 focus:ring-2 focus:ring-blue-500/10 focus:border-blue-500 transition-all font-medium text-slate-900 placeholder:text-slate-400"
+                                placeholder="correo@ejemplo.com"
+                              />
+                            </div>
+
+                            <div className="col-span-full space-y-2">
+                              <label className="text-xs font-bold text-slate-700 uppercase tracking-wide">Dirección de Residencia</label>
+                              <div className="relative">
+                                <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                                <input
+                                  type="text"
+                                  name="direccion"
+                                  value={nuevoCliente.direccion}
+                                  onChange={handleNuevoClienteChange}
+                                  className="w-full pl-11 pr-4 py-2.5 rounded-xl border-slate-200 bg-slate-50 focus:ring-2 focus:ring-blue-500/10 focus:border-blue-500 transition-all font-medium text-slate-900 placeholder:text-slate-400"
+                                  placeholder="Dirección completa"
+                                />
+                              </div>
                             </div>
                           </div>
 
@@ -594,51 +689,112 @@ const CreacionPrestamoElegante = () => {
                     </div>
                   )}
 
-                  {/* Lista de Clientes */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {clientes.map((cliente) => (
-                      <div
-                        key={cliente.id}
-                        onClick={() => setForm(prev => ({ ...prev, clienteId: cliente.id }))}
-                        className={`p-6 rounded-2xl border cursor-pointer transition-all duration-200 relative overflow-hidden group ${form.clienteId === cliente.id
-                            ? 'border-slate-900 bg-slate-900/5 shadow-md ring-1 ring-slate-900/10'
-                            : 'border-slate-200 bg-white hover:border-slate-300 hover:shadow-md'
-                          }`}
-                      >
-                        <div className="flex items-start justify-between mb-4">
-                          <div className="flex items-center gap-3">
-                            <div className={`w-10 h-10 rounded-full flex items-center justify-center text-slate-600 font-bold ${getAvatarColor(cliente.id)}`}>
-                              {cliente.nombre[0]}{cliente.apellido[0]}
-                            </div>
-                            <div>
-                              <h3 className="font-bold text-slate-900">{cliente.nombre} {cliente.apellido}</h3>
-                              <p className="text-xs text-slate-500 font-medium">{cliente.identificacion}</p>
-                            </div>
-                          </div>
-                          {form.clienteId === cliente.id && (
-                            <div className="w-6 h-6 rounded-full bg-slate-900 flex items-center justify-center animate-in zoom-in">
-                              <CheckCircle className="w-4 h-4 text-white" />
-                            </div>
-                          )}
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-y-2 text-sm">
-                          <div>
-                            <p className="text-xs text-slate-400 font-medium">Capacidad</p>
-                            <p className="font-bold text-slate-700">{formatCurrency(cliente.saldoDisponible)}</p>
-                          </div>
-                          <div>
-                            <p className="text-xs text-slate-400 font-medium">Riesgo</p>
-                            <span className={`inline-flex px-2 py-0.5 rounded text-[10px] font-bold ${cliente.nivelRiesgo === 'VERDE' ? 'bg-emerald-100 text-emerald-700' :
-                                cliente.nivelRiesgo === 'AMARILLO' ? 'bg-amber-100 text-amber-700' :
-                                  'bg-rose-100 text-rose-700'
-                              }`}>
-                              {cliente.nivelRiesgo}
-                            </span>
-                          </div>
+                  {/* Lista de Clientes - Toolbar y Tabla */}
+                  <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
+                    {/* Toolbar de Búsqueda y Filtros */}
+                    <div className="p-4 border-b border-slate-100 bg-slate-50/50 flex flex-col md:flex-row gap-4 justify-between items-center">
+                      <div className="relative w-full md:w-96">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                        <input 
+                          type="text"
+                          placeholder="Buscar por nombre o identificación..."
+                          value={busquedaCliente}
+                          onChange={(e) => setBusquedaCliente(e.target.value)}
+                          className="w-full pl-10 pr-4 py-2 rounded-xl border border-slate-200 bg-white text-sm font-medium text-slate-900 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
+                        />
+                      </div>
+                      
+                      <div className="flex items-center gap-2 w-full md:w-auto">
+                        <div className="flex items-center gap-2 bg-white px-3 py-2 rounded-xl border border-slate-200">
+                          <Filter className="w-4 h-4 text-slate-400" />
+                          <select 
+                            value={filtroRiesgo}
+                            onChange={(e) => setFiltroRiesgo(e.target.value as NivelRiesgo | 'TODOS')}
+                            className="bg-transparent border-none text-sm font-medium text-slate-700 focus:ring-0 cursor-pointer outline-none"
+                          >
+                            <option value="TODOS">Todos los riesgos</option>
+                            <option value="VERDE">Riesgo Bajo (Verde)</option>
+                            <option value="AMARILLO">Riesgo Medio (Amarillo)</option>
+                            <option value="ROJO">Riesgo Alto (Rojo)</option>
+                          </select>
                         </div>
                       </div>
-                    ))}
+                    </div>
+
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-left text-sm">
+                        <thead className="bg-slate-50 border-b border-slate-100">
+                          <tr>
+                            <th className="px-6 py-4 font-bold text-slate-700">Cliente</th>
+                            <th className="px-6 py-4 font-bold text-slate-700">Identificación</th>
+                            <th className="px-6 py-4 font-bold text-slate-700">Teléfono</th>
+                            <th className="px-6 py-4 font-bold text-slate-700">Riesgo</th>
+                            <th className="px-6 py-4 font-bold text-slate-700 text-right">Acción</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                          {clientesFiltrados.length > 0 ? (
+                            clientesFiltrados.map((cliente) => (
+                              <tr 
+                                key={cliente.id}
+                                onClick={() => setForm(prev => ({ ...prev, clienteId: cliente.id }))}
+                                className={`group cursor-pointer transition-colors hover:bg-slate-50 ${
+                                  form.clienteId === cliente.id ? 'bg-blue-50/50' : ''
+                                }`}
+                              >
+                                <td className="px-6 py-4">
+                                  <div className="flex items-center gap-3">
+                                    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-slate-600 text-xs font-bold ${getAvatarColor(cliente.id)}`}>
+                                      {cliente.nombre[0]}{cliente.apellido[0]}
+                                    </div>
+                                    <div>
+                                      <p className="font-bold text-slate-900">{cliente.nombre} {cliente.apellido}</p>
+                                      <p className="text-xs text-slate-500">{cliente.email}</p>
+                                    </div>
+                                  </div>
+                                </td>
+                                <td className="px-6 py-4 font-medium text-slate-600">
+                                  {cliente.identificacion}
+                                </td>
+                                <td className="px-6 py-4 font-medium text-slate-600">
+                                  {cliente.telefono}
+                                </td>
+                                <td className="px-6 py-4">
+                                  <span className={`inline-flex px-2 py-1 rounded-full text-xs font-bold ${
+                                    cliente.nivelRiesgo === 'VERDE' ? 'bg-emerald-100 text-emerald-700' :
+                                    cliente.nivelRiesgo === 'AMARILLO' ? 'bg-amber-100 text-amber-700' :
+                                    'bg-rose-100 text-rose-700'
+                                  }`}>
+                                    {cliente.nivelRiesgo}
+                                  </span>
+                                </td>
+                                <td className="px-6 py-4 text-right">
+                                  <div className={`inline-flex items-center justify-center w-6 h-6 rounded-full transition-all ${
+                                    form.clienteId === cliente.id 
+                                      ? 'bg-blue-600 text-white scale-100 shadow-lg shadow-blue-600/30' 
+                                      : 'border-2 border-slate-200 text-transparent scale-90 group-hover:border-slate-300'
+                                  }`}>
+                                    <CheckCircle className="w-4 h-4" />
+                                  </div>
+                                </td>
+                              </tr>
+                            ))
+                          ) : (
+                            <tr>
+                              <td colSpan={5} className="px-6 py-12 text-center text-slate-500">
+                                <div className="flex flex-col items-center gap-3">
+                                  <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center">
+                                    <Search className="w-6 h-6 text-slate-400" />
+                                  </div>
+                                  <p className="font-medium">No se encontraron clientes</p>
+                                  <p className="text-sm">Intenta con otra búsqueda o filtro</p>
+                                </div>
+                              </td>
+                            </tr>
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
                   </div>
                 </div>
               )}
@@ -677,6 +833,14 @@ const CreacionPrestamoElegante = () => {
                             Máximo: {formatCurrency(clienteSeleccionado?.saldoDisponible || 0)}
                           </span>
                         </div>
+                        <div className="mt-2 flex justify-end">
+                          <button 
+                            onClick={() => window.open('/admin/solicitudes', '_blank')}
+                            className="text-xs font-bold text-blue-600 hover:text-blue-800 flex items-center gap-1"
+                          >
+                            ¿Fondos insuficientes? Solicitar dinero
+                          </button>
+                        </div>
                       </div>
 
                       <div className="space-y-3">
@@ -686,19 +850,15 @@ const CreacionPrestamoElegante = () => {
                         </label>
                         <div className="relative">
                            <input
-                            type="range"
+                            type="number"
                             min="1"
-                            max="36"
                             step="1"
                             name="plazoMeses"
                             value={form.plazoMeses}
                             onChange={handleInputChange}
-                            className="w-full h-2 bg-slate-100 rounded-lg appearance-none cursor-pointer accent-slate-900"
+                            className="w-full pl-4 pr-20 py-3 rounded-xl border-slate-200 bg-slate-50 text-xl font-bold text-slate-900 focus:ring-2 focus:ring-slate-900/10 transition-all"
                           />
-                          <div className="mt-2 flex justify-between items-center">
-                            <span className="text-2xl font-bold text-slate-900">{form.plazoMeses}</span>
-                            <span className="text-sm font-medium text-slate-500">meses</span>
-                          </div>
+                          <span className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 font-medium">Meses</span>
                         </div>
                       </div>
                     </div>
@@ -840,81 +1000,6 @@ const CreacionPrestamoElegante = () => {
                   </button>
                 )}
               </div>
-            </div>
-          </div>
-
-          {/* Panel Lateral: Resumen en Tiempo Real */}
-          <div className="lg:col-span-1">
-            <div className="sticky top-32 space-y-6">
-              <div className="bg-slate-900 rounded-2xl p-6 text-white shadow-xl shadow-slate-900/20">
-                <h3 className="text-lg font-bold mb-6 flex items-center gap-2">
-                  <BarChart className="w-5 h-5 text-slate-400" />
-                  Simulación
-                </h3>
-
-                <div className="space-y-4">
-                  <div className="flex justify-between items-end pb-4 border-b border-slate-700/50">
-                    <span className="text-slate-400 text-sm font-medium">Cuota Estimada</span>
-                    <div className="text-right">
-                      <p className="text-3xl font-bold tracking-tight">{formatCurrency(resumenPrestamo.valorCuota)}</p>
-                      <p className="text-xs text-slate-400 font-medium capitalize">{form.frecuenciaPago.toLowerCase()}</p>
-                    </div>
-                  </div>
-
-                  <div className="space-y-3 pt-2">
-                    <div className="flex justify-between text-sm">
-                      <span className="text-slate-400">Total a Financiar</span>
-                      <span className="font-medium">{formatCurrency(resumenPrestamo.totalFinanciado)}</span>
-                    </div>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-slate-400">Intereses Totales</span>
-                      <span className="font-medium text-emerald-400">+{formatCurrency(resumenPrestamo.totalInteres)}</span>
-                    </div>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-slate-400">Total a Pagar</span>
-                      <span className="font-bold">{formatCurrency(resumenPrestamo.totalPagar)}</span>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="mt-6 p-4 bg-slate-800/50 rounded-xl border border-slate-700/50">
-                  <div className="flex items-start gap-3">
-                    <Shield className="w-5 h-5 text-emerald-400 mt-0.5" />
-                    <div>
-                      <p className="text-xs font-bold text-emerald-400 uppercase tracking-wide mb-1">Análisis de Riesgo</p>
-                      <p className="text-xs text-slate-300 leading-relaxed">
-                        Cliente con capacidad de pago verificada. El monto solicitado representa el 
-                        <span className="text-white font-bold"> {((form.montoTotal / (clienteSeleccionado?.ingresosMensuales || 1)) * 100).toFixed(1)}% </span> 
-                        de sus ingresos mensuales.
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Preview de Cuotas */}
-              <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-                <div className="p-4 bg-slate-50 border-b border-slate-100">
-                  <h4 className="font-bold text-slate-900 text-sm">Plan de Pagos (Preview)</h4>
-                </div>
-                <div className="divide-y divide-slate-100">
-                  {cuotas.map((cuota) => (
-                    <div key={cuota.numero} className="p-3 flex justify-between items-center text-sm hover:bg-slate-50 transition-colors">
-                      <div className="flex flex-col">
-                        <span className="font-bold text-slate-700">Cuota {cuota.numero}</span>
-                        <span className="text-xs text-slate-400 font-medium">{cuota.fecha}</span>
-                      </div>
-                      <span className="font-medium text-slate-900">{formatCurrency(cuota.total)}</span>
-                    </div>
-                  ))}
-                  {form.plazoMeses > 0 && (
-                     <div className="p-3 text-center text-xs text-slate-400 font-medium bg-slate-50">
-                        ... y {Math.ceil(form.plazoMeses * (form.frecuenciaPago === 'DIARIO' ? 30 : form.frecuenciaPago === 'SEMANAL' ? 4.33 : form.frecuenciaPago === 'QUINCENAL' ? 2 : 1)) - 6} cuotas más
-                     </div>
-                  )}
-                </div>
-              </div>
-            </div>
           </div>
         </div>
       </div>
