@@ -241,7 +241,7 @@ export default function DetalleCuentaMoraPage({ params }: { params: Promise<{ id
                                     value={nota}
                                     onChange={(e) => setNota(e.target.value)}
                                     placeholder="Agregar nueva nota de gestión..."
-                                    className="flex-1 bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all resize-none h-16"
+                                    className="flex-1 bg-white border border-slate-200 rounded-xl p-3 text-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all resize-none h-16 text-slate-900 placeholder:text-slate-400"
                                 />
                                 <button className="self-end px-4 py-2 bg-blue-600 text-white rounded-xl font-bold text-sm hover:bg-blue-700 transition-colors flex items-center gap-2">
                                     <MessageSquare className="w-4 h-4" />
@@ -283,7 +283,7 @@ export default function DetalleCuentaMoraPage({ params }: { params: Promise<{ id
                                     <label className="block text-sm font-bold text-slate-700 mb-2">Nueva Fecha de Pago</label>
                                     <input 
                                         type="date" 
-                                        className="w-full px-4 py-2 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 outline-none text-slate-700 font-medium"
+                                        className="w-full px-4 py-2 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 outline-none text-slate-900 font-medium placeholder:text-slate-400"
                                     />
                                 </div>
                                 <div>
@@ -293,14 +293,14 @@ export default function DetalleCuentaMoraPage({ params }: { params: Promise<{ id
                                         <input 
                                             type="number" 
                                             placeholder="0"
-                                            className="w-full pl-9 pr-4 py-2 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 outline-none text-slate-700 font-medium"
+                                            className="w-full pl-9 pr-4 py-2 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 outline-none text-slate-900 font-medium placeholder:text-slate-400"
                                         />
                                     </div>
                                 </div>
                                 <div className="md:col-span-2">
                                     <label className="block text-sm font-bold text-slate-700 mb-2">Motivo / Acuerdo</label>
                                     <textarea 
-                                        className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 outline-none text-slate-700 text-sm h-20 resize-none"
+                                        className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 outline-none text-slate-900 text-sm h-20 resize-none placeholder:text-slate-400"
                                         placeholder="Describa el acuerdo de pago alcanzado con el cliente..."
                                     ></textarea>
                                 </div>
@@ -346,7 +346,7 @@ export default function DetalleCuentaMoraPage({ params }: { params: Promise<{ id
                             <div>
                                 <label className="block text-sm font-bold text-slate-700 mb-2">Informe para Supervisor</label>
                                 <textarea 
-                                    className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 outline-none text-slate-700 text-sm h-24 resize-none"
+                                    className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 outline-none text-slate-900 text-sm h-24 resize-none placeholder:text-slate-400"
                                     placeholder="Detalle por qué este caso requiere intervención de supervisión (ej: cliente ilocalizable, negativa de pago, amenazas)..."
                                 ></textarea>
                             </div>

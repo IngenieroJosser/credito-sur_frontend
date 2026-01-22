@@ -450,12 +450,14 @@ const RutasPage = () => {
                   <div className="p-4 bg-slate-50/50 border-t border-slate-100 flex justify-between items-center group-hover:bg-blue-50/30 transition-colors">
                     <span className="text-xs text-slate-400 font-bold">ID: {ruta.id}</span>
                     <div className="flex items-center gap-1">
-                      <button 
+                      <Link 
+                        href={`/admin/rutas/${ruta.id}/editar`}
                         className="p-2 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-all" 
                         title="Editar"
+                        onClick={(e) => e.stopPropagation()}
                       >
                         <Pencil className="h-4 w-4" />
-                      </button>
+                      </Link>
                       <button 
                         className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all" 
                         title="Eliminar"
@@ -570,16 +572,16 @@ const RutasPage = () => {
                             >
                               <Activity className="w-4 h-4" />
                             </button>
-                            <button 
+                            <Link 
+                              href={`/admin/rutas/${ruta.id}/editar`}
                               className="p-2 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
                               title="Editar"
                               onClick={(e) => {
                                 e.stopPropagation();
-                                // Implementar edición
                               }}
                             >
                               <Pencil className="w-4 h-4" />
-                            </button>
+                            </Link>
                             <button 
                               className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
                               title="Eliminar"
