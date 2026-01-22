@@ -95,6 +95,17 @@ const DashboardSupervisor = () => {
     return date.toLocaleDateString('es-ES', options);
   };
 
+  // Funciones de exportación (agregadas)
+  const handleExportExcel = () => {
+    console.log('Exportando a Excel...');
+    // Lógica de exportación a Excel
+  };
+
+  const handleExportPDF = () => {
+    console.log('Exportando a PDF...');
+    // Lógica de exportación a PDF
+  };
+
   // Métricas principales
   const mainMetrics: MetricCard[] = [
     {
@@ -212,13 +223,13 @@ const DashboardSupervisor = () => {
 
   // Función para aprobar gasto
   const approveExpense = (id: number) => {
-    console.log(`Gasto ${id} aprobado`);
+    console.log(Gasto ${id} aprobado);
     // En una implementación real, esto actualizaría el estado
   };
 
   // Función para rechazar gasto
   const rejectExpense = (id: number) => {
-    console.log(`Gasto ${id} rechazado`);
+    console.log(Gasto ${id} rechazado);
     // En una implementación real, esto actualizaría el estado
   };
 
@@ -244,458 +255,459 @@ const DashboardSupervisor = () => {
         <div className="absolute inset-0 bg-gradient-to-br from-white via-gray-50/50 to-white"></div>
         {/* Líneas de estructura */}
         <div className="absolute inset-0" style={{
-          backgroundImage: `linear-gradient(to right, #08557f 0.5px, transparent 0.5px)`,
+          backgroundImage: linear-gradient(to right, #08557f 0.5px, transparent 0.5px),
           backgroundSize: '96px 1px',
           opacity: 0.03
         }}></div>
         <div className="absolute inset-0" style={{
-          backgroundImage: `linear-gradient(to bottom, #08557f 0.5px, transparent 0.5px)`,
+          backgroundImage: linear-gradient(to bottom, #08557f 0.5px, transparent 0.5px),
           backgroundSize: '1px 96px',
           opacity: 0.03
         }}></div>
       </div>
 
       <div className="relative z-10 w-full space-y-8 p-8">
-      {/* Encabezado del dashboard */}
-      <div className="mb-8">
-        <div className="flex items-start justify-between">
-          <div>
-            <div className="flex items-center space-x-3 mb-2">
-              <div className="p-2 bg-gradient-to-br from-[#08557f] to-[#063a58] rounded-lg">
-                <Shield className="h-6 w-6 text-white" />
+        {/* Encabezado del dashboard */}
+        <div className="mb-8">
+          <div className="flex items-start justify-between">
+            <div>
+              <div className="flex items-center space-x-3 mb-2">
+                <div className="p-2 bg-gradient-to-br from-[#08557f] to-[#063a58] rounded-lg">
+                  <Shield className="h-6 w-6 text-white" />
+                </div>
+                <div>
+                  <h1 className="text-2xl font-light text-gray-800">Supervisión Operativa</h1>
+                  <p className="text-sm text-gray-500">Monitoreo y control en campo</p>
+                </div>
               </div>
-              <div>
-                <h1 className="text-2xl font-light text-gray-800">Supervisión Operativa</h1>
-                <p className="text-sm text-gray-500">Monitoreo y control en campo</p>
-              </div>
+              <p className="text-sm text-gray-500" suppressHydrationWarning>{formatDate(currentDate)}</p>
             </div>
-            <p className="text-sm text-gray-500" suppressHydrationWarning>{formatDate(currentDate)}</p>
-          </div>
-          <ExportButton 
-            label="Exportar Reportes" 
-            onExportExcel={handleExportExcel} 
-            onExportPDF={handleExportPDF} 
-          />
-        </div>
-        
-        {/* Filtros */}
-        <div className="mt-4 flex flex-wrap items-center gap-3">
-          <div className="flex items-center bg-gray-50 p-1 rounded-xl border border-gray-100">
-            {['Hoy', 'Sem', 'Mes', 'Trim'].map((item, index) => {
-              const values = ['today', 'week', 'month', 'quarter'] as const;
-              const isSelected = timeFilter === values[index];
-              return (
-                <button
-                  key={item}
-                  onClick={() => setTimeFilter(values[index])}
-                  className={`px-4 py-1.5 text-xs font-medium rounded-lg transition-all ${
-                    isSelected
-                      ? 'bg-white text-[#08557f] shadow-sm ring-1 ring-black/5' 
-                      : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100/50'
-                  }`}
-                >
-                  {item}
-                </button>
-              );
-            })}
+            <ExportButton 
+              label="Exportar Reportes" 
+              onExportExcel={handleExportExcel} 
+              onExportPDF={handleExportPDF} 
+            />
           </div>
           
-          <div className="h-6 w-px bg-gray-200 mx-1"></div>
-
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setStatusFilter('all')}
-              className={`rounded-full px-4 py-1.5 border text-xs font-medium transition-all ${
-                statusFilter === 'all'
-                  ? "border-[#08557f] bg-[#08557f] text-white shadow-md shadow-[#08557f]/20"
-                  : "border-gray-200 bg-white text-gray-600 hover:bg-gray-50"
-              }`}
-            >
-              Todos
-            </button>
-            <button
-              onClick={() => setStatusFilter('critical')}
-              className={`rounded-full px-4 py-1.5 border text-xs font-medium transition-all ${
-                statusFilter === 'critical'
-                  ? "border-red-500 bg-red-500 text-white shadow-md shadow-red-500/20"
-                  : "border-gray-200 bg-white text-gray-600 hover:bg-gray-50"
-              }`}
-            >
-              Críticos
-            </button>
-            <button
-              onClick={() => setStatusFilter('moderate')}
-              className={`rounded-full px-4 py-1.5 border text-xs font-medium transition-all ${
-                statusFilter === 'moderate'
-                  ? "border-amber-500 bg-amber-500 text-white shadow-md shadow-amber-500/20"
-                  : "border-gray-200 bg-white text-gray-600 hover:bg-gray-50"
-              }`}
-            >
-              Moderados
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* Métricas principales */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-        {mainMetrics.map((metric, index) => (
-          <div
-            key={index}
-            className="bg-white border border-gray-100 rounded-xl p-5 hover:shadow-lg transition-all duration-300 group"
-          >
-            <div className="flex items-start justify-between mb-4">
-              <div className={`p-2 rounded-lg bg-gradient-to-br ${
-                metric.color === '#08557f' ? 'from-[#08557f]/10 to-[#08557f]/5' : 
-                metric.color === '#ef4444' ? 'from-[#ef4444]/10 to-[#ef4444]/5' : 
-                metric.color === '#fb851b' ? 'from-[#fb851b]/10 to-[#fb851b]/5' : 
-                'from-[#10b981]/10 to-[#10b981]/5'
-              }`}>
-                <div style={{ color: metric.color }}>
-                  {metric.icon}
-                </div>
-              </div>
-              <div className={`flex items-center space-x-1 text-sm ${
-                metric.change >= 0 ? 'text-green-600' : 'text-red-600'
-              }`}>
-                {metric.change >= 0 ? (
-                  <TrendingUp className="h-4 w-4" />
-                ) : (
-                  <TrendingDown className="h-4 w-4" />
-                )}
-                <span>{metric.change >= 0 ? '+' : ''}{metric.change}%</span>
-              </div>
-            </div>
-            <div className="space-y-2">
-              <div className="text-2xl font-light text-gray-800">{metric.value}</div>
-              <div className="text-sm text-gray-500">{metric.title}</div>
+          {/* Filtros */}
+          <div className="mt-4 flex flex-wrap items-center gap-3">
+            <div className="flex items-center bg-gray-50 p-1 rounded-xl border border-gray-100">
+              {['Hoy', 'Sem', 'Mes', 'Trim'].map((item, index) => {
+                const values = ['today', 'week', 'month', 'quarter'] as const;
+                const isSelected = timeFilter === values[index];
+                return (
+                  <button
+                    key={item}
+                    onClick={() => setTimeFilter(values[index])}
+                    className={`px-4 py-1.5 text-xs font-medium rounded-lg transition-all ${
+                      isSelected
+                        ? 'bg-white text-[#08557f] shadow-sm ring-1 ring-black/5' 
+                        : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100/50'
+                    }`}
+                  >
+                    {item}
+                  </button>
+                );
+              })}
             </div>
             
-            {/* Mini gráfico elegante */}
-            <div className="mt-4 h-1 flex items-end space-x-px">
-              {metric.trendData.map((value, i) => (
-                <div
-                  key={i}
-                  className="flex-1 rounded-t-full"
-                  style={{
-                    height: `${value * 0.6}%`,
-                    backgroundColor: metric.color,
-                    opacity: 0.3 + (i / metric.trendData.length) * 0.7
-                  }}
-                ></div>
-              ))}
-            </div>
-          </div>
-        ))}
-      </div>
+            <div className="h-6 w-px bg-gray-200 mx-1"></div>
 
-      {/* Contenido principal */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-        {/* Columna izquierda: Clientes en mora y Acciones rápidas */}
-        <div className="lg:col-span-2 space-y-6">
-          {/* Clientes en mora */}
-          <div className="bg-white border border-gray-100 rounded-xl p-6">
-            <div className="flex items-center justify-between mb-6">
-              <div>
-                <h2 className="text-lg font-light text-gray-800">Clientes en Estado Crítico</h2>
-                <p className="text-sm text-gray-500">Monitoreo de cartera atrasada</p>
-              </div>
-              <div className="flex items-center space-x-2">
-                <span className="text-sm text-gray-500">
-                  {filteredClients.length} clientes
-                </span>
-                <button className="text-sm text-gray-500 hover:text-gray-700 transition-colors">
-                  Ver todos <ChevronRight className="inline h-4 w-4 ml-1" />
-                </button>
-              </div>
-            </div>
-            
-            <div className="space-y-4">
-              {filteredClients.slice(0, 4).map((client) => (
-                <div key={client.id} className="p-4 border border-gray-200 rounded-lg hover:border-gray-300 transition-colors">
-                  <div className="flex items-start justify-between mb-3">
-                    <div className="flex items-start space-x-3">
-                      <div className={`w-10 h-10 rounded-lg flex items-center justify-center`} style={{ 
-                        backgroundColor: `${getStatusColor(client.status)}15`
-                      }}>
-                        <User className="h-5 w-5" style={{ color: getStatusColor(client.status) }} />
-                      </div>
-                      <div>
-                        <div className="flex items-center space-x-2 mb-1">
-                          <h3 className="font-medium text-gray-800">{client.name}</h3>
-                          <span className="text-xs font-medium px-2 py-1 rounded-full" style={{ 
-                            backgroundColor: `${getStatusColor(client.status)}15`,
-                            color: getStatusColor(client.status)
-                          }}>
-                            {client.status === 'critical' ? 'Crítico' : 
-                             client.status === 'moderate' ? 'Moderado' : 'Leve'}
-                          </span>
-                        </div>
-                        <p className="text-sm text-gray-500 mb-2">{client.daysLate} días de mora</p>
-                        <div className="flex items-center space-x-4 text-xs text-gray-500">
-                          <span className="flex items-center">
-                            <MapPin className="h-3 w-3 mr-1" />
-                            {client.route}
-                          </span>
-                          <span className="flex items-center">
-                            <Users className="h-3 w-3 mr-1" />
-                            {client.collector}
-                          </span>
-                          <span className="flex items-center">
-                            <Calendar className="h-3 w-3 mr-1" />
-                            Último pago: {client.lastPayment}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                    
-                    <div className="text-right">
-                      <div className="text-lg font-medium text-gray-800">
-                        ${client.amountDue.toLocaleString('es-CO')}
-                      </div>
-                      <div className="text-sm text-gray-500">Monto adeudado</div>
-                    </div>
-                  </div>
-                  
-                  <div className="flex space-x-2">
-                    <button className="flex-1 py-2 text-sm bg-[#08557f] text-white rounded-lg hover:bg-[#063a58] transition-colors">
-                      Programar visita
-                    </button>
-                    <button className="flex-1 py-2 text-sm border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors">
-                      Ver detalles
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Acciones rápidas */}
-          <div className="bg-white border border-gray-100 rounded-xl p-6">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-lg font-light text-gray-800">Acciones de Supervisión</h2>
-              <Activity className="h-5 w-5 text-gray-400" />
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {quickAccess.map((item, index) => (
-                <Link
-                  key={index}
-                  href={item.href}
-                  className="group p-4 border border-gray-100 rounded-lg hover:border-gray-200 hover:shadow-sm transition-all duration-300 text-left"
-                >
-                  <div className="flex items-center justify-between mb-3">
-                    <div className={`p-2 rounded-lg`} style={{ backgroundColor: `${item.color}10` }}>
-                      <div style={{ color: item.color }}>
-                        {item.icon}
-                      </div>
-                    </div>
-                    {item.badge && (
-                      <span className="text-xs font-medium px-2 py-1 rounded-full bg-gray-100 text-gray-600">
-                        {item.badge}
-                      </span>
-                    )}
-                  </div>
-                  <h3 className="font-medium text-gray-800 mb-1">{item.title}</h3>
-                  <p className="text-sm text-gray-500">{item.subtitle}</p>
-                  <ArrowUpRight className="h-4 w-4 text-gray-400 ml-auto mt-2 opacity-0 group-hover:opacity-100 transition-opacity" />
-                </Link>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        {/* Columna derecha: Gastos pendientes y Desempeño */}
-        <div className="space-y-6">
-          {/* Gastos de ruta pendientes */}
-          <div className="bg-white border border-gray-100 rounded-xl p-6">
-            <div className="flex items-center justify-between mb-6">
-              <div>
-                <h2 className="text-lg font-light text-gray-800">Gastos Pendientes</h2>
-                <p className="text-sm text-gray-500">Aprobación de gastos operativos</p>
-              </div>
-              <select 
-                value={expenseFilter}
-                onChange={(e) => setExpenseFilter(e.target.value as any)}
-                className="text-sm border border-gray-200 rounded-lg px-3 py-1 bg-white"
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setStatusFilter('all')}
+                className={`rounded-full px-4 py-1.5 border text-xs font-medium transition-all ${
+                  statusFilter === 'all'
+                    ? "border-[#08557f] bg-[#08557f] text-white shadow-md shadow-[#08557f]/20"
+                    : "border-gray-200 bg-white text-gray-600 hover:bg-gray-50"
+                }`}
               >
-                <option value="pending">Pendientes</option>
-                <option value="all">Todos</option>
-                <option value="approved">Aprobados</option>
-                <option value="rejected">Rechazados</option>
-              </select>
-            </div>
-            
-            <div className="space-y-4">
-              {filteredExpenses.slice(0, 3).map((expense) => (
-                <div key={expense.id} className="p-4 border border-gray-200 rounded-xl hover:border-[#08557f]/30 hover:shadow-md transition-all duration-300 bg-white group">
-                  <div className="flex items-start justify-between mb-3">
-                    <div>
-                      <h3 className="font-medium text-gray-800 group-hover:text-[#08557f] transition-colors">{expense.collector}</h3>
-                      <p className="text-sm text-gray-500">{expense.description}</p>
-                    </div>
-                    <div className="text-right">
-                      <div className="text-lg font-medium text-[#08557f]">
-                        ${expense.amount.toLocaleString('es-CO')}
-                      </div>
-                      <div className="text-sm text-gray-500">{expense.date}</div>
-                    </div>
-                  </div>
-                  
-                  <div className="flex items-center justify-between">
-                    {expense.receipt && (
-                      <button className="text-sm text-[#08557f] hover:text-[#063a58] flex items-center">
-                        <Eye className="h-4 w-4 mr-1" />
-                        Ver comprobante
-                      </button>
-                    )}
-                    {expense.status === 'pending' && (
-                      <div className="flex items-center space-x-2">
-                        <button 
-                          onClick={() => approveExpense(expense.id)}
-                          className="px-3 py-1.5 bg-green-600 text-white hover:bg-green-700 rounded-lg text-sm font-medium transition-colors flex items-center"
-                        >
-                          <CheckCircle className="h-4 w-4 mr-1" />
-                          Aprobar
-                        </button>
-                        <button 
-                          onClick={() => rejectExpense(expense.id)}
-                          className="px-3 py-1.5 bg-red-600 text-white hover:bg-red-700 rounded-lg text-sm font-medium transition-colors flex items-center"
-                        >
-                          <XCircle className="h-4 w-4 mr-1" />
-                          Rechazar
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              ))}
+                Todos
+              </button>
+              <button
+                onClick={() => setStatusFilter('critical')}
+                className={`rounded-full px-4 py-1.5 border text-xs font-medium transition-all ${
+                  statusFilter === 'critical'
+                    ? "border-red-500 bg-red-500 text-white shadow-md shadow-red-500/20"
+                    : "border-gray-200 bg-white text-gray-600 hover:bg-gray-50"
+                }`}
+              >
+                Críticos
+              </button>
+              <button
+                onClick={() => setStatusFilter('moderate')}
+                className={`rounded-full px-4 py-1.5 border text-xs font-medium transition-all ${
+                  statusFilter === 'moderate'
+                    ? "border-amber-500 bg-amber-500 text-white shadow-md shadow-amber-500/20"
+                    : "border-gray-200 bg-white text-gray-600 hover:bg-gray-50"
+                }`}
+              >
+                Moderados
+              </button>
             </div>
           </div>
+        </div>
 
-          {/* Desempeño por ruta */}
-          <div className="bg-gradient-to-br from-[#08557f]/5 to-[#08557f]/10 border border-[#08557f]/20 rounded-xl p-6">
-            <div className="flex items-center justify-between mb-6">
-              <div>
-                <h2 className="text-lg font-light text-gray-800">Desempeño por Ruta</h2>
-                <p className="text-sm text-gray-600">Eficiencia y cumplimiento</p>
-              </div>
-              <BarChart3 className="h-5 w-5 text-[#08557f]" />
-            </div>
-            
-            <div className="space-y-4">
-              {routePerformance.map((route) => (
-                <div key={route.id} className="p-3 bg-white/80 rounded-lg">
-                  <div className="flex items-center justify-between mb-2">
-                    <h3 className="font-medium text-gray-800">{route.route}</h3>
-                    <span className={`text-sm font-medium ${
-                      route.efficiency >= 90 ? 'text-green-600' :
-                      route.efficiency >= 85 ? 'text-yellow-600' :
-                      'text-red-600'
-                    }`}>
-                      {route.efficiency}%
-                    </span>
+        {/* Métricas principales */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+          {mainMetrics.map((metric, index) => (
+            <div
+              key={index}
+              className="bg-white border border-gray-100 rounded-xl p-5 hover:shadow-lg transition-all duration-300 group"
+            >
+              <div className="flex items-start justify-between mb-4">
+                <div className={`p-2 rounded-lg bg-gradient-to-br ${
+                  metric.color === '#08557f' ? 'from-[#08557f]/10 to-[#08557f]/5' : 
+                  metric.color === '#ef4444' ? 'from-[#ef4444]/10 to-[#ef4444]/5' : 
+                  metric.color === '#fb851b' ? 'from-[#fb851b]/10 to-[#fb851b]/5' : 
+                  'from-[#10b981]/10 to-[#10b981]/5'
+                }`}>
+                  <div style={{ color: metric.color }}>
+                    {metric.icon}
                   </div>
-                  
-                  <div className="space-y-2">
-                    <div>
-                      <div className="flex items-center justify-between text-xs text-gray-500 mb-1">
-                        <span>Tasa de cobro</span>
-                        <span>{route.collectionRate}%</span>
+                </div>
+                <div className={`flex items-center space-x-1 text-sm ${
+                  metric.change >= 0 ? 'text-green-600' : 'text-red-600'
+                }`}>
+                  {metric.change >= 0 ? (
+                    <TrendingUp className="h-4 w-4" />
+                  ) : (
+                    <TrendingDown className="h-4 w-4" />
+                  )}
+                  <span>{metric.change >= 0 ? '+' : ''}{metric.change}%</span>
+                </div>
+              </div>
+              <div className="space-y-2">
+                <div className="text-2xl font-light text-gray-800">{metric.value}</div>
+                <div className="text-sm text-gray-500">{metric.title}</div>
+              </div>
+              
+              {/* Mini gráfico elegante */}
+              <div className="mt-4 h-1 flex items-end space-x-px">
+                {metric.trendData.map((value, i) => (
+                  <div
+                    key={i}
+                    className="flex-1 rounded-t-full"
+                    style={{
+                      height: ${value * 0.6}%,
+                      backgroundColor: metric.color,
+                      opacity: 0.3 + (i / metric.trendData.length) * 0.7
+                    }}
+                  ></div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Contenido principal */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+          {/* Columna izquierda: Clientes en mora y Acciones rápidas */}
+          <div className="lg:col-span-2 space-y-6">
+            {/* Clientes en mora */}
+            <div className="bg-white border border-gray-100 rounded-xl p-6">
+              <div className="flex items-center justify-between mb-6">
+                <div>
+                  <h2 className="text-lg font-light text-gray-800">Clientes en Estado Crítico</h2>
+                  <p className="text-sm text-gray-500">Monitoreo de cartera atrasada</p>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <span className="text-sm text-gray-500">
+                    {filteredClients.length} clientes
+                  </span>
+                  <button className="text-sm text-gray-500 hover:text-gray-700 transition-colors">
+                    Ver todos <ChevronRight className="inline h-4 w-4 ml-1" />
+                  </button>
+                </div>
+              </div>
+              
+              <div className="space-y-4">
+                {filteredClients.slice(0, 4).map((client) => (
+                  <div key={client.id} className="p-4 border border-gray-200 rounded-lg hover:border-gray-300 transition-colors">
+                    <div className="flex items-start justify-between mb-3">
+                      <div className="flex items-start space-x-3">
+                        <div className={w-10 h-10 rounded-lg flex items-center justify-center} style={{ 
+                          backgroundColor: ${getStatusColor(client.status)}15
+                        }}>
+                          <User className="h-5 w-5" style={{ color: getStatusColor(client.status) }} />
+                        </div>
+                        <div>
+                          <div className="flex items-center space-x-2 mb-1">
+                            <h3 className="font-medium text-gray-800">{client.name}</h3>
+                            <span className="text-xs font-medium px-2 py-1 rounded-full" style={{ 
+                              backgroundColor: ${getStatusColor(client.status)}15,
+                              color: getStatusColor(client.status)
+                            }}>
+                              {client.status === 'critical' ? 'Crítico' : 
+                              client.status === 'moderate' ? 'Moderado' : 'Leve'}
+                            </span>
+                          </div>
+                          <p className="text-sm text-gray-500 mb-2">{client.daysLate} días de mora</p>
+                          <div className="flex items-center space-x-4 text-xs text-gray-500">
+                            <span className="flex items-center">
+                              <MapPin className="h-3 w-3 mr-1" />
+                              {client.route}
+                            </span>
+                            <span className="flex items-center">
+                              <Users className="h-3 w-3 mr-1" />
+                              {client.collector}
+                            </span>
+                            <span className="flex items-center">
+                              <Calendar className="h-3 w-3 mr-1" />
+                              Último pago: {client.lastPayment}
+                            </span>
+                          </div>
+                        </div>
                       </div>
-                      <div className="h-1.5 bg-gray-200 rounded-full overflow-hidden">
-                        <div 
-                          className="h-full bg-gradient-to-r from-[#08557f] to-[#063a58] rounded-full"
-                          style={{ width: `${route.collectionRate}%` }}
-                        ></div>
+                      
+                      <div className="text-right">
+                        <div className="text-lg font-medium text-gray-800">
+                          ${client.amountDue.toLocaleString('es-CO')}
+                        </div>
+                        <div className="text-sm text-gray-500">Monto adeudado</div>
                       </div>
                     </div>
                     
-                    <div>
-                      <div className="flex items-center justify-between text-xs text-gray-500 mb-1">
-                        <span>Clientes visitados</span>
-                        <span>{route.clientsVisited}/{route.target}</span>
+                    <div className="flex space-x-2">
+                      <button className="flex-1 py-2 text-sm bg-[#08557f] text-white rounded-lg hover:bg-[#063a58] transition-colors">
+                        Programar visita
+                      </button>
+                      <button className="flex-1 py-2 text-sm border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors">
+                        Ver detalles
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Acciones rápidas */}
+            <div className="bg-white border border-gray-100 rounded-xl p-6">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-lg font-light text-gray-800">Acciones de Supervisión</h2>
+                <Activity className="h-5 w-5 text-gray-400" />
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {quickAccess.map((item, index) => (
+                  <Link
+                    key={index}
+                    href={item.href}
+                    className="group p-4 border border-gray-100 rounded-lg hover:border-gray-200 hover:shadow-sm transition-all duration-300 text-left"
+                  >
+                    <div className="flex items-center justify-between mb-3">
+                      <div className={p-2 rounded-lg} style={{ backgroundColor: ${item.color}10 }}>
+                        <div style={{ color: item.color }}>
+                          {item.icon}
+                        </div>
                       </div>
-                      <div className="h-1.5 bg-gray-200 rounded-full overflow-hidden">
-                        <div 
-                          className="h-full bg-gradient-to-r from-[#fb851b] to-amber-500 rounded-full"
-                          style={{ width: `${(route.clientsVisited / route.target) * 100}%` }}
-                        ></div>
+                      {item.badge && (
+                        <span className="text-xs font-medium px-2 py-1 rounded-full bg-gray-100 text-gray-600">
+                          {item.badge}
+                        </span>
+                      )}
+                    </div>
+                    <h3 className="font-medium text-gray-800 mb-1">{item.title}</h3>
+                    <p className="text-sm text-gray-500">{item.subtitle}</p>
+                    <ArrowUpRight className="h-4 w-4 text-gray-400 ml-auto mt-2 opacity-0 group-hover:opacity-100 transition-opacity" />
+                  </Link>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Columna derecha: Gastos pendientes y Desempeño */}
+          <div className="space-y-6">
+            {/* Gastos de ruta pendientes */}
+            <div className="bg-white border border-gray-100 rounded-xl p-6">
+              <div className="flex items-center justify-between mb-6">
+                <div>
+                  <h2 className="text-lg font-light text-gray-800">Gastos Pendientes</h2>
+                  <p className="text-sm text-gray-500">Aprobación de gastos operativos</p>
+                </div>
+                <select 
+                  value={expenseFilter}
+                  onChange={(e) => setExpenseFilter(e.target.value as any)}
+                  className="text-sm border border-gray-200 rounded-lg px-3 py-1 bg-white"
+                >
+                  <option value="pending">Pendientes</option>
+                  <option value="all">Todos</option>
+                  <option value="approved">Aprobados</option>
+                  <option value="rejected">Rechazados</option>
+                </select>
+              </div>
+              
+              <div className="space-y-4">
+                {filteredExpenses.slice(0, 3).map((expense) => (
+                  <div key={expense.id} className="p-4 border border-gray-200 rounded-xl hover:border-[#08557f]/30 hover:shadow-md transition-all duration-300 bg-white group">
+                    <div className="flex items-start justify-between mb-3">
+                      <div>
+                        <h3 className="font-medium text-gray-800 group-hover:text-[#08557f] transition-colors">{expense.collector}</h3>
+                        <p className="text-sm text-gray-500">{expense.description}</p>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-lg font-medium text-[#08557f]">
+                          ${expense.amount.toLocaleString('es-CO')}
+                        </div>
+                        <div className="text-sm text-gray-500">{expense.date}</div>
                       </div>
                     </div>
+                    
+                    <div className="flex items-center justify-between">
+                      {expense.receipt && (
+                        <button className="text-sm text-[#08557f] hover:text-[#063a58] flex items-center">
+                          <Eye className="h-4 w-4 mr-1" />
+                          Ver comprobante
+                        </button>
+                      )}
+                      {expense.status === 'pending' && (
+                        <div className="flex items-center space-x-2">
+                          <button 
+                            onClick={() => approveExpense(expense.id)}
+                            className="px-3 py-1.5 bg-green-600 text-white hover:bg-green-700 rounded-lg text-sm font-medium transition-colors flex items-center"
+                          >
+                            <CheckCircle className="h-4 w-4 mr-1" />
+                            Aprobar
+                          </button>
+                          <button 
+                            onClick={() => rejectExpense(expense.id)}
+                            className="px-3 py-1.5 bg-red-600 text-white hover:bg-red-700 rounded-lg text-sm font-medium transition-colors flex items-center"
+                          >
+                            <XCircle className="h-4 w-4 mr-1" />
+                            Rechazar
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Desempeño por ruta */}
+            <div className="bg-gradient-to-br from-[#08557f]/5 to-[#08557f]/10 border border-[#08557f]/20 rounded-xl p-6">
+              <div className="flex items-center justify-between mb-6">
+                <div>
+                  <h2 className="text-lg font-light text-gray-800">Desempeño por Ruta</h2>
+                  <p className="text-sm text-gray-600">Eficiencia y cumplimiento</p>
+                </div>
+                <BarChart3 className="h-5 w-5 text-[#08557f]" />
+              </div>
+              
+              <div className="space-y-4">
+                {routePerformance.map((route) => (
+                  <div key={route.id} className="p-3 bg-white/80 rounded-lg">
+                    <div className="flex items-center justify-between mb-2">
+                      <h3 className="font-medium text-gray-800">{route.route}</h3>
+                      <span className={`text-sm font-medium ${
+                        route.efficiency >= 90 ? 'text-green-600' :
+                        route.efficiency >= 85 ? 'text-yellow-600' :
+                        'text-red-600'
+                      }`}>
+                        {route.efficiency}%
+                      </span>
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <div>
+                        <div className="flex items-center justify-between text-xs text-gray-500 mb-1">
+                          <span>Tasa de cobro</span>
+                          <span>{route.collectionRate}%</span>
+                        </div>
+                        <div className="h-1.5 bg-gray-200 rounded-full overflow-hidden">
+                          <div 
+                            className="h-full bg-gradient-to-r from-[#08557f] to-[#063a58] rounded-full"
+                            style={{ width: ${route.collectionRate}% }}
+                          ></div>
+                        </div>
+                      </div>
+                      
+                      <div>
+                        <div className="flex items-center justify-between text-xs text-gray-500 mb-1">
+                          <span>Clientes visitados</span>
+                          <span>{route.clientsVisited}/{route.target}</span>
+                        </div>
+                        <div className="h-1.5 bg-gray-200 rounded-full overflow-hidden">
+                          <div 
+                            className="h-full bg-gradient-to-r from-[#fb851b] to-amber-500 rounded-full"
+                            style={{ width: ${(route.clientsVisited / route.target) * 100}% }}
+                          ></div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Actividad reciente y stats */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+          {/* Actividad reciente */}
+          <div className="bg-white border border-gray-100 rounded-xl p-6">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-lg font-light text-gray-800">Actividad Reciente</h2>
+              <Filter className="h-5 w-5 text-gray-400" />
+            </div>
+            
+            <div className="space-y-4">
+              {recentActivity.map((item) => (
+                <div key={item.id} className="group p-3 hover:bg-gray-50 rounded-lg transition-colors">
+                  <div className="flex items-start justify-between mb-2">
+                    <div>
+                      <div className="font-medium text-gray-800">{item.action}</div>
+                      <div className="text-sm text-gray-500">{item.details}</div>
+                    </div>
+                    <div className={`px-2 py-1 rounded-full text-xs ${
+                      item.status === 'approved' ? 'bg-green-100 text-green-800' :
+                      item.status === 'rejected' ? 'bg-red-100 text-red-800' :
+                      item.status === 'alert' ? 'bg-red-100 text-red-800' :
+                      'bg-blue-100 text-blue-800'
+                    }`}>
+                      {item.amount}
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between text-xs text-gray-400">
+                    <span>{item.time}</span>
+                    <ChevronRight className="h-4 w-4 opacity-0 group-hover:opacity-100 transition-opacity" />
                   </div>
                 </div>
               ))}
             </div>
           </div>
-        </div>
-      </div>
 
-      {/* Actividad reciente y stats */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-        {/* Actividad reciente */}
-        <div className="bg-white border border-gray-100 rounded-xl p-6">
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-lg font-light text-gray-800">Actividad Reciente</h2>
-            <Filter className="h-5 w-5 text-gray-400" />
-          </div>
-          
-          <div className="space-y-4">
-            {recentActivity.map((item) => (
-              <div key={item.id} className="group p-3 hover:bg-gray-50 rounded-lg transition-colors">
-                <div className="flex items-start justify-between mb-2">
-                  <div>
-                    <div className="font-medium text-gray-800">{item.action}</div>
-                    <div className="text-sm text-gray-500">{item.details}</div>
+          {/* Stats adicionales */}
+          <div className="bg-white border border-gray-100 rounded-xl p-6">
+            <div className="grid grid-cols-2 gap-6">
+              {[
+                { label: 'Rutas Activas', value: '5', icon: <MapPin className="h-5 w-5" />, color: '#08557f' },
+                { label: 'Cobradores Activos', value: '8', icon: <Users className="h-5 w-5" />, color: '#10b981' },
+                { label: 'Gastos Aprobados', value: '$125K', icon: <Receipt className="h-5 w-5" />, color: '#fb851b' },
+                { label: 'Visitas Programadas', value: '18', icon: <Calendar className="h-5 w-5" />, color: '#8b5cf6' }
+              ].map((stat, index) => (
+                <div key={index} className="text-center">
+                  <div className={inline-flex p-3 rounded-xl mb-3} style={{ backgroundColor: ${stat.color}10 }}>
+                    <div style={{ color: stat.color }}>
+                      {stat.icon}
+                    </div>
                   </div>
-                  <div className={`px-2 py-1 rounded-full text-xs ${
-                    item.status === 'approved' ? 'bg-green-100 text-green-800' :
-                    item.status === 'rejected' ? 'bg-red-100 text-red-800' :
-                    item.status === 'alert' ? 'bg-red-100 text-red-800' :
-                    'bg-blue-100 text-blue-800'
-                  }`}>
-                    {item.amount}
-                  </div>
+                  <div className="text-2xl font-light text-gray-800 mb-1">{stat.value}</div>
+                  <div className="text-sm text-gray-500">{stat.label}</div>
                 </div>
-                <div className="flex items-center justify-between text-xs text-gray-400">
-                  <span>{item.time}</span>
-                  <ChevronRight className="h-4 w-4 opacity-0 group-hover:opacity-100 transition-opacity" />
-                </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
         </div>
 
-        {/* Stats adicionales */}
-        <div className="bg-white border border-gray-100 rounded-xl p-6">
-          <div className="grid grid-cols-2 gap-6">
-            {[
-              { label: 'Rutas Activas', value: '5', icon: <MapPin className="h-5 w-5" />, color: '#08557f' },
-              { label: 'Cobradores Activos', value: '8', icon: <Users className="h-5 w-5" />, color: '#10b981' },
-              { label: 'Gastos Aprobados', value: '$125K', icon: <Receipt className="h-5 w-5" />, color: '#fb851b' },
-              { label: 'Visitas Programadas', value: '18', icon: <Calendar className="h-5 w-5" />, color: '#8b5cf6' }
-            ].map((stat, index) => (
-              <div key={index} className="text-center">
-                <div className={`inline-flex p-3 rounded-xl mb-3`} style={{ backgroundColor: `${stat.color}10` }}>
-                  <div style={{ color: stat.color }}>
-                    {stat.icon}
-                  </div>
-                </div>
-                <div className="text-2xl font-light text-gray-800 mb-1">{stat.value}</div>
-                <div className="text-sm text-gray-500">{stat.label}</div>
-              </div>
-            ))}
-          </div>
+        {/* Footer sutil */}
+        <div className="mt-8 text-center">
+          <p className="text-xs text-gray-400">
+            Sistema de Supervisión • Última actualización: {new Date().toLocaleTimeString('es-ES', { 
+              hour: '2-digit', 
+              minute: '2-digit' 
+            })}
+          </p>
         </div>
-      </div>
-
-      {/* Footer sutil */}
-      <div className="mt-8 text-center">
-        <p className="text-xs text-gray-400">
-          Sistema de Supervisión • Última actualización: {new Date().toLocaleTimeString('es-ES', { 
-            hour: '2-digit', 
-            minute: '2-digit' 
-          })}
-        </p>
       </div>
 
       <style jsx>{`

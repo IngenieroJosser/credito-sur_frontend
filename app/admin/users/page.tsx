@@ -644,9 +644,26 @@ const UserManagementPage = () => {
       {mounted && createPortal(
         <>
           {isCreateModalOpen && (
-        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-md flex items-center justify-center p-4 z-50 animate-in fade-in duration-200">
-          <div className="bg-white rounded-2xl w-full max-w-lg border border-slate-200 shadow-2xl p-8 transform scale-100 animate-in zoom-in-95 duration-200">
-            <h2 className="text-2xl font-bold text-slate-900 mb-8 tracking-tight">Nuevo <span className="font-light text-slate-500">Usuario</span></h2>
+        <div 
+          className="fixed inset-0 bg-slate-900/50 backdrop-blur-md flex items-center justify-center p-4 z-50 animate-in fade-in duration-200"
+          onClick={() => setIsCreateModalOpen(false)}
+        >
+          <div 
+            className="bg-white rounded-2xl w-full max-w-lg border border-slate-200 shadow-2xl p-8 transform scale-100 animate-in zoom-in-95 duration-200"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center gap-3 mb-8">
+              <div className="p-2 bg-blue-50 text-orange-500 rounded-lg">
+                <UserPlus className="h-6 w-6" />
+              </div>
+              <div>
+                <h2 className="text-2xl font-bold tracking-tight">
+                  <span className="text-blue-600">Nuevo </span>
+                  <span className="text-orange-500">Usuario</span>
+                </h2>
+                <p className="text-xs text-slate-500 font-medium">Complete la información para registrar un nuevo usuario</p>
+              </div>
+            </div>
             <div className="space-y-5">
               <div className="grid grid-cols-2 gap-4">
                 <div>
@@ -655,7 +672,7 @@ const UserManagementPage = () => {
                     type="text"
                     value={formData.nombres}
                     onChange={(e) => setFormData({...formData, nombres: e.target.value})}
-                    className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:border-slate-900 focus:ring-1 focus:ring-slate-900 transition-all text-sm font-medium text-slate-900 placeholder:text-slate-400"
+                    className="w-full px-4 py-3 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:border-blue-600 focus:ring-2 focus:ring-blue-600/20 transition-all text-sm font-medium text-slate-900 placeholder:text-slate-400"
                     placeholder="Ej. Juan"
                   />
                 </div>
@@ -665,7 +682,7 @@ const UserManagementPage = () => {
                     type="text"
                     value={formData.apellidos}
                     onChange={(e) => setFormData({...formData, apellidos: e.target.value})}
-                    className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:border-slate-900 focus:ring-1 focus:ring-slate-900 transition-all text-sm font-medium text-slate-900 placeholder:text-slate-400"
+                    className="w-full px-4 py-3 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:border-blue-600 focus:ring-2 focus:ring-blue-600/20 transition-all text-sm font-medium text-slate-900 placeholder:text-slate-400"
                     placeholder="Ej. Pérez"
                   />
                 </div>
@@ -677,7 +694,7 @@ const UserManagementPage = () => {
                   type="email"
                   value={formData.correo}
                   onChange={(e) => setFormData({...formData, correo: e.target.value})}
-                  className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:border-slate-900 focus:ring-1 focus:ring-slate-900 transition-all text-sm font-medium text-slate-900 placeholder:text-slate-400"
+                  className="w-full px-4 py-3 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:border-blue-600 focus:ring-2 focus:ring-blue-600/20 transition-all text-sm font-medium text-slate-900 placeholder:text-slate-400"
                   placeholder="Ej. juan@credisur.com"
                 />
               </div>
@@ -689,7 +706,7 @@ const UserManagementPage = () => {
                     type="tel"
                     value={formData.telefono}
                     onChange={(e) => setFormData({...formData, telefono: e.target.value})}
-                    className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:border-slate-900 focus:ring-1 focus:ring-slate-900 transition-all text-sm font-medium text-slate-900 placeholder:text-slate-400"
+                    className="w-full px-4 py-3 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:border-blue-600 focus:ring-2 focus:ring-blue-600/20 transition-all text-sm font-medium text-slate-900 placeholder:text-slate-400"
                     placeholder="Ej. 300 123 4567"
                   />
                 </div>
@@ -699,7 +716,7 @@ const UserManagementPage = () => {
                     type="password"
                     value={formData.contrasena}
                     onChange={(e) => setFormData({...formData, contrasena: e.target.value})}
-                    className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:border-slate-900 focus:ring-1 focus:ring-slate-900 transition-all text-sm font-medium text-slate-900 placeholder:text-slate-400"
+                    className="w-full px-4 py-3 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:border-blue-600 focus:ring-2 focus:ring-blue-600/20 transition-all text-sm font-medium text-slate-900 placeholder:text-slate-400"
                     placeholder="••••••••"
                   />
                 </div>
@@ -711,7 +728,7 @@ const UserManagementPage = () => {
                   <select
                     value={formData.rol}
                     onChange={(e) => setFormData({...formData, rol: e.target.value as RolUsuario})}
-                    className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:border-slate-900 focus:ring-1 focus:ring-slate-900 appearance-none bg-white text-sm font-medium text-slate-900"
+                    className="w-full px-4 py-3 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:border-blue-600 focus:ring-2 focus:ring-blue-600/20 appearance-none text-sm font-medium text-slate-900"
                   >
                     {roles.map(role => (
                       <option key={role.id} value={role.id}>{role.label}</option>
@@ -729,9 +746,10 @@ const UserManagementPage = () => {
                 </button>
                 <button
                   onClick={handleCreateUser}
-                  className="px-5 py-2.5 text-sm font-bold text-white bg-slate-900 hover:bg-slate-800 rounded-xl shadow-lg shadow-slate-900/20 transition-all transform active:scale-95"
+                  className="px-5 py-2.5 text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-xl shadow-lg shadow-blue-600/20 transition-all transform active:scale-95 flex items-center gap-2"
                 >
-                  Crear Usuario
+                  <UserPlus className="h-4 w-4" />
+                  <span>Crear Usuario</span>
                 </button>
               </div>
             </div>
