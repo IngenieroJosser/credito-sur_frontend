@@ -190,13 +190,13 @@ const ClienteDetalleElegante: React.FC<ClienteDetalleProps> = ({
           </div>
           
           <div className="flex items-center gap-3">
-            <button 
-              onClick={onEdit}
+            <Link 
+              href={`/admin/clientes/${cliente.id}/editar`}
               className="px-5 py-2.5 border border-slate-200 bg-white rounded-xl hover:bg-slate-50 hover:border-slate-300 transition-all duration-200 text-sm font-bold text-slate-700 flex items-center gap-2 shadow-sm"
             >
               <Edit className="w-4 h-4" />
               Editar
-            </button>
+            </Link>
             <Link
               href={`/admin/pagos/registrar/${cliente.id}`}
               className="px-5 py-2.5 bg-orange-500 text-white rounded-xl hover:bg-orange-600 transition-all duration-200 text-sm font-bold flex items-center gap-2 shadow-lg shadow-orange-500/20"
@@ -204,13 +204,6 @@ const ClienteDetalleElegante: React.FC<ClienteDetalleProps> = ({
               <DollarSign className="w-4 h-4" />
               Registrar Pago
             </Link>
-            <button 
-              onClick={onContact}
-              className="px-5 py-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-all duration-200 text-sm font-bold flex items-center gap-2 shadow-lg shadow-blue-600/20"
-            >
-              <MessageSquare className="w-4 h-4" />
-              Contactar
-            </button>
           </div>
         </div>
 

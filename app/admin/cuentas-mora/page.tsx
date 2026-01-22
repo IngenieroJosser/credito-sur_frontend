@@ -374,7 +374,7 @@ const CuentasMoraPage = () => {
                       Perfil
                     </Link>
                     <Link
-                      href={`/admin/prestamos/${cuenta.numeroPrestamo}`}
+                      href={`/admin/cuentas-mora/${cuenta.id}`}
                       className="flex-1 inline-flex items-center justify-center px-4 py-2 bg-primary text-white rounded-xl hover:bg-primary-dark text-sm font-bold transition-colors shadow-lg shadow-primary/20"
                     >
                       <ChevronRight className="h-4 w-4 mr-2" />
@@ -448,7 +448,7 @@ const CuentasMoraPage = () => {
                           <Link href={`/admin/clientes/${cuenta.id}`} className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors" title="Ver Perfil">
                             <User className="w-4 h-4" />
                           </Link>
-                          <Link href={`/admin/prestamos/${cuenta.numeroPrestamo}`} className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors" title="Ver Detalle">
+                          <Link href={`/admin/cuentas-mora/${cuenta.id}`} className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors" title="Ver Detalle">
                             <ChevronRight className="w-4 h-4" />
                           </Link>
                         </div>
