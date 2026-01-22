@@ -544,13 +544,15 @@ const CreacionPrestamoElegante = () => {
                       <h2 className="text-xl font-bold text-slate-900">Seleccionar Cliente</h2>
                       <p className="text-slate-500 text-sm font-medium">Elija un cliente existente o cree uno nuevo</p>
                     </div>
-                    <button
-                      onClick={() => setMostrarNuevoCliente(true)}
-                      className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-300 text-slate-700 rounded-lg hover:border-slate-400 hover:bg-slate-50 transition-all duration-200 group shadow-sm font-bold text-sm"
-                    >
-                      <PlusCircle className="w-4 h-4 text-slate-500 group-hover:text-slate-900 transition-colors" />
-                      <span>Nuevo Cliente</span>
-                    </button>
+                    <div className="flex items-center gap-3">
+                      <button
+                        onClick={() => setMostrarNuevoCliente(true)}
+                        className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-300 text-slate-700 rounded-lg hover:border-slate-400 hover:bg-slate-50 transition-all duration-200 group shadow-sm font-bold text-sm"
+                      >
+                        <PlusCircle className="w-4 h-4 text-slate-500 group-hover:text-slate-900 transition-colors" />
+                        <span>Nuevo Cliente</span>
+                      </button>
+                    </div>
                   </div>
 
                   {/* Modal Nuevo Cliente */}

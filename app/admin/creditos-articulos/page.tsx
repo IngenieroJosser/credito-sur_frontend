@@ -128,10 +128,13 @@ export default function CreditosArticulosPage() {
               Administra créditos para electrodomésticos, muebles y tecnología.
             </p>
           </div>
-          <button className="inline-flex items-center gap-2 px-6 py-2.5 bg-primary text-white rounded-xl hover:bg-primary/90 transition-all duration-300 text-sm font-bold shadow-lg shadow-primary/20 hover:shadow-primary/30 hover:scale-[1.02] active:scale-[0.98]">
-            <Plus className="w-4 h-4" />
-            Nuevo Crédito
-          </button>
+          <Link 
+            href="/admin/creditos-articulos/nuevo"
+            className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-300 text-slate-700 rounded-lg hover:border-slate-400 hover:bg-slate-50 transition-all duration-200 group shadow-sm font-bold text-sm"
+          >
+            <Plus className="w-4 h-4 text-slate-500 group-hover:text-slate-900 transition-colors" />
+            <span>Nuevo Crédito</span>
+          </Link>
         </div>
 
         {/* Stats Cards */}
