@@ -654,7 +654,7 @@ const CreacionPrestamoElegante = () => {
                             </button>
                             <button
                               onClick={agregarCliente}
-                              className="flex-1 py-3 px-4 bg-slate-900 text-white rounded-xl font-bold text-sm hover:bg-slate-800 transition-all shadow-lg shadow-slate-900/20 flex items-center justify-center gap-2"
+                              className="flex-1 py-3 px-4 bg-blue-600 text-white rounded-xl font-bold text-sm hover:bg-blue-700 transition-all shadow-lg shadow-blue-600/20 flex items-center justify-center gap-2"
                             >
                               <PlusCircle className="w-4 h-4" />
                               Crear Cliente
