@@ -27,7 +27,8 @@ import {
   GripVertical,
   Home,
   BarChart3,
-  Settings
+  Settings,
+  Camera
 } from 'lucide-react'
 import {
   DndContext,
@@ -129,14 +130,14 @@ function SortableVisita({
       style={style}
       className={`w-full rounded-2xl border px-4 py-3 transition-all ${
         isSelected
-          ? 'border-[#08557f] bg-[#08557f]/5'
-          : 'border-gray-100 bg-white/90 shadow-sm'
+          ? 'border-slate-900 bg-slate-50'
+          : 'border-slate-200 bg-white/80 backdrop-blur-sm shadow-[0_8px_30px_rgb(0,0,0,0.04)]'
       }`}
     >
       <div className="flex items-start gap-3">
         {/* Handle de arrastre */}
         <div className="mt-1 flex items-center cursor-grab active:cursor-grabbing" {...attributes} {...listeners}>
-          <GripVertical className="h-5 w-5 text-gray-400" />
+          <GripVertical className="h-5 w-5 text-slate-400" />
         </div>
         
         {/* Información del cliente */}
@@ -144,7 +145,7 @@ function SortableVisita({
           <div className="flex items-center justify-between gap-2">
             <div className="space-y-0.5">
               <div className="flex items-center gap-2">
-                <div className="text-sm font-medium text-gray-900">
+                <div className="text-sm font-bold text-slate-900">
                   {visita.cliente}
                 </div>
                 <div 
@@ -152,17 +153,17 @@ function SortableVisita({
                   style={{ backgroundColor: getPrioridadColor(visita.prioridad) }}
                 ></div>
               </div>
-              <div className="flex items-center gap-2 text-[11px] text-gray-500">
+              <div className="flex items-center gap-2 text-[11px] text-slate-500">
                 <MapPin className="h-3 w-3" />
                 <span>{visita.direccion}</span>
               </div>
             </div>
             <div className="flex flex-col items-end gap-1">
-              <span className="text-xs font-semibold text-gray-900">
+              <span className="text-xs font-bold text-slate-900">
                 ${visita.montoCuota.toLocaleString('es-CO')}
               </span>
-              <span className="inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-medium leading-none">
-                <Clock className="h-3 w-3 text-gray-400" />
+              <span className="inline-flex items-center gap-1 rounded-full border border-slate-200 px-2 py-0.5 text-[10px] font-medium leading-none text-slate-600 bg-slate-50">
+                <Clock className="h-3 w-3 text-slate-400" />
                 <span>{visita.horaSugerida}</span>
               </span>
             </div>
@@ -171,7 +172,7 @@ function SortableVisita({
           {/* Estado y acciones */}
           <div className="flex items-center justify-between">
             <span
-              className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[10px] font-medium ${getEstadoClasses(
+              className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[10px] font-bold ${getEstadoClasses(
                 visita.estado
               )}`}
             >
@@ -188,9 +189,9 @@ function SortableVisita({
             <div className="flex items-center gap-1">
               <button 
                 onClick={() => onSelect(visita.id)}
-                className="p-1.5 rounded-lg bg-gray-100 hover:bg-gray-200"
+                className="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600"
               >
-                <ChevronRight className="h-3.5 w-3.5 text-gray-600" />
+                <ChevronRight className="h-3.5 w-3.5" />
               </button>
             </div>
           </div>
@@ -204,24 +205,24 @@ function SortableVisita({
                     // Lógica para abrir modal de pago
                     console.log('Registrar pago para:', visita.id)
                   }}
-                  className="flex items-center justify-center gap-2 rounded-xl bg-[#08557f] px-3 py-2 text-xs font-medium text-white hover:bg-[#063a58]"
+                  className="flex items-center justify-center gap-2 rounded-xl bg-slate-900 px-3 py-2 text-xs font-bold text-white hover:bg-slate-800 shadow-lg shadow-slate-900/20"
                 >
                   <DollarSign className="h-4 w-4" />
                   Registrar Pago
                 </button>
                 <button 
                   onClick={() => onShare(visita.id)}
-                  className="flex items-center justify-center gap-2 rounded-xl bg-[#10b981] px-3 py-2 text-xs font-medium text-white hover:bg-emerald-600"
+                  className="flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-3 py-2 text-xs font-bold text-white hover:bg-emerald-700 shadow-lg shadow-emerald-600/20"
                 >
                   <MessageSquare className="h-4 w-4" />
                   Compartir Recibo
                 </button>
               </div>
               
-              <div className="text-[11px] text-gray-600">
+              <div className="text-[11px] text-slate-600">
                 <div className="flex items-center justify-between mb-1">
                   <span>Saldo total:</span>
-                  <span className="font-medium">${visita.saldoTotal.toLocaleString('es-CO')}</span>
+                  <span className="font-bold">${visita.saldoTotal.toLocaleString('es-CO')}</span>
                 </div>
                 <div className="flex items-center justify-between">
                   <span>Próxima visita:</span>
@@ -529,10 +530,10 @@ const VistaCobradorPage = () => {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-100 via-white to-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
         <div className="flex flex-col items-center gap-4">
-          <div className="w-12 h-12 border-4 border-[#08557f] border-t-transparent rounded-full animate-spin"></div>
-          <p className="text-gray-600">Cargando sesión...</p>
+          <div className="w-12 h-12 border-4 border-slate-900 border-t-transparent rounded-full animate-spin"></div>
+          <p className="text-slate-600 font-medium">Cargando sesión...</p>
         </div>
       </div>
     );
@@ -543,215 +544,336 @@ const VistaCobradorPage = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-100 via-white to-gray-50 px-4 py-6">
-      <div className="mx-auto flex w-full max-w-md flex-col gap-4">
+    <div className="min-h-screen bg-slate-50 relative">
+      {/* Fondo arquitectónico ultra sutil */}
+      <div className="fixed inset-0 pointer-events-none">
+        <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px]"></div>
+        <div className="absolute inset-0 bg-[radial-gradient(circle_800px_at_100%_200px,#cbd5e1_0,transparent_100%)] opacity-40"></div>
+      </div>
+
+      <div className="relative z-10 w-full space-y-8 p-8">
         {/* Header con información del cobrador */}
-        <header className="space-y-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
+        <header className="space-y-4">
+          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+            <div className="flex items-center gap-4">
               <div className="relative">
-                <div className="w-10 h-10 bg-gradient-to-br from-[#08557f] to-[#063a58] rounded-full flex items-center justify-center text-white font-medium">
+                <div className="w-12 h-12 bg-slate-900 rounded-2xl flex items-center justify-center text-white font-bold text-lg shadow-lg shadow-slate-900/20">
                   {generarAvatar(userSession.nombres, userSession.apellidos)}
                 </div>
-                <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-400 rounded-full border-2 border-white"></div>
+                <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-emerald-500 rounded-full border-2 border-white"></div>
               </div>
               <div>
-                <h2 className="text-sm font-medium text-gray-900">
+                <h2 className="text-lg font-bold text-slate-900">
                   {userSession.nombres} {userSession.apellidos}
                 </h2>
-                <p className="text-xs text-gray-500">
-                  Cobrador • {userSession.rutaAsignada || 'Ruta Norte'}
-                </p>
+                <div className="flex items-center gap-2 text-sm text-slate-500">
+                  <span className="font-medium text-slate-700">Cobrador</span>
+                  <span>•</span>
+                  <span>{userSession.rutaAsignada || 'Ruta Norte'}</span>
+                </div>
               </div>
             </div>
-            <div className="flex items-center gap-2">
-              <button className="p-1.5 rounded-full bg-gray-100 relative">
-                <Bell className="h-4 w-4 text-gray-600" />
-                <span className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full"></span>
+            <div className="flex items-center gap-3">
+              <button className="p-2.5 rounded-xl bg-white/80 backdrop-blur-sm border border-slate-200 shadow-sm hover:bg-slate-50 hover:border-slate-300 transition-all relative group">
+                <Bell className="h-5 w-5 text-slate-600 group-hover:text-slate-900" />
+                <span className="absolute top-2 right-2.5 w-2 h-2 bg-red-500 rounded-full ring-2 ring-white"></span>
               </button>
               <button 
                 onClick={handleLogout}
-                className="p-1.5 rounded-full bg-gray-100 hover:bg-gray-200 transition-colors"
+                className="p-2.5 rounded-xl bg-white/80 backdrop-blur-sm border border-slate-200 shadow-sm hover:bg-red-50 hover:border-red-100 hover:text-red-600 transition-all group"
                 title="Cerrar sesión"
               >
-                <LogOut className="h-4 w-4 text-gray-600" />
+                <LogOut className="h-5 w-5 text-slate-600 group-hover:text-red-600" />
               </button>
             </div>
           </div>
 
-          <div className="inline-flex items-center gap-2 rounded-full bg-[#08557f]/5 px-3 py-1 text-xs text-[#08557f] tracking-wide">
-            <Wallet className="h-3 w-3" />
-            <span>{userSession.rutaAsignada || 'Ruta Norte'} • {userSession.zona || 'Zona Centro'}</span>
-          </div>
-          <div>
-            <h1 className="text-2xl font-light text-gray-900 tracking-tight">
-              Mi Ruta del Día
-            </h1>
-            <p className="mt-1 text-xs text-gray-500">
-              Arrastra para reordenar • Los pagados desaparecen automáticamente
-            </p>
+          <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between pt-4 border-t border-slate-200">
+            <div className="space-y-4">
+              <div className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1 text-xs text-slate-700 tracking-wide font-bold border border-slate-200">
+                <Wallet className="h-3.5 w-3.5" />
+                <span>{userSession.rutaAsignada || 'Ruta Norte'} • {userSession.zona || 'Zona Centro'}</span>
+              </div>
+              <div>
+                <h1 className="text-4xl font-light text-slate-900 tracking-tight">
+                  Mi Ruta <span className="font-bold text-slate-900">del Día</span>
+                </h1>
+                <p className="mt-2 text-sm text-slate-500 max-w-2xl font-medium">
+                  Gestiona tus visitas, registra pagos y mantén el control de tu ruta. Los clientes pagados se archivan automáticamente.
+                </p>
+              </div>
+            </div>
           </div>
         </header>
 
         {/* Stats rápidos */}
-        <div className="grid grid-cols-2 gap-2">
-          <div className="rounded-xl bg-white border border-gray-100 p-3">
-            <div className="flex items-center gap-2 mb-1">
-              <DollarSign className="h-4 w-4 text-[#08557f]" />
-              <span className="text-sm font-medium text-gray-900">Mi Recaudo</span>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="rounded-2xl bg-white/80 backdrop-blur-sm border border-slate-200 p-5 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all duration-300 group">
+            <div className="flex items-center gap-3 mb-2">
+              <div className="p-2 rounded-lg bg-slate-100 group-hover:bg-slate-200 transition-colors">
+                <DollarSign className="h-5 w-5 text-slate-900" />
+              </div>
+              <span className="text-sm font-bold text-slate-600">Mi Recaudo</span>
             </div>
-            <div className="text-lg font-semibold text-gray-900">
+            <div className="text-2xl font-bold text-slate-900 tracking-tight">
               ${cajaRuta.recaudoTotal.toLocaleString('es-CO')}
             </div>
-            <div className="text-xs text-gray-500">Meta: ${cajaRuta.metaDiaria.toLocaleString('es-CO')}</div>
+            <div className="mt-2 flex items-center gap-2">
+              <div className="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                <div 
+                  className="h-full bg-slate-900 rounded-full transition-all duration-1000"
+                  style={{ width: `${cajaRuta.progresoMeta}%` }}
+                />
+              </div>
+              <span className="text-[10px] font-bold text-slate-400">
+                {Math.round(cajaRuta.progresoMeta)}%
+              </span>
+            </div>
           </div>
-          <div className="rounded-xl bg-white border border-gray-100 p-3">
-            <div className="flex items-center gap-2 mb-1">
-              <Users className="h-4 w-4 text-[#fb851b]" />
-              <span className="text-sm font-medium text-gray-900">Mis Pendientes</span>
+          <div className="rounded-2xl bg-white/80 backdrop-blur-sm border border-slate-200 p-5 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all duration-300 group">
+            <div className="flex items-center gap-3 mb-2">
+              <div className="p-2 rounded-lg bg-orange-50 group-hover:bg-orange-100 transition-colors">
+                <Receipt className="h-5 w-5 text-orange-600" />
+              </div>
+              <span className="text-sm font-bold text-slate-600">Gastos</span>
             </div>
-            <div className="text-lg font-semibold text-gray-900">
-              {visitasCobrador.filter(v => v.estado === 'pendiente' || v.estado === 'en_mora').length}/{visitasCobrador.length}
+            <div className="text-2xl font-bold text-slate-900 tracking-tight">
+              ${cajaRuta.gastosOperativos.toLocaleString('es-CO')}
             </div>
-            <div className="text-xs text-gray-500">Clientes por visitar</div>
+            <p className="text-xs text-slate-400 mt-1 font-medium">Registrados hoy</p>
+          </div>
+
+          <div className="rounded-2xl bg-white/80 backdrop-blur-sm border border-slate-200 p-5 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all duration-300 group">
+            <div className="flex items-center gap-3 mb-2">
+              <div className="p-2 rounded-lg bg-emerald-50 group-hover:bg-emerald-100 transition-colors">
+                <Wallet className="h-5 w-5 text-emerald-600" />
+              </div>
+              <span className="text-sm font-bold text-slate-600">Efectivo Real</span>
+            </div>
+            <div className="text-2xl font-bold text-slate-900 tracking-tight">
+              ${cajaRuta.efectivoDisponible.toLocaleString('es-CO')}
+            </div>
+            <p className="text-xs text-slate-400 mt-1 font-medium">Disponible en caja</p>
+          </div>
+
+          <div className="rounded-2xl bg-white/80 backdrop-blur-sm border border-slate-200 p-5 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all duration-300 group">
+             <div className="flex items-center gap-3 mb-2">
+              <div className="p-2 rounded-lg bg-blue-50 group-hover:bg-blue-100 transition-colors">
+                <Users className="h-5 w-5 text-blue-600" />
+              </div>
+              <span className="text-sm font-bold text-slate-600">Clientes</span>
+            </div>
+            <div className="text-2xl font-bold text-slate-900 tracking-tight">
+              {visitasCobrador.filter(v => v.estado === 'pendiente').length} / {visitasCobrador.length}
+            </div>
+            <p className="text-xs text-slate-400 mt-1 font-medium">Visitas pendientes</p>
           </div>
         </div>
 
-        {/* Barra de progreso de meta */}
-        <div className="mt-2">
-          <div className="flex items-center justify-between text-xs text-gray-600 mb-1">
-            <span>Progreso de meta diaria</span>
-            <span>{Math.round(cajaRuta.progresoMeta)}%</span>
-          </div>
-          <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
-            <div 
-              className="h-full bg-gradient-to-r from-[#08557f] to-[#063a58] rounded-full transition-all duration-500"
-              style={{ width: `${cajaRuta.progresoMeta}%` }}
-            ></div>
-          </div>
-        </div>
-
-        {/* Lista de visitas con Drag & Drop */}
-        <DndContext
-          sensors={sensors}
-          collisionDetection={closestCenter}
-          onDragStart={handleDragStart}
-          onDragEnd={handleDragEnd}
-          onDragCancel={handleDragCancel}
-        >
-          <SortableContext
-            items={visitasOrden}
-            strategy={verticalListSortingStrategy}
-          >
-            <section className="space-y-3">
-              {visitasCobrador
-                .filter(v => v.estado !== 'pagado') // Los pagados desaparecen automáticamente
-                .map((visita) => (
-                  <SortableVisita
-                    key={visita.id}
-                    visita={visita}
-                    isSelected={visitaSeleccionada === visita.id}
-                    onSelect={(id) => setVisitaSeleccionada(prev => prev === id ? null : id)}
-                    onShare={handleCompartirRecibo}
-                    getEstadoClasses={getEstadoClasses}
-                    getPrioridadColor={getPrioridadColor}
-                  />
-                ))}
-            </section>
-          </SortableContext>
-
-          {/* Overlay durante el drag */}
-          <DragOverlay>
-            {activeVisita && (
-              <div className="rounded-2xl border-2 border-[#08557f] bg-white shadow-xl">
-                <div className="p-4">
-                  <div className="flex items-center gap-2 mb-2">
-                    <GripVertical className="h-5 w-5 text-[#08557f]" />
-                    <span className="text-sm font-medium text-gray-900">{activeVisita.cliente}</span>
-                  </div>
-                  <div className="text-xs text-gray-500">Arrastrando...</div>
-                </div>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          <div className="lg:col-span-2 space-y-6">
+            {/* Barra de progreso de meta */}
+            <div className="bg-white/80 backdrop-blur-sm rounded-2xl border border-slate-200 p-6 shadow-[0_8px_30px_rgb(0,0,0,0.04)]">
+              <div className="flex items-center justify-between text-sm text-slate-600 mb-2">
+                <span className="font-bold">Progreso de meta diaria</span>
+                <span className="font-bold text-slate-900">{Math.round(cajaRuta.progresoMeta)}%</span>
               </div>
-            )}
-          </DragOverlay>
-        </DndContext>
-
-        {/* Mi Caja de Ruta */}
-        <div className="rounded-2xl bg-gradient-to-br from-[#08557f] to-[#063a58] p-4 text-white">
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2">
-              <Wallet className="h-4 w-4" />
-              <h3 className="text-sm font-medium">Mi Caja de Ruta</h3>
-            </div>
-            <Calculator className="h-4 w-4" />
-          </div>
-          
-          <div className="space-y-3">
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <div className="text-xs text-gray-300">Recaudo total</div>
-                <div className="text-lg font-semibold">${cajaRuta.recaudoTotal.toLocaleString('es-CO')}</div>
-              </div>
-              <div>
-                <div className="text-xs text-gray-300">Mis Gastos</div>
-                <div className="text-lg font-semibold text-red-200">${cajaRuta.gastosOperativos.toLocaleString('es-CO')}</div>
+              <div className="h-3 bg-slate-100 rounded-full overflow-hidden">
+                <div 
+                  className="h-full bg-slate-900 rounded-full transition-all duration-1000 ease-out"
+                  style={{ width: `${cajaRuta.progresoMeta}%` }}
+                ></div>
               </div>
             </div>
-            
-            <div className="pt-2 border-t border-white/20">
-              <div className="flex items-center justify-between">
-                <div>
-                  <div className="text-xs text-gray-300">Mi Saldo neto</div>
-                  <div className="text-xl font-bold">${cajaRuta.saldoNeto.toLocaleString('es-CO')}</div>
-                </div>
-                <button 
-                  onClick={() => setShowBaseRequestModal(true)}
-                  className="flex items-center gap-2 rounded-full bg-[#fb851b] px-3 py-1.5 text-xs font-medium hover:bg-amber-600"
+
+            {/* Lista de visitas */}
+            <div className="bg-white/80 backdrop-blur-sm border border-slate-200 rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden">
+              <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+                <h3 className="font-bold text-slate-900">Visitas Programadas</h3>
+                <span className="text-xs font-bold text-slate-500 bg-white px-2 py-1 rounded-md border border-slate-200">
+                  {visitasCobrador.length} Total
+                </span>
+              </div>
+              <div className="p-6">
+                <DndContext
+                  sensors={sensors}
+                  collisionDetection={closestCenter}
+                  onDragStart={handleDragStart}
+                  onDragEnd={handleDragEnd}
+                  onDragCancel={handleDragCancel}
                 >
-                  <CreditCard className="h-3 w-3" />
-                  Solicitar Base
-                </button>
+                  <SortableContext
+                    items={visitasOrden}
+                    strategy={verticalListSortingStrategy}
+                  >
+                    <div className="space-y-3">
+                      {visitasCobrador
+                        .filter(v => v.estado !== 'pagado')
+                        .map((visita) => (
+                          <SortableVisita
+                            key={visita.id}
+                            visita={visita}
+                            isSelected={visitaSeleccionada === visita.id}
+                            onSelect={(id) => setVisitaSeleccionada(prev => prev === id ? null : id)}
+                            onShare={handleCompartirRecibo}
+                            getEstadoClasses={getEstadoClasses}
+                            getPrioridadColor={getPrioridadColor}
+                          />
+                        ))}
+                      
+                      {visitasCobrador.filter(v => v.estado !== 'pagado').length === 0 && (
+                        <div className="text-center py-12">
+                          <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-slate-100 mb-4">
+                            <CheckCircle2 className="h-6 w-6 text-slate-400" />
+                          </div>
+                          <h3 className="text-sm font-bold text-slate-900">¡Todo al día!</h3>
+                          <p className="text-xs text-slate-500 mt-1">No hay visitas pendientes en tu ruta</p>
+                        </div>
+                      )}
+                    </div>
+                  </SortableContext>
+
+                  <DragOverlay>
+                    {activeVisita && (
+                      <div className="rounded-2xl border-2 border-slate-900 bg-white shadow-xl rotate-2 scale-105">
+                        <div className="p-4">
+                          <div className="flex items-center gap-2 mb-2">
+                            <GripVertical className="h-5 w-5 text-slate-900" />
+                            <span className="text-sm font-bold text-slate-900">{activeVisita.cliente}</span>
+                          </div>
+                          <div className="text-xs text-slate-500">Arrastrando...</div>
+                        </div>
+                      </div>
+                    )}
+                  </DragOverlay>
+                </DndContext>
               </div>
             </div>
           </div>
-        </div>
 
-        {/* Mis Movimientos Recientes */}
-        <div className="rounded-2xl bg-white border border-gray-100 p-4">
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="text-sm font-medium text-gray-900">Mis Movimientos</h3>
-            <button className="text-xs text-[#08557f] hover:text-[#063a58]">
-              Ver historial
-            </button>
-          </div>
-          
-          <div className="space-y-2">
-            {operacionesCobrador.slice(0, 3).map((op) => (
-              <div key={op.id} className="flex items-center justify-between p-2 rounded-lg bg-gray-50/50">
-                <div className="flex items-center gap-2">
-                  <div className={`p-1.5 rounded-lg ${
-                    op.tipo === 'pago' ? 'bg-green-100 text-green-600' :
-                    op.tipo === 'gasto' ? 'bg-red-100 text-red-600' :
-                    'bg-amber-100 text-amber-600'
-                  }`}>
-                    {op.tipo === 'pago' ? <DollarSign className="h-3 w-3" /> :
-                     op.tipo === 'gasto' ? <Receipt className="h-3 w-3" /> :
-                     <CreditCard className="h-3 w-3" />}
+          <div className="space-y-6">
+            {/* Desktop Actions */}
+            <div className="hidden lg:grid grid-cols-2 gap-3">
+              <button 
+                onClick={() => setShowExpenseModal(true)}
+                className="flex flex-col items-center justify-center gap-2 p-4 rounded-xl bg-white/80 backdrop-blur-sm border border-slate-200 shadow-sm hover:shadow-md hover:border-slate-300 hover:bg-slate-50 transition-all group"
+              >
+                <div className="p-2 rounded-full bg-orange-50 text-orange-600 group-hover:bg-orange-100 transition-colors">
+                  <Receipt className="h-5 w-5" />
+                </div>
+                <span className="text-sm font-bold text-slate-700 group-hover:text-slate-900">Gasto</span>
+              </button>
+
+              <button 
+                onClick={() => setShowBaseRequestModal(true)}
+                className="flex flex-col items-center justify-center gap-2 p-4 rounded-xl bg-white/80 backdrop-blur-sm border border-slate-200 shadow-sm hover:shadow-md hover:border-slate-300 hover:bg-slate-50 transition-all group"
+              >
+                <div className="p-2 rounded-full bg-blue-50 text-blue-600 group-hover:bg-blue-100 transition-colors">
+                  <DollarSign className="h-5 w-5" />
+                </div>
+                <span className="text-sm font-bold text-slate-700 group-hover:text-slate-900">Base</span>
+              </button>
+
+              <button 
+                onClick={() => setShowNewClientModal(true)}
+                className="flex flex-col items-center justify-center gap-2 p-4 rounded-xl bg-white/80 backdrop-blur-sm border border-slate-200 shadow-sm hover:shadow-md hover:border-slate-300 hover:bg-slate-50 transition-all group"
+              >
+                <div className="p-2 rounded-full bg-purple-50 text-purple-600 group-hover:bg-purple-100 transition-colors">
+                  <UserPlus className="h-5 w-5" />
+                </div>
+                <span className="text-sm font-bold text-slate-700 group-hover:text-slate-900">Cliente</span>
+              </button>
+              
+               <button 
+                className="flex flex-col items-center justify-center gap-2 p-4 rounded-xl bg-white/80 backdrop-blur-sm border border-slate-200 shadow-sm hover:shadow-md hover:border-slate-300 hover:bg-slate-50 transition-all group"
+              >
+                 <div className="p-2 rounded-full bg-emerald-50 text-emerald-600 group-hover:bg-emerald-100 transition-colors">
+                  <Calculator className="h-5 w-5" />
+                </div>
+                <span className="text-sm font-bold text-slate-700 group-hover:text-slate-900">Cuadre</span>
+              </button>
+            </div>
+
+            {/* Mi Caja de Ruta */}
+            <div className="rounded-2xl bg-slate-900 p-6 text-white shadow-lg shadow-slate-900/20">
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-lg bg-white/10">
+                    <Wallet className="h-5 w-5 text-white" />
                   </div>
                   <div>
-                    <div className="text-xs font-medium text-gray-900">{op.descripcion}</div>
-                    <div className="text-[10px] text-gray-500">{op.hora}</div>
+                    <h3 className="text-base font-bold">Mi Caja</h3>
+                    <p className="text-xs text-slate-400">Balance actual</p>
                   </div>
                 </div>
-                <div className={`text-sm font-medium ${
-                  op.tipo === 'pago' ? 'text-green-600' :
-                  op.tipo === 'gasto' ? 'text-red-600' :
-                  'text-amber-600'
-                }`}>
-                  {op.tipo === 'pago' ? '+' : '-'}${op.monto.toLocaleString('es-CO')}
+                <button className="p-2 rounded-lg hover:bg-white/10 transition-colors">
+                  <RefreshCw className="h-4 w-4 text-slate-400" />
+                </button>
+              </div>
+              
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="p-3 rounded-xl bg-white/5 border border-white/10">
+                    <div className="text-xs text-slate-400 mb-1">Recaudo total</div>
+                    <div className="text-lg font-bold text-white">${cajaRuta.recaudoTotal.toLocaleString('es-CO')}</div>
+                  </div>
+                  <div className="p-3 rounded-xl bg-white/5 border border-white/10">
+                    <div className="text-xs text-red-200 mb-1">Mis Gastos</div>
+                    <div className="text-lg font-bold text-red-100">-${cajaRuta.gastosOperativos.toLocaleString('es-CO')}</div>
+                  </div>
+                </div>
+                
+                <div className="pt-4 border-t border-white/10">
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-sm text-slate-300">Saldo neto</span>
+                    <span className="text-2xl font-bold tracking-tight">${cajaRuta.saldoNeto.toLocaleString('es-CO')}</span>
+                  </div>
+                  <div className="flex items-center justify-between text-xs text-slate-400">
+                    <span>Efectivo disponible</span>
+                    <span>${cajaRuta.efectivoDisponible.toLocaleString('es-CO')}</span>
+                  </div>
                 </div>
               </div>
-            ))}
+            </div>
+
+            {/* Mis Movimientos Recientes */}
+            <div className="rounded-2xl bg-white/80 backdrop-blur-sm border border-slate-200 p-6 shadow-sm">
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="font-bold text-slate-900">Movimientos</h3>
+                <button className="text-xs font-bold text-slate-900 hover:text-slate-700 hover:underline">
+                  Ver todo
+                </button>
+              </div>
+              
+              <div className="space-y-4">
+                {operacionesCobrador.slice(0, 4).map((op) => (
+                  <div key={op.id} className="flex items-center justify-between group cursor-pointer hover:bg-slate-50 p-2 rounded-lg transition-colors -mx-2">
+                    <div className="flex items-center gap-3">
+                      <div className={`p-2 rounded-xl ${
+                        op.tipo === 'pago' ? 'bg-emerald-50 text-emerald-600' :
+                        op.tipo === 'gasto' ? 'bg-red-50 text-red-600' :
+                        'bg-blue-50 text-blue-600'
+                      }`}>
+                        {op.tipo === 'pago' ? <DollarSign className="h-4 w-4" /> :
+                         op.tipo === 'gasto' ? <Receipt className="h-4 w-4" /> :
+                         <CreditCard className="h-4 w-4" />}
+                      </div>
+                      <div>
+                        <div className="text-sm font-bold text-slate-900 group-hover:text-slate-700 transition-colors">{op.descripcion}</div>
+                        <div className="text-xs text-slate-500">{op.hora}</div>
+                      </div>
+                    </div>
+                    <div className={`text-sm font-bold ${
+                      op.tipo === 'pago' ? 'text-emerald-600' :
+                      op.tipo === 'gasto' ? 'text-red-600' :
+                      'text-blue-600'
+                    }`}>
+                      {op.tipo === 'pago' ? '+' : '-'}${op.monto.toLocaleString('es-CO')}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
         </div>
 
@@ -759,21 +881,21 @@ const VistaCobradorPage = () => {
         <div className="fixed bottom-20 right-4 flex flex-col gap-2">
           <button 
             onClick={() => setShowExpenseModal(true)}
-            className="flex items-center justify-center w-12 h-12 rounded-full bg-gray-800 text-white shadow-lg hover:bg-gray-900"
+            className="flex items-center justify-center w-12 h-12 rounded-full bg-slate-800 text-white shadow-lg hover:bg-slate-900 transition-colors"
             title="Registrar gasto operativo"
           >
             <Receipt className="h-5 w-5" />
           </button>
           <button 
             onClick={() => setShowNewClientModal(true)}
-            className="flex items-center justify-center w-12 h-12 rounded-full bg-[#08557f] text-white shadow-lg hover:bg-[#063a58]"
+            className="flex items-center justify-center w-12 h-12 rounded-full bg-slate-900 text-white shadow-lg hover:bg-slate-800 transition-colors"
             title="Nuevo cliente"
           >
             <UserPlus className="h-5 w-5" />
           </button>
           <button 
             onClick={() => setShowPaymentModal(true)}
-            className="flex items-center justify-center w-14 h-14 rounded-full bg-[#fb851b] text-white shadow-lg hover:bg-amber-600"
+            className="flex items-center justify-center w-14 h-14 rounded-full bg-[#fb851b] text-white shadow-lg hover:bg-amber-600 transition-colors"
             title="Registrar pago"
           >
             <Plus className="h-6 w-6" />
@@ -781,7 +903,7 @@ const VistaCobradorPage = () => {
         </div>
 
         {/* Footer con info de sesión */}
-        <footer className="mt-4 flex items-center justify-between rounded-full bg-gray-900 px-4 py-2 text-[11px] text-gray-200">
+        <footer className="mt-4 flex items-center justify-between rounded-full bg-slate-900 px-4 py-2 text-[11px] text-slate-200">
           <div className="flex items-center gap-2">
             <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
             <span>
@@ -789,48 +911,48 @@ const VistaCobradorPage = () => {
             </span>
           </div>
           <div className="flex items-center gap-2">
-            <Smartphone className="h-3 w-3 text-gray-400" />
+            <Smartphone className="h-3 w-3 text-slate-400" />
             <span>{userSession.rutaAsignada || 'Ruta Norte'}</span>
           </div>
         </footer>
 
         {/* Modal de registro de pago */}
         {showPaymentModal && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-            <div className="bg-white rounded-2xl w-full max-w-sm p-6">
+          <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+            <div className="bg-white rounded-2xl w-full max-w-sm p-6 shadow-xl">
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-medium text-gray-900">Registrar Pago</h3>
+                <h3 className="text-lg font-bold text-slate-900">Registrar Pago</h3>
                 <button onClick={() => setShowPaymentModal(false)}>
-                  <X className="h-5 w-5 text-gray-400" />
+                  <X className="h-5 w-5 text-slate-400 hover:text-slate-600" />
                 </button>
               </div>
               
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Monto pagado</label>
+                  <label className="block text-sm font-bold text-slate-700 mb-2">Monto pagado</label>
                   <input 
                     type="number"
-                    className="w-full p-3 border border-gray-300 rounded-lg"
+                    className="w-full p-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-900/20 focus:border-slate-900 transition-all font-medium text-slate-900"
                     placeholder="Ej: 125000"
                   />
                 </div>
                 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Método de pago</label>
+                  <label className="block text-sm font-bold text-slate-700 mb-2">Método de pago</label>
                   <div className="grid grid-cols-2 gap-2">
-                    <button className="p-3 border border-gray-300 rounded-lg text-center hover:bg-gray-50">
+                    <button className="p-3 border border-slate-200 rounded-xl text-center hover:bg-slate-50 text-slate-600 font-medium transition-colors">
                       Efectivo
                     </button>
-                    <button className="p-3 border border-gray-300 rounded-lg text-center hover:bg-gray-50">
+                    <button className="p-3 border border-slate-200 rounded-xl text-center hover:bg-slate-50 text-slate-600 font-medium transition-colors">
                       Transferencia
                     </button>
                   </div>
                 </div>
                 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Comentario (opcional)</label>
+                  <label className="block text-sm font-bold text-slate-700 mb-2">Comentario (opcional)</label>
                   <textarea 
-                    className="w-full p-3 border border-gray-300 rounded-lg"
+                    className="w-full p-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-900/20 focus:border-slate-900 transition-all text-slate-900"
                     rows={2}
                     placeholder="Ej: Cliente pagó completo"
                   />
@@ -840,13 +962,13 @@ const VistaCobradorPage = () => {
               <div className="flex space-x-3 mt-6">
                 <button 
                   onClick={() => setShowPaymentModal(false)}
-                  className="flex-1 py-3 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
+                  className="flex-1 py-3 border border-slate-200 rounded-xl text-slate-700 font-bold hover:bg-slate-50 transition-colors"
                 >
                   Cancelar
                 </button>
                 <button 
                   onClick={() => handleRegistrarPago(visitaSeleccionada!, 125000)}
-                  className="flex-1 py-3 bg-[#08557f] text-white rounded-lg hover:bg-[#063a58]"
+                  className="flex-1 py-3 bg-slate-900 text-white rounded-xl font-bold hover:bg-slate-800 shadow-lg shadow-slate-900/20 transition-all"
                 >
                   Confirmar
                 </button>
@@ -857,55 +979,74 @@ const VistaCobradorPage = () => {
 
         {/* Modal de registro de gasto */}
         {showExpenseModal && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-            <div className="bg-white rounded-2xl w-full max-w-sm p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-medium text-gray-900">Registrar Gasto</h3>
-                <button onClick={() => setShowExpenseModal(false)}>
-                  <X className="h-5 w-5 text-gray-400" />
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50 backdrop-blur-sm transition-all duration-300">
+            <div className="bg-white rounded-2xl w-full max-w-sm p-6 shadow-2xl scale-100 opacity-100 transition-all">
+              <div className="flex items-center justify-between mb-6">
+                <div>
+                  <h3 className="text-lg font-bold text-gray-900">Registrar Gasto</h3>
+                  <p className="text-sm text-gray-500">Nuevo gasto operativo de ruta</p>
+                </div>
+                <button 
+                  onClick={() => setShowExpenseModal(false)}
+                  className="p-2 rounded-full hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors"
+                >
+                  <X className="h-5 w-5" />
                 </button>
               </div>
               
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Descripción</label>
-                  <input 
-                    type="text"
-                    className="w-full p-3 border border-gray-300 rounded-lg"
-                    placeholder="Ej: Combustible, almuerzo, peaje..."
-                  />
+                  <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-2">Descripción</label>
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                      <FileText className="h-5 w-5 text-gray-400" />
+                    </div>
+                    <input 
+                      type="text"
+                      className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-[#08557f]/20 focus:border-[#08557f] transition-all outline-none"
+                      placeholder="Ej: Combustible, almuerzo..."
+                    />
+                  </div>
                 </div>
                 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Monto</label>
-                  <input 
-                    type="number"
-                    className="w-full p-3 border border-gray-300 rounded-lg"
-                    placeholder="Ej: 25000"
-                  />
+                  <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-2">Monto</label>
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                      <DollarSign className="h-5 w-5 text-gray-400" />
+                    </div>
+                    <input 
+                      type="number"
+                      className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-[#08557f]/20 focus:border-[#08557f] transition-all outline-none"
+                      placeholder="0"
+                    />
+                  </div>
                 </div>
                 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Comprobante (opcional)</label>
-                  <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center">
-                    <FileText className="h-8 w-8 text-gray-400 mx-auto mb-2" />
-                    <div className="text-sm text-gray-500">Subir foto del ticket</div>
+                  <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-2">Comprobante</label>
+                  <div className="border-2 border-dashed border-gray-200 rounded-xl p-6 text-center hover:border-[#08557f]/50 hover:bg-[#08557f]/5 transition-all cursor-pointer group">
+                    <div className="h-10 w-10 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3 group-hover:bg-[#08557f]/10 transition-colors">
+                      <Camera className="h-5 w-5 text-gray-400 group-hover:text-[#08557f]" />
+                    </div>
+                    <div className="text-sm font-medium text-gray-700 group-hover:text-[#08557f]">Subir foto</div>
+                    <div className="text-xs text-gray-400 mt-1">Opcional</div>
                   </div>
                 </div>
               </div>
               
-              <div className="flex space-x-3 mt-6">
+              <div className="flex gap-3 mt-8">
                 <button 
                   onClick={() => setShowExpenseModal(false)}
-                  className="flex-1 py-3 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
+                  className="flex-1 py-3 px-4 bg-white border border-gray-200 rounded-xl text-gray-700 font-medium hover:bg-gray-50 hover:border-gray-300 transition-all"
                 >
                   Cancelar
                 </button>
                 <button 
                   onClick={() => handleRegistrarGasto('Combustible', 25000)}
-                  className="flex-1 py-3 bg-gray-800 text-white rounded-lg hover:bg-gray-900"
+                  className="flex-1 py-3 px-4 bg-[#08557f] text-white rounded-xl font-medium shadow-lg shadow-[#08557f]/20 hover:bg-[#063a58] hover:shadow-xl hover:-translate-y-0.5 transition-all"
                 >
-                  Registrar
+                  Registrar Gasto
                 </button>
               </div>
             </div>

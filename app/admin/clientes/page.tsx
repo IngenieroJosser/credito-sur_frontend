@@ -167,11 +167,11 @@ const ClientesPage = () => {
   // Helpers de UI
   const getRiesgoColor = (riesgo: NivelRiesgo) => {
     switch (riesgo) {
-      case 'VERDE': return 'text-green-600 bg-green-50';
-      case 'AMARILLO': return 'text-yellow-600 bg-yellow-50';
-      case 'ROJO': return 'text-red-600 bg-red-50';
-      case 'LISTA_NEGRA': return 'text-gray-800 bg-gray-200';
-      default: return 'text-gray-600 bg-gray-50';
+      case 'VERDE': return 'text-emerald-600 bg-emerald-50 ring-emerald-600/20';
+      case 'AMARILLO': return 'text-amber-600 bg-amber-50 ring-amber-600/20';
+      case 'ROJO': return 'text-rose-600 bg-rose-50 ring-rose-600/20';
+      case 'LISTA_NEGRA': return 'text-slate-800 bg-slate-200 ring-slate-600/20';
+      default: return 'text-slate-600 bg-slate-50 ring-slate-600/20';
     }
   };
 
@@ -185,99 +185,84 @@ const ClientesPage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-white relative">
-      {/* Fondo arquitectónico ultra sutil */}
-      <div className="fixed inset-0 pointer-events-none z-0">
-        <div className="absolute inset-0 bg-gradient-to-br from-white via-gray-50/50 to-white"></div>
-        {/* Líneas de estructura */}
-        <div className="absolute inset-0" style={{
-          backgroundImage: `linear-gradient(to right, #08557f 0.5px, transparent 0.5px)`,
-          backgroundSize: '96px 1px',
-          opacity: 0.03
-        }}></div>
-        <div className="absolute inset-0" style={{
-          backgroundImage: `linear-gradient(to bottom, #08557f 0.5px, transparent 0.5px)`,
-          backgroundSize: '1px 96px',
-          opacity: 0.03
-        }}></div>
+    <div className="min-h-screen bg-slate-50 relative">
+      {/* Fondo arquitectónico */}
+      <div className="fixed inset-0 pointer-events-none">
+        <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px]"></div>
+        <div className="absolute left-0 right-0 top-0 -z-10 m-auto h-[310px] w-[310px] rounded-full bg-primary/20 opacity-20 blur-[100px]"></div>
       </div>
-
-      <div className="relative z-10">
-        {/* Header Elegante */}
-        <div className="px-8 py-6 border-b border-gray-100 bg-white/80 backdrop-blur-sm sticky top-0 z-20">
-          <div className="flex items-center justify-between">
-            <div>
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#08557f]/5 text-xs text-[#08557f] tracking-wide font-medium border border-[#08557f]/10 mb-2">
-                <User className="h-3.5 w-3.5" />
-                <span>Gestión de Cartera</span>
-              </div>
-              <h1 className="text-3xl font-light text-gray-900 tracking-tight">
-                Listado de <span className="font-semibold text-[#08557f]">Clientes</span>
-              </h1>
+      <div className="relative z-10 px-6 md:px-8 py-8 space-y-8">
+        {/* Header Standard */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 animate-in fade-in slide-in-from-top-4 duration-500">
+          <div>
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 text-xs text-primary tracking-wide font-bold border border-primary/20 mb-2">
+              <User className="h-3.5 w-3.5" />
+              <span>Gestión de Cartera</span>
             </div>
-            <Link
-              href="/admin/clientes/nuevo"
-              className="px-5 py-2.5 bg-[#08557f] text-white rounded-xl hover:bg-[#064364] transition-all text-sm font-medium flex items-center gap-2 shadow-lg shadow-[#08557f]/20 hover:shadow-[#08557f]/30 hover:-translate-y-0.5 transform duration-200"
-            >
-              <UserPlus className="w-4 h-4" />
-              Nuevo Cliente
-            </Link>
+            <h1 className="text-4xl md:text-5xl font-bold tracking-tight">
+              <span className="text-blue-600">Listado de </span><span className="text-orange-500">Clientes</span>
+            </h1>
           </div>
+          <Link
+            href="/admin/clientes/nuevo"
+            className="inline-flex items-center gap-2 px-6 py-2.5 bg-primary text-white rounded-xl hover:bg-primary/90 transition-all font-bold text-sm shadow-lg shadow-primary/20 hover:shadow-primary/30 hover:scale-[1.02] active:scale-[0.98]"
+          >
+            <UserPlus className="w-4 h-4" />
+            Nuevo Cliente
+          </Link>
         </div>
-
-        <div className="p-8 space-y-8">
         {/* Estadísticas Elegantes */}
         <div className="grid grid-cols-2 md:grid-cols-5 gap-6">
-          <div className="p-5 rounded-2xl border border-gray-100 bg-white shadow-sm hover:shadow-md transition-shadow">
+          <div className="p-5 rounded-2xl border border-slate-200 bg-white/80 backdrop-blur-sm shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all">
             <div className="flex items-center justify-between mb-4">
-              <span className="text-xs font-medium text-gray-500 uppercase tracking-wider">Total Clientes</span>
-              <User className="w-4 h-4 text-gray-400" />
+              <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Total Clientes</span>
+              <User className="w-4 h-4 text-primary" />
             </div>
-            <p className="text-3xl font-light text-gray-900">{stats.total}</p>
-            <div className="mt-2 text-xs text-gray-400">registrados</div>
+            <p className="text-3xl font-bold text-slate-900">{stats.total}</p>
+            <div className="mt-2 text-xs font-medium text-slate-400">registrados</div>
           </div>
           
-          <div className="p-5 rounded-2xl border border-gray-100 bg-white shadow-sm hover:shadow-md transition-shadow">
+          <div className="p-5 rounded-2xl border border-slate-200 bg-white/80 backdrop-blur-sm shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all">
             <div className="flex items-center justify-between mb-4">
-              <span className="text-xs font-medium text-[#08557f] uppercase tracking-wider">Buen Estado</span>
-              <CheckCircle className="w-4 h-4 text-[#08557f]" />
+              <span className="text-xs font-bold text-emerald-600 uppercase tracking-wider">Buen Estado</span>
+              <CheckCircle className="w-4 h-4 text-emerald-600" />
             </div>
-            <p className="text-3xl font-light text-gray-900">{stats.verde}</p>
-            <div className="mt-2 text-xs text-gray-400">clientes al día</div>
+            <p className="text-3xl font-bold text-slate-900">{stats.verde}</p>
+            <div className="mt-2 text-xs font-medium text-slate-400">clientes al día</div>
           </div>
 
-          <div className="p-5 rounded-2xl border border-gray-100 bg-white shadow-sm hover:shadow-md transition-shadow">
+          <div className="p-5 rounded-2xl border border-slate-200 bg-white/80 backdrop-blur-sm shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all">
             <div className="flex items-center justify-between mb-4">
-              <span className="text-xs font-medium text-yellow-600 uppercase tracking-wider">Riesgo Medio</span>
-              <AlertTriangle className="w-4 h-4 text-yellow-600" />
+              <span className="text-xs font-bold text-amber-600 uppercase tracking-wider">Riesgo Medio</span>
+              <AlertTriangle className="w-4 h-4 text-amber-600" />
             </div>
-            <p className="text-3xl font-light text-gray-900">{stats.amarillo}</p>
-            <div className="mt-2 text-xs text-gray-400">seguimiento</div>
+            <p className="text-3xl font-bold text-slate-900">{stats.amarillo}</p>
+            <div className="mt-2 text-xs font-medium text-slate-400">seguimiento</div>
           </div>
 
-          <div className="p-5 rounded-2xl border border-gray-100 bg-white shadow-sm hover:shadow-md transition-shadow">
+          <div className="p-5 rounded-2xl border border-slate-200 bg-white/80 backdrop-blur-sm shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all">
             <div className="flex items-center justify-between mb-4">
-              <span className="text-xs font-medium text-red-600 uppercase tracking-wider">Alto Riesgo</span>
-              <AlertCircle className="w-4 h-4 text-red-600" />
+              <span className="text-xs font-bold text-rose-600 uppercase tracking-wider">Alto Riesgo</span>
+              <AlertCircle className="w-4 h-4 text-rose-600" />
             </div>
-            <p className="text-3xl font-light text-gray-900">{stats.rojo}</p>
-            <div className="mt-2 text-xs text-gray-400">acción requerida</div>
+            <p className="text-3xl font-bold text-slate-900">{stats.rojo}</p>
+            <div className="mt-2 text-xs font-medium text-slate-400">acción requerida</div>
           </div>
 
-          <div className="p-5 rounded-2xl border border-gray-100 bg-white shadow-sm hover:shadow-md transition-shadow">
+          <div className="p-5 rounded-2xl border border-slate-200 bg-white/80 backdrop-blur-sm shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all">
             <div className="flex items-center justify-between mb-4">
-              <span className="text-xs font-medium text-gray-500 uppercase tracking-wider">Mora Total</span>
-              <DollarSign className="w-4 h-4 text-gray-400" />
+              <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Mora Total</span>
+              <DollarSign className="w-4 h-4 text-slate-400" />
             </div>
-            <p className="text-3xl font-light text-gray-900">{formatCurrency(stats.totalMora)}</p>
-            <div className="mt-2 text-xs text-gray-400">acumulada</div>
+            <p className="text-3xl font-bold text-slate-900">{formatCurrency(stats.totalMora)}</p>
+            <div className="mt-2 text-xs font-medium text-slate-400">acumulada</div>
           </div>
         </div>
 
         {/* Filtros y Búsqueda */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-gray-50/50 p-4 rounded-2xl border border-gray-100">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white/80 backdrop-blur-sm p-4 rounded-2xl border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)]">
           <div className="flex items-center gap-2 overflow-x-auto pb-2 md:pb-0 scrollbar-hide">
-            <Filter className="h-4 w-4 text-gray-400 shrink-0 mr-2" />
+            <Filter className="h-4 w-4 text-slate-400 shrink-0 mr-2" />
             
             {[
               { id: 'all', label: 'Todos' },
@@ -292,10 +277,10 @@ const ClientesPage = () => {
                   setFilterRiesgo(filtro.id);
                   setCurrentPage(1);
                 }}
-                className={`px-4 py-2 text-xs font-medium rounded-full transition-all whitespace-nowrap ${
+                className={`px-4 py-2 text-xs font-bold rounded-xl transition-all whitespace-nowrap ${
                   filterRiesgo === filtro.id 
-                    ? 'bg-[#08557f] text-white shadow-md shadow-[#08557f]/20' 
-                    : 'bg-white text-gray-600 hover:bg-gray-100 border border-gray-200'
+                    ? 'bg-primary text-white shadow-lg shadow-primary/20' 
+                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200 border border-slate-200'
                 }`}
               >
                 {filtro.label}
@@ -304,7 +289,7 @@ const ClientesPage = () => {
           </div>
           
           <div className="relative w-full md:w-80">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
             <input
               type="text"
               placeholder="Buscar cliente, DNI o teléfono..."
@@ -313,43 +298,43 @@ const ClientesPage = () => {
                 setSearchTerm(e.target.value);
                 setCurrentPage(1);
               }}
-              className="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#08557f]/20 focus:border-[#08557f] text-sm text-gray-900 transition-all"
+              className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-sm font-medium text-primary transition-all placeholder:text-slate-400"
             />
           </div>
         </div>
 
         {/* Tabla Elegante */}
-        <div className="bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden">
+        <div className="bg-white/80 backdrop-blur-sm border border-slate-200 rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
-                <tr className="bg-gray-50/50 border-b border-gray-100">
-                  <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Cliente</th>
-                  <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Estado</th>
-                  <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Finanzas</th>
-                  <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Contacto</th>
-                  <th className="px-6 py-4 text-right text-xs font-medium text-gray-500 uppercase tracking-wider"></th>
+                <tr className="bg-slate-50/50 border-b border-slate-200">
+                  <th className="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Cliente</th>
+                  <th className="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Estado</th>
+                  <th className="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Finanzas</th>
+                  <th className="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Contacto</th>
+                  <th className="px-6 py-4 text-right text-xs font-bold text-slate-500 uppercase tracking-wider"></th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100">
+              <tbody className="divide-y divide-slate-100">
                 {currentItems.map((cliente) => (
                   <tr
                     key={cliente.id}
-                    className="hover:bg-gray-50/30 transition-colors group"
+                    className="hover:bg-slate-50/50 transition-colors group"
                   >
                     <td className="px-6 py-4">
                       <div className="flex items-center">
-                        <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-medium ${
-                          cliente.nivelRiesgo === 'VERDE' ? 'bg-green-50 text-green-600' :
-                          cliente.nivelRiesgo === 'AMARILLO' ? 'bg-yellow-50 text-yellow-600' :
-                          cliente.nivelRiesgo === 'ROJO' ? 'bg-red-50 text-red-600' :
-                          'bg-gray-100 text-gray-600'
+                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-sm font-bold shadow-sm ${
+                          cliente.nivelRiesgo === 'VERDE' ? 'bg-emerald-100 text-emerald-700' :
+                          cliente.nivelRiesgo === 'AMARILLO' ? 'bg-amber-100 text-amber-700' :
+                          cliente.nivelRiesgo === 'ROJO' ? 'bg-rose-100 text-rose-700' :
+                          'bg-slate-100 text-slate-600'
                         }`}>
                           {cliente.nombres.charAt(0)}{cliente.apellidos.charAt(0)}
                         </div>
                         <div className="ml-4">
-                          <div className="font-medium text-gray-900">{cliente.nombres} {cliente.apellidos}</div>
-                          <div className="text-xs text-gray-500 flex items-center mt-0.5 font-mono">
+                          <div className="font-bold text-slate-900">{cliente.nombres} {cliente.apellidos}</div>
+                          <div className="text-xs text-slate-500 flex items-center mt-0.5 font-mono font-medium">
                             {cliente.dni}
                           </div>
                         </div>
@@ -358,12 +343,12 @@ const ClientesPage = () => {
                     
                     <td className="px-6 py-4">
                       <div className="space-y-1">
-                        <div className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${getRiesgoColor(cliente.nivelRiesgo)} bg-opacity-10 border border-current border-opacity-20`}>
+                        <div className={`inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-bold ring-1 ring-inset ${getRiesgoColor(cliente.nivelRiesgo)}`}>
                           <span className="mr-1.5">{getRiesgoIcon(cliente.nivelRiesgo)}</span>
                           {cliente.nivelRiesgo.replace('_', ' ')}
                         </div>
                         {cliente.enListaNegra && (
-                          <div className="flex items-center text-xs text-red-600 font-medium px-1">
+                          <div className="flex items-center text-xs text-rose-600 font-bold px-1">
                             <Ban className="h-3 w-3 mr-1" />
                             Lista Negra
                           </div>
@@ -373,11 +358,11 @@ const ClientesPage = () => {
                     
                     <td className="px-6 py-4">
                       <div className="space-y-1">
-                        <div className="text-sm font-medium text-gray-900">
+                        <div className="text-sm font-bold text-slate-900">
                           {formatCurrency(cliente.montoTotal)}
                         </div>
                         {cliente.montoMora > 0 && (
-                          <div className="text-xs text-red-600 flex items-center">
+                          <div className="text-xs text-rose-600 font-bold flex items-center">
                             Mora: {formatCurrency(cliente.montoMora)}
                           </div>
                         )}
@@ -386,13 +371,13 @@ const ClientesPage = () => {
                     
                     <td className="px-6 py-4">
                       <div className="space-y-1">
-                        <div className="flex items-center text-sm text-gray-600">
-                          <Phone className="h-3 w-3 mr-2 text-gray-400" />
+                        <div className="flex items-center text-sm font-medium text-slate-600">
+                          <Phone className="h-3 w-3 mr-2 text-slate-400" />
                           {cliente.telefono}
                         </div>
                         {cliente.correo && (
-                          <div className="flex items-center text-xs text-gray-500">
-                            <Mail className="h-3 w-3 mr-2 text-gray-400" />
+                          <div className="flex items-center text-xs font-medium text-slate-500">
+                            <Mail className="h-3 w-3 mr-2 text-slate-400" />
                             {cliente.correo}
                           </div>
                         )}
@@ -403,14 +388,14 @@ const ClientesPage = () => {
                       <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                         <Link
                           href={`/admin/clientes/${cliente.id}`}
-                          className="p-2 text-gray-400 hover:text-[#08557f] hover:bg-[#08557f]/5 rounded-lg transition-colors"
+                          className="p-2 text-slate-400 hover:text-primary hover:bg-slate-100 rounded-lg transition-colors"
                           title="Ver Expediente"
                         >
                           <Eye className="h-4 w-4" />
                         </Link>
                         <Link
                           href={`/admin/clientes/${cliente.id}/editar`}
-                          className="p-2 text-gray-400 hover:text-[#08557f] hover:bg-[#08557f]/5 rounded-lg transition-colors"
+                          className="p-2 text-slate-400 hover:text-primary hover:bg-slate-100 rounded-lg transition-colors"
                           title="Editar cliente"
                         >
                           <Pencil className="h-4 w-4" />
@@ -425,23 +410,23 @@ const ClientesPage = () => {
           
           {/* Paginación Elegante */}
           {totalPages > 1 && (
-            <div className="px-6 py-4 border-t border-gray-100 bg-gray-50/30">
+            <div className="px-6 py-4 border-t border-slate-200 bg-slate-50/50">
               <div className="flex items-center justify-between">
-                <span className="text-xs text-gray-500">
+                <span className="text-xs font-medium text-slate-500">
                   Mostrando {indexOfFirstItem + 1}-{Math.min(indexOfLastItem, filteredClientes.length)} de {filteredClientes.length}
                 </span>
                 <div className="flex space-x-2">
                   <button
                     onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                     disabled={currentPage === 1}
-                    className="px-4 py-2 text-xs font-medium border border-gray-200 rounded-lg hover:bg-white hover:shadow-sm disabled:opacity-50 disabled:hover:shadow-none transition-all"
+                    className="px-4 py-2 text-xs font-bold border border-slate-200 rounded-lg hover:bg-white hover:text-primary text-slate-600 disabled:opacity-50 disabled:hover:shadow-none transition-all"
                   >
                     Anterior
                   </button>
                   <button
                     onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
                     disabled={currentPage === totalPages}
-                    className="px-4 py-2 text-xs font-medium border border-gray-200 rounded-lg hover:bg-white hover:shadow-sm disabled:opacity-50 disabled:hover:shadow-none transition-all"
+                    className="px-4 py-2 text-xs font-bold border border-slate-200 rounded-lg hover:bg-white hover:text-primary text-slate-600 disabled:opacity-50 disabled:hover:shadow-none transition-all"
                   >
                     Siguiente
                   </button>
@@ -450,7 +435,6 @@ const ClientesPage = () => {
             </div>
           )}
         </div>
-      </div>
       </div>
     </div>
   );

@@ -55,19 +55,19 @@ export default function CreditosArticulosPage() {
       case 'ACTIVO': return 'bg-emerald-50 text-emerald-700 border-emerald-100'
       case 'PENDIENTE_APROBACION': return 'bg-amber-50 text-amber-700 border-amber-100'
       case 'EN_MORA': return 'bg-rose-50 text-rose-700 border-rose-100'
-      case 'INCUMPLIDO': return 'bg-gray-100 text-gray-700 border-gray-200'
-      case 'PAGADO': return 'bg-blue-50 text-blue-700 border-blue-100'
-      default: return 'bg-gray-50 text-gray-700 border-gray-100'
+      case 'INCUMPLIDO': return 'bg-slate-100 text-slate-700 border-slate-200'
+      case 'PAGADO': return 'bg-emerald-50 text-emerald-700 border-emerald-100'
+      default: return 'bg-slate-50 text-slate-700 border-slate-100'
     }
   }
 
   const getRiesgoColor = (riesgo: NivelRiesgo) => {
     switch(riesgo) {
-      case 'VERDE': return 'text-emerald-600 bg-emerald-50'
-      case 'AMARILLO': return 'text-amber-600 bg-amber-50'
-      case 'ROJO': return 'text-rose-600 bg-rose-50'
-      case 'LISTA_NEGRA': return 'text-gray-600 bg-gray-100'
-      default: return 'text-gray-600 bg-gray-50'
+      case 'VERDE': return 'text-emerald-600 bg-emerald-50 border-emerald-100 border'
+      case 'AMARILLO': return 'text-amber-600 bg-amber-50 border-amber-100 border'
+      case 'ROJO': return 'text-rose-600 bg-rose-50 border-rose-100 border'
+      case 'LISTA_NEGRA': return 'text-slate-600 bg-slate-100 border-slate-200 border'
+      default: return 'text-slate-600 bg-slate-50 border-slate-200 border'
     }
   }
   
@@ -104,39 +104,30 @@ export default function CreditosArticulosPage() {
   }
 
   return (
-    <div className="min-h-screen bg-white relative">
-      {/* Fondo arquitectónico ultra sutil */}
-      <div className="fixed inset-0 pointer-events-none z-0">
-        <div className="absolute inset-0 bg-gradient-to-br from-white via-gray-50/50 to-white"></div>
-        {/* Líneas de estructura */}
-        <div className="absolute inset-0" style={{
-          backgroundImage: `linear-gradient(to right, #08557f 0.5px, transparent 0.5px)`,
-          backgroundSize: '96px 1px',
-          opacity: 0.03
-        }}></div>
-        <div className="absolute inset-0" style={{
-          backgroundImage: `linear-gradient(to bottom, #08557f 0.5px, transparent 0.5px)`,
-          backgroundSize: '1px 96px',
-          opacity: 0.03
-        }}></div>
+    <div className="min-h-screen bg-slate-50 relative">
+      {/* Fondo arquitectónico */}
+      <div className="fixed inset-0 pointer-events-none">
+        <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px]"></div>
+        <div className="absolute left-0 right-0 top-0 -z-10 m-auto h-[310px] w-[310px] rounded-full bg-primary/20 opacity-20 blur-[100px]"></div>
       </div>
 
-      <div className="relative z-10 p-6 md:p-8 space-y-8">
-        {/* Header */}
+      <div className="relative z-10 px-6 md:px-8 py-8 space-y-8">
+        {/* Header Standard */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 animate-in fade-in slide-in-from-top-4 duration-500">
           <div>
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#08557f]/5 text-xs text-[#08557f] tracking-wide font-medium border border-[#08557f]/10 mb-2">
-              <Package className="h-3.5 w-3.5" />
-              <span>Gestión de Inventario Financiado</span>
+            <div className="flex items-center gap-2 mb-2">
+              <div className="p-2 bg-blue-600 rounded-lg shadow-md shadow-blue-600/20">
+                <Package className="w-6 h-6 text-white" />
+              </div>
+              <h1 className="text-3xl font-bold tracking-tight">
+                <span className="text-blue-600">Créditos</span> <span className="text-orange-500">Artículos</span>
+              </h1>
             </div>
-            <h1 className="text-3xl font-light text-gray-900 tracking-tight">
-              Créditos de <span className="font-semibold text-[#08557f]">Artículos</span>
-            </h1>
-            <p className="text-gray-500 mt-1 font-light">
+            <p className="text-slate-500 mt-1 font-medium text-sm">
               Administra créditos para electrodomésticos, muebles y tecnología.
             </p>
           </div>
-          <button className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#08557f] text-white rounded-xl hover:bg-[#063a58] transition-all duration-300 text-sm font-medium shadow-lg shadow-[#08557f]/20 hover:shadow-[#08557f]/30 hover:-translate-y-0.5">
+          <button className="inline-flex items-center gap-2 px-6 py-2.5 bg-primary text-white rounded-xl hover:bg-primary/90 transition-all duration-300 text-sm font-bold shadow-lg shadow-primary/20 hover:shadow-primary/30 hover:scale-[1.02] active:scale-[0.98]">
             <Plus className="w-4 h-4" />
             Nuevo Crédito
           </button>
@@ -144,75 +135,75 @@ export default function CreditosArticulosPage() {
 
         {/* Stats Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 animate-in fade-in slide-in-from-bottom-4 duration-700 delay-100">
-          <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-all duration-300 group">
+          <div className="bg-white/80 backdrop-blur-sm p-5 rounded-2xl border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all duration-300 group">
             <div className="flex items-center justify-between mb-4">
-              <div className="p-2.5 bg-blue-50 text-blue-600 rounded-xl group-hover:scale-110 transition-transform duration-300">
+              <div className="p-2.5 bg-blue-50 text-blue-600 rounded-xl group-hover:bg-blue-600 group-hover:text-white transition-all duration-300 border border-blue-100">
                 <ShoppingBag className="w-5 h-5" />
               </div>
-              <span className="text-xs font-medium text-gray-400 bg-gray-50 px-2 py-1 rounded-full">Total</span>
+              <span className="text-xs font-bold text-slate-400 bg-slate-100 px-2 py-1 rounded-full border border-slate-200">Total</span>
             </div>
-            <div className="text-2xl font-semibold text-gray-900 mb-1">{stats.total}</div>
-            <p className="text-xs text-gray-500">Créditos registrados</p>
+            <div className="text-2xl font-bold text-slate-900 mb-1">{stats.total}</div>
+            <p className="text-xs font-medium text-slate-500">Créditos registrados</p>
           </div>
           
-          <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-all duration-300 group">
+          <div className="bg-white/80 backdrop-blur-sm p-5 rounded-2xl border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all duration-300 group">
             <div className="flex items-center justify-between mb-4">
-              <div className="p-2.5 bg-emerald-50 text-emerald-600 rounded-xl group-hover:scale-110 transition-transform duration-300">
+              <div className="p-2.5 bg-emerald-50 text-emerald-600 rounded-xl group-hover:bg-emerald-600 group-hover:text-white transition-all duration-300 border border-emerald-100">
                 <TrendingUp className="w-5 h-5" />
               </div>
-              <span className="text-xs font-medium text-emerald-600 bg-emerald-50 px-2 py-1 rounded-full">Activos</span>
+              <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-full border border-emerald-100">Activos</span>
             </div>
-            <div className="text-2xl font-semibold text-gray-900 mb-1">{stats.activos}</div>
-            <p className="text-xs text-gray-500">En curso actualmente</p>
+            <div className="text-2xl font-bold text-slate-900 mb-1">{stats.activos}</div>
+            <p className="text-xs font-medium text-slate-500">En curso actualmente</p>
           </div>
 
-          <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-all duration-300 group">
+          <div className="bg-white/80 backdrop-blur-sm p-5 rounded-2xl border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all duration-300 group">
             <div className="flex items-center justify-between mb-4">
-              <div className="p-2.5 bg-rose-50 text-rose-600 rounded-xl group-hover:scale-110 transition-transform duration-300">
+              <div className="p-2.5 bg-rose-50 text-rose-600 rounded-xl group-hover:bg-rose-600 group-hover:text-white transition-all duration-300 border border-rose-100">
                 <AlertCircle className="w-5 h-5" />
               </div>
-              <span className="text-xs font-medium text-rose-600 bg-rose-50 px-2 py-1 rounded-full">Atención</span>
+              <span className="text-xs font-bold text-rose-600 bg-rose-50 px-2 py-1 rounded-full border border-rose-100">Atención</span>
             </div>
-            <div className="text-2xl font-semibold text-gray-900 mb-1">{stats.mora}</div>
-            <p className="text-xs text-gray-500">Créditos en mora</p>
+            <div className="text-2xl font-bold text-slate-900 mb-1">{stats.mora}</div>
+            <p className="text-xs font-medium text-slate-500">Créditos en mora</p>
           </div>
 
-          <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-all duration-300 group">
+          <div className="bg-white/80 backdrop-blur-sm p-5 rounded-2xl border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all duration-300 group">
             <div className="flex items-center justify-between mb-4">
-              <div className="p-2.5 bg-purple-50 text-purple-600 rounded-xl group-hover:scale-110 transition-transform duration-300">
+              <div className="p-2.5 bg-violet-50 text-violet-600 rounded-xl group-hover:bg-violet-600 group-hover:text-white transition-all duration-300 border border-violet-100">
                 <CreditCard className="w-5 h-5" />
               </div>
-              <span className="text-xs font-medium text-gray-400 bg-gray-50 px-2 py-1 rounded-full">Cartera</span>
+              <span className="text-xs font-bold text-slate-400 bg-slate-100 px-2 py-1 rounded-full border border-slate-200">Cartera</span>
             </div>
-            <div className="text-2xl font-semibold text-gray-900 mb-1">{formatCurrency(stats.valorTotal)}</div>
-            <p className="text-xs text-gray-500">Valor total financiado</p>
+            <div className="text-2xl font-bold text-slate-900 mb-1">{formatCurrency(stats.valorTotal)}</div>
+            <p className="text-xs font-medium text-slate-500">Valor total financiado</p>
           </div>
         </div>
 
         {/* Filters & Search */}
-        <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 space-y-4 md:space-y-0 md:flex md:items-center md:gap-4 animate-in fade-in slide-in-from-bottom-4 duration-700 delay-200">
+        <div className="flex flex-col md:flex-row gap-4 items-center justify-between mb-8 animate-in fade-in slide-in-from-bottom-4 duration-700 delay-200">
           <div className="flex-1 relative">
             <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-              <Search className="h-4 w-4 text-gray-400" />
+              <Search className="h-4 w-4 text-slate-400" />
             </div>
             <input
               type="text"
               placeholder="Buscar por cliente, artículo o ID..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-11 pr-4 py-2.5 rounded-xl border-gray-200 bg-gray-50/50 focus:bg-white focus:ring-2 focus:ring-[#08557f]/10 focus:border-[#08557f]/20 transition-all text-sm text-gray-900 placeholder:text-gray-400"
+              className="w-full pl-11 pr-4 py-2.5 rounded-xl border-slate-200 bg-slate-50/50 focus:bg-white focus:ring-2 focus:ring-primary/10 focus:border-primary/20 transition-all text-sm font-medium text-primary placeholder:text-slate-400"
             />
           </div>
           
           <div className="flex flex-col sm:flex-row gap-3">
             <div className="relative min-w-[180px]">
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <Filter className="h-4 w-4 text-gray-400" />
+                <Filter className="h-4 w-4 text-slate-400" />
               </div>
               <select
                 value={estadoFiltro}
                 onChange={(e) => setEstadoFiltro(e.target.value)}
-                className="w-full pl-10 pr-8 py-2.5 rounded-xl border-gray-200 bg-white text-sm text-gray-700 focus:ring-2 focus:ring-[#08557f]/10 focus:border-[#08557f]/20 appearance-none cursor-pointer hover:bg-gray-50 transition-colors"
+                className="w-full pl-10 pr-8 py-2.5 rounded-xl border-slate-200 bg-white text-sm font-medium text-slate-700 focus:ring-2 focus:ring-primary/10 focus:border-primary/20 appearance-none cursor-pointer hover:bg-slate-50 transition-colors"
               >
                 <option value="todos">Todos los estados</option>
                 <option value="ACTIVO">Activos</option>
@@ -223,12 +214,12 @@ export default function CreditosArticulosPage() {
             
             <div className="relative min-w-[180px]">
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <AlertCircle className="h-4 w-4 text-gray-400" />
+                <AlertCircle className="h-4 w-4 text-slate-400" />
               </div>
               <select
                 value={riesgoFiltro}
                 onChange={(e) => setRiesgoFiltro(e.target.value)}
-                className="w-full pl-10 pr-8 py-2.5 rounded-xl border-gray-200 bg-white text-sm text-gray-700 focus:ring-2 focus:ring-[#08557f]/10 focus:border-[#08557f]/20 appearance-none cursor-pointer hover:bg-gray-50 transition-colors"
+                className="w-full pl-10 pr-8 py-2.5 rounded-xl border-slate-200 bg-white text-sm font-medium text-slate-700 focus:ring-2 focus:ring-primary/10 focus:border-primary/20 appearance-none cursor-pointer hover:bg-slate-50 transition-colors"
               >
                 <option value="todos">Cualquier riesgo</option>
                 <option value="VERDE">Riesgo Bajo</option>
@@ -240,50 +231,50 @@ export default function CreditosArticulosPage() {
         </div>
 
         {/* Table */}
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-700 delay-300">
+        <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-slate-200 overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-700 delay-300">
           <div className="overflow-x-auto">
             <table className="w-full text-sm text-left">
-              <thead className="text-xs text-gray-500 uppercase bg-gray-50/50 border-b border-gray-100">
+              <thead className="text-xs text-slate-500 uppercase bg-slate-50/50 border-b border-slate-200">
                 <tr>
-                  <th className="px-6 py-4 font-medium tracking-wider">Artículo / Cliente</th>
-                  <th className="px-6 py-4 font-medium tracking-wider">Estado</th>
-                  <th className="px-6 py-4 font-medium tracking-wider">Próximo Pago</th>
-                  <th className="px-6 py-4 font-medium tracking-wider">Progreso</th>
-                  <th className="px-6 py-4 font-medium tracking-wider">Deuda</th>
-                  <th className="px-6 py-4 font-medium tracking-wider text-right">Acciones</th>
+                  <th className="px-6 py-4 font-bold tracking-wider">Artículo / Cliente</th>
+                  <th className="px-6 py-4 font-bold tracking-wider">Estado</th>
+                  <th className="px-6 py-4 font-bold tracking-wider">Próximo Pago</th>
+                  <th className="px-6 py-4 font-bold tracking-wider">Progreso</th>
+                  <th className="px-6 py-4 font-bold tracking-wider">Deuda</th>
+                  <th className="px-6 py-4 font-bold tracking-wider text-right">Acciones</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100">
+              <tbody className="divide-y divide-slate-100">
                 {isLoading ? (
                   <tr>
                     <td colSpan={6} className="px-6 py-12 text-center">
                       <div className="animate-pulse flex flex-col items-center">
-                        <div className="h-4 w-48 bg-gray-200 rounded mb-4"></div>
-                        <div className="h-3 w-32 bg-gray-100 rounded"></div>
+                        <div className="h-4 w-48 bg-slate-200 rounded mb-4"></div>
+                        <div className="h-3 w-32 bg-slate-100 rounded"></div>
                       </div>
                     </td>
                   </tr>
                 ) : creditosPaginados.map((credito) => (
                   <tr 
                     key={credito.id} 
-                    className="hover:bg-gray-50/50 transition-colors group cursor-pointer"
+                    className="hover:bg-slate-50/80 transition-colors group cursor-pointer"
                     onClick={() => router.push(`/admin/prestamos/${credito.id}`)}
                   >
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
-                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-300 shadow-sm ${
-                            credito.riesgo === 'ROJO' ? 'bg-rose-50 text-rose-500' : 
-                            credito.riesgo === 'AMARILLO' ? 'bg-amber-50 text-amber-500' : 'bg-gray-50 text-gray-500'
+                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-300 shadow-sm border ${
+                            credito.riesgo === 'ROJO' ? 'bg-rose-50 text-rose-500 border-rose-100' : 
+                            credito.riesgo === 'AMARILLO' ? 'bg-amber-50 text-amber-500 border-amber-100' : 'bg-slate-50 text-slate-500 border-slate-200'
                           }`}>
                           {getProductIcon(credito.producto, credito.tipoProducto || '')}
                         </div>
                         <div>
-                          <div className="font-medium text-gray-900 group-hover:text-[#08557f] transition-colors">
+                          <div className="font-bold text-slate-900 group-hover:text-slate-700 transition-colors">
                             {credito.producto}
                           </div>
                           <div className="flex items-center gap-2 mt-0.5">
-                             <span className="text-xs text-gray-500">{credito.cliente}</span>
-                             <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${getRiesgoColor(credito.riesgo)}`}>
+                             <span className="text-xs font-medium text-slate-500">{credito.cliente}</span>
+                             <span className={`text-[10px] px-1.5 py-0.5 rounded font-bold border ${getRiesgoColor(credito.riesgo)}`}>
                                {credito.riesgo}
                              </span>
                           </div>
@@ -291,30 +282,30 @@ export default function CreditosArticulosPage() {
                       </div>
                     </td>
                     <td className="px-6 py-4">
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${getEstadoColor(credito.estado)}`}>
+                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold border ${getEstadoColor(credito.estado)}`}>
                         {credito.estado.replace('_', ' ')}
                       </span>
                     </td>
                     <td className="px-6 py-4">
-                      <div className="flex items-center gap-2 text-gray-600">
-                        <Calendar className="w-4 h-4 text-gray-400" />
-                        <span className="text-xs font-medium">{credito.proximoPago}</span>
+                      <div className="flex items-center gap-2 text-slate-600">
+                        <Calendar className="w-4 h-4 text-slate-400" />
+                        <span className="text-xs font-bold">{credito.proximoPago}</span>
                       </div>
                     </td>
                     <td className="px-6 py-4">
                       <div className="w-full max-w-[140px]">
                         <div className="flex justify-between text-xs mb-1.5">
-                          <span className="text-gray-500">{credito.cuotasPagadas}/{credito.cuotasTotales} cuotas</span>
-                          <span className="font-medium text-gray-900">
+                          <span className="text-slate-500 font-medium">{credito.cuotasPagadas}/{credito.cuotasTotales} cuotas</span>
+                          <span className="font-bold text-slate-900">
                             {Math.round((credito.cuotasPagadas / credito.cuotasTotales) * 100)}%
                           </span>
                         </div>
-                        <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                        <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
                           <div 
                             className={`h-full rounded-full transition-all duration-500 ${
                               credito.riesgo === 'ROJO' ? 'bg-rose-500' :
                               credito.riesgo === 'AMARILLO' ? 'bg-amber-500' :
-                              'bg-[#08557f]'
+                              'bg-primary'
                             }`}
                             style={{ width: `${(credito.cuotasPagadas / credito.cuotasTotales) * 100}%` }}
                           />
@@ -323,12 +314,12 @@ export default function CreditosArticulosPage() {
                     </td>
                     <td className="px-6 py-4">
                       <div>
-                        <div className="font-medium text-gray-900">{formatCurrency(credito.montoPendiente)}</div>
-                        <div className="text-xs text-gray-500 mt-0.5">Total: {formatCurrency(credito.montoTotal)}</div>
+                        <div className="font-bold text-slate-900">{formatCurrency(credito.montoPendiente)}</div>
+                        <div className="text-xs text-slate-500 mt-0.5 font-medium">Total: {formatCurrency(credito.montoTotal)}</div>
                       </div>
                     </td>
                     <td className="px-6 py-4 text-right">
-                      <button className="p-2 text-gray-400 hover:text-[#08557f] hover:bg-[#08557f]/5 rounded-lg transition-colors">
+                      <button className="p-2 text-slate-400 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors">
                         <ChevronRight className="w-4 h-4" />
                       </button>
                     </td>
@@ -339,12 +330,12 @@ export default function CreditosArticulosPage() {
           </div>
           
           {!isLoading && filteredCreditos.length === 0 && (
-            <div className="text-center py-12">
-              <div className="w-16 h-16 rounded-full bg-gray-50 flex items-center justify-center mx-auto mb-4">
-                <Package className="w-8 h-8 text-gray-300" />
+            <div className="text-center py-16">
+              <div className="w-16 h-16 rounded-full bg-slate-50 flex items-center justify-center mx-auto mb-4 border border-slate-100">
+                <Package className="w-8 h-8 text-slate-300" />
               </div>
-              <h3 className="text-lg font-medium text-gray-900">No se encontraron artículos</h3>
-              <p className="text-sm text-gray-500 mt-1 max-w-sm mx-auto">
+              <h3 className="text-lg font-bold text-slate-900">No se encontraron artículos</h3>
+              <p className="text-sm text-slate-500 mt-1 max-w-sm mx-auto font-medium">
                 No hay créditos que coincidan con los filtros seleccionados. Intenta ajustar la búsqueda.
               </p>
             </div>
@@ -352,27 +343,27 @@ export default function CreditosArticulosPage() {
 
           {/* Paginación Footer */}
           {!isLoading && filteredCreditos.length > 0 && (
-            <div className="px-6 py-4 border-t border-gray-100 bg-gray-50/30 flex items-center justify-between">
-              <p className="text-xs text-gray-500">
-                Mostrando <span className="font-medium">{indicePrimero + 1}</span> a <span className="font-medium">{Math.min(indiceUltimo, filteredCreditos.length)}</span> de <span className="font-medium">{filteredCreditos.length}</span> resultados
+            <div className="px-6 py-4 border-t border-slate-100 bg-slate-50/30 flex items-center justify-between">
+              <p className="text-xs text-slate-500 font-medium">
+                Mostrando <span className="font-bold text-slate-700">{indicePrimero + 1}</span> a <span className="font-bold text-slate-700">{Math.min(indiceUltimo, filteredCreditos.length)}</span> de <span className="font-bold text-slate-700">{filteredCreditos.length}</span> resultados
               </p>
               <div className="flex items-center gap-2">
                 <button 
                   onClick={() => cambiarPagina(paginaActual - 1)}
                   disabled={paginaActual === 1}
-                  className="p-1.5 rounded-lg hover:bg-white hover:shadow-sm disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                  className="p-1.5 rounded-lg hover:bg-white hover:shadow-sm disabled:opacity-50 disabled:cursor-not-allowed transition-all border border-transparent hover:border-slate-200"
                 >
-                  <ChevronLeft className="w-4 h-4 text-gray-500" />
+                  <ChevronLeft className="w-4 h-4 text-slate-500" />
                 </button>
                 <div className="flex items-center gap-1">
                   {Array.from({ length: totalPaginas }, (_, i) => i + 1).map((num) => (
                     <button
                       key={num}
                       onClick={() => cambiarPagina(num)}
-                      className={`w-7 h-7 rounded-lg text-xs font-medium transition-all ${
+                      className={`w-7 h-7 rounded-lg text-xs font-bold transition-all ${
                         paginaActual === num 
-                          ? 'bg-white text-[#08557f] shadow-sm border border-gray-200' 
-                          : 'text-gray-500 hover:bg-white/50'
+                          ? 'bg-white text-slate-900 shadow-sm border border-slate-200' 
+                          : 'text-slate-500 hover:bg-slate-50'
                       }`}
                     >
                       {num}
@@ -384,7 +375,7 @@ export default function CreditosArticulosPage() {
                   disabled={paginaActual === totalPaginas}
                   className="p-1.5 rounded-lg hover:bg-white hover:shadow-sm disabled:opacity-50 disabled:cursor-not-allowed transition-all"
                 >
-                  <ChevronRight className="w-4 h-4 text-gray-500" />
+                  <ChevronRight className="w-4 h-4 text-slate-500" />
                 </button>
               </div>
             </div>

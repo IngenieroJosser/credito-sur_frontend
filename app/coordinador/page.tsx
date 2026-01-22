@@ -36,6 +36,7 @@ import {
   Activity,
   MapPin
 } from 'lucide-react';
+import { ExportButton } from '@/components/ui/ExportButton';
 
 interface MetricCard {
   title: string;
@@ -89,6 +90,14 @@ interface BaseRequest {
 const DashboardCoordinador = () => {
   const [timeFilter, setTimeFilter] = useState<'today' | 'week' | 'month' | 'quarter'>('month');
   const currentDate = new Date();
+
+  const handleExportExcel = () => {
+    console.log('Exporting Excel...')
+  }
+
+  const handleExportPDF = () => {
+    console.log('Exporting PDF...')
+  }
 
   // Formatear fecha elegante
   const formatDate = (date: Date) => {
@@ -261,10 +270,11 @@ const DashboardCoordinador = () => {
               <RefreshCw className="h-4 w-4 text-gray-500" />
               <span className="text-sm text-gray-600">Actualizar</span>
             </button>
-            <button className="flex items-center space-x-2 px-4 py-2 bg-white border border-gray-200 rounded-lg hover:border-gray-300 transition-colors">
-              <Download className="h-4 w-4 text-gray-500" />
-              <span className="text-sm text-gray-600">Exportar</span>
-            </button>
+            <ExportButton 
+              label="Exportar" 
+              onExportExcel={handleExportExcel} 
+              onExportPDF={handleExportPDF} 
+            />
           </div>
         </div>
         

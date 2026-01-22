@@ -30,10 +30,12 @@ import {
   Inbox,
   Filter,
   BarChart3,
-  Shield
+  Shield,
+  LayoutDashboard
 } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils';
 import { useRouter } from 'next/navigation';
+import { ExportButton } from '@/components/ui/ExportButton';
 import { Rol, obtenerModulosPorRol, getIconComponent } from '@/lib/permissions';
 import VistaCobradorPage from '../cobranzas/page';
 
@@ -55,6 +57,14 @@ const DashboardPage = () => {
   const [quickAccess, setQuickAccess] = useState<any[]>([]);
   const [mainMetrics, setMainMetrics] = useState<any[]>([]);
   const router = useRouter();
+  
+  const handleExportExcel = () => {
+    console.log('Exporting Excel...')
+  }
+
+  const handleExportPDF = () => {
+    console.log('Exporting PDF...')
+  }
   
   // Verificar sesión
   useEffect(() => {
@@ -99,7 +109,7 @@ const DashboardPage = () => {
           isCurrency: true,
           change: 8.2,
           icon: <TrendingUp className="h-4 w-4" />,
-          color: '#08557f'
+          color: '#0f172a'
         },
         {
           title: 'Recuperación',
@@ -115,7 +125,7 @@ const DashboardPage = () => {
           isCurrency: true,
           change: -3.4,
           icon: <AlertCircle className="h-4 w-4" />,
-          color: '#ef4444'
+          color: '#f43f5e'
         },
         {
           title: 'Eficiencia',
@@ -123,7 +133,7 @@ const DashboardPage = () => {
           isCurrency: false,
           change: 1.8,
           icon: <Activity className="h-4 w-4" />,
-          color: '#fb851b'
+          color: '#f59e0b'
         }
       ],
       COORDINADOR: [
@@ -133,7 +143,7 @@ const DashboardPage = () => {
           isCurrency: false,
           change: 8.2,
           icon: <CreditCard className="h-4 w-4" />,
-          color: '#08557f'
+          color: '#0f172a'
         },
         {
           title: 'Aprobaciones',
@@ -149,7 +159,7 @@ const DashboardPage = () => {
           isCurrency: false,
           change: -3.4,
           icon: <AlertCircle className="h-4 w-4" />,
-          color: '#ef4444'
+          color: '#f43f5e'
         },
         {
           title: 'Rutas Activas',
@@ -157,7 +167,7 @@ const DashboardPage = () => {
           isCurrency: false,
           change: 1.8,
           icon: <Route className="h-4 w-4" />,
-          color: '#fb851b'
+          color: '#f59e0b'
         }
       ],
       SUPERVISOR: [
@@ -167,7 +177,7 @@ const DashboardPage = () => {
           isCurrency: false,
           change: 5.2,
           icon: <Users className="h-4 w-4" />,
-          color: '#08557f'
+          color: '#0f172a'
         },
         {
           title: 'Gastos Aprobados',
@@ -183,7 +193,7 @@ const DashboardPage = () => {
           isCurrency: false,
           change: -3.4,
           icon: <AlertCircle className="h-4 w-4" />,
-          color: '#ef4444'
+          color: '#f43f5e'
         },
         {
           title: 'Cobertura Ruta',
@@ -191,7 +201,7 @@ const DashboardPage = () => {
           isCurrency: false,
           change: 2.1,
           icon: <Map className="h-4 w-4" />,
-          color: '#fb851b'
+          color: '#f59e0b'
         }
       ],
       COBRADOR: [
@@ -201,7 +211,7 @@ const DashboardPage = () => {
           isCurrency: false,
           change: -2,
           icon: <Users className="h-4 w-4" />,
-          color: '#08557f'
+          color: '#0f172a'
         },
         {
           title: 'Recaudo Hoy',
@@ -217,7 +227,7 @@ const DashboardPage = () => {
           isCurrency: true,
           change: -5.2,
           icon: <Receipt className="h-4 w-4" />,
-          color: '#ef4444'
+          color: '#f43f5e'
         },
         {
           title: 'Eficiencia Personal',
@@ -225,7 +235,7 @@ const DashboardPage = () => {
           isCurrency: false,
           change: 2.8,
           icon: <Target className="h-4 w-4" />,
-          color: '#fb851b'
+          color: '#f59e0b'
         }
       ],
       CONTADOR: [
@@ -235,7 +245,7 @@ const DashboardPage = () => {
           isCurrency: true,
           change: 12.5,
           icon: <TrendingUp className="h-4 w-4" />,
-          color: '#08557f'
+          color: '#0f172a'
         },
         {
           title: 'Cuentas Incobrables',
@@ -243,7 +253,7 @@ const DashboardPage = () => {
           isCurrency: false,
           change: -1.2,
           icon: <FileText className="h-4 w-4" />,
-          color: '#ef4444'
+          color: '#f43f5e'
         },
         {
           title: 'Margen Utilidad',
@@ -259,7 +269,7 @@ const DashboardPage = () => {
           isCurrency: false,
           change: 8.7,
           icon: <Package className="h-4 w-4" />,
-          color: '#fb851b'
+          color: '#f59e0b'
         }
       ]
     };
@@ -271,7 +281,7 @@ const DashboardPage = () => {
           title: 'Nuevo Crédito',
           subtitle: 'Registro rápido',
           icon: <CreditCard className="h-5 w-5" />,
-          color: '#08557f',
+          color: '#0f172a',
           badge: 3,
           href: '/admin/prestamos/nuevo'
         },
@@ -287,14 +297,14 @@ const DashboardPage = () => {
           title: 'Clientes',
           subtitle: 'Base de datos',
           icon: <Users className="h-5 w-5" />,
-          color: '#8b5cf6',
+          color: '#6366f1',
           href: '/admin/clientes'
         },
         {
           title: 'Análisis',
           subtitle: 'Reportes avanzados',
           icon: <PieChart className="h-5 w-5" />,
-          color: '#fb851b',
+          color: '#f59e0b',
           href: '/admin/reportes/operativos'
         }
       ],
@@ -303,7 +313,7 @@ const DashboardPage = () => {
           title: 'Aprobaciones',
           subtitle: 'Pendientes de revisión',
           icon: <Inbox className="h-5 w-5" />,
-          color: '#08557f',
+          color: '#0f172a',
           badge: 8,
           href: '/admin/aprobaciones'
         },
@@ -318,14 +328,14 @@ const DashboardPage = () => {
           title: 'Rutas',
           subtitle: 'Gestión de cobradores',
           icon: <Route className="h-5 w-5" />,
-          color: '#8b5cf6',
+          color: '#6366f1',
           href: '/admin/rutas'
         },
         {
           title: 'Reportes',
           subtitle: 'Métricas diarias',
           icon: <PieChart className="h-5 w-5" />,
-          color: '#fb851b',
+          color: '#f59e0b',
           href: '/admin/reportes/operativos'
         }
       ],
@@ -334,7 +344,7 @@ const DashboardPage = () => {
           title: 'Monitoreo Cartera',
           subtitle: 'Clientes atrasados',
           icon: <Activity className="h-5 w-5" />,
-          color: '#08557f',
+          color: '#0f172a',
           href: '/admin/cuentas-mora'
         },
         {
@@ -349,14 +359,14 @@ const DashboardPage = () => {
           title: 'Reportes',
           subtitle: 'Métricas por ruta',
           icon: <PieChart className="h-5 w-5" />,
-          color: '#8b5cf6',
+          color: '#6366f1',
           href: '/admin/reportes/operativos'
         },
         {
           title: 'Clientes',
           subtitle: 'Consulta de cartera',
           icon: <Users className="h-5 w-5" />,
-          color: '#fb851b',
+          color: '#f59e0b',
           href: '/admin/clientes'
         }
       ],
@@ -365,7 +375,7 @@ const DashboardPage = () => {
           title: 'Mi Ruta',
           subtitle: 'Clientes del día',
           icon: <Map className="h-5 w-5" />,
-          color: '#08557f',
+          color: '#0f172a',
           badge: 24,
           href: '/admin/ruta-diaria'
         },
@@ -380,14 +390,14 @@ const DashboardPage = () => {
           title: 'Nuevo Cliente',
           subtitle: 'Registro rápido',
           icon: <Users className="h-5 w-5" />,
-          color: '#8b5cf6',
+          color: '#6366f1',
           href: '/admin/clientes/nuevo'
         },
         {
           title: 'Base de Efectivo',
           subtitle: 'Solicitar dinero',
           icon: <Banknote className="h-5 w-5" />,
-          color: '#fb851b',
+          color: '#f59e0b',
           href: '/admin/base-dinero'
         }
       ],
@@ -465,7 +475,7 @@ const DashboardPage = () => {
     return (
       <div className="min-h-screen bg-white flex items-center justify-center">
         <div className="text-center">
-          <div className="w-8 h-8 border-2 border-[#08557f] border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
           <p className="text-gray-600">Verificando sesión...</p>
         </div>
       </div>
@@ -479,34 +489,30 @@ const DashboardPage = () => {
 
   // Para otros roles, mostrar el dashboard normal
   return (
-    <div className="min-h-screen bg-white relative">
-      {/* Fondo arquitectónico ultra sutil */}
-      <div className="fixed inset-0 pointer-events-none z-0">
-        <div className="absolute inset-0 bg-gradient-to-br from-white via-gray-50/50 to-white"></div>
-        {/* Líneas de estructura */}
-        <div className="absolute inset-0" style={{
-          backgroundImage: `linear-gradient(to right, #08557f 0.5px, transparent 0.5px)`,
-          backgroundSize: '96px 1px',
-          opacity: 0.03
-        }}></div>
-        <div className="absolute inset-0" style={{
-          backgroundImage: `linear-gradient(to bottom, #08557f 0.5px, transparent 0.5px)`,
-          backgroundSize: '1px 96px',
-          opacity: 0.03
-        }}></div>
+    <div className="min-h-screen bg-slate-50 relative">
+      {/* Fondo arquitectónico */}
+      <div className="fixed inset-0 pointer-events-none">
+        <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px]"></div>
+        <div className="absolute left-0 right-0 top-0 -z-10 m-auto h-[310px] w-[310px] rounded-full bg-primary opacity-20 blur-[100px]"></div>
       </div>
 
       <div className="relative z-10 p-6 lg:p-12 space-y-12">
-        {/* Header Minimalista */}
-        <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+        {/* Header Standard */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 animate-in fade-in slide-in-from-top-4 duration-500">
           <div>
-            <h1 className="text-4xl font-light text-slate-900 tracking-tight mb-2">
-              {getDashboardTitle()}
-            </h1>
-            <p className="text-slate-500 font-medium flex items-center gap-2 text-sm">
-              <Calendar className="h-4 w-4 text-[#08557f]/60" />
+            <div className="flex items-center gap-2 mb-2">
+              <div className="p-2 bg-blue-600 rounded-lg shadow-md shadow-blue-600/20">
+                <LayoutDashboard className="w-6 h-6 text-white" />
+              </div>
+              <h1 className="text-3xl font-bold tracking-tight">
+                <span className="text-blue-600">Panel</span> <span className="text-orange-500">Principal</span>
+              </h1>
+            </div>
+            <p className="text-slate-500 mt-1 font-medium text-sm flex items-center gap-2">
+              <Calendar className="h-3.5 w-3.5" />
               {currentDate ? formatDate(currentDate) : ''}
-              <span className="ml-2 px-2 py-1 bg-slate-100 rounded text-xs">
+              <span className="w-1 h-1 rounded-full bg-slate-300"></span>
+              <span className="text-xs px-2 py-0.5 bg-slate-100 rounded text-slate-600 font-semibold border border-slate-200">
                 {userData?.rol?.replace('_', ' ') || 'Usuario'}
               </span>
             </p>
@@ -522,8 +528,8 @@ const DashboardPage = () => {
                     onClick={() => setTimeFilter(values[index])}
                     className={`px-5 py-2 text-sm rounded-lg transition-all font-medium ${
                       timeFilter === values[index] 
-                        ? 'bg-[#08557f] text-white shadow-md shadow-[#08557f]/20' 
-                        : 'text-slate-500 hover:text-[#08557f] hover:bg-[#08557f]/5'
+                        ? 'bg-primary text-white shadow-md shadow-primary/20' 
+                        : 'text-slate-500 hover:text-primary hover:bg-primary/5'
                     }`}
                   >
                     {item}
@@ -532,10 +538,11 @@ const DashboardPage = () => {
               })}
             </div>
             
-            <button className="flex items-center space-x-2 px-6 py-3 bg-white hover:bg-slate-50 text-slate-700 rounded-xl shadow-sm border border-slate-200 hover:border-[#08557f]/30 transition-all font-medium group">
-              <Download className="h-4 w-4 text-slate-400 group-hover:text-[#08557f] transition-colors" />
-              <span>Exportar</span>
-            </button>
+            <ExportButton 
+              label="Exportar" 
+              onExportExcel={handleExportExcel} 
+              onExportPDF={handleExportPDF} 
+            />
           </div>
         </div>
         
@@ -549,7 +556,7 @@ const DashboardPage = () => {
                  onClick={() => setTimeFilter(values[index])}
                  className={`px-4 py-2 text-sm rounded-full whitespace-nowrap transition-all font-medium ${
                    timeFilter === values[index] 
-                     ? 'bg-[#08557f] text-white' 
+                     ? 'bg-primary text-white' 
                      : 'bg-white text-slate-600 border border-slate-200'
                  }`}
                >
@@ -611,13 +618,13 @@ const DashboardPage = () => {
                         {item.icon}
                       </div>
                     </div>
-                    <div className="h-8 w-8 rounded-full bg-slate-50 flex items-center justify-center group-hover:bg-[#08557f]/10 transition-colors">
-                      <ArrowUpRight className="h-4 w-4 text-slate-400 group-hover:text-[#08557f]" />
+                    <div className="h-8 w-8 rounded-full bg-slate-50 flex items-center justify-center group-hover:bg-slate-100 transition-colors">
+                      <ArrowUpRight className="h-4 w-4 text-slate-400 group-hover:text-slate-900" />
                     </div>
                   </div>
                   
                   <div className="relative z-10">
-                    <h3 className="text-lg font-bold text-slate-800 mb-1 group-hover:text-[#08557f] transition-colors">{item.title}</h3>
+                    <h3 className="text-lg font-bold text-slate-800 mb-1 group-hover:text-slate-900 transition-colors">{item.title}</h3>
                     <p className="text-slate-500 text-xs leading-relaxed">{item.subtitle}</p>
                   </div>
                 </Link>
