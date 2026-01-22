@@ -16,7 +16,11 @@ import {
   TrendingUp,
   AlertTriangle,
   LayoutGrid,
-  List
+  List,
+  Pencil,
+  X,
+  Save,
+  CheckCircle2
 } from 'lucide-react'
 import { formatCurrency, cn } from '@/lib/utils'
 
@@ -36,12 +40,50 @@ interface RutaCobro {
   metaDelDia: number
 }
 
+interface RutaFormData {
+  nombre: string;
+  codigo: string;
+  zona: string;
+  cobradorId: string;
+  supervisorId: string;
+  frecuenciaVisita: 'DIARIO' | 'SEMANAL' | 'QUINCENAL';
+  estado: 'ACTIVA' | 'INACTIVA';
+  descripcion: string;
+}
+
 const RutasPage = () => {
   const router = useRouter()
+  const [showModal, setShowModal] = useState(false)
+  const [loading, setLoading] = useState(false)
   const [estadoFiltro, setEstadoFiltro] = useState<EstadoRuta | 'TODAS'>('TODAS')
   const [busqueda, setBusqueda] = useState('')
   const [vista, setVista] = useState<'grid' | 'list'>('grid')
-  const [rutas] = useState<RutaCobro[]>([
+  
+  // Form State
+  const [formData, setFormData] = useState<RutaFormData>({
+    nombre: '',
+    codigo: '',
+    zona: '',
+    cobradorId: '',
+    supervisorId: '',
+    frecuenciaVisita: 'DIARIO',
+    estado: 'ACTIVA',
+    descripcion: ''
+  });
+
+  // Mock data for selects
+  const cobradores = [
+    { id: 'CB-001', nombre: 'Carlos Pérez' },
+    { id: 'CB-002', nombre: 'María Rodríguez' },
+    { id: 'CB-003', nombre: 'Pedro Gómez' }
+  ];
+
+  const supervisores = [
+    { id: 'SP-001', nombre: 'Ana López' },
+    { id: 'SP-002', nombre: 'Luis Fernández' }
+  ];
+
+  const [rutas] = useState<RutaCobro[]> ([
     {
       id: 'RT-001',
       nombre: 'Ruta Centro',
@@ -98,6 +140,24 @@ const RutasPage = () => {
     nombre: 'Carlos Pérez'
   };
 
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+
+    // Simular petición API
+    await new Promise(resolve => setTimeout(resolve, 1000));
+
+    console.log('Guardando ruta:', formData);
+    setLoading(false);
+    setShowModal(false);
+    // Aquí se debería actualizar la lista de rutas
+  };
+
   const rutasFiltradas = rutas.filter((ruta) => {
     // Filtro por rol: Cobrador solo ve sus rutas
     if (currentUser.role === 'COBRADOR' && ruta.cobrador !== currentUser.nombre) {
@@ -144,13 +204,13 @@ const RutasPage = () => {
           </div>
           <div className="flex gap-4">
             {currentUser.role !== 'COBRADOR' && (
-              <Link 
-                href="/admin/rutas/nueva"
-                className="inline-flex items-center gap-2 rounded-xl bg-primary px-6 py-2.5 text-sm font-bold text-white shadow-lg shadow-primary/20 hover:bg-primary-dark hover:scale-[1.02] active:scale-[0.98] transition-all duration-300"
+              <button 
+                onClick={() => setShowModal(true)}
+                className="inline-flex items-center gap-2 px-6 py-2.5 bg-white border border-slate-300 text-slate-700 rounded-xl hover:border-slate-400 hover:bg-slate-50 transition-all duration-200 shadow-sm font-bold text-sm group"
               >
-                <Plus className="h-4 w-4" />
+                <Plus className="w-4 h-4 text-slate-500 group-hover:text-slate-900 transition-colors" />
                 <span>Nueva Ruta</span>
-              </Link>
+              </button>
             )}
           </div>
         </div>
@@ -372,7 +432,10 @@ const RutasPage = () => {
               ))}
 
               {/* Card para añadir nueva ruta */}
-              <button className="group flex flex-col items-center justify-center p-8 rounded-2xl border-2 border-dashed border-slate-300 hover:border-slate-900 hover:bg-slate-50 transition-all duration-300 min-h-[400px]">
+              <button 
+                onClick={() => setShowModal(true)}
+                className="group flex flex-col items-center justify-center p-8 rounded-2xl border-2 border-dashed border-slate-300 hover:border-slate-900 hover:bg-slate-50 transition-all duration-300 min-h-[400px]"
+              >
                 <div className="p-6 rounded-full bg-slate-100 group-hover:bg-white group-hover:shadow-md transition-all mb-6 duration-300 border border-slate-200">
                   <Plus className="h-8 w-8 text-slate-400 group-hover:text-slate-900" />
                 </div>
@@ -457,9 +520,33 @@ const RutasPage = () => {
                           )}
                         </td>
                         <td className="px-6 py-4 text-right">
-                          <button className="p-2 text-slate-400 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors">
-                            <ChevronRight className="w-4 h-4" />
-                          </button>
+                          <div className="flex items-center justify-end gap-2">
+                            <button 
+                              className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                              title="Ver detalle"
+                            >
+                              <Activity className="w-4 h-4" />
+                            </button>
+                            <button 
+                              className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                              title="Editar"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                // Implementar edición
+                              }}
+                            >
+                              <Pencil className="w-4 h-4" />
+                            </button>
+                            <button 
+                              className="p-2 text-slate-400 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                router.push(`/admin/rutas/${ruta.id}`);
+                              }}
+                            >
+                              <ChevronRight className="w-4 h-4" />
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     ))}
@@ -470,6 +557,171 @@ const RutasPage = () => {
           )}
         </div>
       </div>
+
+      {/* Modal Nueva Ruta */}
+      {showModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6">
+          <div 
+            className="absolute inset-0 bg-slate-900/30 backdrop-blur-sm transition-opacity"
+            onClick={() => setShowModal(false)}
+          />
+          
+          <div className="relative w-full max-w-2xl bg-white rounded-2xl shadow-2xl ring-1 ring-slate-900/5 transform transition-all animate-in fade-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-slate-50/50 sticky top-0 z-10 backdrop-blur-sm">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-blue-50 text-blue-600 rounded-lg">
+                  <Route className="h-5 w-5" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-slate-900">Nueva Ruta</h3>
+                  <p className="text-xs text-slate-500 font-medium">Configure una nueva zona de cobranza</p>
+                </div>
+              </div>
+              <button 
+                onClick={() => setShowModal(false)}
+                className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSubmit} className="p-6 space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <label className="text-xs uppercase tracking-wider font-bold text-slate-500">Nombre de la Ruta</label>
+                  <input
+                    type="text"
+                    name="nombre"
+                    value={formData.nombre}
+                    onChange={handleInputChange}
+                    placeholder="Ej: Ruta Centro - Comercial"
+                    className="w-full px-4 py-2.5 rounded-xl border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-blue-600/20 focus:border-blue-600 transition-all font-medium text-slate-900 placeholder:text-slate-400"
+                    required
+                  />
+                </div>
+                
+                <div className="space-y-2">
+                  <label className="text-xs uppercase tracking-wider font-bold text-slate-500">Código Identificador</label>
+                  <input
+                    type="text"
+                    name="codigo"
+                    value={formData.codigo}
+                    onChange={handleInputChange}
+                    placeholder="Ej: RT-CEN-01"
+                    className="w-full px-4 py-2.5 rounded-xl border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-blue-600/20 focus:border-blue-600 transition-all font-medium text-slate-900 placeholder:text-slate-400"
+                    required
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-xs uppercase tracking-wider font-bold text-slate-500">Zona</label>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      name="zona"
+                      value={formData.zona}
+                      onChange={handleInputChange}
+                      placeholder="Ej: Sector Norte"
+                      className="w-full px-4 py-2.5 rounded-xl border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-blue-600/20 focus:border-blue-600 transition-all font-medium text-slate-900 placeholder:text-slate-400"
+                      required
+                    />
+                    <MapPin className="absolute right-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-xs uppercase tracking-wider font-bold text-slate-500">Frecuencia</label>
+                  <div className="relative">
+                    <select
+                      name="frecuenciaVisita"
+                      value={formData.frecuenciaVisita}
+                      onChange={handleInputChange}
+                      className="w-full px-4 py-2.5 rounded-xl border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-blue-600/20 focus:border-blue-600 transition-all font-medium text-slate-900 appearance-none"
+                    >
+                      <option value="DIARIO">Diaria</option>
+                      <option value="SEMANAL">Semanal</option>
+                      <option value="QUINCENAL">Quincenal</option>
+                    </select>
+                    <Clock className="absolute right-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-xs uppercase tracking-wider font-bold text-slate-500">Cobrador Asignado</label>
+                  <div className="relative">
+                    <select
+                      name="cobradorId"
+                      value={formData.cobradorId}
+                      onChange={handleInputChange}
+                      className="w-full px-4 py-2.5 rounded-xl border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-blue-600/20 focus:border-blue-600 transition-all font-medium text-slate-900 appearance-none"
+                      required
+                    >
+                      <option value="">Seleccione un cobrador</option>
+                      {cobradores.map(c => (
+                        <option key={c.id} value={c.id}>{c.nombre}</option>
+                      ))}
+                    </select>
+                    <User className="absolute right-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-xs uppercase tracking-wider font-bold text-slate-500">Supervisor</label>
+                  <div className="relative">
+                    <select
+                      name="supervisorId"
+                      value={formData.supervisorId}
+                      onChange={handleInputChange}
+                      className="w-full px-4 py-2.5 rounded-xl border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-blue-600/20 focus:border-blue-600 transition-all font-medium text-slate-900 appearance-none"
+                      required
+                    >
+                      <option value="">Seleccione un supervisor</option>
+                      {supervisores.map(s => (
+                        <option key={s.id} value={s.id}>{s.nombre}</option>
+                      ))}
+                    </select>
+                    <CheckCircle2 className="absolute right-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
+                  </div>
+                </div>
+
+                <div className="col-span-full space-y-2">
+                  <label className="text-xs uppercase tracking-wider font-bold text-slate-500">Descripción</label>
+                  <textarea
+                    name="descripcion"
+                    value={formData.descripcion}
+                    onChange={handleInputChange}
+                    rows={3}
+                    placeholder="Detalles adicionales sobre la zona de cobertura..."
+                    className="w-full px-4 py-2.5 rounded-xl border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-blue-600/20 focus:border-blue-600 transition-all font-medium text-slate-900 resize-none placeholder:text-slate-400"
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setShowModal(false)}
+                  className="px-4 py-2 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors text-sm font-bold"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="px-6 py-2 bg-slate-900 text-white rounded-xl hover:bg-slate-800 transition-all text-sm font-bold flex items-center gap-2 shadow-lg shadow-slate-900/20 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {loading ? (
+                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  ) : (
+                    <Save className="h-4 w-4" />
+                  )}
+                  <span>Guardar Ruta</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
