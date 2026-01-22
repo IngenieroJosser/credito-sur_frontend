@@ -10,7 +10,11 @@ import {
   Search,
   Filter,
   Download,
-  Wallet
+  Wallet,
+  X,
+  Save,
+  Calculator,
+  AlertCircle
 } from 'lucide-react'
 import { formatCurrency, cn } from '@/lib/utils'
 import { ExportButton } from '@/components/ui/ExportButton'
@@ -27,7 +31,20 @@ interface Transaccion {
 }
 
 const TesoreriaPage = () => {
-  const [activeTab, setActiveTab] = useState<'RESUMEN' | 'INGRESOS' | 'EGRESOS'>('RESUMEN')
+  const [activeTab, setActiveTab] = useState<'RESUMEN' | 'INGRESOS' | 'EGRESO'>('RESUMEN')
+  const [isArqueoOpen, setIsArqueoOpen] = useState(false)
+  const [arqueoData, setArqueoData] = useState({
+    cajaId: 'CAJA-PRINCIPAL',
+    saldoSistema: 15450000,
+    conteoFisico: 0,
+    observaciones: ''
+  })
+
+  const handleArqueoChange = (field: string, value: any) => {
+    setArqueoData(prev => ({ ...prev, [field]: value }))
+  }
+
+  const diferencia = arqueoData.conteoFisico - arqueoData.saldoSistema
 
   // Mock Data
   const transacciones: Transaccion[] = [
@@ -94,8 +111,11 @@ const TesoreriaPage = () => {
           </div>
 
           <div className="flex gap-3">
-             <ExportButton label="Reporte Diario" />
-             <button className="inline-flex items-center gap-2 rounded-xl bg-slate-900 px-5 py-2.5 text-sm font-bold text-white hover:bg-slate-800 transition-all shadow-lg shadow-slate-900/20 transform active:scale-95">
+             <ExportButton label="Reporte" />
+             <button 
+                onClick={() => setIsArqueoOpen(true)}
+                className="inline-flex items-center gap-2 rounded-xl bg-white border border-slate-200 px-5 py-2.5 text-sm font-bold text-slate-700 hover:bg-slate-50 transition-all shadow-sm transform active:scale-95"
+             >
                 <Wallet className="h-4 w-4" />
                 Arqueo de Caja
              </button>
@@ -104,36 +124,48 @@ const TesoreriaPage = () => {
 
         {/* KPIs */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-slate-200 shadow-sm relative overflow-hidden group">
-            <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-              <Landmark className="h-24 w-24 text-blue-600" />
+          <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all">
+            <div className="flex items-center justify-between mb-4">
+              <div className="text-slate-500 text-xs font-bold uppercase tracking-wider">
+                Saldo Total Disponible
+              </div>
+              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-100 text-slate-600 border border-slate-200">
+                <Landmark className="h-4 w-4" />
+              </div>
             </div>
-            <h3 className="text-slate-500 text-sm font-bold uppercase tracking-wider mb-2">Saldo Total Disponible</h3>
-            <div className="text-3xl font-bold text-slate-900">{formatCurrency(resumen.saldoTotal)}</div>
+            <div className="text-3xl font-bold text-black tracking-tight">{formatCurrency(resumen.saldoTotal)}</div>
             <div className="mt-4 flex gap-4 text-xs font-medium text-slate-500">
                <span className="flex items-center gap-1"><Wallet className="h-3 w-3" /> Efectivo: {formatCurrency(resumen.efectivoCaja)}</span>
                <span className="flex items-center gap-1"><Landmark className="h-3 w-3" /> Bancos: {formatCurrency(resumen.bancos)}</span>
             </div>
           </div>
 
-          <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-slate-200 shadow-sm relative overflow-hidden group">
-            <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-              <TrendingUp className="h-24 w-24 text-emerald-600" />
+          <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all">
+            <div className="flex items-center justify-between mb-4">
+              <div className="text-slate-500 text-xs font-bold uppercase tracking-wider">
+                Ingresos Hoy
+              </div>
+              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-50 text-emerald-600 border border-emerald-100">
+                <TrendingUp className="h-4 w-4" />
+              </div>
             </div>
-            <h3 className="text-slate-500 text-sm font-bold uppercase tracking-wider mb-2">Ingresos Hoy</h3>
-            <div className="text-3xl font-bold text-emerald-600">{formatCurrency(resumen.ingresosHoy)}</div>
-            <div className="mt-2 text-xs font-bold text-emerald-700 bg-emerald-50 inline-block px-2 py-1 rounded-full">
+            <div className="text-3xl font-bold text-black tracking-tight">{formatCurrency(resumen.ingresosHoy)}</div>
+            <div className="mt-2 text-xs font-bold text-emerald-700 bg-emerald-50 inline-block px-2 py-1 rounded-full border border-emerald-100">
                +12% vs Ayer
             </div>
           </div>
 
-          <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-slate-200 shadow-sm relative overflow-hidden group">
-            <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-              <TrendingDown className="h-24 w-24 text-rose-600" />
+          <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all">
+            <div className="flex items-center justify-between mb-4">
+              <div className="text-slate-500 text-xs font-bold uppercase tracking-wider">
+                Egresos Hoy
+              </div>
+              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-rose-50 text-rose-600 border border-rose-100">
+                <TrendingDown className="h-4 w-4" />
+              </div>
             </div>
-            <h3 className="text-slate-500 text-sm font-bold uppercase tracking-wider mb-2">Egresos Hoy</h3>
-            <div className="text-3xl font-bold text-rose-600">{formatCurrency(resumen.egresosHoy)}</div>
-            <div className="mt-2 text-xs font-bold text-rose-700 bg-rose-50 inline-block px-2 py-1 rounded-full">
+            <div className="text-3xl font-bold text-black tracking-tight">{formatCurrency(resumen.egresosHoy)}</div>
+            <div className="mt-2 text-xs font-bold text-rose-700 bg-rose-50 inline-block px-2 py-1 rounded-full border border-rose-100">
                Dentro del presupuesto
             </div>
           </div>
@@ -200,7 +232,126 @@ const TesoreriaPage = () => {
             </table>
           </div>
         </div>
+
       </div>
+
+      {/* Modal de Arqueo de Caja */}
+      {isArqueoOpen && (
+          <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-200">
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden animate-in zoom-in-95 duration-200">
+              <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+                <div>
+                  <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2">
+                    <Wallet className="h-5 w-5 text-blue-600" />
+                    Arqueo de Caja
+                  </h2>
+                  <p className="text-sm text-slate-500 font-medium">Registro de cierre y control de efectivo</p>
+                </div>
+                <button 
+                  onClick={() => setIsArqueoOpen(false)}
+                  className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+              
+              <div className="p-6 space-y-6">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Caja a Arquear</label>
+                    <select 
+                      className="w-full p-2.5 rounded-xl border border-slate-200 bg-slate-50 text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                      value={arqueoData.cajaId}
+                      onChange={(e) => handleArqueoChange('cajaId', e.target.value)}
+                    >
+                      <option value="CAJA-PRINCIPAL">Caja Principal Oficina</option>
+                      <option value="CAJA-MENOR">Caja Menor (Contable)</option>
+                      <option value="RUTA-NORTE">Caja Ruta Norte</option>
+                      <option value="RUTA-SUR">Caja Ruta Sur</option>
+                    </select>
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Responsable</label>
+                    <input 
+                      type="text" 
+                      value="Administrador Actual" 
+                      disabled 
+                      className="w-full p-2.5 rounded-xl border border-slate-200 bg-slate-100 text-sm font-medium text-slate-500"
+                    />
+                  </div>
+                </div>
+
+                <div className="bg-blue-50/50 rounded-xl p-4 border border-blue-100 space-y-4">
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm font-bold text-blue-900">Saldo en Sistema (Teórico)</span>
+                    <span className="text-lg font-bold text-blue-700">{formatCurrency(arqueoData.saldoSistema)}</span>
+                  </div>
+                  <div className="h-px bg-blue-200/50"></div>
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-blue-700 uppercase tracking-wider flex items-center gap-2">
+                      <Calculator className="h-3 w-3" />
+                      Dinero Físico (Conteo)
+                    </label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold">$</span>
+                      <input 
+                        type="number" 
+                        className="w-full pl-8 pr-4 py-3 rounded-xl border border-blue-200 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 outline-none text-lg font-bold text-slate-900 placeholder:text-slate-300 transition-all"
+                        placeholder="0"
+                        value={arqueoData.conteoFisico || ''}
+                        onChange={(e) => handleArqueoChange('conteoFisico', Number(e.target.value))}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {diferencia !== 0 && (
+                  <div className={cn(
+                    "p-4 rounded-xl border flex items-start gap-3",
+                    diferencia > 0 
+                      ? "bg-emerald-50 border-emerald-100 text-emerald-800" 
+                      : "bg-rose-50 border-rose-100 text-rose-800"
+                  )}>
+                    <AlertCircle className="h-5 w-5 shrink-0 mt-0.5" />
+                    <div>
+                      <p className="font-bold text-sm">
+                        {diferencia > 0 ? "Sobrante de Caja Detectado" : "Faltante de Caja Detectado"}
+                      </p>
+                      <p className="text-2xl font-bold mt-1">
+                        {diferencia > 0 ? "+" : ""}{formatCurrency(diferencia)}
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                <div className="space-y-2">
+                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Observaciones</label>
+                  <textarea 
+                    className="w-full p-3 rounded-xl border border-slate-200 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-slate-900/10 min-h-[80px] resize-none"
+                    placeholder="Ingrese detalles sobre billetes, monedas o justificación de diferencias..."
+                    value={arqueoData.observaciones}
+                    onChange={(e) => handleArqueoChange('observaciones', e.target.value)}
+                  ></textarea>
+                </div>
+              </div>
+
+              <div className="p-6 border-t border-slate-100 bg-slate-50/50 flex justify-end gap-3">
+                <button 
+                  onClick={() => setIsArqueoOpen(false)}
+                  className="px-4 py-2 rounded-xl text-slate-600 font-bold hover:bg-slate-100 transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button 
+                  className="px-6 py-2 rounded-xl bg-slate-900 text-white font-bold hover:bg-slate-800 transition-all shadow-lg shadow-slate-900/20 flex items-center gap-2"
+                >
+                  <Save className="h-4 w-4" />
+                  Guardar Arqueo
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
     </div>
   )
 }
