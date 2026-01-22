@@ -150,61 +150,79 @@ const AprobacionesPage = () => {
         </div>
 
         {/* Lista de Aprobaciones */}
-        <div className="grid gap-4">
-          {filteredItems.map((item) => (
-            <div 
-              key={item.id}
-              className="bg-white/80 backdrop-blur-sm rounded-2xl p-5 border border-slate-200 shadow-sm hover:shadow-md transition-all flex flex-col md:flex-row gap-4 items-start md:items-center justify-between group"
-            >
-              <div className="flex items-start gap-4">
-                <div className="p-3 bg-slate-50 rounded-xl border border-slate-100 group-hover:bg-white transition-colors">
-                  {getIconoTipo(item.tipo)}
-                </div>
-                <div>
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 border border-slate-200">
-                      {getLabelTipo(item.tipo)}
-                    </span>
-                    <span className="text-xs font-medium text-slate-400 flex items-center gap-1">
-                      <Clock className="h-3 w-3" />
-                      {new Date(item.fecha).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })}
-                    </span>
-                  </div>
-                  <h3 className="font-bold text-slate-900 text-lg">
-                    {item.solicitante}
-                  </h3>
-                  <p className="text-slate-600 text-sm font-medium">
-                    {item.detalle}
-                  </p>
-                  {item.monto && (
-                    <div className="mt-1 font-bold text-slate-900">
-                      {formatCurrency(item.monto)}
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              <div className="flex gap-2 w-full md:w-auto mt-2 md:mt-0">
-                <button className="flex-1 md:flex-none items-center justify-center gap-2 px-4 py-2 rounded-xl border border-slate-200 text-slate-600 font-bold hover:bg-slate-50 transition-colors hidden md:flex">
-                  <Eye className="h-4 w-4" />
-                  Ver Detalles
-                </button>
-                <button className="flex-1 md:flex-none flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-rose-50 text-rose-600 font-bold hover:bg-rose-100 border border-rose-100 transition-colors">
-                  <X className="h-4 w-4" />
-                  Rechazar
-                </button>
-                <button className="flex-1 md:flex-none flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-emerald-500 text-white font-bold hover:bg-emerald-600 shadow-lg shadow-emerald-500/20 transition-colors">
-                  <Check className="h-4 w-4" />
-                  Aprobar
-                </button>
-              </div>
-            </div>
-          ))}
+        <div className="bg-white/80 backdrop-blur-sm border border-slate-200 rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="min-w-full text-sm">
+              <thead>
+                <tr className="border-b border-slate-100 text-xs text-slate-400 uppercase tracking-wider font-bold bg-slate-50/50">
+                  <th className="px-6 py-4 text-left">Tipo</th>
+                  <th className="px-6 py-4 text-left">Solicitante</th>
+                  <th className="px-6 py-4 text-left">Detalle</th>
+                  <th className="px-6 py-4 text-right">Monto</th>
+                  <th className="px-6 py-4 text-right">Acciones</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {filteredItems.map((item) => (
+                  <tr key={item.id} className="group hover:bg-slate-50/50 transition-colors">
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex items-center gap-3">
+                        <div className="p-2 bg-slate-50 rounded-lg border border-slate-100 group-hover:bg-white transition-colors">
+                          {getIconoTipo(item.tipo)}
+                        </div>
+                        <div className="flex flex-col">
+                          <span className="font-bold text-slate-900">{getLabelTipo(item.tipo)}</span>
+                          <span className="text-xs text-slate-400 font-medium flex items-center gap-1">
+                            <Clock className="h-3 w-3" />
+                            {new Date(item.fecha).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })}
+                          </span>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="font-bold text-slate-900">{item.solicitante}</div>
+                      <div className="text-xs text-slate-500">Solicitante</div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <p className="text-slate-600 font-medium line-clamp-2 max-w-xs" title={item.detalle}>
+                        {item.detalle}
+                      </p>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-right">
+                      {item.monto ? (
+                        <div className="font-bold text-slate-900 bg-slate-50 px-3 py-1 rounded-lg inline-block border border-slate-100">
+                          {formatCurrency(item.monto)}
+                        </div>
+                      ) : (
+                        <span className="text-slate-400 text-xs font-bold uppercase">N/A</span>
+                      )}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-right">
+                      <div className="flex items-center justify-end gap-2">
+                        <button className="p-2 text-slate-400 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors" title="Ver Detalles">
+                          <Eye className="h-4 w-4" />
+                        </button>
+                        <button className="p-2 text-rose-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors" title="Rechazar">
+                          <X className="h-4 w-4" />
+                        </button>
+                        <button className="p-2 text-emerald-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors" title="Aprobar">
+                          <Check className="h-4 w-4" />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
 
           {filteredItems.length === 0 && (
-            <div className="text-center py-12 bg-white/50 rounded-2xl border border-slate-200 border-dashed">
-              <CheckCircle2 className="h-12 w-12 text-slate-300 mx-auto mb-3" />
-              <p className="text-slate-500 font-bold">No hay elementos pendientes en esta categoría.</p>
+            <div className="text-center py-12 border-t border-slate-100">
+              <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-4">
+                <CheckCircle2 className="h-8 w-8 text-slate-300" />
+              </div>
+              <h3 className="text-slate-900 font-bold mb-1">Todo al día</h3>
+              <p className="text-slate-500 text-sm">No hay aprobaciones pendientes en esta categoría.</p>
             </div>
           )}
         </div>
