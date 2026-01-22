@@ -1,6 +1,7 @@
 'use client'
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import {
   Search,
   UserPlus,
@@ -127,6 +128,11 @@ const UserManagementPage = () => {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isPermissionsModalOpen, setIsPermissionsModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const [formData, setFormData] = useState({
     nombres: '',
@@ -327,6 +333,7 @@ const UserManagementPage = () => {
   };
 
   return (
+    <>
     <div className="min-h-screen bg-slate-50 relative">
       {/* Fondo arquitectónico standard */}
       <div className="fixed inset-0 pointer-events-none">
@@ -631,9 +638,12 @@ const UserManagementPage = () => {
           </div>
         )}
       </div>
+    </div>
 
       {/* Modals */}
-      {isCreateModalOpen && (
+      {mounted && createPortal(
+        <>
+          {isCreateModalOpen && (
         <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-md flex items-center justify-center p-4 z-50 animate-in fade-in duration-200">
           <div className="bg-white rounded-2xl w-full max-w-lg border border-slate-200 shadow-2xl p-8 transform scale-100 animate-in zoom-in-95 duration-200">
             <h2 className="text-2xl font-bold text-slate-900 mb-8 tracking-tight">Nuevo <span className="font-light text-slate-500">Usuario</span></h2>
@@ -770,7 +780,10 @@ const UserManagementPage = () => {
           </div>
         </div>
       )}
-    </div>
+        </>,
+        document.body
+      )}
+    </>
   );
 };
 
