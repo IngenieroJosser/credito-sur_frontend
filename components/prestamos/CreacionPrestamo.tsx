@@ -5,7 +5,7 @@ import {
   DollarSign, Percent, Clock,
   FileText,
   BarChart, Shield, CheckCircle, ArrowLeft,
-  PlusCircle,
+  PlusCircle, User, CreditCard, Phone, MapPin, Mail,
   ChevronRight, ChevronDown, Search, Filter
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
@@ -383,8 +383,12 @@ const CreacionPrestamoElegante = () => {
   };
 
   const agregarCliente = () => {
-    const score = calcularScore(nuevoCliente.ingresosMensuales, nuevoCliente.antiguedadLaboral);
-    const limite = calcularLimiteCredito(score, nuevoCliente.ingresosMensuales);
+    // Asignar valores por defecto para clientes rápidos (salario mínimo y 1 año antigüedad)
+    const ingresosDefault = nuevoCliente.ingresosMensuales || 1300000;
+    const antiguedadDefault = nuevoCliente.antiguedadLaboral || 12;
+
+    const score = calcularScore(ingresosDefault, antiguedadDefault);
+    const limite = calcularLimiteCredito(score, ingresosDefault);
 
     const nuevoClienteCompleto: Cliente = {
       id: `CL-${(clientes.length + 1).toString().padStart(3, '0')}`,
@@ -475,8 +479,8 @@ const CreacionPrestamoElegante = () => {
     <div className="min-h-screen bg-slate-50 relative">
       {/* Fondo arquitectónico */}
       <div className="fixed inset-0 pointer-events-none z-0">
-        <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px]"></div>
-        <div className="absolute left-0 right-0 top-0 -z-10 m-auto h-[310px] w-[310px] rounded-full bg-indigo-500 opacity-20 blur-[100px]"></div>
+        <div className="fixed inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px]"></div>
+        <div className="fixed left-0 right-0 top-0 -z-10 m-auto h-[310px] w-[310px] rounded-full bg-indigo-500 opacity-20 blur-[100px]"></div>
       </div>
 
       <div className="relative z-10 px-8 pt-8">
@@ -551,8 +555,9 @@ const CreacionPrestamoElegante = () => {
 
                   {/* Modal Nuevo Cliente */}
                   {mostrarNuevoCliente && (
-                    <div className="fixed inset-0 bg-slate-900/20 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-                      <div className="bg-white/90 backdrop-blur-md rounded-2xl w-full max-w-2xl shadow-[0_8px_30px_rgb(0,0,0,0.12)] animate-in fade-in duration-300 border border-slate-100">
+                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+                      <div className="fixed inset-0 bg-slate-900/20 backdrop-blur-sm transition-opacity" onClick={() => setMostrarNuevoCliente(false)} />
+                      <div className="relative bg-white/90 backdrop-blur-md rounded-2xl w-full max-w-2xl shadow-[0_8px_30px_rgb(0,0,0,0.12)] animate-in fade-in duration-300 border border-slate-100 z-10">
                         <div className="p-8">
                           <div className="flex items-center justify-between mb-8">
                             <div>
@@ -568,31 +573,98 @@ const CreacionPrestamoElegante = () => {
                           </div>
 
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            {['nombre', 'apellido', 'identificacion', 'telefono', 'ingresosMensuales', 'antiguedadLaboral'].map((field) => (
-                              <div key={field} className="space-y-2">
-                                <label className="text-sm font-bold text-slate-700 capitalize">
-                                  {field.replace(/([A-Z])/g, ' $1').replace('mensuales', 'Mensuales')}
-                                </label>
-                                <input
-                                  type={field.includes('ingresos') || field.includes('antiguedad') ? 'number' : 'text'}
-                                  name={field}
-                                  value={nuevoCliente[field as keyof typeof nuevoCliente]}
-                                  onChange={handleNuevoClienteChange}
-                                  className="w-full px-4 py-2.5 rounded-lg border-slate-200 bg-slate-50 focus:ring-2 focus:ring-slate-900/10 transition-all font-medium text-slate-900"
-                                  placeholder={`Ingrese ${field}`}
-                                />
-                              </div>
-                            ))}
-                            <div className="col-span-full space-y-2">
-                              <label className="text-sm font-bold text-slate-700">Dirección</label>
+                            {/* Información Personal */}
+                            <div className="col-span-full pb-2 border-b border-slate-100 mb-2">
+                              <h4 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                                <User className="w-4 h-4 text-blue-500" />
+                                Información Personal
+                              </h4>
+                            </div>
+
+                            <div className="space-y-2">
+                              <label className="text-xs font-bold text-slate-700 uppercase tracking-wide">Nombres</label>
                               <input
                                 type="text"
-                                name="direccion"
-                                value={nuevoCliente.direccion}
+                                name="nombre"
+                                value={nuevoCliente.nombre}
                                 onChange={handleNuevoClienteChange}
-                                className="w-full px-4 py-2.5 rounded-lg border-slate-200 bg-slate-50 focus:ring-2 focus:ring-slate-900/10 transition-all font-medium text-slate-900"
-                                placeholder="Dirección completa"
+                                className="w-full px-4 py-2.5 rounded-xl border-slate-200 bg-slate-50 focus:ring-2 focus:ring-blue-500/10 focus:border-blue-500 transition-all font-medium text-slate-900 placeholder:text-slate-400"
+                                placeholder="Ej: Juan"
                               />
+                            </div>
+
+                            <div className="space-y-2">
+                              <label className="text-xs font-bold text-slate-700 uppercase tracking-wide">Apellidos</label>
+                              <input
+                                type="text"
+                                name="apellido"
+                                value={nuevoCliente.apellido}
+                                onChange={handleNuevoClienteChange}
+                                className="w-full px-4 py-2.5 rounded-xl border-slate-200 bg-slate-50 focus:ring-2 focus:ring-blue-500/10 focus:border-blue-500 transition-all font-medium text-slate-900 placeholder:text-slate-400"
+                                placeholder="Ej: Pérez"
+                              />
+                            </div>
+
+                            <div className="col-span-full space-y-2">
+                              <label className="text-xs font-bold text-slate-700 uppercase tracking-wide">Documento de Identidad (CC)</label>
+                              <div className="relative">
+                                <CreditCard className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                                <input
+                                  type="text"
+                                  name="identificacion"
+                                  value={nuevoCliente.identificacion}
+                                  onChange={handleNuevoClienteChange}
+                                  className="w-full pl-11 pr-4 py-2.5 rounded-xl border-slate-200 bg-slate-50 focus:ring-2 focus:ring-blue-500/10 focus:border-blue-500 transition-all font-medium text-slate-900 placeholder:text-slate-400"
+                                  placeholder="Número de cédula"
+                                />
+                              </div>
+                            </div>
+
+                            {/* Información de Contacto */}
+                            <div className="col-span-full pb-2 border-b border-slate-100 mb-2 mt-2">
+                              <h4 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                                <Phone className="w-4 h-4 text-blue-500" />
+                                Contacto
+                              </h4>
+                            </div>
+
+                            <div className="space-y-2">
+                              <label className="text-xs font-bold text-slate-700 uppercase tracking-wide">Teléfono / Celular</label>
+                              <input
+                                type="tel"
+                                name="telefono"
+                                value={nuevoCliente.telefono}
+                                onChange={handleNuevoClienteChange}
+                                className="w-full px-4 py-2.5 rounded-xl border-slate-200 bg-slate-50 focus:ring-2 focus:ring-blue-500/10 focus:border-blue-500 transition-all font-medium text-slate-900 placeholder:text-slate-400"
+                                placeholder="Ej: 300 123 4567"
+                              />
+                            </div>
+
+                            <div className="space-y-2">
+                              <label className="text-xs font-bold text-slate-700 uppercase tracking-wide">Email (Opcional)</label>
+                              <input
+                                type="email"
+                                name="email"
+                                value={nuevoCliente.email}
+                                onChange={handleNuevoClienteChange}
+                                className="w-full px-4 py-2.5 rounded-xl border-slate-200 bg-slate-50 focus:ring-2 focus:ring-blue-500/10 focus:border-blue-500 transition-all font-medium text-slate-900 placeholder:text-slate-400"
+                                placeholder="correo@ejemplo.com"
+                              />
+                            </div>
+
+                            <div className="col-span-full space-y-2">
+                              <label className="text-xs font-bold text-slate-700 uppercase tracking-wide">Dirección de Residencia</label>
+                              <div className="relative">
+                                <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                                <input
+                                  type="text"
+                                  name="direccion"
+                                  value={nuevoCliente.direccion}
+                                  onChange={handleNuevoClienteChange}
+                                  className="w-full pl-11 pr-4 py-2.5 rounded-xl border-slate-200 bg-slate-50 focus:ring-2 focus:ring-blue-500/10 focus:border-blue-500 transition-all font-medium text-slate-900 placeholder:text-slate-400"
+                                  placeholder="Dirección completa"
+                                />
+                              </div>
                             </div>
                           </div>
 
