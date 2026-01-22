@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import Image from 'next/image'
 import { 
   RefreshCw, 
   Clock, AlertTriangle, CheckCircle, 
@@ -162,7 +161,7 @@ const SyncStatusPage = () => {
       tx.id === id 
         ? { ...tx, status: 'syncing', retries: tx.retries + 1 }
         : tx
-    ))
+      ))
   }
 
   const handleResolveConflict = (id: string, resolution: ConflictResolution) => {
@@ -189,378 +188,200 @@ const SyncStatusPage = () => {
 
   const getStatusColor = (status: SyncStatus) => {
     switch (status) {
-      case 'online': return 'text-emerald-500'
-      case 'offline': return 'text-gray-400'
-      case 'lan': return 'text-[#08557f]'
+      case 'online': return 'text-emerald-600'
+      case 'offline': return 'text-slate-500'
+      case 'lan': return 'text-sky-600'
     }
   }
 
   const getStatusBgColor = (status: SyncStatus) => {
     switch (status) {
       case 'online': return 'bg-emerald-50'
-      case 'offline': return 'bg-gray-100'
-      case 'lan': return 'bg-[#08557f]/5'
+      case 'offline': return 'bg-slate-100'
+      case 'lan': return 'bg-sky-50'
     }
   }
-
-  const getTransactionStatusIcon = (status: TransactionStatus) => {
-    switch (status) {
-      case 'pending': return <Clock className="w-3.5 h-3.5" />
-      case 'syncing': return <RefreshCw className="w-3.5 h-3.5" />
-      case 'completed': return <CheckCircle className="w-3.5 h-3.5" />
-      case 'failed': return <AlertTriangle className="w-3.5 h-3.5" />
-      case 'conflict': return <Shield className="w-3.5 h-3.5" />
-    }
-  }
-
-  const getTransactionStatusColor = (status: TransactionStatus) => {
-    switch (status) {
-      case 'pending': return 'text-amber-500'
-      case 'syncing': return 'text-[#08557f]'
-      case 'completed': return 'text-emerald-500'
-      case 'failed': return 'text-rose-500'
-      case 'conflict': return 'text-orange-500'
-    }
-  }
-
-  const formatTimeAgo = (dateString: string) => {
-    if (!dateString) return ''
-    
-    const date = new Date(dateString)
-    const seconds = Math.floor((new Date().getTime() - date.getTime()) / 1000)
-    
-    if (seconds < 60) return 'ahora'
-    if (seconds < 3600) return `${Math.floor(seconds / 60)}m`
-    if (seconds < 86400) return `${Math.floor(seconds / 3600)}h`
-    return `${Math.floor(seconds / 86400)}d`
-  }
-
-  const getConnectionDetails = () => {
-    switch (syncStatus) {
-      case 'online':
-        return {
-          title: 'Servidor Central',
-          description: 'Sincronización activa',
-          latency: '28ms'
-        }
-      case 'offline':
-        return {
-          title: 'Modo Local',
-          description: 'Operando sin conexión',
-          latency: '—'
-        }
-      case 'lan':
-        return {
-          title: 'Red Interna',
-          description: 'Sincronización LAN',
-          latency: '5ms'
-        }
-    }
-  }
-
-  const details = getConnectionDetails()
-
-  const pendingTransactions = transactions.filter(t => 
-    t.status === 'pending' || t.status === 'syncing'
-  ).length
 
   return (
-    <div className="min-h-screen bg-white">
-      {/* Fondo arquitectónico ultra sutil */}
+    <div className="min-h-screen bg-slate-50 relative">
+      {/* Fondo arquitectónico standard */}
       <div className="fixed inset-0 pointer-events-none">
-        <div className="absolute inset-0 bg-gradient-to-br from-white via-gray-50/50 to-white"></div>
-        {/* Líneas de estructura */}
-        <div className="absolute inset-0" style={{
-          backgroundImage: `linear-gradient(to right, #08557f 0.5px, transparent 0.5px)`,
-          backgroundSize: '96px 1px',
-          opacity: 0.03
-        }}></div>
-        <div className="absolute inset-0" style={{
-          backgroundImage: `linear-gradient(to bottom, #08557f 0.5px, transparent 0.5px)`,
-          backgroundSize: '1px 96px',
-          opacity: 0.03
-        }}></div>
+        <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px]"></div>
+        <div className="absolute left-0 right-0 top-0 -z-10 m-auto h-[310px] w-[310px] rounded-full bg-slate-400 opacity-20 blur-[100px]"></div>
       </div>
 
-      <div className="relative z-10 max-w-6xl mx-auto px-4 py-6">
-        {/* Header minimalista */}
-        <div className="mb-10">
-          <div className="flex items-center justify-between mb-2">
-            <div className="flex items-center space-x-3">
-              <div className="relative">
-                <div className="w-9 h-9 bg-gradient-to-br from-white to-gray-50 border border-gray-200 rounded-xl flex items-center justify-center">
-                  <div className="relative w-6 h-6 opacity-80">
-                    <Image
-                      src="/android-chrome-512x512.png"
-                      alt="CrediSur"
-                      width={24}
-                      height={24}
-                      className="object-contain"
-                      priority
-                    />
-                  </div>
-                </div>
+      <div className="relative z-10 p-6 md:p-8 space-y-8 max-w-[1600px] mx-auto">
+        {/* Header Integrado */}
+        <header className="flex flex-col md:flex-row md:items-center justify-between gap-4 animate-in fade-in slide-in-from-bottom-4 duration-700">
+          <div>
+            <div className="flex items-center gap-2 mb-2">
+              <div className="p-2 bg-blue-600 rounded-lg shadow-md shadow-blue-600/20">
+                <RefreshCw className={`w-4 h-4 text-white ${isSyncing ? 'animate-spin' : ''}`} />
               </div>
-              <div>
-                <h1 className="text-lg font-light text-gray-800 tracking-tight">
-                  Sincronización
-                </h1>
-                <p className="text-xs text-gray-400 font-light tracking-wide">
-                  Estado del sistema en tiempo real
-                </p>
-              </div>
+              <h1 className="text-3xl font-bold tracking-tight">
+                <span className="text-blue-600">Estado de </span><span className="text-orange-500">Sincronización</span>
+              </h1>
             </div>
-            
-            <div className="flex items-center space-x-4">
-              <div className={`px-3 py-1.5 rounded-lg ${getStatusBgColor(syncStatus)} border border-gray-200/50`}>
-                <div className="flex items-center space-x-2">
-                  <div className={`${getStatusColor(syncStatus)}`}>
-                    {getStatusIcon(syncStatus)}
-                  </div>
-                  <span className="text-xs font-medium text-gray-700 capitalize">
-                    {syncStatus}
-                  </span>
-                </div>
-              </div>
-              
-              <button
-                onClick={handleSyncNow}
-                disabled={isSyncing || syncStatus === 'offline'}
-                className={`relative overflow-hidden rounded-lg transition-all duration-300 ${
-                  isSyncing || syncStatus === 'offline'
-                    ? 'opacity-50 cursor-not-allowed'
-                    : 'hover:scale-[1.02] active:scale-[0.98]'
-                }`}
-              >
-                <div className="absolute inset-0 bg-gradient-to-r from-white to-gray-50 border border-gray-200 rounded-lg"></div>
-                <div className="relative px-4 py-2 flex items-center space-x-2">
-                  <RefreshCw className={`w-3.5 h-3.5 text-gray-600 ${isSyncing ? 'animate-spin' : ''}`} />
-                  <span className="text-sm font-medium text-gray-700">
-                    {isSyncing ? 'Sincronizando' : 'Sincronizar'}
-                  </span>
-                </div>
-              </button>
-            </div>
+            <p className="text-sm font-medium text-slate-500 max-w-xl">
+              Monitoreo en tiempo real de la conectividad LAN/Nube y gestión de la cola de transacciones pendientes.
+            </p>
           </div>
           
-          {/* Barra de tiempo */}
-          <div className="pt-4 border-t border-gray-200/30">
-            <div className="flex items-center justify-between text-xs text-gray-400">
-              <div className="flex items-center space-x-3">
-                <Cpu className="w-3.5 h-3.5" />
-                <span>Sistema de sincronización • v2.0.1</span>
-              </div>
-              <div className="flex items-center space-x-2">
-                <span className="font-mono">{clientTime || '--:--:--'}</span>
-              </div>
+          <div className="flex items-center gap-3">
+            <div className="px-4 py-2 bg-white/80 backdrop-blur-sm rounded-xl border border-slate-200 shadow-sm flex items-center gap-3">
+              <Clock className="w-4 h-4 text-slate-400" />
+              <span className="text-sm font-bold text-slate-700">{clientTime}</span>
             </div>
+            <button 
+              onClick={handleSyncNow}
+              disabled={isSyncing}
+              className="inline-flex items-center gap-2 px-6 py-2.5 bg-slate-900 text-white rounded-xl hover:bg-slate-800 disabled:opacity-50 transition-all font-bold text-sm shadow-lg shadow-slate-900/20 active:scale-95"
+            >
+              <RefreshCw className={`w-4 h-4 ${isSyncing ? 'animate-spin' : ''}`} />
+              {isSyncing ? 'Sincronizando...' : 'Sincronizar Ahora'}
+            </button>
           </div>
-        </div>
+        </header>
 
-        {/* Contenido principal */}
-        <div className="space-y-3">
-          {/* Tarjeta de estado principal */}
-          <div className="bg-white/80 backdrop-blur-sm border border-gray-200/50 rounded-xl overflow-hidden shadow-sm">
-            <div className="p-5">
-              <div className="flex items-start justify-between mb-4">
-                <div>
-                  <h2 className="text-base font-medium text-gray-800 mb-1">
-                    Estado de Conexión
-                  </h2>
-                  <p className="text-sm text-gray-500">
-                    {details.description}
-                  </p>
-                </div>
-                <div className="flex items-center space-x-4">
-                  <div className="text-right">
-                    <div className="text-xs text-gray-500">Latencia</div>
-                    <div className="text-sm font-medium text-gray-700">{details.latency}</div>
-                  </div>
-                  <div className="w-12 h-12 relative">
-                    <div className="absolute inset-0 border-2 border-gray-200/30 rounded-full"></div>
-                    <div className={`absolute inset-2 rounded-full ${getStatusBgColor(syncStatus)} flex items-center justify-center`}>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {/* Columna Izquierda: Estado de Red */}
+          <div className="lg:col-span-1 space-y-6">
+            <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-[0_8px_30px_rgb(0,0,0,0.04)]">
+              <h2 className="text-lg font-bold text-slate-900 mb-6 flex items-center gap-2">
+                <Activity className="w-5 h-5 text-slate-400" />
+                Estado de Conectividad
+              </h2>
+              
+              <div className="space-y-4">
+                <div className={`p-4 rounded-xl border flex items-center justify-between ${
+                  syncStatus === 'online' ? 'bg-emerald-50 border-emerald-100' : 
+                  syncStatus === 'lan' ? 'bg-sky-50 border-sky-100' : 'bg-slate-50 border-slate-200'
+                }`}>
+                  <div className="flex items-center gap-3">
+                    <div className={`p-2 rounded-lg bg-white shadow-sm ${getStatusColor(syncStatus)}`}>
                       {getStatusIcon(syncStatus)}
                     </div>
-                  </div>
-                </div>
-              </div>
-              
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="p-4 bg-gray-50/50 rounded-lg border border-gray-100/50">
-                  <div className="flex items-center space-x-3 mb-3">
-                    <Database className="w-4 h-4 text-gray-400" />
-                    <span className="text-sm font-medium text-gray-700">Base Local</span>
-                  </div>
-                  <div className="text-2xl font-light text-gray-800">
-                    {transactions.length}
-                  </div>
-                  <div className="text-xs text-gray-400 mt-1">transacciones</div>
-                </div>
-                
-                <div className="p-4 bg-gray-50/50 rounded-lg border border-gray-100/50">
-                  <div className="flex items-center space-x-3 mb-3">
-                    <UploadCloud className="w-4 h-4 text-gray-400" />
-                    <span className="text-sm font-medium text-gray-700">Subida</span>
-                  </div>
-                  <div className="text-2xl font-light text-gray-800">
-                    {bandwidth.upload.toFixed(1)}
-                  </div>
-                  <div className="text-xs text-gray-400 mt-1">Mbps</div>
-                </div>
-                
-                <div className="p-4 bg-gray-50/50 rounded-lg border border-gray-100/50">
-                  <div className="flex items-center space-x-3 mb-3">
-                    <DownloadCloud className="w-4 h-4 text-gray-400" />
-                    <span className="text-sm font-medium text-gray-700">Descarga</span>
-                  </div>
-                  <div className="text-2xl font-light text-gray-800">
-                    {bandwidth.download.toFixed(1)}
-                  </div>
-                  <div className="text-xs text-gray-400 mt-1">Mbps</div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Tarjeta de transacciones */}
-          <div className="bg-white/80 backdrop-blur-sm border border-gray-200/50 rounded-xl overflow-hidden shadow-sm">
-            <div className="p-5">
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center space-x-3">
-                  <Activity className="w-5 h-5 text-gray-400" />
-                  <div>
-                    <h2 className="text-base font-medium text-gray-800">
-                      Cola de Transacciones
-                    </h2>
-                    <p className="text-sm text-gray-500">
-                      {pendingTransactions} pendientes de sincronización
-                    </p>
-                  </div>
-                </div>
-                <button
-                  onClick={() => setExpandedSection(expandedSection === 'queue' ? 'status' : 'queue')}
-                  className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-                >
-                  {expandedSection === 'queue' ? (
-                    <ChevronUp className="w-4 h-4 text-gray-400" />
-                  ) : (
-                    <ChevronDown className="w-4 h-4 text-gray-400" />
-                  )}
-                </button>
-              </div>
-              
-              {expandedSection === 'queue' && (
-                <div className="space-y-3 pt-4 border-t border-gray-200/30">
-                  {transactions.map((transaction) => (
-                    <div
-                      key={transaction.id}
-                      className="group relative"
-                    >
-                      <div className="absolute -left-3 top-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full bg-gray-300 group-hover:bg-[#08557f] transition-colors"></div>
-                      
-                      <div className="p-3 hover:bg-gray-50/50 rounded-lg transition-colors duration-300 border border-transparent hover:border-gray-100">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center space-x-3">
-                            <div className={`p-2 rounded-lg ${getTransactionStatusColor(transaction.status)}/10`}>
-                              {getTransactionStatusIcon(transaction.status)}
-                            </div>
-                            <div>
-                              <div className="flex items-center space-x-2">
-                                <span className="text-sm font-medium text-gray-800">
-                                  {transaction.id}
-                                </span>
-                                <span className={`text-xs px-2 py-0.5 rounded ${
-                                  transaction.priority === 'high' ? 'bg-rose-50 text-rose-600' :
-                                  transaction.priority === 'normal' ? 'bg-amber-50 text-amber-600' :
-                                  'bg-gray-100 text-gray-600'
-                                }`}>
-                                  {transaction.priority}
-                                </span>
-                              </div>
-                              <p className="text-sm text-gray-600 mt-1">
-                                {transaction.description}
-                              </p>
-                            </div>
-                          </div>
-                          
-                          <div className="flex items-center space-x-4">
-                            <div className="text-right">
-                              {transaction.amount !== 0 && (
-                                <div className={`text-sm font-medium ${
-                                  transaction.amount > 0 ? 'text-emerald-600' : 'text-rose-600'
-                                }`}>
-                                  {transaction.amount > 0 ? '+' : ''}{formatCurrency(Math.abs(transaction.amount))}
-                                </div>
-                              )}
-                              <div className="text-xs text-gray-400 mt-1" suppressHydrationWarning>
-                                {formatTimeAgo(transaction.timestamp)}
-                              </div>
-                            </div>
-                            
-                            {transaction.status === 'pending' && (
-                              <button
-                                onClick={() => handleRetryTransaction(transaction.id)}
-                                className="px-3 py-1.5 text-xs font-medium text-[#08557f] hover:bg-[#08557f]/5 rounded-lg transition-colors"
-                              >
-                                Reintentar
-                              </button>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Tarjeta de conflictos */}
-          {conflicts.length > 0 && (
-            <div className="bg-white/80 backdrop-blur-sm border border-gray-200/50 rounded-xl overflow-hidden shadow-sm">
-              <div className="p-5">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center space-x-3">
-                    <div className="p-2 rounded-lg bg-orange-50">
-                      <Shield className="w-5 h-5 text-orange-500" />
-                    </div>
                     <div>
-                      <h2 className="text-base font-medium text-gray-800">
-                        Conflictos de Datos
-                      </h2>
-                      <p className="text-sm text-gray-500">
-                        {conflicts.filter(c => c.resolved === 'pending').length} requieren atención
+                      <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Servidor Nube (VPS)</p>
+                      <p className={`text-sm font-bold ${getStatusColor(syncStatus)}`}>
+                        {syncStatus === 'online' ? 'Conectado (Cloud Sync OK)' : 'Desconectado'}
                       </p>
                     </div>
                   </div>
+                  {syncStatus === 'online' && <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />}
                 </div>
 
-                <div className="space-y-3">
-                  {conflicts.map((conflict) => (
-                    <div key={conflict.id} className="p-4 bg-orange-50/30 rounded-lg border border-orange-100">
-                      <div className="flex items-start justify-between">
-                        <div>
-                          <h3 className="text-sm font-medium text-gray-800">
-                            Conflicto en {conflict.transactionId}
-                          </h3>
-                          <p className="text-sm text-gray-600 mt-1">
+                <div className="p-4 rounded-xl border border-sky-100 bg-sky-50 flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 rounded-lg bg-white shadow-sm text-sky-600">
+                      <Router className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Red Local (LAN)</p>
+                      <p className="text-sm font-bold text-sky-600">Conectado (Local Server OK)</p>
+                    </div>
+                  </div>
+                  <div className="w-2 h-2 rounded-full bg-sky-500" />
+                </div>
+              </div>
+
+              <div className="mt-8 pt-8 border-t border-slate-100">
+                <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4">Tráfico de Datos</h3>
+                <div className="space-y-6">
+                  <div>
+                    <div className="flex justify-between mb-2">
+                      <span className="text-sm font-bold text-slate-600 flex items-center gap-1">
+                        <UploadCloud className="w-3.5 h-3.5" /> Subida
+                      </span>
+                      <span className="text-sm font-bold text-slate-900">{bandwidth.upload.toFixed(1)} Mbps</span>
+                    </div>
+                    <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
+                      <div 
+                        className="h-full bg-slate-900 transition-all duration-1000" 
+                        style={{ width: `${(bandwidth.upload / 2.5) * 100}%` }}
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <div className="flex justify-between mb-2">
+                      <span className="text-sm font-bold text-slate-600 flex items-center gap-1">
+                        <DownloadCloud className="w-3.5 h-3.5" /> Descarga
+                      </span>
+                      <span className="text-sm font-bold text-slate-900">{bandwidth.download.toFixed(1)} Mbps</span>
+                    </div>
+                    <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
+                      <div 
+                        className="h-full bg-slate-400 transition-all duration-1000" 
+                        style={{ width: `${(bandwidth.download / 2) * 100}%` }}
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-[0_8px_30px_rgb(0,0,0,0.04)]">
+              <h2 className="text-lg font-bold text-slate-900 mb-6 flex items-center gap-2">
+                <Shield className="w-5 h-5 text-slate-400" />
+                Seguridad de Datos
+              </h2>
+              <div className="space-y-4">
+                <div className="flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-100">
+                  <span className="text-sm font-medium text-slate-600">Encriptación de tránsito</span>
+                  <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-lg">AES-256</span>
+                </div>
+                <div className="flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-100">
+                  <span className="text-sm font-medium text-slate-600">Última validación</span>
+                  <span className="text-xs font-bold text-slate-900">Hace 5 min</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Columna Derecha: Cola de Transacciones y Conflictos */}
+          <div className="lg:col-span-2 space-y-8">
+            {/* Conflictos - Solo si existen */}
+            {conflicts.some(c => c.resolved === 'pending') && (
+              <div className="bg-white rounded-2xl border border-amber-200 p-6 shadow-[0_8px_30px_rgb(251,191,36,0.05)]">
+                <div className="flex items-center justify-between mb-6">
+                  <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                    <AlertTriangle className="w-5 h-5 text-amber-500" />
+                    Conflictos Detectados
+                  </h2>
+                  <span className="px-3 py-1 bg-amber-100 text-amber-700 text-xs font-bold rounded-full">
+                    {conflicts.filter(c => c.resolved === 'pending').length} Pendientes
+                  </span>
+                </div>
+
+                <div className="space-y-4">
+                  {conflicts.filter(c => c.resolved === 'pending').map(conflict => (
+                    <div key={conflict.id} className="group p-5 bg-amber-50/30 rounded-2xl border border-amber-100 hover:border-amber-200 transition-all">
+                      <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
+                        <div className="space-y-3">
+                          <div className="flex items-center gap-2">
+                            <Shield className="w-4 h-4 text-amber-500" />
+                            <h3 className="text-sm font-bold text-slate-900">
+                              Conflicto en {conflict.transactionId}
+                            </h3>
+                          </div>
+                          <p className="text-sm text-slate-600 font-medium">
                             {conflict.description}
                           </p>
-                          <div className="flex items-center gap-4 mt-3 text-xs text-gray-500">
-                            <div>
-                              <span className="font-medium text-gray-700">Local:</span> {conflict.localVersion}
+                          <div className="flex items-center gap-4 text-xs">
+                            <div className="px-3 py-1.5 bg-white rounded-lg border border-amber-100 text-slate-600 font-medium shadow-sm">
+                              <span className="font-bold text-slate-900">Local:</span> {conflict.localVersion}
                             </div>
-                            <div>
-                              <span className="font-medium text-gray-700">Servidor:</span> {conflict.serverVersion}
+                            <div className="px-3 py-1.5 bg-white rounded-lg border border-amber-100 text-slate-600 font-medium shadow-sm">
+                              <span className="font-bold text-slate-900">Servidor:</span> {conflict.serverVersion}
                             </div>
                           </div>
                         </div>
-                        <div className="flex space-x-2">
+                        <div className="flex items-center gap-2">
                           <button
                             onClick={() => handleResolveConflict(conflict.id, 'resolved')}
-                            className="px-3 py-1.5 text-xs font-medium bg-white border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                            className="px-6 py-2.5 text-xs font-bold text-white bg-amber-500 hover:bg-amber-600 rounded-xl transition-all shadow-sm shadow-amber-500/20"
                           >
-                            Resolver
+                            Resolver Conflicto
                           </button>
                         </div>
                       </div>
@@ -568,8 +389,95 @@ const SyncStatusPage = () => {
                   ))}
                 </div>
               </div>
+            )}
+
+            {/* Cola de Transacciones */}
+            <div className="bg-white rounded-2xl border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden">
+              <div className="p-6 border-b border-slate-100 flex items-center justify-between">
+                <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                  <Database className="w-5 h-5 text-slate-400" />
+                  Cola de Sincronización
+                </h2>
+                <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-2">
+                    <div className="w-2 h-2 rounded-full bg-amber-500" />
+                    <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Pendientes</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-2 h-2 rounded-full bg-emerald-500" />
+                    <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Completados</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="overflow-x-auto">
+                <table className="w-full text-left">
+                  <thead>
+                    <tr className="bg-slate-50/50">
+                      <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-wider">ID / Fecha</th>
+                      <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-wider">Transacción</th>
+                      <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-wider text-right">Monto</th>
+                      <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-wider">Estado</th>
+                      <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-wider text-center">Acciones</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {transactions.map((tx) => (
+                      <tr key={tx.id} className="hover:bg-slate-50/50 transition-colors group">
+                        <td className="px-6 py-4">
+                          <div className="flex flex-col">
+                            <span className="text-sm font-bold text-slate-900">{tx.id}</span>
+                            <span className="text-xs font-medium text-slate-400">
+                              {new Date(tx.timestamp).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })}
+                            </span>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="flex flex-col">
+                            <span className="text-sm font-bold text-slate-700">{tx.description}</span>
+                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{tx.type}</span>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 text-right">
+                          <span className={`text-sm font-bold ${tx.amount < 0 ? 'text-rose-600' : 'text-slate-900'}`}>
+                            {tx.amount === 0 ? '-' : formatCurrency(tx.amount)}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-2">
+                            {tx.status === 'completed' && <CheckCircle className="w-4 h-4 text-emerald-500" />}
+                            {tx.status === 'pending' && <Clock className="w-4 h-4 text-amber-500" />}
+                            {tx.status === 'syncing' && <RefreshCw className="w-4 h-4 text-sky-500 animate-spin" />}
+                            {tx.status === 'failed' && <AlertTriangle className="w-4 h-4 text-rose-500" />}
+                            {tx.status === 'conflict' && <AlertTriangle className="w-4 h-4 text-amber-500" />}
+                            <span className={`text-xs font-bold uppercase tracking-wider ${
+                              tx.status === 'completed' ? 'text-emerald-600' :
+                              tx.status === 'pending' ? 'text-amber-600' :
+                              tx.status === 'syncing' ? 'text-blue-600' :
+                              'text-rose-600'
+                            }`}>
+                              {tx.status}
+                            </span>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 text-center">
+                          {tx.status === 'failed' && (
+                            <button 
+                              onClick={() => handleRetryTransaction(tx.id)}
+                              className="p-2 hover:bg-rose-50 text-rose-600 rounded-lg transition-colors"
+                              title="Reintentar"
+                            >
+                              <RefreshCw className="w-4 h-4" />
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
-          )}
+          </div>
         </div>
       </div>
     </div>

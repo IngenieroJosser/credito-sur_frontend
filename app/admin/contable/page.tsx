@@ -13,9 +13,11 @@ import {
   ArrowUpRight,
   ArrowDownLeft,
   Briefcase,
-  Wallet
+  Wallet,
+  Download
 } from 'lucide-react'
 import { formatCurrency, cn } from '@/lib/utils'
+import { ExportButton } from '@/components/ui/ExportButton'
 
 // Interfaces alineadas con el dominio
 interface MovimientoContable {
@@ -41,6 +43,14 @@ const ModuloContablePage = () => {
   const [activeTab, setActiveTab] = useState<'MOVIMIENTOS' | 'GASTOS' | 'REPORTES'>('MOVIMIENTOS')
   const [busqueda, setBusqueda] = useState('')
   const [filtroTipo, setFiltroTipo] = useState<'TODOS' | 'INGRESO' | 'EGRESO'>('TODOS')
+
+  const handleExportExcel = () => {
+    console.log('Exporting Excel...')
+  }
+
+  const handleExportPDF = () => {
+    console.log('Exporting PDF...')
+  }
 
   // Datos de ejemplo (Mock Data) - Moved inside component state or effect to avoid hydration mismatch
   const [resumenData] = useState<ResumenFinanciero>({
@@ -112,139 +122,125 @@ const ModuloContablePage = () => {
   })
 
   return (
-    <div className="min-h-screen bg-white relative">
-      {/* Fondo arquitectónico ultra sutil */}
-      <div className="fixed inset-0 pointer-events-none z-0">
-        <div className="absolute inset-0 bg-gradient-to-br from-white via-gray-50/50 to-white"></div>
-        {/* Líneas de estructura */}
-        <div className="absolute inset-0" style={{
-          backgroundImage: `linear-gradient(to right, #08557f 0.5px, transparent 0.5px)`,
-          backgroundSize: '96px 1px',
-          opacity: 0.03
-        }}></div>
-        <div className="absolute inset-0" style={{
-          backgroundImage: `linear-gradient(to bottom, #08557f 0.5px, transparent 0.5px)`,
-          backgroundSize: '1px 96px',
-          opacity: 0.03
-        }}></div>
+    <div className="min-h-screen bg-slate-50 relative">
+      {/* Fondo arquitectónico standard */}
+      <div className="fixed inset-0 pointer-events-none">
+        <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px]"></div>
+        <div className="absolute left-0 right-0 top-0 -z-10 m-auto h-[310px] w-[310px] rounded-full bg-primary opacity-20 blur-[100px]"></div>
       </div>
 
-      <div className="relative z-10 min-h-screen pb-12">
+      <div className="relative z-10 w-full p-8 space-y-8">
         {/* Header Ultra Clean */}
-        <div className="bg-white/80 backdrop-blur-sm border-b border-gray-100 px-6 py-8">
-        <div className="mx-auto max-w-7xl">
-          <div className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
+        <header className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between mb-8">
             <div className="space-y-2">
-              <div className="inline-flex items-center gap-2 rounded-full bg-[#08557f]/5 px-3 py-1 text-xs font-medium text-[#08557f] ring-1 ring-[#08557f]/10">
+              <div className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-600 ring-1 ring-slate-200">
                 <DollarSign className="h-3.5 w-3.5" />
                 <span>Gestión Financiera</span>
               </div>
-              <h1 className="text-4xl font-light text-gray-900 tracking-tight">
-                Contabilidad
+              <h1 className="text-4xl md:text-5xl font-bold tracking-tight">
+                <span className="text-blue-600">Gestión </span><span className="text-orange-500">Contable</span>
               </h1>
-              <p className="text-base text-gray-500 max-w-xl font-light">
+              <p className="text-base text-slate-500 max-w-xl font-medium">
                 Control centralizado de flujos de caja, gastos operativos y rentabilidad.
               </p>
             </div>
             
             <div className="flex gap-3">
-              <button className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-5 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 hover:border-gray-300 transition-all shadow-sm">
-                <FileText className="h-4 w-4" />
-                Exportar
-              </button>
-              <button className="inline-flex items-center gap-2 rounded-xl bg-[#08557f] px-5 py-2.5 text-sm font-medium text-white hover:bg-[#064364] transition-all shadow-lg shadow-[#08557f]/20">
+              <ExportButton 
+                label="Exportar" 
+                onExportExcel={handleExportExcel} 
+                onExportPDF={handleExportPDF} 
+              />
+              <button className="inline-flex items-center gap-2 rounded-xl bg-slate-900 px-5 py-2.5 text-sm font-bold text-white hover:bg-slate-800 transition-all shadow-lg shadow-slate-900/20 transform active:scale-95">
                 <Calendar className="h-4 w-4" />
                 Cierre de Caja
               </button>
             </div>
-          </div>
-        </div>
-      </div>
+        </header>
 
-      <div className="mx-auto max-w-7xl px-6 py-8 space-y-8">
         {/* Tarjetas de Resumen Minimalistas */}
         <section className="grid gap-6 md:grid-cols-4">
-          <div className="group relative overflow-hidden rounded-2xl bg-white p-6 shadow-sm ring-1 ring-gray-100 transition-all hover:shadow-md">
+          <div className="group relative overflow-hidden rounded-2xl bg-white/80 backdrop-blur-sm p-6 border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all">
             <div className="flex items-center justify-between mb-4">
-              <div className="text-xs font-medium uppercase tracking-wider text-gray-400">
+              <div className="text-xs font-bold uppercase tracking-wider text-slate-500">
                 Ingresos
               </div>
-              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-50 text-emerald-600">
+              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-50 text-emerald-600 border border-emerald-100">
                 <TrendingUp className="h-4 w-4" />
               </div>
             </div>
-            <div className="text-2xl font-semibold text-gray-900 tracking-tight">
+            <div className="text-2xl font-bold text-slate-900 tracking-tight">
               {formatCurrency(resumenData.ingresos)}
             </div>
-            <div className="mt-2 flex items-center text-xs font-medium text-emerald-600">
+            <div className="mt-2 flex items-center text-xs font-bold text-emerald-600 bg-emerald-50 w-fit px-2 py-1 rounded-full">
               <ArrowUpRight className="mr-1 h-3 w-3" />
               +12.5%
             </div>
           </div>
 
-          <div className="group relative overflow-hidden rounded-2xl bg-white p-6 shadow-sm ring-1 ring-gray-100 transition-all hover:shadow-md">
+          <div className="group relative overflow-hidden rounded-2xl bg-white/80 backdrop-blur-sm p-6 border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all">
             <div className="flex items-center justify-between mb-4">
-              <div className="text-xs font-medium uppercase tracking-wider text-gray-400">
+              <div className="text-xs font-bold uppercase tracking-wider text-slate-500">
                 Egresos
               </div>
-              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-red-50 text-red-600">
+              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-red-50 text-red-600 border border-red-100">
                 <TrendingDown className="h-4 w-4" />
               </div>
             </div>
-            <div className="text-2xl font-semibold text-gray-900 tracking-tight">
+            <div className="text-2xl font-bold text-slate-900 tracking-tight">
               {formatCurrency(resumenData.egresos)}
             </div>
-            <div className="mt-2 flex items-center text-xs font-medium text-red-600">
+            <div className="mt-2 flex items-center text-xs font-bold text-red-600 bg-red-50 w-fit px-2 py-1 rounded-full">
               <ArrowUpRight className="mr-1 h-3 w-3" />
               +5.2%
             </div>
           </div>
 
-          <div className="group relative overflow-hidden rounded-2xl bg-white p-6 shadow-sm ring-1 ring-gray-100 transition-all hover:shadow-md">
+          <div className="group relative overflow-hidden rounded-2xl bg-white/80 backdrop-blur-sm p-6 border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all">
             <div className="flex items-center justify-between mb-4">
-              <div className="text-xs font-medium uppercase tracking-wider text-gray-400">
+              <div className="text-xs font-bold uppercase tracking-wider text-slate-500">
                 Utilidad Neta
               </div>
-              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#08557f]/10 text-[#08557f]">
+              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-100 text-slate-600 border border-slate-200">
                 <PieChart className="h-4 w-4" />
               </div>
             </div>
-            <div className="text-2xl font-semibold text-gray-900 tracking-tight">
+            <div className="text-2xl font-bold text-slate-900 tracking-tight">
               {formatCurrency(resumenData.utilidadNeta)}
             </div>
-            <div className="mt-2 text-xs text-gray-400">
+            <div className="mt-2 text-xs text-slate-500 font-medium">
               Margen operativo saludable
             </div>
           </div>
 
-          <div className="group relative overflow-hidden rounded-2xl bg-white p-6 shadow-sm ring-1 ring-gray-100 transition-all hover:shadow-md">
+          <div className="group relative overflow-hidden rounded-2xl bg-white/80 backdrop-blur-sm p-6 border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all">
             <div className="flex items-center justify-between mb-4">
-              <div className="text-xs font-medium uppercase tracking-wider text-gray-400">
+              <div className="text-xs font-bold uppercase tracking-wider text-slate-500">
                 Caja Actual
               </div>
-              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gray-50 text-gray-600">
+              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-100 text-slate-600 border border-slate-200">
                 <Wallet className="h-4 w-4" />
               </div>
             </div>
-            <div className="text-2xl font-semibold text-gray-900 tracking-tight">
+            <div className="text-2xl font-bold text-slate-900 tracking-tight">
               {formatCurrency(resumenData.cajaActual)}
             </div>
-            <div className="mt-2 text-xs text-gray-400">
+            <div className="mt-2 text-xs text-slate-500 font-medium">
               Disponible inmediato
             </div>
           </div>
         </section>
 
         {/* Tabs de Navegación Clean */}
-        <div className="border-b border-gray-100">
+        <div className="border-b border-slate-200">
           <nav className="-mb-px flex gap-8">
             <button
               onClick={() => setActiveTab('MOVIMIENTOS')}
               className={cn(
-                "py-4 text-sm font-medium border-b-2 transition-all",
+                "py-4 text-sm font-bold border-b-2 transition-all",
                 activeTab === 'MOVIMIENTOS' 
-                  ? "border-gray-900 text-gray-900" 
-                  : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-200"
+                  ? "border-slate-900 text-slate-900" 
+                  : "border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300"
               )}
             >
               Movimientos
@@ -252,10 +248,10 @@ const ModuloContablePage = () => {
             <button
               onClick={() => setActiveTab('GASTOS')}
               className={cn(
-                "py-4 text-sm font-medium border-b-2 transition-all",
+                "py-4 text-sm font-bold border-b-2 transition-all",
                 activeTab === 'GASTOS' 
-                  ? "border-gray-900 text-gray-900" 
-                  : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-200"
+                  ? "border-slate-900 text-slate-900" 
+                  : "border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300"
               )}
             >
               Control de Gastos
@@ -263,10 +259,10 @@ const ModuloContablePage = () => {
             <button
               onClick={() => setActiveTab('REPORTES')}
               className={cn(
-                "py-4 text-sm font-medium border-b-2 transition-all",
+                "py-4 text-sm font-bold border-b-2 transition-all",
                 activeTab === 'REPORTES' 
-                  ? "border-gray-900 text-gray-900" 
-                  : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-200"
+                  ? "border-slate-900 text-slate-900" 
+                  : "border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300"
               )}
             >
               Reportes
@@ -275,15 +271,15 @@ const ModuloContablePage = () => {
         </div>
 
         {/* Contenido Principal */}
-        <div className="bg-white rounded-2xl shadow-sm ring-1 ring-gray-100 overflow-hidden">
+        <div className="bg-white/80 backdrop-blur-sm rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
           {/* Barra de Herramientas */}
-          <div className="p-5 border-b border-gray-100 flex flex-col md:flex-row gap-4 justify-between items-center bg-white">
+          <div className="p-5 border-b border-slate-200 flex flex-col md:flex-row gap-4 justify-between items-center bg-white/50">
             <div className="relative w-full md:w-96">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
               <input
                 type="text"
                 placeholder="Buscar por concepto, responsable..."
-                className="w-full rounded-xl border-0 bg-gray-50 py-2.5 pl-10 pr-4 text-sm text-gray-900 ring-1 ring-inset ring-gray-200 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-[#08557f] sm:leading-6 transition-all"
+                className="w-full rounded-xl border-slate-200 bg-white py-2.5 pl-10 pr-4 text-sm font-medium text-slate-900 placeholder:text-slate-400 focus:border-slate-900 focus:ring-1 focus:ring-slate-900 transition-all"
                 value={busqueda}
                 onChange={(e) => setBusqueda(e.target.value)}
               />
@@ -291,7 +287,7 @@ const ModuloContablePage = () => {
             
             <div className="flex gap-2 w-full md:w-auto">
               <select 
-                className="rounded-xl border-0 bg-gray-50 py-2.5 pl-3 pr-8 text-sm text-gray-900 ring-1 ring-inset ring-gray-200 focus:ring-2 focus:ring-[#08557f] sm:leading-6 outline-none cursor-pointer"
+                className="rounded-xl border-slate-200 bg-white py-2.5 pl-3 pr-8 text-sm font-medium text-slate-900 focus:border-slate-900 focus:ring-1 focus:ring-slate-900 outline-none cursor-pointer"
                 value={filtroTipo}
                 onChange={(e) => setFiltroTipo(e.target.value as 'TODOS' | 'INGRESO' | 'EGRESO')}
               >
@@ -299,7 +295,7 @@ const ModuloContablePage = () => {
                 <option value="INGRESO">Ingresos</option>
                 <option value="EGRESO">Egresos</option>
               </select>
-              <button className="p-2.5 text-gray-500 hover:bg-gray-50 rounded-xl ring-1 ring-inset ring-gray-200 transition-colors">
+              <button className="p-2.5 text-slate-500 hover:bg-slate-50 hover:text-slate-900 rounded-xl border border-slate-200 transition-colors">
                 <Filter className="h-4 w-4" />
               </button>
             </div>
@@ -308,20 +304,20 @@ const ModuloContablePage = () => {
           {/* Tabla de Movimientos */}
           <div className="overflow-x-auto">
             <table className="w-full text-sm text-left">
-              <thead className="bg-gray-50/50 text-gray-500 font-medium border-b border-gray-100">
+              <thead className="bg-slate-50/50 text-slate-500 font-bold border-b border-slate-200">
                 <tr>
-                  <th className="px-6 py-4 w-40 font-medium">Fecha</th>
-                  <th className="px-6 py-4 font-medium">Concepto</th>
-                  <th className="px-6 py-4 font-medium">Categoría</th>
-                  <th className="px-6 py-4 font-medium">Responsable</th>
-                  <th className="px-6 py-4 font-medium text-right">Monto</th>
+                  <th className="px-6 py-4 w-40">Fecha</th>
+                  <th className="px-6 py-4">Concepto</th>
+                  <th className="px-6 py-4">Categoría</th>
+                  <th className="px-6 py-4">Responsable</th>
+                  <th className="px-6 py-4 text-right">Monto</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100">
+              <tbody className="divide-y divide-slate-100">
                 {movimientosFiltrados.length > 0 ? (
                   movimientosFiltrados.map((mov) => (
-                    <tr key={mov.id} className="hover:bg-gray-50/50 transition-colors group">
-                      <td className="px-6 py-4 text-gray-500 whitespace-nowrap">
+                    <tr key={mov.id} className="hover:bg-slate-50/50 transition-colors group">
+                      <td className="px-6 py-4 text-slate-500 whitespace-nowrap font-medium">
                         {new Date(mov.fecha).toLocaleDateString('es-CO', {
                           year: 'numeric',
                           month: 'short',
@@ -333,25 +329,25 @@ const ModuloContablePage = () => {
                           <div className={cn(
                             "flex h-8 w-8 items-center justify-center rounded-full transition-colors",
                             mov.tipo === 'INGRESO' 
-                              ? "bg-emerald-50 text-emerald-600 group-hover:bg-emerald-100" 
-                              : "bg-red-50 text-red-600 group-hover:bg-red-100"
+                              ? "bg-emerald-50 text-emerald-600 group-hover:bg-emerald-100 border border-emerald-100" 
+                              : "bg-red-50 text-red-600 group-hover:bg-red-100 border border-red-100"
                           )}>
                             {mov.tipo === 'INGRESO' ? <ArrowDownLeft className="h-4 w-4" /> : <ArrowUpRight className="h-4 w-4" />}
                           </div>
-                          <span className="font-medium text-gray-900">{mov.concepto}</span>
+                          <span className="font-bold text-slate-900">{mov.concepto}</span>
                         </div>
                       </td>
                       <td className="px-6 py-4">
-                        <span className="inline-flex items-center rounded-full bg-gray-50 px-2 py-1 text-xs font-medium text-gray-600 ring-1 ring-inset ring-gray-500/10">
+                        <span className="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-600 border border-slate-200">
                           {mov.categoria.replace(/_/g, ' ')}
                         </span>
                       </td>
-                      <td className="px-6 py-4 text-gray-500">
+                      <td className="px-6 py-4 text-slate-500 font-medium">
                         {mov.responsable}
                       </td>
                       <td className={cn(
-                        "px-6 py-4 text-right font-medium",
-                        mov.tipo === 'INGRESO' ? "text-emerald-600" : "text-red-600"
+                        "px-6 py-4 text-right font-bold",
+                        mov.tipo === 'INGRESO' ? "text-emerald-600" : "text-rose-600"
                       )}>
                         {mov.tipo === 'INGRESO' ? '+' : '-'}{formatCurrency(mov.monto)}
                       </td>
@@ -359,13 +355,13 @@ const ModuloContablePage = () => {
                   ))
                 ) : (
                   <tr>
-                    <td colSpan={5} className="px-6 py-16 text-center text-gray-500">
+                    <td colSpan={5} className="px-6 py-16 text-center text-slate-500">
                       <div className="flex flex-col items-center justify-center gap-4">
-                        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-gray-50">
-                          <Briefcase className="h-6 w-6 text-gray-400" />
+                        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-slate-50 border border-slate-200">
+                          <Briefcase className="h-6 w-6 text-slate-400" />
                         </div>
-                        <p className="text-base font-medium text-gray-900">No se encontraron movimientos</p>
-                        <p className="text-sm">Intenta ajustar los filtros de búsqueda.</p>
+                        <p className="text-base font-bold text-slate-900">No se encontraron movimientos</p>
+                        <p className="text-sm font-medium">Intenta ajustar los filtros de búsqueda.</p>
                       </div>
                     </td>
                   </tr>
@@ -375,15 +371,14 @@ const ModuloContablePage = () => {
           </div>
           
           {/* Paginación simple */}
-          <div className="p-4 border-t border-gray-100 bg-gray-50/30 flex justify-between items-center text-xs text-gray-500">
+          <div className="p-4 border-t border-slate-200 bg-slate-50/50 flex justify-between items-center text-xs text-slate-500 font-medium">
             <span>Mostrando {movimientosFiltrados.length} resultados</span>
             <div className="flex gap-2">
-              <button disabled className="px-3 py-1.5 rounded-lg border border-gray-200 bg-white opacity-50 cursor-not-allowed font-medium">Anterior</button>
-              <button className="px-3 py-1.5 rounded-lg border border-gray-200 bg-white hover:bg-gray-50 font-medium text-gray-700 transition-colors">Siguiente</button>
+              <button disabled className="px-3 py-1.5 rounded-lg border border-slate-200 bg-white opacity-50 cursor-not-allowed font-bold">Anterior</button>
+              <button className="px-3 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 font-bold text-slate-700 transition-colors">Siguiente</button>
             </div>
           </div>
         </div>
-      </div>
       </div>
     </div>
   )

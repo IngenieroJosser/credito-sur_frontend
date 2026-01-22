@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { 
@@ -27,15 +27,25 @@ import {
   MapPin,
   Key,
   ChevronDown,
-  CreditCard as CreditCardIcon
+  CreditCard as CreditCardIo,
+  ShoppingBag,
+  Archive,
+  CheckCircle2,
+  Receipt,
+  Map,
+  HardDrive,
+  Calculator,
+  BarChart3,
+  FileText
 } from 'lucide-react'
+import { Rol, obtenerModulosPorRol, getIconComponent, tieneAcceso } from '@/lib/permissions'
 
 interface Usuario {
   nombres: string
   apellidos: string
   correo: string
   telefono?: string
-  rol: string
+  rol: Rol
   fecha_creacion?: string
   direccion?: string
   ciudad?: string
@@ -49,16 +59,47 @@ export default function AdminLayout({
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const [user, setUser] = useState<Usuario | null>(null)
   const [showUserMenu, setShowUserMenu] = useState(false)
+  const [navigation, setNavigation] = useState<any[]>([])
   const pathname = usePathname()
   const router = useRouter()
+
+  const userMenuRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (userMenuRef.current && !userMenuRef.current.contains(event.target as Node)) {
+        setShowUserMenu(false)
+      }
+    }
+
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [])
 
   useEffect(() => {
     const loadUserData = () => {
       try {
         const userData = localStorage.getItem('user')
         if (userData) {
-          const parsedUser = JSON.parse(userData)
+          const parsedUser = JSON.parse(userData) as Usuario
           setUser(parsedUser)
+          
+          // Obtener módulos según el rol del usuario
+          if (parsedUser.rol) {
+            const modulos = obtenerModulosPorRol(parsedUser.rol)
+            
+            // Convertir módulos a formato de navegación
+            const navItems = modulos.map(modulo => ({
+              name: modulo.nombre,
+              href: modulo.path,
+              icon: getIconComponent(modulo.icono),
+              id: modulo.id
+            }))
+            
+            setNavigation(navItems)
+          }
         }
       } catch (error) {
         console.error('Error al cargar datos del usuario:', error)
@@ -122,27 +163,32 @@ export default function AdminLayout({
       'COORDINADOR': <User className="h-4 w-4" />,
       'SUPERVISOR': <Activity className="h-4 w-4" />,
       'COBRADOR': <Wallet className="h-4 w-4" />,
-      'CONTADOR': <CreditCardIcon className="h-4 w-4" />
+      'CONTADOR': <CreditCard className="h-4 w-4" />
     }
     
     return roleIcons[user.rol] || <User className="h-4 w-4" />
   }
 
-  const navigation = [
-    { name: 'Dashboard', href: '/admin', icon: <Activity className="h-4 w-4" /> },
-    { name: 'Créditos', href: '/admin/prestamos', icon: <CreditCard className="h-4 w-4" /> },
-    { name: 'Cobranza', href: '/admin/pagos/registro', icon: <Banknote className="h-4 w-4" /> },
-    { name: 'Clientes', href: '/admin/clientes', icon: <Users className="h-4 w-4" /> },
-    { name: 'Cuentas en mora', href: '/admin/cuentas-mora', icon: <AlertCircle className="h-4 w-4" /> },
-    { name: 'Rutas', href: '/admin/rutas', icon: <Route className="h-4 w-4" /> },
-    { name: 'Artículos', href: '/admin/articulos', icon: <Package className="h-4 w-4" /> },
-    { name: 'Módulo contable', href: '/admin/contable', icon: <PieChart className="h-4 w-4" /> },
-    { name: 'Usuarios', href: '/admin/users', icon: <User className="h-4 w-4" /> },
-    { name: 'Roles y permisos', href: '/admin/roles-permisos', icon: <Shield className="h-4 w-4" /> },
-    { name: 'Reportes operativos', href: '/admin/reportes/operativos', icon: <PieChart className="h-4 w-4" /> },
-    { name: 'Reportes financieros', href: '/admin/reportes/financieros', icon: <PieChart className="h-4 w-4" /> },
-    { name: 'Perfil', href: '/admin/perfil', icon: <User className="h-4 w-4" /> }
-  ]
+  // Filtrar navegación móvil (solo 4 elementos principales)
+  const getMobileNavigation = () => {
+    if (!user) return []
+    
+    const modulos = obtenerModulosPorRol(user.rol)
+    
+    // Tomar los primeros 4 módulos importantes para móvil
+    const importantModules = ['dashboard', 'prestamos-dinero', 'cobranza', 'perfil']
+    
+    return modulos
+      .filter(modulo => importantModules.includes(modulo.id))
+      .slice(0, 4)
+      .map(modulo => ({
+        name: modulo.nombre,
+        href: modulo.path,
+        icon: getIconComponent(modulo.icono),
+      }))
+  }
+
+  const mobileNavItems = getMobileNavigation()
 
   return (
     <div className="min-h-screen bg-linear-to-br from-gray-50 to-white">
@@ -184,24 +230,28 @@ export default function AdminLayout({
 
             {/* Controles de la derecha */}
             <div className="flex items-center space-x-2">
-              {/* Barra de búsqueda sutil */}
-              <div className="relative hidden md:block">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                <input
-                  type="text"
-                  placeholder="Buscar..."
-                  className="pl-10 pr-4 py-2 w-40 md:w-56 bg-transparent border-0 border-b border-gray-200 focus:border-[#08557f] focus:outline-none text-sm placeholder-gray-400"
-                />
-              </div>
+              {/* Barra de búsqueda sutil (solo para ciertos roles) */}
+              {user?.rol && ['SUPER_ADMINISTRADOR', 'COORDINADOR', 'SUPERVISOR'].includes(user.rol) && (
+                <div className="relative hidden md:block">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                  <input
+                    type="text"
+                    placeholder="Buscar..."
+                    className="pl-10 pr-4 py-2 w-40 md:w-56 bg-transparent border-0 border-b border-gray-200 focus:border-[#08557f] focus:outline-none text-sm text-gray-900 placeholder-gray-400"
+                  />
+                </div>
+              )}
 
-              {/* Notificaciones */}
-              <button className="relative p-2 hover:bg-gray-100 rounded-lg transition-colors">
-                <Bell className="h-5 w-5 text-gray-500" />
-                <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 bg-[#fb851b] rounded-full"></span>
-              </button>
+              {/* Notificaciones (solo para ciertos roles) */}
+              {user?.rol && ['SUPER_ADMINISTRADOR', 'COORDINADOR', 'COBRADOR'].includes(user.rol) && (
+                <button className="relative p-2 hover:bg-gray-100 rounded-lg transition-colors">
+                  <Bell className="h-5 w-5 text-gray-500" />
+                  <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 bg-[#fb851b] rounded-full"></span>
+                </button>
+              )}
 
               {/* Avatar de usuario con menú desplegable mejorado */}
-              <div className="relative">
+              <div ref={userMenuRef} className="relative">
                 <button 
                   onClick={() => setShowUserMenu(!showUserMenu)}
                   className="flex items-center space-x-3 p-1 hover:bg-gray-100 rounded-lg transition-colors group"
@@ -356,19 +406,23 @@ export default function AdminLayout({
                             <div className="text-xs text-gray-500">Ver y editar información personal</div>
                           </div>
                         </Link>
-                        <Link
-                          href="/admin/configuracion"
-                          className="flex items-center px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors group"
-                          onClick={() => setShowUserMenu(false)}
-                        >
-                          <div className="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center mr-3 group-hover:bg-[#08557f]/10 transition-colors">
-                            <Settings className="h-4 w-4 text-gray-600 group-hover:text-[#08557f]" />
-                          </div>
-                          <div>
-                            <div className="font-medium">Configuración</div>
-                            <div className="text-xs text-gray-500">Preferencias y ajustes del sistema</div>
-                          </div>
-                        </Link>
+                        
+                        {/* Configuración solo para admin */}
+                        {user?.rol === 'SUPER_ADMINISTRADOR' && (
+                          <Link
+                            href="/admin/sistema/configuracion"
+                            className="flex items-center px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors group"
+                            onClick={() => setShowUserMenu(false)}
+                          >
+                            <div className="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center mr-3 group-hover:bg-[#08557f]/10 transition-colors">
+                              <Settings className="h-4 w-4 text-gray-600 group-hover:text-[#08557f]" />
+                            </div>
+                            <div>
+                              <div className="font-medium">Configuración</div>
+                              <div className="text-xs text-gray-500">Preferencias y ajustes del sistema</div>
+                            </div>
+                          </Link>
+                        )}
                       </div>
 
                       {/* Cerrar sesión */}
@@ -437,20 +491,20 @@ export default function AdminLayout({
               </div>
             )}
 
-            {/* Navegación principal */}
+            {/* Navegación principal filtrada por rol */}
             <div>
               <div className="text-xs font-medium text-gray-400 uppercase tracking-wider mb-4">Principal</div>
               <div className="space-y-1">
                 {navigation.map((item) => {
-                  const isActive = pathname === item.href
+                  const isActive = pathname === item.href || pathname?.startsWith(`${item.href}/`)
                   return (
                     <Link
                       key={item.name}
                       href={item.href}
-                      className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 group ${
+                      className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-75 border group ${
                         isActive 
-                          ? 'text-[#08557f] bg-gradient-to-r from-[#08557f]/10 to-[#063a58]/5 font-medium border border-[#08557f]/20' 
-                          : 'text-gray-600 hover:text-[#08557f] hover:bg-gray-50 hover:border hover:border-gray-200'
+                          ? 'text-[#08557f] bg-gradient-to-r from-[#08557f]/10 to-[#063a58]/5 font-medium border-[#08557f]/20' 
+                          : 'text-gray-600 border-transparent hover:text-[#08557f] hover:bg-gray-50 hover:border-gray-200'
                       }`}
                       onClick={() => setIsMenuOpen(false)}
                     >
@@ -464,69 +518,39 @@ export default function AdminLayout({
               </div>
             </div>
 
-            {/* Sección de sistema */}
-            <div>
-              <div className="text-xs font-medium text-gray-400 uppercase tracking-wider mb-4">Sistema</div>
-              <div className="space-y-1">
-                <Link
-                  href="/admin/sistema/configuracion"
-                  className="flex items-center gap-3 px-3 py-2.5 text-gray-600 hover:text-gray-800 hover:bg-gray-50 hover:border hover:border-gray-200 rounded-xl transition-all duration-200 group"
-                  onClick={() => setIsMenuOpen(false)}
-                >
-                  <Settings className="h-4 w-4 text-gray-400 group-hover:text-gray-600" />
-                  <span className="text-sm font-medium">Configuración</span>
-                </Link>
-                <Link
-                  href="/admin/sistema/sincronizacion"
-                  className="flex items-center gap-3 px-3 py-2.5 text-gray-600 hover:text-gray-800 hover:bg-gray-50 hover:border hover:border-gray-200 rounded-xl transition-all duration-200 group"
-                  onClick={() => setIsMenuOpen(false)}
-                >
-                  <Activity className="h-4 w-4 text-gray-400 group-hover:text-gray-600" />
-                  <span className="text-sm font-medium">Sincronización</span>
-                </Link>
-                <Link
-                  href="/admin/sistema/backups"
-                  className="flex items-center gap-3 px-3 py-2.5 text-gray-600 hover:text-gray-800 hover:bg-gray-50 hover:border hover:border-gray-200 rounded-xl transition-all duration-200 group"
-                  onClick={() => setIsMenuOpen(false)}
-                >
-                  <Wallet className="h-4 w-4 text-gray-400 group-hover:text-gray-600" />
-                  <span className="text-sm font-medium">Backups</span>
-                </Link>
-                <Link
-                  href="/admin/auditoria"
-                  className="flex items-center gap-3 px-3 py-2.5 text-gray-600 hover:text-gray-800 hover:bg-gray-50 hover:border hover:border-gray-200 rounded-xl transition-all duration-200 group"
-                  onClick={() => setIsMenuOpen(false)}
-                >
-                  <Shield className="h-4 w-4 text-gray-400 group-hover:text-gray-600" />
-                  <span className="text-sm font-medium">Auditoría</span>
-                </Link>
-              </div>
-            </div>
-
-            {/* Resumen del mes elegante */}
-            <div className="pt-8 border-t border-gray-100">
-              <div className="p-4 bg-linear-to-br from-gray-900 to-gray-800 rounded-xl text-white shadow-lg">
-                <div className="flex items-center justify-between mb-2">
-                  <div className="text-xs text-gray-300">Rendimiento</div>
-                  <div className="text-xs text-gray-300 flex items-center gap-2">
-                    <div className="w-6 h-6 rounded-full bg-gradient-to-br from-[#08557f] to-[#063a58] flex items-center justify-center text-xs">
-                      {getUserInitials()}
-                    </div>
-                  </div>
-                </div>
-                <div className="text-2xl font-light mb-3">94.2%</div>
-                <div className="h-1.5 bg-gray-700 rounded-full overflow-hidden">
-                  <div 
-                    className="h-full bg-linear-to-r from-[#08557f] to-[#10b981] rounded-full"
-                    style={{ width: '94.2%' }}
-                  ></div>
-                </div>
-                <div className="flex justify-between text-xs text-gray-400 mt-2">
-                  <span>Meta: 95%</span>
-                  <span className="text-green-400">+2.1%</span>
+            {/* Sección de sistema (solo para SUPER_ADMINISTRADOR) */}
+            {user?.rol === 'SUPER_ADMINISTRADOR' && (
+              <div>
+                <div className="text-xs font-medium text-gray-400 uppercase tracking-wider mb-4">Sistema</div>
+                <div className="space-y-1">
+                  {[
+                    { name: 'Configuración', href: '/admin/sistema/configuracion', icon: <Settings className="h-4 w-4" /> },
+                    { name: 'Sincronización', href: '/admin/sistema/sincronizacion', icon: <Activity className="h-4 w-4" /> },
+                    { name: 'Backups', href: '/admin/sistema/backups', icon: <HardDrive className="h-4 w-4" /> },
+                    { name: 'Auditoría', href: '/admin/auditoria', icon: <FileText className="h-4 w-4" /> }
+                  ].map((item) => {
+                    const isActive = pathname === item.href
+                    return (
+                      <Link
+                        key={item.name}
+                        href={item.href}
+                        className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-75 border group ${
+                          isActive 
+                            ? 'text-[#08557f] bg-gradient-to-r from-[#08557f]/10 to-[#063a58]/5 font-medium border-[#08557f]/20' 
+                            : 'text-gray-600 border-transparent hover:text-[#08557f] hover:bg-gray-50 hover:border-gray-200'
+                        }`}
+                        onClick={() => setIsMenuOpen(false)}
+                      >
+                        <div className={`transition-colors ${isActive ? 'text-[#08557f]' : 'text-gray-400 group-hover:text-[#08557f]'}`}>
+                          {item.icon}
+                        </div>
+                        <span className="text-sm">{item.name}</span>
+                      </Link>
+                    )
+                  })}
                 </div>
               </div>
-            </div>
+            )}
           </div>
         </nav>
       </aside>
@@ -539,17 +563,11 @@ export default function AdminLayout({
       {/* Sidebar móvil */}
       <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-50 shadow-lg">
         <div className="flex items-center justify-around py-3 px-2">
-          {[
-             { name: 'Dashboard', href: '/admin', icon: <Activity className="h-5 w-5" /> },
-             { name: 'Créditos', href: '/admin/prestamos', icon: <CreditCard className="h-5 w-5" /> },
-             { name: 'Cobranza', href: '/admin/pagos/registro', icon: <Banknote className="h-5 w-5" /> },
-             { name: 'Perfil', href: '/admin/perfil', icon: <User className="h-5 w-5" /> },
-             { name: 'Más', href: '#', icon: <Menu className="h-5 w-5" />, action: () => setIsMenuOpen(true) }
-          ].map((item) => (
+          {mobileNavItems.map((item) => (
             <Link
               key={item.name}
               href={item.href}
-              onClick={item.action}
+              onClick={() => setIsMenuOpen(false)}
               className="flex flex-col items-center px-2 py-1 rounded-xl transition-all group"
             >
               <div className={`p-2 rounded-lg transition-all ${
@@ -562,10 +580,27 @@ export default function AdminLayout({
               <span className={`text-xs mt-1 transition-colors ${
                 pathname === item.href ? 'font-medium text-[#08557f]' : 'text-gray-600'
               }`}>
-                {item.name}
+                {item.name.length > 10 ? `${item.name.substring(0, 9)}...` : item.name}
               </span>
             </Link>
           ))}
+          <button
+            onClick={() => setIsMenuOpen(true)}
+            className="flex flex-col items-center px-2 py-1 rounded-xl transition-all group"
+          >
+            <div className={`p-2 rounded-lg transition-all ${
+              isMenuOpen
+                ? 'bg-gradient-to-br from-[#08557f] to-[#063a58] text-white shadow-md' 
+                : 'text-gray-500 group-hover:bg-gray-100'
+            }`}>
+              <Menu className="h-5 w-5" />
+            </div>
+            <span className={`text-xs mt-1 transition-colors ${
+              isMenuOpen ? 'font-medium text-[#08557f]' : 'text-gray-600'
+            }`}>
+              Más
+            </span>
+          </button>
         </div>
       </div>
 

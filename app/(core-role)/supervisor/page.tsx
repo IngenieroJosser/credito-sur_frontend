@@ -4,30 +4,30 @@ import Link from 'next/link';
 import { useState } from 'react';
 import { 
   TrendingUp, 
-  TrendingDown,
-  AlertCircle,
-  Users,
-  CreditCard,
-  DollarSign,
-  PieChart,
-  Target,
-  Filter,
-  Download,
-  ChevronRight,
-  Calendar,
-  ArrowUpRight,
-  Activity,
-  Wallet,
-  Receipt,
-  MapPin,
-  BarChart3,
-  Eye,
-  CheckCircle,
-  XCircle,
-  Clock,
-  User,
+  TrendingDown, 
+  AlertCircle, 
+  Users, 
+  CreditCard, 
+  DollarSign, 
+  PieChart, 
+  Target, 
+  Filter, 
+  ChevronRight, 
+  Calendar, 
+  ArrowUpRight, 
+  Activity, 
+  Wallet, 
+  Receipt, 
+  MapPin, 
+  BarChart3, 
+  Eye, 
+  CheckCircle, 
+  XCircle, 
+  Clock, 
+  User, 
   Shield
 } from 'lucide-react';
+import { ExportButton } from '@/components/ui/ExportButton';
 
 interface MetricCard {
   title: string;
@@ -238,7 +238,24 @@ const DashboardSupervisor = () => {
   };
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8">
+    <div className="min-h-screen bg-white relative">
+      {/* Fondo arquitectónico ultra sutil */}
+      <div className="fixed inset-0 pointer-events-none">
+        <div className="absolute inset-0 bg-gradient-to-br from-white via-gray-50/50 to-white"></div>
+        {/* Líneas de estructura */}
+        <div className="absolute inset-0" style={{
+          backgroundImage: `linear-gradient(to right, #08557f 0.5px, transparent 0.5px)`,
+          backgroundSize: '96px 1px',
+          opacity: 0.03
+        }}></div>
+        <div className="absolute inset-0" style={{
+          backgroundImage: `linear-gradient(to bottom, #08557f 0.5px, transparent 0.5px)`,
+          backgroundSize: '1px 96px',
+          opacity: 0.03
+        }}></div>
+      </div>
+
+      <div className="relative z-10 w-full space-y-8 p-8">
       {/* Encabezado del dashboard */}
       <div className="mb-8">
         <div className="flex items-start justify-between">
@@ -254,25 +271,27 @@ const DashboardSupervisor = () => {
             </div>
             <p className="text-sm text-gray-500" suppressHydrationWarning>{formatDate(currentDate)}</p>
           </div>
-          <button className="flex items-center space-x-2 px-4 py-2 bg-white border border-gray-200 rounded-lg hover:border-gray-300 transition-colors">
-            <Download className="h-4 w-4 text-gray-500" />
-            <span className="text-sm text-gray-600">Exportar Reportes</span>
-          </button>
+          <ExportButton 
+            label="Exportar Reportes" 
+            onExportExcel={handleExportExcel} 
+            onExportPDF={handleExportPDF} 
+          />
         </div>
         
         {/* Filtros */}
-        <div className="mt-4 flex flex-wrap gap-2">
-          <div className="flex items-center space-x-1 bg-gray-100 rounded-lg p-1">
+        <div className="mt-4 flex flex-wrap items-center gap-3">
+          <div className="flex items-center bg-gray-50 p-1 rounded-xl border border-gray-100">
             {['Hoy', 'Sem', 'Mes', 'Trim'].map((item, index) => {
               const values = ['today', 'week', 'month', 'quarter'] as const;
+              const isSelected = timeFilter === values[index];
               return (
                 <button
                   key={item}
                   onClick={() => setTimeFilter(values[index])}
-                  className={`px-3 py-1 text-xs rounded-md transition-all ${
-                    timeFilter === values[index] 
-                      ? 'bg-white text-gray-800 shadow-sm' 
-                      : 'text-gray-500 hover:text-gray-700'
+                  className={`px-4 py-1.5 text-xs font-medium rounded-lg transition-all ${
+                    isSelected
+                      ? 'bg-white text-[#08557f] shadow-sm ring-1 ring-black/5' 
+                      : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100/50'
                   }`}
                 >
                   {item}
@@ -281,16 +300,40 @@ const DashboardSupervisor = () => {
             })}
           </div>
           
-          <select 
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value as any)}
-            className="text-sm border border-gray-200 rounded-lg px-3 py-1 bg-white"
-          >
-            <option value="all">Todos los estados</option>
-            <option value="critical">Crítico</option>
-            <option value="moderate">Moderado</option>
-            <option value="mild">Leve</option>
-          </select>
+          <div className="h-6 w-px bg-gray-200 mx-1"></div>
+
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setStatusFilter('all')}
+              className={`rounded-full px-4 py-1.5 border text-xs font-medium transition-all ${
+                statusFilter === 'all'
+                  ? "border-[#08557f] bg-[#08557f] text-white shadow-md shadow-[#08557f]/20"
+                  : "border-gray-200 bg-white text-gray-600 hover:bg-gray-50"
+              }`}
+            >
+              Todos
+            </button>
+            <button
+              onClick={() => setStatusFilter('critical')}
+              className={`rounded-full px-4 py-1.5 border text-xs font-medium transition-all ${
+                statusFilter === 'critical'
+                  ? "border-red-500 bg-red-500 text-white shadow-md shadow-red-500/20"
+                  : "border-gray-200 bg-white text-gray-600 hover:bg-gray-50"
+              }`}
+            >
+              Críticos
+            </button>
+            <button
+              onClick={() => setStatusFilter('moderate')}
+              className={`rounded-full px-4 py-1.5 border text-xs font-medium transition-all ${
+                statusFilter === 'moderate'
+                  ? "border-amber-500 bg-amber-500 text-white shadow-md shadow-amber-500/20"
+                  : "border-gray-200 bg-white text-gray-600 hover:bg-gray-50"
+              }`}
+            >
+              Moderados
+            </button>
+          </div>
         </div>
       </div>
 
@@ -484,14 +527,14 @@ const DashboardSupervisor = () => {
             
             <div className="space-y-4">
               {filteredExpenses.slice(0, 3).map((expense) => (
-                <div key={expense.id} className="p-4 border border-gray-200 rounded-lg hover:border-gray-300 transition-colors">
+                <div key={expense.id} className="p-4 border border-gray-200 rounded-xl hover:border-[#08557f]/30 hover:shadow-md transition-all duration-300 bg-white group">
                   <div className="flex items-start justify-between mb-3">
                     <div>
-                      <h3 className="font-medium text-gray-800">{expense.collector}</h3>
+                      <h3 className="font-medium text-gray-800 group-hover:text-[#08557f] transition-colors">{expense.collector}</h3>
                       <p className="text-sm text-gray-500">{expense.description}</p>
                     </div>
                     <div className="text-right">
-                      <div className="text-lg font-medium text-[#fb851b]">
+                      <div className="text-lg font-medium text-[#08557f]">
                         ${expense.amount.toLocaleString('es-CO')}
                       </div>
                       <div className="text-sm text-gray-500">{expense.date}</div>
