@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import Link from 'next/link';
 import { 
   User, Phone, Mail, MapPin, Calendar, FileText, 
   DollarSign, TrendingUp, AlertCircle, CheckCircle,
@@ -159,7 +160,12 @@ const ClienteDetalleElegante: React.FC<ClienteDetalleProps> = ({
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 p-4 md:p-8">
+    <div className="min-h-screen bg-slate-50 p-4 md:p-8 relative">
+      <div className="fixed inset-0 pointer-events-none">
+        <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px]"></div>
+        <div className="absolute left-0 right-0 top-0 -z-10 m-auto h-[310px] w-[310px] rounded-full bg-blue-500 opacity-20 blur-[100px]"></div>
+      </div>
+      <div className="relative z-10">
       {/* Header minimalista */}
       <div className="mb-8">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -169,13 +175,15 @@ const ClienteDetalleElegante: React.FC<ClienteDetalleProps> = ({
                 <User className="w-7 h-7" />
               </div>
               <div>
-                <h1 className="text-3xl font-bold text-slate-900 tracking-tight">{cliente.nombres} {cliente.apellidos}</h1>
+                <h1 className="text-3xl font-bold tracking-tight">
+                  <span className="text-blue-600">{cliente.nombres}</span> <span className="text-orange-500">{cliente.apellidos}</span>
+                </h1>
                 <div className="flex items-center gap-2 mt-1">
                   <span className="px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-600 text-xs font-bold border border-slate-200">
                     {cliente.codigo}
                   </span>
                   <span className="text-slate-400 text-sm">•</span>
-                  <span className="text-slate-500 text-sm font-medium">DNI: {cliente.dni}</span>
+                  <span className="text-slate-500 text-sm font-medium">Cédula: {cliente.dni}</span>
                 </div>
               </div>
             </div>
@@ -189,9 +197,16 @@ const ClienteDetalleElegante: React.FC<ClienteDetalleProps> = ({
               <Edit className="w-4 h-4" />
               Editar
             </button>
+            <Link
+              href={`/admin/pagos/registrar/${cliente.id}`}
+              className="px-5 py-2.5 bg-orange-500 text-white rounded-xl hover:bg-orange-600 transition-all duration-200 text-sm font-bold flex items-center gap-2 shadow-lg shadow-orange-500/20"
+            >
+              <DollarSign className="w-4 h-4" />
+              Registrar Pago
+            </Link>
             <button 
               onClick={onContact}
-              className="px-5 py-2.5 bg-slate-900 text-white rounded-xl hover:bg-slate-800 transition-all duration-200 text-sm font-bold flex items-center gap-2 shadow-lg shadow-slate-900/20"
+              className="px-5 py-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-all duration-200 text-sm font-bold flex items-center gap-2 shadow-lg shadow-blue-600/20"
             >
               <MessageSquare className="w-4 h-4" />
               Contactar
@@ -402,7 +417,7 @@ const ClienteDetalleElegante: React.FC<ClienteDetalleProps> = ({
                 </button>
                 <button 
                   onClick={onNewLoan}
-                  className="px-4 py-2 bg-slate-900 text-white rounded-xl hover:bg-slate-800 transition-all duration-200 text-sm font-bold flex items-center gap-2 shadow-lg shadow-slate-900/20"
+                  className="px-4 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-all duration-200 text-sm font-bold flex items-center gap-2 shadow-lg shadow-blue-600/20"
                 >
                   <Plus className="w-4 h-4" />
                   Nuevo Préstamo
@@ -549,7 +564,7 @@ const ClienteDetalleElegante: React.FC<ClienteDetalleProps> = ({
                 <h2 className="text-xl font-bold text-slate-900 mb-2">Seguimiento y Comentarios</h2>
                 <p className="text-slate-500 text-sm font-medium">{comentarios.length} interacciones registradas</p>
               </div>
-              <button className="px-4 py-2 bg-slate-900 text-white rounded-xl hover:bg-slate-800 transition-all duration-200 text-sm font-bold flex items-center gap-2 shadow-lg shadow-slate-900/20">
+              <button className="px-4 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-all duration-200 text-sm font-bold flex items-center gap-2 shadow-lg shadow-blue-600/20">
                 <Plus className="w-4 h-4" />
                 Nuevo Comentario
               </button>
@@ -707,6 +722,7 @@ const ClienteDetalleElegante: React.FC<ClienteDetalleProps> = ({
           <div className="w-2.5 h-2.5 rounded-full bg-blue-500 ring-4 ring-blue-100"></div>
           <span>{prestamos.length} préstamos gestionados</span>
         </div>
+      </div>
       </div>
     </div>
   );
