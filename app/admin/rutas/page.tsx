@@ -83,7 +83,7 @@ const RutasPage = () => {
     { id: 'SP-002', nombre: 'Luis Fernández' }
   ];
 
-  const [rutas] = useState<RutaCobro[]> ([
+  const [rutas, setRutas] = useState<RutaCobro[]> ([
     {
       id: 'RT-001',
       nombre: 'Ruta Centro',
@@ -152,10 +152,36 @@ const RutasPage = () => {
     // Simular petición API
     await new Promise(resolve => setTimeout(resolve, 1000));
 
-    console.log('Guardando ruta:', formData);
+    const nuevaRuta: RutaCobro = {
+      id: `RT-00${rutas.length + 1}`,
+      nombre: formData.nombre,
+      codigo: formData.codigo,
+      estado: formData.estado as EstadoRuta,
+      cobrador: cobradores.find(c => c.id === formData.cobradorId)?.nombre || 'Sin Asignar',
+      supervisor: supervisores.find(s => s.id === formData.supervisorId)?.nombre || 'Sin Asignar',
+      clientesAsignados: 0,
+      frecuenciaVisita: formData.frecuenciaVisita.charAt(0) + formData.frecuenciaVisita.slice(1).toLowerCase(),
+      cobranzaDelDia: 0,
+      metaDelDia: 0
+    };
+
+    setRutas([...rutas, nuevaRuta]);
+    console.log('Ruta guardada:', nuevaRuta);
+
     setLoading(false);
     setShowModal(false);
-    // Aquí se debería actualizar la lista de rutas
+    
+    // Reset form
+    setFormData({
+      nombre: '',
+      codigo: '',
+      zona: '',
+      cobradorId: '',
+      supervisorId: '',
+      frecuenciaVisita: 'DIARIO',
+      estado: 'ACTIVA',
+      descripcion: ''
+    });
   };
 
   const rutasFiltradas = rutas.filter((ruta) => {

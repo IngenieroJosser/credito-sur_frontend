@@ -103,6 +103,7 @@ export default function ArticulosPage() {
   const [busqueda, setBusqueda] = useState('')
   const [modalOpen, setModalOpen] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [editingId, setEditingId] = useState<string | null>(null)
   
   // Form State
   const initialFormState = {
@@ -122,6 +123,7 @@ export default function ArticulosPage() {
 
   const handleOpenModal = (articulo?: Articulo) => {
     if (articulo) {
+      setEditingId(articulo.id)
       setFormData({
         nombre: articulo.nombre,
         codigo: articulo.codigo,
@@ -135,6 +137,7 @@ export default function ArticulosPage() {
         precios: [...articulo.precios]
       })
     } else {
+      setEditingId(null)
       setFormData(initialFormState)
     }
     setModalOpen(true)
@@ -144,9 +147,23 @@ export default function ArticulosPage() {
     e.preventDefault()
     setLoading(true)
     await new Promise(resolve => setTimeout(resolve, 1000))
-    setLoading(false)
-    setModalOpen(false)
-    // Lógica de guardado real aquí
+
+    if (editingId) {
+      // Editar existente
+      setArticulos(prev => prev.map(a => a.id === editingId ? { ...a, ...formData, id: editingId, estado: a.estado } : a))
+    } else {
+      // Crear nuevo
+      const nuevoArticulo: Articulo = {
+        id: (articulos.length + 1).toString(),
+        ...formData,
+        estado: 'activo'
+      }
+      setArticulos(prev => [...prev, nuevoArticulo])
+    }
+
+    setLoading(false);
+    setModalOpen(false);
+    setEditingId(null);
   }
 
   const addPrecioPlazo = () => {
