@@ -159,9 +159,9 @@ const ListadoPrestamosElegante = () => {
           <div className="flex items-center gap-3">
             <Link 
               href="/admin/prestamos/nuevo"
-              className="inline-flex items-center gap-2 px-6 py-2.5 bg-slate-900 text-white rounded-xl hover:bg-slate-800 transition-all font-bold text-sm shadow-lg shadow-slate-900/20"
+              className="inline-flex items-center gap-2 px-6 py-2.5 bg-white border border-slate-300 text-slate-700 rounded-xl hover:border-slate-400 hover:bg-slate-50 transition-all duration-200 shadow-sm font-bold text-sm group"
             >
-              <Plus className="w-4 h-4" />
+              <Plus className="w-4 h-4 text-slate-500 group-hover:text-slate-900 transition-colors" />
               Nuevo Préstamo
             </Link>
           </div>

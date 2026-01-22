@@ -181,7 +181,7 @@ const CuentasMoraPage = () => {
 
           <div className="flex items-center gap-3">
             <ExportButton 
-              label="Exportar Reporte" 
+              label="Exportar " 
               onExportExcel={handleExportExcel} 
               onExportPDF={handleExportPDF} 
             />
