@@ -132,7 +132,15 @@ export const MOCK_CLIENTES: Cliente[] = [
 export const clientesService = {
   obtenerClientes: async () => {
     try {
-      return await apiRequest<Cliente[]>('GET', '/clients');
+      const response = await apiRequest<Cliente[] | { data: Cliente[] }>('GET', '/clients');
+      // Manejar tanto arrays como objetos con propiedad data
+      if (Array.isArray(response)) {
+        return response;
+      }
+      if (response && 'data' in response) {
+        return response.data;
+      }
+      return MOCK_CLIENTES;
     } catch (error) {
       console.warn('Usando datos mock de clientes', error);
       return MOCK_CLIENTES;

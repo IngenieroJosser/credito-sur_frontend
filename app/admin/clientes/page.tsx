@@ -40,6 +40,9 @@ const ClientesPage = () => {
     initialData: MOCK_CLIENTES
   });
 
+  // Asegurar que clientes siempre es un array
+  const clientesArray = Array.isArray(clientes) ? clientes : (clientes?.data || MOCK_CLIENTES);
+
   const [searchTerm, setSearchTerm] = useState('');
   const [filterRiesgo, setFilterRiesgo] = useState<string>('all');
   const [currentPage, setCurrentPage] = useState(1);
@@ -76,17 +79,17 @@ const ClientesPage = () => {
 
   // Estadísticas
   const stats = {
-    total: clientes.length,
-    verde: clientes.filter(c => c.nivelRiesgo === 'VERDE').length,
-    amarillo: clientes.filter(c => c.nivelRiesgo === 'AMARILLO').length,
-    rojo: clientes.filter(c => c.nivelRiesgo === 'ROJO').length,
-    listaNegra: clientes.filter(c => c.enListaNegra).length,
-    totalDeuda: clientes.reduce((sum, c) => sum + c.montoTotal, 0),
-    totalMora: clientes.reduce((sum, c) => sum + c.montoMora, 0)
+    total: clientesArray.length,
+    verde: clientesArray.filter(c => c.nivelRiesgo === 'VERDE').length,
+    amarillo: clientesArray.filter(c => c.nivelRiesgo === 'AMARILLO').length,
+    rojo: clientesArray.filter(c => c.nivelRiesgo === 'ROJO').length,
+    listaNegra: clientesArray.filter(c => c.enListaNegra).length,
+    totalDeuda: clientesArray.reduce((sum, c) => sum + c.montoTotal, 0),
+    totalMora: clientesArray.reduce((sum, c) => sum + c.montoMora, 0)
   };
 
   // Filtros y búsqueda
-  const filteredClientes = clientes.filter(cliente => {
+  const filteredClientes = clientesArray.filter(cliente => {
     const matchesSearch = 
       `${cliente.nombres} ${cliente.apellidos}`.toLowerCase().includes(searchTerm.toLowerCase()) ||
       cliente.dni.toLowerCase().includes(searchTerm.toLowerCase()) ||
