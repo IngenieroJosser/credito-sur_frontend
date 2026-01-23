@@ -478,7 +478,7 @@ const RoleManagementPage = () => {
                     <select
                       value={filterModule}
                       onChange={(e) => setFilterModule(e.target.value)}
-                      className="px-3 py-2 bg-white border border-slate-200 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-slate-900 focus:border-transparent cursor-pointer hover:border-slate-300 transition-colors"
+                      className="px-3 py-2 bg-white border border-slate-200 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-slate-900 focus:border-transparent cursor-pointer hover:border-slate-300 transition-colors text-slate-900"
                     >
                       <option value="all">Todos los módulos</option>
                       {modules.map(module => (
