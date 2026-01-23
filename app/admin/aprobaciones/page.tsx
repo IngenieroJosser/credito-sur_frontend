@@ -12,9 +12,12 @@ import {
   Eye,
   Check,
   X,
-  Clock
+  Clock,
+  AlertTriangle,
+  Info
 } from 'lucide-react'
 import { formatCurrency, cn } from '@/lib/utils'
+import { useRouter } from 'next/navigation'
 
 // Mock Data Interfaces
 interface ItemPendiente {
@@ -28,10 +31,11 @@ interface ItemPendiente {
 }
 
 const AprobacionesPage = () => {
+  const router = useRouter()
   const [activeTab, setActiveTab] = useState<'TODOS' | 'PRESTAMOS' | 'CLIENTES' | 'SOLICITUDES' | 'GASTOS'>('TODOS')
-
-  // Mock Data
-  const pendientes: ItemPendiente[] = [
+  
+  // State for modals and actions
+  const [items, setItems] = useState<ItemPendiente[]>([
     {
       id: '1',
       tipo: 'SOLICITUD_DINERO',
@@ -67,11 +71,33 @@ const AprobacionesPage = () => {
       detalle: 'Nuevo registro: Carlos Rodriguez (Requiere validación de dirección).',
       estado: 'PENDIENTE'
     }
-  ]
+  ])
+
+  const [selectedItem, setSelectedItem] = useState<ItemPendiente | null>(null)
+  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false)
+  const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false)
+  const [actionType, setActionType] = useState<'APPROVE' | 'REJECT' | null>(null)
+
+  const handleAction = (item: ItemPendiente, type: 'APPROVE' | 'REJECT') => {
+    setSelectedItem(item)
+    setActionType(type)
+    setIsConfirmModalOpen(true)
+  }
+
+  const handleConfirmAction = () => {
+    if (selectedItem && actionType) {
+      setItems(items.filter(i => i.id !== selectedItem.id))
+      setIsConfirmModalOpen(false)
+      setIsDetailModalOpen(false)
+      setSelectedItem(null)
+      setActionType(null)
+      // Here you would typically make an API call
+    }
+  }
 
   const filteredItems = activeTab === 'TODOS' 
-    ? pendientes 
-    : pendientes.filter(item => {
+    ? items 
+    : items.filter(item => {
         if (activeTab === 'PRESTAMOS') return item.tipo === 'PRESTAMO'
         if (activeTab === 'CLIENTES') return item.tipo === 'CLIENTE'
         if (activeTab === 'SOLICITUDES') return item.tipo === 'SOLICITUD_DINERO'
@@ -199,13 +225,28 @@ const AprobacionesPage = () => {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right">
                       <div className="flex items-center justify-end gap-2">
-                        <button className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors" title="Ver Detalles">
+                        <button 
+                          onClick={() => {
+                            setSelectedItem(item)
+                            setIsDetailModalOpen(true)
+                          }}
+                          className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors" 
+                          title="Ver Detalles"
+                        >
                           <Eye className="h-4 w-4" />
                         </button>
-                        <button className="p-2 text-rose-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors" title="Rechazar">
+                        <button 
+                          onClick={() => handleAction(item, 'REJECT')}
+                          className="p-2 text-rose-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors" 
+                          title="Rechazar"
+                        >
                           <X className="h-4 w-4" />
                         </button>
-                        <button className="p-2 text-emerald-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors" title="Aprobar">
+                        <button 
+                          onClick={() => handleAction(item, 'APPROVE')}
+                          className="p-2 text-emerald-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors" 
+                          title="Aprobar"
+                        >
                           <Check className="h-4 w-4" />
                         </button>
                       </div>
@@ -227,6 +268,128 @@ const AprobacionesPage = () => {
           )}
         </div>
       </div>
+      {/* Modal de Detalle */}
+      {isDetailModalOpen && selectedItem && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+            <div className="p-6 border-b border-slate-100 flex justify-between items-center">
+              <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                <Info className="h-5 w-5 text-blue-600" />
+                Detalle de Solicitud
+              </h3>
+              <button 
+                onClick={() => setIsDetailModalOpen(false)}
+                className="p-2 hover:bg-slate-100 rounded-full transition-colors"
+              >
+                <X className="h-5 w-5 text-slate-400" />
+              </button>
+            </div>
+            
+            <div className="p-6 space-y-4">
+              <div className="flex items-center gap-3 p-4 bg-slate-50 rounded-xl border border-slate-100">
+                <div className="p-2 bg-white rounded-lg shadow-sm">
+                  {getIconoTipo(selectedItem.tipo)}
+                </div>
+                <div>
+                  <div className="font-bold text-slate-900">{getLabelTipo(selectedItem.tipo)}</div>
+                  <div className="text-sm text-slate-500">ID: {selectedItem.id}</div>
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                <div>
+                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Solicitante</label>
+                  <p className="font-medium text-slate-900">{selectedItem.solicitante}</p>
+                </div>
+                
+                <div>
+                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Fecha</label>
+                  <p className="font-medium text-slate-900">
+                    {new Date(selectedItem.fecha).toLocaleString('es-CO', { dateStyle: 'full', timeStyle: 'short' })}
+                  </p>
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Detalle</label>
+                  <p className="font-medium text-slate-700 bg-slate-50 p-3 rounded-lg border border-slate-100 text-sm leading-relaxed">
+                    {selectedItem.detalle}
+                  </p>
+                </div>
+
+                {selectedItem.monto && (
+                  <div>
+                    <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Monto Solicitado</label>
+                    <p className="text-xl font-bold text-slate-900">{formatCurrency(selectedItem.monto)}</p>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="p-6 bg-slate-50 border-t border-slate-100 flex justify-end gap-3">
+              <button 
+                onClick={() => handleAction(selectedItem, 'REJECT')}
+                className="px-4 py-2 bg-white border border-rose-200 text-rose-600 font-bold rounded-xl hover:bg-rose-50 transition-colors"
+              >
+                Rechazar
+              </button>
+              <button 
+                onClick={() => handleAction(selectedItem, 'APPROVE')}
+                className="px-4 py-2 bg-emerald-600 text-white font-bold rounded-xl hover:bg-emerald-700 shadow-lg shadow-emerald-600/20 transition-colors"
+              >
+                Aprobar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Confirmación */}
+      {isConfirmModalOpen && selectedItem && actionType && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+            <div className="p-6 text-center">
+              <div className={cn(
+                "w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4",
+                actionType === 'APPROVE' ? "bg-emerald-100" : "bg-rose-100"
+              )}>
+                {actionType === 'APPROVE' ? (
+                  <CheckCircle2 className="h-8 w-8 text-emerald-600" />
+                ) : (
+                  <AlertTriangle className="h-8 w-8 text-rose-600" />
+                )}
+              </div>
+              <h3 className="text-xl font-bold text-slate-900 mb-2">
+                {actionType === 'APPROVE' ? '¿Aprobar Solicitud?' : '¿Rechazar Solicitud?'}
+              </h3>
+              <p className="text-sm text-slate-500 mb-6">
+                {actionType === 'APPROVE' 
+                  ? 'Esta acción autorizará la solicitud y notificará al solicitante.'
+                  : 'Esta acción denegará la solicitud. Esta acción no se puede deshacer.'}
+              </p>
+              
+              <div className="flex gap-3">
+                <button 
+                  onClick={() => setIsConfirmModalOpen(false)}
+                  className="flex-1 px-4 py-2 bg-white border border-slate-200 text-slate-700 font-bold rounded-xl hover:bg-slate-50 transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button 
+                  onClick={handleConfirmAction}
+                  className={cn(
+                    "flex-1 px-4 py-2 text-white font-bold rounded-xl shadow-lg transition-colors",
+                    actionType === 'APPROVE' 
+                      ? "bg-emerald-600 hover:bg-emerald-700 shadow-emerald-600/20" 
+                      : "bg-rose-600 hover:bg-rose-700 shadow-rose-600/20"
+                  )}
+                >
+                  Confirmar
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
