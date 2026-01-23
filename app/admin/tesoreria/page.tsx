@@ -19,6 +19,7 @@ import {
 } from 'lucide-react'
 import { formatCurrency, cn } from '@/lib/utils'
 import { ExportButton } from '@/components/ui/ExportButton'
+import { useRouter } from 'next/navigation'
 
 // Mock Data
 interface Transaccion {
@@ -32,6 +33,7 @@ interface Transaccion {
 }
 
 const TesoreriaPage = () => {
+  const router = useRouter()
   const [activeTab, setActiveTab] = useState<'RESUMEN' | 'INGRESOS' | 'EGRESO'>('RESUMEN')
   const [isArqueoOpen, setIsArqueoOpen] = useState(false)
   const [arqueoData, setArqueoData] = useState({
@@ -229,13 +231,14 @@ const TesoreriaPage = () => {
                       {trx.tipo === 'INGRESO' ? '+' : '-'}{formatCurrency(trx.monto)}
                     </td>
                     <td className="px-6 py-4 text-right">
-                      <button 
-                        className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                        title="Ver Detalle"
-                      >
-                        <Eye className="h-4 w-4" />
-                      </button>
-                    </td>
+                  <button 
+                    onClick={() => router.push(`/admin/contable/movimientos/${trx.id}`)}
+                    className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                    title="Ver Detalle"
+                  >
+                    <Eye className="h-4 w-4" />
+                  </button>
+                </td>
                   </tr>
                 ))}
               </tbody>

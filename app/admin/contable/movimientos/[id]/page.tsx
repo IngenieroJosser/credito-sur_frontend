@@ -12,7 +12,9 @@ import {
   FileText,
   Tag,
   Clock,
-  CheckCircle2
+  CheckCircle2,
+  Printer,
+  Download
 } from 'lucide-react'
 import { formatCurrency, cn } from '@/lib/utils'
 
@@ -39,30 +41,41 @@ export default function DetalleMovimientoPage({ params }: { params: Promise<{ id
     <div className="min-h-screen bg-slate-50 relative pb-20">
       <div className="fixed inset-0 pointer-events-none">
         <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px]"></div>
-        <div className="absolute left-0 right-0 top-0 -z-10 m-auto h-[310px] w-[310px] rounded-full bg-slate-200 opacity-20 blur-[100px]"></div>
+        <div className="absolute left-0 right-0 top-0 -z-10 m-auto h-[310px] w-[310px] rounded-full bg-blue-500 opacity-20 blur-[100px]"></div>
       </div>
 
-      <div className="relative z-10 max-w-2xl mx-auto p-6 md:p-8 space-y-8">
-        <div className="flex items-center gap-4">
-          <Link 
-            href="/admin/contable"
-            className="p-2 -ml-2 text-slate-400 hover:text-slate-900 transition-colors"
-          >
-            <ArrowLeft className="h-6 w-6" />
-          </Link>
-          <div>
-            <div className="flex items-center gap-3 mb-1">
-              <span className="text-sm font-bold text-slate-400 uppercase tracking-wider">
-                Movimiento #{id}
-              </span>
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 text-xs font-bold border border-emerald-200">
-                <CheckCircle2 className="h-3 w-3" />
-                {movimiento.estado}
-              </span>
+      <div className="relative z-10 w-full max-w-7xl mx-auto p-4 md:p-6 space-y-6">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <Link 
+              href="/admin/contable"
+              className="p-2 -ml-2 text-slate-400 hover:text-slate-900 transition-colors"
+            >
+              <ArrowLeft className="h-6 w-6" />
+            </Link>
+            <div>
+              <div className="flex items-center gap-3 mb-1">
+                <span className="text-sm font-bold text-slate-400 uppercase tracking-wider">
+                  Movimiento #{id}
+                </span>
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 text-xs font-bold border border-emerald-200">
+                  <CheckCircle2 className="h-3 w-3" />
+                  {movimiento.estado}
+                </span>
+              </div>
+              <h1 className="text-3xl font-bold tracking-tight text-slate-900">
+                Detalle del Movimiento
+              </h1>
             </div>
-            <h1 className="text-3xl font-bold tracking-tight text-slate-900">
-              Detalle del Movimiento
-            </h1>
+          </div>
+
+          <div className="flex gap-2">
+            <button className="p-2 text-slate-500 hover:text-slate-900 hover:bg-white rounded-xl border border-transparent hover:border-slate-200 transition-all" title="Imprimir">
+                <Printer className="h-5 w-5" />
+            </button>
+            <button className="p-2 text-slate-500 hover:text-slate-900 hover:bg-white rounded-xl border border-transparent hover:border-slate-200 transition-all" title="Descargar PDF">
+                <Download className="h-5 w-5" />
+            </button>
           </div>
         </div>
 
