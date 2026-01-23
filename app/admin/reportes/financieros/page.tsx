@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import { 
   LineChart, 
   DollarSign, 
@@ -39,6 +40,7 @@ type ExpenseWithPercentage = ExpenseDistribution & {
 }
 
 const ReportesFinancierosPage = () => {
+  const router = useRouter()
   const [periodo, setPeriodo] = useState('ANUAL')
   const [loading, setLoading] = useState(true)
   const [mounted, setMounted] = useState(false)
@@ -336,7 +338,10 @@ const ReportesFinancierosPage = () => {
               <h3 className="text-lg font-bold text-slate-900">Detalle Financiero</h3>
               <p className="text-sm text-slate-400 font-medium">Desglose por periodo contable</p>
             </div>
-            <button className="text-sm text-slate-900 font-bold hover:text-slate-700 bg-white border border-slate-200 px-4 py-2 rounded-lg shadow-sm hover:shadow transition-all">
+            <button 
+              onClick={() => router.push('/admin/contable')}
+              className="text-sm text-slate-900 font-bold hover:text-slate-700 bg-white border border-slate-200 px-4 py-2 rounded-lg shadow-sm hover:shadow transition-all"
+            >
               Ver reporte completo
             </button>
           </div>
@@ -370,6 +375,7 @@ const ReportesFinancierosPage = () => {
                     </td>
                     <td className="px-8 py-5 text-right">
                       <button 
+                        onClick={() => router.push('/admin/contable?tab=MOVIMIENTOS')}
                         className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
                         title="Ver Detalles"
                       >

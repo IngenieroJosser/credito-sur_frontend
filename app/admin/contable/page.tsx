@@ -1,6 +1,7 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, Suspense } from 'react'
+import { useSearchParams } from 'next/navigation'
 import {
   DollarSign,
   TrendingUp,
@@ -70,8 +71,13 @@ interface ResumenFinanciero {
   cajaActual: number
 }
 
-const ModuloContablePage = () => {
-  const [activeTab, setActiveTab] = useState<'MOVIMIENTOS' | 'CAJAS' | 'HISTORIAL'>('CAJAS')
+const ModuloContableContent = () => {
+  const searchParams = useSearchParams()
+  const tabParam = searchParams.get('tab')
+  const validTabs = ['MOVIMIENTOS', 'CAJAS', 'HISTORIAL']
+  const initialTab = validTabs.includes(tabParam || '') ? (tabParam as 'MOVIMIENTOS' | 'CAJAS' | 'HISTORIAL') : 'CAJAS'
+
+  const [activeTab, setActiveTab] = useState<'MOVIMIENTOS' | 'CAJAS' | 'HISTORIAL'>(initialTab)
   const [busqueda, setBusqueda] = useState('')
   const [filtroTipo, setFiltroTipo] = useState<'TODOS' | 'INGRESO' | 'EGRESO'>('TODOS')
 
@@ -650,6 +656,15 @@ const ModuloContablePage = () => {
         )}
       </div>
     </div>
+  )
+}
+
+// Wrap in Suspense to avoid de-opting entire page
+const ModuloContablePage = () => {
+  return (
+    <Suspense fallback={<div>Cargando...</div>}>
+      <ModuloContableContent />
+    </Suspense>
   )
 }
 
