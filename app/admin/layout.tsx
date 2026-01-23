@@ -303,7 +303,13 @@ export default function AdminLayout({
                         </div>
                       </div>
                       <div className="p-2 border-t border-gray-100">
-                        <button className="w-full py-2 text-sm font-medium text-gray-600 hover:text-blue-600 hover:bg-gray-50 rounded-lg transition-colors">
+                        <button 
+                          onClick={() => {
+                            setShowNotifications(false)
+                            router.push('/admin/notificaciones')
+                          }}
+                          className="w-full py-2 text-sm font-medium text-gray-600 hover:text-blue-600 hover:bg-gray-50 rounded-lg transition-colors"
+                        >
                           Ver todas las notificaciones
                         </button>
                       </div>
