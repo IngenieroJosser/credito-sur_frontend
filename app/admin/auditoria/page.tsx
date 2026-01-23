@@ -10,7 +10,9 @@ import {
   Calendar, 
   Eye, 
   ChevronLeft, 
-  ChevronRight
+  ChevronRight,
+  X,
+  Laptop
 } from 'lucide-react'
 import { MOCK_LOGS, type LogAuditoria } from './data'
 import { cn } from '@/lib/utils'
@@ -19,6 +21,7 @@ import { ExportButton } from '@/components/ui/ExportButton'
 const AuditoriaSistemaPage = () => {
   const [busqueda, setBusqueda] = useState('')
   const [filtroNivel, setFiltroNivel] = useState<'TODOS' | 'INFO' | 'WARNING' | 'CRITICAL'>('TODOS')
+  const [selectedLog, setSelectedLog] = useState<LogAuditoria | null>(null)
   
   const [logs] = useState<LogAuditoria[]>(MOCK_LOGS);
 
@@ -211,6 +214,7 @@ const AuditoriaSistemaPage = () => {
                     </td>
                     <td className="px-6 py-4 text-right">
                       <button 
+                        onClick={() => setSelectedLog(log)}
                         className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
                         title="Ver Detalle"
                       >
@@ -246,6 +250,93 @@ const AuditoriaSistemaPage = () => {
           </div>
         </section>
       </div>
+
+      {/* Modal de Detalle */}
+      {selectedLog && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden animate-in zoom-in-95 duration-200">
+            <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+              <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                <Shield className="h-5 w-5 text-blue-600" />
+                <span className="text-blue-600">Detalle del</span>
+                <span className="text-orange-500">Evento</span>
+              </h3>
+              <button 
+                onClick={() => setSelectedLog(null)}
+                className="p-2 hover:bg-slate-200/50 rounded-full transition-colors"
+              >
+                <X className="h-5 w-5 text-slate-400" />
+              </button>
+            </div>
+            
+            <div className="p-6 space-y-6">
+              {/* Info Usuario */}
+              <div className="flex items-center gap-4 p-4 bg-slate-50 rounded-xl border border-slate-100">
+                <div className="h-12 w-12 rounded-xl bg-white flex items-center justify-center text-lg font-bold text-slate-700 shadow-sm border border-slate-200 uppercase">
+                  {selectedLog.usuario.charAt(0)}
+                </div>
+                <div>
+                  <div className="font-bold text-slate-900">{selectedLog.usuario}</div>
+                  <div className="text-xs text-slate-500 font-medium flex items-center gap-2">
+                    <span className="bg-slate-200 text-slate-600 px-2 py-0.5 rounded-md text-[10px] uppercase tracking-wider font-bold">
+                      {selectedLog.rol}
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <Laptop className="h-3 w-3" />
+                      {selectedLog.ip}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Grid de Detalles */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Fecha y Hora</span>
+                  <p className="font-medium text-slate-900 flex items-center gap-2">
+                    <Calendar className="h-4 w-4 text-slate-400" />
+                    {formatDate(selectedLog.fecha)}
+                  </p>
+                </div>
+                <div className="space-y-1">
+                  <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Nivel</span>
+                  <div>
+                    <span className={cn(
+                      "inline-flex px-2.5 py-1 rounded-full text-[10px] font-bold tracking-wide uppercase border",
+                      getNivelBadge(selectedLog.nivel)
+                    )}>
+                      {selectedLog.nivel}
+                    </span>
+                  </div>
+                </div>
+                <div className="space-y-1 col-span-2">
+                  <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Módulo / Acción</span>
+                  <p className="font-medium text-slate-900">
+                    {selectedLog.modulo} <span className="text-slate-300">/</span> {selectedLog.accion}
+                  </p>
+                </div>
+              </div>
+
+              {/* Detalle Texto */}
+              <div className="space-y-2">
+                <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Detalle del Registro</span>
+                <div className="p-4 bg-slate-50 rounded-xl border border-slate-100 text-sm text-slate-600 font-medium leading-relaxed">
+                  {selectedLog.detalle}
+                </div>
+              </div>
+            </div>
+
+            <div className="p-6 border-t border-slate-100 bg-slate-50/50 flex justify-end">
+              <button 
+                onClick={() => setSelectedLog(null)}
+                className="px-6 py-2 rounded-xl bg-orange-500 text-white font-bold hover:bg-orange-600 transition-all shadow-lg shadow-orange-500/20"
+              >
+                Cerrar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
