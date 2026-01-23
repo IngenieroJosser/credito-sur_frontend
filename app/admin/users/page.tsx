@@ -2,6 +2,8 @@
 
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
+import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import {
   Search,
   UserPlus,
@@ -18,7 +20,9 @@ import {
   AlertCircle,
   Sparkles,
   LayoutGrid,
-  List
+  List,
+  Trash2,
+  Save
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -50,6 +54,7 @@ interface Role {
 }
 
 const UserManagementPage = () => {
+  const router = useRouter();
   // Mock del rol actual (en una implementación real vendría del contexto de autenticación)
   const currentUserRole: RolUsuario = 'SUPER_ADMINISTRADOR';
 
@@ -358,13 +363,13 @@ const UserManagementPage = () => {
             </div>
 
             <div className="flex items-center gap-4">
-              <button
-                onClick={handleOpenCreateModal}
+              <Link
+                href="/admin/users/nuevo"
                 className="inline-flex items-center gap-2 rounded-xl bg-white border border-slate-200 px-6 py-2.5 text-sm font-bold text-slate-700 shadow-sm hover:bg-slate-50 hover:text-slate-900 transition-all duration-300 whitespace-nowrap"
               >
                 <UserPlus className="h-4 w-4" />
                 <span>Nuevo Usuario</span>
-              </button>
+              </Link>
             </div>
           </div>
 
@@ -511,20 +516,22 @@ const UserManagementPage = () => {
                       </td>
                       <td className="px-8 py-5 text-right">
                         <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                          <button
+                          <Link
+                            href={`/admin/users/${user.id}`}
                             className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
                             title="Ver detalle"
                           >
                             <Eye className="h-4 w-4" />
-                          </button>
-                          <button
-                            onClick={() => handleOpenEditModal(user)}
+                          </Link>
+                          <Link
+                            href={`/admin/users/${user.id}/editar`}
                             className="p-2 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
                             title="Editar"
-                            disabled={user.rol === 'SUPER_ADMINISTRADOR' && currentUserRole !== 'SUPER_ADMINISTRADOR'}
+                            aria-disabled={user.rol === 'SUPER_ADMINISTRADOR' && currentUserRole !== 'SUPER_ADMINISTRADOR'}
+                            style={user.rol === 'SUPER_ADMINISTRADOR' && currentUserRole !== 'SUPER_ADMINISTRADOR' ? { pointerEvents: 'none', opacity: 0.5 } : {}}
                           >
                             <Edit2 className="h-4 w-4" />
-                          </button>
+                          </Link>
                           <button
                             onClick={() => handleOpenPermissionsModal(user)}
                             className="p-2 text-slate-400 hover:text-violet-600 hover:bg-violet-50 rounded-lg transition-colors"
@@ -543,7 +550,7 @@ const UserManagementPage = () => {
                             disabled={user.rol === 'SUPER_ADMINISTRADOR'}
                           >
                             {user.estado === 'ACTIVO' ? (
-                              <EyeOff className="h-4 w-4" />
+                              <Trash2 className="h-4 w-4" />
                             ) : (
                               <Eye className="h-4 w-4" />
                             )}
@@ -606,20 +613,22 @@ const UserManagementPage = () => {
                   </div>
 
                   <div className="flex items-center justify-end gap-2 pt-4 border-t border-slate-100 mt-auto">
-                    <button
+                    <Link
+                      href={`/admin/users/${user.id}`}
                       className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
                       title="Ver detalle"
                     >
                       <Eye className="h-4 w-4" />
-                    </button>
-                    <button
-                      onClick={() => handleOpenEditModal(user)}
+                    </Link>
+                    <Link
+                      href={`/admin/users/${user.id}/editar`}
                       className="p-2 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
                       title="Editar"
-                      disabled={user.rol === 'SUPER_ADMINISTRADOR' && currentUserRole !== 'SUPER_ADMINISTRADOR'}
+                      aria-disabled={user.rol === 'SUPER_ADMINISTRADOR' && currentUserRole !== 'SUPER_ADMINISTRADOR'}
+                      style={user.rol === 'SUPER_ADMINISTRADOR' && currentUserRole !== 'SUPER_ADMINISTRADOR' ? { pointerEvents: 'none', opacity: 0.5 } : {}}
                     >
                       <Edit2 className="h-4 w-4" />
-                    </button>
+                    </Link>
                     <button
                       onClick={() => handleOpenPermissionsModal(user)}
                       className="p-2 text-slate-400 hover:text-violet-600 hover:bg-violet-50 rounded-lg transition-colors"
@@ -638,7 +647,7 @@ const UserManagementPage = () => {
                       disabled={user.rol === 'SUPER_ADMINISTRADOR'}
                     >
                       {user.estado === 'ACTIVO' ? (
-                        <EyeOff className="h-4 w-4" />
+                        <Trash2 className="h-4 w-4" />
                       ) : (
                         <Eye className="h-4 w-4" />
                       )}
@@ -769,6 +778,95 @@ const UserManagementPage = () => {
         </div>
       )}
 
+      {/* Permissions Modal */}
+      {isPermissionsModalOpen && selectedUser && (
+        <div 
+          className="fixed inset-0 bg-slate-900/50 backdrop-blur-md flex items-center justify-center p-4 z-50 animate-in fade-in duration-200"
+          onClick={() => setIsPermissionsModalOpen(false)}
+        >
+          <div 
+            className="bg-white rounded-2xl w-full max-w-2xl border border-slate-200 shadow-2xl p-8 transform scale-100 animate-in zoom-in-95 duration-200 flex flex-col max-h-[90vh]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center gap-3 mb-6 shrink-0">
+              <div className="p-2 bg-blue-50 text-orange-600 rounded-lg">
+                <Key className="h-6 w-6" />
+              </div>
+              <div>
+                <h2 className="text-2xl font-bold tracking-tight text-slate-900">
+                  Gestión de Permisos
+                </h2>
+                <p className="text-sm text-slate-500 font-medium">
+                  Configura los accesos para <span className="text-slate-900 font-bold">{selectedUser.nombres} {selectedUser.apellidos}</span>
+                </p>
+              </div>
+            </div>
+
+            <div className="flex-1 overflow-y-auto pr-2 -mr-2 min-h-0">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {availablePermissions.map((permission) => (
+                  <label 
+                    key={permission.id}
+                    className={cn(
+                      "flex items-start gap-3 p-4 rounded-xl border transition-all cursor-pointer select-none",
+                      selectedPermissions.includes(permission.id)
+                        ? "bg-blue-50 border-blue-200 shadow-sm"
+                        : "bg-white border-slate-200 hover:border-blue-200 hover:bg-slate-50"
+                    )}
+                  >
+                    <div className="pt-0.5">
+                      <div className={cn(
+                        "w-5 h-5 rounded-md border flex items-center justify-center transition-all",
+                        selectedPermissions.includes(permission.id)
+                          ? "bg-blue-600 border-blue-600"
+                          : "bg-white border-slate-300"
+                      )}>
+                        {selectedPermissions.includes(permission.id) && (
+                          <Check className="h-3.5 w-3.5 text-white stroke-[3]" />
+                        )}
+                      </div>
+                      <input 
+                        type="checkbox"
+                        className="hidden"
+                        checked={selectedPermissions.includes(permission.id)}
+                        onChange={() => handleTogglePermission(permission.id)}
+                      />
+                    </div>
+                    <div>
+                      <span className={cn(
+                        "block text-sm font-bold mb-0.5",
+                        selectedPermissions.includes(permission.id) ? "text-blue-900" : "text-slate-700"
+                      )}>
+                        {permission.label}
+                      </span>
+                      <span className="block text-xs text-slate-500 leading-snug">
+                        {permission.description}
+                      </span>
+                    </div>
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-3 mt-8 pt-4 border-t border-slate-100 shrink-0">
+              <button
+                onClick={() => setIsPermissionsModalOpen(false)}
+                className="px-5 py-2.5 text-sm font-bold text-slate-600 hover:text-slate-900 hover:bg-slate-50 rounded-xl transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleUpdatePermissions}
+                className="px-5 py-2.5 text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-xl shadow-lg shadow-blue-600/20 transition-all transform active:scale-95 flex items-center gap-2"
+              >
+                <Save className="h-4 w-4" />
+                <span>Guardar Cambios</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Delete Confirmation Modal */}
       {isDeleteModalOpen && selectedUser && (
         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in duration-200">
@@ -778,15 +876,15 @@ const UserManagementPage = () => {
                 "w-12 h-12 rounded-full flex items-center justify-center mb-4",
                 selectedUser.estado === 'ACTIVO' ? 'bg-rose-50 text-rose-600' : 'bg-emerald-50 text-emerald-600'
               )}>
-                {selectedUser.estado === 'ACTIVO' ? <AlertCircle className="h-6 w-6" /> : <Check className="h-6 w-6" />}
+                {selectedUser.estado === 'ACTIVO' ? <Trash2 className="h-6 w-6" /> : <Check className="h-6 w-6" />}
               </div>
               <h3 className="text-lg font-bold text-slate-900 mb-2">
                 {selectedUser.estado === 'ACTIVO' ? '¿Desactivar usuario?' : '¿Activar usuario?'}
               </h3>
               <p className="text-sm text-slate-500 mb-6 font-medium">
                 {selectedUser.estado === 'ACTIVO' 
-                  ? `Estás a punto de desactivar el acceso de ${selectedUser.nombre}.` 
-                  : `Se restablecerá el acceso para ${selectedUser.nombre}.`
+                  ? `Estás a punto de desactivar el acceso de ${selectedUser.nombres}.` 
+                  : `Se restablecerá el acceso para ${selectedUser.nombres}.`
                 }
               </p>
               <div className="flex gap-3 w-full">
