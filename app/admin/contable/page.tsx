@@ -20,8 +20,12 @@ import {
   AlertCircle,
   Eye,
   Edit2,
-  Lock
+  Lock,
+  Plus,
+  History,
+  Receipt
 } from 'lucide-react'
+import Link from 'next/link'
 import { formatCurrency, cn } from '@/lib/utils'
 import { ExportButton } from '@/components/ui/ExportButton'
 
@@ -34,6 +38,17 @@ interface Caja {
   saldo: number
   estado: 'ABIERTA' | 'CERRADA'
   ultimaActualizacion: string
+}
+
+interface HistorialCierre {
+  id: string
+  fecha: string
+  caja: string
+  responsable: string
+  saldoSistema: number
+  saldoReal: number
+  diferencia: number
+  estado: 'CUADRADA' | 'DESCUADRADA'
 }
 
 interface MovimientoContable {
@@ -56,7 +71,7 @@ interface ResumenFinanciero {
 }
 
 const ModuloContablePage = () => {
-  const [activeTab, setActiveTab] = useState<'MOVIMIENTOS' | 'CAJAS'>('CAJAS')
+  const [activeTab, setActiveTab] = useState<'MOVIMIENTOS' | 'CAJAS' | 'HISTORIAL'>('CAJAS')
   const [busqueda, setBusqueda] = useState('')
   const [filtroTipo, setFiltroTipo] = useState<'TODOS' | 'INGRESO' | 'EGRESO'>('TODOS')
 
@@ -88,6 +103,40 @@ const ModuloContablePage = () => {
       saldo: 120000,
       estado: 'CERRADA',
       ultimaActualizacion: 'Ayer 6:00 PM'
+    }
+  ])
+
+  // Mock Data: Historial Cierres
+  const [historialCierres] = useState<HistorialCierre[]>([
+    {
+      id: 'CIERRE-001',
+      fecha: '2026-01-22T18:30:00',
+      caja: 'Caja Principal Oficina',
+      responsable: 'Ana Admin',
+      saldoSistema: 5200000,
+      saldoReal: 5200000,
+      diferencia: 0,
+      estado: 'CUADRADA'
+    },
+    {
+      id: 'CIERRE-002',
+      fecha: '2026-01-22T17:00:00',
+      caja: 'Caja Ruta Norte',
+      responsable: 'Carlos Cobrador',
+      saldoSistema: 850000,
+      saldoReal: 845000,
+      diferencia: -5000,
+      estado: 'DESCUADRADA'
+    },
+    {
+      id: 'CIERRE-003',
+      fecha: '2026-01-21T18:00:00',
+      caja: 'Caja Principal Oficina',
+      responsable: 'Ana Admin',
+      saldoSistema: 4800000,
+      saldoReal: 4800000,
+      diferencia: 0,
+      estado: 'CUADRADA'
     }
   ])
 
@@ -198,10 +247,13 @@ const ModuloContablePage = () => {
                 onExportExcel={handleExportExcel} 
                 onExportPDF={handleExportPDF} 
               />
-              <button className="inline-flex items-center gap-2 rounded-xl bg-orange-500 px-5 py-2.5 text-sm font-bold text-white hover:bg-orange-600 transition-all shadow-lg shadow-orange-500/20 transform active:scale-95">
+              <Link 
+                href="/admin/contable/cierre-caja"
+                className="inline-flex items-center gap-2 rounded-xl bg-orange-500 px-5 py-2.5 text-sm font-bold text-white hover:bg-orange-600 transition-all shadow-lg shadow-orange-500/20 transform active:scale-95"
+              >
                 <Calendar className="h-4 w-4" />
                 Cierre de Caja
-              </button>
+              </Link>
             </div>
         </header>
 
@@ -305,6 +357,18 @@ const ModuloContablePage = () => {
               <FileText className="h-4 w-4" />
               Movimientos
             </button>
+            <button
+              onClick={() => setActiveTab('HISTORIAL')}
+              className={cn(
+                "py-4 text-sm font-bold border-b-2 transition-all flex items-center gap-2",
+                activeTab === 'HISTORIAL' 
+                  ? "border-slate-900 text-slate-900" 
+                  : "border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300"
+              )}
+            >
+              <History className="h-4 w-4" />
+              Historial de Cierres
+            </button>
           </nav>
         </div>
 
@@ -338,25 +402,28 @@ const ModuloContablePage = () => {
                 <div className="pt-4 border-t border-slate-100 flex justify-between items-center">
                   <span className="text-xs text-slate-400 font-medium">Act: {caja.ultimaActualizacion}</span>
                   <div className="flex items-center gap-2">
-                    <button 
-                      className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                      title="Ver Detalles"
-                    >
-                      <Eye className="h-4 w-4" />
-                    </button>
-                    <button 
-                      className="p-2 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
-                      title="Editar Caja"
-                    >
-                      <Edit2 className="h-4 w-4" />
-                    </button>
+                    <Link 
+                          href={`/admin/contable/cajas/${caja.id}`}
+                          className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                          title="Ver Detalles"
+                        >
+                          <Eye className="h-4 w-4" />
+                        </Link>
+                        <Link 
+                          href={`/admin/contable/cajas/${caja.id}/editar`}
+                          className="p-2 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
+                          title="Editar Caja"
+                        >
+                          <Edit2 className="h-4 w-4" />
+                        </Link>
                     {caja.estado === 'ABIERTA' && (
-                      <button 
+                      <Link 
+                        href="/admin/contable/cierre-caja"
                         className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
                         title="Cerrar Caja"
                       >
                         <Lock className="h-4 w-4" />
-                      </button>
+                      </Link>
                     )}
                   </div>
                 </div>
@@ -381,6 +448,13 @@ const ModuloContablePage = () => {
             </div>
             
             <div className="flex gap-2 w-full md:w-auto">
+              <Link
+                href="/admin/contable/movimientos/nuevo"
+                className="inline-flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-300 text-slate-700 rounded-xl hover:border-slate-400 hover:bg-slate-50 transition-all duration-200 shadow-sm font-bold text-sm group"
+              >
+                <Plus className="w-4 h-4 text-slate-500 group-hover:text-slate-900 transition-colors" />
+                <span>Registrar Movimiento</span>
+              </Link>
               <select 
                 className="rounded-xl border-slate-200 bg-white py-2.5 pl-3 pr-8 text-sm font-medium text-slate-900 focus:border-slate-900 focus:ring-1 focus:ring-slate-900 outline-none cursor-pointer"
                 value={filtroTipo}
@@ -448,12 +522,13 @@ const ModuloContablePage = () => {
                         {mov.tipo === 'INGRESO' ? '+' : '-'}{formatCurrency(mov.monto)}
                       </td>
                       <td className="px-6 py-4 text-right">
-                        <button 
-                          className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                        <Link 
+                          href={`/admin/contable/movimientos/${mov.id}`}
+                          className="inline-flex p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
                           title="Ver Detalle"
                         >
                           <Eye className="h-4 w-4" />
-                        </button>
+                        </Link>
                       </td>
                     </tr>
                   ))
@@ -482,6 +557,95 @@ const ModuloContablePage = () => {
               <button className="px-3 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 font-bold text-slate-700 transition-colors">Siguiente</button>
             </div>
           </div>
+          </div>
+        )}
+
+        {activeTab === 'HISTORIAL' && (
+          <div className="bg-white/80 backdrop-blur-sm rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+            <div className="p-6 border-b border-slate-200 flex justify-between items-center bg-white/50">
+               <div>
+                  <h2 className="text-lg font-bold text-slate-900">Historial de Cierres</h2>
+                  <p className="text-sm text-slate-500">Registro histórico de arqueos y cierres de caja.</p>
+               </div>
+               <button className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 text-slate-700 rounded-xl hover:bg-slate-50 transition-colors text-sm font-bold shadow-sm">
+                  <Download className="h-4 w-4" />
+                  Descargar Informe
+               </button>
+            </div>
+            
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm text-left">
+                <thead className="bg-slate-50/50 text-slate-500 font-bold border-b border-slate-200">
+                  <tr>
+                    <th className="px-6 py-4">Fecha Cierre</th>
+                    <th className="px-6 py-4">Caja</th>
+                    <th className="px-6 py-4">Responsable</th>
+                    <th className="px-6 py-4 text-right">Saldo Sistema</th>
+                    <th className="px-6 py-4 text-right">Saldo Real</th>
+                    <th className="px-6 py-4 text-right">Diferencia</th>
+                    <th className="px-6 py-4 text-center">Estado</th>
+                    <th className="px-6 py-4 text-right">Acciones</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {historialCierres.map((cierre) => (
+                    <tr key={cierre.id} className="hover:bg-slate-50/50 transition-colors">
+                      <td className="px-6 py-4 text-slate-900 font-medium">
+                        {new Date(cierre.fecha).toLocaleDateString('es-CO', {
+                          year: 'numeric',
+                          month: 'short',
+                          day: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit'
+                        })}
+                      </td>
+                      <td className="px-6 py-4 text-slate-600">
+                        {cierre.caja}
+                      </td>
+                      <td className="px-6 py-4 text-slate-500">
+                        {cierre.responsable}
+                      </td>
+                      <td className="px-6 py-4 text-right font-medium text-slate-600">
+                        {formatCurrency(cierre.saldoSistema)}
+                      </td>
+                      <td className="px-6 py-4 text-right font-bold text-slate-900">
+                        {formatCurrency(cierre.saldoReal)}
+                      </td>
+                      <td className={cn(
+                        "px-6 py-4 text-right font-bold",
+                        cierre.diferencia === 0 ? "text-slate-400" : (cierre.diferencia > 0 ? "text-emerald-600" : "text-rose-600")
+                      )}>
+                        {cierre.diferencia > 0 ? '+' : ''}{formatCurrency(cierre.diferencia)}
+                      </td>
+                      <td className="px-6 py-4 text-center">
+                        <span className={cn(
+                          "inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold border",
+                          cierre.estado === 'CUADRADA'
+                            ? "bg-emerald-50 text-emerald-700 border-emerald-100"
+                            : "bg-rose-50 text-rose-700 border-rose-100"
+                        )}>
+                          {cierre.estado === 'CUADRADA' ? (
+                            <CheckCircle2 className="w-3 h-3 mr-1" />
+                          ) : (
+                            <AlertCircle className="w-3 h-3 mr-1" />
+                          )}
+                          {cierre.estado}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 text-right">
+                        <Link 
+                          href={`/admin/contable/historial/${cierre.id}`}
+                          className="inline-flex p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors" 
+                          title="Ver Comprobante"
+                        >
+                          <Receipt className="h-4 w-4" />
+                        </Link>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         )}
       </div>

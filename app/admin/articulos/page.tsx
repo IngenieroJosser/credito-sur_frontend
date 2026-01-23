@@ -7,18 +7,13 @@ import {
   Search,
   Filter,
   Plus,
-  MoreVertical,
   Download,
   Trash2,
-  Edit2,
   AlertCircle,
   TrendingUp,
   Tag,
   DollarSign,
-  X,
   Activity,
-  Layers,
-  Box,
   Pencil
 } from 'lucide-react'
 import { formatCurrency } from '@/lib/utils'
