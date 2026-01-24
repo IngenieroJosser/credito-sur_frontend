@@ -54,6 +54,7 @@ import { CSS } from '@dnd-kit/utilities'
 import { useRouter } from 'next/navigation'
 import { RolUsuario } from '@/lib/types/autenticacion-type'
 import { cerrarSesion, obtenerPerfil } from '@/services/autenticacion-service'
+import { formatCurrency } from '@/lib/utils'
 
 type EstadoVisita = 'pendiente' | 'pagado' | 'en_mora' | 'ausente' | 'reprogramado'
 
@@ -511,7 +512,7 @@ const VistaCobradorPage = () => {
     setShowBaseRequestModal(false)
   }, [])
 
-  const handleNuevoCliente = useCallback((datos: any) => {
+  const handleNuevoCliente = useCallback((datos: unknown) => {
     console.log(`Crea nuevo cliente:`, datos)
     setShowNewClientModal(false)
   }, [])

@@ -85,12 +85,20 @@ export default async function PrestamoDetallePage({
               </div>
             </div>
             
-            <Link
-              href={`/admin/prestamos/${id}/editar`}
-              className="px-4 py-2 bg-white border border-slate-200 text-slate-700 font-bold rounded-xl hover:bg-slate-50 transition-all text-sm shadow-sm hover:shadow-md"
-            >
-              Editar Préstamo
-            </Link>
+            <div className="flex items-center gap-3">
+              <Link
+                href={`/admin/pagos/registrar/${prestamo.clienteId}`}
+                className="px-4 py-2 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 transition-all text-sm shadow-sm hover:shadow-md hover:shadow-blue-600/20"
+              >
+                Registrar Pago
+              </Link>
+              <Link
+                href={`/admin/prestamos/${id}/editar`}
+                className="px-4 py-2 bg-white border border-slate-200 text-slate-700 font-bold rounded-xl hover:bg-slate-50 transition-all text-sm shadow-sm hover:shadow-md"
+              >
+                Editar Préstamo
+              </Link>
+            </div>
           </div>
         </div>
       </header>

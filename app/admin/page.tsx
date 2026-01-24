@@ -49,13 +49,32 @@ interface UserData {
   nombreCompleto?: string;
 }
 
+interface MetricItem {
+  title: string;
+  value: number | string;
+  subValue?: string;
+  isCurrency: boolean;
+  change: number;
+  icon: React.ReactNode;
+  color: string;
+}
+
+interface QuickAccessItem {
+  title: string;
+  subtitle: string;
+  icon: React.ReactNode;
+  color: string;
+  badge?: number;
+  href: string;
+}
+
 const DashboardPage = () => {
   const [timeFilter, setTimeFilter] = useState<'today' | 'week' | 'month' | 'quarter'>('month');
   const [currentDate, setCurrentDate] = useState<Date | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [userData, setUserData] = useState<UserData | null>(null);
-  const [quickAccess, setQuickAccess] = useState<any[]>([]);
-  const [mainMetrics, setMainMetrics] = useState<any[]>([]);
+  const [quickAccess, setQuickAccess] = useState<QuickAccessItem[]>([]);
+  const [mainMetrics, setMainMetrics] = useState<MetricItem[]>([]);
   const router = useRouter();
   
   const handleExportExcel = () => {
@@ -101,7 +120,7 @@ const DashboardPage = () => {
   
   const configurarDashboardPorRol = (rol: Rol) => {
     // Configurar métricas según el rol
-    const metricsConfig: Record<Rol, any[]> = {
+    const metricsConfig: Record<Rol, MetricItem[]> = {
       SUPER_ADMINISTRADOR: [
         {
           title: 'Total Prestado (Mes)',
@@ -277,7 +296,7 @@ const DashboardPage = () => {
     };
 
     // Configurar accesos rápidos según el rol
-    const quickAccessConfig: Record<Rol, any[]> = {
+    const quickAccessConfig: Record<Rol, QuickAccessItem[]> = {
       SUPER_ADMINISTRADOR: [
         {
           title: 'Nuevo Crédito',

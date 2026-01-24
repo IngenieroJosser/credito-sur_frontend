@@ -1,11 +1,10 @@
 'use client'
 
 import React, { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { 
   Bell, 
   Search, 
-  Filter, 
   Banknote, 
   Users, 
   AlertCircle, 
@@ -13,12 +12,9 @@ import {
   Clock,
   ChevronLeft,
   ChevronRight,
-  MoreVertical,
   Trash2,
-  Eye,
   ArrowRight
 } from 'lucide-react'
-import { formatCurrency } from '@/lib/utils'
 
 // Mock Data
 interface Notificacion {
@@ -80,7 +76,6 @@ const MOCK_NOTIFICACIONES: Notificacion[] = [
 ]
 
 export default function NotificacionesPage() {
-  const router = useRouter()
   const [filter, setFilter] = useState<'TODAS' | 'NO_LEIDAS'>('TODAS')
   
   const notificaciones = filter === 'TODAS' 
@@ -213,13 +208,13 @@ export default function NotificacionesPage() {
 
                       <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                         {notif.link && (
-                          <button 
-                            onClick={() => router.push(notif.link!)}
+                          <Link 
+                            href={notif.link}
                             className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-colors" 
                             title="Ir a detalle"
                           >
                             <ArrowRight className="h-4 w-4" />
-                          </button>
+                          </Link>
                         )}
                         <button className="p-2 text-slate-400 hover:text-green-600 hover:bg-green-50 rounded-xl transition-colors" title="Marcar como leída">
                           <CheckCircle2 className="h-4 w-4" />

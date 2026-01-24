@@ -18,7 +18,6 @@ import {
   Ban,
   DollarSign,
   Filter,
-  RefreshCw,
   Eye,
   Edit2,
   Trash2
@@ -329,7 +328,10 @@ const ListadoPrestamosElegante = () => {
                         </div>
                       </td>
                       <td className="px-6 py-4 text-right">
-                        <div className="flex items-center justify-end gap-1">
+                        <div 
+                          className="flex items-center justify-end gap-1"
+                          onClick={(e) => e.stopPropagation()}
+                        >
                           <button 
                             onClick={() => irADetallePrestamo(prestamo.id)}
                             className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"

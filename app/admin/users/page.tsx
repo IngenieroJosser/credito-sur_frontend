@@ -2,8 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { useRouter } from 'next/navigation';
-import Link from 'next/link';
+
 import {
   Search,
   UserPlus,
@@ -17,7 +16,6 @@ import {
   Users,
   Mail,
   Briefcase,
-  AlertCircle,
   Sparkles,
   LayoutGrid,
   List,
@@ -54,7 +52,6 @@ interface Role {
 }
 
 const UserManagementPage = () => {
-  const router = useRouter();
   // Mock del rol actual (en una implementación real vendría del contexto de autenticación)
   const currentUserRole: RolUsuario = 'SUPER_ADMINISTRADOR';
 
@@ -139,7 +136,29 @@ const UserManagementPage = () => {
     setMounted(true);
   }, []);
 
-  const [formData, setFormData] = useState({
+  // Bloquear scroll del body cuando hay un modal abierto
+  useEffect(() => {
+    if (isCreateModalOpen || isEditModalOpen || isPermissionsModalOpen || isDeleteModalOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
+  }, [isCreateModalOpen, isEditModalOpen, isPermissionsModalOpen, isDeleteModalOpen]);
+
+  interface UserFormData {
+    nombres: string;
+    apellidos: string;
+    correo: string;
+    telefono: string;
+    contrasena: string;
+    rol: RolUsuario;
+    estado: EstadoUsuario;
+  }
+
+  const [formData, setFormData] = useState<UserFormData>({
     nombres: '',
     apellidos: '',
     correo: '',
@@ -233,9 +252,11 @@ const UserManagementPage = () => {
   };
 
   const handleCreateUser = () => {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { contrasena, ...userData } = formData;
     const newUser: User = {
       id: (users.length + 1).toString(),
-      ...formData,
+      ...userData,
       fechaCreacion: new Date().toLocaleDateString('es-CO'),
       ultimoAcceso: 'Hoy ' + new Date().toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' }),
       permisos: selectedPermissions
@@ -267,11 +288,14 @@ const UserManagementPage = () => {
   const handleUpdateUser = () => {
     if (!selectedUser) return;
     
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { contrasena, ...userData } = formData;
+
     const updatedUsers = users.map(user => {
       if (user.id === selectedUser.id) {
         return {
           ...user,
-          ...formData
+          ...userData
         };
       }
       return user;
@@ -363,13 +387,13 @@ const UserManagementPage = () => {
             </div>
 
             <div className="flex items-center gap-4">
-              <Link
-                href="/admin/users/nuevo"
+              <button
+                onClick={handleOpenCreateModal}
                 className="inline-flex items-center gap-2 rounded-xl bg-white border border-slate-200 px-6 py-2.5 text-sm font-bold text-slate-700 shadow-sm hover:bg-slate-50 hover:text-slate-900 transition-all duration-300 whitespace-nowrap"
               >
                 <UserPlus className="h-4 w-4" />
                 <span>Nuevo Usuario</span>
-              </Link>
+              </button>
             </div>
           </div>
 
@@ -516,22 +540,24 @@ const UserManagementPage = () => {
                       </td>
                       <td className="px-8 py-5 text-right">
                         <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                          <Link
-                            href={`/admin/users/${user.id}`}
+                          <button
+                            onClick={() => handleOpenEditModal(user)}
                             className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
                             title="Ver detalle"
+                            disabled={user.rol === 'SUPER_ADMINISTRADOR' && currentUserRole !== 'SUPER_ADMINISTRADOR'}
+                            style={user.rol === 'SUPER_ADMINISTRADOR' && currentUserRole !== 'SUPER_ADMINISTRADOR' ? { pointerEvents: 'none', opacity: 0.5 } : {}}
                           >
                             <Eye className="h-4 w-4" />
-                          </Link>
-                          <Link
-                            href={`/admin/users/${user.id}/editar`}
+                          </button>
+                          <button
+                            onClick={() => handleOpenEditModal(user)}
                             className="p-2 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
                             title="Editar"
-                            aria-disabled={user.rol === 'SUPER_ADMINISTRADOR' && currentUserRole !== 'SUPER_ADMINISTRADOR'}
+                            disabled={user.rol === 'SUPER_ADMINISTRADOR' && currentUserRole !== 'SUPER_ADMINISTRADOR'}
                             style={user.rol === 'SUPER_ADMINISTRADOR' && currentUserRole !== 'SUPER_ADMINISTRADOR' ? { pointerEvents: 'none', opacity: 0.5 } : {}}
                           >
                             <Edit2 className="h-4 w-4" />
-                          </Link>
+                          </button>
                           <button
                             onClick={() => handleOpenPermissionsModal(user)}
                             className="p-2 text-slate-400 hover:text-violet-600 hover:bg-violet-50 rounded-lg transition-colors"
@@ -602,8 +628,8 @@ const UserManagementPage = () => {
                     
                     <div className="grid grid-cols-2 gap-2 text-xs">
                       <div className="p-2 rounded-lg bg-slate-50 border border-slate-100">
-                        <span className="text-slate-400 font-medium block mb-0.5">Departamento</span>
-                        <span className="font-bold text-slate-700">{user.departamento}</span>
+                        <span className="text-slate-400 font-medium block mb-0.5">Fecha Registro</span>
+                        <span className="font-bold text-slate-700">{user.fechaCreacion}</span>
                       </div>
                       <div className="p-2 rounded-lg bg-slate-50 border border-slate-100">
                         <span className="text-slate-400 font-medium block mb-0.5">Último acceso</span>
@@ -613,22 +639,24 @@ const UserManagementPage = () => {
                   </div>
 
                   <div className="flex items-center justify-end gap-2 pt-4 border-t border-slate-100 mt-auto">
-                    <Link
-                      href={`/admin/users/${user.id}`}
+                    <button
+                      onClick={() => handleOpenEditModal(user)}
                       className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
                       title="Ver detalle"
+                      disabled={user.rol === 'SUPER_ADMINISTRADOR' && currentUserRole !== 'SUPER_ADMINISTRADOR'}
+                      style={user.rol === 'SUPER_ADMINISTRADOR' && currentUserRole !== 'SUPER_ADMINISTRADOR' ? { pointerEvents: 'none', opacity: 0.5 } : {}}
                     >
                       <Eye className="h-4 w-4" />
-                    </Link>
-                    <Link
-                      href={`/admin/users/${user.id}/editar`}
+                    </button>
+                    <button
+                      onClick={() => handleOpenEditModal(user)}
                       className="p-2 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
                       title="Editar"
-                      aria-disabled={user.rol === 'SUPER_ADMINISTRADOR' && currentUserRole !== 'SUPER_ADMINISTRADOR'}
+                      disabled={user.rol === 'SUPER_ADMINISTRADOR' && currentUserRole !== 'SUPER_ADMINISTRADOR'}
                       style={user.rol === 'SUPER_ADMINISTRADOR' && currentUserRole !== 'SUPER_ADMINISTRADOR' ? { pointerEvents: 'none', opacity: 0.5 } : {}}
                     >
                       <Edit2 className="h-4 w-4" />
-                    </Link>
+                    </button>
                     <button
                       onClick={() => handleOpenPermissionsModal(user)}
                       className="p-2 text-slate-400 hover:text-violet-600 hover:bg-violet-50 rounded-lg transition-colors"
@@ -662,7 +690,7 @@ const UserManagementPage = () => {
     </div>
 
       {/* Modals */}
-      {mounted && createPortal(
+      {mounted && typeof document !== 'undefined' && createPortal(
         <>
           {isCreateModalOpen && (
         <div 
@@ -771,6 +799,117 @@ const UserManagementPage = () => {
                 >
                   <UserPlus className="h-4 w-4" />
                   <span>Crear Usuario</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Modal */}
+      {isEditModalOpen && (
+        <div 
+          className="fixed inset-0 bg-slate-900/50 backdrop-blur-md flex items-center justify-center p-4 z-50 animate-in fade-in duration-200"
+          onClick={() => setIsEditModalOpen(false)}
+        >
+          <div 
+            className="bg-white rounded-2xl w-full max-w-lg border border-slate-200 shadow-2xl p-8 transform scale-100 animate-in zoom-in-95 duration-200"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center gap-3 mb-8">
+              <div className="p-2 bg-amber-50 text-amber-500 rounded-lg">
+                <Edit2 className="h-6 w-6" />
+              </div>
+              <div>
+                <h2 className="text-2xl font-bold tracking-tight">
+                  <span className="text-blue-600">Editar </span>
+                  <span className="text-orange-500">Usuario</span>
+                </h2>
+                <p className="text-xs text-slate-500 font-medium">Modifique la información del usuario</p>
+              </div>
+            </div>
+            <div className="space-y-5">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Nombres</label>
+                  <input
+                    type="text"
+                    value={formData.nombres}
+                    onChange={(e) => setFormData({...formData, nombres: e.target.value})}
+                    className="w-full px-4 py-3 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:border-blue-600 focus:ring-2 focus:ring-blue-600/20 transition-all text-sm font-medium text-slate-900 placeholder:text-slate-400"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Apellidos</label>
+                  <input
+                    type="text"
+                    value={formData.apellidos}
+                    onChange={(e) => setFormData({...formData, apellidos: e.target.value})}
+                    className="w-full px-4 py-3 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:border-blue-600 focus:ring-2 focus:ring-blue-600/20 transition-all text-sm font-medium text-slate-900 placeholder:text-slate-400"
+                  />
+                </div>
+              </div>
+              
+              <div>
+                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Correo Electrónico</label>
+                <input
+                  type="email"
+                  value={formData.correo}
+                  onChange={(e) => setFormData({...formData, correo: e.target.value})}
+                  className="w-full px-4 py-3 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:border-blue-600 focus:ring-2 focus:ring-blue-600/20 transition-all text-sm font-medium text-slate-900 placeholder:text-slate-400"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Teléfono</label>
+                  <input
+                    type="tel"
+                    value={formData.telefono}
+                    onChange={(e) => setFormData({...formData, telefono: e.target.value})}
+                    className="w-full px-4 py-3 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:border-blue-600 focus:ring-2 focus:ring-blue-600/20 transition-all text-sm font-medium text-slate-900 placeholder:text-slate-400"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Contraseña</label>
+                  <input
+                    type="password"
+                    value={formData.contrasena}
+                    onChange={(e) => setFormData({...formData, contrasena: e.target.value})}
+                    className="w-full px-4 py-3 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:border-blue-600 focus:ring-2 focus:ring-blue-600/20 transition-all text-sm font-medium text-slate-900 placeholder:text-slate-400"
+                    placeholder="Dejar vacío para no cambiar"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Rol</label>
+                <div className="relative">
+                  <select
+                    value={formData.rol}
+                    onChange={(e) => setFormData({...formData, rol: e.target.value as RolUsuario})}
+                    className="w-full px-4 py-3 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:border-blue-600 focus:ring-2 focus:ring-blue-600/20 appearance-none text-sm font-medium text-slate-900"
+                  >
+                    {roles.map(role => (
+                      <option key={role.id} value={role.id}>{role.label}</option>
+                    ))}
+                  </select>
+                  <ChevronDown className="absolute right-4 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
+                </div>
+              </div>
+              <div className="flex justify-end gap-3 mt-8 pt-4 border-t border-slate-100">
+                <button
+                  onClick={() => setIsEditModalOpen(false)}
+                  className="px-5 py-2.5 text-sm font-bold text-slate-600 hover:text-slate-900 hover:bg-slate-50 rounded-xl transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={handleUpdateUser}
+                  className="px-5 py-2.5 text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-xl shadow-lg shadow-blue-600/20 transition-all transform active:scale-95 flex items-center gap-2"
+                >
+                  <Save className="h-4 w-4" />
+                  <span>Guardar Cambios</span>
                 </button>
               </div>
             </div>

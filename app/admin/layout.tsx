@@ -12,9 +12,6 @@ import {
   Banknote,
   Users,
   AlertCircle,
-  Route,
-  Package,
-  PieChart,
   User,
   Settings,
   Wallet,
@@ -25,20 +22,19 @@ import {
   Phone,
   Calendar,
   MapPin,
-  Key,
   ChevronDown,
-  CreditCard as CreditCardIo,
-  ShoppingBag,
-  Archive,
-  CheckCircle2,
-  Receipt,
-  Map,
   HardDrive,
-  Calculator,
-  BarChart3,
   FileText
 } from 'lucide-react'
-import { Rol, obtenerModulosPorRol, getIconComponent, tieneAcceso } from '@/lib/permissions'
+import { Rol, obtenerModulosPorRol, getIconComponent } from '@/lib/permissions'
+
+interface NavigationItem {
+  name: string;
+  href: string;
+  icon: React.ReactNode;
+  id?: string;
+  submodulos?: NavigationItem[];
+}
 
 interface Usuario {
   nombres: string
@@ -60,12 +56,23 @@ export default function AdminLayout({
   const [user, setUser] = useState<Usuario | null>(null)
   const [showUserMenu, setShowUserMenu] = useState(false)
   const [showNotifications, setShowNotifications] = useState(false)
-  const [navigation, setNavigation] = useState<any[]>([])
+  const [navigation, setNavigation] = useState<NavigationItem[]>([])
+  const [openMenus, setOpenMenus] = useState<Record<string, boolean>>({})
   const pathname = usePathname()
   const router = useRouter()
 
   const userMenuRef = useRef<HTMLDivElement>(null)
   const notificationRef = useRef<HTMLDivElement>(null)
+
+  const toggleMenu = (id: string) => {
+    setOpenMenus(prev => {
+      const isCurrentlyOpen = prev[id] ?? navigation.find(n => n.id === id)?.submodulos?.some(s => pathname === s.href) ?? false
+      return {
+        ...prev,
+        [id]: !isCurrentlyOpen
+      }
+    })
+  }
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -100,7 +107,13 @@ export default function AdminLayout({
               name: modulo.nombre,
               href: modulo.path,
               icon: getIconComponent(modulo.icono),
-              id: modulo.id
+              id: modulo.id,
+              submodulos: modulo.submodulos?.map(sub => ({
+                id: sub.id,
+                name: sub.nombre,
+                href: sub.path,
+                icon: getIconComponent(sub.icono)
+              }))
             }))
             
             setNavigation(navItems)
@@ -385,7 +398,7 @@ export default function AdminLayout({
                               </span>
                               <span className="text-xs text-gray-400">•</span>
                               <span className="text-xs text-gray-500 font-medium bg-gray-100 px-2 py-1 rounded-full">
-                                {user?.username || 'usuario'}
+                                {user?.correo?.split('@')[0] || 'usuario'}
                               </span>
                             </div>
                           </div>
@@ -567,9 +580,61 @@ export default function AdminLayout({
               <div className="space-y-1">
                 {navigation.map((item) => {
                   const isActive = pathname === item.href || pathname?.startsWith(`${item.href}/`)
+                  const hasSubmenu = item.submodulos && item.submodulos.length > 0
+                  const isOpen = (item.id ? openMenus[item.id] : undefined) ?? (hasSubmenu && item.submodulos?.some(sub => pathname === sub.href))
+
+                  if (hasSubmenu && item.id) {
+                    return (
+                      <div key={item.id} className="space-y-1">
+                        <button
+                          type="button"
+                          onClick={() => toggleMenu(item.id!)}
+                          className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl transition-all duration-75 border group ${
+                            isOpen || isActive
+                              ? 'text-[#08557f] bg-gray-50/50 font-medium border-gray-200' 
+                              : 'text-gray-600 border-transparent hover:text-[#08557f] hover:bg-gray-50 hover:border-gray-200'
+                          }`}
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className={`transition-colors ${isOpen || isActive ? 'text-[#08557f]' : 'text-gray-400 group-hover:text-[#08557f]'}`}>
+                              {item.icon}
+                            </div>
+                            <span className="text-sm">{item.name}</span>
+                          </div>
+                          <ChevronDown className={`h-4 w-4 text-gray-400 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
+                        </button>
+                        
+                        <div className={`overflow-hidden transition-all duration-300 ease-in-out ${isOpen ? 'max-h-[500px] opacity-100' : 'max-h-0 opacity-0'}`}>
+                          <div className="pl-4 space-y-1 mt-1 border-l-2 border-gray-100 ml-4">
+                            {item.submodulos?.map((subItem) => {
+                              const isSubActive = pathname === subItem.href
+                              return (
+                                <Link
+                                  key={subItem.id}
+                                  href={subItem.href}
+                                  className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-all duration-75 group ${
+                                    isSubActive 
+                                      ? 'text-[#08557f] font-medium bg-[#08557f]/5' 
+                                      : 'text-gray-500 hover:text-[#08557f] hover:bg-gray-50'
+                                  }`}
+                                  onClick={() => setIsMenuOpen(false)}
+                                >
+                                  <div className={`transition-colors ${isSubActive ? 'text-[#08557f]' : 'text-gray-300 group-hover:text-[#08557f]'}`}>
+                                    {subItem.icon}
+                                  </div>
+                                  <span className="text-sm">{subItem.name}</span>
+                                </Link>
+                              )
+                            })}
+                          </div>
+                        </div>
+                      </div>
+                    )
+                  }
+
                   return (
                     <Link
-                      key={item.name}
+                      key={item.id || item.name}
                       href={item.href}
                       className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-75 border group ${
                         isActive 
@@ -587,40 +652,6 @@ export default function AdminLayout({
                 })}
               </div>
             </div>
-
-            {/* Sección de sistema (solo para SUPER_ADMINISTRADOR) */}
-            {user?.rol === 'SUPER_ADMINISTRADOR' && (
-              <div>
-                <div className="text-xs font-medium text-gray-400 uppercase tracking-wider mb-4">Sistema</div>
-                <div className="space-y-1">
-                  {[
-                    { name: 'Configuración', href: '/admin/sistema/configuracion', icon: <Settings className="h-4 w-4" /> },
-                    { name: 'Sincronización', href: '/admin/sistema/sincronizacion', icon: <Activity className="h-4 w-4" /> },
-                    { name: 'Backups', href: '/admin/sistema/backups', icon: <HardDrive className="h-4 w-4" /> },
-                    { name: 'Auditoría', href: '/admin/auditoria', icon: <FileText className="h-4 w-4" /> }
-                  ].map((item) => {
-                    const isActive = pathname === item.href
-                    return (
-                      <Link
-                        key={item.name}
-                        href={item.href}
-                        className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-75 border group ${
-                          isActive 
-                            ? 'text-[#08557f] bg-gradient-to-r from-[#08557f]/10 to-[#063a58]/5 font-medium border-[#08557f]/20' 
-                            : 'text-gray-600 border-transparent hover:text-[#08557f] hover:bg-gray-50 hover:border-gray-200'
-                        }`}
-                        onClick={() => setIsMenuOpen(false)}
-                      >
-                        <div className={`transition-colors ${isActive ? 'text-[#08557f]' : 'text-gray-400 group-hover:text-[#08557f]'}`}>
-                          {item.icon}
-                        </div>
-                        <span className="text-sm">{item.name}</span>
-                      </Link>
-                    )
-                  })}
-                </div>
-              </div>
-            )}
           </div>
         </nav>
       </aside>

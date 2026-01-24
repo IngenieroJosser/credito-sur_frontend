@@ -25,6 +25,9 @@ export const Modal: React.FC<ModalProps> = ({
 
   useEffect(() => {
     setMounted(true);
+  }, []);
+
+  useEffect(() => {
     if (isOpen) {
       document.body.style.overflow = 'hidden';
     } else {

@@ -199,7 +199,7 @@ const ClienteDetalleElegante: React.FC<ClienteDetalleProps> = ({
             </Link>
             <Link
               href={`/admin/pagos/registrar/${cliente.id}`}
-              className="px-5 py-2.5 bg-orange-500 text-white rounded-xl hover:bg-orange-600 transition-all duration-200 text-sm font-bold flex items-center gap-2 shadow-lg shadow-orange-500/20"
+              className="px-5 py-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-all duration-200 text-sm font-bold flex items-center gap-2 shadow-lg shadow-blue-600/20"
             >
               <DollarSign className="w-4 h-4" />
               Registrar Pago
