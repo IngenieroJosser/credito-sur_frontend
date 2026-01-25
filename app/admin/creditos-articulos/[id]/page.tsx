@@ -13,7 +13,7 @@ const creditoMock: PrestamoDetalle = {
   montoTotal: 3000000,
   saldoPendiente: 2000000,
   tasaInteres: 15,
-  plazo: '12 Meses',
+  duracion: '12 Meses',
   frecuencia: 'mensual',
   fechaInicio: '15/01/2024',
   fechaVencimiento: '15/01/2025',

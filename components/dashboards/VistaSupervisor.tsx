@@ -77,7 +77,7 @@ interface RoutePerformance {
   target: number;
 }
 
-const DashboardSupervisor = () => {
+const VistaSupervisor = () => {
   const [timeFilter, setTimeFilter] = useState<'today' | 'week' | 'month' | 'quarter'>('month');
   const [statusFilter, setStatusFilter] = useState<'all' | 'critical' | 'moderate' | 'mild'>('all');
   const [expenseFilter, setExpenseFilter] = useState<'all' | 'pending' | 'approved' | 'rejected'>('pending');
@@ -723,4 +723,4 @@ const DashboardSupervisor = () => {
   );
 };
 
-export default DashboardSupervisor;
+export default VistaSupervisor;

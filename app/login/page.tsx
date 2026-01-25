@@ -57,14 +57,29 @@ const LoginPage = () => {
     }
   }, [toast]);
 
-  // Verificar si ya hay una sesión activa y redirigir a /admin
+  // Verificar si ya hay una sesión activa y redirigir a la ruta correspondiente
   useEffect(() => {
     const token = localStorage.getItem('token');
-    const user = localStorage.getItem('user');
+    const userStr = localStorage.getItem('user');
 
-    if (token && user) {
-      // Siempre redirigir a /admin si hay sesión activa
-      router.replace('/admin');
+    if (token && userStr) {
+      try {
+        const user = JSON.parse(userStr);
+        const roleRedirects: Record<string, string> = {
+          'COBRADOR': '/cobranzas',
+          'COORDINADOR': '/coordinador',
+          'SUPER_ADMINISTRADOR': '/admin',
+          'ADMINISTRADOR': '/admin',
+          'SUPERVISOR': '/supervisor',
+          'CONTADOR': '/admin'
+        };
+        const redirectPath = roleRedirects[user.rol] || '/admin';
+        router.replace(redirectPath);
+      } catch (e) {
+        // Si hay error al parsear, limpiar sesión
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+      }
     }
   }, [router]);
 
@@ -175,10 +190,22 @@ const LoginPage = () => {
       // Mostrar toast de éxito con información del rol
       showToast('Bienvenido', `${userName} (${formatRol(response.usuario.rol)})`, 'success');
 
-      // Siempre redirigir a /admin después de 2 segundos
+      // Determinar redirección según rol
+      const roleRedirects: Record<string, string> = {
+        'COBRADOR': '/cobranzas',
+        'COORDINADOR': '/coordinador',
+        'SUPER_ADMINISTRADOR': '/admin',
+        'ADMINISTRADOR': '/admin',
+        'SUPERVISOR': '/supervisor', // O su ruta específica si existe
+        'CONTADOR': '/admin'    // O su ruta específica si existe
+      };
+
+      const redirectPath = roleRedirects[response.usuario.rol] || '/admin';
+
+      // Siempre redirigir después de 2 segundos
       setTimeout(() => {
-        console.log('Redirigiendo a /admin para usuario:', userFullName);
-        router.replace('/admin');
+        console.log(`Redirigiendo a ${redirectPath} para usuario:`, userFullName);
+        router.replace(redirectPath);
       }, 2000);
 
     } catch (err: unknown) {

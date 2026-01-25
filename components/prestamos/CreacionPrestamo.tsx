@@ -40,7 +40,7 @@ interface FormularioPrestamo {
   montoTotal: number; // monto
   proposito: string; // tipoPrestamo (mapeado o libre)
   tasaInteres: number; // tasaInteres
-  plazoMeses: number; // plazoMeses
+  duracionMeses: number; // duracionMeses
   frecuenciaPago: FrecuenciaPago; // frecuenciaPago
   fechaInicio: string; // fechaInicio
   tasaInteresMora: number; // tasaInteresMora
@@ -103,7 +103,7 @@ const calcularCuotasYResumen = (form: FormularioPrestamo) => {
   };
 
   // Cuotas totales = Meses * Frecuencia por mes
-  const cuotasTotales = Math.ceil(form.plazoMeses * factorFrecuencia[form.frecuenciaPago]);
+  const cuotasTotales = Math.ceil(form.duracionMeses * factorFrecuencia[form.frecuenciaPago]);
 
   // Tasa del periodo = Tasa Mensual / Frecuencia por mes
   const tasaPeriodo = tasaMensual / factorFrecuencia[form.frecuenciaPago];
@@ -272,7 +272,7 @@ const CreacionPrestamoElegante = () => {
     montoTotal: 1000000,
     proposito: 'PERSONAL',
     tasaInteres: 5.0, // Tasa mensual ejemplo
-    plazoMeses: 6,
+    duracionMeses: 6,
     frecuenciaPago: 'QUINCENAL',
     fechaInicio: new Date().toISOString().split('T')[0],
     tasaInteresMora: 2.0,
@@ -309,7 +309,7 @@ const CreacionPrestamoElegante = () => {
         ? parseFloat(value) || 0
         : name === 'montoTotal' || name === 'cuotaInicial' || name === 'ingresosMensuales'
           ? parseFloat(value) || 0
-          : name === 'plazoMeses' || name === 'antiguedadLaboral'
+          : name === 'duracionMeses' || name === 'antiguedadLaboral'
             ? parseInt(value) || 0
             : value
     }));
@@ -353,7 +353,7 @@ const CreacionPrestamoElegante = () => {
         proposito: form.proposito,
         tasaInteres: form.tasaInteres,
         tasaInteresMora: form.tasaInteresMora,
-        plazoMeses: form.plazoMeses,
+        duracionMeses: form.duracionMeses,
         frecuenciaPago: form.frecuenciaPago,
         fechaInicio: form.fechaInicio,
         cuotaInicial: form.cuotaInicial,
@@ -786,7 +786,7 @@ const CreacionPrestamoElegante = () => {
                   </div>
 
                   <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-6">
-                    {/* Monto y Plazo */}
+                    {/* Monto y Cuotas */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <div className="space-y-3">
                         <label className="text-sm font-bold text-slate-700 flex items-center gap-2">
@@ -822,15 +822,15 @@ const CreacionPrestamoElegante = () => {
                       <div className="space-y-3">
                         <label className="text-sm font-bold text-slate-700 flex items-center gap-2">
                           <Clock className="w-4 h-4 text-slate-400" />
-                          Plazo (Meses)
+                          Cuotas (Meses)
                         </label>
                         <div className="relative">
                            <input
                             type="number"
                             min="1"
                             step="1"
-                            name="plazoMeses"
-                            value={form.plazoMeses}
+                            name="duracionMeses"
+                            value={form.duracionMeses}
                             onChange={handleInputChange}
                             className="w-full pl-4 pr-20 py-3 rounded-xl border-slate-200 bg-slate-50 text-xl font-bold text-slate-900 focus:ring-2 focus:ring-slate-900/10 transition-all"
                           />

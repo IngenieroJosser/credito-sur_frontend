@@ -19,7 +19,7 @@ import {
 import { formatCurrency } from '@/lib/utils'
 
 // Mock Data
-interface PrecioPlazo {
+interface PrecioCuota {
   meses: number
   precio: number
 }
@@ -36,7 +36,7 @@ interface Articulo {
   stock: number
   stockMinimo: number
   estado: 'activo' | 'inactivo'
-  precios: PrecioPlazo[]
+  precios: PrecioCuota[]
 }
 
 const ARTICULOS_MOCK: Articulo[] = [
@@ -269,7 +269,7 @@ export default function ArticulosPage() {
                           : '$0'}
                       </div>
                       <div className="text-xs text-slate-500 font-medium">
-                        {articulo.precios.length} opciones de plazo
+                        {articulo.precios.length} opciones de cuotas
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-center">

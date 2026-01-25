@@ -37,7 +37,6 @@ import { formatCurrency } from '@/lib/utils';
 import { useRouter } from 'next/navigation';
 import { ExportButton } from '@/components/ui/ExportButton';
 import { Rol, obtenerModulosPorRol, getIconComponent } from '@/lib/permissions';
-import VistaCobradorPage from '../cobranzas/page';
 
 interface UserData {
   id: string;
@@ -503,9 +502,38 @@ const DashboardPage = () => {
     );
   }
 
-  // Si el usuario es COBRADOR, mostrar el componente específico
-  if (userData?.rol === 'COBRADOR') {
-    return <VistaCobradorPage />;
+  useEffect(() => {
+    // Si el usuario es COBRADOR, redirigir a su ruta específica
+    if (userData?.rol === 'COBRADOR') {
+      router.replace('/cobranzas');
+    }
+  
+    // Si el usuario es COORDINADOR, redirigir a su ruta específica
+    if (userData?.rol === 'COORDINADOR') {
+      router.replace('/coordinador');
+    }
+
+    // Si el usuario es SUPERVISOR, redirigir a su ruta específica
+    if (userData?.rol === 'SUPERVISOR') {
+      router.replace('/supervisor');
+    }
+  }, [userData, router]);
+
+  // Si se está redirigiendo, no renderizar nada o un loader
+  if (userData?.rol === 'COBRADOR' || userData?.rol === 'COORDINADOR' || userData?.rol === 'SUPERVISOR') {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-slate-50">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+          <p className="text-gray-600 font-medium">Redirigiendo a su panel...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Si el usuario es COORDINADOR, mostrar el componente específico
+  if (userData?.rol === 'COORDINADOR') {
+    return <VistaCoordinador />;
   }
 
   // Para otros roles, mostrar el dashboard normal
@@ -697,7 +725,7 @@ const DashboardPage = () => {
                     <tr>
                       <th className="px-4 py-3 font-medium">Cliente</th>
                       <th className="px-4 py-3 font-medium">Monto</th>
-                      <th className="px-4 py-3 font-medium">Plazo</th>
+                      <th className="px-4 py-3 font-medium">Cuotas</th>
                       <th className="px-4 py-3 font-medium text-right">Estado</th>
                     </tr>
                   </thead>

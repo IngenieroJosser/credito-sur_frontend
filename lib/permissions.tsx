@@ -82,8 +82,7 @@ export const permisosPorRol: Record<Rol, ModuloPermiso[]> = {
 
   COORDINADOR: [
     { id: 'dashboard', nombre: 'Dashboard', icono: 'Activity', path: '/admin', roles: ['COORDINADOR'] },
-    { id: 'prestamos-dinero', nombre: 'Préstamos Dinero', icono: 'CreditCard', path: '/admin/prestamos', roles: ['COORDINADOR'] },
-    { id: 'creditos-articulos', nombre: 'Créditos Artículos', icono: 'ShoppingBag', path: '/admin/creditos-articulos', roles: ['COORDINADOR'] },
+    { id: 'gestion-creditos', nombre: 'Créditos y Préstamos', icono: 'CreditCard', path: '/admin/creditos', roles: ['COORDINADOR'] },
     { id: 'clientes', nombre: 'Clientes', icono: 'Users', path: '/admin/clientes', roles: ['COORDINADOR'] },
     { id: 'cuentas-mora', nombre: 'Cuentas en mora', icono: 'AlertCircle', path: '/admin/cuentas-mora', roles: ['COORDINADOR'] },
     { id: 'rutas', nombre: 'Rutas', icono: 'Route', path: '/admin/rutas', roles: ['COORDINADOR'] },
@@ -101,7 +100,7 @@ export const permisosPorRol: Record<Rol, ModuloPermiso[]> = {
   ],
 
   COBRADOR: [
-    { id: 'dashboard', nombre: 'Inicio', icono: 'Activity', path: '/admin', roles: ['COBRADOR'] },
+    { id: 'dashboard', nombre: 'Inicio', icono: 'Activity', path: '/cobranzas', roles: ['COBRADOR'] },
     { id: 'rutas', nombre: 'Mi Ruta', icono: 'Map', path: '/admin/rutas', roles: ['COBRADOR'] },
     { id: 'prestamos-dinero', nombre: 'Solicitar Crédito', icono: 'CreditCard', path: '/admin/prestamos/nuevo', roles: ['COBRADOR'] },
     { id: 'clientes', nombre: 'Nuevo Cliente', icono: 'Users', path: '/admin/clientes/nuevo', roles: ['COBRADOR'] },

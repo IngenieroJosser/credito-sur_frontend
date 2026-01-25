@@ -16,7 +16,7 @@ import {
 import { formatCurrency } from '@/lib/utils'
 
 // Types
-interface PrecioPlazo {
+interface PrecioCuota {
   meses: number
   precio: number
 }
@@ -35,9 +35,9 @@ export default function NuevoArticuloPage() {
     costo: 0,
     stock: 0,
     stockMinimo: 0,
-    precios: [] as PrecioPlazo[]
+    precios: [] as PrecioCuota[]
   })
-  const [nuevoPlazo, setNuevoPlazo] = useState({ meses: 1, precio: 0 })
+  const [nuevaCuota, setNuevaCuota] = useState({ meses: 1, precio: 0 })
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -48,17 +48,17 @@ export default function NuevoArticuloPage() {
     router.push('/admin/articulos')
   }
 
-  const addPrecioPlazo = () => {
-    if (nuevoPlazo.meses > 0 && nuevoPlazo.precio > 0) {
+  const addPrecioCuota = () => {
+    if (nuevaCuota.meses > 0 && nuevaCuota.precio > 0) {
       setFormData(prev => ({
         ...prev,
-        precios: [...prev.precios, nuevoPlazo].sort((a, b) => a.meses - b.meses)
+        precios: [...prev.precios, nuevaCuota].sort((a, b) => a.meses - b.meses)
       }))
-      setNuevoPlazo({ meses: 1, precio: 0 })
+      setNuevaCuota({ meses: 1, precio: 0 })
     }
   }
 
-  const removePrecioPlazo = (index: number) => {
+  const removePrecioCuota = (index: number) => {
     setFormData(prev => ({
       ...prev,
       precios: prev.precios.filter((_, i) => i !== index)
@@ -217,11 +217,11 @@ export default function NuevoArticuloPage() {
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
                       <div>
                         <label className="block text-sm font-bold text-slate-700 mb-1">
-                          Plazo (Meses)
+                          Cuotas (Meses)
                         </label>
                         <select
-                          value={nuevoPlazo.meses}
-                          onChange={e => setNuevoPlazo({ ...nuevoPlazo, meses: Number(e.target.value) })}
+                          value={nuevaCuota.meses}
+                          onChange={e => setNuevaCuota({ ...nuevaCuota, meses: Number(e.target.value) })}
                           className="w-full px-4 py-2.5 rounded-xl border-slate-200 bg-white focus:ring-2 focus:ring-blue-600/20 focus:border-blue-600 transition-all font-medium text-slate-900"
                         >
                           {[1, 2, 3, 4, 5, 6, 9, 12, 18, 24].map(m => (
@@ -238,15 +238,15 @@ export default function NuevoArticuloPage() {
                           <input
                             type="number"
                             min="0"
-                            value={nuevoPlazo.precio}
-                            onChange={e => setNuevoPlazo({ ...nuevoPlazo, precio: Number(e.target.value) })}
+                            value={nuevaCuota.precio}
+                            onChange={e => setNuevaCuota({ ...nuevaCuota, precio: Number(e.target.value) })}
                             className="w-full pl-10 pr-4 py-2.5 rounded-xl border-slate-200 bg-white focus:ring-2 focus:ring-blue-600/20 focus:border-blue-600 transition-all font-medium text-slate-900 placeholder:text-slate-400"
                           />
                         </div>
                       </div>
                       <button
                         type="button"
-                        onClick={addPrecioPlazo}
+                        onClick={addPrecioCuota}
                         className="px-6 py-2.5 bg-orange-500 text-white rounded-xl hover:bg-orange-600 transition-colors font-bold flex items-center justify-center shadow-lg shadow-orange-500/20"
                       >
                         <Plus className="h-4 w-4 mr-2" />
@@ -265,7 +265,7 @@ export default function NuevoArticuloPage() {
                       <table className="w-full text-sm text-left">
                         <thead className="bg-slate-50 text-slate-700 font-medium border-b border-slate-200">
                           <tr>
-                            <th className="px-4 py-3">Plazo</th>
+                            <th className="px-4 py-3">Cuotas</th>
                             <th className="px-4 py-3">Precio Total</th>
                             <th className="px-4 py-3 text-right">Cuota Mensual (Aprox)</th>
                             <th className="px-4 py-3 text-right">Acciones</th>
@@ -286,7 +286,7 @@ export default function NuevoArticuloPage() {
                               <td className="px-4 py-3 text-right">
                                 <button
                                   type="button"
-                                  onClick={() => removePrecioPlazo(index)}
+                                  onClick={() => removePrecioCuota(index)}
                                   className="text-red-500 hover:text-red-700 p-1 hover:bg-red-50 rounded-md transition-colors"
                                 >
                                   <Trash2 className="h-4 w-4" />

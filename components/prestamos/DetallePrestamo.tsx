@@ -22,7 +22,7 @@ export interface PrestamoDetalle {
   montoTotal: number;
   saldoPendiente: number;
   tasaInteres: number;
-  plazo: string;
+  duracion: string;
   frecuencia: string;
   fechaInicio: string;
   fechaVencimiento: string;
