@@ -56,13 +56,12 @@ export default function DetalleArticuloPage({ params }: { params: Promise<{ id: 
             <div>
               <button 
                 onClick={() => router.back()}
-                className="flex items-center text-slate-500 hover:text-slate-900 mb-4 transition-colors group"
+                className="mb-4 inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-slate-600 shadow-sm transition-colors hover:bg-slate-50 hover:text-slate-900"
               >
-                <div className="p-2 rounded-full bg-white border border-slate-200 shadow-sm group-hover:border-slate-300 mr-2">
-                  <ArrowLeft className="h-4 w-4" />
-                </div>
-                <span className="font-bold text-sm">Volver al catálogo</span>
+                <ArrowLeft className="h-4 w-4" />
+                <span>Volver al catálogo</span>
               </button>
+
               <div className="mb-2">
                 <h1 className="text-4xl font-bold tracking-tight text-slate-900 mb-2">
                   <span className="text-blue-600">Detalle del</span> <span className="text-orange-500">Artículo</span>

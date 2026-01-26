@@ -46,9 +46,9 @@ export default function ClienteDetallePage() {
           </div>
           <h2 className="text-xl font-bold text-slate-900 mb-2">Error al cargar</h2>
           <p className="text-slate-500 mb-6">No se pudo obtener la información del cliente. Verifique su conexión o intente nuevamente.</p>
-          <Link href="/admin/clientes" className="inline-flex items-center justify-center px-4 py-2 bg-slate-900 text-white rounded-xl font-medium hover:bg-slate-800 transition-colors">
-            <ChevronLeft className="w-4 h-4 mr-2" />
-            Volver al listado
+          <Link href="/admin/clientes" className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-slate-600 shadow-sm transition-colors hover:bg-slate-50 hover:text-slate-900">
+            <ChevronLeft className="w-4 h-4" />
+            <span>Volver al listado</span>
           </Link>
         </div>
       </div>
@@ -91,7 +91,7 @@ export default function ClienteDetallePage() {
             <div className="flex items-center gap-4">
               <Link 
                 href="/admin/clientes" 
-                className="p-2 rounded-xl hover:bg-slate-100 transition-colors text-slate-500 hover:text-slate-900"
+                className="inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-slate-600 shadow-sm transition-colors hover:bg-slate-50 hover:text-slate-900"
               >
                 <ChevronLeft className="w-5 h-5" />
               </Link>

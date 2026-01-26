@@ -148,7 +148,7 @@ export default function NotificacionesPage() {
               <button
                 type="button"
                 onClick={() => router.back()}
-                className="inline-flex items-center gap-2 text-sm font-bold text-slate-500 hover:text-slate-900 mb-3"
+                className="mb-3 inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-slate-600 shadow-sm transition-colors hover:bg-slate-50 hover:text-slate-900"
               >
                 <ChevronLeft className="h-4 w-4" />
                 Volver

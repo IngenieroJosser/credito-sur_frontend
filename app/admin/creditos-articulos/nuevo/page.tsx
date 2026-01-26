@@ -232,10 +232,10 @@ export default function NuevoCreditoArticuloPage() {
         <div className="mb-8 flex items-center justify-between">
           <button
             onClick={() => router.back()}
-            className="flex items-center gap-2 text-slate-500 hover:text-slate-900 transition-colors group"
+            className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-slate-600 shadow-sm transition-colors hover:bg-slate-50 hover:text-slate-900"
           >
-            <ArrowLeft className="w-5 h-5 group-hover:-translate-x-0.5 transition-transform duration-200" />
-            <span className="text-sm font-bold">Volver</span>
+            <ArrowLeft className="w-5 h-5" />
+            <span>Volver</span>
           </button>
 
           {/* Stepper */}

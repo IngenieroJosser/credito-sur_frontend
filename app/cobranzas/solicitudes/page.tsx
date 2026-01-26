@@ -149,7 +149,7 @@ export default function SolicitudesCobradorPage() {
             <button
               type="button"
               onClick={() => router.push('/cobranzas')}
-              className="inline-flex items-center gap-2 text-sm font-bold text-slate-600 hover:text-slate-900"
+              className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-slate-600 shadow-sm transition-colors hover:bg-slate-50 hover:text-slate-900"
             >
               <ChevronLeft className="h-4 w-4" />
               Volver

@@ -180,6 +180,7 @@ function StaticVisitaItem({
   onVerEstadoCuenta,
   getEstadoClasses,
   getPrioridadColor,
+  disableModificaciones,
 }: {
   visita: VisitaRuta
   isSelected: boolean
@@ -191,6 +192,7 @@ function StaticVisitaItem({
   onVerEstadoCuenta: (visita: VisitaRuta) => void
   getEstadoClasses: (estado: EstadoVisita) => string
   getPrioridadColor: (prioridad: 'alta' | 'media' | 'baja') => string
+  disableModificaciones?: boolean
 }) {
   return (
     <div
@@ -274,6 +276,7 @@ function StaticVisitaItem({
                   <button
                     type="button"
                     onClick={() => onRegistrarAbono(visita)}
+                    disabled={!!disableModificaciones}
                     className="flex items-center justify-center gap-2 rounded-xl bg-orange-500 px-3 py-2 text-[11px] font-bold text-white hover:bg-orange-600 shadow-lg shadow-orange-500/20"
                   >
                     <Wallet className="h-4 w-4" />
@@ -294,6 +297,7 @@ function StaticVisitaItem({
                     <button
                       type="button"
                       onClick={() => onRegistrarPago(visita)}
+                      disabled={!!disableModificaciones}
                       className="flex items-center justify-center gap-2 rounded-xl bg-[#08557f] px-3 py-2 text-[11px] font-bold text-white hover:bg-[#063a58] shadow-lg shadow-[#08557f]/20"
                     >
                       <DollarSign className="h-4 w-4" />
@@ -302,6 +306,7 @@ function StaticVisitaItem({
                     <button
                       type="button"
                       onClick={() => onRegistrarAbono(visita)}
+                      disabled={!!disableModificaciones}
                       className="flex items-center justify-center gap-2 rounded-xl bg-orange-500 px-3 py-2 text-[11px] font-bold text-white hover:bg-orange-600 shadow-lg shadow-orange-500/20"
                     >
                       <Wallet className="h-4 w-4" />
@@ -321,6 +326,7 @@ function StaticVisitaItem({
                     <button
                       type="button"
                       onClick={() => onReprogramar(visita)}
+                      disabled={!!disableModificaciones}
                       className="flex items-center justify-center gap-2 rounded-xl bg-orange-50 px-3 py-2 text-[11px] font-bold text-orange-700 hover:bg-orange-100 border border-orange-200"
                     >
                       <Calendar className="h-4 w-4" />
@@ -364,6 +370,7 @@ function SortableVisita({
   getEstadoClasses,
   getPrioridadColor,
   disableSort,
+  disableModificaciones,
 }: {
   visita: VisitaRuta
   isSelected: boolean
@@ -376,6 +383,7 @@ function SortableVisita({
   getEstadoClasses: (estado: EstadoVisita) => string
   getPrioridadColor: (prioridad: 'alta' | 'media' | 'baja') => string
   disableSort?: boolean
+  disableModificaciones?: boolean
 }) {
   return (
     <SortableItem
@@ -390,6 +398,7 @@ function SortableVisita({
       getEstadoClasses={getEstadoClasses}
       getPrioridadColor={getPrioridadColor}
       disableSort={disableSort}
+      disableModificaciones={disableModificaciones}
     />
   )
 }
@@ -437,6 +446,7 @@ function SortableItem({
   getEstadoClasses,
   getPrioridadColor,
   disableSort,
+  disableModificaciones,
 }: {
   visita: VisitaRuta
   isSelected: boolean
@@ -449,6 +459,7 @@ function SortableItem({
   getEstadoClasses: (estado: EstadoVisita) => string
   getPrioridadColor: (prioridad: 'alta' | 'media' | 'baja') => string
   disableSort?: boolean
+  disableModificaciones?: boolean
 }) {
   const {
     attributes,
@@ -573,8 +584,10 @@ function SortableItem({
                     type="button"
                     onPointerDown={(e) => e.stopPropagation()}
                     onClick={() => {
+                      if (disableModificaciones) return
                       onRegistrarPago(visita)
                     }}
+                    disabled={!!disableModificaciones}
                     className="flex items-center justify-center gap-2 rounded-xl bg-[#08557f] px-3 py-2 text-[11px] font-bold text-white hover:bg-[#063a58] shadow-lg shadow-[#08557f]/20"
                   >
                     <DollarSign className="h-4 w-4" />
@@ -585,8 +598,10 @@ function SortableItem({
                   type="button"
                   onPointerDown={(e) => e.stopPropagation()}
                   onClick={() => {
+                    if (disableModificaciones) return
                     onRegistrarAbono(visita)
                   }}
+                  disabled={!!disableModificaciones}
                   className="flex items-center justify-center gap-2 rounded-xl bg-orange-500 px-3 py-2 text-[11px] font-bold text-white hover:bg-orange-600 shadow-lg shadow-orange-500/20"
                 >
                   <Wallet className="h-4 w-4" />
@@ -608,8 +623,10 @@ function SortableItem({
                 type="button"
                 onPointerDown={(e) => e.stopPropagation()}
                 onClick={() => {
+                  if (disableModificaciones) return
                   onReprogramar(visita)
                 }}
+                disabled={!!disableModificaciones}
                 className="w-full flex items-center justify-center gap-2 rounded-xl bg-orange-50 px-3 py-2 text-xs font-bold text-orange-700 hover:bg-orange-100 border border-orange-200"
               >
                 <Calendar className="h-4 w-4" />
@@ -690,6 +707,10 @@ const VistaCobrador = () => {
   const [tasaInteresInput, setTasaInteresInput] = useState('')
   const [cuotasPrestamoInput, setCuotasPrestamoInput] = useState('')
   const [cuotaInicialArticuloInput, setCuotaInicialArticuloInput] = useState('')
+
+  const [rutaCompletada, setRutaCompletada] = useState(false)
+  const [showCompletarRutaModal, setShowCompletarRutaModal] = useState(false)
+  const [coordinadorToast, setCoordinadorToast] = useState<string | null>(null)
 
   const [isLoading, setIsLoading] = useState(true)
 
@@ -1039,8 +1060,9 @@ const VistaCobrador = () => {
 
   // Handlers para drag & drop
   const handleDragStart = useCallback((event: DragStartEvent) => {
+    if (rutaCompletada) return
     setActiveId(event.active.id as string)
-  }, [])
+  }, [rutaCompletada])
 
   const handleAbrirAbono = useCallback((visita: VisitaRuta) => {
     setVisitaPagoSeleccionada(visita)
@@ -1115,6 +1137,13 @@ const VistaCobrador = () => {
   const handleRegistrarPago = useCallback((visitaId: string, montoPagado: number, metodo: 'EFECTIVO' | 'TRANSFERENCIA', comprobante: File | null) => {
     console.log(`Registra pago de ${montoPagado} para visita ${visitaId} (${metodo})`, comprobante)
     setShowPaymentModal(false)
+  }, [])
+
+  const handleCompletarRuta = useCallback(() => {
+    setRutaCompletada(true)
+    setShowCompletarRutaModal(false)
+    setCoordinadorToast('Se notificó al coordinador: ruta diaria marcada como completada.')
+    window.setTimeout(() => setCoordinadorToast(null), 4000)
   }, [])
 
   const handleRegistrarGasto = useCallback((descripcion: string, monto: number) => {
@@ -1202,6 +1231,18 @@ const VistaCobrador = () => {
       </div>
 
       <div className="relative w-full space-y-8 p-8">
+        {coordinadorToast && (
+          <div className="rounded-2xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm font-medium text-blue-800">
+            {coordinadorToast}
+          </div>
+        )}
+
+        {rutaCompletada && (
+          <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-bold text-emerald-800">
+            Ruta del día completada. Las modificaciones están bloqueadas.
+          </div>
+        )}
+
         {/* Header con información del cobrador */}
         <header className="space-y-4">
           <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
@@ -1322,6 +1363,20 @@ const VistaCobrador = () => {
                     <History className="h-4 w-4" />
                     <span className="hidden md:inline">{showHistory ? 'Ver Ruta' : 'Historial'}</span>
                   </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setShowCompletarRutaModal(true)}
+                    disabled={rutaCompletada}
+                    className={`px-4 py-2 border rounded-xl flex items-center gap-2 font-bold shadow-sm transition-colors ${
+                      rutaCompletada
+                        ? 'bg-emerald-50 text-emerald-700 border-emerald-200 opacity-70'
+                        : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+                    }`}
+                  >
+                    <CheckCircle2 className="h-4 w-4" />
+                    <span className="hidden md:inline">Completar ruta</span>
+                  </button>
                 </div>
               </div>
 
@@ -1398,6 +1453,8 @@ const VistaCobrador = () => {
                                 onVerEstadoCuenta={handleAbrirEstadoCuenta}
                                 getEstadoClasses={getEstadoClasses}
                                 getPrioridadColor={getPrioridadColor}
+                                disableSort={rutaCompletada}
+                                disableModificaciones={rutaCompletada}
                               />
                             ))}
                           </div>
@@ -1444,6 +1501,8 @@ const VistaCobrador = () => {
                                   onVerEstadoCuenta={handleAbrirEstadoCuenta}
                                   getEstadoClasses={getEstadoClasses}
                                   getPrioridadColor={getPrioridadColor}
+                                  disableSort={rutaCompletada}
+                                  disableModificaciones={rutaCompletada}
                                 />
                               ))}
                             </div>
@@ -1607,6 +1666,54 @@ const VistaCobrador = () => {
         </div>
 
         {/* Modales (Implementación simplificada para el ejemplo) */}
+        {showCompletarRutaModal && (
+          <Portal>
+            <div
+              className="fixed inset-0 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-200"
+              style={{ zIndex: MODAL_Z_INDEX }}
+              onClick={() => setShowCompletarRutaModal(false)}
+            >
+              <div
+                className="w-full max-w-md bg-white rounded-3xl shadow-2xl animate-in zoom-in-95 duration-200"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="p-6">
+                  <div className="flex items-center justify-between mb-6">
+                    <div>
+                      <h3 className="text-xl font-bold text-slate-900">Completar ruta</h3>
+                      <p className="text-sm text-slate-500 font-medium">Al completar la ruta no podrás hacer más modificaciones hoy.</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setShowCompletarRutaModal(false)}
+                      className="p-2 bg-slate-100 rounded-full text-slate-500 hover:bg-slate-200 transition-colors"
+                    >
+                      <X className="h-5 w-5" />
+                    </button>
+                  </div>
+
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setShowCompletarRutaModal(false)}
+                      className="flex-1 rounded-xl bg-slate-100 px-3 py-3 text-sm font-bold text-slate-700 hover:bg-slate-200"
+                    >
+                      Cancelar
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleCompletarRuta}
+                      className="flex-1 rounded-xl bg-emerald-600 px-3 py-3 text-sm font-bold text-white hover:bg-emerald-700"
+                    >
+                      Marcar como completada
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </Portal>
+        )}
+
         {showClienteInfoModal && (
           <Portal>
             <div

@@ -1,7 +1,6 @@
 'use client'
 
 import React, { useState } from 'react'
-import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import {
   ArrowLeft,
@@ -14,7 +13,6 @@ import {
 import { formatCurrency, cn } from '@/lib/utils'
 
 export default function CierreCajaPage() {
-  const router = useRouter()
   const [step, setStep] = useState(1)
   const [loading, setLoading] = useState(false)
 
@@ -59,7 +57,7 @@ export default function CierreCajaPage() {
         <div className="flex items-center gap-4">
           <Link 
             href="/admin/contable"
-            className="p-2 -ml-2 text-slate-400 hover:text-slate-900 transition-colors"
+            className="inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-slate-600 shadow-sm transition-colors hover:bg-slate-50 hover:text-slate-900"
           >
             <ArrowLeft className="h-6 w-6" />
           </Link>
@@ -216,7 +214,7 @@ export default function CierreCajaPage() {
                 
                 {form.observaciones && (
                   <div className="mt-4 p-4 bg-slate-50 rounded-xl text-sm text-black border border-slate-200">
-                    "{form.observaciones}"
+                    &ldquo;{form.observaciones}&rdquo;
                   </div>
                 )}
               </div>
@@ -224,7 +222,7 @@ export default function CierreCajaPage() {
               <div className="p-6 border-t border-slate-100 bg-slate-50/50 flex gap-3 justify-end">
                 <button
                   onClick={() => setStep(1)}
-                  className="px-6 py-3 text-sm font-bold text-slate-600 hover:text-slate-900 hover:bg-slate-200/50 rounded-xl transition-colors"
+                  className="inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm font-bold text-slate-600 shadow-sm transition-colors hover:bg-slate-50 hover:text-slate-900"
                 >
                   Volver
                 </button>
@@ -252,7 +250,7 @@ export default function CierreCajaPage() {
             <div className="flex gap-4">
               <Link 
                 href="/admin/contable"
-                className="inline-flex items-center gap-2 rounded-xl bg-slate-900 px-6 py-3 text-sm font-bold text-white hover:bg-slate-800 transition-all"
+                className="inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm font-bold text-slate-600 shadow-sm transition-colors hover:bg-slate-50 hover:text-slate-900"
               >
                 Volver al Tablero
               </Link>

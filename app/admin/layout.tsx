@@ -36,6 +36,7 @@ interface NavigationItem {
 }
 
 interface Usuario {
+  id?: string
   nombres: string
   apellidos: string
   correo: string
@@ -56,6 +57,8 @@ export default function AdminLayout({
   const [authChecked, setAuthChecked] = useState(false)
   const [showUserMenu, setShowUserMenu] = useState(false)
   const [showNotifications, setShowNotifications] = useState(false)
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false)
+  const [isLoggingOut, setIsLoggingOut] = useState(false)
   const [navigation, setNavigation] = useState<NavigationItem[]>([])
   const [openMenus, setOpenMenus] = useState<Record<string, boolean>>({})
   const pathname = usePathname()
@@ -136,7 +139,7 @@ export default function AdminLayout({
     }
 
     loadUserData()
-  }, [])
+  }, [router])
 
   if (!authChecked) return null
 
@@ -146,6 +149,20 @@ export default function AdminLayout({
 
   if (user?.rol === 'COBRADOR') {
     const notificationsRoute = '/cobranzas/notificaciones'
+    const requestLogout = () => {
+      setShowUserMenu(false)
+      setShowLogoutConfirm(true)
+    }
+
+    const handleLogout = () => {
+      if (isLoggingOut) return
+      setIsLoggingOut(true)
+      window.setTimeout(() => {
+        localStorage.removeItem('token')
+        localStorage.removeItem('user')
+        router.push('/login')
+      }, 450)
+    }
 
     return (
       <div className="min-h-screen bg-linear-to-br from-gray-50 to-white">
@@ -320,12 +337,7 @@ export default function AdminLayout({
                             Mi perfil
                           </button>
                           <button
-                            onClick={() => {
-                              setShowUserMenu(false)
-                              localStorage.removeItem('token')
-                              localStorage.removeItem('user')
-                              router.push('/login')
-                            }}
+                            onClick={requestLogout}
                             className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                           >
                             <LogOut className="h-4 w-4" />
@@ -342,14 +354,70 @@ export default function AdminLayout({
         </header>
 
         <main className="pt-16">{children}</main>
+
+        {showLogoutConfirm && (
+          <div className="fixed inset-0 z-[2147483647] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
+            <div className="w-full max-w-md rounded-3xl bg-white shadow-2xl overflow-hidden">
+              <div className="p-6">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <h3 className="text-lg font-bold text-slate-900">Cerrar sesión</h3>
+                    <p className="mt-1 text-sm text-slate-600">¿Seguro que deseas cerrar sesión?</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (isLoggingOut) return
+                      setShowLogoutConfirm(false)
+                    }}
+                    className="p-2 rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200"
+                  >
+                    <X className="h-5 w-5" />
+                  </button>
+                </div>
+
+                <div className="mt-6 flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (isLoggingOut) return
+                      setShowLogoutConfirm(false)
+                    }}
+                    disabled={isLoggingOut}
+                    className="flex-1 rounded-xl bg-slate-100 px-3 py-3 text-sm font-bold text-slate-700 hover:bg-slate-200 disabled:opacity-60"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleLogout}
+                    disabled={isLoggingOut}
+                    className="flex-1 rounded-xl bg-red-600 px-3 py-3 text-sm font-bold text-white hover:bg-red-700 disabled:opacity-60"
+                  >
+                    {isLoggingOut ? 'Cerrando sesión…' : 'Cerrar sesión'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     )
   }
 
+  const requestLogout = () => {
+    setShowUserMenu(false)
+    setShowLogoutConfirm(true)
+  }
+
   const handleLogout = () => {
-    localStorage.removeItem('token')
-    localStorage.removeItem('user')
-    router.push('/login')
+    if (isLoggingOut) return
+    setIsLoggingOut(true)
+    window.setTimeout(() => {
+      localStorage.removeItem('token')
+      localStorage.removeItem('user')
+      router.push('/login')
+    }, 450)
   }
 
   function getUserInitials() {
@@ -730,7 +798,7 @@ export default function AdminLayout({
                       {/* Cerrar sesión */}
                       <div className="pt-2 border-t border-gray-100">
                         <button
-                          onClick={handleLogout}
+                          onClick={requestLogout}
                           className="flex items-center w-full px-4 py-3 text-sm text-red-600 hover:bg-red-50 transition-colors group"
                         >
                           <div className="w-8 h-8 rounded-lg bg-red-100 flex items-center justify-center mr-3 group-hover:bg-red-200 transition-colors">
@@ -750,6 +818,53 @@ export default function AdminLayout({
           </div>
         </div>
       </header>
+
+      {showLogoutConfirm && (
+        <div className="fixed inset-0 z-[2147483647] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-3xl bg-white shadow-2xl overflow-hidden">
+            <div className="p-6">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <h3 className="text-lg font-bold text-slate-900">Cerrar sesión</h3>
+                  <p className="mt-1 text-sm text-slate-600">¿Seguro que deseas cerrar sesión?</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (isLoggingOut) return
+                    setShowLogoutConfirm(false)
+                  }}
+                  className="p-2 rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+
+              <div className="mt-6 flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (isLoggingOut) return
+                    setShowLogoutConfirm(false)
+                  }}
+                  disabled={isLoggingOut}
+                  className="flex-1 rounded-xl bg-slate-100 px-3 py-3 text-sm font-bold text-slate-700 hover:bg-slate-200 disabled:opacity-60"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  onClick={handleLogout}
+                  disabled={isLoggingOut}
+                  className="flex-1 rounded-xl bg-red-600 px-3 py-3 text-sm font-bold text-white hover:bg-red-700 disabled:opacity-60"
+                >
+                  {isLoggingOut ? 'Cerrando sesión…' : 'Cerrar sesión'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Sidebar elegante para desktop */}
       <aside className={`fixed left-0 top-16 bottom-0 w-64 bg-white/80 backdrop-blur-sm border-r border-gray-100 transition-all duration-300 z-20 ${

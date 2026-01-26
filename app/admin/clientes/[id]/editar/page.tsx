@@ -181,9 +181,9 @@ const EditarClientePage = () => {
 
       <div className="relative z-10 px-8 pt-8">
         <div className="mb-8 flex items-center justify-between">
-          <Link href="/admin/clientes" className="flex items-center gap-2 text-slate-500 hover:text-slate-900 transition-colors group">
-            <ArrowLeft className="w-5 h-5 group-hover:-translate-x-0.5 transition-transform duration-200" />
-            <span className="text-sm font-bold">Volver</span>
+          <Link href="/admin/clientes" className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-slate-600 shadow-sm transition-colors hover:bg-slate-50 hover:text-slate-900">
+            <ArrowLeft className="w-5 h-5" />
+            <span>Volver</span>
           </Link>
         </div>
 
