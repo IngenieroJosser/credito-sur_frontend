@@ -1,9 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { clientesService, Cliente, MOCK_CLIENTES } from '@/services/clientes-service';
 import {
   Search,
@@ -31,17 +30,30 @@ type EstadoAprobacion = 'PENDIENTE' | 'APROBADO' | 'RECHAZADO' | 'CANCELADO';
 
 const ClientesPage = () => {
   const router = useRouter();
-  const queryClient = useQueryClient();
 
-  // Query para obtener clientes
-  const { data: clientes = MOCK_CLIENTES, isLoading } = useQuery({
-    queryKey: ['clientes'],
-    queryFn: clientesService.obtenerClientes,
-    initialData: MOCK_CLIENTES
-  });
+  const [clientes, setClientes] = useState<Cliente[]>(MOCK_CLIENTES)
+  const [isLoading, setIsLoading] = useState(true)
 
-  // Asegurar que clientes siempre es un array
-  const clientesArray = Array.isArray(clientes) ? clientes : (clientes?.data || MOCK_CLIENTES);
+  useEffect(() => {
+    let mounted = true
+    ;(async () => {
+      try {
+        const data = await clientesService.obtenerClientes()
+        if (mounted) setClientes(Array.isArray(data) ? data : MOCK_CLIENTES)
+      } catch (error) {
+        console.warn('Usando datos mock de clientes', error)
+        if (mounted) setClientes(MOCK_CLIENTES)
+      } finally {
+        if (mounted) setIsLoading(false)
+      }
+    })()
+
+    return () => {
+      mounted = false
+    }
+  }, [])
+
+  const clientesArray = clientes
 
   const [searchTerm, setSearchTerm] = useState('');
   const [filterRiesgo, setFilterRiesgo] = useState<string>('all');
@@ -52,28 +64,27 @@ const ClientesPage = () => {
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [clientToDelete, setClientToDelete] = useState<Cliente | null>(null);
 
-  // Mutation para eliminar cliente
-  const deleteMutation = useMutation({
-    mutationFn: clientesService.eliminarCliente,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['clientes'] });
-      setIsDeleteModalOpen(false);
-      setClientToDelete(null);
-    },
-    onError: (error) => {
-      console.error('Error al eliminar cliente:', error);
-      alert('Error al eliminar el cliente');
-    }
-  });
+  const [isDeleting, setIsDeleting] = useState(false)
 
   const handleDeleteClick = (cliente: Cliente) => {
     setClientToDelete(cliente);
     setIsDeleteModalOpen(true);
   };
 
-  const confirmDelete = () => {
-    if (clientToDelete) {
-      deleteMutation.mutate(clientToDelete.id);
+  const confirmDelete = async () => {
+    if (!clientToDelete) return
+
+    setIsDeleting(true)
+    try {
+      await clientesService.eliminarCliente(clientToDelete.id)
+      setClientes((prev) => prev.filter((c) => c.id !== clientToDelete.id))
+      setIsDeleteModalOpen(false)
+      setClientToDelete(null)
+    } catch (error) {
+      console.error('Error al eliminar cliente:', error)
+      alert('Error al eliminar el cliente')
+    } finally {
+      setIsDeleting(false)
     }
   };
 
@@ -84,8 +95,8 @@ const ClientesPage = () => {
     amarillo: clientesArray.filter(c => c.nivelRiesgo === 'AMARILLO').length,
     rojo: clientesArray.filter(c => c.nivelRiesgo === 'ROJO').length,
     listaNegra: clientesArray.filter(c => c.enListaNegra).length,
-    totalDeuda: clientesArray.reduce((sum, c) => sum + c.montoTotal, 0),
-    totalMora: clientesArray.reduce((sum, c) => sum + c.montoMora, 0)
+    totalDeuda: clientesArray.reduce((sum, c) => sum + (c.montoTotal ?? 0), 0),
+    totalMora: clientesArray.reduce((sum, c) => sum + (c.montoMora ?? 0), 0)
   };
 
   // Filtros y búsqueda
@@ -261,32 +272,44 @@ const ClientesPage = () => {
               <tbody className="divide-y divide-slate-100">
                 {currentItems.map((cliente) => (
                   <tr
-                  key={cliente.id}
-                  className="hover:bg-slate-50/50 transition-colors group cursor-pointer"
-                  onClick={() => router.push(`/admin/clientes/${cliente.id}`)}
-                >
-                  <td className="px-6 py-4">
-                    <div className="flex items-center gap-3">
-                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-sm font-bold shadow-sm ${
-                          cliente.nivelRiesgo === 'VERDE' ? 'bg-emerald-100 text-emerald-700' :
-                          cliente.nivelRiesgo === 'AMARILLO' ? 'bg-amber-100 text-amber-700' :
-                          cliente.nivelRiesgo === 'ROJO' ? 'bg-rose-100 text-rose-700' :
-                          'bg-slate-100 text-slate-600'
-                        }`}>
-                          {cliente.nombres.charAt(0)}{cliente.apellidos.charAt(0)}
+                    key={cliente.id}
+                    className="hover:bg-slate-50/50 transition-colors group cursor-pointer"
+                    onClick={() => router.push(`/admin/clientes/${cliente.id}`)}
+                  >
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-3">
+                        <div
+                          className={`w-10 h-10 rounded-xl flex items-center justify-center text-sm font-bold shadow-sm ${
+                            cliente.nivelRiesgo === 'VERDE'
+                              ? 'bg-emerald-100 text-emerald-700'
+                              : cliente.nivelRiesgo === 'AMARILLO'
+                                ? 'bg-amber-100 text-amber-700'
+                                : cliente.nivelRiesgo === 'ROJO'
+                                  ? 'bg-rose-100 text-rose-700'
+                                  : 'bg-slate-100 text-slate-600'
+                          }`}
+                        >
+                          {cliente.nombres.charAt(0)}
+                          {cliente.apellidos.charAt(0)}
                         </div>
                         <div className="ml-4">
-                          <div className="font-bold text-slate-900">{cliente.nombres} {cliente.apellidos}</div>
+                          <div className="font-bold text-slate-900">
+                            {cliente.nombres} {cliente.apellidos}
+                          </div>
                           <div className="text-xs text-slate-500 flex items-center mt-0.5 font-mono font-medium">
                             {cliente.dni}
                           </div>
                         </div>
                       </div>
                     </td>
-                    
+
                     <td className="px-6 py-4">
                       <div className="space-y-1">
-                        <div className={`inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-bold ring-1 ring-inset ${getRiesgoColor(cliente.nivelRiesgo)}`}>
+                        <div
+                          className={`inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-bold ring-1 ring-inset ${getRiesgoColor(
+                            cliente.nivelRiesgo
+                          )}`}
+                        >
                           <span className="mr-1.5">{getRiesgoIcon(cliente.nivelRiesgo)}</span>
                           {cliente.nivelRiesgo.replace('_', ' ')}
                         </div>
@@ -298,20 +321,20 @@ const ClientesPage = () => {
                         )}
                       </div>
                     </td>
-                    
+
                     <td className="px-6 py-4">
                       <div className="space-y-1">
                         <div className="text-sm font-bold text-slate-900">
-                          {formatCurrency(cliente.montoTotal)}
+                          {formatCurrency(cliente.montoTotal ?? 0)}
                         </div>
-                        {cliente.montoMora > 0 && (
+                        {(cliente.montoMora ?? 0) > 0 && (
                           <div className="text-xs text-rose-600 font-bold flex items-center">
-                            Mora: {formatCurrency(cliente.montoMora)}
+                            Mora: {formatCurrency(cliente.montoMora ?? 0)}
                           </div>
                         )}
                       </div>
                     </td>
-                    
+
                     <td className="px-6 py-4">
                       <div className="space-y-1">
                         <div className="flex items-center text-sm font-medium text-slate-600">
@@ -326,14 +349,17 @@ const ClientesPage = () => {
                         )}
                       </div>
                     </td>
-                    
+
                     <td className="px-6 py-4 text-right">
-                    <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity" onClick={(e) => e.stopPropagation()}>
-                      <Link
-                        href={`/admin/clientes/${cliente.id}`}
-                        className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                        title="Ver Expediente"
+                      <div
+                        className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity"
+                        onClick={(e) => e.stopPropagation()}
                       >
+                        <Link
+                          href={`/admin/clientes/${cliente.id}`}
+                          className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                          title="Ver Expediente"
+                        >
                           <Eye className="h-4 w-4" />
                         </Link>
                         <Link
@@ -357,7 +383,7 @@ const ClientesPage = () => {
               </tbody>
             </table>
           </div>
-          
+
           {/* Paginación Elegante */}
           {totalPages > 1 && (
             <div className="px-6 py-4 border-t border-slate-200 bg-slate-50/50">
@@ -397,16 +423,16 @@ const ClientesPage = () => {
             <button
               onClick={() => setIsDeleteModalOpen(false)}
               className="px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-100 rounded-xl transition-colors"
-              disabled={deleteMutation.isPending}
+              disabled={isDeleting}
             >
               Cancelar
             </button>
             <button
               onClick={confirmDelete}
-              disabled={deleteMutation.isPending}
+              disabled={isDeleting}
               className="px-4 py-2 text-sm font-bold text-white bg-rose-600 hover:bg-rose-700 rounded-xl transition-colors shadow-lg shadow-rose-600/20 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {deleteMutation.isPending ? 'Eliminando...' : 'Sí, eliminar cliente'}
+              {isDeleting ? 'Eliminando...' : 'Sí, eliminar cliente'}
             </button>
           </>
         }

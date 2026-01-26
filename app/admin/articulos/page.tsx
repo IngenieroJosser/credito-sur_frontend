@@ -13,7 +13,7 @@ import {
   TrendingUp,
   Tag,
   DollarSign,
-  Activity,
+  Eye,
   Pencil
 } from 'lucide-react'
 import { formatCurrency } from '@/lib/utils'
@@ -288,7 +288,7 @@ export default function ArticulosPage() {
                           className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
                           title="Ver detalle"
                         >
-                          <Activity className="w-4 h-4" />
+                          <Eye className="w-4 h-4" />
                         </Link>
                         <Link 
                           href={`/admin/articulos/${articulo.id}/editar`}

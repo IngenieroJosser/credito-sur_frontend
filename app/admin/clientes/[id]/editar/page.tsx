@@ -3,7 +3,6 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter, useParams } from 'next/navigation';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { clientesService, CrearClienteDto, MOCK_CLIENTES } from '@/services/clientes-service';
 import { Save, User, Phone, Mail, MapPin, Briefcase, Shield, ChevronRight, ArrowLeft, Camera } from 'lucide-react';
 import { FileUploader } from '@/components/ui/FileUploader';
@@ -55,8 +54,8 @@ const EditarClientePage = () => {
   const rawId = params?.id;
   const id = Array.isArray(rawId) ? rawId[0] : rawId as string;
   
-  const queryClient = useQueryClient();
   const [activeSection, setActiveSection] = useState('personal');
+  const [isSaving, setIsSaving] = useState(false)
 
   const [formData, setFormData] = useState<ClienteFormData>({
     nombres: '', apellidos: '', dni: '', telefono: '', correo: '', direccion: '', referencia: '',
@@ -86,22 +85,6 @@ const EditarClientePage = () => {
       }
     }
   }, [id]);
-
-  const updateMutation = useMutation({
-    mutationFn: (data: Partial<CrearClienteDto>) => clientesService.actualizarCliente(id, data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['clientes'] });
-      queryClient.invalidateQueries({ queryKey: ['cliente', id] });
-      alert('Cliente actualizado exitosamente (Simulado)');
-      router.push('/admin/clientes');
-    },
-    onError: (error) => {
-      console.error('Error al actualizar cliente:', error);
-      // En modo frontend simulamos éxito aunque falle el backend
-      alert('Cliente actualizado exitosamente (Simulado Frontend)');
-      router.push('/admin/clientes');
-    }
-  });
 
   const sections = [
     { id: 'personal', label: 'Datos Personales', icon: <User className="h-4 w-4" /> },
@@ -138,22 +121,35 @@ const EditarClientePage = () => {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    
-    const clienteActualizado: Partial<CrearClienteDto> = {
-      nombres: formData.nombres,
-      apellidos: formData.apellidos,
-      dni: formData.dni,
-      telefono: formData.telefono,
-      direccion: formData.direccion,
-      correo: formData.correo || undefined,
-      referencia: formData.referencia || undefined,
-      nivelRiesgo: formData.nivelRiesgo,
-      puntaje: formData.puntaje,
-      enListaNegra: formData.enListaNegra,
-      rutaId: formData.rutaId || undefined,
-      observaciones: formData.observaciones || undefined
-    };
-    updateMutation.mutate(clienteActualizado);
+
+    ;(async () => {
+      setIsSaving(true)
+      try {
+        const updateData: Partial<CrearClienteDto> = {
+          nombres: formData.nombres,
+          apellidos: formData.apellidos,
+          dni: formData.dni,
+          telefono: formData.telefono,
+          direccion: formData.direccion,
+          correo: formData.correo || undefined,
+          referencia: formData.referencia || undefined,
+          nivelRiesgo: formData.nivelRiesgo,
+          puntaje: formData.puntaje,
+          enListaNegra: formData.enListaNegra,
+          rutaId: formData.rutaId || undefined,
+          observaciones: formData.observaciones || undefined,
+        }
+        await clientesService.actualizarCliente(id, updateData)
+        alert('Cliente actualizado exitosamente (Simulado)')
+        router.push('/admin/clientes')
+      } catch (error) {
+        console.error('Error al actualizar cliente:', error)
+        alert('Cliente actualizado exitosamente (Simulado Frontend)')
+        router.push('/admin/clientes')
+      } finally {
+        setIsSaving(false)
+      }
+    })()
   };
 
   const getRiesgoColor = (nivel: string) => {
@@ -238,11 +234,11 @@ const EditarClientePage = () => {
               <div className="pt-4 border-t border-slate-100">
                 <button
                   type="submit"
-                  disabled={updateMutation.isPending}
+                  disabled={isSaving}
                   className="w-full flex items-center justify-center gap-2 bg-slate-900 hover:bg-slate-800 text-white py-3 rounded-xl font-bold transition-all shadow-lg shadow-slate-900/20 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <Save className="w-4 h-4" />
-                  {updateMutation.isPending ? 'Guardando...' : 'Guardar Cambios'}
+                  {isSaving ? 'Guardando...' : 'Guardar Cambios'}
                 </button>
               </div>
             </div>
@@ -281,7 +277,7 @@ const EditarClientePage = () => {
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-sm font-bold text-slate-700">Cédula (CC) <span className="text-rose-500">*</span></label>
+                  <label className="text-sm font-bold text-slate-700">Cédula / CC <span className="text-rose-500">*</span></label>
                   <input
                     type="text"
                     name="dni"
@@ -369,8 +365,8 @@ const EditarClientePage = () => {
                   onFilesChange={setFotosCliente}
                   maxFiles={5}
                   maxSize={5 * 1024 * 1024}
-                  accept={{ 'image/*': [] }}
-                  title="Fotos del Cliente / Documentos"
+                  accept="image/*,application/pdf"
+                  label="Fotos del Cliente / Documentos"
                   description="Arrastra fotos de la cédula, fachada de la casa o recibos públicos"
                 />
               </div>

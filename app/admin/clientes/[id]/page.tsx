@@ -2,8 +2,7 @@
 
 import React from 'react';
 import { useParams } from 'next/navigation';
-import { useQuery } from '@tanstack/react-query';
-import { ChevronLeft, BarChart3, Smartphone, Zap, CreditCard as CreditCardIcon, DollarSign, Loader2 } from 'lucide-react';
+import { ChevronLeft, BarChart3, Smartphone, DollarSign, Loader2 } from 'lucide-react';
 import ClienteDetalleElegante, { Cliente, Prestamo, Pago, Comentario } from '@/components/cliente/DetalleCliente';
 import Link from 'next/link';
 import { MOCK_CLIENTES } from '@/services/clientes-service';
@@ -60,23 +59,26 @@ export default function ClienteDetallePage() {
   const cliente: Cliente = {
     ...clienteData,
     fechaRegistro: clienteData.fechaRegistro || 'No disponible',
-    ocupacion: clienteData.ocupacion || 'No registrada',
     avatarColor: 'bg-blue-600'
   };
 
   // Mapeo de préstamos (si vienen del backend)
-  const prestamos: Prestamo[] = clienteData.prestamos?.map((p: any) => ({
-    ...p,
-    icono: <Smartphone className="w-5 h-5" />, // Icono por defecto
-    categoria: 'General'
-  })) || [];
+  const prestamos: Prestamo[] = (clienteData.prestamos || []).map((p: unknown) => {
+    return {
+      ...(p as Partial<Prestamo>),
+      icono: <Smartphone className="w-5 h-5" />,
+      categoria: 'General',
+    } as Prestamo
+  })
 
   // Mapeo de pagos
-  const pagos: Pago[] = clienteData.pagos?.map((p: any) => ({
-    ...p,
-    icono: <DollarSign className="w-5 h-5" />, // Icono por defecto
-    estado: 'confirmado' // Asumimos confirmado por ahora
-  })) || [];
+  const pagos: Pago[] = (clienteData.pagos || []).map((p: unknown) => {
+    return {
+      ...(p as Partial<Pago>),
+      icono: <DollarSign className="w-5 h-5" />,
+      estado: 'confirmado',
+    } as Pago
+  })
 
   const comentarios: Comentario[] = []; // Por ahora vacío hasta implementar backend
 

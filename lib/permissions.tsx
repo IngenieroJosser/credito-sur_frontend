@@ -13,7 +13,7 @@ export interface ModuloPermiso {
 // Configuración completa de permisos por rol
 export const permisosPorRol: Record<Rol, ModuloPermiso[]> = {
   SUPER_ADMINISTRADOR: [
-    { id: 'dashboard', nombre: 'Dashboard', icono: 'Activity', path: '/admin', roles: ['SUPER_ADMINISTRADOR', 'COORDINADOR', 'SUPERVISOR', 'COBRADOR', 'CONTADOR'] },
+    { id: 'dashboard', nombre: 'Dashboard', icono: 'Eye', path: '/admin', roles: ['SUPER_ADMINISTRADOR', 'COORDINADOR', 'SUPERVISOR', 'COBRADOR', 'CONTADOR'] },
     { 
       id: 'operaciones', 
       nombre: 'Operaciones', 
@@ -81,7 +81,7 @@ export const permisosPorRol: Record<Rol, ModuloPermiso[]> = {
   ],
 
   COORDINADOR: [
-    { id: 'dashboard', nombre: 'Dashboard', icono: 'Activity', path: '/admin', roles: ['COORDINADOR'] },
+    { id: 'dashboard', nombre: 'Dashboard', icono: 'Eye', path: '/admin', roles: ['COORDINADOR'] },
     { id: 'gestion-creditos', nombre: 'Créditos y Préstamos', icono: 'CreditCard', path: '/admin/creditos', roles: ['COORDINADOR'] },
     { id: 'clientes', nombre: 'Clientes', icono: 'Users', path: '/admin/clientes', roles: ['COORDINADOR'] },
     { id: 'cuentas-mora', nombre: 'Cuentas en mora', icono: 'AlertCircle', path: '/admin/cuentas-mora', roles: ['COORDINADOR'] },
@@ -92,7 +92,7 @@ export const permisosPorRol: Record<Rol, ModuloPermiso[]> = {
   ],
 
   SUPERVISOR: [
-    { id: 'dashboard', nombre: 'Dashboard', icono: 'Activity', path: '/admin', roles: ['SUPERVISOR'] },
+    { id: 'dashboard', nombre: 'Dashboard', icono: 'Eye', path: '/admin', roles: ['SUPERVISOR'] },
     { id: 'clientes', nombre: 'Clientes', icono: 'Users', path: '/admin/clientes', roles: ['SUPERVISOR'] },
     { id: 'cuentas-mora', nombre: 'Cuentas en mora', icono: 'AlertCircle', path: '/admin/cuentas-mora', roles: ['SUPERVISOR'] },
     { id: 'reportes-operativos', nombre: 'Reportes operativos', icono: 'PieChart', path: '/admin/reportes/operativos', roles: ['SUPERVISOR'] },
@@ -100,16 +100,16 @@ export const permisosPorRol: Record<Rol, ModuloPermiso[]> = {
   ],
 
   COBRADOR: [
-    { id: 'dashboard', nombre: 'Inicio', icono: 'Activity', path: '/cobranzas', roles: ['COBRADOR'] },
-    { id: 'rutas', nombre: 'Mi Ruta', icono: 'Map', path: '/admin/rutas', roles: ['COBRADOR'] },
-    { id: 'prestamos-dinero', nombre: 'Solicitar Crédito', icono: 'CreditCard', path: '/admin/prestamos/nuevo', roles: ['COBRADOR'] },
-    { id: 'clientes', nombre: 'Nuevo Cliente', icono: 'Users', path: '/admin/clientes/nuevo', roles: ['COBRADOR'] },
-    { id: 'solicitudes', nombre: 'Solicitudes', icono: 'ClipboardList', path: '/admin/solicitudes', roles: ['COBRADOR'] },
-    { id: 'perfil', nombre: 'Mi Perfil', icono: 'User', path: '/admin/perfil', roles: ['COBRADOR'] },
+    { id: 'dashboard', nombre: 'Inicio', icono: 'Eye', path: '/cobranzas', roles: ['COBRADOR'] },
+    { id: 'prestamos-dinero', nombre: 'Solicitar Crédito', icono: 'CreditCard', path: '/cobranzas/prestamos/nuevo', roles: ['COBRADOR'] },
+    { id: 'clientes', nombre: 'Nuevo Cliente', icono: 'Users', path: '/cobranzas/clientes/nuevo', roles: ['COBRADOR'] },
+    { id: 'notificaciones', nombre: 'Notificaciones', icono: 'Bell', path: '/cobranzas/notificaciones', roles: ['COBRADOR'] },
+    { id: 'solicitudes', nombre: 'Solicitudes', icono: 'ClipboardList', path: '/cobranzas/solicitudes', roles: ['COBRADOR'] },
+    { id: 'perfil', nombre: 'Mi Perfil', icono: 'User', path: '/cobranzas/perfil', roles: ['COBRADOR'] },
   ],
 
   CONTADOR: [
-    { id: 'dashboard', nombre: 'Dashboard', icono: 'Activity', path: '/admin', roles: ['CONTADOR'] },
+    { id: 'dashboard', nombre: 'Dashboard', icono: 'Eye', path: '/admin', roles: ['CONTADOR'] },
     { id: 'contable', nombre: 'Módulo contable', icono: 'PieChart', path: '/admin/contable', roles: ['CONTADOR'] },
     { id: 'tesoreria', nombre: 'Tesorería', icono: 'CreditCard', path: '/admin/tesoreria', roles: ['CONTADOR'] },
     { id: 'articulos', nombre: 'Artículos (Inventario)', icono: 'Package', path: '/admin/articulos', roles: ['CONTADOR'] },
@@ -123,7 +123,8 @@ export const permisosPorRol: Record<Rol, ModuloPermiso[]> = {
 
 // Mapa de iconos de Lucide React
 import {
-  Activity,
+  Eye,
+  Bell,
   CreditCard,
   ShoppingBag,
   Banknote,
@@ -154,7 +155,8 @@ import {
 } from 'lucide-react';
 
 export const iconosMap: Record<string, React.ReactNode> = {
-  'Activity': <Activity className="h-4 w-4" />,
+  'Eye': <Eye className="h-4 w-4" />,
+  'Bell': <Bell className="h-4 w-4" />,
   'CreditCard': <CreditCard className="h-4 w-4" />,
   'ShoppingBag': <ShoppingBag className="h-4 w-4" />,
   'Banknote': <Banknote className="h-4 w-4" />,
@@ -185,7 +187,7 @@ export const iconosMap: Record<string, React.ReactNode> = {
 
 // Obtener icono por nombre
 export const getIconComponent = (iconName: string): React.ReactNode => {
-  return iconosMap[iconName] || <Activity className="h-4 w-4" />;
+  return iconosMap[iconName] || <Eye className="h-4 w-4" />;
 };
 
 // Obtener módulos filtrados por rol
@@ -197,6 +199,19 @@ export const obtenerModulosPorRol = (rol: Rol): ModuloPermiso[] => {
 export const tieneAcceso = (rol: Rol, path: string): boolean => {
   const modulos = permisosPorRol[rol];
   if (!modulos) return false;
-  
-  return modulos.some(modulo => modulo.path === path);
+
+  const rutasPermitidas = modulos
+    .flatMap((m) => [m.path, ...(m.submodulos?.map((s) => s.path) ?? [])])
+    .filter((p): p is string => Boolean(p) && p !== '#');
+
+  const normalizado = path.split('?')[0]?.split('#')[0] ?? path;
+
+  // Match exacto
+  if (rutasPermitidas.includes(normalizado)) return true;
+
+  // Match por subruta (para rutas dinámicas tipo /admin/rutas/[id])
+  return rutasPermitidas.some((base) => {
+    if (base === '/admin' || base === '/cobranzas' || base === '/') return false;
+    return normalizado.startsWith(`${base}/`);
+  });
 };

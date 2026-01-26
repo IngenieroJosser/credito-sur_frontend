@@ -6,7 +6,7 @@ import {
   Clock, AlertTriangle, CheckCircle, 
   UploadCloud, DownloadCloud,
   ChevronDown, ChevronUp, 
-  Activity, Shield, Cpu, Database,
+  Eye, Shield, Cpu, Database,
   Cloud, CloudOff, Router
 } from 'lucide-react'
 import { formatCurrency } from '@/lib/utils'
@@ -248,7 +248,7 @@ const SyncStatusPage = () => {
           <div className="lg:col-span-1 space-y-6">
             <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-[0_8px_30px_rgb(0,0,0,0.04)]">
               <h2 className="text-lg font-bold text-slate-900 mb-6 flex items-center gap-2">
-                <Activity className="w-5 h-5 text-slate-400" />
+                <Eye className="w-5 h-5 text-slate-400" />
                 Estado de Conectividad
               </h2>
               

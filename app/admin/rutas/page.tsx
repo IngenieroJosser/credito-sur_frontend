@@ -9,9 +9,8 @@ import {
   Users,
   User,
   Clock,
-  Activity,
+  Eye,
   Plus,
-  ChevronRight,
   Search,
   TrendingUp,
   AlertTriangle,
@@ -22,8 +21,6 @@ import {
   Save,
   CheckCircle2,
   Trash2,
-  Eye,
-  Edit2
 } from 'lucide-react'
 import { formatCurrency, cn } from '@/lib/utils'
 
@@ -300,7 +297,7 @@ const RutasPage = () => {
                   <h3 className={`text-3xl font-bold ${stat.color} tracking-tight`}>{stat.value}</h3>
                 </div>
                 <div className={`mt-4 text-xs font-medium ${stat.subColor} flex items-center gap-1.5`}>
-                  <Activity className="h-3.5 w-3.5" />
+                  <Eye className="h-3.5 w-3.5" />
                   {stat.sub}
                 </div>
               </div>
@@ -567,10 +564,14 @@ const RutasPage = () => {
                         <td className="px-6 py-4 text-right">
                           <div className="flex items-center justify-end gap-2">
                             <button 
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                router.push(`/admin/rutas/${ruta.id}`)
+                              }}
                               className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
                               title="Ver detalle"
                             >
-                              <Activity className="w-4 h-4" />
+                              <Eye className="w-4 h-4" />
                             </button>
                             <Link 
                               href={`/admin/rutas/${ruta.id}/editar`}

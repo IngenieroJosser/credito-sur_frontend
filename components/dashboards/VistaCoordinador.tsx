@@ -14,10 +14,7 @@ import {
   TrendingUp, 
   TrendingDown, 
   Filter, 
-  Calendar, 
   ChevronRight, 
-  MoreVertical, 
-  Download, 
   RefreshCw, 
   Shield, 
   Wallet, 
@@ -26,15 +23,10 @@ import {
   FileText, 
   UserPlus, 
   CalendarClock, 
-  Eye,
-  Settings,
   Zap,
   Target,
   ArrowRight,
-  Sparkles,
   PieChart,
-  Activity,
-  MapPin
 } from 'lucide-react';
 import { ExportButton } from '@/components/ui/ExportButton';
 

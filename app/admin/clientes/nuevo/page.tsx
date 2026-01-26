@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+
 import { clientesService, CrearClienteDto } from '@/services/clientes-service';
 import { Save, User, Phone, Mail, MapPin, Briefcase, Shield, AlertCircle, ChevronRight, ArrowLeft, Camera } from 'lucide-react';
 import { FileUploader } from '@/components/ui/FileUploader';
@@ -51,22 +51,11 @@ const ScoreMeter = ({ score }: { score: number }) => {
 
 const ClienteFormPage = () => {
   const router = useRouter();
-  const queryClient = useQueryClient();
   const [isEditMode] = useState(false);
   const [activeSection, setActiveSection] = useState('personal');
 
-  const createMutation = useMutation({
-    mutationFn: clientesService.crearCliente,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['clientes'] });
-      alert('Cliente creado exitosamente');
-      router.push('/admin/clientes');
-    },
-    onError: (error) => {
-      console.error('Error al crear cliente:', error);
-      alert('Error al crear el cliente. Verifique los datos.');
-    }
-  });
+  const [isSaving, setIsSaving] = useState(false)
+
   const [formData, setFormData] = useState<ClienteFormData>({
     nombres: '', apellidos: '', dni: '', telefono: '', correo: '', direccion: '', referencia: '',
     puntaje: 100, nivelRiesgo: 'VERDE', enListaNegra: false, razonListaNegra: '', rutaId: '', observaciones: ''
@@ -106,26 +95,38 @@ const ClienteFormPage = () => {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (isEditMode) {
       alert('Funcionalidad de edición pendiente');
       // TODO: Implementar actualización
     } else {
-      const nuevoCliente: CrearClienteDto = {
-        nombres: formData.nombres,
-        apellidos: formData.apellidos,
-        dni: formData.dni,
-        telefono: formData.telefono,
-        direccion: formData.direccion,
-        correo: formData.correo || undefined,
-        referencia: formData.referencia || undefined,
-        nivelRiesgo: formData.nivelRiesgo,
-        puntaje: formData.puntaje,
-        enListaNegra: formData.enListaNegra,
-        rutaId: formData.rutaId || undefined,
-        observaciones: formData.observaciones || undefined
-      };
-      createMutation.mutate(nuevoCliente);
+      ;(async () => {
+        setIsSaving(true)
+        try {
+          const nuevoCliente: CrearClienteDto = {
+            nombres: formData.nombres,
+            apellidos: formData.apellidos,
+            dni: formData.dni,
+            telefono: formData.telefono,
+            direccion: formData.direccion,
+            correo: formData.correo || undefined,
+            referencia: formData.referencia || undefined,
+            nivelRiesgo: formData.nivelRiesgo,
+            puntaje: formData.puntaje,
+            enListaNegra: formData.enListaNegra,
+            rutaId: formData.rutaId || undefined,
+            observaciones: formData.observaciones || undefined,
+          }
+          await clientesService.crearCliente(nuevoCliente)
+          alert('Cliente creado exitosamente')
+          router.push('/admin/clientes')
+        } catch (error) {
+          console.error('Error al crear cliente:', error)
+          alert('Error al crear el cliente. Verifique los datos.')
+        } finally {
+          setIsSaving(false)
+        }
+      })()
     }
   };
 
@@ -158,10 +159,14 @@ const ClienteFormPage = () => {
 
       <div className="relative z-10 px-8 pt-8">
         <div className="mb-8 flex items-center justify-between">
-          <Link href="/admin/clientes" className="flex items-center gap-2 text-slate-500 hover:text-slate-900 transition-colors group">
+          <button
+            type="button"
+            onClick={() => router.back()}
+            className="flex items-center gap-2 text-slate-500 hover:text-slate-900 transition-colors group"
+          >
             <ArrowLeft className="w-5 h-5 group-hover:-translate-x-0.5 transition-transform duration-200" />
             <span className="text-sm font-bold">Volver</span>
-          </Link>
+          </button>
         </div>
 
         <div className="mb-8">
@@ -239,7 +244,7 @@ const ClienteFormPage = () => {
                       <input type="text" name="apellidos" value={formData.apellidos} onChange={handleInputChange} className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-900/20 focus:border-slate-900 transition-all font-medium text-slate-900 placeholder:text-slate-400" placeholder="Ej. Pérez Rodriguez" required />
                     </div>
                     <div>
-                      <label className="block text-sm font-bold text-slate-700 mb-2">Cédula <span className="text-rose-500">*</span></label>
+                      <label className="block text-sm font-bold text-slate-700 mb-2">Cédula / CC <span className="text-rose-500">*</span></label>
                       <div className="relative">
                         <Shield className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
                         <input type="text" name="dni" value={formData.dni} onChange={handleInputChange} className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-900/20 focus:border-slate-900 transition-all font-medium text-slate-900 placeholder:text-slate-400" placeholder="1.020.345.678" required />
@@ -370,11 +375,11 @@ const ClienteFormPage = () => {
                 <Link href="/admin/clientes" className="px-4 py-2 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors text-sm font-medium">Cancelar</Link>
                 <button
                   type="submit"
-                  disabled={createMutation.isPending}
+                  disabled={isSaving}
                   className="px-4 py-2 bg-slate-900 text-white rounded-lg hover:bg-slate-800 transition-colors text-sm font-bold shadow-sm flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <Save className="h-4 w-4" />
-                  {createMutation.isPending ? 'Guardando...' : (isEditMode ? 'Guardar Cambios' : 'Crear Cliente')}
+                  {isSaving ? 'Guardando...' : (isEditMode ? 'Guardar Cambios' : 'Crear Cliente')}
                 </button>
               </div>
             </form>

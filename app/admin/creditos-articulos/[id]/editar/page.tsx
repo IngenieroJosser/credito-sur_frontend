@@ -102,7 +102,7 @@ export default function EditarCreditoPage() {
                 </div>
 
                 <div>
-                    <label className="block text-sm font-bold text-slate-700 mb-1">Cuotas (Meses)</label>
+                    <label className="block text-sm font-bold text-slate-700 mb-1">Cuotas</label>
                     <input
                         type="number"
                         value={formData.duracionMeses}

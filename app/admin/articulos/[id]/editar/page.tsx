@@ -13,7 +13,7 @@ import {
   Trash2,
   AlertCircle
 } from 'lucide-react'
-import { formatCurrency } from '@/lib/utils'
+import { formatCOPInputValue, formatCurrency, formatMilesCOP, parseCOPInputToNumber } from '@/lib/utils'
 
 // Types (mirrored from main page for now)
 interface PrecioCuota {
@@ -103,12 +103,12 @@ export default function EditarArticuloPage({ params }: { params: Promise<{ id: s
     categoria: '',
     marca: '',
     modelo: '',
-    costo: 0,
-    stock: 0,
-    stockMinimo: 0,
+    costo: '',
+    stock: '',
+    stockMinimo: '',
     precios: [] as PrecioCuota[]
   })
-  const [nuevaCuota, setNuevaCuota] = useState({ meses: 1, precio: 0 })
+  const [nuevaCuota, setNuevaCuota] = useState({ meses: 1, precio: '' })
 
   useEffect(() => {
     // Simular carga de datos
@@ -121,9 +121,9 @@ export default function EditarArticuloPage({ params }: { params: Promise<{ id: s
         categoria: articulo.categoria,
         marca: articulo.marca,
         modelo: articulo.modelo,
-        costo: articulo.costo,
-        stock: articulo.stock,
-        stockMinimo: articulo.stockMinimo,
+        costo: formatMilesCOP(articulo.costo),
+        stock: String(articulo.stock),
+        stockMinimo: String(articulo.stockMinimo),
         precios: [...articulo.precios]
       })
     }
@@ -132,6 +132,13 @@ export default function EditarArticuloPage({ params }: { params: Promise<{ id: s
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
+    const payload = {
+      ...formData,
+      costo: parseCOPInputToNumber(formData.costo),
+      stock: Number(formData.stock || '0'),
+      stockMinimo: Number(formData.stockMinimo || '0'),
+    }
+    console.log('Guardar artículo (editar):', id, payload)
     // Simular guardado
     await new Promise(resolve => setTimeout(resolve, 1000))
     setLoading(false)
@@ -139,12 +146,13 @@ export default function EditarArticuloPage({ params }: { params: Promise<{ id: s
   }
 
   const addPrecioCuota = () => {
-    if (nuevaCuota.meses > 0 && nuevaCuota.precio > 0) {
+    const precio = parseCOPInputToNumber(nuevaCuota.precio)
+    if (nuevaCuota.meses > 0 && precio > 0) {
       setFormData(prev => ({
         ...prev,
-        precios: [...prev.precios, nuevaCuota].sort((a, b) => a.meses - b.meses)
+        precios: [...prev.precios, { meses: nuevaCuota.meses, precio }].sort((a, b) => a.meses - b.meses)
       }))
-      setNuevaCuota({ meses: 1, precio: 0 })
+      setNuevaCuota({ meses: 1, precio: '' })
     }
   }
 
@@ -307,7 +315,7 @@ export default function EditarArticuloPage({ params }: { params: Promise<{ id: s
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
                 <div>
                   <label className="block text-sm font-bold text-slate-700 mb-1">
-                    Cuotas (Meses)
+                    Cuotas
                   </label>
                   <select
                     value={nuevaCuota.meses}
@@ -326,11 +334,12 @@ export default function EditarArticuloPage({ params }: { params: Promise<{ id: s
                   <div className="relative">
                     <DollarSign className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                     <input
-                      type="number"
-                      min="0"
+                      type="text"
+                      inputMode="numeric"
                       value={nuevaCuota.precio}
-                      onChange={e => setNuevaCuota({ ...nuevaCuota, precio: Number(e.target.value) })}
+                      onChange={e => setNuevaCuota({ ...nuevaCuota, precio: formatCOPInputValue(e.target.value) })}
                       className="w-full pl-10 pr-4 py-2.5 rounded-xl border-slate-200 bg-white focus:ring-2 focus:ring-blue-600/20 focus:border-blue-600 transition-all font-medium text-slate-900 placeholder:text-slate-400"
+                      placeholder="0"
                     />
                   </div>
                 </div>
@@ -411,12 +420,13 @@ export default function EditarArticuloPage({ params }: { params: Promise<{ id: s
                 <div className="relative">
                   <DollarSign className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                   <input
-                    type="number"
+                    type="text"
+                    inputMode="numeric"
                     required
-                    min="0"
                     value={formData.costo}
-                    onChange={e => setFormData({ ...formData, costo: Number(e.target.value) })}
+                    onChange={e => setFormData({ ...formData, costo: formatCOPInputValue(e.target.value) })}
                     className="w-full pl-10 pr-4 py-3 rounded-xl border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-blue-600/20 focus:border-blue-600 transition-all font-medium text-slate-900 placeholder:text-slate-400"
+                    placeholder="0"
                   />
                 </div>
               </div>
@@ -426,12 +436,13 @@ export default function EditarArticuloPage({ params }: { params: Promise<{ id: s
                   Stock Actual
                 </label>
                 <input
-                  type="number"
+                  type="text"
+                  inputMode="numeric"
                   required
-                  min="0"
                   value={formData.stock}
-                  onChange={e => setFormData({ ...formData, stock: Number(e.target.value) })}
+                  onChange={e => setFormData({ ...formData, stock: e.target.value.replace(/\D/g, '') })}
                   className="w-full px-4 py-3 rounded-xl border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-blue-600/20 focus:border-blue-600 transition-all font-medium text-slate-900 placeholder:text-slate-400"
+                  placeholder="0"
                 />
               </div>
 
@@ -440,12 +451,13 @@ export default function EditarArticuloPage({ params }: { params: Promise<{ id: s
                   Stock Mínimo
                 </label>
                 <input
-                  type="number"
+                  type="text"
+                  inputMode="numeric"
                   required
-                  min="0"
                   value={formData.stockMinimo}
-                  onChange={e => setFormData({ ...formData, stockMinimo: Number(e.target.value) })}
+                  onChange={e => setFormData({ ...formData, stockMinimo: e.target.value.replace(/\D/g, '') })}
                   className="w-full px-4 py-3 rounded-xl border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-blue-600/20 focus:border-blue-600 transition-all font-medium text-slate-900 placeholder:text-slate-400"
+                  placeholder="0"
                 />
               </div>
             </div>

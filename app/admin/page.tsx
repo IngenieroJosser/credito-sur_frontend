@@ -11,32 +11,26 @@ import {
   Banknote,
   PieChart,
   Target,
-  Download,
   Calendar,
-  ArrowUpRight,
-  Activity,
+  Eye,
   Wallet,
   CheckCircle2,
   Route,
   Map,
   Receipt,
-  ShoppingBag,
-  Archive,
   FileText,
-  DollarSign,
   Percent,
   Package,
   Calculator,
   Inbox,
   Filter,
   BarChart3,
-  Shield,
   LayoutDashboard
 } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils';
 import { useRouter } from 'next/navigation';
 import { ExportButton } from '@/components/ui/ExportButton';
-import { Rol, obtenerModulosPorRol, getIconComponent } from '@/lib/permissions';
+import { Rol } from '@/lib/permissions';
 
 interface UserData {
   id: string;
@@ -83,33 +77,7 @@ const DashboardPage = () => {
   const handleExportPDF = () => {
     console.log('Exporting PDF...')
   }
-  
-  // Verificar sesión
-  useEffect(() => {
-    const token = localStorage.getItem('token');
-    const user = localStorage.getItem('user');
-    
-    if (!token || !user) {
-      router.replace('/');
-      return;
-    }
-    
-    try {
-      const parsedUser = JSON.parse(user) as UserData;
-      setUserData(parsedUser);
-      
-      // Configurar métricas y accesos rápidos según el rol
-      configurarDashboardPorRol(parsedUser.rol);
-      
-      setIsLoading(false);
-    } catch (error) {
-      console.error('Error al parsear datos del usuario:', error);
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
-      router.replace('/');
-    }
-  }, [router]);
-  
+
   useEffect(() => {
     const timer = setTimeout(() => {
       setCurrentDate(new Date());
@@ -117,7 +85,7 @@ const DashboardPage = () => {
     return () => clearTimeout(timer);
   }, []);
   
-  const configurarDashboardPorRol = (rol: Rol) => {
+  function configurarDashboardPorRol(rol: Rol) {
     // Configurar métricas según el rol
     const metricsConfig: Record<Rol, MetricItem[]> = {
       SUPER_ADMINISTRADOR: [
@@ -363,7 +331,7 @@ const DashboardPage = () => {
         {
           title: 'Monitoreo Cartera',
           subtitle: 'Clientes atrasados',
-          icon: <Activity className="h-5 w-5" />,
+          icon: <Eye className="h-5 w-5" />,
           color: '#0f172a',
           href: '/admin/cuentas-mora'
         },
@@ -455,7 +423,35 @@ const DashboardPage = () => {
 
     setMainMetrics(metricsConfig[rol] || []);
     setQuickAccess(quickAccessConfig[rol] || []);
-  };
+  }
+
+  // Verificar sesión
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    const user = localStorage.getItem('user');
+
+    if (!token || !user) {
+      router.replace('/');
+      return;
+    }
+
+    try {
+      const parsedUser = JSON.parse(user) as UserData;
+      queueMicrotask(() => {
+        setUserData(parsedUser);
+
+        // Configurar métricas y accesos rápidos según el rol
+        configurarDashboardPorRol(parsedUser.rol);
+
+        setIsLoading(false);
+      });
+    } catch (error) {
+      console.error('Error al parsear datos del usuario:', error);
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      router.replace('/');
+    }
+  }, [router]);
 
   // Formatear fecha elegante
   const formatDate = (date: Date) => {
@@ -490,6 +486,21 @@ const DashboardPage = () => {
     router.replace('/');
   };
 
+  useEffect(() => {
+    if (userData?.rol === 'COBRADOR') {
+      router.replace('/cobranzas');
+      return;
+    }
+    if (userData?.rol === 'COORDINADOR') {
+      router.replace('/coordinador');
+      return;
+    }
+    if (userData?.rol === 'SUPERVISOR') {
+      router.replace('/supervisor');
+      return;
+    }
+  }, [userData, router]);
+
   // Mostrar loading mientras se verifica la sesión
   if (isLoading) {
     return (
@@ -502,23 +513,6 @@ const DashboardPage = () => {
     );
   }
 
-  useEffect(() => {
-    // Si el usuario es COBRADOR, redirigir a su ruta específica
-    if (userData?.rol === 'COBRADOR') {
-      router.replace('/cobranzas');
-    }
-  
-    // Si el usuario es COORDINADOR, redirigir a su ruta específica
-    if (userData?.rol === 'COORDINADOR') {
-      router.replace('/coordinador');
-    }
-
-    // Si el usuario es SUPERVISOR, redirigir a su ruta específica
-    if (userData?.rol === 'SUPERVISOR') {
-      router.replace('/supervisor');
-    }
-  }, [userData, router]);
-
   // Si se está redirigiendo, no renderizar nada o un loader
   if (userData?.rol === 'COBRADOR' || userData?.rol === 'COORDINADOR' || userData?.rol === 'SUPERVISOR') {
     return (
@@ -529,11 +523,6 @@ const DashboardPage = () => {
         </div>
       </div>
     );
-  }
-
-  // Si el usuario es COORDINADOR, mostrar el componente específico
-  if (userData?.rol === 'COORDINADOR') {
-    return <VistaCoordinador />;
   }
 
   // Para otros roles, mostrar el dashboard normal

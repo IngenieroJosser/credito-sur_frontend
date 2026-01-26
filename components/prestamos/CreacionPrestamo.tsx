@@ -62,7 +62,7 @@ interface CuotaCalculada {
 }
 
 const calcularCuotasYResumen = (form: FormularioPrestamo) => {
-  if (!form.clienteId) {
+  if (!form.clienteId || form.montoTotal <= 0 || form.duracionMeses <= 0) {
     return {
       cuotas: [] as CuotaCalculada[],
       resumenPrestamo: {
@@ -269,10 +269,10 @@ const CreacionPrestamoElegante = () => {
   // Formulario principal
   const [form, setForm] = useState<FormularioPrestamo>({
     clienteId: '',
-    montoTotal: 1000000,
+    montoTotal: 0,
     proposito: 'PERSONAL',
     tasaInteres: 5.0, // Tasa mensual ejemplo
-    duracionMeses: 6,
+    duracionMeses: 0,
     frecuenciaPago: 'QUINCENAL',
     fechaInicio: new Date().toISOString().split('T')[0],
     tasaInteresMora: 2.0,
@@ -281,6 +281,9 @@ const CreacionPrestamoElegante = () => {
     comision: 1.0,
     observaciones: ''
   });
+
+  const [montoTotalInput, setMontoTotalInput] = useState('')
+  const [cuotasInput, setCuotasInput] = useState('')
 
   const { cuotas, resumenPrestamo } = useMemo(
     () => calcularCuotasYResumen(form),
@@ -474,12 +477,35 @@ const CreacionPrestamoElegante = () => {
 
   // Función para manejar el cambio de monto SIN LÍMITES
   const handleMontoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = parseFloat(e.target.value) || 0;
-    // Solo validamos que no sea negativo
-    if (value >= 0) {
-      setForm(prev => ({ ...prev, montoTotal: value }));
+    const raw = e.target.value
+    const digits = raw.replace(/\D/g, '')
+    if (!digits) {
+      setMontoTotalInput('')
+      setForm(prev => ({ ...prev, montoTotal: 0 }))
+      return
     }
+
+    const value = Number(digits)
+    const formatted = new Intl.NumberFormat('es-CO', {
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(value)
+    setMontoTotalInput(formatted)
+    setForm(prev => ({ ...prev, montoTotal: value }))
   };
+
+  const handleCuotasChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const raw = e.target.value
+    const digits = raw.replace(/\D/g, '')
+    if (!digits) {
+      setCuotasInput('')
+      setForm(prev => ({ ...prev, duracionMeses: 0 }))
+      return
+    }
+
+    setCuotasInput(digits)
+    setForm(prev => ({ ...prev, duracionMeses: Number(digits) }))
+  }
 
   return (
     <div className="min-h-screen bg-slate-50 relative">
@@ -795,11 +821,13 @@ const CreacionPrestamoElegante = () => {
                         </label>
                         <div className="relative">
                           <input
-                            type="number"
+                            type="text"
+                            inputMode="numeric"
                             name="montoTotal"
-                            value={form.montoTotal}
+                            value={montoTotalInput}
                             onChange={handleMontoChange}
                             className="w-full pl-4 pr-12 py-3 rounded-xl border-slate-200 bg-slate-50 text-xl font-bold text-slate-900 focus:ring-2 focus:ring-slate-900/10 transition-all"
+                            placeholder="1.000.000"
                           />
                           <span className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 font-medium">COP</span>
                         </div>
@@ -822,19 +850,18 @@ const CreacionPrestamoElegante = () => {
                       <div className="space-y-3">
                         <label className="text-sm font-bold text-slate-700 flex items-center gap-2">
                           <Clock className="w-4 h-4 text-slate-400" />
-                          Cuotas (Meses)
+                          Cuotas
                         </label>
                         <div className="relative">
                            <input
-                            type="number"
-                            min="1"
-                            step="1"
+                            type="text"
+                            inputMode="numeric"
                             name="duracionMeses"
-                            value={form.duracionMeses}
-                            onChange={handleInputChange}
-                            className="w-full pl-4 pr-20 py-3 rounded-xl border-slate-200 bg-slate-50 text-xl font-bold text-slate-900 focus:ring-2 focus:ring-slate-900/10 transition-all"
+                            value={cuotasInput}
+                            onChange={handleCuotasChange}
+                            className="w-full pl-4 pr-4 py-3 rounded-xl border-slate-200 bg-slate-50 text-xl font-bold text-slate-900 focus:ring-2 focus:ring-slate-900/10 transition-all"
+                            placeholder="6"
                           />
-                          <span className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 font-medium">Meses</span>
                         </div>
                       </div>
                     </div>
@@ -906,10 +933,10 @@ const CreacionPrestamoElegante = () => {
                         Fotos de la Propiedad / Garantía
                       </label>
                       <FileUploader
-                        onFilesSelected={setFotosPropiedad}
+                        onFilesChange={setFotosPropiedad}
                         maxFiles={5}
                         accept="image/*"
-                        title="Arrastra las fotos aquí"
+                        label="Arrastra las fotos aquí"
                         description="Soporta JPG, PNG (Máx 5MB)"
                       />
                     </div>
@@ -920,10 +947,10 @@ const CreacionPrestamoElegante = () => {
                         Videos de Visita (Opcional)
                       </label>
                       <FileUploader
-                        onFilesSelected={setVideosPropiedad}
+                        onFilesChange={setVideosPropiedad}
                         maxFiles={2}
                         accept="video/*"
-                        title="Arrastra los videos aquí"
+                        label="Arrastra los videos aquí"
                         description="Soporta MP4, MOV (Máx 50MB)"
                       />
                     </div>

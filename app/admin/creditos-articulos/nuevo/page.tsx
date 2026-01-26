@@ -127,7 +127,7 @@ export default function NuevoCreditoArticuloPage() {
     
     // Total con precio financiado (Simulación de "Precio de lista a X meses")
     const totalFinanciadoBruto = articulosSeleccionados.reduce((sum, item) => {
-      const precioCredito = calcularPrecioCredito(item.precioBase, duracionMeses);
+      const precioCredito = calcularPrecioCredito(item.precioBase, meses);
       return sum + (precioCredito * item.cantidad);
     }, 0);
 
@@ -138,10 +138,10 @@ export default function NuevoCreditoArticuloPage() {
     // Aquí asumimos el modelo "Precio Diferenciado" donde el precio ya incluye el interés.
     
     let numeroCuotas = 1;
-    if (frecuenciaPago === 'MENSUAL') numeroCuotas = duracionMeses;
-    if (frecuenciaPago === 'QUINCENAL') numeroCuotas = duracionMeses * 2;
-    if (frecuenciaPago === 'SEMANAL') numeroCuotas = duracionMeses * 4.33;
-    if (frecuenciaPago === 'DIARIO') numeroCuotas = duracionMeses * 30;
+    if (frecuenciaPago === 'MENSUAL') numeroCuotas = meses;
+    if (frecuenciaPago === 'QUINCENAL') numeroCuotas = meses * 2;
+    if (frecuenciaPago === 'SEMANAL') numeroCuotas = meses * 4.33;
+    if (frecuenciaPago === 'DIARIO') numeroCuotas = meses * 30;
 
     const valorCuota = Math.ceil(saldoAFinanciar / numeroCuotas);
 
@@ -152,7 +152,7 @@ export default function NuevoCreditoArticuloPage() {
       valorCuota,
       numeroCuotas: Math.ceil(numeroCuotas)
     };
-  }, [articulosSeleccionados, duracionMeses, cuotaInicial, frecuenciaPago]);
+  }, [articulosSeleccionados, meses, cuotaInicial, frecuenciaPago]);
 
   // --- Handlers ---
 
@@ -500,7 +500,7 @@ export default function NuevoCreditoArticuloPage() {
                     
                     <div className="space-y-4">
                       <div className="space-y-2">
-                        <label className="text-xs font-bold text-slate-700 uppercase">Cuotas (Meses)</label>
+                        <label className="text-xs font-bold text-slate-700 uppercase">Cuotas</label>
                         <select
                           value={meses}
                           onChange={(e) => setMeses(Number(e.target.value))}
@@ -570,7 +570,7 @@ export default function NuevoCreditoArticuloPage() {
                          <span className="font-medium text-slate-900">{formatCurrency(resumenFinanciero.totalBase)}</span>
                        </div>
                        <div className="flex justify-between items-center text-sm text-emerald-600 bg-emerald-50 px-3 py-1.5 rounded-lg border border-emerald-100">
-                        <span className="font-medium">Intereses por Cuotas ({duracionMeses}m)</span>
+                        <span className="font-medium">Intereses por Cuotas ({meses}m)</span>
                         <span className="font-bold">+{formatCurrency(resumenFinanciero.totalFinanciadoBruto - resumenFinanciero.totalBase)}</span>
                       </div>
                        <div className="flex justify-between items-center text-lg font-bold border-t border-slate-100 pt-3 text-slate-900">
@@ -634,7 +634,7 @@ export default function NuevoCreditoArticuloPage() {
                       <h4 className="text-xs font-bold text-slate-500 uppercase mb-4">Plan de Pagos</h4>
                       <div className="space-y-1">
                         <p className="text-sm font-medium text-slate-900"><span className="text-slate-500">Frecuencia:</span> {frecuenciaPago}</p>
-                        <p className="text-sm font-medium text-slate-900"><span className="text-slate-500">Cuotas:</span> {duracionMeses} Meses</p>
+                        <p className="text-sm font-medium text-slate-900"><span className="text-slate-500">Cuotas:</span> {meses} Meses</p>
                         <p className="text-sm font-medium text-slate-900"><span className="text-slate-500">Inicio:</span> {fechaInicio}</p>
                       </div>
                     </div>
@@ -646,7 +646,7 @@ export default function NuevoCreditoArticuloPage() {
                       {articulosSeleccionados.map((item) => (
                         <div key={item.id} className="flex justify-between text-sm">
                           <span className="text-slate-700">{item.cantidad}x {item.nombre}</span>
-                          <span className="font-medium text-slate-900">{formatCurrency(calcularPrecioCredito(item.precioBase, duracionMeses) * item.cantidad)}</span>
+                          <span className="font-medium text-slate-900">{formatCurrency(calcularPrecioCredito(item.precioBase, meses) * item.cantidad)}</span>
                         </div>
                       ))}
                       <div className="border-t border-slate-200 pt-2 mt-2 flex justify-between font-bold text-slate-900">

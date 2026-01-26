@@ -7,7 +7,6 @@ import {
   Shield,
   Search,
   Bell,
-  Activity,
   CreditCard,
   Banknote,
   Users,
@@ -23,10 +22,10 @@ import {
   Calendar,
   MapPin,
   ChevronDown,
-  HardDrive,
-  FileText
+  Eye
 } from 'lucide-react'
-import { Rol, obtenerModulosPorRol, getIconComponent } from '@/lib/permissions'
+import { Rol, obtenerModulosPorRol, getIconComponent, tieneAcceso } from '@/lib/permissions'
+import NotFoundPage from '../not-found'
 
 interface NavigationItem {
   name: string;
@@ -54,6 +53,7 @@ export default function AdminLayout({
 }) {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const [user, setUser] = useState<Usuario | null>(null)
+  const [authChecked, setAuthChecked] = useState(false)
   const [showUserMenu, setShowUserMenu] = useState(false)
   const [showNotifications, setShowNotifications] = useState(false)
   const [navigation, setNavigation] = useState<NavigationItem[]>([])
@@ -93,7 +93,16 @@ export default function AdminLayout({
   useEffect(() => {
     const loadUserData = () => {
       try {
+        const token = localStorage.getItem('token')
         const userData = localStorage.getItem('user')
+        if (!token || !userData) {
+          setUser(null)
+          setNavigation([])
+          setAuthChecked(true)
+          router.replace('/login')
+          return
+        }
+
         if (userData) {
           const parsedUser = JSON.parse(userData) as Usuario
           setUser(parsedUser)
@@ -121,11 +130,221 @@ export default function AdminLayout({
         }
       } catch (error) {
         console.error('Error al cargar datos del usuario:', error)
+      } finally {
+        setAuthChecked(true)
       }
     }
 
     loadUserData()
   }, [])
+
+  if (!authChecked) return null
+
+  if (user?.rol === 'COBRADOR' && pathname && !tieneAcceso(user.rol, pathname)) {
+    return <NotFoundPage />
+  }
+
+  if (user?.rol === 'COBRADOR') {
+    const notificationsRoute = '/cobranzas/notificaciones'
+
+    return (
+      <div className="min-h-screen bg-linear-to-br from-gray-50 to-white">
+        <header className="fixed top-0 left-0 right-0 z-40 bg-white/80 backdrop-blur-sm border-b border-gray-100">
+          <div className="px-4 sm:px-6 lg:px-8 py-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-3">
+                <div className="flex items-center">
+                  <div className="w-8 h-8 bg-linear-to-br from-blue-600 to-blue-800 rounded-lg flex items-center justify-center shadow-lg shadow-blue-600/20">
+                    <Shield className="h-4 w-4 text-white" />
+                  </div>
+                  <h1 className="ml-3 text-xl font-bold tracking-tight">
+                    <span className="text-blue-600">Credi</span>
+                    <span className="text-orange-500">Sur</span>
+                  </h1>
+                </div>
+
+                <div className="hidden md:block">
+                  <div className="flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium text-white bg-orange-500">
+                    <Wallet className="h-4 w-4" />
+                    <span>Cobrador</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex items-center space-x-2">
+                <div ref={notificationRef} className="relative">
+                  <button 
+                    onClick={() => setShowNotifications(!showNotifications)}
+                    className="relative p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                  >
+                    <Bell className={`h-5 w-5 ${showNotifications ? 'text-blue-600' : 'text-gray-500'}`} />
+                    <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-orange-500 rounded-full border-2 border-white"></span>
+                  </button>
+
+                  {showNotifications && (
+                    <div className="absolute right-0 mt-2 w-80 bg-white rounded-xl shadow-xl border border-gray-100 py-2 z-50 animate-in fade-in slide-in-from-top-2">
+                      <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
+                        <h3 className="font-semibold text-gray-900">Notificaciones</h3>
+                        <span className="text-xs font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded-full">3 Nuevas</span>
+                      </div>
+                      <div className="max-h-[300px] overflow-y-auto">
+                        <div className="p-4 border-b border-gray-50 hover:bg-gray-50 transition-colors cursor-pointer group">
+                          <div className="flex gap-3">
+                            <div className="mt-1 p-2 bg-green-50 rounded-full text-green-600 group-hover:scale-110 transition-transform">
+                              <Banknote className="h-4 w-4" />
+                            </div>
+                            <div>
+                              <p className="text-sm font-medium text-gray-900">Pago Recibido</p>
+                              <p className="text-xs text-gray-500 mt-0.5">Cliente #1456 ha realizado un pago</p>
+                              <p className="text-xs text-blue-600 mt-1 font-medium">Hace 5 min</p>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="p-4 border-b border-gray-50 hover:bg-gray-50 transition-colors cursor-pointer group">
+                          <div className="flex gap-3">
+                            <div className="mt-1 p-2 bg-blue-50 rounded-full text-blue-600 group-hover:scale-110 transition-transform">
+                              <Users className="h-4 w-4" />
+                            </div>
+                            <div>
+                              <p className="text-sm font-medium text-gray-900">Nuevo Cliente</p>
+                              <p className="text-xs text-gray-500 mt-0.5">Solicitud de registro pendiente</p>
+                              <p className="text-xs text-blue-600 mt-1 font-medium">Hace 2 horas</p>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="p-4 hover:bg-gray-50 transition-colors cursor-pointer group">
+                          <div className="flex gap-3">
+                            <div className="mt-1 p-2 bg-amber-50 rounded-full text-amber-600 group-hover:scale-110 transition-transform">
+                              <AlertCircle className="h-4 w-4" />
+                            </div>
+                            <div>
+                              <p className="text-sm font-medium text-gray-900">Alerta de Mora</p>
+                              <p className="text-xs text-gray-500 mt-0.5">3 cuentas han entrado en mora hoy</p>
+                              <p className="text-xs text-blue-600 mt-1 font-medium">Hace 4 horas</p>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="p-2 border-t border-gray-100">
+                        <button 
+                          onClick={() => {
+                            setShowNotifications(false)
+                            router.push(notificationsRoute)
+                          }}
+                          className="w-full py-2 text-sm font-medium text-gray-600 hover:text-blue-600 hover:bg-gray-50 rounded-lg transition-colors"
+                        >
+                          Ver todas las notificaciones
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <div ref={userMenuRef} className="relative">
+                  <button 
+                    onClick={() => setShowUserMenu(!showUserMenu)}
+                    className="flex items-center space-x-3 p-1 hover:bg-gray-100 rounded-lg transition-colors group"
+                  >
+                    <div 
+                      className="relative w-9 h-9 rounded-full flex items-center justify-center text-white text-sm font-medium shadow-sm"
+                      style={{ 
+                        background: `linear-gradient(135deg, ${getRoleColor()}, ${getRoleColor()}CC)`,
+                        boxShadow: `0 0 0 2px white, 0 0 0 4px ${getRoleColor()}40`
+                      }}
+                    >
+                      {getUserInitials()}
+                    </div>
+                    <div className="hidden lg:block text-left">
+                      <div className="text-sm font-medium text-gray-800 group-hover:text-[#08557f] transition-colors">
+                        {getUserFullName()}
+                      </div>
+                      <div className="text-xs text-gray-500 flex items-center gap-1">
+                        <Mail className="h-3 w-3" />
+                        <span className="truncate max-w-[120px]">{user?.correo}</span>
+                      </div>
+                    </div>
+                    <ChevronDown className={`h-4 w-4 text-gray-400 transition-transform ${showUserMenu ? 'rotate-180' : ''}`} />
+                  </button>
+
+                  {showUserMenu && (
+                    <>
+                      <div 
+                        className="fixed inset-0 z-40" 
+                        onClick={() => setShowUserMenu(false)}
+                      />
+                      <div className="absolute right-0 mt-2 w-96 bg-white rounded-xl shadow-xl border border-gray-100 py-2 z-50 animate-in fade-in slide-in-from-top-2">
+                        <div className="px-6 py-6 bg-linear-to-r from-slate-50 to-white border-b border-gray-100">
+                          <div className="flex flex-col items-center text-center gap-3">
+                            <div 
+                              className="relative w-20 h-20 rounded-full flex items-center justify-center text-white text-2xl font-bold shadow-xl mb-1"
+                              style={{ 
+                                background: `linear-gradient(135deg, ${getRoleColor()}, ${getRoleColor()}CC)`,
+                                boxShadow: `0 8px 20px ${getRoleColor()}40`
+                              }}
+                            >
+                              {getUserInitials()}
+                              <div className="absolute -bottom-2 -right-2 w-8 h-8 rounded-full bg-white flex items-center justify-center shadow-md border-2 border-white">
+                                <div style={{ color: getRoleColor() }}>
+                                  {getRoleIcon()}
+                                </div>
+                              </div>
+                            </div>
+                            
+                            <div className="w-full">
+                              <h3 className="font-bold text-gray-900 text-lg mb-1">
+                                {getUserFullName()}
+                              </h3>
+                              <div className="flex items-center justify-center gap-2 flex-wrap">
+                                <span 
+                                  className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold text-white shadow-sm"
+                                  style={{ backgroundColor: getRoleColor() }}
+                                >
+                                  {getRoleIcon()}
+                                  {getUserRoleName()}
+                                </span>
+                                <span className="text-xs text-gray-500">ID: {user?.id}</span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="p-2">
+                          <button
+                            onClick={() => {
+                              setShowUserMenu(false)
+                              router.push('/cobranzas/perfil')
+                            }}
+                            className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-gray-700 hover:bg-gray-50 rounded-lg transition-colors"
+                          >
+                            <User className="h-4 w-4" />
+                            Mi perfil
+                          </button>
+                          <button
+                            onClick={() => {
+                              setShowUserMenu(false)
+                              localStorage.removeItem('token')
+                              localStorage.removeItem('user')
+                              router.push('/login')
+                            }}
+                            className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                          >
+                            <LogOut className="h-4 w-4" />
+                            Cerrar sesión
+                          </button>
+                        </div>
+                      </div>
+                    </>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        </header>
+
+        <main className="pt-16">{children}</main>
+      </div>
+    )
+  }
 
   const handleLogout = () => {
     localStorage.removeItem('token')
@@ -133,21 +352,21 @@ export default function AdminLayout({
     router.push('/login')
   }
 
-  const getUserInitials = () => {
+  function getUserInitials() {
     if (!user) return 'U'
     const firstInitial = user.nombres?.charAt(0) || ''
     const lastInitial = user.apellidos?.charAt(0) || ''
     return (firstInitial + lastInitial).toUpperCase()
   }
 
-  const getUserFullName = () => {
+  function getUserFullName() {
     if (!user) return 'Usuario'
     return `${user.nombres} ${user.apellidos}`
   }
 
-  const getUserRoleName = () => {
+  function getUserRoleName() {
     if (!user) return 'Administrador'
-    
+
     const roleNames: Record<string, string> = {
       'SUPER_ADMINISTRADOR': 'Super Administrador',
       'COORDINADOR': 'Coordinador',
@@ -155,13 +374,13 @@ export default function AdminLayout({
       'COBRADOR': 'Cobrador',
       'CONTADOR': 'Contador'
     }
-    
+
     return roleNames[user.rol] || user.rol
   }
 
-  const getRoleColor = () => {
+  function getRoleColor() {
     if (!user) return '#2563eb'
-    
+
     const roleColors: Record<string, string> = {
       'SUPER_ADMINISTRADOR': '#2563eb',
       'COORDINADOR': '#f97316',
@@ -169,21 +388,21 @@ export default function AdminLayout({
       'COBRADOR': '#f97316',
       'CONTADOR': '#6366f1'
     }
-    
+
     return roleColors[user.rol] || '#2563eb'
   }
 
-  const getRoleIcon = () => {
+  function getRoleIcon() {
     if (!user) return <Shield className="h-4 w-4" />
-    
+
     const roleIcons: Record<string, React.ReactNode> = {
       'SUPER_ADMINISTRADOR': <Shield className="h-4 w-4" />,
       'COORDINADOR': <User className="h-4 w-4" />,
-      'SUPERVISOR': <Activity className="h-4 w-4" />,
+      'SUPERVISOR': <Eye className="h-4 w-4" />,
       'COBRADOR': <Wallet className="h-4 w-4" />,
       'CONTADOR': <CreditCard className="h-4 w-4" />
     }
-    
+
     return roleIcons[user.rol] || <User className="h-4 w-4" />
   }
 
