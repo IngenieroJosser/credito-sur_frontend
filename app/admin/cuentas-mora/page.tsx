@@ -185,10 +185,6 @@ const CuentasMoraPage = () => {
               onExportExcel={handleExportExcel} 
               onExportPDF={handleExportPDF} 
             />
-            <Link href="/admin/pagos/registro" className="inline-flex items-center gap-2 rounded-xl bg-white border border-slate-200 px-6 py-2.5 text-sm font-bold text-slate-700 hover:bg-slate-50 transition-all shadow-sm transform active:scale-95">
-              <ChevronRight className="h-4 w-4" />
-              <span>Gestionar Cobranza</span>
-            </Link>
           </div>
         </div>
 

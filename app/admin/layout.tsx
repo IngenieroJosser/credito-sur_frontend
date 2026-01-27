@@ -149,7 +149,12 @@ export default function AdminLayout({
       router.replace('/supervisor')
       return
     }
-  }, [authChecked, router, user?.rol])
+
+    if (user.rol === 'CONTADOR' && pathname?.startsWith('/admin')) {
+      router.replace('/contador')
+      return
+    }
+  }, [authChecked, pathname, router, user?.rol])
 
   if (!authChecked) return null
 
@@ -300,7 +305,7 @@ export default function AdminLayout({
               )}
 
               {/* Notificaciones (solo para ciertos roles) */}
-              {user?.rol && ['SUPER_ADMINISTRADOR', 'COORDINADOR', 'COBRADOR'].includes(user.rol) && (
+              {user?.rol && ['SUPER_ADMINISTRADOR', 'COORDINADOR', 'COBRADOR', 'CONTADOR'].includes(user.rol) && (
                 <div ref={notificationRef} className="relative">
                   <button 
                     onClick={() => setShowNotifications(!showNotifications)}
@@ -358,7 +363,7 @@ export default function AdminLayout({
                         <button 
                           onClick={() => {
                             setShowNotifications(false)
-                            router.push('/admin/notificaciones')
+                            router.push(user?.rol === 'CONTADOR' ? '/contador/notificaciones' : '/admin/notificaciones')
                           }}
                           className="w-full py-2 text-sm font-medium text-gray-600 hover:text-blue-600 hover:bg-gray-50 rounded-lg transition-colors"
                         >

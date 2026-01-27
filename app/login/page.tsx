@@ -71,7 +71,7 @@ const LoginPage = () => {
           'SUPER_ADMINISTRADOR': '/admin',
           'ADMINISTRADOR': '/admin',
           'SUPERVISOR': '/supervisor',
-          'CONTADOR': '/admin'
+          'CONTADOR': '/contador'
         };
         const redirectPath = roleRedirects[user.rol] || '/admin';
         router.replace(redirectPath);
@@ -197,7 +197,7 @@ const LoginPage = () => {
         'SUPER_ADMINISTRADOR': '/admin',
         'ADMINISTRADOR': '/admin',
         'SUPERVISOR': '/supervisor', // O su ruta específica si existe
-        'CONTADOR': '/admin'    // O su ruta específica si existe
+        'CONTADOR': '/contador'    // O su ruta específica si existe
       };
 
       const redirectPath = roleRedirects[response.usuario.rol] || '/admin';

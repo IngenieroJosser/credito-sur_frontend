@@ -82,7 +82,7 @@ export default function SupervisorLayout({
           SUPER_ADMINISTRADOR: '/admin',
           COORDINADOR: '/coordinador',
           COBRADOR: '/cobranzas',
-          CONTADOR: '/admin',
+          CONTADOR: '/contador',
         }
 
         router.replace(ROLE_REDIRECT_MAP[parsedUser.rol] ?? '/admin')

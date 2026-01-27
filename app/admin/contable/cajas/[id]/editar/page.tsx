@@ -3,6 +3,7 @@
 import { use, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { ArrowLeft, Save, Wallet } from 'lucide-react'
+import { formatCOPInputValue } from '@/lib/utils'
 
 export default function EditarCajaPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
@@ -96,9 +97,10 @@ export default function EditarCajaPage({ params }: { params: Promise<{ id: strin
                 <div className="relative">
                   <span className="absolute left-4 top-3 text-slate-400 font-bold">$</span>
                   <input
-                    type="number"
+                    type="text"
+                    inputMode="numeric"
                     value={formData.montoBase}
-                    onChange={(e) => setFormData({...formData, montoBase: e.target.value})}
+                    onChange={(e) => setFormData({ ...formData, montoBase: formatCOPInputValue(e.target.value) })}
                     className="w-full pl-8 rounded-xl border-slate-300 py-3 text-sm text-slate-900 focus:ring-2 focus:ring-blue-600 focus:border-transparent"
                   />
                 </div>

@@ -70,7 +70,12 @@ const ClienteFormPage = () => {
     { id: 'operativo', label: 'Asignación y Notas', icon: <Briefcase className="h-4 w-4" /> }
   ];
 
-  const [fotosCliente, setFotosCliente] = useState<File[]>([]);
+  const [fotosCliente, setFotosCliente] = useState({
+    fotoPerfil: null as File | null,
+    documentoFrente: null as File | null,
+    documentoReverso: null as File | null,
+    comprobanteDomicilio: null as File | null,
+  });
 
   const rutasDisponibles = [
     { id: 'ruta-1', nombre: 'Ruta Centro - Carlos Pérez' },
@@ -304,8 +309,85 @@ const ClienteFormPage = () => {
                   <div className="space-y-6">
                     <div>
                       <h3 className="text-sm font-bold text-slate-700 mb-2">CC y Fotos del Cliente</h3>
-                      <p className="text-sm text-slate-500 mb-4 font-medium">Sube fotos de la CC (frente y reverso) y fotos del cliente.</p>
-                      <FileUploader files={fotosCliente} onFilesChange={(newFiles) => setFotosCliente(newFiles)} label="Arrastra fotos del cliente o documentos aquí" description="Soporta JPG, PNG, PDF (Máx. 5MB)" multiple={true} maxSize={5 * 1024 * 1024} accept="image/*,application/pdf" />
+                      <p className="text-sm text-slate-500 mb-4 font-medium">Sube foto de perfil, CC (frente y reverso) y comprobante de domicilio.</p>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-sm font-bold text-slate-700 mb-2">Foto de perfil</label>
+                          <FileUploader
+                            files={fotosCliente.fotoPerfil ? [fotosCliente.fotoPerfil] : []}
+                            onFilesChange={(files) =>
+                              setFotosCliente((prev) => ({
+                                ...prev,
+                                fotoPerfil: files[0] ?? null,
+                              }))
+                            }
+                            label="Arrastra la foto aquí"
+                            description="Soporta JPG, PNG (Máx 5MB)"
+                            multiple={false}
+                            maxFiles={1}
+                            maxSize={5 * 1024 * 1024}
+                            accept="image/jpeg,image/png"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-bold text-slate-700 mb-2">CC (Frente)</label>
+                          <FileUploader
+                            files={fotosCliente.documentoFrente ? [fotosCliente.documentoFrente] : []}
+                            onFilesChange={(files) =>
+                              setFotosCliente((prev) => ({
+                                ...prev,
+                                documentoFrente: files[0] ?? null,
+                              }))
+                            }
+                            label="Arrastra la foto aquí"
+                            description="Soporta JPG, PNG (Máx 5MB)"
+                            multiple={false}
+                            maxFiles={1}
+                            maxSize={5 * 1024 * 1024}
+                            accept="image/jpeg,image/png"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-bold text-slate-700 mb-2">CC (Reverso)</label>
+                          <FileUploader
+                            files={fotosCliente.documentoReverso ? [fotosCliente.documentoReverso] : []}
+                            onFilesChange={(files) =>
+                              setFotosCliente((prev) => ({
+                                ...prev,
+                                documentoReverso: files[0] ?? null,
+                              }))
+                            }
+                            label="Arrastra la foto aquí"
+                            description="Soporta JPG, PNG (Máx 5MB)"
+                            multiple={false}
+                            maxFiles={1}
+                            maxSize={5 * 1024 * 1024}
+                            accept="image/jpeg,image/png"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-bold text-slate-700 mb-2">Comprobante de domicilio</label>
+                          <FileUploader
+                            files={fotosCliente.comprobanteDomicilio ? [fotosCliente.comprobanteDomicilio] : []}
+                            onFilesChange={(files) =>
+                              setFotosCliente((prev) => ({
+                                ...prev,
+                                comprobanteDomicilio: files[0] ?? null,
+                              }))
+                            }
+                            label="Arrastra el archivo aquí"
+                            description="Soporta JPG, PNG, PDF (Máx 5MB)"
+                            multiple={false}
+                            maxFiles={1}
+                            maxSize={5 * 1024 * 1024}
+                            accept="image/*,application/pdf"
+                          />
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -380,7 +462,12 @@ const ClienteFormPage = () => {
               )}
 
               <div className="px-6 py-4 bg-slate-50/50 border-t border-slate-200 flex justify-end space-x-3">
-                <Link href="/admin/clientes" className="px-4 py-2 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors text-sm font-medium">Cancelar</Link>
+                <Link
+                  href={pathname?.startsWith('/supervisor') ? '/supervisor/clientes' : '/admin/clientes'}
+                  className="px-4 py-2 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors text-sm font-medium"
+                >
+                  Cancelar
+                </Link>
                 <button
                   type="submit"
                   disabled={isSaving}

@@ -151,10 +151,10 @@ const calcularCuotasYResumen = (form: FormularioPrestamo) => {
         month: 'short',
         year: 'numeric'
       }),
-      capital: Number(capitalFinal.toFixed(2)),
-      interes: Number(interes.toFixed(2)),
-      total: Number((capitalFinal + interes).toFixed(2)),
-      saldo: Number(Math.max(0, saldo).toFixed(2))
+      capital: Math.round(capitalFinal),
+      interes: Math.round(interes),
+      total: Math.round(capitalFinal + interes),
+      saldo: Math.round(Math.max(0, saldo))
     });
   }
 
@@ -174,15 +174,13 @@ const calcularCuotasYResumen = (form: FormularioPrestamo) => {
     cuotas: cuotasCalculadas.slice(0, 6), // Preview primeras 6
     resumenPrestamo: {
       totalFinanciado: montoFinanciado,
-      totalInteres: Number(totalInteres.toFixed(2)),
-      totalPagar: Number(totalPagar.toFixed(2)),
-      valorCuota: Number(cuotaFija.toFixed(2)),
-      costoTotalCredito: Number(
-        (totalInteres + form.gastosAdministrativos + comisionTotal).toFixed(2)
-      ),
+      totalInteres: Math.round(totalInteres),
+      totalPagar: Math.round(totalPagar),
+      valorCuota: Math.round(cuotaFija),
+      costoTotalCredito: Math.round(totalInteres + form.gastosAdministrativos + comisionTotal),
       tea: Number((tea * 100).toFixed(2)),
       tae: Number((tae * 100).toFixed(2)),
-      comisionTotal: Number(comisionTotal.toFixed(2))
+      comisionTotal: Math.round(comisionTotal)
     }
   };
 };
@@ -194,8 +192,12 @@ const CreacionPrestamoElegante = () => {
   const [mostrarNuevoCliente, setMostrarNuevoCliente] = useState(false);
   const [animating, setAnimating] = useState(false);
   const [creandoPrestamo, setCreandoPrestamo] = useState(false);
-  const [fotosPropiedad, setFotosPropiedad] = useState<File[]>([])
-  const [videosPropiedad, setVideosPropiedad] = useState<File[]>([])
+  const [documentosRespaldo, setDocumentosRespaldo] = useState({
+    fotoPerfil: null as File | null,
+    documentoFrente: null as File | null,
+    documentoReverso: null as File | null,
+    comprobanteDomicilio: null as File | null,
+  })
   
   // Estados para filtros de clientes
   const [busquedaCliente, setBusquedaCliente] = useState('');
@@ -1060,20 +1062,28 @@ const CreacionPrestamoElegante = () => {
                 <div className="space-y-8 animate-in slide-in-from-right-4 duration-300">
                   <div className="space-y-1">
                     <h2 className="text-xl font-bold text-slate-900">Documentación de Respaldo</h2>
-                    <p className="text-slate-500 text-sm font-medium">Adjunte fotos y videos de la propiedad o garantías</p>
+                    <p className="text-slate-500 text-sm font-medium">Adjunte los documentos del cliente</p>
                   </div>
 
                   <div className="grid grid-cols-1 gap-6">
                     <div className="space-y-3">
                       <label className="text-sm font-bold text-slate-700 flex items-center gap-2">
                         <FileText className="w-4 h-4 text-slate-400" />
-                        Fotos de la Propiedad / Garantía
+                        Foto de perfil
                       </label>
                       <FileUploader
-                        onFilesChange={setFotosPropiedad}
-                        maxFiles={5}
-                        accept="image/*"
-                        label="Arrastra las fotos aquí"
+                        files={documentosRespaldo.fotoPerfil ? [documentosRespaldo.fotoPerfil] : []}
+                        onFilesChange={(files) =>
+                          setDocumentosRespaldo((prev) => ({
+                            ...prev,
+                            fotoPerfil: files[0] ?? null,
+                          }))
+                        }
+                        maxFiles={1}
+                        maxSize={5 * 1024 * 1024}
+                        accept="image/jpeg,image/png"
+                        multiple={false}
+                        label="Arrastra la foto aquí"
                         description="Soporta JPG, PNG (Máx 5MB)"
                       />
                     </div>
@@ -1081,14 +1091,66 @@ const CreacionPrestamoElegante = () => {
                     <div className="space-y-3">
                       <label className="text-sm font-bold text-slate-700 flex items-center gap-2">
                         <FileText className="w-4 h-4 text-slate-400" />
-                        Videos de Visita (Opcional)
+                        CC (Frente)
                       </label>
                       <FileUploader
-                        onFilesChange={setVideosPropiedad}
-                        maxFiles={2}
-                        accept="video/*"
-                        label="Arrastra los videos aquí"
-                        description="Soporta MP4, MOV (Máx 50MB)"
+                        files={documentosRespaldo.documentoFrente ? [documentosRespaldo.documentoFrente] : []}
+                        onFilesChange={(files) =>
+                          setDocumentosRespaldo((prev) => ({
+                            ...prev,
+                            documentoFrente: files[0] ?? null,
+                          }))
+                        }
+                        maxFiles={1}
+                        maxSize={5 * 1024 * 1024}
+                        accept="image/jpeg,image/png"
+                        multiple={false}
+                        label="Arrastra la foto aquí"
+                        description="Soporta JPG, PNG (Máx 5MB)"
+                      />
+                    </div>
+
+                    <div className="space-y-3">
+                      <label className="text-sm font-bold text-slate-700 flex items-center gap-2">
+                        <FileText className="w-4 h-4 text-slate-400" />
+                        CC (Reverso)
+                      </label>
+                      <FileUploader
+                        files={documentosRespaldo.documentoReverso ? [documentosRespaldo.documentoReverso] : []}
+                        onFilesChange={(files) =>
+                          setDocumentosRespaldo((prev) => ({
+                            ...prev,
+                            documentoReverso: files[0] ?? null,
+                          }))
+                        }
+                        maxFiles={1}
+                        maxSize={5 * 1024 * 1024}
+                        accept="image/jpeg,image/png"
+                        multiple={false}
+                        label="Arrastra la foto aquí"
+                        description="Soporta JPG, PNG (Máx 5MB)"
+                      />
+                    </div>
+
+                    <div className="space-y-3">
+                      <label className="text-sm font-bold text-slate-700 flex items-center gap-2">
+                        <FileText className="w-4 h-4 text-slate-400" />
+                        Comprobante de domicilio
+                      </label>
+                      <FileUploader
+                        files={documentosRespaldo.comprobanteDomicilio ? [documentosRespaldo.comprobanteDomicilio] : []}
+                        onFilesChange={(files) =>
+                          setDocumentosRespaldo((prev) => ({
+                            ...prev,
+                            comprobanteDomicilio: files[0] ?? null,
+                          }))
+                        }
+                        maxFiles={1}
+                        maxSize={5 * 1024 * 1024}
+                        accept="image/*,application/pdf"
+                        multiple={false}
+                        label="Arrastra el archivo aquí"
+                        description="Soporta JPG, PNG, PDF (Máx 5MB)"
                       />
                     </div>
 

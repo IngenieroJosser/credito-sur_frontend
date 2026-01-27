@@ -10,14 +10,13 @@ import {
   CheckCircle2,
   XCircle,
   Clock,
-  Search,
   Filter,
   Eye,
   Trash2,
   Check,
   X
 } from 'lucide-react'
-import { formatCurrency, cn } from '@/lib/utils'
+import { formatCOPInputValue, formatCurrency, parseCOPInputToNumber, cn } from '@/lib/utils'
 
 // Tipos
 interface SolicitudDinero {
@@ -64,7 +63,7 @@ const SolicitudesPage = () => {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     // Lógica de envío
-    console.log({ monto, descripcion })
+    console.log({ monto: parseCOPInputToNumber(monto), descripcion })
     setShowForm(false)
     setMonto('')
     setDescripcion('')
@@ -140,9 +139,10 @@ const SolicitudesPage = () => {
                   <div className="relative">
                     <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
                     <input
-                      type="number"
+                      type="text"
+                      inputMode="numeric"
                       value={monto}
-                      onChange={(e) => setMonto(e.target.value)}
+                      onChange={(e) => setMonto(formatCOPInputValue(e.target.value))}
                       className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-bold text-lg text-slate-900"
                       placeholder="0"
                       required

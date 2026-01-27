@@ -10,7 +10,7 @@ import {
   Wallet,
   Receipt
 } from 'lucide-react'
-import { formatCurrency, cn } from '@/lib/utils'
+import { formatCOPInputValue, formatCurrency, parseCOPInputToNumber, cn } from '@/lib/utils'
 
 export default function CierreCajaPage() {
   const [step, setStep] = useState(1)
@@ -33,7 +33,7 @@ export default function CierreCajaPage() {
   })
 
   const diferencia = form.efectivoReal 
-    ? Number(form.efectivoReal) - cajaData.saldoSistema 
+    ? parseCOPInputToNumber(form.efectivoReal) - cajaData.saldoSistema 
     : 0
 
   const handleCierre = async () => {
@@ -109,9 +109,10 @@ export default function CierreCajaPage() {
                         <span className="text-slate-400 font-bold">$</span>
                       </div>
                       <input
-                        type="number"
+                        type="text"
+                        inputMode="numeric"
                         value={form.efectivoReal}
-                        onChange={(e) => setForm({...form, efectivoReal: e.target.value})}
+                        onChange={(e) => setForm({ ...form, efectivoReal: formatCOPInputValue(e.target.value) })}
                         className="pl-8 w-full rounded-xl border-slate-300 py-3 text-lg font-bold text-slate-900 focus:ring-2 focus:ring-blue-600 focus:border-transparent"
                         placeholder="0"
                         autoFocus

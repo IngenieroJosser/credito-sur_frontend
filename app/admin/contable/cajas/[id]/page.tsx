@@ -1,9 +1,9 @@
 'use client'
 
-import { use } from 'react'
+import { use, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { ArrowLeft, Wallet, TrendingUp, TrendingDown, Calendar, User, DollarSign, CheckCircle, AlertCircle } from 'lucide-react'
-import { formatCurrency } from '@/lib/utils'
+import { ArrowLeft, Wallet, TrendingUp, TrendingDown, Calendar, User, DollarSign, CheckCircle, AlertCircle, XCircle, ArrowDownLeft, ArrowUpRight, ChevronLeft, ChevronRight } from 'lucide-react'
+import { formatCOPInputValue, formatCurrency, parseCOPInputToNumber } from '@/lib/utils'
 
 // Mock data para el detalle de caja
 const MOCK_CAJA = {
@@ -29,9 +29,66 @@ const MOCK_CAJA = {
 export default function DetalleCajaPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
   const router = useRouter()
-  
+  const [showEditarCajaModal, setShowEditarCajaModal] = useState(false)
+  const [showRegistrarMovimientoModal, setShowRegistrarMovimientoModal] = useState(false)
+  const [editForm, setEditForm] = useState({
+    nombre: MOCK_CAJA.nombre,
+    responsable: MOCK_CAJA.responsable,
+    saldoInicialInput: '',
+  })
+
+  const [movimientoForm, setMovimientoForm] = useState({
+    tipo: 'INGRESO' as 'INGRESO' | 'EGRESO',
+    categoria: '',
+    montoInput: '',
+    concepto: '',
+    referencia: '',
+  })
+
+  const categoriasIngreso = [
+    { id: 'APORTE_CAPITAL', label: 'Aporte de Capital' },
+    { id: 'AJUSTE_POSITIVO', label: 'Ajuste de Caja (+)' },
+    { id: 'OTROS_INGRESOS', label: 'Otros Ingresos' },
+  ]
+
+  const categoriasEgreso = [
+    { id: 'GASTO_OPERATIVO', label: 'Gasto Operativo (Transporte, Comida)' },
+    { id: 'GASTO_ADMINISTRATIVO', label: 'Gasto Administrativo (Papelería, Servicios)' },
+    { id: 'BASE_COBRADOR', label: 'Entrega Base a Cobrador' },
+    { id: 'RETIRO_UTILIDADES', label: 'Retiro de Utilidades' },
+  ]
+
+  const movimientosPorPagina = 4
+  const [paginaMovimientos, setPaginaMovimientos] = useState(1)
+
   // En una implementación real, aquí se cargaría la data basada en el ID
   const caja = MOCK_CAJA
+
+  const totalPaginasMovimientos = Math.max(1, Math.ceil(caja.movimientos.length / movimientosPorPagina))
+  const movimientosPaginados = useMemo(() => {
+    const start = (paginaMovimientos - 1) * movimientosPorPagina
+    return caja.movimientos.slice(start, start + movimientosPorPagina)
+  }, [caja.movimientos, paginaMovimientos])
+
+  const openEditarCaja = () => {
+    setEditForm({
+      nombre: caja.nombre,
+      responsable: caja.responsable,
+      saldoInicialInput: '',
+    })
+    setShowEditarCajaModal(true)
+  }
+
+  const openRegistrarMovimiento = () => {
+    setMovimientoForm({
+      tipo: 'INGRESO',
+      categoria: '',
+      montoInput: '',
+      concepto: '',
+      referencia: '',
+    })
+    setShowRegistrarMovimientoModal(true)
+  }
 
   return (
     <div className="min-h-screen bg-slate-50/50 p-8">
@@ -135,7 +192,7 @@ export default function DetalleCajaPage({ params }: { params: Promise<{ id: stri
             
             <div className="pt-4 border-t border-slate-100">
               <button 
-                onClick={() => router.push(`/admin/contable/cajas/${id}/editar`)}
+                onClick={openEditarCaja}
                 className="w-full flex items-center justify-center gap-2 py-2.5 px-4 bg-white border border-slate-200 text-slate-700 font-medium rounded-xl hover:bg-slate-50 hover:border-slate-300 transition-all"
               >
                 Editar Configuración
@@ -149,14 +206,14 @@ export default function DetalleCajaPage({ params }: { params: Promise<{ id: stri
           <div className="p-6 border-b border-slate-100 flex justify-between items-center">
             <h3 className="text-lg font-bold text-slate-900">Movimientos Recientes</h3>
             <button 
-              onClick={() => router.push('/admin/contable/movimientos/nuevo')}
+              onClick={openRegistrarMovimiento}
               className="text-sm text-blue-600 font-medium hover:text-blue-700 hover:underline"
             >
               Registrar Nuevo
             </button>
           </div>
           <div className="divide-y divide-slate-100">
-            {caja.movimientos.map((mov) => (
+            {movimientosPaginados.map((mov) => (
               <div key={mov.id} className="p-4 hover:bg-slate-50 transition-colors flex items-center justify-between">
                 <div className="flex items-center gap-4">
                   <div className={`p-2 rounded-lg ${
@@ -179,7 +236,236 @@ export default function DetalleCajaPage({ params }: { params: Promise<{ id: stri
               </div>
             ))}
           </div>
+
+          <div className="p-4 border-t border-slate-100 bg-white flex items-center justify-between">
+            <p className="text-xs font-medium text-slate-500">
+              Página {paginaMovimientos} de {totalPaginasMovimientos}
+            </p>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setPaginaMovimientos((p) => Math.max(1, p - 1))}
+                disabled={paginaMovimientos <= 1}
+                className="inline-flex items-center gap-1 px-3 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                <ChevronLeft className="h-4 w-4" />
+                Anterior
+              </button>
+              <button
+                type="button"
+                onClick={() => setPaginaMovimientos((p) => Math.min(totalPaginasMovimientos, p + 1))}
+                disabled={paginaMovimientos >= totalPaginasMovimientos}
+                className="inline-flex items-center gap-1 px-3 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                Siguiente
+                <ChevronRight className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
         </div>
+
+        {showEditarCajaModal && (
+          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/40">
+            <div className="w-full max-w-xl rounded-2xl bg-white border border-slate-200 shadow-2xl overflow-hidden">
+              <div className="p-6 border-b border-slate-100 flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Caja</p>
+                  <h3 className="text-lg font-bold text-slate-900">Editar Configuración</h3>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowEditarCajaModal(false)}
+                  className="p-2 rounded-xl hover:bg-slate-100 text-slate-500"
+                >
+                  <XCircle className="h-5 w-5" />
+                </button>
+              </div>
+
+              <div className="p-6 space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <label className="text-sm font-bold text-slate-700">Nombre</label>
+                    <input
+                      value={editForm.nombre}
+                      onChange={(e) => setEditForm((p) => ({ ...p, nombre: e.target.value }))}
+                      className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-900"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-bold text-slate-700">Responsable</label>
+                    <input
+                      value={editForm.responsable}
+                      onChange={(e) => setEditForm((p) => ({ ...p, responsable: e.target.value }))}
+                      className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-900"
+                    />
+                  </div>
+                  <div className="space-y-2 md:col-span-2">
+                    <label className="text-sm font-bold text-slate-700">Saldo Inicial (referencia)</label>
+                    <div className="relative">
+                      <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        value={editForm.saldoInicialInput}
+                        onChange={(e) => setEditForm((p) => ({ ...p, saldoInicialInput: formatCOPInputValue(e.target.value) }))}
+                        className="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-200 bg-white font-bold text-slate-900"
+                        placeholder="0"
+                      />
+                    </div>
+                  </div>
+                </div>
+                <p className="text-xs text-slate-500 font-medium">
+                  Este modal es solo frontend (mock). No persiste cambios en base de datos.
+                </p>
+              </div>
+
+              <div className="p-6 border-t border-slate-100 bg-slate-50/50 flex justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => setShowEditarCajaModal(false)}
+                  className="px-5 py-3 rounded-xl border border-slate-200 bg-white text-sm font-bold text-slate-700 hover:bg-slate-50"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowEditarCajaModal(false)}
+                  className="px-6 py-3 rounded-xl bg-amber-600 text-white text-sm font-bold hover:bg-amber-700"
+                >
+                  Guardar
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {showRegistrarMovimientoModal && (
+          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/40">
+            <div className="w-full max-w-2xl rounded-2xl bg-white border border-slate-200 shadow-2xl overflow-hidden">
+              <div className="p-6 border-b border-slate-100 flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Movimientos</p>
+                  <h3 className="text-lg font-bold text-slate-900">Registrar Movimiento</h3>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowRegistrarMovimientoModal(false)}
+                  className="p-2 rounded-xl hover:bg-slate-100 text-slate-500"
+                >
+                  <XCircle className="h-5 w-5" />
+                </button>
+              </div>
+
+              <div className="p-6 space-y-6">
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setMovimientoForm((p) => ({ ...p, tipo: 'INGRESO', categoria: '' }))}
+                    className={
+                      movimientoForm.tipo === 'INGRESO'
+                        ? 'flex items-center justify-center gap-2 py-3 rounded-xl border text-sm font-bold bg-blue-600 text-white border-blue-600'
+                        : 'flex items-center justify-center gap-2 py-3 rounded-xl border text-sm font-bold bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+                    }
+                  >
+                    <ArrowDownLeft className="h-4 w-4" />
+                    Ingreso
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setMovimientoForm((p) => ({ ...p, tipo: 'EGRESO', categoria: '' }))}
+                    className={
+                      movimientoForm.tipo === 'EGRESO'
+                        ? 'flex items-center justify-center gap-2 py-3 rounded-xl border text-sm font-bold bg-rose-600 text-white border-rose-600'
+                        : 'flex items-center justify-center gap-2 py-3 rounded-xl border text-sm font-bold bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+                    }
+                  >
+                    <ArrowUpRight className="h-4 w-4" />
+                    Egreso
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <label className="text-sm font-bold text-slate-700">Categoría</label>
+                    <select
+                      value={movimientoForm.categoria}
+                      onChange={(e) => setMovimientoForm((p) => ({ ...p, categoria: e.target.value }))}
+                      className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-900"
+                    >
+                      <option value="">Seleccione una categoría...</option>
+                      {(movimientoForm.tipo === 'INGRESO' ? categoriasIngreso : categoriasEgreso).map((cat) => (
+                        <option key={cat.id} value={cat.id}>
+                          {cat.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-sm font-bold text-slate-700">Monto</label>
+                    <div className="relative">
+                      <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        value={movimientoForm.montoInput}
+                        onChange={(e) => setMovimientoForm((p) => ({ ...p, montoInput: formatCOPInputValue(e.target.value) }))}
+                        className="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-200 bg-white font-bold text-slate-900"
+                        placeholder="0"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2 md:col-span-2">
+                    <label className="text-sm font-bold text-slate-700">Concepto / Descripción</label>
+                    <input
+                      value={movimientoForm.concepto}
+                      onChange={(e) => setMovimientoForm((p) => ({ ...p, concepto: e.target.value }))}
+                      className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-900"
+                      placeholder="Ej: Compra de papelería"
+                    />
+                  </div>
+
+                  <div className="space-y-2 md:col-span-2">
+                    <label className="text-sm font-bold text-slate-700">Referencia (Opcional)</label>
+                    <input
+                      value={movimientoForm.referencia}
+                      onChange={(e) => setMovimientoForm((p) => ({ ...p, referencia: e.target.value }))}
+                      className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-900"
+                      placeholder="Ej: Factura #123"
+                    />
+                  </div>
+                </div>
+
+                <p className="text-xs text-slate-500 font-medium">
+                  Este modal es solo frontend (mock). No persiste cambios en base de datos.
+                </p>
+              </div>
+
+              <div className="p-6 border-t border-slate-100 bg-slate-50/50 flex justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => setShowRegistrarMovimientoModal(false)}
+                  className="px-5 py-3 rounded-xl border border-slate-200 bg-white text-sm font-bold text-slate-700 hover:bg-slate-50"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  disabled={
+                    parseCOPInputToNumber(movimientoForm.montoInput) <= 0 ||
+                    !movimientoForm.concepto.trim() ||
+                    !movimientoForm.categoria
+                  }
+                  onClick={() => setShowRegistrarMovimientoModal(false)}
+                  className="px-6 py-3 rounded-xl bg-slate-900 text-white text-sm font-bold hover:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  Guardar
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )

@@ -253,8 +253,8 @@ const DashboardPage = () => {
         },
         {
           title: 'Inventario Activo',
-          value: '₡185M',
-          isCurrency: false,
+          value: 185000000,
+          isCurrency: true,
           change: 8.7,
           icon: <Package className="h-4 w-4" />,
           color: '#f59e0b'
@@ -395,28 +395,28 @@ const DashboardPage = () => {
           subtitle: 'Caja principal y ruta',
           icon: <Calculator className="h-5 w-5" />,
           color: '#08557f',
-          href: '/admin/contable'
+          href: '/contador/contable'
         },
         {
           title: 'Tesorería',
           subtitle: 'Ingresos y transferencias',
           icon: <Banknote className="h-5 w-5" />,
           color: '#10b981',
-          href: '/admin/tesoreria'
+          href: '/contador/tesoreria'
         },
         {
           title: 'Inventario',
           subtitle: 'Gestión de productos',
           icon: <Package className="h-5 w-5" />,
           color: '#8b5cf6',
-          href: '/admin/articulos'
+          href: '/contador/articulos'
         },
         {
           title: 'Reportes Financieros',
           subtitle: 'Análisis detallado',
           icon: <BarChart3 className="h-5 w-5" />,
           color: '#fb851b',
-          href: '/admin/reportes/financieros'
+          href: '/contador/reportes/financieros'
         }
       ]
     };
