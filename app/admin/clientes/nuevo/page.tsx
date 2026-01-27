@@ -303,8 +303,8 @@ const ClienteFormPage = () => {
                   </div>
                   <div className="space-y-6">
                     <div>
-                      <h3 className="text-sm font-bold text-slate-700 mb-2">Documentos de Identidad y Fotos del Cliente</h3>
-                      <p className="text-sm text-slate-500 mb-4 font-medium">Sube fotos del documento de identidad (frente y reverso) y fotos del cliente.</p>
+                      <h3 className="text-sm font-bold text-slate-700 mb-2">CC y Fotos del Cliente</h3>
+                      <p className="text-sm text-slate-500 mb-4 font-medium">Sube fotos de la CC (frente y reverso) y fotos del cliente.</p>
                       <FileUploader files={fotosCliente} onFilesChange={(newFiles) => setFotosCliente(newFiles)} label="Arrastra fotos del cliente o documentos aquí" description="Soporta JPG, PNG, PDF (Máx. 5MB)" multiple={true} maxSize={5 * 1024 * 1024} accept="image/*,application/pdf" />
                     </div>
                   </div>

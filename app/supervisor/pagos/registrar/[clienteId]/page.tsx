@@ -36,6 +36,8 @@ interface ProductoFinanciero {
   imagen?: string
 }
 
+type MetodoPago = 'EFECTIVO' | 'TRANSFERENCIA'
+
 export default function RegistrarPagoClienteSupervisorPage() {
   const params = useParams()
   const router = useRouter()
@@ -48,6 +50,10 @@ export default function RegistrarPagoClienteSupervisorPage() {
   const [monto, setMonto] = useState('')
   const [comentarios, setComentarios] = useState('')
   const [estadoEnvio, setEstadoEnvio] = useState<'idle' | 'enviando' | 'exito' | 'error'>('idle')
+
+  const [metodoPago, setMetodoPago] = useState<MetodoPago>('EFECTIVO')
+  const [comprobanteTransferencia, setComprobanteTransferencia] = useState<File | null>(null)
+  const [comprobanteTransferenciaPreviewUrl, setComprobanteTransferenciaPreviewUrl] = useState<string | null>(null)
 
   useEffect(() => {
     const loadData = () => {
@@ -92,12 +98,59 @@ export default function RegistrarPagoClienteSupervisorPage() {
     if (clienteId) loadData()
   }, [clienteId])
 
+  useEffect(() => {
+    if (metodoPago !== 'TRANSFERENCIA') {
+      setComprobanteTransferencia(null)
+      setComprobanteTransferenciaPreviewUrl((prev) => {
+        if (prev) URL.revokeObjectURL(prev)
+        return null
+      })
+      return
+    }
+
+    if (!comprobanteTransferencia) {
+      setComprobanteTransferenciaPreviewUrl((prev) => {
+        if (prev) URL.revokeObjectURL(prev)
+        return null
+      })
+      return
+    }
+
+    const isImage = comprobanteTransferencia.type.startsWith('image/')
+    if (!isImage) {
+      setComprobanteTransferenciaPreviewUrl((prev) => {
+        if (prev) URL.revokeObjectURL(prev)
+        return null
+      })
+      return
+    }
+
+    const url = URL.createObjectURL(comprobanteTransferencia)
+    setComprobanteTransferenciaPreviewUrl((prev) => {
+      if (prev) URL.revokeObjectURL(prev)
+      return url
+    })
+
+    return () => {
+      URL.revokeObjectURL(url)
+    }
+  }, [comprobanteTransferencia, metodoPago])
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     if (parseCOPInputToNumber(monto) <= 0) return
+    if (metodoPago === 'TRANSFERENCIA' && !comprobanteTransferencia) return
 
     setEstadoEnvio('enviando')
     setTimeout(() => {
+      console.log('Registrar pago:', {
+        clienteId,
+        productoId: producto?.id,
+        monto: parseCOPInputToNumber(monto),
+        metodoPago,
+        comprobanteTransferencia,
+        comentarios,
+      })
       setEstadoEnvio('exito')
       setTimeout(() => {
         router.back()
@@ -234,12 +287,88 @@ export default function RegistrarPagoClienteSupervisorPage() {
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Método</label>
-                  <div className="w-full px-4 py-2.5 border border-slate-200 rounded-xl bg-white shadow-sm text-sm font-bold text-slate-700 flex items-center gap-2">
-                    <ShoppingBag className="h-4 w-4 text-slate-400" />
-                    Efectivo
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setMetodoPago('EFECTIVO')}
+                      className={`py-3 rounded-xl border text-sm font-bold transition-colors ${
+                        metodoPago === 'EFECTIVO'
+                          ? 'bg-blue-600 text-white border-blue-600'
+                          : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+                      }`}
+                    >
+                      EFECTIVO
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setMetodoPago('TRANSFERENCIA')}
+                      className={`py-3 rounded-xl border text-sm font-bold transition-colors ${
+                        metodoPago === 'TRANSFERENCIA'
+                          ? 'bg-blue-600 text-white border-blue-600'
+                          : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+                      }`}
+                    >
+                      TRANSFERENCIA
+                    </button>
                   </div>
                 </div>
               </div>
+
+              {metodoPago === 'TRANSFERENCIA' && (
+                <div className="pt-1">
+                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Comprobante (Obligatorio)</label>
+                  <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2">
+                          <p className="text-sm font-bold text-slate-900">Sube el comprobante</p>
+                          {comprobanteTransferencia && (
+                            <span className="inline-flex items-center rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-bold text-blue-700 border border-blue-100">
+                              ADJUNTO
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-xs text-slate-500">Imagen o PDF.</p>
+                      </div>
+                      {comprobanteTransferencia && (
+                        <button
+                          type="button"
+                          onClick={() => setComprobanteTransferencia(null)}
+                          className="px-3 py-1.5 rounded-xl bg-white border border-slate-200 text-xs font-bold text-slate-700 hover:bg-slate-100"
+                        >
+                          Quitar
+                        </button>
+                      )}
+                    </div>
+
+                    {comprobanteTransferenciaPreviewUrl && (
+                      <div className="mt-3 overflow-hidden rounded-xl border border-slate-200 bg-white">
+                        <img src={comprobanteTransferenciaPreviewUrl} alt="Comprobante" className="w-full h-40 object-cover" />
+                      </div>
+                    )}
+
+                    {comprobanteTransferencia && !comprobanteTransferenciaPreviewUrl && (
+                      <div className="mt-3 rounded-xl border border-slate-200 bg-white p-3">
+                        <p className="text-xs font-bold text-slate-700 truncate">Archivo: {comprobanteTransferencia.name}</p>
+                      </div>
+                    )}
+
+                    <div className="mt-3">
+                      <input
+                        type="file"
+                        accept="image/*,application/pdf"
+                        onChange={(e) => setComprobanteTransferencia(e.target.files?.[0] || null)}
+                        className="w-full text-sm"
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  {!comprobanteTransferencia && (
+                    <p className="mt-2 text-xs font-bold text-rose-600">Adjunta el comprobante para confirmar una transferencia.</p>
+                  )}
+                </div>
+              )}
 
               <div>
                 <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Comentarios</label>
@@ -261,13 +390,19 @@ export default function RegistrarPagoClienteSupervisorPage() {
                 </button>
                 <button
                   type="submit"
-                  disabled={estadoEnvio === 'enviando' || parseCOPInputToNumber(monto) <= 0}
+                  disabled={
+                    estadoEnvio === 'enviando' ||
+                    parseCOPInputToNumber(monto) <= 0 ||
+                    (metodoPago === 'TRANSFERENCIA' && !comprobanteTransferencia)
+                  }
                   className={cn(
                     'px-6 py-2.5 rounded-xl font-bold text-sm transition-all shadow-lg',
                     estadoEnvio === 'exito'
                       ? 'bg-emerald-600 text-white shadow-emerald-600/20'
                       : 'bg-blue-600 text-white shadow-blue-600/20 hover:bg-blue-700',
-                    (estadoEnvio === 'enviando' || parseCOPInputToNumber(monto) <= 0) && 'opacity-50 cursor-not-allowed',
+                    (estadoEnvio === 'enviando' ||
+                      parseCOPInputToNumber(monto) <= 0 ||
+                      (metodoPago === 'TRANSFERENCIA' && !comprobanteTransferencia)) && 'opacity-50 cursor-not-allowed',
                   )}
                 >
                   {estadoEnvio === 'enviando'

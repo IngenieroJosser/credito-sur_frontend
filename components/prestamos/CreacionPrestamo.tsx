@@ -6,7 +6,7 @@ import {
   FileText,
   CheckCircle, ArrowLeft,
   PlusCircle, User,
-  ChevronRight, ChevronDown, Search, Filter
+  ChevronRight, ChevronDown, Search, Filter, X
 } from 'lucide-react';
 import { usePathname, useRouter } from 'next/navigation';
 import { formatCurrency } from '@/lib/utils';
@@ -21,7 +21,7 @@ interface Cliente {
   id: string;
   nombre: string;
   apellido: string;
-  identificacion: string; // DNI/Cédula
+  identificacion: string; // CC/Cédula
   telefono: string;
   email: string;
   nivelRiesgo: NivelRiesgo;
@@ -194,6 +194,8 @@ const CreacionPrestamoElegante = () => {
   const [mostrarNuevoCliente, setMostrarNuevoCliente] = useState(false);
   const [animating, setAnimating] = useState(false);
   const [creandoPrestamo, setCreandoPrestamo] = useState(false);
+  const [fotosPropiedad, setFotosPropiedad] = useState<File[]>([])
+  const [videosPropiedad, setVideosPropiedad] = useState<File[]>([])
   
   // Estados para filtros de clientes
   const [busquedaCliente, setBusquedaCliente] = useState('');
@@ -206,10 +208,18 @@ const CreacionPrestamoElegante = () => {
     identificacion: '',
     telefono: '',
     email: '',
+    referencia: '',
     ingresosMensuales: 0,
     antiguedadLaboral: 0,
     direccion: ''
   });
+
+  const [fotosClienteNuevo, setFotosClienteNuevo] = useState({
+    fotoPerfil: null as File | null,
+    documentoFrente: null as File | null,
+    documentoReverso: null as File | null,
+    comprobanteDomicilio: null as File | null,
+  })
 
   // Clientes simulados (Reemplazar con fetch real)
   const [clientes, setClientes] = useState<Cliente[]>([
@@ -390,6 +400,11 @@ const CreacionPrestamoElegante = () => {
   };
 
   const agregarCliente = () => {
+    if (!nuevoCliente.nombre || !nuevoCliente.apellido || !nuevoCliente.identificacion || !nuevoCliente.telefono) {
+      alert('Completa nombre, apellido, identificación y teléfono para crear el cliente.')
+      return
+    }
+
     // Asignar valores por defecto para clientes rápidos (salario mínimo y 1 año antigüedad)
     const ingresosDefault = nuevoCliente.ingresosMensuales || 1300000;
     const antiguedadDefault = nuevoCliente.antiguedadLaboral || 12;
@@ -422,12 +437,40 @@ const CreacionPrestamoElegante = () => {
       identificacion: '',
       telefono: '',
       email: '',
+      referencia: '',
       ingresosMensuales: 0,
       antiguedadLaboral: 0,
       direccion: ''
     });
+    setFotosClienteNuevo({
+      fotoPerfil: null,
+      documentoFrente: null,
+      documentoReverso: null,
+      comprobanteDomicilio: null,
+    })
     setMostrarNuevoCliente(false);
   };
+
+  const resetNuevoClienteModal = () => {
+    setMostrarNuevoCliente(false)
+    setNuevoCliente({
+      nombre: '',
+      apellido: '',
+      identificacion: '',
+      telefono: '',
+      email: '',
+      referencia: '',
+      ingresosMensuales: 0,
+      antiguedadLaboral: 0,
+      direccion: '',
+    })
+    setFotosClienteNuevo({
+      fotoPerfil: null,
+      documentoFrente: null,
+      documentoReverso: null,
+      comprobanteDomicilio: null,
+    })
+  }
 
   const calcularScore = (ingresos: number, antiguedad: number): number => {
     let score = 50;
@@ -587,103 +630,196 @@ const CreacionPrestamoElegante = () => {
 
                   {/* Modal Nuevo Cliente */}
                   {mostrarNuevoCliente && (
-                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-                      <div className="fixed inset-0 bg-slate-900/20 backdrop-blur-sm transition-opacity" onClick={() => setMostrarNuevoCliente(false)} />
-                      <div className="relative bg-white/90 backdrop-blur-md rounded-2xl w-full max-w-2xl shadow-[0_8px_30px_rgb(0,0,0,0.12)] animate-in fade-in duration-300 border border-slate-100 z-10">
-                        <div className="p-8">
-                          <div className="flex items-center justify-between mb-8">
-                            <div className="flex items-center gap-4">
-                              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-600 to-blue-800 flex items-center justify-center shadow-lg shadow-blue-600/20">
-                                <User className="w-5 h-5 text-white" />
-                              </div>
-                              <div>
-                                <h3 className="text-xl font-bold">
-                                  <span className="text-blue-600">Nuevo</span> <span className="text-orange-500">Cliente</span>
-                                </h3>
-                                <p className="text-slate-500 text-sm mt-0.5 font-medium">Registro rápido de información</p>
-                              </div>
-                            </div>
-                            <button 
-                              onClick={() => setMostrarNuevoCliente(false)}
-                              className="p-2 hover:bg-slate-100 rounded-full transition-colors"
+                    <div
+                      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-200"
+                      onClick={resetNuevoClienteModal}
+                    >
+                      <div
+                        className="w-full max-w-2xl bg-white rounded-3xl shadow-2xl animate-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <div className="p-6">
+                          <div className="flex items-center justify-between mb-6">
+                            <h3 className="text-xl font-bold text-slate-900">Crear Cliente</h3>
+                            <button
+                              type="button"
+                              onClick={resetNuevoClienteModal}
+                              className="p-2 bg-slate-100 rounded-full text-slate-500 hover:bg-slate-200 transition-colors"
                             >
-                              <ArrowLeft className="w-5 h-5 text-slate-400" />
+                              <X className="h-5 w-5" />
                             </button>
                           </div>
 
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                          <form
+                            onSubmit={(e) => {
+                              e.preventDefault()
+                              console.log('Crear cliente:', { ...nuevoCliente, fotos: fotosClienteNuevo })
+                              agregarCliente()
+                            }}
+                            className="space-y-4"
+                          >
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                              <div>
+                                <label className="block text-sm font-bold text-slate-700 mb-2">Cédula / CC</label>
+                                <input
+                                  type="text"
+                                  inputMode="numeric"
+                                  name="identificacion"
+                                  value={nuevoCliente.identificacion}
+                                  onChange={handleNuevoClienteChange}
+                                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-[#08557f] focus:ring-0 font-medium text-slate-900 placeholder:text-slate-400"
+                                  placeholder="Número de cédula (CC)"
+                                  required
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-sm font-bold text-slate-700 mb-2">Teléfono</label>
+                                <input
+                                  type="tel"
+                                  inputMode="tel"
+                                  name="telefono"
+                                  value={nuevoCliente.telefono}
+                                  onChange={handleNuevoClienteChange}
+                                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-[#08557f] focus:ring-0 font-medium text-slate-900 placeholder:text-slate-400"
+                                  placeholder="Ej: 3001234567"
+                                  required
+                                />
+                              </div>
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                              <div>
+                                <label className="block text-sm font-bold text-slate-700 mb-2">Nombres</label>
+                                <input
+                                  name="nombre"
+                                  value={nuevoCliente.nombre}
+                                  onChange={handleNuevoClienteChange}
+                                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-[#08557f] focus:ring-0 font-medium text-slate-900"
+                                  required
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-sm font-bold text-slate-700 mb-2">Apellidos</label>
+                                <input
+                                  name="apellido"
+                                  value={nuevoCliente.apellido}
+                                  onChange={handleNuevoClienteChange}
+                                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-[#08557f] focus:ring-0 font-medium text-slate-900"
+                                  required
+                                />
+                              </div>
+                            </div>
+
                             <div>
-                              <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Nombre</label>
+                              <label className="block text-sm font-bold text-slate-700 mb-2">Correo (Opcional)</label>
                               <input
-                                type="text"
-                                name="nombre"
-                                value={nuevoCliente.nombre}
+                                type="email"
+                                name="email"
+                                value={nuevoCliente.email}
                                 onChange={handleNuevoClienteChange}
-                                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-0 focus:border-blue-500 focus:bg-white transition-all outline-none font-medium placeholder:text-slate-400 text-slate-900"
-                                placeholder="Ej. Juan"
+                                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-[#08557f] focus:ring-0 font-medium text-slate-900 placeholder:text-slate-400"
+                                placeholder="correo@dominio.com"
                               />
                             </div>
+
                             <div>
-                              <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Apellido</label>
+                              <label className="block text-sm font-bold text-slate-700 mb-2">Dirección (Opcional)</label>
                               <input
-                                type="text"
-                                name="apellido"
-                                value={nuevoCliente.apellido}
-                                onChange={handleNuevoClienteChange}
-                                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-0 focus:border-blue-500 focus:bg-white transition-all outline-none font-medium placeholder:text-slate-400 text-slate-900"
-                                placeholder="Ej. Pérez"
-                              />
-                            </div>
-                            <div>
-                              <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Identificación</label>
-                              <input
-                                type="text"
-                                name="identificacion"
-                                value={nuevoCliente.identificacion}
-                                onChange={handleNuevoClienteChange}
-                                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-0 focus:border-blue-500 focus:bg-white transition-all outline-none font-medium placeholder:text-slate-400 text-slate-900"
-                                placeholder="Ej. 12.345.678"
-                              />
-                            </div>
-                            <div>
-                              <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Teléfono</label>
-                              <input
-                                type="text"
-                                name="telefono"
-                                value={nuevoCliente.telefono}
-                                onChange={handleNuevoClienteChange}
-                                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-0 focus:border-blue-500 focus:bg-white transition-all outline-none font-medium placeholder:text-slate-400 text-slate-900"
-                                placeholder="Ej. 300 123 4567"
-                              />
-                            </div>
-                            <div className="col-span-2">
-                              <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Dirección</label>
-                              <input
-                                type="text"
                                 name="direccion"
                                 value={nuevoCliente.direccion}
                                 onChange={handleNuevoClienteChange}
-                                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-0 focus:border-blue-500 focus:bg-white transition-all outline-none font-medium placeholder:text-slate-400 text-slate-900"
-                                placeholder="Ej. Cra 15 #123-45"
+                                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-[#08557f] focus:ring-0 font-medium text-slate-900 placeholder:text-slate-400"
+                                placeholder="Dirección del cliente"
                               />
                             </div>
-                          </div>
 
-                          <div className="flex gap-3 mt-8 pt-6 border-t border-slate-100">
-                            <button
-                              onClick={() => setMostrarNuevoCliente(false)}
-                              className="flex-1 py-3 px-4 bg-white border border-slate-200 text-slate-700 rounded-xl font-bold text-sm hover:bg-slate-50 transition-all"
-                            >
-                              Cancelar
-                            </button>
-                            <button
-                              onClick={agregarCliente}
-                              className="flex-1 py-3 px-4 bg-blue-600 text-white rounded-xl font-bold text-sm hover:bg-blue-700 transition-all shadow-lg shadow-blue-600/20 flex items-center justify-center gap-2"
-                            >
-                              <PlusCircle className="w-4 h-4" />
-                              Crear Cliente
-                            </button>
-                          </div>
+                            <div>
+                              <label className="block text-sm font-bold text-slate-700 mb-2">Referencia (Opcional)</label>
+                              <textarea
+                                name="referencia"
+                                value={nuevoCliente.referencia}
+                                onChange={(e) => setNuevoCliente((prev) => ({ ...prev, referencia: e.target.value }))}
+                                className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-[#08557f] focus:ring-0 font-medium text-slate-900 placeholder:text-slate-400 resize-none"
+                                rows={3}
+                                placeholder="Punto de referencia / observaciones"
+                              />
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                              <div>
+                                <label className="block text-sm font-bold text-slate-700 mb-2">Foto de perfil</label>
+                                <input
+                                  type="file"
+                                  accept="image/*"
+                                  onChange={(e) =>
+                                    setFotosClienteNuevo((prev) => ({
+                                      ...prev,
+                                      fotoPerfil: e.target.files?.[0] ?? null,
+                                    }))
+                                  }
+                                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-700 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-[#08557f] file:text-white file:text-xs file:font-bold hover:file:bg-[#063a58]"
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-sm font-bold text-slate-700 mb-2">Cédula/CC (Frente)</label>
+                                <input
+                                  type="file"
+                                  accept="image/*"
+                                  onChange={(e) =>
+                                    setFotosClienteNuevo((prev) => ({
+                                      ...prev,
+                                      documentoFrente: e.target.files?.[0] ?? null,
+                                    }))
+                                  }
+                                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-700 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-[#08557f] file:text-white file:text-xs file:font-bold hover:file:bg-[#063a58]"
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-sm font-bold text-slate-700 mb-2">Cédula/CC (Reverso)</label>
+                                <input
+                                  type="file"
+                                  accept="image/*"
+                                  onChange={(e) =>
+                                    setFotosClienteNuevo((prev) => ({
+                                      ...prev,
+                                      documentoReverso: e.target.files?.[0] ?? null,
+                                    }))
+                                  }
+                                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-700 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-[#08557f] file:text-white file:text-xs file:font-bold hover:file:bg-[#063a58]"
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-sm font-bold text-slate-700 mb-2">Comprobante de domicilio</label>
+                                <input
+                                  type="file"
+                                  accept="image/*,application/pdf"
+                                  onChange={(e) =>
+                                    setFotosClienteNuevo((prev) => ({
+                                      ...prev,
+                                      comprobanteDomicilio: e.target.files?.[0] ?? null,
+                                    }))
+                                  }
+                                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-700 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-[#08557f] file:text-white file:text-xs file:font-bold hover:file:bg-[#063a58]"
+                                />
+                              </div>
+                            </div>
+
+                            <div className="flex gap-3 pt-2">
+                              <button
+                                type="button"
+                                onClick={resetNuevoClienteModal}
+                                className="flex-1 bg-slate-100 text-slate-700 font-bold py-3.5 rounded-xl hover:bg-slate-200 transition-all"
+                              >
+                                Cancelar
+                              </button>
+                              <button
+                                type="submit"
+                                className="flex-1 bg-[#08557f] text-white font-bold py-3.5 rounded-xl shadow-lg shadow-[#08557f]/20 hover:bg-[#063a58] active:scale-[0.98] transition-all"
+                              >
+                                Guardar Cliente
+                              </button>
+                            </div>
+                          </form>
                         </div>
                       </div>
                     </div>

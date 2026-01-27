@@ -130,7 +130,7 @@ export default function DetallePrestamo({ prestamo }: DetallePrestamoProps) {
                 </div>
               </Link>
               <div>
-                <p className="text-xs text-slate-500">Cédula</p>
+                <p className="text-xs text-slate-500">CC</p>
                 <p className="text-sm text-slate-700">{prestamo.clienteDni}</p>
               </div>
             </div>
