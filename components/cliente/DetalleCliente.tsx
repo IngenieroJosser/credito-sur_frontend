@@ -7,9 +7,9 @@ import {
   DollarSign, TrendingUp, AlertCircle, CheckCircle,
   Edit, MessageSquare, 
   Shield, CreditCard, PieChart, Filter,
-  Plus, ExternalLink,
+  Plus, ExternalLink, ShoppingBag,
   BarChart,
-  Download, Bell
+  Bell
 } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils';
 import { ExportButton } from '@/components/ui/ExportButton';
@@ -96,20 +96,19 @@ const ClienteDetalleElegante: React.FC<ClienteDetalleProps> = ({
   prestamos, 
   pagos, 
   comentarios,
-  onEdit,
-  onContact,
+  rolUsuario,
   onNewLoan
 }) => {
   const [activeTab, setActiveTab] = useState<'resumen' | 'prestamos' | 'pagos' | 'comentarios' | 'analitica'>('resumen');
+
+  const isSupervisor = rolUsuario === 'supervisor'
+  const hrefEditarCliente = `/admin/clientes/${cliente.id}/editar`
+  const hrefRegistrarPago = isSupervisor
+    ? `/supervisor/pagos/registrar/${cliente.id}`
+    : `/admin/pagos/registrar/${cliente.id}`
+  const hrefNuevoPrestamo = isSupervisor ? '/supervisor/creditos/nuevo?tipo=efectivo' : '/admin/prestamos/nuevo'
+  const hrefNuevoCreditoArticulo = isSupervisor ? '/supervisor/creditos/nuevo?tipo=articulos' : '/admin/creditos-articulos/nuevo'
   
-  const handleExportExcel = () => {
-    console.log('Exporting Excel...')
-  }
-
-  const handleExportPDF = () => {
-    console.log('Exporting PDF...')
-  }
-
   const calcularTotales = () => {
     const totalPrestamos = prestamos.reduce((sum, p) => sum + p.montoTotal, 0);
     const totalPagado = prestamos.reduce((sum, p) => sum + p.montoPagado, 0);
@@ -190,15 +189,37 @@ const ClienteDetalleElegante: React.FC<ClienteDetalleProps> = ({
           </div>
           
           <div className="flex items-center gap-3">
-            <Link 
-              href={`/admin/clientes/${cliente.id}/editar`}
-              className="px-5 py-2.5 border border-slate-200 bg-white rounded-xl hover:bg-slate-50 hover:border-slate-300 transition-all duration-200 text-sm font-bold text-slate-700 flex items-center gap-2 shadow-sm"
-            >
-              <Edit className="w-4 h-4" />
-              Editar
-            </Link>
+            {!isSupervisor && (
+              <Link 
+                href={hrefEditarCliente}
+                className="px-5 py-2.5 border border-slate-200 bg-white rounded-xl hover:bg-slate-50 hover:border-slate-300 transition-all duration-200 text-sm font-bold text-slate-700 flex items-center gap-2 shadow-sm"
+              >
+                <Edit className="w-4 h-4" />
+                Editar
+              </Link>
+            )}
+
+            {isSupervisor && (
+              <>
+                <Link
+                  href={hrefNuevoPrestamo}
+                  className="px-5 py-2.5 border border-slate-200 bg-white rounded-xl hover:bg-slate-50 hover:border-slate-300 transition-all duration-200 text-sm font-bold text-slate-700 flex items-center gap-2 shadow-sm"
+                >
+                  <CreditCard className="w-4 h-4" />
+                  Nuevo Préstamo
+                </Link>
+                <Link
+                  href={hrefNuevoCreditoArticulo}
+                  className="px-5 py-2.5 border border-slate-200 bg-white rounded-xl hover:bg-slate-50 hover:border-slate-300 transition-all duration-200 text-sm font-bold text-slate-700 flex items-center gap-2 shadow-sm"
+                >
+                  <ShoppingBag className="w-4 h-4" />
+                  Nuevo Crédito
+                </Link>
+              </>
+            )}
+
             <Link
-              href={`/admin/pagos/registrar/${cliente.id}`}
+              href={hrefRegistrarPago}
               className="px-5 py-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-all duration-200 text-sm font-bold flex items-center gap-2 shadow-lg shadow-blue-600/20"
             >
               <DollarSign className="w-4 h-4" />

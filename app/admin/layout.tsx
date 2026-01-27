@@ -141,7 +141,24 @@ export default function AdminLayout({
     loadUserData()
   }, [router])
 
+  useEffect(() => {
+    if (!authChecked) return
+    if (!user?.rol) return
+
+    if (user.rol === 'SUPERVISOR') {
+      router.replace('/supervisor')
+      return
+    }
+
+    if (user.rol === 'COBRADOR') {
+      router.replace('/cobranzas')
+      return
+    }
+  }, [authChecked, router, user?.rol])
+
   if (!authChecked) return null
+
+  if (user?.rol === 'SUPERVISOR' || user?.rol === 'COBRADOR') return null
 
   if (user?.rol === 'COBRADOR' && pathname && !tieneAcceso(user.rol, pathname)) {
     return <NotFoundPage />

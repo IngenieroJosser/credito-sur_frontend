@@ -4,11 +4,11 @@ import React, { useState, useMemo } from 'react';
 import {
   DollarSign, Percent, Clock,
   FileText,
-  BarChart, Shield, CheckCircle, ArrowLeft,
-  PlusCircle, User, CreditCard, Phone, MapPin, Mail,
+  CheckCircle, ArrowLeft,
+  PlusCircle, User,
   ChevronRight, ChevronDown, Search, Filter
 } from 'lucide-react';
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { formatCurrency } from '@/lib/utils';
 import { FileUploader } from '@/components/ui/FileUploader';
 
@@ -189,6 +189,7 @@ const calcularCuotasYResumen = (form: FormularioPrestamo) => {
 
 const CreacionPrestamoElegante = () => {
   const router = useRouter();
+  const pathname = usePathname();
   const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
   const [mostrarNuevoCliente, setMostrarNuevoCliente] = useState(false);
   const [animating, setAnimating] = useState(false);
@@ -197,10 +198,6 @@ const CreacionPrestamoElegante = () => {
   // Estados para filtros de clientes
   const [busquedaCliente, setBusquedaCliente] = useState('');
   const [filtroRiesgo, setFiltroRiesgo] = useState<NivelRiesgo | 'TODOS'>('TODOS');
-
-  // Estado para archivos
-  const [fotosPropiedad, setFotosPropiedad] = useState<File[]>([]);
-  const [videosPropiedad, setVideosPropiedad] = useState<File[]>([]);
 
   // Estados para nuevo cliente
   const [nuevoCliente, setNuevoCliente] = useState({
@@ -285,7 +282,7 @@ const CreacionPrestamoElegante = () => {
   const [montoTotalInput, setMontoTotalInput] = useState('')
   const [cuotasInput, setCuotasInput] = useState('')
 
-  const { cuotas, resumenPrestamo } = useMemo(
+  const { resumenPrestamo } = useMemo(
     () => calcularCuotasYResumen(form),
     [form]
   );
@@ -381,11 +378,12 @@ const CreacionPrestamoElegante = () => {
       alert(`✅ Préstamo creado exitosamente\n\n📋 Número: ${resultado.numeroPrestamo}\n👤 Cliente: ${clienteSeleccionado.nombre} ${clienteSeleccionado.apellido}\n💰 Monto: ${formatCurrency(form.montoTotal)}\n📅 Cuota: ${formatCurrency(resumenPrestamo.valorCuota)} ${form.frecuenciaPago.toLowerCase()}`);
 
       // Redirigir
-      router.push('/admin/prestamos');
+      const destino = pathname?.startsWith('/supervisor') ? '/supervisor' : '/admin/prestamos'
+      router.push(destino);
 
     } catch (error) {
       console.error('Error al crear el préstamo:', error);
-      alert('❌ Error al crear el préstamo. Por favor, intente nuevamente.');
+      alert('Error al crear el préstamo. Por favor, intente nuevamente.');
     } finally {
       setCreandoPrestamo(false);
     }
@@ -839,7 +837,10 @@ const CreacionPrestamoElegante = () => {
                         </div>
                         <div className="mt-2 flex justify-end">
                           <button 
-                            onClick={() => window.open('/admin/solicitudes', '_blank')}
+                            onClick={() => {
+                              const destino = pathname?.startsWith('/supervisor') ? '/supervisor' : '/admin/solicitudes'
+                              window.open(destino, '_blank')
+                            }}
                             className="text-xs font-bold text-blue-600 hover:text-blue-800 flex items-center gap-1"
                           >
                             ¿Fondos insuficientes? Solicitar dinero

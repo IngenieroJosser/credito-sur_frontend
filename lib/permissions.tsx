@@ -13,7 +13,7 @@ export interface ModuloPermiso {
 // Configuración completa de permisos por rol
 export const permisosPorRol: Record<Rol, ModuloPermiso[]> = {
   SUPER_ADMINISTRADOR: [
-    { id: 'dashboard', nombre: 'Dashboard', icono: 'Eye', path: '/admin', roles: ['SUPER_ADMINISTRADOR', 'COORDINADOR', 'SUPERVISOR', 'COBRADOR', 'CONTADOR'] },
+    { id: 'dashboard', nombre: 'Dashboard', icono: 'LayoutDashboard', path: '/admin', roles: ['SUPER_ADMINISTRADOR', 'COORDINADOR', 'SUPERVISOR', 'COBRADOR', 'CONTADOR'] },
     { 
       id: 'operaciones', 
       nombre: 'Operaciones', 
@@ -81,7 +81,7 @@ export const permisosPorRol: Record<Rol, ModuloPermiso[]> = {
   ],
 
   COORDINADOR: [
-    { id: 'dashboard', nombre: 'Dashboard', icono: 'Eye', path: '/admin', roles: ['COORDINADOR'] },
+    { id: 'dashboard', nombre: 'Dashboard', icono: 'LayoutDashboard', path: '/admin', roles: ['COORDINADOR'] },
     { id: 'gestion-creditos', nombre: 'Créditos y Préstamos', icono: 'CreditCard', path: '/admin/creditos', roles: ['COORDINADOR'] },
     { id: 'clientes', nombre: 'Clientes', icono: 'Users', path: '/admin/clientes', roles: ['COORDINADOR'] },
     { id: 'cuentas-mora', nombre: 'Cuentas en mora', icono: 'AlertCircle', path: '/admin/cuentas-mora', roles: ['COORDINADOR'] },
@@ -92,7 +92,7 @@ export const permisosPorRol: Record<Rol, ModuloPermiso[]> = {
   ],
 
   SUPERVISOR: [
-    { id: 'dashboard', nombre: 'Dashboard', icono: 'Eye', path: '/admin', roles: ['SUPERVISOR'] },
+    { id: 'dashboard', nombre: 'Dashboard', icono: 'LayoutDashboard', path: '/admin', roles: ['SUPERVISOR'] },
     { id: 'clientes', nombre: 'Clientes', icono: 'Users', path: '/admin/clientes', roles: ['SUPERVISOR'] },
     { id: 'cuentas-mora', nombre: 'Cuentas en mora', icono: 'AlertCircle', path: '/admin/cuentas-mora', roles: ['SUPERVISOR'] },
     { id: 'reportes-operativos', nombre: 'Reportes operativos', icono: 'PieChart', path: '/admin/reportes/operativos', roles: ['SUPERVISOR'] },
@@ -100,7 +100,7 @@ export const permisosPorRol: Record<Rol, ModuloPermiso[]> = {
   ],
 
   COBRADOR: [
-    { id: 'dashboard', nombre: 'Inicio', icono: 'Eye', path: '/cobranzas', roles: ['COBRADOR'] },
+    { id: 'dashboard', nombre: 'Inicio', icono: 'Home', path: '/cobranzas', roles: ['COBRADOR'] },
     { id: 'prestamos-dinero', nombre: 'Solicitar Crédito', icono: 'CreditCard', path: '/cobranzas/prestamos/nuevo', roles: ['COBRADOR'] },
     { id: 'clientes', nombre: 'Nuevo Cliente', icono: 'Users', path: '/cobranzas/clientes/nuevo', roles: ['COBRADOR'] },
     { id: 'notificaciones', nombre: 'Notificaciones', icono: 'Bell', path: '/cobranzas/notificaciones', roles: ['COBRADOR'] },
@@ -109,7 +109,7 @@ export const permisosPorRol: Record<Rol, ModuloPermiso[]> = {
   ],
 
   CONTADOR: [
-    { id: 'dashboard', nombre: 'Dashboard', icono: 'Eye', path: '/admin', roles: ['CONTADOR'] },
+    { id: 'dashboard', nombre: 'Dashboard', icono: 'LayoutDashboard', path: '/admin', roles: ['CONTADOR'] },
     { id: 'contable', nombre: 'Módulo contable', icono: 'PieChart', path: '/admin/contable', roles: ['CONTADOR'] },
     { id: 'tesoreria', nombre: 'Tesorería', icono: 'CreditCard', path: '/admin/tesoreria', roles: ['CONTADOR'] },
     { id: 'articulos', nombre: 'Artículos (Inventario)', icono: 'Package', path: '/admin/articulos', roles: ['CONTADOR'] },
@@ -124,6 +124,8 @@ export const permisosPorRol: Record<Rol, ModuloPermiso[]> = {
 // Mapa de iconos de Lucide React
 import {
   Eye,
+  Home,
+  LayoutDashboard,
   Bell,
   CreditCard,
   ShoppingBag,
@@ -156,6 +158,8 @@ import {
 
 export const iconosMap: Record<string, React.ReactNode> = {
   'Eye': <Eye className="h-4 w-4" />,
+  'Home': <Home className="h-4 w-4" />,
+  'LayoutDashboard': <LayoutDashboard className="h-4 w-4" />,
   'Bell': <Bell className="h-4 w-4" />,
   'CreditCard': <CreditCard className="h-4 w-4" />,
   'ShoppingBag': <ShoppingBag className="h-4 w-4" />,

@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 
 import { clientesService, CrearClienteDto } from '@/services/clientes-service';
 import { Save, User, Phone, Mail, MapPin, Briefcase, Shield, AlertCircle, ChevronRight, ArrowLeft, Camera } from 'lucide-react';
@@ -51,6 +51,7 @@ const ScoreMeter = ({ score }: { score: number }) => {
 
 const ClienteFormPage = () => {
   const router = useRouter();
+  const pathname = usePathname();
   const [isEditMode] = useState(false);
   const [activeSection, setActiveSection] = useState('personal');
 
@@ -119,7 +120,14 @@ const ClienteFormPage = () => {
           }
           await clientesService.crearCliente(nuevoCliente)
           alert('Cliente creado exitosamente')
-          router.push('/admin/clientes')
+
+          const destino = pathname?.startsWith('/supervisor')
+            ? '/supervisor/clientes'
+            : pathname?.startsWith('/cobranzas')
+              ? '/cobranzas'
+              : '/admin/clientes'
+
+          router.push(destino)
         } catch (error) {
           console.error('Error al crear cliente:', error)
           alert('Error al crear el cliente. Verifique los datos.')

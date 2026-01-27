@@ -840,7 +840,7 @@ const VistaCobrador = () => {
             const ROLE_REDIRECT_MAP: Record<RolUsuario, string> = {
               SUPER_ADMINISTRADOR: '/admin',
               COORDINADOR: '/coordinador',
-              SUPERVISOR: '/supervision',
+              SUPERVISOR: '/supervisor',
               COBRADOR: '/cobranzas',
               CONTADOR: '/contabilidad',
             };

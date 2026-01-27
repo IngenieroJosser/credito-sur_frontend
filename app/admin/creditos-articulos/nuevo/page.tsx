@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useMemo } from 'react';
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import {
   ArrowLeft, Package, User, CheckCircle, Search, Filter,
   Plus, Trash2, Calendar, DollarSign, ShoppingBag, AlertCircle
@@ -56,6 +56,7 @@ const PRODUCTOS_MOCK: Articulo[] = [
 
 export default function NuevoCreditoArticuloPage() {
   const router = useRouter();
+  const pathname = usePathname();
   const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
   const [animating, setAnimating] = useState(false);
 
@@ -211,7 +212,8 @@ export default function NuevoCreditoArticuloPage() {
 
   const confirmarCredito = () => {
     alert('Crédito creado exitosamente (Simulación)');
-    router.push('/admin/creditos-articulos');
+    const destino = pathname?.startsWith('/supervisor') ? '/supervisor' : '/admin/creditos-articulos'
+    router.push(destino);
   };
 
   const getAvatarColor = (id: string) => {
