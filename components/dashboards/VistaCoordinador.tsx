@@ -241,9 +241,16 @@ const VistaCoordinador = () => {
   };
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8">
-      {/* Encabezado del dashboard */}
-      <div className="mb-8">
+    <div className="min-h-screen bg-slate-50 relative pb-20">
+      {/* Fondo arquitectónico */}
+      <div className="fixed inset-0 pointer-events-none">
+        <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px]" />
+        <div className="absolute left-0 right-0 top-0 -z-10 m-auto h-[310px] w-[310px] rounded-full bg-cyan-500 opacity-20 blur-[100px]" />
+      </div>
+
+      <div className="relative z-10 p-4 sm:p-6 lg:p-8">
+        {/* Encabezado del dashboard */}
+        <div className="mb-8">
         <div className="flex items-start justify-between">
           <div>
             <div className="flex items-center space-x-3 mb-2">
@@ -289,10 +296,10 @@ const VistaCoordinador = () => {
             );
           })}
         </div>
-      </div>
+        </div>
 
-      {/* Métricas principales */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+        {/* Métricas principales */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         {mainMetrics.map((metric, index) => (
           <div
             key={index}
@@ -336,12 +343,12 @@ const VistaCoordinador = () => {
             </div>
           </div>
         ))}
-      </div>
+        </div>
 
-      {/* Contenido principal */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-        {/* Columna izquierda: Aprobaciones y Acciones rápidas */}
-        <div className="lg:col-span-2 space-y-6">
+        {/* Contenido principal */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+          {/* Columna izquierda: Aprobaciones y Acciones rápidas */}
+          <div className="lg:col-span-2 space-y-6">
           {/* Bandeja de aprobaciones */}
           <div className="bg-white border border-gray-100 rounded-xl p-6">
             <div className="flex items-center justify-between mb-6">
@@ -645,27 +652,14 @@ const VistaCoordinador = () => {
       {/* Footer sutil */}
       <div className="mt-8 text-center">
         <p className="text-xs text-gray-400">
-          Actualizado en tiempo real • Última sincronización: {new Date().toLocaleTimeString('es-ES', { 
-            hour: '2-digit', 
-            minute: '2-digit' 
+          Actualizado en tiempo real • Última sincronización:{" "}
+          {new Date().toLocaleTimeString("es-ES", {
+            hour: "2-digit",
+            minute: "2-digit",
           })}
         </p>
       </div>
-
-      <style jsx>{`
-        @keyframes slideIn {
-          from { width: 0%; }
-          to { width: var(--target-width); }
-        }
-        
-        .hover\:shadow-lg {
-          transition: all 0.3s ease;
-        }
-        
-        .hover\:shadow-lg:hover {
-          box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 10px 10px -5px rgba(0, 0, 0, 0.02);
-        }
-      `}</style>
+      </div>
     </div>
   );
 };
