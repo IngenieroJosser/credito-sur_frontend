@@ -1,6 +1,5 @@
 'use client'
 
-import Link from 'next/link'
 import { useState } from 'react'
 import {
   Package,
@@ -14,9 +13,10 @@ import {
   Tag,
   DollarSign,
   Eye,
-  Pencil
+  Pencil,
+  XCircle
 } from 'lucide-react'
-import { formatCurrency } from '@/lib/utils'
+import { formatCOPInputValue, formatCurrency, parseCOPInputToNumber } from '@/lib/utils'
 
 // Mock Data
 interface PrecioCuota {
@@ -97,6 +97,26 @@ export default function ArticulosPage() {
   const [articulos, setArticulos] = useState<Articulo[]>(ARTICULOS_MOCK)
   const [busqueda, setBusqueda] = useState('')
 
+  const [showNuevoModal, setShowNuevoModal] = useState(false)
+  const [showEditarModal, setShowEditarModal] = useState(false)
+  const [showDetalleModal, setShowDetalleModal] = useState(false)
+  const [articuloSeleccionado, setArticuloSeleccionado] = useState<Articulo | null>(null)
+
+  const [formData, setFormData] = useState({
+    nombre: '',
+    codigo: '',
+    descripcion: '',
+    categoria: '',
+    marca: '',
+    modelo: '',
+    costo: '',
+    stock: '',
+    stockMinimo: '',
+    precios: [] as PrecioCuota[],
+  })
+
+  const [nuevaCuota, setNuevaCuota] = useState({ meses: 1, precio: '' })
+
   const articulosFiltrados = articulos.filter(
     (a) =>
       a.nombre.toLowerCase().includes(busqueda.toLowerCase()) ||
@@ -108,6 +128,92 @@ export default function ArticulosPage() {
     if (window.confirm('¿Estás seguro de eliminar este artículo?')) {
       setArticulos(articulos.filter((a) => a.id !== id))
     }
+  }
+
+  const openNuevo = () => {
+    setArticuloSeleccionado(null)
+    setFormData({
+      nombre: '',
+      codigo: '',
+      descripcion: '',
+      categoria: '',
+      marca: '',
+      modelo: '',
+      costo: '',
+      stock: '',
+      stockMinimo: '',
+      precios: [],
+    })
+    setNuevaCuota({ meses: 1, precio: '' })
+    setShowNuevoModal(true)
+  }
+
+  const openDetalle = (articulo: Articulo) => {
+    setArticuloSeleccionado(articulo)
+    setShowDetalleModal(true)
+  }
+
+  const openEditar = (articulo: Articulo) => {
+    setArticuloSeleccionado(articulo)
+    setFormData({
+      nombre: articulo.nombre,
+      codigo: articulo.codigo,
+      descripcion: articulo.descripcion || '',
+      categoria: articulo.categoria,
+      marca: articulo.marca,
+      modelo: articulo.modelo,
+      costo: String(articulo.costo),
+      stock: String(articulo.stock),
+      stockMinimo: String(articulo.stockMinimo),
+      precios: [...articulo.precios],
+    })
+    setNuevaCuota({ meses: 1, precio: '' })
+    setShowEditarModal(true)
+  }
+
+  const addPrecioCuota = () => {
+    const precio = parseCOPInputToNumber(nuevaCuota.precio)
+    if (nuevaCuota.meses > 0 && precio > 0) {
+      setFormData((prev) => ({
+        ...prev,
+        precios: [...prev.precios, { meses: nuevaCuota.meses, precio }].sort((a, b) => a.meses - b.meses),
+      }))
+      setNuevaCuota({ meses: 1, precio: '' })
+    }
+  }
+
+  const removePrecioCuota = (index: number) => {
+    setFormData((prev) => ({
+      ...prev,
+      precios: prev.precios.filter((_, i) => i !== index),
+    }))
+  }
+
+  const handleGuardar = () => {
+    const payload: Articulo = {
+      id: articuloSeleccionado?.id ?? String(Date.now()),
+      nombre: formData.nombre,
+      codigo: formData.codigo,
+      descripcion: formData.descripcion || undefined,
+      categoria: formData.categoria,
+      marca: formData.marca,
+      modelo: formData.modelo,
+      costo: parseCOPInputToNumber(formData.costo),
+      stock: Number(formData.stock || '0'),
+      stockMinimo: Number(formData.stockMinimo || '0'),
+      estado: 'activo',
+      precios: formData.precios,
+    }
+
+    setArticulos((prev) => {
+      const exists = prev.some((a) => a.id === payload.id)
+      if (!exists) return [payload, ...prev]
+      return prev.map((a) => (a.id === payload.id ? payload : a))
+    })
+
+    setShowNuevoModal(false)
+    setShowEditarModal(false)
+    setArticuloSeleccionado(null)
   }
 
   return (
@@ -133,13 +239,14 @@ export default function ArticulosPage() {
                 Gestiona el inventario, costos y precios de venta.
               </p>
             </div>
-            <Link
-              href="/admin/articulos/nuevo"
+            <button
+              type="button"
+              onClick={openNuevo}
               className="inline-flex items-center gap-2 px-6 py-2.5 bg-white border border-slate-300 text-slate-700 rounded-xl hover:border-slate-400 hover:bg-slate-50 transition-all duration-200 shadow-sm font-bold text-sm group"
             >
               <Plus className="w-4 h-4 text-slate-500 group-hover:text-slate-900 transition-colors" />
               <span>Nuevo Artículo</span>
-            </Link>
+            </button>
         </header>
 
         <div className="space-y-8">
@@ -283,20 +390,22 @@ export default function ArticulosPage() {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right">
                       <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <Link 
-                          href={`/admin/articulos/${articulo.id}`}
+                        <button 
+                          type="button"
+                          onClick={() => openDetalle(articulo)}
                           className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
                           title="Ver detalle"
                         >
                           <Eye className="w-4 h-4" />
-                        </Link>
-                        <Link 
-                          href={`/admin/articulos/${articulo.id}/editar`}
+                        </button>
+                        <button 
+                          type="button"
+                          onClick={() => openEditar(articulo)}
                           className="p-2 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
                           title="Editar"
                         >
                           <Pencil className="w-4 h-4" />
-                        </Link>
+                        </button>
                         <button 
                           onClick={() => handleEliminar(articulo.id)}
                           className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
@@ -329,6 +438,303 @@ export default function ArticulosPage() {
         </div>
       </div>
       </div>
+
+      {(showNuevoModal || showEditarModal) && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/40">
+          <div className="w-full max-w-4xl rounded-2xl bg-white border border-slate-200 shadow-2xl overflow-hidden">
+            <div className="p-6 border-b border-slate-100 flex items-center justify-between">
+              <div>
+                <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Inventario</p>
+                <h3 className="text-lg font-bold text-slate-900">
+                  {showEditarModal ? 'Editar Artículo' : 'Nuevo Artículo'}
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowNuevoModal(false)
+                  setShowEditarModal(false)
+                  setArticuloSeleccionado(null)
+                }}
+                className="p-2 rounded-xl hover:bg-slate-100 text-slate-500"
+              >
+                <XCircle className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-6 max-h-[75vh] overflow-y-auto">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="md:col-span-2 space-y-2">
+                  <label className="text-sm font-bold text-slate-700">Nombre</label>
+                  <input
+                    value={formData.nombre}
+                    onChange={(e) => setFormData((p) => ({ ...p, nombre: e.target.value }))}
+                    className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-900"
+                    placeholder='Ej: Televisor Smart TV 50"'
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-bold text-slate-700">Código</label>
+                  <input
+                    value={formData.codigo}
+                    onChange={(e) => setFormData((p) => ({ ...p, codigo: e.target.value }))}
+                    className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-900"
+                    placeholder="SKU"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-bold text-slate-700">Categoría</label>
+                  <input
+                    value={formData.categoria}
+                    onChange={(e) => setFormData((p) => ({ ...p, categoria: e.target.value }))}
+                    className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-900"
+                    placeholder="Ej: Electrónica"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-bold text-slate-700">Marca</label>
+                  <input
+                    value={formData.marca}
+                    onChange={(e) => setFormData((p) => ({ ...p, marca: e.target.value }))}
+                    className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-900"
+                    placeholder="Ej: Samsung"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-bold text-slate-700">Modelo</label>
+                  <input
+                    value={formData.modelo}
+                    onChange={(e) => setFormData((p) => ({ ...p, modelo: e.target.value }))}
+                    className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-900"
+                    placeholder="Ej: UN50AU7000"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-bold text-slate-700">Costo</label>
+                  <div className="relative">
+                    <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      value={formData.costo}
+                      onChange={(e) => setFormData((p) => ({ ...p, costo: formatCOPInputValue(e.target.value) }))}
+                      className="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-200 bg-white font-bold text-slate-900"
+                      placeholder="0"
+                    />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-bold text-slate-700">Stock</label>
+                  <input
+                    inputMode="numeric"
+                    value={formData.stock}
+                    onChange={(e) => setFormData((p) => ({ ...p, stock: e.target.value.replace(/\D/g, '') }))}
+                    className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-900"
+                    placeholder="0"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-bold text-slate-700">Stock mínimo</label>
+                  <input
+                    inputMode="numeric"
+                    value={formData.stockMinimo}
+                    onChange={(e) => setFormData((p) => ({ ...p, stockMinimo: e.target.value.replace(/\D/g, '') }))}
+                    className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-900"
+                    placeholder="0"
+                  />
+                </div>
+                <div className="md:col-span-2 space-y-2">
+                  <label className="text-sm font-bold text-slate-700">Descripción</label>
+                  <textarea
+                    value={formData.descripcion}
+                    onChange={(e) => setFormData((p) => ({ ...p, descripcion: e.target.value }))}
+                    className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-900 resize-none h-24"
+                    placeholder="Detalles adicionales..."
+                  />
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
+                <div className="flex items-center justify-between gap-3 mb-4">
+                  <div>
+                    <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Precios a crédito</p>
+                    <p className="text-sm font-bold text-slate-900">Opciones de cuotas</p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <select
+                      value={nuevaCuota.meses}
+                      onChange={(e) => setNuevaCuota((p) => ({ ...p, meses: Number(e.target.value) }))}
+                      className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-slate-900"
+                    >
+                      {[1, 2, 3, 4, 5, 6, 9, 12, 18, 24].map((m) => (
+                        <option key={m} value={m}>
+                          {m} mes{m > 1 ? 'es' : ''}
+                        </option>
+                      ))}
+                    </select>
+                    <div className="relative">
+                      <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        value={nuevaCuota.precio}
+                        onChange={(e) => setNuevaCuota((p) => ({ ...p, precio: formatCOPInputValue(e.target.value) }))}
+                        className="w-44 pl-10 pr-4 py-2 rounded-xl border border-slate-200 bg-white font-bold text-slate-900"
+                        placeholder="0"
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={addPrecioCuota}
+                      className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-orange-500 text-white text-sm font-bold hover:bg-orange-600"
+                    >
+                      <Plus className="h-4 w-4" />
+                      Agregar
+                    </button>
+                  </div>
+                </div>
+
+                {formData.precios.length === 0 ? (
+                  <div className="text-sm font-medium text-slate-500">Aún no hay precios por cuotas.</div>
+                ) : (
+                  <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+                    <div className="divide-y divide-slate-100">
+                      {formData.precios.map((p, idx) => (
+                        <div key={`${p.meses}-${idx}`} className="flex items-center justify-between px-4 py-3">
+                          <div className="text-sm font-bold text-slate-900">{p.meses} meses</div>
+                          <div className="flex items-center gap-3">
+                            <div className="text-sm font-bold text-slate-900">{formatCurrency(p.precio)}</div>
+                            <button
+                              type="button"
+                              onClick={() => removePrecioCuota(idx)}
+                              className="p-2 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="p-6 border-t border-slate-100 bg-slate-50/50 flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowNuevoModal(false)
+                  setShowEditarModal(false)
+                  setArticuloSeleccionado(null)
+                }}
+                className="px-5 py-3 rounded-xl border border-slate-200 bg-white text-sm font-bold text-slate-700 hover:bg-slate-50"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={handleGuardar}
+                className="px-6 py-3 rounded-xl bg-blue-600 text-white text-sm font-bold hover:bg-blue-700"
+              >
+                Guardar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showDetalleModal && articuloSeleccionado && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/40">
+          <div className="w-full max-w-2xl rounded-2xl bg-white border border-slate-200 shadow-2xl overflow-hidden">
+            <div className="p-6 border-b border-slate-100 flex items-center justify-between">
+              <div>
+                <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Inventario</p>
+                <h3 className="text-lg font-bold text-slate-900">Detalle del Artículo</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowDetalleModal(false)
+                  setArticuloSeleccionado(null)
+                }}
+                className="p-2 rounded-xl hover:bg-slate-100 text-slate-500"
+              >
+                <XCircle className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-5">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <div className="text-xs font-bold text-slate-500 uppercase">Artículo</div>
+                  <div className="text-xl font-bold text-slate-900">{articuloSeleccionado.nombre}</div>
+                  <div className="text-xs text-slate-500 font-mono">SKU: {articuloSeleccionado.codigo}</div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowDetalleModal(false)
+                    openEditar(articuloSeleccionado)
+                  }}
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-slate-200 bg-white text-sm font-bold text-slate-700 hover:bg-slate-50"
+                >
+                  <Pencil className="h-4 w-4" />
+                  Editar
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="p-4 rounded-xl border border-slate-200 bg-slate-50">
+                  <div className="text-xs font-bold text-slate-500 uppercase">Categoría</div>
+                  <div className="mt-1 font-bold text-slate-900">{articuloSeleccionado.categoria}</div>
+                </div>
+                <div className="p-4 rounded-xl border border-slate-200 bg-slate-50">
+                  <div className="text-xs font-bold text-slate-500 uppercase">Marca / Modelo</div>
+                  <div className="mt-1 font-bold text-slate-900">{articuloSeleccionado.marca} {articuloSeleccionado.modelo}</div>
+                </div>
+                <div className="p-4 rounded-xl border border-slate-200 bg-slate-50">
+                  <div className="text-xs font-bold text-slate-500 uppercase">Costo</div>
+                  <div className="mt-1 font-bold text-slate-900">{formatCurrency(articuloSeleccionado.costo)}</div>
+                </div>
+                <div className="p-4 rounded-xl border border-slate-200 bg-slate-50">
+                  <div className="text-xs font-bold text-slate-500 uppercase">Stock</div>
+                  <div className="mt-1 font-bold text-slate-900">{articuloSeleccionado.stock} un.</div>
+                </div>
+              </div>
+
+              <div>
+                <div className="text-xs font-bold text-slate-500 uppercase">Precios a crédito</div>
+                {articuloSeleccionado.precios.length === 0 ? (
+                  <div className="mt-2 text-sm font-medium text-slate-500">Sin opciones registradas.</div>
+                ) : (
+                  <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {articuloSeleccionado.precios.map((p, idx) => (
+                      <div key={`${p.meses}-${idx}`} className="p-4 rounded-xl border border-slate-200 bg-white">
+                        <div className="text-xs font-bold text-slate-500 uppercase">{p.meses} meses</div>
+                        <div className="mt-1 font-bold text-slate-900">{formatCurrency(p.precio)}</div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="p-6 border-t border-slate-100 bg-slate-50/50 flex justify-end">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowDetalleModal(false)
+                  setArticuloSeleccionado(null)
+                }}
+                className="px-5 py-3 rounded-xl border border-slate-200 bg-white text-sm font-bold text-slate-700 hover:bg-slate-50"
+              >
+                Cerrar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
 
     </div>

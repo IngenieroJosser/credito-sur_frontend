@@ -15,7 +15,7 @@ import {
   Pencil,
   Save
 } from 'lucide-react'
-import { formatCurrency, cn } from '@/lib/utils'
+import { formatCOPInputValue, formatCurrency, cn } from '@/lib/utils'
 import Link from 'next/link'
 import { useParams } from 'next/navigation'
 
@@ -426,13 +426,14 @@ const DetalleRutaPage = () => {
                 <div className="relative">
                   <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold">$</span>
                   <input 
-                    type="number" 
+                    type="text" 
+                    inputMode="numeric"
                     required
                     min="0"
                     className="w-full pl-8 pr-4 py-2.5 rounded-xl border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-blue-600/20 focus:border-blue-600 transition-all font-medium text-slate-900"
                     placeholder="0"
                     value={nuevoGasto.valor}
-                    onChange={e => setNuevoGasto({...nuevoGasto, valor: e.target.value})}
+                    onChange={e => setNuevoGasto({ ...nuevoGasto, valor: formatCOPInputValue(e.target.value) })}
                   />
                 </div>
               </div>

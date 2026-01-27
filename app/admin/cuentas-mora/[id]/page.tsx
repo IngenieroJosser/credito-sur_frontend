@@ -5,7 +5,6 @@ import Link from 'next/link'
 import { 
   ChevronLeft, 
   AlertCircle, 
-  Calendar, 
   DollarSign, 
   Phone, 
   MapPin, 
@@ -13,7 +12,6 @@ import {
   Clock, 
   FileText,
   User,
-  LayoutList,
   CalendarDays,
   Send,
   MessageSquare,
@@ -291,7 +289,8 @@ export default function DetalleCuentaMoraPage({ params }: { params: Promise<{ id
                                     <div className="relative">
                                         <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                                         <input 
-                                            type="number" 
+                                            type="text" 
+                                            inputMode="numeric"
                                             placeholder="0"
                                             className="w-full pl-9 pr-4 py-2 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 outline-none text-slate-900 font-medium placeholder:text-slate-400"
                                         />

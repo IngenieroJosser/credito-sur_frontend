@@ -6,7 +6,7 @@ import {
   ArrowLeft, Package, User, CheckCircle, Search, Filter,
   Plus, Trash2, Calendar, DollarSign, ShoppingBag, AlertCircle
 } from 'lucide-react';
-import { formatCurrency } from '@/lib/utils';
+import { formatCOPInputValue, formatCurrency, parseCOPInputToNumber, cn } from '@/lib/utils';
 
 // --- Tipos y Mocks ---
 
@@ -445,7 +445,7 @@ export default function NuevoCreditoArticuloPage() {
                 <div className="lg:col-span-1">
                   <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden sticky top-8">
                     <div className="p-4 bg-slate-50 border-b border-slate-200">
-                      <h3 className="font-bold text-slate-900 flex items-center gap-2">
+                      <h3 className="font-bold text-slate-900 mb-6 flex items-center gap-2">
                         <ShoppingBag className="w-4 h-4 text-blue-600" />
                         Artículos Seleccionados
                       </h3>
@@ -537,9 +537,10 @@ export default function NuevoCreditoArticuloPage() {
                         <div className="relative">
                           <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                           <input
-                            type="number"
-                            value={cuotaInicial}
-                            onChange={(e) => setCuotaInicial(Number(e.target.value))}
+                            type="text"
+                            inputMode="numeric"
+                            value={cuotaInicial ? formatCOPInputValue(String(cuotaInicial)) : ''}
+                            onChange={(e) => setCuotaInicial(parseCOPInputToNumber(e.target.value))}
                             className="w-full pl-10 pr-4 py-2.5 rounded-xl border-slate-200 bg-slate-50 font-medium text-slate-900 focus:ring-2 focus:ring-blue-500/20"
                           />
                         </div>

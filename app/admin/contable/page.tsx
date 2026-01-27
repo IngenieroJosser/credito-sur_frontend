@@ -1,7 +1,8 @@
 'use client'
 
 import React, { useState, Suspense } from 'react'
-import { useSearchParams } from 'next/navigation'
+import { createPortal } from 'react-dom'
+import { usePathname, useSearchParams } from 'next/navigation'
 import {
   DollarSign,
   TrendingUp,
@@ -27,7 +28,7 @@ import {
   Receipt
 } from 'lucide-react'
 import Link from 'next/link'
-import { formatCurrency, cn } from '@/lib/utils'
+import { formatCOPInputValue, formatCurrency, formatMilesCOP, parseCOPInputToNumber, cn } from '@/lib/utils'
 import { ExportButton } from '@/components/ui/ExportButton'
 
 // Interfaces alineadas con el dominio
@@ -35,6 +36,7 @@ interface Caja {
   id: string
   nombre: string
   tipo: 'PRINCIPAL' | 'RUTA'
+  rutaId?: string
   responsable: string
   saldo: number
   estado: 'ABIERTA' | 'CERRADA'
@@ -71,8 +73,16 @@ interface ResumenFinanciero {
   cajaActual: number
 }
 
+type RutaResumen = {
+  id: string
+  nombre: string
+  responsable: string
+}
+
 const ModuloContableContent = () => {
   const searchParams = useSearchParams()
+  const pathname = usePathname()
+  const basePath = pathname?.startsWith('/contador') ? '/contador' : '/admin'
   const tabParam = searchParams.get('tab')
   const validTabs = ['MOVIMIENTOS', 'CAJAS', 'HISTORIAL']
   const initialTab = validTabs.includes(tabParam || '') ? (tabParam as 'MOVIMIENTOS' | 'CAJAS' | 'HISTORIAL') : 'CAJAS'
@@ -81,8 +91,19 @@ const ModuloContableContent = () => {
   const [busqueda, setBusqueda] = useState('')
   const [filtroTipo, setFiltroTipo] = useState<'TODOS' | 'INGRESO' | 'EGRESO'>('TODOS')
 
+  const [showCrearCajaModal, setShowCrearCajaModal] = useState(false)
+  const [showEditarCajaModal, setShowEditarCajaModal] = useState(false)
+  const [showRegistrarMovimientoModal, setShowRegistrarMovimientoModal] = useState(false)
+  const [cajaSeleccionada, setCajaSeleccionada] = useState<Caja | null>(null)
+
+  const rutasDisponibles: RutaResumen[] = [
+    { id: 'RUTA-NORTE', nombre: 'Ruta Norte', responsable: 'Carlos Cobrador' },
+    { id: 'RUTA-SUR', nombre: 'Ruta Sur', responsable: 'Pedro Supervisor' },
+    { id: 'RUTA-CENTRO', nombre: 'Ruta Centro', responsable: 'Ana Admin' },
+  ]
+
   // Mock Data: Cajas
-  const [cajas] = useState<Caja[]>([
+  const [cajas, setCajas] = useState<Caja[]>([
     {
       id: 'CAJA-MAIN',
       nombre: 'Caja Principal Oficina',
@@ -96,6 +117,7 @@ const ModuloContableContent = () => {
       id: 'CAJA-R1',
       nombre: 'Caja Ruta Norte',
       tipo: 'RUTA',
+      rutaId: 'RUTA-NORTE',
       responsable: 'Carlos Cobrador',
       saldo: 850000,
       estado: 'ABIERTA',
@@ -105,12 +127,29 @@ const ModuloContableContent = () => {
       id: 'CAJA-R2',
       nombre: 'Caja Ruta Sur',
       tipo: 'RUTA',
+      rutaId: 'RUTA-SUR',
       responsable: 'Pedro Supervisor',
       saldo: 120000,
       estado: 'CERRADA',
       ultimaActualizacion: 'Ayer 6:00 PM'
     }
   ])
+
+  const [crearCajaForm, setCrearCajaForm] = useState({
+    tipo: 'RUTA' as Caja['tipo'],
+    nombre: '',
+    rutaId: '',
+    responsable: '',
+    saldoInicialInput: '',
+  })
+
+  const [editarCajaForm, setEditarCajaForm] = useState({
+    nombre: '',
+    responsable: '',
+    estado: 'ABIERTA' as Caja['estado'],
+    saldoInput: '',
+    rutaId: '',
+  })
 
   // Mock Data: Historial Cierres
   const [historialCierres] = useState<HistorialCierre[]>([
@@ -163,7 +202,7 @@ const ModuloContableContent = () => {
     cajaActual: 5200000
   })
 
-  const [movimientos] = useState<MovimientoContable[]>([
+  const [movimientos, setMovimientos] = useState<MovimientoContable[]>([
     {
       id: 'MOV-001',
       fecha: '2026-01-20T10:00:00.000Z', // Fixed date for consistency
@@ -211,6 +250,28 @@ const ModuloContableContent = () => {
     }
   ])
 
+  const categoriasIngreso = [
+    { id: 'APORTE_CAPITAL', label: 'Aporte de Capital' },
+    { id: 'AJUSTE_POSITIVO', label: 'Ajuste de Caja (+)' },
+    { id: 'OTROS_INGRESOS', label: 'Otros Ingresos' },
+  ]
+
+  const categoriasEgreso = [
+    { id: 'GASTO_OPERATIVO', label: 'Gasto Operativo (Transporte, Comida)' },
+    { id: 'GASTO_ADMINISTRATIVO', label: 'Gasto Administrativo (Papelería, Servicios)' },
+    { id: 'BASE_COBRADOR', label: 'Entrega Base a Cobrador' },
+    { id: 'RETIRO_UTILIDADES', label: 'Retiro de Utilidades' },
+  ]
+
+  const [movimientoForm, setMovimientoForm] = useState({
+    tipo: 'INGRESO' as MovimientoContable['tipo'],
+    categoria: '',
+    montoInput: '',
+    concepto: '',
+    referencia: '',
+    cajaId: 'CAJA-MAIN',
+  })
+
   // Filtrado de movimientos
   const movimientosFiltrados = movimientos.filter(mov => {
     const cumpleBusqueda = 
@@ -222,6 +283,113 @@ const ModuloContableContent = () => {
 
     return cumpleBusqueda && cumpleTipo
   })
+
+  const openCrearCaja = () => {
+    setCrearCajaForm({
+      tipo: 'RUTA',
+      nombre: '',
+      rutaId: '',
+      responsable: '',
+      saldoInicialInput: '',
+    })
+    setShowCrearCajaModal(true)
+  }
+
+  const handleCrearCaja = () => {
+    const now = new Date().toISOString()
+    const saldo = parseCOPInputToNumber(crearCajaForm.saldoInicialInput)
+    const ruta = rutasDisponibles.find((r) => r.id === crearCajaForm.rutaId)
+
+    const nuevaCaja: Caja = {
+      id: `CAJA-${Date.now()}`,
+      nombre:
+        crearCajaForm.nombre.trim() ||
+        (crearCajaForm.tipo === 'PRINCIPAL'
+          ? 'Caja Principal'
+          : `Caja ${ruta?.nombre ?? 'Ruta'}`),
+      tipo: crearCajaForm.tipo,
+      rutaId: crearCajaForm.tipo === 'RUTA' ? (crearCajaForm.rutaId || undefined) : undefined,
+      responsable:
+        crearCajaForm.responsable.trim() ||
+        (crearCajaForm.tipo === 'RUTA' ? ruta?.responsable ?? 'Sin asignar' : 'Oficina'),
+      saldo,
+      estado: 'ABIERTA',
+      ultimaActualizacion: `Creada ${new Date(now).toLocaleDateString('es-CO')}`,
+    }
+
+    setCajas((prev) => [nuevaCaja, ...prev])
+    setShowCrearCajaModal(false)
+  }
+
+  const openEditarCaja = (caja: Caja) => {
+    setCajaSeleccionada(caja)
+    setEditarCajaForm({
+      nombre: caja.nombre,
+      responsable: caja.responsable,
+      estado: caja.estado,
+      saldoInput: caja.saldo ? formatMilesCOP(caja.saldo) : '',
+      rutaId: caja.rutaId ?? '',
+    })
+    setShowEditarCajaModal(true)
+  }
+
+  const handleEditarCaja = () => {
+    if (!cajaSeleccionada) return
+    const saldo = parseCOPInputToNumber(editarCajaForm.saldoInput)
+
+    setCajas((prev) =>
+      prev.map((c) =>
+        c.id === cajaSeleccionada.id
+          ? {
+              ...c,
+              nombre: editarCajaForm.nombre,
+              responsable: editarCajaForm.responsable,
+              estado: editarCajaForm.estado,
+              saldo,
+              rutaId: c.tipo === 'RUTA' ? (editarCajaForm.rutaId || undefined) : undefined,
+              ultimaActualizacion: 'Actualizada hace 1 min',
+            }
+          : c
+      )
+    )
+    setShowEditarCajaModal(false)
+    setCajaSeleccionada(null)
+  }
+
+  const openRegistrarMovimiento = () => {
+    setMovimientoForm({
+      tipo: 'INGRESO',
+      categoria: '',
+      montoInput: '',
+      concepto: '',
+      referencia: '',
+      cajaId: 'CAJA-MAIN',
+    })
+    setShowRegistrarMovimientoModal(true)
+  }
+
+  const handleRegistrarMovimiento = () => {
+    const monto = parseCOPInputToNumber(movimientoForm.montoInput)
+    if (!monto || !movimientoForm.categoria || !movimientoForm.concepto.trim()) return
+
+    const nuevo: MovimientoContable = {
+      id: `MOV-${Date.now()}`,
+      fecha: new Date().toISOString(),
+      concepto: movimientoForm.concepto,
+      tipo: movimientoForm.tipo,
+      monto,
+      categoria: movimientoForm.categoria,
+      responsable: 'Contador',
+      referencia: movimientoForm.referencia || undefined,
+    }
+    setMovimientos((prev) => [nuevo, ...prev])
+    setShowRegistrarMovimientoModal(false)
+  }
+
+  const renderInPortal = (node: React.ReactNode) => {
+    if (typeof document === 'undefined') return null
+    return createPortal(node, document.body)
+  }
 
   return (
     <div className="min-h-screen bg-slate-50 relative">
@@ -253,18 +421,26 @@ const ModuloContableContent = () => {
                 onExportExcel={handleExportExcel} 
                 onExportPDF={handleExportPDF} 
               />
+              <button
+                type="button"
+                onClick={() => setShowCrearCajaModal(true)}
+                className="inline-flex items-center gap-2 rounded-xl bg-slate-900 px-5 py-2.5 text-sm font-bold text-white hover:bg-slate-800 transition-all shadow-lg shadow-slate-900/20 transform active:scale-95"
+              >
+                <Plus className="h-4 w-4" />
+                Crear Caja
+              </button>
               <Link 
-                href="/admin/contable/cierre-caja"
+                href={`${basePath}/contable/cierre-caja`}
                 className="inline-flex items-center gap-2 rounded-xl bg-orange-500 px-5 py-2.5 text-sm font-bold text-white hover:bg-orange-600 transition-all shadow-lg shadow-orange-500/20 transform active:scale-95"
               >
                 <Calendar className="h-4 w-4" />
-                Cierre de Caja
+                Cierre Diario de Caja
               </Link>
             </div>
         </header>
 
         {/* Tarjetas de Resumen Minimalistas */}
-        <section className="grid gap-6 md:grid-cols-4">
+        <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-6">
           <div className="group relative overflow-hidden rounded-2xl bg-white/80 backdrop-blur-sm p-6 border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all">
             <div className="flex items-center justify-between mb-4">
               <div className="text-xs font-bold uppercase tracking-wider text-slate-500">
@@ -304,17 +480,17 @@ const ModuloContableContent = () => {
           <div className="group relative overflow-hidden rounded-2xl bg-white/80 backdrop-blur-sm p-6 border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all">
             <div className="flex items-center justify-between mb-4">
               <div className="text-xs font-bold uppercase tracking-wider text-slate-500">
-                Utilidad Neta
+                Inventario Activo
               </div>
               <div className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-100 text-slate-600 border border-slate-200">
                 <PieChart className="h-4 w-4" />
               </div>
             </div>
             <div className="text-2xl font-bold text-slate-900 tracking-tight">
-              {formatCurrency(resumenData.utilidadNeta)}
+              {formatCurrency(185000000)}
             </div>
             <div className="mt-2 text-xs text-slate-500 font-medium">
-              Margen operativo saludable
+              Valor estimado
             </div>
           </div>
 
@@ -334,323 +510,564 @@ const ModuloContableContent = () => {
               Disponible inmediato
             </div>
           </div>
+
+          <div className="group relative overflow-hidden rounded-2xl bg-white/80 backdrop-blur-sm p-6 border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all">
+            <div className="flex items-center justify-between mb-4">
+              <div className="text-xs font-bold uppercase tracking-wider text-slate-500">
+                Cajas Abiertas
+              </div>
+              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-50 text-blue-600 border border-blue-100">
+                <Briefcase className="h-4 w-4" />
+              </div>
+            </div>
+            <div className="text-2xl font-bold text-slate-900 tracking-tight">
+              {cajas.filter((c) => c.estado === 'ABIERTA').length}
+            </div>
+            <div className="mt-2 text-xs text-slate-500 font-medium">
+              Operativas hoy
+            </div>
+          </div>
+
+          <div className="group relative overflow-hidden rounded-2xl bg-white/80 backdrop-blur-sm p-6 border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all">
+            <div className="flex items-center justify-between mb-4">
+              <div className="text-xs font-bold uppercase tracking-wider text-slate-500">
+                Cierres Registrados
+              </div>
+              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-orange-50 text-orange-600 border border-orange-100">
+                <History className="h-4 w-4" />
+              </div>
+            </div>
+            <div className="text-2xl font-bold text-slate-900 tracking-tight">
+              {historialCierres.length}
+            </div>
+            <div className="mt-2 text-xs text-slate-500 font-medium">
+              En historial
+            </div>
+          </div>
         </section>
 
-        {/* Tabs de Navegación Clean */}
-        <div className="border-b border-slate-200">
-          <nav className="-mb-px flex gap-8">
-            <button
-              onClick={() => setActiveTab('CAJAS')}
-              className={cn(
-                "py-4 text-sm font-bold border-b-2 transition-all flex items-center gap-2",
-                activeTab === 'CAJAS' 
-                  ? "border-slate-900 text-slate-900" 
-                  : "border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300"
-              )}
-            >
-              <Wallet className="h-4 w-4" />
-              Control de Cajas
-            </button>
-            <button
-              onClick={() => setActiveTab('MOVIMIENTOS')}
-              className={cn(
-                "py-4 text-sm font-bold border-b-2 transition-all flex items-center gap-2",
-                activeTab === 'MOVIMIENTOS' 
-                  ? "border-slate-900 text-slate-900" 
-                  : "border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300"
-              )}
-            >
-              <FileText className="h-4 w-4" />
-              Movimientos
-            </button>
-            <button
-              onClick={() => setActiveTab('HISTORIAL')}
-              className={cn(
-                "py-4 text-sm font-bold border-b-2 transition-all flex items-center gap-2",
-                activeTab === 'HISTORIAL' 
-                  ? "border-slate-900 text-slate-900" 
-                  : "border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300"
-              )}
-            >
-              <History className="h-4 w-4" />
-              Historial de Cierres
-            </button>
-          </nav>
-        </div>
-
-        {/* Contenido Principal */}
-        {activeTab === 'CAJAS' && (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {cajas.map((caja) => (
-              <div key={caja.id} className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm hover:shadow-md transition-all group">
-                <div className="flex justify-between items-start mb-4">
-                  <div className={cn(
-                    "p-3 rounded-xl",
-                    caja.tipo === 'PRINCIPAL' ? "bg-blue-50 text-blue-600" : "bg-slate-100 text-slate-600"
-                  )}>
-                    <Wallet className="h-6 w-6" />
+        <section className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="rounded-2xl bg-white/80 backdrop-blur-sm border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden">
+            <div className="p-5 border-b border-slate-100 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Receipt className="h-4 w-4 text-blue-600" />
+                <div className="text-sm font-extrabold text-slate-900">Movimientos recientes</div>
+              </div>
+              <button
+                type="button"
+                onClick={openRegistrarMovimiento}
+                className="inline-flex items-center gap-2 rounded-xl bg-slate-900 px-4 py-2 text-xs font-bold text-white hover:bg-slate-800"
+              >
+                <Plus className="h-4 w-4" />
+                Nuevo
+              </button>
+            </div>
+            <div className="divide-y divide-slate-100">
+              {movimientos.slice(0, 6).map((m) => (
+                <div key={m.id} className="p-5 flex items-start justify-between gap-4">
+                  <div className="min-w-0">
+                    <div className="text-sm font-bold text-slate-900 truncate">{m.concepto}</div>
+                    <div className="mt-1 text-xs text-slate-500 font-medium">
+                      {new Date(m.fecha).toLocaleString('es-CO', {
+                        day: '2-digit',
+                        month: 'short',
+                        year: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      })}
+                      {m.categoria ? ` • ${m.categoria}` : ''}
+                    </div>
                   </div>
-                  <span className={cn(
-                    "px-2.5 py-1 rounded-full text-xs font-bold border",
-                    caja.estado === 'ABIERTA' 
-                      ? "bg-emerald-50 text-emerald-600 border-emerald-100" 
-                      : "bg-slate-100 text-slate-500 border-slate-200"
-                  )}>
-                    {caja.estado}
-                  </span>
+                  <div className="text-right shrink-0">
+                    <div className={cn(
+                      'inline-flex items-center rounded-full px-2 py-1 text-[10px] font-extrabold border',
+                      m.tipo === 'INGRESO'
+                        ? 'bg-emerald-50 text-emerald-700 border-emerald-100'
+                        : 'bg-rose-50 text-rose-700 border-rose-100'
+                    )}>
+                      {m.tipo}
+                    </div>
+                    <div className={cn(
+                      'mt-2 text-sm font-extrabold',
+                      m.tipo === 'INGRESO' ? 'text-emerald-700' : 'text-rose-700'
+                    )}>
+                      {m.tipo === 'INGRESO' ? '+' : '-'}{formatCurrency(m.monto)}
+                    </div>
+                  </div>
                 </div>
-                <h3 className="text-lg font-bold text-slate-900 mb-1">{caja.nombre}</h3>
-                <p className="text-sm text-slate-500 font-medium mb-4">{caja.responsable}</p>
-                <div className="flex items-baseline gap-1 mb-4">
-                  <span className="text-2xl font-bold text-slate-900">{formatCurrency(caja.saldo)}</span>
-                  <span className="text-xs text-slate-400 font-medium">COP</span>
+              ))}
+            </div>
+          </div>
+
+          <div className="rounded-2xl bg-white/80 backdrop-blur-sm border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden">
+            <div className="p-5 border-b border-slate-100 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Wallet className="h-4 w-4 text-orange-500" />
+                <div className="text-sm font-extrabold text-slate-900">Cajas</div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowCrearCajaModal(true)}
+                className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50"
+              >
+                <Plus className="h-4 w-4" />
+                Crear
+              </button>
+            </div>
+            <div className="divide-y divide-slate-100">
+              {cajas.slice(0, 6).map((c) => (
+                <button
+                  key={c.id}
+                  type="button"
+                  onClick={() => openEditarCaja(c)}
+                  className="w-full text-left p-5 hover:bg-slate-50 transition-colors"
+                >
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="min-w-0">
+                      <div className="text-sm font-extrabold text-slate-900 truncate">{c.nombre}</div>
+                      <div className="mt-1 text-xs text-slate-500 font-medium">{c.responsable}</div>
+                    </div>
+                    <div className="text-right shrink-0">
+                      <div className={cn(
+                        'inline-flex items-center rounded-full px-2 py-1 text-[10px] font-extrabold border',
+                        c.estado === 'ABIERTA'
+                          ? 'bg-emerald-50 text-emerald-700 border-emerald-100'
+                          : 'bg-slate-50 text-slate-700 border-slate-200'
+                      )}>
+                        {c.estado}
+                      </div>
+                      <div className="mt-2 text-sm font-extrabold text-slate-900">{formatCurrency(c.saldo)}</div>
+                    </div>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="rounded-2xl bg-white/80 backdrop-blur-sm border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden">
+            <div className="p-5 border-b border-slate-100 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <History className="h-4 w-4 text-slate-600" />
+                <div className="text-sm font-extrabold text-slate-900">Historial de cierres</div>
+              </div>
+              <div className="text-xs font-bold text-slate-500">{historialCierres.length} registros</div>
+            </div>
+            <div className="divide-y divide-slate-100">
+              {historialCierres.slice(0, 6).map((h) => (
+                <div key={h.id} className="p-5 flex items-start justify-between gap-4">
+                  <div className="min-w-0">
+                    <div className="text-sm font-extrabold text-slate-900 truncate">{h.caja}</div>
+                    <div className="mt-1 text-xs text-slate-500 font-medium">
+                      {new Date(h.fecha).toLocaleString('es-CO', {
+                        day: '2-digit',
+                        month: 'short',
+                        year: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      })}
+                      {h.responsable ? ` • ${h.responsable}` : ''}
+                    </div>
+                  </div>
+                  <div className="text-right shrink-0">
+                    <div className={cn(
+                      'inline-flex items-center rounded-full px-2 py-1 text-[10px] font-extrabold border',
+                      h.estado === 'CUADRADA'
+                        ? 'bg-emerald-50 text-emerald-700 border-emerald-100'
+                        : 'bg-amber-50 text-amber-800 border-amber-100'
+                    )}>
+                      {h.estado}
+                    </div>
+                    <div className={cn(
+                      'mt-2 text-sm font-extrabold',
+                      h.diferencia === 0 ? 'text-slate-900' : h.diferencia > 0 ? 'text-blue-700' : 'text-rose-700'
+                    )}>
+                      {h.diferencia === 0 ? formatCurrency(0) : h.diferencia > 0 ? `+${formatCurrency(h.diferencia)}` : `-${formatCurrency(Math.abs(h.diferencia))}`}
+                    </div>
+                  </div>
                 </div>
-                <div className="pt-4 border-t border-slate-100 flex justify-between items-center">
-                  <span className="text-xs text-slate-400 font-medium">Act: {caja.ultimaActualizacion}</span>
-                  <div className="flex items-center gap-2">
-                    <Link 
-                          href={`/admin/contable/cajas/${caja.id}`}
-                          className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                          title="Ver Detalles"
-                        >
-                          <Eye className="h-4 w-4" />
-                        </Link>
-                        <Link 
-                          href={`/admin/contable/cajas/${caja.id}/editar`}
-                          className="p-2 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
-                          title="Editar Caja"
-                        >
-                          <Edit2 className="h-4 w-4" />
-                        </Link>
-                    {caja.estado === 'ABIERTA' && (
-                      <Link 
-                        href="/admin/contable/cierre-caja"
-                        className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
-                        title="Cerrar Caja"
-                      >
-                        <Lock className="h-4 w-4" />
-                      </Link>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {showCrearCajaModal && renderInPortal(
+          <div className="fixed inset-0 z-[2147483646] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+            <div className="w-full max-w-xl rounded-2xl bg-white border border-slate-200 shadow-2xl overflow-hidden">
+              <div className="p-6 border-b border-slate-100 flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Cajas</p>
+                  <h3 className="text-lg font-bold text-slate-900">Crear Caja</h3>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowCrearCajaModal(false)}
+                  className="p-2 rounded-xl hover:bg-slate-100 text-slate-500"
+                >
+                  <XCircle className="h-5 w-5" />
+                </button>
+              </div>
+
+              <div className="p-6 space-y-5">
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setCrearCajaForm((p) => ({
+                        ...p,
+                        tipo: 'PRINCIPAL',
+                        rutaId: '',
+                      }))
+                    }
+                    className={cn(
+                      'px-4 py-3 rounded-xl border text-sm font-bold transition-colors',
+                      crearCajaForm.tipo === 'PRINCIPAL'
+                        ? 'bg-blue-600 text-white border-blue-600'
+                        : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
                     )}
+                  >
+                    Caja Principal
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setCrearCajaForm((p) => ({ ...p, tipo: 'RUTA' }))}
+                    className={cn(
+                      'px-4 py-3 rounded-xl border text-sm font-bold transition-colors',
+                      crearCajaForm.tipo === 'RUTA'
+                        ? 'bg-blue-600 text-white border-blue-600'
+                        : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+                    )}
+                  >
+                    Caja por Ruta
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <label className="text-sm font-bold text-slate-700">Nombre</label>
+                    <input
+                      value={crearCajaForm.nombre}
+                      onChange={(e) => setCrearCajaForm((p) => ({ ...p, nombre: e.target.value }))}
+                      className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-900"
+                      placeholder={crearCajaForm.tipo === 'PRINCIPAL' ? 'Caja Principal Oficina' : 'Caja Ruta Norte'}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-sm font-bold text-slate-700">Responsable</label>
+                    <input
+                      value={crearCajaForm.responsable}
+                      onChange={(e) => setCrearCajaForm((p) => ({ ...p, responsable: e.target.value }))}
+                      className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-900"
+                      placeholder="Ej. Ana Admin"
+                    />
+                  </div>
+
+                  {crearCajaForm.tipo === 'RUTA' && (
+                    <div className="space-y-2 md:col-span-2">
+                      <label className="text-sm font-bold text-slate-700">Ruta</label>
+                      <select
+                        value={crearCajaForm.rutaId}
+                        onChange={(e) =>
+                          setCrearCajaForm((p) => ({
+                            ...p,
+                            rutaId: e.target.value,
+                          }))
+                        }
+                        className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-900"
+                      >
+                        <option value="">Seleccionar ruta...</option>
+                        {rutasDisponibles.map((r) => (
+                          <option key={r.id} value={r.id}>
+                            {r.nombre} • {r.responsable}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+
+                  <div className="space-y-2 md:col-span-2">
+                    <label className="text-sm font-bold text-slate-700">Saldo inicial</label>
+                    <div className="relative">
+                      <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        value={crearCajaForm.saldoInicialInput}
+                        onChange={(e) =>
+                          setCrearCajaForm((p) => ({
+                            ...p,
+                            saldoInicialInput: formatCOPInputValue(e.target.value),
+                          }))
+                        }
+                        className="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-200 bg-white font-bold text-slate-900"
+                        placeholder="0"
+                      />
+                    </div>
                   </div>
                 </div>
               </div>
-            ))}
+
+              <div className="p-6 border-t border-slate-100 bg-slate-50/50 flex justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => setShowCrearCajaModal(false)}
+                  className="px-5 py-3 rounded-xl border border-slate-200 bg-white text-sm font-bold text-slate-700 hover:bg-slate-50"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  onClick={handleCrearCaja}
+                  className="px-6 py-3 rounded-xl bg-blue-600 text-white text-sm font-bold hover:bg-blue-700"
+                >
+                  Crear Caja
+                </button>
+              </div>
+            </div>
           </div>
         )}
 
-        {activeTab === 'MOVIMIENTOS' && (
-          <div className="bg-white/80 backdrop-blur-sm rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-            {/* Barra de Herramientas */}
-          <div className="p-5 border-b border-slate-200 flex flex-col md:flex-row gap-4 justify-between items-center bg-white/50">
-            <div className="relative w-full md:w-96">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-              <input
-                type="text"
-                placeholder="Buscar por concepto, responsable..."
-                className="w-full rounded-xl border-slate-200 bg-white py-2.5 pl-10 pr-4 text-sm font-medium text-slate-900 placeholder:text-slate-400 focus:border-slate-900 focus:ring-1 focus:ring-slate-900 transition-all"
-                value={busqueda}
-                onChange={(e) => setBusqueda(e.target.value)}
-              />
-            </div>
-            
-            <div className="flex gap-2 w-full md:w-auto">
-              <Link
-                href="/admin/contable/movimientos/nuevo"
-                className="inline-flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-300 text-slate-700 rounded-xl hover:border-slate-400 hover:bg-slate-50 transition-all duration-200 shadow-sm font-bold text-sm group"
-              >
-                <Plus className="w-4 h-4 text-slate-500 group-hover:text-slate-900 transition-colors" />
-                <span>Registrar Movimiento</span>
-              </Link>
-              <select 
-                className="rounded-xl border-slate-200 bg-white py-2.5 pl-3 pr-8 text-sm font-medium text-slate-900 focus:border-slate-900 focus:ring-1 focus:ring-slate-900 outline-none cursor-pointer"
-                value={filtroTipo}
-                onChange={(e) => setFiltroTipo(e.target.value as 'TODOS' | 'INGRESO' | 'EGRESO')}
-              >
-                <option value="TODOS">Todos los tipos</option>
-                <option value="INGRESO">Ingresos</option>
-                <option value="EGRESO">Egresos</option>
-              </select>
-              <button className="p-2.5 text-slate-500 hover:bg-slate-50 hover:text-slate-900 rounded-xl border border-slate-200 transition-colors">
-                <Filter className="h-4 w-4" />
-              </button>
-            </div>
-          </div>
+        {showEditarCajaModal && cajaSeleccionada && renderInPortal(
+          <div className="fixed inset-0 z-[2147483646] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+            <div className="w-full max-w-xl rounded-2xl bg-white border border-slate-200 shadow-2xl overflow-hidden">
+              <div className="p-6 border-b border-slate-100 flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Cajas</p>
+                  <h3 className="text-lg font-bold text-slate-900">Editar Caja</h3>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowEditarCajaModal(false)
+                    setCajaSeleccionada(null)
+                  }}
+                  className="p-2 rounded-xl hover:bg-slate-100 text-slate-500"
+                >
+                  <XCircle className="h-5 w-5" />
+                </button>
+              </div>
 
-          {/* Tabla de Movimientos */}
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm text-left">
-              <thead className="bg-slate-50/50 text-slate-500 font-bold border-b border-slate-200">
-                <tr>
-                  <th className="px-6 py-4 w-40">Fecha</th>
-                  <th className="px-6 py-4">Concepto</th>
-                  <th className="px-6 py-4">Categoría</th>
-                  <th className="px-6 py-4">Responsable</th>
-                  <th className="px-6 py-4 text-right">Monto</th>
-                  <th className="px-6 py-4 text-right">Acciones</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {movimientosFiltrados.length > 0 ? (
-                  movimientosFiltrados.map((mov) => (
-                    <tr key={mov.id} className="hover:bg-slate-50/50 transition-colors group">
-                      <td className="px-6 py-4 text-slate-500 whitespace-nowrap font-medium">
-                        {new Date(mov.fecha).toLocaleDateString('es-CO', {
-                          year: 'numeric',
-                          month: 'short',
-                          day: 'numeric'
-                        })}
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-3">
-                          <div className={cn(
-                            "flex h-8 w-8 items-center justify-center rounded-full transition-colors",
-                            mov.tipo === 'INGRESO' 
-                              ? "bg-emerald-50 text-emerald-600 group-hover:bg-emerald-100 border border-emerald-100" 
-                              : "bg-red-50 text-red-600 group-hover:bg-red-100 border border-red-100"
-                          )}>
-                            {mov.tipo === 'INGRESO' ? <ArrowDownLeft className="h-4 w-4" /> : <ArrowUpRight className="h-4 w-4" />}
-                          </div>
-                          <span className="font-bold text-slate-900">{mov.concepto}</span>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4">
-                        <span className="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-600 border border-slate-200">
-                          {mov.categoria.replace(/_/g, ' ')}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 text-slate-500 font-medium">
-                        {mov.responsable}
-                      </td>
-                      <td className={cn(
-                        "px-6 py-4 text-right font-bold",
-                        mov.tipo === 'INGRESO' ? "text-emerald-600" : "text-rose-600"
-                      )}>
-                        {mov.tipo === 'INGRESO' ? '+' : '-'}{formatCurrency(mov.monto)}
-                      </td>
-                      <td className="px-6 py-4 text-right">
-                        <Link 
-                          href={`/admin/contable/movimientos/${mov.id}`}
-                          className="inline-flex p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                          title="Ver Detalle"
-                        >
-                          <Eye className="h-4 w-4" />
-                        </Link>
-                      </td>
-                    </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td colSpan={5} className="px-6 py-16 text-center text-slate-500">
-                      <div className="flex flex-col items-center justify-center gap-4">
-                        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-slate-50 border border-slate-200">
-                          <Briefcase className="h-6 w-6 text-slate-400" />
-                        </div>
-                        <p className="text-base font-bold text-slate-900">No se encontraron movimientos</p>
-                        <p className="text-sm font-medium">Intenta ajustar los filtros de búsqueda.</p>
-                      </div>
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-          
-          {/* Paginación simple */}
-          <div className="p-4 border-t border-slate-200 bg-slate-50/50 flex justify-between items-center text-xs text-slate-500 font-medium">
-            <span>Mostrando {movimientosFiltrados.length} resultados</span>
-            <div className="flex gap-2">
-              <button disabled className="px-3 py-1.5 rounded-lg border border-slate-200 bg-white opacity-50 cursor-not-allowed font-bold">Anterior</button>
-              <button className="px-3 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 font-bold text-slate-700 transition-colors">Siguiente</button>
+              <div className="p-6 space-y-5">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <label className="text-sm font-bold text-slate-700">Nombre</label>
+                    <input
+                      value={editarCajaForm.nombre}
+                      onChange={(e) => setEditarCajaForm((p) => ({ ...p, nombre: e.target.value }))}
+                      className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-900"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-bold text-slate-700">Responsable</label>
+                    <input
+                      value={editarCajaForm.responsable}
+                      onChange={(e) => setEditarCajaForm((p) => ({ ...p, responsable: e.target.value }))}
+                      className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-900"
+                    />
+                  </div>
+
+                  {cajaSeleccionada.tipo === 'RUTA' && (
+                    <div className="space-y-2 md:col-span-2">
+                      <label className="text-sm font-bold text-slate-700">Ruta</label>
+                      <select
+                        value={editarCajaForm.rutaId}
+                        onChange={(e) => setEditarCajaForm((p) => ({ ...p, rutaId: e.target.value }))}
+                        className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-900"
+                      >
+                        <option value="">Seleccionar ruta...</option>
+                        {rutasDisponibles.map((r) => (
+                          <option key={r.id} value={r.id}>
+                            {r.nombre} • {r.responsable}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+
+                  <div className="space-y-2">
+                    <label className="text-sm font-bold text-slate-700">Estado</label>
+                    <select
+                      value={editarCajaForm.estado}
+                      onChange={(e) =>
+                        setEditarCajaForm((p) => ({
+                          ...p,
+                          estado: e.target.value as Caja['estado'],
+                        }))
+                      }
+                      className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-900"
+                    >
+                      <option value="ABIERTA">ABIERTA</option>
+                      <option value="CERRADA">CERRADA</option>
+                    </select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-sm font-bold text-slate-700">Saldo</label>
+                    <div className="relative">
+                      <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        value={editarCajaForm.saldoInput}
+                        onChange={(e) =>
+                          setEditarCajaForm((p) => ({
+                            ...p,
+                            saldoInput: formatCOPInputValue(e.target.value),
+                          }))
+                        }
+                        className="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-200 bg-white font-bold text-slate-900"
+                        placeholder="0"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="p-6 border-t border-slate-100 bg-slate-50/50 flex justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowEditarCajaModal(false)
+                    setCajaSeleccionada(null)
+                  }}
+                  className="px-5 py-3 rounded-xl border border-slate-200 bg-white text-sm font-bold text-slate-700 hover:bg-slate-50"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  onClick={handleEditarCaja}
+                  className="px-6 py-3 rounded-xl bg-amber-600 text-white text-sm font-bold hover:bg-amber-700"
+                >
+                  Guardar
+                </button>
+              </div>
             </div>
-          </div>
           </div>
         )}
 
-        {activeTab === 'HISTORIAL' && (
-          <div className="bg-white/80 backdrop-blur-sm rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-            <div className="p-6 border-b border-slate-200 flex justify-between items-center bg-white/50">
-               <div>
-                  <h2 className="text-lg font-bold text-slate-900">Historial de Cierres</h2>
-                  <p className="text-sm text-slate-500">Registro histórico de arqueos y cierres de caja.</p>
-               </div>
-               <button className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 text-slate-700 rounded-xl hover:bg-slate-50 transition-colors text-sm font-bold shadow-sm">
-                  <Download className="h-4 w-4" />
-                  Descargar Informe
-               </button>
-            </div>
-            
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm text-left">
-                <thead className="bg-slate-50/50 text-slate-500 font-bold border-b border-slate-200">
-                  <tr>
-                    <th className="px-6 py-4">Fecha Cierre</th>
-                    <th className="px-6 py-4">Caja</th>
-                    <th className="px-6 py-4">Responsable</th>
-                    <th className="px-6 py-4 text-right">Saldo Sistema</th>
-                    <th className="px-6 py-4 text-right">Saldo Real</th>
-                    <th className="px-6 py-4 text-right">Diferencia</th>
-                    <th className="px-6 py-4 text-center">Estado</th>
-                    <th className="px-6 py-4 text-right">Acciones</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {historialCierres.map((cierre) => (
-                    <tr key={cierre.id} className="hover:bg-slate-50/50 transition-colors">
-                      <td className="px-6 py-4 text-slate-900 font-medium">
-                        {new Date(cierre.fecha).toLocaleDateString('es-CO', {
-                          year: 'numeric',
-                          month: 'short',
-                          day: 'numeric',
-                          hour: '2-digit',
-                          minute: '2-digit'
-                        })}
-                      </td>
-                      <td className="px-6 py-4 text-slate-600">
-                        {cierre.caja}
-                      </td>
-                      <td className="px-6 py-4 text-slate-500">
-                        {cierre.responsable}
-                      </td>
-                      <td className="px-6 py-4 text-right font-medium text-slate-600">
-                        {formatCurrency(cierre.saldoSistema)}
-                      </td>
-                      <td className="px-6 py-4 text-right font-bold text-slate-900">
-                        {formatCurrency(cierre.saldoReal)}
-                      </td>
-                      <td className={cn(
-                        "px-6 py-4 text-right font-bold",
-                        cierre.diferencia === 0 ? "text-slate-400" : (cierre.diferencia > 0 ? "text-emerald-600" : "text-rose-600")
-                      )}>
-                        {cierre.diferencia > 0 ? '+' : ''}{formatCurrency(cierre.diferencia)}
-                      </td>
-                      <td className="px-6 py-4 text-center">
-                        <span className={cn(
-                          "inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold border",
-                          cierre.estado === 'CUADRADA'
-                            ? "bg-emerald-50 text-emerald-700 border-emerald-100"
-                            : "bg-rose-50 text-rose-700 border-rose-100"
-                        )}>
-                          {cierre.estado === 'CUADRADA' ? (
-                            <CheckCircle2 className="w-3 h-3 mr-1" />
-                          ) : (
-                            <AlertCircle className="w-3 h-3 mr-1" />
-                          )}
-                          {cierre.estado}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 text-right">
-                        <Link 
-                          href={`/admin/contable/historial/${cierre.id}`}
-                          className="inline-flex p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors" 
-                          title="Ver Comprobante"
-                        >
-                          <Receipt className="h-4 w-4" />
-                        </Link>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+        {showRegistrarMovimientoModal && renderInPortal(
+          <div className="fixed inset-0 z-[2147483646] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+            <div className="w-full max-w-2xl rounded-2xl bg-white border border-slate-200 shadow-2xl overflow-hidden">
+              <div className="p-6 border-b border-slate-100 flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Movimientos</p>
+                  <h3 className="text-lg font-bold text-slate-900">Registrar Movimiento</h3>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowRegistrarMovimientoModal(false)}
+                  className="p-2 rounded-xl hover:bg-slate-100 text-slate-500"
+                >
+                  <XCircle className="h-5 w-5" />
+                </button>
+              </div>
+
+              <div className="p-6 space-y-6">
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setMovimientoForm((p) => ({ ...p, tipo: 'INGRESO', categoria: '' }))}
+                    className={cn(
+                      'flex items-center justify-center gap-2 py-3 rounded-xl border text-sm font-bold transition-colors',
+                      movimientoForm.tipo === 'INGRESO'
+                        ? 'bg-blue-600 text-white border-blue-600'
+                        : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+                    )}
+                  >
+                    <ArrowDownLeft className="h-4 w-4" />
+                    Ingreso
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setMovimientoForm((p) => ({ ...p, tipo: 'EGRESO', categoria: '' }))}
+                    className={cn(
+                      'flex items-center justify-center gap-2 py-3 rounded-xl border text-sm font-bold transition-colors',
+                      movimientoForm.tipo === 'EGRESO'
+                        ? 'bg-rose-600 text-white border-rose-600'
+                        : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+                    )}
+                  >
+                    <ArrowUpRight className="h-4 w-4" />
+                    Egreso
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <label className="text-sm font-bold text-slate-700">Categoría</label>
+                    <select
+                      value={movimientoForm.categoria}
+                      onChange={(e) => setMovimientoForm((p) => ({ ...p, categoria: e.target.value }))}
+                      className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-900"
+                    >
+                      <option value="">Seleccione una categoría...</option>
+                      {(movimientoForm.tipo === 'INGRESO' ? categoriasIngreso : categoriasEgreso).map((cat) => (
+                        <option key={cat.id} value={cat.id}>
+                          {cat.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-sm font-bold text-slate-700">Monto</label>
+                    <div className="relative">
+                      <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        value={movimientoForm.montoInput}
+                        onChange={(e) => setMovimientoForm((p) => ({ ...p, montoInput: formatCOPInputValue(e.target.value) }))}
+                        className="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-200 bg-white font-bold text-slate-900"
+                        placeholder="0"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2 md:col-span-2">
+                    <label className="text-sm font-bold text-slate-700">Concepto / Descripción</label>
+                    <input
+                      value={movimientoForm.concepto}
+                      onChange={(e) => setMovimientoForm((p) => ({ ...p, concepto: e.target.value }))}
+                      className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-900"
+                      placeholder="Ej: Compra de papelería"
+                    />
+                  </div>
+
+                  <div className="space-y-2 md:col-span-2">
+                    <label className="text-sm font-bold text-slate-700">Referencia (Opcional)</label>
+                    <input
+                      value={movimientoForm.referencia}
+                      onChange={(e) => setMovimientoForm((p) => ({ ...p, referencia: e.target.value }))}
+                      className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-900"
+                      placeholder="Ej: Factura #123"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="p-6 border-t border-slate-100 bg-slate-50/50 flex justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => setShowRegistrarMovimientoModal(false)}
+                  className="px-5 py-3 rounded-xl border border-slate-200 bg-white text-sm font-bold text-slate-700 hover:bg-slate-50"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  onClick={handleRegistrarMovimiento}
+                  disabled={
+                    parseCOPInputToNumber(movimientoForm.montoInput) <= 0 ||
+                    !movimientoForm.concepto.trim() ||
+                    !movimientoForm.categoria
+                  }
+                  className="px-6 py-3 rounded-xl bg-slate-900 text-white text-sm font-bold hover:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  Guardar
+                </button>
+              </div>
             </div>
           </div>
         )}

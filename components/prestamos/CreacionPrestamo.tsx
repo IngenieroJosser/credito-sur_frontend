@@ -151,10 +151,10 @@ const calcularCuotasYResumen = (form: FormularioPrestamo) => {
         month: 'short',
         year: 'numeric'
       }),
-      capital: Number(capitalFinal.toFixed(2)),
-      interes: Number(interes.toFixed(2)),
-      total: Number((capitalFinal + interes).toFixed(2)),
-      saldo: Number(Math.max(0, saldo).toFixed(2))
+      capital: Math.round(capitalFinal),
+      interes: Math.round(interes),
+      total: Math.round(capitalFinal + interes),
+      saldo: Math.round(Math.max(0, saldo))
     });
   }
 
@@ -174,15 +174,13 @@ const calcularCuotasYResumen = (form: FormularioPrestamo) => {
     cuotas: cuotasCalculadas.slice(0, 6), // Preview primeras 6
     resumenPrestamo: {
       totalFinanciado: montoFinanciado,
-      totalInteres: Number(totalInteres.toFixed(2)),
-      totalPagar: Number(totalPagar.toFixed(2)),
-      valorCuota: Number(cuotaFija.toFixed(2)),
-      costoTotalCredito: Number(
-        (totalInteres + form.gastosAdministrativos + comisionTotal).toFixed(2)
-      ),
+      totalInteres: Math.round(totalInteres),
+      totalPagar: Math.round(totalPagar),
+      valorCuota: Math.round(cuotaFija),
+      costoTotalCredito: Math.round(totalInteres + form.gastosAdministrativos + comisionTotal),
       tea: Number((tea * 100).toFixed(2)),
       tae: Number((tae * 100).toFixed(2)),
-      comisionTotal: Number(comisionTotal.toFixed(2))
+      comisionTotal: Math.round(comisionTotal)
     }
   };
 };

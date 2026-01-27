@@ -88,12 +88,12 @@ export default function NotificacionesPage() {
       const userStr = localStorage.getItem('user')
       if (!userStr) return MOCK_NOTIFICACIONES
       const user = JSON.parse(userStr) as { rol?: string }
-      if (user.rol !== 'COBRADOR') return MOCK_NOTIFICACIONES
+      const basePath = user.rol === 'COBRADOR' ? '/cobranzas' : user.rol === 'CONTADOR' ? '/contador' : '/admin'
       return MOCK_NOTIFICACIONES.map((n) => {
-        if (n.tipo === 'PAGO') return { ...n, link: '/cobranzas' }
-        if (n.tipo === 'CLIENTE') return { ...n, link: '/cobranzas/clientes/nuevo' }
-        if (n.tipo === 'MORA') return { ...n, link: '/cobranzas' }
-        if (n.tipo === 'SISTEMA') return { ...n, link: '/cobranzas/solicitudes' }
+        if (n.tipo === 'PAGO') return { ...n, link: basePath }
+        if (n.tipo === 'CLIENTE') return { ...n, link: user.rol === 'COBRADOR' ? `${basePath}/clientes/nuevo` : undefined }
+        if (n.tipo === 'MORA') return { ...n, link: basePath }
+        if (n.tipo === 'SISTEMA') return { ...n, link: user.rol === 'COBRADOR' ? `${basePath}/solicitudes` : undefined }
         return { ...n, link: undefined }
       })
     } catch {

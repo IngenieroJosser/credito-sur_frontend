@@ -12,7 +12,7 @@ import {
   Tag,
   Smartphone
 } from 'lucide-react'
-import { formatCurrency, cn } from '@/lib/utils'
+import { formatCOPInputValue, formatCurrency, parseCOPInputToNumber, cn } from '@/lib/utils'
 
 // Enums alineados con Prisma (asumiendo convención UPPERCASE)
 type MetodoPago = 'EFECTIVO' | 'TRANSFERENCIA' | 'PAGO_MOVIL' | 'OTRO'
@@ -240,9 +240,10 @@ const RegistroPagoPage = () => {
                         <span className="text-slate-400 font-medium text-lg">$</span>
                       </div>
                       <input
-                        type="number"
+                        type="text"
+                        inputMode="numeric"
                         value={monto}
-                        onChange={(e) => setMonto(e.target.value)}
+                        onChange={(e) => setMonto(formatCOPInputValue(e.target.value))}
                         placeholder="0"
                         className="w-full pl-10 pr-4 py-4 rounded-xl border-slate-200 bg-slate-50/50 text-2xl font-light text-primary focus:ring-2 focus:ring-primary/5 focus:border-primary transition-all placeholder:text-slate-300 shadow-sm"
                       />
@@ -257,7 +258,7 @@ const RegistroPagoPage = () => {
                         <button
                           key={val}
                           type="button"
-                          onClick={() => setMonto(val.toString())}
+                          onClick={() => setMonto(formatCOPInputValue(String(Math.round(val))))}
                           className="px-3 py-1.5 rounded-lg bg-white border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-50 hover:text-slate-900 hover:border-slate-300 transition-all whitespace-nowrap shadow-sm"
                         >
                           {formatCurrency(val)}

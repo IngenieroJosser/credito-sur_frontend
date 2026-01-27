@@ -17,7 +17,7 @@ import {
   AlertCircle,
   Eye
 } from 'lucide-react'
-import { formatCurrency, cn } from '@/lib/utils'
+import { formatCOPInputValue, formatCurrency, parseCOPInputToNumber, cn } from '@/lib/utils'
 import { ExportButton } from '@/components/ui/ExportButton'
 import { useRouter } from 'next/navigation'
 
@@ -315,11 +315,12 @@ const TesoreriaPage = () => {
                     <div className="relative">
                       <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold">$</span>
                       <input 
-                        type="number" 
+                        type="text" 
+                        inputMode="numeric"
                         className="w-full pl-8 pr-4 py-3 rounded-xl border border-blue-200 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 outline-none text-lg font-bold text-slate-900 placeholder:text-slate-300 transition-all"
                         placeholder="0"
-                        value={arqueoData.conteoFisico || ''}
-                        onChange={(e) => handleArqueoChange('conteoFisico', Number(e.target.value))}
+                        value={arqueoData.conteoFisico ? formatCOPInputValue(String(arqueoData.conteoFisico)) : ''}
+                        onChange={(e) => handleArqueoChange('conteoFisico', parseCOPInputToNumber(e.target.value))}
                       />
                     </div>
                   </div>

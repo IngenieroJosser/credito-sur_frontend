@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import { 
   LineChart, 
   DollarSign, 
@@ -12,7 +12,7 @@ import {
   Target,
   Eye
 } from 'lucide-react'
-import { formatCurrency, cn } from '@/lib/utils'
+import { formatCurrency } from '@/lib/utils'
 import { ExportButton } from '@/components/ui/ExportButton'
 
 // Interfaces
@@ -41,6 +41,7 @@ type ExpenseWithPercentage = ExpenseDistribution & {
 
 const ReportesFinancierosPage = () => {
   const router = useRouter()
+  const pathname = usePathname()
   const [periodo, setPeriodo] = useState('ANUAL')
   const [loading, setLoading] = useState(true)
   const [mounted, setMounted] = useState(false)
@@ -54,6 +55,9 @@ const ReportesFinancierosPage = () => {
   
   const [monthlyData, setMonthlyData] = useState<MonthlyEvolution[]>([])
   const [expenseData, setExpenseData] = useState<ExpenseWithPercentage[]>([])
+
+  const basePath = pathname?.startsWith('/contador') ? '/contador' : '/admin'
+  const yearLabel = new Date().getFullYear()
 
   const handleExportExcel = () => {
     console.log('Exporting Excel...')
@@ -338,12 +342,6 @@ const ReportesFinancierosPage = () => {
               <h3 className="text-lg font-bold text-slate-900">Detalle Financiero</h3>
               <p className="text-sm text-slate-400 font-medium">Desglose por periodo contable</p>
             </div>
-            <button 
-              onClick={() => router.push('/admin/contable')}
-              className="text-sm text-slate-900 font-bold hover:text-slate-700 bg-white border border-slate-200 px-4 py-2 rounded-lg shadow-sm hover:shadow transition-all"
-            >
-              Ver reporte completo
-            </button>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-sm text-left">
@@ -361,7 +359,7 @@ const ReportesFinancierosPage = () => {
               <tbody className="divide-y divide-slate-100">
                 {monthlyData.map((row) => (
                   <tr key={row.mes} className="hover:bg-slate-50/80 transition-colors group">
-                    <td className="px-8 py-5 font-bold text-slate-800 group-hover:text-slate-900">{row.mes} {new Date().getFullYear()}</td>
+                    <td className="px-8 py-5 font-bold text-slate-800 group-hover:text-slate-900">{row.mes} {yearLabel}</td>
                     <td className="px-8 py-5 text-right text-slate-600 font-medium">{formatCurrency(row.ingresos)}</td>
                     <td className="px-8 py-5 text-right text-rose-500 font-medium">-{formatCurrency(row.egresos)}</td>
                     <td className="px-8 py-5 text-right font-bold text-slate-900 bg-slate-50/30">{formatCurrency(row.utilidad)}</td>
@@ -375,7 +373,7 @@ const ReportesFinancierosPage = () => {
                     </td>
                     <td className="px-8 py-5 text-right">
                       <button 
-                        onClick={() => router.push('/admin/contable?tab=MOVIMIENTOS')}
+                        onClick={() => router.push(`${basePath}/reportes/financieros/detalle/${encodeURIComponent(`${row.mes}-${yearLabel}`)}`)}
                         className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
                         title="Ver Detalles"
                       >
