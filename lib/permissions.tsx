@@ -92,11 +92,11 @@ export const permisosPorRol: Record<Rol, ModuloPermiso[]> = {
   ],
 
   SUPERVISOR: [
-    { id: 'dashboard', nombre: 'Dashboard', icono: 'LayoutDashboard', path: '/admin', roles: ['SUPERVISOR'] },
-    { id: 'clientes', nombre: 'Clientes', icono: 'Users', path: '/admin/clientes', roles: ['SUPERVISOR'] },
-    { id: 'cuentas-mora', nombre: 'Cuentas en mora', icono: 'AlertCircle', path: '/admin/cuentas-mora', roles: ['SUPERVISOR'] },
-    { id: 'reportes-operativos', nombre: 'Reportes operativos', icono: 'PieChart', path: '/admin/reportes/operativos', roles: ['SUPERVISOR'] },
-    { id: 'perfil', nombre: 'Perfil', icono: 'User', path: '/admin/perfil', roles: ['SUPERVISOR'] },
+    { id: 'dashboard', nombre: 'Dashboard', icono: 'LayoutDashboard', path: '/supervisor', roles: ['SUPERVISOR'] },
+    { id: 'clientes', nombre: 'Clientes', icono: 'Users', path: '/supervisor/clientes', roles: ['SUPERVISOR'] },
+    { id: 'rutas', nombre: 'Rutas', icono: 'Route', path: '/supervisor/rutas', roles: ['SUPERVISOR'] },
+    { id: 'reportes-operativos', nombre: 'Reportes operativos', icono: 'PieChart', path: '/supervisor/reportes/operativos', roles: ['SUPERVISOR'] },
+    { id: 'perfil', nombre: 'Perfil', icono: 'UserCircle', path: '/supervisor/perfil', roles: ['SUPERVISOR'] },
   ],
 
   COBRADOR: [

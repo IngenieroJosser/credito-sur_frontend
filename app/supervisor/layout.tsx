@@ -9,14 +9,14 @@ import {
   Bell,
   ChevronDown,
   Eye,
-  FileWarning,
+  Menu,
   LogOut,
   Mail,
   Shield,
   UserCircle,
   Users,
   LayoutDashboard,
-  Wallet,
+  Route,
   X,
 } from 'lucide-react'
 
@@ -39,6 +39,7 @@ export default function SupervisorLayout({
   const [showNotifications, setShowNotifications] = useState(false)
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false)
   const [isLoggingOut, setIsLoggingOut] = useState(false)
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false)
 
   const userMenuRef = useRef<HTMLDivElement>(null)
   const notificationRef = useRef<HTMLDivElement>(null)
@@ -126,7 +127,8 @@ export default function SupervisorLayout({
 
   const navItems = [
     { href: '/supervisor', label: 'Dashboard', icon: <LayoutDashboard className="h-4 w-4" /> },
-    { href: '/supervisor/cuentas-vencidas', label: 'Cuentas vencidas', icon: <FileWarning className="h-4 w-4" /> },
+    { href: '/supervisor/clientes', label: 'Clientes', icon: <Users className="h-4 w-4" /> },
+    { href: '/supervisor/rutas', label: 'Rutas', icon: <Route className="h-4 w-4" /> },
   ]
 
   return (
@@ -135,6 +137,15 @@ export default function SupervisorLayout({
         <div className="px-4 sm:px-6 lg:px-8 py-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3">
+              <button
+                type="button"
+                onClick={() => setIsMobileSidebarOpen(true)}
+                className="p-2 hover:bg-gray-100 rounded-lg transition-colors lg:hidden"
+                aria-label="Abrir menú"
+              >
+                <Menu className="h-5 w-5 text-gray-600" />
+              </button>
+
               <div className="flex items-center">
                 <div className="w-8 h-8 bg-linear-to-br from-blue-600 to-blue-800 rounded-lg flex items-center justify-center shadow-lg shadow-blue-600/20">
                   <Shield className="h-4 w-4 text-white" />
@@ -297,6 +308,62 @@ export default function SupervisorLayout({
           </div>
         </div>
       </header>
+
+      {isMobileSidebarOpen && (
+        <div className="fixed inset-0 z-50 lg:hidden">
+          <div
+            className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm"
+            onClick={() => setIsMobileSidebarOpen(false)}
+          />
+          <aside className="absolute left-0 top-0 bottom-0 w-72 bg-white shadow-xl border-r border-gray-100">
+            <div className="h-16 px-4 flex items-center justify-between border-b border-gray-100">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 bg-linear-to-br from-blue-600 to-blue-800 rounded-lg flex items-center justify-center shadow-lg shadow-blue-600/20">
+                  <Shield className="h-4 w-4 text-white" />
+                </div>
+                <div className="font-bold text-gray-900">
+                  <span className="text-blue-600">Credi</span>
+                  <span className="text-orange-500">Sur</span>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setIsMobileSidebarOpen(false)}
+                className="p-2 rounded-lg hover:bg-gray-100"
+                aria-label="Cerrar menú"
+              >
+                <X className="h-5 w-5 text-gray-600" />
+              </button>
+            </div>
+
+            <nav className="p-4">
+              <div className="space-y-2">
+                {navItems.map((item) => {
+                  const isActive = pathname === item.href || pathname?.startsWith(`${item.href}/`)
+                  return (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      onClick={() => setIsMobileSidebarOpen(false)}
+                      className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all border group ${
+                        isActive
+                          ? 'text-[#08557f] bg-gradient-to-r from-[#08557f]/10 to-[#063a58]/5 font-medium border-[#08557f]/20'
+                          : 'text-gray-600 border-transparent hover:text-[#08557f] hover:bg-gray-50 hover:border-gray-200'
+                      }`}
+                    >
+                      <div className={`transition-colors ${isActive ? 'text-[#08557f]' : 'text-gray-400 group-hover:text-[#08557f]'}`}>
+                        {item.icon}
+                      </div>
+                      <span className="text-sm">{item.label}</span>
+                    </Link>
+                  )
+                })}
+              </div>
+            </nav>
+          </aside>
+        </div>
+      )}
 
       <aside className="fixed left-0 top-16 bottom-0 w-64 bg-white/80 backdrop-blur-sm border-r border-gray-100 hidden lg:block">
         <nav className="p-6 h-full overflow-y-auto">

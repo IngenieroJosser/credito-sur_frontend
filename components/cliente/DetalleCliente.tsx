@@ -106,8 +106,7 @@ const ClienteDetalleElegante: React.FC<ClienteDetalleProps> = ({
   const hrefRegistrarPago = isSupervisor
     ? `/supervisor/pagos/registrar/${cliente.id}`
     : `/admin/pagos/registrar/${cliente.id}`
-  const hrefNuevoPrestamo = isSupervisor ? '/supervisor/creditos/nuevo?tipo=efectivo' : '/admin/prestamos/nuevo'
-  const hrefNuevoCreditoArticulo = isSupervisor ? '/supervisor/creditos/nuevo?tipo=articulos' : '/admin/creditos-articulos/nuevo'
+  const hrefNuevoCredito = isSupervisor ? '/supervisor/creditos/nuevo' : '/admin/prestamos/nuevo'
   
   const calcularTotales = () => {
     const totalPrestamos = prestamos.reduce((sum, p) => sum + p.montoTotal, 0);
@@ -202,18 +201,11 @@ const ClienteDetalleElegante: React.FC<ClienteDetalleProps> = ({
             {isSupervisor && (
               <>
                 <Link
-                  href={hrefNuevoPrestamo}
+                  href={hrefNuevoCredito}
                   className="px-5 py-2.5 border border-slate-200 bg-white rounded-xl hover:bg-slate-50 hover:border-slate-300 transition-all duration-200 text-sm font-bold text-slate-700 flex items-center gap-2 shadow-sm"
                 >
                   <CreditCard className="w-4 h-4" />
-                  Nuevo Préstamo
-                </Link>
-                <Link
-                  href={hrefNuevoCreditoArticulo}
-                  className="px-5 py-2.5 border border-slate-200 bg-white rounded-xl hover:bg-slate-50 hover:border-slate-300 transition-all duration-200 text-sm font-bold text-slate-700 flex items-center gap-2 shadow-sm"
-                >
-                  <ShoppingBag className="w-4 h-4" />
-                  Nuevo Crédito
+                  Nuevo crédito
                 </Link>
               </>
             )}
