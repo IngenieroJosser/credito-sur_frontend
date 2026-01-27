@@ -22,7 +22,7 @@ export interface PrestamoDetalle {
   montoTotal: number;
   saldoPendiente: number;
   tasaInteres: number;
-  plazo: string;
+  duracion: string;
   frecuencia: string;
   fechaInicio: string;
   fechaVencimiento: string;
@@ -130,7 +130,7 @@ export default function DetallePrestamo({ prestamo }: DetallePrestamoProps) {
                 </div>
               </Link>
               <div>
-                <p className="text-xs text-slate-500">DNI</p>
+                <p className="text-xs text-slate-500">Cédula</p>
                 <p className="text-sm text-slate-700">{prestamo.clienteDni}</p>
               </div>
             </div>
@@ -138,7 +138,7 @@ export default function DetallePrestamo({ prestamo }: DetallePrestamoProps) {
           <div className="pt-4 mt-4 border-t border-slate-100">
             <Link 
               href={`/admin/pagos/registrar/${prestamo.clienteId}`}
-              className="w-full py-2 bg-slate-900 hover:bg-slate-800 text-white text-sm font-bold rounded-xl transition-all shadow-lg shadow-slate-900/20 active:scale-[0.98] block text-center"
+              className="w-full py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold rounded-xl transition-all shadow-lg shadow-blue-600/20 active:scale-[0.98] block text-center"
             >
               Registrar Pago
             </Link>

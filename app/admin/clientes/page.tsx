@@ -1,7 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { clientesService, Cliente, MOCK_CLIENTES } from '@/services/clientes-service';
 import {
   Search,
   Filter,
@@ -15,139 +17,90 @@ import {
   Pencil,
   AlertTriangle,
   Ban,
-  DollarSign
+  DollarSign,
+  Trash2
 } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils';
+
+import { Modal } from '@/components/ui/Modal';
 
 // Tipos alineados con Prisma Schema
 type NivelRiesgo = 'VERDE' | 'AMARILLO' | 'ROJO' | 'LISTA_NEGRA';
 type EstadoAprobacion = 'PENDIENTE' | 'APROBADO' | 'RECHAZADO' | 'CANCELADO';
 
-interface Cliente {
-  id: string;
-  codigo: string;
-  dni: string;
-  nombres: string;
-  apellidos: string;
-  correo: string | null;
-  telefono: string;
-  direccion: string | null;
-  referencia: string | null;
-  nivelRiesgo: NivelRiesgo;
-  puntaje: number;
-  enListaNegra: boolean;
-  estadoAprobacion: EstadoAprobacion;
-  // Campos calculados / UI helpers (simulados por ahora)
-  prestamosActivos: number;
-  montoTotal: number;
-  montoMora: number;
-  diasMora: number;
-  ultimoPago?: string;
-}
-
 const ClientesPage = () => {
-  // Datos simulados alineados con la estructura
-  const [clientes] = useState<Cliente[]>([
-    {
-      id: '1',
-      codigo: 'CL-001',
-      dni: '1.020.123.456',
-      nombres: 'María',
-      apellidos: 'González',
-      correo: 'maria.gonzalez@email.com',
-      telefono: '310 555 1212',
-      direccion: 'Av. El Dorado #123, Bogotá',
-      referencia: 'Frente a la panadería',
-      nivelRiesgo: 'VERDE',
-      puntaje: 95,
-      enListaNegra: false,
-      estadoAprobacion: 'APROBADO',
-      prestamosActivos: 2,
-      montoTotal: 12500000,
-      montoMora: 0,
-      diasMora: 0,
-      ultimoPago: '15/03/2024'
-    },
-    {
-      id: '2',
-      codigo: 'CL-002',
-      dni: '52.345.678',
-      nombres: 'Carlos',
-      apellidos: 'Rodríguez',
-      correo: 'carlos.rodriguez@email.com',
-      telefono: '315 555 2323',
-      direccion: 'Calle 45 #67-89, Medellín',
-      referencia: 'Casa azul rejas negras',
-      nivelRiesgo: 'ROJO',
-      puntaje: 45,
-      enListaNegra: false,
-      estadoAprobacion: 'APROBADO',
-      prestamosActivos: 1,
-      montoTotal: 8500000,
-      montoMora: 1250000,
-      diasMora: 12,
-      ultimoPago: '28/02/2024'
-    },
-    {
-      id: '3',
-      codigo: 'CL-003',
-      dni: '79.456.789',
-      nombres: 'Ana',
-      apellidos: 'Martínez',
-      correo: 'ana.martinez@email.com',
-      telefono: '300 555 3434',
-      direccion: 'Urb. Las Acacias, Cali',
-      referencia: null,
-      nivelRiesgo: 'AMARILLO',
-      puntaje: 72,
-      enListaNegra: false,
-      estadoAprobacion: 'APROBADO',
-      prestamosActivos: 3,
-      montoTotal: 28500000,
-      montoMora: 0,
-      diasMora: 5,
-      ultimoPago: '10/03/2024'
-    },
-    {
-      id: '4',
-      codigo: 'CL-004',
-      dni: '99.999.999',
-      nombres: 'Pedro',
-      apellidos: 'Pérez',
-      correo: null,
-      telefono: '316 555 9999',
-      direccion: 'Barrio Central',
-      referencia: null,
-      nivelRiesgo: 'LISTA_NEGRA',
-      puntaje: 0,
-      enListaNegra: true,
-      estadoAprobacion: 'APROBADO',
-      prestamosActivos: 0,
-      montoTotal: 5000000, // Deuda incobrable
-      montoMora: 5000000,
-      diasMora: 120,
-      ultimoPago: '01/01/2024'
+  const router = useRouter();
+
+  const [clientes, setClientes] = useState<Cliente[]>(MOCK_CLIENTES)
+  const [isLoading, setIsLoading] = useState(true)
+
+  useEffect(() => {
+    let mounted = true
+    ;(async () => {
+      try {
+        const data = await clientesService.obtenerClientes()
+        if (mounted) setClientes(Array.isArray(data) ? data : MOCK_CLIENTES)
+      } catch (error) {
+        console.warn('Usando datos mock de clientes', error)
+        if (mounted) setClientes(MOCK_CLIENTES)
+      } finally {
+        if (mounted) setIsLoading(false)
+      }
+    })()
+
+    return () => {
+      mounted = false
     }
-  ]);
+  }, [])
+
+  const clientesArray = clientes
 
   const [searchTerm, setSearchTerm] = useState('');
   const [filterRiesgo, setFilterRiesgo] = useState<string>('all');
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 8;
 
+  // Estado para el modal de eliminación
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [clientToDelete, setClientToDelete] = useState<Cliente | null>(null);
+
+  const [isDeleting, setIsDeleting] = useState(false)
+
+  const handleDeleteClick = (cliente: Cliente) => {
+    setClientToDelete(cliente);
+    setIsDeleteModalOpen(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!clientToDelete) return
+
+    setIsDeleting(true)
+    try {
+      await clientesService.eliminarCliente(clientToDelete.id)
+      setClientes((prev) => prev.filter((c) => c.id !== clientToDelete.id))
+      setIsDeleteModalOpen(false)
+      setClientToDelete(null)
+    } catch (error) {
+      console.error('Error al eliminar cliente:', error)
+      alert('Error al eliminar el cliente')
+    } finally {
+      setIsDeleting(false)
+    }
+  };
+
   // Estadísticas
   const stats = {
-    total: clientes.length,
-    verde: clientes.filter(c => c.nivelRiesgo === 'VERDE').length,
-    amarillo: clientes.filter(c => c.nivelRiesgo === 'AMARILLO').length,
-    rojo: clientes.filter(c => c.nivelRiesgo === 'ROJO').length,
-    listaNegra: clientes.filter(c => c.enListaNegra).length,
-    totalDeuda: clientes.reduce((sum, c) => sum + c.montoTotal, 0),
-    totalMora: clientes.reduce((sum, c) => sum + c.montoMora, 0)
+    total: clientesArray.length,
+    verde: clientesArray.filter(c => c.nivelRiesgo === 'VERDE').length,
+    amarillo: clientesArray.filter(c => c.nivelRiesgo === 'AMARILLO').length,
+    rojo: clientesArray.filter(c => c.nivelRiesgo === 'ROJO').length,
+    listaNegra: clientesArray.filter(c => c.enListaNegra).length,
+    totalDeuda: clientesArray.reduce((sum, c) => sum + (c.montoTotal ?? 0), 0),
+    totalMora: clientesArray.reduce((sum, c) => sum + (c.montoMora ?? 0), 0)
   };
 
   // Filtros y búsqueda
-  const filteredClientes = clientes.filter(cliente => {
+  const filteredClientes = clientesArray.filter(cliente => {
     const matchesSearch = 
       `${cliente.nombres} ${cliente.apellidos}`.toLowerCase().includes(searchTerm.toLowerCase()) ||
       cliente.dni.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -292,7 +245,7 @@ const ClientesPage = () => {
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
             <input
               type="text"
-              placeholder="Buscar cliente, DNI o teléfono..."
+              placeholder="Buscar cliente, cédula o teléfono..."
               value={searchTerm}
               onChange={(e) => {
                 setSearchTerm(e.target.value);
@@ -320,30 +273,43 @@ const ClientesPage = () => {
                 {currentItems.map((cliente) => (
                   <tr
                     key={cliente.id}
-                    className="hover:bg-slate-50/50 transition-colors group"
+                    className="hover:bg-slate-50/50 transition-colors group cursor-pointer"
+                    onClick={() => router.push(`/admin/clientes/${cliente.id}`)}
                   >
                     <td className="px-6 py-4">
-                      <div className="flex items-center">
-                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-sm font-bold shadow-sm ${
-                          cliente.nivelRiesgo === 'VERDE' ? 'bg-emerald-100 text-emerald-700' :
-                          cliente.nivelRiesgo === 'AMARILLO' ? 'bg-amber-100 text-amber-700' :
-                          cliente.nivelRiesgo === 'ROJO' ? 'bg-rose-100 text-rose-700' :
-                          'bg-slate-100 text-slate-600'
-                        }`}>
-                          {cliente.nombres.charAt(0)}{cliente.apellidos.charAt(0)}
+                      <div className="flex items-center gap-3">
+                        <div
+                          className={`w-10 h-10 rounded-xl flex items-center justify-center text-sm font-bold shadow-sm ${
+                            cliente.nivelRiesgo === 'VERDE'
+                              ? 'bg-emerald-100 text-emerald-700'
+                              : cliente.nivelRiesgo === 'AMARILLO'
+                                ? 'bg-amber-100 text-amber-700'
+                                : cliente.nivelRiesgo === 'ROJO'
+                                  ? 'bg-rose-100 text-rose-700'
+                                  : 'bg-slate-100 text-slate-600'
+                          }`}
+                        >
+                          {cliente.nombres.charAt(0)}
+                          {cliente.apellidos.charAt(0)}
                         </div>
                         <div className="ml-4">
-                          <div className="font-bold text-slate-900">{cliente.nombres} {cliente.apellidos}</div>
+                          <div className="font-bold text-slate-900">
+                            {cliente.nombres} {cliente.apellidos}
+                          </div>
                           <div className="text-xs text-slate-500 flex items-center mt-0.5 font-mono font-medium">
                             {cliente.dni}
                           </div>
                         </div>
                       </div>
                     </td>
-                    
+
                     <td className="px-6 py-4">
                       <div className="space-y-1">
-                        <div className={`inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-bold ring-1 ring-inset ${getRiesgoColor(cliente.nivelRiesgo)}`}>
+                        <div
+                          className={`inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-bold ring-1 ring-inset ${getRiesgoColor(
+                            cliente.nivelRiesgo
+                          )}`}
+                        >
                           <span className="mr-1.5">{getRiesgoIcon(cliente.nivelRiesgo)}</span>
                           {cliente.nivelRiesgo.replace('_', ' ')}
                         </div>
@@ -355,20 +321,20 @@ const ClientesPage = () => {
                         )}
                       </div>
                     </td>
-                    
+
                     <td className="px-6 py-4">
                       <div className="space-y-1">
                         <div className="text-sm font-bold text-slate-900">
-                          {formatCurrency(cliente.montoTotal)}
+                          {formatCurrency(cliente.montoTotal ?? 0)}
                         </div>
-                        {cliente.montoMora > 0 && (
+                        {(cliente.montoMora ?? 0) > 0 && (
                           <div className="text-xs text-rose-600 font-bold flex items-center">
-                            Mora: {formatCurrency(cliente.montoMora)}
+                            Mora: {formatCurrency(cliente.montoMora ?? 0)}
                           </div>
                         )}
                       </div>
                     </td>
-                    
+
                     <td className="px-6 py-4">
                       <div className="space-y-1">
                         <div className="flex items-center text-sm font-medium text-slate-600">
@@ -383,23 +349,33 @@ const ClientesPage = () => {
                         )}
                       </div>
                     </td>
-                    
+
                     <td className="px-6 py-4 text-right">
-                      <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <div
+                        className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity"
+                        onClick={(e) => e.stopPropagation()}
+                      >
                         <Link
                           href={`/admin/clientes/${cliente.id}`}
-                          className="p-2 text-slate-400 hover:text-primary hover:bg-slate-100 rounded-lg transition-colors"
+                          className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
                           title="Ver Expediente"
                         >
                           <Eye className="h-4 w-4" />
                         </Link>
                         <Link
                           href={`/admin/clientes/${cliente.id}/editar`}
-                          className="p-2 text-slate-400 hover:text-primary hover:bg-slate-100 rounded-lg transition-colors"
+                          className="p-2 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
                           title="Editar cliente"
                         >
                           <Pencil className="h-4 w-4" />
                         </Link>
+                        <button
+                          onClick={() => handleDeleteClick(cliente)}
+                          className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
+                          title="Eliminar cliente"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
                       </div>
                     </td>
                   </tr>
@@ -407,7 +383,7 @@ const ClientesPage = () => {
               </tbody>
             </table>
           </div>
-          
+
           {/* Paginación Elegante */}
           {totalPages > 1 && (
             <div className="px-6 py-4 border-t border-slate-200 bg-slate-50/50">
@@ -436,6 +412,45 @@ const ClientesPage = () => {
           )}
         </div>
       </div>
+
+      {/* Modal de Confirmación de Eliminación */}
+      <Modal
+        isOpen={isDeleteModalOpen}
+        onClose={() => setIsDeleteModalOpen(false)}
+        title="Confirmar Eliminación"
+        footer={
+          <>
+            <button
+              onClick={() => setIsDeleteModalOpen(false)}
+              className="px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-100 rounded-xl transition-colors"
+              disabled={isDeleting}
+            >
+              Cancelar
+            </button>
+            <button
+              onClick={confirmDelete}
+              disabled={isDeleting}
+              className="px-4 py-2 text-sm font-bold text-white bg-rose-600 hover:bg-rose-700 rounded-xl transition-colors shadow-lg shadow-rose-600/20 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isDeleting ? 'Eliminando...' : 'Sí, eliminar cliente'}
+            </button>
+          </>
+        }
+      >
+        <div className="flex items-center gap-4">
+          <div className="p-3 bg-rose-50 rounded-full">
+            <AlertTriangle className="w-6 h-6 text-rose-600" />
+          </div>
+          <div>
+            <p className="text-slate-600">
+              ¿Estás seguro que deseas eliminar al cliente <span className="font-bold text-slate-900">{clientToDelete?.nombres} {clientToDelete?.apellidos}</span>?
+            </p>
+            <p className="text-xs text-slate-500 mt-1">
+              Esta acción no se puede deshacer y eliminará todos los préstamos asociados.
+            </p>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 };

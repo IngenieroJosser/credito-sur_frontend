@@ -9,9 +9,8 @@ import {
   Users,
   User,
   Clock,
-  Activity,
+  Eye,
   Plus,
-  ChevronRight,
   Search,
   TrendingUp,
   AlertTriangle,
@@ -20,7 +19,8 @@ import {
   Pencil,
   X,
   Save,
-  CheckCircle2
+  CheckCircle2,
+  Trash2,
 } from 'lucide-react'
 import { formatCurrency, cn } from '@/lib/utils'
 
@@ -83,7 +83,7 @@ const RutasPage = () => {
     { id: 'SP-002', nombre: 'Luis Fernández' }
   ];
 
-  const [rutas] = useState<RutaCobro[]> ([
+  const [rutas, setRutas] = useState<RutaCobro[]> ([
     {
       id: 'RT-001',
       nombre: 'Ruta Centro',
@@ -152,10 +152,36 @@ const RutasPage = () => {
     // Simular petición API
     await new Promise(resolve => setTimeout(resolve, 1000));
 
-    console.log('Guardando ruta:', formData);
+    const nuevaRuta: RutaCobro = {
+      id: `RT-00${rutas.length + 1}`,
+      nombre: formData.nombre,
+      codigo: formData.codigo,
+      estado: formData.estado as EstadoRuta,
+      cobrador: cobradores.find(c => c.id === formData.cobradorId)?.nombre || 'Sin Asignar',
+      supervisor: supervisores.find(s => s.id === formData.supervisorId)?.nombre || 'Sin Asignar',
+      clientesAsignados: 0,
+      frecuenciaVisita: formData.frecuenciaVisita.charAt(0) + formData.frecuenciaVisita.slice(1).toLowerCase(),
+      cobranzaDelDia: 0,
+      metaDelDia: 0
+    };
+
+    setRutas([...rutas, nuevaRuta]);
+    console.log('Ruta guardada:', nuevaRuta);
+
     setLoading(false);
     setShowModal(false);
-    // Aquí se debería actualizar la lista de rutas
+    
+    // Reset form
+    setFormData({
+      nombre: '',
+      codigo: '',
+      zona: '',
+      cobradorId: '',
+      supervisorId: '',
+      frecuenciaVisita: 'DIARIO',
+      estado: 'ACTIVA',
+      descripcion: ''
+    });
   };
 
   const rutasFiltradas = rutas.filter((ruta) => {
@@ -271,7 +297,7 @@ const RutasPage = () => {
                   <h3 className={`text-3xl font-bold ${stat.color} tracking-tight`}>{stat.value}</h3>
                 </div>
                 <div className={`mt-4 text-xs font-medium ${stat.subColor} flex items-center gap-1.5`}>
-                  <Activity className="h-3.5 w-3.5" />
+                  <Eye className="h-3.5 w-3.5" />
                   {stat.sub}
                 </div>
               </div>
@@ -420,13 +446,29 @@ const RutasPage = () => {
 
                   <div className="p-4 bg-slate-50/50 border-t border-slate-100 flex justify-between items-center group-hover:bg-blue-50/30 transition-colors">
                     <span className="text-xs text-slate-400 font-bold">ID: {ruta.id}</span>
-                    <Link 
-                      href={`/admin/rutas/${ruta.id}`}
-                      className="text-sm font-bold text-blue-600 hover:text-blue-800 flex items-center gap-1 transition-colors"
-                    >
-                      Ver detalle
-                      <ChevronRight className="h-4 w-4" />
-                    </Link>
+                    <div className="flex items-center gap-1">
+                      <Link 
+                        href={`/admin/rutas/${ruta.id}/editar`}
+                        className="p-2 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-all" 
+                        title="Editar"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </Link>
+                      <button 
+                        className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all" 
+                        title="Eliminar"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                      <Link 
+                        href={`/admin/rutas/${ruta.id}`}
+                        className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
+                        title="Ver detalle"
+                      >
+                        <Eye className="h-4 w-4" />
+                      </Link>
+                    </div>
                   </div>
                 </div>
               ))}
@@ -522,29 +564,34 @@ const RutasPage = () => {
                         <td className="px-6 py-4 text-right">
                           <div className="flex items-center justify-end gap-2">
                             <button 
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                router.push(`/admin/rutas/${ruta.id}`)
+                              }}
                               className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
                               title="Ver detalle"
                             >
-                              <Activity className="w-4 h-4" />
+                              <Eye className="w-4 h-4" />
                             </button>
-                            <button 
-                              className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                            <Link 
+                              href={`/admin/rutas/${ruta.id}/editar`}
+                              className="p-2 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
                               title="Editar"
                               onClick={(e) => {
                                 e.stopPropagation();
-                                // Implementar edición
                               }}
                             >
                               <Pencil className="w-4 h-4" />
-                            </button>
+                            </Link>
                             <button 
-                              className="p-2 text-slate-400 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors"
+                              className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
+                              title="Eliminar"
                               onClick={(e) => {
                                 e.stopPropagation();
-                                router.push(`/admin/rutas/${ruta.id}`);
+                                // Implementar eliminación
                               }}
                             >
-                              <ChevronRight className="w-4 h-4" />
+                              <Trash2 className="w-4 h-4" />
                             </button>
                           </div>
                         </td>
@@ -569,11 +616,13 @@ const RutasPage = () => {
           <div className="relative w-full max-w-2xl bg-white rounded-2xl shadow-2xl ring-1 ring-slate-900/5 transform transition-all animate-in fade-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-slate-50/50 sticky top-0 z-10 backdrop-blur-sm">
               <div className="flex items-center gap-3">
-                <div className="p-2 bg-blue-50 text-blue-600 rounded-lg">
+                <div className="p-2 bg-blue-50 text-orange-500 rounded-lg">
                   <Route className="h-5 w-5" />
                 </div>
                 <div>
-                  <h3 className="text-lg font-bold text-slate-900">Nueva Ruta</h3>
+                  <h3 className="text-lg font-bold">
+                    <span className="text-blue-600">Nueva</span> <span className="text-orange-500">Ruta</span>
+                  </h3>
                   <p className="text-xs text-slate-500 font-medium">Configure una nueva zona de cobranza</p>
                 </div>
               </div>
@@ -708,7 +757,7 @@ const RutasPage = () => {
                 <button
                   type="submit"
                   disabled={loading}
-                  className="px-6 py-2 bg-slate-900 text-white rounded-xl hover:bg-slate-800 transition-all text-sm font-bold flex items-center gap-2 shadow-lg shadow-slate-900/20 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="px-6 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-all text-sm font-bold flex items-center gap-2 shadow-lg shadow-blue-600/20 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {loading ? (
                     <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />

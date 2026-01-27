@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import { 
   LineChart, 
   DollarSign, 
@@ -8,7 +9,8 @@ import {
   TrendingDown, 
   PieChart, 
   ArrowUpRight, 
-  Target
+  Target,
+  Eye
 } from 'lucide-react'
 import { formatCurrency, cn } from '@/lib/utils'
 import { ExportButton } from '@/components/ui/ExportButton'
@@ -38,6 +40,7 @@ type ExpenseWithPercentage = ExpenseDistribution & {
 }
 
 const ReportesFinancierosPage = () => {
+  const router = useRouter()
   const [periodo, setPeriodo] = useState('ANUAL')
   const [loading, setLoading] = useState(true)
   const [mounted, setMounted] = useState(false)
@@ -335,7 +338,10 @@ const ReportesFinancierosPage = () => {
               <h3 className="text-lg font-bold text-slate-900">Detalle Financiero</h3>
               <p className="text-sm text-slate-400 font-medium">Desglose por periodo contable</p>
             </div>
-            <button className="text-sm text-slate-900 font-bold hover:text-slate-700 bg-white border border-slate-200 px-4 py-2 rounded-lg shadow-sm hover:shadow transition-all">
+            <button 
+              onClick={() => router.push('/admin/contable')}
+              className="text-sm text-slate-900 font-bold hover:text-slate-700 bg-white border border-slate-200 px-4 py-2 rounded-lg shadow-sm hover:shadow transition-all"
+            >
               Ver reporte completo
             </button>
           </div>
@@ -349,6 +355,7 @@ const ReportesFinancierosPage = () => {
                   <th className="px-8 py-4 text-right">Utilidad Bruta</th>
                   <th className="px-8 py-4 text-right">Margen</th>
                   <th className="px-8 py-4 text-center">Estado</th>
+                  <th className="px-8 py-4 text-right">Acciones</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -365,6 +372,15 @@ const ReportesFinancierosPage = () => {
                       <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-700 border border-emerald-200">
                         Cerrado
                       </span>
+                    </td>
+                    <td className="px-8 py-5 text-right">
+                      <button 
+                        onClick={() => router.push('/admin/contable?tab=MOVIMIENTOS')}
+                        className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                        title="Ver Detalles"
+                      >
+                        <Eye className="h-4 w-4" />
+                      </button>
                     </td>
                   </tr>
                 ))}

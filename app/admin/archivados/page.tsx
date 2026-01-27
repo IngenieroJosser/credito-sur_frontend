@@ -1,7 +1,8 @@
 'use client'
 
-import { Archive, Search, Filter, RefreshCw, Trash2, RotateCcw } from 'lucide-react'
-import { useState } from 'react'
+import { Archive, Search, Filter, RefreshCw, RotateCcw } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import { cn } from '@/lib/utils'
 
 // Mock data para elementos archivados
@@ -35,6 +36,13 @@ const ARCHIVADOS_MOCK = [
 export default function ArchivadosPage() {
   const [searchTerm, setSearchTerm] = useState('')
   const [tipoFiltro, setTipoFiltro] = useState('todos')
+  const [isRestoreModalOpen, setIsRestoreModalOpen] = useState(false)
+  const [selectedItem, setSelectedItem] = useState<typeof ARCHIVADOS_MOCK[0] | null>(null)
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
 
   const filteredItems = ARCHIVADOS_MOCK.filter(item => {
     const matchesSearch = item.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -165,16 +173,14 @@ export default function ArchivadosPage() {
                       <td className="px-8 py-5 whitespace-nowrap text-right">
                         <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-all duration-200 translate-x-2 group-hover:translate-x-0">
                           <button 
+                            onClick={() => {
+                              setSelectedItem(item)
+                              setIsRestoreModalOpen(true)
+                            }}
                             className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"
                             title="Restaurar"
                           >
                             <RotateCcw className="w-4 h-4" />
-                          </button>
-                          <button 
-                            className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
-                            title="Eliminar permanentemente"
-                          >
-                            <Trash2 className="w-4 h-4" />
                           </button>
                         </div>
                       </td>
@@ -202,6 +208,40 @@ export default function ArchivadosPage() {
           )}
         </div>
       </div>
+
+      {/* Restore Confirmation Modal */}
+      {mounted && isRestoreModalOpen && selectedItem && createPortal(
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in duration-200">
+          <div className="bg-white rounded-2xl w-full max-w-sm border border-slate-200 shadow-2xl p-8 transform scale-100 animate-in zoom-in-95 duration-200">
+            <div className="flex flex-col items-center text-center">
+              <div className="w-12 h-12 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center mb-4">
+                <RotateCcw className="h-6 w-6" />
+              </div>
+              <h3 className="text-lg font-bold text-slate-900 mb-2">
+                ¿Restaurar elemento?
+              </h3>
+              <p className="text-sm text-slate-500 mb-6 font-medium">
+                Se restaurará <span className="text-slate-900 font-bold">{selectedItem.nombre}</span> y volverá a estar disponible en el sistema.
+              </p>
+              <div className="flex gap-3 w-full">
+                <button
+                  onClick={() => setIsRestoreModalOpen(false)}
+                  className="flex-1 px-4 py-2.5 text-sm font-bold text-slate-600 hover:text-slate-900 hover:bg-slate-50 rounded-xl transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={() => setIsRestoreModalOpen(false)}
+                  className="flex-1 px-4 py-2.5 text-sm font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl shadow-lg shadow-emerald-600/20 transition-all transform active:scale-95"
+                >
+                  Restaurar
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
     </div>
   )
 }

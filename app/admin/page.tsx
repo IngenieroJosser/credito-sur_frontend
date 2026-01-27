@@ -11,33 +11,26 @@ import {
   Banknote,
   PieChart,
   Target,
-  Download,
   Calendar,
-  ArrowUpRight,
-  Activity,
+  Eye,
   Wallet,
   CheckCircle2,
   Route,
   Map,
   Receipt,
-  ShoppingBag,
-  Archive,
   FileText,
-  DollarSign,
   Percent,
   Package,
   Calculator,
   Inbox,
   Filter,
   BarChart3,
-  Shield,
   LayoutDashboard
 } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils';
 import { useRouter } from 'next/navigation';
 import { ExportButton } from '@/components/ui/ExportButton';
-import { Rol, obtenerModulosPorRol, getIconComponent } from '@/lib/permissions';
-import VistaCobradorPage from '../cobranzas/page';
+import { Rol } from '@/lib/permissions';
 
 interface UserData {
   id: string;
@@ -49,13 +42,32 @@ interface UserData {
   nombreCompleto?: string;
 }
 
+interface MetricItem {
+  title: string;
+  value: number | string;
+  subValue?: string;
+  isCurrency: boolean;
+  change: number;
+  icon: React.ReactNode;
+  color: string;
+}
+
+interface QuickAccessItem {
+  title: string;
+  subtitle: string;
+  icon: React.ReactNode;
+  color: string;
+  badge?: number;
+  href: string;
+}
+
 const DashboardPage = () => {
   const [timeFilter, setTimeFilter] = useState<'today' | 'week' | 'month' | 'quarter'>('month');
   const [currentDate, setCurrentDate] = useState<Date | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [userData, setUserData] = useState<UserData | null>(null);
-  const [quickAccess, setQuickAccess] = useState<any[]>([]);
-  const [mainMetrics, setMainMetrics] = useState<any[]>([]);
+  const [quickAccess, setQuickAccess] = useState<QuickAccessItem[]>([]);
+  const [mainMetrics, setMainMetrics] = useState<MetricItem[]>([]);
   const router = useRouter();
   
   const handleExportExcel = () => {
@@ -65,33 +77,7 @@ const DashboardPage = () => {
   const handleExportPDF = () => {
     console.log('Exporting PDF...')
   }
-  
-  // Verificar sesión
-  useEffect(() => {
-    const token = localStorage.getItem('token');
-    const user = localStorage.getItem('user');
-    
-    if (!token || !user) {
-      router.replace('/');
-      return;
-    }
-    
-    try {
-      const parsedUser = JSON.parse(user) as UserData;
-      setUserData(parsedUser);
-      
-      // Configurar métricas y accesos rápidos según el rol
-      configurarDashboardPorRol(parsedUser.rol);
-      
-      setIsLoading(false);
-    } catch (error) {
-      console.error('Error al parsear datos del usuario:', error);
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
-      router.replace('/');
-    }
-  }, [router]);
-  
+
   useEffect(() => {
     const timer = setTimeout(() => {
       setCurrentDate(new Date());
@@ -99,40 +85,42 @@ const DashboardPage = () => {
     return () => clearTimeout(timer);
   }, []);
   
-  const configurarDashboardPorRol = (rol: Rol) => {
+  function configurarDashboardPorRol(rol: Rol) {
     // Configurar métricas según el rol
-    const metricsConfig: Record<Rol, any[]> = {
+    const metricsConfig: Record<Rol, MetricItem[]> = {
       SUPER_ADMINISTRADOR: [
         {
-          title: 'Capital Activo',
-          value: 2850000000,
+          title: 'Total Prestado (Mes)',
+          value: 125000000,
           isCurrency: true,
-          change: 8.2,
-          icon: <TrendingUp className="h-4 w-4" />,
-          color: '#0f172a'
+          change: 12.5,
+          icon: <CreditCard className="h-4 w-4" />,
+          color: '#3b82f6'
         },
         {
-          title: 'Recuperación',
+          title: 'Recaudo Real vs Esperado',
           value: '94.2%',
+          subValue: '$12.5M / $13.2M',
           isCurrency: false,
           change: 2.1,
           icon: <Target className="h-4 w-4" />,
           color: '#10b981'
         },
         {
-          title: 'Cartera Vencida',
+          title: 'Cartera en Mora',
           value: 45000000,
+          subValue: '8.5% del total',
           isCurrency: true,
           change: -3.4,
           icon: <AlertCircle className="h-4 w-4" />,
           color: '#f43f5e'
         },
         {
-          title: 'Eficiencia',
-          value: '87.3%',
-          isCurrency: false,
-          change: 1.8,
-          icon: <Activity className="h-4 w-4" />,
+          title: 'Capital Activo',
+          value: 2850000000,
+          isCurrency: true,
+          change: 5.8,
+          icon: <Banknote className="h-4 w-4" />,
           color: '#f59e0b'
         }
       ],
@@ -275,7 +263,7 @@ const DashboardPage = () => {
     };
 
     // Configurar accesos rápidos según el rol
-    const quickAccessConfig: Record<Rol, any[]> = {
+    const quickAccessConfig: Record<Rol, QuickAccessItem[]> = {
       SUPER_ADMINISTRADOR: [
         {
           title: 'Nuevo Crédito',
@@ -343,7 +331,7 @@ const DashboardPage = () => {
         {
           title: 'Monitoreo Cartera',
           subtitle: 'Clientes atrasados',
-          icon: <Activity className="h-5 w-5" />,
+          icon: <Eye className="h-5 w-5" />,
           color: '#0f172a',
           href: '/admin/cuentas-mora'
         },
@@ -435,7 +423,35 @@ const DashboardPage = () => {
 
     setMainMetrics(metricsConfig[rol] || []);
     setQuickAccess(quickAccessConfig[rol] || []);
-  };
+  }
+
+  // Verificar sesión
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    const user = localStorage.getItem('user');
+
+    if (!token || !user) {
+      router.replace('/');
+      return;
+    }
+
+    try {
+      const parsedUser = JSON.parse(user) as UserData;
+      queueMicrotask(() => {
+        setUserData(parsedUser);
+
+        // Configurar métricas y accesos rápidos según el rol
+        configurarDashboardPorRol(parsedUser.rol);
+
+        setIsLoading(false);
+      });
+    } catch (error) {
+      console.error('Error al parsear datos del usuario:', error);
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      router.replace('/');
+    }
+  }, [router]);
 
   // Formatear fecha elegante
   const formatDate = (date: Date) => {
@@ -470,6 +486,21 @@ const DashboardPage = () => {
     router.replace('/');
   };
 
+  useEffect(() => {
+    if (userData?.rol === 'COBRADOR') {
+      router.replace('/cobranzas');
+      return;
+    }
+    if (userData?.rol === 'COORDINADOR') {
+      router.replace('/coordinador');
+      return;
+    }
+    if (userData?.rol === 'SUPERVISOR') {
+      router.replace('/supervisor');
+      return;
+    }
+  }, [userData, router]);
+
   // Mostrar loading mientras se verifica la sesión
   if (isLoading) {
     return (
@@ -482,9 +513,16 @@ const DashboardPage = () => {
     );
   }
 
-  // Si el usuario es COBRADOR, mostrar el componente específico
-  if (userData?.rol === 'COBRADOR') {
-    return <VistaCobradorPage />;
+  // Si se está redirigiendo, no renderizar nada o un loader
+  if (userData?.rol === 'COBRADOR' || userData?.rol === 'COORDINADOR' || userData?.rol === 'SUPERVISOR') {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-slate-50">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+          <p className="text-gray-600 font-medium">Redirigiendo a su panel...</p>
+        </div>
+      </div>
+    );
   }
 
   // Para otros roles, mostrar el dashboard normal
@@ -594,6 +632,9 @@ const DashboardPage = () => {
                 <div className="text-2xl font-bold text-slate-800 tracking-tight truncate" title={metric.isCurrency ? formatCurrency(Number(metric.value)) : String(metric.value)}>
                   {metric.isCurrency ? formatCurrency(Number(metric.value)) : metric.value}
                 </div>
+                {metric.subValue && (
+                  <div className="text-xs font-medium text-slate-500">{metric.subValue}</div>
+                )}
                 <div className="text-xs font-medium text-slate-400 uppercase tracking-wider">{metric.title}</div>
               </div>
             </div>
@@ -604,159 +645,191 @@ const DashboardPage = () => {
           {/* Columna Principal (Izquierda) */}
           <div className="lg:col-span-2 space-y-8">
             
-            {/* Accesos Rápidos */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-              {quickAccess.map((item, index) => (
-                <Link
-                  key={index}
-                  href={item.href}
-                  className="group relative overflow-hidden rounded-2xl p-6 bg-white shadow-[0_4px_20px_-4px_rgba(0,0,0,0.03)] hover:shadow-[0_8px_30px_-4px_rgba(0,0,0,0.08)] transition-all duration-300 border border-slate-100"
-                >
-                  <div className="flex items-start justify-between mb-4 relative z-10">
-                    <div className="p-3 rounded-xl shadow-sm transition-transform group-hover:scale-110 duration-300" style={{ backgroundColor: item.color }}>
-                      <div className="text-white">
-                        {item.icon}
-                      </div>
-                    </div>
-                    <div className="h-8 w-8 rounded-full bg-slate-50 flex items-center justify-center group-hover:bg-slate-100 transition-colors">
-                      <ArrowUpRight className="h-4 w-4 text-slate-400 group-hover:text-slate-900" />
-                    </div>
-                  </div>
-                  
-                  <div className="relative z-10">
-                    <h3 className="text-lg font-bold text-slate-800 mb-1 group-hover:text-slate-900 transition-colors">{item.title}</h3>
-                    <p className="text-slate-500 text-xs leading-relaxed">{item.subtitle}</p>
-                  </div>
-                </Link>
-              ))}
-            </div>
-
-            {/* Resumen de Rendimiento (solo para ciertos roles) */}
-            {(userData?.rol === 'SUPER_ADMINISTRADOR' || userData?.rol === 'COORDINADOR' || userData?.rol === 'SUPERVISOR') && (
-              <div className="rounded-2xl bg-white p-8 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.03)] border border-slate-100">
-                <div className="flex items-center justify-between mb-8">
-                  <div>
-                    <h2 className="text-xl font-bold text-slate-800">Rendimiento Mensual</h2>
-                    <p className="text-slate-400 text-xs mt-1">Métricas clave de operación</p>
-                  </div>
-                  <button className="text-xs font-semibold text-[#08557f] hover:text-[#063a58] bg-[#08557f]/5 px-3 py-1.5 rounded-lg transition-colors">
-                    Ver reporte detallado
-                  </button>
+            {/* Gráfico Principal: Tendencia de Cobros */}
+            <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
+              <div className="flex items-center justify-between mb-6">
+                <div>
+                  <h3 className="text-lg font-bold text-slate-800">Tendencia de Cobros</h3>
+                  <p className="text-slate-500 text-sm">Últimos 7 días vs Meta Diaria</p>
                 </div>
-                
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-12 gap-y-8">
-                  {[
-                    { label: 'Tasa de Recuperación', value: 94, color: '#10b981', desc: 'Excelente ritmo de cobro' },
-                    { label: 'Eficiencia Operativa', value: 87, color: '#fb851b', desc: 'Dentro del rango esperado' },
-                    { label: 'Satisfacción Cliente', value: 92, color: '#8b5cf6', desc: 'Basado en encuestas' },
-                    { label: 'Cumplimiento Metas', value: 96, color: '#08557f', desc: 'Proyección positiva' }
-                  ].map((item, index) => (
-                    <div key={index} className="space-y-3">
-                      <div className="flex justify-between items-end">
-                        <span className="text-sm font-medium text-slate-600">{item.label}</span>
-                        <span className="text-lg font-bold text-slate-800">{item.value}%</span>
-                      </div>
-                      <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
-                        <div 
-                          className="h-full rounded-full transition-all duration-1000 relative"
-                          style={{ 
-                            width: `${item.value}%`,
-                            backgroundColor: item.color,
-                          }}
-                        >
-                          <div className="absolute inset-0 bg-white/20"></div>
-                        </div>
-                      </div>
-                      <p className="text-[10px] text-slate-400 font-medium">{item.desc}</p>
-                    </div>
-                  ))}
+                <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1.5 text-xs font-medium text-slate-600">
+                    <div className="w-3 h-3 rounded-full bg-blue-500"></div>
+                    Real
+                  </div>
+                  <div className="flex items-center gap-1.5 text-xs font-medium text-slate-600">
+                    <div className="w-3 h-3 rounded-full bg-slate-200 border border-slate-300 border-dashed"></div>
+                    Meta
+                  </div>
                 </div>
               </div>
-            )}
+              
+              <div className="h-64 flex items-end justify-between gap-2 sm:gap-4 px-2">
+                {[
+                  { day: 'Lun', real: 85, meta: 100, val: 2500000 },
+                  { day: 'Mar', real: 92, meta: 100, val: 2800000 },
+                  { day: 'Mie', real: 65, meta: 100, val: 1900000 },
+                  { day: 'Jue', real: 110, meta: 100, val: 3200000 },
+                  { day: 'Vie', real: 98, meta: 100, val: 2950000 },
+                  { day: 'Sab', real: 120, meta: 100, val: 3500000 },
+                  { day: 'Dom', real: 45, meta: 60, val: 1200000 },
+                ].map((item, i) => (
+                  <div key={i} className="flex-1 flex flex-col items-center gap-2 group">
+                    <div className="relative w-full max-w-[40px] h-full flex items-end">
+                      {/* Meta Bar (Ghost) */}
+                      <div 
+                        className="absolute bottom-0 w-full rounded-t-lg border-2 border-dashed border-slate-200 bg-transparent z-0"
+                        style={{ height: `${item.meta}%` }}
+                      ></div>
+                      {/* Real Bar */}
+                      <div 
+                        className={`relative w-full rounded-t-md transition-all duration-500 z-10 ${
+                          item.real >= item.meta ? 'bg-emerald-500' : 'bg-blue-500'
+                        } group-hover:opacity-90`}
+                        style={{ height: `${Math.min(item.real, 100)}%` }}
+                      >
+                        {/* Tooltip */}
+                        <div className="opacity-0 group-hover:opacity-100 absolute -top-12 left-1/2 -translate-x-1/2 bg-slate-800 text-white text-xs py-1 px-2 rounded pointer-events-none whitespace-nowrap transition-opacity z-20">
+                          {formatCurrency(item.val)}
+                        </div>
+                      </div>
+                    </div>
+                    <span className="text-xs font-medium text-slate-500">{item.day}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Listado: Últimos Préstamos Aprobados */}
+            <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-lg font-bold text-slate-800">Últimos Préstamos Aprobados</h3>
+                <Link href="/admin/prestamos" className="text-sm font-medium text-blue-600 hover:text-blue-700 hover:underline">
+                  Ver todos
+                </Link>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm text-left">
+                  <thead className="text-xs text-slate-500 uppercase bg-slate-50/50">
+                    <tr>
+                      <th className="px-4 py-3 font-medium">Cliente</th>
+                      <th className="px-4 py-3 font-medium">Monto</th>
+                      <th className="px-4 py-3 font-medium">Cuotas</th>
+                      <th className="px-4 py-3 font-medium text-right">Estado</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {[
+                      { client: 'Ana María Polo', amount: 1500000, term: 'Mensual', status: 'APROBADO', date: 'Hace 2h' },
+                      { client: 'Carlos Vives', amount: 5000000, term: 'Quincenal', status: 'PENDIENTE', date: 'Hace 4h' },
+                      { client: 'Juanes', amount: 800000, term: 'Diario', status: 'APROBADO', date: 'Hace 5h' },
+                      { client: 'Shakira Mebarak', amount: 12000000, term: 'Mensual', status: 'APROBADO', date: 'Hace 1d' },
+                    ].map((loan, idx) => (
+                      <tr key={idx} className="hover:bg-slate-50/50 transition-colors">
+                        <td className="px-4 py-3">
+                          <div className="font-medium text-slate-900">{loan.client}</div>
+                          <div className="text-xs text-slate-500">{loan.date}</div>
+                        </td>
+                        <td className="px-4 py-3 font-medium text-slate-700">{formatCurrency(loan.amount)}</td>
+                        <td className="px-4 py-3 text-slate-600">{loan.term}</td>
+                        <td className="px-4 py-3 text-right">
+                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                            loan.status === 'APROBADO' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'
+                          }`}>
+                            {loan.status}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
           </div>
 
           {/* Columna Lateral (Derecha) */}
           <div className="space-y-8">
-            {/* Actividad Reciente */}
-            <div className="bg-white rounded-2xl shadow-[0_4px_20px_-4px_rgba(0,0,0,0.03)] border border-slate-100 overflow-hidden flex flex-col h-full">
-              <div className="p-6 pb-4 flex items-center justify-between border-b border-slate-50">
-                <h2 className="text-lg font-bold text-slate-800">Actividad</h2>
-                <div className="flex items-center gap-2 px-2.5 py-1 bg-emerald-50 rounded-full">
-                  <span className="relative flex h-2 w-2">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                    <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-                  </span>
-                  <span className="text-[10px] font-bold text-emerald-700 uppercase tracking-wide">En vivo</span>
-                </div>
+            
+            {/* Listado: Top 5 Cobradores */}
+            <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-lg font-bold text-slate-800">Top 5 Cobradores</h3>
+                <span className="text-xs font-medium px-2 py-1 bg-blue-50 text-blue-700 rounded-full">Mes Actual</span>
               </div>
-              
-              <div className="p-6 flex-1 overflow-y-auto max-h-[500px] scrollbar-thin scrollbar-thumb-slate-200">
-                <div className="space-y-6 relative before:absolute before:left-[15px] before:top-2 before:bottom-2 before:w-[2px] before:bg-slate-100">
-                  {[
-                    { id: 1, client: 'González M.', action: 'Pago completado', amount: 1250000, time: '09:42', status: 'success' },
-                    { id: 2, client: 'López C.', action: 'Renegociación', amount: 3500000, time: '10:15', status: 'pending' },
-                    { id: 3, client: 'Martínez A.', action: 'Mora detectada', amount: 750000, time: '11:30', status: 'alert' },
-                    { id: 4, client: 'Ramírez P.', action: 'Pago anticipado', amount: 2100000, time: '13:20', status: 'success' },
-                    { id: 5, client: 'Sánchez L.', action: 'Consulta saldo', amount: null, time: '14:45', status: 'info' }
-                  ].map((item) => (
-                    <div key={item.id} className="relative pl-8 group">
-                      {/* Punto de tiempo */}
-                      <div className={`absolute left-[9px] top-1.5 h-3 w-3 rounded-full border-2 border-white ring-2 ring-slate-100 bg-white group-hover:scale-125 transition-transform duration-300 z-10`}>
-                        <div className={`h-full w-full rounded-full ${
-                           item.status === 'success' ? 'bg-emerald-500' :
-                           item.status === 'pending' ? 'bg-orange-500' :
-                           item.status === 'alert' ? 'bg-rose-500' :
-                           'bg-blue-500'
-                        }`}></div>
+              <div className="space-y-5">
+                {[
+                  { name: 'Juan Pérez', collected: 15400000, efficiency: 98, trend: 'up' },
+                  { name: 'Maria Gonzalez', collected: 12800000, efficiency: 95, trend: 'up' },
+                  { name: 'Pedro Coral', collected: 11200000, efficiency: 92, trend: 'down' },
+                  { name: 'Betty Pinzon', collected: 9800000, efficiency: 89, trend: 'up' },
+                  { name: 'Armando Mendoza', collected: 8500000, efficiency: 85, trend: 'down' },
+                ].map((collector, idx) => (
+                  <div key={idx} className="flex items-center justify-between group">
+                    <div className="flex items-center gap-3">
+                      <div className="flex-shrink-0 w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-600 font-bold border border-slate-200">
+                        {idx + 1}
                       </div>
-
-                      <div className="flex flex-col space-y-1">
-                        <div className="flex justify-between items-start">
-                          <p className="text-sm font-bold text-slate-800 group-hover:text-[#08557f] transition-colors">{item.client}</p>
-                          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">{item.time}</span>
+                      <div>
+                        <div className="font-medium text-slate-900 text-sm">{collector.name}</div>
+                        <div className="text-xs text-slate-500 flex items-center gap-1">
+                          Eficiencia: 
+                          <span className={collector.efficiency >= 95 ? 'text-emerald-600 font-semibold' : 'text-slate-600'}>
+                            {collector.efficiency}%
+                          </span>
                         </div>
-                        <p className="text-xs text-slate-500">{item.action}</p>
-                        {item.amount && (
-                           <span className="inline-flex text-[10px] font-mono font-semibold text-slate-600 bg-slate-50 px-2 py-0.5 rounded w-fit mt-1">
-                             {formatCurrency(item.amount)}
-                           </span>
-                        )}
                       </div>
                     </div>
-                  ))}
-                </div>
+                    <div className="text-right">
+                      <div className="font-bold text-slate-800 text-sm">{formatCurrency(collector.collected)}</div>
+                      {collector.trend === 'up' ? (
+                        <div className="text-[10px] text-emerald-600 flex items-center justify-end gap-0.5">
+                          <TrendingUp className="h-3 w-3" />
+                          <span>Excelente</span>
+                        </div>
+                      ) : (
+                        <div className="text-[10px] text-amber-600 flex items-center justify-end gap-0.5">
+                          <TrendingDown className="h-3 w-3" />
+                          <span>Regular</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))}
               </div>
-              
-              <div className="p-4 border-t border-slate-50 bg-slate-50/30">
-                <button className="w-full py-2.5 text-xs font-bold text-slate-600 bg-white border border-slate-200 rounded-xl hover:border-[#08557f]/30 hover:text-[#08557f] transition-all shadow-sm">
-                  Ver todo el historial
-                </button>
+              <div className="mt-6 pt-4 border-t border-slate-100">
+                <Link href="/admin/reportes/operativos" className="block w-full text-center text-sm font-medium text-slate-600 hover:text-slate-900 transition-colors">
+                  Ver reporte completo
+                </Link>
               </div>
             </div>
+
+            {/* Accesos Rápidos (Reducido) */}
+            <div className="bg-slate-50 rounded-2xl p-6 border border-slate-200/60">
+              <h3 className="text-sm font-bold text-slate-500 uppercase tracking-wider mb-4">Accesos Rápidos</h3>
+              <div className="grid grid-cols-1 gap-3">
+                {quickAccess.slice(0, 3).map((item, index) => (
+                  <Link
+                    key={index}
+                    href={item.href}
+                    className="flex items-center gap-3 p-3 bg-white rounded-xl shadow-sm border border-slate-100 hover:shadow-md hover:border-blue-100 transition-all group"
+                  >
+                    <div className="p-2 rounded-lg bg-slate-50 text-slate-600 group-hover:bg-blue-50 group-hover:text-blue-600 transition-colors">
+                      {item.icon}
+                    </div>
+                    <div>
+                      <div className="font-medium text-slate-900 text-sm group-hover:text-blue-700">{item.title}</div>
+                      <div className="text-xs text-slate-500">{item.subtitle}</div>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            </div>
+
           </div>
         </div>
 
-        {/* Stats adicionales */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {[
-            { label: 'Clientes Activos', value: '1,247', icon: <Users className="h-5 w-5" />, color: 'text-[#08557f]', bg: 'bg-[#08557f]/10' },
-            { label: 'Préstamos Activos', value: '856', icon: <CreditCard className="h-5 w-5" />, color: 'text-emerald-600', bg: 'bg-emerald-50' },
-            { label: 'Cobros Hoy', value: 4582000, isCurrency: true, icon: <Banknote className="h-5 w-5" />, color: 'text-orange-600', bg: 'bg-orange-50' },
-            { label: 'En Morosidad', value: '3.6%', icon: <AlertCircle className="h-5 w-5" />, color: 'text-rose-600', bg: 'bg-rose-50' }
-          ].map((stat, index) => (
-            <div key={index} className="bg-white rounded-xl p-5 shadow-[0_2px_10px_-3px_rgba(0,0,0,0.05)] flex items-center space-x-4 border border-slate-100 hover:border-[#08557f]/20 transition-all">
-              <div className={`p-3 rounded-lg ${stat.bg} ${stat.color}`}>
-                {stat.icon}
-              </div>
-              <div>
-                <div className="text-lg font-bold text-slate-800">
-                  {stat.isCurrency ? formatCurrency(Number(stat.value)) : stat.value}
-                </div>
-                <div className="text-[10px] text-slate-500 font-bold uppercase tracking-wide">{stat.label}</div>
-              </div>
-            </div>
-          ))}
-        </div>
+
 
         {/* Footer sutil */}
         <div className="mt-8 text-center pb-6">

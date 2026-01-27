@@ -185,7 +185,7 @@ const CuentasMoraPage = () => {
               onExportExcel={handleExportExcel} 
               onExportPDF={handleExportPDF} 
             />
-            <Link href="/admin/pagos/registro" className="inline-flex items-center gap-2 rounded-xl bg-primary px-6 py-2.5 text-sm font-bold text-white shadow-lg shadow-primary/20 hover:bg-primary-dark hover:scale-[1.02] active:scale-[0.98] transition-all duration-300">
+            <Link href="/admin/pagos/registro" className="inline-flex items-center gap-2 rounded-xl bg-white border border-slate-200 px-6 py-2.5 text-sm font-bold text-slate-700 hover:bg-slate-50 transition-all shadow-sm transform active:scale-95">
               <ChevronRight className="h-4 w-4" />
               <span>Gestionar Cobranza</span>
             </Link>
@@ -368,13 +368,13 @@ const CuentasMoraPage = () => {
                   <div className="pt-4 border-t border-slate-100 flex gap-2">
                     <Link
                       href={`/admin/clientes/${cuenta.id}`}
-                      className="flex-1 inline-flex items-center justify-center px-4 py-2 bg-slate-50 text-slate-700 rounded-xl hover:bg-slate-100 text-sm font-bold transition-colors"
+                      className="flex-1 inline-flex items-center justify-center px-4 py-2 bg-slate-50 text-slate-700 rounded-xl hover:bg-blue-50 hover:text-blue-700 text-sm font-bold transition-colors"
                     >
                       <User className="h-4 w-4 mr-2" />
                       Perfil
                     </Link>
                     <Link
-                      href={`/admin/prestamos/${cuenta.numeroPrestamo}`}
+                      href={`/admin/cuentas-mora/${cuenta.id}`}
                       className="flex-1 inline-flex items-center justify-center px-4 py-2 bg-primary text-white rounded-xl hover:bg-primary-dark text-sm font-bold transition-colors shadow-lg shadow-primary/20"
                     >
                       <ChevronRight className="h-4 w-4 mr-2" />
@@ -445,10 +445,10 @@ const CuentasMoraPage = () => {
                       </td>
                       <td className="px-6 py-4 text-right">
                         <div className="flex items-center justify-end gap-2">
-                          <Link href={`/admin/clientes/${cuenta.id}`} className="p-2 text-slate-400 hover:text-primary hover:bg-slate-100 rounded-lg transition-colors" title="Ver Perfil">
+                          <Link href={`/admin/clientes/${cuenta.id}`} className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors" title="Ver Perfil">
                             <User className="w-4 h-4" />
                           </Link>
-                          <Link href={`/admin/prestamos/${cuenta.numeroPrestamo}`} className="p-2 text-slate-400 hover:text-primary hover:bg-slate-100 rounded-lg transition-colors" title="Ver Detalle">
+                          <Link href={`/admin/cuentas-mora/${cuenta.id}`} className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors" title="Ver Detalle">
                             <ChevronRight className="w-4 h-4" />
                           </Link>
                         </div>

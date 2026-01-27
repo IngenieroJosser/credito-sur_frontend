@@ -4,18 +4,18 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { ArrowLeft, Search, X, Grid, ChevronRight, AlertCircle } from 'lucide-react'
 import { useState, useEffect } from 'react'
+import { usePathname } from 'next/navigation'
 
 const NotFoundPage = () => {
   const [searchQuery, setSearchQuery] = useState('')
   const isVisible = true
   const [activeModule, setActiveModule] = useState<number | null>(null)
+  const pathname = usePathname()
   const [rutaActual, setRutaActual] = useState('')
 
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      setRutaActual(window.location.pathname)
-    }
-  }, [])
+    setRutaActual(pathname || '')
+  }, [pathname])
 
   const modules = [
     { id: 1, label: 'Dashboard', path: '/dashboard', icon: Grid },

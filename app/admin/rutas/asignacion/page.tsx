@@ -5,7 +5,7 @@ import {
   Users,
   User,
   Route,
-  Activity,
+  Eye,
   ChevronRight,
   ChevronDown,
   ChevronUp
@@ -106,7 +106,7 @@ const AsignacionCobradoresPage = () => {
             onClick={() => setExpandido(!expandido)}
             className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-5 py-2.5 text-xs font-bold text-slate-700 hover:border-slate-300 hover:bg-slate-50 transition-all shadow-sm hover:shadow-md"
           >
-            <Activity className="h-4 w-4 text-slate-400" />
+            <Eye className="h-4 w-4 text-slate-400" />
             <span>
               {expandido ? 'Contraer detalle' : 'Expandir detalle'}
             </span>

@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
+
 import {
   Search,
   UserPlus,
@@ -15,10 +16,11 @@ import {
   Users,
   Mail,
   Briefcase,
-  AlertCircle,
   Sparkles,
   LayoutGrid,
-  List
+  List,
+  Trash2,
+  Save
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -134,7 +136,29 @@ const UserManagementPage = () => {
     setMounted(true);
   }, []);
 
-  const [formData, setFormData] = useState({
+  // Bloquear scroll del body cuando hay un modal abierto
+  useEffect(() => {
+    if (isCreateModalOpen || isEditModalOpen || isPermissionsModalOpen || isDeleteModalOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
+  }, [isCreateModalOpen, isEditModalOpen, isPermissionsModalOpen, isDeleteModalOpen]);
+
+  interface UserFormData {
+    nombres: string;
+    apellidos: string;
+    correo: string;
+    telefono: string;
+    contrasena: string;
+    rol: RolUsuario;
+    estado: EstadoUsuario;
+  }
+
+  const [formData, setFormData] = useState<UserFormData>({
     nombres: '',
     apellidos: '',
     correo: '',
@@ -228,9 +252,11 @@ const UserManagementPage = () => {
   };
 
   const handleCreateUser = () => {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { contrasena, ...userData } = formData;
     const newUser: User = {
       id: (users.length + 1).toString(),
-      ...formData,
+      ...userData,
       fechaCreacion: new Date().toLocaleDateString('es-CO'),
       ultimoAcceso: 'Hoy ' + new Date().toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' }),
       permisos: selectedPermissions
@@ -262,11 +288,14 @@ const UserManagementPage = () => {
   const handleUpdateUser = () => {
     if (!selectedUser) return;
     
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { contrasena, ...userData } = formData;
+
     const updatedUsers = users.map(user => {
       if (user.id === selectedUser.id) {
         return {
           ...user,
-          ...formData
+          ...userData
         };
       }
       return user;
@@ -513,15 +542,25 @@ const UserManagementPage = () => {
                         <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
                           <button
                             onClick={() => handleOpenEditModal(user)}
-                            className="p-2 text-slate-400 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors"
+                            className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                            title="Ver detalle"
+                            disabled={user.rol === 'SUPER_ADMINISTRADOR' && currentUserRole !== 'SUPER_ADMINISTRADOR'}
+                            style={user.rol === 'SUPER_ADMINISTRADOR' && currentUserRole !== 'SUPER_ADMINISTRADOR' ? { pointerEvents: 'none', opacity: 0.5 } : {}}
+                          >
+                            <Eye className="h-4 w-4" />
+                          </button>
+                          <button
+                            onClick={() => handleOpenEditModal(user)}
+                            className="p-2 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
                             title="Editar"
                             disabled={user.rol === 'SUPER_ADMINISTRADOR' && currentUserRole !== 'SUPER_ADMINISTRADOR'}
+                            style={user.rol === 'SUPER_ADMINISTRADOR' && currentUserRole !== 'SUPER_ADMINISTRADOR' ? { pointerEvents: 'none', opacity: 0.5 } : {}}
                           >
                             <Edit2 className="h-4 w-4" />
                           </button>
                           <button
                             onClick={() => handleOpenPermissionsModal(user)}
-                            className="p-2 text-slate-400 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors"
+                            className="p-2 text-slate-400 hover:text-violet-600 hover:bg-violet-50 rounded-lg transition-colors"
                             title="Permisos"
                             disabled={user.rol === 'SUPER_ADMINISTRADOR' && currentUserRole !== 'SUPER_ADMINISTRADOR'}
                           >
@@ -537,7 +576,7 @@ const UserManagementPage = () => {
                             disabled={user.rol === 'SUPER_ADMINISTRADOR'}
                           >
                             {user.estado === 'ACTIVO' ? (
-                              <EyeOff className="h-4 w-4" />
+                              <Trash2 className="h-4 w-4" />
                             ) : (
                               <Eye className="h-4 w-4" />
                             )}
@@ -589,8 +628,8 @@ const UserManagementPage = () => {
                     
                     <div className="grid grid-cols-2 gap-2 text-xs">
                       <div className="p-2 rounded-lg bg-slate-50 border border-slate-100">
-                        <span className="text-slate-400 font-medium block mb-0.5">Departamento</span>
-                        <span className="font-bold text-slate-700">{user.departamento}</span>
+                        <span className="text-slate-400 font-medium block mb-0.5">Fecha Registro</span>
+                        <span className="font-bold text-slate-700">{user.fechaCreacion}</span>
                       </div>
                       <div className="p-2 rounded-lg bg-slate-50 border border-slate-100">
                         <span className="text-slate-400 font-medium block mb-0.5">Último acceso</span>
@@ -602,15 +641,25 @@ const UserManagementPage = () => {
                   <div className="flex items-center justify-end gap-2 pt-4 border-t border-slate-100 mt-auto">
                     <button
                       onClick={() => handleOpenEditModal(user)}
-                      className="p-2 text-slate-400 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors"
+                      className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                      title="Ver detalle"
+                      disabled={user.rol === 'SUPER_ADMINISTRADOR' && currentUserRole !== 'SUPER_ADMINISTRADOR'}
+                      style={user.rol === 'SUPER_ADMINISTRADOR' && currentUserRole !== 'SUPER_ADMINISTRADOR' ? { pointerEvents: 'none', opacity: 0.5 } : {}}
+                    >
+                      <Eye className="h-4 w-4" />
+                    </button>
+                    <button
+                      onClick={() => handleOpenEditModal(user)}
+                      className="p-2 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
                       title="Editar"
                       disabled={user.rol === 'SUPER_ADMINISTRADOR' && currentUserRole !== 'SUPER_ADMINISTRADOR'}
+                      style={user.rol === 'SUPER_ADMINISTRADOR' && currentUserRole !== 'SUPER_ADMINISTRADOR' ? { pointerEvents: 'none', opacity: 0.5 } : {}}
                     >
                       <Edit2 className="h-4 w-4" />
                     </button>
                     <button
                       onClick={() => handleOpenPermissionsModal(user)}
-                      className="p-2 text-slate-400 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors"
+                      className="p-2 text-slate-400 hover:text-violet-600 hover:bg-violet-50 rounded-lg transition-colors"
                       title="Permisos"
                       disabled={user.rol === 'SUPER_ADMINISTRADOR' && currentUserRole !== 'SUPER_ADMINISTRADOR'}
                     >
@@ -626,7 +675,7 @@ const UserManagementPage = () => {
                       disabled={user.rol === 'SUPER_ADMINISTRADOR'}
                     >
                       {user.estado === 'ACTIVO' ? (
-                        <EyeOff className="h-4 w-4" />
+                        <Trash2 className="h-4 w-4" />
                       ) : (
                         <Eye className="h-4 w-4" />
                       )}
@@ -641,12 +690,29 @@ const UserManagementPage = () => {
     </div>
 
       {/* Modals */}
-      {mounted && createPortal(
+      {mounted && typeof document !== 'undefined' && createPortal(
         <>
           {isCreateModalOpen && (
-        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-md flex items-center justify-center p-4 z-50 animate-in fade-in duration-200">
-          <div className="bg-white rounded-2xl w-full max-w-lg border border-slate-200 shadow-2xl p-8 transform scale-100 animate-in zoom-in-95 duration-200">
-            <h2 className="text-2xl font-bold text-slate-900 mb-8 tracking-tight">Nuevo <span className="font-light text-slate-500">Usuario</span></h2>
+        <div 
+          className="fixed inset-0 bg-slate-900/50 backdrop-blur-md flex items-center justify-center p-4 z-50 animate-in fade-in duration-200"
+          onClick={() => setIsCreateModalOpen(false)}
+        >
+          <div 
+            className="bg-white rounded-2xl w-full max-w-lg border border-slate-200 shadow-2xl p-8 transform scale-100 animate-in zoom-in-95 duration-200"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center gap-3 mb-8">
+              <div className="p-2 bg-blue-50 text-orange-500 rounded-lg">
+                <UserPlus className="h-6 w-6" />
+              </div>
+              <div>
+                <h2 className="text-2xl font-bold tracking-tight">
+                  <span className="text-blue-600">Nuevo </span>
+                  <span className="text-orange-500">Usuario</span>
+                </h2>
+                <p className="text-xs text-slate-500 font-medium">Complete la información para registrar un nuevo usuario</p>
+              </div>
+            </div>
             <div className="space-y-5">
               <div className="grid grid-cols-2 gap-4">
                 <div>
@@ -655,7 +721,7 @@ const UserManagementPage = () => {
                     type="text"
                     value={formData.nombres}
                     onChange={(e) => setFormData({...formData, nombres: e.target.value})}
-                    className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:border-slate-900 focus:ring-1 focus:ring-slate-900 transition-all text-sm font-medium text-slate-900 placeholder:text-slate-400"
+                    className="w-full px-4 py-3 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:border-blue-600 focus:ring-2 focus:ring-blue-600/20 transition-all text-sm font-medium text-slate-900 placeholder:text-slate-400"
                     placeholder="Ej. Juan"
                   />
                 </div>
@@ -665,7 +731,7 @@ const UserManagementPage = () => {
                     type="text"
                     value={formData.apellidos}
                     onChange={(e) => setFormData({...formData, apellidos: e.target.value})}
-                    className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:border-slate-900 focus:ring-1 focus:ring-slate-900 transition-all text-sm font-medium text-slate-900 placeholder:text-slate-400"
+                    className="w-full px-4 py-3 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:border-blue-600 focus:ring-2 focus:ring-blue-600/20 transition-all text-sm font-medium text-slate-900 placeholder:text-slate-400"
                     placeholder="Ej. Pérez"
                   />
                 </div>
@@ -677,7 +743,7 @@ const UserManagementPage = () => {
                   type="email"
                   value={formData.correo}
                   onChange={(e) => setFormData({...formData, correo: e.target.value})}
-                  className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:border-slate-900 focus:ring-1 focus:ring-slate-900 transition-all text-sm font-medium text-slate-900 placeholder:text-slate-400"
+                  className="w-full px-4 py-3 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:border-blue-600 focus:ring-2 focus:ring-blue-600/20 transition-all text-sm font-medium text-slate-900 placeholder:text-slate-400"
                   placeholder="Ej. juan@credisur.com"
                 />
               </div>
@@ -689,7 +755,7 @@ const UserManagementPage = () => {
                     type="tel"
                     value={formData.telefono}
                     onChange={(e) => setFormData({...formData, telefono: e.target.value})}
-                    className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:border-slate-900 focus:ring-1 focus:ring-slate-900 transition-all text-sm font-medium text-slate-900 placeholder:text-slate-400"
+                    className="w-full px-4 py-3 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:border-blue-600 focus:ring-2 focus:ring-blue-600/20 transition-all text-sm font-medium text-slate-900 placeholder:text-slate-400"
                     placeholder="Ej. 300 123 4567"
                   />
                 </div>
@@ -699,7 +765,7 @@ const UserManagementPage = () => {
                     type="password"
                     value={formData.contrasena}
                     onChange={(e) => setFormData({...formData, contrasena: e.target.value})}
-                    className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:border-slate-900 focus:ring-1 focus:ring-slate-900 transition-all text-sm font-medium text-slate-900 placeholder:text-slate-400"
+                    className="w-full px-4 py-3 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:border-blue-600 focus:ring-2 focus:ring-blue-600/20 transition-all text-sm font-medium text-slate-900 placeholder:text-slate-400"
                     placeholder="••••••••"
                   />
                 </div>
@@ -711,7 +777,7 @@ const UserManagementPage = () => {
                   <select
                     value={formData.rol}
                     onChange={(e) => setFormData({...formData, rol: e.target.value as RolUsuario})}
-                    className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:border-slate-900 focus:ring-1 focus:ring-slate-900 appearance-none bg-white text-sm font-medium text-slate-900"
+                    className="w-full px-4 py-3 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:border-blue-600 focus:ring-2 focus:ring-blue-600/20 appearance-none text-sm font-medium text-slate-900"
                   >
                     {roles.map(role => (
                       <option key={role.id} value={role.id}>{role.label}</option>
@@ -729,11 +795,212 @@ const UserManagementPage = () => {
                 </button>
                 <button
                   onClick={handleCreateUser}
-                  className="px-5 py-2.5 text-sm font-bold text-white bg-slate-900 hover:bg-slate-800 rounded-xl shadow-lg shadow-slate-900/20 transition-all transform active:scale-95"
+                  className="px-5 py-2.5 text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-xl shadow-lg shadow-blue-600/20 transition-all transform active:scale-95 flex items-center gap-2"
                 >
-                  Crear Usuario
+                  <UserPlus className="h-4 w-4" />
+                  <span>Crear Usuario</span>
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Modal */}
+      {isEditModalOpen && (
+        <div 
+          className="fixed inset-0 bg-slate-900/50 backdrop-blur-md flex items-center justify-center p-4 z-50 animate-in fade-in duration-200"
+          onClick={() => setIsEditModalOpen(false)}
+        >
+          <div 
+            className="bg-white rounded-2xl w-full max-w-lg border border-slate-200 shadow-2xl p-8 transform scale-100 animate-in zoom-in-95 duration-200"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center gap-3 mb-8">
+              <div className="p-2 bg-amber-50 text-amber-500 rounded-lg">
+                <Edit2 className="h-6 w-6" />
+              </div>
+              <div>
+                <h2 className="text-2xl font-bold tracking-tight">
+                  <span className="text-blue-600">Editar </span>
+                  <span className="text-orange-500">Usuario</span>
+                </h2>
+                <p className="text-xs text-slate-500 font-medium">Modifique la información del usuario</p>
+              </div>
+            </div>
+            <div className="space-y-5">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Nombres</label>
+                  <input
+                    type="text"
+                    value={formData.nombres}
+                    onChange={(e) => setFormData({...formData, nombres: e.target.value})}
+                    className="w-full px-4 py-3 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:border-blue-600 focus:ring-2 focus:ring-blue-600/20 transition-all text-sm font-medium text-slate-900 placeholder:text-slate-400"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Apellidos</label>
+                  <input
+                    type="text"
+                    value={formData.apellidos}
+                    onChange={(e) => setFormData({...formData, apellidos: e.target.value})}
+                    className="w-full px-4 py-3 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:border-blue-600 focus:ring-2 focus:ring-blue-600/20 transition-all text-sm font-medium text-slate-900 placeholder:text-slate-400"
+                  />
+                </div>
+              </div>
+              
+              <div>
+                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Correo Electrónico</label>
+                <input
+                  type="email"
+                  value={formData.correo}
+                  onChange={(e) => setFormData({...formData, correo: e.target.value})}
+                  className="w-full px-4 py-3 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:border-blue-600 focus:ring-2 focus:ring-blue-600/20 transition-all text-sm font-medium text-slate-900 placeholder:text-slate-400"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Teléfono</label>
+                  <input
+                    type="tel"
+                    value={formData.telefono}
+                    onChange={(e) => setFormData({...formData, telefono: e.target.value})}
+                    className="w-full px-4 py-3 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:border-blue-600 focus:ring-2 focus:ring-blue-600/20 transition-all text-sm font-medium text-slate-900 placeholder:text-slate-400"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Contraseña</label>
+                  <input
+                    type="password"
+                    value={formData.contrasena}
+                    onChange={(e) => setFormData({...formData, contrasena: e.target.value})}
+                    className="w-full px-4 py-3 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:border-blue-600 focus:ring-2 focus:ring-blue-600/20 transition-all text-sm font-medium text-slate-900 placeholder:text-slate-400"
+                    placeholder="Dejar vacío para no cambiar"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Rol</label>
+                <div className="relative">
+                  <select
+                    value={formData.rol}
+                    onChange={(e) => setFormData({...formData, rol: e.target.value as RolUsuario})}
+                    className="w-full px-4 py-3 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:border-blue-600 focus:ring-2 focus:ring-blue-600/20 appearance-none text-sm font-medium text-slate-900"
+                  >
+                    {roles.map(role => (
+                      <option key={role.id} value={role.id}>{role.label}</option>
+                    ))}
+                  </select>
+                  <ChevronDown className="absolute right-4 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
+                </div>
+              </div>
+              <div className="flex justify-end gap-3 mt-8 pt-4 border-t border-slate-100">
+                <button
+                  onClick={() => setIsEditModalOpen(false)}
+                  className="px-5 py-2.5 text-sm font-bold text-slate-600 hover:text-slate-900 hover:bg-slate-50 rounded-xl transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={handleUpdateUser}
+                  className="px-5 py-2.5 text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-xl shadow-lg shadow-blue-600/20 transition-all transform active:scale-95 flex items-center gap-2"
+                >
+                  <Save className="h-4 w-4" />
+                  <span>Guardar Cambios</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Permissions Modal */}
+      {isPermissionsModalOpen && selectedUser && (
+        <div 
+          className="fixed inset-0 bg-slate-900/50 backdrop-blur-md flex items-center justify-center p-4 z-50 animate-in fade-in duration-200"
+          onClick={() => setIsPermissionsModalOpen(false)}
+        >
+          <div 
+            className="bg-white rounded-2xl w-full max-w-2xl border border-slate-200 shadow-2xl p-8 transform scale-100 animate-in zoom-in-95 duration-200 flex flex-col max-h-[90vh]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center gap-3 mb-6 shrink-0">
+              <div className="p-2 bg-blue-50 text-orange-600 rounded-lg">
+                <Key className="h-6 w-6" />
+              </div>
+              <div>
+                <h2 className="text-2xl font-bold tracking-tight text-slate-900">
+                  Gestión de Permisos
+                </h2>
+                <p className="text-sm text-slate-500 font-medium">
+                  Configura los accesos para <span className="text-slate-900 font-bold">{selectedUser.nombres} {selectedUser.apellidos}</span>
+                </p>
+              </div>
+            </div>
+
+            <div className="flex-1 overflow-y-auto pr-2 -mr-2 min-h-0">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {availablePermissions.map((permission) => (
+                  <label 
+                    key={permission.id}
+                    className={cn(
+                      "flex items-start gap-3 p-4 rounded-xl border transition-all cursor-pointer select-none",
+                      selectedPermissions.includes(permission.id)
+                        ? "bg-blue-50 border-blue-200 shadow-sm"
+                        : "bg-white border-slate-200 hover:border-blue-200 hover:bg-slate-50"
+                    )}
+                  >
+                    <div className="pt-0.5">
+                      <div className={cn(
+                        "w-5 h-5 rounded-md border flex items-center justify-center transition-all",
+                        selectedPermissions.includes(permission.id)
+                          ? "bg-blue-600 border-blue-600"
+                          : "bg-white border-slate-300"
+                      )}>
+                        {selectedPermissions.includes(permission.id) && (
+                          <Check className="h-3.5 w-3.5 text-white stroke-[3]" />
+                        )}
+                      </div>
+                      <input 
+                        type="checkbox"
+                        className="hidden"
+                        checked={selectedPermissions.includes(permission.id)}
+                        onChange={() => handleTogglePermission(permission.id)}
+                      />
+                    </div>
+                    <div>
+                      <span className={cn(
+                        "block text-sm font-bold mb-0.5",
+                        selectedPermissions.includes(permission.id) ? "text-blue-900" : "text-slate-700"
+                      )}>
+                        {permission.label}
+                      </span>
+                      <span className="block text-xs text-slate-500 leading-snug">
+                        {permission.description}
+                      </span>
+                    </div>
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-3 mt-8 pt-4 border-t border-slate-100 shrink-0">
+              <button
+                onClick={() => setIsPermissionsModalOpen(false)}
+                className="px-5 py-2.5 text-sm font-bold text-slate-600 hover:text-slate-900 hover:bg-slate-50 rounded-xl transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleUpdatePermissions}
+                className="px-5 py-2.5 text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-xl shadow-lg shadow-blue-600/20 transition-all transform active:scale-95 flex items-center gap-2"
+              >
+                <Save className="h-4 w-4" />
+                <span>Guardar Cambios</span>
+              </button>
             </div>
           </div>
         </div>
@@ -748,15 +1015,15 @@ const UserManagementPage = () => {
                 "w-12 h-12 rounded-full flex items-center justify-center mb-4",
                 selectedUser.estado === 'ACTIVO' ? 'bg-rose-50 text-rose-600' : 'bg-emerald-50 text-emerald-600'
               )}>
-                {selectedUser.estado === 'ACTIVO' ? <AlertCircle className="h-6 w-6" /> : <Check className="h-6 w-6" />}
+                {selectedUser.estado === 'ACTIVO' ? <Trash2 className="h-6 w-6" /> : <Check className="h-6 w-6" />}
               </div>
               <h3 className="text-lg font-bold text-slate-900 mb-2">
                 {selectedUser.estado === 'ACTIVO' ? '¿Desactivar usuario?' : '¿Activar usuario?'}
               </h3>
               <p className="text-sm text-slate-500 mb-6 font-medium">
                 {selectedUser.estado === 'ACTIVO' 
-                  ? `Estás a punto de desactivar el acceso de ${selectedUser.nombre}.` 
-                  : `Se restablecerá el acceso para ${selectedUser.nombre}.`
+                  ? `Estás a punto de desactivar el acceso de ${selectedUser.nombres}.` 
+                  : `Se restablecerá el acceso para ${selectedUser.nombres}.`
                 }
               </p>
               <div className="flex gap-3 w-full">

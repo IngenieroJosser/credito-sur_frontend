@@ -6,7 +6,6 @@ import {
   User,
   CreditCard,
   Wallet,
-  Calendar,
   AlertCircle,
   ShoppingBag,
   ArrowLeft,
@@ -14,8 +13,7 @@ import {
   Package,
   CheckCircle2
 } from 'lucide-react'
-import { formatCurrency, cn } from '@/lib/utils'
-import Link from 'next/link'
+import { formatCOPInputValue, formatCurrency, formatMilesCOP, parseCOPInputToNumber, cn } from '@/lib/utils'
 
 type TipoProducto = 'PRESTAMO_EFECTIVO' | 'CREDITO_ARTICULO'
 
@@ -102,7 +100,7 @@ const RegistrarPagoClientePage = () => {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    if (!monto) return
+    if (parseCOPInputToNumber(monto) <= 0) return
 
     setEstadoEnvio('enviando')
     setTimeout(() => {
@@ -122,8 +120,10 @@ const RegistrarPagoClientePage = () => {
     )
   }
 
+  const esCreditoArticulo = producto?.tipo === 'CREDITO_ARTICULO'
+
   // VISTA DIFERENCIADA PARA ARTÍCULOS
-  if (producto?.tipo === 'CREDITO_ARTICULO') {
+  if (esCreditoArticulo) {
     return (
       <div className="min-h-screen bg-slate-50 relative pb-10">
         <div className="fixed inset-0 pointer-events-none">
@@ -215,9 +215,10 @@ const RegistrarPagoClientePage = () => {
                         <div className="relative">
                           <span className="absolute left-0 top-1/2 -translate-y-1/2 text-4xl font-light text-slate-300">$</span>
                           <input
-                            type="number"
+                            type="text"
+                            inputMode="numeric"
                             value={monto}
-                            onChange={(e) => setMonto(e.target.value)}
+                            onChange={(e) => setMonto(formatCOPInputValue(e.target.value))}
                             placeholder="0"
                             className="w-full pl-8 pr-4 py-2 bg-transparent border-b-2 border-slate-200 text-5xl font-bold text-slate-900 focus:border-blue-600 focus:ring-0 outline-none transition-all placeholder:text-slate-200"
                             autoFocus
@@ -232,7 +233,7 @@ const RegistrarPagoClientePage = () => {
                             <button
                               key={idx}
                               type="button"
-                              onClick={() => setMonto(val.toString())}
+                              onClick={() => setMonto(formatMilesCOP(val))}
                               className="py-3 px-4 rounded-xl border border-slate-200 hover:border-blue-600 hover:bg-blue-50 text-slate-600 hover:text-blue-700 font-bold text-sm transition-all"
                             >
                               {idx === 2 ? 'Pago Total' : formatCurrency(val)}
@@ -256,7 +257,7 @@ const RegistrarPagoClientePage = () => {
                    <div className="pt-4">
                       <button
                         type="submit"
-                        disabled={!monto || estadoEnvio === 'enviando' || estadoEnvio === 'exito'}
+                        disabled={parseCOPInputToNumber(monto) <= 0 || estadoEnvio === 'enviando' || estadoEnvio === 'exito'}
                         className={cn(
                           "w-full py-5 rounded-2xl font-bold text-lg text-white transition-all transform active:scale-[0.99] shadow-lg hover:shadow-xl",
                           estadoEnvio === 'exito' 
@@ -298,7 +299,7 @@ const RegistrarPagoClientePage = () => {
               <span className="text-blue-600">Registrar</span> <span className="text-orange-500">Pago</span>
             </h1>
             <p className="text-slate-600 text-sm font-medium">
-              {producto?.tipo === 'CREDITO_ARTICULO' ? 'Abono a Crédito de Artículo' : 'Abono a Préstamo Personal'}
+              {esCreditoArticulo ? 'Abono a Crédito de Artículo' : 'Abono a Préstamo Personal'}
             </p>
           </div>
         </div>
@@ -329,20 +330,20 @@ const RegistrarPagoClientePage = () => {
                 <div className="flex items-center gap-3">
                   <div className={cn(
                     "p-2 rounded-lg",
-                    producto?.tipo === 'CREDITO_ARTICULO' ? "bg-indigo-100 text-indigo-700" : "bg-emerald-100 text-emerald-700"
+                    esCreditoArticulo ? "bg-indigo-100 text-indigo-700" : "bg-emerald-100 text-emerald-700"
                   )}>
-                    {producto?.tipo === 'CREDITO_ARTICULO' ? <ShoppingBag className="h-5 w-5" /> : <Banknote className="h-5 w-5" />}
+                    {esCreditoArticulo ? <ShoppingBag className="h-5 w-5" /> : <Banknote className="h-5 w-5" />}
                   </div>
                   <div>
                     <h3 className={cn(
                       "font-bold",
-                      producto?.tipo === 'CREDITO_ARTICULO' ? "text-indigo-900" : "text-emerald-900"
+                      esCreditoArticulo ? "text-indigo-900" : "text-emerald-900"
                     )}>
-                      {producto?.tipo === 'CREDITO_ARTICULO' ? 'Crédito Artículo' : 'Préstamo Efectivo'}
+                      {esCreditoArticulo ? 'Crédito Artículo' : 'Préstamo Efectivo'}
                     </h3>
                     <p className={cn(
                       "text-xs font-medium",
-                      producto?.tipo === 'CREDITO_ARTICULO' ? "text-indigo-600" : "text-emerald-600"
+                      esCreditoArticulo ? "text-indigo-600" : "text-emerald-600"
                     )}>
                       {producto?.codigo}
                     </p>
@@ -377,7 +378,7 @@ const RegistrarPagoClientePage = () => {
 
               {/* Decoración de fondo */}
               <div className="absolute -right-4 -bottom-4 opacity-10">
-                {producto?.tipo === 'CREDITO_ARTICULO' ? <Package className="h-32 w-32" /> : <CreditCard className="h-32 w-32" />}
+                {esCreditoArticulo ? <Package className="h-32 w-32" /> : <CreditCard className="h-32 w-32" />}
               </div>
             </div>
           </div>
@@ -415,9 +416,10 @@ const RegistrarPagoClientePage = () => {
                     <div className="relative">
                       <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 font-light text-xl">$</div>
                       <input
-                        type="number"
+                        type="text"
+                        inputMode="numeric"
                         value={monto}
-                        onChange={(e) => setMonto(e.target.value)}
+                        onChange={(e) => setMonto(formatCOPInputValue(e.target.value))}
                         placeholder="0"
                         className="w-full pl-10 pr-4 py-4 bg-slate-50 border border-slate-200 rounded-xl text-2xl font-bold text-slate-900 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all placeholder:text-slate-400"
                         autoFocus
@@ -433,7 +435,7 @@ const RegistrarPagoClientePage = () => {
                           <button
                             key={val}
                             type="button"
-                            onClick={() => setMonto(val.toString())}
+                            onClick={() => setMonto(formatMilesCOP(val))}
                             className="px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-600 hover:bg-slate-50 hover:border-slate-300 transition-colors whitespace-nowrap"
                           >
                             {formatCurrency(val)}
@@ -457,7 +459,7 @@ const RegistrarPagoClientePage = () => {
 
                   <button
                     type="submit"
-                    disabled={!monto || estadoEnvio === 'enviando' || estadoEnvio === 'exito'}
+                    disabled={parseCOPInputToNumber(monto) <= 0 || estadoEnvio === 'enviando' || estadoEnvio === 'exito'}
                     className={cn(
                       "w-full py-4 rounded-xl font-bold text-white transition-all transform active:scale-[0.98]",
                       estadoEnvio === 'exito' 

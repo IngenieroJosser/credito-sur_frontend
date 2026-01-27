@@ -75,7 +75,7 @@ const ConfiguracionSistemaPage = () => {
               </div>
               <div>
                 <h2 className="text-lg font-bold text-slate-900">Reglas de Préstamos</h2>
-                <p className="text-xs text-slate-500 mt-1 font-medium">Tasas, plazos y políticas</p>
+                <p className="text-xs text-slate-500 mt-1 font-medium">Tasas, cuotas y políticas</p>
               </div>
             </div>
             

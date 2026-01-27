@@ -11,7 +11,9 @@ import {
   AlertTriangle,
   ArrowLeft,
   Receipt,
-  Plus
+  Plus,
+  Pencil,
+  Save
 } from 'lucide-react'
 import { formatCurrency, cn } from '@/lib/utils'
 import Link from 'next/link'
@@ -32,7 +34,8 @@ interface ClienteRuta {
 
 interface GastoRuta {
   id: string
-  concepto: string
+  tipo: 'OPERATIVO' | 'TRANSPORTE' | 'OTRO'
+  descripcion: string
   valor: number
   hora: string
 }
@@ -91,13 +94,15 @@ const DetalleRutaPage = () => {
   const [gastos] = useState<GastoRuta[]>([
     {
       id: '1',
-      concepto: 'Gasolina',
+      tipo: 'TRANSPORTE',
+      descripcion: 'Gasolina',
       valor: 15000,
       hora: '08:00 AM'
     },
     {
       id: '2',
-      concepto: 'Almuerzo',
+      tipo: 'OPERATIVO',
+      descripcion: 'Almuerzo',
       valor: 12000,
       hora: '12:30 PM'
     }
@@ -113,6 +118,18 @@ const DetalleRutaPage = () => {
 
   const porcentajeProgreso = (progreso.visitados / progreso.total) * 100
 
+  const [isGastoModalOpen, setIsGastoModalOpen] = useState(false)
+  const [nuevoGasto, setNuevoGasto] = useState({ tipo: 'OPERATIVO', descripcion: '', valor: '' })
+
+  const handleGuardarGasto = (e: React.FormEvent) => {
+    e.preventDefault()
+    // La hora se toma automáticamente del sistema
+    const horaActual = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })
+    console.log('Guardando gasto:', { ...nuevoGasto, hora: horaActual })
+    setIsGastoModalOpen(false)
+    setNuevoGasto({ tipo: 'OPERATIVO', descripcion: '', valor: '' })
+  }
+
   return (
     <div className="min-h-screen bg-slate-50 relative pb-20">
       {/* Fondo arquitectónico */}
@@ -124,18 +141,27 @@ const DetalleRutaPage = () => {
       <div className="relative z-10 w-full p-6 md:p-8 space-y-6">
         {/* Header */}
         <header className="flex flex-col gap-4">
-          <div className="flex items-center gap-4">
-             <Link href="/admin/rutas" className="p-2 bg-white rounded-full shadow-sm hover:bg-slate-100 transition-colors">
-                <ArrowLeft className="h-5 w-5 text-slate-600" />
-             </Link>
-             <div>
-               <h1 className="text-3xl font-bold tracking-tight">
-                 <span className="text-blue-600">Ruta </span><span className="text-orange-500">Diaria</span>
-               </h1>
-               <p className="text-slate-500 font-medium text-sm">
-                 {new Date().toLocaleDateString('es-CO', { weekday: 'long', day: 'numeric', month: 'long' })} • ID: {rutaId}
-               </p>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+               <Link href="/admin/rutas" className="p-2 bg-white rounded-full shadow-sm hover:bg-slate-100 transition-colors">
+                  <ArrowLeft className="h-5 w-5 text-slate-600" />
+               </Link>
+               <div>
+                 <h1 className="text-3xl font-bold tracking-tight">
+                   <span className="text-blue-600">Ruta </span><span className="text-orange-500">Diaria</span>
+                 </h1>
+                 <p className="text-slate-500 font-medium text-sm">
+                   {new Date().toLocaleDateString('es-CO', { weekday: 'long', day: 'numeric', month: 'long' })} • ID: {rutaId}
+                 </p>
+              </div>
             </div>
+            <Link 
+              href={`/admin/rutas/${rutaId}/editar`}
+              className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 text-slate-700 font-bold text-sm rounded-xl hover:bg-slate-50 hover:border-slate-300 transition-all shadow-sm"
+            >
+              <Pencil className="h-4 w-4" />
+              <span>Editar</span>
+            </Link>
           </div>
 
           {/* Tarjetas de Resumen */}
@@ -287,7 +313,10 @@ const DetalleRutaPage = () => {
               <Receipt className="h-4 w-4 text-slate-500" />
               Gastos Operativos
             </h2>
-            <button className="inline-flex items-center gap-2 px-4 py-2 bg-slate-900 text-white text-sm font-medium rounded-xl hover:bg-slate-800 transition-colors shadow-sm">
+            <button 
+              onClick={() => setIsGastoModalOpen(true)}
+              className="inline-flex items-center gap-2 px-4 py-2 bg-white text-orange-600 border border-orange-200 text-sm font-bold rounded-xl hover:bg-orange-50 transition-colors shadow-sm"
+            >
               <Plus className="h-4 w-4" />
               Registrar Gasto
             </button>
@@ -298,7 +327,8 @@ const DetalleRutaPage = () => {
               <table className="w-full text-sm text-left">
                 <thead className="text-xs text-slate-500 uppercase bg-slate-50/50 border-b border-slate-200">
                   <tr>
-                    <th className="px-6 py-4 font-bold tracking-wider">Concepto</th>
+                    <th className="px-6 py-4 font-bold tracking-wider">Tipo</th>
+                    <th className="px-6 py-4 font-bold tracking-wider">Descripción</th>
                     <th className="px-6 py-4 font-bold tracking-wider">Hora</th>
                     <th className="px-6 py-4 font-bold tracking-wider text-right">Valor</th>
                   </tr>
@@ -307,14 +337,24 @@ const DetalleRutaPage = () => {
                   {gastos.length > 0 ? (
                     gastos.map((gasto) => (
                       <tr key={gasto.id} className="hover:bg-slate-50/50 transition-colors">
-                        <td className="px-6 py-4 font-medium text-slate-900">{gasto.concepto}</td>
+                        <td className="px-6 py-4 font-medium text-slate-900">
+                          <span className={cn(
+                            "px-2 py-1 rounded-md text-xs font-bold border",
+                            gasto.tipo === 'OPERATIVO' ? "bg-blue-50 text-blue-700 border-blue-100" :
+                            gasto.tipo === 'TRANSPORTE' ? "bg-amber-50 text-amber-700 border-amber-100" :
+                            "bg-slate-50 text-slate-700 border-slate-100"
+                          )}>
+                            {gasto.tipo}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 text-slate-600">{gasto.descripcion}</td>
                         <td className="px-6 py-4 text-slate-500">{gasto.hora}</td>
                         <td className="px-6 py-4 text-right font-bold text-slate-900">{formatCurrency(gasto.valor)}</td>
                       </tr>
                     ))
                   ) : (
                     <tr>
-                      <td colSpan={3} className="px-6 py-8 text-center text-slate-500">
+                      <td colSpan={4} className="px-6 py-8 text-center text-slate-500">
                         No hay gastos registrados hoy
                       </td>
                     </tr>
@@ -335,6 +375,99 @@ const DetalleRutaPage = () => {
           </div>
         </div>
       </div>
+
+      {/* Modal de Registro de Gasto */}
+      {isGastoModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+            {/* Modal Header */}
+            <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+              <h3 className="font-bold text-lg text-slate-900">
+                <span className="text-blue-600">Registrar</span> <span className="text-orange-500">Gasto</span>
+              </h3>
+              <button 
+                onClick={() => setIsGastoModalOpen(false)}
+                className="text-slate-400 hover:text-slate-600 transition-colors"
+              >
+                <XCircle className="h-6 w-6" />
+              </button>
+            </div>
+            
+            {/* Modal Body */}
+            <form onSubmit={handleGuardarGasto} className="p-6 space-y-4">
+              <div className="space-y-2">
+                <label className="text-sm font-bold text-slate-700">Tipo de Gasto</label>
+                <select
+                  required
+                  className="w-full px-4 py-2.5 rounded-xl border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-blue-600/20 focus:border-blue-600 transition-all font-medium text-slate-900 appearance-none"
+                  value={nuevoGasto.tipo}
+                  onChange={e => setNuevoGasto({...nuevoGasto, tipo: e.target.value})}
+                >
+                  <option value="OPERATIVO">OPERATIVO</option>
+                  <option value="TRANSPORTE">TRANSPORTE</option>
+                  <option value="OTRO">OTRO</option>
+                </select>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-bold text-slate-700">Descripción</label>
+                <textarea 
+                  required
+                  rows={2}
+                  className="w-full px-4 py-2.5 rounded-xl border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-blue-600/20 focus:border-blue-600 transition-all font-medium text-slate-900 resize-none"
+                  placeholder="Detalles del gasto..."
+                  value={nuevoGasto.descripcion}
+                  onChange={e => setNuevoGasto({...nuevoGasto, descripcion: e.target.value})}
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <label className="text-sm font-bold text-slate-700">Valor</label>
+                <div className="relative">
+                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold">$</span>
+                  <input 
+                    type="number" 
+                    required
+                    min="0"
+                    className="w-full pl-8 pr-4 py-2.5 rounded-xl border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-blue-600/20 focus:border-blue-600 transition-all font-medium text-slate-900"
+                    placeholder="0"
+                    value={nuevoGasto.valor}
+                    onChange={e => setNuevoGasto({...nuevoGasto, valor: e.target.value})}
+                  />
+                </div>
+              </div>
+
+              <div className="p-3 bg-blue-50 rounded-xl flex items-start gap-3 border border-blue-100">
+                <div className="p-1.5 bg-blue-100 rounded-lg text-blue-600 mt-0.5">
+                  <Banknote className="h-4 w-4" />
+                </div>
+                <div className="text-xs text-blue-800">
+                  <p className="font-bold mb-0.5">Nota Importante</p>
+                  <p>Este gasto quedará en estado <strong>Pendiente de Aprobación</strong> hasta que el supervisor lo valide.</p>
+                </div>
+              </div>
+
+              {/* Modal Footer */}
+              <div className="flex gap-3 pt-4 mt-2 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setIsGastoModalOpen(false)}
+                  className="flex-1 px-4 py-2.5 bg-white border border-slate-200 text-slate-700 font-bold rounded-xl hover:bg-slate-50 transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 px-4 py-2.5 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 shadow-lg shadow-blue-600/20 transition-all flex items-center justify-center gap-2"
+                >
+                  <Save className="h-4 w-4" />
+                  <span>Guardar</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

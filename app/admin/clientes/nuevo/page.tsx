@@ -3,6 +3,8 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+
+import { clientesService, CrearClienteDto } from '@/services/clientes-service';
 import { Save, User, Phone, Mail, MapPin, Briefcase, Shield, AlertCircle, ChevronRight, ArrowLeft, Camera } from 'lucide-react';
 import { FileUploader } from '@/components/ui/FileUploader';
 
@@ -51,6 +53,9 @@ const ClienteFormPage = () => {
   const router = useRouter();
   const [isEditMode] = useState(false);
   const [activeSection, setActiveSection] = useState('personal');
+
+  const [isSaving, setIsSaving] = useState(false)
+
   const [formData, setFormData] = useState<ClienteFormData>({
     nombres: '', apellidos: '', dni: '', telefono: '', correo: '', direccion: '', referencia: '',
     puntaje: 100, nivelRiesgo: 'VERDE', enListaNegra: false, razonListaNegra: '', rutaId: '', observaciones: ''
@@ -77,6 +82,10 @@ const ClienteFormPage = () => {
     if (type === 'checkbox') {
       const checked = (e.target as HTMLInputElement).checked;
       setFormData(prev => ({ ...prev, [name]: checked, ...(name === 'enListaNegra' && checked ? { nivelRiesgo: 'LISTA_NEGRA', puntaje: 0 } : {}) }));
+    } else if (name === 'dni' || name === 'telefono') {
+      // Permitir solo números, eliminando cualquier otro caracter (puntos, letras, espacios)
+      const numericValue = value.replace(/\D/g, '');
+      setFormData(prev => ({ ...prev, [name]: numericValue }));
     } else if (type === 'number') {
       setFormData(prev => ({ ...prev, [name]: parseFloat(value) || 0 }));
     } else {
@@ -86,8 +95,39 @@ const ClienteFormPage = () => {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    alert(isEditMode ? 'Cliente actualizado' : 'Cliente creado exitosamente');
-    router.push('/admin/clientes');
+
+    if (isEditMode) {
+      alert('Funcionalidad de edición pendiente');
+      // TODO: Implementar actualización
+    } else {
+      ;(async () => {
+        setIsSaving(true)
+        try {
+          const nuevoCliente: CrearClienteDto = {
+            nombres: formData.nombres,
+            apellidos: formData.apellidos,
+            dni: formData.dni,
+            telefono: formData.telefono,
+            direccion: formData.direccion,
+            correo: formData.correo || undefined,
+            referencia: formData.referencia || undefined,
+            nivelRiesgo: formData.nivelRiesgo,
+            puntaje: formData.puntaje,
+            enListaNegra: formData.enListaNegra,
+            rutaId: formData.rutaId || undefined,
+            observaciones: formData.observaciones || undefined,
+          }
+          await clientesService.crearCliente(nuevoCliente)
+          alert('Cliente creado exitosamente')
+          router.push('/admin/clientes')
+        } catch (error) {
+          console.error('Error al crear cliente:', error)
+          alert('Error al crear el cliente. Verifique los datos.')
+        } finally {
+          setIsSaving(false)
+        }
+      })()
+    }
   };
 
   const getRiesgoColor = (nivel: string) => {
@@ -119,10 +159,14 @@ const ClienteFormPage = () => {
 
       <div className="relative z-10 px-8 pt-8">
         <div className="mb-8 flex items-center justify-between">
-          <Link href="/admin/clientes" className="flex items-center gap-2 text-slate-500 hover:text-slate-900 transition-colors group">
-            <ArrowLeft className="w-5 h-5 group-hover:-translate-x-0.5 transition-transform duration-200" />
-            <span className="text-sm font-bold">Volver</span>
-          </Link>
+          <button
+            type="button"
+            onClick={() => router.back()}
+            className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-slate-600 shadow-sm transition-colors hover:bg-slate-50 hover:text-slate-900"
+          >
+            <ArrowLeft className="w-5 h-5" />
+            <span>Volver</span>
+          </button>
         </div>
 
         <div className="mb-8">
@@ -200,7 +244,7 @@ const ClienteFormPage = () => {
                       <input type="text" name="apellidos" value={formData.apellidos} onChange={handleInputChange} className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-900/20 focus:border-slate-900 transition-all font-medium text-slate-900 placeholder:text-slate-400" placeholder="Ej. Pérez Rodriguez" required />
                     </div>
                     <div>
-                      <label className="block text-sm font-bold text-slate-700 mb-2">DNI / Cédula <span className="text-rose-500">*</span></label>
+                      <label className="block text-sm font-bold text-slate-700 mb-2">Cédula / CC <span className="text-rose-500">*</span></label>
                       <div className="relative">
                         <Shield className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
                         <input type="text" name="dni" value={formData.dni} onChange={handleInputChange} className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-900/20 focus:border-slate-900 transition-all font-medium text-slate-900 placeholder:text-slate-400" placeholder="1.020.345.678" required />
@@ -329,7 +373,14 @@ const ClienteFormPage = () => {
 
               <div className="px-6 py-4 bg-slate-50/50 border-t border-slate-200 flex justify-end space-x-3">
                 <Link href="/admin/clientes" className="px-4 py-2 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors text-sm font-medium">Cancelar</Link>
-                <button onClick={handleSubmit} className="px-4 py-2 bg-slate-900 text-white rounded-lg hover:bg-slate-800 transition-colors text-sm font-bold shadow-sm">{isEditMode ? 'Guardar Cambios' : 'Crear Cliente'}</button>
+                <button
+                  type="submit"
+                  disabled={isSaving}
+                  className="px-4 py-2 bg-slate-900 text-white rounded-lg hover:bg-slate-800 transition-colors text-sm font-bold shadow-sm flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <Save className="h-4 w-4" />
+                  {isSaving ? 'Guardando...' : (isEditMode ? 'Guardar Cambios' : 'Crear Cliente')}
+                </button>
               </div>
             </form>
           </div>

@@ -1,12 +1,15 @@
 'use client'
 
-import { User, Shield, Lock, Phone, Calendar, Clock, Activity, FileText, CheckCircle2, X, Eye, EyeOff } from 'lucide-react'
+import { User, Shield, Lock, Phone, Calendar, Clock, FileText, CheckCircle2, X, Eye, EyeOff, ChevronLeft } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import { createPortal } from 'react-dom'
+import { useRouter } from 'next/navigation'
 
 const PerfilUsuarioPage = () => {
+  const router = useRouter()
   const [mounted, setMounted] = useState(false)
   const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false)
+  const [volverRuta, setVolverRuta] = useState('/admin')
   const [passwordForm, setPasswordForm] = useState({
     currentPassword: '',
     newPassword: '',
@@ -20,6 +23,14 @@ const PerfilUsuarioPage = () => {
 
   useEffect(() => {
     setMounted(true)
+    try {
+      const userStr = localStorage.getItem('user')
+      if (!userStr) return
+      const user = JSON.parse(userStr) as { rol?: string }
+      setVolverRuta(user.rol === 'COBRADOR' ? '/cobranzas' : '/admin')
+    } catch {
+      // ignore
+    }
   }, [])
 
   const handleOpenPasswordModal = () => {
@@ -56,6 +67,14 @@ const PerfilUsuarioPage = () => {
       <div className="relative z-10 w-full px-6 md:px-8 py-8 space-y-8">
         <header className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between animate-in fade-in slide-in-from-bottom-4 duration-700">
           <div>
+            <button
+              type="button"
+              onClick={() => router.push(volverRuta)}
+              className="mb-3 inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-slate-600 shadow-sm transition-colors hover:bg-slate-50 hover:text-slate-900"
+            >
+              <ChevronLeft className="h-4 w-4" />
+              Volver
+            </button>
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-slate-100 text-xs text-slate-600 tracking-wide font-bold border border-slate-200 mb-2">
               <User className="h-3.5 w-3.5" />
               <span>Mi Perfil</span>
@@ -108,7 +127,7 @@ const PerfilUsuarioPage = () => {
             {/* Resumen de Actividad */}
             <div className="rounded-2xl border border-slate-200 bg-white/80 backdrop-blur-sm p-6 shadow-sm">
               <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider mb-4 flex items-center gap-2">
-                <Activity className="h-4 w-4" />
+                <Eye className="h-4 w-4" />
                 Impacto Operativo
               </h3>
               <div className="grid grid-cols-2 gap-4">

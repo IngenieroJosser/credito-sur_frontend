@@ -14,10 +14,12 @@ import {
   X,
   Save,
   Calculator,
-  AlertCircle
+  AlertCircle,
+  Eye
 } from 'lucide-react'
 import { formatCurrency, cn } from '@/lib/utils'
 import { ExportButton } from '@/components/ui/ExportButton'
+import { useRouter } from 'next/navigation'
 
 // Mock Data
 interface Transaccion {
@@ -31,6 +33,7 @@ interface Transaccion {
 }
 
 const TesoreriaPage = () => {
+  const router = useRouter()
   const [activeTab, setActiveTab] = useState<'RESUMEN' | 'INGRESOS' | 'EGRESO'>('RESUMEN')
   const [isArqueoOpen, setIsArqueoOpen] = useState(false)
   const [arqueoData, setArqueoData] = useState({
@@ -194,6 +197,7 @@ const TesoreriaPage = () => {
                   <th className="px-6 py-4">Tipo</th>
                   <th className="px-6 py-4">Responsable</th>
                   <th className="px-6 py-4 text-right">Monto</th>
+                  <th className="px-6 py-4 text-right">Acciones</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -226,6 +230,15 @@ const TesoreriaPage = () => {
                     )}>
                       {trx.tipo === 'INGRESO' ? '+' : '-'}{formatCurrency(trx.monto)}
                     </td>
+                    <td className="px-6 py-4 text-right">
+                  <button 
+                    onClick={() => router.push(`/admin/contable/movimientos/${trx.id}`)}
+                    className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                    title="Ver Detalle"
+                  >
+                    <Eye className="h-4 w-4" />
+                  </button>
+                </td>
                   </tr>
                 ))}
               </tbody>
@@ -237,13 +250,20 @@ const TesoreriaPage = () => {
 
       {/* Modal de Arqueo de Caja */}
       {isArqueoOpen && (
-          <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-200">
-            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden animate-in zoom-in-95 duration-200">
+          <div 
+            className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-200"
+            onClick={() => setIsArqueoOpen(false)}
+          >
+            <div 
+              className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden animate-in zoom-in-95 duration-200"
+              onClick={(e) => e.stopPropagation()}
+            >
               <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
                 <div>
-                  <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2">
-                    <Wallet className="h-5 w-5 text-blue-600" />
-                    Arqueo de Caja
+                  <h2 className="text-xl font-bold tracking-tight flex items-center gap-2">
+                    <Wallet className="h-5 w-5 text-orange-500" />
+                    <span className="text-blue-600">Arqueo de</span>
+                    <span className="text-orange-500">Caja</span>
                   </h2>
                   <p className="text-sm text-slate-500 font-medium">Registro de cierre y control de efectivo</p>
                 </div>
@@ -260,7 +280,7 @@ const TesoreriaPage = () => {
                   <div className="space-y-2">
                     <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Caja a Arquear</label>
                     <select 
-                      className="w-full p-2.5 rounded-xl border border-slate-200 bg-slate-50 text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                      className="w-full p-2.5 rounded-xl border border-slate-200 bg-slate-50 text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-600/20 focus:border-blue-600 transition-all"
                       value={arqueoData.cajaId}
                       onChange={(e) => handleArqueoChange('cajaId', e.target.value)}
                     >
@@ -327,7 +347,7 @@ const TesoreriaPage = () => {
                 <div className="space-y-2">
                   <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Observaciones</label>
                   <textarea 
-                    className="w-full p-3 rounded-xl border border-slate-200 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-slate-900/10 min-h-[80px] resize-none"
+                    className="w-full p-3 rounded-xl border border-slate-200 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-600/20 focus:border-blue-600 min-h-[80px] resize-none transition-all"
                     placeholder="Ingrese detalles sobre billetes, monedas o justificación de diferencias..."
                     value={arqueoData.observaciones}
                     onChange={(e) => handleArqueoChange('observaciones', e.target.value)}
@@ -343,7 +363,7 @@ const TesoreriaPage = () => {
                   Cancelar
                 </button>
                 <button 
-                  className="px-6 py-2 rounded-xl bg-slate-900 text-white font-bold hover:bg-slate-800 transition-all shadow-lg shadow-slate-900/20 flex items-center gap-2"
+                  className="px-6 py-2 rounded-xl bg-blue-600 text-white font-bold hover:bg-blue-700 transition-all shadow-lg shadow-blue-600/20 flex items-center gap-2"
                 >
                   <Save className="h-4 w-4" />
                   Guardar Arqueo

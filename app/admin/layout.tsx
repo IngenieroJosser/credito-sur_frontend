@@ -7,14 +7,10 @@ import {
   Shield,
   Search,
   Bell,
-  Activity,
   CreditCard,
   Banknote,
   Users,
   AlertCircle,
-  Route,
-  Package,
-  PieChart,
   User,
   Settings,
   Wallet,
@@ -25,22 +21,22 @@ import {
   Phone,
   Calendar,
   MapPin,
-  Key,
   ChevronDown,
-  CreditCard as CreditCardIo,
-  ShoppingBag,
-  Archive,
-  CheckCircle2,
-  Receipt,
-  Map,
-  HardDrive,
-  Calculator,
-  BarChart3,
-  FileText
+  Eye
 } from 'lucide-react'
 import { Rol, obtenerModulosPorRol, getIconComponent, tieneAcceso } from '@/lib/permissions'
+import NotFoundPage from '../not-found'
+
+interface NavigationItem {
+  name: string;
+  href: string;
+  icon: React.ReactNode;
+  id?: string;
+  submodulos?: NavigationItem[];
+}
 
 interface Usuario {
+  id?: string
   nombres: string
   apellidos: string
   correo: string
@@ -58,14 +54,28 @@ export default function AdminLayout({
 }) {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const [user, setUser] = useState<Usuario | null>(null)
+  const [authChecked, setAuthChecked] = useState(false)
   const [showUserMenu, setShowUserMenu] = useState(false)
   const [showNotifications, setShowNotifications] = useState(false)
-  const [navigation, setNavigation] = useState<any[]>([])
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false)
+  const [isLoggingOut, setIsLoggingOut] = useState(false)
+  const [navigation, setNavigation] = useState<NavigationItem[]>([])
+  const [openMenus, setOpenMenus] = useState<Record<string, boolean>>({})
   const pathname = usePathname()
   const router = useRouter()
 
   const userMenuRef = useRef<HTMLDivElement>(null)
   const notificationRef = useRef<HTMLDivElement>(null)
+
+  const toggleMenu = (id: string) => {
+    setOpenMenus(prev => {
+      const isCurrentlyOpen = prev[id] ?? navigation.find(n => n.id === id)?.submodulos?.some(s => pathname === s.href) ?? false
+      return {
+        ...prev,
+        [id]: !isCurrentlyOpen
+      }
+    })
+  }
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -86,7 +96,16 @@ export default function AdminLayout({
   useEffect(() => {
     const loadUserData = () => {
       try {
+        const token = localStorage.getItem('token')
         const userData = localStorage.getItem('user')
+        if (!token || !userData) {
+          setUser(null)
+          setNavigation([])
+          setAuthChecked(true)
+          router.replace('/login')
+          return
+        }
+
         if (userData) {
           const parsedUser = JSON.parse(userData) as Usuario
           setUser(parsedUser)
@@ -100,7 +119,13 @@ export default function AdminLayout({
               name: modulo.nombre,
               href: modulo.path,
               icon: getIconComponent(modulo.icono),
-              id: modulo.id
+              id: modulo.id,
+              submodulos: modulo.submodulos?.map(sub => ({
+                id: sub.id,
+                name: sub.nombre,
+                href: sub.path,
+                icon: getIconComponent(sub.icono)
+              }))
             }))
             
             setNavigation(navItems)
@@ -108,33 +133,308 @@ export default function AdminLayout({
         }
       } catch (error) {
         console.error('Error al cargar datos del usuario:', error)
+      } finally {
+        setAuthChecked(true)
       }
     }
 
     loadUserData()
-  }, [])
+  }, [router])
 
-  const handleLogout = () => {
-    localStorage.removeItem('token')
-    localStorage.removeItem('user')
-    router.push('/login')
+  if (!authChecked) return null
+
+  if (user?.rol === 'COBRADOR' && pathname && !tieneAcceso(user.rol, pathname)) {
+    return <NotFoundPage />
   }
 
-  const getUserInitials = () => {
+  if (user?.rol === 'COBRADOR') {
+    const notificationsRoute = '/cobranzas/notificaciones'
+    const requestLogout = () => {
+      setShowUserMenu(false)
+      setShowLogoutConfirm(true)
+    }
+
+    const handleLogout = () => {
+      if (isLoggingOut) return
+      setIsLoggingOut(true)
+      window.setTimeout(() => {
+        localStorage.removeItem('token')
+        localStorage.removeItem('user')
+        router.push('/login')
+      }, 450)
+    }
+
+    return (
+      <div className="min-h-screen bg-linear-to-br from-gray-50 to-white">
+        <header className="fixed top-0 left-0 right-0 z-40 bg-white/80 backdrop-blur-sm border-b border-gray-100">
+          <div className="px-4 sm:px-6 lg:px-8 py-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-3">
+                <div className="flex items-center">
+                  <div className="w-8 h-8 bg-linear-to-br from-blue-600 to-blue-800 rounded-lg flex items-center justify-center shadow-lg shadow-blue-600/20">
+                    <Shield className="h-4 w-4 text-white" />
+                  </div>
+                  <h1 className="ml-3 text-xl font-bold tracking-tight">
+                    <span className="text-blue-600">Credi</span>
+                    <span className="text-orange-500">Sur</span>
+                  </h1>
+                </div>
+
+                <div className="hidden md:block">
+                  <div className="flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium text-white bg-orange-500">
+                    <Wallet className="h-4 w-4" />
+                    <span>Cobrador</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex items-center space-x-2">
+                <div ref={notificationRef} className="relative">
+                  <button 
+                    onClick={() => setShowNotifications(!showNotifications)}
+                    className="relative p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                  >
+                    <Bell className={`h-5 w-5 ${showNotifications ? 'text-blue-600' : 'text-gray-500'}`} />
+                    <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-orange-500 rounded-full border-2 border-white"></span>
+                  </button>
+
+                  {showNotifications && (
+                    <div className="absolute right-0 mt-2 w-80 bg-white rounded-xl shadow-xl border border-gray-100 py-2 z-50 animate-in fade-in slide-in-from-top-2">
+                      <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
+                        <h3 className="font-semibold text-gray-900">Notificaciones</h3>
+                        <span className="text-xs font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded-full">3 Nuevas</span>
+                      </div>
+                      <div className="max-h-[300px] overflow-y-auto">
+                        <div className="p-4 border-b border-gray-50 hover:bg-gray-50 transition-colors cursor-pointer group">
+                          <div className="flex gap-3">
+                            <div className="mt-1 p-2 bg-green-50 rounded-full text-green-600 group-hover:scale-110 transition-transform">
+                              <Banknote className="h-4 w-4" />
+                            </div>
+                            <div>
+                              <p className="text-sm font-medium text-gray-900">Pago Recibido</p>
+                              <p className="text-xs text-gray-500 mt-0.5">Cliente #1456 ha realizado un pago</p>
+                              <p className="text-xs text-blue-600 mt-1 font-medium">Hace 5 min</p>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="p-4 border-b border-gray-50 hover:bg-gray-50 transition-colors cursor-pointer group">
+                          <div className="flex gap-3">
+                            <div className="mt-1 p-2 bg-blue-50 rounded-full text-blue-600 group-hover:scale-110 transition-transform">
+                              <Users className="h-4 w-4" />
+                            </div>
+                            <div>
+                              <p className="text-sm font-medium text-gray-900">Nuevo Cliente</p>
+                              <p className="text-xs text-gray-500 mt-0.5">Solicitud de registro pendiente</p>
+                              <p className="text-xs text-blue-600 mt-1 font-medium">Hace 2 horas</p>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="p-4 hover:bg-gray-50 transition-colors cursor-pointer group">
+                          <div className="flex gap-3">
+                            <div className="mt-1 p-2 bg-amber-50 rounded-full text-amber-600 group-hover:scale-110 transition-transform">
+                              <AlertCircle className="h-4 w-4" />
+                            </div>
+                            <div>
+                              <p className="text-sm font-medium text-gray-900">Alerta de Mora</p>
+                              <p className="text-xs text-gray-500 mt-0.5">3 cuentas han entrado en mora hoy</p>
+                              <p className="text-xs text-blue-600 mt-1 font-medium">Hace 4 horas</p>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="p-2 border-t border-gray-100">
+                        <button 
+                          onClick={() => {
+                            setShowNotifications(false)
+                            router.push(notificationsRoute)
+                          }}
+                          className="w-full py-2 text-sm font-medium text-gray-600 hover:text-blue-600 hover:bg-gray-50 rounded-lg transition-colors"
+                        >
+                          Ver todas las notificaciones
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <div ref={userMenuRef} className="relative">
+                  <button 
+                    onClick={() => setShowUserMenu(!showUserMenu)}
+                    className="flex items-center space-x-3 p-1 hover:bg-gray-100 rounded-lg transition-colors group"
+                  >
+                    <div 
+                      className="relative w-9 h-9 rounded-full flex items-center justify-center text-white text-sm font-medium shadow-sm"
+                      style={{ 
+                        background: `linear-gradient(135deg, ${getRoleColor()}, ${getRoleColor()}CC)`,
+                        boxShadow: `0 0 0 2px white, 0 0 0 4px ${getRoleColor()}40`
+                      }}
+                    >
+                      {getUserInitials()}
+                    </div>
+                    <div className="hidden lg:block text-left">
+                      <div className="text-sm font-medium text-gray-800 group-hover:text-[#08557f] transition-colors">
+                        {getUserFullName()}
+                      </div>
+                      <div className="text-xs text-gray-500 flex items-center gap-1">
+                        <Mail className="h-3 w-3" />
+                        <span className="truncate max-w-[120px]">{user?.correo}</span>
+                      </div>
+                    </div>
+                    <ChevronDown className={`h-4 w-4 text-gray-400 transition-transform ${showUserMenu ? 'rotate-180' : ''}`} />
+                  </button>
+
+                  {showUserMenu && (
+                    <>
+                      <div 
+                        className="fixed inset-0 z-40" 
+                        onClick={() => setShowUserMenu(false)}
+                      />
+                      <div className="absolute right-0 mt-2 w-96 bg-white rounded-xl shadow-xl border border-gray-100 py-2 z-50 animate-in fade-in slide-in-from-top-2">
+                        <div className="px-6 py-6 bg-linear-to-r from-slate-50 to-white border-b border-gray-100">
+                          <div className="flex flex-col items-center text-center gap-3">
+                            <div 
+                              className="relative w-20 h-20 rounded-full flex items-center justify-center text-white text-2xl font-bold shadow-xl mb-1"
+                              style={{ 
+                                background: `linear-gradient(135deg, ${getRoleColor()}, ${getRoleColor()}CC)`,
+                                boxShadow: `0 8px 20px ${getRoleColor()}40`
+                              }}
+                            >
+                              {getUserInitials()}
+                              <div className="absolute -bottom-2 -right-2 w-8 h-8 rounded-full bg-white flex items-center justify-center shadow-md border-2 border-white">
+                                <div style={{ color: getRoleColor() }}>
+                                  {getRoleIcon()}
+                                </div>
+                              </div>
+                            </div>
+                            
+                            <div className="w-full">
+                              <h3 className="font-bold text-gray-900 text-lg mb-1">
+                                {getUserFullName()}
+                              </h3>
+                              <div className="flex items-center justify-center gap-2 flex-wrap">
+                                <span 
+                                  className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold text-white shadow-sm"
+                                  style={{ backgroundColor: getRoleColor() }}
+                                >
+                                  {getRoleIcon()}
+                                  {getUserRoleName()}
+                                </span>
+                                <span className="text-xs text-gray-500">ID: {user?.id}</span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="p-2">
+                          <button
+                            onClick={() => {
+                              setShowUserMenu(false)
+                              router.push('/cobranzas/perfil')
+                            }}
+                            className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-gray-700 hover:bg-gray-50 rounded-lg transition-colors"
+                          >
+                            <User className="h-4 w-4" />
+                            Mi perfil
+                          </button>
+                          <button
+                            onClick={requestLogout}
+                            className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                          >
+                            <LogOut className="h-4 w-4" />
+                            Cerrar sesión
+                          </button>
+                        </div>
+                      </div>
+                    </>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        </header>
+
+        <main className="pt-16">{children}</main>
+
+        {showLogoutConfirm && (
+          <div className="fixed inset-0 z-[2147483647] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
+            <div className="w-full max-w-md rounded-3xl bg-white shadow-2xl overflow-hidden">
+              <div className="p-6">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <h3 className="text-lg font-bold text-slate-900">Cerrar sesión</h3>
+                    <p className="mt-1 text-sm text-slate-600">¿Seguro que deseas cerrar sesión?</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (isLoggingOut) return
+                      setShowLogoutConfirm(false)
+                    }}
+                    className="p-2 rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200"
+                  >
+                    <X className="h-5 w-5" />
+                  </button>
+                </div>
+
+                <div className="mt-6 flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (isLoggingOut) return
+                      setShowLogoutConfirm(false)
+                    }}
+                    disabled={isLoggingOut}
+                    className="flex-1 rounded-xl bg-slate-100 px-3 py-3 text-sm font-bold text-slate-700 hover:bg-slate-200 disabled:opacity-60"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleLogout}
+                    disabled={isLoggingOut}
+                    className="flex-1 rounded-xl bg-red-600 px-3 py-3 text-sm font-bold text-white hover:bg-red-700 disabled:opacity-60"
+                  >
+                    {isLoggingOut ? 'Cerrando sesión…' : 'Cerrar sesión'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  const requestLogout = () => {
+    setShowUserMenu(false)
+    setShowLogoutConfirm(true)
+  }
+
+  const handleLogout = () => {
+    if (isLoggingOut) return
+    setIsLoggingOut(true)
+    window.setTimeout(() => {
+      localStorage.removeItem('token')
+      localStorage.removeItem('user')
+      router.push('/login')
+    }, 450)
+  }
+
+  function getUserInitials() {
     if (!user) return 'U'
     const firstInitial = user.nombres?.charAt(0) || ''
     const lastInitial = user.apellidos?.charAt(0) || ''
     return (firstInitial + lastInitial).toUpperCase()
   }
 
-  const getUserFullName = () => {
+  function getUserFullName() {
     if (!user) return 'Usuario'
     return `${user.nombres} ${user.apellidos}`
   }
 
-  const getUserRoleName = () => {
+  function getUserRoleName() {
     if (!user) return 'Administrador'
-    
+
     const roleNames: Record<string, string> = {
       'SUPER_ADMINISTRADOR': 'Super Administrador',
       'COORDINADOR': 'Coordinador',
@@ -142,13 +442,13 @@ export default function AdminLayout({
       'COBRADOR': 'Cobrador',
       'CONTADOR': 'Contador'
     }
-    
+
     return roleNames[user.rol] || user.rol
   }
 
-  const getRoleColor = () => {
+  function getRoleColor() {
     if (!user) return '#2563eb'
-    
+
     const roleColors: Record<string, string> = {
       'SUPER_ADMINISTRADOR': '#2563eb',
       'COORDINADOR': '#f97316',
@@ -156,21 +456,21 @@ export default function AdminLayout({
       'COBRADOR': '#f97316',
       'CONTADOR': '#6366f1'
     }
-    
+
     return roleColors[user.rol] || '#2563eb'
   }
 
-  const getRoleIcon = () => {
+  function getRoleIcon() {
     if (!user) return <Shield className="h-4 w-4" />
-    
+
     const roleIcons: Record<string, React.ReactNode> = {
       'SUPER_ADMINISTRADOR': <Shield className="h-4 w-4" />,
       'COORDINADOR': <User className="h-4 w-4" />,
-      'SUPERVISOR': <Activity className="h-4 w-4" />,
+      'SUPERVISOR': <Eye className="h-4 w-4" />,
       'COBRADOR': <Wallet className="h-4 w-4" />,
       'CONTADOR': <CreditCard className="h-4 w-4" />
     }
-    
+
     return roleIcons[user.rol] || <User className="h-4 w-4" />
   }
 
@@ -303,7 +603,13 @@ export default function AdminLayout({
                         </div>
                       </div>
                       <div className="p-2 border-t border-gray-100">
-                        <button className="w-full py-2 text-sm font-medium text-gray-600 hover:text-blue-600 hover:bg-gray-50 rounded-lg transition-colors">
+                        <button 
+                          onClick={() => {
+                            setShowNotifications(false)
+                            router.push('/admin/notificaciones')
+                          }}
+                          className="w-full py-2 text-sm font-medium text-gray-600 hover:text-blue-600 hover:bg-gray-50 rounded-lg transition-colors"
+                        >
                           Ver todas las notificaciones
                         </button>
                       </div>
@@ -379,7 +685,7 @@ export default function AdminLayout({
                               </span>
                               <span className="text-xs text-gray-400">•</span>
                               <span className="text-xs text-gray-500 font-medium bg-gray-100 px-2 py-1 rounded-full">
-                                {user?.username || 'usuario'}
+                                {user?.correo?.split('@')[0] || 'usuario'}
                               </span>
                             </div>
                           </div>
@@ -492,7 +798,7 @@ export default function AdminLayout({
                       {/* Cerrar sesión */}
                       <div className="pt-2 border-t border-gray-100">
                         <button
-                          onClick={handleLogout}
+                          onClick={requestLogout}
                           className="flex items-center w-full px-4 py-3 text-sm text-red-600 hover:bg-red-50 transition-colors group"
                         >
                           <div className="w-8 h-8 rounded-lg bg-red-100 flex items-center justify-center mr-3 group-hover:bg-red-200 transition-colors">
@@ -512,6 +818,53 @@ export default function AdminLayout({
           </div>
         </div>
       </header>
+
+      {showLogoutConfirm && (
+        <div className="fixed inset-0 z-[2147483647] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-3xl bg-white shadow-2xl overflow-hidden">
+            <div className="p-6">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <h3 className="text-lg font-bold text-slate-900">Cerrar sesión</h3>
+                  <p className="mt-1 text-sm text-slate-600">¿Seguro que deseas cerrar sesión?</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (isLoggingOut) return
+                    setShowLogoutConfirm(false)
+                  }}
+                  className="p-2 rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+
+              <div className="mt-6 flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (isLoggingOut) return
+                    setShowLogoutConfirm(false)
+                  }}
+                  disabled={isLoggingOut}
+                  className="flex-1 rounded-xl bg-slate-100 px-3 py-3 text-sm font-bold text-slate-700 hover:bg-slate-200 disabled:opacity-60"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  onClick={handleLogout}
+                  disabled={isLoggingOut}
+                  className="flex-1 rounded-xl bg-red-600 px-3 py-3 text-sm font-bold text-white hover:bg-red-700 disabled:opacity-60"
+                >
+                  {isLoggingOut ? 'Cerrando sesión…' : 'Cerrar sesión'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Sidebar elegante para desktop */}
       <aside className={`fixed left-0 top-16 bottom-0 w-64 bg-white/80 backdrop-blur-sm border-r border-gray-100 transition-all duration-300 z-20 ${
@@ -561,9 +914,61 @@ export default function AdminLayout({
               <div className="space-y-1">
                 {navigation.map((item) => {
                   const isActive = pathname === item.href || pathname?.startsWith(`${item.href}/`)
+                  const hasSubmenu = item.submodulos && item.submodulos.length > 0
+                  const isOpen = (item.id ? openMenus[item.id] : undefined) ?? (hasSubmenu && item.submodulos?.some(sub => pathname === sub.href))
+
+                  if (hasSubmenu && item.id) {
+                    return (
+                      <div key={item.id} className="space-y-1">
+                        <button
+                          type="button"
+                          onClick={() => toggleMenu(item.id!)}
+                          className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl transition-all duration-75 border group ${
+                            isOpen || isActive
+                              ? 'text-[#08557f] bg-gray-50/50 font-medium border-gray-200' 
+                              : 'text-gray-600 border-transparent hover:text-[#08557f] hover:bg-gray-50 hover:border-gray-200'
+                          }`}
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className={`transition-colors ${isOpen || isActive ? 'text-[#08557f]' : 'text-gray-400 group-hover:text-[#08557f]'}`}>
+                              {item.icon}
+                            </div>
+                            <span className="text-sm">{item.name}</span>
+                          </div>
+                          <ChevronDown className={`h-4 w-4 text-gray-400 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
+                        </button>
+                        
+                        <div className={`overflow-hidden transition-all duration-300 ease-in-out ${isOpen ? 'max-h-[500px] opacity-100' : 'max-h-0 opacity-0'}`}>
+                          <div className="pl-4 space-y-1 mt-1 border-l-2 border-gray-100 ml-4">
+                            {item.submodulos?.map((subItem) => {
+                              const isSubActive = pathname === subItem.href
+                              return (
+                                <Link
+                                  key={subItem.id}
+                                  href={subItem.href}
+                                  className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-all duration-75 group ${
+                                    isSubActive 
+                                      ? 'text-[#08557f] font-medium bg-[#08557f]/5' 
+                                      : 'text-gray-500 hover:text-[#08557f] hover:bg-gray-50'
+                                  }`}
+                                  onClick={() => setIsMenuOpen(false)}
+                                >
+                                  <div className={`transition-colors ${isSubActive ? 'text-[#08557f]' : 'text-gray-300 group-hover:text-[#08557f]'}`}>
+                                    {subItem.icon}
+                                  </div>
+                                  <span className="text-sm">{subItem.name}</span>
+                                </Link>
+                              )
+                            })}
+                          </div>
+                        </div>
+                      </div>
+                    )
+                  }
+
                   return (
                     <Link
-                      key={item.name}
+                      key={item.id || item.name}
                       href={item.href}
                       className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-75 border group ${
                         isActive 
@@ -581,40 +986,6 @@ export default function AdminLayout({
                 })}
               </div>
             </div>
-
-            {/* Sección de sistema (solo para SUPER_ADMINISTRADOR) */}
-            {user?.rol === 'SUPER_ADMINISTRADOR' && (
-              <div>
-                <div className="text-xs font-medium text-gray-400 uppercase tracking-wider mb-4">Sistema</div>
-                <div className="space-y-1">
-                  {[
-                    { name: 'Configuración', href: '/admin/sistema/configuracion', icon: <Settings className="h-4 w-4" /> },
-                    { name: 'Sincronización', href: '/admin/sistema/sincronizacion', icon: <Activity className="h-4 w-4" /> },
-                    { name: 'Backups', href: '/admin/sistema/backups', icon: <HardDrive className="h-4 w-4" /> },
-                    { name: 'Auditoría', href: '/admin/auditoria', icon: <FileText className="h-4 w-4" /> }
-                  ].map((item) => {
-                    const isActive = pathname === item.href
-                    return (
-                      <Link
-                        key={item.name}
-                        href={item.href}
-                        className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-75 border group ${
-                          isActive 
-                            ? 'text-[#08557f] bg-gradient-to-r from-[#08557f]/10 to-[#063a58]/5 font-medium border-[#08557f]/20' 
-                            : 'text-gray-600 border-transparent hover:text-[#08557f] hover:bg-gray-50 hover:border-gray-200'
-                        }`}
-                        onClick={() => setIsMenuOpen(false)}
-                      >
-                        <div className={`transition-colors ${isActive ? 'text-[#08557f]' : 'text-gray-400 group-hover:text-[#08557f]'}`}>
-                          {item.icon}
-                        </div>
-                        <span className="text-sm">{item.name}</span>
-                      </Link>
-                    )
-                  })}
-                </div>
-              </div>
-            )}
           </div>
         </nav>
       </aside>

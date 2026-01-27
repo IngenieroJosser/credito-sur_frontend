@@ -11,7 +11,11 @@ import {
   XCircle,
   Clock,
   Search,
-  Filter
+  Filter,
+  Eye,
+  Trash2,
+  Check,
+  X
 } from 'lucide-react'
 import { formatCurrency, cn } from '@/lib/utils'
 
@@ -216,6 +220,7 @@ const SolicitudesPage = () => {
                   <th className="px-6 py-4">Monto</th>
                   <th className="px-6 py-4">Estado</th>
                   <th className="px-6 py-4">Comentarios</th>
+                  <th className="px-6 py-4 text-right">Acciones</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -247,6 +252,40 @@ const SolicitudesPage = () => {
                     </td>
                     <td className="px-6 py-4 text-slate-500 italic text-xs">
                       {sol.comentarioAdmin || '-'}
+                    </td>
+                    <td className="px-6 py-4 text-right">
+                      <div className="flex items-center justify-end gap-2">
+                        <button 
+                          className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                          title="Ver Detalle"
+                        >
+                          <Eye className="h-4 w-4" />
+                        </button>
+                        {sol.estado === 'PENDIENTE' && (
+                          <>
+                            <button 
+                              className="p-2 text-emerald-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"
+                              title="Aprobar Solicitud"
+                            >
+                              <Check className="h-4 w-4" />
+                            </button>
+                            <button 
+                              className="p-2 text-rose-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
+                              title="Rechazar Solicitud"
+                            >
+                              <X className="h-4 w-4" />
+                            </button>
+                          </>
+                        )}
+                        {sol.estado === 'PENDIENTE' && (
+                          <button 
+                            className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
+                            title="Cancelar Solicitud"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))}

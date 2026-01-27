@@ -15,7 +15,8 @@ import {
   Save,
   Info,
   Users,
-  Settings
+  Settings,
+  Ban
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -37,6 +38,7 @@ interface Role {
   esSistema: boolean;
   usuariosAsignados: number; // UI helper (count)
   permisos: string[]; // IDs de permisos
+  activo: boolean;
 }
 
 const RoleManagementPage = () => {
@@ -51,7 +53,8 @@ const RoleManagementPage = () => {
       descripcion: 'Control total del sistema y configuración',
       esSistema: true,
       usuariosAsignados: 1,
-      permisos: ['all']
+      permisos: ['all'],
+      activo: true
     },
     {
       id: 'COORDINADOR',
@@ -59,7 +62,8 @@ const RoleManagementPage = () => {
       descripcion: 'Gestión operativa, aprobación de préstamos y rutas',
       esSistema: true,
       usuariosAsignados: 2,
-      permisos: ['loan_approve', 'route_manage', 'user_view', 'report_view']
+      permisos: ['loan_approve', 'route_manage', 'user_view', 'report_view'],
+      activo: true
     },
     {
       id: 'SUPERVISOR',
@@ -67,7 +71,8 @@ const RoleManagementPage = () => {
       descripcion: 'Supervisión de campo y control de gastos',
       esSistema: true,
       usuariosAsignados: 3,
-      permisos: ['expense_approve', 'route_view', 'report_view']
+      permisos: ['expense_approve', 'route_view', 'report_view'],
+      activo: true
     },
     {
       id: 'COBRADOR',
@@ -75,7 +80,8 @@ const RoleManagementPage = () => {
       descripcion: 'Operaciones de campo, cobros y registro de clientes',
       esSistema: true,
       usuariosAsignados: 8,
-      permisos: ['payment_create', 'client_create', 'loan_request']
+      permisos: ['payment_create', 'client_create', 'loan_request'],
+      activo: true
     },
     {
       id: 'CONTADOR',
@@ -83,7 +89,8 @@ const RoleManagementPage = () => {
       descripcion: 'Gestión financiera, cajas y auditoría de costos',
       esSistema: true,
       usuariosAsignados: 1,
-      permisos: ['accounting_manage', 'report_financial']
+      permisos: ['accounting_manage', 'report_financial'],
+      activo: true
     }
   ]);
 
@@ -220,11 +227,16 @@ const RoleManagementPage = () => {
         ...roleFormData,
         esSistema: false,
         usuariosAsignados: 0,
-        permisos: selectedPermissions
+        permisos: selectedPermissions,
+        activo: true
       };
       setRoles([...roles, newRole]);
     }
     setIsCreateRoleModalOpen(false);
+  };
+
+  const handleToggleRoleStatus = (role: Role) => {
+    setRoles(roles.map(r => r.id === role.id ? { ...r, activo: !r.activo } : r));
   };
 
   const handleDeleteRole = () => {
@@ -418,10 +430,22 @@ const RoleManagementPage = () => {
                           <>
                             <button
                               onClick={(e) => { e.stopPropagation(); handleOpenEditRoleModal(role); }}
-                              className="p-1.5 text-slate-400 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors"
+                              className="p-1.5 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
                               title="Editar Rol"
                             >
                               <Edit2 className="h-3.5 w-3.5" />
+                            </button>
+                            <button
+                              onClick={(e) => { e.stopPropagation(); handleToggleRoleStatus(role); }}
+                              className={cn(
+                                "p-1.5 rounded-lg transition-colors",
+                                role.activo 
+                                  ? "text-slate-400 hover:text-orange-600 hover:bg-orange-50" 
+                                  : "text-slate-400 hover:text-emerald-600 hover:bg-emerald-50"
+                              )}
+                              title={role.activo ? "Desactivar Rol" : "Activar Rol"}
+                            >
+                              {role.activo ? <Ban className="h-3.5 w-3.5" /> : <Check className="h-3.5 w-3.5" />}
                             </button>
                             <button
                               onClick={(e) => { e.stopPropagation(); handleOpenDeleteRoleModal(role); }}
@@ -454,7 +478,7 @@ const RoleManagementPage = () => {
                     <select
                       value={filterModule}
                       onChange={(e) => setFilterModule(e.target.value)}
-                      className="px-3 py-2 bg-white border border-slate-200 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-slate-900 focus:border-transparent cursor-pointer hover:border-slate-300 transition-colors"
+                      className="px-3 py-2 bg-white border border-slate-200 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-slate-900 focus:border-transparent cursor-pointer hover:border-slate-300 transition-colors text-slate-900"
                     >
                       <option value="all">Todos los módulos</option>
                       {modules.map(module => (
@@ -508,8 +532,9 @@ const RoleManagementPage = () => {
         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-2xl w-full max-w-4xl h-[90vh] flex flex-col shadow-2xl border border-slate-100 transform transition-all">
             <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50 rounded-t-2xl shrink-0">
-              <h2 className="text-xl font-bold text-slate-900">
-                {selectedRole ? 'Editar Rol' : 'Nuevo Rol'}
+              <h2 className="text-xl font-bold tracking-tight">
+                <span className="text-blue-600">{selectedRole ? 'Editar ' : 'Nuevo '}</span>
+                <span className="text-orange-500">Rol</span>
               </h2>
               <button onClick={() => setIsCreateRoleModalOpen(false)} className="text-slate-400 hover:text-slate-600 p-1 hover:bg-slate-100 rounded-full transition-colors">
                 <X className="h-5 w-5" />
@@ -521,7 +546,7 @@ const RoleManagementPage = () => {
                 {/* Información General */}
                 <div className="space-y-4">
                   <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider flex items-center gap-2">
-                    <Shield className="h-4 w-4" />
+                    <Shield className="h-4 w-4 text-orange-500" />
                     Información General
                   </h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -531,7 +556,7 @@ const RoleManagementPage = () => {
                         type="text"
                         value={roleFormData.nombre}
                         onChange={(e) => setRoleFormData({...roleFormData, nombre: e.target.value})}
-                        className="w-full px-4 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-slate-900 focus:border-transparent outline-none transition-all text-sm font-medium"
+                        className="w-full px-4 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-600/20 focus:border-blue-600 outline-none transition-all text-sm font-medium text-slate-900"
                         placeholder="Ej. Auditor Externo"
                       />
                     </div>
@@ -541,7 +566,7 @@ const RoleManagementPage = () => {
                         type="text"
                         value={roleFormData.descripcion}
                         onChange={(e) => setRoleFormData({...roleFormData, descripcion: e.target.value})}
-                        className="w-full px-4 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-slate-900 focus:border-transparent outline-none transition-all text-sm font-medium"
+                        className="w-full px-4 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-600/20 focus:border-blue-600 outline-none transition-all text-sm font-medium text-slate-900"
                         placeholder="Breve descripción de responsabilidades"
                       />
                     </div>
@@ -552,7 +577,7 @@ const RoleManagementPage = () => {
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
                     <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider flex items-center gap-2">
-                      <Key className="h-4 w-4" />
+                      <Key className="h-4 w-4 text-orange-500" />
                       Permisos del Sistema
                     </h3>
                     <span className="text-xs font-bold text-slate-500 bg-slate-100 px-2 py-1 rounded-lg">
@@ -581,8 +606,8 @@ const RoleManagementPage = () => {
                                 }}
                                 className={cn(
                                   "w-5 h-5 rounded border flex items-center justify-center transition-colors",
-                                  allSelected ? "bg-slate-900 border-slate-900 text-white" : 
-                                  someSelected ? "bg-slate-900 border-slate-900 text-white" : "border-slate-300 bg-white"
+                                  allSelected ? "bg-blue-600 border-blue-600 text-white" : 
+                                  someSelected ? "bg-blue-600 border-blue-600 text-white" : "border-slate-300 bg-white"
                                 )}
                               >
                                 {allSelected && <Check className="h-3.5 w-3.5" />}
@@ -601,21 +626,21 @@ const RoleManagementPage = () => {
                                   className={cn(
                                     "cursor-pointer border rounded-xl p-3 transition-all duration-200 flex items-start gap-3 select-none",
                                     isSelected 
-                                      ? "bg-slate-900/5 border-slate-900/20 shadow-sm" 
+                                      ? "bg-blue-50/50 border-blue-200 shadow-sm" 
                                       : "bg-white border-slate-100 hover:border-slate-300 hover:bg-slate-50"
                                   )}
                                 >
                                   <div className={cn(
                                     "mt-0.5 w-5 h-5 rounded border flex items-center justify-center shrink-0 transition-colors",
-                                    isSelected ? "bg-slate-900 border-slate-900 text-white" : "border-slate-300 bg-white"
+                                    isSelected ? "bg-blue-600 border-blue-600 text-white" : "border-slate-300 bg-white"
                                   )}>
                                     {isSelected && <Check className="h-3.5 w-3.5" />}
                                   </div>
                                   <div>
-                                    <h4 className={cn("text-sm font-bold mb-0.5", isSelected ? "text-slate-900" : "text-slate-700")}>
+                                    <h4 className={cn("text-sm font-bold mb-0.5", isSelected ? "text-blue-900" : "text-slate-700")}>
                                       {permission.nombre}
                                     </h4>
-                                    <p className={cn("text-xs leading-relaxed font-medium", isSelected ? "text-slate-600" : "text-slate-500")}>
+                                    <p className={cn("text-xs leading-relaxed font-medium", isSelected ? "text-blue-700" : "text-slate-500")}>
                                       {permission.descripcion}
                                     </p>
                                   </div>
@@ -640,7 +665,7 @@ const RoleManagementPage = () => {
               </button>
               <button
                 onClick={handleSaveRole}
-                className="px-4 py-2 text-sm font-bold text-white bg-slate-900 hover:bg-slate-800 rounded-xl shadow-lg shadow-slate-900/20 transition-colors flex items-center gap-2"
+                className="px-4 py-2 text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-xl shadow-lg shadow-blue-600/20 transition-colors flex items-center gap-2"
               >
                 <Save className="h-4 w-4" />
                 Guardar Rol

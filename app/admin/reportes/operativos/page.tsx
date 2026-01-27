@@ -1,11 +1,13 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { BarChart3, Calendar, TrendingUp, Users, FilePlus, DollarSign, MapPin } from 'lucide-react'
+import { useRouter } from 'next/navigation'
+import { BarChart3, Calendar, TrendingUp, Users, FilePlus, DollarSign, MapPin, Eye } from 'lucide-react'
 import { formatCurrency, cn } from '@/lib/utils'
 import { ExportButton } from '@/components/ui/ExportButton'
 
 const ReportesOperativosPage = () => {
+  const router = useRouter()
   const [mounted, setMounted] = useState(false)
 
   const handleExportExcel = () => {
@@ -27,9 +29,9 @@ const ReportesOperativosPage = () => {
 
   // Mock Data - Values updated to realistic COP
   const rendimientoRutas = [
-    { ruta: 'Ruta Centro', cobrador: 'Carlos Pérez', meta: 1500000, recaudado: 1250000, eficiencia: 83, nuevosPrestamos: 2, nuevosClientes: 1 },
-    { ruta: 'Ruta Norte', cobrador: 'María Rodríguez', meta: 1000000, recaudado: 820000, eficiencia: 82, nuevosPrestamos: 0, nuevosClientes: 0 },
-    { ruta: 'Ruta Sur', cobrador: 'Juanito Alimaña', meta: 500000, recaudado: 300000, eficiencia: 60, nuevosPrestamos: 1, nuevosClientes: 2 },
+    { id: '1', ruta: 'Ruta Centro', cobrador: 'Carlos Pérez', meta: 1500000, recaudado: 1250000, eficiencia: 83, nuevosPrestamos: 2, nuevosClientes: 1 },
+    { id: '2', ruta: 'Ruta Norte', cobrador: 'María Rodríguez', meta: 1000000, recaudado: 820000, eficiencia: 82, nuevosPrestamos: 0, nuevosClientes: 0 },
+    { id: '3', ruta: 'Ruta Sur', cobrador: 'Juanito Alimaña', meta: 500000, recaudado: 300000, eficiencia: 60, nuevosPrestamos: 1, nuevosClientes: 2 },
   ]
 
   const totalRecaudo = rendimientoRutas.reduce((acc, item) => acc + item.recaudado, 0)
@@ -153,7 +155,10 @@ const ReportesOperativosPage = () => {
               </div>
               Desglose por Ruta
             </h3>
-            <button className="text-xs font-bold text-slate-700 hover:text-slate-900 hover:underline transition-colors">
+            <button 
+              onClick={() => router.push('/admin/rutas')}
+              className="text-xs font-bold text-slate-700 hover:text-slate-900 hover:underline transition-colors"
+            >
               Ver detalle completo
             </button>
           </div>
@@ -168,6 +173,7 @@ const ReportesOperativosPage = () => {
                   <th className="px-6 py-4 tracking-wider text-center">Eficiencia</th>
                   <th className="px-6 py-4 tracking-wider text-center">Nuevos Prést.</th>
                   <th className="px-6 py-4 tracking-wider text-center">Nuevos Clientes</th>
+                  <th className="px-6 py-4 tracking-wider text-right">Acciones</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -200,6 +206,15 @@ const ReportesOperativosPage = () => {
                     </td>
                     <td className="px-6 py-4 text-center text-slate-600 font-medium">{item.nuevosPrestamos}</td>
                     <td className="px-6 py-4 text-center text-slate-600 font-medium">{item.nuevosClientes}</td>
+                    <td className="px-6 py-4 text-right">
+                      <button 
+                        onClick={() => router.push(`/admin/rutas/${item.id}`)}
+                        className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                        title="Ver Detalles"
+                      >
+                        <Eye className="h-4 w-4" />
+                      </button>
+                    </td>
                   </tr>
                 ))}
               </tbody>

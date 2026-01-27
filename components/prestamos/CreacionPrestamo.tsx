@@ -40,7 +40,7 @@ interface FormularioPrestamo {
   montoTotal: number; // monto
   proposito: string; // tipoPrestamo (mapeado o libre)
   tasaInteres: number; // tasaInteres
-  plazoMeses: number; // plazoMeses
+  duracionMeses: number; // duracionMeses
   frecuenciaPago: FrecuenciaPago; // frecuenciaPago
   fechaInicio: string; // fechaInicio
   tasaInteresMora: number; // tasaInteresMora
@@ -62,7 +62,7 @@ interface CuotaCalculada {
 }
 
 const calcularCuotasYResumen = (form: FormularioPrestamo) => {
-  if (!form.clienteId) {
+  if (!form.clienteId || form.montoTotal <= 0 || form.duracionMeses <= 0) {
     return {
       cuotas: [] as CuotaCalculada[],
       resumenPrestamo: {
@@ -103,7 +103,7 @@ const calcularCuotasYResumen = (form: FormularioPrestamo) => {
   };
 
   // Cuotas totales = Meses * Frecuencia por mes
-  const cuotasTotales = Math.ceil(form.plazoMeses * factorFrecuencia[form.frecuenciaPago]);
+  const cuotasTotales = Math.ceil(form.duracionMeses * factorFrecuencia[form.frecuenciaPago]);
 
   // Tasa del periodo = Tasa Mensual / Frecuencia por mes
   const tasaPeriodo = tasaMensual / factorFrecuencia[form.frecuenciaPago];
@@ -269,10 +269,10 @@ const CreacionPrestamoElegante = () => {
   // Formulario principal
   const [form, setForm] = useState<FormularioPrestamo>({
     clienteId: '',
-    montoTotal: 1000000,
+    montoTotal: 0,
     proposito: 'PERSONAL',
     tasaInteres: 5.0, // Tasa mensual ejemplo
-    plazoMeses: 6,
+    duracionMeses: 0,
     frecuenciaPago: 'QUINCENAL',
     fechaInicio: new Date().toISOString().split('T')[0],
     tasaInteresMora: 2.0,
@@ -281,6 +281,9 @@ const CreacionPrestamoElegante = () => {
     comision: 1.0,
     observaciones: ''
   });
+
+  const [montoTotalInput, setMontoTotalInput] = useState('')
+  const [cuotasInput, setCuotasInput] = useState('')
 
   const { cuotas, resumenPrestamo } = useMemo(
     () => calcularCuotasYResumen(form),
@@ -309,7 +312,7 @@ const CreacionPrestamoElegante = () => {
         ? parseFloat(value) || 0
         : name === 'montoTotal' || name === 'cuotaInicial' || name === 'ingresosMensuales'
           ? parseFloat(value) || 0
-          : name === 'plazoMeses' || name === 'antiguedadLaboral'
+          : name === 'duracionMeses' || name === 'antiguedadLaboral'
             ? parseInt(value) || 0
             : value
     }));
@@ -317,6 +320,12 @@ const CreacionPrestamoElegante = () => {
 
   const handleNuevoClienteChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
+
+    // Validar solo números para identificación y teléfono
+    if ((name === 'identificacion' || name === 'telefono') && !/^\d*$/.test(value)) {
+      return;
+    }
+
     setNuevoCliente(prev => ({
       ...prev,
       [name]: name === 'ingresosMensuales' || name === 'antiguedadLaboral'
@@ -347,7 +356,7 @@ const CreacionPrestamoElegante = () => {
         proposito: form.proposito,
         tasaInteres: form.tasaInteres,
         tasaInteresMora: form.tasaInteresMora,
-        plazoMeses: form.plazoMeses,
+        duracionMeses: form.duracionMeses,
         frecuenciaPago: form.frecuenciaPago,
         fechaInicio: form.fechaInicio,
         cuotaInicial: form.cuotaInicial,
@@ -468,12 +477,35 @@ const CreacionPrestamoElegante = () => {
 
   // Función para manejar el cambio de monto SIN LÍMITES
   const handleMontoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = parseFloat(e.target.value) || 0;
-    // Solo validamos que no sea negativo
-    if (value >= 0) {
-      setForm(prev => ({ ...prev, montoTotal: value }));
+    const raw = e.target.value
+    const digits = raw.replace(/\D/g, '')
+    if (!digits) {
+      setMontoTotalInput('')
+      setForm(prev => ({ ...prev, montoTotal: 0 }))
+      return
     }
+
+    const value = Number(digits)
+    const formatted = new Intl.NumberFormat('es-CO', {
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(value)
+    setMontoTotalInput(formatted)
+    setForm(prev => ({ ...prev, montoTotal: value }))
   };
+
+  const handleCuotasChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const raw = e.target.value
+    const digits = raw.replace(/\D/g, '')
+    if (!digits) {
+      setCuotasInput('')
+      setForm(prev => ({ ...prev, duracionMeses: 0 }))
+      return
+    }
+
+    setCuotasInput(digits)
+    setForm(prev => ({ ...prev, duracionMeses: Number(digits) }))
+  }
 
   return (
     <div className="min-h-screen bg-slate-50 relative">
@@ -488,10 +520,10 @@ const CreacionPrestamoElegante = () => {
         <div className="mb-8 flex items-center justify-between">
           <button
             onClick={() => router.back()}
-            className="flex items-center gap-2 text-slate-500 hover:text-slate-900 transition-colors group"
+            className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-slate-600 shadow-sm transition-colors hover:bg-slate-50 hover:text-slate-900"
           >
-            <ArrowLeft className="w-5 h-5 group-hover:-translate-x-0.5 transition-transform duration-200" />
-            <span className="text-sm font-bold">Volver</span>
+            <ArrowLeft className="w-5 h-5" />
+            <span>Volver</span>
           </button>
 
           <div className="flex items-center gap-6">
@@ -562,126 +594,96 @@ const CreacionPrestamoElegante = () => {
                       <div className="relative bg-white/90 backdrop-blur-md rounded-2xl w-full max-w-2xl shadow-[0_8px_30px_rgb(0,0,0,0.12)] animate-in fade-in duration-300 border border-slate-100 z-10">
                         <div className="p-8">
                           <div className="flex items-center justify-between mb-8">
-                            <div>
-                              <h3 className="text-xl font-bold text-slate-900">Nuevo Cliente</h3>
-                              <p className="text-slate-500 text-sm mt-1 font-medium">Complete la información del cliente</p>
+                            <div className="flex items-center gap-4">
+                              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-600 to-blue-800 flex items-center justify-center shadow-lg shadow-blue-600/20">
+                                <User className="w-5 h-5 text-white" />
+                              </div>
+                              <div>
+                                <h3 className="text-xl font-bold">
+                                  <span className="text-blue-600">Nuevo</span> <span className="text-orange-500">Cliente</span>
+                                </h3>
+                                <p className="text-slate-500 text-sm mt-0.5 font-medium">Registro rápido de información</p>
+                              </div>
                             </div>
-                            <button
+                            <button 
                               onClick={() => setMostrarNuevoCliente(false)}
-                              className="p-2 text-slate-400 hover:text-slate-600 transition-colors"
+                              className="p-2 hover:bg-slate-100 rounded-full transition-colors"
                             >
-                              ×
+                              <ArrowLeft className="w-5 h-5 text-slate-400" />
                             </button>
                           </div>
 
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            {/* Información Personal */}
-                            <div className="col-span-full pb-2 border-b border-slate-100 mb-2">
-                              <h4 className="text-sm font-bold text-slate-900 flex items-center gap-2">
-                                <User className="w-4 h-4 text-blue-500" />
-                                Información Personal
-                              </h4>
-                            </div>
-
-                            <div className="space-y-2">
-                              <label className="text-xs font-bold text-slate-700 uppercase tracking-wide">Nombres</label>
+                            <div>
+                              <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Nombre</label>
                               <input
                                 type="text"
                                 name="nombre"
                                 value={nuevoCliente.nombre}
                                 onChange={handleNuevoClienteChange}
-                                className="w-full px-4 py-2.5 rounded-xl border-slate-200 bg-slate-50 focus:ring-2 focus:ring-blue-500/10 focus:border-blue-500 transition-all font-medium text-slate-900 placeholder:text-slate-400"
-                                placeholder="Ej: Juan"
+                                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-0 focus:border-blue-500 focus:bg-white transition-all outline-none font-medium placeholder:text-slate-400 text-slate-900"
+                                placeholder="Ej. Juan"
                               />
                             </div>
-
-                            <div className="space-y-2">
-                              <label className="text-xs font-bold text-slate-700 uppercase tracking-wide">Apellidos</label>
+                            <div>
+                              <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Apellido</label>
                               <input
                                 type="text"
                                 name="apellido"
                                 value={nuevoCliente.apellido}
                                 onChange={handleNuevoClienteChange}
-                                className="w-full px-4 py-2.5 rounded-xl border-slate-200 bg-slate-50 focus:ring-2 focus:ring-blue-500/10 focus:border-blue-500 transition-all font-medium text-slate-900 placeholder:text-slate-400"
-                                placeholder="Ej: Pérez"
+                                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-0 focus:border-blue-500 focus:bg-white transition-all outline-none font-medium placeholder:text-slate-400 text-slate-900"
+                                placeholder="Ej. Pérez"
                               />
                             </div>
-
-                            <div className="col-span-full space-y-2">
-                              <label className="text-xs font-bold text-slate-700 uppercase tracking-wide">Documento de Identidad (CC)</label>
-                              <div className="relative">
-                                <CreditCard className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                                <input
-                                  type="text"
-                                  name="identificacion"
-                                  value={nuevoCliente.identificacion}
-                                  onChange={handleNuevoClienteChange}
-                                  className="w-full pl-11 pr-4 py-2.5 rounded-xl border-slate-200 bg-slate-50 focus:ring-2 focus:ring-blue-500/10 focus:border-blue-500 transition-all font-medium text-slate-900 placeholder:text-slate-400"
-                                  placeholder="Número de cédula"
-                                />
-                              </div>
-                            </div>
-
-                            {/* Información de Contacto */}
-                            <div className="col-span-full pb-2 border-b border-slate-100 mb-2 mt-2">
-                              <h4 className="text-sm font-bold text-slate-900 flex items-center gap-2">
-                                <Phone className="w-4 h-4 text-blue-500" />
-                                Contacto
-                              </h4>
-                            </div>
-
-                            <div className="space-y-2">
-                              <label className="text-xs font-bold text-slate-700 uppercase tracking-wide">Teléfono / Celular</label>
+                            <div>
+                              <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Identificación</label>
                               <input
-                                type="tel"
+                                type="text"
+                                name="identificacion"
+                                value={nuevoCliente.identificacion}
+                                onChange={handleNuevoClienteChange}
+                                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-0 focus:border-blue-500 focus:bg-white transition-all outline-none font-medium placeholder:text-slate-400 text-slate-900"
+                                placeholder="Ej. 12.345.678"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Teléfono</label>
+                              <input
+                                type="text"
                                 name="telefono"
                                 value={nuevoCliente.telefono}
                                 onChange={handleNuevoClienteChange}
-                                className="w-full px-4 py-2.5 rounded-xl border-slate-200 bg-slate-50 focus:ring-2 focus:ring-blue-500/10 focus:border-blue-500 transition-all font-medium text-slate-900 placeholder:text-slate-400"
-                                placeholder="Ej: 300 123 4567"
+                                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-0 focus:border-blue-500 focus:bg-white transition-all outline-none font-medium placeholder:text-slate-400 text-slate-900"
+                                placeholder="Ej. 300 123 4567"
                               />
                             </div>
-
-                            <div className="space-y-2">
-                              <label className="text-xs font-bold text-slate-700 uppercase tracking-wide">Email (Opcional)</label>
+                            <div className="col-span-2">
+                              <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Dirección</label>
                               <input
-                                type="email"
-                                name="email"
-                                value={nuevoCliente.email}
+                                type="text"
+                                name="direccion"
+                                value={nuevoCliente.direccion}
                                 onChange={handleNuevoClienteChange}
-                                className="w-full px-4 py-2.5 rounded-xl border-slate-200 bg-slate-50 focus:ring-2 focus:ring-blue-500/10 focus:border-blue-500 transition-all font-medium text-slate-900 placeholder:text-slate-400"
-                                placeholder="correo@ejemplo.com"
+                                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-0 focus:border-blue-500 focus:bg-white transition-all outline-none font-medium placeholder:text-slate-400 text-slate-900"
+                                placeholder="Ej. Cra 15 #123-45"
                               />
-                            </div>
-
-                            <div className="col-span-full space-y-2">
-                              <label className="text-xs font-bold text-slate-700 uppercase tracking-wide">Dirección de Residencia</label>
-                              <div className="relative">
-                                <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                                <input
-                                  type="text"
-                                  name="direccion"
-                                  value={nuevoCliente.direccion}
-                                  onChange={handleNuevoClienteChange}
-                                  className="w-full pl-11 pr-4 py-2.5 rounded-xl border-slate-200 bg-slate-50 focus:ring-2 focus:ring-blue-500/10 focus:border-blue-500 transition-all font-medium text-slate-900 placeholder:text-slate-400"
-                                  placeholder="Dirección completa"
-                                />
-                              </div>
                             </div>
                           </div>
 
-                          <div className="mt-8 flex justify-end gap-3">
+                          <div className="flex gap-3 mt-8 pt-6 border-t border-slate-100">
                             <button
                               onClick={() => setMostrarNuevoCliente(false)}
-                              className="px-6 py-2.5 rounded-xl border border-slate-200 text-slate-600 font-bold hover:bg-slate-50 transition-colors"
+                              className="flex-1 py-3 px-4 bg-white border border-slate-200 text-slate-700 rounded-xl font-bold text-sm hover:bg-slate-50 transition-all"
                             >
                               Cancelar
                             </button>
                             <button
                               onClick={agregarCliente}
-                              className="px-6 py-2.5 rounded-xl bg-slate-900 text-white font-bold hover:bg-slate-800 transition-all shadow-lg shadow-slate-900/20"
+                              className="flex-1 py-3 px-4 bg-blue-600 text-white rounded-xl font-bold text-sm hover:bg-blue-700 transition-all shadow-lg shadow-blue-600/20 flex items-center justify-center gap-2"
                             >
-                              Guardar Cliente
+                              <PlusCircle className="w-4 h-4" />
+                              Crear Cliente
                             </button>
                           </div>
                         </div>
@@ -810,7 +812,7 @@ const CreacionPrestamoElegante = () => {
                   </div>
 
                   <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-6">
-                    {/* Monto y Plazo */}
+                    {/* Monto y Cuotas */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <div className="space-y-3">
                         <label className="text-sm font-bold text-slate-700 flex items-center gap-2">
@@ -819,11 +821,13 @@ const CreacionPrestamoElegante = () => {
                         </label>
                         <div className="relative">
                           <input
-                            type="number"
+                            type="text"
+                            inputMode="numeric"
                             name="montoTotal"
-                            value={form.montoTotal}
+                            value={montoTotalInput}
                             onChange={handleMontoChange}
                             className="w-full pl-4 pr-12 py-3 rounded-xl border-slate-200 bg-slate-50 text-xl font-bold text-slate-900 focus:ring-2 focus:ring-slate-900/10 transition-all"
+                            placeholder="1.000.000"
                           />
                           <span className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 font-medium">COP</span>
                         </div>
@@ -846,19 +850,18 @@ const CreacionPrestamoElegante = () => {
                       <div className="space-y-3">
                         <label className="text-sm font-bold text-slate-700 flex items-center gap-2">
                           <Clock className="w-4 h-4 text-slate-400" />
-                          Plazo (Meses)
+                          Cuotas
                         </label>
                         <div className="relative">
                            <input
-                            type="number"
-                            min="1"
-                            step="1"
-                            name="plazoMeses"
-                            value={form.plazoMeses}
-                            onChange={handleInputChange}
-                            className="w-full pl-4 pr-20 py-3 rounded-xl border-slate-200 bg-slate-50 text-xl font-bold text-slate-900 focus:ring-2 focus:ring-slate-900/10 transition-all"
+                            type="text"
+                            inputMode="numeric"
+                            name="duracionMeses"
+                            value={cuotasInput}
+                            onChange={handleCuotasChange}
+                            className="w-full pl-4 pr-4 py-3 rounded-xl border-slate-200 bg-slate-50 text-xl font-bold text-slate-900 focus:ring-2 focus:ring-slate-900/10 transition-all"
+                            placeholder="6"
                           />
-                          <span className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 font-medium">Meses</span>
                         </div>
                       </div>
                     </div>
@@ -930,10 +933,10 @@ const CreacionPrestamoElegante = () => {
                         Fotos de la Propiedad / Garantía
                       </label>
                       <FileUploader
-                        onFilesSelected={setFotosPropiedad}
+                        onFilesChange={setFotosPropiedad}
                         maxFiles={5}
                         accept="image/*"
-                        title="Arrastra las fotos aquí"
+                        label="Arrastra las fotos aquí"
                         description="Soporta JPG, PNG (Máx 5MB)"
                       />
                     </div>
@@ -944,10 +947,10 @@ const CreacionPrestamoElegante = () => {
                         Videos de Visita (Opcional)
                       </label>
                       <FileUploader
-                        onFilesSelected={setVideosPropiedad}
+                        onFilesChange={setVideosPropiedad}
                         maxFiles={2}
                         accept="video/*"
-                        title="Arrastra los videos aquí"
+                        label="Arrastra los videos aquí"
                         description="Soporta MP4, MOV (Máx 50MB)"
                       />
                     </div>
