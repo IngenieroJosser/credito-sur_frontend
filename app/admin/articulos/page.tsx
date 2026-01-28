@@ -14,7 +14,9 @@ import {
   DollarSign,
   Eye,
   Pencil,
-  XCircle
+  XCircle,
+  Calendar,
+  Truck
 } from 'lucide-react'
 import { formatCOPInputValue, formatCurrency, parseCOPInputToNumber } from '@/lib/utils'
 
@@ -299,7 +301,7 @@ export default function ArticulosPage() {
               </div>
             </div>
             <p className="text-sm font-medium text-slate-500">Valor Inventario</p>
-            <h3 className="text-2xl font-bold text-slate-900 mt-1">$45.2M</h3>
+            <h3 className="text-2xl font-bold text-slate-900 mt-1">{formatCurrency(45200000)}</h3>
           </div>
         </div>
 

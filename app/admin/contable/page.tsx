@@ -62,6 +62,8 @@ interface MovimientoContable {
   monto: number
   categoria: string
   responsable: string
+  origen: 'EMPRESA' | 'COBRADOR'
+  estado: 'PENDIENTE' | 'APROBADO' | 'RECHAZADO'
   referencia?: string
 }
 
@@ -90,6 +92,8 @@ const ModuloContableContent = () => {
   const [activeTab, setActiveTab] = useState<'MOVIMIENTOS' | 'CAJAS' | 'HISTORIAL'>(initialTab)
   const [busqueda, setBusqueda] = useState('')
   const [filtroTipo, setFiltroTipo] = useState<'TODOS' | 'INGRESO' | 'EGRESO'>('TODOS')
+  const [filtroOrigen, setFiltroOrigen] = useState<'TODOS' | MovimientoContable['origen']>('TODOS')
+  const [filtroEstado, setFiltroEstado] = useState<'TODOS' | MovimientoContable['estado']>('TODOS')
 
   const [showCrearCajaModal, setShowCrearCajaModal] = useState(false)
   const [showEditarCajaModal, setShowEditarCajaModal] = useState(false)
@@ -210,7 +214,9 @@ const ModuloContableContent = () => {
       tipo: 'INGRESO',
       monto: 150000,
       categoria: 'COBRO_CUOTA',
-      responsable: 'Carlos Cobrador'
+      responsable: 'Carlos Cobrador',
+      origen: 'COBRADOR',
+      estado: 'APROBADO'
     },
     {
       id: 'MOV-002',
@@ -219,7 +225,9 @@ const ModuloContableContent = () => {
       tipo: 'EGRESO',
       monto: 25000,
       categoria: 'GASTO_OPERATIVO',
-      responsable: 'Carlos Cobrador'
+      responsable: 'Carlos Cobrador',
+      origen: 'COBRADOR',
+      estado: 'PENDIENTE'
     },
     {
       id: 'MOV-003',
@@ -228,7 +236,9 @@ const ModuloContableContent = () => {
       tipo: 'INGRESO',
       monto: 200000,
       categoria: 'COBRO_CUOTA',
-      responsable: 'Carlos Cobrador'
+      responsable: 'Carlos Cobrador',
+      origen: 'COBRADOR',
+      estado: 'APROBADO'
     },
     {
       id: 'MOV-004',
@@ -237,7 +247,9 @@ const ModuloContableContent = () => {
       tipo: 'EGRESO',
       monto: 45500,
       categoria: 'GASTO_ADMINISTRATIVO',
-      responsable: 'Ana Admin'
+      responsable: 'Ana Admin',
+      origen: 'EMPRESA',
+      estado: 'APROBADO'
     },
     {
       id: 'MOV-005',
@@ -246,7 +258,9 @@ const ModuloContableContent = () => {
       tipo: 'INGRESO',
       monto: 500000,
       categoria: 'ABONO_CAPITAL',
-      responsable: 'Pedro Supervisor'
+      responsable: 'Pedro Supervisor',
+      origen: 'EMPRESA',
+      estado: 'APROBADO'
     }
   ])
 
@@ -270,6 +284,8 @@ const ModuloContableContent = () => {
     concepto: '',
     referencia: '',
     cajaId: 'CAJA-MAIN',
+    origen: 'EMPRESA' as MovimientoContable['origen'],
+    estado: 'PENDIENTE' as MovimientoContable['estado'],
   })
 
   // Filtrado de movimientos
@@ -280,8 +296,10 @@ const ModuloContableContent = () => {
       mov.categoria.toLowerCase().includes(busqueda.toLowerCase())
     
     const cumpleTipo = filtroTipo === 'TODOS' || mov.tipo === filtroTipo
+    const cumpleOrigen = filtroOrigen === 'TODOS' || mov.origen === filtroOrigen
+    const cumpleEstado = filtroEstado === 'TODOS' || mov.estado === filtroEstado
 
-    return cumpleBusqueda && cumpleTipo
+    return cumpleBusqueda && cumpleTipo && cumpleOrigen && cumpleEstado
   })
 
   const openCrearCaja = () => {
@@ -364,6 +382,8 @@ const ModuloContableContent = () => {
       concepto: '',
       referencia: '',
       cajaId: 'CAJA-MAIN',
+      origen: 'EMPRESA',
+      estado: 'PENDIENTE',
     })
     setShowRegistrarMovimientoModal(true)
   }
@@ -380,6 +400,8 @@ const ModuloContableContent = () => {
       monto,
       categoria: movimientoForm.categoria,
       responsable: 'Contador',
+      origen: movimientoForm.origen,
+      estado: movimientoForm.estado,
       referencia: movimientoForm.referencia || undefined,
     }
     setMovimientos((prev) => [nuevo, ...prev])
@@ -562,8 +584,50 @@ const ModuloContableContent = () => {
                 Nuevo
               </button>
             </div>
+            <div className="p-4 border-b border-slate-100 bg-slate-50/40">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <div className="space-y-1">
+                  <div className="text-[11px] font-extrabold text-slate-600">Tipo</div>
+                  <select
+                    value={filtroTipo}
+                    onChange={(e) => setFiltroTipo(e.target.value as typeof filtroTipo)}
+                    className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700"
+                  >
+                    <option value="TODOS">Todos</option>
+                    <option value="INGRESO">Ingresos</option>
+                    <option value="EGRESO">Egresos</option>
+                  </select>
+                </div>
+                <div className="space-y-1">
+                  <div className="text-[11px] font-extrabold text-slate-600">Origen</div>
+                  <select
+                    value={filtroOrigen}
+                    onChange={(e) => setFiltroOrigen(e.target.value as typeof filtroOrigen)}
+                    className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700"
+                  >
+                    <option value="TODOS">Todos</option>
+                    <option value="EMPRESA">Empresa</option>
+                    <option value="COBRADOR">Cobrador</option>
+                  </select>
+                </div>
+                <div className="space-y-1">
+                  <div className="text-[11px] font-extrabold text-slate-600">Estado</div>
+                  <select
+                    value={filtroEstado}
+                    onChange={(e) => setFiltroEstado(e.target.value as typeof filtroEstado)}
+                    className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700"
+                  >
+                    <option value="TODOS">Todos</option>
+                    <option value="PENDIENTE">Pendiente</option>
+                    <option value="APROBADO">Aprobado</option>
+                    <option value="RECHAZADO">Rechazado</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
             <div className="divide-y divide-slate-100">
-              {movimientos.slice(0, 6).map((m) => (
+              {movimientosFiltrados.slice(0, 6).map((m) => (
                 <div key={m.id} className="p-5 flex items-start justify-between gap-4">
                   <div className="min-w-0">
                     <div className="text-sm font-bold text-slate-900 truncate">{m.concepto}</div>
@@ -576,6 +640,26 @@ const ModuloContableContent = () => {
                         minute: '2-digit',
                       })}
                       {m.categoria ? ` • ${m.categoria}` : ''}
+                    </div>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      <div className={cn(
+                        'inline-flex items-center rounded-full px-2 py-1 text-[10px] font-extrabold border',
+                        m.origen === 'COBRADOR'
+                          ? 'bg-orange-50 text-orange-800 border-orange-100'
+                          : 'bg-slate-50 text-slate-700 border-slate-200'
+                      )}>
+                        {m.origen === 'COBRADOR' ? 'COBRADOR' : 'EMPRESA'}
+                      </div>
+                      <div className={cn(
+                        'inline-flex items-center rounded-full px-2 py-1 text-[10px] font-extrabold border',
+                        m.estado === 'APROBADO'
+                          ? 'bg-emerald-50 text-emerald-700 border-emerald-100'
+                          : m.estado === 'RECHAZADO'
+                          ? 'bg-rose-50 text-rose-700 border-rose-100'
+                          : 'bg-amber-50 text-amber-800 border-amber-100'
+                      )}>
+                        {m.estado}
+                      </div>
                     </div>
                   </div>
                   <div className="text-right shrink-0">
@@ -991,6 +1075,33 @@ const ModuloContableContent = () => {
                     <ArrowUpRight className="h-4 w-4" />
                     Egreso
                   </button>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <label className="text-sm font-bold text-slate-700">Origen</label>
+                    <select
+                      value={movimientoForm.origen}
+                      onChange={(e) => setMovimientoForm((p) => ({ ...p, origen: e.target.value as MovimientoContable['origen'] }))}
+                      className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-900"
+                    >
+                      <option value="EMPRESA">Empresa</option>
+                      <option value="COBRADOR">Cobrador</option>
+                    </select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-sm font-bold text-slate-700">Estado</label>
+                    <select
+                      value={movimientoForm.estado}
+                      onChange={(e) => setMovimientoForm((p) => ({ ...p, estado: e.target.value as MovimientoContable['estado'] }))}
+                      className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-900"
+                    >
+                      <option value="PENDIENTE">Pendiente</option>
+                      <option value="APROBADO">Aprobado</option>
+                      <option value="RECHAZADO">Rechazado</option>
+                    </select>
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

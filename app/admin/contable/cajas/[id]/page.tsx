@@ -1,5 +1,6 @@
 'use client'
 
+import { createPortal } from 'react-dom'
 import { use, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { ArrowLeft, Wallet, TrendingUp, TrendingDown, Calendar, User, DollarSign, CheckCircle, AlertCircle, XCircle, ArrowDownLeft, ArrowUpRight, ChevronLeft, ChevronRight } from 'lucide-react'
@@ -88,6 +89,11 @@ export default function DetalleCajaPage({ params }: { params: Promise<{ id: stri
       referencia: '',
     })
     setShowRegistrarMovimientoModal(true)
+  }
+
+  const renderInPortal = (node: React.ReactNode) => {
+    if (typeof document === 'undefined') return null
+    return createPortal(node, document.body)
   }
 
   return (
@@ -264,8 +270,8 @@ export default function DetalleCajaPage({ params }: { params: Promise<{ id: stri
           </div>
         </div>
 
-        {showEditarCajaModal && (
-          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/40">
+        {showEditarCajaModal && renderInPortal(
+          <div className="fixed inset-0 z-[2147483646] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
             <div className="w-full max-w-xl rounded-2xl bg-white border border-slate-200 shadow-2xl overflow-hidden">
               <div className="p-6 border-b border-slate-100 flex items-center justify-between">
                 <div>
@@ -339,8 +345,8 @@ export default function DetalleCajaPage({ params }: { params: Promise<{ id: stri
           </div>
         )}
 
-        {showRegistrarMovimientoModal && (
-          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/40">
+        {showRegistrarMovimientoModal && renderInPortal(
+          <div className="fixed inset-0 z-[2147483646] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
             <div className="w-full max-w-2xl rounded-2xl bg-white border border-slate-200 shadow-2xl overflow-hidden">
               <div className="p-6 border-b border-slate-100 flex items-center justify-between">
                 <div>

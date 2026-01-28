@@ -44,6 +44,7 @@ import {
 } from 'lucide-react';
 import { ExportButton } from '@/components/ui/ExportButton';
 import { Rol, obtenerModulosPorRol, getIconComponent } from '@/lib/permissions';
+import { formatCurrency } from '@/lib/utils';
 
 interface MetricCard {
   title: string;
@@ -314,7 +315,7 @@ const VistaCoordinador = () => {
     },
     {
       title: 'Base Solicitada',
-      value: '$150K',
+      value: formatCurrency(150000),
       change: 12.5,
       icon: <Wallet className="h-4 w-4" />,
       color: '#fb851b',
@@ -386,10 +387,10 @@ const VistaCoordinador = () => {
 
   // Actividad reciente
   const recentActivity = [
-    { id: 1, client: 'González M.', action: 'Aprobación de crédito', amount: '$2.5M', time: '09:42', status: 'approved' },
+    { id: 1, client: 'González M.', action: 'Aprobación de crédito', amount: formatCurrency(2500000), time: '09:42', status: 'approved' },
     { id: 2, client: 'López C.', action: 'Prórroga autorizada', amount: '-', time: '10:15', status: 'approved' },
-    { id: 3, client: 'Martínez A.', action: 'Cuenta en mora revisada', amount: '$750K', time: '11:30', status: 'alert' },
-    { id: 4, client: 'Ramírez P.', action: 'Base de efectivo aprobada', amount: '$150K', time: '13:20', status: 'approved' },
+    { id: 3, client: 'Martínez A.', action: 'Cuenta en mora revisada', amount: formatCurrency(750000), time: '11:30', status: 'alert' },
+    { id: 4, client: 'Ramírez P.', action: 'Base de efectivo aprobada', amount: formatCurrency(150000), time: '13:20', status: 'approved' },
     { id: 5, client: 'Sánchez L.', action: 'Nuevo cliente aprobado', amount: '-', time: '14:45', status: 'approved' }
   ];
 

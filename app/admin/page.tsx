@@ -100,11 +100,11 @@ const DashboardPage = () => {
         {
           title: 'Recaudo Real vs Esperado',
           value: '94.2%',
-          subValue: '$12.5M / $13.2M',
+          subValue: `${formatCurrency(12500000)} / ${formatCurrency(13200000)}`,
           isCurrency: false,
           change: 2.1,
           icon: <Target className="h-4 w-4" />,
-          color: '#10b981'
+          color: '#8b5cf6'
         },
         {
           title: 'Cartera en Mora',
