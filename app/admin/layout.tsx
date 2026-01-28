@@ -22,7 +22,8 @@ import {
   Calendar,
   MapPin,
   ChevronDown,
-  Eye
+  Eye,
+  Home
 } from 'lucide-react'
 import { Rol, obtenerModulosPorRol, getIconComponent, tieneAcceso } from '@/lib/permissions'
 import NotFoundPage from '../not-found'
@@ -49,8 +50,10 @@ interface Usuario {
 
 export default function AdminLayout({
   children,
+  hideSidebar = false,
 }: {
   children: React.ReactNode;
+  hideSidebar?: boolean;
 }) {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const [user, setUser] = useState<Usuario | null>(null)
@@ -624,177 +627,246 @@ export default function AdminLayout({
       )}
 
       {/* Sidebar elegante para desktop */}
-      <aside className={`fixed left-0 top-16 bottom-0 w-64 bg-white/80 backdrop-blur-sm border-r border-gray-100 transition-all duration-300 z-20 ${
-        isMenuOpen ? 'translate-x-0' : '-translate-x-full'
-      } lg:translate-x-0 lg:block`}>
-        <nav className="p-6 h-full overflow-y-auto custom-scrollbar">
-          <div className="space-y-6">
-            {/* Info del usuario en sidebar móvil */}
-            {user && (
-              <div className="lg:hidden mb-6 p-4 bg-linear-to-r from-gray-50 to-white rounded-xl border border-gray-100 shadow-sm">
-                <div className="flex items-center gap-3">
-                  <div 
-                    className="relative w-12 h-12 rounded-full flex items-center justify-center text-white text-sm font-medium shadow-md"
-                    style={{ 
-                      background: `linear-gradient(135deg, ${getRoleColor()}, ${getRoleColor()}CC)`,
-                      boxShadow: `0 0 0 2px white, 0 0 0 4px ${getRoleColor()}40`
-                    }}
-                  >
-                    {getUserInitials()}
-                    <div className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-white flex items-center justify-center shadow-sm">
-                      <div className="text-xs" style={{ color: getRoleColor() }}>
-                        {getRoleIcon()}
+      {!hideSidebar && (
+        <aside className={`fixed left-0 top-16 bottom-0 w-64 bg-white/80 backdrop-blur-sm border-r border-gray-100 transition-all duration-300 z-20 ${
+          isMenuOpen ? 'translate-x-0' : '-translate-x-full'
+        } lg:translate-x-0 lg:block`}>
+          <nav className="p-6 h-full overflow-y-auto custom-scrollbar">
+            <div className="space-y-6">
+              {/* Info del usuario en sidebar móvil */}
+              {user && (
+                <div className="lg:hidden mb-6 p-4 bg-linear-to-r from-gray-50 to-white rounded-xl border border-gray-100 shadow-sm">
+                  <div className="flex items-center gap-3">
+                    <div 
+                      className="relative w-12 h-12 rounded-full flex items-center justify-center text-white text-sm font-medium shadow-md"
+                      style={{ 
+                        background: `linear-gradient(135deg, ${getRoleColor()}, ${getRoleColor()}CC)`,
+                        boxShadow: `0 0 0 2px white, 0 0 0 4px ${getRoleColor()}40`
+                      }}
+                    >
+                      {getUserInitials()}
+                      <div className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-white flex items-center justify-center shadow-sm">
+                        <div className="text-xs" style={{ color: getRoleColor() }}>
+                          {getRoleIcon()}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="font-medium text-gray-900 text-sm truncate">
-                      {getUserFullName()}
-                    </div>
-                    <div className="text-xs text-gray-500 flex items-center gap-2 mt-0.5">
-                      <div 
-                        className="text-xs font-medium px-2 py-0.5 rounded-full text-white"
-                        style={{ backgroundColor: getRoleColor() }}
-                      >
-                        {getUserRoleName()}
+                    <div className="flex-1 min-w-0">
+                      <div className="font-medium text-gray-900 text-sm truncate">
+                        {getUserFullName()}
                       </div>
-                      <span className="truncate">{user.correo}</span>
+                      <div className="text-xs text-gray-500 flex items-center gap-2 mt-0.5">
+                        <div 
+                          className="text-xs font-medium px-2 py-0.5 rounded-full text-white"
+                          style={{ backgroundColor: getRoleColor() }}
+                        >
+                          {getUserRoleName()}
+                        </div>
+                        <span className="truncate">{user.correo}</span>
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
-            )}
+              )}
 
-            {/* Navegación principal filtrada por rol */}
-            <div>
-              <div className="text-xs font-medium text-gray-400 uppercase tracking-wider mb-4">Principal</div>
-              <div className="space-y-1">
-                {navigation.map((item) => {
-                  const isActive = pathname === item.href || pathname?.startsWith(`${item.href}/`)
-                  const hasSubmenu = item.submodulos && item.submodulos.length > 0
-                  const isOpen = (item.id ? openMenus[item.id] : undefined) ?? (hasSubmenu && item.submodulos?.some(sub => pathname === sub.href))
+              {/* Navegación principal filtrada por rol */}
+              <div>
+                <div className="text-xs font-medium text-gray-400 uppercase tracking-wider mb-4">Principal</div>
+                <div className="space-y-1">
+                  {navigation.map((item) => {
+                    const isActive = pathname === item.href || pathname?.startsWith(`${item.href}/`)
+                    const hasSubmenu = item.submodulos && item.submodulos.length > 0
+                    const isOpen = (item.id ? openMenus[item.id] : undefined) ?? (hasSubmenu && item.submodulos?.some(sub => pathname === sub.href))
 
-                  if (hasSubmenu && item.id) {
-                    return (
-                      <div key={item.id} className="space-y-1">
-                        <button
-                          type="button"
-                          onClick={() => toggleMenu(item.id!)}
-                          className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl transition-all duration-75 border group ${
-                            isOpen || isActive
-                              ? 'text-[#08557f] bg-gray-50/50 font-medium border-gray-200' 
-                              : 'text-gray-600 border-transparent hover:text-[#08557f] hover:bg-gray-50 hover:border-gray-200'
-                          }`}
-                        >
-                          <div className="flex items-center gap-3">
-                            <div className={`transition-colors ${isOpen || isActive ? 'text-[#08557f]' : 'text-gray-400 group-hover:text-[#08557f]'}`}>
-                              {item.icon}
+                    if (hasSubmenu && item.id) {
+                      return (
+                        <div key={item.id} className="space-y-1">
+                          <button
+                            type="button"
+                            onClick={() => toggleMenu(item.id!)}
+                            className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl transition-all duration-75 border group ${
+                              isOpen || isActive
+                                ? 'text-[#08557f] bg-gray-50/50 font-medium border-gray-200' 
+                                : 'text-gray-600 border-transparent hover:text-[#08557f] hover:bg-gray-50 hover:border-gray-200'
+                            }`}
+                          >
+                            <div className="flex items-center gap-3">
+                              <div className={`transition-colors ${isOpen || isActive ? 'text-[#08557f]' : 'text-gray-400 group-hover:text-[#08557f]'}`}>
+                                {item.icon}
+                              </div>
+                              <span className="text-sm">{item.name}</span>
                             </div>
-                            <span className="text-sm">{item.name}</span>
-                          </div>
-                          <ChevronDown className={`h-4 w-4 text-gray-400 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
-                        </button>
-                        
-                        <div className={`overflow-hidden transition-all duration-300 ease-in-out ${isOpen ? 'max-h-[500px] opacity-100' : 'max-h-0 opacity-0'}`}>
-                          <div className="pl-4 space-y-1 mt-1 border-l-2 border-gray-100 ml-4">
-                            {item.submodulos?.map((subItem) => {
-                              const isSubActive = pathname === subItem.href
-                              return (
-                                <Link
-                                  key={subItem.id}
-                                  href={subItem.href}
-                                  className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-all duration-75 group ${
-                                    isSubActive 
-                                      ? 'text-[#08557f] font-medium bg-[#08557f]/5' 
-                                      : 'text-gray-500 hover:text-[#08557f] hover:bg-gray-50'
-                                  }`}
-                                  onClick={() => setIsMenuOpen(false)}
-                                >
-                                  <div className={`transition-colors ${isSubActive ? 'text-[#08557f]' : 'text-gray-300 group-hover:text-[#08557f]'}`}>
-                                    {subItem.icon}
-                                  </div>
-                                  <span className="text-sm">{subItem.name}</span>
-                                </Link>
-                              )
-                            })}
+                            <ChevronDown className={`h-4 w-4 text-gray-400 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
+                          </button>
+                          
+                          <div className={`overflow-hidden transition-all duration-300 ease-in-out ${isOpen ? 'max-h-[500px] opacity-100' : 'max-h-0 opacity-0'}`}>
+                            <div className="pl-4 space-y-1 mt-1 border-l-2 border-gray-100 ml-4">
+                              {item.submodulos?.map((subItem) => {
+                                const isSubActive = pathname === subItem.href
+                                return (
+                                  <Link
+                                    key={subItem.id}
+                                    href={subItem.href}
+                                    className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-all duration-75 group ${
+                                      isSubActive 
+                                        ? 'text-[#08557f] font-medium bg-[#08557f]/5' 
+                                        : 'text-gray-500 hover:text-[#08557f] hover:bg-gray-50'
+                                    }`}
+                                    onClick={() => setIsMenuOpen(false)}
+                                  >
+                                    <div className={`transition-colors ${isSubActive ? 'text-[#08557f]' : 'text-gray-300 group-hover:text-[#08557f]'}`}>
+                                      {subItem.icon}
+                                    </div>
+                                    <span className="text-sm">{subItem.name}</span>
+                                  </Link>
+                                )
+                              })}
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    )
-                  }
+                      )
+                    }
 
-                  return (
-                    <Link
-                      key={item.id || item.name}
-                      href={item.href}
-                      className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-75 border group ${
-                        isActive 
-                          ? 'text-[#08557f] bg-gradient-to-r from-[#08557f]/10 to-[#063a58]/5 font-medium border-[#08557f]/20' 
-                          : 'text-gray-600 border-transparent hover:text-[#08557f] hover:bg-gray-50 hover:border-gray-200'
-                      }`}
-                      onClick={() => setIsMenuOpen(false)}
-                    >
-                      <div className={`transition-colors ${isActive ? 'text-[#08557f]' : 'text-gray-400 group-hover:text-[#08557f]'}`}>
-                        {item.icon}
-                      </div>
-                      <span className="text-sm">{item.name}</span>
-                    </Link>
-                  )
-                })}
+                    return (
+                      <Link
+                        key={item.id || item.name}
+                        href={item.href}
+                        className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-75 border group ${
+                          isActive 
+                            ? 'text-[#08557f] bg-gradient-to-r from-[#08557f]/10 to-[#063a58]/5 font-medium border-[#08557f]/20' 
+                            : 'text-gray-600 border-transparent hover:text-[#08557f] hover:bg-gray-50 hover:border-gray-200'
+                        }`}
+                        onClick={() => setIsMenuOpen(false)}
+                      >
+                        <div className={`transition-colors ${isActive ? 'text-[#08557f]' : 'text-gray-400 group-hover:text-[#08557f]'}`}>
+                          {item.icon}
+                        </div>
+                        <span className="text-sm">{item.name}</span>
+                      </Link>
+                    )
+                  })}
+                </div>
               </div>
             </div>
-          </div>
-        </nav>
-      </aside>
+          </nav>
+        </aside>
+      )}
 
       {/* Contenido principal */}
-      <main className={`pt-16 lg:pl-64 transition-all duration-300 ${isMenuOpen ? 'lg:pl-64' : ''}`}>
+      <main className={`pt-16 ${hideSidebar ? '' : 'lg:pl-64'} transition-all duration-300 ${isMenuOpen && !hideSidebar ? 'lg:pl-64' : ''}`}>
         {children}
       </main>
 
       {/* Sidebar móvil */}
-      <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-40 shadow-lg">
-        <div className="flex items-center justify-around py-3 px-2">
-          {mobileNavItems.map((item) => (
-            <Link
-              key={item.name}
-              href={item.href}
-              onClick={() => setIsMenuOpen(false)}
+      {!hideSidebar && (
+        <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-40 shadow-lg">
+          <div className="flex items-center justify-around py-3 px-2">
+            {mobileNavItems.map((item) => (
+              <Link
+                key={item.name}
+                href={item.href}
+                onClick={() => setIsMenuOpen(false)}
+                className="flex flex-col items-center px-2 py-1 rounded-xl transition-all group"
+              >
+                <div className={`p-2 rounded-lg transition-all ${
+                  pathname === item.href 
+                    ? 'bg-gradient-to-br from-[#08557f] to-[#063a58] text-white shadow-md' 
+                    : 'text-gray-500 group-hover:bg-gray-100'
+                }`}>
+                  {item.icon}
+                </div>
+                <span className={`text-xs mt-1 transition-colors ${
+                  pathname === item.href ? 'font-medium text-[#08557f]' : 'text-gray-600'
+                }`}>
+                  {item.name.length > 10 ? `${item.name.substring(0, 9)}...` : item.name}
+                </span>
+              </Link>
+            ))}
+            <button
+              onClick={() => setIsMenuOpen(true)}
               className="flex flex-col items-center px-2 py-1 rounded-xl transition-all group"
             >
               <div className={`p-2 rounded-lg transition-all ${
-                pathname === item.href 
+                isMenuOpen
                   ? 'bg-gradient-to-br from-[#08557f] to-[#063a58] text-white shadow-md' 
                   : 'text-gray-500 group-hover:bg-gray-100'
               }`}>
-                {item.icon}
+                <Menu className="h-5 w-5" />
               </div>
               <span className={`text-xs mt-1 transition-colors ${
-                pathname === item.href ? 'font-medium text-[#08557f]' : 'text-gray-600'
+                isMenuOpen ? 'font-medium text-[#08557f]' : 'text-gray-600'
               }`}>
-                {item.name.length > 10 ? `${item.name.substring(0, 9)}...` : item.name}
+                Más
+              </span>
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Barra inferior móvil para COBRADOR cuando hideSidebar está activo */}
+      {hideSidebar && user?.rol === 'COBRADOR' && (
+        <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-40 shadow-lg">
+          <div className="flex items-center justify-around py-3 px-2">
+            {/* Botón Notificaciones */}
+            <button
+              onClick={() => setShowNotifications(!showNotifications)}
+              className="flex flex-col items-center px-2 py-1 rounded-xl transition-all group"
+            >
+              <div className={`p-2 rounded-lg transition-all ${
+                showNotifications
+                  ? 'bg-gradient-to-br from-[#08557f] to-[#063a58] text-white shadow-md' 
+                  : 'text-gray-500 group-hover:bg-gray-100'
+              }`}>
+                <Bell className="h-5 w-5" />
+                <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-orange-500 rounded-full border-2 border-white"></span>
+              </div>
+              <span className={`text-xs mt-1 transition-colors ${
+                showNotifications ? 'font-medium text-[#08557f]' : 'text-gray-600'
+              }`}>
+                Notificaciones
+              </span>
+            </button>
+
+            {/* Botón Inicio */}
+            <Link
+              href="/cobranzas"
+              className="flex flex-col items-center px-2 py-1 rounded-xl transition-all group"
+            >
+              <div className={`p-2 rounded-lg transition-all ${
+                pathname === '/cobranzas' 
+                  ? 'bg-gradient-to-br from-[#08557f] to-[#063a58] text-white shadow-md' 
+                  : 'text-gray-500 group-hover:bg-gray-100'
+              }`}>
+                <Home className="h-5 w-5" />
+              </div>
+              <span className={`text-xs mt-1 transition-colors ${
+                pathname === '/cobranzas' ? 'font-medium text-[#08557f]' : 'text-gray-600'
+              }`}>
+                Inicio
               </span>
             </Link>
-          ))}
-          <button
-            onClick={() => setIsMenuOpen(true)}
-            className="flex flex-col items-center px-2 py-1 rounded-xl transition-all group"
-          >
-            <div className={`p-2 rounded-lg transition-all ${
-              isMenuOpen
-                ? 'bg-gradient-to-br from-[#08557f] to-[#063a58] text-white shadow-md' 
-                : 'text-gray-500 group-hover:bg-gray-100'
-            }`}>
-              <Menu className="h-5 w-5" />
-            </div>
-            <span className={`text-xs mt-1 transition-colors ${
-              isMenuOpen ? 'font-medium text-[#08557f]' : 'text-gray-600'
-            }`}>
-              Más
-            </span>
-          </button>
+
+            {/* Botón Perfil */}
+            <button
+              onClick={() => setShowUserMenu(!showUserMenu)}
+              className="flex flex-col items-center px-2 py-1 rounded-xl transition-all group"
+            >
+              <div className={`p-2 rounded-lg transition-all ${
+                showUserMenu
+                  ? 'bg-gradient-to-br from-[#08557f] to-[#063a58] text-white shadow-md' 
+                  : 'text-gray-500 group-hover:bg-gray-100'
+              }`}>
+                <User className="h-5 w-5" />
+              </div>
+              <span className={`text-xs mt-1 transition-colors ${
+                showUserMenu ? 'font-medium text-[#08557f]' : 'text-gray-600'
+              }`}>
+                Perfil
+              </span>
+            </button>
+          </div>
         </div>
-      </div>
+      )}
 
       <style jsx global>{`
         .custom-scrollbar::-webkit-scrollbar {
