@@ -1,11 +1,11 @@
 import { Metadata } from 'next';
-import CreacionPrestamoElegante from '@/components/prestamos/CreacionPrestamo';
+import CreacionUnificada from '@/components/creditos/CreacionUnificada';
 
 export const metadata: Metadata = {
-  title: 'Nuevo Préstamo • CrediSur',
-  description: 'Creación sofisticada de préstamos para electrodomésticos'
+  title: 'Nuevo Crédito • CrediSur',
+  description: 'Creación unificada de préstamos y créditos'
 };
 
 export default function NuevaPrestamoPage() {
-  return <CreacionPrestamoElegante />;
+  return <CreacionUnificada />;
 }
