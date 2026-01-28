@@ -156,7 +156,7 @@ const ReportesOperativosPage = () => {
               Desglose por Ruta
             </h3>
             <button 
-              onClick={() => router.push('/admin/rutas')}
+              onClick={() => router.push('/coordinador/rutas')}
               className="text-xs font-bold text-slate-700 hover:text-slate-900 hover:underline transition-colors"
             >
               Ver detalle completo
@@ -208,7 +208,7 @@ const ReportesOperativosPage = () => {
                     <td className="px-6 py-4 text-center text-slate-600 font-medium">{item.nuevosClientes}</td>
                     <td className="px-6 py-4 text-right">
                       <button 
-                        onClick={() => router.push(`/admin/rutas/${item.id}`)}
+                        onClick={() => router.push(`/coordinador/rutas/${item.id}`)}
                         className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
                         title="Ver Detalles"
                       >

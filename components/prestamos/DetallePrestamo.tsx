@@ -8,10 +8,12 @@ import {
   TrendingUp,
   ChevronRight,
   Package,
-  Image as ImageIcon
+  Image as ImageIcon,
+  Clock
 } from 'lucide-react';
 import { formatCurrency, cn } from '@/lib/utils';
 import Link from 'next/link';
+import ReprogramarCuotaModal from './ReprogramarCuotaModal';
 
 export interface PrestamoDetalle {
   id: string;
@@ -45,6 +47,25 @@ interface DetallePrestamoProps {
 
 export default function DetallePrestamo({ prestamo }: DetallePrestamoProps) {
   const [activeTab, setActiveTab] = useState<'info' | 'cuotas' | 'documentos'>('info');
+  const [selectedCuota, setSelectedCuota] = useState<number | null>(null);
+  const [showReprogramarModal, setShowReprogramarModal] = useState(false);
+
+  const handleReprogramar = (cuotaNumero: number) => {
+    setSelectedCuota(cuotaNumero);
+    setShowReprogramarModal(true);
+  };
+
+  const handleCloseReprogramar = () => {
+    setShowReprogramarModal(false);
+    setSelectedCuota(null);
+  };
+
+  const handleSuccessReprogramar = () => {
+    // TODO: Reload data
+    setShowReprogramarModal(false);
+    setSelectedCuota(null);
+    alert('Cuota reprogramada exitosamente. Recargar datos...');
+  };
 
   const getEstadoColor = (estado: string) => {
     switch (estado) {
@@ -200,6 +221,7 @@ export default function DetallePrestamo({ prestamo }: DetallePrestamoProps) {
                   <th scope="col" className="px-6 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Monto</th>
                   <th scope="col" className="px-6 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Estado</th>
                   <th scope="col" className="px-6 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Fecha Pago</th>
+                  <th scope="col" className="px-6 py-3 text-right text-xs font-bold text-slate-500 uppercase tracking-wider">Acciones</th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-slate-200">
@@ -217,6 +239,17 @@ export default function DetallePrestamo({ prestamo }: DetallePrestamoProps) {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">
                       {cuota.fechaPago || '-'}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-right">
+                      {(cuota.estado === 'PENDIENTE' || cuota.estado === 'VENCIDO') && (
+                        <button
+                          onClick={() => handleReprogramar(cuota.numero)}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-blue-200 text-blue-600 font-bold rounded-lg hover:bg-blue-50 transition-all text-xs shadow-sm hover:shadow-md active:scale-95"
+                        >
+                          <Clock className="w-3.5 h-3.5" />
+                          Reprogramar
+                        </button>
+                      )}
                     </td>
                   </tr>
                 ))}
@@ -308,6 +341,19 @@ export default function DetallePrestamo({ prestamo }: DetallePrestamoProps) {
           </div>
         )}
       </div>
+
+      {/* Modal de Reprogramación */}
+      {showReprogramarModal && selectedCuota !== null && (
+        <ReprogramarCuotaModal
+          prestamoId={prestamo.id}
+          cuotaNumero={selectedCuota}
+          fechaOriginal={prestamo.cuotas.find(c => c.numero === selectedCuota)?.fecha || ''}
+          frecuenciaPago={prestamo.frecuencia.toUpperCase() as 'DIARIO' | 'SEMANAL' | 'QUINCENAL' | 'MENSUAL'}
+          montoCuota={prestamo.cuotas.find(c => c.numero === selectedCuota)?.monto || 0}
+          onClose={handleCloseReprogramar}
+          onSuccess={handleSuccessReprogramar}
+        />
+      )}
     </div>
   );
 }

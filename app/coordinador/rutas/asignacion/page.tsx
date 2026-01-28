@@ -148,7 +148,7 @@ const AsignacionCobradoresPage = () => {
                     className={cn(
                       "w-full rounded-xl border px-5 py-4 text-left transition-all duration-300 group relative overflow-hidden",
                       esSeleccionado
-                        ? "border-slate-900 bg-white shadow-[0_8px_30px_rgb(0,0,0,0.12)]"
+                        ? "border-[#08557f] bg-white shadow-[0_8px_30px_rgb(8,85,127,0.1)]"
                         : "border-slate-200 bg-white/50 hover:border-slate-300 hover:bg-white hover:shadow-[0_8px_30px_rgb(0,0,0,0.04)]"
                     )}
                   >
@@ -158,7 +158,7 @@ const AsignacionCobradoresPage = () => {
                     <div className="flex items-center gap-4">
                       <div className={cn(
                         "flex h-10 w-10 items-center justify-center rounded-full transition-colors",
-                        esSeleccionado ? "bg-slate-900 text-white" : "bg-slate-100 text-slate-400 group-hover:bg-slate-200 group-hover:text-slate-600"
+                        esSeleccionado ? "bg-[#08557f] text-white" : "bg-slate-100 text-slate-400 group-hover:bg-slate-200 group-hover:text-slate-600"
                       )}>
                         <User className="h-5 w-5" />
                       </div>
@@ -189,7 +189,7 @@ const AsignacionCobradoresPage = () => {
                           <div
                             className={cn(
                               "h-full rounded-full transition-all duration-500",
-                              porcentaje > 90 ? "bg-rose-500" : "bg-slate-900"
+                              porcentaje > 90 ? "bg-rose-500" : "bg-[#08557f]"
                             )}
                             style={{ width: `${Math.min(porcentaje, 100)}%` }}
                           />
@@ -228,7 +228,7 @@ const AsignacionCobradoresPage = () => {
                         <span className="text-sm font-bold text-slate-900">
                           {ruta.nombre}
                         </span>
-                        <span className="rounded-full bg-slate-900 text-white text-[10px] px-2 py-0.5 tracking-wide font-bold">
+                        <span className="rounded-full bg-[#08557f] text-white text-[10px] px-2 py-0.5 tracking-wide font-bold">
                           {ruta.codigo}
                         </span>
                       </div>

@@ -21,8 +21,8 @@ import {
   Trash2
 } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils';
-
 import { Modal } from '@/components/ui/Modal';
+import FiltroRuta from '@/components/filtros/FiltroRuta';
 
 // Tipos alineados con Prisma Schema
 type NivelRiesgo = 'VERDE' | 'AMARILLO' | 'ROJO' | 'LISTA_NEGRA';
@@ -57,6 +57,7 @@ const ClientesPage = () => {
 
   const [searchTerm, setSearchTerm] = useState('');
   const [filterRiesgo, setFilterRiesgo] = useState<string>('all');
+  const [filterRuta, setFilterRuta] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 8;
 
@@ -107,8 +108,9 @@ const ClientesPage = () => {
       (cliente.correo && cliente.correo.toLowerCase().includes(searchTerm.toLowerCase()));
     
     const matchesRiesgo = filterRiesgo === 'all' || cliente.nivelRiesgo === filterRiesgo;
+    const matchesRuta = !filterRuta || filterRuta === '' || cliente.rutaId === filterRuta;
     
-    return matchesSearch && matchesRiesgo;
+    return matchesSearch && matchesRiesgo && matchesRuta;
   });
 
   // Paginación
@@ -214,31 +216,43 @@ const ClientesPage = () => {
 
         {/* Filtros y Búsqueda */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white/80 backdrop-blur-sm p-4 rounded-2xl border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)]">
-          <div className="flex items-center gap-2 overflow-x-auto pb-2 md:pb-0 scrollbar-hide">
-            <Filter className="h-4 w-4 text-slate-400 shrink-0 mr-2" />
-            
-            {[
-              { id: 'all', label: 'Todos' },
-              { id: 'VERDE', label: 'Al Día' },
-              { id: 'AMARILLO', label: 'Riesgo' },
-              { id: 'ROJO', label: 'Mora' },
-              { id: 'LISTA_NEGRA', label: 'Lista Negra' }
-            ].map((filtro) => (
-              <button
-                key={filtro.id}
-                onClick={() => {
-                  setFilterRiesgo(filtro.id);
-                  setCurrentPage(1);
-                }}
-                className={`px-4 py-2 text-xs font-bold rounded-xl transition-all whitespace-nowrap ${
-                  filterRiesgo === filtro.id 
-                    ? 'bg-primary text-white shadow-lg shadow-primary/20' 
-                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200 border border-slate-200'
-                }`}
-              >
-                {filtro.label}
-              </button>
-            ))}
+          <div className="flex flex-col gap-4 md:flex-row md:items-center">
+            {/* Filtro de Ruta Integrado */}
+            <div className="bg-slate-50 p-1 rounded-xl border border-slate-200">
+                <FiltroRuta 
+                    onRutaChange={setFilterRuta} 
+                    selectedRutaId={filterRuta}
+                    className="w-48"
+                    showAllOption={true}
+                />
+            </div>
+
+            <div className="flex items-center gap-2 overflow-x-auto pb-2 md:pb-0 scrollbar-hide">
+              <Filter className="h-4 w-4 text-slate-400 shrink-0 mr-2" />
+              
+              {[
+                { id: 'all', label: 'Todos' },
+                { id: 'VERDE', label: 'Al Día' },
+                { id: 'AMARILLO', label: 'Riesgo' },
+                { id: 'ROJO', label: 'Mora' },
+                { id: 'LISTA_NEGRA', label: 'Lista Negra' }
+              ].map((filtro) => (
+                <button
+                  key={filtro.id}
+                  onClick={() => {
+                    setFilterRiesgo(filtro.id);
+                    setCurrentPage(1);
+                  }}
+                  className={`px-4 py-2 text-xs font-bold rounded-xl transition-all whitespace-nowrap ${
+                    filterRiesgo === filtro.id 
+                      ? 'bg-primary text-white shadow-lg shadow-primary/20' 
+                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200 border border-slate-200'
+                  }`}
+                >
+                  {filtro.label}
+                </button>
+              ))}
+            </div>
           </div>
           
           <div className="relative w-full md:w-80">

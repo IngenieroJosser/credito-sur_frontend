@@ -65,7 +65,7 @@ const NuevaRutaPage = () => {
     console.log('Guardando ruta:', formData);
 
     setLoading(false);
-    router.push('/admin/rutas');
+    router.push('/coordinador/rutas');
   };
 
   return (
@@ -81,7 +81,7 @@ const NuevaRutaPage = () => {
         <div className="flex items-center justify-between animate-in fade-in slide-in-from-top-4 duration-500">
           <div className="flex items-center gap-4">
             <Link 
-              href="/admin/rutas"
+              href="/coordinador/rutas"
               className="p-2 hover:bg-slate-100 rounded-lg transition-colors text-slate-500 hover:text-slate-900"
             >
               <ArrowLeft className="h-5 w-5" />
@@ -98,7 +98,7 @@ const NuevaRutaPage = () => {
 
           <div className="flex items-center gap-3">
             <Link
-              href="/admin/rutas"
+              href="/coordinador/rutas"
               className="px-4 py-2 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors text-sm font-medium"
             >
               Cancelar
@@ -106,10 +106,10 @@ const NuevaRutaPage = () => {
             <button
               onClick={handleSubmit}
               disabled={loading}
-              className="px-6 py-2.5 bg-slate-900 text-white rounded-xl hover:bg-slate-800 transition-all text-sm font-bold flex items-center gap-2 shadow-lg shadow-slate-900/20 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="px-6 py-2.5 bg-white border border-blue-600 text-blue-600 rounded-xl hover:bg-blue-50 transition-all text-sm font-black flex items-center gap-2 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loading ? (
-                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                <div className="w-4 h-4 border-2 border-blue-600/30 border-t-blue-600 rounded-full animate-spin" />
               ) : (
                 <Save className="h-4 w-4" />
               )}

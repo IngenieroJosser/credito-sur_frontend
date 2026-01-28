@@ -26,6 +26,7 @@ import { ExportButton } from '@/components/ui/ExportButton'
 import { MOCK_CLIENTES } from '@/services/clientes-service'
 import { MOCK_ARTICULOS, type OpcionCuotas } from '@/services/articulos-service'
 import { formatCOPInputValue, formatMilesCOP, parseCOPInputToNumber, formatCurrency } from '@/lib/utils'
+import NuevoClienteModal from '@/components/clientes/NuevoClienteModal'
 
 const MODAL_Z_INDEX = 2147483647
 
@@ -91,22 +92,6 @@ const VistaSupervisor = () => {
   
   const articuloSeleccionado = MOCK_ARTICULOS.find(a => a.id === articuloSeleccionadoId)
 
-  const [formularioNuevoCliente, setFormularioNuevoCliente] = useState({
-    dni: '',
-    nombres: '',
-    apellidos: '',
-    telefono: '',
-    correo: '',
-    direccion: '',
-    referencia: '',
-  })
-  const [fotosCliente, setFotosCliente] = useState({
-    fotoPerfil: null as File | null,
-    documentoFrente: null as File | null,
-    documentoReverso: null as File | null,
-    comprobanteDomicilio: null as File | null,
-  })
-
   // Efecto para crear y limpiar object URLs de previews de imágenes
   useEffect(() => {
     // Solo procesar si es transferencia y hay archivo de imagen
@@ -168,24 +153,6 @@ const VistaSupervisor = () => {
     setOpcionCuotasSeleccionada(null)
   }
 
-  const resetNuevoClienteForm = () => {
-    setShowNewClientModal(false)
-    setFormularioNuevoCliente({
-      dni: '',
-      nombres: '',
-      apellidos: '',
-      telefono: '',
-      correo: '',
-      direccion: '',
-      referencia: '',
-    })
-    setFotosCliente({
-      fotoPerfil: null,
-      documentoFrente: null,
-      documentoReverso: null,
-      comprobanteDomicilio: null,
-    })
-  }
 
   const handleExportExcel = () => {
     console.log('Exporting Excel...')
@@ -205,13 +172,6 @@ const VistaSupervisor = () => {
     return date.toLocaleDateString('es-CO', options)
   }
 
-  const formatCurrency = (amount: number) => {
-    return amount.toLocaleString('es-CO', {
-      style: 'currency',
-      currency: 'COP',
-      maximumFractionDigits: 0,
-    })
-  }
 
   const getStatusColor = (status: DelinquentClient['status']) => {
     if (status === 'critical') return '#ef4444'
@@ -929,205 +889,14 @@ const VistaSupervisor = () => {
       )}
 
       {showNewClientModal && (
-        <Portal>
-          <div
-            className="fixed inset-0 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-200"
-            style={{ zIndex: MODAL_Z_INDEX }}
-            onClick={resetNuevoClienteForm}
-          >
-            <div
-              className="w-full max-w-2xl bg-white rounded-3xl shadow-2xl animate-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="p-6">
-                <div className="flex items-center justify-between mb-6">
-                  <h3 className="text-xl font-bold text-slate-900">Crear Cliente</h3>
-                  <button
-                    type="button"
-                    onClick={resetNuevoClienteForm}
-                    className="p-2 bg-slate-100 rounded-full text-slate-500 hover:bg-slate-200 transition-colors"
-                  >
-                    <X className="h-5 w-5" />
-                  </button>
-                </div>
-
-                <form
-                  onSubmit={(e) => {
-                    e.preventDefault()
-                    console.log('Crear cliente:', { ...formularioNuevoCliente, fotos: fotosCliente })
-                    resetNuevoClienteForm()
-                  }}
-                  className="space-y-4"
-                >
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-bold text-slate-700 mb-2">Cédula / CC</label>
-                      <input
-                        type="text"
-                        inputMode="numeric"
-                        value={formularioNuevoCliente.dni}
-                        onChange={(e) =>
-                          setFormularioNuevoCliente((prev) => ({
-                            ...prev,
-                            dni: e.target.value.replace(/\D/g, ''),
-                          }))
-                        }
-                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-[#08557f] focus:ring-0 font-medium text-slate-900 placeholder:text-slate-400"
-                        placeholder="Número de cédula (CC)"
-                        required
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-bold text-slate-700 mb-2">Teléfono</label>
-                      <input
-                        type="tel"
-                        inputMode="tel"
-                        value={formularioNuevoCliente.telefono}
-                        onChange={(e) =>
-                          setFormularioNuevoCliente((prev) => ({
-                            ...prev,
-                            telefono: e.target.value.replace(/\D/g, ''),
-                          }))
-                        }
-                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-[#08557f] focus:ring-0 font-medium text-slate-900 placeholder:text-slate-400"
-                        placeholder="Ej: 3001234567"
-                        required
-                      />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-bold text-slate-700 mb-2">Nombres</label>
-                      <input
-                        value={formularioNuevoCliente.nombres}
-                        onChange={(e) => setFormularioNuevoCliente((prev) => ({ ...prev, nombres: e.target.value }))}
-                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-[#08557f] focus:ring-0 font-medium text-slate-900"
-                        required
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-bold text-slate-700 mb-2">Apellidos</label>
-                      <input
-                        value={formularioNuevoCliente.apellidos}
-                        onChange={(e) => setFormularioNuevoCliente((prev) => ({ ...prev, apellidos: e.target.value }))}
-                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-[#08557f] focus:ring-0 font-medium text-slate-900"
-                        required
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-bold text-slate-700 mb-2">Correo (Opcional)</label>
-                    <input
-                      type="email"
-                      value={formularioNuevoCliente.correo}
-                      onChange={(e) => setFormularioNuevoCliente((prev) => ({ ...prev, correo: e.target.value }))}
-                      className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-[#08557f] focus:ring-0 font-medium text-slate-900 placeholder:text-slate-400"
-                      placeholder="correo@dominio.com"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-bold text-slate-700 mb-2">Dirección (Opcional)</label>
-                    <input
-                      value={formularioNuevoCliente.direccion}
-                      onChange={(e) => setFormularioNuevoCliente((prev) => ({ ...prev, direccion: e.target.value }))}
-                      className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-[#08557f] focus:ring-0 font-medium text-slate-900 placeholder:text-slate-400"
-                      placeholder="Dirección del cliente"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-bold text-slate-700 mb-2">Referencia (Opcional)</label>
-                    <textarea
-                      value={formularioNuevoCliente.referencia}
-                      onChange={(e) => setFormularioNuevoCliente((prev) => ({ ...prev, referencia: e.target.value }))}
-                      className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-[#08557f] focus:ring-0 font-medium text-slate-900 placeholder:text-slate-400 resize-none"
-                      rows={3}
-                      placeholder="Punto de referencia / observaciones"
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-bold text-slate-700 mb-2">Foto de perfil</label>
-                      <input
-                        type="file"
-                        accept="image/*"
-                        onChange={(e) =>
-                          setFotosCliente((prev) => ({
-                            ...prev,
-                            fotoPerfil: e.target.files?.[0] ?? null,
-                          }))
-                        }
-                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-700 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-[#08557f] file:text-white file:text-xs file:font-bold hover:file:bg-[#063a58]"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-bold text-slate-700 mb-2">Cédula/CC (Frente)</label>
-                      <input
-                        type="file"
-                        accept="image/*"
-                        onChange={(e) =>
-                          setFotosCliente((prev) => ({
-                            ...prev,
-                            documentoFrente: e.target.files?.[0] ?? null,
-                          }))
-                        }
-                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-700 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-[#08557f] file:text-white file:text-xs file:font-bold hover:file:bg-[#063a58]"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-bold text-slate-700 mb-2">Cédula/CC (Reverso)</label>
-                      <input
-                        type="file"
-                        accept="image/*"
-                        onChange={(e) =>
-                          setFotosCliente((prev) => ({
-                            ...prev,
-                            documentoReverso: e.target.files?.[0] ?? null,
-                          }))
-                        }
-                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-700 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-[#08557f] file:text-white file:text-xs file:font-bold hover:file:bg-[#063a58]"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-bold text-slate-700 mb-2">Comprobante de domicilio</label>
-                      <input
-                        type="file"
-                        accept="image/*,application/pdf"
-                        onChange={(e) =>
-                          setFotosCliente((prev) => ({
-                            ...prev,
-                            comprobanteDomicilio: e.target.files?.[0] ?? null,
-                          }))
-                        }
-                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-700 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-[#08557f] file:text-white file:text-xs file:font-bold hover:file:bg-[#063a58]"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="flex gap-3 pt-2">
-                    <button
-                      type="button"
-                      onClick={resetNuevoClienteForm}
-                      className="flex-1 bg-slate-100 text-slate-700 font-bold py-3.5 rounded-xl hover:bg-slate-200 transition-all"
-                    >
-                      Cancelar
-                    </button>
-                    <button
-                      type="submit"
-                      className="flex-1 bg-[#08557f] text-white font-bold py-3.5 rounded-xl shadow-lg shadow-[#08557f]/20 hover:bg-[#063a58] active:scale-[0.98] transition-all"
-                    >
-                      Guardar Cliente
-                    </button>
-                  </div>
-                </form>
-              </div>
-            </div>
-          </div>
-        </Portal>
+        <NuevoClienteModal 
+            onClose={() => setShowNewClientModal(false)}
+            onClienteCreado={(nuevo) => {
+                MOCK_CLIENTES.unshift(nuevo);
+                setClienteCreditoId(nuevo.id); 
+                setShowNewClientModal(false);
+            }}
+        />
       )}
 
       <div className="fixed right-6 z-50 flex flex-col items-end gap-3 bottom-[calc(1.5rem+env(safe-area-inset-bottom))] pointer-events-none">

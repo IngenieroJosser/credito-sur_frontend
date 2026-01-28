@@ -5,7 +5,6 @@ import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { 
   Shield,
-  Search,
   Bell,
   CreditCard,
   Banknote,
@@ -295,17 +294,6 @@ export default function AdminLayout({
 
             {/* Controles de la derecha */}
             <div className="flex items-center space-x-2">
-              {/* Barra de búsqueda sutil (solo para ciertos roles) */}
-              {user?.rol && ['SUPER_ADMINISTRADOR', 'COORDINADOR', 'SUPERVISOR'].includes(user.rol) && (
-                <div className="relative hidden md:block">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                  <input
-                    type="text"
-                    placeholder="Buscar..."
-                    className="pl-10 pr-4 py-2 w-40 md:w-56 bg-transparent border-0 border-b border-gray-200 focus:border-[#08557f] focus:outline-none text-sm text-gray-900 placeholder-gray-400"
-                  />
-                </div>
-              )}
 
               {/* Notificaciones (solo para ciertos roles) */}
               {user?.rol && ['SUPER_ADMINISTRADOR', 'COORDINADOR', 'COBRADOR', 'CONTADOR'].includes(user.rol) && (

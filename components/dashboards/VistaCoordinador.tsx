@@ -1,49 +1,27 @@
 'use client'
 
 import Link from 'next/link';
-import { useState, useEffect, useRef } from 'react';
-import { usePathname, useRouter } from 'next/navigation';
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { 
   Bell, 
   Clock, 
   AlertCircle, 
   CheckCircle, 
-  XCircle, 
-  DollarSign, 
-  Users, 
+  XCircle,
+  Users,
   CreditCard, 
-  TrendingUp, 
-  TrendingDown, 
-  Filter, 
-  ChevronRight, 
-  RefreshCw, 
-  Shield, 
   Wallet, 
-  Route, 
   BarChart3, 
-  FileText, 
-  UserPlus, 
   CalendarClock, 
-  Zap,
   Target,
-  ArrowRight,
-  PieChart,
-  Search,
-  Menu,
-  X,
-  LogOut,
-  Mail,
-  Phone,
-  Calendar,
-  MapPin,
-  ChevronDown,
-  Eye,
-  Settings,
-  Banknote,
-  User,
+  Shield,
+  UserPlus,
+  ChevronRight,
+  Route,
+  FileText
 } from 'lucide-react';
-import { ExportButton } from '@/components/ui/ExportButton';
-import { Rol, obtenerModulosPorRol, getIconComponent } from '@/lib/permissions';
+import { Rol } from '@/lib/permissions';
 import { formatCurrency } from '@/lib/utils';
 
 interface MetricCard {
@@ -86,23 +64,6 @@ interface DelinquentAccount {
   status: 'critical' | 'moderate' | 'mild';
 }
 
-interface BaseRequest {
-  id: number;
-  collector: string;
-  amount: number;
-  reason: string;
-  time: string;
-  status: 'pending' | 'approved' | 'rejected';
-}
-
-interface NavigationItem {
-  name: string;
-  href: string;
-  icon: React.ReactNode;
-  id?: string;
-  submodulos?: NavigationItem[];
-}
-
 interface Usuario {
   id?: string
   nombres: string
@@ -117,47 +78,10 @@ interface Usuario {
 
 const VistaCoordinador = () => {
   const [timeFilter, setTimeFilter] = useState<'today' | 'week' | 'month' | 'quarter'>('month');
-  const [isMenuOpen, setIsMenuOpen] = useState(false)
   const [user, setUser] = useState<Usuario | null>(null)
   const [authChecked, setAuthChecked] = useState(false)
-  const [showUserMenu, setShowUserMenu] = useState(false)
-  const [showNotifications, setShowNotifications] = useState(false)
-  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false)
-  const [isLoggingOut, setIsLoggingOut] = useState(false)
-  const [navigation, setNavigation] = useState<NavigationItem[]>([])
-  const [openMenus, setOpenMenus] = useState<Record<string, boolean>>({})
-  const pathname = usePathname()
   const router = useRouter()
   const currentDate = new Date();
-
-  const userMenuRef = useRef<HTMLDivElement>(null)
-  const notificationRef = useRef<HTMLDivElement>(null)
-
-  const toggleMenu = (id: string) => {
-    setOpenMenus(prev => {
-      const isCurrentlyOpen = prev[id] ?? navigation.find(n => n.id === id)?.submodulos?.some(s => pathname === s.href) ?? false
-      return {
-        ...prev,
-        [id]: !isCurrentlyOpen
-      }
-    })
-  }
-
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (userMenuRef.current && !userMenuRef.current.contains(event.target as Node)) {
-        setShowUserMenu(false)
-      }
-      if (notificationRef.current && !notificationRef.current.contains(event.target as Node)) {
-        setShowNotifications(false)
-      }
-    }
-
-    document.addEventListener('mousedown', handleClickOutside)
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside)
-    }
-  }, [])
 
   useEffect(() => {
     const loadUserData = () => {
@@ -165,9 +89,6 @@ const VistaCoordinador = () => {
         const token = localStorage.getItem('token')
         const userData = localStorage.getItem('user')
         if (!token || !userData) {
-          setUser(null)
-          setNavigation([])
-          setAuthChecked(true)
           router.replace('/login')
           return
         }
@@ -175,27 +96,6 @@ const VistaCoordinador = () => {
         if (userData) {
           const parsedUser = JSON.parse(userData) as Usuario
           setUser(parsedUser)
-          
-          // Obtener módulos según el rol del usuario
-          if (parsedUser.rol) {
-            const modulos = obtenerModulosPorRol(parsedUser.rol)
-            
-            // Convertir módulos a formato de navegación
-            const navItems = modulos.map(modulo => ({
-              name: modulo.nombre,
-              href: modulo.path,
-              icon: getIconComponent(modulo.icono),
-              id: modulo.id,
-              submodulos: modulo.submodulos?.map(sub => ({
-                id: sub.id,
-                name: sub.nombre,
-                href: sub.path,
-                icon: getIconComponent(sub.icono)
-              }))
-            }))
-            
-            setNavigation(navItems)
-          }
         }
       } catch (error) {
         console.error('Error al cargar datos del usuario:', error)
@@ -207,82 +107,6 @@ const VistaCoordinador = () => {
     loadUserData()
   }, [router])
 
-  const requestLogout = () => {
-    setShowUserMenu(false)
-    setShowLogoutConfirm(true)
-  }
-
-  const handleLogout = () => {
-    if (isLoggingOut) return
-    setIsLoggingOut(true)
-    window.setTimeout(() => {
-      localStorage.removeItem('token')
-      localStorage.removeItem('user')
-      router.push('/login')
-    }, 450)
-  }
-
-  function getUserInitials() {
-    if (!user) return 'U'
-    const firstInitial = user.nombres?.charAt(0) || ''
-    const lastInitial = user.apellidos?.charAt(0) || ''
-    return (firstInitial + lastInitial).toUpperCase()
-  }
-
-  function getUserFullName() {
-    if (!user) return 'Usuario'
-    return `${user.nombres} ${user.apellidos}`
-  }
-
-  function getUserRoleName() {
-    if (!user) return 'Coordinador'
-
-    const roleNames: Record<string, string> = {
-      'SUPER_ADMINISTRADOR': 'Super Administrador',
-      'COORDINADOR': 'Coordinador',
-      'SUPERVISOR': 'Supervisor',
-      'COBRADOR': 'Cobrador',
-      'CONTADOR': 'Contador'
-    }
-
-    return roleNames[user.rol] || user.rol
-  }
-
-  function getRoleColor() {
-    if (!user) return '#f97316'
-
-    const roleColors: Record<string, string> = {
-      'SUPER_ADMINISTRADOR': '#2563eb',
-      'COORDINADOR': '#f97316',
-      'SUPERVISOR': '#8b5cf6',
-      'COBRADOR': '#f97316',
-      'CONTADOR': '#6366f1'
-    }
-
-    return roleColors[user.rol] || '#f97316'
-  }
-
-  function getRoleIcon() {
-    if (!user) return <User className="h-4 w-4" />
-
-    const roleIcons: Record<string, React.ReactNode> = {
-      'SUPER_ADMINISTRADOR': <Shield className="h-4 w-4" />,
-      'COORDINADOR': <User className="h-4 w-4" />,
-      'SUPERVISOR': <Eye className="h-4 w-4" />,
-      'COBRADOR': <Wallet className="h-4 w-4" />,
-      'CONTADOR': <CreditCard className="h-4 w-4" />
-    }
-
-    return roleIcons[user.rol] || <User className="h-4 w-4" />
-  }
-
-  const handleExportExcel = () => {
-    console.log('Exporting Excel...')
-  }
-
-  const handleExportPDF = () => {
-    console.log('Exporting PDF...')
-  }
 
   // Formatear fecha elegante
   const formatDate = (date: Date) => {
@@ -379,11 +203,6 @@ const VistaCoordinador = () => {
     { id: 3, client: 'Sánchez L.', daysLate: 5, amountDue: 250000, collector: 'Pedro Sánchez', route: 'Sur', status: 'mild' },
   ];
 
-  // Solicitudes de base
-  const baseRequests: BaseRequest[] = [
-    { id: 1, collector: 'Juan Pérez', amount: 50000, reason: 'Cambio para clientes', time: '09:30', status: 'pending' },
-    { id: 2, collector: 'Ana López', amount: 100000, reason: 'Nuevo préstamo inmediato', time: '11:00', status: 'pending' },
-  ];
 
   // Actividad reciente
   const recentActivity = [
@@ -436,924 +255,268 @@ const VistaCoordinador = () => {
   if (!authChecked) return null
 
   return (
-    <div className="min-h-screen bg-linear-to-br from-gray-50 to-white">
-      {/* Header ultra minimalista */}
-      <header className="fixed top-0 left-0 right-0 z-40 bg-white/80 backdrop-blur-sm border-b border-gray-100">
-        <div className="px-4 sm:px-6 lg:px-8 py-3">
-          <div className="flex items-center justify-between">
-            {/* Logo y título */}
-            <div className="flex items-center space-x-3">
-              <button 
-                onClick={() => setIsMenuOpen(!isMenuOpen)}
-                className="p-2 hover:bg-gray-100 rounded-lg transition-colors lg:hidden"
-              >
-                {isMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-              </button>
-              
-              <div className="flex items-center">
-                <div className="w-8 h-8 bg-linear-to-br from-blue-600 to-blue-800 rounded-lg flex items-center justify-center shadow-lg shadow-blue-600/20">
-                  <Shield className="h-4 w-4 text-white" />
-                </div>
-                <h1 className="ml-3 text-xl font-bold tracking-tight">
-                  <span className="text-blue-600">Credi</span><span className="text-orange-500">Sur</span>
-                </h1>
-              </div>
+    <div className="min-h-screen bg-slate-50 relative pb-20">
+      {/* Fondo arquitectónico */}
+      <div className="fixed inset-0 pointer-events-none">
+        <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px]" />
+        <div className="absolute left-0 right-0 top-0 -z-10 m-auto h-[310px] w-[310px] rounded-full bg-cyan-500 opacity-20 blur-[100px]" />
+      </div>
 
-              {/* Indicador de rol sutil */}
-              {user && (
-                <div className="hidden md:block">
-                  <div 
-                    className="flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium text-white"
-                    style={{ backgroundColor: getRoleColor() }}
-                  >
-                    {getRoleIcon()}
-                    <span>{getUserRoleName()}</span>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Controles de la derecha */}
-            <div className="flex items-center space-x-2">
-              {/* Barra de búsqueda sutil */}
-              <div className="relative hidden md:block">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                <input
-                  type="text"
-                  placeholder="Buscar..."
-                  className="pl-10 pr-4 py-2 w-40 md:w-56 bg-transparent border-0 border-b border-gray-200 focus:border-[#08557f] focus:outline-none text-sm text-gray-900 placeholder-gray-400"
-                />
-              </div>
-
-              {/* Notificaciones */}
-              <div ref={notificationRef} className="relative">
-                <button 
-                  onClick={() => setShowNotifications(!showNotifications)}
-                  className="relative p-2 hover:bg-gray-100 rounded-lg transition-colors"
-                >
-                  <Bell className={`h-5 w-5 ${showNotifications ? 'text-blue-600' : 'text-gray-500'}`} />
-                  <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-orange-500 rounded-full border-2 border-white"></span>
-                </button>
-
-                {showNotifications && (
-                  <div className="absolute right-0 mt-2 w-80 bg-white rounded-xl shadow-xl border border-gray-100 py-2 z-50 animate-in fade-in slide-in-from-top-2">
-                    <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
-                      <h3 className="font-semibold text-gray-900">Notificaciones</h3>
-                      <span className="text-xs font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded-full">3 Nuevas</span>
-                    </div>
-                    <div className="max-h-[300px] overflow-y-auto">
-                      <div className="p-4 border-b border-gray-50 hover:bg-gray-50 transition-colors cursor-pointer group">
-                        <div className="flex gap-3">
-                          <div className="mt-1 p-2 bg-green-50 rounded-full text-green-600 group-hover:scale-110 transition-transform">
-                            <Banknote className="h-4 w-4" />
-                          </div>
-                          <div>
-                            <p className="text-sm font-medium text-gray-900">Pago Recibido</p>
-                            <p className="text-xs text-gray-500 mt-0.5">Cliente #1456 ha realizado un pago</p>
-                            <p className="text-xs text-blue-600 mt-1 font-medium">Hace 5 min</p>
-                          </div>
-                        </div>
-                      </div>
-                      <div className="p-4 border-b border-gray-50 hover:bg-gray-50 transition-colors cursor-pointer group">
-                        <div className="flex gap-3">
-                          <div className="mt-1 p-2 bg-blue-50 rounded-full text-blue-600 group-hover:scale-110 transition-transform">
-                            <Users className="h-4 w-4" />
-                          </div>
-                          <div>
-                            <p className="text-sm font-medium text-gray-900">Nuevo Cliente</p>
-                            <p className="text-xs text-gray-500 mt-0.5">Solicitud de registro pendiente</p>
-                            <p className="text-xs text-blue-600 mt-1 font-medium">Hace 2 horas</p>
-                          </div>
-                        </div>
-                      </div>
-                      <div className="p-4 hover:bg-gray-50 transition-colors cursor-pointer group">
-                        <div className="flex gap-3">
-                          <div className="mt-1 p-2 bg-amber-50 rounded-full text-amber-600 group-hover:scale-110 transition-transform">
-                            <AlertCircle className="h-4 w-4" />
-                          </div>
-                          <div>
-                            <p className="text-sm font-medium text-gray-900">Alerta de Mora</p>
-                            <p className="text-xs text-gray-500 mt-0.5">3 cuentas han entrado en mora hoy</p>
-                            <p className="text-xs text-blue-600 mt-1 font-medium">Hace 4 horas</p>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="p-2 border-t border-gray-100">
-                      <button 
-                        onClick={() => {
-                          setShowNotifications(false)
-                          router.push('/admin/notificaciones')
-                        }}
-                        className="w-full py-2 text-sm font-medium text-gray-600 hover:text-blue-600 hover:bg-gray-50 rounded-lg transition-colors"
-                      >
-                        Ver todas las notificaciones
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Avatar de usuario con menú desplegable mejorado */}
-              <div ref={userMenuRef} className="relative">
-                <button 
-                  onClick={() => setShowUserMenu(!showUserMenu)}
-                  className="flex items-center space-x-3 p-1 hover:bg-gray-100 rounded-lg transition-colors group"
-                >
-                  <div 
-                    className="relative w-9 h-9 rounded-full flex items-center justify-center text-white text-sm font-medium shadow-sm"
-                    style={{ 
-                      background: `linear-gradient(135deg, ${getRoleColor()}, ${getRoleColor()}CC)`,
-                      boxShadow: `0 0 0 2px white, 0 0 0 4px ${getRoleColor()}40`
-                    }}
-                  >
-                    {getUserInitials()}
-                  </div>
-                  <div className="hidden lg:block text-left">
-                    <div className="text-sm font-medium text-gray-800 group-hover:text-[#08557f] transition-colors">
-                      {getUserFullName()}
-                    </div>
-                    <div className="text-xs text-gray-500 flex items-center gap-1">
-                      <Mail className="h-3 w-3" />
-                      <span className="truncate max-w-[120px]">{user?.correo}</span>
-                    </div>
-                  </div>
-                  <ChevronDown className={`h-4 w-4 text-gray-400 transition-transform ${showUserMenu ? 'rotate-180' : ''}`} />
-                </button>
-
-                {/* Menú desplegable del usuario mejorado */}
-                {showUserMenu && (
-                  <>
-                    <div 
-                      className="fixed inset-0 z-40" 
-                      onClick={() => setShowUserMenu(false)}
-                    />
-                    <div className="absolute right-0 mt-2 w-96 bg-white rounded-xl shadow-xl border border-gray-100 py-2 z-50 animate-in fade-in slide-in-from-top-2">
-                      {/* Header mejorado */}
-                      <div className="px-6 py-6 bg-linear-to-r from-slate-50 to-white border-b border-gray-100">
-                        <div className="flex flex-col items-center text-center gap-3">
-                          <div 
-                            className="relative w-20 h-20 rounded-full flex items-center justify-center text-white text-2xl font-bold shadow-xl mb-1"
-                            style={{ 
-                              background: `linear-gradient(135deg, ${getRoleColor()}, ${getRoleColor()}CC)`,
-                              boxShadow: `0 8px 20px ${getRoleColor()}40`
-                            }}
-                          >
-                            {getUserInitials()}
-                            <div className="absolute -bottom-2 -right-2 w-8 h-8 rounded-full bg-white flex items-center justify-center shadow-md border-2 border-white">
-                              <div style={{ color: getRoleColor() }}>
-                                {getRoleIcon()}
-                              </div>
-                            </div>
-                          </div>
-                          
-                          <div className="w-full">
-                            <h3 className="font-bold text-gray-900 text-lg mb-1">
-                              {getUserFullName()}
-                            </h3>
-                            <div className="flex items-center justify-center gap-2 flex-wrap">
-                              <span 
-                                className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold text-white shadow-sm"
-                                style={{ backgroundColor: getRoleColor() }}
-                              >
-                                {getRoleIcon()}
-                                {getUserRoleName()}
-                              </span>
-                              <span className="text-xs text-gray-400">•</span>
-                              <span className="text-xs text-gray-500 font-medium bg-gray-100 px-2 py-1 rounded-full">
-                                {user?.correo?.split('@')[0] || 'usuario'}
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Información detallada */}
-                      {user && (
-                        <div className="px-4 py-3 space-y-3 border-b border-gray-100">
-                          {/* Correo con icono */}
-                          <div className="flex items-start gap-3">
-                            <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center flex-shrink-0">
-                              <Mail className="h-4 w-4 text-blue-600" />
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <div className="text-xs text-gray-500">Correo electrónico</div>
-                              <div className="text-sm font-medium text-gray-900 truncate" title={user.correo}>
-                                {user.correo}
-                              </div>
-                            </div>
-                          </div>
-
-                          {/* Teléfono (si existe) */}
-                          {user.telefono && (
-                            <div className="flex items-start gap-3">
-                              <div className="w-8 h-8 rounded-lg bg-green-50 flex items-center justify-center flex-shrink-0">
-                                <Phone className="h-4 w-4 text-green-600" />
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <div className="text-xs text-gray-500">Teléfono</div>
-                                <div className="text-sm font-medium text-gray-900">
-                                  {user.telefono}
-                                </div>
-                              </div>
-                            </div>
-                          )}
-
-                          {/* Ubicación (si existe) */}
-                          {(user.ciudad || user.direccion) && (
-                            <div className="flex items-start gap-3">
-                              <div className="w-8 h-8 rounded-lg bg-purple-50 flex items-center justify-center flex-shrink-0">
-                                <MapPin className="h-4 w-4 text-purple-600" />
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <div className="text-xs text-gray-500">Ubicación</div>
-                                <div className="text-sm font-medium text-gray-900">
-                                  {user.ciudad}
-                                  {user.ciudad && user.direccion && ' • '}
-                                  {user.direccion && <span className="text-xs text-gray-500">{user.direccion}</span>}
-                                </div>
-                              </div>
-                            </div>
-                          )}
-
-                          {/* Fecha de creación */}
-                          {user.fecha_creacion && (
-                            <div className="flex items-start gap-3">
-                              <div className="w-8 h-8 rounded-lg bg-amber-50 flex items-center justify-center flex-shrink-0">
-                                <Calendar className="h-4 w-4 text-amber-600" />
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <div className="text-xs text-gray-500">Miembro desde</div>
-                                <div className="text-sm font-medium text-gray-900">
-                                  {new Date(user.fecha_creacion).toLocaleDateString('es-ES', {
-                                    year: 'numeric',
-                                    month: 'long',
-                                    day: 'numeric'
-                                  })}
-                                </div>
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      )}
-
-                      {/* Acciones rápidas */}
-                      <div className="py-2">
-                        <Link
-                          href="/admin/perfil"
-                          className="flex items-center px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors group"
-                          onClick={() => setShowUserMenu(false)}
-                        >
-                          <div className="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center mr-3 group-hover:bg-[#08557f]/10 transition-colors">
-                            <User className="h-4 w-4 text-gray-600 group-hover:text-[#08557f]" />
-                          </div>
-                          <div>
-                            <div className="font-medium">Mi perfil</div>
-                            <div className="text-xs text-gray-500">Ver y editar información personal</div>
-                          </div>
-                        </Link>
-                      </div>
-
-                      {/* Cerrar sesión */}
-                      <div className="pt-2 border-t border-gray-100">
-                        <button
-                          onClick={requestLogout}
-                          className="flex items-center w-full px-4 py-3 text-sm text-red-600 hover:bg-red-50 transition-colors group"
-                        >
-                          <div className="w-8 h-8 rounded-lg bg-red-100 flex items-center justify-center mr-3 group-hover:bg-red-200 transition-colors">
-                            <LogOut className="h-4 w-4" />
-                          </div>
-                          <div>
-                            <div className="font-medium">Cerrar sesión</div>
-                            <div className="text-xs text-red-500">Salir del sistema</div>
-                          </div>
-                        </button>
-                      </div>
-                    </div>
-                  </>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-      </header>
-
-      {showLogoutConfirm && (
-        <div className="fixed inset-0 z-[2147483647] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
-          <div className="w-full max-w-md rounded-3xl bg-white shadow-2xl overflow-hidden">
-            <div className="p-6">
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <h3 className="text-lg font-bold text-slate-900">Cerrar sesión</h3>
-                  <p className="mt-1 text-sm text-slate-600">¿Seguro que deseas cerrar sesión?</p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (isLoggingOut) return
-                    setShowLogoutConfirm(false)
-                  }}
-                  className="p-2 rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200"
-                >
-                  <X className="h-5 w-5" />
-                </button>
-              </div>
-
-              <div className="mt-6 flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (isLoggingOut) return
-                    setShowLogoutConfirm(false)
-                  }}
-                  disabled={isLoggingOut}
-                  className="flex-1 rounded-xl bg-slate-100 px-3 py-3 text-sm font-bold text-slate-700 hover:bg-slate-200 disabled:opacity-60"
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="button"
-                  onClick={handleLogout}
-                  disabled={isLoggingOut}
-                  className="flex-1 rounded-xl bg-red-600 px-3 py-3 text-sm font-bold text-white hover:bg-red-700 disabled:opacity-60"
-                >
-                  {isLoggingOut ? 'Cerrando sesión…' : 'Cerrar sesión'}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Sidebar elegante para desktop */}
-      <aside className={`fixed left-0 top-16 bottom-0 w-64 bg-white/80 backdrop-blur-sm border-r border-gray-100 transition-all duration-300 z-20 ${
-        isMenuOpen ? 'translate-x-0' : '-translate-x-full'
-      } lg:translate-x-0 lg:block`}>
-        <nav className="p-6 h-full overflow-y-auto custom-scrollbar">
-          <div className="space-y-6">
-            {/* Info del usuario en sidebar móvil */}
-            {user && (
-              <div className="lg:hidden mb-6 p-4 bg-linear-to-r from-gray-50 to-white rounded-xl border border-gray-100 shadow-sm">
-                <div className="flex items-center gap-3">
-                  <div 
-                    className="relative w-12 h-12 rounded-full flex items-center justify-center text-white text-sm font-medium shadow-md"
-                    style={{ 
-                      background: `linear-gradient(135deg, ${getRoleColor()}, ${getRoleColor()}CC)`,
-                      boxShadow: `0 0 0 2px white, 0 0 0 4px ${getRoleColor()}40`
-                    }}
-                  >
-                    {getUserInitials()}
-                    <div className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-white flex items-center justify-center shadow-sm">
-                      <div className="text-xs" style={{ color: getRoleColor() }}>
-                        {getRoleIcon()}
-                      </div>
-                    </div>
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="font-medium text-gray-900 text-sm truncate">
-                      {getUserFullName()}
-                    </div>
-                    <div className="text-xs text-gray-500 flex items-center gap-2 mt-0.5">
-                      <div 
-                        className="text-xs font-medium px-2 py-0.5 rounded-full text-white"
-                        style={{ backgroundColor: getRoleColor() }}
-                      >
-                        {getUserRoleName()}
-                      </div>
-                      <span className="truncate">{user.correo}</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Navegación principal filtrada por rol */}
-            <div>
-              <div className="text-xs font-medium text-gray-400 uppercase tracking-wider mb-4">Principal</div>
-              <div className="space-y-1">
-                {navigation.map((item) => {
-                  const isActive = pathname === item.href || pathname?.startsWith(`${item.href}/`)
-                  const hasSubmenu = item.submodulos && item.submodulos.length > 0
-                  const isOpen = (item.id ? openMenus[item.id] : undefined) ?? (hasSubmenu && item.submodulos?.some(sub => pathname === sub.href))
-
-                  if (hasSubmenu && item.id) {
-                    return (
-                      <div key={item.id} className="space-y-1">
-                        <button
-                          type="button"
-                          onClick={() => toggleMenu(item.id!)}
-                          className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl transition-all duration-75 border group ${
-                            isOpen || isActive
-                              ? 'text-[#08557f] bg-gray-50/50 font-medium border-gray-200' 
-                              : 'text-gray-600 border-transparent hover:text-[#08557f] hover:bg-gray-50 hover:border-gray-200'
-                          }`}
-                        >
-                          <div className="flex items-center gap-3">
-                            <div className={`transition-colors ${isOpen || isActive ? 'text-[#08557f]' : 'text-gray-400 group-hover:text-[#08557f]'}`}>
-                              {item.icon}
-                            </div>
-                            <span className="text-sm">{item.name}</span>
-                          </div>
-                          <ChevronDown className={`h-4 w-4 text-gray-400 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
-                        </button>
-                        
-                        <div className={`overflow-hidden transition-all duration-300 ease-in-out ${isOpen ? 'max-h-[500px] opacity-100' : 'max-h-0 opacity-0'}`}>
-                          <div className="pl-4 space-y-1 mt-1 border-l-2 border-gray-100 ml-4">
-                            {item.submodulos?.map((subItem) => {
-                              const isSubActive = pathname === subItem.href
-                              return (
-                                <Link
-                                  key={subItem.id}
-                                  href={subItem.href}
-                                  className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-all duration-75 group ${
-                                    isSubActive 
-                                      ? 'text-[#08557f] font-medium bg-[#08557f]/5' 
-                                      : 'text-gray-500 hover:text-[#08557f] hover:bg-gray-50'
-                                  }`}
-                                  onClick={() => setIsMenuOpen(false)}
-                                >
-                                  <div className={`transition-colors ${isSubActive ? 'text-[#08557f]' : 'text-gray-300 group-hover:text-[#08557f]'}`}>
-                                    {subItem.icon}
-                                  </div>
-                                  <span className="text-sm">{subItem.name}</span>
-                                </Link>
-                              )
-                            })}
-                          </div>
-                        </div>
-                      </div>
-                    )
-                  }
-
-                  return (
-                    <Link
-                      key={item.id || item.name}
-                      href={item.href}
-                      className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-75 border group ${
-                        isActive 
-                          ? 'text-[#08557f] bg-gradient-to-r from-[#08557f]/10 to-[#063a58]/5 font-medium border-[#08557f]/20' 
-                          : 'text-gray-600 border-transparent hover:text-[#08557f] hover:bg-gray-50 hover:border-gray-200'
-                      }`}
-                      onClick={() => setIsMenuOpen(false)}
-                    >
-                      <div className={`transition-colors ${isActive ? 'text-[#08557f]' : 'text-gray-400 group-hover:text-[#08557f]'}`}>
-                        {item.icon}
-                      </div>
-                      <span className="text-sm">{item.name}</span>
-                    </Link>
-                  )
-                })}
-              </div>
-            </div>
-          </div>
-        </nav>
-      </aside>
-
-      {/* Contenido principal */}
-      <main className={`pt-16 lg:pl-64 transition-all duration-300 ${isMenuOpen ? 'lg:pl-64' : ''}`}>
-        <div className="min-h-screen bg-slate-50 relative pb-20">
-          {/* Fondo arquitectónico */}
-          <div className="fixed inset-0 pointer-events-none">
-            <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px]" />
-            <div className="absolute left-0 right-0 top-0 -z-10 m-auto h-[310px] w-[310px] rounded-full bg-cyan-500 opacity-20 blur-[100px]" />
-          </div>
-
-          <div className="relative z-10 p-4 sm:p-6 lg:p-8">
+      <div className="relative z-10 p-4 sm:p-6 lg:p-8">
         {/* Encabezado del dashboard */}
         <div className="mb-8">
-        <div className="flex items-start justify-between">
-          <div>
-            <div className="flex items-center space-x-3 mb-2">
-              <div className="p-2 bg-gradient-to-br from-[#08557f] to-[#063a58] rounded-lg">
-                <Shield className="h-6 w-6 text-white" />
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-4">
+              <div className="p-3 bg-gradient-to-br from-[#08557f] to-[#063a58] rounded-2xl shadow-lg shadow-blue-900/20">
+                <Shield className="h-7 w-7 text-white" />
               </div>
               <div>
-                <h1 className="text-2xl font-light text-gray-800">Coordinación Central</h1>
-                <p className="text-sm text-gray-500">Gestión operativa y aprobaciones</p>
+                <h1 className="text-2xl font-light text-slate-800 tracking-tight">
+                  Hola, <span className="font-black text-[#08557f]">{user?.nombres || 'Coordinador'}</span>
+                </h1>
+                <p className="text-sm text-slate-500 font-medium">Gestión operativa y aprobaciones de crédito</p>
               </div>
             </div>
-            <p className="text-sm text-gray-500" suppressHydrationWarning>{formatDate(currentDate)}</p>
+            <p className="text-xs font-black text-[#fb851b] uppercase tracking-[0.2em] bg-orange-50 px-4 py-2 rounded-xl border border-orange-100" suppressHydrationWarning>
+              {formatDate(currentDate)}
+            </p>
           </div>
-          <div className="flex items-center space-x-3">
-            <button className="flex items-center space-x-2 px-4 py-2 bg-white border border-gray-200 rounded-lg hover:border-gray-300 transition-colors">
-              <RefreshCw className="h-4 w-4 text-gray-500" />
-              <span className="text-sm text-gray-600">Actualizar</span>
-            </button>
-            <ExportButton 
-              label="Exportar" 
-              onExportExcel={handleExportExcel} 
-              onExportPDF={handleExportPDF} 
-            />
+          
+          {/* Filtro de tiempo */}
+          <div className="mt-6 flex items-center space-x-1 bg-slate-200/50 backdrop-blur-sm rounded-xl p-1 w-fit">
+            {['Hoy', 'Sem', 'Mes', 'Trim'].map((item, index) => {
+              const values = ['today', 'week', 'month', 'quarter'] as const;
+              return (
+                <button
+                  key={item}
+                  onClick={() => setTimeFilter(values[index])}
+                  className={`px-5 py-1.5 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all ${
+                    timeFilter === values[index] 
+                      ? 'bg-white text-[#08557f] shadow-md border border-slate-100' 
+                      : 'text-slate-500 hover:text-slate-700'
+                  }`}
+                >
+                  {item}
+                </button>
+              );
+            })}
           </div>
-        </div>
-        
-        {/* Filtro de tiempo */}
-        <div className="mt-4 flex items-center space-x-1 bg-gray-100 rounded-lg p-1 w-fit">
-          {['Hoy', 'Sem', 'Mes', 'Trim'].map((item, index) => {
-            const values = ['today', 'week', 'month', 'quarter'] as const;
-            return (
-              <button
-                key={item}
-                onClick={() => setTimeFilter(values[index])}
-                className={`px-3 py-1 text-xs rounded-md transition-all ${
-                  timeFilter === values[index] 
-                    ? 'bg-white text-gray-800 shadow-sm' 
-                    : 'text-gray-500 hover:text-gray-700'
-                }`}
-              >
-                {item}
-              </button>
-            );
-          })}
-        </div>
         </div>
 
         {/* Métricas principales */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-        {mainMetrics.map((metric, index) => (
-          <div
-            key={index}
-            className="bg-white border border-gray-100 rounded-xl p-5 hover:shadow-lg transition-all duration-300 group"
-          >
-            <div className="flex items-start justify-between mb-4">
-              <div className={`p-2 rounded-lg bg-gradient-to-br ${metric.color === '#08557f' ? 'from-[#08557f]/10 to-[#08557f]/5' : metric.color === '#ef4444' ? 'from-[#ef4444]/10 to-[#ef4444]/5' : metric.color === '#fb851b' ? 'from-[#fb851b]/10 to-[#fb851b]/5' : 'from-[#10b981]/10 to-[#10b981]/5'}`}>
-                <div style={{ color: metric.color }}>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
+          {mainMetrics.map((metric, index) => (
+            <div
+              key={index}
+              className="bg-white border border-slate-100 rounded-[2rem] p-6 hover:shadow-2xl hover:shadow-slate-200/50 transition-all duration-500 group relative overflow-hidden"
+            >
+              <div className="flex items-start justify-between mb-6">
+                <div className="flex items-center justify-center p-3 rounded-2xl bg-slate-50 text-slate-400 group-hover:text-[#08557f] group-hover:bg-blue-50 transition-colors border border-slate-100 shadow-sm">
                   {metric.icon}
                 </div>
+                <div className={`flex items-center font-black text-[10px] px-3 py-1 rounded-full ${
+                  metric.change >= 0 ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600'
+                }`}>
+                  {metric.change >= 0 ? '+' : ''}{metric.change}%
+                </div>
               </div>
-              <div className={`flex items-center space-x-1 text-sm ${
-                metric.change >= 0 ? 'text-green-600' : 'text-red-600'
-              }`}>
-                {metric.change >= 0 ? (
-                  <TrendingUp className="h-4 w-4" />
-                ) : (
-                  <TrendingDown className="h-4 w-4" />
-                )}
-                <span>{metric.change >= 0 ? '+' : ''}{metric.change}%</span>
+              <div className="space-y-1">
+                <div className="text-3xl font-black text-slate-900 tracking-tighter">
+                  {metric.value}
+                </div>
+                <div className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] leading-none">
+                  {metric.title}
+                </div>
               </div>
             </div>
-            <div className="space-y-2">
-              <div className="text-2xl font-light text-gray-800">{metric.value}</div>
-              <div className="text-sm text-gray-500">{metric.title}</div>
-            </div>
-            
-            {/* Mini gráfico elegante */}
-            <div className="mt-4 h-1 flex items-end space-x-px">
-              {metric.trendData.map((value, i) => (
-                <div
-                  key={i}
-                  className="flex-1 rounded-t-full"
-                  style={{
-                    height: `${value * 0.6}%`,
-                    backgroundColor: metric.color,
-                    opacity: 0.3 + (i / metric.trendData.length) * 0.7
-                  }}
-                ></div>
-              ))}
-            </div>
-          </div>
-        ))}
+          ))}
         </div>
 
-        {/* Contenido principal */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-          {/* Columna izquierda: Aprobaciones y Acciones rápidas */}
-          <div className="lg:col-span-2 space-y-6">
-          {/* Bandeja de aprobaciones */}
-          <div className="bg-white border border-gray-100 rounded-xl p-6">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-lg font-light text-gray-800">Bandeja de Aprobaciones</h2>
-              <div className="flex items-center space-x-2">
-                <span className="text-sm text-gray-500">{approvalItems.filter(item => item.status === 'pending').length} pendientes</span>
-                <button className="text-sm text-gray-500 hover:text-gray-700 transition-colors">
-                  Ver todos <ChevronRight className="inline h-4 w-4 ml-1" />
-                </button>
-              </div>
-            </div>
-            
-            <div className="space-y-4">
-              {approvalItems.map((item) => (
-                <div key={item.id} className="p-4 border border-gray-200 rounded-lg hover:border-gray-300 transition-colors">
-                  <div className="flex items-start justify-between">
-                    <div className="flex items-start space-x-3">
-                      <div className={`p-2 rounded-lg`} style={{ backgroundColor: `${getStatusColor(item.priority)}10` }}>
-                        <div style={{ color: getStatusColor(item.priority) }}>
-                          {getTypeIcon(item.type)}
-                        </div>
-                      </div>
-                      <div>
-                        <div className="flex items-center space-x-2 mb-1">
-                          <h3 className="font-medium text-gray-800">{item.description}</h3>
-                          <span className="text-xs font-medium px-2 py-1 rounded-full" style={{ 
-                            backgroundColor: `${getStatusColor(item.priority)}15`,
-                            color: getStatusColor(item.priority)
-                          }}>
-                            {item.priority === 'high' ? 'Alta' : item.priority === 'medium' ? 'Media' : 'Baja'}
-                          </span>
-                        </div>
-                        <p className="text-sm text-gray-500 mb-2">{item.details}</p>
-                        <div className="flex items-center space-x-4 text-xs text-gray-500">
-                          <span className="flex items-center">
-                            <Users className="h-3 w-3 mr-1" />
-                            {item.requestedBy}
-                          </span>
-                          <span className="flex items-center">
-                            <Clock className="h-3 w-3 mr-1" />
-                            {item.time}
-                          </span>
-                          {item.amount && (
-                            <span className="flex items-center">
-                              <DollarSign className="h-3 w-3 mr-1" />
-                              ${item.amount.toLocaleString('es-CO')}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                    
-                    <div className="flex items-center space-x-2">
-                      <button 
-                        onClick={() => handleApprove(item.id, 'approval')}
-                        className="p-2 bg-green-100 text-green-600 hover:bg-green-200 rounded-lg transition-colors"
-                        title="Aprobar"
-                      >
-                        <CheckCircle className="h-4 w-4" />
-                      </button>
-                      <button 
-                        onClick={() => handleReject(item.id, 'approval')}
-                        className="p-2 bg-red-100 text-red-600 hover:bg-red-200 rounded-lg transition-colors"
-                        title="Rechazar"
-                      >
-                        <XCircle className="h-4 w-4" />
-                      </button>
-                    </div>
-                  </div>
+        {/* Layout en Dos Columnas (2/3 - 1/3) */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {/* Columna Izquierda (2/3) */}
+          <div className="lg:col-span-2 space-y-8">
+            {/* Bandeja de Aprobaciones */}
+            <div className="bg-white border border-slate-100 rounded-[2.5rem] p-8 shadow-sm">
+              <div className="flex items-center justify-between mb-8">
+                <div>
+                  <h2 className="text-xl font-black text-slate-900 tracking-tight">Bandeja de Aprobaciones</h2>
+                  <p className="text-sm text-slate-500 font-medium">Solicitudes pendientes de validación</p>
                 </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Acciones rápidas */}
-          <div className="bg-white border border-gray-100 rounded-xl p-6">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-lg font-light text-gray-800">Acciones Rápidas</h2>
-              <Zap className="h-5 w-5 text-[#fb851b]" />
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {quickAccess.map((item, index) => (
-                <Link
-                  key={index}
-                  href={item.href}
-                  className="group p-4 border border-gray-100 rounded-lg hover:border-gray-200 hover:shadow-sm transition-all duration-300 text-left"
-                >
-                  <div className="flex items-center justify-between mb-3">
-                    <div className={`p-2 rounded-lg`} style={{ backgroundColor: `${item.color}10` }}>
-                      <div style={{ color: item.color }}>
-                        {item.icon}
-                      </div>
-                    </div>
-                    {item.badge && (
-                      <span className="text-xs font-medium px-2 py-1 rounded-full bg-gray-100 text-gray-600">
-                        {item.badge}
-                      </span>
-                    )}
-                  </div>
-                  <h3 className="font-medium text-gray-800 mb-1">{item.title}</h3>
-                  <p className="text-sm text-gray-500">{item.subtitle}</p>
-                  <ArrowRight className="h-4 w-4 text-gray-400 ml-auto mt-2 opacity-0 group-hover:opacity-100 transition-opacity" />
-                </Link>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        {/* Columna derecha: Cuentas en mora, Base de efectivo y Actividad */}
-        <div className="space-y-6">
-          {/* Cuentas en mora */}
-          <div className="bg-white border border-gray-100 rounded-xl p-6">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-lg font-light text-gray-800">Cuentas en Mora</h2>
-              <Filter className="h-5 w-5 text-gray-400" />
-            </div>
-            
-            <div className="space-y-4">
-              {delinquentAccounts.map((account) => (
-                <div key={account.id} className="p-4 border border-gray-200 rounded-lg hover:border-gray-300 transition-colors">
-                  <div className="flex items-center justify-between mb-3">
-                    <div className="flex items-center space-x-2">
-                      <div className="w-2 h-2 rounded-full" style={{ backgroundColor: getStatusColor(account.status) }}></div>
-                      <h3 className="font-medium text-gray-800">{account.client}</h3>
-                    </div>
-                    <span className="text-sm font-medium px-2 py-1 rounded-full" style={{ 
-                      backgroundColor: `${getStatusColor(account.status)}15`,
-                      color: getStatusColor(account.status)
-                    }}>
-                      {account.daysLate} días
-                    </span>
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="text-gray-500">Monto:</span>
-                      <span className="font-medium text-gray-800">${account.amountDue.toLocaleString('es-CO')}</span>
-                    </div>
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="text-gray-500">Cobrador:</span>
-                      <span className="font-medium text-gray-800">{account.collector}</span>
-                    </div>
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="text-gray-500">Ruta:</span>
-                      <span className="font-medium text-gray-800">{account.route}</span>
-                    </div>
-                  </div>
-                  
-                  <div className="mt-4 flex space-x-2">
-                    <button className="flex-1 py-2 text-sm bg-[#08557f] text-white rounded-lg hover:bg-[#063a58] transition-colors">
-                      Revisar
-                    </button>
-                    <button className="flex-1 py-2 text-sm border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors">
-                      Detalles
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Solicitudes de base de efectivo */}
-          <div className="bg-gradient-to-br from-amber-50 to-amber-100 border border-amber-200 rounded-xl p-6">
-            <div className="flex items-center justify-between mb-6">
-              <div>
-                <h2 className="text-lg font-light text-amber-900">Base de Efectivo</h2>
-                <p className="text-sm text-amber-700">Solicitudes pendientes</p>
-              </div>
-              <Wallet className="h-5 w-5 text-amber-600" />
-            </div>
-            
-            <div className="space-y-4">
-              {baseRequests.map((request) => (
-                <div key={request.id} className="p-4 bg-white/80 border border-amber-300 rounded-lg">
-                  <div className="flex items-center justify-between mb-3">
-                    <div>
-                      <h3 className="font-medium text-gray-800">{request.collector}</h3>
-                      <p className="text-sm text-gray-600">{request.reason}</p>
-                    </div>
-                    <span className="text-lg font-medium text-[#fb851b]">
-                      ${request.amount.toLocaleString('es-CO')}
-                    </span>
-                  </div>
-                  
-                  <div className="flex items-center justify-between text-sm text-gray-500 mb-3">
-                    <span>{request.time}</span>
-                    <span className="px-2 py-1 bg-amber-100 text-amber-800 rounded text-xs">
-                      Pendiente
-                    </span>
-                  </div>
-                  
-                  <div className="flex space-x-2">
-                    <button 
-                      onClick={() => handleApprove(request.id, 'base')}
-                      className="flex-1 py-2 text-sm bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center justify-center"
-                    >
-                      <CheckCircle className="h-4 w-4 mr-2" />
-                      Aprobar
-                    </button>
-                    <button 
-                      onClick={() => handleReject(request.id, 'base')}
-                      className="flex-1 py-2 text-sm bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors flex items-center justify-center"
-                    >
-                      <XCircle className="h-4 w-4 mr-2" />
-                      Rechazar
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Lógica de prórrogas */}
-          <div className="bg-white border border-gray-100 rounded-xl p-6">
-            <div className="flex items-center space-x-3 mb-4">
-              <CalendarClock className="h-5 w-5 text-[#fb851b]" />
-              <h3 className="text-lg font-light text-gray-800">Lógica de Prórrogas</h3>
-            </div>
-            
-            <div className="space-y-4">
-              <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm text-gray-600">Fecha actual</span>
-                  <span className="text-sm font-medium text-gray-800">13 Enero</span>
-                </div>
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm text-gray-600">Próximo corte</span>
-                  <span className="text-sm font-medium text-[#08557f]">15 Enero</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-600">Reprogramación máxima</span>
-                  <span className="text-sm font-medium text-[#fb851b]">14 Enero</span>
+                <div className="px-4 py-1.5 bg-blue-50 text-[#08557f] rounded-xl text-[10px] font-black uppercase tracking-widest border border-blue-100">
+                  {approvalItems.length} PENDIENTES
                 </div>
               </div>
               
-              <div className="text-sm text-gray-500">
-                <AlertCircle className="h-4 w-4 inline mr-2 text-amber-500" />
-                Las prórrogas no pueden exceder el día anterior al corte de caja.
+              <div className="space-y-4">
+                {approvalItems.map((item) => (
+                  <div key={item.id} className="p-6 border border-slate-100 rounded-3xl hover:border-blue-200 transition-all hover:bg-blue-50/30 group bg-white shadow-sm hover:shadow-md">
+                    <div className="flex items-start justify-between">
+                      <div className="flex items-start space-x-5">
+                        <div className="p-4 rounded-2xl bg-slate-50 text-slate-400 group-hover:bg-white group-hover:text-[#08557f] group-hover:shadow-md transition-all border border-slate-100">
+                          {getTypeIcon(item.type)}
+                        </div>
+                        <div>
+                          <div className="flex items-center space-x-3 mb-1">
+                            <h3 className="font-bold text-slate-900">{item.description}</h3>
+                            <span className="text-[9px] font-black px-2 py-0.5 rounded-lg uppercase tracking-widest border" style={{ 
+                              backgroundColor: `${getStatusColor(item.priority)}10`,
+                              color: getStatusColor(item.priority),
+                              borderColor: `${getStatusColor(item.priority)}20`
+                            }}>
+                              {item.priority === 'high' ? 'PRIORIDAD ALTA' : 'PRIORIDAD MEDIA'}
+                            </span>
+                          </div>
+                          <p className="text-sm text-slate-500 font-medium mb-4">{item.details}</p>
+                          <div className="flex items-center space-x-6 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                            <span className="flex items-center bg-slate-100 px-2 py-1 rounded-lg">
+                              <Users className="h-3 w-3 mr-2" />
+                              {item.requestedBy}
+                            </span>
+                            <span className="flex items-center bg-slate-100 px-2 py-1 rounded-lg">
+                              <Clock className="h-3 w-3 mr-2" />
+                              {item.time}
+                            </span>
+                            {item.amount && (
+                              <span className="text-[#08557f] bg-blue-50 px-2 py-1 rounded-lg border border-blue-100">
+                                {formatCurrency(item.amount)}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                      
+                      <div className="flex items-center space-x-3">
+                        <button 
+                          onClick={() => handleApprove(item.id, 'approval')}
+                          className="w-12 h-12 flex items-center justify-center bg-white text-emerald-600 hover:bg-emerald-50 rounded-2xl transition-all shadow-sm border border-emerald-100"
+                        >
+                          <CheckCircle className="h-6 w-6" />
+                        </button>
+                        <button 
+                          onClick={() => handleReject(item.id, 'approval')}
+                          className="w-12 h-12 flex items-center justify-center bg-white text-rose-600 hover:bg-rose-50 rounded-2xl transition-all shadow-sm border border-rose-100"
+                        >
+                          <XCircle className="h-6 w-6" />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Actividad Reciente */}
+            <div className="bg-white border border-slate-100 rounded-[2.5rem] p-8 shadow-sm">
+              <div className="flex items-center justify-between mb-8">
+                <h2 className="text-xl font-black text-slate-900 tracking-tight">Actividad del Sistema</h2>
+                <Link href="/coordinador/reportes" className="text-xs font-black text-[#fb851b] hover:underline uppercase tracking-[0.2em] bg-orange-50 px-4 py-2 rounded-xl border border-orange-100 transition-all hover:bg-orange-100">
+                  Ver más
+                </Link>
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {recentActivity.map((item) => (
+                  <div key={item.id} className="p-5 border border-slate-50 rounded-3xl hover:bg-slate-50 transition-all flex items-center justify-between group shadow-sm">
+                    <div className="flex items-center space-x-4">
+                        <div className={`w-2.5 h-2.5 rounded-full shadow-sm ${item.status === 'alert' ? 'bg-rose-500 animate-pulse' : 'bg-emerald-500'}`}></div>
+                        <div>
+                          <div className="text-sm font-black text-slate-900">{item.client}</div>
+                          <div className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">{item.action}</div>
+                        </div>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-sm font-black text-[#08557f]">{item.amount !== '-' ? item.amount : 'VÁLIDO'}</div>
+                      <div className="text-[10px] text-slate-400 font-bold tracking-tighter">{item.time}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Columna Derecha / Sidebar (1/3) */}
+          <div className="space-y-8">
+            {/* Atajos Rápidos */}
+            <div className="bg-white border border-slate-100 rounded-[2.5rem] p-8 shadow-sm">
+              <h2 className="text-lg font-black text-slate-900 mb-6 uppercase tracking-widest text-[10px] text-slate-400">Acciones Directas</h2>
+              <div className="space-y-4">
+                {quickAccess.map((item, index) => (
+                  <Link
+                    key={index}
+                    href={item.href}
+                    className="flex items-center p-5 rounded-[1.5rem] border border-slate-100 hover:border-[#08557f]/30 hover:bg-blue-50/20 transition-all group shadow-sm bg-white"
+                  >
+                    <div className="p-3 rounded-2xl mr-4 transition-all group-hover:scale-110 shadow-sm border border-slate-100 bg-white" style={{ color: item.color }}>
+                      {item.icon}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-black text-slate-800 truncate">{item.title}</p>
+                      <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest truncate">{item.subtitle}</p>
+                    </div>
+                    <ChevronRight className="h-4 w-4 text-slate-300 group-hover:text-[#08557f] group-hover:translate-x-1 transition-all" />
+                  </Link>
+                ))}
+              </div>
+            </div>
+
+            {/* Cuentas en Mora */}
+            <div className="bg-white border border-slate-100 rounded-[2.5rem] p-8 shadow-sm overflow-hidden">
+              <div className="flex items-center justify-between mb-8">
+                <h2 className="text-xs font-black text-slate-400 uppercase tracking-[0.2em]">Mora Crítica</h2>
+                <AlertCircle className="h-5 w-5 text-rose-500" />
+              </div>
+              <div className="space-y-4">
+                {delinquentAccounts.map((account) => (
+                  <div key={account.id} className="p-5 border border-rose-100 rounded-[1.5rem] bg-rose-50/30 group relative transition-all hover:bg-white hover:shadow-lg hover:shadow-rose-100">
+                    <div className="flex items-center justify-between mb-3">
+                        <h3 className="font-black text-slate-900 text-sm tracking-tight">{account.client}</h3>
+                        <span className="text-[10px] font-black text-white bg-rose-500 px-3 py-1 rounded-full shadow-sm shadow-rose-200 uppercase tracking-tighter">
+                          {account.daysLate} DÍAS
+                        </span>
+                    </div>
+                    <div className="flex justify-between items-end">
+                        <div>
+                          <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest">Saldo Pendiente</p>
+                          <p className="text-base font-black text-rose-600">{formatCurrency(account.amountDue)}</p>
+                        </div>
+                        <Link href={`/coordinador/cuentas-mora/${account.id}`} className="p-2 bg-white text-[#08557f] hover:bg-[#08557f] hover:text-white rounded-xl shadow-sm border border-slate-100 transition-all">
+                          <ChevronRight className="h-4 w-4" />
+                        </Link>
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
           </div>
         </div>
-      </div>
 
-      {/* Actividad reciente */}
-      <div className="bg-white border border-gray-100 rounded-xl p-6 mb-8">
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-lg font-light text-gray-800">Actividad Reciente</h2>
-          <button className="text-sm text-gray-500 hover:text-gray-700 transition-colors">
-            Ver todo <ChevronRight className="inline h-4 w-4 ml-1" />
-          </button>
-        </div>
-        
-        <div className="space-y-4">
-          {recentActivity.map((item) => (
-            <div key={item.id} className="group p-3 hover:bg-gray-50 rounded-lg transition-colors">
-              <div className="flex items-start justify-between mb-2">
-                <div>
-                  <div className="font-medium text-gray-800">{item.client}</div>
-                  <div className="text-sm text-gray-500">{item.action}</div>
-                </div>
-                <div className={`px-2 py-1 rounded-full text-xs ${
-                  item.status === 'approved' ? 'bg-green-100 text-green-800' :
-                  item.status === 'alert' ? 'bg-red-100 text-red-800' :
-                  'bg-blue-100 text-blue-800'
-                }`}>
-                  {item.amount}
-                </div>
-              </div>
-              <div className="flex items-center justify-between text-xs text-gray-400">
-                <span>{item.time}</span>
-                <ChevronRight className="h-4 w-4 opacity-0 group-hover:opacity-100 transition-opacity" />
-              </div>
+        {/* Footer Refinado */}
+        <div className="mt-20 flex flex-col items-center">
+          <div className="flex items-center space-x-8 mb-8">
+            <div className="h-px w-24 bg-gradient-to-r from-transparent to-slate-200" />
+            <div className="p-4 rounded-3xl bg-white border border-slate-200 shadow-xl rotate-3 hover:rotate-0 transition-all duration-700 hover:scale-110">
+              <Shield className="h-8 w-8 text-[#08557f]" />
             </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Stats adicionales */}
-      <div className="bg-white border border-gray-100 rounded-xl p-6">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-          {[
-            { label: 'Cobradores Activos', value: '8', icon: <Users className="h-5 w-5" />, color: '#08557f' },
-            { label: 'Créditos Aprobados', value: '42', icon: <CreditCard className="h-5 w-5" />, color: '#10b981' },
-            { label: 'Rutas Activas', value: '5', icon: <Route className="h-5 w-5" />, color: '#fb851b' },
-            { label: 'Tasa de Aprobación', value: '94%', icon: <PieChart className="h-5 w-5" />, color: '#8b5cf6' }
-          ].map((stat, index) => (
-            <div key={index} className="text-center">
-              <div className={`inline-flex p-3 rounded-xl mb-3`} style={{ backgroundColor: `${stat.color}10` }}>
-                <div style={{ color: stat.color }}>
-                  {stat.icon}
-                </div>
-              </div>
-              <div className="text-2xl font-light text-gray-800 mb-1">{stat.value}</div>
-              <div className="text-sm text-gray-500">{stat.label}</div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-          {/* Footer sutil */}
-          <div className="mt-8 text-center">
-            <p className="text-xs text-gray-400">
-              Actualizado en tiempo real • Última sincronización:{" "}
-              {new Date().toLocaleTimeString("es-ES", {
-                hour: "2-digit",
-                minute: "2-digit",
-              })}
+            <div className="h-px w-24 bg-gradient-to-l from-transparent to-slate-200" />
+          </div>
+          <div className="text-center space-y-3">
+            <p className="text-[12px] font-black text-slate-500 uppercase tracking-[0.5em]">
+              Sincronizado: <span className="text-[#fb851b]">{new Date().toLocaleTimeString()}</span> • CrediSur v2.4 
             </p>
-          </div>
+            <div className="flex items-center justify-center space-x-2 text-[10px] font-bold text-slate-400 uppercase tracking-[0.3em]">
+              <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]"></div>
+              <span>Terminal de Coordinación Central Autenticada</span>
+            </div>
           </div>
         </div>
-        </main>
+      </div>
 
       <style jsx global>{`
-        .custom-scrollbar::-webkit-scrollbar {
-          width: 4px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-track {
-          background: transparent;
-        }
-        .custom-scrollbar::-webkit-scrollbar-thumb {
-          background: #e5e7eb;
-          border-radius: 2px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-          background: #d1d5db;
-        }
-        @keyframes fadeIn {
-          from { opacity: 0; transform: translateY(-10px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-        .animate-in {
-          animation: fadeIn 0.2s ease-out;
-        }
+        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #e5e7eb; border-radius: 2px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #d1d5db; }
       `}</style>
     </div>
   );

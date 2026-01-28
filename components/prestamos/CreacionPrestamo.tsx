@@ -5,12 +5,14 @@ import {
   DollarSign, Percent, Clock,
   FileText,
   CheckCircle, ArrowLeft,
-  PlusCircle, User,
-  ChevronRight, ChevronDown, Search, Filter, X
+  PlusCircle,
+  ChevronRight, ChevronDown, Search, Filter
 } from 'lucide-react';
 import { usePathname, useRouter } from 'next/navigation';
 import { formatCurrency } from '@/lib/utils';
 import { FileUploader } from '@/components/ui/FileUploader';
+import NuevoClienteModal from '@/components/clientes/NuevoClienteModal';
+import { MOCK_CLIENTES, Cliente } from '@/services/clientes-service';
 
 // Enums alineados con Prisma
 type FrecuenciaPago = 'DIARIO' | 'SEMANAL' | 'QUINCENAL' | 'MENSUAL';
@@ -18,23 +20,6 @@ type NivelRiesgo = 'VERDE' | 'AMARILLO' | 'ROJO' | 'LISTA_NEGRA';
 type TipoInteres = 'SIMPLE' | 'AMORTIZABLE';
 
 // Interfaces alineadas con Prisma (Simuladas para Frontend)
-interface Cliente {
-  id: string;
-  nombre: string;
-  apellido: string;
-  identificacion: string; // CC/Cédula
-  telefono: string;
-  email: string;
-  nivelRiesgo: NivelRiesgo;
-  // Campos adicionales para UI
-  scoreCrediticio: number; // 0-100 (derivado o almacenado)
-  limiteCredito: number;
-  saldoDisponible: number;
-  ingresosMensuales: number;
-  antiguedadLaboral: number;
-  direccion: string;
-  createdAt: string;
-}
 
 interface FormularioPrestamo {
   clienteId: string;
@@ -80,23 +65,14 @@ const calcularCuotasYResumen = (form: FormularioPrestamo) => {
     };
   }
 
-  // Lógica de Negocio: Monto a Financiar
-  // Monto Solicitado - Cuota Inicial + Comisión (si se financia)
-  // Aquí asumimos: (Monto - CuotaInicial) + (Monto * Comision%)
   const montoNeto = form.montoTotal - form.cuotaInicial;
   const comisionTotal = (form.montoTotal * form.comision) / 100;
-
-  // Decisión de negocio: ¿La comisión se descuenta del desembolso o se suma a la deuda?
-  // Asumiremos que se suma a la deuda para financiarla.
   const montoFinanciado = montoNeto + comisionTotal;
 
   const tasaMensual = form.tasaInteres / 100;
-
   const cuotasCalculadas: CuotaCalculada[] = [];
   let saldo = montoFinanciado;
 
-  // Factores para convertir tasa mensual a tasa del periodo
-  // Y calcular número de cuotas basado en meses
   const factorFrecuencia = {
     DIARIO: 30,
     SEMANAL: 4.33,
@@ -104,39 +80,17 @@ const calcularCuotasYResumen = (form: FormularioPrestamo) => {
     MENSUAL: 1
   };
 
-  // Cuotas totales = Meses * Frecuencia por mes
   const cuotasTotales = Math.ceil(form.duracionMeses * factorFrecuencia[form.frecuenciaPago]);
-
-  // Tasa del periodo = Tasa Mensual / Frecuencia por mes
   const tasaPeriodo = tasaMensual / factorFrecuencia[form.frecuenciaPago];
 
   let cuotaFija = 0;
   let totalInteres = 0;
 
   if (form.tipoInteres === 'SIMPLE') {
-    // Interés Simple:
-    // Interés Total = Monto * TasaMensual * Meses
-    // (O calculado por periodo: Monto * TasaPeriodo * CuotasTotales)
-    
-    // Cálculo basico de interés simple sobre el capital inicial
     const interesTotalCalculado = montoFinanciado * tasaMensual * form.duracionMeses;
     const totalPagarCalculado = montoFinanciado + interesTotalCalculado;
-    
-    // Cuota fija = Total a pagar / Número de cuotas
     cuotaFija = totalPagarCalculado / cuotasTotales;
-    
-    // Para el loop de tabla (simulación lineal)
-    // En interés simple estricto, el interés es constante en cada cuota si se amortiza capital constante? 
-    // O es cuota constante? Generalmente en préstamos gota a gota o simple es Cuota Fija.
-    // Asumiremos: Interés por cuota = Interés Total / Cuotas
-    // Capital por cuota = Monto / Cuotas
-    const capitalPorCuota = montoFinanciado / cuotasTotales;
-    const interesPorCuota = interesTotalCalculado / cuotasTotales;
-
-    // Ajustamos variable para el loop si fuera necesario, pero en simple es constante la cuota
   } else {
-    // AMORTIZABLE (Francés)
-    // P = L * [c * (1 + c)^n] / [(1 + c)^n - 1]
     if (tasaPeriodo > 0) {
       cuotaFija = (montoFinanciado * tasaPeriodo) / (1 - Math.pow(1 + tasaPeriodo, -cuotasTotales));
     } else {
@@ -151,40 +105,27 @@ const calcularCuotasYResumen = (form: FormularioPrestamo) => {
     let interes = 0;
 
     if (form.tipoInteres === 'SIMPLE') {
-       // En modelo simple de "cuota fija", el interés de cada cuota es constante
-       // Interés = (Monto * Tasa * Tiempo) / Cuotas
        interes = (montoFinanciado * tasaMensual * form.duracionMeses) / cuotasTotales;
        capital = cuotaFija - interes;
-       // El saldo baja linealmente con el capital pagado
     } else {
-       // Francés
        interes = saldo * tasaPeriodo;
        capital = cuotaFija - interes;
     }
 
-    // Ajuste final para no dejar saldo negativo infinitesimal
     let capitalFinal = capital;
     if (i === cuotasTotales) {
-      if (form.tipoInteres === 'AMORTIZABLE') {
-         capitalFinal = saldo;
-         // Ajuste ligero de la última cuota para cuadrar saldo cero exacto en francés
-         // cuotaFija = capitalFinal + interes; (visual)
-      } else {
-         // En simple, el último capital debe cerrar el saldo restante (por redondeos)
-         capitalFinal = saldo;
-      }
+      capitalFinal = saldo;
     }
 
     saldo -= capitalFinal;
 
-    // Incrementar fecha según frecuencia
     if (form.frecuenciaPago === 'DIARIO') {
       fechaPago.setDate(fechaPago.getDate() + 1);
     } else if (form.frecuenciaPago === 'SEMANAL') {
       fechaPago.setDate(fechaPago.getDate() + 7);
     } else if (form.frecuenciaPago === 'QUINCENAL') {
       fechaPago.setDate(fechaPago.getDate() + 15);
-    } else { // MENSUAL
+    } else { 
       fechaPago.setMonth(fechaPago.getMonth() + 1);
     }
 
@@ -202,20 +143,13 @@ const calcularCuotasYResumen = (form: FormularioPrestamo) => {
     });
   }
 
-  totalInteres = cuotasCalculadas.reduce(
-    (sum, c) => sum + c.interes,
-    0
-  );
+  totalInteres = cuotasCalculadas.reduce((sum, c) => sum + c.interes, 0);
   const totalPagar = montoFinanciado + totalInteres;
-
-  // TEA (Tasa Efectiva Anual) = (1 + i_mensual)^12 - 1
   const tea = Math.pow(1 + tasaMensual, 12) - 1;
-
-  // TAE del crédito específico (Tasa Anual Equivalente aprox)
-  const tae = Math.pow(1 + tasaPeriodo, cuotasTotales) - 1; // Esto es tasa efectiva del periodo total, no TAE estandar, pero sirve de ref.
+  const tae = Math.pow(1 + tasaPeriodo, cuotasTotales) - 1;
 
   return {
-    cuotas: cuotasCalculadas.slice(0, 6), // Preview primeras 6
+    cuotas: cuotasCalculadas.slice(0, 6),
     resumenPrestamo: {
       totalFinanciado: montoFinanciado,
       totalInteres: Math.round(totalInteres),
@@ -243,88 +177,15 @@ const CreacionPrestamoElegante = () => {
     comprobanteDomicilio: null as File | null,
   })
   
-  // Estados para filtros de clientes
   const [busquedaCliente, setBusquedaCliente] = useState('');
   const [filtroRiesgo, setFiltroRiesgo] = useState<NivelRiesgo | 'TODOS'>('TODOS');
+  const [clientes, setClientes] = useState<Cliente[]>(MOCK_CLIENTES as unknown as Cliente[]);
 
-  // Estados para nuevo cliente
-  const [nuevoCliente, setNuevoCliente] = useState({
-    nombre: '',
-    apellido: '',
-    identificacion: '',
-    telefono: '',
-    email: '',
-    referencia: '',
-    ingresosMensuales: 0,
-    antiguedadLaboral: 0,
-    direccion: ''
-  });
-
-  const [fotosClienteNuevo, setFotosClienteNuevo] = useState({
-    fotoPerfil: null as File | null,
-    documentoFrente: null as File | null,
-    documentoReverso: null as File | null,
-    comprobanteDomicilio: null as File | null,
-  })
-
-  // Clientes simulados (Reemplazar con fetch real)
-  const [clientes, setClientes] = useState<Cliente[]>([
-    {
-      id: 'CL-001',
-      nombre: 'Carlos',
-      apellido: 'Rodríguez',
-      identificacion: '12.345.678',
-      telefono: '300-1234567',
-      email: 'carlos@email.com',
-      nivelRiesgo: 'VERDE',
-      scoreCrediticio: 78,
-      limiteCredito: 15000000,
-      saldoDisponible: 5200000,
-      ingresosMensuales: 3500000,
-      antiguedadLaboral: 24,
-      direccion: 'Cra 15 #123-45, Bogotá',
-      createdAt: '2022-03-15'
-    },
-    {
-      id: 'CL-002',
-      nombre: 'Ana',
-      apellido: 'Gómez',
-      identificacion: '23.456.789',
-      telefono: '310-9876543',
-      email: 'ana@email.com',
-      nivelRiesgo: 'VERDE',
-      scoreCrediticio: 92,
-      limiteCredito: 20000000,
-      saldoDisponible: 8500000,
-      ingresosMensuales: 4200000,
-      antiguedadLaboral: 36,
-      direccion: 'Cll 85 #11-22, Medellín',
-      createdAt: '2021-11-22'
-    },
-    {
-      id: 'CL-003',
-      nombre: 'Roberto',
-      apellido: 'Sánchez',
-      identificacion: '34.567.890',
-      telefono: '320-5556666',
-      email: 'roberto@email.com',
-      nivelRiesgo: 'AMARILLO',
-      scoreCrediticio: 65,
-      limiteCredito: 10000000,
-      saldoDisponible: 3200000,
-      ingresosMensuales: 2800000,
-      antiguedadLaboral: 18,
-      direccion: 'Av 6N #23-45, Cali',
-      createdAt: '2023-01-10'
-    }
-  ]);
-
-  // Formulario principal
   const [form, setForm] = useState<FormularioPrestamo>({
     clienteId: '',
     montoTotal: 0,
     proposito: 'PERSONAL',
-    tasaInteres: 5.0, // Tasa mensual ejemplo
+    tasaInteres: 5.0,
     duracionMeses: 0,
     frecuenciaPago: 'QUINCENAL',
     tipoInteres: 'AMORTIZABLE',
@@ -339,22 +200,17 @@ const CreacionPrestamoElegante = () => {
   const [montoTotalInput, setMontoTotalInput] = useState('')
   const [cuotasInput, setCuotasInput] = useState('')
 
-  const { resumenPrestamo } = useMemo(
-    () => calcularCuotasYResumen(form),
-    [form]
-  );
+  const { resumenPrestamo } = useMemo(() => calcularCuotasYResumen(form), [form]);
 
-  const clienteSeleccionado = clientes.find(c => c.id === form.clienteId);
+  const clienteSeleccionado = clientes.find(c => String(c.id) === String(form.clienteId));
 
-  // Filtrado de clientes
   const clientesFiltrados = clientes.filter(cliente => {
+    const nombreCompleto = `${cliente.nombres || ''} ${cliente.apellidos || ''}`.toLowerCase();
     const cumpleBusqueda = 
-      cliente.nombre.toLowerCase().includes(busquedaCliente.toLowerCase()) || 
-      cliente.apellido.toLowerCase().includes(busquedaCliente.toLowerCase()) || 
-      cliente.identificacion.includes(busquedaCliente);
+      nombreCompleto.includes(busquedaCliente.toLowerCase()) || 
+      (cliente.dni || '').includes(busquedaCliente);
     
     const cumpleFiltro = filtroRiesgo === 'TODOS' || cliente.nivelRiesgo === filtroRiesgo;
-
     return cumpleBusqueda && cumpleFiltro;
   });
 
@@ -364,27 +220,11 @@ const CreacionPrestamoElegante = () => {
       ...prev,
       [name]: name.includes('tasa') || name.includes('gastos') || name.includes('comision')
         ? parseFloat(value) || 0
-        : name === 'montoTotal' || name === 'cuotaInicial' || name === 'ingresosMensuales'
+        : name === 'montoTotal' || name === 'cuotaInicial'
           ? parseFloat(value) || 0
-          : name === 'duracionMeses' || name === 'antiguedadLaboral'
+          : name === 'duracionMeses'
             ? parseInt(value) || 0
             : value
-    }));
-  };
-
-  const handleNuevoClienteChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-
-    // Validar solo números para identificación y teléfono
-    if ((name === 'identificacion' || name === 'telefono') && !/^\d*$/.test(value)) {
-      return;
-    }
-
-    setNuevoCliente(prev => ({
-      ...prev,
-      [name]: name === 'ingresosMensuales' || name === 'antiguedadLaboral'
-        ? parseFloat(value) || 0
-        : value
     }));
   };
 
@@ -394,16 +234,9 @@ const CreacionPrestamoElegante = () => {
       return;
     }
 
-    // Validar que el monto no exceda el límite del cliente
-    if (form.montoTotal > (clienteSeleccionado?.saldoDisponible || 0)) {
-      alert('El monto solicitado excede el límite disponible del cliente.');
-      return;
-    }
-
     setCreandoPrestamo(true);
 
     try {
-      // Preparar los datos para la API
       const datosPrestamo = {
         clienteId: form.clienteId,
         montoTotal: form.montoTotal,
@@ -421,22 +254,19 @@ const CreacionPrestamoElegante = () => {
       };
 
       console.log('Enviando datos del préstamo:', datosPrestamo);
-
-      // Simular delay de API
       await new Promise(resolve => setTimeout(resolve, 1500));
 
-      // Simular respuesta exitosa
       const resultado = {
         id: 'PR-' + Date.now().toString().slice(-6),
         numeroPrestamo: 'PR-' + Math.floor(100000 + Math.random() * 900000),
         fechaCreacion: new Date().toISOString()
       };
 
-      // Mostrar alerta de éxito
-      alert(`✅ Préstamo creado exitosamente\n\n📋 Número: ${resultado.numeroPrestamo}\n👤 Cliente: ${clienteSeleccionado.nombre} ${clienteSeleccionado.apellido}\n💰 Monto: ${formatCurrency(form.montoTotal)}\n📅 Cuota: ${formatCurrency(resumenPrestamo.valorCuota)} ${form.frecuenciaPago.toLowerCase()}`);
+      alert(`✅ Préstamo creado exitosamente\n\n📋 Número: ${resultado.numeroPrestamo}\n👤 Cliente: ${clienteSeleccionado.nombres} ${clienteSeleccionado.apellidos}\n💰 Monto: ${formatCurrency(form.montoTotal)}\n📅 Cuota: ${formatCurrency(resumenPrestamo.valorCuota)} ${form.frecuenciaPago.toLowerCase()}`);
 
-      // Redirigir
-      const destino = pathname?.startsWith('/supervisor') ? '/supervisor' : '/admin/prestamos'
+      let destino = '/admin/prestamos';
+      if (pathname?.startsWith('/supervisor')) destino = '/supervisor';
+      if (pathname?.startsWith('/coordinador')) destino = '/coordinador/creditos';
       router.push(destino);
 
     } catch (error) {
@@ -447,92 +277,10 @@ const CreacionPrestamoElegante = () => {
     }
   };
 
-  const agregarCliente = () => {
-    if (!nuevoCliente.nombre || !nuevoCliente.apellido || !nuevoCliente.identificacion || !nuevoCliente.telefono) {
-      alert('Completa nombre, apellido, identificación y teléfono para crear el cliente.')
-      return
-    }
-
-    // Asignar valores por defecto para clientes rápidos (salario mínimo y 1 año antigüedad)
-    const ingresosDefault = nuevoCliente.ingresosMensuales || 1300000;
-    const antiguedadDefault = nuevoCliente.antiguedadLaboral || 12;
-
-    const score = calcularScore(ingresosDefault, antiguedadDefault);
-    const limite = calcularLimiteCredito(score, ingresosDefault);
-
-    const nuevoClienteCompleto: Cliente = {
-      id: `CL-${(clientes.length + 1).toString().padStart(3, '0')}`,
-      nombre: nuevoCliente.nombre,
-      apellido: nuevoCliente.apellido,
-      identificacion: nuevoCliente.identificacion,
-      telefono: nuevoCliente.telefono,
-      email: nuevoCliente.email,
-      nivelRiesgo: score >= 70 ? 'VERDE' : score >= 50 ? 'AMARILLO' : 'ROJO',
-      scoreCrediticio: score,
-      limiteCredito: limite,
-      saldoDisponible: limite,
-      ingresosMensuales: nuevoCliente.ingresosMensuales,
-      antiguedadLaboral: nuevoCliente.antiguedadLaboral,
-      direccion: nuevoCliente.direccion,
-      createdAt: new Date().toISOString().split('T')[0]
-    };
-
-    setClientes(prev => [...prev, nuevoClienteCompleto]);
-    setForm(prev => ({ ...prev, clienteId: nuevoClienteCompleto.id }));
-    setNuevoCliente({
-      nombre: '',
-      apellido: '',
-      identificacion: '',
-      telefono: '',
-      email: '',
-      referencia: '',
-      ingresosMensuales: 0,
-      antiguedadLaboral: 0,
-      direccion: ''
-    });
-    setFotosClienteNuevo({
-      fotoPerfil: null,
-      documentoFrente: null,
-      documentoReverso: null,
-      comprobanteDomicilio: null,
-    })
+  const handleClienteCreado = (nuevoCliente: Cliente) => {
+    setClientes(prev => [nuevoCliente, ...prev]);
+    setForm(prev => ({ ...prev, clienteId: nuevoCliente.id }));
     setMostrarNuevoCliente(false);
-  };
-
-  const resetNuevoClienteModal = () => {
-    setMostrarNuevoCliente(false)
-    setNuevoCliente({
-      nombre: '',
-      apellido: '',
-      identificacion: '',
-      telefono: '',
-      email: '',
-      referencia: '',
-      ingresosMensuales: 0,
-      antiguedadLaboral: 0,
-      direccion: '',
-    })
-    setFotosClienteNuevo({
-      fotoPerfil: null,
-      documentoFrente: null,
-      documentoReverso: null,
-      comprobanteDomicilio: null,
-    })
-  }
-
-  const calcularScore = (ingresos: number, antiguedad: number): number => {
-    let score = 50;
-    if (ingresos > 1200000) score += 20; // Ajustado a realidad COP
-    if (ingresos > 600000) score += 10;
-    if (antiguedad > 24) score += 20;
-    if (antiguedad > 12) score += 10;
-    return Math.min(score, 100);
-  };
-
-  const calcularLimiteCredito = (score: number, ingresos: number): number => {
-    const base = ingresos * 6;
-    const multiplicador = score >= 80 ? 1.5 : score >= 70 ? 1.2 : 1.0;
-    return Math.round(base * multiplicador / 100) * 100;
   };
 
   const siguienteStep = () => {
@@ -556,15 +304,11 @@ const CreacionPrestamoElegante = () => {
   };
 
   const getAvatarColor = (id: string) => {
-    const colors = [
-      'bg-slate-100',
-      'bg-slate-200',
-      'bg-slate-50'
-    ];
-    return colors[parseInt(id.split('-')[1] || '0') % 3];
+    const colors = ['bg-slate-100', 'bg-slate-200', 'bg-slate-50'];
+    const numId = parseInt(String(id).match(/\d+/)?.[0] || '0');
+    return colors[numId % 3];
   };
 
-  // Función para manejar el cambio de monto SIN LÍMITES
   const handleMontoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const raw = e.target.value
     const digits = raw.replace(/\D/g, '')
@@ -597,25 +341,15 @@ const CreacionPrestamoElegante = () => {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 relative">
-      {/* Fondo arquitectónico */}
+    <div className="min-h-screen bg-slate-50 relative pb-12">
       <div className="fixed inset-0 pointer-events-none z-0">
         <div className="fixed inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px]"></div>
         <div className="fixed left-0 right-0 top-0 -z-10 m-auto h-[310px] w-[310px] rounded-full bg-indigo-500 opacity-20 blur-[100px]"></div>
       </div>
 
-      <div className="relative z-10 px-8 pt-8">
-        {/* Header Ultra Minimalista */}
+      <div className="relative z-10 px-0 pt-0">
         <div className="mb-8 flex items-center justify-between">
-          <button
-            onClick={() => router.back()}
-            className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-slate-600 shadow-sm transition-colors hover:bg-slate-50 hover:text-slate-900"
-          >
-            <ArrowLeft className="w-5 h-5" />
-            <span>Volver</span>
-          </button>
-
-          <div className="flex items-center gap-6">
+           <div className="flex items-center gap-6">
             <div className="hidden md:flex items-center gap-4">
               {[1, 2, 3].map((num) => (
                 <div key={num} className="flex items-center gap-2">
@@ -632,32 +366,11 @@ const CreacionPrestamoElegante = () => {
                 </div>
               ))}
             </div>
-            <div className="text-xs font-bold text-slate-500 px-3 py-1.5 border border-slate-200 rounded-full">
-              Paso {step} de 3
-            </div>
           </div>
         </div>
 
-        <div className="mb-8">
-          <div className="flex items-center gap-3 mb-1">
-            <div className="w-8 h-8 rounded-lg bg-orange-500 flex items-center justify-center shadow-lg shadow-orange-500/30">
-              <DollarSign className="w-4 h-4 text-white" />
-            </div>
-            <h1 className="text-2xl md:text-3xl font-bold tracking-tight">
-              <span className="text-blue-600">Nuevo</span> <span className="text-orange-500">Préstamo</span>
-            </h1>
-          </div>
-          <p className="text-slate-500 text-sm pl-11 font-medium">Gestión de financiamiento personalizado</p>
-        </div>
-      </div>
-
-      {/* Contenido Principal */}
-      <div className="w-full px-8 pb-12">
-        {/* Panel Principal */}
         <div className="w-full">
           <div className={`space-y-8 transition-opacity duration-300 ${animating ? 'opacity-70' : 'opacity-100'}`}>
-
-              {/* Paso 1: Selección de Cliente */}
               {step === 1 && (
                 <div className="space-y-8">
                   <div className="flex items-center justify-between mb-8">
@@ -668,214 +381,22 @@ const CreacionPrestamoElegante = () => {
                     <div className="flex items-center gap-3">
                       <button
                         onClick={() => setMostrarNuevoCliente(true)}
-                        className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-300 text-slate-700 rounded-lg hover:border-slate-400 hover:bg-slate-50 transition-all duration-200 group shadow-sm font-bold text-sm"
+                        className="flex items-center gap-2 px-4 py-2.5 bg-white border border-blue-200 text-[#08557f] rounded-lg hover:bg-blue-50 transition-all duration-200 group shadow-sm font-black text-sm active:scale-95"
                       >
-                        <PlusCircle className="w-4 h-4 text-slate-500 group-hover:text-slate-900 transition-colors" />
+                        <PlusCircle className="w-4 h-4" />
                         <span>Nuevo Cliente</span>
                       </button>
                     </div>
                   </div>
 
-                  {/* Modal Nuevo Cliente */}
                   {mostrarNuevoCliente && (
-                    <div
-                      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-200"
-                      onClick={resetNuevoClienteModal}
-                    >
-                      <div
-                        className="w-full max-w-2xl bg-white rounded-3xl shadow-2xl animate-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        <div className="p-6">
-                          <div className="flex items-center justify-between mb-6">
-                            <h3 className="text-xl font-bold text-slate-900">Crear Cliente</h3>
-                            <button
-                              type="button"
-                              onClick={resetNuevoClienteModal}
-                              className="p-2 bg-slate-100 rounded-full text-slate-500 hover:bg-slate-200 transition-colors"
-                            >
-                              <X className="h-5 w-5" />
-                            </button>
-                          </div>
-
-                          <form
-                            onSubmit={(e) => {
-                              e.preventDefault()
-                              console.log('Crear cliente:', { ...nuevoCliente, fotos: fotosClienteNuevo })
-                              agregarCliente()
-                            }}
-                            className="space-y-4"
-                          >
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                              <div>
-                                <label className="block text-sm font-bold text-slate-700 mb-2">Cédula / CC</label>
-                                <input
-                                  type="text"
-                                  inputMode="numeric"
-                                  name="identificacion"
-                                  value={nuevoCliente.identificacion}
-                                  onChange={handleNuevoClienteChange}
-                                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-[#08557f] focus:ring-0 font-medium text-slate-900 placeholder:text-slate-400"
-                                  placeholder="Número de cédula (CC)"
-                                  required
-                                />
-                              </div>
-                              <div>
-                                <label className="block text-sm font-bold text-slate-700 mb-2">Teléfono</label>
-                                <input
-                                  type="tel"
-                                  inputMode="tel"
-                                  name="telefono"
-                                  value={nuevoCliente.telefono}
-                                  onChange={handleNuevoClienteChange}
-                                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-[#08557f] focus:ring-0 font-medium text-slate-900 placeholder:text-slate-400"
-                                  placeholder="Ej: 3001234567"
-                                  required
-                                />
-                              </div>
-                            </div>
-
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                              <div>
-                                <label className="block text-sm font-bold text-slate-700 mb-2">Nombres</label>
-                                <input
-                                  name="nombre"
-                                  value={nuevoCliente.nombre}
-                                  onChange={handleNuevoClienteChange}
-                                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-[#08557f] focus:ring-0 font-medium text-slate-900"
-                                  required
-                                />
-                              </div>
-                              <div>
-                                <label className="block text-sm font-bold text-slate-700 mb-2">Apellidos</label>
-                                <input
-                                  name="apellido"
-                                  value={nuevoCliente.apellido}
-                                  onChange={handleNuevoClienteChange}
-                                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-[#08557f] focus:ring-0 font-medium text-slate-900"
-                                  required
-                                />
-                              </div>
-                            </div>
-
-                            <div>
-                              <label className="block text-sm font-bold text-slate-700 mb-2">Correo (Opcional)</label>
-                              <input
-                                type="email"
-                                name="email"
-                                value={nuevoCliente.email}
-                                onChange={handleNuevoClienteChange}
-                                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-[#08557f] focus:ring-0 font-medium text-slate-900 placeholder:text-slate-400"
-                                placeholder="correo@dominio.com"
-                              />
-                            </div>
-
-                            <div>
-                              <label className="block text-sm font-bold text-slate-700 mb-2">Dirección (Opcional)</label>
-                              <input
-                                name="direccion"
-                                value={nuevoCliente.direccion}
-                                onChange={handleNuevoClienteChange}
-                                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-[#08557f] focus:ring-0 font-medium text-slate-900 placeholder:text-slate-400"
-                                placeholder="Dirección del cliente"
-                              />
-                            </div>
-
-                            <div>
-                              <label className="block text-sm font-bold text-slate-700 mb-2">Referencia (Opcional)</label>
-                              <textarea
-                                name="referencia"
-                                value={nuevoCliente.referencia}
-                                onChange={(e) => setNuevoCliente((prev) => ({ ...prev, referencia: e.target.value }))}
-                                className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-[#08557f] focus:ring-0 font-medium text-slate-900 placeholder:text-slate-400 resize-none"
-                                rows={3}
-                                placeholder="Punto de referencia / observaciones"
-                              />
-                            </div>
-
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                              <div>
-                                <label className="block text-sm font-bold text-slate-700 mb-2">Foto de perfil</label>
-                                <input
-                                  type="file"
-                                  accept="image/*"
-                                  onChange={(e) =>
-                                    setFotosClienteNuevo((prev) => ({
-                                      ...prev,
-                                      fotoPerfil: e.target.files?.[0] ?? null,
-                                    }))
-                                  }
-                                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-700 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-[#08557f] file:text-white file:text-xs file:font-bold hover:file:bg-[#063a58]"
-                                />
-                              </div>
-                              <div>
-                                <label className="block text-sm font-bold text-slate-700 mb-2">Cédula/CC (Frente)</label>
-                                <input
-                                  type="file"
-                                  accept="image/*"
-                                  onChange={(e) =>
-                                    setFotosClienteNuevo((prev) => ({
-                                      ...prev,
-                                      documentoFrente: e.target.files?.[0] ?? null,
-                                    }))
-                                  }
-                                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-700 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-[#08557f] file:text-white file:text-xs file:font-bold hover:file:bg-[#063a58]"
-                                />
-                              </div>
-                              <div>
-                                <label className="block text-sm font-bold text-slate-700 mb-2">Cédula/CC (Reverso)</label>
-                                <input
-                                  type="file"
-                                  accept="image/*"
-                                  onChange={(e) =>
-                                    setFotosClienteNuevo((prev) => ({
-                                      ...prev,
-                                      documentoReverso: e.target.files?.[0] ?? null,
-                                    }))
-                                  }
-                                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-700 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-[#08557f] file:text-white file:text-xs file:font-bold hover:file:bg-[#063a58]"
-                                />
-                              </div>
-                              <div>
-                                <label className="block text-sm font-bold text-slate-700 mb-2">Comprobante de domicilio</label>
-                                <input
-                                  type="file"
-                                  accept="image/*,application/pdf"
-                                  onChange={(e) =>
-                                    setFotosClienteNuevo((prev) => ({
-                                      ...prev,
-                                      comprobanteDomicilio: e.target.files?.[0] ?? null,
-                                    }))
-                                  }
-                                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-700 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-[#08557f] file:text-white file:text-xs file:font-bold hover:file:bg-[#063a58]"
-                                />
-                              </div>
-                            </div>
-
-                            <div className="flex gap-3 pt-2">
-                              <button
-                                type="button"
-                                onClick={resetNuevoClienteModal}
-                                className="flex-1 bg-slate-100 text-slate-700 font-bold py-3.5 rounded-xl hover:bg-slate-200 transition-all"
-                              >
-                                Cancelar
-                              </button>
-                              <button
-                                type="submit"
-                                className="flex-1 bg-[#08557f] text-white font-bold py-3.5 rounded-xl shadow-lg shadow-[#08557f]/20 hover:bg-[#063a58] active:scale-[0.98] transition-all"
-                              >
-                                Guardar Cliente
-                              </button>
-                            </div>
-                          </form>
-                        </div>
-                      </div>
-                    </div>
+                    <NuevoClienteModal 
+                        onClose={() => setMostrarNuevoCliente(false)}
+                        onClienteCreado={handleClienteCreado}
+                    />
                   )}
 
-                  {/* Lista de Clientes - Toolbar y Tabla */}
                   <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
-                    {/* Toolbar de Búsqueda y Filtros */}
                     <div className="p-4 border-b border-slate-100 bg-slate-50/50 flex flex-col md:flex-row gap-4 justify-between items-center">
                       <div className="relative w-full md:w-96">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
@@ -923,22 +444,22 @@ const CreacionPrestamoElegante = () => {
                                 key={cliente.id}
                                 onClick={() => setForm(prev => ({ ...prev, clienteId: cliente.id }))}
                                 className={`group cursor-pointer transition-colors hover:bg-slate-50 ${
-                                  form.clienteId === cliente.id ? 'bg-blue-50/50' : ''
+                                  String(form.clienteId) === String(cliente.id) ? 'bg-blue-50/50' : ''
                                 }`}
                               >
                                 <td className="px-6 py-4">
                                   <div className="flex items-center gap-3">
                                     <div className={`w-8 h-8 rounded-full flex items-center justify-center text-slate-600 text-xs font-bold ${getAvatarColor(cliente.id)}`}>
-                                      {cliente.nombre[0]}{cliente.apellido[0]}
+                                      {(cliente.nombres || ' ')[0]}{(cliente.apellidos || ' ')[0]}
                                     </div>
                                     <div>
-                                      <p className="font-bold text-slate-900">{cliente.nombre} {cliente.apellido}</p>
-                                      <p className="text-xs text-slate-500">{cliente.email}</p>
+                                      <p className="font-bold text-slate-900">{cliente.nombres} {cliente.apellidos}</p>
+                                      <p className="text-xs text-slate-500">{cliente.correo}</p>
                                     </div>
                                   </div>
                                 </td>
                                 <td className="px-6 py-4 font-medium text-slate-600">
-                                  {cliente.identificacion}
+                                  {cliente.dni}
                                 </td>
                                 <td className="px-6 py-4 font-medium text-slate-600">
                                   {cliente.telefono}
@@ -954,7 +475,7 @@ const CreacionPrestamoElegante = () => {
                                 </td>
                                 <td className="px-6 py-4 text-right">
                                   <div className={`inline-flex items-center justify-center w-6 h-6 rounded-full transition-all ${
-                                    form.clienteId === cliente.id 
+                                    String(form.clienteId) === String(cliente.id) 
                                       ? 'bg-blue-600 text-white scale-100 shadow-lg shadow-blue-600/30' 
                                       : 'border-2 border-slate-200 text-transparent scale-90 group-hover:border-slate-300'
                                   }`}>
@@ -971,7 +492,6 @@ const CreacionPrestamoElegante = () => {
                                     <Search className="w-6 h-6 text-slate-400" />
                                   </div>
                                   <p className="font-medium">No se encontraron clientes</p>
-                                  <p className="text-sm">Intenta con otra búsqueda o filtro</p>
                                 </div>
                               </td>
                             </tr>
@@ -983,7 +503,6 @@ const CreacionPrestamoElegante = () => {
                 </div>
               )}
 
-              {/* Paso 2: Configuración del Préstamo */}
               {step === 2 && (
                 <div className="space-y-8 animate-in slide-in-from-right-4 duration-300">
                   <div className="flex items-center justify-between">
@@ -994,7 +513,6 @@ const CreacionPrestamoElegante = () => {
                   </div>
 
                   <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-6">
-                    {/* Monto y Cuotas */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <div className="space-y-3">
                         <label className="text-sm font-bold text-slate-700 flex items-center gap-2">
@@ -1012,23 +530,6 @@ const CreacionPrestamoElegante = () => {
                             placeholder="1.000.000"
                           />
                           <span className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 font-medium">COP</span>
-                        </div>
-                        <div className="flex justify-between text-xs font-medium">
-                          <span className="text-slate-500">Mínimo: $100.000</span>
-                          <span className={form.montoTotal > (clienteSeleccionado?.saldoDisponible || 0) ? 'text-rose-500' : 'text-slate-500'}>
-                            Máximo: {formatCurrency(clienteSeleccionado?.saldoDisponible || 0)}
-                          </span>
-                        </div>
-                        <div className="mt-2 flex justify-end">
-                          <button 
-                            onClick={() => {
-                              const destino = pathname?.startsWith('/supervisor') ? '/supervisor' : '/admin/solicitudes'
-                              window.open(destino, '_blank')
-                            }}
-                            className="text-xs font-bold text-blue-600 hover:text-blue-800 flex items-center gap-1"
-                          >
-                            ¿Fondos insuficientes? Solicitar dinero
-                          </button>
                         </div>
                       </div>
 
@@ -1051,9 +552,6 @@ const CreacionPrestamoElegante = () => {
                       </div>
                     </div>
 
-                    <div className="h-px bg-slate-100 my-6" />
-
-                    {/* Frecuencia y Tasa */}
                     <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
                       <div className="space-y-2">
                         <label className="text-sm font-bold text-slate-700">Tipo de Interés</label>
@@ -1105,7 +603,7 @@ const CreacionPrestamoElegante = () => {
                       </div>
 
                       <div className="space-y-2">
-                        <label className="text-sm font-bold text-slate-700">Fecha Inicio</label>
+                        <label className="text-sm font-bold text-slate-700">Fecha del Crédito</label>
                         <input
                           type="date"
                           name="fechaInicio"
@@ -1119,126 +617,62 @@ const CreacionPrestamoElegante = () => {
                 </div>
               )}
 
-              {/* Paso 3: Documentación */}
               {step === 3 && (
                 <div className="space-y-8 animate-in slide-in-from-right-4 duration-300">
                   <div className="space-y-1">
-                    <h2 className="text-xl font-bold text-slate-900">Documentación de Respaldo</h2>
-                    <p className="text-slate-500 text-sm font-medium">Adjunte los documentos del cliente</p>
+                    <h2 className="text-xl font-bold text-slate-900">Documentación y Resumen</h2>
                   </div>
 
-                  <div className="grid grid-cols-1 gap-6">
-                    <div className="space-y-3">
-                      <label className="text-sm font-bold text-slate-700 flex items-center gap-2">
-                        <FileText className="w-4 h-4 text-slate-400" />
-                        Foto de perfil
-                      </label>
-                      <FileUploader
-                        files={documentosRespaldo.fotoPerfil ? [documentosRespaldo.fotoPerfil] : []}
-                        onFilesChange={(files) =>
-                          setDocumentosRespaldo((prev) => ({
-                            ...prev,
-                            fotoPerfil: files[0] ?? null,
-                          }))
-                        }
-                        maxFiles={1}
-                        maxSize={5 * 1024 * 1024}
-                        accept="image/jpeg,image/png"
-                        multiple={false}
-                        label="Arrastra la foto aquí"
-                        description="Soporta JPG, PNG (Máx 5MB)"
-                      />
-                    </div>
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                     <div className="space-y-6">
+                        <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+                           <h3 className="font-bold text-slate-900 mb-4">Resumen Financiero</h3>
+                           <div className="space-y-3">
+                              <div className="flex justify-between">
+                                 <span className="text-slate-500">Monto Financiado</span>
+                                 <span className="font-bold">{formatCurrency(resumenPrestamo.totalFinanciado)}</span>
+                              </div>
+                              <div className="flex justify-between">
+                                 <span className="text-slate-500">Total Intereses</span>
+                                 <span className="font-bold text-emerald-600">+{formatCurrency(resumenPrestamo.totalInteres)}</span>
+                              </div>
+                              <div className="h-px bg-slate-100" />
+                              <div className="flex justify-between text-lg">
+                                 <span className="font-bold">Total a Pagar</span>
+                                 <span className="font-bold text-blue-600">{formatCurrency(resumenPrestamo.totalPagar)}</span>
+                              </div>
+                              <div className="bg-blue-50 p-4 rounded-xl mt-4">
+                                 <div className="flex justify-between items-center">
+                                    <span className="text-blue-700 font-bold">Cuota {form.frecuenciaPago.toLowerCase()}</span>
+                                    <span className="text-2xl font-black text-blue-900">{formatCurrency(resumenPrestamo.valorCuota)}</span>
+                                 </div>
+                              </div>
+                           </div>
+                        </div>
+                     </div>
 
-                    <div className="space-y-3">
-                      <label className="text-sm font-bold text-slate-700 flex items-center gap-2">
-                        <FileText className="w-4 h-4 text-slate-400" />
-                        CC (Frente)
-                      </label>
-                      <FileUploader
-                        files={documentosRespaldo.documentoFrente ? [documentosRespaldo.documentoFrente] : []}
-                        onFilesChange={(files) =>
-                          setDocumentosRespaldo((prev) => ({
-                            ...prev,
-                            documentoFrente: files[0] ?? null,
-                          }))
-                        }
-                        maxFiles={1}
-                        maxSize={5 * 1024 * 1024}
-                        accept="image/jpeg,image/png"
-                        multiple={false}
-                        label="Arrastra la foto aquí"
-                        description="Soporta JPG, PNG (Máx 5MB)"
-                      />
-                    </div>
-
-                    <div className="space-y-3">
-                      <label className="text-sm font-bold text-slate-700 flex items-center gap-2">
-                        <FileText className="w-4 h-4 text-slate-400" />
-                        CC (Reverso)
-                      </label>
-                      <FileUploader
-                        files={documentosRespaldo.documentoReverso ? [documentosRespaldo.documentoReverso] : []}
-                        onFilesChange={(files) =>
-                          setDocumentosRespaldo((prev) => ({
-                            ...prev,
-                            documentoReverso: files[0] ?? null,
-                          }))
-                        }
-                        maxFiles={1}
-                        maxSize={5 * 1024 * 1024}
-                        accept="image/jpeg,image/png"
-                        multiple={false}
-                        label="Arrastra la foto aquí"
-                        description="Soporta JPG, PNG (Máx 5MB)"
-                      />
-                    </div>
-
-                    <div className="space-y-3">
-                      <label className="text-sm font-bold text-slate-700 flex items-center gap-2">
-                        <FileText className="w-4 h-4 text-slate-400" />
-                        Comprobante de domicilio
-                      </label>
-                      <FileUploader
-                        files={documentosRespaldo.comprobanteDomicilio ? [documentosRespaldo.comprobanteDomicilio] : []}
-                        onFilesChange={(files) =>
-                          setDocumentosRespaldo((prev) => ({
-                            ...prev,
-                            comprobanteDomicilio: files[0] ?? null,
-                          }))
-                        }
-                        maxFiles={1}
-                        maxSize={5 * 1024 * 1024}
-                        accept="image/*,application/pdf"
-                        multiple={false}
-                        label="Arrastra el archivo aquí"
-                        description="Soporta JPG, PNG, PDF (Máx 5MB)"
-                      />
-                    </div>
-
-                    <div className="space-y-3">
-                      <label className="text-sm font-bold text-slate-700">Observaciones</label>
-                      <textarea
-                        name="observaciones"
-                        value={form.observaciones}
-                        onChange={handleInputChange}
-                        rows={4}
-                        className="w-full p-4 rounded-xl border-slate-200 bg-white font-medium text-slate-900 focus:ring-2 focus:ring-slate-900/10 resize-none"
-                        placeholder="Detalles adicionales sobre la garantía o el cliente..."
-                      />
-                    </div>
+                     <div className="space-y-6">
+                        <label className="text-sm font-bold text-slate-700">Observaciones</label>
+                        <textarea
+                          name="observaciones"
+                          value={form.observaciones}
+                          onChange={handleInputChange}
+                          rows={4}
+                          className="w-full p-4 rounded-xl border-slate-200 bg-white font-medium text-slate-900 focus:ring-2 focus:ring-slate-900/10 resize-none"
+                          placeholder="Detalles adicionales..."
+                        />
+                     </div>
                   </div>
                 </div>
               )}
 
-              {/* Navegación */}
               <div className="flex items-center justify-between pt-6 border-t border-slate-200">
                 <button
                   onClick={anteriorStep}
                   disabled={step === 1}
-                  className={`px-6 py-2.5 rounded-xl font-bold transition-colors ${step === 1
-                      ? 'text-slate-300 cursor-not-allowed'
-                      : 'text-slate-600 hover:bg-slate-100'
+                  className={`px-6 py-2.5 rounded-xl font-black transition-all border bg-white ${step === 1
+                      ? 'text-slate-300 border-slate-100 cursor-not-allowed'
+                      : 'text-slate-600 border-slate-200 hover:bg-slate-50'
                     }`}
                 >
                   Anterior
@@ -1248,7 +682,7 @@ const CreacionPrestamoElegante = () => {
                   <button
                     onClick={siguienteStep}
                     disabled={!form.clienteId}
-                    className="flex items-center gap-2 px-8 py-2.5 bg-slate-900 text-white rounded-xl font-bold hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg shadow-slate-900/20"
+                    className="flex items-center gap-2 px-8 py-2.5 bg-white border border-slate-200 text-slate-800 rounded-xl font-black hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm"
                   >
                     Siguiente
                     <ChevronRight className="w-4 h-4" />
@@ -1257,7 +691,7 @@ const CreacionPrestamoElegante = () => {
                   <button
                     onClick={handleCrearPrestamo}
                     disabled={creandoPrestamo}
-                    className="flex items-center gap-2 px-8 py-2.5 bg-emerald-600 text-white rounded-xl font-bold hover:bg-emerald-700 disabled:opacity-50 transition-all shadow-lg shadow-emerald-600/20"
+                    className="flex items-center gap-2 px-8 py-2.5 bg-white border border-blue-200 text-[#08557f] rounded-xl font-black hover:bg-blue-50 disabled:opacity-50 transition-all shadow-sm shadow-blue-100"
                   >
                     {creandoPrestamo ? 'Procesando...' : 'Crear Préstamo'}
                     {!creandoPrestamo && <CheckCircle className="w-4 h-4" />}

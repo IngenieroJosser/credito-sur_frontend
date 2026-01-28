@@ -77,18 +77,17 @@ export const permisosPorRol: Record<Rol, ModuloPermiso[]> = {
       ]
     },
     { id: 'reportes-operativos', nombre: 'Reportes operativos', icono: 'ClipboardList', path: '/admin/reportes/operativos', roles: ['SUPER_ADMINISTRADOR', 'COORDINADOR', 'SUPERVISOR'] },
-    { id: 'perfil', nombre: 'Perfil', icono: 'UserCircle', path: '/admin/perfil', roles: ['SUPER_ADMINISTRADOR', 'COORDINADOR', 'SUPERVISOR', 'COBRADOR'] },
   ],
 
   COORDINADOR: [
-    { id: 'dashboard', nombre: 'Dashboard', icono: 'LayoutDashboard', path: '/admin', roles: ['COORDINADOR'] },
-    { id: 'gestion-creditos', nombre: 'Créditos y Préstamos', icono: 'CreditCard', path: '/admin/creditos', roles: ['COORDINADOR'] },
-    { id: 'clientes', nombre: 'Clientes', icono: 'Users', path: '/admin/clientes', roles: ['COORDINADOR'] },
-    { id: 'cuentas-mora', nombre: 'Cuentas en mora', icono: 'AlertCircle', path: '/admin/cuentas-mora', roles: ['COORDINADOR'] },
-    { id: 'rutas', nombre: 'Rutas', icono: 'Route', path: '/admin/rutas', roles: ['COORDINADOR'] },
-    { id: 'aprobar-cobrador', nombre: 'Aprobaciones', icono: 'CheckCircle2', path: '/admin/aprobaciones', roles: ['COORDINADOR'] },
-    { id: 'reportes-operativos', nombre: 'Reportes operativos', icono: 'PieChart', path: '/admin/reportes/operativos', roles: ['COORDINADOR'] },
-    { id: 'perfil', nombre: 'Perfil', icono: 'User', path: '/admin/perfil', roles: ['COORDINADOR'] },
+    { id: 'dashboard', nombre: 'Dashboard', icono: 'LayoutDashboard', path: '/coordinador', roles: ['COORDINADOR'] },
+    { id: 'gestion-creditos', nombre: 'Créditos', icono: 'CreditCard', path: '/coordinador/creditos', roles: ['COORDINADOR'] },
+    { id: 'clientes', nombre: 'Clientes', icono: 'Users', path: '/coordinador/clientes', roles: ['COORDINADOR'] },
+    { id: 'cuentas-mora', nombre: 'Cuentas en mora', icono: 'AlertCircle', path: '/coordinador/cuentas-mora', roles: ['COORDINADOR'] },
+    { id: 'cuentas-vencidas', nombre: 'Cuentas vencidas', icono: 'Archive', path: '/coordinador/cuentas-vencidas', roles: ['COORDINADOR'] },
+    { id: 'rutas', nombre: 'Rutas', icono: 'Route', path: '/coordinador/rutas', roles: ['COORDINADOR'] },
+    { id: 'aprobar-cobrador', nombre: 'Aprobaciones', icono: 'CheckCircle2', path: '/coordinador/aprobaciones', roles: ['COORDINADOR'] },
+    { id: 'reportes-operativos', nombre: 'Reportes operativos', icono: 'PieChart', path: '/coordinador/reportes', roles: ['COORDINADOR'] },
   ],
 
   SUPERVISOR: [
@@ -96,7 +95,6 @@ export const permisosPorRol: Record<Rol, ModuloPermiso[]> = {
     { id: 'clientes', nombre: 'Clientes', icono: 'Users', path: '/supervisor/clientes', roles: ['SUPERVISOR'] },
     { id: 'rutas', nombre: 'Rutas', icono: 'Route', path: '/supervisor/rutas', roles: ['SUPERVISOR'] },
     { id: 'reportes-operativos', nombre: 'Reportes operativos', icono: 'PieChart', path: '/supervisor/reportes/operativos', roles: ['SUPERVISOR'] },
-    { id: 'perfil', nombre: 'Perfil', icono: 'UserCircle', path: '/supervisor/perfil', roles: ['SUPERVISOR'] },
   ],
 
   COBRADOR: [
@@ -105,7 +103,6 @@ export const permisosPorRol: Record<Rol, ModuloPermiso[]> = {
     { id: 'clientes', nombre: 'Nuevo Cliente', icono: 'Users', path: '/cobranzas/clientes/nuevo', roles: ['COBRADOR'] },
     { id: 'notificaciones', nombre: 'Notificaciones', icono: 'Bell', path: '/cobranzas/notificaciones', roles: ['COBRADOR'] },
     { id: 'solicitudes', nombre: 'Solicitudes', icono: 'ClipboardList', path: '/cobranzas/solicitudes', roles: ['COBRADOR'] },
-    { id: 'perfil', nombre: 'Mi Perfil', icono: 'User', path: '/cobranzas/perfil', roles: ['COBRADOR'] },
   ],
 
   CONTADOR: [

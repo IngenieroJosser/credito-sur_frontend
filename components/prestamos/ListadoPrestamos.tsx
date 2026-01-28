@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import {
   Search,
   TrendingUp,
@@ -24,6 +24,8 @@ import {
 } from 'lucide-react';
 import { formatCurrency, cn } from '@/lib/utils';
 import { PRESTAMOS_MOCK, Prestamo, EstadoPrestamo } from './data';
+import FiltroRuta from '@/components/filtros/FiltroRuta';
+import EditarPrestamoModal from '@/components/prestamos/EditarPrestamoModal';
 
 interface Filtros {
   estado: string;
@@ -32,10 +34,15 @@ interface Filtros {
   fechaHasta: string;
   riesgo: string;
   busqueda: string;
+  ruta: string;
 }
 
 const ListadoPrestamosElegante = () => {
   const router = useRouter();
+  const pathname = usePathname();
+  const isCoordinador = pathname?.includes('/coordinador');
+  const baseRoute = isCoordinador ? '/coordinador/creditos' : '/admin/prestamos';
+  
   const [prestamos, setPrestamos] = useState<Prestamo[]>([]);
   const [filtros, setFiltros] = useState<Filtros>({
     estado: 'todos',
@@ -43,18 +50,19 @@ const ListadoPrestamosElegante = () => {
     fechaDesde: '',
     fechaHasta: '',
     riesgo: 'todos',
-    busqueda: ''
+    busqueda: '',
+    ruta: 'todas'
   });
   const [paginaActual, setPaginaActual] = useState(1);
   const [prestamosPorPagina] = useState(8);
   const [cargando, setCargando] = useState(true);
   const [mounted, setMounted] = useState(false);
+  const [idPrestamoAEditar, setIdPrestamoAEditar] = useState<string | null>(null);
 
   useEffect(() => {
     const timer = setTimeout(() => {
       setMounted(true);
-      const prestamosDinero = PRESTAMOS_MOCK.filter(p => p.tipoProducto === 'efectivo');
-      setPrestamos(prestamosDinero);
+      setPrestamos(PRESTAMOS_MOCK); // Mostrar todos
       setCargando(false);
     }, 500);
 
@@ -74,10 +82,11 @@ const ListadoPrestamosElegante = () => {
   };
 
   const prestamosFiltrados = prestamos.filter(prestamo => {
-    if (prestamo.tipoProducto !== 'efectivo') return false;
+    // if (prestamo.tipoProducto !== 'efectivo') return false; // REMOVED FILTER
     if (filtros.estado !== 'todos' && prestamo.estado !== filtros.estado) return false;
     if (filtros.cliente !== 'todos' && prestamo.clienteId !== filtros.cliente) return false;
     if (filtros.riesgo !== 'todos' && prestamo.riesgo !== filtros.riesgo) return false;
+    if (filtros.ruta !== 'todas' && filtros.ruta !== '' && prestamo.ruta !== filtros.ruta) return false;
     
     if (filtros.busqueda && !prestamo.cliente.toLowerCase().includes(filtros.busqueda.toLowerCase()) &&
         !prestamo.producto.toLowerCase().includes(filtros.busqueda.toLowerCase()) &&
@@ -129,7 +138,7 @@ const ListadoPrestamosElegante = () => {
   };
 
   const irADetallePrestamo = (id: string) => {
-    router.push(`/admin/prestamos/${id}`);
+    router.push(`${baseRoute}/${id}`);
   };
 
   if (!mounted) return null;
@@ -151,7 +160,7 @@ const ListadoPrestamosElegante = () => {
                 <CreditCard className="w-6 h-6 text-white" />
               </div>
               <h1 className="text-3xl font-bold tracking-tight">
-                <span className="text-blue-600">Listado</span> <span className="text-orange-500">Préstamos</span>
+                <span className="text-blue-600">Listado</span> <span className="text-orange-500">Créditos</span>
               </h1>
             </div>
             <p className="text-sm font-medium text-slate-500">
@@ -160,11 +169,11 @@ const ListadoPrestamosElegante = () => {
           </div>
           <div className="flex items-center gap-3">
             <Link 
-              href="/admin/prestamos/nuevo"
+              href={`${baseRoute}/nuevo`}
               className="inline-flex items-center gap-2 px-6 py-2.5 bg-white border border-slate-300 text-slate-700 rounded-xl hover:border-slate-400 hover:bg-slate-50 transition-all duration-200 shadow-sm font-bold text-sm group"
             >
               <Plus className="w-4 h-4 text-slate-500 group-hover:text-slate-900 transition-colors" />
-              Nuevo Préstamo
+              Nuevo Crédito
             </Link>
           </div>
         </div>
@@ -224,7 +233,7 @@ const ListadoPrestamosElegante = () => {
           </div>
           
           <div className="flex gap-3 w-full md:w-auto">
-             <div className="relative min-w-[180px]">
+              <div className="relative min-w-[180px]">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                   <Filter className="h-4 w-4 text-slate-400" />
                 </div>
@@ -238,6 +247,16 @@ const ListadoPrestamosElegante = () => {
                   <option value="EN_MORA">En Mora</option>
                   <option value="PAGADO">Pagados</option>
                 </select>
+              </div>
+
+              <div className="bg-slate-50 p-1 rounded-xl border border-slate-200 flex items-center gap-2">
+                 <FiltroRuta 
+                    onRutaChange={(r) => setFiltros(prev => ({ ...prev, ruta: r || 'todas' }))}
+                    selectedRutaId={filtros.ruta === 'todas' ? null : filtros.ruta}
+                    className="min-w-[180px]"
+                    showAllOption={true}
+                    hideLabel={true}
+                 />
               </div>
           </div>
         </div>
@@ -340,6 +359,7 @@ const ListadoPrestamosElegante = () => {
                             <Eye className="h-4 w-4" />
                           </button>
                           <button 
+                            onClick={() => setIdPrestamoAEditar(prestamo.id)}
                             className="p-2 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-all"
                             title="Editar préstamo"
                           >
@@ -395,6 +415,17 @@ const ListadoPrestamosElegante = () => {
         </div>
       </div>
       </div>
+      
+      {idPrestamoAEditar && (
+        <EditarPrestamoModal 
+          id={idPrestamoAEditar}
+          onClose={() => setIdPrestamoAEditar(null)}
+          onSuccess={() => {
+            setIdPrestamoAEditar(null);
+            // Re-fetch or update local state
+          }}
+        />
+      )}
     </div>
   );
 };

@@ -317,7 +317,7 @@ const DashboardPage = () => {
           subtitle: 'Gestión de cobradores',
           icon: <Route className="h-5 w-5" />,
           color: '#6366f1',
-          href: '/admin/rutas'
+          href: '/coordinador/rutas'
         },
         {
           title: 'Reportes',
