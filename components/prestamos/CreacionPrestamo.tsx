@@ -15,6 +15,7 @@ import { FileUploader } from '@/components/ui/FileUploader';
 // Enums alineados con Prisma
 type FrecuenciaPago = 'DIARIO' | 'SEMANAL' | 'QUINCENAL' | 'MENSUAL';
 type NivelRiesgo = 'VERDE' | 'AMARILLO' | 'ROJO' | 'LISTA_NEGRA';
+type TipoInteres = 'SIMPLE' | 'AMORTIZABLE';
 
 // Interfaces alineadas con Prisma (Simuladas para Frontend)
 interface Cliente {
@@ -42,6 +43,7 @@ interface FormularioPrestamo {
   tasaInteres: number; // tasaInteres
   duracionMeses: number; // duracionMeses
   frecuenciaPago: FrecuenciaPago; // frecuenciaPago
+  tipoInteres: TipoInteres;
   fechaInicio: string; // fechaInicio
   tasaInteresMora: number; // tasaInteresMora
 
@@ -108,27 +110,69 @@ const calcularCuotasYResumen = (form: FormularioPrestamo) => {
   // Tasa del periodo = Tasa Mensual / Frecuencia por mes
   const tasaPeriodo = tasaMensual / factorFrecuencia[form.frecuenciaPago];
 
-  // Fórmula de Amortización Francesa (Cuota Fija)
-  // P = L * [c * (1 + c)^n] / [(1 + c)^n - 1]
-  // P: Cuota, L: Monto, c: Tasa Periodo, n: Cuotas Totales
   let cuotaFija = 0;
-  if (tasaPeriodo > 0) {
-    cuotaFija = (montoFinanciado * tasaPeriodo) / (1 - Math.pow(1 + tasaPeriodo, -cuotasTotales));
+  let totalInteres = 0;
+
+  if (form.tipoInteres === 'SIMPLE') {
+    // Interés Simple:
+    // Interés Total = Monto * TasaMensual * Meses
+    // (O calculado por periodo: Monto * TasaPeriodo * CuotasTotales)
+    
+    // Cálculo basico de interés simple sobre el capital inicial
+    const interesTotalCalculado = montoFinanciado * tasaMensual * form.duracionMeses;
+    const totalPagarCalculado = montoFinanciado + interesTotalCalculado;
+    
+    // Cuota fija = Total a pagar / Número de cuotas
+    cuotaFija = totalPagarCalculado / cuotasTotales;
+    
+    // Para el loop de tabla (simulación lineal)
+    // En interés simple estricto, el interés es constante en cada cuota si se amortiza capital constante? 
+    // O es cuota constante? Generalmente en préstamos gota a gota o simple es Cuota Fija.
+    // Asumiremos: Interés por cuota = Interés Total / Cuotas
+    // Capital por cuota = Monto / Cuotas
+    const capitalPorCuota = montoFinanciado / cuotasTotales;
+    const interesPorCuota = interesTotalCalculado / cuotasTotales;
+
+    // Ajustamos variable para el loop si fuera necesario, pero en simple es constante la cuota
   } else {
-    cuotaFija = montoFinanciado / cuotasTotales;
+    // AMORTIZABLE (Francés)
+    // P = L * [c * (1 + c)^n] / [(1 + c)^n - 1]
+    if (tasaPeriodo > 0) {
+      cuotaFija = (montoFinanciado * tasaPeriodo) / (1 - Math.pow(1 + tasaPeriodo, -cuotasTotales));
+    } else {
+      cuotaFija = montoFinanciado / cuotasTotales;
+    }
   }
 
   const fechaPago = new Date(form.fechaInicio);
 
   for (let i = 1; i <= cuotasTotales; i++) {
-    const interes = saldo * tasaPeriodo;
-    const capital = cuotaFija - interes;
+    let capital = 0;
+    let interes = 0;
+
+    if (form.tipoInteres === 'SIMPLE') {
+       // En modelo simple de "cuota fija", el interés de cada cuota es constante
+       // Interés = (Monto * Tasa * Tiempo) / Cuotas
+       interes = (montoFinanciado * tasaMensual * form.duracionMeses) / cuotasTotales;
+       capital = cuotaFija - interes;
+       // El saldo baja linealmente con el capital pagado
+    } else {
+       // Francés
+       interes = saldo * tasaPeriodo;
+       capital = cuotaFija - interes;
+    }
 
     // Ajuste final para no dejar saldo negativo infinitesimal
     let capitalFinal = capital;
     if (i === cuotasTotales) {
-      capitalFinal = saldo;
-      // Recalcular cuota final si es necesario (o ajustar en la última)
+      if (form.tipoInteres === 'AMORTIZABLE') {
+         capitalFinal = saldo;
+         // Ajuste ligero de la última cuota para cuadrar saldo cero exacto en francés
+         // cuotaFija = capitalFinal + interes; (visual)
+      } else {
+         // En simple, el último capital debe cerrar el saldo restante (por redondeos)
+         capitalFinal = saldo;
+      }
     }
 
     saldo -= capitalFinal;
@@ -158,7 +202,7 @@ const calcularCuotasYResumen = (form: FormularioPrestamo) => {
     });
   }
 
-  const totalInteres = cuotasCalculadas.reduce(
+  totalInteres = cuotasCalculadas.reduce(
     (sum, c) => sum + c.interes,
     0
   );
@@ -283,6 +327,7 @@ const CreacionPrestamoElegante = () => {
     tasaInteres: 5.0, // Tasa mensual ejemplo
     duracionMeses: 0,
     frecuenciaPago: 'QUINCENAL',
+    tipoInteres: 'AMORTIZABLE',
     fechaInicio: new Date().toISOString().split('T')[0],
     tasaInteresMora: 2.0,
     cuotaInicial: 0,
@@ -365,6 +410,7 @@ const CreacionPrestamoElegante = () => {
         proposito: form.proposito,
         tasaInteres: form.tasaInteres,
         tasaInteresMora: form.tasaInteresMora,
+        tipoInteres: form.tipoInteres,
         duracionMeses: form.duracionMeses,
         frecuenciaPago: form.frecuenciaPago,
         fechaInicio: form.fechaInicio,
@@ -1008,7 +1054,23 @@ const CreacionPrestamoElegante = () => {
                     <div className="h-px bg-slate-100 my-6" />
 
                     {/* Frecuencia y Tasa */}
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                      <div className="space-y-2">
+                        <label className="text-sm font-bold text-slate-700">Tipo de Interés</label>
+                        <div className="relative">
+                          <select
+                            name="tipoInteres"
+                            value={form.tipoInteres}
+                            onChange={handleInputChange}
+                            className="w-full pl-4 pr-10 py-2.5 rounded-xl border-slate-200 bg-white font-medium text-slate-900 focus:ring-2 focus:ring-slate-900/10 appearance-none cursor-pointer"
+                          >
+                            <option value="AMORTIZABLE">Amortizable</option>
+                            <option value="SIMPLE">Interés Simple</option>
+                          </select>
+                          <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+                        </div>
+                      </div>
+
                       <div className="space-y-2">
                         <label className="text-sm font-bold text-slate-700">Frecuencia de Pago</label>
                         <div className="relative">

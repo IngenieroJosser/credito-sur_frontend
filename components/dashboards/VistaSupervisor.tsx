@@ -3,7 +3,6 @@
 import Link from 'next/link'
 import { useEffect, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
-import { useRouter } from 'next/navigation'
 import {
   AlertCircle,
   ArrowRight,
@@ -25,7 +24,8 @@ import {
 } from 'lucide-react'
 import { ExportButton } from '@/components/ui/ExportButton'
 import { MOCK_CLIENTES } from '@/services/clientes-service'
-import { formatCOPInputValue, formatMilesCOP, parseCOPInputToNumber } from '@/lib/utils'
+import { MOCK_ARTICULOS, type OpcionCuotas } from '@/services/articulos-service'
+import { formatCOPInputValue, formatMilesCOP, parseCOPInputToNumber, formatCurrency } from '@/lib/utils'
 
 const MODAL_Z_INDEX = 2147483647
 
@@ -65,7 +65,6 @@ interface CollectorPerformance {
 const VistaSupervisor = () => {
   const [timeFilter, setTimeFilter] = useState<'today' | 'week' | 'month' | 'quarter'>('month')
   const currentDate = new Date()
-  const router = useRouter()
 
   const [isFabOpen, setIsFabOpen] = useState(false)
   const [showPagoModal, setShowPagoModal] = useState(false)
@@ -81,9 +80,16 @@ const VistaSupervisor = () => {
   const [clienteCreditoId, setClienteCreditoId] = useState('')
   const [creditType, setCreditType] = useState<'prestamo' | 'articulo'>('prestamo')
   const [montoPrestamoInput, setMontoPrestamoInput] = useState('')
+  const [tipoInteres, setTipoInteres] = useState<'SIMPLE' | 'AMORTIZABLE'>('AMORTIZABLE')
   const [tasaInteresInput, setTasaInteresInput] = useState('')
   const [cuotasPrestamoInput, setCuotasPrestamoInput] = useState('')
   const [cuotaInicialArticuloInput, setCuotaInicialArticuloInput] = useState('')
+  
+  // Estados para artículos
+  const [articuloSeleccionadoId, setArticuloSeleccionadoId] = useState<string>('')
+  const [opcionCuotasSeleccionada, setOpcionCuotasSeleccionada] = useState<OpcionCuotas | null>(null)
+  
+  const articuloSeleccionado = MOCK_ARTICULOS.find(a => a.id === articuloSeleccionadoId)
 
   const [formularioNuevoCliente, setFormularioNuevoCliente] = useState({
     dni: '',
@@ -101,42 +107,40 @@ const VistaSupervisor = () => {
     comprobanteDomicilio: null as File | null,
   })
 
+  // Efecto para crear y limpiar object URLs de previews de imágenes
   useEffect(() => {
-    if (metodoPago !== 'TRANSFERENCIA') {
-      setComprobanteTransferencia(null)
-      setComprobanteTransferenciaPreviewUrl((prev) => {
-        if (prev) URL.revokeObjectURL(prev)
-        return null
-      })
-      return
-    }
-
-    if (!comprobanteTransferencia) {
-      setComprobanteTransferenciaPreviewUrl((prev) => {
-        if (prev) URL.revokeObjectURL(prev)
-        return null
-      })
+    // Solo procesar si es transferencia y hay archivo de imagen
+    if (metodoPago !== 'TRANSFERENCIA' || !comprobanteTransferencia) {
+      if (comprobanteTransferenciaPreviewUrl) {
+        URL.revokeObjectURL(comprobanteTransferenciaPreviewUrl)
+        setComprobanteTransferenciaPreviewUrl(null)
+      }
       return
     }
 
     const isImage = comprobanteTransferencia.type.startsWith('image/')
     if (!isImage) {
-      setComprobanteTransferenciaPreviewUrl((prev) => {
-        if (prev) URL.revokeObjectURL(prev)
-        return null
-      })
+      if (comprobanteTransferenciaPreviewUrl) {
+        URL.revokeObjectURL(comprobanteTransferenciaPreviewUrl)
+        setComprobanteTransferenciaPreviewUrl(null)
+      }
       return
     }
 
-    const url = URL.createObjectURL(comprobanteTransferencia)
-    setComprobanteTransferenciaPreviewUrl((prev) => {
-      if (prev) URL.revokeObjectURL(prev)
-      return url
-    })
+    // Limpiar URL anterior si existe
+    if (comprobanteTransferenciaPreviewUrl) {
+      URL.revokeObjectURL(comprobanteTransferenciaPreviewUrl)
+    }
 
+    // Crear nuevo URL
+    const url = URL.createObjectURL(comprobanteTransferencia)
+    setComprobanteTransferenciaPreviewUrl(url)
+
+    // Cleanup al desmontar o cambiar
     return () => {
       URL.revokeObjectURL(url)
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [comprobanteTransferencia, metodoPago])
 
   const resetPagoModal = () => {
@@ -156,9 +160,12 @@ const VistaSupervisor = () => {
     setClienteCreditoId('')
     setCreditType('prestamo')
     setMontoPrestamoInput('')
+    setTipoInteres('AMORTIZABLE')
     setTasaInteresInput('')
     setCuotasPrestamoInput('')
     setCuotaInicialArticuloInput('')
+    setArticuloSeleccionadoId('')
+    setOpcionCuotasSeleccionada(null)
   }
 
   const resetNuevoClienteForm = () => {
@@ -723,6 +730,19 @@ const VistaSupervisor = () => {
                           </div>
                         </div>
                         <div>
+                          <label className="block text-sm font-bold text-slate-700 mb-2">Tipo de Interés</label>
+                          <select
+                            value={tipoInteres}
+                            onChange={(e) => setTipoInteres(e.target.value as 'SIMPLE' | 'AMORTIZABLE')}
+                            className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-[#08557f] focus:ring-0 font-medium text-slate-900"
+                          >
+                            <option value="AMORTIZABLE">Amortizable</option>
+                            <option value="SIMPLE">Interés Simple</option>
+                          </select>
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
                           <label className="block text-sm font-bold text-slate-700 mb-2">Tasa de Interés (%)</label>
                           <input
                             type="text"
@@ -732,17 +752,6 @@ const VistaSupervisor = () => {
                             className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-[#08557f] focus:ring-0 font-medium text-slate-900"
                             placeholder="5.0"
                           />
-                        </div>
-                      </div>
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <label className="block text-sm font-bold text-slate-700 mb-2">Frecuencia de Pago</label>
-                          <select className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-[#08557f] focus:ring-0 font-medium text-slate-900">
-                            <option>Diario</option>
-                            <option>Semanal</option>
-                            <option>Quincenal</option>
-                            <option>Mensual</option>
-                          </select>
                         </div>
                         <div>
                           <label className="block text-sm font-bold text-slate-700 mb-2">Cuotas</label>
@@ -756,35 +765,110 @@ const VistaSupervisor = () => {
                           />
                         </div>
                       </div>
+                      <div>
+                        <label className="block text-sm font-bold text-slate-700 mb-2">Frecuencia de Pago</label>
+                        <select className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-[#08557f] focus:ring-0 font-medium text-slate-900">
+                          <option>Diario</option>
+                          <option>Semanal</option>
+                          <option>Quincenal</option>
+                          <option>Mensual</option>
+                        </select>
+                      </div>
                     </>
                   ) : (
                     <>
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <label className="block text-sm font-bold text-slate-700 mb-2">Cuota Inicial</label>
-                          <div className="relative">
-                            <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
-                            <input
-                              type="text"
-                              inputMode="numeric"
-                              value={cuotaInicialArticuloInput}
-                              onChange={(e) => setCuotaInicialArticuloInput(formatCOPInputValue(e.target.value))}
-                              className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-[#08557f] focus:ring-0 font-medium text-slate-900"
-                              placeholder="0"
-                            />
-                          </div>
-                        </div>
-                        <div>
-                          <label className="block text-sm font-bold text-slate-700 mb-2">Cuotas</label>
-                          <select className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-[#08557f] focus:ring-0 font-medium text-slate-900">
-                            <option>3 cuotas</option>
-                            <option>6 cuotas</option>
-                            <option>12 cuotas</option>
-                            <option>18 cuotas</option>
-                            <option>24 cuotas</option>
-                          </select>
-                        </div>
+                      <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-4">
+                        <p className="text-sm font-medium text-blue-900">
+                          <strong>Nota:</strong> Los precios y cuotas de los artículos son asignados por el contable.
+                        </p>
                       </div>
+                      
+                      <div>
+                        <label className="block text-sm font-bold text-slate-700 mb-2">Artículo</label>
+                        <select 
+                          value={articuloSeleccionadoId}
+                          onChange={(e) => {
+                            setArticuloSeleccionadoId(e.target.value)
+                            setOpcionCuotasSeleccionada(null)
+                          }}
+                          className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-[#08557f] focus:ring-0 font-medium text-slate-900"
+                        >
+                          <option value="">Seleccionar artículo...</option>
+                          {MOCK_ARTICULOS.map((articulo) => (
+                            <option key={articulo.id} value={articulo.id}>
+                              {articulo.nombre} - {formatCurrency(articulo.precioBase)}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      
+                      {articuloSeleccionado && (
+                        <>
+                          <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
+                            <div className="text-xs font-bold text-slate-500 uppercase mb-2">Precio Base (Sin Financiamiento)</div>
+                            <div className="text-lg font-bold text-slate-900">{formatCurrency(articuloSeleccionado.precioBase)}</div>
+                          </div>
+                          
+                          <div>
+                            <label className="block text-sm font-bold text-slate-700 mb-2">Plan de Cuotas</label>
+                            <select 
+                              value={opcionCuotasSeleccionada ? articuloSeleccionado.opcionesCuotas.indexOf(opcionCuotasSeleccionada) : ''}
+                              onChange={(e) => {
+                                const index = parseInt(e.target.value)
+                                if (!isNaN(index) && articuloSeleccionado) {
+                                  setOpcionCuotasSeleccionada(articuloSeleccionado.opcionesCuotas[index])
+                                }
+                              }}
+                              className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-[#08557f] focus:ring-0 font-medium text-slate-900"
+                            >
+                              <option value="">Seleccionar plan...</option>
+                              {articuloSeleccionado.opcionesCuotas.map((opcion, index) => (
+                                <option key={index} value={index}>
+                                  {opcion.numeroCuotas} cuotas - {formatCurrency(opcion.valorCuota)}/cuota - Total: {formatCurrency(opcion.precioTotal)}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                          
+                          {opcionCuotasSeleccionada && (
+                            <div className="bg-green-50 border border-green-200 rounded-xl p-4">
+                              <div className="grid grid-cols-2 gap-4 text-sm">
+                                <div>
+                                  <div className="text-xs font-medium text-green-700">Número de Cuotas</div>
+                                  <div className="font-bold text-green-900">{opcionCuotasSeleccionada.numeroCuotas} cuotas</div>
+                                </div>
+                                <div>
+                                  <div className="text-xs font-medium text-green-700">Valor por Cuota</div>
+                                  <div className="font-bold text-green-900">{formatCurrency(opcionCuotasSeleccionada.valorCuota)}</div>
+                                </div>
+                                <div>
+                                  <div className="text-xs font-medium text-green-700">Precio Total</div>
+                                  <div className="font-bold text-green-900">{formatCurrency(opcionCuotasSeleccionada.precioTotal)}</div>
+                                </div>
+                                <div>
+                                  <div className="text-xs font-medium text-green-700">Frecuencia</div>
+                                  <div className="font-bold text-green-900">{opcionCuotasSeleccionada.frecuenciaPago}</div>
+                                </div>
+                              </div>
+                            </div>
+                          )}
+                          
+                          <div>
+                            <label className="block text-sm font-bold text-slate-700 mb-2">Cuota Inicial (Opcional)</label>
+                            <div className="relative">
+                              <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
+                              <input
+                                type="text"
+                                inputMode="numeric"
+                                value={cuotaInicialArticuloInput}
+                                onChange={(e) => setCuotaInicialArticuloInput(formatCOPInputValue(e.target.value))}
+                                className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-[#08557f] focus:ring-0 font-medium text-slate-900"
+                                placeholder="0"
+                              />
+                            </div>
+                          </div>
+                        </>
+                      )}
                     </>
                   )}
 
@@ -819,14 +903,20 @@ const VistaSupervisor = () => {
                           clienteId: clienteCreditoId,
                           tipo: creditType,
                           montoPrestamo: parseCOPInputToNumber(montoPrestamoInput),
+                          tipoInteres: tipoInteres,
                           tasaInteres: tasaInteresInput,
                           cuotas: cuotasPrestamoInput,
+                          articuloId: articuloSeleccionadoId,
+                          opcionCuotas: opcionCuotasSeleccionada,
                           cuotaInicial: parseCOPInputToNumber(cuotaInicialArticuloInput),
                         })
                         resetCreditoModal()
                       }}
-                      disabled={!clienteCreditoId}
-                      className="flex-1 bg-[#08557f] text-white font-bold py-3.5 rounded-xl shadow-lg shadow-[#08557f]/20 hover:bg-[#063a58] active:scale-[0.98] transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                      disabled={
+                        !clienteCreditoId || 
+                        (creditType === 'articulo' && (!articuloSeleccionadoId || !opcionCuotasSeleccionada))
+                      }
+                      className="flex-1 bg-[#08557f] text-white font-bold py-3.5 rounded-xl shadow-lg shadow-[#08557f]/20 hover:bg-[#063a58] active:scale-[0.98] transition-all disabled:opacity-40 disabled:cursor-not-allowed disabled:active:scale-100"
                     >
                       Crear Crédito
                     </button>

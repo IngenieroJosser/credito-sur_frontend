@@ -25,6 +25,7 @@ import {
   Plus,
 } from 'lucide-react'
 import { formatCOPInputValue, formatCurrency, formatMilesCOP, parseCOPInputToNumber } from '@/lib/utils'
+import { MOCK_ARTICULOS, type OpcionCuotas } from '@/services/articulos-service'
 
 type NivelRiesgo = 'VERDE' | 'AMARILLO' | 'ROJO' | 'LISTA_NEGRA'
 
@@ -93,6 +94,15 @@ const ClientesSupervisorPage = () => {
   const [tasaInteresInput, setTasaInteresInput] = useState('')
   const [cuotasPrestamoInput, setCuotasPrestamoInput] = useState('')
   const [cuotaInicialArticuloInput, setCuotaInicialArticuloInput] = useState('')
+  
+  // Estados para artículos (preparados para implementación futura del modal de artículos)
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const [articuloSeleccionadoId, setArticuloSeleccionadoId] = useState<string>('')
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const [opcionCuotasSeleccionada, setOpcionCuotasSeleccionada] = useState<OpcionCuotas | null>(null)
+  
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const articuloSeleccionado = MOCK_ARTICULOS.find(a => a.id === articuloSeleccionadoId)
 
   const [formularioNuevoCliente, setFormularioNuevoCliente] = useState({
     dni: '',

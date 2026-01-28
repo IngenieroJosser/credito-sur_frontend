@@ -11,23 +11,13 @@ import {
   UserPlus,
   Receipt,
   DollarSign,
-  MessageSquare,
   Eye,
   ClipboardList,
-  Users,
   CreditCard,
-  FileText,
   Plus,
   X,
   Filter,
-  Smartphone,
-  RefreshCw,
-  Calculator,
-  User,
   GripVertical,
-  Home,
-  BarChart3,
-  Settings,
   Camera,
   Calendar,
   Search,
@@ -59,6 +49,7 @@ import { CSS } from '@dnd-kit/utilities'
 import { useRouter } from 'next/navigation'
 import { RolUsuario } from '@/lib/types/autenticacion-type'
 import { obtenerPerfil } from '@/services/autenticacion-service'
+import { MOCK_ARTICULOS, type OpcionCuotas } from '@/services/articulos-service'
 import { formatCOPInputValue, formatCurrency, formatMilesCOP, parseCOPInputToNumber } from '@/lib/utils'
 import { ExportButton } from '@/components/ui/ExportButton'
 
@@ -702,11 +693,19 @@ const VistaCobrador = () => {
 
   const [montoPagoInput, setMontoPagoInput] = useState('')
   const [montoGastoInput, setMontoGastoInput] = useState('')
+  const [descripcionGastoInput, setDescripcionGastoInput] = useState('')
   const [montoBaseInput, setMontoBaseInput] = useState('')
   const [montoPrestamoInput, setMontoPrestamoInput] = useState('')
+  const [tipoInteres, setTipoInteres] = useState<'SIMPLE' | 'AMORTIZABLE'>('AMORTIZABLE')
   const [tasaInteresInput, setTasaInteresInput] = useState('')
   const [cuotasPrestamoInput, setCuotasPrestamoInput] = useState('')
   const [cuotaInicialArticuloInput, setCuotaInicialArticuloInput] = useState('')
+  
+  // Estados para artículos
+  const [articuloSeleccionadoId, setArticuloSeleccionadoId] = useState<string>('')
+  const [opcionCuotasSeleccionada, setOpcionCuotasSeleccionada] = useState<OpcionCuotas | null>(null)
+  
+  const articuloSeleccionado = MOCK_ARTICULOS.find(a => a.id === articuloSeleccionadoId)
 
   const [rutaCompletada, setRutaCompletada] = useState(false)
   const [showCompletarRutaModal, setShowCompletarRutaModal] = useState(false)
@@ -886,7 +885,7 @@ const VistaCobrador = () => {
     return () => {
       URL.revokeObjectURL(url)
     }
-  }, [comprobanteTransferencia])
+  }, [comprobanteTransferencia, comprobanteTransferenciaPreviewUrl])
 
   // Filtrar y ordenar visitas
   const visitasCobrador = useMemo(() => {
@@ -1891,7 +1890,7 @@ const VistaCobrador = () => {
               }}
             >
               <div
-                className="w-full max-w-md bg-white rounded-3xl shadow-2xl animate-in zoom-in-95 duration-200"
+                className="w-full max-w-md bg-white rounded-3xl shadow-2xl animate-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto"
                 onClick={(e) => e.stopPropagation()}
               >
                 <div className="p-6">
@@ -2073,6 +2072,7 @@ const VistaCobrador = () => {
               onClick={() => {
                 setShowExpenseModal(false)
                 setMontoGastoInput('')
+                setDescripcionGastoInput('')
               }}
             >
               <div
@@ -2114,6 +2114,16 @@ const VistaCobrador = () => {
                           placeholder="0"
                         />
                       </div>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-bold text-slate-700 mb-2">Descripción</label>
+                      <textarea 
+                        value={descripcionGastoInput}
+                        onChange={(e) => setDescripcionGastoInput(e.target.value)}
+                        className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-[#08557f] focus:ring-0 font-medium text-slate-900 resize-none"
+                        rows={3}
+                        placeholder="Describe el gasto realizado..."
+                      ></textarea>
                     </div>
                     <div>
                       <label className="block text-sm font-bold text-slate-700 mb-2">Comprobante (Opcional)</label>
@@ -2414,6 +2424,8 @@ const VistaCobrador = () => {
                 setTasaInteresInput('')
                 setCuotasPrestamoInput('')
                 setCuotaInicialArticuloInput('')
+                setArticuloSeleccionadoId('')
+                setOpcionCuotasSeleccionada(null)
               }}
             >
               <div
@@ -2480,6 +2492,17 @@ const VistaCobrador = () => {
                   {creditType === 'prestamo' ? (
                     <>
                       {/* Formulario de Préstamo */}
+                      <div className="mb-4">
+                        <label className="block text-sm font-bold text-slate-700 mb-2">Tipo de Interés</label>
+                        <select 
+                            value={tipoInteres}
+                            onChange={(e) => setTipoInteres(e.target.value as 'SIMPLE' | 'AMORTIZABLE')}
+                            className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-[#08557f] focus:ring-0 font-medium text-slate-900"
+                        >
+                            <option value="AMORTIZABLE">Amortizable</option>
+                            <option value="SIMPLE">Interés Simple</option>
+                        </select>
+                      </div>
                       <div className="grid grid-cols-2 gap-4">
                         <div>
                           <label className="block text-sm font-bold text-slate-700 mb-2">Monto del Préstamo</label>
@@ -2533,66 +2556,98 @@ const VistaCobrador = () => {
                   ) : (
                     <>
                       {/* Formulario de Artículo */}
+                      <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-4">
+                        <p className="text-sm font-medium text-blue-900">
+                          <strong>Nota:</strong> Los precios y cuotas de los artículos son asignados por el contable.
+                        </p>
+                      </div>
+                      
                       <div>
                         <label className="block text-sm font-bold text-slate-700 mb-2">Artículo</label>
-                        <select className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-[#08557f] focus:ring-0 font-medium text-slate-900">
+                        <select 
+                          value={articuloSeleccionadoId}
+                          onChange={(e) => {
+                            setArticuloSeleccionadoId(e.target.value)
+                            setOpcionCuotasSeleccionada(null)
+                          }}
+                          className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-[#08557f] focus:ring-0 font-medium text-slate-900"
+                        >
                           <option value="">Seleccionar artículo...</option>
-                          <option>TV Samsung 55" 4K</option>
-                          <option>Refrigeradora LG 500L</option>
-                          <option>Lavadora Whirlpool 18kg</option>
-                          <option>Celular iPhone 15</option>
+                          {MOCK_ARTICULOS.map((articulo) => (
+                            <option key={articulo.id} value={articulo.id}>
+                              {articulo.nombre} - {formatCurrency(articulo.precioBase)}
+                            </option>
+                          ))}
                         </select>
                       </div>
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <label className="block text-sm font-bold text-slate-700 mb-2">Precio del Artículo</label>
-                          <div className="relative">
-                            <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
-                            <input 
-                              type="text"
-                              inputMode="numeric"
-                              className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-[#08557f] focus:ring-0 font-bold text-slate-900"
-                              placeholder="0"
-                              readOnly
-                            />
+                      
+                      {articuloSeleccionado && (
+                        <>
+                          <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
+                            <div className="text-xs font-bold text-slate-500 uppercase mb-2">Precio Base (Sin Financiamiento)</div>
+                            <div className="text-lg font-bold text-slate-900">{formatCurrency(articuloSeleccionado.precioBase)}</div>
                           </div>
-                        </div>
-                        <div>
-                          <label className="block text-sm font-bold text-slate-700 mb-2">Cuota Inicial</label>
-                          <div className="relative">
-                            <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
-                            <input 
-                              type="text"
-                              inputMode="numeric"
-                              value={cuotaInicialArticuloInput}
-                              onChange={(e) => setCuotaInicialArticuloInput(formatCOPInputValue(e.target.value))}
-                              className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-[#08557f] focus:ring-0 font-medium text-slate-900"
-                              placeholder="0"
-                            />
+                          
+                          <div>
+                            <label className="block text-sm font-bold text-slate-700 mb-2">Plan de Cuotas</label>
+                            <select 
+                              value={opcionCuotasSeleccionada ? articuloSeleccionado.opcionesCuotas.indexOf(opcionCuotasSeleccionada) : ''}
+                              onChange={(e) => {
+                                const index = parseInt(e.target.value)
+                                if (!isNaN(index) && articuloSeleccionado) {
+                                  setOpcionCuotasSeleccionada(articuloSeleccionado.opcionesCuotas[index])
+                                }
+                              }}
+                              className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-[#08557f] focus:ring-0 font-medium text-slate-900"
+                            >
+                              <option value="">Seleccionar plan...</option>
+                              {articuloSeleccionado.opcionesCuotas.map((opcion, index) => (
+                                <option key={index} value={index}>
+                                  {opcion.numeroCuotas} cuotas - {formatCurrency(opcion.valorCuota)}/cuota - Total: {formatCurrency(opcion.precioTotal)}
+                                </option>
+                              ))}
+                            </select>
                           </div>
-                        </div>
-                      </div>
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <label className="block text-sm font-bold text-slate-700 mb-2">Frecuencia de Pago</label>
-                          <select className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-[#08557f] focus:ring-0 font-medium text-slate-900">
-                            <option>Diario</option>
-                            <option>Semanal</option>
-                            <option>Quincenal</option>
-                            <option>Mensual</option>
-                          </select>
-                        </div>
-                        <div>
-                          <label className="block text-sm font-bold text-slate-700 mb-2">Cuotas</label>
-                          <select className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-[#08557f] focus:ring-0 font-medium text-slate-900">
-                            <option>3 cuotas</option>
-                            <option>6 cuotas</option>
-                            <option>12 cuotas</option>
-                            <option>18 cuotas</option>
-                            <option>24 cuotas</option>
-                          </select>
-                        </div>
-                      </div>
+                          
+                          {opcionCuotasSeleccionada && (
+                            <div className="bg-green-50 border border-green-200 rounded-xl p-4">
+                              <div className="grid grid-cols-2 gap-4 text-sm">
+                                <div>
+                                  <div className="text-xs font-medium text-green-700">Número de Cuotas</div>
+                                  <div className="font-bold text-green-900">{opcionCuotasSeleccionada.numeroCuotas} cuotas</div>
+                                </div>
+                                <div>
+                                  <div className="text-xs font-medium text-green-700">Valor por Cuota</div>
+                                  <div className="font-bold text-green-900">{formatCurrency(opcionCuotasSeleccionada.valorCuota)}</div>
+                                </div>
+                                <div>
+                                  <div className="text-xs font-medium text-green-700">Precio Total</div>
+                                  <div className="font-bold text-green-900">{formatCurrency(opcionCuotasSeleccionada.precioTotal)}</div>
+                                </div>
+                                <div>
+                                  <div className="text-xs font-medium text-green-700">Frecuencia</div>
+                                  <div className="font-bold text-green-900">{opcionCuotasSeleccionada.frecuenciaPago}</div>
+                                </div>
+                              </div>
+                            </div>
+                          )}
+                          
+                          <div>
+                            <label className="block text-sm font-bold text-slate-700 mb-2">Cuota Inicial (Opcional)</label>
+                            <div className="relative">
+                              <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
+                              <input 
+                                type="text"
+                                inputMode="numeric"
+                                value={cuotaInicialArticuloInput}
+                                onChange={(e) => setCuotaInicialArticuloInput(formatCOPInputValue(e.target.value))}
+                                className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-[#08557f] focus:ring-0 font-medium text-slate-900"
+                                placeholder="0"
+                              />
+                            </div>
+                          </div>
+                        </>
+                      )}
                     </>
                   )}
 
@@ -2636,7 +2691,7 @@ const VistaCobrador = () => {
                     </button>
                     <button 
                       onClick={() => {
-                        console.log('Crear crédito:', creditType)
+                        console.log('Crear crédito:', { creditType, tipoInteres })
                         setShowCreditModal(false)
                         setCreditType('prestamo')
                       }}
