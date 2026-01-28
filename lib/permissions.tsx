@@ -13,81 +13,117 @@ export interface ModuloPermiso {
 // Configuración completa de permisos por rol
 export const permisosPorRol: Record<Rol, ModuloPermiso[]> = {
   SUPER_ADMINISTRADOR: [
-    { id: 'dashboard', nombre: 'Dashboard', icono: 'Activity', path: '/admin', roles: ['SUPER_ADMINISTRADOR', 'COORDINADOR', 'SUPERVISOR', 'COBRADOR', 'CONTADOR'] },
-    { id: 'prestamos-dinero', nombre: 'Préstamos Dinero', icono: 'CreditCard', path: '/admin/prestamos', roles: ['SUPER_ADMINISTRADOR', 'COORDINADOR'] },
-    { id: 'creditos-articulos', nombre: 'Créditos Artículos', icono: 'ShoppingBag', path: '/admin/creditos-articulos', roles: ['SUPER_ADMINISTRADOR', 'COORDINADOR'] },
-    { id: 'cobranza', nombre: 'Cobranza', icono: 'Banknote', path: '/admin/pagos/registro', roles: ['SUPER_ADMINISTRADOR', 'COORDINADOR', 'COBRADOR'] },
-    { id: 'clientes', nombre: 'Clientes', icono: 'Users', path: '/admin/clientes', roles: ['SUPER_ADMINISTRADOR', 'COORDINADOR', 'COBRADOR', 'CONTADOR'] },
-    { id: 'cuentas-mora', nombre: 'Cuentas en mora', icono: 'AlertCircle', path: '/admin/cuentas-mora', roles: ['SUPER_ADMINISTRADOR', 'COORDINADOR', 'SUPERVISOR', 'CONTADOR'] },
-    { id: 'rutas', nombre: 'Rutas', icono: 'Route', path: '/admin/rutas', roles: ['SUPER_ADMINISTRADOR', 'COORDINADOR'] },
-    { id: 'articulos', nombre: 'Artículos (Inventario)', icono: 'Package', path: '/admin/articulos', roles: ['SUPER_ADMINISTRADOR', 'CONTADOR'] },
-    { id: 'contable', nombre: 'Módulo contable', icono: 'PieChart', path: '/admin/contable', roles: ['SUPER_ADMINISTRADOR', 'CONTADOR'] },
-    { id: 'usuarios', nombre: 'Usuarios', icono: 'User', path: '/admin/users', roles: ['SUPER_ADMINISTRADOR'] },
-    { id: 'archivados', nombre: 'Archivados', icono: 'Archive', path: '/admin/archivados', roles: ['SUPER_ADMINISTRADOR', 'CONTADOR'] },
-    { id: 'roles-permisos', nombre: 'Roles y permisos', icono: 'Shield', path: '/admin/roles-permisos', roles: ['SUPER_ADMINISTRADOR'] },
-    { id: 'reportes-operativos', nombre: 'Reportes operativos', icono: 'PieChart', path: '/admin/reportes/operativos', roles: ['SUPER_ADMINISTRADOR', 'COORDINADOR', 'SUPERVISOR'] },
-    { id: 'reportes-financieros', nombre: 'Reportes financieros', icono: 'PieChart', path: '/admin/reportes/financieros', roles: ['SUPER_ADMINISTRADOR', 'CONTADOR'] },
-    { id: 'perfil', nombre: 'Perfil', icono: 'User', path: '/admin/perfil', roles: ['SUPER_ADMINISTRADOR', 'COORDINADOR', 'SUPERVISOR', 'COBRADOR', 'CONTADOR'] },
-    { id: 'aprobar-cobrador', nombre: 'Aprobaciones', icono: 'CheckCircle2', path: '/admin/aprobaciones', roles: ['SUPER_ADMINISTRADOR', 'COORDINADOR'] },
-    { id: 'gastos-ruta', nombre: 'Gastos de Ruta', icono: 'Receipt', path: '/admin/gastos-ruta', roles: ['SUPER_ADMINISTRADOR', 'SUPERVISOR'] },
-    { id: 'base-dinero', nombre: 'Base de Efectivo', icono: 'Wallet', path: '/admin/base-dinero', roles: ['SUPER_ADMINISTRADOR', 'COORDINADOR', 'COBRADOR'] },
-    { id: 'ruta-diaria', nombre: 'Mi Ruta', icono: 'Map', path: '/admin/ruta-diaria', roles: ['SUPER_ADMINISTRADOR', 'COBRADOR'] },
-    { id: 'tesoreria', nombre: 'Tesorería', icono: 'CreditCard', path: '/admin/tesoreria', roles: ['SUPER_ADMINISTRADOR', 'CONTADOR'] },
-    { id: 'auditoria', nombre: 'Auditoría', icono: 'Shield', path: '/admin/auditoria', roles: ['SUPER_ADMINISTRADOR'] },
-    { id: 'configuracion', nombre: 'Configuración', icono: 'Settings', path: '/admin/sistema/configuracion', roles: ['SUPER_ADMINISTRADOR'] },
-    { id: 'sincronizacion', nombre: 'Sincronización', icono: 'Activity', path: '/admin/sistema/sincronizacion', roles: ['SUPER_ADMINISTRADOR'] },
-    { id: 'backups', nombre: 'Backups', icono: 'HardDrive', path: '/admin/sistema/backups', roles: ['SUPER_ADMINISTRADOR'] },
+    { id: 'dashboard', nombre: 'Dashboard', icono: 'LayoutDashboard', path: '/admin', roles: ['SUPER_ADMINISTRADOR', 'COORDINADOR', 'SUPERVISOR', 'COBRADOR', 'CONTADOR'] },
+    { 
+      id: 'operaciones', 
+      nombre: 'Operaciones', 
+      icono: 'Briefcase', 
+      path: '#', 
+      roles: ['SUPER_ADMINISTRADOR'],
+      submodulos: [
+        { id: 'prestamos-dinero', nombre: 'Préstamos Dinero', icono: 'CreditCard', path: '/admin/prestamos', roles: ['SUPER_ADMINISTRADOR', 'COORDINADOR'] },
+        { id: 'creditos-articulos', nombre: 'Créditos Artículos', icono: 'ShoppingBag', path: '/admin/creditos-articulos', roles: ['SUPER_ADMINISTRADOR', 'COORDINADOR'] },
+        { id: 'rutas', nombre: 'Rutas', icono: 'Route', path: '/admin/rutas', roles: ['SUPER_ADMINISTRADOR', 'COORDINADOR'] },
+        { id: 'aprobar-cobrador', nombre: 'Aprobaciones', icono: 'CheckCircle2', path: '/admin/aprobaciones', roles: ['SUPER_ADMINISTRADOR', 'COORDINADOR'] },
+      ]
+    },
+    {
+      id: 'gestion-clientes',
+      nombre: 'Gestión Clientes',
+      icono: 'Users',
+      path: '#',
+      roles: ['SUPER_ADMINISTRADOR'],
+      submodulos: [
+        { id: 'clientes', nombre: 'Clientes', icono: 'Users', path: '/admin/clientes', roles: ['SUPER_ADMINISTRADOR', 'COORDINADOR', 'COBRADOR'] },
+        { id: 'cuentas-mora', nombre: 'Cuentas en mora', icono: 'AlertCircle', path: '/admin/cuentas-mora', roles: ['SUPER_ADMINISTRADOR', 'COORDINADOR', 'SUPERVISOR', 'CONTADOR'] },
+        { id: 'archivados', nombre: 'Archivados', icono: 'Archive', path: '/admin/archivados', roles: ['SUPER_ADMINISTRADOR'] },
+      ]
+    },
+    {
+      id: 'finanzas',
+      nombre: 'Finanzas',
+      icono: 'PieChart',
+      path: '#',
+      roles: ['SUPER_ADMINISTRADOR'],
+      submodulos: [
+        { id: 'contable', nombre: 'Módulo contable', icono: 'Calculator', path: '/admin/contable', roles: ['SUPER_ADMINISTRADOR', 'CONTADOR'] },
+        { id: 'tesoreria', nombre: 'Tesorería', icono: 'Landmark', path: '/admin/tesoreria', roles: ['SUPER_ADMINISTRADOR', 'CONTADOR'] },
+        { id: 'articulos', nombre: 'Artículos (Inventario)', icono: 'Package', path: '/admin/articulos', roles: ['SUPER_ADMINISTRADOR', 'CONTADOR'] },
+        { id: 'reportes-financieros', nombre: 'Reportes financieros', icono: 'BarChart3', path: '/admin/reportes/financieros', roles: ['SUPER_ADMINISTRADOR', 'CONTADOR'] },
+      ]
+    },
+    {
+      id: 'administracion',
+      nombre: 'Administración',
+      icono: 'Shield',
+      path: '#',
+      roles: ['SUPER_ADMINISTRADOR'],
+      submodulos: [
+        { id: 'usuarios', nombre: 'Usuarios', icono: 'User', path: '/admin/users', roles: ['SUPER_ADMINISTRADOR'] },
+        { id: 'roles-permisos', nombre: 'Roles y permisos', icono: 'Key', path: '/admin/roles-permisos', roles: ['SUPER_ADMINISTRADOR'] },
+        { id: 'auditoria', nombre: 'Auditoría', icono: 'FileText', path: '/admin/auditoria', roles: ['SUPER_ADMINISTRADOR'] },
+      ]
+    },
+    {
+      id: 'sistema',
+      nombre: 'Sistema',
+      icono: 'Settings',
+      path: '#',
+      roles: ['SUPER_ADMINISTRADOR'],
+      submodulos: [
+        { id: 'configuracion', nombre: 'Configuración', icono: 'Settings', path: '/admin/sistema/configuracion', roles: ['SUPER_ADMINISTRADOR'] },
+        { id: 'sincronizacion', nombre: 'Sincronización', icono: 'RefreshCw', path: '/admin/sistema/sincronizacion', roles: ['SUPER_ADMINISTRADOR'] },
+        { id: 'backups', nombre: 'Backups', icono: 'HardDrive', path: '/admin/sistema/backups', roles: ['SUPER_ADMINISTRADOR'] },
+      ]
+    },
+    { id: 'reportes-operativos', nombre: 'Reportes operativos', icono: 'ClipboardList', path: '/admin/reportes/operativos', roles: ['SUPER_ADMINISTRADOR', 'COORDINADOR', 'SUPERVISOR'] },
+    { id: 'perfil', nombre: 'Perfil', icono: 'UserCircle', path: '/admin/perfil', roles: ['SUPER_ADMINISTRADOR', 'COORDINADOR', 'SUPERVISOR', 'COBRADOR'] },
   ],
 
   COORDINADOR: [
-    { id: 'dashboard', nombre: 'Dashboard', icono: 'Activity', path: '/admin', roles: ['COORDINADOR'] },
-    { id: 'prestamos-dinero', nombre: 'Préstamos Dinero', icono: 'CreditCard', path: '/admin/prestamos', roles: ['COORDINADOR'] },
-    { id: 'creditos-articulos', nombre: 'Créditos Artículos', icono: 'ShoppingBag', path: '/admin/creditos-articulos', roles: ['COORDINADOR'] },
-    { id: 'cobranza', nombre: 'Cobranza', icono: 'Banknote', path: '/admin/pagos/registro', roles: ['COORDINADOR'] },
+    { id: 'dashboard', nombre: 'Dashboard', icono: 'LayoutDashboard', path: '/admin', roles: ['COORDINADOR'] },
+    { id: 'gestion-creditos', nombre: 'Créditos y Préstamos', icono: 'CreditCard', path: '/admin/creditos', roles: ['COORDINADOR'] },
     { id: 'clientes', nombre: 'Clientes', icono: 'Users', path: '/admin/clientes', roles: ['COORDINADOR'] },
     { id: 'cuentas-mora', nombre: 'Cuentas en mora', icono: 'AlertCircle', path: '/admin/cuentas-mora', roles: ['COORDINADOR'] },
     { id: 'rutas', nombre: 'Rutas', icono: 'Route', path: '/admin/rutas', roles: ['COORDINADOR'] },
     { id: 'aprobar-cobrador', nombre: 'Aprobaciones', icono: 'CheckCircle2', path: '/admin/aprobaciones', roles: ['COORDINADOR'] },
-    { id: 'base-dinero', nombre: 'Base de Efectivo', icono: 'Wallet', path: '/admin/base-dinero', roles: ['COORDINADOR'] },
     { id: 'reportes-operativos', nombre: 'Reportes operativos', icono: 'PieChart', path: '/admin/reportes/operativos', roles: ['COORDINADOR'] },
     { id: 'perfil', nombre: 'Perfil', icono: 'User', path: '/admin/perfil', roles: ['COORDINADOR'] },
   ],
 
   SUPERVISOR: [
-    { id: 'dashboard', nombre: 'Dashboard', icono: 'Activity', path: '/admin', roles: ['SUPERVISOR'] },
-    { id: 'clientes', nombre: 'Clientes', icono: 'Users', path: '/admin/clientes', roles: ['SUPERVISOR'] },
-    { id: 'cuentas-mora', nombre: 'Cuentas en mora', icono: 'AlertCircle', path: '/admin/cuentas-mora', roles: ['SUPERVISOR'] },
-    { id: 'gastos-ruta', nombre: 'Gastos de Ruta', icono: 'Receipt', path: '/admin/gastos-ruta', roles: ['SUPERVISOR'] },
-    { id: 'reportes-operativos', nombre: 'Reportes operativos', icono: 'PieChart', path: '/admin/reportes/operativos', roles: ['SUPERVISOR'] },
-    { id: 'perfil', nombre: 'Perfil', icono: 'User', path: '/admin/perfil', roles: ['SUPERVISOR'] },
+    { id: 'dashboard', nombre: 'Dashboard', icono: 'LayoutDashboard', path: '/supervisor', roles: ['SUPERVISOR'] },
+    { id: 'clientes', nombre: 'Clientes', icono: 'Users', path: '/supervisor/clientes', roles: ['SUPERVISOR'] },
+    { id: 'rutas', nombre: 'Rutas', icono: 'Route', path: '/supervisor/rutas', roles: ['SUPERVISOR'] },
+    { id: 'reportes-operativos', nombre: 'Reportes operativos', icono: 'PieChart', path: '/supervisor/reportes/operativos', roles: ['SUPERVISOR'] },
+    { id: 'perfil', nombre: 'Perfil', icono: 'UserCircle', path: '/supervisor/perfil', roles: ['SUPERVISOR'] },
   ],
 
   COBRADOR: [
-    { id: 'dashboard', nombre: 'Mi Ruta', icono: 'Activity', path: '/admin', roles: ['COBRADOR'] },
-    { id: 'ruta-diaria', nombre: 'Mi Ruta Diaria', icono: 'Map', path: '/admin/ruta-diaria', roles: ['COBRADOR'] },
-    { id: 'prestamos-dinero', nombre: 'Solicitar Crédito', icono: 'CreditCard', path: '/admin/prestamos/nuevo', roles: ['COBRADOR'] },
-    { id: 'clientes', nombre: 'Nuevo Cliente', icono: 'Users', path: '/admin/clientes/nuevo', roles: ['COBRADOR'] },
-    { id: 'cobranza', nombre: 'Registrar Pago', icono: 'Banknote', path: '/admin/pagos/registro', roles: ['COBRADOR'] },
-    { id: 'base-dinero', nombre: 'Base de Efectivo', icono: 'Wallet', path: '/admin/base-dinero', roles: ['COBRADOR'] },
-    { id: 'perfil', nombre: 'Mi Perfil', icono: 'User', path: '/admin/perfil', roles: ['COBRADOR'] },
+    { id: 'dashboard', nombre: 'Inicio', icono: 'Home', path: '/cobranzas', roles: ['COBRADOR'] },
+    { id: 'prestamos-dinero', nombre: 'Solicitar Crédito', icono: 'CreditCard', path: '/cobranzas/prestamos/nuevo', roles: ['COBRADOR'] },
+    { id: 'clientes', nombre: 'Nuevo Cliente', icono: 'Users', path: '/cobranzas/clientes/nuevo', roles: ['COBRADOR'] },
+    { id: 'notificaciones', nombre: 'Notificaciones', icono: 'Bell', path: '/cobranzas/notificaciones', roles: ['COBRADOR'] },
+    { id: 'solicitudes', nombre: 'Solicitudes', icono: 'ClipboardList', path: '/cobranzas/solicitudes', roles: ['COBRADOR'] },
+    { id: 'perfil', nombre: 'Mi Perfil', icono: 'User', path: '/cobranzas/perfil', roles: ['COBRADOR'] },
   ],
 
   CONTADOR: [
-    { id: 'dashboard', nombre: 'Dashboard', icono: 'Activity', path: '/admin', roles: ['CONTADOR'] },
-    { id: 'contable', nombre: 'Módulo contable', icono: 'PieChart', path: '/admin/contable', roles: ['CONTADOR'] },
-    { id: 'tesoreria', nombre: 'Tesorería', icono: 'CreditCard', path: '/admin/tesoreria', roles: ['CONTADOR'] },
-    { id: 'articulos', nombre: 'Artículos (Inventario)', icono: 'Package', path: '/admin/articulos', roles: ['CONTADOR'] },
-    { id: 'clientes', nombre: 'Clientes', icono: 'Users', path: '/admin/clientes', roles: ['CONTADOR'] },
-    { id: 'cuentas-mora', nombre: 'Pérdidas', icono: 'AlertCircle', path: '/admin/cuentas-mora', roles: ['CONTADOR'] },
-    { id: 'archivados', nombre: 'Archivados', icono: 'Archive', path: '/admin/archivados', roles: ['CONTADOR'] },
-    { id: 'reportes-financieros', nombre: 'Reportes financieros', icono: 'PieChart', path: '/admin/reportes/financieros', roles: ['CONTADOR'] },
-    { id: 'perfil', nombre: 'Perfil', icono: 'User', path: '/admin/perfil', roles: ['CONTADOR'] },
+    { id: 'dashboard', nombre: 'Dashboard', icono: 'LayoutDashboard', path: '/contador', roles: ['CONTADOR'] },
+    { id: 'contable', nombre: 'Módulo contable', icono: 'PieChart', path: '/contador/contable', roles: ['CONTADOR'] },
+    { id: 'tesoreria', nombre: 'Tesorería', icono: 'CreditCard', path: '/contador/tesoreria', roles: ['CONTADOR'] },
+    { id: 'articulos', nombre: 'Artículos (Inventario)', icono: 'Package', path: '/contador/articulos', roles: ['CONTADOR'] },
+    { id: 'cuentas-mora', nombre: 'Pérdidas', icono: 'AlertCircle', path: '/contador/cuentas-mora', roles: ['CONTADOR'] },
+    { id: 'reportes-financieros', nombre: 'Reportes financieros', icono: 'PieChart', path: '/contador/reportes/financieros', roles: ['CONTADOR'] },
   ],
 };
 
 // Mapa de iconos de Lucide React
 import {
-  Activity,
+  Eye,
+  Home,
+  LayoutDashboard,
+  Bell,
   CreditCard,
   ShoppingBag,
   Banknote,
@@ -105,11 +141,23 @@ import {
   Wallet,
   Map,
   HardDrive,
+  Landmark,
+  ClipboardList,
+  Briefcase,
+  Calculator,
+  BarChart3,
+  Key,
+  FileText,
+  RefreshCw,
+  UserCircle,
   // Agregar más iconos según necesites
 } from 'lucide-react';
 
 export const iconosMap: Record<string, React.ReactNode> = {
-  'Activity': <Activity className="h-4 w-4" />,
+  'Eye': <Eye className="h-4 w-4" />,
+  'Home': <Home className="h-4 w-4" />,
+  'LayoutDashboard': <LayoutDashboard className="h-4 w-4" />,
+  'Bell': <Bell className="h-4 w-4" />,
   'CreditCard': <CreditCard className="h-4 w-4" />,
   'ShoppingBag': <ShoppingBag className="h-4 w-4" />,
   'Banknote': <Banknote className="h-4 w-4" />,
@@ -127,11 +175,20 @@ export const iconosMap: Record<string, React.ReactNode> = {
   'Wallet': <Wallet className="h-4 w-4" />,
   'Map': <Map className="h-4 w-4" />,
   'HardDrive': <HardDrive className="h-4 w-4" />,
+  'Landmark': <Landmark className="h-4 w-4" />,
+  'ClipboardList': <ClipboardList className="h-4 w-4" />,
+  'Briefcase': <Briefcase className="h-4 w-4" />,
+  'Calculator': <Calculator className="h-4 w-4" />,
+  'BarChart3': <BarChart3 className="h-4 w-4" />,
+  'Key': <Key className="h-4 w-4" />,
+  'FileText': <FileText className="h-4 w-4" />,
+  'RefreshCw': <RefreshCw className="h-4 w-4" />,
+  'UserCircle': <UserCircle className="h-4 w-4" />,
 };
 
 // Obtener icono por nombre
 export const getIconComponent = (iconName: string): React.ReactNode => {
-  return iconosMap[iconName] || <Activity className="h-4 w-4" />;
+  return iconosMap[iconName] || <Eye className="h-4 w-4" />;
 };
 
 // Obtener módulos filtrados por rol
@@ -143,6 +200,19 @@ export const obtenerModulosPorRol = (rol: Rol): ModuloPermiso[] => {
 export const tieneAcceso = (rol: Rol, path: string): boolean => {
   const modulos = permisosPorRol[rol];
   if (!modulos) return false;
-  
-  return modulos.some(modulo => modulo.path === path);
+
+  const rutasPermitidas = modulos
+    .flatMap((m) => [m.path, ...(m.submodulos?.map((s) => s.path) ?? [])])
+    .filter((p): p is string => Boolean(p) && p !== '#');
+
+  const normalizado = path.split('?')[0]?.split('#')[0] ?? path;
+
+  // Match exacto
+  if (rutasPermitidas.includes(normalizado)) return true;
+
+  // Match por subruta (para rutas dinámicas tipo /admin/rutas/[id])
+  return rutasPermitidas.some((base) => {
+    if (base === '/admin' || base === '/cobranzas' || base === '/contador' || base === '/') return false;
+    return normalizado.startsWith(`${base}/`);
+  });
 };
