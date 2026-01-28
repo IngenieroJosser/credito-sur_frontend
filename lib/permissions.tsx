@@ -207,6 +207,10 @@ export const tieneAcceso = (rol: Rol, path: string): boolean => {
 
   const normalizado = path.split('?')[0]?.split('#')[0] ?? path;
 
+  // Excepción: permitir que CONTADOR abra la vista de notificaciones por URL,
+  // aunque no esté disponible en el aside.
+  if (rol === 'CONTADOR' && normalizado === '/contador/notificaciones') return true;
+
   // Match exacto
   if (rutasPermitidas.includes(normalizado)) return true;
 
