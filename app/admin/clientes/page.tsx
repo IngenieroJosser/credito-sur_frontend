@@ -18,20 +18,32 @@ import {
   AlertTriangle,
   Ban,
   DollarSign,
-  Trash2
+  Trash2,
+  TrendingUp,
+  TrendingDown,
+  Minus,
+  Calendar
 } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils';
 import { Modal } from '@/components/ui/Modal';
 import FiltroRuta from '@/components/filtros/FiltroRuta';
+import NuevoClienteModal from '@/components/clientes/NuevoClienteModal';
 
 // Tipos alineados con Prisma Schema
 type NivelRiesgo = 'VERDE' | 'AMARILLO' | 'ROJO' | 'LISTA_NEGRA';
 type EstadoAprobacion = 'PENDIENTE' | 'APROBADO' | 'RECHAZADO' | 'CANCELADO';
 
+// Interfaz extendida para vista admin
+interface ClienteAdmin extends Cliente {
+  score?: number;
+  tendencia?: 'SUBE' | 'BAJA' | 'ESTABLE';
+  ultimaVisita?: string;
+}
+
 const ClientesPage = () => {
   const router = useRouter();
 
-  const [clientes, setClientes] = useState<Cliente[]>(MOCK_CLIENTES)
+  const [clientes, setClientes] = useState<ClienteAdmin[]>([])
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
@@ -39,10 +51,29 @@ const ClientesPage = () => {
     ;(async () => {
       try {
         const data = await clientesService.obtenerClientes()
-        if (mounted) setClientes(Array.isArray(data) ? data : MOCK_CLIENTES)
+        const rawData = Array.isArray(data) ? data : MOCK_CLIENTES
+        
+        // Enriquecer datos para admin (simulado igual que en coordinador)
+        const enriched: ClienteAdmin[] = rawData.map(c => ({
+          ...c,
+          score: Math.floor(Math.random() * (100 - 40 + 1)) + 40,
+          tendencia: Math.random() > 0.6 ? 'SUBE' : Math.random() > 0.3 ? 'ESTABLE' : 'BAJA',
+          ultimaVisita: new Date(Date.now() - Math.floor(Math.random() * 10) * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+        }))
+
+        if (mounted) setClientes(enriched)
       } catch (error) {
         console.warn('Usando datos mock de clientes', error)
-        if (mounted) setClientes(MOCK_CLIENTES)
+        if (mounted) {
+           // Mock fallback enriched
+           const enriched: ClienteAdmin[] = MOCK_CLIENTES.map(c => ({
+            ...c,
+            score: Math.floor(Math.random() * (100 - 40 + 1)) + 40,
+            tendencia: Math.random() > 0.6 ? 'SUBE' : Math.random() > 0.3 ? 'ESTABLE' : 'BAJA',
+            ultimaVisita: new Date().toISOString().split('T')[0]
+          }))
+          setClientes(enriched)
+        }
       } finally {
         if (mounted) setIsLoading(false)
       }
@@ -52,6 +83,19 @@ const ClientesPage = () => {
       mounted = false
     }
   }, [])
+
+  const getScoreColor = (score: number) => {
+    if (score >= 85) return 'text-emerald-600';
+    if (score >= 70) return 'text-blue-600';
+    if (score >= 50) return 'text-amber-600';
+    return 'text-rose-600';
+  };
+
+  const RenderTendencia = ({ t }: { t: string }) => {
+    if (t === 'SUBE') return <TrendingUp className="h-4 w-4 text-emerald-500" />;
+    if (t === 'BAJA') return <TrendingDown className="h-4 w-4 text-rose-500" />;
+    return <Minus className="h-4 w-4 text-slate-400" />;
+  };
 
   const clientesArray = clientes
 
@@ -64,6 +108,7 @@ const ClientesPage = () => {
   // Estado para el modal de eliminación
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [clientToDelete, setClientToDelete] = useState<Cliente | null>(null);
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 
   const [isDeleting, setIsDeleting] = useState(false)
 
@@ -158,13 +203,13 @@ const ClientesPage = () => {
               <span className="text-blue-600">Listado de </span><span className="text-orange-500">Clientes</span>
             </h1>
           </div>
-          <Link
-            href="/admin/clientes/nuevo"
+          <button
+            onClick={() => setIsCreateModalOpen(true)}
             className="inline-flex items-center gap-2 px-6 py-2.5 bg-white border border-slate-300 text-slate-700 rounded-xl hover:border-slate-400 hover:bg-slate-50 transition-all duration-200 shadow-sm font-bold text-sm"
           >
             <UserPlus className="w-4 h-4 text-slate-500 group-hover:text-slate-900 transition-colors" />
             Nuevo Cliente
-          </Link>
+          </button>
         </div>
         {/* Estadísticas Elegantes */}
         <div className="grid grid-cols-2 md:grid-cols-5 gap-6">
@@ -278,7 +323,9 @@ const ClientesPage = () => {
                 <tr className="bg-slate-50/50 border-b border-slate-200">
                   <th className="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Cliente</th>
                   <th className="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Estado</th>
+                  <th className="px-6 py-4 text-center text-xs font-bold text-slate-500 uppercase tracking-wider">Score</th>
                   <th className="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Finanzas</th>
+                  <th className="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Tendencia</th>
                   <th className="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Contacto</th>
                   <th className="px-6 py-4 text-right text-xs font-bold text-slate-500 uppercase tracking-wider"></th>
                 </tr>
@@ -336,6 +383,17 @@ const ClientesPage = () => {
                       </div>
                     </td>
 
+                    <td className="px-6 py-4 text-center font-bold">
+                       {cliente.score && (
+                        <div className="flex flex-col items-center">
+                          <span className={`text-lg ${getScoreColor(cliente.score)}`}>{cliente.score}</span>
+                          <div className="w-12 h-1 bg-slate-100 rounded-full mt-1 overflow-hidden">
+                            <div className={`h-full ${cliente.score >= 70 ? 'bg-emerald-500' : 'bg-rose-500'}`} style={{ width: `${cliente.score}%` }} />
+                          </div>
+                        </div>
+                       )}
+                    </td>
+
                     <td className="px-6 py-4">
                       <div className="space-y-1">
                         <div className="text-sm font-bold text-slate-900">
@@ -347,6 +405,21 @@ const ClientesPage = () => {
                           </div>
                         )}
                       </div>
+                    </td>
+
+                    <td className="px-6 py-4">
+                      {cliente.tendencia && (
+                        <div className="flex items-center gap-2 font-bold text-xs">
+                           <RenderTendencia t={cliente.tendencia} />
+                           <span className="text-slate-600">{cliente.tendencia}</span>
+                        </div>
+                      )}
+                      {cliente.ultimaVisita && (
+                        <div className="flex items-center gap-1.5 text-slate-400 text-[10px] font-medium mt-1">
+                          <Calendar className="h-3 w-3" />
+                          {cliente.ultimaVisita}
+                        </div>
+                      )}
                     </td>
 
                     <td className="px-6 py-4">
@@ -465,6 +538,19 @@ const ClientesPage = () => {
           </div>
         </div>
       </Modal>
+
+      {/* Modal de Creación */}
+      {isCreateModalOpen && (
+        <NuevoClienteModal 
+          onClose={() => setIsCreateModalOpen(false)} 
+          onClienteCreado={(newClient) => {
+            console.log('Cliente creado:', newClient)
+            // Aquí podrías recargar los clientes si tienes la función
+            setIsCreateModalOpen(false);
+            window.location.reload(); // Recarga simple para actualizar la lista
+          }}
+        />
+      )}
     </div>
   );
 };

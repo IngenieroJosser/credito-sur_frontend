@@ -1,5 +1,36 @@
-// Definición de roles y sus permisos
-export type Rol = 'SUPER_ADMINISTRADOR' | 'COORDINADOR' | 'SUPERVISOR' | 'COBRADOR' | 'CONTADOR';
+/**
+ * JERARQUÍA DE ROLES DEL SISTEMA
+ * 
+ * 1. SUPER_ADMINISTRADOR (Rol Protegido - Máximo Nivel)
+ *    - Acceso TOTAL al sistema sin restricciones
+ *    - Módulos exclusivos: Sistema (Configuración, Backups, Sincronización)
+ *    - Módulos exclusivos: Administración (Usuarios, Roles, Auditoría)
+ *    - Acceso total a operaciones, finanzas y gestión
+ * 
+ * 2. ADMIN (Administrador General)
+ *    - Acceso a todas las operaciones y finanzas
+ *    - NO tiene acceso a módulos de Sistema
+ *    - NO puede gestionar usuarios ni roles
+ *    - Puede ver auditoría pero no modificarla
+ * 
+ * 3. COORDINADOR
+ *    - Gestión de créditos, clientes, rutas
+ *    - Aprobaciones operativas
+ *    - Reportes operativos
+ * 
+ * 4. SUPERVISOR
+ *    - Supervisión de cobradores y rutas
+ *    - Reportes operativos
+ * 
+ * 5. COBRADOR
+ *    - Gestión de cobranzas en campo
+ *    - Solicitudes de crédito y clientes
+ * 
+ * 6. CONTADOR
+ *    - Módulos financieros y contables
+ *    - Tesorería, inventario, reportes financieros
+ */
+export type Rol = 'SUPER_ADMINISTRADOR' | 'ADMIN' | 'COORDINADOR' | 'SUPERVISOR' | 'COBRADOR' | 'CONTADOR';
 
 export interface ModuloPermiso {
   id: string;
@@ -79,26 +110,97 @@ export const permisosPorRol: Record<Rol, ModuloPermiso[]> = {
     { id: 'reportes-operativos', nombre: 'Reportes operativos', icono: 'ClipboardList', path: '/admin/reportes/operativos', roles: ['SUPER_ADMINISTRADOR', 'COORDINADOR', 'SUPERVISOR'] },
   ],
 
+  ADMIN: [
+    { id: 'dashboard', nombre: 'Dashboard', icono: 'LayoutDashboard', path: '/admin', roles: ['SUPER_ADMINISTRADOR', 'ADMIN'] },
+    { 
+      id: 'operaciones', 
+      nombre: 'Operaciones', 
+      icono: 'Briefcase', 
+      path: '#', 
+      roles: ['SUPER_ADMINISTRADOR', 'ADMIN'],
+      submodulos: [
+        { id: 'prestamos-dinero', nombre: 'Préstamos Dinero', icono: 'CreditCard', path: '/admin/prestamos', roles: ['SUPER_ADMINISTRADOR', 'ADMIN', 'COORDINADOR'] },
+        { id: 'creditos-articulos', nombre: 'Créditos Artículos', icono: 'ShoppingBag', path: '/admin/creditos-articulos', roles: ['SUPER_ADMINISTRADOR', 'ADMIN', 'COORDINADOR'] },
+        { id: 'rutas', nombre: 'Rutas', icono: 'Route', path: '/admin/rutas', roles: ['SUPER_ADMINISTRADOR', 'ADMIN', 'COORDINADOR'] },
+        { id: 'aprobar-cobrador', nombre: 'Aprobaciones', icono: 'CheckCircle2', path: '/admin/aprobaciones', roles: ['SUPER_ADMINISTRADOR', 'ADMIN', 'COORDINADOR'] },
+      ]
+    },
+    {
+      id: 'gestion-clientes',
+      nombre: 'Gestión Clientes',
+      icono: 'Users',
+      path: '#',
+      roles: ['SUPER_ADMINISTRADOR', 'ADMIN'],
+      submodulos: [
+        { id: 'clientes', nombre: 'Clientes', icono: 'Users', path: '/admin/clientes', roles: ['SUPER_ADMINISTRADOR', 'ADMIN', 'COORDINADOR', 'COBRADOR'] },
+        { id: 'cuentas-mora', nombre: 'Cuentas en mora', icono: 'AlertCircle', path: '/admin/cuentas-mora', roles: ['SUPER_ADMINISTRADOR', 'ADMIN', 'COORDINADOR', 'SUPERVISOR', 'CONTADOR'] },
+        { id: 'cuentas-vencidas', nombre: 'Cuentas vencidas', icono: 'Archive', path: '/admin/cuentas-vencidas', roles: ['SUPER_ADMINISTRADOR', 'ADMIN'] },
+        { id: 'archivados', nombre: 'Archivados', icono: 'Archive', path: '/admin/archivados', roles: ['SUPER_ADMINISTRADOR', 'ADMIN'] },
+      ]
+    },
+    {
+      id: 'finanzas',
+      nombre: 'Finanzas',
+      icono: 'PieChart',
+      path: '#',
+      roles: ['SUPER_ADMINISTRADOR', 'ADMIN'],
+      submodulos: [
+        { id: 'contable', nombre: 'Módulo contable', icono: 'Calculator', path: '/admin/contable', roles: ['SUPER_ADMINISTRADOR', 'ADMIN', 'CONTADOR'] },
+        { id: ' tesoreria', nombre: 'Tesorería', icono: 'Landmark', path: '/admin/tesoreria', roles: ['SUPER_ADMINISTRADOR', 'ADMIN', 'CONTADOR'] },
+        { id: 'articulos', nombre: 'Artículos (Inventario)', icono: 'Package', path: '/admin/articulos', roles: ['SUPER_ADMINISTRADOR', 'ADMIN', 'CONTADOR'] },
+        { id: 'reportes-financieros', nombre: 'Reportes financieros', icono: 'BarChart3', path: '/admin/reportes/financieros', roles: ['SUPER_ADMINISTRADOR', 'ADMIN', 'CONTADOR'] },
+      ]
+    },
+    { id: 'reportes-operativos', nombre: 'Reportes operativos', icono: 'ClipboardList', path: '/admin/reportes/operativos', roles: ['SUPER_ADMINISTRADOR', 'ADMIN', 'COORDINADOR', 'SUPERVISOR'] },
+  ],
+
   COORDINADOR: [
     { id: 'dashboard', nombre: 'Dashboard', icono: 'LayoutDashboard', path: '/coordinador', roles: ['COORDINADOR'] },
-    { id: 'gestion-creditos', nombre: 'Créditos', icono: 'CreditCard', path: '/coordinador/creditos', roles: ['COORDINADOR'] },
-    { id: 'clientes', nombre: 'Clientes', icono: 'Users', path: '/coordinador/clientes', roles: ['COORDINADOR'] },
-    { id: 'cuentas-mora', nombre: 'Cuentas en mora', icono: 'AlertCircle', path: '/coordinador/cuentas-mora', roles: ['COORDINADOR'] },
-    { id: 'cuentas-vencidas', nombre: 'Cuentas vencidas', icono: 'Archive', path: '/coordinador/cuentas-vencidas', roles: ['COORDINADOR'] },
-    { id: 'rutas', nombre: 'Rutas', icono: 'Route', path: '/coordinador/rutas', roles: ['COORDINADOR'] },
-    { id: 'aprobar-cobrador', nombre: 'Aprobaciones', icono: 'CheckCircle2', path: '/coordinador/aprobaciones', roles: ['COORDINADOR'] },
-    { id: 'reportes-operativos', nombre: 'Reportes operativos', icono: 'PieChart', path: '/coordinador/reportes', roles: ['COORDINADOR'] },
+    {
+      id: 'gestion',
+      nombre: 'Gestión',
+      icono: 'Briefcase',
+      path: '#',
+      roles: ['COORDINADOR'],
+      submodulos: [
+        { id: 'gestion-creditos', nombre: 'Créditos', icono: 'CreditCard', path: '/coordinador/creditos', roles: ['COORDINADOR'] },
+        { id: 'clientes', nombre: 'Clientes', icono: 'Users', path: '/coordinador/clientes', roles: ['COORDINADOR'] },
+        { id: 'cuentas-mora', nombre: 'Cuentas en mora', icono: 'AlertCircle', path: '/coordinador/cuentas-mora', roles: ['COORDINADOR'] },
+        { id: 'cuentas-vencidas', nombre: 'Cuentas vencidas', icono: 'Archive', path: '/coordinador/cuentas-vencidas', roles: ['COORDINADOR'] },
+      ]
+    },
+    {
+      id: 'operaciones',
+      nombre: 'Operaciones',
+      icono: 'Settings',
+      path: '#',
+      roles: ['COORDINADOR'],
+      submodulos: [
+        { id: 'rutas', nombre: 'Rutas', icono: 'Route', path: '/coordinador/rutas', roles: ['COORDINADOR'] },
+        { id: 'aprobar-cobrador', nombre: 'Aprobaciones', icono: 'CheckCircle2', path: '/coordinador/aprobaciones', roles: ['COORDINADOR'] },
+      ]
+    },
+    { id: 'reportes-operativos', nombre: 'Reportes operativos', icono: 'ClipboardList', path: '/coordinador/reportes', roles: ['COORDINADOR'] },
   ],
 
   SUPERVISOR: [
     { id: 'dashboard', nombre: 'Dashboard', icono: 'LayoutDashboard', path: '/supervisor', roles: ['SUPERVISOR'] },
-    { id: 'clientes', nombre: 'Clientes', icono: 'Users', path: '/supervisor/clientes', roles: ['SUPERVISOR'] },
-    { id: 'rutas', nombre: 'Rutas', icono: 'Route', path: '/supervisor/rutas', roles: ['SUPERVISOR'] },
-    { id: 'reportes-operativos', nombre: 'Reportes operativos', icono: 'PieChart', path: '/supervisor/reportes/operativos', roles: ['SUPERVISOR'] },
+    {
+      id: 'supervision',
+      nombre: 'Supervisión',
+      icono: 'Eye',
+      path: '#',
+      roles: ['SUPERVISOR'],
+      submodulos: [
+        { id: 'clientes', nombre: 'Clientes', icono: 'Users', path: '/supervisor/clientes', roles: ['SUPERVISOR'] },
+        { id: 'rutas', nombre: 'Rutas', icono: 'Route', path: '/supervisor/rutas', roles: ['SUPERVISOR'] },
+      ]
+    },
+    { id: 'reportes-operativos', nombre: 'Reportes operativos', icono: 'ClipboardList', path: '/supervisor/reportes/operativos', roles: ['SUPERVISOR'] },
   ],
 
   COBRADOR: [
-    { id: 'dashboard', nombre: 'Inicio', icono: 'Home', path: '/cobranzas', roles: ['COBRADOR'] },
+    { id: 'dashboard', nombre: 'Dashboard', icono: 'LayoutDashboard', path: '/cobranzas', roles: ['COBRADOR'] },
     { id: 'prestamos-dinero', nombre: 'Solicitar Crédito', icono: 'CreditCard', path: '/cobranzas/prestamos/nuevo', roles: ['COBRADOR'] },
     { id: 'clientes', nombre: 'Nuevo Cliente', icono: 'Users', path: '/cobranzas/clientes/nuevo', roles: ['COBRADOR'] },
     { id: 'notificaciones', nombre: 'Notificaciones', icono: 'Bell', path: '/cobranzas/notificaciones', roles: ['COBRADOR'] },
@@ -107,11 +209,30 @@ export const permisosPorRol: Record<Rol, ModuloPermiso[]> = {
 
   CONTADOR: [
     { id: 'dashboard', nombre: 'Dashboard', icono: 'LayoutDashboard', path: '/contador', roles: ['CONTADOR'] },
-    { id: 'contable', nombre: 'Módulo contable', icono: 'PieChart', path: '/contador/contable', roles: ['CONTADOR'] },
-    { id: 'tesoreria', nombre: 'Tesorería', icono: 'CreditCard', path: '/contador/tesoreria', roles: ['CONTADOR'] },
-    { id: 'articulos', nombre: 'Artículos (Inventario)', icono: 'Package', path: '/contador/articulos', roles: ['CONTADOR'] },
-    { id: 'cuentas-mora', nombre: 'Pérdidas', icono: 'AlertCircle', path: '/contador/cuentas-mora', roles: ['CONTADOR'] },
-    { id: 'reportes-financieros', nombre: 'Reportes financieros', icono: 'PieChart', path: '/contador/reportes/financieros', roles: ['CONTADOR'] },
+    {
+      id: 'finanzas',
+      nombre: 'Finanzas',
+      icono: 'PieChart',
+      path: '#',
+      roles: ['CONTADOR'],
+      submodulos: [
+        { id: 'contable', nombre: 'Módulo contable', icono: 'Calculator', path: '/contador/contable', roles: ['CONTADOR'] },
+        { id: 'tesoreria', nombre: 'Tesorería', icono: 'Landmark', path: '/contador/tesoreria', roles: ['CONTADOR'] },
+        { id: 'articulos', nombre: 'Artículos (Inventario)', icono: 'Package', path: '/contador/articulos', roles: ['CONTADOR'] },
+      ]
+    },
+    {
+      id: 'reportes',
+      nombre: 'Reportes',
+      icono: 'ClipboardList',
+      path: '#',
+      roles: ['CONTADOR'],
+      submodulos: [
+        { id: 'cuentas-mora', nombre: 'Cuentas en mora', icono: 'AlertCircle', path: '/contador/cuentas-mora', roles: ['CONTADOR'] },
+        { id: 'cuentas-vencidas', nombre: 'Cuentas vencidas', icono: 'Archive', path: '/contador/cuentas-vencidas', roles: ['CONTADOR'] },
+        { id: 'reportes-financieros', nombre: 'Reportes financieros', icono: 'BarChart3', path: '/contador/reportes/financieros', roles: ['CONTADOR'] },
+      ]
+    },
   ],
 };
 

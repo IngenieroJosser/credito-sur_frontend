@@ -196,6 +196,7 @@ export default function AdminLayout({
 
     const roleNames: Record<string, string> = {
       'SUPER_ADMINISTRADOR': 'Super Administrador',
+      'ADMIN': 'Administrador',
       'COORDINADOR': 'Coordinador',
       'SUPERVISOR': 'Supervisor',
       'COBRADOR': 'Cobrador',
@@ -210,6 +211,7 @@ export default function AdminLayout({
 
     const roleColors: Record<string, string> = {
       'SUPER_ADMINISTRADOR': '#2563eb',
+      'ADMIN': '#0891b2',
       'COORDINADOR': '#f97316',
       'SUPERVISOR': '#8b5cf6',
       'COBRADOR': '#f97316',
@@ -224,6 +226,7 @@ export default function AdminLayout({
 
     const roleIcons: Record<string, React.ReactNode> = {
       'SUPER_ADMINISTRADOR': <Shield className="h-4 w-4" />,
+      'ADMIN': <User className="h-4 w-4" />,
       'COORDINADOR': <User className="h-4 w-4" />,
       'SUPERVISOR': <Eye className="h-4 w-4" />,
       'COBRADOR': <Wallet className="h-4 w-4" />,
@@ -296,7 +299,7 @@ export default function AdminLayout({
             <div className="flex items-center space-x-2">
 
               {/* Notificaciones (solo para ciertos roles) */}
-              {user?.rol && ['SUPER_ADMINISTRADOR', 'COORDINADOR', 'COBRADOR', 'CONTADOR'].includes(user.rol) && (
+              {user?.rol && ['SUPER_ADMINISTRADOR', 'ADMIN', 'COORDINADOR', 'COBRADOR', 'CONTADOR'].includes(user.rol) && (
                 <div ref={notificationRef} className="relative">
                   <button 
                     onClick={() => setShowNotifications(!showNotifications)}
