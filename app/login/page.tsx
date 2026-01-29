@@ -1,5 +1,20 @@
 'use client'
 
+/**
+ * ============================================================================
+ * LOGIN PAGE (GATEWAY)
+ * ============================================================================
+ * 
+ * @description
+ * Punto de entrada único a la plataforma. Gestiona la autenticación de
+ * credenciales (Usuario/Contraseña) contra el backend.
+ * 
+ * @features
+ * - Redirección inteligente basada en Rol (Cobrador -> /cobranzas, Admin -> /admin).
+ * - Persistencia de sesión (localStorage).
+ * - UI Minimalista con feedback visual avanzado (Toasts, Spinners).
+ */
+
 import { useState, FormEvent, useEffect } from 'react';
 import { Eye, EyeOff, Lock, User, ChevronRight } from 'lucide-react';
 import { iniciarSesion } from '@/services/autenticacion-service';
@@ -57,14 +72,29 @@ const LoginPage = () => {
     }
   }, [toast]);
 
-  // Verificar si ya hay una sesión activa y redirigir a /admin
+  // Verificar si ya hay una sesión activa y redirigir a la ruta correspondiente
   useEffect(() => {
     const token = localStorage.getItem('token');
-    const user = localStorage.getItem('user');
+    const userStr = localStorage.getItem('user');
 
-    if (token && user) {
-      // Siempre redirigir a /admin si hay sesión activa
-      router.replace('/admin');
+    if (token && userStr) {
+      try {
+        const user = JSON.parse(userStr);
+        const roleRedirects: Record<string, string> = {
+          'COBRADOR': '/cobranzas',
+          'COORDINADOR': '/coordinador',
+          'SUPER_ADMINISTRADOR': '/admin',
+          'ADMINISTRADOR': '/admin',
+          'SUPERVISOR': '/supervisor',
+          'CONTADOR': '/contador'
+        };
+        const redirectPath = roleRedirects[user.rol] || '/admin';
+        router.replace(redirectPath);
+      } catch (e) {
+        // Si hay error al parsear, limpiar sesión
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+      }
     }
   }, [router]);
 
@@ -108,8 +138,8 @@ const LoginPage = () => {
 
     try {
       const payload: LoginData = {
-        nombres: formData.nombres,
-        contrasena: formData.password,
+        nombres: formData.nombres.trim(),
+        contrasena: formData.password.trim(),
       };
 
       // Depuración: Verificar qué se envía
@@ -175,10 +205,22 @@ const LoginPage = () => {
       // Mostrar toast de éxito con información del rol
       showToast('Bienvenido', `${userName} (${formatRol(response.usuario.rol)})`, 'success');
 
-      // Siempre redirigir a /admin después de 2 segundos
+      // Determinar redirección según rol
+      const roleRedirects: Record<string, string> = {
+        'COBRADOR': '/cobranzas',
+        'COORDINADOR': '/coordinador',
+        'SUPER_ADMINISTRADOR': '/admin',
+        'ADMINISTRADOR': '/admin',
+        'SUPERVISOR': '/supervisor', // O su ruta específica si existe
+        'CONTADOR': '/contador'    // O su ruta específica si existe
+      };
+
+      const redirectPath = roleRedirects[response.usuario.rol] || '/admin';
+
+      // Siempre redirigir después de 2 segundos
       setTimeout(() => {
-        console.log('Redirigiendo a /admin para usuario:', userFullName);
-        router.replace('/admin');
+        console.log(`Redirigiendo a ${redirectPath} para usuario:`, userFullName);
+        router.replace(redirectPath);
       }, 2000);
 
     } catch (err: unknown) {
@@ -313,7 +355,7 @@ const LoginPage = () => {
           <div className="flex items-center justify-center mb-6">
             <div className="relative">
               <div className="w-14 h-14 bg-white border border-gray-200 rounded-xl flex items-center justify-center">
-                <Image 
+                <Image
                   src='/favicon-32x32.png'
                   alt='Logo Oficial - Credisur'
                   width={32}
@@ -335,8 +377,8 @@ const LoginPage = () => {
             {/* Campo Usuario */}
             <div className="relative">
               <div className={`absolute left-0 top-1/2 -translate-y-1/2 transition-all duration-300 ${focusedField === 'usuario' || formData.nombres
-                  ? 'opacity-100'
-                  : 'opacity-0'
+                ? 'opacity-100'
+                : 'opacity-0'
                 }`}>
                 <User className="h-4 w-4 text-gray-400" />
               </div>
@@ -360,8 +402,8 @@ const LoginPage = () => {
             {/* Campo Contraseña */}
             <div className="relative">
               <div className={`absolute left-0 top-1/2 -translate-y-1/2 transition-all duration-300 ${focusedField === 'password' || formData.password
-                  ? 'opacity-100'
-                  : 'opacity-0'
+                ? 'opacity-100'
+                : 'opacity-0'
                 }`}>
                 <Lock className="h-4 w-4 text-gray-400" />
               </div>
