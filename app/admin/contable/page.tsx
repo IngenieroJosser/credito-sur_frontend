@@ -20,6 +20,7 @@
 
 import React, { useState, Suspense } from 'react'
 import { createPortal } from 'react-dom'
+import { useNotification } from '@/components/providers/NotificationProvider'
 
 import {
   DollarSign,
@@ -37,7 +38,9 @@ import {
   Edit2,
   Plus,
   History,
-  Receipt
+  Receipt,
+  Zap,
+  Clock
 } from 'lucide-react'
 
 import { formatCOPInputValue, formatCurrency, formatMilesCOP, parseCOPInputToNumber, cn } from '@/lib/utils'
@@ -94,6 +97,7 @@ type RutaResumen = {
 }
 
 const ModuloContableContent = () => {
+  const { showNotification } = useNotification()
   const [busqueda, setBusqueda] = useState('')
   const [filtroTipo, setFiltroTipo] = useState<'TODOS' | 'INGRESO' | 'EGRESO'>('TODOS')
   const [filtroOrigen, setFiltroOrigen] = useState<'TODOS' | MovimientoContable['origen']>('TODOS')
@@ -112,6 +116,14 @@ const ModuloContableContent = () => {
     { id: 'RUTA-NORTE', nombre: 'Ruta Norte', responsable: 'Carlos Cobrador' },
     { id: 'RUTA-SUR', nombre: 'Ruta Sur', responsable: 'Pedro Supervisor' },
     { id: 'RUTA-CENTRO', nombre: 'Ruta Centro', responsable: 'Ana Admin' },
+  ]
+
+  // Usuarios autorizados para ser responsables de caja (Roles: ADMIN, SUPER_ADMINISTRADOR, CONTADOR)
+  const usuariosAutorizados = [
+    { id: 'USR-001', nombre: 'María Rodríguez', rol: 'SUPER_ADMINISTRADOR' },
+    { id: 'USR-002', nombre: 'Laura Sánchez', rol: 'CONTADOR' },
+    { id: 'USR-003', nombre: 'Admin General', rol: 'ADMIN' },
+    { id: 'USR-004', nombre: 'Ana Admin', rol: 'SUPER_ADMINISTRADOR' },
   ]
 
   // Mock Data: Cajas
@@ -336,6 +348,7 @@ const ModuloContableContent = () => {
 
     setCajas((prev) => [nuevaCaja, ...prev])
     setShowCrearCajaModal(false)
+    showNotification('success', 'La caja ha sido creada correctamente', 'Caja Creada')
   }
 
   const openEditarCaja = (caja: Caja) => {
@@ -371,6 +384,7 @@ const ModuloContableContent = () => {
     )
     setShowEditarCajaModal(false)
     setCajaSeleccionada(null)
+    showNotification('success', 'La información de la caja ha sido actualizada', 'Caja Actualizada')
   }
 
   const openRegistrarMovimiento = () => {
@@ -405,6 +419,7 @@ const ModuloContableContent = () => {
     }
     setMovimientos((prev) => [nuevo, ...prev])
     setShowRegistrarMovimientoModal(false)
+    showNotification('success', 'El movimiento contable ha sido registrado', 'Movimiento Registrado')
   }
 
   const renderInPortal = (node: React.ReactNode) => {
@@ -445,20 +460,43 @@ const ModuloContableContent = () => {
               <button
                 type="button"
                 onClick={() => setShowCrearCajaModal(true)}
-                className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-bold text-white hover:bg-blue-700 transition-all shadow-lg shadow-blue-600/20 transform active:scale-95"
+                className="inline-flex items-center gap-2 rounded-2xl bg-blue-600 px-5 py-2.5 text-sm font-bold text-white hover:bg-blue-700 transition-all shadow-lg shadow-blue-600/20 transform active:scale-95"
               >
                 <Plus className="h-4 w-4" />
                 Crear Caja
               </button>
-              
-              <div className="flex flex-col items-end justify-center h-full pb-1">
-                <div className="flex items-center gap-1.5 text-[10px] font-medium text-slate-400 bg-slate-100/50 px-2 py-1 rounded-lg max-w-[220px] text-right border border-slate-100 leading-tight">
-                  <AlertCircle className="h-3 w-3 shrink-0 text-orange-400" />
-                  El cierre de caja se hará automáticamente cuando todos los cobradores marquen como completada su ruta
-                </div>
-              </div>
             </div>
         </header>
+
+        {/* Banner Informativo - Elegant Compact Version */}
+        <div className="bg-white rounded-2xl p-4 shadow-lg shadow-slate-200/60 flex flex-col md:flex-row items-center justify-between gap-4 border border-blue-50 animate-in fade-in slide-in-from-top-4 duration-700 relative overflow-hidden group">
+          <div className="absolute right-0 top-0 w-24 h-24 bg-blue-50/50 rounded-full -mr-12 -mt-12 opacity-50 group-hover:scale-110 transition-transform duration-1000"></div>
+          
+          <div className="flex items-center gap-4 relative z-10">
+            <div className="bg-blue-600 p-2.5 rounded-xl shadow-md shadow-blue-600/20 ring-4 ring-blue-50 shrink-0">
+              <Zap className="h-4 w-4 text-white" />
+            </div>
+            <div>
+              <p className="text-sm font-extrabold text-slate-900 tracking-tight">Gestión de Cierre Automático</p>
+              <p className="text-xs text-slate-500 font-medium leading-tight">Las cajas de ruta se consolidarán al finalizar los recorridos.</p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3 px-4 py-2 bg-slate-50 rounded-xl border border-slate-100 relative z-10">
+            <div className="flex flex-col items-end">
+              <span className="text-[9px] font-bold text-orange-500 uppercase tracking-widest">Estado</span>
+              <span className="text-xs font-black text-slate-900 flex items-center gap-1.5 mt-0.5">
+                <Clock className="h-3 w-3 text-blue-600" />
+                FALTAN 3 RUTAS
+              </span>
+            </div>
+            <div className="h-6 w-[1px] bg-slate-200 mx-1"></div>
+            <div className="relative w-10 h-10 rounded-full border-2 border-slate-200 flex items-center justify-center text-[10px] font-black text-blue-600 shadow-inner shrink-0">
+               <div className="absolute inset-0 border-2 border-blue-600 rounded-full clip-path-75"></div>
+               75%
+            </div>
+          </div>
+        </div>
 
         {/* Tarjetas de Resumen Minimalistas */}
         <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-6">
@@ -577,7 +615,7 @@ const ModuloContableContent = () => {
               <button
                 type="button"
                 onClick={openRegistrarMovimiento}
-                className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-xs font-bold text-white hover:bg-blue-700 transition-all shadow-blue-600/20"
+                className="inline-flex items-center gap-2 rounded-2xl bg-blue-600 px-4 py-2 text-xs font-bold text-white hover:bg-blue-700 transition-all shadow-blue-600/20"
               >
                 <Plus className="h-4 w-4" />
                 Nuevo
@@ -590,7 +628,7 @@ const ModuloContableContent = () => {
                   <select
                     value={filtroTipo}
                     onChange={(e) => setFiltroTipo(e.target.value as typeof filtroTipo)}
-                    className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700"
+                    className="w-full rounded-2xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700"
                   >
                     <option value="TODOS">Todos</option>
                     <option value="INGRESO">Ingresos</option>
@@ -602,7 +640,7 @@ const ModuloContableContent = () => {
                   <select
                     value={filtroOrigen}
                     onChange={(e) => setFiltroOrigen(e.target.value as typeof filtroOrigen)}
-                    className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700"
+                    className="w-full rounded-2xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700"
                   >
                     <option value="TODOS">Todos</option>
                     <option value="EMPRESA">Empresa</option>
@@ -614,7 +652,7 @@ const ModuloContableContent = () => {
                   <select
                     value={filtroEstado}
                     onChange={(e) => setFiltroEstado(e.target.value as typeof filtroEstado)}
-                    className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700"
+                    className="w-full rounded-2xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700"
                   >
                     <option value="TODOS">Todos</option>
                     <option value="PENDIENTE">Pendiente</option>
@@ -701,7 +739,7 @@ const ModuloContableContent = () => {
               <button
                 type="button"
                 onClick={() => setShowCrearCajaModal(true)}
-                className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50"
+                className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50"
               >
                 <Plus className="h-4 w-4" />
                 Crear
@@ -812,7 +850,7 @@ const ModuloContableContent = () => {
                 <button
                   type="button"
                   onClick={() => setShowCrearCajaModal(false)}
-                  className="p-2 rounded-xl hover:bg-slate-100 text-slate-500"
+                  className="p-2 rounded-2xl hover:bg-slate-100 text-slate-500"
                 >
                   <XCircle className="h-5 w-5" />
                 </button>
@@ -830,7 +868,7 @@ const ModuloContableContent = () => {
                       }))
                     }
                     className={cn(
-                      'px-4 py-3 rounded-xl border text-sm font-bold transition-colors',
+                      'px-4 py-3 rounded-2xl border text-sm font-bold transition-colors',
                       crearCajaForm.tipo === 'PRINCIPAL'
                         ? 'bg-blue-600 text-white border-blue-600'
                         : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
@@ -842,7 +880,7 @@ const ModuloContableContent = () => {
                     type="button"
                     onClick={() => setCrearCajaForm((p) => ({ ...p, tipo: 'RUTA' }))}
                     className={cn(
-                      'px-4 py-3 rounded-xl border text-sm font-bold transition-colors',
+                      'px-4 py-3 rounded-2xl border text-sm font-bold transition-colors',
                       crearCajaForm.tipo === 'RUTA'
                         ? 'bg-blue-600 text-white border-blue-600'
                         : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
@@ -858,19 +896,25 @@ const ModuloContableContent = () => {
                     <input
                       value={crearCajaForm.nombre}
                       onChange={(e) => setCrearCajaForm((p) => ({ ...p, nombre: e.target.value }))}
-                      className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-900"
+                      className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-900"
                       placeholder={crearCajaForm.tipo === 'PRINCIPAL' ? 'Caja Principal Oficina' : 'Caja Ruta Norte'}
                     />
                   </div>
 
                   <div className="space-y-2">
                     <label className="text-sm font-bold text-slate-700">Responsable</label>
-                    <input
+                    <select
                       value={crearCajaForm.responsable}
                       onChange={(e) => setCrearCajaForm((p) => ({ ...p, responsable: e.target.value }))}
-                      className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-900"
-                      placeholder="Ej. Ana Admin"
-                    />
+                      className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-900"
+                    >
+                      <option value="">Seleccionar responsable...</option>
+                      {usuariosAutorizados.map((u) => (
+                        <option key={u.id} value={u.nombre}>
+                          {u.nombre} ({u.rol})
+                        </option>
+                      ))}
+                    </select>
                   </div>
 
                   {crearCajaForm.tipo === 'RUTA' && (
@@ -884,7 +928,7 @@ const ModuloContableContent = () => {
                             rutaId: e.target.value,
                           }))
                         }
-                        className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-900"
+                        className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-900"
                       >
                         <option value="">Seleccionar ruta...</option>
                         {rutasDisponibles.map((r) => (
@@ -910,7 +954,7 @@ const ModuloContableContent = () => {
                             saldoInicialInput: formatCOPInputValue(e.target.value),
                           }))
                         }
-                        className="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-200 bg-white font-bold text-slate-900"
+                        className="w-full pl-10 pr-4 py-3 rounded-2xl border border-slate-200 bg-white font-bold text-slate-900"
                         placeholder="0"
                       />
                     </div>
@@ -922,14 +966,14 @@ const ModuloContableContent = () => {
                 <button
                   type="button"
                   onClick={() => setShowCrearCajaModal(false)}
-                  className="px-5 py-3 rounded-xl border border-slate-200 bg-white text-sm font-bold text-slate-700 hover:bg-slate-50"
+                  className="px-5 py-3 rounded-2xl border border-slate-200 bg-white text-sm font-bold text-slate-700 hover:bg-slate-50"
                 >
                   Cancelar
                 </button>
                 <button
                   type="button"
                   onClick={handleCrearCaja}
-                  className="px-6 py-3 rounded-xl bg-blue-600 text-white text-sm font-bold hover:bg-blue-700"
+                  className="px-6 py-3 rounded-2xl bg-blue-600 text-white text-sm font-bold hover:bg-blue-700"
                 >
                   Crear Caja
                 </button>
@@ -952,7 +996,7 @@ const ModuloContableContent = () => {
                     setShowEditarCajaModal(false)
                     setCajaSeleccionada(null)
                   }}
-                  className="p-2 rounded-xl hover:bg-slate-100 text-slate-500"
+                  className="p-2 rounded-2xl hover:bg-slate-100 text-slate-500"
                 >
                   <XCircle className="h-5 w-5" />
                 </button>
@@ -965,16 +1009,23 @@ const ModuloContableContent = () => {
                     <input
                       value={editarCajaForm.nombre}
                       onChange={(e) => setEditarCajaForm((p) => ({ ...p, nombre: e.target.value }))}
-                      className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-900"
+                      className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-900"
                     />
                   </div>
                   <div className="space-y-2">
                     <label className="text-sm font-bold text-slate-700">Responsable</label>
-                    <input
+                    <select
                       value={editarCajaForm.responsable}
                       onChange={(e) => setEditarCajaForm((p) => ({ ...p, responsable: e.target.value }))}
-                      className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-900"
-                    />
+                      className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-900"
+                    >
+                      <option value="">Seleccionar responsable...</option>
+                      {usuariosAutorizados.map((u) => (
+                        <option key={u.id} value={u.nombre}>
+                          {u.nombre} ({u.rol})
+                        </option>
+                      ))}
+                    </select>
                   </div>
 
                   {cajaSeleccionada.tipo === 'RUTA' && (
@@ -983,7 +1034,7 @@ const ModuloContableContent = () => {
                       <select
                         value={editarCajaForm.rutaId}
                         onChange={(e) => setEditarCajaForm((p) => ({ ...p, rutaId: e.target.value }))}
-                        className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-900"
+                        className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-900"
                       >
                         <option value="">Seleccionar ruta...</option>
                         {rutasDisponibles.map((r) => (
@@ -1005,7 +1056,7 @@ const ModuloContableContent = () => {
                           estado: e.target.value as Caja['estado'],
                         }))
                       }
-                      className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-900"
+                      className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-900"
                     >
                       <option value="ABIERTA">ABIERTA</option>
                       <option value="CERRADA">CERRADA</option>
@@ -1026,7 +1077,7 @@ const ModuloContableContent = () => {
                             saldoInput: formatCOPInputValue(e.target.value),
                           }))
                         }
-                        className="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-200 bg-white font-bold text-slate-900"
+                        className="w-full pl-10 pr-4 py-3 rounded-2xl border border-slate-200 bg-white font-bold text-slate-900"
                         placeholder="0"
                       />
                     </div>
@@ -1041,14 +1092,14 @@ const ModuloContableContent = () => {
                     setShowEditarCajaModal(false)
                     setCajaSeleccionada(null)
                   }}
-                  className="px-5 py-3 rounded-xl border border-slate-200 bg-white text-sm font-bold text-slate-700 hover:bg-slate-50"
+                  className="px-5 py-3 rounded-2xl border border-slate-200 bg-white text-sm font-bold text-slate-700 hover:bg-slate-50"
                 >
                   Cancelar
                 </button>
                 <button
                   type="button"
                   onClick={handleEditarCaja}
-                  className="px-6 py-3 rounded-xl bg-amber-600 text-white text-sm font-bold hover:bg-amber-700"
+                  className="px-6 py-3 rounded-2xl bg-amber-600 text-white text-sm font-bold hover:bg-amber-700"
                 >
                   Guardar
                 </button>
@@ -1068,7 +1119,7 @@ const ModuloContableContent = () => {
                 <button
                   type="button"
                   onClick={() => setShowRegistrarMovimientoModal(false)}
-                  className="p-2 rounded-xl hover:bg-slate-100 text-slate-500"
+                  className="p-2 rounded-2xl hover:bg-slate-100 text-slate-500"
                 >
                   <XCircle className="h-5 w-5" />
                 </button>
@@ -1080,7 +1131,7 @@ const ModuloContableContent = () => {
                     type="button"
                     onClick={() => setMovimientoForm((p) => ({ ...p, tipo: 'INGRESO', categoria: '' }))}
                     className={cn(
-                      'flex items-center justify-center gap-2 py-3 rounded-xl border text-sm font-bold transition-colors',
+                      'flex items-center justify-center gap-2 py-3 rounded-2xl border text-sm font-bold transition-colors',
                       movimientoForm.tipo === 'INGRESO'
                         ? 'bg-blue-600 text-white border-blue-600'
                         : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
@@ -1093,7 +1144,7 @@ const ModuloContableContent = () => {
                     type="button"
                     onClick={() => setMovimientoForm((p) => ({ ...p, tipo: 'EGRESO', categoria: '' }))}
                     className={cn(
-                      'flex items-center justify-center gap-2 py-3 rounded-xl border text-sm font-bold transition-colors',
+                      'flex items-center justify-center gap-2 py-3 rounded-2xl border text-sm font-bold transition-colors',
                       movimientoForm.tipo === 'EGRESO'
                         ? 'bg-rose-600 text-white border-rose-600'
                         : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
@@ -1110,7 +1161,7 @@ const ModuloContableContent = () => {
                     <select
                       value={movimientoForm.origen}
                       onChange={(e) => setMovimientoForm((p) => ({ ...p, origen: e.target.value as MovimientoContable['origen'] }))}
-                      className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-900"
+                      className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-900"
                     >
                       <option value="EMPRESA">Empresa</option>
                       <option value="COBRADOR">Cobrador</option>
@@ -1122,7 +1173,7 @@ const ModuloContableContent = () => {
                     <select
                       value={movimientoForm.estado}
                       onChange={(e) => setMovimientoForm((p) => ({ ...p, estado: e.target.value as MovimientoContable['estado'] }))}
-                      className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-900"
+                      className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-900"
                     >
                       <option value="PENDIENTE">Pendiente</option>
                       <option value="APROBADO">Aprobado</option>
@@ -1137,7 +1188,7 @@ const ModuloContableContent = () => {
                     <select
                       value={movimientoForm.categoria}
                       onChange={(e) => setMovimientoForm((p) => ({ ...p, categoria: e.target.value }))}
-                      className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-900"
+                      className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-900"
                     >
                       <option value="">Seleccione una categoría...</option>
                       {(movimientoForm.tipo === 'INGRESO' ? categoriasIngreso : categoriasEgreso).map((cat) => (
@@ -1157,7 +1208,7 @@ const ModuloContableContent = () => {
                         inputMode="numeric"
                         value={movimientoForm.montoInput}
                         onChange={(e) => setMovimientoForm((p) => ({ ...p, montoInput: formatCOPInputValue(e.target.value) }))}
-                        className="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-200 bg-white font-bold text-slate-900"
+                        className="w-full pl-10 pr-4 py-3 rounded-2xl border border-slate-200 bg-white font-bold text-slate-900"
                         placeholder="0"
                       />
                     </div>
@@ -1168,7 +1219,7 @@ const ModuloContableContent = () => {
                     <input
                       value={movimientoForm.concepto}
                       onChange={(e) => setMovimientoForm((p) => ({ ...p, concepto: e.target.value }))}
-                      className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-900"
+                      className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-900"
                       placeholder="Ej: Compra de papelería"
                     />
                   </div>
@@ -1178,7 +1229,7 @@ const ModuloContableContent = () => {
                     <input
                       value={movimientoForm.referencia}
                       onChange={(e) => setMovimientoForm((p) => ({ ...p, referencia: e.target.value }))}
-                      className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-900"
+                      className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-900"
                       placeholder="Ej: Factura #123"
                     />
                   </div>
@@ -1189,7 +1240,7 @@ const ModuloContableContent = () => {
                 <button
                   type="button"
                   onClick={() => setShowRegistrarMovimientoModal(false)}
-                  className="px-5 py-3 rounded-xl border border-slate-200 bg-white text-sm font-bold text-slate-700 hover:bg-slate-50"
+                  className="px-5 py-3 rounded-2xl border border-slate-200 bg-white text-sm font-bold text-slate-700 hover:bg-slate-50"
                 >
                   Cancelar
                 </button>
@@ -1201,7 +1252,7 @@ const ModuloContableContent = () => {
                     !movimientoForm.concepto.trim() ||
                     !movimientoForm.categoria
                   }
-                  className="px-6 py-3 rounded-xl bg-blue-600 text-white text-sm font-bold hover:bg-blue-700 transition-all shadow-lg shadow-blue-600/20 disabled:opacity-40 disabled:cursor-not-allowed"
+                  className="px-6 py-3 rounded-2xl bg-blue-600 text-white text-sm font-bold hover:bg-blue-700 transition-all shadow-lg shadow-blue-600/20 disabled:opacity-40 disabled:cursor-not-allowed"
                 >
                   Guardar
                 </button>
@@ -1221,7 +1272,7 @@ const ModuloContableContent = () => {
                 </div>
                 <button
                   onClick={() => setShowVerMovimientoModal(false)}
-                  className="p-2 rounded-xl hover:bg-slate-100 text-slate-500"
+                  className="p-2 rounded-2xl hover:bg-slate-100 text-slate-500"
                 >
                   <XCircle className="h-5 w-5" />
                 </button>
@@ -1239,7 +1290,7 @@ const ModuloContableContent = () => {
                     <div>
                         <div className="text-xs font-bold text-slate-500 uppercase">Tipo</div>
                         <div className={cn(
-                            "inline-block px-2 py-1 rounded-xl text-xs font-bold mt-1 border",
+                            "inline-block px-2 py-1 rounded-2xl text-xs font-bold mt-1 border",
                             movimientoSeleccionado.tipo === 'INGRESO' ? "bg-emerald-100 text-emerald-700 border-emerald-200" : "bg-rose-100 text-rose-700 border-rose-200"
                         )}>
                             {movimientoSeleccionado.tipo}
@@ -1269,7 +1320,7 @@ const ModuloContableContent = () => {
                     </div>
                  </div>
 
-                 <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
+                 <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
                     <div className="text-xs font-bold text-slate-500 uppercase mb-1">Concepto</div>
                     <div className="font-medium text-slate-900">{movimientoSeleccionado.concepto}</div>
                  </div>
@@ -1283,7 +1334,7 @@ const ModuloContableContent = () => {
               <div className="p-6 border-t border-slate-100 bg-slate-50/50 flex justify-end">
                 <button
                   onClick={() => setShowVerMovimientoModal(false)}
-                  className="px-6 py-2 rounded-xl bg-blue-600 text-white font-bold hover:bg-blue-700 shadow-lg shadow-blue-600/20 transition-all"
+                  className="px-6 py-2 rounded-2xl bg-blue-600 text-white font-bold hover:bg-blue-700 shadow-lg shadow-blue-600/20 transition-all"
                 >
                   Cerrar
                 </button>
@@ -1303,7 +1354,7 @@ const ModuloContableContent = () => {
                 </div>
                 <button
                   onClick={() => setShowVerCajaModal(false)}
-                  className="p-2 rounded-xl hover:bg-slate-100 text-slate-500"
+                  className="p-2 rounded-2xl hover:bg-slate-100 text-slate-500"
                 >
                   <XCircle className="h-5 w-5" />
                 </button>
@@ -1360,17 +1411,17 @@ const ModuloContableContent = () => {
               <div className="px-6 pb-6">
                  <h4 className="text-xs font-bold text-slate-500 uppercase mb-3">Resumen Operativo (Hoy)</h4>
                  <div className="grid grid-cols-3 gap-3">
-                      <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
+                      <div className="bg-slate-50 p-3 rounded-2xl border border-slate-100">
                          <div className="text-[10px] font-bold text-slate-400 uppercase mb-1">Apertura</div>
                          <div className="font-bold text-slate-900 text-sm">07:30 AM</div>
                       </div>
-                      <div className="bg-emerald-50 p-3 rounded-xl border border-emerald-100">
+                      <div className="bg-emerald-50 p-3 rounded-2xl border border-emerald-100">
                          <div className="text-[10px] font-bold text-emerald-600 uppercase mb-1">Ingresos</div>
                          <div className="font-bold text-emerald-800 text-sm">
                              {formatCurrency(cajaSeleccionada.tipo === 'PRINCIPAL' ? resumenData.ingresos : 850000)}
                          </div>
                       </div>
-                      <div className="bg-rose-50 p-3 rounded-xl border border-rose-100">
+                      <div className="bg-rose-50 p-3 rounded-2xl border border-rose-100">
                          <div className="text-[10px] font-bold text-rose-600 uppercase mb-1">Egresos</div>
                          <div className="font-bold text-rose-800 text-sm">
                              {formatCurrency(cajaSeleccionada.tipo === 'PRINCIPAL' ? resumenData.egresos : 120000)}
@@ -1379,7 +1430,7 @@ const ModuloContableContent = () => {
                  </div>
                  
                  {cajaSeleccionada.tipo === 'RUTA' && (
-                     <div className="mt-4 p-3 bg-blue-50 rounded-xl border border-blue-100 flex items-center justify-between">
+                     <div className="mt-4 p-3 bg-blue-50 rounded-2xl border border-blue-100 flex items-center justify-between">
                           <div className="text-xs font-bold text-blue-800">Estado de Ruta</div>
                           <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md bg-white border border-blue-200 text-[10px] font-bold text-blue-700">
                              <div className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse"></div>
@@ -1392,7 +1443,7 @@ const ModuloContableContent = () => {
               <div className="p-6 border-t border-slate-100 bg-slate-50/50 flex justify-end">
                 <button
                   onClick={() => setShowVerCajaModal(false)}
-                  className="px-6 py-2 rounded-xl bg-blue-600 text-white font-bold hover:bg-blue-700 shadow-lg shadow-blue-600/20 transition-all"
+                  className="px-6 py-2 rounded-2xl bg-blue-600 text-white font-bold hover:bg-blue-700 shadow-lg shadow-blue-600/20 transition-all"
                 >
                   Cerrar
                 </button>

@@ -24,6 +24,7 @@
  */
 
 import { useEffect, useState } from 'react';
+import { useNotification } from '@/components/providers/NotificationProvider';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { clientesService, Cliente, MOCK_CLIENTES } from '@/services/clientes-service';
@@ -56,7 +57,6 @@ import NuevoClienteModal from '@/components/clientes/NuevoClienteModal';
 
 // Tipos alineados con Prisma Schema para consistencia en el ORM
 type NivelRiesgo = 'VERDE' | 'AMARILLO' | 'ROJO' | 'LISTA_NEGRA';
-type EstadoAprobacion = 'PENDIENTE' | 'APROBADO' | 'RECHAZADO' | 'CANCELADO';
 
 /**
  * @interface ClienteAdmin
@@ -73,10 +73,10 @@ interface ClienteAdmin extends Cliente {
 }
 
 const ClientesPage = () => {
+  const { showNotification } = useNotification();
   const router = useRouter();
 
   const [clientes, setClientes] = useState<ClienteAdmin[]>([])
-  const [isLoading, setIsLoading] = useState(true)
 
   /**
    * @effect Carga de Datos Inicial
@@ -117,7 +117,9 @@ const ClientesPage = () => {
           setClientes(enriched)
         }
       } finally {
-        if (mounted) setIsLoading(false)
+        if (mounted) {
+           // Success or error
+        }
       }
     })()
 
@@ -168,9 +170,10 @@ const ClientesPage = () => {
       setClientes((prev) => prev.filter((c) => c.id !== clientToDelete.id))
       setIsDeleteModalOpen(false)
       setClientToDelete(null)
+      showNotification('success', 'El cliente ha sido eliminado exitosamente', 'Cliente Eliminado')
     } catch (error) {
       console.error('Error al eliminar cliente:', error)
-      alert('Error al eliminar el cliente')
+      showNotification('error', 'No se pudo eliminar el cliente. Por favor intente de nuevo.', 'Error')
     } finally {
       setIsDeleting(false)
     }
@@ -584,9 +587,10 @@ const ClientesPage = () => {
           onClose={() => setIsCreateModalOpen(false)} 
           onClienteCreado={(newClient) => {
             console.log('Cliente creado:', newClient)
+            showNotification('success', 'El cliente ha sido registrado exitosamente', 'Cliente Creado')
             // Aquí podrías recargar los clientes si tienes la función
             setIsCreateModalOpen(false);
-            window.location.reload(); // Recarga simple para actualizar la lista
+            // window.location.reload(); // Evitemos recargar si podemos
           }}
         />
       )}

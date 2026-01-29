@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 import { Rol } from '@/lib/permissions';
 import { formatCurrency } from '@/lib/utils';
+import { Sparkline, PremiumBarChart } from '@/components/ui/PremiumCharts';
 
 interface MetricCard {
   title: string;
@@ -314,10 +315,13 @@ const VistaCoordinador = () => {
                 <div className="flex items-center justify-center p-3 rounded-2xl bg-slate-50 text-slate-400 group-hover:text-[#08557f] group-hover:bg-blue-50 transition-colors border border-slate-100 shadow-sm">
                   {metric.icon}
                 </div>
-                <div className={`flex items-center font-black text-[10px] px-3 py-1 rounded-full ${
-                  metric.change >= 0 ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600'
-                }`}>
-                  {metric.change >= 0 ? '+' : ''}{metric.change}%
+                <div className={`flex flex-col items-end gap-2`}>
+                   <div className={`flex items-center font-black text-[10px] px-3 py-1 rounded-full ${
+                     metric.change >= 0 ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600'
+                   }`}>
+                     {metric.change >= 0 ? '+' : ''}{metric.change}%
+                   </div>
+                   <Sparkline data={metric.trendData} color={metric.color} height={30} />
                 </div>
               </div>
               <div className="space-y-1">
@@ -336,6 +340,40 @@ const VistaCoordinador = () => {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Columna Izquierda (2/3) */}
           <div className="lg:col-span-2 space-y-8">
+            
+            {/* Gráfico de Tendencia (Premium) */}
+            <div className="bg-white border border-slate-100 rounded-[2.5rem] p-8 shadow-sm">
+                <div className="flex items-center justify-between mb-8">
+                  <div>
+                    <h2 className="text-xl font-black text-slate-900 tracking-tight">Tendencia de Cobros</h2>
+                    <p className="text-sm text-slate-500 font-medium">Rendimiento semanal vs objetivos</p>
+                  </div>
+                  <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-2 group">
+                      <div className="w-2.5 h-2.5 rounded-full bg-blue-600"></div>
+                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Real</span>
+                    </div>
+                    <div className="flex items-center gap-2 group">
+                      <div className="w-3 h-3 rounded-full border-2 border-dashed border-amber-500 bg-amber-50"></div>
+                      <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Meta</span>
+                    </div>
+                  </div>
+                </div>
+                
+                <PremiumBarChart 
+                  showTarget
+                  data={[
+                    { label: 'Lun', value: 2100000, target: 2500000 },
+                    { label: 'Mar', value: 2400000, target: 2500000 },
+                    { label: 'Mie', value: 1500000, target: 2500000 },
+                    { label: 'Jue', value: 2800000, target: 2500000 },
+                    { label: 'Vie', value: 2200000, target: 2500000 },
+                    { label: 'Sab', value: 3100000, target: 2500000 },
+                    { label: 'Dom', value: 900000, target: 1200000 },
+                  ]}
+                />
+            </div>
+
             {/* Bandeja de Aprobaciones */}
             <div className="bg-white border border-slate-100 rounded-[2.5rem] p-8 shadow-sm">
               <div className="flex items-center justify-between mb-8">

@@ -17,6 +17,7 @@ import {
 } from 'lucide-react'
 import { formatCOPInputValue, formatCurrency, parseCOPInputToNumber, cn } from '@/lib/utils'
 import { ExportButton } from '@/components/ui/ExportButton'
+import { useNotification } from '@/components/providers/NotificationProvider'
 
 
 // Mock Data
@@ -31,6 +32,7 @@ interface Transaccion {
 }
 
 const TesoreriaPage = () => {
+  const { showNotification } = useNotification()
   const [isArqueoOpen, setIsArqueoOpen] = useState(false)
   const [arqueoData, setArqueoData] = useState({
     cajaId: 'CAJA-PRINCIPAL',
@@ -41,6 +43,13 @@ const TesoreriaPage = () => {
 
   const handleArqueoChange = (field: string, value: string | number) => {
     setArqueoData(prev => ({ ...prev, [field]: value }))
+  }
+
+
+
+  const handleGuardarArqueo = () => {
+    setIsArqueoOpen(false)
+    showNotification('success', 'El arqueo de caja se ha registrado correctamente', 'Arqueo Exitoso')
   }
 
   const [showVerMovimientoModal, setShowVerMovimientoModal] = useState(false)
@@ -366,6 +375,7 @@ const TesoreriaPage = () => {
                   Cancelar
                 </button>
                 <button 
+                  onClick={handleGuardarArqueo}
                   className="px-6 py-2 rounded-xl bg-blue-600 text-white font-bold hover:bg-blue-700 transition-all shadow-lg shadow-blue-600/20 flex items-center gap-2"
                 >
                   <Save className="h-4 w-4" />

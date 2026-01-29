@@ -3,7 +3,6 @@
 import React, { useState } from 'react'
 import {
   CheckCircle2,
-  XCircle,
   AlertCircle,
   CreditCard,
   UserPlus,
@@ -14,10 +13,12 @@ import {
   X,
   Clock,
   AlertTriangle,
-  Info
+  Info,
+  Filter
 } from 'lucide-react'
 import { formatCurrency, cn } from '@/lib/utils'
-import { useRouter } from 'next/navigation'
+import { useNotification } from '@/components/providers/NotificationProvider'
+import FiltroRuta from '@/components/filtros/FiltroRuta'
 
 // Mock Data Interfaces
 interface ItemPendiente {
@@ -28,11 +29,15 @@ interface ItemPendiente {
   detalle: string
   monto?: number
   estado: 'PENDIENTE'
+  rutaId?: string
+  rutaNombre?: string
 }
 
 const AprobacionesPage = () => {
-  const router = useRouter()
+  const { showNotification } = useNotification()
+  // const router = useRouter() // Unused
   const [activeTab, setActiveTab] = useState<'TODOS' | 'PRESTAMOS' | 'CLIENTES' | 'SOLICITUDES' | 'GASTOS'>('TODOS')
+  const [filtroRuta, setFiltroRuta] = useState<string>('all')
   
   // State for modals and actions
   const [items, setItems] = useState<ItemPendiente[]>([
@@ -43,7 +48,9 @@ const AprobacionesPage = () => {
       fecha: '2026-01-21T08:00:00',
       detalle: 'Base para ruta centro, alta demanda esperada.',
       monto: 2000000,
-      estado: 'PENDIENTE'
+      estado: 'PENDIENTE',
+      rutaId: 'RUTA-CENTRO',
+      rutaNombre: 'Ruta Centro'
     },
     {
       id: '2',
@@ -52,7 +59,9 @@ const AprobacionesPage = () => {
       fecha: '2026-01-21T09:15:00',
       detalle: 'Préstamo nuevo para Cliente ID #452 (Nuevo Comercio).',
       monto: 500000,
-      estado: 'PENDIENTE'
+      estado: 'PENDIENTE',
+      rutaId: 'RUTA-NORTE',
+      rutaNombre: 'Ruta Norte'
     },
     {
       id: '3',
@@ -61,7 +70,9 @@ const AprobacionesPage = () => {
       fecha: '2026-01-20T16:00:00',
       detalle: 'Reparación llanta moto.',
       monto: 25000,
-      estado: 'PENDIENTE'
+      estado: 'PENDIENTE',
+      rutaId: 'RUTA-CENTRO',
+      rutaNombre: 'Ruta Centro'
     },
     {
       id: '4',
@@ -69,7 +80,9 @@ const AprobacionesPage = () => {
       solicitante: 'Pedro Supervisor',
       fecha: '2026-01-21T10:00:00',
       detalle: 'Nuevo registro: Carlos Rodriguez (Requiere validación de dirección).',
-      estado: 'PENDIENTE'
+      estado: 'PENDIENTE',
+      rutaId: 'RUTA-SUR',
+      rutaNombre: 'Ruta Sur'
     }
   ])
 
@@ -91,21 +104,32 @@ const AprobacionesPage = () => {
       setIsDetailModalOpen(false)
       setSelectedItem(null)
       setActionType(null)
+      
+      const title = actionType === 'APPROVE' ? 'Solicitud Aprobada' : 'Solicitud Rechazada'
+      const message = actionType === 'APPROVE' 
+        ? 'La solicitud ha sido autorizada correctamente' 
+        : 'La solicitud ha sido rechazada exitosamente'
+      
+      showNotification('success', message, title)
       // Here you would typically make an API call
     }
   }
 
-  const filteredItems = activeTab === 'TODOS' 
-    ? items 
-    : items.filter(item => {
-        if (activeTab === 'PRESTAMOS') return item.tipo === 'PRESTAMO'
-        if (activeTab === 'CLIENTES') return item.tipo === 'CLIENTE'
-        if (activeTab === 'SOLICITUDES') return item.tipo === 'SOLICITUD_DINERO'
-        if (activeTab === 'GASTOS') return item.tipo === 'GASTO'
-        return true
-      })
+  const filteredItems = items.filter(item => {
+    // Filtro por Tab
+    const matchesTab = activeTab === 'TODOS' || 
+      (activeTab === 'PRESTAMOS' && item.tipo === 'PRESTAMO') ||
+      (activeTab === 'CLIENTES' && item.tipo === 'CLIENTE') ||
+      (activeTab === 'SOLICITUDES' && item.tipo === 'SOLICITUD_DINERO') ||
+      (activeTab === 'GASTOS' && item.tipo === 'GASTO');
 
-  const getIconoTipo = (tipo: string) => {
+    // Filtro por Ruta
+    const matchesRuta = filtroRuta === 'all' || item.rutaId === filtroRuta;
+
+    return matchesTab && matchesRuta;
+  })
+
+  const getIconoTipo = (tipo: ItemPendiente['tipo']) => {
     switch (tipo) {
       case 'PRESTAMO': return <CreditCard className="h-5 w-5 text-blue-600" />
       case 'CLIENTE': return <UserPlus className="h-5 w-5 text-purple-600" />
@@ -151,28 +175,44 @@ const AprobacionesPage = () => {
           </div>
         </header>
 
-        {/* Tabs de Navegación */}
-        <div className="flex flex-wrap gap-2">
-          {[
-            { id: 'TODOS', label: 'Todos' },
-            { id: 'PRESTAMOS', label: 'Préstamos' },
-            { id: 'CLIENTES', label: 'Clientes' },
-            { id: 'SOLICITUDES', label: 'Dinero' },
-            { id: 'GASTOS', label: 'Gastos' }
-          ].map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id as any)}
-              className={cn(
-                "px-4 py-2 rounded-xl text-sm font-bold transition-all border",
-                activeTab === tab.id
-                  ? "bg-slate-900 text-white border-slate-900 shadow-lg shadow-slate-900/20"
-                  : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50 hover:border-slate-300"
-              )}
-            >
-              {tab.label}
-            </button>
-          ))}
+        {/* Filtros Premium */}
+        <div className="flex flex-col md:flex-row items-center justify-between gap-6 bg-white/50 backdrop-blur-sm p-4 rounded-3xl border border-slate-200">
+          <div className="flex flex-wrap gap-2">
+            {[
+              { id: 'TODOS', label: 'Todos' },
+              { id: 'PRESTAMOS', label: 'Préstamos' },
+              { id: 'CLIENTES', label: 'Clientes' },
+              { id: 'SOLICITUDES', label: 'Dinero' },
+              { id: 'GASTOS', label: 'Gastos' }
+            ].map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id as 'TODOS' | 'PRESTAMOS' | 'CLIENTES' | 'SOLICITUDES' | 'GASTOS')}
+                className={cn(
+                  "px-5 py-2.5 rounded-2xl text-sm font-bold transition-all border shrink-0",
+                  activeTab === tab.id
+                    ? "bg-slate-900 text-white border-slate-900 shadow-xl shadow-slate-900/10"
+                    : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50 hover:border-slate-300"
+                )}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+
+          <div className="flex items-center gap-3 w-full md:w-auto">
+            <FiltroRuta 
+              selectedRutaId={filtroRuta === 'all' ? null : filtroRuta}
+              onRutaChange={(rutaId) => setFiltroRuta(rutaId || 'all')}
+              className="md:w-64"
+            />
+            
+            <div className="h-10 w-[1px] bg-slate-200 hidden md:block mx-1"></div>
+            
+            <div className="p-2.5 bg-white border border-slate-200 rounded-2xl text-slate-400 hover:text-blue-600 hover:border-blue-200 transition-all cursor-pointer">
+              <Filter className="h-5 w-5" />
+            </div>
+          </div>
         </div>
 
         {/* Lista de Aprobaciones */}
@@ -286,7 +326,7 @@ const AprobacionesPage = () => {
             </div>
             
             <div className="p-6 space-y-4">
-              <div className="flex items-center gap-3 p-4 bg-slate-50 rounded-xl border border-slate-100">
+              <div className="flex items-center gap-3 p-4 bg-slate-50 rounded-2xl border border-slate-100">
                 <div className="p-2 bg-white rounded-lg shadow-sm">
                   {getIconoTipo(selectedItem.tipo)}
                 </div>
@@ -328,13 +368,13 @@ const AprobacionesPage = () => {
             <div className="p-6 bg-slate-50 border-t border-slate-100 flex justify-end gap-3">
               <button 
                 onClick={() => handleAction(selectedItem, 'REJECT')}
-                className="px-4 py-2 bg-white border border-rose-200 text-rose-600 font-bold rounded-xl hover:bg-rose-50 transition-colors"
+                className="px-4 py-2 bg-white border border-rose-200 text-rose-600 font-bold rounded-2xl hover:bg-rose-50 transition-colors"
               >
                 Rechazar
               </button>
               <button 
                 onClick={() => handleAction(selectedItem, 'APPROVE')}
-                className="px-4 py-2 bg-emerald-600 text-white font-bold rounded-xl hover:bg-emerald-700 shadow-lg shadow-emerald-600/20 transition-colors"
+                className="px-4 py-2 bg-emerald-600 text-white font-bold rounded-2xl hover:bg-emerald-700 shadow-lg shadow-emerald-600/20 transition-colors"
               >
                 Aprobar
               </button>
@@ -370,14 +410,14 @@ const AprobacionesPage = () => {
               <div className="flex gap-3">
                 <button 
                   onClick={() => setIsConfirmModalOpen(false)}
-                  className="flex-1 px-4 py-2 bg-white border border-slate-200 text-slate-700 font-bold rounded-xl hover:bg-slate-50 transition-colors"
+                  className="flex-1 px-4 py-2 bg-white border border-slate-200 text-slate-700 font-bold rounded-2xl hover:bg-slate-50 transition-colors"
                 >
                   Cancelar
                 </button>
                 <button 
                   onClick={handleConfirmAction}
                   className={cn(
-                    "flex-1 px-4 py-2 text-white font-bold rounded-xl shadow-lg transition-colors",
+                    "flex-1 px-4 py-2 text-white font-bold rounded-2xl shadow-lg transition-colors",
                     actionType === 'APPROVE' 
                       ? "bg-emerald-600 hover:bg-emerald-700 shadow-emerald-600/20" 
                       : "bg-rose-600 hover:bg-rose-700 shadow-rose-600/20"

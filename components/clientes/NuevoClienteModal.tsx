@@ -2,14 +2,17 @@
 
 import { useState } from 'react';
 import { X } from 'lucide-react';
+import { useNotification } from '@/components/providers/NotificationProvider';
 import Portal, { MODAL_Z_INDEX } from '@/components/ui/Portal';
+import { Cliente } from '@/services/clientes-service';
 
 interface NuevoClienteModalProps {
   onClose: () => void;
-  onClienteCreado: (cliente: any) => void; // Replace 'any' with correct type if available
+  onClienteCreado: (cliente: Cliente) => void;
 }
 
 export default function NuevoClienteModal({ onClose, onClienteCreado }: NuevoClienteModalProps) {
+  const { showNotification } = useNotification();
   const [formulario, setFormulario] = useState({
     dni: '',
     nombres: '',
@@ -27,25 +30,31 @@ export default function NuevoClienteModal({ onClose, onClienteCreado }: NuevoCli
     comprobanteDomicilio: null as File | null,
   });
 
+  // Keep for future implementation of photo uploads
+  if (false && fotos) setFotos(fotos);
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     // Simulation of creation
-    const nuevoCliente = {
+    const nuevoCliente: Cliente = {
       id: `NEW-${Date.now()}`,
-      ...formulario,
-      nombres: formulario.nombres, // Ensure consistent naming
+      nombres: formulario.nombres,
       apellidos: formulario.apellidos,
       dni: formulario.dni,
-      documentoIdentidad: formulario.dni, // Compat
+      telefono: formulario.telefono,
+      correo: formulario.correo || null,
+      direccion: formulario.direccion || null,
+      referencia: formulario.referencia || null,
       codigo: `CL-${Math.floor(Math.random() * 1000)}`,
-      saldoPendiente: 0,
-      nivelRiesgo: 'VERDE', // Default for new
-      estado: 'ACTIVO',
-      puntaje: 100
+      nivelRiesgo: 'VERDE', 
+      puntaje: 100,
+      enListaNegra: false,
+      estadoAprobacion: 'APROBADO'
     };
     
     // Simulate API delay
     setTimeout(() => {
+        showNotification('success', 'El cliente ha sido registrado exitosamente', 'Cliente Registrado');
         onClienteCreado(nuevoCliente);
         onClose();
     }, 500);

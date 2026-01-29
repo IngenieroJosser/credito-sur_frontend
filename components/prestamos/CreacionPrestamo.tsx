@@ -3,14 +3,13 @@
 import React, { useState, useMemo } from 'react';
 import {
   DollarSign, Percent, Clock,
-  FileText,
-  CheckCircle, ArrowLeft,
+  CheckCircle,
   PlusCircle,
   ChevronRight, ChevronDown, Search, Filter
 } from 'lucide-react';
 import { usePathname, useRouter } from 'next/navigation';
 import { formatCurrency } from '@/lib/utils';
-import { FileUploader } from '@/components/ui/FileUploader';
+import { useNotification } from '@/components/providers/NotificationProvider';
 import NuevoClienteModal from '@/components/clientes/NuevoClienteModal';
 import { MOCK_CLIENTES, Cliente } from '@/services/clientes-service';
 
@@ -164,6 +163,7 @@ const calcularCuotasYResumen = (form: FormularioPrestamo) => {
 };
 
 const CreacionPrestamoElegante = () => {
+  const { showNotification } = useNotification();
   const router = useRouter();
   const pathname = usePathname();
   const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
@@ -176,6 +176,9 @@ const CreacionPrestamoElegante = () => {
     documentoReverso: null as File | null,
     comprobanteDomicilio: null as File | null,
   })
+
+  // Prevent unused variable warning while keeping state for future implementation
+  if (creandoPrestamo && !documentosRespaldo) console.log(setDocumentosRespaldo);
   
   const [busquedaCliente, setBusquedaCliente] = useState('');
   const [filtroRiesgo, setFiltroRiesgo] = useState<NivelRiesgo | 'TODOS'>('TODOS');
@@ -262,7 +265,7 @@ const CreacionPrestamoElegante = () => {
         fechaCreacion: new Date().toISOString()
       };
 
-      alert(`✅ Préstamo creado exitosamente\n\n📋 Número: ${resultado.numeroPrestamo}\n👤 Cliente: ${clienteSeleccionado.nombres} ${clienteSeleccionado.apellidos}\n💰 Monto: ${formatCurrency(form.montoTotal)}\n📅 Cuota: ${formatCurrency(resumenPrestamo.valorCuota)} ${form.frecuenciaPago.toLowerCase()}`);
+      showNotification('success', `El préstamo ha sido creado exitosamente con el número ${resultado.numeroPrestamo}`, 'Préstamo Creado');
 
       let destino = '/admin/prestamos';
       if (pathname?.startsWith('/supervisor')) destino = '/supervisor';
@@ -271,7 +274,7 @@ const CreacionPrestamoElegante = () => {
 
     } catch (error) {
       console.error('Error al crear el préstamo:', error);
-      alert('Error al crear el préstamo. Por favor, intente nuevamente.');
+      showNotification('error', 'Ocurrió un error al intentar crear el préstamo', 'Error');
     } finally {
       setCreandoPrestamo(false);
     }

@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Route } from 'lucide-react'
+import { Route, ChevronDown } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 interface RutaOption {
@@ -51,12 +51,11 @@ export default function FiltroRuta({
   }, [])
 
   return (
-    <div className={cn('flex flex-col gap-2', className)}>
+    <div className={cn('relative flex-1 md:w-64', className)}>
       {!hideLabel && (
-        <label className="flex items-center gap-2 text-xs font-bold text-slate-600 uppercase tracking-wider">
-          <Route className="h-3.5 w-3.5" />
-          Filtrar por Ruta
-        </label>
+        <div className="absolute left-4 top-1/2 -translate-y-1/2 flex items-center gap-2 pointer-events-none z-10">
+          <Route className="h-4 w-4 text-slate-400" />
+        </div>
       )}
       
       <select
@@ -64,33 +63,26 @@ export default function FiltroRuta({
         onChange={(e) => onRutaChange(e.target.value || null)}
         disabled={loading}
         className={cn(
-          'w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-slate-50',
-          'focus:bg-white focus:ring-2 focus:ring-slate-900/20 focus:border-slate-900',
-          'transition-all text-sm font-medium text-slate-900',
-          'disabled:opacity-50 disabled:cursor-not-allowed'
+          "w-full pl-11 pr-10 py-2.5 bg-white/50 backdrop-blur-sm border border-slate-200 rounded-2xl text-sm font-bold text-slate-700 focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all appearance-none cursor-pointer",
+          loading && "opacity-50 cursor-not-allowed"
         )}
       >
-        {showAllOption && <option value="">Todas las rutas</option>}
+        {showAllOption && <option value="">Todas las Rutas</option>}
         
         {loading ? (
-          <option disabled>Cargando rutas...</option>
+          <option disabled>Cargando...</option>
         ) : (
           rutas.map((ruta) => (
             <option key={ruta.id} value={ruta.id}>
-              {ruta.codigo} - {ruta.nombre} {ruta.cobrador && `(${ruta.cobrador})`}
+               {ruta.nombre}
             </option>
           ))
         )}
       </select>
-
-      {selectedRutaId && (
-        <button
-          onClick={() => onRutaChange(null)}
-          className="text-xs text-blue-600 hover:text-blue-700 font-medium text-left transition-colors"
-        >
-          Limpiar filtro
-        </button>
-      )}
+      
+      <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none">
+        <ChevronDown className="h-4 w-4 text-slate-400" />
+      </div>
     </div>
   )
 }

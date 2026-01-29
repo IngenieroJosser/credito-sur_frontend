@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { X, Save, DollarSign } from 'lucide-react';
+import { useNotification } from '@/components/providers/NotificationProvider';
 import Portal, { MODAL_Z_INDEX } from '@/components/ui/Portal';
 import { formatCOPInputValue, formatMilesCOP, parseCOPInputToNumber } from '@/lib/utils';
 
@@ -12,6 +13,7 @@ interface EditarPrestamoModalProps {
 }
 
 export default function EditarPrestamoModal({ id, onClose, onSuccess }: EditarPrestamoModalProps) {
+  const { showNotification } = useNotification();
   const [montoInput, setMontoInput] = useState(formatMilesCOP(1500000));
   const [tasaInput, setTasaInput] = useState('20');
   const [cuotasInput, setCuotasInput] = useState('6');
@@ -36,7 +38,7 @@ export default function EditarPrestamoModal({ id, onClose, onSuccess }: EditarPr
     // Simulate API delay
     setTimeout(() => {
         setLoading(false);
-        alert('Préstamo actualizado (Simulado)');
+        showNotification('success', 'El préstamo ha sido actualizado correctamente', 'Préstamo Actualizado');
         if (onSuccess) onSuccess();
         onClose();
     }, 1000);

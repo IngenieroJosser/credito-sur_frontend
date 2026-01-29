@@ -27,6 +27,13 @@ const MOCK_CAJA = {
   ]
 }
 
+const USUARIOS_AUTORIZADOS = [
+  { id: 'USR-001', nombre: 'María Rodríguez', rol: 'SUPER_ADMINISTRADOR' },
+  { id: 'USR-002', nombre: 'Laura Sánchez', rol: 'CONTADOR' },
+  { id: 'USR-003', nombre: 'Admin General', rol: 'ADMIN' },
+  { id: 'USR-004', nombre: 'Ana Admin', rol: 'SUPER_ADMINISTRADOR' },
+]
+
 export default function DetalleCajaPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
   const router = useRouter()
@@ -299,11 +306,18 @@ export default function DetalleCajaPage({ params }: { params: Promise<{ id: stri
                   </div>
                   <div className="space-y-2">
                     <label className="text-sm font-bold text-slate-700">Responsable</label>
-                    <input
+                    <select
                       value={editForm.responsable}
                       onChange={(e) => setEditForm((p) => ({ ...p, responsable: e.target.value }))}
                       className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-900"
-                    />
+                    >
+                      <option value="">Seleccionar responsable...</option>
+                      {USUARIOS_AUTORIZADOS.map((u) => (
+                        <option key={u.id} value={u.nombre}>
+                          {u.nombre} ({u.rol})
+                        </option>
+                      ))}
+                    </select>
                   </div>
                   <div className="space-y-2 md:col-span-2">
                     <label className="text-sm font-bold text-slate-700">Saldo Inicial (referencia)</label>

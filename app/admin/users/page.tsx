@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
+import { useNotification } from '@/components/providers/NotificationProvider';
 
 import {
   Search,
@@ -55,6 +56,7 @@ interface Role {
 }
 
 const UserManagementPage = () => {
+  const { showNotification } = useNotification();
   // Mock del rol actual (en una implementación real vendría del contexto de autenticación)
   const currentUserRole: RolUsuario = 'SUPER_ADMINISTRADOR';
 
@@ -136,7 +138,8 @@ const UserManagementPage = () => {
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    setMounted(true);
+    const timer = setTimeout(() => setMounted(true), 100);
+    return () => clearTimeout(timer);
   }, []);
 
   // Bloquear scroll del body cuando hay un modal abierto
@@ -211,9 +214,7 @@ const UserManagementPage = () => {
   const currentUsers = filteredUsers.slice(indexOfFirstItem, indexOfLastItem);
   const totalPages = Math.ceil(filteredUsers.length / itemsPerPage);
 
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [searchTerm, filterRole, filterStatus]);
+  // Reset de página movido a los manejadores de eventos directos
 
 
   const handleOpenCreateModal = () => {
@@ -281,6 +282,7 @@ const UserManagementPage = () => {
 
     setUsers([...users, newUser]);
     setIsCreateModalOpen(false);
+    showNotification('success', 'El usuario ha sido creado exitosamente', 'Usuario Creado');
   };
 
   const handleToggleUserStatus = () => {
@@ -300,6 +302,8 @@ const UserManagementPage = () => {
 
     setUsers(updatedUsers);
     setIsDeleteModalOpen(false);
+    const action = selectedUser.estado === 'ACTIVO' ? 'desactivado' : 'activado';
+    showNotification('success', `El usuario ha sido ${action} exitosamente`, 'Estado Actualizado');
   };
 
   const handleUpdateUser = () => {
@@ -320,6 +324,7 @@ const UserManagementPage = () => {
 
     setUsers(updatedUsers);
     setIsEditModalOpen(false);
+    showNotification('success', 'Los datos del usuario han sido actualizados', 'Usuario Actualizado');
   };
 
   const handleUpdatePermissions = () => {
@@ -337,6 +342,7 @@ const UserManagementPage = () => {
 
     setUsers(updatedUsers);
     setIsPermissionsModalOpen(false);
+    showNotification('success', 'Los permisos del usuario han sido actualizados', 'Permisos Actualizados');
   };
 
   const availablePermissions = [
@@ -406,7 +412,7 @@ const UserManagementPage = () => {
             <div className="flex items-center gap-4">
               <button
                 onClick={handleOpenCreateModal}
-                className="inline-flex items-center gap-2 rounded-xl bg-white border border-slate-200 px-6 py-2.5 text-sm font-bold text-slate-700 shadow-sm hover:bg-slate-50 hover:text-slate-900 transition-all duration-300 whitespace-nowrap"
+                className="inline-flex items-center gap-2 rounded-2xl bg-white border border-slate-200 px-6 py-2.5 text-sm font-bold text-slate-700 shadow-sm hover:bg-slate-50 hover:text-slate-900 transition-all duration-300 whitespace-nowrap"
               >
                 <UserPlus className="h-4 w-4" />
                 <span>Nuevo Usuario</span>
@@ -431,7 +437,7 @@ const UserManagementPage = () => {
                   <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">{stat.label}</p>
                   <h3 className="text-3xl font-bold text-slate-900 mt-2 tracking-tight">{stat.value}</h3>
                 </div>
-                <div className={cn("p-3 rounded-xl group-hover:scale-110 transition-transform duration-300", stat.bgColor, stat.color)}>
+                <div className={cn("p-3 rounded-2xl group-hover:scale-110 transition-transform duration-300", stat.bgColor, stat.color)}>
                   {stat.icon}
                 </div>
               </div>
@@ -447,17 +453,23 @@ const UserManagementPage = () => {
               type="text"
               placeholder="Buscar usuarios..."
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-11 pr-4 py-2.5 w-full bg-slate-50/50 focus:bg-white border-slate-200 rounded-xl text-sm text-slate-900 focus:ring-2 focus:ring-slate-900/10 focus:border-slate-400 transition-all shadow-sm placeholder:text-slate-400 font-medium"
+              onChange={(e) => {
+                setSearchTerm(e.target.value);
+                setCurrentPage(1);
+              }}
+              className="pl-11 pr-4 py-2.5 w-full bg-slate-50/50 focus:bg-white border-slate-200 rounded-2xl text-sm text-slate-900 focus:ring-2 focus:ring-slate-900/10 focus:border-slate-400 transition-all shadow-sm placeholder:text-slate-400 font-medium"
             />
           </div>
 
           <div className="flex items-center gap-4 w-full md:w-auto justify-between md:justify-end overflow-x-auto pb-2 md:pb-0">
-            <div className="flex flex-wrap items-center gap-1 bg-slate-50/50 p-1 rounded-xl border border-slate-200">
+            <div className="flex flex-wrap items-center gap-1 bg-slate-50/50 p-1 rounded-2xl border border-slate-200">
               {roleFilters.map((role) => (
                 <button
                   key={role.id}
-                  onClick={() => setFilterRole(role.id)}
+                  onClick={() => {
+                    setFilterRole(role.id);
+                    setCurrentPage(1);
+                  }}
                   className={cn(
                     "px-3 py-1.5 text-xs font-bold rounded-lg transition-all whitespace-nowrap",
                     filterRole === role.id
@@ -470,7 +482,7 @@ const UserManagementPage = () => {
               ))}
             </div>
 
-            <div className="flex bg-slate-50/50 p-1 rounded-xl border border-slate-200 shrink-0">
+            <div className="flex bg-slate-50/50 p-1 rounded-2xl border border-slate-200 shrink-0">
               <button
                 onClick={() => setViewMode('grid')}
                 className={cn(
@@ -522,7 +534,7 @@ const UserManagementPage = () => {
                     >
                       <td className="px-8 py-5">
                         <div className="flex items-center gap-4">
-                          <div className="w-10 h-10 bg-slate-100 rounded-xl flex items-center justify-center border border-slate-200 text-slate-600 font-bold text-xs shadow-sm">
+                          <div className="w-10 h-10 bg-slate-100 rounded-2xl flex items-center justify-center border border-slate-200 text-slate-600 font-bold text-xs shadow-sm">
                             {user.nombres.charAt(0)}{user.apellidos.charAt(0)}
                           </div>
                           <div>
@@ -616,7 +628,7 @@ const UserManagementPage = () => {
                 <div key={user.id} className="bg-white/80 backdrop-blur-sm rounded-2xl border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all duration-300 p-6 flex flex-col gap-4 group">
                   <div className="flex justify-between items-start">
                     <div className="flex items-center gap-3">
-                      <div className="w-12 h-12 bg-slate-100 rounded-xl flex items-center justify-center border border-slate-200 text-slate-600 font-bold text-sm shadow-sm group-hover:bg-slate-200 group-hover:text-slate-900 transition-colors">
+                      <div className="w-12 h-12 bg-slate-100 rounded-2xl flex items-center justify-center border border-slate-200 text-slate-600 font-bold text-sm shadow-sm group-hover:bg-slate-200 group-hover:text-slate-900 transition-colors">
                         {user.nombres.charAt(0)}{user.apellidos.charAt(0)}
                       </div>
                       <div>
@@ -633,7 +645,7 @@ const UserManagementPage = () => {
                   </div>
                   
                   <div className="space-y-3 pt-2">
-                    <div className="flex items-center gap-3 p-3 rounded-xl bg-slate-50/50 border border-slate-100">
+                    <div className="flex items-center gap-3 p-3 rounded-2xl bg-slate-50/50 border border-slate-100">
                       <div className={cn("p-2 rounded-lg", role?.bgColor, role?.color)}>
                         {role?.icon}
                       </div>
@@ -762,7 +774,7 @@ const UserManagementPage = () => {
                     type="text"
                     value={formData.nombres}
                     onChange={(e) => setFormData({...formData, nombres: e.target.value})}
-                    className="w-full px-4 py-3 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:border-blue-600 focus:ring-2 focus:ring-blue-600/20 transition-all text-sm font-medium text-slate-900 placeholder:text-slate-400"
+                    className="w-full px-4 py-3 border border-slate-200 rounded-2xl bg-slate-50 focus:bg-white focus:border-blue-600 focus:ring-2 focus:ring-blue-600/20 transition-all text-sm font-medium text-slate-900 placeholder:text-slate-400"
                     placeholder="Ej. Juan"
                   />
                 </div>
@@ -772,7 +784,7 @@ const UserManagementPage = () => {
                     type="text"
                     value={formData.apellidos}
                     onChange={(e) => setFormData({...formData, apellidos: e.target.value})}
-                    className="w-full px-4 py-3 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:border-blue-600 focus:ring-2 focus:ring-blue-600/20 transition-all text-sm font-medium text-slate-900 placeholder:text-slate-400"
+                    className="w-full px-4 py-3 border border-slate-200 rounded-2xl bg-slate-50 focus:bg-white focus:border-blue-600 focus:ring-2 focus:ring-blue-600/20 transition-all text-sm font-medium text-slate-900 placeholder:text-slate-400"
                     placeholder="Ej. Pérez"
                   />
                 </div>
@@ -784,7 +796,7 @@ const UserManagementPage = () => {
                   type="email"
                   value={formData.correo}
                   onChange={(e) => setFormData({...formData, correo: e.target.value})}
-                  className="w-full px-4 py-3 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:border-blue-600 focus:ring-2 focus:ring-blue-600/20 transition-all text-sm font-medium text-slate-900 placeholder:text-slate-400"
+                  className="w-full px-4 py-3 border border-slate-200 rounded-2xl bg-slate-50 focus:bg-white focus:border-blue-600 focus:ring-2 focus:ring-blue-600/20 transition-all text-sm font-medium text-slate-900 placeholder:text-slate-400"
                   placeholder="Ej. juan@credisur.com"
                 />
               </div>
@@ -796,7 +808,7 @@ const UserManagementPage = () => {
                     type="tel"
                     value={formData.telefono}
                     onChange={(e) => setFormData({...formData, telefono: e.target.value})}
-                    className="w-full px-4 py-3 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:border-blue-600 focus:ring-2 focus:ring-blue-600/20 transition-all text-sm font-medium text-slate-900 placeholder:text-slate-400"
+                    className="w-full px-4 py-3 border border-slate-200 rounded-2xl bg-slate-50 focus:bg-white focus:border-blue-600 focus:ring-2 focus:ring-blue-600/20 transition-all text-sm font-medium text-slate-900 placeholder:text-slate-400"
                     placeholder="Ej. 300 123 4567"
                   />
                 </div>
@@ -806,7 +818,7 @@ const UserManagementPage = () => {
                     type="password"
                     value={formData.contrasena}
                     onChange={(e) => setFormData({...formData, contrasena: e.target.value})}
-                    className="w-full px-4 py-3 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:border-blue-600 focus:ring-2 focus:ring-blue-600/20 transition-all text-sm font-medium text-slate-900 placeholder:text-slate-400"
+                    className="w-full px-4 py-3 border border-slate-200 rounded-2xl bg-slate-50 focus:bg-white focus:border-blue-600 focus:ring-2 focus:ring-blue-600/20 transition-all text-sm font-medium text-slate-900 placeholder:text-slate-400"
                     placeholder="••••••••"
                   />
                 </div>
@@ -818,7 +830,7 @@ const UserManagementPage = () => {
                   <select
                     value={formData.rol}
                     onChange={(e) => setFormData({...formData, rol: e.target.value as RolUsuario})}
-                    className="w-full px-4 py-3 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:border-blue-600 focus:ring-2 focus:ring-blue-600/20 appearance-none text-sm font-medium text-slate-900"
+                    className="w-full px-4 py-3 border border-slate-200 rounded-2xl bg-slate-50 focus:bg-white focus:border-blue-600 focus:ring-2 focus:ring-blue-600/20 appearance-none text-sm font-medium text-slate-900"
                   >
                     {roles.map(role => (
                       <option key={role.id} value={role.id}>{role.label}</option>
@@ -830,13 +842,13 @@ const UserManagementPage = () => {
               <div className="flex justify-end gap-3 mt-8 pt-4 border-t border-slate-100">
                 <button
                   onClick={() => setIsCreateModalOpen(false)}
-                  className="px-5 py-2.5 text-sm font-bold text-slate-600 hover:text-slate-900 hover:bg-slate-50 rounded-xl transition-colors"
+                  className="px-5 py-2.5 text-sm font-bold text-slate-600 hover:text-slate-900 hover:bg-slate-50 rounded-2xl transition-colors"
                 >
                   Cancelar
                 </button>
                 <button
                   onClick={handleCreateUser}
-                  className="px-5 py-2.5 text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-xl shadow-lg shadow-blue-600/20 transition-all transform active:scale-95 flex items-center gap-2"
+                  className="px-5 py-2.5 text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-2xl shadow-lg shadow-blue-600/20 transition-all transform active:scale-95 flex items-center gap-2"
                 >
                   <UserPlus className="h-4 w-4" />
                   <span>Crear Usuario</span>
@@ -877,7 +889,7 @@ const UserManagementPage = () => {
                     type="text"
                     value={formData.nombres}
                     onChange={(e) => setFormData({...formData, nombres: e.target.value})}
-                    className="w-full px-4 py-3 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:border-blue-600 focus:ring-2 focus:ring-blue-600/20 transition-all text-sm font-medium text-slate-900 placeholder:text-slate-400"
+                    className="w-full px-4 py-3 border border-slate-200 rounded-2xl bg-slate-50 focus:bg-white focus:border-blue-600 focus:ring-2 focus:ring-blue-600/20 transition-all text-sm font-medium text-slate-900 placeholder:text-slate-400"
                   />
                 </div>
                 <div>
@@ -886,7 +898,7 @@ const UserManagementPage = () => {
                     type="text"
                     value={formData.apellidos}
                     onChange={(e) => setFormData({...formData, apellidos: e.target.value})}
-                    className="w-full px-4 py-3 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:border-blue-600 focus:ring-2 focus:ring-blue-600/20 transition-all text-sm font-medium text-slate-900 placeholder:text-slate-400"
+                    className="w-full px-4 py-3 border border-slate-200 rounded-2xl bg-slate-50 focus:bg-white focus:border-blue-600 focus:ring-2 focus:ring-blue-600/20 transition-all text-sm font-medium text-slate-900 placeholder:text-slate-400"
                   />
                 </div>
               </div>
@@ -897,7 +909,7 @@ const UserManagementPage = () => {
                   type="email"
                   value={formData.correo}
                   onChange={(e) => setFormData({...formData, correo: e.target.value})}
-                  className="w-full px-4 py-3 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:border-blue-600 focus:ring-2 focus:ring-blue-600/20 transition-all text-sm font-medium text-slate-900 placeholder:text-slate-400"
+                  className="w-full px-4 py-3 border border-slate-200 rounded-2xl bg-slate-50 focus:bg-white focus:border-blue-600 focus:ring-2 focus:ring-blue-600/20 transition-all text-sm font-medium text-slate-900 placeholder:text-slate-400"
                 />
               </div>
 
@@ -908,7 +920,7 @@ const UserManagementPage = () => {
                     type="tel"
                     value={formData.telefono}
                     onChange={(e) => setFormData({...formData, telefono: e.target.value})}
-                    className="w-full px-4 py-3 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:border-blue-600 focus:ring-2 focus:ring-blue-600/20 transition-all text-sm font-medium text-slate-900 placeholder:text-slate-400"
+                    className="w-full px-4 py-3 border border-slate-200 rounded-2xl bg-slate-50 focus:bg-white focus:border-blue-600 focus:ring-2 focus:ring-blue-600/20 transition-all text-sm font-medium text-slate-900 placeholder:text-slate-400"
                   />
                 </div>
                 <div>
@@ -917,7 +929,7 @@ const UserManagementPage = () => {
                     type="password"
                     value={formData.contrasena}
                     onChange={(e) => setFormData({...formData, contrasena: e.target.value})}
-                    className="w-full px-4 py-3 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:border-blue-600 focus:ring-2 focus:ring-blue-600/20 transition-all text-sm font-medium text-slate-900 placeholder:text-slate-400"
+                    className="w-full px-4 py-3 border border-slate-200 rounded-2xl bg-slate-50 focus:bg-white focus:border-blue-600 focus:ring-2 focus:ring-blue-600/20 transition-all text-sm font-medium text-slate-900 placeholder:text-slate-400"
                     placeholder="Dejar vacío para no cambiar"
                   />
                 </div>
@@ -929,7 +941,7 @@ const UserManagementPage = () => {
                   <select
                     value={formData.rol}
                     onChange={(e) => setFormData({...formData, rol: e.target.value as RolUsuario})}
-                    className="w-full px-4 py-3 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:border-blue-600 focus:ring-2 focus:ring-blue-600/20 appearance-none text-sm font-medium text-slate-900"
+                    className="w-full px-4 py-3 border border-slate-200 rounded-2xl bg-slate-50 focus:bg-white focus:border-blue-600 focus:ring-2 focus:ring-blue-600/20 appearance-none text-sm font-medium text-slate-900"
                   >
                     {roles.map(role => (
                       <option key={role.id} value={role.id}>{role.label}</option>
@@ -941,13 +953,13 @@ const UserManagementPage = () => {
               <div className="flex justify-end gap-3 mt-8 pt-4 border-t border-slate-100">
                 <button
                   onClick={() => setIsEditModalOpen(false)}
-                  className="px-5 py-2.5 text-sm font-bold text-slate-600 hover:text-slate-900 hover:bg-slate-50 rounded-xl transition-colors"
+                  className="px-5 py-2.5 text-sm font-bold text-slate-600 hover:text-slate-900 hover:bg-slate-50 rounded-2xl transition-colors"
                 >
                   Cancelar
                 </button>
                 <button
                   onClick={handleUpdateUser}
-                  className="px-5 py-2.5 text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-xl shadow-lg shadow-blue-600/20 transition-all transform active:scale-95 flex items-center gap-2"
+                  className="px-5 py-2.5 text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-2xl shadow-lg shadow-blue-600/20 transition-all transform active:scale-95 flex items-center gap-2"
                 >
                   <Save className="h-4 w-4" />
                   <span>Guardar Cambios</span>
@@ -988,7 +1000,7 @@ const UserManagementPage = () => {
                   <label 
                     key={permission.id}
                     className={cn(
-                      "flex items-start gap-3 p-4 rounded-xl border transition-all cursor-pointer select-none",
+                      "flex items-start gap-3 p-4 rounded-2xl border transition-all cursor-pointer select-none",
                       selectedPermissions.includes(permission.id)
                         ? "bg-blue-50 border-blue-200 shadow-sm"
                         : "bg-white border-slate-200 hover:border-blue-200 hover:bg-slate-50"
@@ -1031,13 +1043,13 @@ const UserManagementPage = () => {
             <div className="flex justify-end gap-3 mt-8 pt-4 border-t border-slate-100 shrink-0">
               <button
                 onClick={() => setIsPermissionsModalOpen(false)}
-                className="px-5 py-2.5 text-sm font-bold text-slate-600 hover:text-slate-900 hover:bg-slate-50 rounded-xl transition-colors"
+                className="px-5 py-2.5 text-sm font-bold text-slate-600 hover:text-slate-900 hover:bg-slate-50 rounded-2xl transition-colors"
               >
                 Cancelar
               </button>
               <button
                 onClick={handleUpdatePermissions}
-                className="px-5 py-2.5 text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-xl shadow-lg shadow-blue-600/20 transition-all transform active:scale-95 flex items-center gap-2"
+                className="px-5 py-2.5 text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-2xl shadow-lg shadow-blue-600/20 transition-all transform active:scale-95 flex items-center gap-2"
               >
                 <Save className="h-4 w-4" />
                 <span>Guardar Cambios</span>
@@ -1070,14 +1082,14 @@ const UserManagementPage = () => {
               <div className="flex gap-3 w-full">
                 <button
                   onClick={() => setIsDeleteModalOpen(false)}
-                  className="flex-1 px-4 py-2.5 text-sm font-bold text-slate-600 hover:text-slate-900 hover:bg-slate-50 rounded-xl transition-colors"
+                  className="flex-1 px-4 py-2.5 text-sm font-bold text-slate-600 hover:text-slate-900 hover:bg-slate-50 rounded-2xl transition-colors"
                 >
                   Cancelar
                 </button>
                 <button
                   onClick={handleToggleUserStatus}
                   className={cn(
-                    "flex-1 px-4 py-2.5 text-sm font-bold text-white rounded-xl shadow-lg transition-all transform active:scale-95",
+                    "flex-1 px-4 py-2.5 text-sm font-bold text-white rounded-2xl shadow-lg transition-all transform active:scale-95",
                     selectedUser.estado === 'ACTIVO' ? 'bg-rose-600 hover:bg-rose-700 shadow-rose-600/20' : 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-600/20'
                   )}
                 >

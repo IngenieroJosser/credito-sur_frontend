@@ -47,6 +47,7 @@ import { formatCurrency, cn } from '@/lib/utils';
 import { PRESTAMOS_MOCK, Prestamo, EstadoPrestamo } from './data';
 import FiltroRuta from '@/components/filtros/FiltroRuta';
 import EditarPrestamoModal from '@/components/prestamos/EditarPrestamoModal';
+import { useNotification } from '@/components/providers/NotificationProvider';
 
 interface Filtros {
   estado: string;
@@ -59,6 +60,7 @@ interface Filtros {
 }
 
 const ListadoPrestamosElegante = () => {
+  const { showNotification } = useNotification();
   const router = useRouter();
   const pathname = usePathname();
   
@@ -85,6 +87,13 @@ const ListadoPrestamosElegante = () => {
   const [cargando, setCargando] = useState(true);
   const [mounted, setMounted] = useState(false);
   const [idPrestamoAEditar, setIdPrestamoAEditar] = useState<string | null>(null);
+
+  const handleEliminarPrestamo = (id: string) => {
+    if (confirm('¿Está seguro de que desea eliminar este préstamo?')) {
+      setPrestamos(prev => prev.filter(p => p.id !== id));
+      showNotification('success', 'El préstamo ha sido eliminado correctamente', 'Préstamo Eliminado');
+    }
+  };
 
   /**
    * @effect Carga Inicial de Datos
@@ -397,6 +406,7 @@ const ListadoPrestamosElegante = () => {
                             <Edit2 className="h-4 w-4" />
                           </button>
                           <button 
+                            onClick={() => handleEliminarPrestamo(prestamo.id)}
                             className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all"
                             title="Eliminar préstamo"
                           >

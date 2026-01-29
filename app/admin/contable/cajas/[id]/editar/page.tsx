@@ -18,6 +18,14 @@ export default function EditarCajaPage({ params }: { params: Promise<{ id: strin
     descripcion: 'Caja principal para operaciones diarias en oficina'
   })
 
+  // Usuarios autorizados para ser responsables de caja (Roles: ADMIN, SUPER_ADMINISTRADOR, CONTADOR)
+  const usuariosAutorizados = [
+    { id: 'USR-001', nombre: 'María Rodríguez', rol: 'SUPER_ADMINISTRADOR' },
+    { id: 'USR-002', nombre: 'Laura Sánchez', rol: 'CONTADOR' },
+    { id: 'USR-003', nombre: 'Admin General', rol: 'ADMIN' },
+    { id: 'USR-004', nombre: 'Ana Admin', rol: 'SUPER_ADMINISTRADOR' },
+  ]
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setSaving(true)
@@ -86,8 +94,12 @@ export default function EditarCajaPage({ params }: { params: Promise<{ id: strin
                   onChange={(e) => setFormData({...formData, responsable: e.target.value})}
                   className="w-full rounded-xl border-slate-300 py-3 text-sm text-slate-900 focus:ring-2 focus:ring-blue-600 focus:border-transparent"
                 >
-                  <option value="Ana Admin">Ana Admin (Administrador)</option>
-                  <option value="Juan Perez">Juan Perez (Coordinador)</option>
+                  <option value="">Seleccionar responsable...</option>
+                  {usuariosAutorizados.map((u) => (
+                    <option key={u.id} value={u.nombre}>
+                      {u.nombre} ({u.rol})
+                    </option>
+                  ))}
                 </select>
                 <p className="text-xs text-slate-500">Usuario encargado de la custodia y arqueo de esta caja.</p>
               </div>

@@ -14,6 +14,7 @@ import {
 } from 'lucide-react'
 import { formatCurrency } from '@/lib/utils'
 import { ExportButton } from '@/components/ui/ExportButton'
+import { PremiumBarChart } from '@/components/ui/PremiumCharts'
 
 // Interfaces
 interface FinancialSummary {
@@ -261,44 +262,24 @@ const ReportesFinancierosPage = () => {
               </div>
               <div className="flex items-center gap-4 text-xs font-bold">
                 <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 rounded-full bg-slate-900"></div>
+                  <div className="w-3 h-3 rounded-full bg-blue-600"></div>
                   <span className="text-slate-600">Ingresos</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 rounded-full bg-red-400"></div>
+                  <div className="w-3 h-3 rounded-full bg-rose-500"></div>
                   <span className="text-slate-600">Egresos</span>
                 </div>
               </div>
             </div>
             
-            {/* Custom Bar Chart Visualization */}
-            <div className="h-72 flex items-end justify-between gap-4">
-              {monthlyData.map((item) => {
-                const maxVal = Math.max(...monthlyData.map(d => d.ingresos), 1) // Avoid division by zero
-                const heightIngreso = (item.ingresos / maxVal) * 100
-                const heightEgreso = (item.egresos / maxVal) * 100
-                
-                return (
-                  <div key={item.mes} className="flex-1 flex flex-col justify-end items-center group relative h-full">
-                    <div className="absolute bottom-full mb-3 opacity-0 group-hover:opacity-100 transition-opacity bg-slate-900 text-white text-[10px] font-bold rounded-lg py-2 px-3 whitespace-nowrap z-10 pointer-events-none shadow-xl">
-                      <div className="mb-1">Ing: {formatCurrency(item.ingresos)}</div>
-                      <div className="text-red-300">Egr: {formatCurrency(item.egresos)}</div>
-                    </div>
-                    <div className="w-full flex gap-1.5 items-end justify-center h-full">
-                      <div 
-                        className="w-full bg-slate-900 rounded-t-lg transition-all duration-500 hover:bg-slate-800 relative group-hover:shadow-lg"
-                        style={{ height: `${heightIngreso}%` }}
-                      ></div>
-                      <div 
-                        className="w-full bg-red-400 rounded-t-lg transition-all duration-500 hover:bg-red-500 relative group-hover:shadow-lg"
-                        style={{ height: `${heightEgreso}%` }}
-                      ></div>
-                    </div>
-                    <span className="text-xs text-slate-400 mt-4 font-bold uppercase tracking-wide">{item.mes}</span>
-                  </div>
-                )
-              })}
-            </div>
+            <PremiumBarChart 
+              type="double"
+              data={monthlyData.map(d => ({
+                label: d.mes,
+                value: d.ingresos,
+                secondaryValue: d.egresos
+              }))}
+            />
           </div>
 
           {/* Side Chart: Expense Breakdown */}

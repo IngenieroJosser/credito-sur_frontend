@@ -11,7 +11,8 @@ import {
   Eye,
   Check,
   X,
-  AlertTriangle
+  AlertTriangle,
+  Filter
 } from 'lucide-react'
 import { formatCurrency, cn } from '@/lib/utils'
 import FiltroRuta from '@/components/filtros/FiltroRuta'
@@ -25,12 +26,14 @@ interface ItemPendiente {
   detalle: string
   monto?: number
   estado: 'PENDIENTE'
+  rutaId?: string
 }
 
 type TabId = 'TODOS' | 'PRESTAMOS' | 'CLIENTES' | 'SOLICITUDES' | 'GASTOS';
 
 const AprobacionesCoordinador = () => {
   const [activeTab, setActiveTab] = useState<TabId>('TODOS')
+  const [filtroRuta, setFiltroRuta] = useState<string | null>(null)
   
   // State for modals and actions
   const [items, setItems] = useState<ItemPendiente[]>([
@@ -41,7 +44,8 @@ const AprobacionesCoordinador = () => {
       fecha: '2026-01-21T08:00:00',
       detalle: 'Base para ruta centro, alta demanda esperada.',
       monto: 2000000,
-      estado: 'PENDIENTE'
+      estado: 'PENDIENTE',
+      rutaId: 'RT-001'
     },
     {
       id: '2',
@@ -50,7 +54,8 @@ const AprobacionesCoordinador = () => {
       fecha: '2026-01-21T09:15:00',
       detalle: 'Préstamo nuevo para Cliente ID #452 (Nuevo Comercio).',
       monto: 500000,
-      estado: 'PENDIENTE'
+      estado: 'PENDIENTE',
+      rutaId: 'RT-002'
     },
     {
       id: '3',
@@ -59,7 +64,8 @@ const AprobacionesCoordinador = () => {
       fecha: '2026-01-20T16:00:00',
       detalle: 'Reparación llanta moto.',
       monto: 25000,
-      estado: 'PENDIENTE'
+      estado: 'PENDIENTE',
+      rutaId: 'RT-001'
     },
     {
       id: '4',
@@ -67,7 +73,8 @@ const AprobacionesCoordinador = () => {
       solicitante: 'Pedro Supervisor',
       fecha: '2026-01-21T10:00:00',
       detalle: 'Nuevo registro: Carlos Rodriguez (Requiere validación de dirección).',
-      estado: 'PENDIENTE'
+      estado: 'PENDIENTE',
+      rutaId: 'RT-003'
     }
   ])
 
@@ -93,15 +100,19 @@ const AprobacionesCoordinador = () => {
     }
   }
 
-  const filteredItems = activeTab === 'TODOS' 
-    ? items 
-    : items.filter(item => {
-        if (activeTab === 'PRESTAMOS') return item.tipo === 'PRESTAMO'
-        if (activeTab === 'CLIENTES') return item.tipo === 'CLIENTE'
-        if (activeTab === 'SOLICITUDES') return item.tipo === 'SOLICITUD_DINERO'
-        if (activeTab === 'GASTOS') return item.tipo === 'GASTO'
-        return true
-      })
+  const filteredItems = items.filter(item => {
+    // Filtro por Tab
+    const matchesTab = activeTab === 'TODOS' || 
+      (activeTab === 'PRESTAMOS' && item.tipo === 'PRESTAMO') ||
+      (activeTab === 'CLIENTES' && item.tipo === 'CLIENTE') ||
+      (activeTab === 'SOLICITUDES' && item.tipo === 'SOLICITUD_DINERO') ||
+      (activeTab === 'GASTOS' && item.tipo === 'GASTO');
+
+    // Filtro por Ruta
+    const matchesRuta = !filtroRuta || item.rutaId === filtroRuta;
+
+    return matchesTab && matchesRuta;
+  })
 
   const getIconoTipo = (tipo: string) => {
     switch (tipo) {
@@ -131,51 +142,59 @@ const AprobacionesCoordinador = () => {
       </div>
 
       <div className="relative z-10 w-full p-8 space-y-8 text-slate-900">
-        <header className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+        <header className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
           <div>
-            <div className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-600 border border-slate-200 mb-2">
-              <CheckCircle2 className="h-3.5 w-3.5" />
-              <span>Aprobaciones Pendientes</span>
+            <div className="inline-flex items-center gap-2 rounded-full bg-slate-200/50 px-3 py-1 text-[10px] font-bold text-slate-600 border border-slate-200 mb-2 uppercase tracking-widest">
+              <CheckCircle2 className="h-3.5 w-3.5 text-blue-600" />
+              <span>Coordinación Operativa</span>
             </div>
             <h1 className="text-4xl md:text-5xl font-bold tracking-tight">
               <span className="text-blue-600">Centro de </span><span className="text-orange-500">Aprobación</span>
             </h1>
-            <p className="text-sm text-slate-500 max-w-xl font-medium mt-1">
-              Revisa y autoriza las solicitudes enviadas por el equipo de terreno.
+            <p className="text-base text-slate-500 max-w-xl font-medium mt-2">
+              Supervisión y autorización centralizada de solicitudes de ruta.
             </p>
-          </div>
-          <div className="bg-slate-50 p-1 rounded-xl border border-slate-200">
-             <FiltroRuta 
-                onRutaChange={(r) => console.log('Filtro ruta:', r)}
-                selectedRutaId={null}
-                className="w-48"
-                showAllOption={true}
-                hideLabel={true}
-             />
           </div>
         </header>
 
-        <div className="flex flex-wrap gap-2">
-          {[
-            { id: 'TODOS', label: 'Todos' },
-            { id: 'PRESTAMOS', label: 'Préstamos' },
-            { id: 'CLIENTES', label: 'Clientes' },
-            { id: 'SOLICITUDES', label: 'Dinero' },
-            { id: 'GASTOS', label: 'Gastos' }
-          ].map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id as TabId)}
-              className={cn(
-                "px-5 py-2.5 rounded-xl text-sm font-bold transition-all border",
-                activeTab === tab.id
-                  ? "bg-slate-900 text-white border-slate-900 shadow-md"
-                  : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50"
-              )}
-            >
-              {tab.label}
-            </button>
-          ))}
+        {/* Filtros Premium - Estilo Unificado */}
+        <div className="flex flex-col md:flex-row items-center justify-between gap-6 bg-white/50 backdrop-blur-sm p-4 rounded-3xl border border-slate-200">
+          <div className="flex flex-wrap gap-2">
+            {[
+              { id: 'TODOS', label: 'Todos' },
+              { id: 'PRESTAMOS', label: 'Préstamos' },
+              { id: 'CLIENTES', label: 'Clientes' },
+              { id: 'SOLICITUDES', label: 'Dinero' },
+              { id: 'GASTOS', label: 'Gastos' }
+            ].map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id as TabId)}
+                className={cn(
+                  "px-5 py-2.5 rounded-2xl text-sm font-bold transition-all border shrink-0",
+                  activeTab === tab.id
+                    ? "bg-slate-900 text-white border-slate-900 shadow-xl shadow-slate-900/10"
+                    : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50 hover:border-slate-300"
+                )}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+
+          <div className="flex items-center gap-3 w-full md:w-auto">
+            <FiltroRuta 
+              selectedRutaId={filtroRuta}
+              onRutaChange={setFiltroRuta}
+              className="md:w-64"
+            />
+            
+            <div className="h-10 w-[1px] bg-slate-200 hidden md:block mx-1"></div>
+            
+            <div className="p-2.5 bg-white border border-slate-200 rounded-2xl text-slate-400 hover:text-blue-600 transition-all cursor-pointer">
+              <Filter className="h-5 w-5" />
+            </div>
+          </div>
         </div>
 
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">

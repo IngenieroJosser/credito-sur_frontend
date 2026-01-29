@@ -31,6 +31,7 @@ import { formatCurrency } from '@/lib/utils';
 import { useRouter } from 'next/navigation';
 import { ExportButton } from '@/components/ui/ExportButton';
 import { Rol } from '@/lib/permissions';
+import { PremiumBarChart } from '@/components/ui/PremiumCharts';
 
 interface UserData {
   id: string;
@@ -575,28 +576,6 @@ const DashboardPage = () => {
     return date.toLocaleDateString('es-CO', options);
   };
 
-  // Obtener título del dashboard según rol
-  const getDashboardTitle = () => {
-    if (!userData) return 'Panel de Control';
-    
-    const titulos: Record<Rol, string> = {
-      'SUPER_ADMINISTRADOR': 'Panel de Control',
-      'ADMIN': 'Panel de Administración',
-      'COORDINADOR': 'Coordinación de Operaciones',
-      'SUPERVISOR': 'Supervisión de Campo',
-      'COBRADOR': 'Mi Gestión de Cobranza',
-      'CONTADOR': 'Control Financiero'
-    };
-    
-    return titulos[userData.rol] || 'Panel de Control';
-  };
-
-  // Función para cerrar sesión
-  const handleLogout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    router.replace('/');
-  };
 
   useEffect(() => {
     if (userData?.rol === 'COBRADOR') {
@@ -770,46 +749,24 @@ const DashboardPage = () => {
                     Real
                   </div>
                   <div className="flex items-center gap-1.5 text-xs font-medium text-slate-600">
-                    <div className="w-3 h-3 rounded-full bg-slate-200 border border-slate-300 border-dashed"></div>
+                    <div className="w-3 h-3 rounded-full border-2 border-dashed border-amber-500 bg-amber-50"></div>
                     Meta
                   </div>
                 </div>
               </div>
               
-              <div className="h-64 flex items-end justify-between gap-2 sm:gap-4 px-2">
-                {[
-                  { day: 'Lun', real: 85, meta: 100, val: 2500000 },
-                  { day: 'Mar', real: 92, meta: 100, val: 2800000 },
-                  { day: 'Mie', real: 65, meta: 100, val: 1900000 },
-                  { day: 'Jue', real: 110, meta: 100, val: 3200000 },
-                  { day: 'Vie', real: 98, meta: 100, val: 2950000 },
-                  { day: 'Sab', real: 120, meta: 100, val: 3500000 },
-                  { day: 'Dom', real: 45, meta: 60, val: 1200000 },
-                ].map((item, i) => (
-                  <div key={i} className="flex-1 flex flex-col items-center gap-2 group">
-                    <div className="relative w-full max-w-[40px] h-full flex items-end">
-                      {/* Meta Bar (Ghost) */}
-                      <div 
-                        className="absolute bottom-0 w-full rounded-t-lg border-2 border-dashed border-slate-200 bg-transparent z-0"
-                        style={{ height: `${item.meta}%` }}
-                      ></div>
-                      {/* Real Bar */}
-                      <div 
-                        className={`relative w-full rounded-t-md transition-all duration-500 z-10 ${
-                          item.real >= item.meta ? 'bg-emerald-500' : 'bg-blue-500'
-                        } group-hover:opacity-90`}
-                        style={{ height: `${Math.min(item.real, 100)}%` }}
-                      >
-                        {/* Tooltip */}
-                        <div className="opacity-0 group-hover:opacity-100 absolute -top-12 left-1/2 -translate-x-1/2 bg-slate-800 text-white text-xs py-1 px-2 rounded pointer-events-none whitespace-nowrap transition-opacity z-20">
-                          {formatCurrency(item.val)}
-                        </div>
-                      </div>
-                    </div>
-                    <span className="text-xs font-medium text-slate-500">{item.day}</span>
-                  </div>
-                ))}
-              </div>
+              <PremiumBarChart 
+                showTarget
+                data={[
+                  { label: 'Lun', value: 2500000, target: 3000000 },
+                  { label: 'Mar', value: 2800000, target: 3000000 },
+                  { label: 'Mie', value: 1900000, target: 3000000 },
+                  { label: 'Jue', value: 3400000, target: 3000000 },
+                  { label: 'Vie', value: 2950000, target: 3000000 },
+                  { label: 'Sab', value: 3800000, target: 3000000 },
+                  { label: 'Dom', value: 1200000, target: 1500000 },
+                ]}
+              />
             </div>
 
             {/* Listado: Últimos Préstamos Aprobados */}

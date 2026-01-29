@@ -8,6 +8,8 @@ const geistSans = Sora ({
 });
 
 
+import { NotificationProvider } from "@/components/providers/NotificationProvider";
+
 export const metadata: Metadata = {
   title: "Créditos del Sur | Sistema de Gestión",
   description: "Sistema profesional para gestión de créditos, préstamos y cobranzas",
@@ -24,7 +26,9 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} antialiased`}
       >
-        {children}
+        <NotificationProvider>
+          {children}
+        </NotificationProvider>
       </body>
     </html>
   );

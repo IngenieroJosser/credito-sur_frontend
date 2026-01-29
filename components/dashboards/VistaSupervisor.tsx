@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { useEffect, useState, type ReactNode } from 'react'
+import Image from 'next/image'
 import { createPortal } from 'react-dom'
 import {
   AlertCircle,
@@ -27,6 +28,7 @@ import { MOCK_CLIENTES } from '@/services/clientes-service'
 import { MOCK_ARTICULOS, type OpcionCuotas } from '@/services/articulos-service'
 import { formatCOPInputValue, formatMilesCOP, parseCOPInputToNumber, formatCurrency } from '@/lib/utils'
 import NuevoClienteModal from '@/components/clientes/NuevoClienteModal'
+import { Sparkline, PremiumBarChart } from '@/components/ui/PremiumCharts'
 
 const MODAL_Z_INDEX = 2147483647
 
@@ -42,6 +44,7 @@ interface MetricCard {
   change: number
   icon: ReactNode
   color: string
+  trendData: number[]
 }
 
 interface DelinquentClient {
@@ -187,6 +190,7 @@ const VistaSupervisor = () => {
       change: -3.4,
       icon: <AlertCircle className="h-4 w-4" />,
       color: '#ef4444',
+      trendData: [15, 14, 16, 14, 13, 12, 12]
     },
     {
       title: 'Gestiones Hoy',
@@ -195,6 +199,7 @@ const VistaSupervisor = () => {
       change: 5.2,
       icon: <Calendar className="h-4 w-4" />,
       color: '#08557f',
+      trendData: [10, 12, 11, 15, 14, 16, 18]
     },
     {
       title: 'Cobertura de Ruta',
@@ -203,6 +208,7 @@ const VistaSupervisor = () => {
       change: 2.1,
       icon: <Map className="h-4 w-4" />,
       color: '#10b981',
+      trendData: [85, 86, 84, 88, 87, 89, 89.7]
     },
   ]
 
@@ -329,6 +335,7 @@ const VistaSupervisor = () => {
                 <div className="p-2 rounded-lg" style={{ backgroundColor: `${metric.color}10` }}>
                   <div style={{ color: metric.color }}>{metric.icon}</div>
                 </div>
+              <div className="flex flex-col items-end gap-2">
                 <div className={`flex items-center gap-1 text-sm ${metric.change >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                   {metric.change >= 0 ? <TrendingUp className="h-4 w-4" /> : <TrendingDown className="h-4 w-4" />}
                   <span>
@@ -336,6 +343,8 @@ const VistaSupervisor = () => {
                     {metric.change}%
                   </span>
                 </div>
+                <Sparkline data={metric.trendData} color={metric.color} height={30} />
+              </div>
               </div>
 
               <div className="space-y-1">
@@ -345,6 +354,40 @@ const VistaSupervisor = () => {
               </div>
             </div>
           ))}
+        </div>
+
+        <div className="mb-8">
+            <div className="bg-white border border-gray-100 rounded-xl p-6 shadow-sm">
+                <div className="flex items-center justify-between mb-8">
+                  <div>
+                    <h2 className="text-xl font-bold text-slate-900 tracking-tight">Tendencia de Cobros</h2>
+                    <p className="text-sm text-slate-500 font-medium">Rendimiento semanal vs objetivos de campo</p>
+                  </div>
+                  <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-2 group">
+                      <div className="w-2.5 h-2.5 rounded-full bg-blue-600"></div>
+                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Real</span>
+                    </div>
+                    <div className="flex items-center gap-2 group">
+                      <div className="w-3 h-3 rounded-full border-2 border-dashed border-amber-500 bg-amber-50"></div>
+                      <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Meta</span>
+                    </div>
+                  </div>
+                </div>
+                
+                <PremiumBarChart 
+                  showTarget
+                  data={[
+                    { label: 'Lun', value: 1800000, target: 2000000 },
+                    { label: 'Mar', value: 1950000, target: 2000000 },
+                    { label: 'Mie', value: 1400000, target: 2000000 },
+                    { label: 'Jue', value: 2200000, target: 2000000 },
+                    { label: 'Vie', value: 2050000, target: 2000000 },
+                    { label: 'Sab', value: 2500000, target: 2000000 },
+                    { label: 'Dom', value: 800000, target: 1000000 },
+                  ]}
+                />
+            </div>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
@@ -547,8 +590,14 @@ const VistaSupervisor = () => {
                         </div>
 
                         {comprobanteTransferenciaPreviewUrl && (
-                          <div className="mt-3 overflow-hidden rounded-xl border border-slate-200 bg-white">
-                            <img src={comprobanteTransferenciaPreviewUrl} alt="Comprobante" className="w-full h-40 object-cover" />
+                          <div className="mt-3 overflow-hidden rounded-xl border border-slate-200 bg-white relative h-48">
+                            <Image
+                              src={comprobanteTransferenciaPreviewUrl}
+                              alt="Comprobante"
+                              fill
+                              className="object-cover"
+                              unoptimized
+                            />
                           </div>
                         )}
 

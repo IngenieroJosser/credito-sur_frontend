@@ -6,6 +6,7 @@ import {
   ArrowLeft, Package, CheckCircle, Search,
   Plus, Trash2, Calendar, DollarSign, ShoppingBag
 } from 'lucide-react';
+import { useNotification } from '@/components/providers/NotificationProvider';
 import { formatCOPInputValue, formatCurrency, parseCOPInputToNumber } from '@/lib/utils';
 
 import { MOCK_CLIENTES, Cliente } from '@/services/clientes-service';
@@ -22,6 +23,7 @@ interface ArticuloSeleccionado extends Articulo {
 }
 
 export default function CreacionCreditoArticulo() {
+  const { showNotification } = useNotification();
   const router = useRouter();
   const pathname = usePathname();
   const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
@@ -186,7 +188,7 @@ export default function CreacionCreditoArticulo() {
   };
 
   const confirmarCredito = () => {
-    alert('Crédito creado exitosamente (Simulación)');
+    showNotification('success', 'El crédito de artículos ha sido creado exitosamente', 'Crédito Creado');
     let destino = '/admin/prestamos';
     if (pathname?.startsWith('/supervisor')) destino = '/supervisor';
     if (pathname?.startsWith('/coordinador')) destino = '/coordinador/creditos';
