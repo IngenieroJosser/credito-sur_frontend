@@ -138,8 +138,8 @@ const LoginPage = () => {
 
     try {
       const payload: LoginData = {
-        nombres: formData.nombres,
-        contrasena: formData.password,
+        nombres: formData.nombres.trim(),
+        contrasena: formData.password.trim(),
       };
 
       // Depuración: Verificar qué se envía
@@ -355,7 +355,7 @@ const LoginPage = () => {
           <div className="flex items-center justify-center mb-6">
             <div className="relative">
               <div className="w-14 h-14 bg-white border border-gray-200 rounded-xl flex items-center justify-center">
-                <Image 
+                <Image
                   src='/favicon-32x32.png'
                   alt='Logo Oficial - Credisur'
                   width={32}
@@ -377,8 +377,8 @@ const LoginPage = () => {
             {/* Campo Usuario */}
             <div className="relative">
               <div className={`absolute left-0 top-1/2 -translate-y-1/2 transition-all duration-300 ${focusedField === 'usuario' || formData.nombres
-                  ? 'opacity-100'
-                  : 'opacity-0'
+                ? 'opacity-100'
+                : 'opacity-0'
                 }`}>
                 <User className="h-4 w-4 text-gray-400" />
               </div>
@@ -402,8 +402,8 @@ const LoginPage = () => {
             {/* Campo Contraseña */}
             <div className="relative">
               <div className={`absolute left-0 top-1/2 -translate-y-1/2 transition-all duration-300 ${focusedField === 'password' || formData.password
-                  ? 'opacity-100'
-                  : 'opacity-0'
+                ? 'opacity-100'
+                : 'opacity-0'
                 }`}>
                 <Lock className="h-4 w-4 text-gray-400" />
               </div>

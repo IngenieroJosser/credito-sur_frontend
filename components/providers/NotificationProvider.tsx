@@ -34,11 +34,17 @@ export const NotificationProvider = ({ children }: NotificationProviderProps) =>
     setNotifications((prev) => prev.filter((notification) => notification.id !== id))
   }, [])
 
+  const [mounted, setMounted] = React.useState(false)
+
+  React.useEffect(() => {
+    setMounted(true)
+  }, [])
+
   return (
     <NotificationContext.Provider value={{ showNotification }}>
       {children}
       {/* Portal para renderizar notificaciones fuera del flujo normal */}
-      {typeof window !== 'undefined' && createPortal(
+      {mounted && createPortal(
         <div className="fixed top-4 right-4 z-[9999] flex w-full max-w-sm flex-col gap-2 pointer-events-none p-4 md:p-0">
           {notifications.map((notification) => (
             <Toast

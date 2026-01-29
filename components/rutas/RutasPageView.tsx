@@ -26,14 +26,89 @@ import {
   ChevronRight,
 } from 'lucide-react'
 import { formatCurrency, cn } from '@/lib/utils'
+import { useAuth } from '@/hooks/useAuth'
 
 // ... (Resto del código)
 
-export const RutasPageView = ({ readOnly = false, rutasBasePath = '/admin/rutas' }: RutasPageViewProps) => {
+interface RutasPageViewProps {
+  readOnly?: boolean;
+  rutasBasePath?: string;
+  rutas?: any[];
+}
+
+export const RutasPageView = ({ readOnly = false, rutasBasePath = '/admin/rutas', rutas = [] }: RutasPageViewProps) => {
   const router = useRouter()
-  // ... (Estados existentes)
+  const { user: currentUser } = useAuth()
+  const [busqueda, setBusqueda] = useState('')
+  const [estadoFiltro, setEstadoFiltro] = useState('TODAS')
+  const [vista, setVista] = useState<'grid' | 'list'>('grid')
+  const [loading, setLoading] = useState(false)
+  const [showModal, setShowModal] = useState(false)
+  const [editingId, setEditingId] = useState<string | null>(null)
+
+  const [formData, setFormData] = useState({
+    nombre: '',
+    codigo: '',
+    zona: '',
+    frecuenciaVisita: 'DIARIO',
+    cobradorId: '',
+    supervisorId: '',
+    descripcion: ''
+  })
+
+  // Mocks
+  const [cobradores] = useState<{ id: string, nombre: string }[]>([])
+  const [supervisores] = useState<{ id: string, nombre: string }[]>([])
+  const [clientesRuta, setClientesRuta] = useState<any[]>([])
+  const [isAddingCliente, setIsAddingCliente] = useState(false)
+  const [clienteSearch, setClienteSearch] = useState('')
+  const [clientesDisponibles] = useState<any[]>([])
+  const [clienteAMover, setClienteAMover] = useState<string | null>(null)
+  const [rutaDestinoId, setRutaDestinoId] = useState('')
+
+  const handleCreateClick = () => {
+    setEditingId(null)
+    setFormData({
+      nombre: '',
+      codigo: '',
+      zona: '',
+      frecuenciaVisita: 'DIARIO',
+      cobradorId: '',
+      supervisorId: '',
+      descripcion: ''
+    })
+    setShowModal(true)
+  }
+
+  const handleEditClick = (ruta: any) => {
+    setEditingId(ruta.id)
+    setFormData({
+      nombre: ruta.nombre,
+      codigo: ruta.codigo,
+      zona: ruta.zona || '',
+      frecuenciaVisita: ruta.frecuenciaVisita,
+      cobradorId: ruta.cobradorId || '',
+      supervisorId: ruta.supervisorId || '',
+      descripcion: ruta.descripcion || ''
+    })
+    setShowModal(true)
+  }
+
+  const handleInputChange = (e: any) => {
+    const { name, value } = e.target
+    setFormData(prev => ({ ...prev, [name]: value }))
+  }
+
+  const handleSubmit = (e: any) => {
+    e.preventDefault()
+    setShowModal(false)
+  }
+
+  const handleActivarRuta = (id: string) => { console.log('Activar', id) }
+  const handleMoveCliente = (id: string) => { console.log('Mover', id) }
+  const confirmAddCliente = (cliente: any) => { console.log('Add', cliente) }
   const [activeTab, setActiveTab] = useState<'info' | 'clientes'>('info')
-  
+
   // PAGINACIÓN
   const [currentPage, setCurrentPage] = useState(1)
   const itemsPerPage = 9
@@ -41,7 +116,7 @@ export const RutasPageView = ({ readOnly = false, rutasBasePath = '/admin/rutas'
   // ... (Rest of code)
 
   const rutasFiltradas = rutas.filter((ruta) => {
-    // ... (Filtro existente)
+    const cumpleEstado = estadoFiltro === 'TODAS' || ruta.estado === estadoFiltro
     const cumpleBusqueda =
       ruta.nombre.toLowerCase().includes(busqueda.toLowerCase()) ||
       ruta.codigo.toLowerCase().includes(busqueda.toLowerCase()) ||
@@ -58,7 +133,7 @@ export const RutasPageView = ({ readOnly = false, rutasBasePath = '/admin/rutas'
 
   // Reset página al filtrar
   if (currentPage > totalPages && totalPages > 0) {
-     setCurrentPage(1);
+    setCurrentPage(1);
   }
 
   const rutasActivas = rutas.filter((ruta) => ruta.estado === 'ACTIVA').length
@@ -93,7 +168,7 @@ export const RutasPageView = ({ readOnly = false, rutasBasePath = '/admin/rutas'
             </p>
           </div>
           <div className="flex gap-4">
-            {!readOnly && currentUser.role !== 'COBRADOR' && (
+            {!readOnly && currentUser?.role !== 'COBRADOR' && (
               <button
                 onClick={handleCreateClick}
                 className="inline-flex items-center gap-2 px-6 py-2.5 bg-white border border-slate-300 text-slate-700 rounded-xl hover:border-slate-400 hover:bg-slate-50 transition-all duration-200 shadow-sm font-bold text-sm group"
@@ -186,10 +261,10 @@ export const RutasPageView = ({ readOnly = false, rutasBasePath = '/admin/rutas'
             <div className="flex gap-2 overflow-x-auto pb-2 md:pb-0 scrollbar-hide">
               {(['TODAS', 'PENDIENTE_ACTIVACION', 'ACTIVA', 'INACTIVA'] as const).map((estado) => {
                 const count = estado === 'PENDIENTE_ACTIVACION' ? rutasPendientes : null
-                const label = estado === 'TODAS' ? 'Todas' 
+                const label = estado === 'TODAS' ? 'Todas'
                   : estado === 'PENDIENTE_ACTIVACION' ? 'Pendientes'
-                  : estado.charAt(0) + estado.slice(1).toLowerCase()
-                
+                    : estado.charAt(0) + estado.slice(1).toLowerCase()
+
                 return (
                   <button
                     key={estado}
@@ -270,10 +345,10 @@ export const RutasPageView = ({ readOnly = false, rutasBasePath = '/admin/rutas'
                           ruta.estado === 'ACTIVA'
                             ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
                             : ruta.estado === 'PENDIENTE_ACTIVACION'
-                            ? 'bg-orange-50 text-orange-700 border-orange-200'
-                            : ruta.estado === 'COMPLETADA'
-                            ? 'bg-blue-50 text-blue-700 border-blue-200'
-                            : 'bg-slate-50 text-slate-600 border-slate-200',
+                              ? 'bg-orange-50 text-orange-700 border-orange-200'
+                              : ruta.estado === 'COMPLETADA'
+                                ? 'bg-blue-50 text-blue-700 border-blue-200'
+                                : 'bg-slate-50 text-slate-600 border-slate-200',
                         )}
                       >
                         {ruta.estado === 'PENDIENTE_ACTIVACION' ? 'PENDIENTE' : ruta.estado}
@@ -340,7 +415,7 @@ export const RutasPageView = ({ readOnly = false, rutasBasePath = '/admin/rutas'
                   <div className="p-4 bg-slate-50/50 border-t border-slate-100 group-hover:bg-blue-50/30 transition-colors">
                     <div className="flex justify-between items-center gap-3">
                       <span className="text-xs text-slate-400 font-bold">ID: {ruta.id}</span>
-                      
+
                       <div className="flex items-center gap-2">
                         {/* Botón de Activación (solo para rutas pendientes y no modo lectura) */}
                         {ruta.estado === 'PENDIENTE_ACTIVACION' && !readOnly && (
@@ -356,7 +431,7 @@ export const RutasPageView = ({ readOnly = false, rutasBasePath = '/admin/rutas'
                             Activar
                           </button>
                         )}
-                        
+
                         {/* Botones de acción (siempre visibles) */}
                         <div className="flex items-center gap-1">
                           {!readOnly && (
@@ -530,25 +605,25 @@ export const RutasPageView = ({ readOnly = false, rutasBasePath = '/admin/rutas'
 
           {/* Paginación Elegante Estandarizada */}
           <div className="p-4 border-t border-slate-100 bg-slate-50/30 flex justify-between items-center text-xs text-slate-500 font-medium rounded-2xl">
-             <span>
-                Mostrando {currentRutas.length} de {rutasFiltradas.length} resultados
-             </span>
-             <div className="flex gap-2">
-               <button 
-                 onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                 disabled={currentPage === 1}
-                 className="px-4 py-2 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed font-bold flex items-center gap-1 transition-colors text-slate-700"
-               >
-                 <ChevronLeft className="h-3 w-3" /> Anterior
-               </button>
-               <button 
-                 onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                 disabled={currentPage === totalPages || totalPages === 0}
-                 className="px-4 py-2 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed font-bold flex items-center gap-1 transition-colors text-slate-700"
-               >
-                 Siguiente <ChevronRight className="h-3 w-3" />
-               </button>
-             </div>
+            <span>
+              Mostrando {currentRutas.length} de {rutasFiltradas.length} resultados
+            </span>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+                className="px-4 py-2 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed font-bold flex items-center gap-1 transition-colors text-slate-700"
+              >
+                <ChevronLeft className="h-3 w-3" /> Anterior
+              </button>
+              <button
+                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                disabled={currentPage === totalPages || totalPages === 0}
+                className="px-4 py-2 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed font-bold flex items-center gap-1 transition-colors text-slate-700"
+              >
+                Siguiente <ChevronRight className="h-3 w-3" />
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -759,7 +834,7 @@ export const RutasPageView = ({ readOnly = false, rutasBasePath = '/admin/rutas'
                         </div>
                       </div>
                       {!isAddingCliente ? (
-                        <button 
+                        <button
                           onClick={() => setIsAddingCliente(true)}
                           type="button"
                           className="px-4 py-2 bg-white text-blue-600 font-bold text-sm rounded-lg shadow-sm border border-blue-100 hover:bg-blue-50 transition-colors flex items-center gap-2"
@@ -769,59 +844,59 @@ export const RutasPageView = ({ readOnly = false, rutasBasePath = '/admin/rutas'
                         </button>
                       ) : (
                         <div className="relative w-72">
-                            <div className="relative">
-                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-                                <input 
-                                    autoFocus
-                                    type="text"
-                                    placeholder="Buscar por nombre..."
-                                    className="w-full pl-9 pr-9 py-2.5 text-sm border border-blue-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 shadow-sm text-slate-900"
-                                    value={clienteSearch}
-                                    onChange={e => setClienteSearch(e.target.value)}
-                                />
-                                <button 
-                                    onClick={() => {
-                                      setIsAddingCliente(false)
-                                      setClienteSearch('')
-                                    }}
-                                    className="absolute right-2 top-1/2 -translate-y-1/2 p-1 hover:bg-slate-100 rounded-full text-slate-400 hover:text-slate-600 transition-colors"
-                                >
-                                    <X className="h-4 w-4" />
-                                </button>
-                            </div>
-                            
-                            {/* Dropdown Results */}
-                            {clienteSearch.length > 0 && (
-                                <div className="absolute top-full mt-2 left-0 w-full bg-white rounded-xl shadow-xl border border-slate-100 max-h-60 overflow-y-auto z-50 animate-in fade-in slide-in-from-top-2">
-                                    {clientesDisponibles.filter(c => 
-                                        !clientesRuta.some(existing => existing.id === c.id) &&
-                                        c.nombre.toLowerCase().includes(clienteSearch.toLowerCase())
-                                    ).length > 0 ? (
-                                        clientesDisponibles
-                                            .filter(c => 
-                                                !clientesRuta.some(existing => existing.id === c.id) &&
-                                                c.nombre.toLowerCase().includes(clienteSearch.toLowerCase())
-                                            )
-                                            .map(cliente => (
-                                            <button
-                                                key={cliente.id}
-                                                onClick={() => confirmAddCliente(cliente)}
-                                                className="w-full text-left px-4 py-3 hover:bg-blue-50 transition-colors border-b border-slate-50 last:border-0 group"
-                                            >
-                                                <p className="font-bold text-sm text-slate-900 group-hover:text-blue-700">{cliente.nombre}</p>
-                                                <div className="flex items-center gap-2 text-xs text-slate-500 mt-0.5">
-                                                  <MapPin className="h-3 w-3" />
-                                                  <span>{cliente.direccion}</span>
-                                                </div>
-                                            </button>
-                                        ))
-                                    ) : (
-                                        <div className="p-4 text-center">
-                                            <p className="text-xs text-slate-500 font-medium">No se encontraron clientes</p>
-                                        </div>
-                                    )}
+                          <div className="relative">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                            <input
+                              autoFocus
+                              type="text"
+                              placeholder="Buscar por nombre..."
+                              className="w-full pl-9 pr-9 py-2.5 text-sm border border-blue-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 shadow-sm text-slate-900"
+                              value={clienteSearch}
+                              onChange={e => setClienteSearch(e.target.value)}
+                            />
+                            <button
+                              onClick={() => {
+                                setIsAddingCliente(false)
+                                setClienteSearch('')
+                              }}
+                              className="absolute right-2 top-1/2 -translate-y-1/2 p-1 hover:bg-slate-100 rounded-full text-slate-400 hover:text-slate-600 transition-colors"
+                            >
+                              <X className="h-4 w-4" />
+                            </button>
+                          </div>
+
+                          {/* Dropdown Results */}
+                          {clienteSearch.length > 0 && (
+                            <div className="absolute top-full mt-2 left-0 w-full bg-white rounded-xl shadow-xl border border-slate-100 max-h-60 overflow-y-auto z-50 animate-in fade-in slide-in-from-top-2">
+                              {clientesDisponibles.filter(c =>
+                                !clientesRuta.some(existing => existing.id === c.id) &&
+                                c.nombre.toLowerCase().includes(clienteSearch.toLowerCase())
+                              ).length > 0 ? (
+                                clientesDisponibles
+                                  .filter(c =>
+                                    !clientesRuta.some(existing => existing.id === c.id) &&
+                                    c.nombre.toLowerCase().includes(clienteSearch.toLowerCase())
+                                  )
+                                  .map(cliente => (
+                                    <button
+                                      key={cliente.id}
+                                      onClick={() => confirmAddCliente(cliente)}
+                                      className="w-full text-left px-4 py-3 hover:bg-blue-50 transition-colors border-b border-slate-50 last:border-0 group"
+                                    >
+                                      <p className="font-bold text-sm text-slate-900 group-hover:text-blue-700">{cliente.nombre}</p>
+                                      <div className="flex items-center gap-2 text-xs text-slate-500 mt-0.5">
+                                        <MapPin className="h-3 w-3" />
+                                        <span>{cliente.direccion}</span>
+                                      </div>
+                                    </button>
+                                  ))
+                              ) : (
+                                <div className="p-4 text-center">
+                                  <p className="text-xs text-slate-500 font-medium">No se encontraron clientes</p>
                                 </div>
-                            )}
+                              )}
+                            </div>
+                          )}
                         </div>
                       )}
                     </div>
@@ -839,7 +914,7 @@ export const RutasPageView = ({ readOnly = false, rutasBasePath = '/admin/rutas'
                                 <p className="text-xs text-slate-500 truncate max-w-[200px]">{cliente.direccion}</p>
                               </div>
                             </div>
-                            
+
                             <div className="text-right">
                               <p className="text-xs text-slate-400 font-bold uppercase">Deuda</p>
                               <p className="font-bold text-slate-900">{formatCurrency(cliente.deuda)}</p>
@@ -849,7 +924,7 @@ export const RutasPageView = ({ readOnly = false, rutasBasePath = '/admin/rutas'
                           {/* Acciones de movimiento */}
                           <div className="mt-4 pt-4 border-t border-slate-100 flex items-center gap-3">
                             <div className="flex-1 relative">
-                              <select 
+                              <select
                                 className="w-full text-sm pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-slate-700 appearance-none focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
                                 value={clienteAMover === cliente.id ? rutaDestinoId : ''}
                                 onChange={(e) => {
@@ -867,7 +942,7 @@ export const RutasPageView = ({ readOnly = false, rutasBasePath = '/admin/rutas'
                               </select>
                               <ArrowRightLeft className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
                             </div>
-                            
+
                             <button
                               disabled={loading || clienteAMover !== cliente.id || !rutaDestinoId}
                               onClick={() => handleMoveCliente(cliente.id)}
@@ -889,9 +964,9 @@ export const RutasPageView = ({ readOnly = false, rutasBasePath = '/admin/rutas'
                   </div>
                 )}
               </div>
+            </div>
           </div>
         </div>
-      </div>
       )}
     </div>
   )
