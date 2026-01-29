@@ -1,5 +1,26 @@
 'use client'
 
+/**
+ * ============================================================================
+ * VISTA OPERATIVA DE COBRANZA (VISTA COBRADOR)
+ * ============================================================================
+ * 
+ * @description
+ * Componente central para la operación de campo (Mobile First Design).
+ * Gestiona el flujo de trabajo diario del cobrador:
+ * 1. Planificación de Ruta (Drag & Drop).
+ * 2. Registro de Gestión (Pagos, No Pagos, Reprogramaciones).
+ * 3. Rendición de Cuentas (Cierre de Caja).
+ * 
+ * @architecture
+ * - Utiliza `@dnd-kit` para listas ordenables táctiles.
+ * - Maneja estado local complejo para funcionamiento Offline-First (simulado).
+ * - Integra múltiples modales operativos dentro del mismo archivo para performance móvil.
+ * 
+ * @roles ['COBRADOR', 'ADMIN']
+ * Nota: El Admin puede visualizar esta vista en modo "Solo Lectura" (ver rutas/page.tsx).
+ */
+
 import { useState, useEffect, useMemo, useCallback, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import {
@@ -54,9 +75,11 @@ import { formatCOPInputValue, formatCurrency, formatMilesCOP, parseCOPInputToNum
 import { ExportButton } from '@/components/ui/ExportButton'
 import NuevoClienteModal from '@/components/clientes/NuevoClienteModal'
 
+// Tipologia de Estados del Ciclo de Visita
 type EstadoVisita = 'pendiente' | 'pagado' | 'en_mora' | 'ausente' | 'reprogramado'
 type PeriodoRuta = 'DIA' | 'SEMANA' | 'MES'
 
+// Modelo de datos principal para la lista de cobranza
 interface VisitaRuta {
   id: string
   cliente: string

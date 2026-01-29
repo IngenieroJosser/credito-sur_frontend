@@ -1,5 +1,24 @@
 'use client'
 
+/**
+ * ============================================================================
+ * REGISTRO CENTRAL DE COBRANZA (ADMIN)
+ * ============================================================================
+ * 
+ * @description
+ * Formulario para el registro manual de pagos. Permite a los administrativos
+ * recibir dinero en oficina y aplicarlo a los créditos activos.
+ * 
+ * @difference_vs_cobrador
+ * La vista del Cobrador está optimizada para móvil y geolocalización.
+ * Esta vista de Admin es más detallada y permite (a futuro) métodos de pago
+ * no disponibles en campo (Transferencia, Cheque, Datáfono).
+ * 
+ * @mock_data
+ * Actualmente usa `cliente` y `prestamo` hardcodeados en el estado inicial.
+ * Debe conectarse con un selector de cliente o recibir parámetros por URL.
+ */
+
 import { useState } from 'react'
 import {
   User,

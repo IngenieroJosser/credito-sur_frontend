@@ -52,8 +52,7 @@ export const permisosPorRol: Record<Rol, ModuloPermiso[]> = {
       path: '#', 
       roles: ['SUPER_ADMINISTRADOR'],
       submodulos: [
-        { id: 'prestamos-dinero', nombre: 'Préstamos Dinero', icono: 'CreditCard', path: '/admin/prestamos', roles: ['SUPER_ADMINISTRADOR', 'COORDINADOR'] },
-        { id: 'creditos-articulos', nombre: 'Créditos Artículos', icono: 'ShoppingBag', path: '/admin/creditos-articulos', roles: ['SUPER_ADMINISTRADOR', 'COORDINADOR'] },
+        { id: 'gestion-creditos', nombre: 'Créditos', icono: 'CreditCard', path: '/admin/creditos', roles: ['SUPER_ADMINISTRADOR', 'COORDINADOR'] },
         { id: 'rutas', nombre: 'Rutas', icono: 'Route', path: '/admin/rutas', roles: ['SUPER_ADMINISTRADOR', 'COORDINADOR'] },
         { id: 'aprobar-cobrador', nombre: 'Aprobaciones', icono: 'CheckCircle2', path: '/admin/aprobaciones', roles: ['SUPER_ADMINISTRADOR', 'COORDINADOR'] },
       ]
@@ -119,8 +118,7 @@ export const permisosPorRol: Record<Rol, ModuloPermiso[]> = {
       path: '#', 
       roles: ['SUPER_ADMINISTRADOR', 'ADMIN'],
       submodulos: [
-        { id: 'prestamos-dinero', nombre: 'Préstamos Dinero', icono: 'CreditCard', path: '/admin/prestamos', roles: ['SUPER_ADMINISTRADOR', 'ADMIN', 'COORDINADOR'] },
-        { id: 'creditos-articulos', nombre: 'Créditos Artículos', icono: 'ShoppingBag', path: '/admin/creditos-articulos', roles: ['SUPER_ADMINISTRADOR', 'ADMIN', 'COORDINADOR'] },
+        { id: 'gestion-creditos', nombre: 'Créditos', icono: 'CreditCard', path: '/admin/creditos', roles: ['SUPER_ADMINISTRADOR', 'ADMIN', 'COORDINADOR'] },
         { id: 'rutas', nombre: 'Rutas', icono: 'Route', path: '/admin/rutas', roles: ['SUPER_ADMINISTRADOR', 'ADMIN', 'COORDINADOR'] },
         { id: 'aprobar-cobrador', nombre: 'Aprobaciones', icono: 'CheckCircle2', path: '/admin/aprobaciones', roles: ['SUPER_ADMINISTRADOR', 'ADMIN', 'COORDINADOR'] },
       ]
@@ -325,8 +323,12 @@ export const tieneAcceso = (rol: Rol, path: string): boolean => {
 
   const normalizado = path.split('?')[0]?.split('#')[0] ?? path;
 
-  // Excepción: permitir que CONTADOR abra la vista de notificaciones por URL,
-  // aunque no esté disponible en el aside.
+  // Excepciones Globales: Permitir acceso a Notificaciones y Perfil para todos los roles
+  if (normalizado.endsWith('/notificaciones') || normalizado.endsWith('/perfil')) {
+    return true;
+  }
+
+  // Excepción específica legacy (mantenida por precaución)
   if (rol === 'CONTADOR' && normalizado === '/contador/notificaciones') return true;
 
   // Match exacto

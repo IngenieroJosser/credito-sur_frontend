@@ -8,8 +8,6 @@ import {
   ArrowUpRight,
   ArrowDownLeft,
   Search,
-  Filter,
-  Download,
   Wallet,
   X,
   Save,
@@ -19,7 +17,7 @@ import {
 } from 'lucide-react'
 import { formatCOPInputValue, formatCurrency, parseCOPInputToNumber, cn } from '@/lib/utils'
 import { ExportButton } from '@/components/ui/ExportButton'
-import { useRouter } from 'next/navigation'
+
 
 // Mock Data
 interface Transaccion {
@@ -33,8 +31,6 @@ interface Transaccion {
 }
 
 const TesoreriaPage = () => {
-  const router = useRouter()
-  const [activeTab, setActiveTab] = useState<'RESUMEN' | 'INGRESOS' | 'EGRESO'>('RESUMEN')
   const [isArqueoOpen, setIsArqueoOpen] = useState(false)
   const [arqueoData, setArqueoData] = useState({
     cajaId: 'CAJA-PRINCIPAL',
@@ -43,9 +39,12 @@ const TesoreriaPage = () => {
     observaciones: ''
   })
 
-  const handleArqueoChange = (field: string, value: any) => {
+  const handleArqueoChange = (field: string, value: string | number) => {
     setArqueoData(prev => ({ ...prev, [field]: value }))
   }
+
+  const [showVerMovimientoModal, setShowVerMovimientoModal] = useState(false)
+  const [transaccionSeleccionada, setTransaccionSeleccionada] = useState<Transaccion | null>(null)
 
   const diferencia = arqueoData.conteoFisico - arqueoData.saldoSistema
 
@@ -232,7 +231,10 @@ const TesoreriaPage = () => {
                     </td>
                     <td className="px-6 py-4 text-right">
                   <button 
-                    onClick={() => router.push(`/admin/contable/movimientos/${trx.id}`)}
+                    onClick={() => {
+                        setTransaccionSeleccionada(trx)
+                        setShowVerMovimientoModal(true)
+                    }}
                     className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
                     title="Ver Detalle"
                   >
@@ -348,7 +350,7 @@ const TesoreriaPage = () => {
                 <div className="space-y-2">
                   <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Observaciones</label>
                   <textarea 
-                    className="w-full p-3 rounded-xl border border-slate-200 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-600/20 focus:border-blue-600 min-h-[80px] resize-none transition-all"
+                    className="w-full p-3 rounded-xl border border-slate-200 text-sm font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-600/20 focus:border-blue-600 min-h-[80px] resize-none transition-all"
                     placeholder="Ingrese detalles sobre billetes, monedas o justificación de diferencias..."
                     value={arqueoData.observaciones}
                     onChange={(e) => handleArqueoChange('observaciones', e.target.value)}
@@ -368,6 +370,69 @@ const TesoreriaPage = () => {
                 >
                   <Save className="h-4 w-4" />
                   Guardar Arqueo
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Modal Detalle Transaccion */}
+        {showVerMovimientoModal && transaccionSeleccionada && (
+          <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-200">
+            <div className="w-full max-w-lg rounded-2xl bg-white border border-slate-200 shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
+              <div className="p-6 border-b border-slate-100 flex items-center justify-between">
+                <div>
+                    <h3 className="text-lg font-bold text-slate-900">Detalle de Transacción</h3>
+                    <p className="text-xs font-bold text-slate-500">{transaccionSeleccionada.id}</p>
+                </div>
+                <button
+                  onClick={() => setShowVerMovimientoModal(false)}
+                  className="p-2 rounded-xl hover:bg-slate-100 text-slate-500 transition-colors"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+              <div className="p-6 space-y-4">
+                 <div className="grid grid-cols-2 gap-4">
+                    <div>
+                        <div className="text-xs font-bold text-slate-500 uppercase">Fecha</div>
+                        <div className="font-medium text-slate-900">{new Date(transaccionSeleccionada.fecha).toLocaleString('es-CO')}</div>
+                    </div>
+                    <div>
+                        <div className="text-xs font-bold text-slate-500 uppercase">Monto</div>
+                        <div className="font-bold text-slate-900 text-lg">{formatCurrency(transaccionSeleccionada.monto)}</div>
+                    </div>
+                    <div>
+                        <div className="text-xs font-bold text-slate-500 uppercase">Tipo</div>
+                        <div className={cn(
+                            "inline-block px-2 py-1 rounded-xl text-xs font-bold mt-1 border",
+                            transaccionSeleccionada.tipo === 'INGRESO' ? "bg-emerald-100 text-emerald-700 border-emerald-200" : "bg-rose-100 text-rose-700 border-rose-200"
+                        )}>
+                            {transaccionSeleccionada.tipo}
+                        </div>
+                    </div>
+                    <div>
+                        <div className="text-xs font-bold text-slate-500 uppercase">Método</div>
+                        <div className="font-bold text-slate-900">{transaccionSeleccionada.metodo}</div>
+                    </div>
+                 </div>
+                 
+                 <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
+                    <div className="text-xs font-bold text-slate-500 uppercase mb-1">Concepto</div>
+                    <div className="font-medium text-slate-900">{transaccionSeleccionada.concepto}</div>
+                 </div>
+
+                 <div>
+                    <div className="text-xs font-bold text-slate-500 uppercase">Responsable</div>
+                    <div className="font-medium text-slate-900">{transaccionSeleccionada.responsable}</div>
+                 </div>
+              </div>
+              <div className="p-6 border-t border-slate-100 bg-slate-50/50 flex justify-end">
+                <button
+                  onClick={() => setShowVerMovimientoModal(false)}
+                  className="px-6 py-2 rounded-xl bg-blue-600 text-white font-bold hover:bg-blue-700 shadow-lg shadow-blue-600/20 transition-all"
+                >
+                  Cerrar
                 </button>
               </div>
             </div>

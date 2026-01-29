@@ -1,42 +1,54 @@
 'use client'
 
+/**
+ * ============================================================================
+ * MÓDULO DE GESTIÓN CONTABLE Y FINANCIERA
+ * ============================================================================
+ * 
+ * @description
+ * Dashboard financiero centralizado para la administración de flujos de efectivo.
+ * Permite gestionar múltiples "Cajas" (Principal y de Rutas), registrar ingresos/egresos
+ * manuales, y supervisar el cierre diario de operaciones (Cuadre de Caja).
+ * 
+ * @roles ['CONTADOR', 'ADMIN', 'SUPER_ADMINISTRADOR']
+ * 
+ * @features
+ * - Multi-caja: Soporte para cajas independientes por ruta y caja fuerte principal.
+ * - Auditoría: Registro inmutable de cierres (Cuadrada vs Descuadrada).
+ * - Categorización: Movimientos tipificados para facilitar reportes P&L (Ganancias y Pérdidas).
+ */
+
 import React, { useState, Suspense } from 'react'
 import { createPortal } from 'react-dom'
-import { usePathname, useSearchParams } from 'next/navigation'
+
 import {
   DollarSign,
+  Search,
   TrendingUp,
   TrendingDown,
   PieChart,
-  FileText,
-  Calendar,
-  Filter,
-  Search,
   ArrowUpRight,
   ArrowDownLeft,
   Briefcase,
   Wallet,
-  Download,
-  CheckCircle2,
   XCircle,
   AlertCircle,
   Eye,
   Edit2,
-  Lock,
   Plus,
   History,
   Receipt
 } from 'lucide-react'
-import Link from 'next/link'
+
 import { formatCOPInputValue, formatCurrency, formatMilesCOP, parseCOPInputToNumber, cn } from '@/lib/utils'
 import { ExportButton } from '@/components/ui/ExportButton'
 
-// Interfaces alineadas con el dominio
+// Interfaces alineadas con el dominio financiero
 interface Caja {
   id: string
   nombre: string
   tipo: 'PRINCIPAL' | 'RUTA'
-  rutaId?: string
+  rutaId?: string // Vinculación opcional a una ruta específica
   responsable: string
   saldo: number
   estado: 'ABIERTA' | 'CERRADA'
@@ -48,9 +60,9 @@ interface HistorialCierre {
   fecha: string
   caja: string
   responsable: string
-  saldoSistema: number
-  saldoReal: number
-  diferencia: number
+  saldoSistema: number // Lo que el software dice que debe haber
+  saldoReal: number    // Lo que se contó físicamente
+  diferencia: number   // Surplus (+) o Deficit (-)
   estado: 'CUADRADA' | 'DESCUADRADA'
 }
 
@@ -82,14 +94,6 @@ type RutaResumen = {
 }
 
 const ModuloContableContent = () => {
-  const searchParams = useSearchParams()
-  const pathname = usePathname()
-  const basePath = pathname?.startsWith('/contador') ? '/contador' : '/admin'
-  const tabParam = searchParams.get('tab')
-  const validTabs = ['MOVIMIENTOS', 'CAJAS', 'HISTORIAL']
-  const initialTab = validTabs.includes(tabParam || '') ? (tabParam as 'MOVIMIENTOS' | 'CAJAS' | 'HISTORIAL') : 'CAJAS'
-
-  const [activeTab, setActiveTab] = useState<'MOVIMIENTOS' | 'CAJAS' | 'HISTORIAL'>(initialTab)
   const [busqueda, setBusqueda] = useState('')
   const [filtroTipo, setFiltroTipo] = useState<'TODOS' | 'INGRESO' | 'EGRESO'>('TODOS')
   const [filtroOrigen, setFiltroOrigen] = useState<'TODOS' | MovimientoContable['origen']>('TODOS')
@@ -97,8 +101,12 @@ const ModuloContableContent = () => {
 
   const [showCrearCajaModal, setShowCrearCajaModal] = useState(false)
   const [showEditarCajaModal, setShowEditarCajaModal] = useState(false)
+  /* Removed Arqueo State */
   const [showRegistrarMovimientoModal, setShowRegistrarMovimientoModal] = useState(false)
+  const [showVerMovimientoModal, setShowVerMovimientoModal] = useState(false)
+  const [showVerCajaModal, setShowVerCajaModal] = useState(false)
   const [cajaSeleccionada, setCajaSeleccionada] = useState<Caja | null>(null)
+  const [movimientoSeleccionado, setMovimientoSeleccionado] = useState<MovimientoContable | null>(null)
 
   const rutasDisponibles: RutaResumen[] = [
     { id: 'RUTA-NORTE', nombre: 'Ruta Norte', responsable: 'Carlos Cobrador' },
@@ -302,16 +310,7 @@ const ModuloContableContent = () => {
     return cumpleBusqueda && cumpleTipo && cumpleOrigen && cumpleEstado
   })
 
-  const openCrearCaja = () => {
-    setCrearCajaForm({
-      tipo: 'RUTA',
-      nombre: '',
-      rutaId: '',
-      responsable: '',
-      saldoInicialInput: '',
-    })
-    setShowCrearCajaModal(true)
-  }
+
 
   const handleCrearCaja = () => {
     const now = new Date().toISOString()
@@ -437,7 +436,7 @@ const ModuloContableContent = () => {
               </p>
             </div>
             
-            <div className="flex gap-3">
+            <div className="flex items-start gap-3">
               <ExportButton 
                 label="Exportar" 
                 onExportExcel={handleExportExcel} 
@@ -446,18 +445,18 @@ const ModuloContableContent = () => {
               <button
                 type="button"
                 onClick={() => setShowCrearCajaModal(true)}
-                className="inline-flex items-center gap-2 rounded-xl bg-slate-900 px-5 py-2.5 text-sm font-bold text-white hover:bg-slate-800 transition-all shadow-lg shadow-slate-900/20 transform active:scale-95"
+                className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-bold text-white hover:bg-blue-700 transition-all shadow-lg shadow-blue-600/20 transform active:scale-95"
               >
                 <Plus className="h-4 w-4" />
                 Crear Caja
               </button>
-              <Link 
-                href={`${basePath}/contable/cierre-caja`}
-                className="inline-flex items-center gap-2 rounded-xl bg-orange-500 px-5 py-2.5 text-sm font-bold text-white hover:bg-orange-600 transition-all shadow-lg shadow-orange-500/20 transform active:scale-95"
-              >
-                <Calendar className="h-4 w-4" />
-                Cierre Diario de Caja
-              </Link>
+              
+              <div className="flex flex-col items-end justify-center h-full pb-1">
+                <div className="flex items-center gap-1.5 text-[10px] font-medium text-slate-400 bg-slate-100/50 px-2 py-1 rounded-lg max-w-[220px] text-right border border-slate-100 leading-tight">
+                  <AlertCircle className="h-3 w-3 shrink-0 text-orange-400" />
+                  El cierre de caja se hará automáticamente cuando todos los cobradores marquen como completada su ruta
+                </div>
+              </div>
             </div>
         </header>
 
@@ -578,7 +577,7 @@ const ModuloContableContent = () => {
               <button
                 type="button"
                 onClick={openRegistrarMovimiento}
-                className="inline-flex items-center gap-2 rounded-xl bg-slate-900 px-4 py-2 text-xs font-bold text-white hover:bg-slate-800"
+                className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-xs font-bold text-white hover:bg-blue-700 transition-all shadow-blue-600/20"
               >
                 <Plus className="h-4 w-4" />
                 Nuevo
@@ -662,7 +661,7 @@ const ModuloContableContent = () => {
                       </div>
                     </div>
                   </div>
-                  <div className="text-right shrink-0">
+                  <div className="text-right shrink-0 flex flex-col items-end gap-2">
                     <div className={cn(
                       'inline-flex items-center rounded-full px-2 py-1 text-[10px] font-extrabold border',
                       m.tipo === 'INGRESO'
@@ -672,11 +671,21 @@ const ModuloContableContent = () => {
                       {m.tipo}
                     </div>
                     <div className={cn(
-                      'mt-2 text-sm font-extrabold',
+                      'text-sm font-extrabold',
                       m.tipo === 'INGRESO' ? 'text-emerald-700' : 'text-rose-700'
                     )}>
                       {m.tipo === 'INGRESO' ? '+' : '-'}{formatCurrency(m.monto)}
                     </div>
+                    <button
+                      onClick={() => {
+                        setMovimientoSeleccionado(m)
+                        setShowVerMovimientoModal(true)
+                      }}
+                      className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                      title="Ver Detalle"
+                    >
+                      <Eye className="h-4 w-4" />
+                    </button>
                   </div>
                 </div>
               ))}
@@ -700,18 +709,17 @@ const ModuloContableContent = () => {
             </div>
             <div className="divide-y divide-slate-100">
               {cajas.slice(0, 6).map((c) => (
-                <button
+                <div
                   key={c.id}
-                  type="button"
-                  onClick={() => openEditarCaja(c)}
-                  className="w-full text-left p-5 hover:bg-slate-50 transition-colors"
+                  className="w-full text-left p-5 hover:bg-slate-50 transition-colors border-b border-slate-100 last:border-0"
                 >
                   <div className="flex items-start justify-between gap-4">
                     <div className="min-w-0">
                       <div className="text-sm font-extrabold text-slate-900 truncate">{c.nombre}</div>
                       <div className="mt-1 text-xs text-slate-500 font-medium">{c.responsable}</div>
+                      {c.rutaId && <div className="mt-1 text-[10px] text-blue-600 font-bold bg-blue-50 inline-block px-1.5 py-0.5 rounded border border-blue-100">{c.rutaId}</div>}
                     </div>
-                    <div className="text-right shrink-0">
+                    <div className="text-right shrink-0 flex flex-col items-end gap-2">
                       <div className={cn(
                         'inline-flex items-center rounded-full px-2 py-1 text-[10px] font-extrabold border',
                         c.estado === 'ABIERTA'
@@ -720,10 +728,29 @@ const ModuloContableContent = () => {
                       )}>
                         {c.estado}
                       </div>
-                      <div className="mt-2 text-sm font-extrabold text-slate-900">{formatCurrency(c.saldo)}</div>
+                      <div className="text-sm font-extrabold text-slate-900">{formatCurrency(c.saldo)}</div>
+                      <div className="flex gap-2">
+                        <button 
+                          onClick={() => {
+                            setCajaSeleccionada(c)
+                            setShowVerCajaModal(true)
+                          }}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-100 text-slate-600 text-xs font-bold hover:bg-slate-200 transition-colors"
+                        >
+                          <Eye className="h-3.5 w-3.5" />
+                          Ver
+                        </button>
+                        <button 
+                          onClick={() => openEditarCaja(c)}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-50 text-blue-700 text-xs font-bold hover:bg-blue-100 transition-colors"
+                        >
+                          <Edit2 className="h-3.5 w-3.5" />
+                          Editar
+                        </button>
+                      </div>
                     </div>
                   </div>
-                </button>
+                </div>
               ))}
             </div>
           </div>
@@ -1174,9 +1201,200 @@ const ModuloContableContent = () => {
                     !movimientoForm.concepto.trim() ||
                     !movimientoForm.categoria
                   }
-                  className="px-6 py-3 rounded-xl bg-slate-900 text-white text-sm font-bold hover:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed"
+                  className="px-6 py-3 rounded-xl bg-blue-600 text-white text-sm font-bold hover:bg-blue-700 transition-all shadow-lg shadow-blue-600/20 disabled:opacity-40 disabled:cursor-not-allowed"
                 >
                   Guardar
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+
+        {showVerMovimientoModal && movimientoSeleccionado && renderInPortal(
+          <div className="fixed inset-0 z-[2147483646] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+            <div className="w-full max-w-lg rounded-2xl bg-white border border-slate-200 shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
+              <div className="p-6 border-b border-slate-100 flex items-center justify-between">
+                <div>
+                    <h3 className="text-lg font-bold text-slate-900">Detalle de Movimiento</h3>
+                    <p className="text-xs font-bold text-slate-500">{movimientoSeleccionado.id}</p>
+                </div>
+                <button
+                  onClick={() => setShowVerMovimientoModal(false)}
+                  className="p-2 rounded-xl hover:bg-slate-100 text-slate-500"
+                >
+                  <XCircle className="h-5 w-5" />
+                </button>
+              </div>
+              <div className="p-6 space-y-4">
+                 <div className="grid grid-cols-2 gap-4">
+                    <div>
+                        <div className="text-xs font-bold text-slate-500 uppercase">Fecha</div>
+                        <div className="font-medium text-slate-900">{new Date(movimientoSeleccionado.fecha).toLocaleString('es-CO')}</div>
+                    </div>
+                    <div>
+                        <div className="text-xs font-bold text-slate-500 uppercase">Monto</div>
+                        <div className="font-bold text-slate-900 text-lg">{formatCurrency(movimientoSeleccionado.monto)}</div>
+                    </div>
+                    <div>
+                        <div className="text-xs font-bold text-slate-500 uppercase">Tipo</div>
+                        <div className={cn(
+                            "inline-block px-2 py-1 rounded-xl text-xs font-bold mt-1 border",
+                            movimientoSeleccionado.tipo === 'INGRESO' ? "bg-emerald-100 text-emerald-700 border-emerald-200" : "bg-rose-100 text-rose-700 border-rose-200"
+                        )}>
+                            {movimientoSeleccionado.tipo}
+                        </div>
+                    </div>
+                    <div>
+                        <div className="text-xs font-bold text-slate-500 uppercase">Estado</div>
+                        <div className="font-bold text-slate-900">{movimientoSeleccionado.estado}</div>
+                    </div>
+                 </div>
+                 
+                 <div className="grid grid-cols-2 gap-4 pt-2 border-t border-slate-100">
+                    <div>
+                        <div className="text-xs font-bold text-slate-500 uppercase">Categoría</div>
+                        <div className="font-medium text-slate-900">
+                           {(categoriasIngreso.find(c => c.id === movimientoSeleccionado.categoria) || 
+                             categoriasEgreso.find(c => c.id === movimientoSeleccionado.categoria))?.label || movimientoSeleccionado.categoria}
+                        </div>
+                    </div>
+                    <div>
+                        <div className="text-xs font-bold text-slate-500 uppercase">Origen</div>
+                        <div className="font-medium text-slate-900">{movimientoSeleccionado.origen}</div>
+                    </div>
+                     <div>
+                        <div className="text-xs font-bold text-slate-500 uppercase">Responsable</div>
+                        <div className="font-medium text-slate-900">{movimientoSeleccionado.responsable}</div>
+                    </div>
+                 </div>
+
+                 <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
+                    <div className="text-xs font-bold text-slate-500 uppercase mb-1">Concepto</div>
+                    <div className="font-medium text-slate-900">{movimientoSeleccionado.concepto}</div>
+                 </div>
+                 {movimientoSeleccionado.referencia && (
+                     <div>
+                        <div className="text-xs font-bold text-slate-500 uppercase">Referencia</div>
+                        <div className="font-medium text-slate-900">{movimientoSeleccionado.referencia}</div>
+                     </div>
+                 )}
+              </div>
+              <div className="p-6 border-t border-slate-100 bg-slate-50/50 flex justify-end">
+                <button
+                  onClick={() => setShowVerMovimientoModal(false)}
+                  className="px-6 py-2 rounded-xl bg-blue-600 text-white font-bold hover:bg-blue-700 shadow-lg shadow-blue-600/20 transition-all"
+                >
+                  Cerrar
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+
+        {showVerCajaModal && cajaSeleccionada && renderInPortal(
+          <div className="fixed inset-0 z-[2147483646] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+            <div className="w-full max-w-lg rounded-2xl bg-white border border-slate-200 shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
+              <div className="p-6 border-b border-slate-100 flex items-center justify-between">
+                <div>
+                    <h3 className="text-lg font-bold text-slate-900">Detalle de Caja</h3>
+                    <p className="text-xs font-bold text-slate-500">{cajaSeleccionada.id}</p>
+                </div>
+                <button
+                  onClick={() => setShowVerCajaModal(false)}
+                  className="p-2 rounded-xl hover:bg-slate-100 text-slate-500"
+                >
+                  <XCircle className="h-5 w-5" />
+                </button>
+              </div>
+              <div className="p-6 space-y-6">
+                <div className="flex flex-col items-center justify-center py-4 bg-slate-50 rounded-2xl border border-slate-100 mb-6">
+                    <div className="text-slate-500 text-sm font-bold uppercase mb-1">Saldo Actual</div>
+                    <div className="text-4xl font-extrabold text-slate-900">{formatCurrency(cajaSeleccionada.saldo)}</div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-6">
+                    <div>
+                        <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">Nombre Caja</label>
+                        <div className="font-bold text-slate-900 text-lg">{cajaSeleccionada.nombre}</div>
+                    </div>
+                    <div>
+                        <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">Tipo / Ruta</label>
+                        <div>
+                            {cajaSeleccionada.tipo === 'RUTA' ? (
+                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                    {cajaSeleccionada.rutaId || 'Ruta'}
+                                </span>
+                            ) : (
+                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                                    Principal
+                                </span>
+                            )}
+                        </div>
+                    </div>
+                    <div>
+                        <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">Responsable</label>
+                        <div className="font-medium text-slate-700 flex items-center gap-2">
+                             <div className="w-6 h-6 rounded-full bg-slate-200 flex items-center justify-center text-xs text-slate-600 font-bold">
+                                {cajaSeleccionada.responsable.charAt(0)}
+                             </div>
+                             {cajaSeleccionada.responsable}
+                        </div>
+                    </div>
+                    <div>
+                        <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">Estado</label>
+                        <span className={cn(
+                            "inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-bold border",
+                            cajaSeleccionada.estado === 'ABIERTA' 
+                                ? "bg-emerald-50 text-emerald-700 border-emerald-200" 
+                                : "bg-slate-50 text-slate-700 border-slate-200"
+                        )}>
+                            {cajaSeleccionada.estado}
+                        </span>
+                    </div>
+                </div>
+              </div>
+
+              {/* Información Operativa Adicional */}
+              <div className="px-6 pb-6">
+                 <h4 className="text-xs font-bold text-slate-500 uppercase mb-3">Resumen Operativo (Hoy)</h4>
+                 <div className="grid grid-cols-3 gap-3">
+                      <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
+                         <div className="text-[10px] font-bold text-slate-400 uppercase mb-1">Apertura</div>
+                         <div className="font-bold text-slate-900 text-sm">07:30 AM</div>
+                      </div>
+                      <div className="bg-emerald-50 p-3 rounded-xl border border-emerald-100">
+                         <div className="text-[10px] font-bold text-emerald-600 uppercase mb-1">Ingresos</div>
+                         <div className="font-bold text-emerald-800 text-sm">
+                             {formatCurrency(cajaSeleccionada.tipo === 'PRINCIPAL' ? resumenData.ingresos : 850000)}
+                         </div>
+                      </div>
+                      <div className="bg-rose-50 p-3 rounded-xl border border-rose-100">
+                         <div className="text-[10px] font-bold text-rose-600 uppercase mb-1">Egresos</div>
+                         <div className="font-bold text-rose-800 text-sm">
+                             {formatCurrency(cajaSeleccionada.tipo === 'PRINCIPAL' ? resumenData.egresos : 120000)}
+                         </div>
+                      </div>
+                 </div>
+                 
+                 {cajaSeleccionada.tipo === 'RUTA' && (
+                     <div className="mt-4 p-3 bg-blue-50 rounded-xl border border-blue-100 flex items-center justify-between">
+                          <div className="text-xs font-bold text-blue-800">Estado de Ruta</div>
+                          <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md bg-white border border-blue-200 text-[10px] font-bold text-blue-700">
+                             <div className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse"></div>
+                             En Recorrido
+                          </span>
+                     </div>
+                 )}
+              </div>
+
+              <div className="p-6 border-t border-slate-100 bg-slate-50/50 flex justify-end">
+                <button
+                  onClick={() => setShowVerCajaModal(false)}
+                  className="px-6 py-2 rounded-xl bg-blue-600 text-white font-bold hover:bg-blue-700 shadow-lg shadow-blue-600/20 transition-all"
+                >
+                  Cerrar
                 </button>
               </div>
             </div>

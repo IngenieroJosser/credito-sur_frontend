@@ -52,9 +52,11 @@ interface CuentaVencida {
  */
 const CuentasVencidasPage = () => {
   const [busqueda, setBusqueda] = useState('')
+  const [filterRuta, setFilterRuta] = useState<string | null>(null)
   const [viewMode, setViewMode] = useState<ViewMode>('list')
 
   const handleExportExcel = () => console.log('Exporting Excel...')
+
   const handleExportPDF = () => console.log('Exporting PDF...')
 
   // Datos mock para Cuentas Vencidas
@@ -67,7 +69,7 @@ const CuentasVencidasPage = () => {
       diasVencidos: 68,
       saldoPendiente: 5000000,
       montoOriginal: 5000000,
-      ruta: 'Ruta Sur',
+      ruta: 'RT-004', // Ruta Sur
       nivelRiesgo: 'LISTA_NEGRA'
     },
     {
@@ -78,7 +80,7 @@ const CuentasVencidasPage = () => {
       diasVencidos: 43,
       saldoPendiente: 700000,
       montoOriginal: 1200000,
-      ruta: 'Ruta Norte',
+      ruta: 'RT-002', // Ruta Norte
       nivelRiesgo: 'LISTA_NEGRA'
     },
     {
@@ -89,15 +91,18 @@ const CuentasVencidasPage = () => {
       diasVencidos: 22,
       saldoPendiente: 250000,
       montoOriginal: 3500000,
-      ruta: 'Ruta Centro',
+      ruta: 'RT-001', // Ruta Centro
       nivelRiesgo: 'ROJO'
     }
   ]
 
-  const filtradas = cuentas.filter(c => 
-    c.cliente.nombre.toLowerCase().includes(busqueda.toLowerCase()) || 
-    c.numeroPrestamo.toLowerCase().includes(busqueda.toLowerCase())
-  )
+  const filtradas = cuentas.filter(c => {
+    const matchesSearch = c.cliente.nombre.toLowerCase().includes(busqueda.toLowerCase()) || 
+                          c.numeroPrestamo.toLowerCase().includes(busqueda.toLowerCase());
+    const matchesRuta = !filterRuta || filterRuta === '' || c.ruta === filterRuta;
+    
+    return matchesSearch && matchesRuta;
+  })
 
   const totalVencido = filtradas.reduce((sum, c) => sum + c.saldoPendiente, 0)
 
@@ -154,8 +159,8 @@ const CuentasVencidasPage = () => {
             {/* Filtro de Ruta Integrado con estilo estándar */}
             <div className="bg-slate-50 p-1 rounded-xl border border-slate-200">
                 <FiltroRuta 
-                    onRutaChange={(r) => console.log('Ruta:', r)} 
-                    selectedRutaId={null}
+                    onRutaChange={setFilterRuta} 
+                    selectedRutaId={filterRuta}
                     className="w-48"
                     showAllOption={true}
                 />

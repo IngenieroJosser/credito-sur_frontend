@@ -20,8 +20,11 @@ import {
   LayoutGrid,
   List,
   Trash2,
-  Save
+  Save,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react';
+
 import { cn } from '@/lib/utils';
 
 // Tipos adaptados a los enums de Prisma
@@ -198,6 +201,20 @@ const UserManagementPage = () => {
     admins: users.filter(u => u.rol === 'SUPER_ADMINISTRADOR').length,
     inactive: users.filter(u => u.estado !== 'ACTIVO').length
   };
+
+  // PAGINACIÓN
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 6;
+  
+  const indexOfLastItem = currentPage * itemsPerPage;
+  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+  const currentUsers = filteredUsers.slice(indexOfFirstItem, indexOfLastItem);
+  const totalPages = Math.ceil(filteredUsers.length / itemsPerPage);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, filterRole, filterStatus]);
+
 
   const handleOpenCreateModal = () => {
     setFormData({
@@ -496,7 +513,7 @@ const UserManagementPage = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {filteredUsers.map((user) => {
+                {currentUsers.map((user) => {
                   const role = roles.find(r => r.id === user.rol);
                   return (
                     <tr
@@ -593,7 +610,7 @@ const UserManagementPage = () => {
         ) : (
           /* Vista Grid (Tarjetas) */
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-            {filteredUsers.map((user) => {
+            {currentUsers.map((user) => {
               const role = roles.find(r => r.id === user.rol);
               return (
                 <div key={user.id} className="bg-white/80 backdrop-blur-sm rounded-2xl border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all duration-300 p-6 flex flex-col gap-4 group">
@@ -686,6 +703,30 @@ const UserManagementPage = () => {
             })}
           </div>
         )}
+
+        {/* Paginación */}
+        <div className="p-4 border-t border-slate-100 bg-white/50 flex justify-between items-center text-xs text-slate-500 font-medium rounded-2xl mt-4">
+           <span>
+              Mostrando {currentUsers.length} de {filteredUsers.length} usuarios
+           </span>
+           <div className="flex gap-2">
+             <button 
+               onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+               disabled={currentPage === 1}
+               className="px-4 py-2 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed font-bold flex items-center gap-1 transition-colors text-slate-700"
+             >
+               <ChevronLeft className="h-3 w-3" /> Anterior
+             </button>
+             <button 
+               onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+               disabled={currentPage === totalPages || totalPages === 0}
+               className="px-4 py-2 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed font-bold flex items-center gap-1 transition-colors text-slate-700"
+             >
+               Siguiente <ChevronRight className="h-3 w-3" />
+             </button>
+           </div>
+        </div>
+
       </div>
     </div>
 

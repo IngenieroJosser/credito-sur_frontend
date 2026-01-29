@@ -1,5 +1,22 @@
 'use client'
 
+/**
+ * ============================================================================
+ * LAYOUT PRINCIPAL DE ADMINISTRACIÓN (SHELL)
+ * ============================================================================
+ * 
+ * @description
+ * Estructura base para todas las páginas autenticadas (/admin/*, /coordinador/*, etc).
+ * Proporciona elementos comunes como:
+ * - Sidebar de navegación dinámico basado en Roles (Permissions-driven).
+ * - Header con perfil de usuario y notificaciones.
+ * - Validación de sesión (Simple Route Guard).
+ * 
+ * @security
+ * Implementa protección de rutas client-side verificando la existencia del usuario
+ * en localStorage. Si no existe, redirige al Login.
+ */
+
 import React, { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'

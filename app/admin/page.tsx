@@ -350,7 +350,7 @@ const DashboardPage = () => {
           icon: <CreditCard className="h-5 w-5" />,
           color: '#0f172a',
           badge: 3,
-          href: '/admin/prestamos/nuevo'
+          href: '/admin/creditos/nuevo'
         },
         {
           title: 'Cobranza',
@@ -382,7 +382,7 @@ const DashboardPage = () => {
           icon: <CreditCard className="h-5 w-5" />,
           color: '#0f172a',
           badge: 3,
-          href: '/admin/prestamos/nuevo'
+          href: '/admin/creditos/nuevo'
         },
         {
           title: 'Cobranza',
@@ -421,7 +421,7 @@ const DashboardPage = () => {
           subtitle: 'Crear préstamo',
           icon: <CreditCard className="h-5 w-5" />,
           color: '#10b981',
-          href: '/admin/prestamos/nuevo'
+          href: '/admin/creditos/nuevo'
         },
         {
           title: 'Rutas',

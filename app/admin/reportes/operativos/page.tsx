@@ -28,6 +28,7 @@ import { useRouter } from 'next/navigation'
 import { BarChart3, Calendar, TrendingUp, Users, FilePlus, DollarSign, MapPin, Eye } from 'lucide-react'
 import { formatCurrency, cn } from '@/lib/utils'
 import { ExportButton } from '@/components/ui/ExportButton'
+import FiltroRuta from '@/components/filtros/FiltroRuta'
 
 const ReportesOperativosPage = () => {
   const router = useRouter()
@@ -43,6 +44,9 @@ const ReportesOperativosPage = () => {
    * @default '/admin'
    */
   const [basePath, setBasePath] = useState('/admin')
+
+  // Estado para el filtro de ruta
+  const [filterRuta, setFilterRuta] = useState<string | null>(null);
 
   const handleExportExcel = () => {
     // TODO: Implementar lógica de exportación a Excel (usar librería xlsx)
@@ -92,16 +96,21 @@ const ReportesOperativosPage = () => {
   // que consulte: GET /api/reportes/operativos
   // --------------------------------------------------------------------------
   const rendimientoRutas = [
-    { id: '1', ruta: 'Ruta Centro', cobrador: 'Carlos Pérez', meta: 1500000, recaudado: 1250000, eficiencia: 83, nuevosPrestamos: 2, nuevosClientes: 1 },
-    { id: '2', ruta: 'Ruta Norte', cobrador: 'María Rodríguez', meta: 1000000, recaudado: 820000, eficiencia: 82, nuevosPrestamos: 0, nuevosClientes: 0 },
-    { id: '3', ruta: 'Ruta Sur', cobrador: 'Juanito Alimaña', meta: 500000, recaudado: 300000, eficiencia: 60, nuevosPrestamos: 1, nuevosClientes: 2 },
+    { id: 'RT-001', ruta: 'Ruta Centro', cobrador: 'Carlos Pérez', meta: 1500000, recaudado: 1250000, eficiencia: 83, nuevosPrestamos: 2, nuevosClientes: 1 },
+    { id: 'RT-002', ruta: 'Ruta Norte', cobrador: 'María Rodríguez', meta: 1000000, recaudado: 820000, eficiencia: 82, nuevosPrestamos: 0, nuevosClientes: 0 },
+    { id: 'RT-003', ruta: 'Ruta Este', cobrador: 'Pedro Gómez', meta: 500000, recaudado: 300000, eficiencia: 60, nuevosPrestamos: 1, nuevosClientes: 2 },
   ]
 
-  // CÁLCULOS AUTOMÁTICOS KPIs
+  // FILTRADO DE DATOS
+  const rendimientoFiltrado = filterRuta 
+    ? rendimientoRutas.filter(r => r.id === filterRuta)
+    : rendimientoRutas;
+
+  // CÁLCULOS AUTOMÁTICOS KPIs (Basados en datos filtrados)
   // Estos cálculos derivan métricas globales a partir de los datos individuales
-  const totalRecaudo = rendimientoRutas.reduce((acc, item) => acc + item.recaudado, 0)
-  const totalMeta = rendimientoRutas.reduce((acc, item) => acc + item.meta, 0)
-  const porcentajeGlobal = Math.round((totalRecaudo / totalMeta) * 100)
+  const totalRecaudo = rendimientoFiltrado.reduce((acc, item) => acc + item.recaudado, 0)
+  const totalMeta = rendimientoFiltrado.reduce((acc, item) => acc + item.meta, 0)
+  const porcentajeGlobal = totalMeta > 0 ? Math.round((totalRecaudo / totalMeta) * 100) : 0
 
   if (!mounted) {
     return null
@@ -129,8 +138,17 @@ const ReportesOperativosPage = () => {
               Consolidado de operaciones del día: cobranza, colocación de créditos y captación de clientes.
             </p>
           </div>
-          <div className="flex items-center gap-3">
-            <div className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-600 shadow-sm font-bold">
+          <div className="flex items-center gap-3 items-end">
+            <div className="bg-slate-50 p-1 rounded-xl border border-slate-200">
+               <FiltroRuta 
+                  onRutaChange={setFilterRuta} 
+                  selectedRutaId={filterRuta}
+                  className="w-48"
+                  showAllOption={true}
+               />
+            </div>
+
+            <div className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-600 shadow-sm font-bold h-[46px]"> {/* Altura fija para alinear */}
               <Calendar className="h-4 w-4 text-slate-400" />
               <span>Hoy, 19 Ene 2026</span>
             </div>
@@ -242,7 +260,7 @@ const ReportesOperativosPage = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {rendimientoRutas.map((item, idx) => (
+                {rendimientoFiltrado.map((item, idx) => (
                   <tr key={idx} className="hover:bg-slate-50/50 transition-colors bg-white/0">
                     <td className="px-6 py-4 font-bold text-slate-900">{item.ruta}</td>
                     <td className="px-6 py-4 text-slate-600 font-medium">{item.cobrador}</td>
@@ -298,7 +316,7 @@ const ReportesOperativosPage = () => {
           <div className="bg-white/80 backdrop-blur-sm p-6 rounded-2xl border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all">
             <h3 className="font-bold text-slate-900 mb-6 text-lg">Comparativa de Recaudo vs Meta</h3>
             <div className="space-y-6">
-              {rendimientoRutas.map((item, idx) => (
+              {rendimientoFiltrado.map((item, idx) => (
                 <div key={idx} className="space-y-2">
                   <div className="flex justify-between text-sm">
                     <span className="font-bold text-slate-700">{item.ruta}</span>

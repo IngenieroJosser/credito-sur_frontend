@@ -1,5 +1,20 @@
 'use client'
 
+/**
+ * ============================================================================
+ * LOGIN PAGE (GATEWAY)
+ * ============================================================================
+ * 
+ * @description
+ * Punto de entrada único a la plataforma. Gestiona la autenticación de
+ * credenciales (Usuario/Contraseña) contra el backend.
+ * 
+ * @features
+ * - Redirección inteligente basada en Rol (Cobrador -> /cobranzas, Admin -> /admin).
+ * - Persistencia de sesión (localStorage).
+ * - UI Minimalista con feedback visual avanzado (Toasts, Spinners).
+ */
+
 import { useState, FormEvent, useEffect } from 'react';
 import { Eye, EyeOff, Lock, User, ChevronRight } from 'lucide-react';
 import { iniciarSesion } from '@/services/autenticacion-service';

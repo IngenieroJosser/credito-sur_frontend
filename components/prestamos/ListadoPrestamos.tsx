@@ -1,5 +1,26 @@
 'use client';
 
+/**
+ * ============================================================================
+ * COMPONENTE DE LISTADO DE PRÉSTAMOS (CORE)
+ * ============================================================================
+ * 
+ * @description
+ * Componente principal responsable de mostrar, filtrar y gestionar el inventario
+ * activo de préstamos. Es compartido entre Administración y Coordinación.
+ * 
+ * @features
+ * - Filtrado en tiempo real (Rutas, Estado, Búsqueda texto).
+ * - Paginación local.
+ * - Cálculo automático de estadísticas globales (Header cards).
+ * - Adaptación de rutas (Admin vs Coordinador).
+ * 
+ * @dependencies
+ * - `FiltroRuta`: Componente desplegable para selección de rutas.
+ * - `EditarPrestamoModal`: Modal para modificaciones rápidas.
+ * - `PRESTAMOS_MOCK`: Fuente de datos actual (debe migrarse a API).
+ */
+
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
@@ -40,8 +61,14 @@ interface Filtros {
 const ListadoPrestamosElegante = () => {
   const router = useRouter();
   const pathname = usePathname();
+  
+  // --------------------------------------------------------------------------
+  // DETECCIÓN DE CONTEXTO (ROL)
+  // Determina si se está visualizando como Coordinador o Admin para ajustar
+  // los enlaces de navegación interna (ej: detalle de préstamo).
+  // --------------------------------------------------------------------------
   const isCoordinador = pathname?.includes('/coordinador');
-  const baseRoute = isCoordinador ? '/coordinador/creditos' : '/admin/prestamos';
+  const baseRoute = isCoordinador ? '/coordinador/creditos' : '/admin/creditos';
   
   const [prestamos, setPrestamos] = useState<Prestamo[]>([]);
   const [filtros, setFiltros] = useState<Filtros>({
@@ -59,10 +86,15 @@ const ListadoPrestamosElegante = () => {
   const [mounted, setMounted] = useState(false);
   const [idPrestamoAEditar, setIdPrestamoAEditar] = useState<string | null>(null);
 
+  /**
+   * @effect Carga Inicial de Datos
+   * Simula la petición al backend. 
+   * @todo Reemplazar `PRESTAMOS_MOCK` con `fetch('/api/prestamos')`.
+   */
   useEffect(() => {
     const timer = setTimeout(() => {
       setMounted(true);
-      setPrestamos(PRESTAMOS_MOCK); // Mostrar todos
+      setPrestamos(PRESTAMOS_MOCK); // Cargar datos simulados
       setCargando(false);
     }, 500);
 
@@ -232,7 +264,16 @@ const ListadoPrestamosElegante = () => {
             />
           </div>
           
-          <div className="flex gap-3 w-full md:w-auto">
+          <div className="flex gap-3 w-full md:w-auto items-end">
+              <div className="bg-slate-50 p-1 rounded-xl border border-slate-200">
+                 <FiltroRuta 
+                    onRutaChange={(r) => setFiltros(prev => ({ ...prev, ruta: r || 'todas' }))}
+                    selectedRutaId={filtros.ruta === 'todas' ? null : filtros.ruta}
+                    className="w-48"
+                    showAllOption={true}
+                 />
+              </div>
+
               <div className="relative min-w-[180px]">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                   <Filter className="h-4 w-4 text-slate-400" />
@@ -247,16 +288,6 @@ const ListadoPrestamosElegante = () => {
                   <option value="EN_MORA">En Mora</option>
                   <option value="PAGADO">Pagados</option>
                 </select>
-              </div>
-
-              <div className="bg-slate-50 p-1 rounded-xl border border-slate-200 flex items-center gap-2">
-                 <FiltroRuta 
-                    onRutaChange={(r) => setFiltros(prev => ({ ...prev, ruta: r || 'todas' }))}
-                    selectedRutaId={filtros.ruta === 'todas' ? null : filtros.ruta}
-                    className="min-w-[180px]"
-                    showAllOption={true}
-                    hideLabel={true}
-                 />
               </div>
           </div>
         </div>

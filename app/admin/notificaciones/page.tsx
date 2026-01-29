@@ -17,6 +17,7 @@ import {
   Trash2,
   ArrowRight
 } from 'lucide-react'
+import FiltroRuta from '@/components/filtros/FiltroRuta'
 
 // Mock Data
 interface Notificacion {
@@ -27,6 +28,7 @@ interface Notificacion {
   fecha: string
   leida: boolean
   link?: string
+  rutaId?: string
 }
 
 const MOCK_NOTIFICACIONES: Notificacion[] = [
@@ -37,7 +39,8 @@ const MOCK_NOTIFICACIONES: Notificacion[] = [
     tipo: 'PAGO',
     fecha: 'Hace 5 min',
     leida: false,
-    link: '/cobranzas'
+    link: '/cobranzas',
+    rutaId: 'RT-001'
   },
   {
     id: 'NOT-002',
@@ -46,7 +49,8 @@ const MOCK_NOTIFICACIONES: Notificacion[] = [
     tipo: 'CLIENTE',
     fecha: 'Hace 2 horas',
     leida: false,
-    link: '/cobranzas/clientes/nuevo'
+    link: '/cobranzas/clientes/nuevo',
+    rutaId: 'RT-002'
   },
   {
     id: 'NOT-003',
@@ -55,7 +59,8 @@ const MOCK_NOTIFICACIONES: Notificacion[] = [
     tipo: 'MORA',
     fecha: 'Hace 4 horas',
     leida: false,
-    link: '/cobranzas'
+    link: '/cobranzas',
+    rutaId: 'RT-002'
   },
   {
     id: 'NOT-004',
@@ -81,6 +86,7 @@ export default function NotificacionesPage() {
   const router = useRouter()
   const [filter, setFilter] = useState<'TODAS' | 'NO_LEIDAS'>('TODAS')
   const [tipoFilter, setTipoFilter] = useState<'TODOS' | Notificacion['tipo']>('TODOS')
+  const [filterRuta, setFilterRuta] = useState<string | null>(null)
   const [search, setSearch] = useState('')
   const [notificacionesState, setNotificacionesState] = useState<Notificacion[]>(() => {
     if (typeof window === 'undefined') return MOCK_NOTIFICACIONES
@@ -104,6 +110,7 @@ export default function NotificacionesPage() {
   const notificaciones = notificacionesState
     .filter((n) => (filter === 'TODAS' ? true : !n.leida))
     .filter((n) => (tipoFilter === 'TODOS' ? true : n.tipo === tipoFilter))
+    .filter((n) => (!filterRuta || filterRuta === '' ? true : n.rutaId === filterRuta))
     .filter((n) => {
       const q = search.trim().toLowerCase()
       if (!q) return true
@@ -233,7 +240,17 @@ export default function NotificacionesPage() {
                   ))}
                 </div>
 
-                <div className="relative w-full sm:w-72">
+                <div className="flex flex-col sm:flex-row gap-3 items-end">
+                  <div className="bg-slate-50 p-1 rounded-xl border border-slate-200">
+                    <FiltroRuta 
+                        onRutaChange={setFilterRuta} 
+                        selectedRutaId={filterRuta}
+                        className="w-48"
+                        showAllOption={true}
+                    />
+                  </div>
+
+                  <div className="relative w-full sm:w-72">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                   <input
                     type="text"
@@ -243,6 +260,7 @@ export default function NotificacionesPage() {
                     className="w-full pl-9 pr-4 py-2 rounded-xl border border-slate-200 bg-white focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-600/20 focus:border-blue-600 text-sm text-slate-900 placeholder:text-slate-400 transition-all"
                   />
                 </div>
+              </div>
               </div>
             </div>
 

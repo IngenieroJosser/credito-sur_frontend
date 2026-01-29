@@ -1,5 +1,19 @@
 'use client';
 
+/**
+ * ============================================================================
+ * SELECTOR DE TIPO DE CRÉDITO
+ * ============================================================================
+ * 
+ * @description
+ * Componente de orden superior (Layout funcional) que permite al operario elegir
+ * entre crear un préstamo monetario o un crédito para compra de artículos.
+ * Renderiza condicionalmente el formulario específico según la elección.
+ * 
+ * @subcomponents
+ * - CreacionPrestamoElegante (Dinero)
+ * - CreacionCreditoArticulo (Artículos)
+ */
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { DollarSign, ShoppingBag, ArrowLeft } from 'lucide-react';
@@ -8,6 +22,8 @@ import CreacionCreditoArticulo from '@/components/creditos/CreacionCreditoArticu
 
 export default function CreacionUnificada() {
   const router = useRouter();
+  
+  // Estado para alternar entre formularios
   const [tipoCredito, setTipoCredito] = useState<'DINERO' | 'ARTICULO'>('DINERO');
 
   return (
