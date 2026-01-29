@@ -1,5 +1,28 @@
 'use client'
 
+/**
+ * ============================================================================
+ * PÁGINA DE REPORTES OPERATIVOS
+ * ============================================================================
+ * 
+ * @description
+ * Dashboard centralizado para visualizar el rendimiento operativo de la empresa.
+ * Muestra KPIs críticos como eficiencia de cobranza, cobertura de rutas y métricas
+ * de crecimiento de cartera.
+ * 
+ * @roles ['SUPER_ADMINISTRADOR', 'ADMIN', 'COORDINADOR', 'SUPERVISOR']
+ * 
+ * @functionality
+ * 1. Visualización de KPIs globales (Recaudo, Eficiencia, Cobertura, Mora).
+ * 2. Desglose detallado por Ruta de cobro.
+ * 3. Navegación contextual (Smart Routing): Detecta el rol del usuario para
+ *    redirigir a las vistas de detalle correspondientes (/admin vs /coordinador).
+ * 
+ * @maintenance
+ * - Para agregar nuevos roles con acceso: Actualizar el hook useEffect que define `basePath`.
+ * - Para conectar API real: Reemplazar `ARTICULOS_MOCK` y `rendimientoRutas` con llamadas fetch/axios.
+ */
+
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { BarChart3, Calendar, TrendingUp, Users, FilePlus, DollarSign, MapPin, Eye } from 'lucide-react'
@@ -8,32 +31,74 @@ import { ExportButton } from '@/components/ui/ExportButton'
 
 const ReportesOperativosPage = () => {
   const router = useRouter()
+  
+  // Control de hidratación para evitar mismatch entre servidor y cliente
   const [mounted, setMounted] = useState(false)
+  
+  /**
+   * @state basePath
+   * @description Ruta base dinámica para navegación interna.
+   * Permite que este componente sea reutilizable por Admin y Coordinadores sin
+   * romper la navegación. Evita que un Coordinador sea enviado a /admin/.
+   * @default '/admin'
+   */
+  const [basePath, setBasePath] = useState('/admin')
 
   const handleExportExcel = () => {
+    // TODO: Implementar lógica de exportación a Excel (usar librería xlsx)
     console.log('Exporting Excel...')
   }
 
   const handleExportPDF = () => {
+    // TODO: Implementar generación de PDF (usar librería jsPDF o html2pdf)
     console.log('Exporting PDF...')
   }
 
+  /**
+   * @effect Inicialización de Contexto de Usuario
+   * Se ejecuta al montar el componente para determinar el rol del usuario
+   * y configurar las rutas de navegación apropiadas.
+   */
   useEffect(() => {
-    // Usamos setTimeout para evitar advertencias de setState síncrono
     const timer = setTimeout(() => {
       setMounted(true)
+      
+      // Lógica de detección de rol para routing dinámico
+      const userData = localStorage.getItem('user')
+      if (userData) {
+        try {
+          const user = JSON.parse(userData)
+          
+          // REGLAS DE ENRUTAMIENTO:
+          // Si se agregan nuevos roles con vistas propias (ej: 'AUDITOR'), agregarlos aquí.
+          if (user.rol === 'COORDINADOR') {
+            setBasePath('/coordinador')
+          } else if (user.rol === 'SUPERVISOR') {
+            setBasePath('/supervisor')
+          }
+          // Default: '/admin' (para ADMIN y SUPER_ADMINISTRADOR)
+        } catch (e) {
+          console.error('Error parsing user data', e)
+        }
+      }
     }, 0)
     
     return () => clearTimeout(timer)
   }, [])
 
-  // Mock Data - Values updated to realistic COP
+  // --------------------------------------------------------------------------
+  // MOCK DATA: Simulación de datos del backend
+  // Reemplazar este bloque con un hook de datos real (ej: useSWR o useQuery)
+  // que consulte: GET /api/reportes/operativos
+  // --------------------------------------------------------------------------
   const rendimientoRutas = [
     { id: '1', ruta: 'Ruta Centro', cobrador: 'Carlos Pérez', meta: 1500000, recaudado: 1250000, eficiencia: 83, nuevosPrestamos: 2, nuevosClientes: 1 },
     { id: '2', ruta: 'Ruta Norte', cobrador: 'María Rodríguez', meta: 1000000, recaudado: 820000, eficiencia: 82, nuevosPrestamos: 0, nuevosClientes: 0 },
     { id: '3', ruta: 'Ruta Sur', cobrador: 'Juanito Alimaña', meta: 500000, recaudado: 300000, eficiencia: 60, nuevosPrestamos: 1, nuevosClientes: 2 },
   ]
 
+  // CÁLCULOS AUTOMÁTICOS KPIs
+  // Estos cálculos derivan métricas globales a partir de los datos individuales
   const totalRecaudo = rendimientoRutas.reduce((acc, item) => acc + item.recaudado, 0)
   const totalMeta = rendimientoRutas.reduce((acc, item) => acc + item.meta, 0)
   const porcentajeGlobal = Math.round((totalRecaudo / totalMeta) * 100)
@@ -156,7 +221,7 @@ const ReportesOperativosPage = () => {
               Desglose por Ruta
             </h3>
             <button 
-              onClick={() => router.push('/coordinador/rutas')}
+              onClick={() => router.push(`${basePath}/rutas`)}
               className="text-xs font-bold text-slate-700 hover:text-slate-900 hover:underline transition-colors"
             >
               Ver detalle completo
@@ -207,8 +272,14 @@ const ReportesOperativosPage = () => {
                     <td className="px-6 py-4 text-center text-slate-600 font-medium">{item.nuevosPrestamos}</td>
                     <td className="px-6 py-4 text-center text-slate-600 font-medium">{item.nuevosClientes}</td>
                     <td className="px-6 py-4 text-right">
+                      {/* 
+                          BOTÓN DE DETALLE CON REDIRECCIÓN INTELIGENTE 
+                          Usa `basePath` para enviar al usuario a SU propia vista de detalle.
+                          - Admin -> /admin/rutas/ID
+                          - Coordinador -> /coordinador/rutas/ID
+                      */}
                       <button 
-                        onClick={() => router.push(`/coordinador/rutas/${item.id}`)}
+                        onClick={() => router.push(`${basePath}/rutas/${item.id}`)}
                         className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
                         title="Ver Detalles"
                       >

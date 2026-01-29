@@ -1,5 +1,26 @@
 'use client'
 
+/**
+ * ============================================================================
+ * DETALLE DE RUTA (ADMIN/COORDINADOR)
+ * ============================================================================
+ * 
+ * @description
+ * Vista detallada de una ruta de cobro específica. Permite visualizar la lista
+ * ordenada de clientes, el estado de cada visita y las métricas de recaudo del día.
+ * 
+ * @difference_vs_cobrador
+ * A diferencia del Dashboard del Cobrador, esta vista usa `StaticVisitaItem`
+ * lo que implica que es principalmente de SUPERVISIÓN. No permite registrar
+ * pagos ni reordenar la ruta (drag & drop) directamente desde aquí, aunque
+ * el Admin tiene permisos para hacerlo si se implementan los controles.
+ * 
+ * @features
+ * - Métricas en tiempo real (Recaudado vs Meta).
+ * - Lista de clientes con estados visuales (Pendiente, Pagó, No Pagó).
+ * - Modales de detalle (Historial, Estado de Cuenta).
+ */
+
 import { useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import {

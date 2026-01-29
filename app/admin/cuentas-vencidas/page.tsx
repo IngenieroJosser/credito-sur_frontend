@@ -33,7 +33,24 @@ interface CuentaVencida {
   nivelRiesgo: NivelRiesgo
 }
 
-const CuentasVencidasCoordinador = () => {
+/**
+ * ============================================================================
+ * GESTIÓN DE CUENTAS VENCIDAS (JURÍDICO/CASTIGO)
+ * ============================================================================
+ * 
+ * @description
+ * Módulo especializado para la gestión de cartera irrecuperable o en mora crítica (>90 días).
+ * Permite a los administradores iniciar procesos jurídicos, refinanciaciones complejas
+ * o decidir "castigos" de cartera (write-offs).
+ * 
+ * @roles ['SUPER_ADMINISTRADOR', 'ADMIN']
+ * 
+ * @features
+ * - Filtros específicos por riesgo y días de mora.
+ * - Exportación de expedientes para abogados externos.
+ * - Visualización rápida de impacto financiero (Capital Vencido).
+ */
+const CuentasVencidasPage = () => {
   const [busqueda, setBusqueda] = useState('')
   const [viewMode, setViewMode] = useState<ViewMode>('list')
 
@@ -217,5 +234,5 @@ const CuentasVencidasCoordinador = () => {
   )
 }
 
-export default CuentasVencidasCoordinador
+export default CuentasVencidasPage
 

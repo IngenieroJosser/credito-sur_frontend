@@ -61,13 +61,41 @@ interface QuickAccessItem {
   href: string;
 }
 
+/**
+ * ============================================================================
+ * DASHBOARD PRINCIPAL DEL SISTEMA (ADMINISTRATIVO)
+ * ============================================================================
+ * 
+ * @description
+ * Panel de control central que adapta su contenido, métricas y accesos rápidos
+ * dinámicamente según el ROL del usuario autenticado.
+ * Es el punto de entrada principal después del login.
+ * 
+ * @roles_supported
+ * - SUPER_ADMINISTRADOR: Vista completa financiera y operativa.
+ * - ADMIN: Vista administrativa general (similar a SuperAdmin pero sin config de sistema).
+ * - COORDINADOR: Vista enfocada en gestión de rutas y aprobaciones.
+ * - SUPERVISOR: Vista de monitoreo y auditoría de campo.
+ * - COBRADOR: Vista operativa personal (Mi Ruta, Mis Pagos).
+ * - CONTADOR: Vista financiera y contable.
+ * 
+ * @architecture
+ * Utiliza un patrón de configuración (`metricsConfig` y `quickAccessConfig`) para
+ * definir qué ve cada rol sin necesidad de crear múltiples componentes de dashboard.
+ */
+
 const DashboardPage = () => {
+  // Estado para filtros de tiempo (Hoy, Semana, Mes) - Afecta a las gráficas (cuando se conecten a API)
   const [timeFilter, setTimeFilter] = useState<'today' | 'week' | 'month' | 'quarter'>('month');
+  
   const [currentDate, setCurrentDate] = useState<Date | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [userData, setUserData] = useState<UserData | null>(null);
+  
+  // Estado dinámico poblado según el rol
   const [quickAccess, setQuickAccess] = useState<QuickAccessItem[]>([]);
   const [mainMetrics, setMainMetrics] = useState<MetricItem[]>([]);
+  
   const router = useRouter();
   
   const handleExportExcel = () => {
@@ -85,10 +113,61 @@ const DashboardPage = () => {
     return () => clearTimeout(timer);
   }, []);
   
+  /**
+   * Configura las Cards de métricas y los botones de Acceso Rápido según el rol.
+   * 
+   * @param rol - El rol del usuario actual (Tipado estricto `Rol`)
+   * @modifies mainMetrics - Estado con los 4 KPIs principales
+   * @modifies quickAccess - Estado con los 4 botones de acción rápida
+   * 
+   * @howto Agregar un nuevo ROL:
+   * 1. Asegúrese que el Rol exista en el tipo `Rol` (lib/permissions.tsx)
+   * 2. Agregue una nueva entrada en `metricsConfig` con sus 4 KPIs.
+   * 3. Agregue una nueva entrada en `quickAccessConfig`.
+   */
   function configurarDashboardPorRol(rol: Rol) {
-    // Configurar métricas según el rol
+    // ------------------------------------------------------------------------
+    // CONFIGURACIÓN DE MÉTRICAS (KPIs) POR ROL
+    // ------------------------------------------------------------------------
+    // Definir aquí los 4 indicadores clave que cada perfil debe monitorear.
     const metricsConfig: Record<Rol, MetricItem[]> = {
       SUPER_ADMINISTRADOR: [
+        {
+          title: 'Total Prestado (Mes)',
+          value: 125000000,
+          isCurrency: true,
+          change: 12.5,
+          icon: <CreditCard className="h-4 w-4" />,
+          color: '#3b82f6'
+        },
+        {
+          title: 'Recaudo Real vs Esperado',
+          value: '94.2%',
+          subValue: `${formatCurrency(12500000)} / ${formatCurrency(13200000)}`,
+          isCurrency: false,
+          change: 2.1,
+          icon: <Target className="h-4 w-4" />,
+          color: '#8b5cf6'
+        },
+        {
+          title: 'Cartera en Mora',
+          value: 45000000,
+          subValue: '8.5% del total',
+          isCurrency: true,
+          change: -3.4,
+          icon: <AlertCircle className="h-4 w-4" />,
+          color: '#f43f5e'
+        },
+        {
+          title: 'Capital Activo',
+          value: 2850000000,
+          isCurrency: true,
+          change: 5.8,
+          icon: <Banknote className="h-4 w-4" />,
+          color: '#f59e0b'
+        }
+      ],
+      ADMIN: [
         {
           title: 'Total Prestado (Mes)',
           value: 125000000,
@@ -296,6 +375,38 @@ const DashboardPage = () => {
           href: '/admin/reportes/operativos'
         }
       ],
+      ADMIN: [
+        {
+          title: 'Nuevo Crédito',
+          subtitle: 'Registro rápido',
+          icon: <CreditCard className="h-5 w-5" />,
+          color: '#0f172a',
+          badge: 3,
+          href: '/admin/prestamos/nuevo'
+        },
+        {
+          title: 'Cobranza',
+          subtitle: 'Gestionar pagos',
+          icon: <Wallet className="h-5 w-5" />,
+          color: '#10b981',
+          badge: 12,
+          href: '/admin/pagos/registro'
+        },
+        {
+          title: 'Clientes',
+          subtitle: 'Base de datos',
+          icon: <Users className="h-5 w-5" />,
+          color: '#6366f1',
+          href: '/admin/clientes'
+        },
+        {
+          title: 'Análisis',
+          subtitle: 'Reportes avanzados',
+          icon: <PieChart className="h-5 w-5" />,
+          color: '#f59e0b',
+          href: '/admin/reportes/operativos'
+        }
+      ],
       COORDINADOR: [
         {
           title: 'Aprobaciones',
@@ -470,6 +581,7 @@ const DashboardPage = () => {
     
     const titulos: Record<Rol, string> = {
       'SUPER_ADMINISTRADOR': 'Panel de Control',
+      'ADMIN': 'Panel de Administración',
       'COORDINADOR': 'Coordinación de Operaciones',
       'SUPERVISOR': 'Supervisión de Campo',
       'COBRADOR': 'Mi Gestión de Cobranza',

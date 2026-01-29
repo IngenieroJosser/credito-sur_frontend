@@ -1,5 +1,28 @@
 'use client';
 
+/**
+ * ============================================================================
+ * GESTIÓN CENTRALIZADA DE CLIENTES (ADMIN)
+ * ============================================================================
+ * 
+ * @description
+ * Módulo principal para la visualización, administración y análisis de la base
+ * de datos de clientes. Proporciona herramientas avanzadas de filtrado, 
+ * visualización de riesgo crediticio (Scores) y acciones directas.
+ * 
+ * @roles ['SUPER_ADMINISTRADOR', 'ADMIN', 'COORDINADOR', 'SUPERVISOR', 'COBRADOR']
+ * 
+ * @features
+ * - Listado completo de clientes con paginación virtual (scroll).
+ * - Algoritmo de Scoring visual (actualmente simulado, conectar a motor de riesgo).
+ * - Filtrado por rutas y estado (usando componentes reutilizables).
+ * - Acciones rápidas: Editar, Eliminar (Soft Delete), Crear Nuevo.
+ * 
+ * @integration
+ * Consume `clientesService` que conecta con Prisma/Backend.
+ * Si falla, hace fallback a `MOCK_CLIENTES` para demos.
+ */
+
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -29,15 +52,22 @@ import { Modal } from '@/components/ui/Modal';
 import FiltroRuta from '@/components/filtros/FiltroRuta';
 import NuevoClienteModal from '@/components/clientes/NuevoClienteModal';
 
-// Tipos alineados con Prisma Schema
+// Tipos alineados con Prisma Schema para consistencia en el ORM
 type NivelRiesgo = 'VERDE' | 'AMARILLO' | 'ROJO' | 'LISTA_NEGRA';
 type EstadoAprobacion = 'PENDIENTE' | 'APROBADO' | 'RECHAZADO' | 'CANCELADO';
 
-// Interfaz extendida para vista admin
+/**
+ * @interface ClienteAdmin
+ * @extends Cliente
+ * @description
+ * Extensión de la interfaz base Cliente para incluir metadatos calculados
+ * exclusivamente para la vista administrativa (Scores, Tendencias).
+ * Estos campos no necesariamente existen en la tabla base de la BD.
+ */
 interface ClienteAdmin extends Cliente {
-  score?: number;
-  tendencia?: 'SUBE' | 'BAJA' | 'ESTABLE';
-  ultimaVisita?: string;
+  score?: number;            // Puntaje de crédito (0-100)
+  tendencia?: 'SUBE' | 'BAJA' | 'ESTABLE'; // Comportamiento reciente
+  ultimaVisita?: string;     // Fecha de última interacción
 }
 
 const ClientesPage = () => {
@@ -46,6 +76,11 @@ const ClientesPage = () => {
   const [clientes, setClientes] = useState<ClienteAdmin[]>([])
   const [isLoading, setIsLoading] = useState(true)
 
+  /**
+   * @effect Carga de Datos Inicial
+   * Obtiene la lista base de clientes y le inyecta datos calculados (enriquecimiento).
+   * @pattern Adapter Pattern (Frontend-side enrichment)
+   */
   useEffect(() => {
     let mounted = true
     ;(async () => {
@@ -53,7 +88,12 @@ const ClientesPage = () => {
         const data = await clientesService.obtenerClientes()
         const rawData = Array.isArray(data) ? data : MOCK_CLIENTES
         
-        // Enriquecer datos para admin (simulado igual que en coordinador)
+        // ----------------------------------------------------
+        // ENRIQUECIMIENTO DE DATOS (DATA MAPPING)
+        // ----------------------------------------------------
+        // Aquí se inyectan propiedades visuales que el backend no envía por defecto,
+        // como scores calculados en tiempo real o tendencias.
+        // TODO: Mover lógica de cálculo de Score al Backend.
         const enriched: ClienteAdmin[] = rawData.map(c => ({
           ...c,
           score: Math.floor(Math.random() * (100 - 40 + 1)) + 40,
@@ -65,7 +105,7 @@ const ClientesPage = () => {
       } catch (error) {
         console.warn('Usando datos mock de clientes', error)
         if (mounted) {
-           // Mock fallback enriched
+           // Fallback en caso de error de API: Usar mocks locales enriquecidos
            const enriched: ClienteAdmin[] = MOCK_CLIENTES.map(c => ({
             ...c,
             score: Math.floor(Math.random() * (100 - 40 + 1)) + 40,
