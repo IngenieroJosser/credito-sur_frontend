@@ -21,16 +21,55 @@ const PerfilUsuarioPage = () => {
     confirm: false
   })
 
+  const [userData, setUserData] = useState({
+    nombres: 'Personal',
+    apellidos: 'Sistema',
+    correo: 'usuario@sistema.local',
+    telefono: '+57 300 000 0000',
+    rol: 'USUARIO',
+    estado: 'ACTIVO',
+    fechaCreacion: '2024-01-01',
+    ultimoIngreso: 'Ahora',
+    intentosFallidos: 0,
+    clientesRegistrados: 0,
+    prestamosAprobados: 0,
+    efectividadCobro: '0%'
+  })
+
   useEffect(() => {
-    setMounted(true)
-    try {
-      const userStr = localStorage.getItem('user')
-      if (!userStr) return
-      const user = JSON.parse(userStr) as { rol?: string }
-      setVolverRuta(user.rol === 'COBRADOR' ? '/cobranzas' : '/admin')
-    } catch {
-      // ignore
+    const handle = requestAnimationFrame(() => setMounted(true))
+    return () => cancelAnimationFrame(handle)
+  }, [])
+
+  useEffect(() => {
+    const loadUserData = () => {
+      try {
+        const userStr = localStorage.getItem('user')
+        if (!userStr) return
+        const user = JSON.parse(userStr)
+        
+        setVolverRuta(user.rol === 'COBRADOR' ? '/cobranzas' : '/admin')
+        
+        setUserData({
+          nombres: user.nombres || 'Personal',
+          apellidos: user.apellidos || 'Sistema',
+          correo: user.correo || 'usuario@sistema.local',
+          telefono: user.telefono || '+57 300 000 0000',
+          rol: user.rol || 'USUARIO',
+          estado: user.estado || 'ACTIVO',
+          fechaCreacion: user.fechaCreacion ? new Date(user.fechaCreacion).toLocaleDateString() : '2024-01-01',
+          ultimoIngreso: 'Hoy, 08:30 AM',
+          intentosFallidos: 0,
+          clientesRegistrados: user.rol === 'COBRADOR' ? 15 : 0,
+          prestamosAprobados: user.rol === 'COBRADOR' ? 42 : 0,
+          efectividadCobro: '98%'
+        })
+      } catch (err) {
+        console.error('Error al cargar datos de usuario:', err)
+      }
     }
+
+    loadUserData()
   }, [])
 
   const handleOpenPasswordModal = () => {
@@ -38,23 +77,6 @@ const PerfilUsuarioPage = () => {
     setShowPassword({ current: false, new: false, confirm: false })
     setIsPasswordModalOpen(true)
   }
-
-  // Mock data based on Prisma Schema (Usuario model)
-  const [userData] = useState({
-    nombres: 'Administrador',
-    apellidos: 'General',
-    correo: 'admin@sistema.local',
-    telefono: '+57 300 123 4567',
-    rol: 'SUPER_ADMINISTRADOR',
-    estado: 'ACTIVO',
-    fechaCreacion: '2024-01-15',
-    ultimoIngreso: 'Hoy, 08:30 AM',
-    intentosFallidos: 0,
-    // Mock stats
-    clientesRegistrados: 15,
-    prestamosAprobados: 42,
-    efectividadCobro: '98%'
-  })
 
   return (
     <div className="min-h-screen bg-slate-50 relative">
@@ -112,7 +134,7 @@ const PerfilUsuarioPage = () => {
                     <Shield className="h-4 w-4" /> Rol
                   </span>
                   <span className="font-bold text-slate-900 bg-slate-100 px-2 py-0.5 rounded text-xs">
-                    {userData.rol.replace('_', ' ')}
+                    {(userData.rol || 'USUARIO').replace('_', ' ')}
                   </span>
                 </div>
                 <div className="flex items-center justify-between text-sm">
@@ -128,16 +150,16 @@ const PerfilUsuarioPage = () => {
             <div className="rounded-2xl border border-slate-200 bg-white/80 backdrop-blur-sm p-6 shadow-sm">
               <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider mb-4 flex items-center gap-2">
                 <Eye className="h-4 w-4" />
-                Impacto Operativo
+                {userData.rol === 'COBRADOR' ? 'Impacto en Ruta' : 'Impacto Operativo'}
               </h3>
               <div className="grid grid-cols-2 gap-4">
                  <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
-                    <div className="text-2xl font-bold text-slate-900">{userData.clientesRegistrados}</div>
-                    <div className="text-[10px] text-slate-500 font-bold uppercase mt-1">Clientes</div>
+                    <div className="text-2xl font-bold text-slate-900">{userData.rol === 'COBRADOR' ? userData.clientesRegistrados : '-'}</div>
+                    <div className="text-[10px] text-slate-500 font-bold uppercase mt-1">{userData.rol === 'COBRADOR' ? 'Clientes' : 'Gestiones'}</div>
                  </div>
                  <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
-                    <div className="text-2xl font-bold text-slate-900">{userData.prestamosAprobados}</div>
-                    <div className="text-[10px] text-slate-500 font-bold uppercase mt-1">Préstamos</div>
+                    <div className="text-2xl font-bold text-slate-900">{userData.rol === 'COBRADOR' ? userData.prestamosAprobados : '-'}</div>
+                    <div className="text-[10px] text-slate-500 font-bold uppercase mt-1">{userData.rol === 'COBRADOR' ? 'Préstamos' : 'Aprobaciones'}</div>
                  </div>
               </div>
             </div>
@@ -325,4 +347,3 @@ const PerfilUsuarioPage = () => {
 }
 
 export default PerfilUsuarioPage
-

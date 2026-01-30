@@ -24,7 +24,6 @@ import { useNotification } from '@/components/providers/NotificationProvider'
 
 import {
   DollarSign,
-  Search,
   TrendingUp,
   TrendingDown,
   PieChart,
@@ -33,7 +32,6 @@ import {
   Briefcase,
   Wallet,
   XCircle,
-  AlertCircle,
   Eye,
   Edit2,
   Plus,
@@ -55,6 +53,8 @@ interface Caja {
   responsable: string
   saldo: number
   estado: 'ABIERTA' | 'CERRADA'
+  recaudoEsperado?: number
+  eficiencia?: number
   ultimaActualizacion: string
 }
 
@@ -98,7 +98,7 @@ type RutaResumen = {
 
 const ModuloContableContent = () => {
   const { showNotification } = useNotification()
-  const [busqueda, setBusqueda] = useState('')
+  const [busqueda] = useState('')
   const [filtroTipo, setFiltroTipo] = useState<'TODOS' | 'INGRESO' | 'EGRESO'>('TODOS')
   const [filtroOrigen, setFiltroOrigen] = useState<'TODOS' | MovimientoContable['origen']>('TODOS')
   const [filtroEstado, setFiltroEstado] = useState<'TODOS' | MovimientoContable['estado']>('TODOS')
@@ -144,6 +144,8 @@ const ModuloContableContent = () => {
       rutaId: 'RUTA-NORTE',
       responsable: 'Carlos Cobrador',
       saldo: 850000,
+      recaudoEsperado: 950000,
+      eficiencia: 89,
       estado: 'ABIERTA',
       ultimaActualizacion: 'Hace 2 horas'
     },
@@ -756,6 +758,12 @@ const ModuloContableContent = () => {
                       <div className="text-sm font-extrabold text-slate-900 truncate">{c.nombre}</div>
                       <div className="mt-1 text-xs text-slate-500 font-medium">{c.responsable}</div>
                       {c.rutaId && <div className="mt-1 text-[10px] text-blue-600 font-bold bg-blue-50 inline-block px-1.5 py-0.5 rounded border border-blue-100">{c.rutaId}</div>}
+                      {c.recaudoEsperado && (
+                        <div className="mt-2 flex items-center gap-3">
+                           <div className="text-[10px] font-bold text-slate-400 uppercase">Goal: {formatCurrency(c.recaudoEsperado)}</div>
+                           <div className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded">{c.eficiencia}% Efficiency</div>
+                        </div>
+                      )}
                     </div>
                     <div className="text-right shrink-0 flex flex-col items-end gap-2">
                       <div className={cn(

@@ -282,12 +282,14 @@ export default function AdminLayout({
           <div className="flex items-center justify-between">
             {/* Logo y título */}
             <div className="flex items-center space-x-3">
-              <button 
-                onClick={() => setIsMenuOpen(!isMenuOpen)}
-                className="p-2 hover:bg-gray-100 rounded-lg transition-colors lg:hidden"
-              >
-                {isMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-              </button>
+              {user?.rol !== 'COBRADOR' && (
+                <button 
+                  onClick={() => setIsMenuOpen(!isMenuOpen)}
+                  className="p-2 hover:bg-gray-100 rounded-lg transition-colors lg:hidden"
+                >
+                  {isMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+                </button>
+              )}
               
               <div className="flex items-center">
                 <div className="w-8 h-8 bg-linear-to-br from-blue-600 to-blue-800 rounded-lg flex items-center justify-center shadow-lg shadow-blue-600/20">
@@ -374,7 +376,10 @@ export default function AdminLayout({
                         <button 
                           onClick={() => {
                             setShowNotifications(false)
-                            router.push(user?.rol === 'CONTADOR' ? '/contador/notificaciones' : '/admin/notificaciones')
+                            let target = '/admin/notificaciones'
+                            if (user?.rol === 'CONTADOR') target = '/contador/notificaciones'
+                            if (user?.rol === 'COBRADOR') target = '/cobranzas/notificaciones'
+                            router.push(target)
                           }}
                           className="w-full py-2 text-sm font-medium text-gray-600 hover:text-blue-600 hover:bg-gray-50 rounded-lg transition-colors"
                         >
@@ -532,7 +537,7 @@ export default function AdminLayout({
                       {/* Acciones rápidas */}
                       <div className="py-2">
                         <Link
-                          href="/admin/perfil"
+                          href={user?.rol === 'COBRADOR' ? '/cobranzas/perfil' : user?.rol === 'CONTADOR' ? '/contador/perfil' : '/admin/perfil'}
                           className="flex items-center px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors group"
                           onClick={() => setShowUserMenu(false)}
                         >
@@ -635,7 +640,7 @@ export default function AdminLayout({
       )}
 
       {/* Sidebar elegante para desktop */}
-      {!hideSidebar && (
+      {!hideSidebar && user?.rol !== 'COBRADOR' && (
         <aside className={`fixed left-0 top-16 bottom-0 w-64 bg-white/80 backdrop-blur-sm border-r border-gray-100 transition-all duration-300 z-20 ${
           isMenuOpen ? 'translate-x-0' : '-translate-x-full'
         } lg:translate-x-0 lg:block`}>
@@ -761,7 +766,7 @@ export default function AdminLayout({
       )}
 
       {/* Contenido principal */}
-      <main className={`pt-16 ${hideSidebar ? '' : 'lg:pl-64'} transition-all duration-300 ${isMenuOpen && !hideSidebar ? 'lg:pl-64' : ''}`}>
+      <main className={`pt-16 ${hideSidebar || user?.rol === 'COBRADOR' ? '' : 'lg:pl-64'} transition-all duration-300 ${(isMenuOpen && !hideSidebar && user?.rol !== 'COBRADOR') ? 'lg:pl-64' : ''}`}>
         {children}
       </main>
 
@@ -816,12 +821,12 @@ export default function AdminLayout({
         <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-40 shadow-lg">
           <div className="flex items-center justify-around py-3 px-2">
             {/* Botón Notificaciones */}
-            <button
-              onClick={() => setShowNotifications(!showNotifications)}
+            <Link
+              href="/cobranzas/notificaciones"
               className="flex flex-col items-center px-2 py-1 rounded-xl transition-all group"
             >
               <div className={`p-2 rounded-lg transition-all ${
-                showNotifications
+                pathname === '/cobranzas/notificaciones'
                   ? 'bg-gradient-to-br from-[#08557f] to-[#063a58] text-white shadow-md' 
                   : 'text-gray-500 group-hover:bg-gray-100'
               }`}>
@@ -829,11 +834,11 @@ export default function AdminLayout({
                 <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-orange-500 rounded-full border-2 border-white"></span>
               </div>
               <span className={`text-xs mt-1 transition-colors ${
-                showNotifications ? 'font-medium text-[#08557f]' : 'text-gray-600'
+                pathname === '/cobranzas/notificaciones' ? 'font-medium text-[#08557f]' : 'text-gray-600'
               }`}>
                 Notificaciones
               </span>
-            </button>
+            </Link>
 
             {/* Botón Inicio */}
             <Link
@@ -855,23 +860,23 @@ export default function AdminLayout({
             </Link>
 
             {/* Botón Perfil */}
-            <button
-              onClick={() => setShowUserMenu(!showUserMenu)}
+            <Link
+              href="/cobranzas/perfil"
               className="flex flex-col items-center px-2 py-1 rounded-xl transition-all group"
             >
               <div className={`p-2 rounded-lg transition-all ${
-                showUserMenu
+                pathname === '/cobranzas/perfil'
                   ? 'bg-gradient-to-br from-[#08557f] to-[#063a58] text-white shadow-md' 
                   : 'text-gray-500 group-hover:bg-gray-100'
               }`}>
                 <User className="h-5 w-5" />
               </div>
               <span className={`text-xs mt-1 transition-colors ${
-                showUserMenu ? 'font-medium text-[#08557f]' : 'text-gray-600'
+                pathname === '/cobranzas/perfil' ? 'font-medium text-[#08557f]' : 'text-gray-600'
               }`}>
                 Perfil
               </span>
-            </button>
+            </Link>
           </div>
         </div>
       )}

@@ -32,6 +32,7 @@ interface MetricCard {
   icon: React.ReactNode;
   color: string;
   trendData: number[];
+  subValue?: string;
 }
 
 interface QuickAccessItem {
@@ -149,6 +150,7 @@ const VistaCoordinador = () => {
     {
       title: 'Eficiencia',
       value: '92.3%',
+      subValue: `${formatCurrency(12500000)} / ${formatCurrency(13540000)}`,
       change: 1.8,
       icon: <Target className="h-4 w-4" />,
       color: '#10b981',
@@ -328,7 +330,12 @@ const VistaCoordinador = () => {
                 <div className="text-3xl font-black text-slate-900 tracking-tighter">
                   {metric.value}
                 </div>
-                <div className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] leading-none">
+                {metric.subValue && (
+                  <div className="text-[10px] font-bold text-slate-400 mt-1">
+                    {metric.subValue}
+                  </div>
+                )}
+                <div className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] leading-none pt-1">
                   {metric.title}
                 </div>
               </div>

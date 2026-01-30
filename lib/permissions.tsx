@@ -323,9 +323,14 @@ export const tieneAcceso = (rol: Rol, path: string): boolean => {
 
   const normalizado = path.split('?')[0]?.split('#')[0] ?? path;
 
-  // Excepciones Globales: Permitir acceso a Notificaciones y Perfil para todos los roles
+  // Excepciones Globales: Permitir acceso a Notificaciones y Perfil solo si están bajo su prefijo de rol
+  const prefijoRol = rol === 'COBRADOR' ? '/cobranzas' : 
+                    rol === 'CONTADOR' ? '/contador' : 
+                    rol === 'SUPER_ADMINISTRADOR' || rol === 'ADMIN' ? '/admin' :
+                    rol === 'COORDINADOR' ? '/coordinador' : '/supervisor'
+
   if (normalizado.endsWith('/notificaciones') || normalizado.endsWith('/perfil')) {
-    return true;
+    return normalizado.startsWith(prefijoRol);
   }
 
   // Excepción específica legacy (mantenida por precaución)

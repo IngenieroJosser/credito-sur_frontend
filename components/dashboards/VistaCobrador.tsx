@@ -22,13 +22,11 @@
  */
 
 import { useState, useEffect, useMemo, useCallback, type ReactNode } from 'react'
-import { createPortal } from 'react-dom'
 import {
   MapPin,
   Wallet,
   CheckCircle2,
   Clock,
-  ChevronRight,
   UserPlus,
   Receipt,
   DollarSign,
@@ -44,8 +42,15 @@ import {
   Search,
   History,
   ShoppingBag,
-  FileText as FileTextIcon
+  FileText as FileTextIcon,
+  BarChart3,
+  ChevronDown,
+  Phone,
+  User,
+  Users,
+  Target,
 } from 'lucide-react'
+import { Sparkline } from '@/components/ui/PremiumCharts'
 import {
   DndContext,
   closestCenter,
@@ -63,38 +68,17 @@ import {
   sortableKeyboardCoordinates,
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable'
-import {
-  useSortable,
-} from '@dnd-kit/sortable'
-import { CSS } from '@dnd-kit/utilities'
 import { useRouter } from 'next/navigation'
 import { RolUsuario } from '@/lib/types/autenticacion-type'
 import { obtenerPerfil } from '@/services/autenticacion-service'
-import { MOCK_ARTICULOS, type OpcionCuotas } from '@/services/articulos-service'
+import { MOCK_ARTICULOS } from '@/services/articulos-service'
 import { formatCOPInputValue, formatCurrency, formatMilesCOP, parseCOPInputToNumber } from '@/lib/utils'
 import { ExportButton } from '@/components/ui/ExportButton'
 import NuevoClienteModal from '@/components/clientes/NuevoClienteModal'
+import { VisitaRuta, EstadoVisita, PeriodoRuta } from '@/lib/types/cobranza'
+import { StaticVisitaItem, SortableVisita, Portal, MODAL_Z_INDEX } from '@/components/dashboards/shared/CobradorElements'
 
-// Tipologia de Estados del Ciclo de Visita
-type EstadoVisita = 'pendiente' | 'pagado' | 'en_mora' | 'ausente' | 'reprogramado'
-type PeriodoRuta = 'DIA' | 'SEMANA' | 'MES'
 
-// Modelo de datos principal para la lista de cobranza
-interface VisitaRuta {
-  id: string
-  cliente: string
-  direccion: string
-  telefono: string
-  horaSugerida: string
-  montoCuota: number
-  saldoTotal: number
-  estado: EstadoVisita
-  proximaVisita: string
-  ordenVisita: number
-  prioridad: 'alta' | 'media' | 'baja'
-  cobradorId: string
-  periodoRuta: PeriodoRuta
-}
 
 const EstadoCuentaModal = ({
   visita,
@@ -103,6 +87,72 @@ const EstadoCuentaModal = ({
   visita: VisitaRuta
   onClose: () => void
 }) => {
+  // --- Lógica Dinámica para Datos Consistentes ---
+  const today = new Date();
+  
+  // 1. Determinar Frecuencia en Días
+  const periodMap: Record<string, number> = { 'DIA': 1, 'SEMANA': 7, 'QUINCENA': 15, 'MES': 30 };
+  const frequencyDays = periodMap[visita.periodoRuta] || 7;
+
+  // 2. Calcular Cuotas
+  const valorCuota = visita.montoCuota;
+  const saldoRestante = visita.saldoTotal;
+  const cuotasRestantes = Math.ceil(saldoRestante / (valorCuota || 1));
+  
+  // Simulamos cuotas pagadas (entre 20% y 50% del total para que parezca un crédito en curso)
+  // Si está 'en_mora', asumimos que lleva más tiempo (más cuotas "deberían" haber pasado)
+  const cuotasPagadas = Math.max(2, Math.floor(cuotasRestantes * 0.6)); 
+  const totalCuotas = cuotasPagadas + cuotasRestantes;
+  const valorInicial = totalCuotas * valorCuota;
+
+  // 3. Calcular Fechas
+  // Fecha Inicio = Hoy - (Tiempo transcurrido estimado)
+  const daysElapsed = cuotasPagadas * frequencyDays;
+  const fechaInicio = new Date(today);
+  fechaInicio.setDate(today.getDate() - daysElapsed); // Retrocedemos en el tiempo
+
+  // Fecha Vencimiento = Fecha Inicio + Duración Total del Crédito
+  // "Si el prestamo era para 1 mes... esa es su fecha de vencimiento"
+  const durationDays = totalCuotas * frequencyDays;
+  const fechaVencimiento = new Date(fechaInicio);
+  fechaVencimiento.setDate(fechaInicio.getDate() + durationDays);
+
+  // 4. Calcular Atrasos (Si está en mora)
+  const { delayDays, delayInstallments } = useMemo(() => {
+    let dDays = 0;
+    let dInst = 0;
+    if (visita.estado === 'en_mora') {
+        // Deterministic pseudo-random based on id to avoid lint errors
+        const seed = visita.id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+        const pseudoRandom = (seed % 100) / 100;
+        
+        const daysOverdue = Math.floor(pseudoRandom * 15) + 5; // 5-20 días
+        dDays = daysOverdue;
+        dInst = Math.max(1, Math.floor(daysOverdue / frequencyDays));
+    }
+    return { delayDays: dDays, delayInstallments: dInst };
+  }, [visita.estado, frequencyDays, visita.id]);
+
+  if (visita.estado === 'en_mora' && fechaVencimiento > today) {
+      // Ajustamos Fecha Vencimiento si ya pasó
+      fechaVencimiento.setDate(today.getDate() - delayDays);
+  }
+
+  // Detectar artículo
+  const isArticle = visita.montoCuota > 150000 || visita.cliente.toLowerCase().includes('maria');
+  const articleName = isArticle ? 'Electrodoméstico / Mueble' : 'Préstamo Efectivo';
+
+  const creditInfo = { 
+    startDate: fechaInicio.toLocaleDateString('es-CO'), 
+    endDate: fechaVencimiento.toLocaleDateString('es-CO'), 
+    totalPaid: cuotasPagadas * valorCuota, 
+    totalValue: valorInicial, 
+    installmentsPaid: cuotasPagadas, 
+    installmentsTotal: totalCuotas, 
+    delayDays, 
+    delayInstallments 
+  };
+
   return (
     <Portal>
       <div
@@ -114,68 +164,157 @@ const EstadoCuentaModal = ({
           className="w-full max-w-2xl bg-white rounded-3xl shadow-2xl animate-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto"
           onClick={(e) => e.stopPropagation()}
         >
-          <div className="p-6">
-            <div className="flex items-center justify-between mb-6">
-              <div>
-                <h3 className="text-xl font-bold text-slate-900">Estado de Cuenta</h3>
-                <p className="text-sm text-slate-500 font-medium">{visita.cliente}</p>
-              </div>
-
-              <button
-                onClick={onClose}
-                className="p-2 bg-slate-100 rounded-full text-slate-500 hover:bg-slate-200 transition-colors"
-              >
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-              <div className="bg-slate-50 rounded-2xl border border-slate-100 p-4">
-                <div className="text-xs font-bold text-slate-500 uppercase">Saldo total</div>
-                <div className="mt-1 text-lg font-bold text-slate-900">${visita.saldoTotal.toLocaleString('es-CO')}</div>
-              </div>
-              <div className="bg-slate-50 rounded-2xl border border-slate-100 p-4">
-                <div className="text-xs font-bold text-slate-500 uppercase">Cuota esperada</div>
-                <div className="mt-1 text-lg font-bold text-slate-900">${visita.montoCuota.toLocaleString('es-CO')}</div>
-              </div>
-              <div className="bg-slate-50 rounded-2xl border border-slate-100 p-4">
-                <div className="text-xs font-bold text-slate-500 uppercase">Próxima visita</div>
-                <div className="mt-1 text-lg font-bold text-slate-900">{visita.proximaVisita}</div>
-              </div>
-            </div>
-
-            <div className="mt-6">
-              <div className="flex items-center justify-between mb-3">
-                <h4 className="text-sm font-bold text-slate-900">Últimos movimientos</h4>
-                <span className="text-xs font-bold text-slate-400">Mock</span>
-              </div>
-
-              <div className="divide-y divide-slate-100 rounded-2xl border border-slate-200 overflow-hidden">
-                {[1, 2, 3, 4, 5].map((i) => (
-                  <div key={i} className="p-4 bg-white">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <div className="text-sm font-bold text-slate-900">Pago #{i}</div>
-                        <div className="text-xs text-slate-500">Método: EFECTIVO</div>
-                      </div>
-                      <div className="text-right">
-                        <div className="text-sm font-bold text-slate-900">${formatMilesCOP(visita.montoCuota)}</div>
-                        <div className="text-xs font-bold text-[#08557f]">CONFIRMADO</div>
-                      </div>
-                    </div>
+          <div className="p-0"> {/* Padding removed for cleaner header */}
+            
+            {/* Header */}
+            <div className="p-6 border-b border-slate-100 flex items-start justify-between bg-slate-50/50">
+               <div>
+                  <h3 className="text-xl font-bold text-slate-900">Estado de Cuenta</h3>
+                  <div className="flex items-center gap-2 mt-1">
+                     <span className="text-sm font-bold text-slate-500">{visita.cliente}</span>
+                     <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase border ${
+                        visita.estado === 'pagado' ? 'bg-emerald-100 text-emerald-700 border-emerald-200' :
+                        visita.estado === 'en_mora' ? 'bg-orange-100 text-orange-700 border-orange-200' :
+                        'bg-slate-100 text-slate-600 border-slate-200'
+                     }`}>
+                        {visita.estado.replace('_', ' ')}
+                     </span>
                   </div>
-                ))}
-              </div>
+               </div>
+               <button onClick={onClose} className="p-2 bg-white border border-slate-200 rounded-full text-slate-400 hover:text-slate-700 hover:bg-slate-50 transition-colors">
+                  <X className="h-5 w-5" />
+               </button>
             </div>
 
-            <div className="mt-6">
-              <button
-                type="button"
-                onClick={onClose}
-                className="w-full rounded-xl bg-[#08557f] px-3 py-3 text-sm font-bold text-white hover:bg-[#063a58]"
-              >
-                Cerrar
-              </button>
+            <div className="p-6 space-y-6">
+                 
+                 {/* Fechas Clave */}
+                 <div className="grid grid-cols-2 gap-4">
+                     <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                        <div className="flex items-center gap-2 mb-1">
+                           <Calendar className="w-4 h-4 text-slate-400" />
+                           <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Fecha Inicio</span>
+                        </div>
+                        <div className="text-lg font-bold text-slate-900">{creditInfo.startDate}</div>
+                     </div>
+                     <div className={`p-4 rounded-2xl border ${
+                         creditInfo.delayDays > 0 ? 'bg-red-50 border-red-100' : 'bg-slate-50 border-slate-100'
+                     }`}>
+                        <div className="flex items-center gap-2 mb-1">
+                           <Clock className={`w-4 h-4 ${creditInfo.delayDays > 0 ? 'text-red-500' : 'text-slate-400'}`} />
+                           <span className={`text-xs font-bold uppercase tracking-wider ${creditInfo.delayDays > 0 ? 'text-red-600' : 'text-slate-500'}`}>Vencimiento</span>
+                        </div>
+                        <div className={`text-lg font-bold ${creditInfo.delayDays > 0 ? 'text-red-700' : 'text-slate-900'}`}>{creditInfo.endDate}</div>
+                        {creditInfo.delayDays > 0 && <div className="text-[10px] font-bold text-red-600 mt-1">¡VENCIDA!</div>}
+                     </div>
+                 </div>
+
+                 {/* Información de Artículo (Si aplica) */}
+                 {isArticle && (
+                     <div className="bg-blue-50 border border-blue-100 p-5 rounded-2xl relative overflow-hidden">
+                        <div className="relative z-10 flex items-start gap-4">
+                            <div className="p-3 bg-white rounded-xl shadow-sm border border-blue-100">
+                                <ShoppingBag className="w-6 h-6 text-blue-600" />
+                            </div>
+                            <div>
+                                <div className="text-xs font-bold text-blue-600 uppercase tracking-widest mb-1">Artículo Financiado</div>
+                                <div className="font-bold text-slate-900 text-lg leading-tight">{articleName}</div>
+                                <div className="text-sm text-blue-800 mt-1 font-medium">Valor Inicial Estimado: <b>${formatMilesCOP(creditInfo.totalValue)}</b></div>
+                            </div>
+                        </div>
+                     </div>
+                 )}
+
+                 {/* Resumen Financiero */}
+                 <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
+                    <div className="flex justify-between items-end mb-4">
+                        <div>
+                            <div className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Progreso de Pago</div>
+                            <div className="text-3xl font-bold text-slate-900 tracking-tight">
+                                ${formatMilesCOP(creditInfo.totalPaid)} <span className="text-lg text-slate-400 font-medium">/ ${formatMilesCOP(creditInfo.totalValue)}</span>
+                            </div>
+                        </div>
+                        <div className="text-right">
+                            <div className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Saldo Restante</div>
+                            <div className="text-xl font-bold text-emerald-600">${formatMilesCOP(visita.saldoTotal)}</div>
+                        </div>
+                    </div>
+                    {/* Barra de Progreso */}
+                    <div className="h-4 w-full bg-slate-100 rounded-full overflow-hidden mb-2">
+                        <div 
+                           className="h-full bg-emerald-500 rounded-full shadow-[0_0_10px_rgba(16,185,129,0.4)] transition-all duration-1000" 
+                           style={{ width: `${(creditInfo.totalPaid / creditInfo.totalValue) * 100}%` }}
+                        ></div>
+                    </div>
+                    <div className="flex justify-between text-xs font-bold text-slate-500 uppercase tracking-wider">
+                        <span>{creditInfo.installmentsPaid} Cuotas pagadas</span>
+                        <span>{creditInfo.installmentsTotal - creditInfo.installmentsPaid} Restantes</span>
+                    </div>
+                 </div>
+
+                 {/* Alerta de Atraso */}
+                 {creditInfo.delayDays > 0 && (
+                     <div className="bg-orange-50 border border-orange-100 p-4 rounded-2xl flex items-start gap-3 animate-pulse">
+                         <div className="p-2 bg-orange-100 rounded-lg text-orange-600">
+                            <Clock className="w-5 h-5" />
+                         </div>
+                         <div className="flex-1">
+                            <div className="text-xs font-bold text-orange-600 uppercase tracking-wider">Préstamo en Mora</div>
+                            <div className="font-bold text-slate-900 text-sm mt-0.5">
+                               Cliente presenta un atraso de <span className="text-orange-600 text-lg">{creditInfo.delayDays} días</span> ({creditInfo.delayInstallments} cuotas vencidas).
+                            </div>
+                         </div>
+                     </div>
+                 )}
+
+                 {/* Historial Detallado */}
+                 <div>
+                    <h4 className="font-bold text-slate-900 mb-4 flex items-center gap-2">
+                        <History className="w-5 h-5 text-slate-400" /> 
+                        Historial de Pagos
+                    </h4>
+                    <div className="border border-slate-200 rounded-2xl overflow-hidden text-sm shadow-sm">
+                        <table className="w-full">
+                            <thead className="bg-slate-50 text-xs font-bold text-slate-500 uppercase border-b border-slate-200">
+                                <tr>
+                                    <th className="px-4 py-3 text-left">Fecha</th>
+                                    <th className="px-4 py-3 text-left">Detalle</th>
+                                    <th className="px-4 py-3 text-right">Monto</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-100 bg-white">
+                               {[1,2,3,4,5].map(i => {
+                                   // Mock dates logic
+                                   const d = new Date(); d.setDate(d.getDate() - (i*7));
+                                   const dateStr = d.toLocaleDateString('es-CO');
+                                   return (
+                                     <tr key={i} className="hover:bg-slate-50 transition-colors">
+                                         <td className="px-4 py-3">
+                                             <div className="font-bold text-slate-900">{dateStr}</div>
+                                             <div className="text-[10px] text-slate-500 font-bold uppercase tracking-wider mt-0.5 text-[#08557f]">Confirmado</div>
+                                         </td>
+                                         <td className="px-4 py-3">
+                                             <div className="font-medium text-slate-700">Pago Cuota #{16-i}</div>
+                                             <div className="text-[10px] text-slate-400">Efectivo</div>
+                                         </td>
+                                         <td className="px-4 py-3 text-right font-bold text-slate-900">
+                                             ${formatMilesCOP(visita.montoCuota)}
+                                         </td>
+                                     </tr>
+                                   )
+                               })}
+                            </tbody>
+                        </table>
+                    </div>
+                 </div>
+
+                 <button
+                    type="button"
+                    onClick={onClose}
+                    className="w-full rounded-xl bg-white border-2 border-slate-200 px-4 py-3.5 text-sm font-bold text-slate-700 hover:bg-slate-50 transition-all"
+                 >
+                    Cerrar Detalle
+                 </button>
             </div>
           </div>
         </div>
@@ -184,239 +323,7 @@ const EstadoCuentaModal = ({
   )
 }
 
-function StaticVisitaItem({
-  visita,
-  isSelected,
-  onSelect,
-  onRegistrarPago,
-  onRegistrarAbono,
-  onReprogramar,
-  onVerCliente,
-  onVerEstadoCuenta,
-  getEstadoClasses,
-  getPrioridadColor,
-  disableModificaciones,
-}: {
-  visita: VisitaRuta
-  isSelected: boolean
-  onSelect: (id: string) => void
-  onRegistrarPago: (visita: VisitaRuta) => void
-  onRegistrarAbono: (visita: VisitaRuta) => void
-  onReprogramar: (visita: VisitaRuta) => void
-  onVerCliente: (visita: VisitaRuta) => void
-  onVerEstadoCuenta: (visita: VisitaRuta) => void
-  getEstadoClasses: (estado: EstadoVisita) => string
-  getPrioridadColor: (prioridad: 'alta' | 'media' | 'baja') => string
-  disableModificaciones?: boolean
-}) {
-  return (
-    <div
-      className={`relative z-10 pointer-events-auto w-full rounded-2xl border px-4 py-3 transition-all ${
-        isSelected
-          ? 'border-[#08557f] bg-[#f7f7f7]'
-          : 'border-slate-200 bg-white/80 backdrop-blur-sm shadow-[0_8px_30px_rgb(0,0,0,0.04)]'
-      }`}
-    >
-      <div className="flex items-start gap-3">
-        <div className="mt-1 flex items-center">
-          <GripVertical className="h-5 w-5 text-slate-200" />
-        </div>
 
-        <div className="flex-1 space-y-2">
-          <div className="flex items-center justify-between gap-2">
-            <div className="space-y-0.5">
-              <div className="flex items-center gap-2">
-                <div className="text-sm font-bold text-slate-900">{visita.cliente}</div>
-                <div className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: getPrioridadColor(visita.prioridad) }} />
-              </div>
-              <div className="flex items-center gap-2 text-[11px] text-slate-500">
-                <MapPin className="h-3 w-3" />
-                <span>{visita.direccion}</span>
-              </div>
-            </div>
-            <div className="flex flex-col items-end gap-1">
-              <span className="text-xs font-bold text-slate-900">${visita.montoCuota.toLocaleString('es-CO')}</span>
-              <span className="inline-flex items-center gap-1 rounded-full border border-slate-200 px-2 py-0.5 text-[10px] font-medium leading-none text-slate-600 bg-slate-50">
-                <Clock className="h-3 w-3 text-slate-400" />
-                <span>{visita.horaSugerida}</span>
-              </span>
-            </div>
-          </div>
-
-          <div className="flex items-center justify-between">
-            <span className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[10px] font-bold ${getEstadoClasses(visita.estado)}`}>
-              <span className="h-1.5 w-1.5 rounded-full bg-current opacity-70" />
-              <span className="capitalize">
-                {visita.estado === 'pendiente' && 'Pendiente'}
-                {visita.estado === 'pagado' && 'Pagado'}
-                {visita.estado === 'en_mora' && 'En mora'}
-                {visita.estado === 'ausente' && 'Ausente'}
-                {visita.estado === 'reprogramado' && 'Reprogramado'}
-              </span>
-            </span>
-
-            <div className="relative z-[9999] pointer-events-auto flex items-center gap-1">
-              <button
-                type="button"
-                onPointerDown={(e) => e.stopPropagation()}
-                onMouseDown={(e) => e.stopPropagation()}
-                onClick={(e) => {
-                  e.stopPropagation()
-                  onVerCliente(visita)
-                }}
-                className="relative z-[9999] pointer-events-auto p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600"
-                title="Ver cliente"
-              >
-                <Eye className="h-3.5 w-3.5" />
-              </button>
-              <button
-                type="button"
-                onPointerDown={(e) => e.stopPropagation()}
-                onMouseDown={(e) => e.stopPropagation()}
-                onClick={(e) => {
-                  e.stopPropagation()
-                  onSelect(visita.id)
-                }}
-                className="relative z-[9999] pointer-events-auto p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600"
-              >
-                <ChevronRight className="h-3.5 w-3.5" />
-              </button>
-            </div>
-          </div>
-
-          {isSelected && (
-            <div className="mt-3 space-y-3">
-              {visita.estado === 'pagado' ? (
-                <div className="grid grid-cols-2 gap-2">
-                  <button
-                    type="button"
-                    onClick={() => onRegistrarAbono(visita)}
-                    disabled={!!disableModificaciones}
-                    className="flex items-center justify-center gap-2 rounded-xl bg-orange-500 px-3 py-2 text-[11px] font-bold text-white hover:bg-orange-600 shadow-lg shadow-orange-500/20"
-                  >
-                    <Wallet className="h-4 w-4" />
-                    Registrar Abono
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => onVerEstadoCuenta(visita)}
-                    className="flex items-center justify-center gap-2 rounded-xl bg-slate-100 px-3 py-2 text-[11px] font-bold text-slate-700 hover:bg-slate-200 border border-slate-200"
-                  >
-                    <FileTextIcon className="h-4 w-4" />
-                    Ver Estado de Cuenta
-                  </button>
-                </div>
-              ) : (
-                <>
-                  <div className="grid grid-cols-2 gap-2">
-                    <button
-                      type="button"
-                      onClick={() => onRegistrarPago(visita)}
-                      disabled={!!disableModificaciones}
-                      className="flex items-center justify-center gap-2 rounded-xl bg-[#08557f] px-3 py-2 text-[11px] font-bold text-white hover:bg-[#063a58] shadow-lg shadow-[#08557f]/20"
-                    >
-                      <DollarSign className="h-4 w-4" />
-                      Registrar Pago
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => onRegistrarAbono(visita)}
-                      disabled={!!disableModificaciones}
-                      className="flex items-center justify-center gap-2 rounded-xl bg-orange-500 px-3 py-2 text-[11px] font-bold text-white hover:bg-orange-600 shadow-lg shadow-orange-500/20"
-                    >
-                      <Wallet className="h-4 w-4" />
-                      Registrar Abono
-                    </button>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-2">
-                    <button
-                      type="button"
-                      onClick={() => onVerEstadoCuenta(visita)}
-                      className="flex items-center justify-center gap-2 rounded-xl bg-slate-100 px-3 py-2 text-[11px] font-bold text-slate-700 hover:bg-slate-200 border border-slate-200"
-                    >
-                      <FileTextIcon className="h-4 w-4" />
-                      Ver Estado de Cuenta
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => onReprogramar(visita)}
-                      disabled={!!disableModificaciones}
-                      className="flex items-center justify-center gap-2 rounded-xl bg-orange-50 px-3 py-2 text-[11px] font-bold text-orange-700 hover:bg-orange-100 border border-orange-200"
-                    >
-                      <Calendar className="h-4 w-4" />
-                      Reprogramar
-                    </button>
-                  </div>
-                </>
-              )}
-
-              <div className="text-[11px] text-slate-600">
-                <div className="flex items-center justify-between mb-1">
-                  <span>Saldo total:</span>
-                  <span className="font-bold">${visita.saldoTotal.toLocaleString('es-CO')}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span>Próxima visita:</span>
-                  <span className="font-medium">{visita.proximaVisita}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span>Teléfono:</span>
-                  <span className="font-medium">{visita.telefono}</span>
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
-  )
-}
-
-function SortableVisita({
-  visita,
-  isSelected,
-  onSelect,
-  onRegistrarPago,
-  onRegistrarAbono,
-  onReprogramar,
-  onVerCliente,
-  onVerEstadoCuenta,
-  getEstadoClasses,
-  getPrioridadColor,
-  disableSort,
-  disableModificaciones,
-}: {
-  visita: VisitaRuta
-  isSelected: boolean
-  onSelect: (id: string) => void
-  onRegistrarPago: (visita: VisitaRuta) => void
-  onRegistrarAbono: (visita: VisitaRuta) => void
-  onReprogramar: (visita: VisitaRuta) => void
-  onVerCliente: (visita: VisitaRuta) => void
-  onVerEstadoCuenta: (visita: VisitaRuta) => void
-  getEstadoClasses: (estado: EstadoVisita) => string
-  getPrioridadColor: (prioridad: 'alta' | 'media' | 'baja') => string
-  disableSort?: boolean
-  disableModificaciones?: boolean
-}) {
-  return (
-    <SortableItem
-      visita={visita}
-      isSelected={isSelected}
-      onSelect={onSelect}
-      onRegistrarPago={onRegistrarPago}
-      onRegistrarAbono={onRegistrarAbono}
-      onReprogramar={onReprogramar}
-      onVerCliente={onVerCliente}
-      onVerEstadoCuenta={onVerEstadoCuenta}
-      getEstadoClasses={getEstadoClasses}
-      getPrioridadColor={getPrioridadColor}
-      disableSort={disableSort}
-      disableModificaciones={disableModificaciones}
-    />
-  )
-}
 
 interface OperacionCaja {
   id: string
@@ -441,234 +348,7 @@ interface UserSession {
   avatar?: string
 }
 
-const MODAL_Z_INDEX = 2147483647
 
-function Portal({ children }: { children: ReactNode }) {
-  if (typeof document === 'undefined') return null
-  return createPortal(children, document.body)
-}
-
-// Componente Sortable para las visitas
-function SortableItem({
-  visita,
-  isSelected,
-  onSelect,
-  onRegistrarPago,
-  onRegistrarAbono,
-  onReprogramar,
-  onVerCliente,
-  onVerEstadoCuenta,
-  getEstadoClasses,
-  getPrioridadColor,
-  disableSort,
-  disableModificaciones,
-}: {
-  visita: VisitaRuta
-  isSelected: boolean
-  onSelect: (id: string) => void
-  onRegistrarPago: (visita: VisitaRuta) => void
-  onRegistrarAbono: (visita: VisitaRuta) => void
-  onReprogramar: (visita: VisitaRuta) => void
-  onVerCliente: (visita: VisitaRuta) => void
-  onVerEstadoCuenta: (visita: VisitaRuta) => void
-  getEstadoClasses: (estado: EstadoVisita) => string
-  getPrioridadColor: (prioridad: 'alta' | 'media' | 'baja') => string
-  disableSort?: boolean
-  disableModificaciones?: boolean
-}) {
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-  } = useSortable({ id: visita.id, disabled: !!disableSort })
-
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-  }
-
-  return (
-    <div
-      ref={setNodeRef}
-      style={style}
-      className={`relative z-10 pointer-events-auto w-full rounded-2xl border px-4 py-3 transition-all ${
-        isSelected
-          ? 'border-[#08557f] bg-[#f7f7f7]'
-          : 'border-slate-200 bg-white/80 backdrop-blur-sm shadow-[0_8px_30px_rgb(0,0,0,0.04)]'
-      }`}
-    >
-      <div className="flex items-start gap-3">
-        {/* Handle de arrastre */}
-        {disableSort ? (
-          <div className="mt-1 flex items-center">
-            <GripVertical className="h-5 w-5 text-slate-200" />
-          </div>
-        ) : (
-          <div
-            className="mt-1 flex items-center cursor-grab active:cursor-grabbing"
-            {...attributes}
-            {...listeners}
-          >
-            <GripVertical className="h-5 w-5 text-slate-400" />
-          </div>
-        )}
-        
-        {/* Información del cliente */}
-        <div className="flex-1 space-y-2">
-          <div className="flex items-center justify-between gap-2">
-            <div className="space-y-0.5">
-              <div className="flex items-center gap-2">
-                <div className="text-sm font-bold text-slate-900">
-                  {visita.cliente}
-                </div>
-                <div 
-                  className="h-1.5 w-1.5 rounded-full"
-                  style={{ backgroundColor: getPrioridadColor(visita.prioridad) }}
-                ></div>
-              </div>
-              <div className="flex items-center gap-2 text-[11px] text-slate-500">
-                <MapPin className="h-3 w-3" />
-                <span>{visita.direccion}</span>
-              </div>
-            </div>
-            <div className="flex flex-col items-end gap-1">
-              <span className="text-xs font-bold text-slate-900">
-                ${visita.montoCuota.toLocaleString('es-CO')}
-              </span>
-              <span className="inline-flex items-center gap-1 rounded-full border border-slate-200 px-2 py-0.5 text-[10px] font-medium leading-none text-slate-600 bg-slate-50">
-                <Clock className="h-3 w-3 text-slate-400" />
-                <span>{visita.horaSugerida}</span>
-              </span>
-            </div>
-          </div>
-
-          {/* Estado y acciones */}
-          <div className="flex items-center justify-between">
-            <span
-              className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[10px] font-bold ${getEstadoClasses(
-                visita.estado
-              )}`}
-            >
-              <span className="h-1.5 w-1.5 rounded-full bg-current opacity-70" />
-              <span className="capitalize">
-                {visita.estado === 'pendiente' && 'Pendiente'}
-                {visita.estado === 'pagado' && 'Pagado'}
-                {visita.estado === 'en_mora' && 'En mora'}
-                {visita.estado === 'ausente' && 'Ausente'}
-                {visita.estado === 'reprogramado' && 'Reprogramado'}
-              </span>
-            </span>
-            
-            <div className="relative z-[9999] pointer-events-auto flex items-center gap-1">
-              <button
-                type="button"
-                onPointerDown={(e) => e.stopPropagation()}
-                onMouseDown={(e) => e.stopPropagation()}
-                onClick={(e) => {
-                  e.stopPropagation()
-                  onVerCliente(visita)
-                }}
-                className="relative z-[9999] pointer-events-auto p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600"
-                title="Ver cliente"
-              >
-                <Eye className="h-3.5 w-3.5" />
-              </button>
-              <button
-                type="button"
-                onPointerDown={(e) => e.stopPropagation()}
-                onMouseDown={(e) => e.stopPropagation()}
-                onClick={(e) => {
-                  e.stopPropagation()
-                  onSelect(visita.id)
-                }}
-                className="relative z-[9999] pointer-events-auto p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600"
-              >
-                <ChevronRight className="h-3.5 w-3.5" />
-              </button>
-            </div>
-          </div>
-
-          {/* Panel expandido de acciones */}
-          {isSelected && (
-            <div className="mt-3 space-y-3" onPointerDown={(e) => e.stopPropagation()}>
-              <div className="grid grid-cols-2 gap-2">
-                {visita.estado !== 'pagado' && (
-                  <button
-                    type="button"
-                    onPointerDown={(e) => e.stopPropagation()}
-                    onClick={() => {
-                      if (disableModificaciones) return
-                      onRegistrarPago(visita)
-                    }}
-                    disabled={!!disableModificaciones}
-                    className="flex items-center justify-center gap-2 rounded-xl bg-[#08557f] px-3 py-2 text-[11px] font-bold text-white hover:bg-[#063a58] shadow-lg shadow-[#08557f]/20"
-                  >
-                    <DollarSign className="h-4 w-4" />
-                    Registrar Pago
-                  </button>
-                )}
-                <button
-                  type="button"
-                  onPointerDown={(e) => e.stopPropagation()}
-                  onClick={() => {
-                    if (disableModificaciones) return
-                    onRegistrarAbono(visita)
-                  }}
-                  disabled={!!disableModificaciones}
-                  className="flex items-center justify-center gap-2 rounded-xl bg-orange-500 px-3 py-2 text-[11px] font-bold text-white hover:bg-orange-600 shadow-lg shadow-orange-500/20"
-                >
-                  <Wallet className="h-4 w-4" />
-                  Registrar Abono
-                </button>
-              </div>
-
-              <button 
-                type="button"
-                onPointerDown={(e) => e.stopPropagation()}
-                onClick={() => onVerEstadoCuenta(visita)}
-                className="w-full flex items-center justify-center gap-2 rounded-xl bg-slate-100 px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-200 border border-slate-200"
-              >
-                <FileTextIcon className="h-4 w-4" />
-                Ver Estado de Cuenta
-              </button>
-
-              <button
-                type="button"
-                onPointerDown={(e) => e.stopPropagation()}
-                onClick={() => {
-                  if (disableModificaciones) return
-                  onReprogramar(visita)
-                }}
-                disabled={!!disableModificaciones}
-                className="w-full flex items-center justify-center gap-2 rounded-xl bg-orange-50 px-3 py-2 text-xs font-bold text-orange-700 hover:bg-orange-100 border border-orange-200"
-              >
-                <Calendar className="h-4 w-4" />
-                Reprogramar Visita
-              </button>
-              
-              <div className="text-[11px] text-slate-600">
-                <div className="flex items-center justify-between mb-1">
-                  <span>Saldo total:</span>
-                  <span className="font-bold">${visita.saldoTotal.toLocaleString('es-CO')}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span>Próxima visita:</span>
-                  <span className="font-medium">{visita.proximaVisita}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span>Teléfono:</span>
-                  <span className="font-medium">{visita.telefono}</span>
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
-  )
-}
 
 const VistaCobrador = () => {
   const [userSession, setUserSession] = useState<UserSession | null>(null)
@@ -700,23 +380,60 @@ const VistaCobrador = () => {
   const [showHistory, setShowHistory] = useState(false)
   const [showFilters, setShowFilters] = useState(false)
   const [periodoRutaFiltro, setPeriodoRutaFiltro] = useState<PeriodoRuta | 'TODOS'>('TODOS')
+  const [selectedHistoryDate, setSelectedHistoryDate] = useState<string | null>(null)
+  const [historyViewMode, setHistoryViewMode] = useState<'DAYS' | 'MONTHS'>('DAYS')
 
   const [montoPagoInput, setMontoPagoInput] = useState('')
   const [montoGastoInput, setMontoGastoInput] = useState('')
+  const [conceptoGasto, setConceptoGasto] = useState('Combustible')
   const [descripcionGastoInput, setDescripcionGastoInput] = useState('')
   const [montoBaseInput, setMontoBaseInput] = useState('')
   const [montoPrestamoInput, setMontoPrestamoInput] = useState('')
-  const [tipoInteres, setTipoInteres] = useState<'SIMPLE' | 'AMORTIZABLE'>('AMORTIZABLE')
-  const [tasaInteresInput, setTasaInteresInput] = useState('')
-  const [cuotasPrestamoInput, setCuotasPrestamoInput] = useState('')
+  const [tipoInteres, setTipoInteres] = useState<'SIMPLE' | 'AMORTIZABLE'>('SIMPLE')
   const [cuotaInicialArticuloInput, setCuotaInicialArticuloInput] = useState('')
-  const [fechaCreditoInput, setFechaCreditoInput] = useState(new Date().toISOString().split('T')[0])
+  const [fechaCreditoInput] = useState(new Date().toISOString().split('T')[0])
+  const [frecuenciaPago] = useState('Diaria')
+  const [fechaPrimerCobro, setFechaPrimerCobro] = useState('')
   
   // Estados para artículos
   const [articuloSeleccionadoId, setArticuloSeleccionadoId] = useState<string>('')
-  const [opcionCuotasSeleccionada, setOpcionCuotasSeleccionada] = useState<OpcionCuotas | null>(null)
+  // Refactor: Instead of complete option, we store selected Duration Index from the options list
+  const [planArticuloIndex, setPlanArticuloIndex] = useState<number | null>(null)
   
   const articuloSeleccionado = MOCK_ARTICULOS.find(a => a.id === articuloSeleccionadoId)
+  
+  // Calculate results dynamically
+  const planSeleccionado = (articuloSeleccionado && planArticuloIndex !== null) 
+    ? articuloSeleccionado.opcionesCuotas[planArticuloIndex] 
+    : null;
+
+  // Derivar meses desde el mock (asumiendo Quincenal como base en mock)
+  const mesesPlan = planSeleccionado ? planSeleccionado.numeroCuotas / 2 : 0;
+  
+  const calculoCreditoArticulo = useMemo(() => {
+     if(!planSeleccionado || !mesesPlan) return null;
+     
+     const precioTotal = planSeleccionado.precioTotal;
+     const inicial = parseCOPInputToNumber(cuotaInicialArticuloInput);
+     const aFinanciar = Math.max(0, precioTotal - inicial);
+     
+     // Calculate Quotas based on Frequency
+     let numCuotas = 0;
+     if (frecuenciaPago === 'Diaria') numCuotas = Math.ceil(mesesPlan * 30); // 30 quotas/month
+     else if (frecuenciaPago === 'Semanal') numCuotas = Math.ceil(mesesPlan * 4); // 4 quotas/month (approx standard)
+     else if (frecuenciaPago === 'Quincenal') numCuotas = Math.ceil(mesesPlan * 2); 
+     else if (frecuenciaPago === 'Mensuales') numCuotas = Math.ceil(mesesPlan * 1);
+     
+     const valorCuota = numCuotas > 0 ? Math.ceil(aFinanciar / numCuotas) : 0;
+     
+     return {
+        meses: mesesPlan,
+        precioTotal,
+        aFinanciar,
+        numCuotas,
+        valorCuota
+     };
+  }, [planSeleccionado, mesesPlan, frecuenciaPago, cuotaInicialArticuloInput]);
 
   const [rutaCompletada, setRutaCompletada] = useState(false)
   const [showCompletarRutaModal, setShowCompletarRutaModal] = useState(false)
@@ -732,9 +449,7 @@ const VistaCobrador = () => {
     ],
     []
   )
-  const [visitasOrden, setVisitasOrden] = useState<string[]>([
-    'V-001', 'V-002', 'V-003', 'V-004', 'V-005'
-  ]);
+  const [visitasOrden, setVisitasOrden] = useState<string[]>(['V-001', 'V-002', 'V-003', 'V-004', 'V-005'])
 
   const router = useRouter();
 
@@ -752,6 +467,7 @@ const VistaCobrador = () => {
       proximaVisita: 'Hoy',
       ordenVisita: 1,
       prioridad: 'alta',
+      nivelRiesgo: 'moderado',
       cobradorId: 'CB-001',
       periodoRuta: 'DIA'
     },
@@ -767,6 +483,7 @@ const VistaCobrador = () => {
       proximaVisita: 'Hoy',
       ordenVisita: 2,
       prioridad: 'alta',
+      nivelRiesgo: 'critico',
       cobradorId: 'CB-001',
       periodoRuta: 'DIA'
     },
@@ -782,6 +499,7 @@ const VistaCobrador = () => {
       proximaVisita: 'Hoy',
       ordenVisita: 3,
       prioridad: 'media',
+      nivelRiesgo: 'leve',
       cobradorId: 'CB-001',
       periodoRuta: 'SEMANA'
     },
@@ -797,6 +515,7 @@ const VistaCobrador = () => {
       proximaVisita: '15/01',
       ordenVisita: 4,
       prioridad: 'baja',
+      nivelRiesgo: 'bajo',
       cobradorId: 'CB-001',
       periodoRuta: 'SEMANA'
     },
@@ -812,6 +531,7 @@ const VistaCobrador = () => {
       proximaVisita: 'Mañana',
       ordenVisita: 5,
       prioridad: 'media',
+      nivelRiesgo: 'moderado',
       cobradorId: 'CB-001',
       periodoRuta: 'MES'
     }
@@ -823,6 +543,31 @@ const VistaCobrador = () => {
     { id: 'OP-003', tipo: 'base', descripcion: 'Base solicitada', monto: 50000, hora: '10:30', estado: 'pendiente', cobradorId: 'CB-001' },
     { id: 'OP-004', tipo: 'pago', descripcion: 'Pago María González', monto: 110000, hora: '13:50', estado: 'completado', cobradorId: 'CB-001' },
   ], [])
+
+  const historialRutas = useMemo(() => ({
+    '2024-01-05': {
+      resumen: { recaudo: 450000, efectividad: 95, visitados: 18, total: 19 },
+      visitas: [
+        { ...visitasBase[0], id: 'H1-01', estado: 'pagado', montoCuota: 50000 },
+        { ...visitasBase[1], id: 'H1-02', estado: 'pagado', montoCuota: 25000 },
+        { ...visitasBase[2], id: 'H1-03', estado: 'ausente', montoCuota: 0 },
+        { ...visitasBase[0], id: 'H1-04', cliente: 'Roberto Gómez', estado: 'pagado', montoCuota: 45000 },
+      ] as VisitaRuta[]
+    },
+    '2024-01-06': {
+      resumen: { recaudo: 520000, efectividad: 100, visitados: 20, total: 20 },
+      visitas: [
+         { ...visitasBase[3], id: 'H2-01', estado: 'pagado', montoCuota: 150000 },
+         { ...visitasBase[0], id: 'H2-02', cliente: 'Lucía Méndez', estado: 'pagado', montoCuota: 60000 },
+      ] as VisitaRuta[]
+    },
+    '2024-01-07': {
+       resumen: { recaudo: 380000, efectividad: 85, visitados: 15, total: 17 },
+       visitas: [
+         { ...visitasBase[1], id: 'H3-01', estado: 'pagado', montoCuota: 30000 },
+       ] as VisitaRuta[]
+    }
+  }), [visitasBase])
 
   // Cargar datos del usuario al montar el componente
   useEffect(() => {
@@ -905,11 +650,16 @@ const VistaCobrador = () => {
       v.direccion.toLowerCase().includes(searchQuery.toLowerCase())
     )
 
-    // Ordenar según el orden actual
-    return visitasOrden
-      .map(id => buscadas.find(v => v.id === id))
-      .filter((v): v is VisitaRuta => v !== undefined)
-  }, [visitasBase, visitasOrden, searchQuery])
+    // Ordenar por Periodo (Mensual -> Quincenal -> Semanal -> Diario)
+    const sorted = buscadas.sort((a, b) => {
+        const priority: Record<string, number> = { 'MES': 0, 'QUINCENA': 1, 'SEMANA': 2, 'DIA': 3 };
+        const pA = priority[a.periodoRuta] ?? 99;
+        const pB = priority[b.periodoRuta] ?? 99;
+        return pA - pB;
+    });
+
+    return sorted;
+  }, [visitasBase, searchQuery])
 
   const exportarRutaDiariaCSV = useCallback(() => {
     const filas = visitasCobrador
@@ -1043,15 +793,25 @@ const VistaCobrador = () => {
       .filter(op => op.tipo === 'base' && op.estado === 'pendiente')
       .reduce((sum, op) => sum + op.monto, 0)
 
+    const recaudoEsperado = visitasCobrador
+      .filter(v => v.periodoRuta === 'DIA')
+      .reduce((sum, v) => sum + (v.montoCuota || 0), 0)
+
+    const eficiencia = recaudoEsperado > 0 
+      ? Math.round((recaudoTotal / recaudoEsperado) * 100) 
+      : 0
+
     return {
       recaudoTotal,
+      recaudoEsperado,
       gastosOperativos,
+      eficiencia,
       baseDisponible: baseSolicitada,
       saldoNeto: recaudoTotal - gastosOperativos,
       efectivoDisponible: recaudoTotal - gastosOperativos - baseSolicitada,
       cambioNecesario: 20000,
     }
-  }, [operacionesCobrador])
+  }, [operacionesCobrador, visitasCobrador])
 
   // Configuración de sensores para drag & drop
   const sensors = useSensors(
@@ -1071,14 +831,7 @@ const VistaCobrador = () => {
     setActiveId(event.active.id as string)
   }, [rutaCompletada])
 
-  const handleAbrirAbono = useCallback((visita: VisitaRuta) => {
-    setVisitaPagoSeleccionada(visita)
-    setIsAbono(true)
-    setMetodoPago('EFECTIVO')
-    setComprobanteTransferencia(null)
-    setMontoPagoInput('')
-    setShowPaymentModal(true)
-  }, [])
+
 
   const handleGuardarReprogramacion = useCallback(() => {
     if (!visitaReprogramar) return
@@ -1153,8 +906,11 @@ const VistaCobrador = () => {
     window.setTimeout(() => setCoordinadorToast(null), 4000)
   }, [])
 
-  const handleRegistrarGasto = useCallback((descripcion: string, monto: number) => {
-    console.log(`Registra gasto: ${descripcion} - $${monto}`)
+  const handleRegistrarGasto = useCallback((concepto: string, descripcion: string, monto: number) => {
+    console.log(`Registra gasto: ${concepto} - ${descripcion} - $${monto}`)
+    if (concepto === 'Gasto Personal') {
+       console.log('NOTA: Este gasto se registra como deuda del cobrador para corte de quincena/mes.')
+    }
     setShowExpenseModal(false)
   }, [])
 
@@ -1164,24 +920,14 @@ const VistaCobrador = () => {
   }, [])
 
 
-  const handleAbrirPago = useCallback((visita: VisitaRuta) => {
-    setVisitaPagoSeleccionada(visita)
-    setIsAbono(false)
-    setMetodoPago('EFECTIVO')
-    setComprobanteTransferencia(null)
-    setMontoPagoInput(formatMilesCOP(visita.montoCuota))
-    setShowPaymentModal(true)
-  }, [])
+
 
   const handleAbrirClienteInfo = useCallback((visita: VisitaRuta) => {
     setVisitaClienteSeleccionada(visita)
     setShowClienteInfoModal(true)
   }, [])
 
-  const handleAbrirEstadoCuenta = useCallback((visita: VisitaRuta) => {
-    setVisitaEstadoCuentaSeleccionada(visita)
-    setShowEstadoCuentaModal(true)
-  }, [])
+
 
   // Obtener la visita activa para el overlay
   const activeVisita = activeId ? visitasCobrador.find(v => v.id === activeId) : null
@@ -1252,29 +998,84 @@ const VistaCobrador = () => {
         </header>
 
         {/* Stats rápidos */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div className="rounded-2xl bg-white/80 backdrop-blur-sm border border-slate-200 p-5 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all duration-300 group">
-            <div className="flex items-center gap-3 mb-2">
-              <div className="p-2 rounded-lg bg-slate-100 group-hover:bg-slate-200 transition-colors">
-                <DollarSign className="h-5 w-5 text-slate-900" />
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          
+          {/* Tarjeta 1: Recaudo */}
+          <div className="bg-white border border-slate-100 rounded-[2rem] p-6 hover:shadow-2xl hover:shadow-slate-200/50 transition-all duration-500 group relative overflow-hidden">
+            <div className="flex items-start justify-between mb-6">
+              <div className="flex items-center justify-center p-3 rounded-2xl bg-slate-50 text-slate-400 group-hover:text-[#08557f] group-hover:bg-blue-50 transition-colors border border-slate-100 shadow-sm">
+                <DollarSign className="h-5 w-5" />
               </div>
-              <span className="text-sm font-bold text-slate-600">Mi Recaudo</span>
+              <div className="flex flex-col items-end gap-2">
+                <div className="flex items-center font-black text-[10px] px-3 py-1 rounded-full bg-emerald-50 text-emerald-600">
+                  +12.5%
+                </div>
+                <Sparkline data={[10, 15, 12, 18, 22, 19, 25]} color="#08557f" height={30} />
+              </div>
             </div>
-            <div className="text-2xl font-bold text-slate-900 tracking-tight">
-              ${cajaRuta.recaudoTotal.toLocaleString('es-CO')}
+            <div className="space-y-1">
+              <div className="text-3xl font-black text-slate-900 tracking-tighter">
+                ${cajaRuta.recaudoTotal.toLocaleString('es-CO')}
+              </div>
+              <div className="text-[10px] font-bold text-slate-400 mt-1">
+                Meta: ${cajaRuta.recaudoEsperado.toLocaleString('es-CO')}
+              </div>
+              <div className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] leading-none pt-1">
+                Mi Recaudo
+              </div>
             </div>
           </div>
-          <div className="rounded-2xl bg-white/80 backdrop-blur-sm border border-slate-200 p-5 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all duration-300 group">
-            <div className="flex items-center gap-3 mb-2">
-              <div className="p-2 rounded-lg bg-orange-50 group-hover:bg-orange-100 transition-colors">
-                <Receipt className="h-5 w-5 text-orange-600" />
+
+          {/* Tarjeta 2: Efectividad */}
+          <div className="bg-white border border-slate-100 rounded-[2rem] p-6 hover:shadow-2xl hover:shadow-slate-200/50 transition-all duration-500 group relative overflow-hidden">
+            <div className="flex items-start justify-between mb-6">
+              <div className="flex items-center justify-center p-3 rounded-2xl bg-slate-50 text-slate-400 group-hover:text-emerald-600 group-hover:bg-emerald-50 transition-colors border border-slate-100 shadow-sm">
+                <Target className="h-5 w-5" />
               </div>
-              <span className="text-sm font-bold text-slate-600">Gastos</span>
+              <div className="flex flex-col items-end gap-2">
+                <div className="flex items-center font-black text-[10px] px-3 py-1 rounded-full bg-emerald-50 text-emerald-600">
+                  ÓPTIMO
+                </div>
+                <Sparkline data={[40, 50, 45, 70, 85, 90, cajaRuta.eficiencia]} color="#10b981" height={30} />
+              </div>
             </div>
-            <div className="text-2xl font-bold text-slate-900 tracking-tight">
-              ${cajaRuta.gastosOperativos.toLocaleString('es-CO')}
+            <div className="space-y-1">
+              <div className="text-3xl font-black text-slate-900 tracking-tighter">
+                {cajaRuta.eficiencia}%
+              </div>
+              <div className="text-[10px] font-bold text-slate-400 mt-1">
+                Pendiente: ${(Math.max(0, cajaRuta.recaudoEsperado - cajaRuta.recaudoTotal)).toLocaleString('es-CO')}
+              </div>
+              <div className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] leading-none pt-1">
+                Efectividad
+              </div>
             </div>
-            <p className="text-xs text-slate-400 mt-1 font-medium">Registrados hoy</p>
+          </div>
+
+          {/* Tarjeta 3: Gastos */}
+          <div className="bg-white border border-slate-100 rounded-[2rem] p-6 hover:shadow-2xl hover:shadow-slate-200/50 transition-all duration-500 group relative overflow-hidden">
+            <div className="flex items-start justify-between mb-6">
+              <div className="flex items-center justify-center p-3 rounded-2xl bg-slate-50 text-slate-400 group-hover:text-rose-600 group-hover:bg-rose-50 transition-colors border border-slate-100 shadow-sm">
+                <Receipt className="h-5 w-5" />
+              </div>
+              <div className="flex flex-col items-end gap-2">
+                <div className="flex items-center font-black text-[10px] px-3 py-1 rounded-full bg-rose-50 text-rose-600">
+                  RUTA
+                </div>
+                <Sparkline data={[5, 10, 8, 15, 12, 20]} color="#f43f5e" height={30} />
+              </div>
+            </div>
+            <div className="space-y-1">
+              <div className="text-3xl font-black text-slate-900 tracking-tighter">
+                ${cajaRuta.gastosOperativos.toLocaleString('es-CO')}
+              </div>
+              <div className="text-[10px] font-bold text-slate-400 mt-1">
+                Registrados hoy
+              </div>
+              <div className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] leading-none pt-1">
+                Gastos
+              </div>
+            </div>
           </div>
         </div>
 
@@ -1319,7 +1120,9 @@ const VistaCobrador = () => {
                     className="w-full pl-10 pr-4 py-3 rounded-xl bg-white border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#08557f]/20 focus:border-[#08557f] shadow-sm text-slate-900 placeholder:text-slate-400"
                   />
                 </div>
-                <div className="flex gap-2">
+              </div>
+
+            <div className="mt-4 border-t border-slate-100 pt-4 flex flex-wrap items-center gap-2 overflow-x-auto pb-1">
                   <button
                     onClick={() => setShowFilters((v) => !v)}
                     className={`px-4 py-2 border rounded-xl flex items-center gap-2 font-medium shadow-sm transition-colors ${
@@ -1337,7 +1140,18 @@ const VistaCobrador = () => {
                     onExportPDF={exportarRutaDiariaPDF}
                   />
                   <button 
-                    onClick={() => setShowHistory(!showHistory)}
+                    onClick={() => setShowHistory(false)}
+                    className={`px-4 py-2 border rounded-xl flex items-center gap-2 font-medium shadow-sm transition-colors ${
+                      !showHistory 
+                        ? 'bg-[#08557f] text-white border-[#08557f]' 
+                        : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+                    }`}
+                  >
+                    <MapPin className="h-4 w-4" />
+                    <span className="hidden md:inline">Mi Ruta</span>
+                  </button>
+                  <button 
+                    onClick={() => setShowHistory(true)}
                     className={`px-4 py-2 border rounded-xl flex items-center gap-2 font-medium shadow-sm transition-colors ${
                       showHistory 
                         ? 'bg-[#08557f] text-white border-[#08557f]' 
@@ -1345,7 +1159,7 @@ const VistaCobrador = () => {
                     }`}
                   >
                     <History className="h-4 w-4" />
-                    <span className="hidden md:inline">{showHistory ? 'Ver Ruta' : 'Historial'}</span>
+                    <span className="hidden md:inline">Historial</span>
                   </button>
 
                   <button
@@ -1361,8 +1175,30 @@ const VistaCobrador = () => {
                     <CheckCircle2 className="h-4 w-4" />
                     <span className="hidden md:inline">Completar ruta</span>
                   </button>
+            </div>
+            </div>
+
+            {/* Client Actions Bar (Appears when a client is selected) */}
+            {/* Top Stats / Toolbar */}
+            <div className="mb-6 space-y-4">
+            {/* Top Toolbar (Compact) */}
+            <div className="mb-6">
+                <div className="flex items-center gap-2 overflow-x-auto pb-2 no-scrollbar">
+                     <button onClick={() => { setVisitaPagoSeleccionada(null); setShowPaymentModal(true); setIsAbono(false); }} className="flex-1 min-w-[max-content] bg-emerald-50 text-emerald-700 border border-emerald-200 px-4 py-3 rounded-xl flex items-center justify-center gap-2 font-bold shadow-sm active:scale-95 transition-all">
+                         <DollarSign className="h-5 w-5" /> Pagar
+                     </button>
+                     <button onClick={() => { setVisitaPagoSeleccionada(null); setShowPaymentModal(true); setIsAbono(true); }} className="flex-1 min-w-[max-content] bg-blue-50 text-blue-700 border border-blue-200 px-4 py-3 rounded-xl flex items-center justify-center gap-2 font-bold shadow-sm active:scale-95 transition-all">
+                         <Wallet className="h-5 w-5" /> Abonar
+                     </button>
+                     <button onClick={() => { setVisitaEstadoCuentaSeleccionada(null); setShowEstadoCuentaModal(true); }} className="flex-1 min-w-[max-content] bg-white text-slate-700 border border-slate-200 px-4 py-3 rounded-xl flex items-center justify-center gap-2 font-bold shadow-sm active:scale-95 transition-all hover:bg-slate-50">
+                         <FileTextIcon className="h-5 w-5 text-slate-400" /> Cuenta
+                     </button>
+                     <button onClick={() => { setVisitaReprogramar(null); setShowReprogramModal(true); }} className="flex-1 min-w-[max-content] bg-white text-slate-700 border border-slate-200 px-4 py-3 rounded-xl flex items-center justify-center gap-2 font-bold shadow-sm active:scale-95 transition-all hover:bg-slate-50">
+                         <Calendar className="h-5 w-5 text-slate-400" /> Agendar
+                     </button>
                 </div>
-              </div>
+            </div>
+            </div>
 
               {showFilters && !showHistory && (
                 <div className="mt-4 pt-4 border-t border-slate-200">
@@ -1393,8 +1229,6 @@ const VistaCobrador = () => {
                   </div>
                 </div>
               )}
-            </div>
-
             {/* Lista de visitas */}
             <div>
               <div className="flex flex-col gap-4 mb-4">
@@ -1419,28 +1253,159 @@ const VistaCobrador = () => {
                   <div className="space-y-6">
                     {(() => {
                       if (showHistory) {
+                        const historyDates = Object.keys(historialRutas).sort().reverse(); // Newest first
+
                         return (
-                          <div className="space-y-3">
-                            {visitasCobrador.map((visita) => (
-                              <SortableVisita
-                                key={visita.id}
-                                visita={visita}
-                                isSelected={visitaSeleccionada === visita.id}
-                                onSelect={(id) => setVisitaSeleccionada(id === visitaSeleccionada ? null : id)}
-                                onVerCliente={handleAbrirClienteInfo}
-                                onRegistrarPago={handleAbrirPago}
-                                onRegistrarAbono={handleAbrirAbono}
-                                onReprogramar={(visita) => {
-                                  setVisitaReprogramar(visita)
-                                  setShowReprogramModal(true)
-                                }}
-                                onVerEstadoCuenta={handleAbrirEstadoCuenta}
-                                getEstadoClasses={getEstadoClasses}
-                                getPrioridadColor={getPrioridadColor}
-                                disableSort={rutaCompletada}
-                                disableModificaciones={rutaCompletada}
-                              />
-                            ))}
+                          <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-300">
+                             {/* Improved Filter Tabs (Pills) */}
+                             <div className="flex items-center gap-2 mb-2">
+                               <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mr-1">VISTA:</span>
+                               <button 
+                                 onClick={() => setHistoryViewMode('DAYS')}
+                                 className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all border ${
+                                    historyViewMode === 'DAYS' 
+                                    ? 'bg-slate-900 text-white border-slate-900 shadow-lg shadow-slate-900/20' 
+                                    : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300 hover:text-slate-700'
+                                 }`}
+                               >
+                                 Días
+                               </button>
+                               <button 
+                                 onClick={() => setHistoryViewMode('MONTHS')}
+                                 className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all border ${
+                                    historyViewMode === 'MONTHS' 
+                                    ? 'bg-slate-900 text-white border-slate-900 shadow-lg shadow-slate-900/20' 
+                                    : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300 hover:text-slate-700'
+                                 }`}
+                               >
+                                 Meses
+                               </button>
+                             </div>
+
+                             {/* Monthly Summary (ONLY in MONTHS mode) */}
+                             {historyViewMode === 'MONTHS' && (
+                               <div className="bg-white border border-slate-200 p-5 rounded-2xl shadow-sm hover:shadow-md transition-all relative overflow-hidden group cursor-pointer"
+                                    onClick={() => setSelectedHistoryDate(selectedHistoryDate === 'SUMMARY' ? null : 'SUMMARY')}
+                               >
+                                  <div className="absolute top-0 right-0 w-24 h-24 bg-slate-50 rounded-full -mr-8 -mt-8 group-hover:scale-110 transition-transform duration-500"></div>
+                                  <div className="flex items-start justify-between relative z-10">
+                                    <div>
+                                       <h4 className="font-bold text-slate-800 flex items-center gap-2 text-lg">
+                                         <BarChart3 className="w-5 h-5 text-slate-500" />
+                                         Resumen Enero 2024
+                                       </h4>
+                                       <div className="text-sm font-medium text-slate-500 mt-1">Recaudo Total: <span className="text-slate-900 font-bold">$12.5M</span></div>
+                                    </div>
+                                    <div className={`p-2 rounded-full bg-slate-50 border border-slate-100 transition-transform ${selectedHistoryDate === 'SUMMARY' ? 'rotate-180 bg-slate-100' : ''}`}>
+                                      <ChevronDown className="w-5 h-5 text-slate-400" />
+                                    </div>
+                                  </div>
+                                  {selectedHistoryDate === 'SUMMARY' && (
+                                     <div className="mt-4 pt-4 border-t border-slate-100 animate-in fade-in space-y-4">
+                                        <div className="grid grid-cols-2 gap-4">
+                                           <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
+                                              <div className="text-2xl font-bold text-slate-800">94%</div>
+                                              <div className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Efectividad Global</div>
+                                           </div>
+                                           <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
+                                              <div className="text-2xl font-bold text-slate-800">450</div>
+                                              <div className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Visitas Totales</div>
+                                           </div>
+                                        </div>
+                                        <div className="grid grid-cols-3 gap-2 text-center text-xs text-slate-500">
+                                          <div>
+                                            <div className="font-bold text-slate-900">24</div>
+                                            <div>Días</div>
+                                          </div>
+                                          <div>
+                                            <div className="font-bold text-slate-900">441</div>
+                                            <div>Pagos</div>
+                                          </div>
+                                          <div>
+                                            <div className="font-bold text-emerald-600">98%</div>
+                                            <div>Asistencia</div>
+                                          </div>
+                                        </div>
+                                     </div>
+                                  )}
+                               </div>
+                             )}
+
+                             {/* Daily Routes List (Only in DAYS mode) */}
+                             {historyViewMode === 'DAYS' && (
+                                <div className="space-y-3">
+                                    <h3 className="text-sm font-bold text-slate-500 uppercase px-1">Historial de Días</h3>
+                                    {historyDates.map(date => {
+                                       const data = (historialRutas as Record<string, HistorialDia>)[date]
+                                       const isExpanded = selectedHistoryDate === date
+                                       const [y, m, d] = date.split('-')
+                                       const dateObj = new Date(parseInt(y), parseInt(m)-1, parseInt(d))
+                                       const dayName = dateObj.toLocaleDateString('es-CO', { weekday: 'long', day: 'numeric', month: 'long' })
+                                       
+                                       // Detect completion
+                                       const isCompleted = data.resumen.efectividad === 100 || data.visitas.every((v: VisitaRuta) => v.estado === 'pagado');
+
+                                       return (
+                                         <div key={date} 
+                                              className={`rounded-2xl border transition-all overflow-hidden bg-white border-slate-200
+                                                ${isExpanded ? 'ring-1 ring-slate-300 shadow-md' : 'shadow-sm'}
+                                              `}
+                                         >
+                                           {/* Header (Clickable) */}
+                                           <div 
+                                             className="p-4 flex items-center justify-between cursor-pointer hover:bg-slate-50 transition-colors"
+                                             onClick={() => setSelectedHistoryDate(isExpanded ? null : date)}
+                                           >
+                                             <div className="flex items-center gap-3">
+                                                {/* Date Badge */}
+                                                <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-xs shadow-sm
+                                                    ${isExpanded ? 'bg-[#08557f] text-white' : 'bg-slate-100 text-slate-600'}
+                                                `}>
+                                                   {d}
+                                                </div>
+                                                
+                                                <div>
+                                                   <div className="font-bold text-slate-900 capitalize flex items-center gap-2">
+                                                      {dayName}
+                                                      {isCompleted && <span className="text-[10px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded font-bold uppercase">Finalizado</span>}
+                                                   </div>
+                                                   <div className="text-xs text-slate-500">
+                                                      Recaudo: <b>${data.resumen.recaudo.toLocaleString('es-CO')}</b>
+                                                   </div>
+                                                </div>
+                                             </div>
+                                             <div className="flex items-center gap-3">
+                                                <div className={`px-2 py-1 rounded-lg text-[10px] font-bold ${data.resumen.efectividad >= 90 ? 'bg-emerald-50 text-emerald-700' : 'bg-orange-50 text-orange-700'}`}>
+                                                  {data.resumen.efectividad}%
+                                                </div>
+                                                <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+                                             </div>
+                                           </div>
+
+                                           {/* Body (Expanded) */}
+                                           {isExpanded && (
+                                              <div className="border-t border-slate-100 bg-white p-4 space-y-3 animate-in slide-in-from-top-2 duration-200">
+                                                 <div className="flex justify-between text-xs font-bold text-slate-500 uppercase px-1">
+                                                    <span>{data.visitas.length} Clientes Visitados</span>
+                                                    <span>Detalle</span>
+                                                 </div>
+                                                 <div className={isCompleted ? 'opacity-75 grayscale' : ''}>
+                                                    {data.visitas.map((visita: VisitaRuta) => (
+                                                        <StaticVisitaItem 
+                                                        key={visita.id}
+                                                        visita={visita}
+                                                        onSelect={() => {}} onVerCliente={handleAbrirClienteInfo}
+                                                        getEstadoClasses={getEstadoClasses}
+                                                        />
+                                                    ))}
+                                                 </div>
+                                              </div>
+                                           )}
+                                         </div>
+                                       )
+                                    })}
+                                </div>
+                             )}
                           </div>
                         )
                       }
@@ -1450,6 +1415,7 @@ const VistaCobrador = () => {
                       const porPeriodo = {
                         DIA: noPagadas.filter(v => v.periodoRuta === 'DIA'),
                         SEMANA: noPagadas.filter(v => v.periodoRuta === 'SEMANA'),
+                        QUINCENA: noPagadas.filter(v => v.periodoRuta === 'QUINCENA'),
                         MES: noPagadas.filter(v => v.periodoRuta === 'MES'),
                       }
 
@@ -1473,20 +1439,10 @@ const VistaCobrador = () => {
                                 <SortableVisita
                                   key={visita.id}
                                   visita={visita}
-                                  isSelected={visitaSeleccionada === visita.id}
                                   onSelect={(id) => setVisitaSeleccionada(id === visitaSeleccionada ? null : id)}
                                   onVerCliente={handleAbrirClienteInfo}
-                                  onRegistrarPago={handleAbrirPago}
-                                  onRegistrarAbono={handleAbrirAbono}
-                                  onReprogramar={(visita) => {
-                                    setVisitaReprogramar(visita)
-                                    setShowReprogramModal(true)
-                                  }}
-                                  onVerEstadoCuenta={handleAbrirEstadoCuenta}
                                   getEstadoClasses={getEstadoClasses}
-                                  getPrioridadColor={getPrioridadColor}
                                   disableSort={rutaCompletada}
-                                  disableModificaciones={rutaCompletada}
                                 />
                               ))}
                             </div>
@@ -1500,9 +1456,10 @@ const VistaCobrador = () => {
 
                       return (
                         <>
+                          {renderSeccion('Ruta mensual', porPeriodo.MES)}
+                          {renderSeccion('Ruta quincenal', porPeriodo.QUINCENA)}
+                          {renderSeccion('Ruta semanal', porPeriodo.SEMANA)}
                           {renderSeccion('Ruta del día', porPeriodo.DIA)}
-                          {renderSeccion('Ruta de la semana', porPeriodo.SEMANA)}
-                          {renderSeccion('Ruta del mes', porPeriodo.MES)}
                         </>
                       )
                     })()}
@@ -1538,7 +1495,7 @@ const VistaCobrador = () => {
               </DndContext>
 
               {/* Visitas Completadas */}
-              {visitasCobrador.some(v => v.estado === 'pagado') && (
+              {!showHistory && visitasCobrador.some(v => v.estado === 'pagado') && (
                 <div className="mt-8">
                   <h3 className="font-bold text-slate-900 flex items-center gap-2 mb-4 opacity-50">
                     <CheckCircle2 className="h-5 w-5" />
@@ -1551,18 +1508,9 @@ const VistaCobrador = () => {
                         <StaticVisitaItem
                           key={visita.id}
                           visita={visita}
-                          isSelected={visitaSeleccionada === visita.id}
                           onSelect={(id) => setVisitaSeleccionada(id === visitaSeleccionada ? null : id)}
                           onVerCliente={handleAbrirClienteInfo}
-                          onRegistrarPago={() => {}}
-                          onRegistrarAbono={handleAbrirAbono}
-                          onReprogramar={(visita) => {
-                            setVisitaReprogramar(visita)
-                            setShowReprogramModal(true)
-                          }}
-                          onVerEstadoCuenta={handleAbrirEstadoCuenta}
                           getEstadoClasses={getEstadoClasses}
-                          getPrioridadColor={getPrioridadColor}
                         />
                       ))}
                   </div>
@@ -1573,8 +1521,14 @@ const VistaCobrador = () => {
         </div>
 
         {/* Floating Action Buttons (Restored) */}
-        <div className="fixed right-6 z-50 flex flex-col items-end gap-3 bottom-[calc(1.5rem+env(safe-area-inset-bottom))] pointer-events-none">
-          {/* Actions Menu */}
+          {isFabOpen && (
+            <div 
+              className="fixed inset-0 z-40 bg-slate-900/10 backdrop-blur-[1px] cursor-default" 
+              onClick={() => setIsFabOpen(false)}
+            />
+          )}
+          <div className="fixed right-6 z-50 flex flex-col items-end gap-3 bottom-[calc(1.5rem+env(safe-area-inset-bottom))] pointer-events-none">
+            {/* Actions Menu */}
           <div
             className={`flex flex-col gap-3 transition-all duration-200 origin-bottom-right ${
               isFabOpen ? 'scale-100 opacity-100 translate-y-0' : 'scale-95 opacity-0 translate-y-2 pointer-events-none'
@@ -1726,52 +1680,81 @@ const VistaCobrador = () => {
                     </button>
                   </div>
 
-                  <div className="space-y-4">
-                    <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
-                      <div className="flex items-start gap-4">
-                        <div className="h-28 w-24 rounded-2xl bg-white border border-slate-200 flex items-center justify-center text-slate-400 font-bold text-xs">
-                          FOTO
+                  <div className="space-y-6">
+                    {/* Header Info */}
+                    <div className="bg-slate-50 p-6 rounded-3xl border border-slate-100 relative overflow-hidden">
+                      <div className="absolute top-0 right-0 w-32 h-32 bg-slate-100 rounded-full -mr-16 -mt-16"></div>
+                      <div className="relative z-10 flex items-center gap-5">
+                        <div className="h-24 w-24 rounded-2xl bg-white border border-slate-200 shadow-sm flex items-center justify-center text-slate-300 font-bold overflow-hidden">
+                          <User className="w-12 h-12" />
                         </div>
-                        <div className="flex-1 space-y-1">
-                          <p className="text-sm text-slate-500">Nombre</p>
-                          <p className="font-bold text-slate-900 text-lg">{visitaClienteSeleccionada?.cliente || 'Sin seleccionar'}</p>
-                          {visitaClienteSeleccionada && (
-                            <>
-                              <p className="text-xs text-slate-500">{visitaClienteSeleccionada.direccion}</p>
-                              <p className="text-xs text-slate-500">Tel: {visitaClienteSeleccionada.telefono}</p>
-                            </>
-                          )}
+                        <div className="flex-1">
+                          <h4 className="text-2xl font-bold text-slate-900 leading-tight">
+                            {visitaClienteSeleccionada?.cliente || 'Sin nombre'}
+                          </h4>
+                          <div className="flex items-center gap-2 mt-2">
+                             <span className="bg-[#08557f] text-white text-[10px] font-black px-2 py-0.5 rounded-full uppercase tracking-tighter">Activo</span>
+                             <span className="text-slate-400 text-xs font-bold">{visitaClienteSeleccionada?.id}</span>
+                          </div>
                         </div>
                       </div>
                     </div>
 
-                    {visitaClienteSeleccionada && (
-                      <div className="text-sm text-slate-700 space-y-2">
-                        <div className="flex items-center justify-between">
-                          <span className="text-slate-500">Saldo total</span>
-                          <span className="font-bold text-slate-900">${visitaClienteSeleccionada.saldoTotal.toLocaleString('es-CO')}</span>
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <span className="text-slate-500">Cuota esperada</span>
-                          <span className="font-bold text-slate-900">${visitaClienteSeleccionada.montoCuota.toLocaleString('es-CO')}</span>
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <span className="text-slate-500">Próxima visita</span>
-                          <span className="font-medium text-slate-900">{visitaClienteSeleccionada.proximaVisita}</span>
-                        </div>
-                      </div>
-                    )}
 
-                    <div className="pt-2">
+
+                    {/* Detailed Info Sections */}
+                    <div className="space-y-4">
+                       {/* Personal Data */}
+                       <div className="space-y-3">
+                          <h5 className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Información de contacto</h5>
+                          <div className="grid grid-cols-1 gap-3">
+                             <div className="bg-white border border-slate-100 p-4 rounded-2xl shadow-sm">
+                                <div className="text-xs text-slate-500 font-bold mb-1 uppercase tracking-tighter">Dirección Exacta</div>
+                                <div className="text-slate-900 font-bold">{visitaClienteSeleccionada?.direccion || 'No registrada'}</div>
+                             </div>
+                             <div className="bg-white border border-slate-100 p-4 rounded-2xl shadow-sm">
+                                <div className="text-xs text-slate-500 font-bold mb-1 uppercase tracking-tighter">Punto de Referencia</div>
+                                <div className="text-slate-900 font-medium italic">{visitaClienteSeleccionada?.direccion || 'Casa rejas blancas, frente al parque.'}</div>
+                             </div>
+                          </div>
+                       </div>
+
+                       {/* Financial Summary */}
+                       <div className="space-y-3 pt-2">
+                          <h5 className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Resumen Financiero</h5>
+                          <div className="grid grid-cols-2 gap-3">
+                             <div className="bg-orange-50 border border-orange-100 p-4 rounded-2xl shadow-sm">
+                                <div className="text-xs text-orange-600 font-bold mb-1 uppercase tracking-tighter">Por Entregar</div>
+                                <div className="text-orange-900 font-black text-xl">${visitaClienteSeleccionada?.saldoTotal.toLocaleString('es-CO')}</div>
+                             </div>
+                             <div className="bg-emerald-50 border border-emerald-100 p-4 rounded-2xl shadow-sm text-right">
+                                <div className="text-xs text-emerald-600 font-bold mb-1 uppercase tracking-tighter">Recaudado</div>
+                                <div className="text-emerald-900 font-black text-xl">$0</div>
+                             </div>
+                          </div>
+                          <div className="bg-slate-50 border border-slate-100 p-4 rounded-2xl flex justify-between items-center">
+                             <div>
+                                <div className="text-[10px] text-slate-500 font-bold uppercase">Cuota Proyectada</div>
+                                <div className="text-slate-900 font-bold text-lg">${visitaClienteSeleccionada?.montoCuota.toLocaleString('es-CO')}</div>
+                             </div>
+                             <div className="text-right">
+                                <div className="text-[10px] text-slate-500 font-bold uppercase">Próxima Fecha</div>
+                                <div className="text-[#08557f] font-bold">{visitaClienteSeleccionada?.proximaVisita}</div>
+                             </div>
+                          </div>
+                       </div>
+                    </div>
+
+                    <div className="pt-4 mt-2">
                       <button
                         type="button"
                         onClick={() => {
                           setShowClienteInfoModal(false)
                           setVisitaClienteSeleccionada(null)
                         }}
-                        className="w-full rounded-xl bg-[#08557f] px-3 py-2 text-xs font-bold text-white hover:bg-[#063a58]"
+                        className="w-full rounded-2xl bg-[#08557f] py-4 text-sm font-black text-white hover:bg-[#063a58] shadow-xl shadow-[#08557f]/20 transition-all uppercase tracking-widest"
                       >
-                        Cerrar
+                        Cerrar Detalles
                       </button>
                     </div>
                   </div>
@@ -1782,7 +1765,7 @@ const VistaCobrador = () => {
         )}
 
         {/* Modal de Reprogramación */}
-        {showReprogramModal && visitaReprogramar && (
+        {showReprogramModal && (
           <Portal>
             <div
               className="fixed inset-0 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-200"
@@ -1798,6 +1781,32 @@ const VistaCobrador = () => {
                 className="w-full max-w-md bg-white rounded-3xl shadow-2xl animate-in zoom-in-95 duration-200"
                 onClick={(e) => e.stopPropagation()}
               >
+                  {!visitaReprogramar ? (
+                        <div className="p-6">
+                           <div className="flex items-center justify-between mb-4">
+                             <h3 className="text-xl font-bold text-slate-900">Agendar Visita</h3>
+                             <button onClick={() => setShowReprogramModal(false)} className="p-2 bg-slate-100 rounded-full text-slate-500">
+                               <X className="h-5 w-5" />
+                             </button>
+                           </div>
+                           <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200">
+                               <label className="block text-sm font-bold text-slate-700 mb-2">Buscar Cliente</label>
+                               <select 
+                                    className="w-full bg-white border border-slate-300 rounded-xl px-3 py-3 text-slate-900 outline-none focus:border-[#08557f] font-bold"
+                                    onChange={(e) => {
+                                        const v = visitasCobrador.find(x => x.id === e.target.value);
+                                        if(v) setVisitaReprogramar(v);
+                                    }}
+                                    value=""
+                               >
+                                    <option value="" disabled>Seleccione cliente...</option>
+                                    {visitasCobrador.map(v => (
+                                        <option key={v.id} value={v.id}>{v.cliente}</option>
+                                    ))}
+                               </select>
+                           </div>
+                        </div>
+                  ) : (
                 <div className="p-6">
                   <div className="flex items-center justify-between mb-6">
                     <div>
@@ -1844,19 +1853,58 @@ const VistaCobrador = () => {
                     </button>
                   </div>
                 </div>
+              )}
               </div>
             </div>
           </Portal>
         )}
 
-        {showEstadoCuentaModal && visitaEstadoCuentaSeleccionada && (
-          <EstadoCuentaModal
-            visita={visitaEstadoCuentaSeleccionada}
-            onClose={() => {
-              setShowEstadoCuentaModal(false)
-              setVisitaEstadoCuentaSeleccionada(null)
-            }}
-          />
+        {showEstadoCuentaModal && (
+            !visitaEstadoCuentaSeleccionada ? (
+                  <Portal>
+                    <div
+                      className="fixed inset-0 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-200"
+                      style={{ zIndex: MODAL_Z_INDEX }}
+                      onClick={() => setShowEstadoCuentaModal(false)}
+                    >
+                      <div
+                        className="w-full max-w-md bg-white rounded-3xl shadow-2xl animate-in zoom-in-95 duration-200 p-6"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                           <div className="flex items-center justify-between mb-4">
+                             <h3 className="text-xl font-bold text-slate-900">Ver Estado de Cuenta</h3>
+                             <button onClick={() => setShowEstadoCuentaModal(false)} className="p-2 bg-slate-100 rounded-full text-slate-500">
+                               <X className="h-5 w-5" />
+                             </button>
+                           </div>
+                           <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200">
+                               <label className="block text-sm font-bold text-slate-700 mb-2">Buscar Cliente</label>
+                               <select 
+                                    className="w-full bg-white border border-slate-300 rounded-xl px-3 py-3 text-slate-900 outline-none focus:border-[#08557f] font-bold"
+                                    onChange={(e) => {
+                                        const v = visitasCobrador.find(x => x.id === e.target.value);
+                                        if(v) setVisitaEstadoCuentaSeleccionada(v);
+                                    }}
+                                    value=""
+                               >
+                                    <option value="" disabled>Seleccione cliente...</option>
+                                    {visitasCobrador.map(v => (
+                                        <option key={v.id} value={v.id}>{v.cliente}</option>
+                                    ))}
+                               </select>
+                           </div>
+                      </div>
+                    </div>
+                  </Portal>
+            ) : (
+              <EstadoCuentaModal
+                visita={visitaEstadoCuentaSeleccionada}
+                onClose={() => {
+                  setShowEstadoCuentaModal(false)
+                  setVisitaEstadoCuentaSeleccionada(null)
+                }}
+              />
+            )
         )}
 
         {/* Modal de Pagos */}
@@ -1890,16 +1938,66 @@ const VistaCobrador = () => {
                   </div>
                   
                   <div className="space-y-6">
-                    <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 space-y-1">
-                      <p className="text-sm text-slate-500">Cliente</p>
-                      <p className="font-bold text-slate-900 text-lg">{visitaPagoSeleccionada?.cliente || 'Sin seleccionar'}</p>
-                      {visitaPagoSeleccionada && (
-                        <>
-                          <p className="text-xs text-slate-500">{visitaPagoSeleccionada.direccion}</p>
-                          <p className="text-xs text-slate-400">Cuota esperada: ${formatMilesCOP(visitaPagoSeleccionada.montoCuota)}</p>
-                        </>
-                      )}
-                    </div>
+                     {!visitaPagoSeleccionada ? (
+                        <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200">
+                           <label className="block text-sm font-bold text-slate-700 mb-2">Buscar Cliente</label>
+                           <select 
+                                className="w-full bg-white border border-slate-300 rounded-xl px-3 py-3 text-slate-900 outline-none focus:border-[#08557f] font-bold"
+                                onChange={(e) => {
+                                    const v = visitasCobrador.find(x => x.id === e.target.value);
+                                    if(v) {
+                                      setVisitaPagoSeleccionada(v);
+                                      if (!isAbono) setMontoPagoInput(formatMilesCOP(v.montoCuota));
+                                    }
+                                }}
+                                value=""
+                           >
+                                <option value="" disabled>Seleccione cliente...</option>
+                                {visitasCobrador.map(v => (
+                                    <option key={v.id} value={v.id}>{v.cliente}</option>
+                                ))}
+                           </select>
+                        </div>
+                     ) : (
+                        <div className="bg-[#08557f]/5 p-5 rounded-3xl border border-[#08557f]/10 relative overflow-hidden">
+                           <div className="absolute top-0 right-0 w-24 h-24 bg-[#08557f]/5 rounded-full -mr-12 -mt-12"></div>
+                           <button 
+                             onClick={() => {
+                               setVisitaPagoSeleccionada(null);
+                               setMontoPagoInput('');
+                             }}
+                             className="absolute top-4 right-4 p-2 bg-white text-slate-400 rounded-xl hover:text-slate-700 shadow-sm border border-slate-100 transition-all z-10"
+                             title="Cambiar cliente"
+                           >
+                             <Users className="w-4 h-4" />
+                           </button>
+                           
+                           <div className="relative z-10 flex gap-4 items-center">
+                              <div className="h-14 w-14 rounded-2xl bg-white border border-[#08557f]/10 flex items-center justify-center text-[#08557f] shadow-sm">
+                                 <User className="w-7 h-7" />
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                 <p className="text-[10px] font-black text-[#08557f] uppercase tracking-widest mb-0.5">Cliente Seleccionado</p>
+                                 <p className="font-bold text-slate-900 text-lg truncate">{visitaPagoSeleccionada.cliente}</p>
+                                 <div className="flex items-center gap-1.5 mt-1">
+                                    <MapPin className="w-3 h-3 text-slate-400" />
+                                    <p className="text-xs text-slate-500 truncate">{visitaPagoSeleccionada.direccion}</p>
+                                 </div>
+                              </div>
+                           </div>
+
+                           <div className="mt-4 pt-4 border-t border-[#08557f]/10 grid grid-cols-2 gap-4">
+                              <div>
+                                 <div className="text-[10px] font-bold text-slate-500 uppercase tracking-tighter mb-1">Cuota Esperada</div>
+                                 <div className="text-slate-900 font-black text-lg">${formatMilesCOP(visitaPagoSeleccionada.montoCuota)}</div>
+                              </div>
+                              <div className="text-right">
+                                 <div className="text-[10px] font-bold text-slate-500 uppercase tracking-tighter mb-1">Saldo Total</div>
+                                 <div className="text-[#08557f] font-black text-lg">${formatMilesCOP(visitaPagoSeleccionada.saldoTotal)}</div>
+                              </div>
+                           </div>
+                        </div>
+                     )}
 
                     <div>
                       <label className="block text-sm font-bold text-slate-700 mb-2">Método de Pago</label>
@@ -1945,21 +2043,7 @@ const VistaCobrador = () => {
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-3 gap-2">
-                      {[10000, 20000, 50000, 100000].map(amount => (
-                        <button 
-                          key={amount}
-                          type="button"
-                          onClick={() => {
-                            const nuevo = parseCOPInputToNumber(montoPagoInput) + amount
-                            setMontoPagoInput(nuevo === 0 ? '' : formatMilesCOP(nuevo))
-                          }}
-                          className="py-2 px-1 rounded-lg bg-slate-50 border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-100 hover:border-slate-300"
-                        >
-                          +${(amount/1000).toFixed(0)}k
-                        </button>
-                      ))}
-                    </div>
+
 
                     <button 
                       onClick={() => {
@@ -2079,12 +2163,16 @@ const VistaCobrador = () => {
                   <div className="space-y-4">
                     <div>
                       <label className="block text-sm font-bold text-slate-700 mb-2">Concepto</label>
-                      <select className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-[#08557f] focus:ring-0 font-medium text-slate-900">
-                        <option>Combustible</option>
-                        <option>Alimentación</option>
-                        <option>Reparación Moto</option>
-                        <option>Papelería</option>
-                        <option>Otros</option>
+                      <select 
+                        value={conceptoGasto}
+                        onChange={(e) => setConceptoGasto(e.target.value)}
+                        className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-[#08557f] focus:ring-0 font-medium text-slate-900"
+                      >
+                        <option value="Combustible">Combustible</option>
+                        <option value="Reparación Moto">Reparación Moto</option>
+                        <option value="Papelería">Papelería</option>
+                        <option value="Gasto Personal">Gasto Personal</option>
+                        <option value="Otros">Otros</option>
                       </select>
                     </div>
                     <div>
@@ -2119,7 +2207,7 @@ const VistaCobrador = () => {
                       </div>
                     </div>
                     <button 
-                      onClick={() => handleRegistrarGasto('Combustible', parseCOPInputToNumber(montoGastoInput))}
+                      onClick={() => handleRegistrarGasto(conceptoGasto, descripcionGastoInput, parseCOPInputToNumber(montoGastoInput))}
                       className="w-full bg-orange-500 text-white font-bold py-3.5 rounded-xl shadow-lg shadow-orange-500/20 hover:bg-orange-600 active:scale-[0.98] transition-all"
                     >
                       Guardar Gasto
@@ -2219,7 +2307,8 @@ const VistaCobrador = () => {
                 setCuotasPrestamoInput('')
                 setCuotaInicialArticuloInput('')
                 setArticuloSeleccionadoId('')
-                setOpcionCuotasSeleccionada(null)
+                setPlanArticuloIndex(null)
+                setFrecuenciaPago('Semanal') // Default reasonable frequency
               }}
             >
               <div
@@ -2327,11 +2416,15 @@ const VistaCobrador = () => {
                       <div className="grid grid-cols-2 gap-4">
                         <div>
                           <label className="block text-sm font-bold text-slate-700 mb-2">Frecuencia de Pago</label>
-                          <select className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-[#08557f] focus:ring-0 font-medium text-slate-900">
-                            <option>Diario</option>
-                            <option>Semanal</option>
-                            <option>Quincenal</option>
-                            <option>Mensual</option>
+                          <select 
+                            value={frecuenciaPago}
+                            onChange={(e) => setFrecuenciaPago(e.target.value)}
+                            className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-[#08557f] focus:ring-0 font-medium text-slate-900"
+                          >
+                            <option value="Diaria">Diaria</option>
+                            <option value="Semanal">Semanal</option>
+                            <option value="Quincenal">Quincenal</option>
+                            <option value="Mensuales">Mensuales</option>
                           </select>
                         </div>
                         <div>
@@ -2346,14 +2439,28 @@ const VistaCobrador = () => {
                           />
                         </div>
                       </div>
-                      <div>
-                        <label className="block text-sm font-bold text-slate-700 mb-2">Fecha del Crédito</label>
-                        <input 
-                          type="date"
-                          value={fechaCreditoInput}
-                          onChange={(e) => setFechaCreditoInput(e.target.value)}
-                          className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-[#08557f] focus:ring-0 font-medium text-slate-900"
-                        />
+
+
+
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-sm font-bold text-slate-700 mb-2">Fecha Inicio Crédito</label>
+                          <input 
+                            type="date"
+                            value={fechaCreditoInput}
+                            disabled={true}
+                            className="w-full px-4 py-3 bg-slate-100 border border-slate-200 rounded-xl font-medium text-slate-500 cursor-not-allowed opacity-75"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-bold text-slate-700 mb-2">Fecha Primer Cobro</label>
+                          <input 
+                            type="date"
+                            value={fechaPrimerCobro}
+                            onChange={(e) => setFechaPrimerCobro(e.target.value)}
+                            className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-[#08557f] focus:ring-0 font-medium text-slate-900"
+                          />
+                        </div>
                       </div>
                     </>
                   ) : (
@@ -2370,9 +2477,9 @@ const VistaCobrador = () => {
                         <select 
                           value={articuloSeleccionadoId}
                           onChange={(e) => {
-                            setArticuloSeleccionadoId(e.target.value)
-                            setOpcionCuotasSeleccionada(null)
-                          }}
+                             setArticuloSeleccionadoId(e.target.value)
+                             setPlanArticuloIndex(null)
+                           }}
                           className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-[#08557f] focus:ring-0 font-medium text-slate-900"
                         >
                           <option value="">Seleccionar artículo...</option>
@@ -2392,51 +2499,69 @@ const VistaCobrador = () => {
                           </div>
                           
                           <div>
-                            <label className="block text-sm font-bold text-slate-700 mb-2">Plan de Cuotas</label>
-                            <select 
-                              value={opcionCuotasSeleccionada ? articuloSeleccionado.opcionesCuotas.indexOf(opcionCuotasSeleccionada) : ''}
-                              onChange={(e) => {
-                                const index = parseInt(e.target.value)
-                                if (!isNaN(index) && articuloSeleccionado) {
-                                  setOpcionCuotasSeleccionada(articuloSeleccionado.opcionesCuotas[index])
-                                }
-                              }}
-                              className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-[#08557f] focus:ring-0 font-medium text-slate-900"
-                            >
-                              <option value="">Seleccionar plan...</option>
-                              {articuloSeleccionado.opcionesCuotas.map((opcion, index) => (
-                                <option key={index} value={index}>
-                                  {opcion.numeroCuotas} cuotas - {formatCurrency(opcion.valorCuota)}/cuota - Total: {formatCurrency(opcion.precioTotal)}
-                                </option>
-                              ))}
-                            </select>
+                             <label className="block text-sm font-bold text-slate-700 mb-2">Plazo (Meses)</label>
+                             <select 
+                               value={planArticuloIndex !== null ? planArticuloIndex : ''}
+                               onChange={(e) => {
+                                 const idx = e.target.value ? parseInt(e.target.value) : null
+                                 setPlanArticuloIndex(idx)
+                               }}
+                               className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-[#08557f] focus:ring-0 font-medium text-slate-900"
+                             >
+                                <option value="">Seleccionar plazo...</option>
+                                {articuloSeleccionado.opcionesCuotas.map((op, idx) => {
+                                   // Interpret mock data: numeroCuotas (Quincenal assumed) / 2 = Months
+                                   const meses = op.numeroCuotas / 2;
+                                   return (
+                                     <option key={idx} value={idx}>
+                                        {meses} Meses - Total: {formatCurrency(op.precioTotal)}
+                                     </option>
+                                   )
+                                })}
+                             </select>
+                          </div>
+
+                          <div className="mb-4">
+                             <label className="block text-sm font-bold text-slate-700 mb-2">Frecuencia de Pago</label>
+                             <select 
+                               value={frecuenciaPago}
+                               onChange={(e) => setFrecuenciaPago(e.target.value)}
+                               className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-[#08557f] focus:ring-0 font-medium text-slate-900"
+                             >
+                               <option value="Diaria">Diaria</option>
+                               <option value="Semanal">Semanal</option>
+                               <option value="Quincenal">Quincenal</option>
+                               <option value="Mensuales">Mensual</option>
+                             </select>
                           </div>
                           
-                          {opcionCuotasSeleccionada && (
-                            <div className="bg-green-50 border border-green-200 rounded-xl p-4">
-                              <div className="grid grid-cols-2 gap-4 text-sm">
-                                <div>
-                                  <div className="text-xs font-medium text-green-700">Número de Cuotas</div>
-                                  <div className="font-bold text-green-900">{opcionCuotasSeleccionada.numeroCuotas} cuotas</div>
+                          {calculoCreditoArticulo && (
+                             <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 space-y-3">
+                                <div className="flex justify-between items-center pb-2 border-b border-emerald-100">
+                                   <span className="text-xs font-bold text-emerald-800 uppercase">A Financiar</span>
+                                   <span className="font-bold text-emerald-900 text-lg">{formatCurrency(calculoCreditoArticulo.aFinanciar)}</span>
                                 </div>
-                                <div>
-                                  <div className="text-xs font-medium text-green-700">Valor por Cuota</div>
-                                  <div className="font-bold text-green-900">{formatCurrency(opcionCuotasSeleccionada.valorCuota)}</div>
+                                <div className="grid grid-cols-2 gap-4 text-center">
+                                   <div>
+                                      <div className="text-xs text-emerald-700 font-bold uppercase mb-1">Cuotas</div>
+                                      <div className="bg-white/60 p-2 rounded-lg font-bold text-emerald-900 border border-emerald-100">
+                                         {calculoCreditoArticulo.numCuotas} <span className="text-xs font-normal text-emerald-700">x {frecuenciaPago}</span>
+                                      </div>
+                                   </div>
+                                   <div>
+                                      <div className="text-xs text-emerald-700 font-bold uppercase mb-1">Valor Cuota</div>
+                                      <div className="bg-white/60 p-2 rounded-lg font-bold text-emerald-900 border border-emerald-100">
+                                         {formatCurrency(calculoCreditoArticulo.valorCuota)}
+                                      </div>
+                                   </div>
                                 </div>
-                                <div>
-                                  <div className="text-xs font-medium text-green-700">Precio Total</div>
-                                  <div className="font-bold text-green-900">{formatCurrency(opcionCuotasSeleccionada.precioTotal)}</div>
-                                </div>
-                                <div>
-                                  <div className="text-xs font-medium text-green-700">Frecuencia</div>
-                                  <div className="font-bold text-green-900">{opcionCuotasSeleccionada.frecuenciaPago}</div>
-                                </div>
-                              </div>
-                            </div>
+                             </div>
                           )}
                           
-                          <div>
-                            <label className="block text-sm font-bold text-slate-700 mb-2">Cuota Inicial (Opcional)</label>
+
+
+                          <div className="mb-4">
+                            <label className="block text-sm font-bold text-slate-700 mb-2">Cuota Inicial</label>
                             <div className="relative">
                               <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
                               <input 
@@ -2450,14 +2575,25 @@ const VistaCobrador = () => {
                             </div>
                           </div>
                           
-                          <div>
-                            <label className="block text-sm font-bold text-slate-700 mb-2">Fecha del Crédito</label>
-                            <input 
-                              type="date"
-                              value={fechaCreditoInput}
-                              onChange={(e) => setFechaCreditoInput(e.target.value)}
-                              className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-[#08557f] focus:ring-0 font-medium text-slate-900"
-                            />
+                          <div className="grid grid-cols-2 gap-4">
+                            <div>
+                              <label className="block text-sm font-bold text-slate-700 mb-2">Fecha Inicio Crédito</label>
+                              <input 
+                                type="date"
+                                value={fechaCreditoInput}
+                                disabled={true}
+                                className="w-full px-4 py-3 bg-slate-100 border border-slate-200 rounded-xl font-medium text-slate-500 cursor-not-allowed opacity-75"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-sm font-bold text-slate-700 mb-2">Fecha Primer Cobro</label>
+                              <input 
+                                type="date"
+                                value={fechaPrimerCobro}
+                                onChange={(e) => setFechaPrimerCobro(e.target.value)}
+                                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-[#08557f] focus:ring-0 font-medium text-slate-900"
+                              />
+                            </div>
                           </div>
                         </>
                       )}

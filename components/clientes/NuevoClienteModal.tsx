@@ -143,29 +143,31 @@ export default function NuevoClienteModal({ onClose, onClienteCreado }: NuevoCli
               </div>
 
               <div>
-                <label className="block text-sm font-bold text-slate-700 mb-2">Dirección (Opcional)</label>
+                <label className="block text-sm font-bold text-slate-700 mb-2">Dirección</label>
                 <input
                   value={formulario.direccion}
                   onChange={(e) => setFormulario(prev => ({ ...prev, direccion: e.target.value }))}
                   className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-[#08557f] focus:ring-0 font-medium text-slate-900 placeholder:text-slate-400"
                   placeholder="Dirección del cliente"
+                  required
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-bold text-slate-700 mb-2">Referencia (Opcional)</label>
+                <label className="block text-sm font-bold text-slate-700 mb-2">Referencia</label>
                 <textarea
                   value={formulario.referencia}
                   onChange={(e) => setFormulario(prev => ({ ...prev, referencia: e.target.value }))}
                   className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-[#08557f] focus:ring-0 font-medium text-sl ate-900 placeholder:text-slate-400 resize-none"
                   rows={3}
                   placeholder="Punto de referencia / observaciones"
+                  required
                 />
               </div>
 
               {/* Sección de Fotos */}
               <div className="space-y-4 border-t border-slate-200 pt-6">
-                <h4 className="text-sm font-bold text-slate-700 uppercase tracking-wide">Documentos y Fotos (Opcional)</h4>
+                <h4 className="text-sm font-bold text-slate-700 uppercase tracking-wide">Documentos y Fotos (Obligatorias)</h4>
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
@@ -173,6 +175,7 @@ export default function NuevoClienteModal({ onClose, onClienteCreado }: NuevoCli
                     <input
                       type="file"
                       accept="image/*"
+                      required
                       onChange={(e) => setFotos(prev => ({ ...prev, fotoPerfil: e.target.files?.[0] || null }))}
                       className="w-full text-xs text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 cursor-pointer"
                     />
@@ -183,6 +186,7 @@ export default function NuevoClienteModal({ onClose, onClienteCreado }: NuevoCli
                     <input
                       type="file"
                       accept="image/*"
+                      required
                       onChange={(e) => setFotos(prev => ({ ...prev, documentoFrente: e.target.files?.[0] || null }))}
                       className="w-full text-xs text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 cursor-pointer"
                     />
@@ -193,6 +197,7 @@ export default function NuevoClienteModal({ onClose, onClienteCreado }: NuevoCli
                     <input
                       type="file"
                       accept="image/*"
+                      required
                       onChange={(e) => setFotos(prev => ({ ...prev, documentoReverso: e.target.files?.[0] || null }))}
                       className="w-full text-xs text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 cursor-pointer"
                     />
@@ -203,6 +208,7 @@ export default function NuevoClienteModal({ onClose, onClienteCreado }: NuevoCli
                     <input
                       type="file"
                       accept="image/*"
+                      required
                       onChange={(e) => setFotos(prev => ({ ...prev, comprobanteDomicilio: e.target.files?.[0] || null }))}
                       className="w-full text-xs text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 cursor-pointer"
                     />

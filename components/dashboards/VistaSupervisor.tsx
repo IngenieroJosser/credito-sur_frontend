@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { useEffect, useState, type ReactNode } from 'react'
 import Image from 'next/image'
-import { createPortal } from 'react-dom'
+
 import {
   AlertCircle,
   ArrowRight,
@@ -30,12 +30,8 @@ import { formatCOPInputValue, formatMilesCOP, parseCOPInputToNumber, formatCurre
 import NuevoClienteModal from '@/components/clientes/NuevoClienteModal'
 import { Sparkline, PremiumBarChart } from '@/components/ui/PremiumCharts'
 
-const MODAL_Z_INDEX = 2147483647
+import { Portal, MODAL_Z_INDEX } from '@/components/dashboards/shared/CobradorElements'
 
-function Portal({ children }: { children: ReactNode }) {
-  if (typeof document === 'undefined') return null
-  return createPortal(children, document.body)
-}
 
 interface MetricCard {
   title: string

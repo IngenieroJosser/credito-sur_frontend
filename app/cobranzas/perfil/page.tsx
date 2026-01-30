@@ -1,3 +1,3 @@
-'use client'
+import PerfilUsuarioPage from '../../admin/perfil/page'
 
-export { default } from '@/app/admin/perfil/page'
+export default PerfilUsuarioPage
