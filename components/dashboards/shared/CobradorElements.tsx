@@ -19,21 +19,29 @@ export function StaticVisitaItem({
   onSelect,
   onVerCliente,
   getEstadoClasses,
+  getPrioridadColor,
+  isSelected,
+  children,
 }: {
   visita: VisitaRuta
   onSelect: (id: string) => void
   onVerCliente: (visita: VisitaRuta) => void
   getEstadoClasses: (estado: EstadoVisita) => string
+  getPrioridadColor?: (prioridad: 'alta' | 'media' | 'baja') => string
+  isSelected?: boolean
+  children?: ReactNode
 }) {
   return (
     <div
       onClick={() => onSelect(visita.id)}
       className={`relative z-10 w-full rounded-2xl px-4 py-3 transition-all cursor-pointer hover:shadow-lg bg-white ${
-        visita.nivelRiesgo === 'bajo' ? 'border-4 border-blue-600 shadow-sm' :
-        visita.nivelRiesgo === 'leve' ? 'border-4 border-emerald-600 shadow-sm' :
-        visita.nivelRiesgo === 'moderado' ? 'border-4 border-orange-600 shadow-md' :
-        visita.nivelRiesgo === 'critico' ? 'border-4 border-red-700 shadow-lg' :
-        'border-2 border-slate-200'
+        isSelected 
+          ? 'ring-2 ring-[#08557f] shadow-md bg-slate-50' 
+          : visita.nivelRiesgo === 'bajo' ? 'border-[3px] border-blue-600 shadow-sm' :
+            visita.nivelRiesgo === 'leve' ? 'border-[3px] border-emerald-600 shadow-sm' :
+            visita.nivelRiesgo === 'moderado' ? 'border-[3px] border-orange-600 shadow-md' :
+            visita.nivelRiesgo === 'critico' ? 'border-[3px] border-red-700 shadow-lg' :
+            'border-[3px] border-slate-200'
       }`}
     >
       <div className="flex items-start gap-3">
@@ -49,6 +57,12 @@ export function StaticVisitaItem({
                         <span className="bg-slate-100 px-1.5 py-0.5 rounded text-slate-600 border border-slate-200">#{visita.ordenVisita}</span>
                         <span>•</span>
                         <span>{visita.periodoRuta === 'DIA' ? 'Diario' : visita.periodoRuta}</span>
+                         {getPrioridadColor && (
+                           <div className="flex items-center gap-1 ml-2">
+                             <div className="h-2 w-2 rounded-full" style={{ backgroundColor: getPrioridadColor(visita.prioridad) }}></div>
+                             <span className="text-[10px] uppercase font-bold" style={{ color: getPrioridadColor(visita.prioridad) }}>{visita.prioridad}</span>
+                           </div>
+                         )}
                     </div>
                 </div>
                 <button 
@@ -92,6 +106,12 @@ export function StaticVisitaItem({
                      {visita.telefono}
                  </div>
             </div>
+            
+            {isSelected && children && (
+              <div className="pt-2 mt-2 border-t border-slate-100 animate-in slide-in-from-top-2">
+                {children}
+              </div>
+            )}
         </div>
       </div>
     </div>
@@ -103,12 +123,18 @@ export function SortableItem({
   onSelect,
   onVerCliente,
   getEstadoClasses,
+  getPrioridadColor,
+  isSelected,
+  children,
   disableSort,
 }: {
   visita: VisitaRuta
   onSelect: (id: string) => void
   onVerCliente: (visita: VisitaRuta) => void
   getEstadoClasses: (estado: EstadoVisita) => string
+  getPrioridadColor?: (prioridad: 'alta' | 'media' | 'baja') => string
+  isSelected?: boolean
+  children?: ReactNode
   disableSort?: boolean
 }) {
   const {
@@ -128,13 +154,20 @@ export function SortableItem({
     <div
       ref={setNodeRef}
       style={style}
+      // Note: onClick is handled by the inner Div in many Dnd Kit examples to separate drag from click, 
+      // but here we wrap content. To simplify, we rely on the inner structure matching "StaticVisitaItem" visual style mostly.
+      // Actually, we can just render the logic here directly or wrap StaticVisitaItem if we want to reuse code perfectly.
+      // Reusing code via "StaticVisitaItem" is cleaner but ref forwarding for DnD can be tricky if not careful.
+      // Let's duplicate the render for safety as done previously, incorporating the new fields.
       onClick={() => onSelect(visita.id)}
       className={`relative z-10 w-full rounded-2xl px-4 py-3 transition-all cursor-pointer hover:shadow-lg bg-white ${
-        visita.nivelRiesgo === 'bajo' ? 'border-4 border-blue-600 shadow-sm' :
-        visita.nivelRiesgo === 'leve' ? 'border-4 border-emerald-600 shadow-sm' :
-        visita.nivelRiesgo === 'moderado' ? 'border-4 border-orange-600 shadow-md' :
-        visita.nivelRiesgo === 'critico' ? 'border-4 border-red-700 shadow-lg' :
-        'border-2 border-slate-200'
+        isSelected 
+          ? 'ring-2 ring-[#08557f] shadow-md bg-slate-50' 
+          : visita.nivelRiesgo === 'bajo' ? 'border-[3px] border-blue-600 shadow-sm' :
+            visita.nivelRiesgo === 'leve' ? 'border-[3px] border-emerald-600 shadow-sm' :
+            visita.nivelRiesgo === 'moderado' ? 'border-[3px] border-orange-600 shadow-md' :
+            visita.nivelRiesgo === 'critico' ? 'border-[3px] border-red-700 shadow-lg' :
+            'border-[3px] border-slate-200'
       }`}
     >
       <div className="flex items-start gap-3">
@@ -160,6 +193,12 @@ export function SortableItem({
                         <span className="bg-slate-100 px-1.5 py-0.5 rounded text-slate-600 border border-slate-200">#{visita.ordenVisita}</span>
                         <span>•</span>
                         <span>{visita.periodoRuta === 'DIA' ? 'Diario' : visita.periodoRuta}</span>
+                        {getPrioridadColor && (
+                           <div className="flex items-center gap-1 ml-2">
+                             <div className="h-2 w-2 rounded-full" style={{ backgroundColor: getPrioridadColor(visita.prioridad) }}></div>
+                             <span className="text-[10px] uppercase font-bold" style={{ color: getPrioridadColor(visita.prioridad) }}>{visita.prioridad}</span>
+                           </div>
+                         )}
                     </div>
                 </div>
                 <button 
@@ -203,6 +242,12 @@ export function SortableItem({
                      {visita.telefono}
                  </div>
             </div>
+            
+            {isSelected && children && (
+              <div className="pt-2 mt-2 border-t border-slate-100 animate-in slide-in-from-top-2">
+                {children}
+              </div>
+            )}
         </div>
       </div>
     </div>
@@ -214,12 +259,18 @@ export function SortableVisita({
   onSelect,
   onVerCliente,
   getEstadoClasses,
+  getPrioridadColor,
+  isSelected,
+  children,
   disableSort,
 }: {
   visita: VisitaRuta
   onSelect: (id: string) => void
   onVerCliente: (visita: VisitaRuta) => void
   getEstadoClasses: (estado: EstadoVisita) => string
+  getPrioridadColor?: (prioridad: 'alta' | 'media' | 'baja') => string
+  isSelected?: boolean
+  children?: ReactNode
   disableSort?: boolean
 }) {
   return (
@@ -228,7 +279,11 @@ export function SortableVisita({
       onSelect={onSelect}
       onVerCliente={onVerCliente}
       getEstadoClasses={getEstadoClasses}
+      getPrioridadColor={getPrioridadColor}
+      isSelected={isSelected}
       disableSort={disableSort}
-    />
+    >
+      {children}
+    </SortableItem>
   )
 }

@@ -21,27 +21,18 @@
  * - Modales de detalle (Historial, Estado de Cuenta).
  */
 
-import { useState, type ReactNode } from 'react'
-import { createPortal } from 'react-dom'
+import { useState } from 'react'
 import {
   CheckCircle2,
   XCircle,
-  MapPin,
   Banknote,
   ArrowLeft,
-  Pencil,
   Save,
   Search,
   Filter,
-  History as HistoryIcon,
-  GripVertical,
   Wallet,
-  ChevronRight,
   DollarSign,
-  Eye,
-  X,
   Calendar,
-  Clock,
   FileText as FileTextIcon
 } from 'lucide-react'
 
@@ -49,8 +40,6 @@ import { formatCOPInputValue, formatCurrency } from '@/lib/utils'
 import Link from 'next/link'
 import { useParams } from 'next/navigation'
 import { useCallback } from 'react'
-import { RolUsuario } from '@/lib/types/autenticacion-type'
-import {  formatMilesCOP } from '@/lib/utils'
 import { useRouter } from 'next/navigation'
 import { MOCK_CLIENTES } from '@/services/clientes-service'
 
@@ -58,8 +47,8 @@ import { MOCK_CLIENTES } from '@/services/clientes-service'
 import PagoModal from '@/components/cobranza/PagoModal'
 import EstadoCuentaModal from '@/components/cobranza/EstadoCuentaModal'
 import ReprogramarModal from '@/components/cobranza/ReprogramarModal'
-import { VisitaRuta, EstadoVisita, PeriodoRuta } from '@/lib/types/cobranza'
-import StaticVisitaItem from '@/components/cobranza/StaticVisitaItem'
+import { VisitaRuta, EstadoVisita } from '@/lib/types/cobranza'
+import { StaticVisitaItem } from '@/components/dashboards/shared/CobradorElements'
 
 // Interfaces de datos
 interface ClienteRuta {
@@ -117,7 +106,7 @@ const DetalleRutaPage = () => {
     recaudado: 150000
   }
 
-  const totalGastos = gastos.reduce((acc, g) => acc + g.valor, 0)
+  // const totalGastos = gastos.reduce((acc, g) => acc + g.valor, 0) // Unused?
 
   const porcentajeProgreso = (progreso.visitados / progreso.total) * 100
 
@@ -125,10 +114,10 @@ const DetalleRutaPage = () => {
   const [nuevoGasto, setNuevoGasto] = useState({ tipo: 'OPERATIVO', descripcion: '', valor: '' })
   const [searchQuery, setSearchQuery] = useState('')
   const [showFilters, setShowFilters] = useState(false)
-  const [showHistory, setShowHistory] = useState(false)
+  // const [showHistory, setShowHistory] = useState(false) // Unused
   const [rutaCompletada, setRutaCompletada] = useState(false)
 
-  const [periodoRutaFiltro, setPeriodoRutaFiltro] = useState<'TODOS' | 'DIA' | 'SEMANA' | 'MES'>('TODOS')
+  // const [periodoRutaFiltro, setPeriodoRutaFiltro] = useState<'TODOS' | 'DIA' | 'SEMANA' | 'MES'>('TODOS')
   // Datos de prueba iniciales para visitasCobrador
   const [visitasCobrador, setVisitasCobrador] = useState<VisitaRuta[]>([
     {
@@ -235,15 +224,15 @@ const DetalleRutaPage = () => {
 
   const handleAbrirPago = useCallback((visita: VisitaRuta) => {
     setPagoVisita({ visita, tipo: 'PAGO' })
-  }, [])
+  }, [setPagoVisita])
 
   const handleAbrirAbono = useCallback((visita: VisitaRuta) => {
     setPagoVisita({ visita, tipo: 'ABONO' })
-  }, [])
+  }, [setPagoVisita])
 
   const handleAbrirEstadoCuenta = useCallback((visita: VisitaRuta) => {
     setEstadoCuentaVisita(visita)
-  }, [])
+  }, [setEstadoCuentaVisita])
 
   const handleGuardarGasto = (e: React.FormEvent) => {
     e.preventDefault()
@@ -357,14 +346,91 @@ const DetalleRutaPage = () => {
                           isSelected={visitaSeleccionada === visita.id}
                           onSelect={(id: string) => setVisitaSeleccionada(id === visitaSeleccionada ? null : id)}
                           onVerCliente={handleAbrirClienteInfo}
-                          onRegistrarPago={handleAbrirPago}
-                          onRegistrarAbono={handleAbrirAbono}
-                          onReprogramar={(visita: VisitaRuta) => setVisitaReprogramar(visita)}
-                          onVerEstadoCuenta={handleAbrirEstadoCuenta}
                           getEstadoClasses={getEstadoClasses}
                           getPrioridadColor={getPrioridadColor}
-                          disableModificaciones={rutaCompletada}
-                        />
+                        >
+                            <div className="mt-3 space-y-3">
+                              {visita.estado === 'pagado' ? (
+                                <div className="grid grid-cols-2 gap-2">
+                                  <button
+                                    type="button"
+                                    onClick={() => handleAbrirAbono(visita)}
+                                    disabled={rutaCompletada}
+                                    className="flex items-center justify-center gap-2 rounded-xl bg-orange-500 px-3 py-2 text-[11px] font-bold text-white hover:bg-orange-600 shadow-lg shadow-orange-500/20"
+                                  >
+                                    <Wallet className="h-4 w-4" />
+                                    Registrar Abono
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleAbrirEstadoCuenta(visita)}
+                                    className="flex items-center justify-center gap-2 rounded-xl bg-slate-100 px-3 py-2 text-[11px] font-bold text-slate-700 hover:bg-slate-200 border border-slate-200"
+                                  >
+                                    <FileTextIcon className="h-4 w-4" />
+                                    Ver Estado de Cuenta
+                                  </button>
+                                </div>
+                              ) : (
+                                <>
+                                  <div className="grid grid-cols-2 gap-2">
+                                    <button
+                                      type="button"
+                                      onClick={() => handleAbrirPago(visita)}
+                                      disabled={rutaCompletada}
+                                      className="flex items-center justify-center gap-2 rounded-xl bg-[#08557f] px-3 py-2 text-[11px] font-bold text-white hover:bg-[#063a58] shadow-lg shadow-[#08557f]/20"
+                                    >
+                                      <DollarSign className="h-4 w-4" />
+                                      Registrar Pago
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleAbrirAbono(visita)}
+                                      disabled={rutaCompletada}
+                                      className="flex items-center justify-center gap-2 rounded-xl bg-orange-500 px-3 py-2 text-[11px] font-bold text-white hover:bg-orange-600 shadow-lg shadow-orange-500/20"
+                                    >
+                                      <Wallet className="h-4 w-4" />
+                                      Registrar Abono
+                                    </button>
+                                  </div>
+
+                                  <div className="grid grid-cols-2 gap-2">
+                                    <button
+                                      type="button"
+                                      onClick={() => handleAbrirEstadoCuenta(visita)}
+                                      className="flex items-center justify-center gap-2 rounded-xl bg-slate-100 px-3 py-2 text-[11px] font-bold text-slate-700 hover:bg-slate-200 border border-slate-200"
+                                    >
+                                      <FileTextIcon className="h-4 w-4" />
+                                      Ver Estado de Cuenta
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => setVisitaReprogramar(visita)}
+                                      disabled={rutaCompletada}
+                                      className="flex items-center justify-center gap-2 rounded-xl bg-orange-50 px-3 py-2 text-[11px] font-bold text-orange-700 hover:bg-orange-100 border border-orange-200"
+                                    >
+                                      <Calendar className="h-4 w-4" />
+                                      Reprogramar
+                                    </button>
+                                  </div>
+                                </>
+                              )}
+
+                              <div className="text-[11px] text-slate-600">
+                                <div className="flex items-center justify-between mb-1">
+                                  <span>Saldo total:</span>
+                                  <span className="font-bold">${visita.saldoTotal.toLocaleString('es-CO')}</span>
+                                </div>
+                                <div className="flex items-center justify-between">
+                                  <span>Próxima visita:</span>
+                                  <span className="font-medium">{visita.proximaVisita}</span>
+                                </div>
+                                <div className="flex items-center justify-between">
+                                  <span>Teléfono:</span>
+                                  <span className="font-medium">{visita.telefono}</span>
+                                </div>
+                              </div>
+                            </div>
+                        </StaticVisitaItem>
                       ))}
                  </div>
               </div>
