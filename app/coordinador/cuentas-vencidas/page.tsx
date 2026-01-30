@@ -134,15 +134,11 @@ const CuentasVencidasCoordinador = () => {
 
         <div className="flex flex-col md:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-3 w-full md:w-auto">
-            {/* Filtro de Ruta Integrado con estilo estándar */}
-            <div className="bg-slate-50 p-1 rounded-xl border border-slate-200">
-                <FiltroRuta 
-                    onRutaChange={(r) => console.log('Ruta:', r)} 
-                    selectedRutaId={null}
-                    className="w-48"
-                    showAllOption={true}
-                />
-            </div>
+            <FiltroRuta 
+                onRutaChange={(r: string | null) => console.log('Ruta:', r)} 
+                selectedRutaId={null}
+                showAllOption={true}
+            />
 
             <div className="relative flex-1 md:w-64">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
@@ -196,8 +192,8 @@ const CuentasVencidasCoordinador = () => {
                     </span>
                   </td>
                   <td className="px-6 py-4 text-right">
-                    <div className="font-bold text-slate-900">{formatCurrency(c.saldoPendiente)}</div>
-                    <div className="text-xs text-slate-400">Orig: {formatCurrency(c.montoOriginal)}</div>
+                    <div className="text-lg font-black text-slate-900">{formatCurrency(c.saldoPendiente)}</div>
+                    <div className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">Saldo Pendiente</div>
                   </td>
                   <td className="px-6 py-4 text-right">
                     <Link 

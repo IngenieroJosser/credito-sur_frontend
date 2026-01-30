@@ -17,9 +17,11 @@ import {
   LayoutGrid,
   List
 } from 'lucide-react'
-import Link from 'next/link'
 import { formatCurrency, cn } from '@/lib/utils'
 import { ExportButton } from '@/components/ui/ExportButton'
+import FiltroRuta from '@/components/filtros/FiltroRuta'
+import DetalleMoraModal from '@/components/cobranza/DetalleMoraModal'
+import ClientePortalModal from '@/components/cliente/ClientePortalModal'
 
 // Enums alineados con Prisma
 type NivelRiesgo = 'VERDE' | 'AMARILLO' | 'ROJO' | 'LISTA_NEGRA';
@@ -49,7 +51,22 @@ interface CuentaMora {
 const CuentasMoraPage = () => {
   const [busqueda, setBusqueda] = useState('')
   const [filtroRiesgo, setFiltroRiesgo] = useState<NivelRiesgo | 'TODOS'>('TODOS')
+  const [filtroRuta, setFiltroRuta] = useState<string | null>(null)
   const [viewMode, setViewMode] = useState<ViewMode>('list')
+  const [selectedCuenta, setSelectedCuenta] = useState<CuentaMora | null>(null)
+  const [isModalOpen, setIsModalOpen] = useState(false)
+  const [selectedClientId, setSelectedClientId] = useState<string | null>(null)
+  const [isClientModalOpen, setIsClientModalOpen] = useState(false)
+
+  const handleVerDetalle = (cuenta: CuentaMora) => {
+    setSelectedCuenta(cuenta)
+    setIsModalOpen(true)
+  }
+
+  const handleVerCliente = (id: string) => {
+    setSelectedClientId(id)
+    setIsClientModalOpen(true)
+  }
 
   const handleExportExcel = () => {
     console.log('Exporting Excel...')
@@ -147,8 +164,12 @@ const CuentasMoraPage = () => {
       cuenta.ruta.toLowerCase().includes(busqueda.toLowerCase())
     
     const coincideRiesgo = filtroRiesgo === 'TODOS' || cuenta.nivelRiesgo === filtroRiesgo
+    
+    // Filtro por ruta (asumiendo que cuenta.ruta contiene el nombre o ID de la ruta)
+    // Para simplificar el mock, compararemos el nombre ya que es lo que hay en el objeto
+    const coincideRuta = !filtroRuta || cuenta.ruta.toLowerCase().includes(filtroRuta.toLowerCase())
 
-    return coincideBusqueda && coincideRiesgo
+    return coincideBusqueda && coincideRiesgo && coincideRuta
   })
 
   // Calcular totales
@@ -245,15 +266,23 @@ const CuentasMoraPage = () => {
 
         {/* Filtros y Controles */}
         <div className="flex flex-col md:flex-row gap-4 items-center justify-between mb-8">
-          <div className="relative w-full md:w-96">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
-            <input
-              type="text"
-              placeholder="Buscar por cliente, documento o ruta..."
-              className="w-full pl-10 pr-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-sm font-medium placeholder:text-slate-400 bg-white shadow-sm"
-              value={busqueda}
-              onChange={(e) => setBusqueda(e.target.value)}
+          <div className="flex flex-col md:flex-row md:items-center gap-4 w-full md:w-auto">
+            <FiltroRuta 
+              onRutaChange={(r: string | null) => setFiltroRuta(r)}
+              selectedRutaId={filtroRuta}
+              showAllOption={true}
             />
+
+            <div className="relative w-full md:w-80">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
+              <input
+                type="text"
+                placeholder="Buscar por cliente, documento o ruta..."
+                className="w-full pl-10 pr-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-sm font-medium placeholder:text-slate-400 bg-white shadow-sm"
+                value={busqueda}
+                onChange={(e) => setBusqueda(e.target.value)}
+              />
+            </div>
           </div>
           
           <div className="flex items-center gap-3 w-full md:w-auto">
@@ -362,20 +391,20 @@ const CuentasMoraPage = () => {
 
                   {/* Acciones */}
                   <div className="pt-4 border-t border-slate-100 flex gap-2">
-                    <Link
-                      href={`/admin/clientes/${cuenta.id}`}
+                    <button
+                      onClick={() => handleVerCliente(cuenta.id)}
                       className="flex-1 inline-flex items-center justify-center px-4 py-2 bg-slate-50 text-slate-700 rounded-xl hover:bg-blue-50 hover:text-blue-700 text-sm font-bold transition-colors"
                     >
                       <User className="h-4 w-4 mr-2" />
                       Perfil
-                    </Link>
-                    <Link
-                      href={`/admin/cuentas-mora/${cuenta.id}`}
+                    </button>
+                    <button
+                      onClick={() => handleVerDetalle(cuenta)}
                       className="flex-1 inline-flex items-center justify-center px-4 py-2 bg-primary text-white rounded-xl hover:bg-primary-dark text-sm font-bold transition-colors shadow-lg shadow-primary/20"
                     >
                       <ChevronRight className="h-4 w-4 mr-2" />
                       Detalle
-                    </Link>
+                    </button>
                   </div>
                 </div>
                 
@@ -431,22 +460,30 @@ const CuentasMoraPage = () => {
                           </span>
                         </div>
                       </td>
-                      <td className="px-6 py-4">
-                        <div className="font-bold text-slate-900">{formatCurrency(cuenta.montoTotalDeuda)}</div>
-                        <div className="text-xs text-slate-500">{cuenta.cuotasVencidas} cuotas</div>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-base font-black text-slate-900">{formatCurrency(cuenta.montoTotalDeuda)}</div>
+                        <div className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">Deuda Total</div>
                       </td>
-                      <td className="px-6 py-4">
-                        <div className="font-bold text-rose-600">{formatCurrency(cuenta.montoMora)}</div>
-                        <div className="text-xs text-rose-500 font-medium">{cuenta.diasMora} días</div>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-base font-black text-rose-600">{formatCurrency(cuenta.montoMora)}</div>
+                        <div className="text-[10px] font-bold text-rose-500 uppercase tracking-tighter">Mora ({cuenta.diasMora}d)</div>
                       </td>
                       <td className="px-6 py-4 text-right">
                         <div className="flex items-center justify-end gap-2">
-                          <Link href={`/admin/clientes/${cuenta.id}`} className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors" title="Ver Perfil">
+                          <button 
+                            onClick={() => handleVerCliente(cuenta.id)}
+                            className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors" 
+                            title="Ver Perfil"
+                          >
                             <User className="w-4 h-4" />
-                          </Link>
-                          <Link href={`/admin/cuentas-mora/${cuenta.id}`} className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors" title="Ver Detalle">
+                          </button>
+                          <button 
+                            onClick={() => handleVerDetalle(cuenta)}
+                            className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors" 
+                            title="Ver Detalle"
+                          >
                             <ChevronRight className="w-4 h-4" />
-                          </Link>
+                          </button>
                         </div>
                       </td>
                     </tr>
@@ -468,6 +505,23 @@ const CuentasMoraPage = () => {
         )}
       </div>
     </div>
+      {/* Modal de Detalle */}
+      {isModalOpen && selectedCuenta && (
+        <DetalleMoraModal 
+          cuenta={selectedCuenta} 
+          onClose={() => setIsModalOpen(false)} 
+          onVerCliente={handleVerCliente}
+        />
+      )}
+
+      {/* Modal de Perfil de Cliente */}
+      {isClientModalOpen && selectedClientId && (
+        <ClientePortalModal 
+          clientId={selectedClientId} 
+          onClose={() => setIsClientModalOpen(false)} 
+          rolUsuario="contador"
+        />
+      )}
   </div>
   )
 }

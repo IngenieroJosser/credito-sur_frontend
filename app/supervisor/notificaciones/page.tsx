@@ -17,6 +17,7 @@ import {
   Trash2,
   Users,
 } from 'lucide-react'
+import FiltroRuta from '@/components/filtros/FiltroRuta'
 
 interface Notificacion {
   id: string
@@ -26,6 +27,7 @@ interface Notificacion {
   fecha: string
   leida: boolean
   link?: string
+  rutaId?: string
 }
 
 const MOCK_NOTIFICACIONES: Notificacion[] = [
@@ -81,11 +83,13 @@ export default function NotificacionesSupervisorPage() {
   const [filter, setFilter] = useState<'TODAS' | 'NO_LEIDAS'>('TODAS')
   const [tipoFilter, setTipoFilter] = useState<'TODOS' | Notificacion['tipo']>('TODOS')
   const [search, setSearch] = useState('')
+  const [filterRuta, setFilterRuta] = useState<string | null>(null)
   const [notificacionesState, setNotificacionesState] = useState<Notificacion[]>(() => MOCK_NOTIFICACIONES)
 
   const notificaciones = notificacionesState
     .filter((n) => (filter === 'TODAS' ? true : !n.leida))
     .filter((n) => (tipoFilter === 'TODOS' ? true : n.tipo === tipoFilter))
+    .filter((n) => (!filterRuta || filterRuta === '' ? true : n.rutaId === filterRuta))
     .filter((n) => {
       const q = search.trim().toLowerCase()
       if (!q) return true
@@ -187,40 +191,55 @@ export default function NotificacionesSupervisorPage() {
                 </button>
               </div>
 
-              <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center justify-between">
-                <div className="flex gap-2 overflow-x-auto pb-1">
-                  {(
-                    [
-                      { key: 'TODOS' as const, label: 'Todos' },
-                      { key: 'PAGO' as const, label: 'Pagos' },
-                      { key: 'CLIENTE' as const, label: 'Clientes' },
-                      { key: 'MORA' as const, label: 'Mora' },
-                      { key: 'SISTEMA' as const, label: 'Sistema' },
-                    ]
-                  ).map((t) => (
-                    <button
-                      key={t.key}
-                      onClick={() => setTipoFilter(t.key)}
-                      className={`px-4 py-2 rounded-xl text-xs font-bold transition-all border whitespace-nowrap ${
-                        tipoFilter === t.key
-                          ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
-                          : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
-                      }`}
-                    >
-                      {t.label}
-                    </button>
-                  ))}
+              <div className="flex flex-col gap-6">
+                {/* Tipo de Notificación */}
+                <div>
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 pl-1">Filtrar por Categoría</p>
+                  <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
+                    {(
+                      [
+                        { key: 'TODOS' as const, label: 'Todas' },
+                        { key: 'PAGO' as const, label: 'Pagos' },
+                        { key: 'CLIENTE' as const, label: 'Clientes' },
+                        { key: 'MORA' as const, label: 'Mora' },
+                        { key: 'SISTEMA' as const, label: 'Sistema' },
+                      ]
+                    ).map((t) => (
+                      <button
+                        key={t.key}
+                        onClick={() => setTipoFilter(t.key)}
+                        className={`px-5 py-2 rounded-xl text-xs font-bold transition-all border whitespace-nowrap ${
+                          tipoFilter === t.key
+                            ? 'bg-blue-600 text-white border-blue-600 shadow-md shadow-blue-100'
+                            : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+                        }`}
+                      >
+                        {t.label}
+                      </button>
+                    ))}
+                  </div>
                 </div>
 
-                <div className="relative w-full sm:w-72">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-                  <input
-                    type="text"
-                    value={search}
-                    onChange={(e) => setSearch(e.target.value)}
-                    placeholder="Buscar notificación..."
-                    className="w-full pl-9 pr-4 py-2 rounded-xl border border-slate-200 bg-white focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-600/20 focus:border-blue-600 text-sm text-slate-900 placeholder:text-slate-400 transition-all"
-                  />
+                {/* Filtro de Ruta */}
+                <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-6">
+                  <div className="flex-1 min-w-0">
+                    <FiltroRuta 
+                        onRutaChange={setFilterRuta} 
+                        selectedRutaId={filterRuta}
+                        showAllOption={true}
+                    />
+                  </div>
+
+                  <div className="relative w-full lg:w-80">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                    <input
+                      type="text"
+                      value={search}
+                      onChange={(e) => setSearch(e.target.value)}
+                      placeholder="Buscar notificación..."
+                      className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-slate-200 bg-slate-50/50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-600/10 focus:border-blue-600 text-sm text-slate-900 placeholder:text-slate-400 transition-all font-medium"
+                    />
+                  </div>
                 </div>
               </div>
             </div>

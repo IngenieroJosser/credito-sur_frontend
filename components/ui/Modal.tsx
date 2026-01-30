@@ -48,11 +48,13 @@ export const Modal: React.FC<ModalProps> = ({
   };
 
   return createPortal(
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6">
+    <div 
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6"
+      onClick={onClose}
+    >
       {/* Backdrop */}
       <div 
         className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm transition-opacity" 
-        onClick={onClose}
         aria-hidden="true"
       />
 
@@ -61,6 +63,7 @@ export const Modal: React.FC<ModalProps> = ({
         className={`relative w-full ${sizeClasses[size]} bg-white rounded-2xl shadow-2xl transform transition-all flex flex-col max-h-[90vh]`}
         role="dialog"
         aria-modal="true"
+        onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">

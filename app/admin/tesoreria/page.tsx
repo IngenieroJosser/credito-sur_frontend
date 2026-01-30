@@ -18,6 +18,8 @@ import {
 import { formatCOPInputValue, formatCurrency, parseCOPInputToNumber, cn } from '@/lib/utils'
 import { ExportButton } from '@/components/ui/ExportButton'
 import { useNotification } from '@/components/providers/NotificationProvider'
+import { Clock, Briefcase, History } from 'lucide-react'
+import { createPortal } from 'react-dom'
 
 
 // Mock Data
@@ -29,6 +31,7 @@ interface Transaccion {
   monto: number
   metodo: 'EFECTIVO' | 'TRANSFERENCIA'
   responsable: string
+  rutaId?: string
 }
 
 const TesoreriaPage = () => {
@@ -54,6 +57,16 @@ const TesoreriaPage = () => {
 
   const [showVerMovimientoModal, setShowVerMovimientoModal] = useState(false)
   const [transaccionSeleccionada, setTransaccionSeleccionada] = useState<Transaccion | null>(null)
+  const [busqueda, setBusqueda] = useState('')
+  const [showDetalleModal, setShowDetalleModal] = useState(false)
+  const [detalleTipo, setDetalleTipo] = useState<'INGRESOS' | 'EGRESOS' | null>(null)
+  const [filtroRuta, setFiltroRuta] = useState('TODOS')
+
+  const rutas = [
+    { id: 'RUTA-NORTE', nombre: 'Ruta Norte' },
+    { id: 'RUTA-SUR', nombre: 'Ruta Sur' },
+    { id: 'RUTA-CENTRO', nombre: 'Ruta Centro' },
+  ]
 
   const diferencia = arqueoData.conteoFisico - arqueoData.saldoSistema
 
@@ -61,16 +74,17 @@ const TesoreriaPage = () => {
   const transacciones: Transaccion[] = [
     {
       id: 'TRX-001',
-      fecha: '2026-01-21T10:30:00',
+      fecha: new Date().toISOString(), // Hoy
       concepto: 'Recaudo Ruta Norte - Cierre Parcial',
       tipo: 'INGRESO',
       monto: 1250000,
       metodo: 'EFECTIVO',
-      responsable: 'Juan Cobrador'
+      responsable: 'Juan Cobrador',
+      rutaId: 'RUTA-NORTE'
     },
     {
       id: 'TRX-002',
-      fecha: '2026-01-21T09:00:00',
+      fecha: new Date().toISOString(), // Hoy
       concepto: 'Desembolso Préstamo #452',
       tipo: 'EGRESO',
       monto: 500000,
@@ -79,14 +93,22 @@ const TesoreriaPage = () => {
     },
     {
       id: 'TRX-003',
-      fecha: '2026-01-21T08:15:00',
+      fecha: new Date().toISOString(), // Hoy
       concepto: 'Entrega Base Ruta Sur',
       tipo: 'EGRESO',
       monto: 2000000,
       metodo: 'EFECTIVO',
-      responsable: 'Maria Tesorera'
+      responsable: 'Maria Tesorera',
+      rutaId: 'RUTA-SUR'
     }
   ]
+
+  const transaccionesFiltradas = transacciones.filter(t => {
+    const coincideBusqueda = t.concepto.toLowerCase().includes(busqueda.toLowerCase()) || 
+                             t.responsable.toLowerCase().includes(busqueda.toLowerCase())
+    const coincideRuta = filtroRuta === 'TODOS' || t.rutaId === filtroRuta
+    return coincideBusqueda && coincideRuta
+  })
 
   const resumen = {
     saldoTotal: 15450000,
@@ -151,7 +173,10 @@ const TesoreriaPage = () => {
             </div>
           </div>
 
-          <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all">
+          <div 
+            onClick={() => { setDetalleTipo('INGRESOS'); setShowDetalleModal(true); }}
+            className="cursor-pointer bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all"
+          >
             <div className="flex items-center justify-between mb-4">
               <div className="text-slate-500 text-xs font-bold uppercase tracking-wider">
                 Ingresos Hoy
@@ -166,7 +191,10 @@ const TesoreriaPage = () => {
             </div>
           </div>
 
-          <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all">
+          <div 
+            onClick={() => { setDetalleTipo('EGRESOS'); setShowDetalleModal(true); }}
+            className="cursor-pointer bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all"
+          >
             <div className="flex items-center justify-between mb-4">
               <div className="text-slate-500 text-xs font-bold uppercase tracking-wider">
                 Egresos Hoy
@@ -186,13 +214,44 @@ const TesoreriaPage = () => {
         <div className="bg-white/80 backdrop-blur-sm rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
           <div className="p-5 border-b border-slate-200 flex flex-col md:flex-row justify-between items-center gap-4 bg-white/50">
             <h3 className="font-bold text-slate-900">Movimientos Recientes</h3>
-            <div className="relative w-full md:w-auto">
-               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-               <input 
-                 type="text" 
-                 placeholder="Buscar transacción..." 
-                 className="pl-10 pr-4 py-2 rounded-xl border border-slate-200 text-sm font-medium w-full md:w-64 focus:outline-none focus:ring-2 focus:ring-slate-900/10"
-               />
+            <div className="flex flex-col md:flex-row items-center gap-3 w-full md:w-auto">
+                <div className="relative w-full md:w-64">
+                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                   <input 
+                     type="text" 
+                     value={busqueda}
+                     onChange={(e) => setBusqueda(e.target.value)}
+                     placeholder="Buscar concepto o responsable..." 
+                     className="pl-10 pr-4 py-2 rounded-xl border border-slate-200 text-sm font-bold text-slate-900 w-full focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all bg-white"
+                   />
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    onClick={() => setFiltroRuta('TODOS')}
+                    className={cn(
+                      "px-4 py-2 rounded-xl text-xs font-bold transition-all border",
+                      filtroRuta === 'TODOS' 
+                        ? "bg-slate-900 text-white border-slate-900 shadow-lg shadow-slate-200" 
+                        : "bg-white text-slate-500 border-slate-200 hover:border-slate-300 hover:text-slate-900"
+                    )}
+                  >
+                    Todas
+                  </button>
+                  {rutas.map(r => (
+                    <button
+                      key={r.id}
+                      onClick={() => setFiltroRuta(r.id)}
+                      className={cn(
+                        "px-4 py-2 rounded-xl text-xs font-bold transition-all border",
+                        filtroRuta === r.id 
+                          ? "bg-slate-900 text-white border-slate-900 shadow-lg shadow-slate-200" 
+                          : "bg-white text-slate-500 border-slate-200 hover:border-slate-300 hover:text-slate-900"
+                      )}
+                    >
+                      {r.nombre}
+                    </button>
+                  ))}
+                </div>
             </div>
           </div>
 
@@ -209,10 +268,18 @@ const TesoreriaPage = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {transacciones.map((trx) => (
+                {transaccionesFiltradas.map((trx) => (
                   <tr key={trx.id} className="hover:bg-slate-50/50 transition-colors">
-                    <td className="px-6 py-4 font-medium text-slate-500">
-                      {new Date(trx.fecha).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })}
+                    <td className="px-6 py-4">
+                      <div className="flex flex-col">
+                        <span className="text-xs font-bold text-slate-900 flex items-center gap-1.5 uppercase tracking-tight">
+                          <Clock className="w-3.5 h-3.5 text-blue-500" />
+                          {new Date(trx.fecha).toLocaleDateString('es-CO', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' })}
+                        </span>
+                        <span className="text-[10px] text-slate-500 font-bold pl-5 mt-0.5">
+                          {new Date(trx.fecha).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: true }).toUpperCase()}
+                        </span>
+                      </div>
                     </td>
                     <td className="px-6 py-4 font-bold text-slate-900">
                       {trx.concepto}
@@ -239,17 +306,17 @@ const TesoreriaPage = () => {
                       {trx.tipo === 'INGRESO' ? '+' : '-'}{formatCurrency(trx.monto)}
                     </td>
                     <td className="px-6 py-4 text-right">
-                  <button 
-                    onClick={() => {
-                        setTransaccionSeleccionada(trx)
-                        setShowVerMovimientoModal(true)
-                    }}
-                    className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                    title="Ver Detalle"
-                  >
-                    <Eye className="h-4 w-4" />
-                  </button>
-                </td>
+                      <button 
+                        onClick={() => {
+                            setTransaccionSeleccionada(trx)
+                            setShowVerMovimientoModal(true)
+                        }}
+                        className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                        title="Ver Detalle"
+                      >
+                        <Eye className="h-4 w-4" />
+                      </button>
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -405,8 +472,13 @@ const TesoreriaPage = () => {
               <div className="p-6 space-y-4">
                  <div className="grid grid-cols-2 gap-4">
                     <div>
-                        <div className="text-xs font-bold text-slate-500 uppercase">Fecha</div>
-                        <div className="font-medium text-slate-900">{new Date(transaccionSeleccionada.fecha).toLocaleString('es-CO')}</div>
+                        <div className="text-xs font-bold text-slate-500 uppercase">Fecha y Hora Detallada</div>
+                        <div className="font-bold text-slate-900 text-sm">
+                            {new Date(transaccionSeleccionada.fecha).toLocaleDateString('es-CO', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+                            <span className="block text-blue-600">
+                                {new Date(transaccionSeleccionada.fecha).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: true }).toUpperCase()}
+                            </span>
+                        </div>
                     </div>
                     <div>
                         <div className="text-xs font-bold text-slate-500 uppercase">Monto</div>
@@ -431,7 +503,7 @@ const TesoreriaPage = () => {
                     <div className="text-xs font-bold text-slate-500 uppercase mb-1">Concepto</div>
                     <div className="font-medium text-slate-900">{transaccionSeleccionada.concepto}</div>
                  </div>
-
+ 
                  <div>
                     <div className="text-xs font-bold text-slate-500 uppercase">Responsable</div>
                     <div className="font-medium text-slate-900">{transaccionSeleccionada.responsable}</div>
@@ -447,6 +519,132 @@ const TesoreriaPage = () => {
               </div>
             </div>
           </div>
+        )}
+
+        {/* Modal Detalle Hoy (Portal) */}
+        {showDetalleModal && typeof document !== 'undefined' && createPortal(
+          <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md animate-in fade-in duration-300">
+            <div className="w-full max-w-2xl max-h-[85vh] rounded-3xl bg-white border border-slate-200 shadow-2xl overflow-hidden flex flex-col animate-in zoom-in-95 duration-300">
+              {/* Header */}
+              <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+                <div className="flex items-center gap-4">
+                    <div className={cn(
+                        "p-3 rounded-2xl text-white shadow-lg",
+                        detalleTipo === 'INGRESOS' ? "bg-emerald-600 shadow-emerald-200" : "bg-rose-600 shadow-rose-200"
+                    )}>
+                        {detalleTipo === 'INGRESOS' ? <TrendingUp className="w-6 h-6" /> : <TrendingDown className="w-6 h-6" />}
+                    </div>
+                    <div>
+                        <h3 className="text-xl font-black text-slate-900">
+                            {detalleTipo === 'INGRESOS' ? 'Ingresos de Hoy' : 'Egresos de Hoy'}
+                        </h3>
+                        <div className="flex items-center gap-2 mt-0.5">
+                            <Clock className="w-3.5 h-3.5 text-slate-400" />
+                            <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+                                {new Date().toLocaleDateString('es-CO', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' })}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+                <button
+                  onClick={() => setShowDetalleModal(false)}
+                  className="p-2.5 rounded-full hover:bg-slate-200 text-slate-400 hover:text-slate-600 transition-all"
+                >
+                  <X className="h-6 w-6" />
+                </button>
+              </div>
+
+              {/* Lista */}
+              <div className="flex-1 overflow-y-auto p-6 space-y-4">
+                  {transacciones
+                    .filter(t => {
+                        const esMismoTipo = detalleTipo === 'INGRESOS' ? t.tipo === 'INGRESO' : t.tipo === 'EGRESO';
+                        const hoy = new Date().toISOString().split('T')[0];
+                        const fechaT = new Date(t.fecha).toISOString().split('T')[0];
+                        return esMismoTipo && fechaT === hoy;
+                    })
+                    .map((t) => (
+                      <div key={t.id} className="group flex items-center justify-between p-4 rounded-2xl border border-slate-100 bg-white hover:border-blue-200 hover:shadow-md transition-all">
+                        <div className="flex items-center gap-4">
+                            <div className="min-w-[100px] p-2 rounded-xl bg-slate-50 flex flex-col items-center justify-center border border-slate-100 shadow-sm shrink-0">
+                                <span className="text-[10px] font-black text-blue-600 uppercase tracking-tighter">
+                                    {new Date(t.fecha).toLocaleDateString('es-CO', { weekday: 'short' })}
+                                </span>
+                                <span className="text-sm font-black text-slate-900">
+                                    {new Date(t.fecha).toLocaleDateString('es-CO', { day: '2-digit', month: 'short' })}
+                                </span>
+                                <span className="text-[10px] font-bold text-slate-500">
+                                    {new Date(t.fecha).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: true }).toUpperCase()}
+                                </span>
+                            </div>
+                            <div>
+                                <div className="font-bold text-slate-900 group-hover:text-blue-600 transition-colors uppercase text-sm tracking-tight">{t.concepto}</div>
+                                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1">
+                                    <div className="flex items-center gap-1">
+                                        <Briefcase className="w-3 h-3 text-slate-400" />
+                                        <span className="text-[10px] font-black text-slate-400 uppercase">
+                                            {t.metodo}
+                                        </span>
+                                    </div>
+                                    <div className="flex items-center gap-1 border-l border-slate-200 pl-3">
+                                        <div className="w-1.5 h-1.5 rounded-full bg-slate-400"></div>
+                                        <span className="text-[10px] font-bold text-slate-500 uppercase tracking-tight">Por {t.responsable}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div className={cn(
+                            "text-lg font-black tabular-nums",
+                            detalleTipo === 'INGRESOS' ? "text-emerald-600" : "text-rose-600"
+                        )}>
+                            {detalleTipo === 'INGRESOS' ? '+' : '-'}{formatCurrency(t.monto)}
+                        </div>
+                      </div>
+                    ))}
+                    
+                    {transacciones.filter(t => {
+                        const esMismoTipo = detalleTipo === 'INGRESOS' ? t.tipo === 'INGRESO' : t.tipo === 'EGRESO';
+                        const hoy = new Date().toISOString().split('T')[0];
+                        const fechaT = new Date(t.fecha).toISOString().split('T')[0];
+                        return esMismoTipo && fechaT === hoy;
+                    }).length === 0 && (
+                        <div className="py-20 flex flex-col items-center justify-center text-slate-300">
+                            <History className="w-16 h-16 opacity-20 mb-4" />
+                            <p className="font-bold text-slate-400 capitalize">No hay {detalleTipo?.toLowerCase()} registrados hoy</p>
+                        </div>
+                    )}
+              </div>
+
+              {/* Footer */}
+              <div className="p-6 border-t border-slate-100 bg-slate-50/50 flex justify-between items-center">
+                  <div>
+                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">Total {detalleTipo}</span>
+                      <span className={cn(
+                          "text-2xl font-black",
+                          detalleTipo === 'INGRESOS' ? "text-emerald-700" : "text-rose-700"
+                      )}>
+                        {formatCurrency(
+                            transacciones
+                            .filter(t => {
+                                const esMismoTipo = detalleTipo === 'INGRESOS' ? t.tipo === 'INGRESO' : t.tipo === 'EGRESO';
+                                const hoy = new Date().toISOString().split('T')[0];
+                                const fechaT = new Date(t.fecha).toISOString().split('T')[0];
+                                return esMismoTipo && fechaT === hoy;
+                            })
+                            .reduce((sum, current) => sum + current.monto, 0)
+                        )}
+                      </span>
+                  </div>
+                  <button
+                    onClick={() => setShowDetalleModal(false)}
+                    className="px-8 py-3 rounded-2xl bg-blue-600 text-white font-bold hover:bg-blue-700 active:scale-95 transition-all shadow-xl shadow-blue-500/20"
+                  >
+                    Entendido
+                  </button>
+              </div>
+            </div>
+          </div>,
+          document.body
         )}
     </div>
   )

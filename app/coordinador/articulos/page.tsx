@@ -26,6 +26,7 @@ interface Articulo {
   marca: string
   modelo: string
   costo: number
+  precioContado?: number
   stock: number
   stockMinimo: number
   estado: 'activo' | 'inactivo'
@@ -42,6 +43,7 @@ const ARTICULOS_MOCK: Articulo[] = [
     marca: 'Samsung',
     modelo: 'UN50AU7000',
     costo: 1200000,
+    precioContado: 1600000,
     stock: 15,
     stockMinimo: 5,
     estado: 'activo',
@@ -59,6 +61,7 @@ const ARTICULOS_MOCK: Articulo[] = [
     marca: 'LG',
     modelo: 'WT18WP',
     costo: 1500000,
+    precioContado: 2100000,
     stock: 8,
     stockMinimo: 3,
     estado: 'activo',
@@ -76,6 +79,7 @@ const ARTICULOS_MOCK: Articulo[] = [
     marca: 'Xiaomi',
     modelo: 'Redmi Note 12',
     costo: 600000,
+    precioContado: 850000,
     stock: 4,
     stockMinimo: 10,
     estado: 'activo',
@@ -192,7 +196,8 @@ export default function CatalogArticulosCoordinador() {
                 <tr>
                   <th className="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Artículo</th>
                   <th className="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Categoría</th>
-                  <th className="px-6 py-4 text-right text-xs font-bold text-slate-500 uppercase tracking-wider">Precio Sugerido</th>
+                  <th className="px-6 py-4 text-right text-xs font-bold text-slate-500 uppercase tracking-wider">Precio Contado</th>
+                  <th className="px-6 py-4 text-right text-xs font-bold text-slate-500 uppercase tracking-wider">Venta Crédito</th>
                   <th className="px-6 py-4 text-center text-xs font-bold text-slate-500 uppercase tracking-wider">Stock</th>
                   <th className="px-6 py-4 text-right text-xs font-bold text-slate-500 uppercase tracking-wider">Acciones</th>
                 </tr>
@@ -215,9 +220,16 @@ export default function CatalogArticulosCoordinador() {
                       <span className="text-sm font-medium text-slate-600">{articulo.categoria}</span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right">
+                      <div className="text-sm font-bold text-blue-600">
+                        {formatCurrency(articulo.precioContado || 0)}
+                      </div>
+                      <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Contado</div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-right">
                       <div className="text-sm font-bold text-slate-900">
                         {articulo.precios.length > 0 ? formatCurrency(articulo.precios[0].precio) : 'N/A'}
                       </div>
+                      <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Base Crédito</div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-center">
                       <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${
@@ -264,6 +276,10 @@ export default function CatalogArticulosCoordinador() {
                 <div className="p-4 rounded-xl bg-slate-50 border border-slate-200">
                   <p className="text-xs font-bold text-slate-500 uppercase">Marca / Modelo</p>
                   <p className="text-sm font-bold text-slate-900">{articuloSeleccionado.marca} / {articuloSeleccionado.modelo}</p>
+                </div>
+                <div className="p-4 rounded-xl bg-blue-50 border border-blue-200">
+                  <p className="text-xs font-bold text-blue-500 uppercase tracking-wider">Precio Contado</p>
+                  <p className="text-lg font-black text-blue-900">{formatCurrency(articuloSeleccionado.precioContado || 0)}</p>
                 </div>
                 <div className="p-4 rounded-xl bg-slate-50 border border-slate-200">
                   <p className="text-xs font-bold text-slate-500 uppercase">Stock Actual</p>

@@ -7,7 +7,7 @@ import {
   DollarSign, TrendingUp, AlertCircle, CheckCircle,
   Edit, MessageSquare, 
   Shield, CreditCard, PieChart, Filter,
-  Plus, ExternalLink, ShoppingBag,
+  Plus, ExternalLink,
   BarChart,
   Bell
 } from 'lucide-react';
@@ -89,17 +89,20 @@ interface ClienteDetalleProps {
   onEdit?: () => void;
   onContact?: () => void;
   onNewLoan?: () => void;
+  viewOnly?: boolean;
 }
-
 const ClienteDetalleElegante: React.FC<ClienteDetalleProps> = ({ 
   cliente, 
   prestamos, 
   pagos, 
   comentarios,
   rolUsuario,
-  onNewLoan
+  onNewLoan,
+  viewOnly = false
 }) => {
   const [activeTab, setActiveTab] = useState<'resumen' | 'prestamos' | 'pagos' | 'comentarios' | 'analitica'>('resumen');
+  const [isNoteModalOpen, setIsNoteModalOpen] = useState(false);
+  const [newNote, setNewNote] = useState('');
 
   const isSupervisor = rolUsuario === 'supervisor'
   const hrefEditarCliente = `/admin/clientes/${cliente.id}/editar`
@@ -188,7 +191,7 @@ const ClienteDetalleElegante: React.FC<ClienteDetalleProps> = ({
           </div>
           
           <div className="flex items-center gap-3">
-            {!isSupervisor && (
+            {!viewOnly && !isSupervisor && (
               <Link 
                 href={hrefEditarCliente}
                 className="px-5 py-2.5 border border-slate-200 bg-white rounded-xl hover:bg-slate-50 hover:border-slate-300 transition-all duration-200 text-sm font-bold text-slate-700 flex items-center gap-2 shadow-sm"
@@ -198,7 +201,7 @@ const ClienteDetalleElegante: React.FC<ClienteDetalleProps> = ({
               </Link>
             )}
 
-            {isSupervisor && (
+            {!viewOnly && isSupervisor && (
               <>
                 <Link
                   href={hrefNuevoCredito}
@@ -210,13 +213,15 @@ const ClienteDetalleElegante: React.FC<ClienteDetalleProps> = ({
               </>
             )}
 
-            <Link
-              href={hrefRegistrarPago}
-              className="px-5 py-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-all duration-200 text-sm font-bold flex items-center gap-2 shadow-lg shadow-blue-600/20"
-            >
-              <DollarSign className="w-4 h-4" />
-              Registrar Pago
-            </Link>
+            {!viewOnly && (
+              <Link
+                href={hrefRegistrarPago}
+                className="px-5 py-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-all duration-200 text-sm font-bold flex items-center gap-2 shadow-lg shadow-blue-600/20"
+              >
+                <DollarSign className="w-4 h-4" />
+                Registrar Pago
+              </Link>
+            )}
           </div>
         </div>
 
@@ -421,13 +426,15 @@ const ClienteDetalleElegante: React.FC<ClienteDetalleProps> = ({
                   <Filter className="w-4 h-4" />
                   Filtrar
                 </button>
-                <button 
-                  onClick={onNewLoan}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-all duration-200 text-sm font-bold flex items-center gap-2 shadow-lg shadow-blue-600/20"
-                >
-                  <Plus className="w-4 h-4" />
-                  Nuevo Préstamo
-                </button>
+                {!viewOnly && (
+                  <button 
+                    onClick={onNewLoan}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-all duration-200 text-sm font-bold flex items-center gap-2 shadow-lg shadow-blue-600/20"
+                  >
+                    <Plus className="w-4 h-4" />
+                    Nuevo Préstamo
+                  </button>
+                )}
               </div>
             </div>
 
@@ -570,7 +577,10 @@ const ClienteDetalleElegante: React.FC<ClienteDetalleProps> = ({
                 <h2 className="text-xl font-bold text-slate-900 mb-2">Seguimiento y Comentarios</h2>
                 <p className="text-slate-500 text-sm font-medium">{comentarios.length} interacciones registradas</p>
               </div>
-              <button className="px-4 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-all duration-200 text-sm font-bold flex items-center gap-2 shadow-lg shadow-blue-600/20">
+              <button 
+                onClick={() => setIsNoteModalOpen(true)}
+                className="px-4 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-all duration-200 text-sm font-bold flex items-center gap-2 shadow-lg shadow-blue-600/20 active:scale-95"
+              >
                 <Plus className="w-4 h-4" />
                 Nuevo Comentario
               </button>
@@ -684,35 +694,37 @@ const ClienteDetalleElegante: React.FC<ClienteDetalleProps> = ({
                 </div>
               </div>
 
-              <div className="space-y-6">
-                <div className="p-6 rounded-2xl border border-slate-200 bg-white/50">
-                  <h3 className="font-bold text-slate-900 mb-4">Acciones de Riesgo</h3>
-                  <div className="grid grid-cols-2 gap-4">
-                    <button className="p-4 rounded-xl border border-slate-200 hover:border-slate-300 hover:bg-slate-50 transition-all duration-200 flex flex-col items-center justify-center group bg-white">
-                      <Bell className="w-6 h-6 text-slate-400 group-hover:text-slate-900 mb-3 transition-colors" />
-                      <span className="text-sm font-bold text-slate-600 group-hover:text-slate-900">Recordatorio</span>
-                    </button>
-                    <button className="p-4 rounded-xl border border-slate-200 hover:border-slate-300 hover:bg-slate-50 transition-all duration-200 flex flex-col items-center justify-center group bg-white">
-                      <Shield className="w-6 h-6 text-slate-400 group-hover:text-slate-900 mb-3 transition-colors" />
-                      <span className="text-sm font-bold text-slate-600 group-hover:text-slate-900">Análisis Riesgo</span>
-                    </button>
-                    <button className="p-4 rounded-xl border border-slate-200 hover:border-slate-300 hover:bg-slate-50 transition-all duration-200 flex flex-col items-center justify-center group bg-white">
-                      <PieChart className="w-6 h-6 text-slate-400 group-hover:text-slate-900 mb-3 transition-colors" />
-                      <span className="text-sm font-bold text-slate-600 group-hover:text-slate-900">Proyección</span>
-                    </button>
+              {!viewOnly && (
+                <div className="space-y-6">
+                  <div className="p-6 rounded-2xl border border-slate-200 bg-white/50">
+                    <h3 className="font-bold text-slate-900 mb-4">Acciones de Riesgo</h3>
+                    <div className="grid grid-cols-2 gap-4">
+                      <button className="p-4 rounded-xl border border-slate-200 hover:border-slate-300 hover:bg-slate-50 transition-all duration-200 flex flex-col items-center justify-center group bg-white">
+                        <Bell className="w-6 h-6 text-slate-400 group-hover:text-slate-900 mb-3 transition-colors" />
+                        <span className="text-sm font-bold text-slate-600 group-hover:text-slate-900">Recordatorio</span>
+                      </button>
+                      <button className="p-4 rounded-xl border border-slate-200 hover:border-slate-300 hover:bg-slate-50 transition-all duration-200 flex flex-col items-center justify-center group bg-white">
+                        <Shield className="w-6 h-6 text-slate-400 group-hover:text-slate-900 mb-3 transition-colors" />
+                        <span className="text-sm font-bold text-slate-600 group-hover:text-slate-900">Análisis Riesgo</span>
+                      </button>
+                      <button className="p-4 rounded-xl border border-slate-200 hover:border-slate-300 hover:bg-slate-50 transition-all duration-200 flex flex-col items-center justify-center group bg-white">
+                        <PieChart className="w-6 h-6 text-slate-400 group-hover:text-slate-900 mb-3 transition-colors" />
+                        <span className="text-sm font-bold text-slate-600 group-hover:text-slate-900">Proyección</span>
+                      </button>
+                    </div>
                   </div>
-                </div>
 
-                <div className="p-6 rounded-2xl border border-slate-200 bg-white/50">
-                  <h3 className="font-bold text-slate-900 mb-4">Referencias</h3>
-                  <div className="space-y-3">
-                    <div className="p-4 rounded-xl bg-slate-50 border border-slate-100">
-                      <p className="font-bold text-slate-900">{cliente.referencia || 'No registrada'}</p>
-                      <p className="text-xs font-bold text-slate-400 mt-1 uppercase tracking-wider">Referencia Personal</p>
+                  <div className="p-6 rounded-2xl border border-slate-200 bg-white/50">
+                    <h3 className="font-bold text-slate-900 mb-4">Referencias</h3>
+                    <div className="space-y-3">
+                      <div className="p-4 rounded-xl bg-slate-50 border border-slate-100">
+                        <p className="font-bold text-slate-900">{cliente.referencia || 'No registrada'}</p>
+                        <p className="text-xs font-bold text-slate-400 mt-1 uppercase tracking-wider">Referencia Personal</p>
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
+              )}
             </div>
           </div>
         )}
@@ -730,6 +742,44 @@ const ClienteDetalleElegante: React.FC<ClienteDetalleProps> = ({
         </div>
       </div>
       </div>
+
+      {/* Modal de Nuevo Comentario */}
+      {isNoteModalOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 scrollbar-hide">
+          <div className="w-full max-w-lg bg-white rounded-3xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
+             <div className="p-6 border-b border-slate-100">
+                <h3 className="text-xl font-bold text-slate-900">Nuevo Comentario</h3>
+                <p className="text-sm text-slate-500">Añada una observación sobre el cliente</p>
+             </div>
+             <div className="p-6">
+                <textarea 
+                  className="w-full h-32 p-4 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-blue-500/10 outline-none text-sm resize-none text-slate-900 font-medium"
+                  placeholder="Escriba aquí sus observaciones..."
+                  value={newNote}
+                  onChange={(e) => setNewNote(e.target.value)}
+                />
+                <div className="flex gap-3 mt-6">
+                   <button 
+                     onClick={() => setIsNoteModalOpen(false)}
+                     className="flex-1 py-3 border border-slate-200 rounded-xl text-sm font-bold text-slate-500 hover:bg-slate-50"
+                   >
+                     Cancelar
+                   </button>
+                   <button 
+                     onClick={() => {
+                       console.log('Sending note:', newNote);
+                       setIsNoteModalOpen(false);
+                       setNewNote('');
+                     }}
+                     className="flex-1 py-3 bg-blue-600 text-white rounded-xl text-sm font-bold hover:bg-blue-700 shadow-lg shadow-blue-200"
+                   >
+                     Guardar Nota
+                   </button>
+                </div>
+             </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Route, ChevronDown } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 interface RutaOption {
@@ -51,37 +50,49 @@ export default function FiltroRuta({
   }, [])
 
   return (
-    <div className={cn('relative flex-1 md:w-64', className)}>
+    <div className={cn('flex flex-col gap-3', className)}>
       {!hideLabel && (
-        <div className="absolute left-4 top-1/2 -translate-y-1/2 flex items-center gap-2 pointer-events-none z-10">
-          <Route className="h-4 w-4 text-slate-400" />
-        </div>
+        <div className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] pl-1">Filtrar por Ruta Operativa</div>
       )}
       
-      <select
-        value={selectedRutaId || ''}
-        onChange={(e) => onRutaChange(e.target.value || null)}
-        disabled={loading}
-        className={cn(
-          "w-full pl-11 pr-10 py-2.5 bg-white/50 backdrop-blur-sm border border-slate-200 rounded-2xl text-sm font-bold text-slate-700 focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all appearance-none cursor-pointer",
-          loading && "opacity-50 cursor-not-allowed"
+      <div className="flex flex-row items-center gap-2 overflow-x-auto pb-2 scrollbar-hide flex-nowrap min-w-0">
+        {showAllOption && (
+          <button
+            onClick={() => onRutaChange(null)}
+            disabled={loading}
+            className={cn(
+              "whitespace-nowrap px-6 py-2.5 rounded-2xl text-xs font-black transition-all border shadow-sm active:scale-95 shrink-0 uppercase tracking-tighter",
+              selectedRutaId === null 
+                ? "bg-blue-600 text-white border-blue-600 shadow-blue-200 shadow-lg" 
+                : "bg-white text-slate-500 border-slate-200 hover:border-blue-300 hover:text-blue-600"
+            )}
+          >
+            Todas las Rutas
+          </button>
         )}
-      >
-        {showAllOption && <option value="">Todas las Rutas</option>}
         
         {loading ? (
-          <option disabled>Cargando...</option>
+          <div className="flex gap-2 shrink-0">
+            {[1, 2, 3].map(i => (
+              <div key={i} className="h-10 w-32 bg-slate-100 rounded-2xl animate-pulse border border-slate-50" />
+            ))}
+          </div>
         ) : (
           rutas.map((ruta) => (
-            <option key={ruta.id} value={ruta.id}>
-               {ruta.nombre}
-            </option>
+            <button
+              key={ruta.id}
+              onClick={() => onRutaChange(ruta.id)}
+              className={cn(
+                "whitespace-nowrap px-6 py-2.5 rounded-2xl text-xs font-black transition-all border shadow-sm active:scale-95 shrink-0 uppercase tracking-tighter",
+                selectedRutaId === ruta.id 
+                  ? "bg-blue-600 text-white border-blue-600 shadow-blue-200 shadow-lg" 
+                  : "bg-white text-slate-500 border-slate-200 hover:border-blue-300 hover:text-blue-600"
+              )}
+            >
+              {ruta.nombre}
+            </button>
           ))
         )}
-      </select>
-      
-      <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none">
-        <ChevronDown className="h-4 w-4 text-slate-400" />
       </div>
     </div>
   )

@@ -26,11 +26,12 @@ import {
 } from 'lucide-react'
 import { formatCOPInputValue, formatCurrency, formatMilesCOP, parseCOPInputToNumber } from '@/lib/utils'
 import { MOCK_ARTICULOS, type OpcionCuotas } from '@/services/articulos-service'
+import FiltroRuta from '@/components/filtros/FiltroRuta'
 
 type NivelRiesgo = 'VERDE' | 'AMARILLO' | 'ROJO' | 'LISTA_NEGRA'
 
 type FiltroEstadoCuenta = 'GENERAL' | 'MORA' | 'VENCIDAS'
-type FiltroRuta = 'TODAS' | string
+type RutaFilterType = 'TODAS' | string
 
 const MODAL_Z_INDEX = 2147483647
 
@@ -73,7 +74,7 @@ const ClientesSupervisorPage = () => {
   const [searchTerm, setSearchTerm] = useState('')
   const [filterRiesgo, setFilterRiesgo] = useState<string>('all')
   const [filterEstadoCuenta, setFilterEstadoCuenta] = useState<FiltroEstadoCuenta>('GENERAL')
-  const [filterRuta, setFilterRuta] = useState<FiltroRuta>('TODAS')
+  const [filterRuta, setFilterRuta] = useState<RutaFilterType>('TODAS')
   const [currentPage, setCurrentPage] = useState(1)
   const itemsPerPage = 8
 
@@ -549,24 +550,15 @@ const ClientesSupervisorPage = () => {
 
             <div className="h-6 w-px bg-slate-200 mx-2" />
 
-            <div className="flex items-center gap-2 whitespace-nowrap">
-              <span className="text-xs font-bold text-slate-500">Ruta</span>
-              <select
-                value={filterRuta}
-                onChange={(e) => {
-                  setFilterRuta(e.target.value)
-                  setCurrentPage(1)
-                }}
-                className="px-3 py-2 text-xs font-bold rounded-xl border border-slate-200 bg-white text-slate-600"
-              >
-                <option value="TODAS">Todas</option>
-                {rutasDisponibles.map((r) => (
-                  <option key={r} value={r}>
-                    {r}
-                  </option>
-                ))}
-              </select>
-            </div>
+            <FiltroRuta 
+              onRutaChange={(r: string | null) => {
+                setFilterRuta(r || 'TODAS')
+                setCurrentPage(1)
+              }}
+              selectedRutaId={filterRuta === 'TODAS' ? null : filterRuta}
+              showAllOption={true}
+              hideLabel={true}
+            />
           </div>
 
           <div className="relative w-full md:w-80">

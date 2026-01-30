@@ -186,7 +186,6 @@ const AprobacionesCoordinador = () => {
             <FiltroRuta 
               selectedRutaId={filtroRuta}
               onRutaChange={setFiltroRuta}
-              className="md:w-64"
             />
             
             <div className="h-10 w-[1px] bg-slate-200 hidden md:block mx-1"></div>

@@ -7,12 +7,14 @@ import {
   Clock,
   LayoutGrid,
   List,
-  Calendar
+    Calendar,
+    FileText
 } from 'lucide-react'
 import Link from 'next/link'
 import { formatCurrency, cn } from '@/lib/utils'
 import { ExportButton } from '@/components/ui/ExportButton'
 import FiltroRuta from '@/components/filtros/FiltroRuta'
+import ProcesarCastigoModal from '@/components/contable/ProcesarCastigoModal'
 
 // Enums
 type NivelRiesgo = 'VERDE' | 'AMARILLO' | 'ROJO' | 'LISTA_NEGRA';
@@ -54,6 +56,8 @@ const CuentasVencidasPage = () => {
   const [busqueda, setBusqueda] = useState('')
   const [filterRuta, setFilterRuta] = useState<string | null>(null)
   const [viewMode, setViewMode] = useState<ViewMode>('list')
+  const [selectedCuenta, setSelectedCuenta] = useState<CuentaVencida | null>(null)
+  const [isModalOpen, setIsModalOpen] = useState(false)
 
   const handleExportExcel = () => console.log('Exporting Excel...')
 
@@ -218,16 +222,29 @@ const CuentasVencidasPage = () => {
                     </span>
                   </td>
                   <td className="px-6 py-4 text-right">
-                    <div className="font-bold text-slate-900">{formatCurrency(c.saldoPendiente)}</div>
-                    <div className="text-xs text-slate-400">Orig: {formatCurrency(c.montoOriginal)}</div>
+                    <div className="text-lg font-black text-slate-900">{formatCurrency(c.saldoPendiente)}</div>
+                    <div className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">Saldo Pendiente</div>
                   </td>
                   <td className="px-6 py-4 text-right">
-                    <Link 
-                      href={`/admin/cuentas-vencidas/${c.id}`} 
-                      className="inline-flex items-center gap-1.5 px-4 py-2 bg-white border border-blue-200 text-blue-600 font-bold rounded-lg hover:bg-blue-50 transition-all text-xs shadow-sm hover:shadow-md"
-                    >
-                      Ver Expediente
-                    </Link>
+                    <div className="flex items-center justify-end gap-2">
+                        <Link 
+                        href={`/admin/cuentas-vencidas/${c.id}`} 
+                        className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                        title="Ver Expediente"
+                        >
+                        <FileText className="w-4 h-4" />
+                        </Link>
+                        <button
+                        onClick={() => {
+                            setSelectedCuenta(c)
+                            setIsModalOpen(true)
+                        }}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-900 text-white font-bold rounded-lg hover:bg-slate-800 transition-all text-[10px] uppercase tracking-wider active:scale-95"
+                        >
+                        <Archive className="h-3 w-3" />
+                        Procesar
+                        </button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -235,6 +252,16 @@ const CuentasVencidasPage = () => {
           </table>
         </div>
       </div>
+
+      {isModalOpen && selectedCuenta && (
+        <ProcesarCastigoModal 
+          cuenta={selectedCuenta}
+          onClose={() => setIsModalOpen(false)}
+          onConfirm={(data) => {
+            console.log('Confirmed castigo:', data)
+          }}
+        />
+      )}
     </div>
   )
 }

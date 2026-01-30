@@ -184,26 +184,29 @@ export default function NotificacionesCobradorPage() {
                 </button>
               </div>
 
-              <div className="flex flex-col lg:flex-row gap-4 lg:items-center justify-between">
-                {/* Category Tags */}
-                <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar">
-                  {(['TODOS', 'PAGO', 'CLIENTE', 'MORA', 'SISTEMA'] as const).map((t) => (
-                    <button
-                      key={t}
-                      onClick={() => setTipoFilter(t)}
-                      className={`px-4 py-2 rounded-xl text-[10px] font-black tracking-widest uppercase transition-all border whitespace-nowrap ${
-                        tipoFilter === t
-                          ? 'bg-[#08557f] text-white border-[#08557f] shadow-md shadow-[#08557f]/20'
-                          : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50 hover:border-slate-300'
-                      }`}
-                    >
-                      {t}
-                    </button>
-                  ))}
+              <div className="flex flex-col gap-6">
+                {/* Tipo de Notificación */}
+                <div>
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 pl-1">Filtrar por Categoría</p>
+                  <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar">
+                    {(['TODOS', 'PAGO', 'CLIENTE', 'MORA', 'SISTEMA'] as const).map((t) => (
+                      <button
+                        key={t}
+                        onClick={() => setTipoFilter(t)}
+                        className={`px-5 py-2.5 rounded-xl text-[10px] font-black tracking-widest uppercase transition-all border whitespace-nowrap ${
+                          tipoFilter === t
+                            ? 'bg-[#08557f] text-white border-[#08557f] shadow-md shadow-[#08557f]/20'
+                            : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50 hover:border-slate-300'
+                        }`}
+                      >
+                        {t === 'TODOS' ? 'TODAS' : t}
+                      </button>
+                    ))}
+                  </div>
                 </div>
 
-                {/* Search Bar */}
-                <div className="relative w-full lg:w-80">
+                {/* Búsqueda */}
+                <div className="relative w-full">
                   <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                   <input
                     type="text"

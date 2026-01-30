@@ -206,7 +206,6 @@ export const permisosPorRol: Record<Rol, ModuloPermiso[]> = {
   ],
 
   CONTADOR: [
-    { id: 'dashboard', nombre: 'Dashboard', icono: 'LayoutDashboard', path: '/contador', roles: ['CONTADOR'] },
     {
       id: 'finanzas',
       nombre: 'Finanzas',

@@ -13,10 +13,11 @@ import {
   LayoutGrid,
   List
 } from 'lucide-react'
-import Link from 'next/link'
 import { formatCurrency, cn } from '@/lib/utils'
 import { ExportButton } from '@/components/ui/ExportButton'
 import FiltroRuta from '@/components/filtros/FiltroRuta'
+import DetalleMoraModal from '@/components/cobranza/DetalleMoraModal'
+import ClientePortalModal from '@/components/cliente/ClientePortalModal'
 
 // Enums alineados con Prisma
 type NivelRiesgo = 'VERDE' | 'AMARILLO' | 'ROJO' | 'LISTA_NEGRA';
@@ -46,7 +47,22 @@ interface CuentaMora {
 const CuentasMoraCoordinador = () => {
   const [busqueda, setBusqueda] = useState('')
   const [filtroRiesgo, setFiltroRiesgo] = useState<NivelRiesgo | 'TODOS'>('TODOS')
+  const [filtroRuta, setFiltroRuta] = useState<string | null>(null)
   const [viewMode, setViewMode] = useState<ViewMode>('list')
+  const [selectedCuenta, setSelectedCuenta] = useState<CuentaMora | null>(null)
+  const [isModalOpen, setIsModalOpen] = useState(false)
+  const [selectedClientId, setSelectedClientId] = useState<string | null>(null)
+  const [isClientModalOpen, setIsClientModalOpen] = useState(false)
+
+  const handleVerDetalle = (cuenta: CuentaMora) => {
+    setSelectedCuenta(cuenta)
+    setIsModalOpen(true)
+  }
+
+  const handleVerCliente = (id: string) => {
+    setSelectedClientId(id)
+    setIsClientModalOpen(true)
+  }
 
   const handleExportExcel = () => {
     console.log('Exporting Excel...')
@@ -144,8 +160,10 @@ const CuentasMoraCoordinador = () => {
       cuenta.ruta.toLowerCase().includes(busqueda.toLowerCase())
     
     const coincideRiesgo = filtroRiesgo === 'TODOS' || cuenta.nivelRiesgo === filtroRiesgo
+    
+    const coincideRuta = !filtroRuta || cuenta.ruta.toLowerCase().includes(filtroRuta.toLowerCase())
 
-    return coincideBusqueda && coincideRiesgo
+    return coincideBusqueda && coincideRiesgo && coincideRuta
   })
 
   // Calcular totales
@@ -223,15 +241,11 @@ const CuentasMoraCoordinador = () => {
 
         <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
           <div className="flex flex-col md:flex-row md:items-center gap-3 w-full md:w-auto">
-            {/* Filtro de Ruta Integrado con estilo estándar */}
-            <div className="bg-slate-50 p-1 rounded-xl border border-slate-200">
-                <FiltroRuta 
-                    onRutaChange={(r) => console.log('Ruta:', r)} 
-                    selectedRutaId={null}
-                    className="w-48"
-                    showAllOption={true}
-                />
-            </div>
+            <FiltroRuta 
+                onRutaChange={(r: string | null) => setFiltroRuta(r)} 
+                selectedRutaId={filtroRuta}
+                showAllOption={true}
+            />
 
             <div className="relative flex-1 md:w-80">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
@@ -294,18 +308,21 @@ const CuentasMoraCoordinador = () => {
                           {cuenta.nivelRiesgo}
                         </span>
                       </td>
-                      <td className="px-6 py-4 text-right">
-                        <div className="font-bold text-rose-600">{formatCurrency(cuenta.montoMora)}</div>
-                        <div className="text-xs text-rose-500">{cuenta.diasMora} días</div>
+                      <td className="px-6 py-4 text-right whitespace-nowrap">
+                        <div className="text-base font-black text-rose-600">{formatCurrency(cuenta.montoMora)}</div>
+                        <div className="text-[10px] font-bold text-rose-500 uppercase tracking-tighter">Mora ({cuenta.diasMora}d)</div>
+                      </td>
+                      <td className="px-6 py-4 text-right whitespace-nowrap">
+                        <div className="text-base font-black text-slate-900">{formatCurrency(cuenta.montoTotalDeuda)}</div>
+                        <div className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">Deuda Total</div>
                       </td>
                       <td className="px-6 py-4 text-right">
-                        <div className="font-bold text-slate-900">{formatCurrency(cuenta.montoTotalDeuda)}</div>
-                        <div className="text-xs text-slate-500">{cuenta.cuotasVencidas} cuotas</div>
-                      </td>
-                      <td className="px-6 py-4 text-right">
-                        <Link href={`/coordinador/cuentas-mora/${cuenta.id}`} className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg inline-block">
+                        <button 
+                          onClick={() => handleVerDetalle(cuenta)} 
+                          className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg inline-block transition-colors"
+                        >
                           <ChevronRight className="h-4 w-4" />
-                        </Link>
+                        </button>
                       </td>
                     </tr>
                   ))}
@@ -336,14 +353,34 @@ const CuentasMoraCoordinador = () => {
                         <p className="text-slate-900 font-bold">{formatCurrency(cuenta.montoTotalDeuda)}</p>
                     </div>
                 </div>
-                <Link href={`/coordinador/cuentas-mora/${cuenta.id}`} className="w-full py-2 bg-slate-900 text-white rounded-xl text-center text-sm font-bold block transition-all hover:bg-slate-800 shadow-lg shadow-slate-900/10">
+                <button 
+                  onClick={() => handleVerDetalle(cuenta)} 
+                  className="w-full py-2 bg-slate-900 text-white rounded-xl text-center text-sm font-bold block transition-all hover:bg-slate-800 shadow-lg shadow-slate-900/10"
+                >
                     Ver Detalles en Mora
-                </Link>
+                </button>
               </div>
             ))}
           </div>
         )}
       </div>
+      {/* Modal de Detalle */}
+      {isModalOpen && selectedCuenta && (
+        <DetalleMoraModal 
+          cuenta={selectedCuenta} 
+          onClose={() => setIsModalOpen(false)} 
+          onVerCliente={handleVerCliente}
+        />
+      )}
+
+      {/* Modal de Perfil de Cliente */}
+      {isClientModalOpen && selectedClientId && (
+        <ClientePortalModal 
+          clientId={selectedClientId} 
+          onClose={() => setIsClientModalOpen(false)} 
+          rolUsuario="coordinador"
+        />
+      )}
     </div>
   )
 }
