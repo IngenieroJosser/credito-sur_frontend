@@ -159,7 +159,7 @@ const PerfilUsuarioPage = () => {
                  </div>
                  <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
                     <div className="text-2xl font-bold text-slate-900">{userData.rol === 'COBRADOR' ? userData.prestamosAprobados : '-'}</div>
-                    <div className="text-[10px] text-slate-500 font-bold uppercase mt-1">{userData.rol === 'COBRADOR' ? 'Préstamos' : 'Aprobaciones'}</div>
+                    <div className="text-[10px] text-slate-500 font-bold uppercase mt-1">{userData.rol === 'COBRADOR' ? 'Préstamos' : 'Revisiones'}</div>
                  </div>
               </div>
             </div>

@@ -15,7 +15,7 @@
  * 
  * 3. COORDINADOR
  *    - Gestión de créditos, clientes, rutas
- *    - Aprobaciones operativas
+ *    - Revisiones operativas
  *    - Reportes operativos
  * 
  * 4. SUPERVISOR
@@ -54,7 +54,7 @@ export const permisosPorRol: Record<Rol, ModuloPermiso[]> = {
       submodulos: [
         { id: 'gestion-creditos', nombre: 'Créditos', icono: 'CreditCard', path: '/admin/creditos', roles: ['SUPER_ADMINISTRADOR', 'COORDINADOR'] },
         { id: 'rutas', nombre: 'Rutas', icono: 'Route', path: '/admin/rutas', roles: ['SUPER_ADMINISTRADOR', 'COORDINADOR'] },
-        { id: 'aprobar-cobrador', nombre: 'Aprobaciones', icono: 'CheckCircle2', path: '/admin/aprobaciones', roles: ['SUPER_ADMINISTRADOR', 'COORDINADOR'] },
+        { id: 'aprobar-cobrador', nombre: 'Revisiones', icono: 'CheckCircle2', path: '/admin/aprobaciones', roles: ['SUPER_ADMINISTRADOR', 'COORDINADOR'] },
       ]
     },
     {
@@ -120,7 +120,7 @@ export const permisosPorRol: Record<Rol, ModuloPermiso[]> = {
       submodulos: [
         { id: 'gestion-creditos', nombre: 'Créditos', icono: 'CreditCard', path: '/admin/creditos', roles: ['SUPER_ADMINISTRADOR', 'ADMIN', 'COORDINADOR'] },
         { id: 'rutas', nombre: 'Rutas', icono: 'Route', path: '/admin/rutas', roles: ['SUPER_ADMINISTRADOR', 'ADMIN', 'COORDINADOR'] },
-        { id: 'aprobar-cobrador', nombre: 'Aprobaciones', icono: 'CheckCircle2', path: '/admin/aprobaciones', roles: ['SUPER_ADMINISTRADOR', 'ADMIN', 'COORDINADOR'] },
+        { id: 'aprobar-cobrador', nombre: 'Revisiones', icono: 'CheckCircle2', path: '/admin/aprobaciones', roles: ['SUPER_ADMINISTRADOR', 'ADMIN', 'COORDINADOR'] },
       ]
     },
     {
@@ -175,7 +175,7 @@ export const permisosPorRol: Record<Rol, ModuloPermiso[]> = {
       roles: ['COORDINADOR'],
       submodulos: [
         { id: 'rutas', nombre: 'Rutas', icono: 'Route', path: '/coordinador/rutas', roles: ['COORDINADOR'] },
-        { id: 'aprobar-cobrador', nombre: 'Aprobaciones', icono: 'CheckCircle2', path: '/coordinador/aprobaciones', roles: ['COORDINADOR'] },
+        { id: 'aprobar-cobrador', nombre: 'Revisiones', icono: 'CheckCircle2', path: '/coordinador/aprobaciones', roles: ['COORDINADOR'] },
       ]
     },
     { id: 'reportes-operativos', nombre: 'Reportes operativos', icono: 'ClipboardList', path: '/coordinador/reportes', roles: ['COORDINADOR'] },

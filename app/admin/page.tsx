@@ -214,7 +214,7 @@ const DashboardPage = () => {
           color: '#0f172a'
         },
         {
-          title: 'Aprobaciones',
+          title: 'Revisiones',
           value: 8,
           isCurrency: false,
           change: -2.1,
@@ -410,7 +410,7 @@ const DashboardPage = () => {
       ],
       COORDINADOR: [
         {
-          title: 'Aprobaciones',
+          title: 'Revisiones',
           subtitle: 'Pendientes de revisión',
           icon: <Inbox className="h-5 w-5" />,
           color: '#0f172a',

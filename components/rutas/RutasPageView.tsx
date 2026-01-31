@@ -24,6 +24,7 @@ import {
   ArrowRightLeft,
   ChevronLeft,
   ChevronRight,
+  XCircle,
 } from 'lucide-react'
 import { formatCurrency, cn } from '@/lib/utils'
 import { useAuth } from '@/hooks/useAuth'
@@ -51,14 +52,89 @@ export const RutasPageView = ({ readOnly = false, rutasBasePath = '/admin/rutas'
     codigo: '',
     zona: '',
     frecuenciaVisita: 'DIARIO',
+    estado: 'ACTIVA',
     cobradorId: '',
     supervisorId: '',
     descripcion: ''
   })
 
   // Mocks
-  const [cobradores] = useState<{ id: string, nombre: string }[]>([])
-  const [supervisores] = useState<{ id: string, nombre: string }[]>([])
+  const [cobradores] = useState<{ id: string, nombre: string }[]>([
+    { id: '1', nombre: 'Juan Pérez' },
+    { id: '2', nombre: 'María González' },
+    { id: '3', nombre: 'Pedro Sánchez' },
+    { id: '4', nombre: 'Ana López' },
+    { id: '5', nombre: 'Luis Martínez' }
+  ])
+  const [supervisores] = useState<{ id: string, nombre: string }[]>([
+    { id: '1', nombre: 'Carlos Ruiz' },
+    { id: '2', nombre: 'Sofia Torres' }
+  ])
+  
+  // Use mock data if rutas prop is empty for visualization
+  const displayRutas = rutas.length > 0 ? rutas : [
+    {
+      id: '1',
+      nombre: 'Ruta Centro - Comercial',
+      codigo: 'RT-CEN-01',
+      zona: 'Centro',
+      estado: 'ACTIVA',
+      cobrador: 'Juan Pérez',
+      cobradorId: '1',
+      supervisorId: '1',
+      clientesAsignados: 45,
+      clientesNuevos: 3,
+      cobranzaDelDia: 1250000,
+      metaDelDia: 1500000,
+      descripcion: 'Zona comercial del centro'
+    },
+    {
+      id: '2',
+      nombre: 'Ruta Norte - Residencial',
+      codigo: 'RT-NOR-01',
+      zona: 'Norte',
+      estado: 'ACTIVA',
+      cobrador: 'Juan Pérez', // Same collector, testing multiple routes
+      cobradorId: '1',
+      supervisorId: '1',
+      clientesAsignados: 32,
+      clientesNuevos: 0,
+      cobranzaDelDia: 850000,
+      metaDelDia: 1200000,
+      descripcion: 'Zona residencial norte'
+    },
+     {
+      id: '3',
+      nombre: 'Ruta Sur - Mixta',
+      codigo: 'RT-SUR-01',
+      zona: 'Sur',
+      estado: 'PENDIENTE_ACTIVACION',
+      cobrador: 'Pedro Sánchez',
+      cobradorId: '3',
+      supervisorId: '2',
+      clientesAsignados: 18,
+      clientesNuevos: 5,
+      cobranzaDelDia: 0,
+      metaDelDia: 800000,
+       descripcion: 'Nueva zona de expansión'
+    },
+     {
+      id: '4',
+      nombre: 'Ruta Oeste - Industrial',
+      codigo: 'RT-OES-01',
+      zona: 'Oeste',
+      estado: 'INACTIVA',
+      cobrador: 'Ana López',
+      cobradorId: '4',
+      supervisorId: '2',
+      clientesAsignados: 0,
+      clientesNuevos: 0,
+      cobranzaDelDia: 0,
+      metaDelDia: 0,
+      descripcion: 'Zona industrial, temporalmente inactiva'
+    }
+  ];
+
   const [clientesRuta, setClientesRuta] = useState<any[]>([])
   const [isAddingCliente, setIsAddingCliente] = useState(false)
   const [clienteSearch, setClienteSearch] = useState('')
@@ -73,6 +149,7 @@ export const RutasPageView = ({ readOnly = false, rutasBasePath = '/admin/rutas'
       codigo: '',
       zona: '',
       frecuenciaVisita: 'DIARIO',
+      estado: 'ACTIVA',
       cobradorId: '',
       supervisorId: '',
       descripcion: ''
@@ -86,7 +163,8 @@ export const RutasPageView = ({ readOnly = false, rutasBasePath = '/admin/rutas'
       nombre: ruta.nombre,
       codigo: ruta.codigo,
       zona: ruta.zona || '',
-      frecuenciaVisita: ruta.frecuenciaVisita,
+      frecuenciaVisita: ruta.frecuenciaVisita || 'DIARIO',
+      estado: ruta.estado || 'ACTIVA',
       cobradorId: ruta.cobradorId || '',
       supervisorId: ruta.supervisorId || '',
       descripcion: ruta.descripcion || ''
@@ -104,7 +182,11 @@ export const RutasPageView = ({ readOnly = false, rutasBasePath = '/admin/rutas'
     setShowModal(false)
   }
 
-  const handleActivarRuta = (id: string) => { console.log('Activar', id) }
+  const handleToggleEstado = (id: string) => {
+    console.log('Toggle estado', id)
+    // Mock toggle logic
+    // displayRutas updates would happen here with backend integration
+  }
   const handleMoveCliente = (id: string) => { console.log('Mover', id) }
   const confirmAddCliente = (cliente: any) => { console.log('Add', cliente) }
   const [activeTab, setActiveTab] = useState<'info' | 'clientes'>('info')
@@ -115,7 +197,7 @@ export const RutasPageView = ({ readOnly = false, rutasBasePath = '/admin/rutas'
 
   // ... (Rest of code)
 
-  const rutasFiltradas = rutas.filter((ruta) => {
+  const rutasFiltradas = displayRutas.filter((ruta) => {
     const cumpleEstado = estadoFiltro === 'TODAS' || ruta.estado === estadoFiltro
     const cumpleBusqueda =
       ruta.nombre.toLowerCase().includes(busqueda.toLowerCase()) ||
@@ -136,12 +218,17 @@ export const RutasPageView = ({ readOnly = false, rutasBasePath = '/admin/rutas'
     setCurrentPage(1);
   }
 
-  const rutasActivas = rutas.filter((ruta) => ruta.estado === 'ACTIVA').length
-  const rutasPendientes = rutas.filter((ruta) => ruta.estado === 'PENDIENTE_ACTIVACION').length
-  const totalClientes = rutas.reduce((acc, curr) => acc + curr.clientesAsignados, 0)
-  const metaTotal = rutas.reduce((acc, curr) => acc + curr.metaDelDia, 0)
-  const cobranzaTotal = rutas.reduce((acc, curr) => acc + curr.cobranzaDelDia, 0)
+  const rutasActivas = displayRutas.filter((ruta) => ruta.estado === 'ACTIVA').length
+  const rutasPendientes = displayRutas.filter((ruta) => ruta.estado === 'PENDIENTE_ACTIVACION').length
+  const totalClientes = displayRutas.reduce((acc, curr) => acc + curr.clientesAsignados, 0)
+  const metaTotal = displayRutas.reduce((acc, curr) => acc + curr.metaDelDia, 0)
+  const cobranzaTotal = displayRutas.reduce((acc, curr) => acc + curr.cobranzaDelDia, 0)
   const porcentajeAvance = metaTotal > 0 ? (cobranzaTotal / metaTotal) * 100 : 0
+
+  // Force list view for Coordinador
+  if (rutasBasePath.includes('/coordinador') && vista !== 'list') {
+    setVista('list')
+  }
 
   return (
     <div className="min-h-screen bg-slate-50 relative">
@@ -215,14 +302,14 @@ export const RutasPageView = ({ readOnly = false, rutasBasePath = '/admin/rutas'
                 bgIcon: 'bg-indigo-50',
               },
               {
-                label: 'Incidencias',
-                value: '3',
-                sub: 'Requieren atención',
-                icon: AlertTriangle,
+                label: 'Coordinadores',
+                value: '2',
+                sub: 'Supervisando rutas',
+                icon: User,
                 color: 'text-slate-900',
-                subColor: 'text-amber-600',
-                iconColor: 'text-amber-600',
-                bgIcon: 'bg-amber-50',
+                subColor: 'text-slate-500',
+                iconColor: 'text-blue-600',
+                bgIcon: 'bg-blue-50',
               },
             ].map((stat, i) => (
               <div
@@ -292,6 +379,7 @@ export const RutasPageView = ({ readOnly = false, rutasBasePath = '/admin/rutas'
               })}
             </div>
 
+            {!rutasBasePath.includes('/coordinador') && (
             <div className="flex gap-1 bg-slate-100 p-1 rounded-xl">
               <button
                 onClick={() => setVista('grid')}
@@ -312,6 +400,7 @@ export const RutasPageView = ({ readOnly = false, rutasBasePath = '/admin/rutas'
                 <List className="h-5 w-5" />
               </button>
             </div>
+            )}
           </div>
 
           {/* Contenido Principal */}
@@ -417,21 +506,6 @@ export const RutasPageView = ({ readOnly = false, rutasBasePath = '/admin/rutas'
                       <span className="text-xs text-slate-400 font-bold">ID: {ruta.id}</span>
 
                       <div className="flex items-center gap-2">
-                        {/* Botón de Activación (solo para rutas pendientes y no modo lectura) */}
-                        {ruta.estado === 'PENDIENTE_ACTIVACION' && !readOnly && (
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              handleActivarRuta(ruta.id)
-                            }}
-                            disabled={loading}
-                            className="flex items-center gap-2 px-3 py-1.5 bg-orange-600 hover:bg-orange-700 text-white text-xs font-bold rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                          >
-                            <CheckCircle2 className="h-3.5 w-3.5" />
-                            Activar
-                          </button>
-                        )}
-
                         {/* Botones de acción (siempre visibles) */}
                         <div className="flex items-center gap-1">
                           {!readOnly && (
@@ -447,8 +521,20 @@ export const RutasPageView = ({ readOnly = false, rutasBasePath = '/admin/rutas'
                             </button>
                           )}
                           {!readOnly && (
-                            <button className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all" title="Eliminar">
-                              <Trash2 className="h-4 w-4" />
+                            <button
+                                onClick={(e) => {
+                                    e.stopPropagation()
+                                    handleToggleEstado(ruta.id)
+                                }}
+                                className={cn(
+                                    "p-2 rounded-lg transition-all",
+                                    ruta.estado === 'ACTIVA' 
+                                        ? "text-slate-400 hover:text-rose-600 hover:bg-rose-50" 
+                                        : "text-slate-400 hover:text-emerald-600 hover:bg-emerald-50"
+                                )}
+                                title={ruta.estado === 'ACTIVA' ? "Desactivar" : "Activar"}
+                            >
+                                {ruta.estado === 'ACTIVA' ? <Trash2 className="h-4 w-4" /> : <CheckCircle2 className="h-4 w-4" />}
                             </button>
                           )}
                           <Link
@@ -585,12 +671,17 @@ export const RutasPageView = ({ readOnly = false, rutasBasePath = '/admin/rutas'
                               <button
                                 onClick={(e) => {
                                   e.stopPropagation()
-                                  // Logica de eliminar
+                                  handleToggleEstado(ruta.id)
                                 }}
-                                className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
-                                title="Eliminar"
+                                className={cn(
+                                    "p-2 rounded-lg transition-all",
+                                    ruta.estado === 'ACTIVA' 
+                                        ? "text-slate-400 hover:text-rose-600 hover:bg-rose-50" 
+                                        : "text-slate-400 hover:text-emerald-600 hover:bg-emerald-50"
+                                )}
+                                title={ruta.estado === 'ACTIVA' ? "Desactivar" : "Activar"}
                               >
-                                <Trash2 className="w-4 h-4" />
+                                {ruta.estado === 'ACTIVA' ? <Trash2 className="w-4 h-4" /> : <CheckCircle2 className="w-4 h-4" />}
                               </button>
                             )}
                           </div>
@@ -732,23 +823,6 @@ export const RutasPageView = ({ readOnly = false, rutasBasePath = '/admin/rutas'
                       </div>
 
                       <div className="space-y-2">
-                        <label className="text-xs uppercase tracking-wider font-bold text-slate-500">Frecuencia</label>
-                        <div className="relative">
-                          <select
-                            name="frecuenciaVisita"
-                            value={formData.frecuenciaVisita}
-                            onChange={handleInputChange}
-                            className="w-full px-4 py-2.5 rounded-xl border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-blue-600/20 focus:border-blue-600 transition-all font-medium text-slate-900 appearance-none"
-                          >
-                            <option value="DIARIO">Diaria</option>
-                            <option value="SEMANAL">Semanal</option>
-                            <option value="QUINCENAL">Quincenal</option>
-                          </select>
-                          <Clock className="absolute right-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
-                        </div>
-                      </div>
-
-                      <div className="space-y-2">
                         <label className="text-xs uppercase tracking-wider font-bold text-slate-500">Cobrador Asignado</label>
                         <div className="relative">
                           <select
@@ -787,6 +861,38 @@ export const RutasPageView = ({ readOnly = false, rutasBasePath = '/admin/rutas'
                             ))}
                           </select>
                           <CheckCircle2 className="absolute right-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
+                        </div>
+                      </div>
+
+                      <div className="space-y-2">
+                        <label className="text-xs uppercase tracking-wider font-bold text-slate-500">Estado de la Ruta</label>
+                        <div className="flex bg-slate-100 p-1 rounded-xl">
+                          <button
+                            type="button" 
+                            onClick={() => setFormData(prev => ({ ...prev, estado: 'ACTIVA' }))}
+                            className={cn(
+                              "flex-1 py-2.5 text-sm font-bold rounded-lg transition-all flex items-center justify-center gap-2",
+                              formData.estado === 'ACTIVA' 
+                                ? "bg-white text-emerald-700 shadow-sm ring-1 ring-black/5" 
+                                : "text-slate-400 hover:text-slate-600"
+                            )}
+                          >
+                            <CheckCircle2 className={cn("h-4 w-4", formData.estado === 'ACTIVA' ? "text-emerald-500" : "text-slate-400")} />
+                            Activa
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setFormData(prev => ({ ...prev, estado: 'INACTIVA' }))}
+                            className={cn(
+                              "flex-1 py-2.5 text-sm font-bold rounded-lg transition-all flex items-center justify-center gap-2",
+                              formData.estado === 'INACTIVA'
+                                ? "bg-white text-slate-700 shadow-sm ring-1 ring-black/5"
+                                : "text-slate-400 hover:text-slate-600"
+                            )}
+                          >
+                            <XCircle className="h-4 w-4" />
+                            Inactiva
+                          </button>
                         </div>
                       </div>
 

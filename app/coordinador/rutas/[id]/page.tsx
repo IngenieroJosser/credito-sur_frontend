@@ -8,10 +8,6 @@ import {
   ArrowLeft,
   Save,
   Search,
-  Filter,
-  Wallet,
-  DollarSign,
-  Calendar,
   FileText as FileTextIcon
 } from 'lucide-react'
 
@@ -19,7 +15,6 @@ import { formatCOPInputValue, formatCurrency } from '@/lib/utils'
 import Link from 'next/link'
 import { useParams } from 'next/navigation'
 import { useCallback } from 'react'
-import { useRouter } from 'next/navigation'
 import { MOCK_CLIENTES } from '@/services/clientes-service'
 
 
@@ -27,7 +22,7 @@ import PagoModal from '@/components/cobranza/PagoModal'
 import EstadoCuentaModal from '@/components/cobranza/EstadoCuentaModal'
 import ReprogramarModal from '@/components/cobranza/ReprogramarModal'
 import { VisitaRuta, EstadoVisita } from '@/lib/types/cobranza'
-import { StaticVisitaItem } from '@/components/dashboards/shared/CobradorElements'
+import { StaticVisitaItem, SeleccionClienteModal } from '@/components/dashboards/shared/CobradorElements'
 
 // Interfaces de datos
 interface ClienteRuta {
@@ -42,27 +37,13 @@ interface ClienteRuta {
   horaVisita?: string
 }
 
-interface GastoRuta {
-  id: string
-  tipo: 'OPERATIVO' | 'TRANSPORTE' | 'OTRO'
-  descripcion: string
-  valor: number
-  hora: string
-}
-
 const DetalleRutaPage = () => {
   const params = useParams()
-  const router = useRouter()
   // Manejo seguro del ID de la ruta
   const rutaId = params?.id ? decodeURIComponent(params.id as string) : 'Desconocida'
 
   // Datos de prueba (Mock Data)
-  const [clientes] = useState<ClienteRuta[]>([
-   
-  ])
-
-
-  
+  const [clientes] = useState<ClienteRuta[]>([])
 
   const progreso = {
     total: clientes.length,
@@ -70,18 +51,14 @@ const DetalleRutaPage = () => {
     recaudado: 150000
   }
 
-  // const totalGastos = gastos.reduce((acc, g) => acc + g.valor, 0) // Unused?
-
-  const porcentajeProgreso = (progreso.visitados / progreso.total) * 100
+  const porcentajeProgreso = progreso.total > 0 ? (progreso.visitados / progreso.total) * 100 : 0
 
   const [isGastoModalOpen, setIsGastoModalOpen] = useState(false)
   const [nuevoGasto, setNuevoGasto] = useState({ tipo: 'OPERATIVO', descripcion: '', valor: '' })
   const [searchQuery, setSearchQuery] = useState('')
 
-  // const [showHistory, setShowHistory] = useState(false) // Unused
   const [rutaCompletada, setRutaCompletada] = useState(false)
 
-  // const [periodoRutaFiltro, setPeriodoRutaFiltro] = useState<'TODOS' | 'DIA' | 'SEMANA' | 'MES'>('TODOS')
   // Datos de prueba iniciales para visitasCobrador
   const [visitasCobrador] = useState<VisitaRuta[]>([
     {
@@ -97,7 +74,8 @@ const DetalleRutaPage = () => {
       ordenVisita: 1,
       prioridad: 'alta',
       cobradorId: 'cob1',
-      periodoRuta: 'DIA'
+      periodoRuta: 'DIA',
+      nivelRiesgo: 'leve'
     },
     {
       id: 'v2',
@@ -112,7 +90,8 @@ const DetalleRutaPage = () => {
       ordenVisita: 2,
       prioridad: 'media',
       cobradorId: 'cob1',
-      periodoRuta: 'DIA'
+      periodoRuta: 'DIA',
+      nivelRiesgo: 'critico'
     },
     {
       id: 'v3',
@@ -127,7 +106,8 @@ const DetalleRutaPage = () => {
       ordenVisita: 3,
       prioridad: 'baja',
       cobradorId: 'cob1',
-      periodoRuta: 'DIA'
+      periodoRuta: 'DIA',
+      nivelRiesgo: 'bajo'
     },
     {
       id: 'v4',
@@ -142,57 +122,54 @@ const DetalleRutaPage = () => {
       ordenVisita: 4,
       prioridad: 'media',
       cobradorId: 'cob1',
-      periodoRuta: 'DIA'
+      periodoRuta: 'DIA',
+      nivelRiesgo: 'moderado'
     }
   ])
-  const [visitaSeleccionada, setVisitaSeleccionada] = useState<string | null>(null)
-  /* infoClienteVisita eliminado ya que ahora redirigimos */
+  
   const [estadoCuentaVisita, setEstadoCuentaVisita] = useState<VisitaRuta | null>(null)
   const [pagoVisita, setPagoVisita] = useState<{visita: VisitaRuta, tipo: 'PAGO' | 'ABONO'} | null>(null)
   const [visitaReprogramar, setVisitaReprogramar] = useState<VisitaRuta | null>(null)
+  const [clienteDetalle, setClienteDetalle] = useState<import('@/services/clientes-service').Cliente | null>(null)
+  const [showClienteSelector, setShowClienteSelector] = useState(false)
 
-  // ... Handlers auxiliares ...
-
-  // ... (resto de handlers hasta EstadoCuentaModal) ...
   const getEstadoClasses = useCallback((estado: EstadoVisita) => {
     switch (estado) {
       case 'pagado':
-        return 'bg-emerald-50 text-emerald-700 border-emerald-100'
-      case 'en_mora':
-        return 'bg-rose-50 text-rose-700 border-rose-100'
+        return 'bg-blue-50 text-blue-700 border-blue-500 ring-1 ring-blue-500' 
+      case 'pendiente':
+        return 'bg-emerald-50 text-emerald-700 border-emerald-500 ring-1 ring-emerald-500' 
       case 'ausente':
-        return 'bg-amber-50 text-amber-700 border-amber-100'
-      case 'reprogramado':
-        return 'bg-blue-50 text-blue-700 border-blue-100'
+        return 'bg-orange-50 text-orange-700 border-orange-500 ring-1 ring-orange-500' 
+      case 'en_mora':
+        return 'bg-red-50 text-red-700 border-red-500 ring-1 ring-red-500' 
       default:
-        return 'bg-slate-50 text-slate-700 border-slate-100'
+        return 'bg-slate-50 text-slate-700 border-slate-300'
     }
   }, [])
 
   const getPrioridadColor = useCallback((prioridad: 'alta' | 'media' | 'baja') => {
     switch (prioridad) {
       case 'alta':
-        return '#ef4444'
+        return '#f97316' 
       case 'media':
-        return '#f59e0b'
+        return '#08557f' 
       default:
-        return '#10b981'
+        return '#94a3b8' 
     }
   }, [])
 
-  const handleAbrirClienteInfo = useCallback((visita: VisitaRuta) => {
-    // Buscar el ID real del cliente en los mocks o usar uno por defecto
-    const clienteReal = MOCK_CLIENTES.find(c => c.nombres + ' ' + c.apellidos === visita.cliente) || MOCK_CLIENTES[0]
-    router.push(`/coordinador/clientes/${clienteReal?.id || '1'}`)
-  }, [router])
 
-  const handleAbrirPago = useCallback((visita: VisitaRuta) => {
-    setPagoVisita({ visita, tipo: 'PAGO' })
-  }, [setPagoVisita])
-
-  const handleAbrirAbono = useCallback((visita: VisitaRuta) => {
-    setPagoVisita({ visita, tipo: 'ABONO' })
-  }, [setPagoVisita])
+  const handleAbrirClienteInfo = (visita: VisitaRuta) => {
+    const clienteReal = MOCK_CLIENTES.find(c => c.nombres + ' ' + c.apellidos === visita.cliente) || {
+        ...MOCK_CLIENTES[0],
+        nombres: visita.cliente.split(' ')[0],
+        apellidos: visita.cliente.split(' ').slice(1).join(' '),
+        direccion: visita.direccion,
+        telefono: visita.telefono
+    }
+    setClienteDetalle(clienteReal)
+  }
 
   const handleAbrirEstadoCuenta = useCallback((visita: VisitaRuta) => {
     setEstadoCuentaVisita(visita)
@@ -206,18 +183,13 @@ const DetalleRutaPage = () => {
     setNuevoGasto({ tipo: 'OPERATIVO', descripcion: '', valor: '' })
   }
   
-  // Función para activar ruta (simulada)
   const handleActivarRuta = () => {
     setRutaCompletada(!rutaCompletada)
-    // Aquí iría la llamada a la API
     alert(rutaCompletada ? 'Ruta desactivada' : 'Ruta activada correctamente')
   }
 
-
-
   return (
     <div className="min-h-screen bg-slate-50 relative pb-20">
-      {/* Background simplificado */}
       <div className="fixed inset-0 pointer-events-none">
         <div className="absolute inset-0 bg-slate-50"></div>
       </div>
@@ -268,8 +240,6 @@ const DetalleRutaPage = () => {
                   />
                 </div>
                 <div className="flex gap-2">
-
-                 
                   <button 
                     type="button"
                     onClick={handleActivarRuta}
@@ -286,138 +256,72 @@ const DetalleRutaPage = () => {
               </div>
         </div>
 
-         {/* Lista de visitas ESTÁTICA (sin DnD) */}
+        <div className="flex gap-2">
+            <button
+              onClick={() => { setShowClienteSelector(true); }} 
+              className="flex-1 md:flex-none px-6 py-3 rounded-2xl text-sm font-bold transition-all shadow-sm bg-white text-slate-700 border border-slate-200 hover:bg-slate-50 flex items-center justify-center gap-2 active:scale-95"
+            >
+              <FileTextIcon className="h-4 w-4 text-slate-400" />
+              Ver Estado de Cuenta
+            </button>
+        </div>
+
          <div>
               <div className="flex flex-col gap-4 mb-4">
                 <div className="flex items-center justify-between">
                   <h3 className="font-bold text-slate-900 text-lg">Visitas del Día</h3>
                 </div>
+                
+                 <div className="flex flex-wrap gap-3 text-xs font-bold text-slate-600 bg-white p-3 rounded-xl border border-slate-200 shadow-sm">
+                    <div className="flex items-center gap-2 px-2 py-1 bg-blue-50 rounded-lg border border-blue-500">
+                        <div className="w-2.5 h-2.5 rounded-full bg-blue-500"></div> 
+                        <span>Peligro Mínimo</span>
+                    </div>
+                    <div className="flex items-center gap-2 px-2 py-1 bg-emerald-50 rounded-lg border border-emerald-500">
+                        <div className="w-2.5 h-2.5 rounded-full bg-emerald-500"></div> 
+                        <span>Leve Retraso</span>
+                    </div>
+                    <div className="flex items-center gap-2 px-2 py-1 bg-orange-50 rounded-lg border border-orange-500">
+                        <div className="w-2.5 h-2.5 rounded-full bg-orange-500"></div> 
+                        <span>Riesgo Moderado</span>
+                    </div>
+                    <div className="flex items-center gap-2 px-2 py-1 bg-red-50 rounded-lg border border-red-500">
+                        <div className="w-2.5 h-2.5 rounded-full bg-red-500"></div> 
+                        <span>Alto Riesgo</span>
+                    </div>
+                 </div>
               </div>
 
               <div className="space-y-6">
-                 {/* Renderizado simple de lista sin contexto de drag and drop */}
                  <div className="space-y-3">
                       {visitasCobrador.map((visita) => (
                         <StaticVisitaItem
                           key={visita.id}
                           visita={visita}
-                          isSelected={visitaSeleccionada === visita.id}
-                          onSelect={(id: string) => setVisitaSeleccionada(id === visitaSeleccionada ? null : id)}
+                          allowClick={false}
+                          onSelect={() => {}}
                           onVerCliente={handleAbrirClienteInfo}
                           getEstadoClasses={getEstadoClasses}
                           getPrioridadColor={getPrioridadColor}
-                        >
-                            <div className="mt-3 space-y-3">
-                              {visita.estado === 'pagado' ? (
-                                <div className="grid grid-cols-2 gap-2">
-                                  <button
-                                    type="button"
-                                    onClick={() => handleAbrirAbono(visita)}
-                                    disabled={rutaCompletada}
-                                    className="flex items-center justify-center gap-2 rounded-xl bg-orange-500 px-3 py-2 text-[11px] font-bold text-white hover:bg-orange-600 shadow-lg shadow-orange-500/20"
-                                  >
-                                    <Wallet className="h-4 w-4" />
-                                    Registrar Abono
-                                  </button>
-                                  <button
-                                    type="button"
-                                    onClick={() => handleAbrirEstadoCuenta(visita)}
-                                    className="flex items-center justify-center gap-2 rounded-xl bg-slate-100 px-3 py-2 text-[11px] font-bold text-slate-700 hover:bg-slate-200 border border-slate-200"
-                                  >
-                                    <FileTextIcon className="h-4 w-4" />
-                                    Ver Estado de Cuenta
-                                  </button>
-                                </div>
-                              ) : (
-                                <>
-                                  <div className="grid grid-cols-2 gap-2">
-                                    <button
-                                      type="button"
-                                      onClick={() => handleAbrirPago(visita)}
-                                      disabled={rutaCompletada}
-                                      className="flex items-center justify-center gap-2 rounded-xl bg-[#08557f] px-3 py-2 text-[11px] font-bold text-white hover:bg-[#063a58] shadow-lg shadow-[#08557f]/20"
-                                    >
-                                      <DollarSign className="h-4 w-4" />
-                                      Registrar Pago
-                                    </button>
-                                    <button
-                                      type="button"
-                                      onClick={() => handleAbrirAbono(visita)}
-                                      disabled={rutaCompletada}
-                                      className="flex items-center justify-center gap-2 rounded-xl bg-orange-500 px-3 py-2 text-[11px] font-bold text-white hover:bg-orange-600 shadow-lg shadow-orange-500/20"
-                                    >
-                                      <Wallet className="h-4 w-4" />
-                                      Registrar Abono
-                                    </button>
-                                  </div>
-
-                                  <div className="grid grid-cols-2 gap-2">
-                                    <button
-                                      type="button"
-                                      onClick={() => handleAbrirEstadoCuenta(visita)}
-                                      className="flex items-center justify-center gap-2 rounded-xl bg-slate-100 px-3 py-2 text-[11px] font-bold text-slate-700 hover:bg-slate-200 border border-slate-200"
-                                    >
-                                      <FileTextIcon className="h-4 w-4" />
-                                      Ver Estado de Cuenta
-                                    </button>
-                                    <button
-                                      type="button"
-                                      onClick={() => setVisitaReprogramar(visita)}
-                                      disabled={rutaCompletada}
-                                      className="flex items-center justify-center gap-2 rounded-xl bg-orange-50 px-3 py-2 text-[11px] font-bold text-orange-700 hover:bg-orange-100 border border-orange-200"
-                                    >
-                                      <Calendar className="h-4 w-4" />
-                                      Reprogramar
-                                    </button>
-                                  </div>
-                                </>
-                              )}
-
-                              <div className="text-[11px] text-slate-600">
-                                <div className="flex items-center justify-between mb-1">
-                                  <span>Saldo total:</span>
-                                  <span className="font-bold">${visita.saldoTotal.toLocaleString('es-CO')}</span>
-                                </div>
-                                <div className="flex items-center justify-between">
-                                  <span>Próxima visita:</span>
-                                  <span className="font-medium">{visita.proximaVisita}</span>
-                                </div>
-                                <div className="flex items-center justify-between">
-                                  <span>Teléfono:</span>
-                                  <span className="font-medium">{visita.telefono}</span>
-                                </div>
-                              </div>
-                            </div>
-                        </StaticVisitaItem>
+                        />
                       ))}
                  </div>
               </div>
          </div>
       </div>
 
-        {/* Sección de Gastos */}
-        
-
-      
-
-      {/* Modal de Registro de Gasto */}
       {isGastoModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-            {/* Modal Header */}
             <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
               <h3 className="font-bold text-lg text-slate-900">
                 <span className="text-blue-600">Registrar</span> <span className="text-orange-500">Gasto</span>
               </h3>
-              <button 
-                onClick={() => setIsGastoModalOpen(false)}
-                className="text-slate-400 hover:text-slate-600 transition-colors"
-              >
+              <button onClick={() => setIsGastoModalOpen(false)} className="text-slate-400 hover:text-slate-600 transition-colors">
                 <XCircle className="h-6 w-6" />
               </button>
             </div>
             
-            {/* Modal Body */}
             <form onSubmit={handleGuardarGasto} className="p-6 space-y-4">
               <div className="space-y-2">
                 <label className="text-sm font-bold text-slate-700">Tipo de Gasto</label>
@@ -453,7 +357,6 @@ const DetalleRutaPage = () => {
                     type="text" 
                     inputMode="numeric"
                     required
-                    min="0"
                     className="w-full pl-8 pr-4 py-2.5 rounded-xl border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-blue-600/20 focus:border-blue-600 transition-all font-medium text-slate-900"
                     placeholder="0"
                     value={nuevoGasto.valor}
@@ -472,19 +375,11 @@ const DetalleRutaPage = () => {
                 </div>
               </div>
 
-              {/* Modal Footer */}
               <div className="flex gap-3 pt-4 mt-2 border-t border-slate-100">
-                <button
-                  type="button"
-                  onClick={() => setIsGastoModalOpen(false)}
-                  className="flex-1 px-4 py-2.5 bg-white border border-slate-200 text-slate-700 font-bold rounded-xl hover:bg-slate-50 transition-colors"
-                >
+                <button type="button" onClick={() => setIsGastoModalOpen(false)} className="flex-1 px-4 py-2.5 bg-white border border-slate-200 text-slate-700 font-bold rounded-xl hover:bg-slate-50 transition-colors">
                   Cancelar
                 </button>
-                <button
-                  type="submit"
-                  className="flex-1 px-4 py-2.5 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 shadow-lg shadow-blue-600/20 transition-all flex items-center justify-center gap-2"
-                >
+                <button type="submit" className="flex-1 px-4 py-2.5 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 shadow-lg shadow-blue-600/20 transition-all flex items-center justify-center gap-2">
                   <Save className="h-4 w-4" />
                   <span>Guardar</span>
                 </button>
@@ -494,27 +389,22 @@ const DetalleRutaPage = () => {
         </div>
       )}
 
-
-
-      {/* Modal de Estado de Cuenta */}
       {estadoCuentaVisita && (
-        <EstadoCuentaModal 
-          visita={estadoCuentaVisita} 
-          onClose={() => setEstadoCuentaVisita(null)} 
-        />
+        <EstadoCuentaModal visita={estadoCuentaVisita} onClose={() => setEstadoCuentaVisita(null)} />
       )}
-      {/* Modal de Pago/Abono */}
+      
       {pagoVisita && (
         <PagoModal
           visita={pagoVisita.visita}
           tipo={pagoVisita.tipo}
           onClose={() => setPagoVisita(null)}
-          onConfirm={(monto, metodo, comprobante) => {
+          onConfirm={(monto, metodo) => {
             alert(`Registrar ${pagoVisita.tipo}: $${monto} - ${metodo}`)
             setPagoVisita(null)
           }}
         />
       )}
+      
       {visitaReprogramar && (
         <ReprogramarModal
             visita={visitaReprogramar}
@@ -525,9 +415,76 @@ const DetalleRutaPage = () => {
             }}
         />
       )}
+      
+      {showClienteSelector && (
+        <SeleccionClienteModal
+          visitas={visitasCobrador}
+          onSelect={(visita) => {
+            setShowClienteSelector(false)
+            handleAbrirEstadoCuenta(visita)
+          }}
+          onClose={() => setShowClienteSelector(false)}
+        />
+      )}
+      
+      {clienteDetalle && (
+        <ClienteDetalleModal
+          cliente={clienteDetalle}
+          onClose={() => setClienteDetalle(null)}
+        />
+      )}
     </div>
   )
 }
 
-// Removed local modal component definitions
+function ClienteDetalleModal({ cliente, onClose }: { cliente: import('@/services/clientes-service').Cliente; onClose: () => void }) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-200">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden animate-in zoom-in-95 duration-200">
+        <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+          <h3 className="font-bold text-lg text-slate-900">
+            <span className="text-blue-600">Detalles del</span> <span className="text-orange-500">Cliente</span>
+          </h3>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 transition-colors p-1 hover:bg-slate-100 rounded-lg">
+            <XCircle className="h-6 w-6" />
+          </button>
+        </div>
+        
+        <div className="p-6 space-y-6">
+          <div className="flex items-center gap-4 p-4 bg-blue-50 rounded-xl border border-blue-100">
+            <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center text-2xl font-bold text-blue-600 shadow-sm border border-blue-100">
+              {cliente.nombres?.charAt(0)}{cliente.apellidos?.charAt(0)}
+            </div>
+            <div>
+              <h4 className="text-xl font-bold text-slate-900">{cliente.nombres} {cliente.apellidos}</h4>
+              <p className="text-sm text-slate-500 font-medium">ID: {cliente.id} • CC: {cliente.dni}</p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+             <div className="space-y-1">
+               <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Teléfono</label>
+               <p className="text-sm font-bold text-slate-700">{cliente.telefono}</p>
+             </div>
+             <div className="space-y-1">
+               <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Código</label>
+               <p className="text-sm font-bold text-slate-700">{cliente.codigo || 'No registrado'}</p>
+             </div>
+             <div className="space-y-1 col-span-2">
+               <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Dirección</label>
+               <p className="text-sm font-bold text-slate-700">{cliente.direccion || 'No registrada'}</p>
+             </div>
+          </div>
+
+          <div className="pt-4 border-t border-slate-100 flex justify-end">
+             <button onClick={onClose} className="px-6 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl transition-colors">
+                Cerrar
+             </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export default DetalleRutaPage

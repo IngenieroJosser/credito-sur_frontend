@@ -12,7 +12,6 @@ import {
   Menu,
   LogOut,
   Mail,
-  Shield,
   UserCircle,
   Users,
   LayoutDashboard,
@@ -147,8 +146,8 @@ export default function SupervisorLayout({
               </button>
 
               <div className="flex items-center">
-                <div className="w-8 h-8 bg-linear-to-br from-blue-600 to-blue-800 rounded-lg flex items-center justify-center shadow-lg shadow-blue-600/20">
-                  <Shield className="h-4 w-4 text-white" />
+                <div className="w-12 h-12 rounded-xl flex items-center justify-center shadow-lg shadow-blue-600/10 overflow-hidden bg-white border border-gray-100 p-1.5 transition-transform hover:scale-105">
+                  <img src="/favicon.ico" alt="Logo" className="w-full h-full object-contain" />
                 </div>
                 <h1 className="ml-3 text-xl font-bold tracking-tight">
                   <span className="text-blue-600">Credi</span>
@@ -318,8 +317,8 @@ export default function SupervisorLayout({
           <aside className="absolute left-0 top-0 bottom-0 w-72 bg-white shadow-xl border-r border-gray-100">
             <div className="h-16 px-4 flex items-center justify-between border-b border-gray-100">
               <div className="flex items-center gap-2">
-                <div className="w-8 h-8 bg-linear-to-br from-blue-600 to-blue-800 rounded-lg flex items-center justify-center shadow-lg shadow-blue-600/20">
-                  <Shield className="h-4 w-4 text-white" />
+                <div className="w-10 h-10 rounded-xl flex items-center justify-center shadow-lg shadow-blue-600/10 overflow-hidden bg-white border border-gray-100 p-1.5">
+                  <img src="/favicon.ico" alt="Logo" className="w-full h-full object-contain" />
                 </div>
                 <div className="font-bold text-gray-900">
                   <span className="text-blue-600">Credi</span>

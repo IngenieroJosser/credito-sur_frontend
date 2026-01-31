@@ -70,7 +70,7 @@ import { formatCurrency } from '@/lib/utils'
 import { ExportButton } from '@/components/ui/ExportButton'
 import NuevoClienteModal from '@/components/clientes/NuevoClienteModal'
 import { VisitaRuta, EstadoVisita, PeriodoRuta, HistorialDia } from '@/lib/types/cobranza'
-import { StaticVisitaItem, SortableVisita, Portal, MODAL_Z_INDEX } from '@/components/dashboards/shared/CobradorElements'
+import { StaticVisitaItem, SortableVisita, Portal, MODAL_Z_INDEX, SeleccionClienteModal } from '@/components/dashboards/shared/CobradorElements'
 import EstadoCuentaModal from '@/components/cobranza/EstadoCuentaModal'
 import PagoModal from '@/components/dashboards/shared/PagoModal'
 import CrearCreditoModal from '@/components/dashboards/shared/CrearCreditoModal'
@@ -132,6 +132,8 @@ const VistaCobrador = () => {
 
   const [rutaCompletada, setRutaCompletada] = useState(false)
   const [coordinadorToast, setCoordinadorToast] = useState<string | null>(null)
+  const [showClientSelector, setShowClientSelector] = useState(false)
+  const [pendingAction, setPendingAction] = useState<'CUENTA' | 'AGENDAR' | null>(null)
 
   const [isLoading, setIsLoading] = useState(true)
 
@@ -845,10 +847,22 @@ const VistaCobrador = () => {
                      <button onClick={() => { setVisitaPagoSeleccionadaId(null); setShowPaymentModal(true); setPagoInitialIsAbono(true); }} className="flex-1 min-w-[max-content] bg-orange-50 text-orange-700 border border-orange-200 px-4 py-3 rounded-xl flex items-center justify-center gap-2 font-bold shadow-sm active:scale-95 transition-all">
                          <RefreshCw className="h-5 w-5" /> Abonar
                      </button>
-                     <button onClick={() => { setVisitaEstadoCuentaSeleccionada(null); setShowEstadoCuentaModal(true); }} className="flex-1 min-w-[max-content] bg-white text-slate-700 border border-slate-200 px-4 py-3 rounded-xl flex items-center justify-center gap-2 font-bold shadow-sm active:scale-95 transition-all hover:bg-slate-50">
+                     <button 
+                        onClick={() => { 
+                           setPendingAction('CUENTA');
+                           setShowClientSelector(true); 
+                        }} 
+                        className="flex-1 min-w-[max-content] bg-white text-slate-700 border border-slate-200 px-4 py-3 rounded-xl flex items-center justify-center gap-2 font-bold shadow-sm active:scale-95 transition-all hover:bg-slate-50"
+                     >
                          <FileTextIcon className="h-5 w-5 text-slate-400" /> Cuenta
                      </button>
-                     <button onClick={() => { setVisitaReprogramar(null); setShowReprogramModal(true); }} className="flex-1 min-w-[max-content] bg-white text-slate-700 border border-slate-200 px-4 py-3 rounded-xl flex items-center justify-center gap-2 font-bold shadow-sm active:scale-95 transition-all hover:bg-slate-50">
+                     <button 
+                        onClick={() => { 
+                           setPendingAction('AGENDAR');
+                           setShowClientSelector(true); 
+                        }} 
+                        className="flex-1 min-w-[max-content] bg-white text-slate-700 border border-slate-200 px-4 py-3 rounded-xl flex items-center justify-center gap-2 font-bold shadow-sm active:scale-95 transition-all hover:bg-slate-50"
+                     >
                          <Calendar className="h-5 w-5 text-slate-400" /> Agendar
                      </button>
                 </div>
@@ -1513,6 +1527,29 @@ const VistaCobrador = () => {
               setVisitaEstadoCuentaSeleccionada(null)
             }}
             visita={visitaEstadoCuentaSeleccionada}
+          />
+        )}
+
+        {showClientSelector && (
+          <SeleccionClienteModal
+            titulo={pendingAction === 'CUENTA' ? 'Ver Estado de Cuenta' : 'Agendar Visita'}
+            subtitulo={pendingAction === 'CUENTA' ? 'Consultar Cliente' : 'Programar Cliente'}
+            visitas={visitasCobrador}
+            onSelect={(visita) => {
+              setShowClientSelector(false)
+              if (pendingAction === 'CUENTA') {
+                setVisitaEstadoCuentaSeleccionada(visita)
+                setShowEstadoCuentaModal(true)
+              } else {
+                setVisitaReprogramar(visita)
+                setShowReprogramModal(true)
+              }
+              setPendingAction(null)
+            }}
+            onClose={() => {
+              setShowClientSelector(false)
+              setPendingAction(null)
+            }}
           />
         )}
 

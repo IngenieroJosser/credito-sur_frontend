@@ -48,7 +48,7 @@ import PagoModal from '@/components/cobranza/PagoModal'
 import EstadoCuentaModal from '@/components/cobranza/EstadoCuentaModal'
 import ReprogramarModal from '@/components/cobranza/ReprogramarModal'
 import { VisitaRuta, EstadoVisita } from '@/lib/types/cobranza'
-import { StaticVisitaItem } from '@/components/dashboards/shared/CobradorElements'
+import { StaticVisitaItem, SeleccionClienteModal } from '@/components/dashboards/shared/CobradorElements'
 
 // Interfaces de datos
 interface ClienteRuta {
@@ -116,6 +116,7 @@ const DetalleRutaPage = () => {
   const [showFilters, setShowFilters] = useState(false)
   // const [showHistory, setShowHistory] = useState(false) // Unused
   const [rutaCompletada, setRutaCompletada] = useState(false)
+  const [showClienteSelector, setShowClienteSelector] = useState(false)
 
   // const [periodoRutaFiltro, setPeriodoRutaFiltro] = useState<'TODOS' | 'DIA' | 'SEMANA' | 'MES'>('TODOS')
   // Datos de prueba iniciales para visitasCobrador
@@ -326,6 +327,16 @@ const DetalleRutaPage = () => {
                   </button>
                 </div>
               </div>
+        </div>
+        
+        <div className="flex gap-2">
+            <button
+              onClick={() => setShowClienteSelector(true)} 
+              className="flex-1 md:flex-none px-6 py-3 rounded-2xl text-sm font-bold transition-all shadow-sm bg-white text-slate-700 border border-slate-200 hover:bg-slate-50 flex items-center justify-center gap-2 active:scale-95"
+            >
+              <FileTextIcon className="h-4 w-4 text-slate-400" />
+              Ver Estado de Cuenta
+            </button>
         </div>
 
          {/* Lista de visitas ESTÁTICA (sin DnD) */}
@@ -565,6 +576,16 @@ const DetalleRutaPage = () => {
                 alert(`Reprogramar para: ${fecha} - ${motivo}`)
                 setVisitaReprogramar(null)
             }}
+        />
+      )}
+      {showClienteSelector && (
+        <SeleccionClienteModal
+          visitas={visitasCobrador}
+          onSelect={(visita) => {
+            setShowClienteSelector(false)
+            handleAbrirEstadoCuenta(visita)
+          }}
+          onClose={() => setShowClienteSelector(false)}
         />
       )}
     </div>

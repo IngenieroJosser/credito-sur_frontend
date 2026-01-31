@@ -354,12 +354,11 @@ const LoginPage = () => {
         <div className="text-center mb-16">
           <div className="flex items-center justify-center mb-6">
             <div className="relative">
-              <div className="w-14 h-14 bg-white border border-gray-200 rounded-xl flex items-center justify-center">
-                <Image
-                  src='/favicon-32x32.png'
+              <div className="w-20 h-20 bg-white border border-gray-200 rounded-2xl flex items-center justify-center p-3 shadow-xl shadow-blue-900/10 transition-transform hover:scale-105 hover:rotate-2 overflow-hidden">
+                <img
+                  src='/favicon.ico'
                   alt='Logo Oficial - Credisur'
-                  width={32}
-                  height={32}
+                  className="w-full h-full object-contain"
                 />
               </div>
             </div>

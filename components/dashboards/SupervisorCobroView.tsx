@@ -56,7 +56,7 @@ import { formatCurrency } from '@/lib/utils'
 import { ExportButton } from '@/components/ui/ExportButton'
 import NuevoClienteModal from '@/components/clientes/NuevoClienteModal'
 import { VisitaRuta, EstadoVisita, PeriodoRuta, HistorialDia } from '@/lib/types/cobranza'
-import { StaticVisitaItem, SortableVisita, Portal, MODAL_Z_INDEX } from '@/components/dashboards/shared/CobradorElements'
+import { StaticVisitaItem, SortableVisita, Portal, MODAL_Z_INDEX, SeleccionClienteModal } from '@/components/dashboards/shared/CobradorElements'
 import EstadoCuentaModal from '@/components/cobranza/EstadoCuentaModal'
 import PagoModal from '@/components/dashboards/shared/PagoModal'
 import CrearCreditoModal from '@/components/dashboards/shared/CrearCreditoModal'
@@ -1261,51 +1261,26 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
         />
 
         {showClientSelector && (
-            <Portal>
-            <div 
-                className="fixed inset-0 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-200"
-                style={{ zIndex: MODAL_Z_INDEX + 10 }}
-                onClick={() => { setShowClientSelector(false); setPendingAction(null); }}
-            >
-                <div 
-                    className="w-full max-w-sm bg-white rounded-3xl shadow-xl overflow-hidden p-6 space-y-4"
-                    onClick={e => e.stopPropagation()}
-                >
-                    <div className="flex justify-between items-center">
-                        <h3 className="font-bold text-slate-900 text-lg">Seleccionar Cliente</h3>
-                        <button onClick={() => { setShowClientSelector(false); setPendingAction(null); }} className="p-2 bg-slate-100 rounded-full text-slate-500">
-                            <X className="w-5 h-5" />
-                        </button>
-                    </div>
-                    <div>
-                        <p className="text-sm text-slate-500 mb-2">Selecciona un cliente para {pendingAction === 'CUENTA' ? 'ver su estado de cuenta' : 'reprogramar visita'}.</p>
-                        <select 
-                            className="w-full p-4 rounded-xl border border-slate-200 bg-slate-50 text-slate-900 font-bold focus:ring-2 focus:ring-[#08557f] outline-none"
-                            onChange={(e) => {
-                                const visita = visitasCobrador.find(v => v.id === e.target.value);
-                                if (visita) {
-                                    if (pendingAction === 'CUENTA') {
-                                        setVisitaEstadoCuentaSeleccionada(visita);
-                                        setShowEstadoCuentaModal(true);
-                                    } else if (pendingAction === 'AGENDAR') {
-                                        setVisitaReprogramar(visita);
-                                        setShowReprogramModal(true);
-                                    }
-                                    setShowClientSelector(false);
-                                    setPendingAction(null);
-                                }
-                            }}
-                            defaultValue=""
-                        >
-                            <option value="" disabled>Buscar cliente...</option>
-                            {visitasCobrador.map(v => (
-                                <option key={v.id} value={v.id}>{v.cliente} - {v.direccion}</option>
-                            ))}
-                        </select>
-                    </div>
-                </div>
-            </div>
-            </Portal>
+          <SeleccionClienteModal
+            titulo={pendingAction === 'CUENTA' ? 'Ver Estado de Cuenta' : 'Agendar Visita'}
+            subtitulo={pendingAction === 'CUENTA' ? 'Consultar Cliente' : 'Programar Cliente'}
+            visitas={visitasCobrador}
+            onSelect={(visita) => {
+              setShowClientSelector(false)
+              if (pendingAction === 'CUENTA') {
+                setVisitaEstadoCuentaSeleccionada(visita)
+                setShowEstadoCuentaModal(true)
+              } else if (pendingAction === 'AGENDAR') {
+                setVisitaReprogramar(visita)
+                setShowReprogramModal(true)
+              }
+              setPendingAction(null)
+            }}
+            onClose={() => {
+              setShowClientSelector(false)
+              setPendingAction(null)
+            }}
+          />
         )}
 
 

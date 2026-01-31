@@ -1,3 +1,5 @@
-'use client'
+import AdminNotificacionesPage from '../../admin/notificaciones/page'
 
-export { default } from '@/app/admin/notificaciones/page'
+export default function CoordinadorNotificacionesPage() {
+  return <AdminNotificacionesPage />
+}

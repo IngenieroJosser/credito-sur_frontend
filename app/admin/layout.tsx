@@ -292,8 +292,8 @@ export default function AdminLayout({
               )}
               
               <div className="flex items-center">
-                <div className="w-8 h-8 bg-linear-to-br from-blue-600 to-blue-800 rounded-lg flex items-center justify-center shadow-lg shadow-blue-600/20">
-                  <Shield className="h-4 w-4 text-white" />
+                <div className="w-12 h-12 rounded-xl flex items-center justify-center shadow-lg shadow-blue-600/10 overflow-hidden bg-white border border-gray-100 p-1.5 transition-transform hover:scale-105">
+                  <img src="/favicon.ico" alt="Logo" className="w-full h-full object-contain" />
                 </div>
                 <h1 className="ml-3 text-xl font-bold tracking-tight">
                   <span className="text-blue-600">Credi</span><span className="text-orange-500">Sur</span>
@@ -377,6 +377,7 @@ export default function AdminLayout({
                           onClick={() => {
                             setShowNotifications(false)
                             let target = '/admin/notificaciones'
+                            if (user?.rol === 'COORDINADOR') target = '/coordinador/notificaciones'
                             if (user?.rol === 'CONTADOR') target = '/contador/notificaciones'
                             if (user?.rol === 'COBRADOR') target = '/cobranzas/notificaciones'
                             router.push(target)
