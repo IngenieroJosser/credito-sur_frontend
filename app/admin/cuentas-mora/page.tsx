@@ -13,14 +13,20 @@ import {
   FileWarning,
   CheckCircle,
   Ban,
-  AlertTriangle
+  AlertTriangle,
+  LayoutGrid,
+  List
 } from 'lucide-react'
-import Link from 'next/link'
 import { formatCurrency, cn } from '@/lib/utils'
+import { ExportButton } from '@/components/ui/ExportButton'
+import FiltroRuta from '@/components/filtros/FiltroRuta'
+import DetalleMoraModal from '@/components/cobranza/DetalleMoraModal'
+import ClientePortalModal from '@/components/cliente/ClientePortalModal'
 
 // Enums alineados con Prisma
 type NivelRiesgo = 'VERDE' | 'AMARILLO' | 'ROJO' | 'LISTA_NEGRA';
 type EstadoPrestamo = 'EN_MORA' | 'INCUMPLIDO' | 'PERDIDA';
+type ViewMode = 'list' | 'grid';
 
 interface CuentaMora {
   id: string
@@ -45,6 +51,30 @@ interface CuentaMora {
 const CuentasMoraPage = () => {
   const [busqueda, setBusqueda] = useState('')
   const [filtroRiesgo, setFiltroRiesgo] = useState<NivelRiesgo | 'TODOS'>('TODOS')
+  const [filtroRuta, setFiltroRuta] = useState<string | null>(null)
+  const [viewMode, setViewMode] = useState<ViewMode>('list')
+  const [selectedCuenta, setSelectedCuenta] = useState<CuentaMora | null>(null)
+  const [isModalOpen, setIsModalOpen] = useState(false)
+  const [selectedClientId, setSelectedClientId] = useState<string | null>(null)
+  const [isClientModalOpen, setIsClientModalOpen] = useState(false)
+
+  const handleVerDetalle = (cuenta: CuentaMora) => {
+    setSelectedCuenta(cuenta)
+    setIsModalOpen(true)
+  }
+
+  const handleVerCliente = (id: string) => {
+    setSelectedClientId(id)
+    setIsClientModalOpen(true)
+  }
+
+  const handleExportExcel = () => {
+    console.log('Exporting Excel...')
+  }
+
+  const handleExportPDF = () => {
+    console.log('Exporting PDF...')
+  }
 
   // Datos de ejemplo
   const cuentas: CuentaMora[] = [
@@ -109,11 +139,11 @@ const CuentasMoraPage = () => {
 
   const getRiesgoColor = (riesgo: NivelRiesgo) => {
     switch (riesgo) {
-      case 'VERDE': return 'bg-emerald-100 text-emerald-800 border-emerald-200';
-      case 'AMARILLO': return 'bg-amber-100 text-amber-800 border-amber-200';
-      case 'ROJO': return 'bg-red-100 text-red-800 border-red-200';
-      case 'LISTA_NEGRA': return 'bg-gray-900 text-white border-gray-700';
-      default: return 'bg-gray-100 text-gray-800 border-gray-200';
+      case 'VERDE': return 'bg-emerald-50 text-emerald-700 border-emerald-100';
+      case 'AMARILLO': return 'bg-amber-50 text-amber-700 border-amber-100';
+      case 'ROJO': return 'bg-rose-50 text-rose-700 border-rose-100';
+      case 'LISTA_NEGRA': return 'bg-slate-900 text-white border-slate-700';
+      default: return 'bg-slate-50 text-slate-700 border-slate-100';
     }
   }
 
@@ -134,8 +164,12 @@ const CuentasMoraPage = () => {
       cuenta.ruta.toLowerCase().includes(busqueda.toLowerCase())
     
     const coincideRiesgo = filtroRiesgo === 'TODOS' || cuenta.nivelRiesgo === filtroRiesgo
+    
+    // Filtro por ruta (asumiendo que cuenta.ruta contiene el nombre o ID de la ruta)
+    // Para simplificar el mock, compararemos el nombre ya que es lo que hay en el objeto
+    const coincideRuta = !filtroRuta || cuenta.ruta.toLowerCase().includes(filtroRuta.toLowerCase())
 
-    return coincideBusqueda && coincideRiesgo
+    return coincideBusqueda && coincideRiesgo && coincideRuta
   })
 
   // Calcular totales
@@ -143,121 +177,119 @@ const CuentasMoraPage = () => {
   const totalDeuda = cuentasFiltradas.reduce((acc, curr) => acc + curr.montoTotalDeuda, 0)
 
   return (
-    <div className="min-h-screen bg-white">
-      {/* Fondo arquitectónico ultra sutil */}
+    <div className="min-h-screen bg-slate-50 relative">
+      {/* Fondo arquitectónico */}
       <div className="fixed inset-0 pointer-events-none">
-        <div className="absolute inset-0 bg-gradient-to-br from-white via-gray-50/50 to-white"></div>
-        {/* Líneas de estructura */}
-        <div className="absolute inset-0" style={{
-          backgroundImage: `linear-gradient(to right, #08557f 0.5px, transparent 0.5px)`,
-          backgroundSize: '96px 1px',
-          opacity: 0.03
-        }}></div>
-        <div className="absolute inset-0" style={{
-          backgroundImage: `linear-gradient(to bottom, #08557f 0.5px, transparent 0.5px)`,
-          backgroundSize: '1px 96px',
-          opacity: 0.03
-        }}></div>
+        <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px]"></div>
+        <div className="absolute left-0 right-0 top-0 -z-10 m-auto h-[310px] w-[310px] rounded-full bg-rose-500 opacity-20 blur-[100px]"></div>
       </div>
 
-      <div className="relative z-10 max-w-7xl mx-auto px-4 py-6">
+      <div className="relative z-10 px-6 md:px-8 py-8 space-y-8">
         {/* Header minimalista */}
-        <header className="mb-10 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between animate-in fade-in slide-in-from-top-4 duration-500">
           <div>
-            <div className="inline-flex items-center gap-2 rounded-full bg-red-50 px-3 py-1 text-xs font-medium text-red-700 mb-4 border border-red-100">
+            <div className="inline-flex items-center gap-2 rounded-full bg-rose-50 px-3 py-1 text-xs font-bold text-rose-700 mb-2 border border-rose-100">
               <AlertCircle className="h-3.5 w-3.5" />
               <span>Gestión de Cartera</span>
             </div>
-            <h1 className="text-3xl font-light text-gray-900 tracking-tight">
-              Cuentas en Mora
+            <h1 className="text-4xl md:text-5xl font-bold tracking-tight">
+              <span className="text-blue-600">Cuentas en </span><span className="text-orange-500">Mora</span>
             </h1>
-            <p className="text-sm text-gray-500 max-w-2xl mt-2 font-light">
+            <p className="text-sm text-slate-500 max-w-2xl mt-1 font-medium">
               Monitoreo y recuperación de cartera vencida de CrediSur.
             </p>
           </div>
 
           <div className="flex items-center gap-3">
-            <button className="inline-flex items-center gap-2 rounded-xl bg-white border border-gray-200 px-4 py-2.5 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 transition-all duration-300">
-              <span>Exportar Reporte</span>
-            </button>
-            <button className="inline-flex items-center gap-2 rounded-xl bg-[#08557f] px-4 py-2.5 text-sm font-medium text-white shadow hover:bg-[#064364] transition-all duration-300">
-              <span>Gestionar Cobranza</span>
-            </button>
+            <ExportButton 
+              label="Exportar " 
+              onExportExcel={handleExportExcel} 
+              onExportPDF={handleExportPDF} 
+            />
           </div>
-        </header>
+        </div>
 
+        <div className="px-6 md:px-8 py-8 space-y-8">
         {/* Resumen de métricas minimalista */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          <div className="group relative overflow-hidden bg-white p-6 rounded-2xl border border-gray-100 shadow-[0_2px_10px_-4px_rgba(0,0,0,0.05)] hover:shadow-lg transition-all duration-300">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="group relative overflow-hidden bg-white/80 backdrop-blur-sm p-6 rounded-2xl border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all duration-300">
             <div className="flex justify-between items-start mb-4">
               <div>
-                <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">Total en Mora</p>
-                <h3 className="text-2xl font-light text-gray-900 mt-2">{formatCurrency(totalMora)}</h3>
+                <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Total en Mora</p>
+                <h3 className="text-2xl font-bold text-slate-900 mt-2">{formatCurrency(totalMora)}</h3>
               </div>
-              <div className="p-3 bg-red-50 rounded-xl group-hover:scale-110 transition-transform duration-300">
-                <AlertCircle className="h-5 w-5 text-red-600" />
+              <div className="p-3 bg-rose-50 rounded-xl group-hover:scale-110 transition-transform duration-300">
+                <AlertCircle className="h-5 w-5 text-rose-600" />
               </div>
             </div>
             <div className="flex items-center gap-2">
-              <span className="inline-flex items-center gap-1 text-xs font-bold text-red-600 bg-red-50 px-2 py-1 rounded-full">
+              <span className="inline-flex items-center gap-1 text-xs font-bold text-rose-600 bg-rose-50 px-2 py-1 rounded-full">
                 <TrendingUp className="h-3 w-3" />
                 +5.2%
               </span>
-              <span className="text-xs text-gray-400">vs mes anterior</span>
+              <span className="text-xs font-medium text-slate-400">vs mes anterior</span>
             </div>
           </div>
           
-          <div className="group relative overflow-hidden bg-white p-6 rounded-2xl border border-gray-100 shadow-[0_2px_10px_-4px_rgba(0,0,0,0.05)] hover:shadow-lg transition-all duration-300">
+          <div className="group relative overflow-hidden bg-white/80 backdrop-blur-sm p-6 rounded-2xl border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all duration-300">
             <div className="flex justify-between items-start mb-4">
               <div>
-                <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">Deuda Total Riesgo</p>
-                <h3 className="text-2xl font-light text-gray-900 mt-2">{formatCurrency(totalDeuda)}</h3>
+                <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Deuda Total Riesgo</p>
+                <h3 className="text-2xl font-bold text-slate-900 mt-2">{formatCurrency(totalDeuda)}</h3>
               </div>
               <div className="p-3 bg-amber-50 rounded-xl group-hover:scale-110 transition-transform duration-300">
                 <FileWarning className="h-5 w-5 text-amber-600" />
               </div>
             </div>
             <div className="flex items-center gap-2">
-              <span className="text-xs text-gray-400">Capital + Intereses + Mora</span>
+              <span className="text-xs font-medium text-slate-400">Capital + Intereses + Mora</span>
             </div>
           </div>
 
-          <div className="group relative overflow-hidden bg-white p-6 rounded-2xl border border-gray-100 shadow-[0_2px_10px_-4px_rgba(0,0,0,0.05)] hover:shadow-lg transition-all duration-300">
+          <div className="group relative overflow-hidden bg-white/80 backdrop-blur-sm p-6 rounded-2xl border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all duration-300">
             <div className="flex justify-between items-start mb-4">
               <div>
-                <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">Clientes Afectados</p>
-                <h3 className="text-2xl font-light text-gray-900 mt-2">{cuentasFiltradas.length}</h3>
+                <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Clientes Afectados</p>
+                <h3 className="text-2xl font-bold text-slate-900 mt-2">{cuentasFiltradas.length}</h3>
               </div>
-              <div className="p-3 bg-blue-50 rounded-xl group-hover:scale-110 transition-transform duration-300">
-                <User className="h-5 w-5 text-blue-600" />
+              <div className="p-3 bg-sky-50 rounded-xl group-hover:scale-110 transition-transform duration-300">
+                <User className="h-5 w-5 text-sky-600" />
               </div>
             </div>
             <div className="flex items-center gap-2">
-              <span className="text-xs text-gray-400">
+              <span className="text-xs font-medium text-slate-400">
                 {cuentasFiltradas.filter(c => c.nivelRiesgo === 'ROJO').length} en estado crítico
               </span>
             </div>
           </div>
         </div>
 
-        {/* Filtros */}
-        <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm flex flex-col md:flex-row gap-4 items-center justify-between mb-8">
-          <div className="relative w-full md:w-96">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-            <input
-              type="text"
-              placeholder="Buscar por cliente, documento o ruta..."
-              className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#08557f]/20 focus:border-[#08557f] transition-all text-sm font-light"
-              value={busqueda}
-              onChange={(e) => setBusqueda(e.target.value)}
+        {/* Filtros y Controles */}
+        <div className="flex flex-col md:flex-row gap-4 items-center justify-between mb-8">
+          <div className="flex flex-col md:flex-row md:items-center gap-4 w-full md:w-auto">
+            <FiltroRuta 
+              onRutaChange={(r: string | null) => setFiltroRuta(r)}
+              selectedRutaId={filtroRuta}
+              showAllOption={true}
             />
+
+            <div className="relative w-full md:w-80">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
+              <input
+                type="text"
+                placeholder="Buscar por cliente, documento o ruta..."
+                className="w-full pl-10 pr-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-sm font-medium placeholder:text-slate-400 bg-white shadow-sm"
+                value={busqueda}
+                onChange={(e) => setBusqueda(e.target.value)}
+              />
+            </div>
           </div>
           
-          <div className="flex items-center gap-2 w-full md:w-auto">
+          <div className="flex items-center gap-3 w-full md:w-auto">
             <div className="relative w-full md:w-auto">
-              <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
               <select
-                className="w-full md:w-auto pl-10 pr-8 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#08557f]/20 focus:border-[#08557f] bg-white appearance-none cursor-pointer font-light"
+                className="w-full md:w-auto pl-10 pr-8 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary bg-white shadow-sm appearance-none cursor-pointer font-medium text-slate-600"
                 value={filtroRiesgo}
                 onChange={(e) => setFiltroRiesgo(e.target.value as NivelRiesgo | 'TODOS')}
               >
@@ -267,102 +299,230 @@ const CuentasMoraPage = () => {
                 <option value="LISTA_NEGRA">Lista Negra</option>
               </select>
             </div>
+
+            {/* View Toggle */}
+            <div className="flex items-center gap-1 bg-white p-1 rounded-xl border border-slate-200 shadow-sm">
+              <button
+                onClick={() => setViewMode('list')}
+                className={cn(
+                  "p-2 rounded-lg transition-all duration-200",
+                  viewMode === 'list' 
+                    ? "bg-white text-primary shadow-sm" 
+                    : "text-slate-400 hover:text-slate-600"
+                )}
+              >
+                <List className="h-4 w-4" />
+              </button>
+              <button
+                onClick={() => setViewMode('grid')}
+                className={cn(
+                  "p-2 rounded-lg transition-all duration-200",
+                  viewMode === 'grid' 
+                    ? "bg-white text-primary shadow-sm" 
+                    : "text-slate-400 hover:text-slate-600"
+                )}
+              >
+                <LayoutGrid className="h-4 w-4" />
+              </button>
+            </div>
           </div>
         </div>
 
         {/* Lista de cuentas */}
-        <div className="space-y-4">
-          {cuentasFiltradas.map((cuenta) => (
-            <div key={cuenta.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden group">
-              <div className="p-6 flex flex-col md:flex-row gap-6">
-                {/* Info Cliente */}
-                <div className="flex-1 space-y-3">
-                  <div className="flex items-start justify-between">
+        {cuentasFiltradas.length === 0 ? (
+          <div className="col-span-full text-center py-12 bg-white rounded-2xl border border-slate-200 border-dashed">
+            <div className="inline-flex p-4 rounded-full bg-emerald-50 mb-4">
+              <CheckCircle className="h-8 w-8 text-emerald-500" />
+            </div>
+            <h3 className="text-lg font-bold text-slate-900 mb-1">Todo en orden</h3>
+            <p className="text-slate-500 font-medium">No se encontraron cuentas en mora con los filtros actuales.</p>
+          </div>
+        ) : viewMode === 'grid' ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {cuentasFiltradas.map((cuenta) => (
+              <div key={cuenta.id} className="bg-white rounded-2xl border border-slate-200 shadow-sm hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] hover:-translate-y-1 transition-all duration-300 overflow-hidden group flex flex-col">
+                <div className="p-6 flex-1 space-y-6">
+                  {/* Info Cliente */}
+                  <div className="border-b border-slate-100 pb-4">
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <h3 className="font-bold text-slate-900 text-lg group-hover:text-primary transition-colors">{cuenta.cliente.nombre}</h3>
+                        <p className="text-sm text-slate-500 font-mono font-medium">{cuenta.cliente.documento}</p>
+                      </div>
+                      <span className={cn("px-3 py-1 rounded-full text-xs font-bold border flex items-center gap-1.5", getRiesgoColor(cuenta.nivelRiesgo))}>
+                        {getRiesgoIcon(cuenta.nivelRiesgo)}
+                      </span>
+                    </div>
+                    
+                    <div className="flex flex-col gap-1.5 text-sm text-slate-600 font-medium mt-3">
+                      <div className="flex items-center gap-2">
+                        <Phone className="h-3.5 w-3.5 text-slate-400" />
+                        <span>{cuenta.cliente.telefono}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <MapPin className="h-3.5 w-3.5 text-slate-400" />
+                        <span className="truncate max-w-xs">{cuenta.cliente.direccion}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Info Deuda */}
+                  <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <h3 className="font-medium text-gray-900 text-lg group-hover:text-[#08557f] transition-colors">{cuenta.cliente.nombre}</h3>
-                      <p className="text-sm text-gray-500 font-mono">{cuenta.cliente.documento}</p>
+                      <p className="text-xs text-slate-400 uppercase tracking-wide font-bold">Mora</p>
+                      <p className="text-lg font-bold text-rose-600">{formatCurrency(cuenta.montoMora)}</p>
+                      <p className="text-xs text-rose-500 font-medium">{cuenta.diasMora} días</p>
                     </div>
-                    <span className={cn("px-3 py-1 rounded-full text-xs font-bold border flex items-center gap-1.5", getRiesgoColor(cuenta.nivelRiesgo))}>
-                      {getRiesgoIcon(cuenta.nivelRiesgo)}
-                      {cuenta.nivelRiesgo.replace('_', ' ')}
-                    </span>
+                    <div>
+                      <p className="text-xs text-slate-400 uppercase tracking-wide font-bold">Total</p>
+                      <p className="text-lg font-bold text-slate-900">{formatCurrency(cuenta.montoTotalDeuda)}</p>
+                      <p className="text-xs text-slate-500 font-medium">{cuenta.cuotasVencidas} cuotas</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-slate-400 uppercase tracking-wide font-bold">Ruta</p>
+                      <p className="text-sm font-bold text-slate-700">{cuenta.ruta}</p>
+                      <p className="text-xs text-slate-500 font-medium">{cuenta.cobrador}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-slate-400 uppercase tracking-wide font-bold">Último Pago</p>
+                      <p className="text-sm font-bold text-slate-700">{cuenta.ultimoPago || 'N/A'}</p>
+                    </div>
                   </div>
-                  
-                  <div className="flex flex-col gap-1.5 text-sm text-gray-600 font-light">
-                    <div className="flex items-center gap-2">
-                      <Phone className="h-3.5 w-3.5 text-gray-400" />
-                      <span>{cuenta.cliente.telefono}</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <MapPin className="h-3.5 w-3.5 text-gray-400" />
-                      <span className="truncate max-w-xs">{cuenta.cliente.direccion}</span>
-                    </div>
-                  </div>
-                </div>
 
-                {/* Info Deuda */}
-                <div className="flex-1 grid grid-cols-2 gap-4 border-l border-gray-100 pl-0 md:pl-6">
-                  <div>
-                    <p className="text-xs text-gray-500 uppercase tracking-wide font-bold">Mora Acumulada</p>
-                    <p className="text-lg font-medium text-red-600">{formatCurrency(cuenta.montoMora)}</p>
-                    <p className="text-xs text-red-500 font-medium">{cuenta.diasMora} días de retraso</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-gray-500 uppercase tracking-wide font-bold">Deuda Total</p>
-                    <p className="text-lg font-medium text-gray-900">{formatCurrency(cuenta.montoTotalDeuda)}</p>
-                    <p className="text-xs text-gray-500">{cuenta.cuotasVencidas} cuotas vencidas</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-gray-500 uppercase tracking-wide font-bold">Ruta</p>
-                    <p className="text-sm font-medium text-gray-800">{cuenta.ruta}</p>
-                    <p className="text-xs text-gray-500">{cuenta.cobrador}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-gray-500 uppercase tracking-wide font-bold">Último Pago</p>
-                    <p className="text-sm font-medium text-gray-800">{cuenta.ultimoPago || 'Sin registros'}</p>
+                  {/* Acciones */}
+                  <div className="pt-4 border-t border-slate-100 flex gap-2">
+                    <button
+                      onClick={() => handleVerCliente(cuenta.id)}
+                      className="flex-1 inline-flex items-center justify-center px-4 py-2 bg-slate-50 text-slate-700 rounded-xl hover:bg-blue-50 hover:text-blue-700 text-sm font-bold transition-colors"
+                    >
+                      <User className="h-4 w-4 mr-2" />
+                      Perfil
+                    </button>
+                    <button
+                      onClick={() => handleVerDetalle(cuenta)}
+                      className="flex-1 inline-flex items-center justify-center px-4 py-2 bg-primary text-white rounded-xl hover:bg-primary-dark text-sm font-bold transition-colors shadow-lg shadow-primary/20"
+                    >
+                      <ChevronRight className="h-4 w-4 mr-2" />
+                      Detalle
+                    </button>
                   </div>
                 </div>
-
-                {/* Acciones */}
-                <div className="flex md:flex-col justify-center gap-2 border-t md:border-t-0 md:border-l border-gray-100 pt-4 md:pt-0 md:pl-6">
-                  <Link
-                    href={`/admin/clientes/${cuenta.id}`}
-                    className="flex-1 md:flex-none inline-flex items-center justify-center px-4 py-2 bg-gray-50 text-gray-700 rounded-xl hover:bg-gray-100 text-sm font-medium transition-colors"
-                  >
-                    <User className="h-4 w-4 mr-2" />
-                    Perfil
-                  </Link>
-                  <Link
-                    href={`/admin/prestamos/${cuenta.numeroPrestamo}`}
-                    className="flex-1 md:flex-none inline-flex items-center justify-center px-4 py-2 bg-[#08557f] text-white rounded-xl hover:bg-[#064364] text-sm font-medium transition-colors shadow-sm"
-                  >
-                    <ChevronRight className="h-4 w-4 mr-2" />
-                    Detalle
-                  </Link>
-                </div>
+                
+                {/* Barra de estado visual */}
+                <div className={cn("h-1 w-full", 
+                  cuenta.nivelRiesgo === 'ROJO' ? 'bg-rose-500' : 
+                  cuenta.nivelRiesgo === 'AMARILLO' ? 'bg-amber-500' : 
+                  cuenta.nivelRiesgo === 'LISTA_NEGRA' ? 'bg-slate-900' : 'bg-emerald-500'
+                )} />
               </div>
-              
-              {/* Barra de estado visual */}
-              <div className={cn("h-1 w-full", 
-                cuenta.nivelRiesgo === 'ROJO' ? 'bg-red-500' : 
-                cuenta.nivelRiesgo === 'AMARILLO' ? 'bg-amber-500' : 
-                cuenta.nivelRiesgo === 'LISTA_NEGRA' ? 'bg-gray-900' : 'bg-emerald-500'
-              )} />
+            ))}
+          </div>
+        ) : (
+          <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-slate-200 overflow-hidden animate-in fade-in slide-in-from-bottom-2 duration-500">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm text-left">
+                <thead className="text-xs text-slate-500 uppercase bg-slate-50/50 border-b border-slate-200">
+                  <tr>
+                    <th className="px-6 py-4 font-bold tracking-wider">Cliente / Documento</th>
+                    <th className="px-6 py-4 font-bold tracking-wider">Riesgo</th>
+                    <th className="px-6 py-4 font-bold tracking-wider">Ubicación</th>
+                    <th className="px-6 py-4 font-bold tracking-wider">Deuda Total</th>
+                    <th className="px-6 py-4 font-bold tracking-wider">Mora</th>
+                    <th className="px-6 py-4 font-bold tracking-wider text-right">Acciones</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {cuentasFiltradas.map((cuenta) => (
+                    <tr key={cuenta.id} className="hover:bg-slate-50/50 transition-colors group">
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-xl bg-slate-100 text-slate-500 flex items-center justify-center border border-slate-200 font-bold">
+                            {cuenta.cliente.nombre.charAt(0)}
+                          </div>
+                          <div>
+                            <div className="font-bold text-slate-900 group-hover:text-primary transition-colors">{cuenta.cliente.nombre}</div>
+                            <div className="text-xs text-slate-500 font-medium font-mono">{cuenta.cliente.documento}</div>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className={cn("px-2.5 py-1 rounded-full text-xs font-bold border inline-flex items-center gap-1.5", getRiesgoColor(cuenta.nivelRiesgo))}>
+                          {getRiesgoIcon(cuenta.nivelRiesgo)}
+                          {cuenta.nivelRiesgo.replace('_', ' ')}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="flex flex-col gap-1">
+                          <span className="text-slate-700 font-bold text-xs">{cuenta.ruta}</span>
+                          <span className="text-slate-500 text-xs flex items-center gap-1">
+                            <MapPin className="h-3 w-3" />
+                            {cuenta.cliente.direccion}
+                          </span>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-base font-black text-slate-900">{formatCurrency(cuenta.montoTotalDeuda)}</div>
+                        <div className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">Deuda Total</div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-base font-black text-rose-600">{formatCurrency(cuenta.montoMora)}</div>
+                        <div className="text-[10px] font-bold text-rose-500 uppercase tracking-tighter">Mora ({cuenta.diasMora}d)</div>
+                      </td>
+                      <td className="px-6 py-4 text-right">
+                        <div className="flex items-center justify-end gap-2">
+                          <button 
+                            onClick={() => handleVerCliente(cuenta.id)}
+                            className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors" 
+                            title="Ver Perfil"
+                          >
+                            <User className="w-4 h-4" />
+                          </button>
+                          <button 
+                            onClick={() => handleVerDetalle(cuenta)}
+                            className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors" 
+                            title="Ver Detalle"
+                          >
+                            <ChevronRight className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
-          ))}
-
-          {cuentasFiltradas.length === 0 && (
-            <div className="text-center py-12 bg-white rounded-2xl border border-gray-100 border-dashed">
-              <div className="inline-flex p-4 rounded-full bg-emerald-50 mb-4">
-                <CheckCircle className="h-8 w-8 text-emerald-500" />
+            
+            {cuentasFiltradas.length === 0 && (
+              <div className="text-center py-12">
+                <div className="inline-flex p-4 rounded-full bg-slate-50 mb-4">
+                  <CheckCircle className="h-8 w-8 text-slate-400" />
+                </div>
+                <h3 className="text-lg font-bold text-slate-900 mb-1">Sin resultados</h3>
+                <p className="text-slate-500 font-medium">No se encontraron cuentas con los filtros seleccionados.</p>
               </div>
-              <h3 className="text-lg font-bold text-gray-900 mb-1">Todo en orden</h3>
-              <p className="text-gray-500">No se encontraron cuentas en mora con los filtros actuales.</p>
-            </div>
-          )}
-        </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
+      {/* Modal de Detalle */}
+      {isModalOpen && selectedCuenta && (
+        <DetalleMoraModal 
+          cuenta={selectedCuenta} 
+          onClose={() => setIsModalOpen(false)} 
+          onVerCliente={handleVerCliente}
+        />
+      )}
+
+      {/* Modal de Perfil de Cliente */}
+      {isClientModalOpen && selectedClientId && (
+        <ClientePortalModal 
+          clientId={selectedClientId} 
+          onClose={() => setIsClientModalOpen(false)} 
+          rolUsuario="contador"
+        />
+      )}
+  </div>
   )
 }
 

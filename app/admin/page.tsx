@@ -11,31 +11,27 @@ import {
   Banknote,
   PieChart,
   Target,
-  Download,
   Calendar,
-  ArrowUpRight,
-  Activity,
+  Eye,
   Wallet,
   CheckCircle2,
   Route,
   Map,
   Receipt,
-  ShoppingBag,
-  Archive,
   FileText,
-  DollarSign,
   Percent,
   Package,
   Calculator,
   Inbox,
   Filter,
   BarChart3,
-  Shield
+  LayoutDashboard
 } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils';
 import { useRouter } from 'next/navigation';
-import { Rol, obtenerModulosPorRol, getIconComponent } from '@/lib/permissions';
-import VistaCobradorPage from '../cobranzas/page';
+import { ExportButton } from '@/components/ui/ExportButton';
+import { Rol } from '@/lib/permissions';
+import { PremiumBarChart } from '@/components/ui/PremiumCharts';
 
 interface UserData {
   id: string;
@@ -47,41 +43,70 @@ interface UserData {
   nombreCompleto?: string;
 }
 
+interface MetricItem {
+  title: string;
+  value: number | string;
+  subValue?: string;
+  isCurrency: boolean;
+  change: number;
+  icon: React.ReactNode;
+  color: string;
+}
+
+interface QuickAccessItem {
+  title: string;
+  subtitle: string;
+  icon: React.ReactNode;
+  color: string;
+  badge?: number;
+  href: string;
+}
+
+/**
+ * ============================================================================
+ * DASHBOARD PRINCIPAL DEL SISTEMA (ADMINISTRATIVO)
+ * ============================================================================
+ * 
+ * @description
+ * Panel de control central que adapta su contenido, métricas y accesos rápidos
+ * dinámicamente según el ROL del usuario autenticado.
+ * Es el punto de entrada principal después del login.
+ * 
+ * @roles_supported
+ * - SUPER_ADMINISTRADOR: Vista completa financiera y operativa.
+ * - ADMIN: Vista administrativa general (similar a SuperAdmin pero sin config de sistema).
+ * - COORDINADOR: Vista enfocada en gestión de rutas y aprobaciones.
+ * - SUPERVISOR: Vista de monitoreo y auditoría de campo.
+ * - COBRADOR: Vista operativa personal (Mi Ruta, Mis Pagos).
+ * - CONTADOR: Vista financiera y contable.
+ * 
+ * @architecture
+ * Utiliza un patrón de configuración (`metricsConfig` y `quickAccessConfig`) para
+ * definir qué ve cada rol sin necesidad de crear múltiples componentes de dashboard.
+ */
+
 const DashboardPage = () => {
+  // Estado para filtros de tiempo (Hoy, Semana, Mes) - Afecta a las gráficas (cuando se conecten a API)
   const [timeFilter, setTimeFilter] = useState<'today' | 'week' | 'month' | 'quarter'>('month');
+  
   const [currentDate, setCurrentDate] = useState<Date | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [userData, setUserData] = useState<UserData | null>(null);
-  const [quickAccess, setQuickAccess] = useState<any[]>([]);
-  const [mainMetrics, setMainMetrics] = useState<any[]>([]);
+  
+  // Estado dinámico poblado según el rol
+  const [quickAccess, setQuickAccess] = useState<QuickAccessItem[]>([]);
+  const [mainMetrics, setMainMetrics] = useState<MetricItem[]>([]);
+  
   const router = useRouter();
   
-  // Verificar sesión
-  useEffect(() => {
-    const token = localStorage.getItem('token');
-    const user = localStorage.getItem('user');
-    
-    if (!token || !user) {
-      router.replace('/');
-      return;
-    }
-    
-    try {
-      const parsedUser = JSON.parse(user) as UserData;
-      setUserData(parsedUser);
-      
-      // Configurar métricas y accesos rápidos según el rol
-      configurarDashboardPorRol(parsedUser.rol);
-      
-      setIsLoading(false);
-    } catch (error) {
-      console.error('Error al parsear datos del usuario:', error);
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
-      router.replace('/');
-    }
-  }, [router]);
-  
+  const handleExportExcel = () => {
+    console.log('Exporting Excel...')
+  }
+
+  const handleExportPDF = () => {
+    console.log('Exporting PDF...')
+  }
+
   useEffect(() => {
     const timer = setTimeout(() => {
       setCurrentDate(new Date());
@@ -89,41 +114,94 @@ const DashboardPage = () => {
     return () => clearTimeout(timer);
   }, []);
   
-  const configurarDashboardPorRol = (rol: Rol) => {
-    // Configurar métricas según el rol
-    const metricsConfig: Record<Rol, any[]> = {
+  /**
+   * Configura las Cards de métricas y los botones de Acceso Rápido según el rol.
+   * 
+   * @param rol - El rol del usuario actual (Tipado estricto `Rol`)
+   * @modifies mainMetrics - Estado con los 4 KPIs principales
+   * @modifies quickAccess - Estado con los 4 botones de acción rápida
+   * 
+   * @howto Agregar un nuevo ROL:
+   * 1. Asegúrese que el Rol exista en el tipo `Rol` (lib/permissions.tsx)
+   * 2. Agregue una nueva entrada en `metricsConfig` con sus 4 KPIs.
+   * 3. Agregue una nueva entrada en `quickAccessConfig`.
+   */
+  function configurarDashboardPorRol(rol: Rol) {
+    // ------------------------------------------------------------------------
+    // CONFIGURACIÓN DE MÉTRICAS (KPIs) POR ROL
+    // ------------------------------------------------------------------------
+    // Definir aquí los 4 indicadores clave que cada perfil debe monitorear.
+    const metricsConfig: Record<Rol, MetricItem[]> = {
       SUPER_ADMINISTRADOR: [
+        {
+          title: 'Total Prestado (Mes)',
+          value: 125000000,
+          isCurrency: true,
+          change: 12.5,
+          icon: <CreditCard className="h-4 w-4" />,
+          color: '#3b82f6'
+        },
+        {
+          title: 'Recaudo Real vs Esperado',
+          value: '94.2%',
+          subValue: `${formatCurrency(12500000)} / ${formatCurrency(13200000)}`,
+          isCurrency: false,
+          change: 2.1,
+          icon: <Target className="h-4 w-4" />,
+          color: '#8b5cf6'
+        },
+        {
+          title: 'Cartera en Mora',
+          value: 45000000,
+          subValue: '8.5% del total',
+          isCurrency: true,
+          change: -3.4,
+          icon: <AlertCircle className="h-4 w-4" />,
+          color: '#f43f5e'
+        },
         {
           title: 'Capital Activo',
           value: 2850000000,
           isCurrency: true,
-          change: 8.2,
-          icon: <TrendingUp className="h-4 w-4" />,
-          color: '#08557f'
+          change: 5.8,
+          icon: <Banknote className="h-4 w-4" />,
+          color: '#f59e0b'
+        }
+      ],
+      ADMIN: [
+        {
+          title: 'Total Prestado (Mes)',
+          value: 125000000,
+          isCurrency: true,
+          change: 12.5,
+          icon: <CreditCard className="h-4 w-4" />,
+          color: '#3b82f6'
         },
         {
-          title: 'Recuperación',
+          title: 'Recaudo Real vs Esperado',
           value: '94.2%',
+          subValue: `${formatCurrency(12500000)} / ${formatCurrency(13200000)}`,
           isCurrency: false,
           change: 2.1,
           icon: <Target className="h-4 w-4" />,
-          color: '#10b981'
+          color: '#8b5cf6'
         },
         {
-          title: 'Cartera Vencida',
+          title: 'Cartera en Mora',
           value: 45000000,
+          subValue: '8.5% del total',
           isCurrency: true,
           change: -3.4,
           icon: <AlertCircle className="h-4 w-4" />,
-          color: '#ef4444'
+          color: '#f43f5e'
         },
         {
-          title: 'Eficiencia',
-          value: '87.3%',
-          isCurrency: false,
-          change: 1.8,
-          icon: <Activity className="h-4 w-4" />,
-          color: '#fb851b'
+          title: 'Capital Activo',
+          value: 2850000000,
+          isCurrency: true,
+          change: 5.8,
+          icon: <Banknote className="h-4 w-4" />,
+          color: '#f59e0b'
         }
       ],
       COORDINADOR: [
@@ -133,10 +211,10 @@ const DashboardPage = () => {
           isCurrency: false,
           change: 8.2,
           icon: <CreditCard className="h-4 w-4" />,
-          color: '#08557f'
+          color: '#0f172a'
         },
         {
-          title: 'Aprobaciones',
+          title: 'Revisiones',
           value: 8,
           isCurrency: false,
           change: -2.1,
@@ -149,7 +227,7 @@ const DashboardPage = () => {
           isCurrency: false,
           change: -3.4,
           icon: <AlertCircle className="h-4 w-4" />,
-          color: '#ef4444'
+          color: '#f43f5e'
         },
         {
           title: 'Rutas Activas',
@@ -157,7 +235,7 @@ const DashboardPage = () => {
           isCurrency: false,
           change: 1.8,
           icon: <Route className="h-4 w-4" />,
-          color: '#fb851b'
+          color: '#f59e0b'
         }
       ],
       SUPERVISOR: [
@@ -167,7 +245,7 @@ const DashboardPage = () => {
           isCurrency: false,
           change: 5.2,
           icon: <Users className="h-4 w-4" />,
-          color: '#08557f'
+          color: '#0f172a'
         },
         {
           title: 'Gastos Aprobados',
@@ -183,7 +261,7 @@ const DashboardPage = () => {
           isCurrency: false,
           change: -3.4,
           icon: <AlertCircle className="h-4 w-4" />,
-          color: '#ef4444'
+          color: '#f43f5e'
         },
         {
           title: 'Cobertura Ruta',
@@ -191,7 +269,7 @@ const DashboardPage = () => {
           isCurrency: false,
           change: 2.1,
           icon: <Map className="h-4 w-4" />,
-          color: '#fb851b'
+          color: '#f59e0b'
         }
       ],
       COBRADOR: [
@@ -201,7 +279,7 @@ const DashboardPage = () => {
           isCurrency: false,
           change: -2,
           icon: <Users className="h-4 w-4" />,
-          color: '#08557f'
+          color: '#0f172a'
         },
         {
           title: 'Recaudo Hoy',
@@ -217,7 +295,7 @@ const DashboardPage = () => {
           isCurrency: true,
           change: -5.2,
           icon: <Receipt className="h-4 w-4" />,
-          color: '#ef4444'
+          color: '#f43f5e'
         },
         {
           title: 'Eficiencia Personal',
@@ -225,7 +303,7 @@ const DashboardPage = () => {
           isCurrency: false,
           change: 2.8,
           icon: <Target className="h-4 w-4" />,
-          color: '#fb851b'
+          color: '#f59e0b'
         }
       ],
       CONTADOR: [
@@ -235,7 +313,7 @@ const DashboardPage = () => {
           isCurrency: true,
           change: 12.5,
           icon: <TrendingUp className="h-4 w-4" />,
-          color: '#08557f'
+          color: '#0f172a'
         },
         {
           title: 'Cuentas Incobrables',
@@ -243,7 +321,7 @@ const DashboardPage = () => {
           isCurrency: false,
           change: -1.2,
           icon: <FileText className="h-4 w-4" />,
-          color: '#ef4444'
+          color: '#f43f5e'
         },
         {
           title: 'Margen Utilidad',
@@ -255,25 +333,25 @@ const DashboardPage = () => {
         },
         {
           title: 'Inventario Activo',
-          value: '₡185M',
-          isCurrency: false,
+          value: 185000000,
+          isCurrency: true,
           change: 8.7,
           icon: <Package className="h-4 w-4" />,
-          color: '#fb851b'
+          color: '#f59e0b'
         }
       ]
     };
 
     // Configurar accesos rápidos según el rol
-    const quickAccessConfig: Record<Rol, any[]> = {
+    const quickAccessConfig: Record<Rol, QuickAccessItem[]> = {
       SUPER_ADMINISTRADOR: [
         {
           title: 'Nuevo Crédito',
           subtitle: 'Registro rápido',
           icon: <CreditCard className="h-5 w-5" />,
-          color: '#08557f',
+          color: '#0f172a',
           badge: 3,
-          href: '/admin/prestamos/nuevo'
+          href: '/admin/creditos/nuevo'
         },
         {
           title: 'Cobranza',
@@ -287,23 +365,55 @@ const DashboardPage = () => {
           title: 'Clientes',
           subtitle: 'Base de datos',
           icon: <Users className="h-5 w-5" />,
-          color: '#8b5cf6',
+          color: '#6366f1',
           href: '/admin/clientes'
         },
         {
           title: 'Análisis',
           subtitle: 'Reportes avanzados',
           icon: <PieChart className="h-5 w-5" />,
-          color: '#fb851b',
+          color: '#f59e0b',
+          href: '/admin/reportes/operativos'
+        }
+      ],
+      ADMIN: [
+        {
+          title: 'Nuevo Crédito',
+          subtitle: 'Registro rápido',
+          icon: <CreditCard className="h-5 w-5" />,
+          color: '#0f172a',
+          badge: 3,
+          href: '/admin/creditos/nuevo'
+        },
+        {
+          title: 'Cobranza',
+          subtitle: 'Gestionar pagos',
+          icon: <Wallet className="h-5 w-5" />,
+          color: '#10b981',
+          badge: 12,
+          href: '/admin/pagos/registro'
+        },
+        {
+          title: 'Clientes',
+          subtitle: 'Base de datos',
+          icon: <Users className="h-5 w-5" />,
+          color: '#6366f1',
+          href: '/admin/clientes'
+        },
+        {
+          title: 'Análisis',
+          subtitle: 'Reportes avanzados',
+          icon: <PieChart className="h-5 w-5" />,
+          color: '#f59e0b',
           href: '/admin/reportes/operativos'
         }
       ],
       COORDINADOR: [
         {
-          title: 'Aprobaciones',
+          title: 'Revisiones',
           subtitle: 'Pendientes de revisión',
           icon: <Inbox className="h-5 w-5" />,
-          color: '#08557f',
+          color: '#0f172a',
           badge: 8,
           href: '/admin/aprobaciones'
         },
@@ -312,20 +422,20 @@ const DashboardPage = () => {
           subtitle: 'Crear préstamo',
           icon: <CreditCard className="h-5 w-5" />,
           color: '#10b981',
-          href: '/admin/prestamos/nuevo'
+          href: '/admin/creditos/nuevo'
         },
         {
           title: 'Rutas',
           subtitle: 'Gestión de cobradores',
           icon: <Route className="h-5 w-5" />,
-          color: '#8b5cf6',
-          href: '/admin/rutas'
+          color: '#6366f1',
+          href: '/coordinador/rutas'
         },
         {
           title: 'Reportes',
           subtitle: 'Métricas diarias',
           icon: <PieChart className="h-5 w-5" />,
-          color: '#fb851b',
+          color: '#f59e0b',
           href: '/admin/reportes/operativos'
         }
       ],
@@ -333,8 +443,8 @@ const DashboardPage = () => {
         {
           title: 'Monitoreo Cartera',
           subtitle: 'Clientes atrasados',
-          icon: <Activity className="h-5 w-5" />,
-          color: '#08557f',
+          icon: <Eye className="h-5 w-5" />,
+          color: '#0f172a',
           href: '/admin/cuentas-mora'
         },
         {
@@ -349,14 +459,14 @@ const DashboardPage = () => {
           title: 'Reportes',
           subtitle: 'Métricas por ruta',
           icon: <PieChart className="h-5 w-5" />,
-          color: '#8b5cf6',
+          color: '#6366f1',
           href: '/admin/reportes/operativos'
         },
         {
           title: 'Clientes',
           subtitle: 'Consulta de cartera',
           icon: <Users className="h-5 w-5" />,
-          color: '#fb851b',
+          color: '#f59e0b',
           href: '/admin/clientes'
         }
       ],
@@ -365,7 +475,7 @@ const DashboardPage = () => {
           title: 'Mi Ruta',
           subtitle: 'Clientes del día',
           icon: <Map className="h-5 w-5" />,
-          color: '#08557f',
+          color: '#0f172a',
           badge: 24,
           href: '/admin/ruta-diaria'
         },
@@ -380,14 +490,14 @@ const DashboardPage = () => {
           title: 'Nuevo Cliente',
           subtitle: 'Registro rápido',
           icon: <Users className="h-5 w-5" />,
-          color: '#8b5cf6',
+          color: '#6366f1',
           href: '/admin/clientes/nuevo'
         },
         {
           title: 'Base de Efectivo',
           subtitle: 'Solicitar dinero',
           icon: <Banknote className="h-5 w-5" />,
-          color: '#fb851b',
+          color: '#f59e0b',
           href: '/admin/base-dinero'
         }
       ],
@@ -397,35 +507,63 @@ const DashboardPage = () => {
           subtitle: 'Caja principal y ruta',
           icon: <Calculator className="h-5 w-5" />,
           color: '#08557f',
-          href: '/admin/contable'
+          href: '/contador/contable'
         },
         {
           title: 'Tesorería',
           subtitle: 'Ingresos y transferencias',
           icon: <Banknote className="h-5 w-5" />,
           color: '#10b981',
-          href: '/admin/tesoreria'
+          href: '/contador/tesoreria'
         },
         {
           title: 'Inventario',
           subtitle: 'Gestión de productos',
           icon: <Package className="h-5 w-5" />,
           color: '#8b5cf6',
-          href: '/admin/articulos'
+          href: '/contador/articulos'
         },
         {
           title: 'Reportes Financieros',
           subtitle: 'Análisis detallado',
           icon: <BarChart3 className="h-5 w-5" />,
           color: '#fb851b',
-          href: '/admin/reportes/financieros'
+          href: '/contador/reportes/financieros'
         }
       ]
     };
 
     setMainMetrics(metricsConfig[rol] || []);
     setQuickAccess(quickAccessConfig[rol] || []);
-  };
+  }
+
+  // Verificar sesión
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    const user = localStorage.getItem('user');
+
+    if (!token || !user) {
+      router.replace('/');
+      return;
+    }
+
+    try {
+      const parsedUser = JSON.parse(user) as UserData;
+      queueMicrotask(() => {
+        setUserData(parsedUser);
+
+        // Configurar métricas y accesos rápidos según el rol
+        configurarDashboardPorRol(parsedUser.rol);
+
+        setIsLoading(false);
+      });
+    } catch (error) {
+      console.error('Error al parsear datos del usuario:', error);
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      router.replace('/');
+    }
+  }, [router]);
 
   // Formatear fecha elegante
   const formatDate = (date: Date) => {
@@ -438,75 +576,72 @@ const DashboardPage = () => {
     return date.toLocaleDateString('es-CO', options);
   };
 
-  // Obtener título del dashboard según rol
-  const getDashboardTitle = () => {
-    if (!userData) return 'Panel de Control';
-    
-    const titulos: Record<Rol, string> = {
-      'SUPER_ADMINISTRADOR': 'Panel de Control',
-      'COORDINADOR': 'Coordinación de Operaciones',
-      'SUPERVISOR': 'Supervisión de Campo',
-      'COBRADOR': 'Mi Gestión de Cobranza',
-      'CONTADOR': 'Control Financiero'
-    };
-    
-    return titulos[userData.rol] || 'Panel de Control';
-  };
 
-  // Función para cerrar sesión
-  const handleLogout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    router.replace('/');
-  };
+  useEffect(() => {
+    if (userData?.rol === 'COBRADOR') {
+      router.replace('/cobranzas');
+      return;
+    }
+    if (userData?.rol === 'COORDINADOR') {
+      router.replace('/coordinador');
+      return;
+    }
+    if (userData?.rol === 'SUPERVISOR') {
+      router.replace('/supervisor');
+      return;
+    }
+  }, [userData, router]);
 
   // Mostrar loading mientras se verifica la sesión
   if (isLoading) {
     return (
       <div className="min-h-screen bg-white flex items-center justify-center">
         <div className="text-center">
-          <div className="w-8 h-8 border-2 border-[#08557f] border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
           <p className="text-gray-600">Verificando sesión...</p>
         </div>
       </div>
     );
   }
 
-  // Si el usuario es COBRADOR, mostrar el componente específico
-  if (userData?.rol === 'COBRADOR') {
-    return <VistaCobradorPage />;
+  // Si se está redirigiendo, no renderizar nada o un loader
+  if (userData?.rol === 'COBRADOR' || userData?.rol === 'COORDINADOR' || userData?.rol === 'SUPERVISOR') {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-slate-50">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+          <p className="text-gray-600 font-medium">Redirigiendo a su panel...</p>
+        </div>
+      </div>
+    );
   }
 
   // Para otros roles, mostrar el dashboard normal
   return (
-    <div className="min-h-screen bg-white relative">
-      {/* Fondo arquitectónico ultra sutil */}
-      <div className="fixed inset-0 pointer-events-none z-0">
-        <div className="absolute inset-0 bg-gradient-to-br from-white via-gray-50/50 to-white"></div>
-        {/* Líneas de estructura */}
-        <div className="absolute inset-0" style={{
-          backgroundImage: `linear-gradient(to right, #08557f 0.5px, transparent 0.5px)`,
-          backgroundSize: '96px 1px',
-          opacity: 0.03
-        }}></div>
-        <div className="absolute inset-0" style={{
-          backgroundImage: `linear-gradient(to bottom, #08557f 0.5px, transparent 0.5px)`,
-          backgroundSize: '1px 96px',
-          opacity: 0.03
-        }}></div>
+    <div className="min-h-screen bg-slate-50 relative">
+      {/* Fondo arquitectónico */}
+      <div className="fixed inset-0 pointer-events-none">
+        <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px]"></div>
+        <div className="absolute left-0 right-0 top-0 -z-10 m-auto h-[310px] w-[310px] rounded-full bg-primary opacity-20 blur-[100px]"></div>
       </div>
 
       <div className="relative z-10 p-6 lg:p-12 space-y-12">
-        {/* Header Minimalista */}
-        <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+        {/* Header Standard */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 animate-in fade-in slide-in-from-top-4 duration-500">
           <div>
-            <h1 className="text-4xl font-light text-slate-900 tracking-tight mb-2">
-              {getDashboardTitle()}
-            </h1>
-            <p className="text-slate-500 font-medium flex items-center gap-2 text-sm">
-              <Calendar className="h-4 w-4 text-[#08557f]/60" />
+            <div className="flex items-center gap-2 mb-2">
+              <div className="p-2 bg-blue-600 rounded-lg shadow-md shadow-blue-600/20">
+                <LayoutDashboard className="w-6 h-6 text-white" />
+              </div>
+              <h1 className="text-3xl font-bold tracking-tight">
+                <span className="text-blue-600">Panel</span> <span className="text-orange-500">Principal</span>
+              </h1>
+            </div>
+            <p className="text-slate-500 mt-1 font-medium text-sm flex items-center gap-2">
+              <Calendar className="h-3.5 w-3.5" />
               {currentDate ? formatDate(currentDate) : ''}
-              <span className="ml-2 px-2 py-1 bg-slate-100 rounded text-xs">
+              <span className="w-1 h-1 rounded-full bg-slate-300"></span>
+              <span className="text-xs px-2 py-0.5 bg-slate-100 rounded text-slate-600 font-semibold border border-slate-200">
                 {userData?.rol?.replace('_', ' ') || 'Usuario'}
               </span>
             </p>
@@ -522,8 +657,8 @@ const DashboardPage = () => {
                     onClick={() => setTimeFilter(values[index])}
                     className={`px-5 py-2 text-sm rounded-lg transition-all font-medium ${
                       timeFilter === values[index] 
-                        ? 'bg-[#08557f] text-white shadow-md shadow-[#08557f]/20' 
-                        : 'text-slate-500 hover:text-[#08557f] hover:bg-[#08557f]/5'
+                        ? 'bg-primary text-white shadow-md shadow-primary/20' 
+                        : 'text-slate-500 hover:text-primary hover:bg-primary/5'
                     }`}
                   >
                     {item}
@@ -532,10 +667,11 @@ const DashboardPage = () => {
               })}
             </div>
             
-            <button className="flex items-center space-x-2 px-6 py-3 bg-white hover:bg-slate-50 text-slate-700 rounded-xl shadow-sm border border-slate-200 hover:border-[#08557f]/30 transition-all font-medium group">
-              <Download className="h-4 w-4 text-slate-400 group-hover:text-[#08557f] transition-colors" />
-              <span>Exportar</span>
-            </button>
+            <ExportButton 
+              label="Exportar" 
+              onExportExcel={handleExportExcel} 
+              onExportPDF={handleExportPDF} 
+            />
           </div>
         </div>
         
@@ -549,7 +685,7 @@ const DashboardPage = () => {
                  onClick={() => setTimeFilter(values[index])}
                  className={`px-4 py-2 text-sm rounded-full whitespace-nowrap transition-all font-medium ${
                    timeFilter === values[index] 
-                     ? 'bg-[#08557f] text-white' 
+                     ? 'bg-primary text-white' 
                      : 'bg-white text-slate-600 border border-slate-200'
                  }`}
                >
@@ -587,6 +723,9 @@ const DashboardPage = () => {
                 <div className="text-2xl font-bold text-slate-800 tracking-tight truncate" title={metric.isCurrency ? formatCurrency(Number(metric.value)) : String(metric.value)}>
                   {metric.isCurrency ? formatCurrency(Number(metric.value)) : metric.value}
                 </div>
+                {metric.subValue && (
+                  <div className="text-xs font-medium text-slate-500">{metric.subValue}</div>
+                )}
                 <div className="text-xs font-medium text-slate-400 uppercase tracking-wider">{metric.title}</div>
               </div>
             </div>
@@ -597,159 +736,169 @@ const DashboardPage = () => {
           {/* Columna Principal (Izquierda) */}
           <div className="lg:col-span-2 space-y-8">
             
-            {/* Accesos Rápidos */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-              {quickAccess.map((item, index) => (
-                <Link
-                  key={index}
-                  href={item.href}
-                  className="group relative overflow-hidden rounded-2xl p-6 bg-white shadow-[0_4px_20px_-4px_rgba(0,0,0,0.03)] hover:shadow-[0_8px_30px_-4px_rgba(0,0,0,0.08)] transition-all duration-300 border border-slate-100"
-                >
-                  <div className="flex items-start justify-between mb-4 relative z-10">
-                    <div className="p-3 rounded-xl shadow-sm transition-transform group-hover:scale-110 duration-300" style={{ backgroundColor: item.color }}>
-                      <div className="text-white">
-                        {item.icon}
-                      </div>
-                    </div>
-                    <div className="h-8 w-8 rounded-full bg-slate-50 flex items-center justify-center group-hover:bg-[#08557f]/10 transition-colors">
-                      <ArrowUpRight className="h-4 w-4 text-slate-400 group-hover:text-[#08557f]" />
-                    </div>
-                  </div>
-                  
-                  <div className="relative z-10">
-                    <h3 className="text-lg font-bold text-slate-800 mb-1 group-hover:text-[#08557f] transition-colors">{item.title}</h3>
-                    <p className="text-slate-500 text-xs leading-relaxed">{item.subtitle}</p>
-                  </div>
-                </Link>
-              ))}
-            </div>
-
-            {/* Resumen de Rendimiento (solo para ciertos roles) */}
-            {(userData?.rol === 'SUPER_ADMINISTRADOR' || userData?.rol === 'COORDINADOR' || userData?.rol === 'SUPERVISOR') && (
-              <div className="rounded-2xl bg-white p-8 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.03)] border border-slate-100">
-                <div className="flex items-center justify-between mb-8">
-                  <div>
-                    <h2 className="text-xl font-bold text-slate-800">Rendimiento Mensual</h2>
-                    <p className="text-slate-400 text-xs mt-1">Métricas clave de operación</p>
-                  </div>
-                  <button className="text-xs font-semibold text-[#08557f] hover:text-[#063a58] bg-[#08557f]/5 px-3 py-1.5 rounded-lg transition-colors">
-                    Ver reporte detallado
-                  </button>
+            {/* Gráfico Principal: Tendencia de Cobros */}
+            <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
+              <div className="flex items-center justify-between mb-6">
+                <div>
+                  <h3 className="text-lg font-bold text-slate-800">Tendencia de Cobros</h3>
+                  <p className="text-slate-500 text-sm">Últimos 7 días vs Meta Diaria</p>
                 </div>
-                
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-12 gap-y-8">
-                  {[
-                    { label: 'Tasa de Recuperación', value: 94, color: '#10b981', desc: 'Excelente ritmo de cobro' },
-                    { label: 'Eficiencia Operativa', value: 87, color: '#fb851b', desc: 'Dentro del rango esperado' },
-                    { label: 'Satisfacción Cliente', value: 92, color: '#8b5cf6', desc: 'Basado en encuestas' },
-                    { label: 'Cumplimiento Metas', value: 96, color: '#08557f', desc: 'Proyección positiva' }
-                  ].map((item, index) => (
-                    <div key={index} className="space-y-3">
-                      <div className="flex justify-between items-end">
-                        <span className="text-sm font-medium text-slate-600">{item.label}</span>
-                        <span className="text-lg font-bold text-slate-800">{item.value}%</span>
-                      </div>
-                      <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
-                        <div 
-                          className="h-full rounded-full transition-all duration-1000 relative"
-                          style={{ 
-                            width: `${item.value}%`,
-                            backgroundColor: item.color,
-                          }}
-                        >
-                          <div className="absolute inset-0 bg-white/20"></div>
-                        </div>
-                      </div>
-                      <p className="text-[10px] text-slate-400 font-medium">{item.desc}</p>
-                    </div>
-                  ))}
+                <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1.5 text-xs font-medium text-slate-600">
+                    <div className="w-3 h-3 rounded-full bg-blue-500"></div>
+                    Real
+                  </div>
+                  <div className="flex items-center gap-1.5 text-xs font-medium text-slate-600">
+                    <div className="w-3 h-3 rounded-full border-2 border-dashed border-amber-500 bg-amber-50"></div>
+                    Meta
+                  </div>
                 </div>
               </div>
-            )}
+              
+              <PremiumBarChart 
+                showTarget
+                data={[
+                  { label: 'Lun', value: 2500000, target: 3000000 },
+                  { label: 'Mar', value: 2800000, target: 3000000 },
+                  { label: 'Mie', value: 1900000, target: 3000000 },
+                  { label: 'Jue', value: 3400000, target: 3000000 },
+                  { label: 'Vie', value: 2950000, target: 3000000 },
+                  { label: 'Sab', value: 3800000, target: 3000000 },
+                  { label: 'Dom', value: 1200000, target: 1500000 },
+                ]}
+              />
+            </div>
+
+            {/* Listado: Últimos Préstamos Aprobados */}
+            <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-lg font-bold text-slate-800">Últimos Préstamos Aprobados</h3>
+                <Link href="/admin/prestamos" className="text-sm font-medium text-blue-600 hover:text-blue-700 hover:underline">
+                  Ver todos
+                </Link>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm text-left">
+                  <thead className="text-xs text-slate-500 uppercase bg-slate-50/50">
+                    <tr>
+                      <th className="px-4 py-3 font-medium">Cliente</th>
+                      <th className="px-4 py-3 font-medium">Monto</th>
+                      <th className="px-4 py-3 font-medium">Cuotas</th>
+                      <th className="px-4 py-3 font-medium text-right">Estado</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {[
+                      { client: 'Ana María Polo', amount: 1500000, term: 'Mensual', status: 'APROBADO', date: 'Hace 2h' },
+                      { client: 'Carlos Vives', amount: 5000000, term: 'Quincenal', status: 'PENDIENTE', date: 'Hace 4h' },
+                      { client: 'Juanes', amount: 800000, term: 'Diario', status: 'APROBADO', date: 'Hace 5h' },
+                      { client: 'Shakira Mebarak', amount: 12000000, term: 'Mensual', status: 'APROBADO', date: 'Hace 1d' },
+                    ].map((loan, idx) => (
+                      <tr key={idx} className="hover:bg-slate-50/50 transition-colors">
+                        <td className="px-4 py-3">
+                          <div className="font-medium text-slate-900">{loan.client}</div>
+                          <div className="text-xs text-slate-500">{loan.date}</div>
+                        </td>
+                        <td className="px-4 py-3 font-medium text-slate-700">{formatCurrency(loan.amount)}</td>
+                        <td className="px-4 py-3 text-slate-600">{loan.term}</td>
+                        <td className="px-4 py-3 text-right">
+                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                            loan.status === 'APROBADO' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'
+                          }`}>
+                            {loan.status}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
           </div>
 
           {/* Columna Lateral (Derecha) */}
           <div className="space-y-8">
-            {/* Actividad Reciente */}
-            <div className="bg-white rounded-2xl shadow-[0_4px_20px_-4px_rgba(0,0,0,0.03)] border border-slate-100 overflow-hidden flex flex-col h-full">
-              <div className="p-6 pb-4 flex items-center justify-between border-b border-slate-50">
-                <h2 className="text-lg font-bold text-slate-800">Actividad</h2>
-                <div className="flex items-center gap-2 px-2.5 py-1 bg-emerald-50 rounded-full">
-                  <span className="relative flex h-2 w-2">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                    <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-                  </span>
-                  <span className="text-[10px] font-bold text-emerald-700 uppercase tracking-wide">En vivo</span>
-                </div>
+            
+            {/* Listado: Top 5 Cobradores */}
+            <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-lg font-bold text-slate-800">Top 5 Cobradores</h3>
+                <span className="text-xs font-medium px-2 py-1 bg-blue-50 text-blue-700 rounded-full">Mes Actual</span>
               </div>
-              
-              <div className="p-6 flex-1 overflow-y-auto max-h-[500px] scrollbar-thin scrollbar-thumb-slate-200">
-                <div className="space-y-6 relative before:absolute before:left-[15px] before:top-2 before:bottom-2 before:w-[2px] before:bg-slate-100">
-                  {[
-                    { id: 1, client: 'González M.', action: 'Pago completado', amount: 1250000, time: '09:42', status: 'success' },
-                    { id: 2, client: 'López C.', action: 'Renegociación', amount: 3500000, time: '10:15', status: 'pending' },
-                    { id: 3, client: 'Martínez A.', action: 'Mora detectada', amount: 750000, time: '11:30', status: 'alert' },
-                    { id: 4, client: 'Ramírez P.', action: 'Pago anticipado', amount: 2100000, time: '13:20', status: 'success' },
-                    { id: 5, client: 'Sánchez L.', action: 'Consulta saldo', amount: null, time: '14:45', status: 'info' }
-                  ].map((item) => (
-                    <div key={item.id} className="relative pl-8 group">
-                      {/* Punto de tiempo */}
-                      <div className={`absolute left-[9px] top-1.5 h-3 w-3 rounded-full border-2 border-white ring-2 ring-slate-100 bg-white group-hover:scale-125 transition-transform duration-300 z-10`}>
-                        <div className={`h-full w-full rounded-full ${
-                           item.status === 'success' ? 'bg-emerald-500' :
-                           item.status === 'pending' ? 'bg-orange-500' :
-                           item.status === 'alert' ? 'bg-rose-500' :
-                           'bg-blue-500'
-                        }`}></div>
+              <div className="space-y-5">
+                {[
+                  { name: 'Juan Pérez', collected: 15400000, efficiency: 98, trend: 'up' },
+                  { name: 'Maria Gonzalez', collected: 12800000, efficiency: 95, trend: 'up' },
+                  { name: 'Pedro Coral', collected: 11200000, efficiency: 92, trend: 'down' },
+                  { name: 'Betty Pinzon', collected: 9800000, efficiency: 89, trend: 'up' },
+                  { name: 'Armando Mendoza', collected: 8500000, efficiency: 85, trend: 'down' },
+                ].map((collector, idx) => (
+                  <div key={idx} className="flex items-center justify-between group">
+                    <div className="flex items-center gap-3">
+                      <div className="flex-shrink-0 w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-600 font-bold border border-slate-200">
+                        {idx + 1}
                       </div>
-
-                      <div className="flex flex-col space-y-1">
-                        <div className="flex justify-between items-start">
-                          <p className="text-sm font-bold text-slate-800 group-hover:text-[#08557f] transition-colors">{item.client}</p>
-                          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">{item.time}</span>
+                      <div>
+                        <div className="font-medium text-slate-900 text-sm">{collector.name}</div>
+                        <div className="text-xs text-slate-500 flex items-center gap-1">
+                          Eficiencia: 
+                          <span className={collector.efficiency >= 95 ? 'text-emerald-600 font-semibold' : 'text-slate-600'}>
+                            {collector.efficiency}%
+                          </span>
                         </div>
-                        <p className="text-xs text-slate-500">{item.action}</p>
-                        {item.amount && (
-                           <span className="inline-flex text-[10px] font-mono font-semibold text-slate-600 bg-slate-50 px-2 py-0.5 rounded w-fit mt-1">
-                             {formatCurrency(item.amount)}
-                           </span>
-                        )}
                       </div>
                     </div>
-                  ))}
-                </div>
+                    <div className="text-right">
+                      <div className="font-bold text-slate-800 text-sm">{formatCurrency(collector.collected)}</div>
+                      {collector.trend === 'up' ? (
+                        <div className="text-[10px] text-emerald-600 flex items-center justify-end gap-0.5">
+                          <TrendingUp className="h-3 w-3" />
+                          <span>Excelente</span>
+                        </div>
+                      ) : (
+                        <div className="text-[10px] text-amber-600 flex items-center justify-end gap-0.5">
+                          <TrendingDown className="h-3 w-3" />
+                          <span>Regular</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))}
               </div>
-              
-              <div className="p-4 border-t border-slate-50 bg-slate-50/30">
-                <button className="w-full py-2.5 text-xs font-bold text-slate-600 bg-white border border-slate-200 rounded-xl hover:border-[#08557f]/30 hover:text-[#08557f] transition-all shadow-sm">
-                  Ver todo el historial
-                </button>
+              <div className="mt-6 pt-4 border-t border-slate-100">
+                <Link href="/admin/reportes/operativos" className="block w-full text-center text-sm font-medium text-slate-600 hover:text-slate-900 transition-colors">
+                  Ver reporte completo
+                </Link>
               </div>
             </div>
+
+            {/* Accesos Rápidos (Reducido) */}
+            <div className="bg-slate-50 rounded-2xl p-6 border border-slate-200/60">
+              <h3 className="text-sm font-bold text-slate-500 uppercase tracking-wider mb-4">Accesos Rápidos</h3>
+              <div className="grid grid-cols-1 gap-3">
+                {quickAccess.slice(0, 3).map((item, index) => (
+                  <Link
+                    key={index}
+                    href={item.href}
+                    className="flex items-center gap-3 p-3 bg-white rounded-xl shadow-sm border border-slate-100 hover:shadow-md hover:border-blue-100 transition-all group"
+                  >
+                    <div className="p-2 rounded-lg bg-slate-50 text-slate-600 group-hover:bg-blue-50 group-hover:text-blue-600 transition-colors">
+                      {item.icon}
+                    </div>
+                    <div>
+                      <div className="font-medium text-slate-900 text-sm group-hover:text-blue-700">{item.title}</div>
+                      <div className="text-xs text-slate-500">{item.subtitle}</div>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            </div>
+
           </div>
         </div>
 
-        {/* Stats adicionales */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {[
-            { label: 'Clientes Activos', value: '1,247', icon: <Users className="h-5 w-5" />, color: 'text-[#08557f]', bg: 'bg-[#08557f]/10' },
-            { label: 'Préstamos Activos', value: '856', icon: <CreditCard className="h-5 w-5" />, color: 'text-emerald-600', bg: 'bg-emerald-50' },
-            { label: 'Cobros Hoy', value: 4582000, isCurrency: true, icon: <Banknote className="h-5 w-5" />, color: 'text-orange-600', bg: 'bg-orange-50' },
-            { label: 'En Morosidad', value: '3.6%', icon: <AlertCircle className="h-5 w-5" />, color: 'text-rose-600', bg: 'bg-rose-50' }
-          ].map((stat, index) => (
-            <div key={index} className="bg-white rounded-xl p-5 shadow-[0_2px_10px_-3px_rgba(0,0,0,0.05)] flex items-center space-x-4 border border-slate-100 hover:border-[#08557f]/20 transition-all">
-              <div className={`p-3 rounded-lg ${stat.bg} ${stat.color}`}>
-                {stat.icon}
-              </div>
-              <div>
-                <div className="text-lg font-bold text-slate-800">
-                  {stat.isCurrency ? formatCurrency(Number(stat.value)) : stat.value}
-                </div>
-                <div className="text-[10px] text-slate-500 font-bold uppercase tracking-wide">{stat.label}</div>
-              </div>
-            </div>
-          ))}
-        </div>
+
 
         {/* Footer sutil */}
         <div className="mt-8 text-center pb-6">
