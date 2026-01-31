@@ -30,6 +30,7 @@ import { Sparkline, PremiumBarChart } from '@/components/ui/PremiumCharts'
 
 import PagoModal from '@/components/dashboards/shared/PagoModal'
 import CrearCreditoModal from '@/components/dashboards/shared/CrearCreditoModal'
+import DetalleMoraModal from '@/components/cobranza/DetalleMoraModal'
 
 
 interface MetricCard {
@@ -77,6 +78,9 @@ const VistaSupervisor = () => {
     montoCuota: number;
     saldoTotal: number;
   } | undefined>(undefined)
+  
+  const [showMoraModal, setShowMoraModal] = useState(false)
+  const [selectedMoraClient, setSelectedMoraClient] = useState<DelinquentClient | null>(null)
   
   const router = useRouter()
 
@@ -402,6 +406,16 @@ const VistaSupervisor = () => {
                         <DollarSign className="h-2.5 w-2.5" />
                         Pagar
                       </button>
+                      <button 
+                        onClick={() => {
+                          setSelectedMoraClient(client)
+                          setShowMoraModal(true)
+                        }}
+                        className="p-1 px-2 text-[10px] font-bold bg-slate-100 text-slate-700 rounded transition-colors hover:bg-slate-200 flex items-center gap-1"
+                      >
+                         <AlertCircle className="h-2.5 w-2.5" />
+                         Gestionar
+                      </button>
                     </div>
                   </div>
                 </div>
@@ -445,6 +459,34 @@ const VistaSupervisor = () => {
       </div>
 
 
+
+
+      {showMoraModal && selectedMoraClient && (
+        <DetalleMoraModal
+          cuenta={{
+            id: String(selectedMoraClient.id),
+            numeroPrestamo: `P-${selectedMoraClient.id}`,
+            cliente: {
+              nombre: selectedMoraClient.client,
+              documento: 'N/A',
+              telefono: 'N/A',
+              direccion: 'N/A'
+            },
+            diasMora: selectedMoraClient.daysLate,
+            montoMora: selectedMoraClient.amountDue,
+            montoTotalDeuda: selectedMoraClient.amountDue * 1.5,
+            cuotasVencidas: Math.ceil(selectedMoraClient.daysLate / 30),
+            ruta: selectedMoraClient.route,
+            cobrador: selectedMoraClient.collector,
+            nivelRiesgo: selectedMoraClient.status === 'critical' ? 'ROJO' :
+                         selectedMoraClient.status === 'moderate' ? 'AMARILLO' : 'VERDE'
+          }}
+          onClose={() => {
+            setShowMoraModal(false)
+            setSelectedMoraClient(null)
+          }}
+        />
+      )}
 
       <PagoModal 
         isOpen={showPagoModal}

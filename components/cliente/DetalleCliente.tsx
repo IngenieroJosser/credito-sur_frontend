@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils';
 import { ExportButton } from '@/components/ui/ExportButton';
+import DetallePrestamoModal from '@/components/prestamos/DetallePrestamoModal';
 
 // Interfaces alineadas con Prisma y el Dominio
 export type NivelRiesgo = 'VERDE' | 'AMARILLO' | 'ROJO' | 'LISTA_NEGRA';
@@ -90,6 +91,7 @@ interface ClienteDetalleProps {
   onContact?: () => void;
   onNewLoan?: () => void;
 }
+
 const ClienteDetalleElegante: React.FC<ClienteDetalleProps> = ({
   cliente,
   prestamos,
@@ -99,7 +101,7 @@ const ClienteDetalleElegante: React.FC<ClienteDetalleProps> = ({
   const [activeTab, setActiveTab] = useState<'resumen' | 'prestamos' | 'pagos' | 'comentarios' | 'fotos'>('resumen');
   const [isNoteModalOpen, setIsNoteModalOpen] = useState(false);
   const [newNote, setNewNote] = useState('');
-
+  const [idPrestamoAVer, setIdPrestamoAVer] = useState<string | null>(null);
 
   const calcularTotales = () => {
     const totalPrestamos = prestamos.reduce((sum, p) => sum + p.montoTotal, 0);
@@ -450,7 +452,10 @@ const ClienteDetalleElegante: React.FC<ClienteDetalleProps> = ({
                     <div className="text-right">
                       <p className="text-2xl font-bold text-slate-900">{formatCurrency(prestamo.montoTotal)}</p>
                       <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4">Monto Total</p>
-                      <button className="px-4 py-2 bg-white border border-slate-200 text-slate-700 rounded-xl hover:bg-slate-50 hover:border-slate-300 transition-all text-sm font-bold shadow-sm">
+                      <button 
+                        onClick={() => setIdPrestamoAVer(prestamo.id)}
+                        className="px-4 py-2 bg-white border border-slate-200 text-slate-700 rounded-xl hover:bg-slate-50 hover:border-slate-300 transition-all text-sm font-bold shadow-sm"
+                      >
                         Ver Detalles
                       </button>
                     </div>
@@ -676,6 +681,13 @@ const ClienteDetalleElegante: React.FC<ClienteDetalleProps> = ({
              </div>
           </div>
         </div>
+      )}
+
+      {idPrestamoAVer && (
+        <DetallePrestamoModal
+          id={idPrestamoAVer}
+          onClose={() => setIdPrestamoAVer(null)}
+        />
       )}
     </div>
   );

@@ -21,9 +21,10 @@
  * - `PRESTAMOS_MOCK`: Fuente de datos actual (debe migrarse a API).
  */
 
+// Replace imports and component logic.
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
+import { usePathname } from 'next/navigation';
 import {
   Search,
   TrendingUp,
@@ -47,6 +48,7 @@ import { formatCurrency, cn } from '@/lib/utils';
 import { PRESTAMOS_MOCK, Prestamo, EstadoPrestamo } from './data';
 import FiltroRuta from '@/components/filtros/FiltroRuta';
 import EditarPrestamoModal from '@/components/prestamos/EditarPrestamoModal';
+import DetallePrestamoModal from '@/components/prestamos/DetallePrestamoModal';
 import { useNotification } from '@/components/providers/NotificationProvider';
 
 interface Filtros {
@@ -61,7 +63,8 @@ interface Filtros {
 
 const ListadoPrestamosElegante = () => {
   const { showNotification } = useNotification();
-  const router = useRouter();
+  // const router = useRouter(); // Removed unused
+
   const pathname = usePathname();
   
   // --------------------------------------------------------------------------
@@ -87,6 +90,7 @@ const ListadoPrestamosElegante = () => {
   const [cargando, setCargando] = useState(true);
   const [mounted, setMounted] = useState(false);
   const [idPrestamoAEditar, setIdPrestamoAEditar] = useState<string | null>(null);
+  const [idPrestamoAVer, setIdPrestamoAVer] = useState<string | null>(null);
 
   const handleEliminarPrestamo = (id: string) => {
     if (confirm('¿Está seguro de que desea eliminar este préstamo?')) {
@@ -179,7 +183,7 @@ const ListadoPrestamosElegante = () => {
   };
 
   const irADetallePrestamo = (id: string) => {
-    router.push(`${baseRoute}/${id}`);
+    setIdPrestamoAVer(id);
   };
 
   if (!mounted) return null;
@@ -209,13 +213,15 @@ const ListadoPrestamosElegante = () => {
             </p>
           </div>
           <div className="flex items-center gap-3">
-            <Link 
-              href={`${baseRoute}/nuevo`}
-              className="inline-flex items-center gap-2 px-6 py-2.5 bg-white border border-slate-300 text-slate-700 rounded-xl hover:border-slate-400 hover:bg-slate-50 transition-all duration-200 shadow-sm font-bold text-sm group"
-            >
-              <Plus className="w-4 h-4 text-slate-500 group-hover:text-slate-900 transition-colors" />
-              Nuevo Crédito
-            </Link>
+            {!isCoordinador && (
+              <Link 
+                href={`${baseRoute}/nuevo`}
+                className="inline-flex items-center gap-2 px-6 py-2.5 bg-white border border-slate-300 text-slate-700 rounded-xl hover:border-slate-400 hover:bg-slate-50 transition-all duration-200 shadow-sm font-bold text-sm group"
+              >
+                <Plus className="w-4 h-4 text-slate-500 group-hover:text-slate-900 transition-colors" />
+                Nuevo Crédito
+              </Link>
+            )}
           </div>
         </div>
       </div>
@@ -278,7 +284,7 @@ const ListadoPrestamosElegante = () => {
                  <FiltroRuta 
                     onRutaChange={(r) => setFiltros(prev => ({ ...prev, ruta: r || 'todas' }))}
                     selectedRutaId={filtros.ruta === 'todas' ? null : filtros.ruta}
-                    className="w-48"
+                    layout="wrap"
                     showAllOption={true}
                  />
               </div>
@@ -465,6 +471,14 @@ const ListadoPrestamosElegante = () => {
             setIdPrestamoAEditar(null);
             // Re-fetch or update local state
           }}
+        />
+      )}
+      
+      {idPrestamoAVer && (
+        <DetallePrestamoModal
+          key={idPrestamoAVer}
+          id={idPrestamoAVer}
+          onClose={() => setIdPrestamoAVer(null)}
         />
       )}
     </div>

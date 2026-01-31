@@ -342,7 +342,7 @@ export const RutasPageView = ({ readOnly = false, rutasBasePath = '/admin/rutas'
                 placeholder="Buscar por nombre, código o cobrador..."
                 value={busqueda}
                 onChange={(e) => setBusqueda(e.target.value)}
-                className="w-full pl-11 pr-4 py-3.5 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-slate-900/20 focus:border-slate-900 transition-all text-sm font-medium text-slate-900 placeholder:text-slate-400"
+                className="w-full pl-11 pr-4 py-2.5 rounded-xl border-slate-200 bg-slate-50/50 text-sm font-medium text-slate-900 focus:ring-2 focus:ring-slate-900/10 focus:border-slate-900/20 transition-all placeholder:text-slate-400"
               />
             </div>
             <div className="flex gap-2 overflow-x-auto pb-2 md:pb-0 scrollbar-hide">
@@ -788,7 +788,7 @@ export const RutasPageView = ({ readOnly = false, rutasBasePath = '/admin/rutas'
                           value={formData.nombre}
                           onChange={handleInputChange}
                           placeholder="Ej: Ruta Centro - Comercial"
-                          className="w-full px-4 py-2.5 rounded-xl border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-blue-600/20 focus:border-blue-600 transition-all font-medium text-slate-900 placeholder:text-slate-400"
+                          className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50/50 focus:bg-white focus:ring-2 focus:ring-blue-600/10 focus:border-blue-600 outline-none transition-all font-bold text-slate-900 placeholder:text-slate-400"
                           required
                         />
                       </div>

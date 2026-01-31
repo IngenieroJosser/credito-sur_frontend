@@ -16,6 +16,7 @@ interface FiltroRutaProps {
   className?: string
   showAllOption?: boolean
   hideLabel?: boolean
+  layout?: 'scroll' | 'wrap'
 }
 
 export default function FiltroRuta({ 
@@ -23,7 +24,8 @@ export default function FiltroRuta({
   selectedRutaId = null,
   className = '',
   showAllOption = true,
-  hideLabel = false
+  hideLabel = false,
+  layout = 'scroll'
 }: FiltroRutaProps) {
   const [rutas, setRutas] = useState<RutaOption[]>([])
   const [loading, setLoading] = useState(true)
@@ -55,13 +57,17 @@ export default function FiltroRuta({
         <div className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] pl-1">Filtrar por Ruta Operativa</div>
       )}
       
-      <div className="flex flex-row items-center gap-2 overflow-x-auto pb-2 scrollbar-hide flex-nowrap min-w-0">
+      <div className={cn(
+        "flex items-center gap-2",
+        layout === 'scroll' ? "flex-row overflow-x-auto pb-2 scrollbar-hide flex-nowrap min-w-0" : "flex-row flex-wrap"
+      )}>
         {showAllOption && (
           <button
             onClick={() => onRutaChange(null)}
             disabled={loading}
             className={cn(
-              "whitespace-nowrap px-6 py-2.5 rounded-2xl text-xs font-black transition-all border shadow-sm active:scale-95 shrink-0 uppercase tracking-tighter",
+              "whitespace-nowrap px-6 py-2.5 rounded-2xl text-xs font-black transition-all border shadow-sm active:scale-95 uppercase tracking-tighter",
+              layout === 'scroll' && "shrink-0",
               selectedRutaId === null 
                 ? "bg-blue-600 text-white border-blue-600 shadow-blue-200 shadow-lg" 
                 : "bg-white text-slate-500 border-slate-200 hover:border-blue-300 hover:text-blue-600"
@@ -83,7 +89,8 @@ export default function FiltroRuta({
               key={ruta.id}
               onClick={() => onRutaChange(ruta.id)}
               className={cn(
-                "whitespace-nowrap px-6 py-2.5 rounded-2xl text-xs font-black transition-all border shadow-sm active:scale-95 shrink-0 uppercase tracking-tighter",
+                "whitespace-nowrap px-6 py-2.5 rounded-2xl text-xs font-black transition-all border shadow-sm active:scale-95 uppercase tracking-tighter",
+                layout === 'scroll' && "shrink-0",
                 selectedRutaId === ruta.id 
                   ? "bg-blue-600 text-white border-blue-600 shadow-blue-200 shadow-lg" 
                   : "bg-white text-slate-500 border-slate-200 hover:border-blue-300 hover:text-blue-600"

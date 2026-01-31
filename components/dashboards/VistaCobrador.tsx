@@ -77,6 +77,7 @@ import CrearCreditoModal from '@/components/dashboards/shared/CrearCreditoModal'
 import ReprogramarModal from '@/components/cobranza/ReprogramarModal'
 import GastoModal from '@/components/dashboards/shared/GastoModal'
 import BaseModal from '@/components/dashboards/shared/BaseModal'
+import DetalleMoraModal from '@/components/cobranza/DetalleMoraModal'
 
 interface OperacionCaja {
   id: string
@@ -114,6 +115,9 @@ const VistaCobrador = () => {
   const [visitaClienteSeleccionada, setVisitaClienteSeleccionada] = useState<VisitaRuta | null>(null)
   const [showEstadoCuentaModal, setShowEstadoCuentaModal] = useState(false)
   const [visitaEstadoCuentaSeleccionada, setVisitaEstadoCuentaSeleccionada] = useState<VisitaRuta | null>(null)
+  
+  const [showMoraModal, setShowMoraModal] = useState(false)
+  const [visitaMoraSeleccionada, setVisitaMoraSeleccionada] = useState<VisitaRuta | null>(null)
   const [showNewClientModal, setShowNewClientModal] = useState(false)
   const [showReprogramModal, setShowReprogramModal] = useState(false)
   const [visitaReprogramar, setVisitaReprogramar] = useState<VisitaRuta | null>(null)
@@ -590,8 +594,13 @@ const VistaCobrador = () => {
 
 
   const handleAbrirClienteInfo = useCallback((visita: VisitaRuta) => {
-    setVisitaClienteSeleccionada(visita)
-    setShowClienteInfoModal(true)
+    if (visita.estado === 'en_mora') {
+      setVisitaMoraSeleccionada(visita)
+      setShowMoraModal(true)
+    } else {
+      setVisitaClienteSeleccionada(visita)
+      setShowClienteInfoModal(true)
+    }
   }, [])
 
 
@@ -1516,6 +1525,34 @@ const VistaCobrador = () => {
             onClienteCreado={(nuevo) => {
               console.log('Nuevo cliente creado:', nuevo)
               setShowNewClientModal(false)
+            }}
+          />
+        )}
+
+
+        {showMoraModal && visitaMoraSeleccionada && (
+          <DetalleMoraModal
+            cuenta={{
+              id: visitaMoraSeleccionada.id,
+              numeroPrestamo: visitaMoraSeleccionada.id, // Mock
+              cliente: {
+                nombre: visitaMoraSeleccionada.cliente,
+                documento: 'N/A', // Not in VisitaRuta
+                telefono: visitaMoraSeleccionada.telefono,
+                direccion: visitaMoraSeleccionada.direccion
+              },
+              diasMora: 15, // Mock default values
+              montoMora: visitaMoraSeleccionada.saldoTotal - visitaMoraSeleccionada.montoCuota, // Estimate
+              montoTotalDeuda: visitaMoraSeleccionada.saldoTotal,
+              cuotasVencidas: 1, // Mock
+              ruta: userSession?.rutaAsignada || 'Ruta Asignada',
+              cobrador: userSession?.nombres || 'Cobrador',
+              nivelRiesgo: visitaMoraSeleccionada.nivelRiesgo === 'critico' ? 'ROJO' : 
+                          visitaMoraSeleccionada.nivelRiesgo === 'moderado' ? 'AMARILLO' : 'VERDE'
+            }}
+            onClose={() => {
+              setShowMoraModal(false)
+              setVisitaMoraSeleccionada(null)
             }}
           />
         )}

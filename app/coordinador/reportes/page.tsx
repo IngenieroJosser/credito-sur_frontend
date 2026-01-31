@@ -6,10 +6,12 @@ import { BarChart3, Calendar, Eye } from 'lucide-react'
 import { formatCurrency, cn } from '@/lib/utils'
 import { ExportButton } from '@/components/ui/ExportButton'
 import FiltroRuta from '@/components/filtros/FiltroRuta'
+import DetalleReporteOperativoModal from '@/components/reportes/DetalleReporteOperativoModal'
 
 const ReportesCoordinador = () => {
   const router = useRouter()
   const [mounted, setMounted] = useState(false)
+  const [reporteAVisualizar, setReporteAVisualizar] = useState<string | null>(null)
 
   const handleExportExcel = () => console.log('Exporting Excel...')
   const handleExportPDF = () => console.log('Exporting PDF...')
@@ -136,7 +138,10 @@ const ReportesCoordinador = () => {
                                     </div>
                                 </td>
                                 <td className="px-6 py-4 text-right">
-                                    <button onClick={() => router.push(`/coordinador/reportes/${r.id}`)} className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg">
+                                    <button 
+                                      onClick={() => setReporteAVisualizar(r.id)} 
+                                      className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg"
+                                    >
                                         <Eye className="h-4 w-4" />
                                     </button>
                                 </td>
@@ -146,6 +151,13 @@ const ReportesCoordinador = () => {
                 </table>
             </div>
         </section>
+
+        {reporteAVisualizar && (
+          <DetalleReporteOperativoModal
+            id={reporteAVisualizar}
+            onClose={() => setReporteAVisualizar(null)}
+          />
+        )}
       </div>
     </div>
   )

@@ -13,6 +13,7 @@ import Link from 'next/link'
 import { formatCurrency, cn } from '@/lib/utils'
 import { ExportButton } from '@/components/ui/ExportButton'
 import FiltroRuta from '@/components/filtros/FiltroRuta'
+import GestionarVencidaModal from '@/components/cobranza/GestionarVencidaModal'
 
 // Enums
 type NivelRiesgo = 'VERDE' | 'AMARILLO' | 'ROJO' | 'LISTA_NEGRA';
@@ -36,9 +37,23 @@ interface CuentaVencida {
 const CuentasVencidasCoordinador = () => {
   const [busqueda, setBusqueda] = useState('')
   const [viewMode, setViewMode] = useState<ViewMode>('list')
+  const [showModal, setShowModal] = useState(false)
+  const [selectedCuenta, setSelectedCuenta] = useState<CuentaVencida | null>(null)
 
   const handleExportExcel = () => console.log('Exporting Excel...')
   const handleExportPDF = () => console.log('Exporting PDF...')
+
+  const handleGestionar = (cuenta: CuentaVencida) => {
+    setSelectedCuenta(cuenta)
+    setShowModal(true)
+  }
+
+  const handleSaveDecision = (data: { cobrarInteres: boolean; montoInteres: number }) => {
+    console.log('Decisión guardada:', data, 'para cuenta:', selectedCuenta?.id)
+    // Aquí iría la llamada al backend
+    setShowModal(false)
+    setSelectedCuenta(null)
+  }
 
   // Datos mock para Cuentas Vencidas
   const cuentas: CuentaVencida[] = [
@@ -196,18 +211,29 @@ const CuentasVencidasCoordinador = () => {
                     <div className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">Saldo Pendiente</div>
                   </td>
                   <td className="px-6 py-4 text-right">
-                    <Link 
-                      href={`/coordinador/cuentas-vencidas/${c.id}`} 
-                      className="inline-flex items-center gap-1.5 px-4 py-2 bg-white border border-blue-200 text-blue-600 font-bold rounded-lg hover:bg-blue-50 transition-all text-xs shadow-sm hover:shadow-md"
+                    <button 
+                      onClick={() => handleGestionar(c)} 
+                      className="inline-flex items-center gap-1.5 px-4 py-2 bg-white border border-rose-200 text-rose-600 font-bold rounded-lg hover:bg-rose-50 transition-all text-xs shadow-sm hover:shadow-md"
                     >
-                      Ver Expediente
-                    </Link>
+                      Gestionar
+                    </button>
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
+
+        {showModal && selectedCuenta && (
+          <GestionarVencidaModal 
+            cuenta={selectedCuenta}
+            onClose={() => {
+              setShowModal(false)
+              setSelectedCuenta(null)
+            }}
+            onConfirm={handleSaveDecision}
+          />
+        )}
       </div>
     </div>
   )
