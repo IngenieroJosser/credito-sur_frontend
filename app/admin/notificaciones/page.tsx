@@ -7,7 +7,10 @@ import {
   Bell, 
   Search, 
   Banknote, 
-  Users, 
+  UserPlus,
+  CreditCard,
+  Receipt,
+  DollarSign,
   AlertCircle, 
   CheckCircle2, 
   Clock,
@@ -26,7 +29,7 @@ interface Notificacion {
   id: string
   titulo: string
   mensaje: string
-  tipo: 'PAGO' | 'CLIENTE' | 'MORA' | 'SISTEMA'
+  tipo: 'PAGO' | 'CLIENTE' | 'MORA' | 'SISTEMA' | 'PRESTAMO' | 'GASTO' | 'SOLICITUD_DINERO'
   fecha: string
   leida: boolean
   link?: string
@@ -47,6 +50,7 @@ interface Notificacion {
     beneficiario?: string
     categoria?: string
     frecuenciaPago?: 'DIARIO' | 'SEMANAL' | 'QUINCENAL' | 'MENSUAL'
+    motivo?: string
   }
   motivoRechazo?: string
 }
@@ -56,7 +60,7 @@ const MOCK_NOTIFICACIONES: Notificacion[] = [
     id: 'NOT-LP-001',
     titulo: 'Solicitud de Préstamo - Juan Cobrador',
     mensaje: 'Solicitud de préstamo en efectivo: $500,000 para cliente nuevo.',
-    tipo: 'SISTEMA',
+    tipo: 'PRESTAMO',
     fecha: 'Hace 2 min',
     leida: false,
     rutaId: 'RT-002',
@@ -77,7 +81,7 @@ const MOCK_NOTIFICACIONES: Notificacion[] = [
     id: 'NOT-CR-002',
     titulo: 'Crédito de Artículo - Juan Cobrador',
     mensaje: 'Solicitud de crédito para Lavadora Samsung 19kg.',
-    tipo: 'SISTEMA',
+    tipo: 'PRESTAMO',
     fecha: 'Hace 15 min',
     leida: false,
     rutaId: 'RT-002',
@@ -106,26 +110,10 @@ const MOCK_NOTIFICACIONES: Notificacion[] = [
     estado: 'PENDIENTE'
   },
   {
-    id: 'NOT-002',
-    titulo: 'Solicitud de Préstamo',
-    mensaje: 'El cobrador Juan Pérez ha solicitado un préstamo para un nuevo cliente',
-    tipo: 'SISTEMA',
-    fecha: 'Hace 2 horas',
-    leida: false,
-    rutaId: 'RT-002',
-    estado: 'PENDIENTE',
-    detalles: {
-      monto: 500000,
-      cuotas: 24,
-      porcentaje: 20,
-      cliente: 'Carlos Rodríguez'
-    }
-  },
-  {
     id: 'NOT-003',
     titulo: 'Registro de Gasto',
     mensaje: 'Gasto reportado por mantenimiento de motocicleta',
-    tipo: 'SISTEMA',
+    tipo: 'GASTO',
     fecha: 'Hace 4 horas',
     leida: false,
     rutaId: 'RT-002',
@@ -137,13 +125,18 @@ const MOCK_NOTIFICACIONES: Notificacion[] = [
     }
   },
   {
-    id: 'NOT-004',
-    titulo: 'Cierre Diario',
-    mensaje: 'El cierre diario se ha completado exitosamente',
-    tipo: 'SISTEMA',
-    fecha: 'Ayer, 18:30',
-    leida: true,
-    estado: 'APROBADA'
+    id: 'NOT-005',
+    titulo: 'Solicitud de Base',
+    mensaje: 'Solicitud de dinero para base de ruta centro',
+    tipo: 'SOLICITUD_DINERO',
+    fecha: 'Hace 1 hora',
+    leida: false,
+    rutaId: 'RT-001',
+    estado: 'PENDIENTE',
+    detalles: {
+      monto: 2000000,
+      motivo: 'Fondo inicial para jornada de cobranza'
+    }
   }
 ]
 
@@ -225,7 +218,10 @@ export default function NotificacionesPage() {
   const getIcon = (tipo: string) => {
     switch (tipo) {
       case 'PAGO': return <Banknote className="h-5 w-5" />
-      case 'CLIENTE': return <Users className="h-5 w-5" />
+      case 'CLIENTE': return <UserPlus className="h-5 w-5" />
+      case 'PRESTAMO': return <CreditCard className="h-5 w-5" />
+      case 'GASTO': return <Receipt className="h-5 w-5" />
+      case 'SOLICITUD_DINERO': return <DollarSign className="h-5 w-5" />
       case 'MORA': return <AlertCircle className="h-5 w-5" />
       default: return <Bell className="h-5 w-5" />
     }
@@ -235,6 +231,9 @@ export default function NotificacionesPage() {
     switch (tipo) {
       case 'PAGO': return 'bg-blue-50 text-blue-700 border-blue-100'
       case 'CLIENTE': return 'bg-purple-50 text-purple-700 border-purple-100'
+      case 'PRESTAMO': return 'bg-indigo-50 text-indigo-700 border-indigo-100'
+      case 'GASTO': return 'bg-orange-50 text-orange-700 border-orange-100'
+      case 'SOLICITUD_DINERO': return 'bg-emerald-50 text-emerald-700 border-emerald-100'
       case 'MORA': return 'bg-rose-50 text-rose-700 border-rose-100'
       case 'APROBACION': return 'bg-emerald-50 text-emerald-700 border-emerald-100'
       default: return 'bg-white text-slate-700 border-slate-200'
@@ -305,17 +304,17 @@ export default function NotificacionesPage() {
               </button>
               <div className="flex items-center gap-3 mb-2">
                 <div className="p-2 bg-white shadow-sm rounded-lg border border-slate-100">
-                  <Bell className="h-6 w-6 text-orange-500" />
+                  <CheckCircle2 className="h-6 w-6 text-orange-500" />
                 </div>
                 <span className="text-xs font-bold text-blue-600 tracking-wider uppercase bg-blue-50 border border-blue-100 px-3 py-1 rounded-full">
-                  Centro de Mensajes
+                  Centro de Control Unificado
                 </span>
               </div>
               <h1 className="text-3xl font-bold text-slate-900 tracking-tight">
-                Notificaciones
+                Notificaciones y <span className="text-orange-500">Revisiones</span>
               </h1>
               <p className="text-slate-500 mt-2 text-lg">
-                Gestiona tus alertas y avisos del sistema
+                Gestiona alertas y aprueba solicitudes pendientes en un solo lugar.
               </p>
             </div>
             
@@ -396,8 +395,11 @@ export default function NotificacionesPage() {
                     {(
                       [
                         { key: 'TODOS' as const, label: 'Todas' },
-                        { key: 'PAGO' as const, label: 'Pagos' },
+                        { key: 'PRESTAMO' as const, label: 'Préstamos' },
                         { key: 'CLIENTE' as const, label: 'Clientes' },
+                        { key: 'GASTO' as const, label: 'Gastos' },
+                        { key: 'SOLICITUD_DINERO' as const, label: 'Bases' },
+                        { key: 'PAGO' as const, label: 'Pagos' },
                         { key: 'MORA' as const, label: 'Mora' },
                         { key: 'SISTEMA' as const, label: 'Sistema' },
                       ]
@@ -423,7 +425,9 @@ export default function NotificacionesPage() {
                     <FiltroRuta 
                         onRutaChange={setFilterRuta} 
                         selectedRutaId={filterRuta}
+                        layout="wrap"
                         showAllOption={true}
+                        hideLabel={true}
                     />
                   </div>
 
@@ -599,8 +603,28 @@ export default function NotificacionesPage() {
 
                 {selectedNotif.detalles && (
                   <div className="space-y-4">
-                    {/* SI ES GASTO - MODAL COMPACTO */}
-                    {selectedNotif.detalles.categoria ? (
+                    {selectedNotif.detalles.motivo ? (
+                      /* SOLICITUD DE BASE */
+                      <div className="bg-slate-50/50 rounded-2xl border border-slate-100 p-4 space-y-3">
+                        <div className="text-center pb-2 border-b border-slate-100">
+                           <p className="text-[9px] font-black uppercase tracking-widest text-slate-500 mb-0.5">Monto de la Base</p>
+                           <h4 className="text-2xl font-black text-slate-900 tabular-nums">{formatCurrency(editedDetails?.monto)}</h4>
+                        </div>
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between">
+                            <span className="text-[9px] font-black text-slate-500 uppercase">Solicitud</span>
+                            <span className="text-[9px] font-black text-emerald-700 bg-emerald-100/50 px-2 py-0.5 rounded-full uppercase">Fondo de Ruta</span>
+                          </div>
+                          <div className="pt-1">
+                             <p className="text-[9px] font-black text-slate-500 uppercase mb-1">Motivo</p>
+                             <p className="text-[11px] text-slate-700 font-medium leading-normal italic border-l-2 border-emerald-400 pl-2">
+                               {editedDetails?.motivo || selectedNotif.mensaje}
+                             </p>
+                          </div>
+                        </div>
+                      </div>
+                    ) : selectedNotif.detalles.categoria ? (
+                      /* GASTO */
                       <div className="bg-slate-50/50 rounded-2xl border border-slate-100 p-4 space-y-3">
                         <div className="text-center pb-2 border-b border-slate-100">
                            <p className="text-[9px] font-black uppercase tracking-widest text-slate-500 mb-0.5">Monto del Gasto</p>
@@ -620,7 +644,7 @@ export default function NotificacionesPage() {
                         </div>
                       </div>
                     ) : (
-                      /* SI ES CRÉDITO/ARTÍCULO - DISEÑO COMPACTO */
+                      /* PRÉSTAMO / CRÉDITO */
                       <div className="space-y-3">
                         <div className="flex items-center justify-between px-1">
                            <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest leading-none">Análisis de Cartera</p>
@@ -744,7 +768,7 @@ export default function NotificacionesPage() {
                                    {isEditingMode ? (
                                       <select 
                                         value={editedDetails?.frecuenciaPago || 'DIARIO'}
-                                        onChange={(e) => setEditedDetails({...(editedDetails || {}), frecuenciaPago: e.target.value as any})}
+                                        onChange={(e) => setEditedDetails({...(editedDetails || {}), frecuenciaPago: e.target.value as 'DIARIO' | 'SEMANAL' | 'QUINCENAL' | 'MENSUAL'})}
                                         className="w-full bg-white border border-blue-200 text-slate-900 rounded-md px-2 py-1 text-xs font-black outline-none"
                                       >
                                         <option value="DIARIO">DIARIO</option>
@@ -758,7 +782,6 @@ export default function NotificacionesPage() {
                                  </div>
                                </div>
 
-                               {/* Resumen Automático del Cálculo */}
                                <div className="mt-4 p-3 bg-emerald-50 rounded-xl border border-emerald-100 border-dashed">
                                   <p className="text-[8px] font-black text-emerald-600 uppercase mb-2 tracking-widest">Plan de Pago Proyectado</p>
                                   <div className="grid grid-cols-2 gap-4">

@@ -18,9 +18,10 @@
  * - Categorización: Movimientos tipificados para facilitar reportes P&L (Ganancias y Pérdidas).
  */
 
-import React, { useState, Suspense } from 'react'
+import React, { useState, Suspense, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { useNotification } from '@/components/providers/NotificationProvider'
+import { Rol } from '@/lib/permissions'
 
 import {
   DollarSign,
@@ -101,6 +102,20 @@ type RutaResumen = {
 }
 
 const ModuloContableContent = () => {
+  const [userRole, setUserRole] = useState<Rol | null>(null)
+  
+  useEffect(() => {
+    const userData = localStorage.getItem('user')
+    if (userData) {
+      try {
+        const user = JSON.parse(userData)
+        setUserRole(user.rol)
+      } catch (e) {
+        console.error('Error parsing user data', e)
+      }
+    }
+  }, [])
+
   const [showCrearCajaModal, setShowCrearCajaModal] = useState(false)
   const { showNotification } = useNotification()
   const [busqueda] = useState('')
@@ -407,13 +422,14 @@ const ModuloContableContent = () => {
   }
 
   const openRegistrarMovimiento = () => {
+    const defaultCaja = userRole === 'SUPER_ADMINISTRADOR' ? 'CAJA-MAIN' : (cajas.find(c => c.tipo === 'RUTA')?.id || '')
     setMovimientoForm({
       tipo: 'INGRESO',
       categoria: '',
       montoInput: '',
       concepto: '',
       referencia: '',
-      cajaId: 'CAJA-MAIN',
+      cajaId: defaultCaja,
       origen: 'EMPRESA',
       estado: 'PENDIENTE',
       responsableId: 'USR-004',
@@ -669,7 +685,9 @@ const ModuloContableContent = () => {
                          </tr>
                      </thead>
                     <tbody className="divide-y divide-slate-100">
-                        {historialCierres.map((cierre) => (
+                        {historialCierres
+                            .filter(h => userRole === 'SUPER_ADMINISTRADOR' || !h.caja.toLowerCase().includes('principal'))
+                            .map((cierre) => (
                             <tr key={cierre.id} className="hover:bg-slate-50/50 transition-colors group">
                                 <td className="px-6 py-4">
                                     <div className="font-black text-slate-900 text-[11px] uppercase tracking-tight">
@@ -793,6 +811,8 @@ const ModuloContableContent = () => {
                   <FiltroRuta 
                       onRutaChange={(r: string | null) => setFiltroRuta(r || 'TODOS')} 
                       selectedRutaId={filtroRuta === 'TODOS' ? null : filtroRuta}
+                      layout="wrap"
+                      hideLabel={true}
                   />
               </div>
             </div>
@@ -880,7 +900,9 @@ const ModuloContableContent = () => {
               </button>
             </div>
             <div className="divide-y divide-slate-100">
-              {cajas.slice(0, 6).map((c) => (
+              {cajas
+                .filter(c => userRole === 'SUPER_ADMINISTRADOR' || c.tipo !== 'PRINCIPAL')
+                .slice(0, 6).map((c) => (
                 <div
                   key={c.id}
                   className="w-full text-left p-5 hover:bg-slate-50 transition-colors border-b border-slate-100 last:border-0"
@@ -954,30 +976,32 @@ const ModuloContableContent = () => {
 
               <div className="p-6 space-y-5">
                 <div className="grid grid-cols-2 gap-3">
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setCrearCajaForm((p) => ({
-                        ...p,
-                        tipo: 'PRINCIPAL',
-                        rutaId: '',
-                      }))
-                    }
-                    className={cn(
-                      'px-4 py-3 rounded-2xl border text-sm font-bold transition-colors',
-                      crearCajaForm.tipo === 'PRINCIPAL'
-                        ? 'bg-blue-600 text-white border-blue-600'
-                        : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
-                    )}
-                  >
-                    Caja Principal
-                  </button>
+                  {userRole === 'SUPER_ADMINISTRADOR' && (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setCrearCajaForm((p) => ({
+                          ...p,
+                          tipo: 'PRINCIPAL',
+                          rutaId: '',
+                        }))
+                      }
+                      className={cn(
+                        'px-4 py-3 rounded-2xl border text-sm font-bold transition-colors',
+                        crearCajaForm.tipo === 'PRINCIPAL'
+                          ? 'bg-blue-600 text-white border-blue-600'
+                          : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+                      )}
+                    >
+                      Caja Principal
+                    </button>
+                  )}
                   <button
                     type="button"
                     onClick={() => setCrearCajaForm((p) => ({ ...p, tipo: 'RUTA' }))}
                     className={cn(
-                      'px-4 py-3 rounded-2xl border text-sm font-bold transition-colors',
-                      crearCajaForm.tipo === 'RUTA'
+                      'px-4 py-3 rounded-2xl border text-sm font-bold transition-colors w-full',
+                      crearCajaForm.tipo === 'RUTA' || userRole !== 'SUPER_ADMINISTRADOR'
                         ? 'bg-blue-600 text-white border-blue-600'
                         : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
                     )}
@@ -1263,7 +1287,9 @@ const ModuloContableContent = () => {
                           onChange={(e) => setMovimientoForm((p) => ({ ...p, cajaId: e.target.value }))}
                           className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-slate-200 bg-slate-50/50 text-sm font-semibold text-slate-700 focus:bg-white transition-all"
                         >
-                          {cajas.map(c => (
+                          {cajas
+                            .filter(c => userRole === 'SUPER_ADMINISTRADOR' || c.tipo !== 'PRINCIPAL')
+                            .map(c => (
                               <option key={c.id} value={c.id}>{c.nombre}</option>
                           ))}
                         </select>

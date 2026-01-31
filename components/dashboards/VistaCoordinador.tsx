@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link';
-import Image from 'next/image';
+
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { 
@@ -486,7 +486,7 @@ const VistaCoordinador = () => {
                       
                       <div className="flex items-center space-x-3">
                         <Link 
-                          href="/coordinador/aprobaciones"
+                          href="/coordinador/notificaciones"
                           className="px-4 py-2 bg-white text-slate-600 hover:text-[#08557f] hover:bg-slate-50 rounded-xl transition-all shadow-sm border border-slate-200 text-xs font-bold uppercase tracking-wider flex items-center gap-2 group/btn"
                         >
                           Revisar

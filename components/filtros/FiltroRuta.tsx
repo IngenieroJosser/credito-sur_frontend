@@ -66,21 +66,21 @@ export default function FiltroRuta({
             onClick={() => onRutaChange(null)}
             disabled={loading}
             className={cn(
-              "whitespace-nowrap px-6 py-2.5 rounded-2xl text-xs font-black transition-all border shadow-sm active:scale-95 uppercase tracking-tighter",
+              "whitespace-nowrap px-4 py-2 rounded-xl text-[10px] font-black transition-all border shadow-sm active:scale-95 uppercase tracking-tight",
               layout === 'scroll' && "shrink-0",
               selectedRutaId === null 
                 ? "bg-blue-600 text-white border-blue-600 shadow-blue-200 shadow-lg" 
                 : "bg-white text-slate-500 border-slate-200 hover:border-blue-300 hover:text-blue-600"
             )}
           >
-            Todas las Rutas
+            Todas
           </button>
         )}
         
         {loading ? (
           <div className="flex gap-2 shrink-0">
             {[1, 2, 3].map(i => (
-              <div key={i} className="h-10 w-32 bg-slate-100 rounded-2xl animate-pulse border border-slate-50" />
+              <div key={i} className="h-9 w-24 bg-slate-100 rounded-xl animate-pulse border border-slate-50" />
             ))}
           </div>
         ) : (
@@ -89,7 +89,7 @@ export default function FiltroRuta({
               key={ruta.id}
               onClick={() => onRutaChange(ruta.id)}
               className={cn(
-                "whitespace-nowrap px-6 py-2.5 rounded-2xl text-xs font-black transition-all border shadow-sm active:scale-95 uppercase tracking-tighter",
+                "whitespace-nowrap px-4 py-2 rounded-xl text-[10px] font-black transition-all border shadow-sm active:scale-95 uppercase tracking-tight",
                 layout === 'scroll' && "shrink-0",
                 selectedRutaId === ruta.id 
                   ? "bg-blue-600 text-white border-blue-600 shadow-blue-200 shadow-lg" 

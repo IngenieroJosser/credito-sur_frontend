@@ -225,8 +225,8 @@ export const RutasPageView = ({ readOnly = false, rutasBasePath = '/admin/rutas'
   const cobranzaTotal = displayRutas.reduce((acc, curr) => acc + curr.cobranzaDelDia, 0)
   const porcentajeAvance = metaTotal > 0 ? (cobranzaTotal / metaTotal) * 100 : 0
 
-  // Force list view for Coordinador
-  if (rutasBasePath.includes('/coordinador') && vista !== 'list') {
+  // Force list view for Coordinador and Admin
+  if ((rutasBasePath.includes('/coordinador') || rutasBasePath.includes('/admin')) && vista !== 'list') {
     setVista('list')
   }
 
@@ -379,7 +379,7 @@ export const RutasPageView = ({ readOnly = false, rutasBasePath = '/admin/rutas'
               })}
             </div>
 
-            {!rutasBasePath.includes('/coordinador') && (
+            {!rutasBasePath.includes('/coordinador') && !rutasBasePath.includes('/admin') && (
             <div className="flex gap-1 bg-slate-100 p-1 rounded-xl">
               <button
                 onClick={() => setVista('grid')}

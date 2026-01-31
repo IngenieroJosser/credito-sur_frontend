@@ -139,14 +139,7 @@ const ReportesOperativosPage = () => {
             </p>
           </div>
           <div className="flex items-center gap-3 items-end">
-            <div className="bg-slate-50 p-1 rounded-xl border border-slate-200">
-               <FiltroRuta 
-                  onRutaChange={setFilterRuta} 
-                  selectedRutaId={filterRuta}
-                  className="w-48"
-                  showAllOption={true}
-               />
-            </div>
+
 
             <div className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-600 shadow-sm font-bold h-[46px]"> {/* Altura fija para alinear */}
               <Calendar className="h-4 w-4 text-slate-400" />
@@ -238,12 +231,15 @@ const ReportesOperativosPage = () => {
               </div>
               Desglose por Ruta
             </h3>
-            <button 
-              onClick={() => router.push(`${basePath}/rutas`)}
-              className="text-xs font-bold text-slate-700 hover:text-slate-900 hover:underline transition-colors"
-            >
-              Ver detalle completo
-            </button>
+            <div className="flex items-center gap-3">
+              <button 
+                onClick={() => router.push(`${basePath}/rutas`)}
+                className="text-xs font-bold text-slate-700 hover:text-slate-900 hover:underline transition-colors whitespace-nowrap"
+                title="Ver lista completa"
+              >
+                Ver todo
+              </button>
+            </div>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-sm text-left">

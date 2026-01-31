@@ -22,10 +22,11 @@ import {
   Percent,
   Package,
   Calculator,
-  Inbox,
+  Bell,
   Filter,
   BarChart3,
-  LayoutDashboard
+  LayoutDashboard,
+  Landmark
 } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils';
 import { useRouter } from 'next/navigation';
@@ -374,6 +375,13 @@ const DashboardPage = () => {
           icon: <PieChart className="h-5 w-5" />,
           color: '#f59e0b',
           href: '/admin/reportes/operativos'
+        },
+        {
+          title: 'Tesorería',
+          subtitle: 'Caja Fuerte / Bancos',
+          icon: <Landmark className="h-5 w-5" />,
+          color: '#08557f',
+          href: '/admin/tesoreria'
         }
       ],
       ADMIN: [
@@ -410,12 +418,12 @@ const DashboardPage = () => {
       ],
       COORDINADOR: [
         {
-          title: 'Revisiones',
-          subtitle: 'Pendientes de revisión',
-          icon: <Inbox className="h-5 w-5" />,
+          title: 'Centro de Control',
+          subtitle: 'Notificaciones y Revisiones',
+          icon: <Bell className="h-5 w-5" />,
           color: '#0f172a',
           badge: 8,
-          href: '/admin/aprobaciones'
+          href: '/coordinador/notificaciones'
         },
         {
           title: 'Nuevo Crédito',
@@ -508,20 +516,6 @@ const DashboardPage = () => {
           icon: <Calculator className="h-5 w-5" />,
           color: '#08557f',
           href: '/contador/contable'
-        },
-        {
-          title: 'Tesorería',
-          subtitle: 'Ingresos y transferencias',
-          icon: <Banknote className="h-5 w-5" />,
-          color: '#10b981',
-          href: '/contador/tesoreria'
-        },
-        {
-          title: 'Inventario',
-          subtitle: 'Gestión de productos',
-          icon: <Package className="h-5 w-5" />,
-          color: '#8b5cf6',
-          href: '/contador/articulos'
         },
         {
           title: 'Reportes Financieros',

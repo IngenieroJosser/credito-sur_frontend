@@ -267,11 +267,15 @@ const CuentasMoraPage = () => {
         {/* Filtros y Controles */}
         <div className="flex flex-col md:flex-row gap-4 items-center justify-between mb-8">
           <div className="flex flex-col md:flex-row md:items-center gap-4 w-full md:w-auto">
-            <FiltroRuta 
-              onRutaChange={(r: string | null) => setFiltroRuta(r)}
-              selectedRutaId={filtroRuta}
-              showAllOption={true}
-            />
+            <div className="bg-slate-50 p-2 rounded-xl border border-slate-200 w-full md:w-auto">
+                <FiltroRuta 
+                    onRutaChange={(r: string | null) => setFiltroRuta(r)}
+                    selectedRutaId={filtroRuta}
+                    layout="wrap"
+                    showAllOption={true}
+                    hideLabel={true}
+                />
+            </div>
 
             <div className="relative w-full md:w-80">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />

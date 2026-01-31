@@ -54,7 +54,6 @@ export const permisosPorRol: Record<Rol, ModuloPermiso[]> = {
       submodulos: [
         { id: 'gestion-creditos', nombre: 'Créditos', icono: 'CreditCard', path: '/admin/creditos', roles: ['SUPER_ADMINISTRADOR', 'COORDINADOR'] },
         { id: 'rutas', nombre: 'Rutas', icono: 'Route', path: '/admin/rutas', roles: ['SUPER_ADMINISTRADOR', 'COORDINADOR'] },
-        { id: 'aprobar-cobrador', nombre: 'Revisiones', icono: 'CheckCircle2', path: '/admin/aprobaciones', roles: ['SUPER_ADMINISTRADOR', 'COORDINADOR'] },
       ]
     },
     {
@@ -90,9 +89,8 @@ export const permisosPorRol: Record<Rol, ModuloPermiso[]> = {
       roles: ['SUPER_ADMINISTRADOR'],
       submodulos: [
         { id: 'usuarios', nombre: 'Usuarios', icono: 'User', path: '/admin/users', roles: ['SUPER_ADMINISTRADOR'] },
-        { id: 'roles-permisos', nombre: 'Roles y permisos', icono: 'Key', path: '/admin/roles-permisos', roles: ['SUPER_ADMINISTRADOR'] },
         { id: 'auditoria', nombre: 'Auditoría', icono: 'FileText', path: '/admin/auditoria', roles: ['SUPER_ADMINISTRADOR'] },
-      ]
+      ] // Fin submodulos administracion
     },
     {
       id: 'sistema',
@@ -120,7 +118,6 @@ export const permisosPorRol: Record<Rol, ModuloPermiso[]> = {
       submodulos: [
         { id: 'gestion-creditos', nombre: 'Créditos', icono: 'CreditCard', path: '/admin/creditos', roles: ['SUPER_ADMINISTRADOR', 'ADMIN', 'COORDINADOR'] },
         { id: 'rutas', nombre: 'Rutas', icono: 'Route', path: '/admin/rutas', roles: ['SUPER_ADMINISTRADOR', 'ADMIN', 'COORDINADOR'] },
-        { id: 'aprobar-cobrador', nombre: 'Revisiones', icono: 'CheckCircle2', path: '/admin/aprobaciones', roles: ['SUPER_ADMINISTRADOR', 'ADMIN', 'COORDINADOR'] },
       ]
     },
     {
@@ -144,7 +141,7 @@ export const permisosPorRol: Record<Rol, ModuloPermiso[]> = {
       roles: ['SUPER_ADMINISTRADOR', 'ADMIN'],
       submodulos: [
         { id: 'contable', nombre: 'Módulo contable', icono: 'Calculator', path: '/admin/contable', roles: ['SUPER_ADMINISTRADOR', 'ADMIN', 'CONTADOR'] },
-        { id: ' tesoreria', nombre: 'Tesorería', icono: 'Landmark', path: '/admin/tesoreria', roles: ['SUPER_ADMINISTRADOR', 'ADMIN', 'CONTADOR'] },
+        { id: 'tesoreria', nombre: 'Tesorería', icono: 'Landmark', path: '/admin/tesoreria', roles: ['SUPER_ADMINISTRADOR', 'ADMIN'] },
         { id: 'articulos', nombre: 'Artículos (Inventario)', icono: 'Package', path: '/admin/articulos', roles: ['SUPER_ADMINISTRADOR', 'ADMIN', 'CONTADOR'] },
         { id: 'reportes-financieros', nombre: 'Reportes financieros', icono: 'BarChart3', path: '/admin/reportes/financieros', roles: ['SUPER_ADMINISTRADOR', 'ADMIN', 'CONTADOR'] },
       ]
@@ -175,7 +172,6 @@ export const permisosPorRol: Record<Rol, ModuloPermiso[]> = {
       roles: ['COORDINADOR'],
       submodulos: [
         { id: 'rutas', nombre: 'Rutas', icono: 'Route', path: '/coordinador/rutas', roles: ['COORDINADOR'] },
-        { id: 'aprobar-cobrador', nombre: 'Revisiones', icono: 'CheckCircle2', path: '/coordinador/aprobaciones', roles: ['COORDINADOR'] },
       ]
     },
     { id: 'reportes-operativos', nombre: 'Reportes operativos', icono: 'ClipboardList', path: '/coordinador/reportes', roles: ['COORDINADOR'] },
@@ -214,7 +210,6 @@ export const permisosPorRol: Record<Rol, ModuloPermiso[]> = {
       roles: ['CONTADOR'],
       submodulos: [
         { id: 'contable', nombre: 'Módulo contable', icono: 'Calculator', path: '/contador/contable', roles: ['CONTADOR'] },
-        { id: 'tesoreria', nombre: 'Tesorería', icono: 'Landmark', path: '/contador/tesoreria', roles: ['CONTADOR'] },
         { id: 'articulos', nombre: 'Artículos (Inventario)', icono: 'Package', path: '/contador/articulos', roles: ['CONTADOR'] },
       ]
     },
