@@ -2,30 +2,16 @@
 
 /**
  * ============================================================================
- * VISTA OPERATIVA DE COBRANZA (VISTA COBRADOR)
+ * VISTA OPERATIVA DE COBRANZA - MODO SUPERVISOR
  * ============================================================================
- * 
- * @description
- * Componente central para la operación de campo (Mobile First Design).
- * Gestiona el flujo de trabajo diario del cobrador:
- * 1. Planificación de Ruta (Drag & Drop).
- * 2. Registro de Gestión (Pagos, No Pagos, Reprogramaciones).
- * 3. Rendición de Cuentas (Cierre de Caja).
- * 
- * @architecture
- * - Utiliza `@dnd-kit` para listas ordenables táctiles.
- * - Maneja estado local complejo para funcionamiento Offline-First (simulado).
- * - Integra múltiples modales operativos dentro del mismo archivo para performance móvil.
- * 
- * @roles ['COBRADOR', 'ADMIN']
- * Nota: El Admin puede visualizar esta vista en modo "Solo Lectura" (ver rutas/page.tsx).
+ * Adaptación de VistaCobrador para que el Supervisor pueda gestionar rutas.
  */
 
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import {
   MapPin,
   RefreshCw,
-  Wallet,
+
   CheckCircle2,
   History,
   UserPlus,
@@ -35,12 +21,12 @@ import {
   X,
   CreditCard,
   Plus,
-  ClipboardList,
+
   GripVertical,
   Calendar,
   Search,
   FileText as FileTextIcon,
-  BarChart3,
+
   User,
   Target,
   ReceiptText,
@@ -101,9 +87,7 @@ interface UserSession {
   avatar?: string
 }
 
-
-
-const VistaCobrador = () => {
+const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
   const [userSession, setUserSession] = useState<UserSession | null>(null)
   const [visitaSeleccionada, setVisitaSeleccionada] = useState<string | null>(null)
   const [showPaymentModal, setShowPaymentModal] = useState(false)
@@ -121,7 +105,6 @@ const VistaCobrador = () => {
   const [showBaseModal, setShowBaseModal] = useState(false)
   const [activeId, setActiveId] = useState<string | null>(null)
   
-  // Nuevos estados para la refactorización
   const [showCreditModal, setShowCreditModal] = useState(false)
   const [isFabOpen, setIsFabOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
@@ -130,19 +113,21 @@ const VistaCobrador = () => {
   const [selectedHistoryDate, setSelectedHistoryDate] = useState<string | null>(null)
   const [historyViewMode, setHistoryViewMode] = useState<'DAYS' | 'MONTHS'>('DAYS')
 
+  // Selector de cliente para acciones globales
+  const [showClientSelector, setShowClientSelector] = useState(false)
+  const [pendingAction, setPendingAction] = useState<'CUENTA' | 'AGENDAR' | null>(null)
+
   const [rutaCompletada, setRutaCompletada] = useState(false)
   const [coordinadorToast, setCoordinadorToast] = useState<string | null>(null)
 
   const [isLoading, setIsLoading] = useState(true)
 
-  const creditosPendientes = useMemo(
-    () => [
-      { id: 'CP-001', cliente: 'María Torres', monto: 850000, estado: 'Pendiente aprobación', fecha: 'Hoy' },
-      { id: 'CP-002', cliente: 'Luis Pérez', monto: 1200000, estado: 'En revisión', fecha: 'Ayer' },
-      { id: 'CP-003', cliente: 'Ana Gutiérrez', monto: 620000, estado: 'Pendiente aprobación', fecha: 'Ayer' },
-    ],
-    []
-  )
+  // Determine if this is the supervisor's personal route
+  // In a real app, this would check against the user's assigned route ID or a permission flag
+  const isPersonal = rutaId === 'RT-SUP' || rutaId === 'SUP-001' || !rutaId // Default to personal if no ID for dev
+
+
+
 
   const router = useRouter();
 
@@ -264,12 +249,10 @@ const VistaCobrador = () => {
     }
   }), [visitasBase])
 
-  // Cargar datos del usuario al montar el componente
-
+  // Cargar datos del usuario
   useEffect(() => {
     const cargarUsuario = async () => {
       try {
-        // Primero intentar cargar desde localStorage
         const userData = localStorage.getItem('user');
         const token = localStorage.getItem('token');
         
@@ -281,36 +264,13 @@ const VistaCobrador = () => {
         if (userData) {
           const user = JSON.parse(userData);
           setUserSession(user);
-          
-          // Verificar que el rol sea COBRADOR
-          if (user.rol !== 'COBRADOR') {
-            // Redirigir según el rol
-            const ROLE_REDIRECT_MAP: Record<RolUsuario, string> = {
-              SUPER_ADMINISTRADOR: '/admin',
-              COORDINADOR: '/coordinador',
-              SUPERVISOR: '/supervisor',
-              COBRADOR: '/cobranzas',
-              CONTADOR: '/contabilidad',
-            };
-            
-            const redirectPath = ROLE_REDIRECT_MAP[user.rol as RolUsuario] ?? '/';
-            router.replace(redirectPath);
-            return;
-          }
         } else {
-          // Si no hay datos en localStorage, obtener del backend
-          try {
-            const perfil = await obtenerPerfil();
-            localStorage.setItem('user', JSON.stringify(perfil));
-            setUserSession(perfil);
-          } catch (error) {
-            console.error('Error al obtener perfil:', error);
-            router.replace('/login');
-          }
+             const perfil = await obtenerPerfil();
+             localStorage.setItem('user', JSON.stringify(perfil));
+             setUserSession(perfil);
         }
       } catch (error) {
         console.error('Error al cargar usuario:', error);
-        router.replace('/login');
       } finally {
         setIsLoading(false);
       }
@@ -324,13 +284,11 @@ const VistaCobrador = () => {
   const visitasCobrador = useMemo(() => {
     const filtradas = visitasBase.filter(v => v.cobradorId === 'CB-001') // Temporal
     
-    // Aplicar búsqueda
     const buscadas = filtradas.filter(v => 
       v.cliente.toLowerCase().includes(searchQuery.toLowerCase()) ||
       v.direccion.toLowerCase().includes(searchQuery.toLowerCase())
     )
 
-    // Ordenar por Periodo (Mensual -> Quincenal -> Semanal -> Diario)
     const sorted = buscadas.sort((a, b) => {
         const priority: Record<string, number> = { 'MES': 0, 'QUINCENA': 1, 'SEMANA': 2, 'DIA': 3 };
         const pA = priority[a.periodoRuta] ?? 99;
@@ -455,11 +413,10 @@ const VistaCobrador = () => {
   }, [visitasCobrador])
 
   const operacionesCobrador = useMemo(() => 
-    operacionesCaja.filter(op => op.cobradorId === 'CB-001'), // Temporal
+    operacionesCaja.filter(op => op.cobradorId === 'CB-001'), 
     [operacionesCaja]
   )
 
-  // Calcular caja
   const cajaRuta = useMemo(() => {
     const recaudoTotal = operacionesCobrador
       .filter(op => op.tipo === 'pago' && op.estado === 'completado')
@@ -493,7 +450,6 @@ const VistaCobrador = () => {
     }
   }, [operacionesCobrador, visitasCobrador])
 
-  // Configuración de sensores para drag & drop
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
@@ -505,13 +461,10 @@ const VistaCobrador = () => {
     })
   )
 
-  // Handlers para drag & drop
   const handleDragStart = useCallback((event: DragStartEvent) => {
     if (rutaCompletada) return
     setActiveId(event.active.id as string)
   }, [rutaCompletada])
-
-
 
   const handleGuardarReprogramacion = useCallback((fecha: string, motivo: string) => {
     if (!visitaReprogramar) return
@@ -557,7 +510,6 @@ const VistaCobrador = () => {
     setActiveId(null)
   }, [])
 
-  // Funciones auxiliares
   const getEstadoClasses = useCallback((estado: EstadoVisita) => {
     if (estado === 'pendiente') return 'bg-orange-50 text-orange-700 border-orange-100'
     if (estado === 'pagado') return 'bg-blue-50 text-blue-700 border-blue-100'
@@ -583,21 +535,13 @@ const VistaCobrador = () => {
     window.setTimeout(() => setCoordinadorToast(null), 4000)
   }, [])
 
-
-
-
-
   const handleAbrirClienteInfo = useCallback((visita: VisitaRuta) => {
     setVisitaClienteSeleccionada(visita)
     setShowClienteInfoModal(true)
   }, [])
 
-
-
-  // Obtener la visita activa para el overlay
   const activeVisita = activeId ? visitasCobrador.find(v => v.id === activeId) : null
 
-  // Generar avatar del usuario
   const generarAvatar = (nombres: string, apellidos: string) => {
     return nombres.charAt(0) + (apellidos?.charAt(0) || '');
   }
@@ -619,13 +563,36 @@ const VistaCobrador = () => {
 
   return (
     <div className="min-h-screen bg-slate-50 relative">
-      {/* Fondo arquitectónico ultra sutil */}
       <div className="fixed inset-0 pointer-events-none">
         <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px]"></div>
         <div className="absolute inset-0 bg-[radial-gradient(circle_800px_at_100%_200px,#08557f_0,transparent_100%)] opacity-20"></div>
       </div>
 
       <div className="relative w-full space-y-8 p-8">
+        
+        {/* Supervisor Context Banner */}
+        <div className={`rounded-xl border p-3 flex items-center gap-3 animate-in slide-in-from-top-4 ${
+            isPersonal ? 'bg-blue-50 border-blue-200' : 'bg-orange-50 border-orange-200'
+        }`}>
+            <div className={`p-2 rounded-lg ${isPersonal ? 'bg-blue-100 text-blue-600' : 'bg-orange-100 text-orange-600'}`}>
+                <Target className="w-5 h-5" />
+            </div>
+            <div>
+                <h4 className={`font-bold text-sm ${isPersonal ? 'text-blue-900' : 'text-orange-900'}`}>
+                    {isPersonal ? 'Mi Ruta Personal' : 'Modo Supervisión'}
+                </h4>
+                <p className={`text-xs ${isPersonal ? 'text-blue-700' : 'text-orange-700'}`}>
+                    {isPersonal ? 'Tienes control total sobre esta ruta.' : 'Visualizando ruta asignada. Modo lectura.'}
+                </p>
+            </div>
+            <button onClick={() => router.back()} className={`ml-auto px-3 py-1.5 rounded-lg text-xs font-bold border shadow-sm ${
+                isPersonal ? 'bg-white text-blue-600 border-blue-200 hover:bg-blue-50' : 'bg-white text-orange-600 border-orange-200 hover:bg-orange-50'
+            }`}>
+                Salir
+            </button>
+        </div>
+
+
         {coordinadorToast && (
           <div className="rounded-2xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm font-medium text-blue-800">
             {coordinadorToast}
@@ -638,7 +605,6 @@ const VistaCobrador = () => {
           </div>
         )}
 
-        {/* Header con información del cobrador */}
         <header className="space-y-4">
           <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
             <div className="flex items-center gap-4">
@@ -653,19 +619,19 @@ const VistaCobrador = () => {
                   {userSession.nombres} {userSession.apellidos}
                 </h2>
                 <div className="flex items-center gap-2 text-sm text-slate-500">
-                  <span className="font-medium text-slate-700">Cobrador</span>
+                  <span className="font-medium text-slate-700">{userSession.rol}</span>
                   <span>•</span>
-                  <span>{userSession.rutaAsignada || 'Ruta Norte'}</span>
+                  <span>Supervisando {userSession.rutaAsignada || 'Ruta'}</span>
                 </div>
               </div>
             </div>
           </div>
         </header>
 
+
         {/* Stats rápidos */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           
-          {/* Tarjeta 1: Recaudo */}
           <div className="bg-white border border-slate-100 rounded-[2rem] p-6 hover:shadow-2xl hover:shadow-slate-200/50 transition-all duration-500 group relative overflow-hidden">
             <div className="flex items-start justify-between mb-6">
               <div className="flex items-center justify-center p-3 rounded-2xl bg-slate-50 text-slate-400 group-hover:text-[#08557f] group-hover:bg-blue-50 transition-colors border border-slate-100 shadow-sm">
@@ -691,7 +657,6 @@ const VistaCobrador = () => {
             </div>
           </div>
 
-          {/* Tarjeta 2: Efectividad */}
           <div className="bg-white border border-slate-100 rounded-[2rem] p-6 hover:shadow-2xl hover:shadow-slate-200/50 transition-all duration-500 group relative overflow-hidden">
             <div className="flex items-start justify-between mb-6">
               <div className="flex items-center justify-center p-3 rounded-2xl bg-slate-50 text-slate-400 group-hover:text-emerald-600 group-hover:bg-emerald-50 transition-colors border border-slate-100 shadow-sm">
@@ -717,7 +682,6 @@ const VistaCobrador = () => {
             </div>
           </div>
 
-          {/* Tarjeta 3: Gastos */}
           <div className="bg-white border border-slate-100 rounded-[2rem] p-6 hover:shadow-2xl hover:shadow-slate-200/50 transition-all duration-500 group relative overflow-hidden">
             <div className="flex items-start justify-between mb-6">
               <div className="flex items-center justify-center p-3 rounded-2xl bg-slate-50 text-slate-400 group-hover:text-rose-600 group-hover:bg-rose-50 transition-colors border border-slate-100 shadow-sm">
@@ -744,35 +708,11 @@ const VistaCobrador = () => {
           </div>
         </div>
 
-        {/* Créditos pendientes */}
-        <div className="rounded-2xl bg-white/80 backdrop-blur-sm border border-slate-200 p-5 shadow-[0_8px_30px_rgb(0,0,0,0.04)]">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <div className="text-xs font-bold text-slate-500 uppercase">Créditos pendientes</div>
-              <h3 className="text-lg font-bold text-slate-900">En revisión</h3>
-            </div>
-            <div className="px-3 py-1 rounded-full bg-blue-50 text-blue-700 text-xs font-bold border border-blue-100">
-              {creditosPendientes.length} pendientes
-            </div>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-            {creditosPendientes.map((credito) => (
-              <div key={credito.id} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-                <div className="text-xs font-bold text-slate-500">{credito.id}</div>
-                <div className="mt-1 text-sm font-bold text-slate-900">{credito.cliente}</div>
-                <div className="mt-2 text-sm text-slate-600">${credito.monto.toLocaleString('es-CO')}</div>
-                <div className="mt-2 inline-flex items-center gap-1 rounded-full bg-orange-50 text-orange-700 border border-orange-100 px-2 py-0.5 text-[10px] font-bold">
-                  {credito.estado}
-                </div>
-                <div className="mt-2 text-[11px] text-slate-400">{credito.fecha}</div>
-              </div>
-            ))}
-          </div>
-        </div>
+
+
 
         <div className="space-y-6">
           <div className="space-y-6">
-            {/* Buscador y filtros */}
             <div className="bg-white/80 backdrop-blur-sm rounded-2xl border border-slate-200 p-4 shadow-[0_8px_30px_rgb(0,0,0,0.04)]">
               <div className="flex flex-col md:flex-row gap-4">
                 <div className="relative flex-1">
@@ -832,30 +772,70 @@ const VistaCobrador = () => {
                   </button>
             </div>
             </div>
-
-            {/* Client Actions Bar (Appears when a client is selected) */}
-            {/* Top Stats / Toolbar */}
-            <div className="mb-6 space-y-4">
-            {/* Top Toolbar (Compact) */}
-            <div className="mb-6">
+            
+            {/* TOP TOOLBAR - Visible for Supervisor on ANY route */}
+            <div className="mt-4 pt-4 border-t border-slate-100">
                 <div className="flex items-center gap-2 overflow-x-auto pb-2 no-scrollbar">
-                     <button onClick={() => { setVisitaPagoSeleccionadaId(null); setShowPaymentModal(true); setPagoInitialIsAbono(false); }} className="flex-1 min-w-[max-content] bg-[#08557f]/5 text-[#08557f] border border-[#08557f]/10 px-4 py-3 rounded-xl flex items-center justify-center gap-2 font-bold shadow-sm active:scale-95 transition-all">
-                         <DollarSign className="h-5 w-5" /> Pagar
-                     </button>
-                     <button onClick={() => { setVisitaPagoSeleccionadaId(null); setShowPaymentModal(true); setPagoInitialIsAbono(true); }} className="flex-1 min-w-[max-content] bg-orange-50 text-orange-700 border border-orange-200 px-4 py-3 rounded-xl flex items-center justify-center gap-2 font-bold shadow-sm active:scale-95 transition-all">
-                         <RefreshCw className="h-5 w-5" /> Abonar
-                     </button>
-                     <button onClick={() => { setVisitaEstadoCuentaSeleccionada(null); setShowEstadoCuentaModal(true); }} className="flex-1 min-w-[max-content] bg-white text-slate-700 border border-slate-200 px-4 py-3 rounded-xl flex items-center justify-center gap-2 font-bold shadow-sm active:scale-95 transition-all hover:bg-slate-50">
-                         <FileTextIcon className="h-5 w-5 text-slate-400" /> Cuenta
-                     </button>
-                     <button onClick={() => { setVisitaReprogramar(null); setShowReprogramModal(true); }} className="flex-1 min-w-[max-content] bg-white text-slate-700 border border-slate-200 px-4 py-3 rounded-xl flex items-center justify-center gap-2 font-bold shadow-sm active:scale-95 transition-all hover:bg-slate-50">
-                         <Calendar className="h-5 w-5 text-slate-400" /> Agendar
-                     </button>
+                        <button onClick={() => { 
+                          if (visitaSeleccionada) {
+                             const v = visitasCobrador.find(v => v.id === visitaSeleccionada);
+                             if (v) {
+                               setVisitaPagoSeleccionadaId(v.id);
+                               setPagoInitialIsAbono(false);
+                               setShowPaymentModal(true);
+                             }
+                          } else {
+                             setVisitaPagoSeleccionadaId(null);
+                             setShowPaymentModal(true);
+                             setPagoInitialIsAbono(false); 
+                          }
+                        }} className="flex-1 min-w-[max-content] bg-[#08557f]/5 text-[#08557f] border border-[#08557f]/10 px-4 py-3 rounded-xl flex items-center justify-center gap-2 font-bold shadow-sm active:scale-95 transition-all">
+                            <DollarSign className="h-5 w-5" /> Pagar
+                        </button>
+                        <button onClick={() => { 
+                           if (visitaSeleccionada) {
+                             const v = visitasCobrador.find(v => v.id === visitaSeleccionada);
+                             if (v) {
+                               setVisitaPagoSeleccionadaId(v.id);
+                               setPagoInitialIsAbono(true);
+                               setShowPaymentModal(true);
+                             }
+                           } else {
+                               setVisitaPagoSeleccionadaId(null); 
+                               setShowPaymentModal(true); 
+                               setPagoInitialIsAbono(true);
+                           }
+                        }} className="flex-1 min-w-[max-content] bg-orange-50 text-orange-700 border border-orange-200 px-4 py-3 rounded-xl flex items-center justify-center gap-2 font-bold shadow-sm active:scale-95 transition-all">
+                            <RefreshCw className="h-5 w-5" /> Abonar
+                        </button>
+                        <button onClick={() => { 
+                           if (visitaSeleccionada) {
+                              const v = visitasCobrador.find(v => v.id === visitaSeleccionada);
+                              setVisitaEstadoCuentaSeleccionada(v || null);
+                              setShowEstadoCuentaModal(true); 
+                           } else {
+                              setPendingAction('CUENTA');
+                              setShowClientSelector(true);
+                           }
+                        }} className="flex-1 min-w-[max-content] bg-white text-slate-700 border border-slate-200 px-4 py-3 rounded-xl flex items-center justify-center gap-2 font-bold shadow-sm active:scale-95 transition-all hover:bg-slate-50">
+                            <FileTextIcon className="h-5 w-5 text-slate-400" /> Cuenta
+                        </button>
+                        <button onClick={() => { 
+                           if (visitaSeleccionada) {
+                              const v = visitasCobrador.find(v => v.id === visitaSeleccionada);
+                              setVisitaReprogramar(v || null);
+                              setShowReprogramModal(true); 
+                           } else {
+                              setPendingAction('AGENDAR');
+                              setShowClientSelector(true);
+                           }
+                        }} className="flex-1 min-w-[max-content] bg-white text-slate-700 border border-slate-200 px-4 py-3 rounded-xl flex items-center justify-center gap-2 font-bold shadow-sm active:scale-95 transition-all hover:bg-slate-50">
+                            <Calendar className="h-5 w-5 text-slate-400" /> Agendar
+                        </button>
                 </div>
             </div>
-            </div>
 
-              {!showHistory && (
+            {!showHistory && (
                 <div className="mt-4 pt-4 border-t border-slate-200">
                   <div className="flex flex-col md:flex-row gap-3 md:items-center md:justify-between">
                     <div className="text-xs font-bold text-slate-500 uppercase tracking-wider">Período de ruta</div>
@@ -885,23 +865,12 @@ const VistaCobrador = () => {
                   </div>
                 </div>
               )}
-            {/* Lista de visitas */}
+
             <div>
               <div className="flex flex-col gap-4 mb-4">
                 <div className="flex items-center justify-between">
                   {showHistory && (
                     <h3 className="font-bold text-slate-900 text-lg">Histórico de Rutas</h3>
-                  )}
-                  {!showHistory && (
-                     <div className="text-[10px] uppercase font-bold text-slate-500 tracking-wider mb-2 flex items-center justify-between bg-white border border-slate-200 p-2 rounded-xl shadow-sm">
-                        <span className="mr-2">Niveles de Riesgo:</span>
-                        <div className="flex gap-3">
-                           <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-full bg-blue-600 ring-2 ring-blue-100"></div><span className="text-slate-700">Bajo</span></div>
-                           <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-full bg-emerald-600 ring-2 ring-emerald-100"></div><span className="text-slate-700">Leve</span></div>
-                           <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-full bg-orange-600 ring-2 ring-orange-100"></div><span className="text-slate-700">Moderado</span></div>
-                           <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-full bg-red-700 ring-2 ring-red-100"></div><span className="text-slate-700">Crítico</span></div>
-                        </div>
-                     </div>
                   )}
                 </div>
               </div>
@@ -920,11 +889,10 @@ const VistaCobrador = () => {
                   <div className="space-y-6">
                     {(() => {
                       if (showHistory) {
-                        const historyDates = Object.keys(historialRutas).sort().reverse(); // Newest first
+                        const historyDates = Object.keys(historialRutas).sort().reverse(); 
 
                         return (
                           <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-300">
-                             {/* Improved Filter Tabs (Pills) */}
                              <div className="flex items-center gap-2 mb-2">
                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mr-1">VISTA:</span>
                                <button 
@@ -937,68 +905,8 @@ const VistaCobrador = () => {
                                >
                                  Días
                                </button>
-                               <button 
-                                 onClick={() => setHistoryViewMode('MONTHS')}
-                                 className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all border ${
-                                    historyViewMode === 'MONTHS' 
-                                    ? 'bg-slate-900 text-white border-slate-900 shadow-lg shadow-slate-900/20' 
-                                    : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300 hover:text-slate-700'
-                                 }`}
-                               >
-                                 Meses
-                               </button>
                              </div>
 
-                             {/* Monthly Summary (ONLY in MONTHS mode) */}
-                             {historyViewMode === 'MONTHS' && (
-                               <div className="bg-white border border-slate-200 p-5 rounded-2xl shadow-sm hover:shadow-md transition-all relative overflow-hidden group cursor-pointer"
-                                    onClick={() => setSelectedHistoryDate(selectedHistoryDate === 'SUMMARY' ? null : 'SUMMARY')}
-                               >
-                                  <div className="absolute top-0 right-0 w-24 h-24 bg-slate-50 rounded-full -mr-8 -mt-8 group-hover:scale-110 transition-transform duration-500"></div>
-                                  <div className="flex items-start justify-between relative z-10">
-                                    <div>
-                                       <h4 className="font-bold text-slate-800 flex items-center gap-2 text-lg">
-                                         <BarChart3 className="w-5 h-5 text-slate-500" />
-                                         Resumen Enero 2024
-                                       </h4>
-                                       <div className="text-sm font-medium text-slate-500 mt-1">Recaudo Total: <span className="text-slate-900 font-bold">$12.5M</span></div>
-                                    </div>
-                                    <div className={`p-2 rounded-full bg-slate-50 border border-slate-100 transition-transform ${selectedHistoryDate === 'SUMMARY' ? 'rotate-180 bg-slate-100' : ''}`}>
-                                      <ChevronDown className="w-5 h-5 text-slate-400" />
-                                    </div>
-                                  </div>
-                                  {selectedHistoryDate === 'SUMMARY' && (
-                                     <div className="mt-4 pt-4 border-t border-slate-100 animate-in fade-in space-y-4">
-                                        <div className="grid grid-cols-2 gap-4">
-                                           <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
-                                              <div className="text-2xl font-bold text-slate-800">94%</div>
-                                              <div className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Efectividad Global</div>
-                                           </div>
-                                           <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
-                                              <div className="text-2xl font-bold text-slate-800">450</div>
-                                              <div className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Visitas Totales</div>
-                                           </div>
-                                        </div>
-                                        <div className="grid grid-cols-3 gap-2 text-center text-xs text-slate-500">
-                                          <div>
-                                            <div className="font-bold text-slate-900">24</div>
-                                            <div>Días</div>
-                                          </div>
-                                          <div>
-                                            <div className="font-bold text-slate-900">441</div>
-                                            <div>Pagos</div>
-                                          </div>
-                                          <div>
-                                            <div className="font-bold text-emerald-600">98%</div>
-                                            <div>Asistencia</div>
-                                          </div>
-                                        </div>
-                                     </div>
-                                  )}
-                               </div>
-                             )}
-
-                             {/* Daily Routes List (Only in DAYS mode) */}
                              {historyViewMode === 'DAYS' && (
                                 <div className="space-y-3">
                                     <h3 className="text-sm font-bold text-slate-500 uppercase px-1">Historial de Días</h3>
@@ -1009,7 +917,6 @@ const VistaCobrador = () => {
                                        const dateObj = new Date(parseInt(y), parseInt(m)-1, parseInt(d))
                                        const dayName = dateObj.toLocaleDateString('es-CO', { weekday: 'long', day: 'numeric', month: 'long' })
                                        
-                                       // Detect completion
                                        const isCompleted = data.resumen.efectividad === 100 || data.visitas.every((v: VisitaRuta) => v.estado === 'pagado');
 
                                        return (
@@ -1018,13 +925,11 @@ const VistaCobrador = () => {
                                                 ${isExpanded ? 'ring-1 ring-slate-300 shadow-md' : 'shadow-sm'}
                                               `}
                                          >
-                                           {/* Header (Clickable) */}
                                            <div 
                                              className="p-4 flex items-center justify-between cursor-pointer hover:bg-slate-50 transition-colors"
                                              onClick={() => setSelectedHistoryDate(isExpanded ? null : date)}
                                            >
                                              <div className="flex items-center gap-3">
-                                                {/* Date Badge */}
                                                 <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-xs shadow-sm
                                                     ${isExpanded ? 'bg-[#08557f] text-white' : 'bg-slate-100 text-slate-600'}
                                                 `}>
@@ -1049,7 +954,6 @@ const VistaCobrador = () => {
                                              </div>
                                            </div>
 
-                                           {/* Body (Expanded) */}
                                            {isExpanded && (
                                               <div className="border-t border-slate-100 bg-white p-4 space-y-3 animate-in slide-in-from-top-2 duration-200">
                                                  <div className="flex justify-between text-xs font-bold text-slate-500 uppercase px-1">
@@ -1109,55 +1013,9 @@ const VistaCobrador = () => {
                                   onSelect={(id) => setVisitaSeleccionada(id === visitaSeleccionada ? null : id)}
                                   onVerCliente={handleAbrirClienteInfo}
                                   getEstadoClasses={getEstadoClasses}
-                                  disableSort={rutaCompletada}
+                                  disableSort={rutaCompletada || !isPersonal}
                                   isSelected={visita.id === visitaSeleccionada}
                                 >
-                                  <div className="flex gap-2">
-                                     <button 
-                                       onClick={(e) => {
-                                         e.stopPropagation()
-                                         setVisitaPagoSeleccionadaId(visita.id)
-                                         setPagoInitialIsAbono(false)
-                                         setShowPaymentModal(true)
-                                       }}
-                                       className="flex-1 bg-[#08557f] text-white py-2.5 rounded-xl text-[11px] font-bold flex items-center justify-center gap-1.5 shadow-sm shadow-[#08557f]/20 active:scale-95 transition-all"
-                                     >
-                                       <DollarSign className="w-3.5 h-3.5" /> Pagar
-                                     </button>
-                                     <button 
-                                       onClick={(e) => {
-                                         e.stopPropagation()
-                                         setVisitaPagoSeleccionadaId(visita.id)
-                                         setPagoInitialIsAbono(true)
-                                         setShowPaymentModal(true)
-                                       }}
-                                       className="flex-1 bg-orange-600 text-white py-2.5 rounded-xl text-[11px] font-bold flex items-center justify-center gap-1.5 shadow-sm shadow-orange-600/20 active:scale-95 transition-all"
-                                     >
-                                       <RefreshCw className="w-3.5 h-3.5" /> Abonar
-                                     </button>
-                                     <button 
-                                       onClick={(e) => {
-                                         e.stopPropagation()
-                                         setVisitaEstadoCuentaSeleccionada(visita)
-                                         setShowEstadoCuentaModal(true)
-                                       }}
-                                       className="p-2.5 bg-white border border-slate-200 text-slate-700 rounded-xl active:scale-95 transition-all"
-                                       title="Estado de Cuenta"
-                                     >
-                                       <FileTextIcon className="w-4 h-4" />
-                                     </button>
-                                     <button 
-                                       onClick={(e) => {
-                                         e.stopPropagation()
-                                         setVisitaReprogramar(visita)
-                                         setShowReprogramModal(true)
-                                       }}
-                                       className="p-2.5 bg-white border border-slate-200 text-slate-700 rounded-xl active:scale-95 transition-all"
-                                       title="Reagendar"
-                                     >
-                                       <Calendar className="w-4 h-4" />
-                                     </button>
-                                  </div>
                                 </SortableVisita>
                               ))}
                             </div>
@@ -1210,7 +1068,6 @@ const VistaCobrador = () => {
                 </DragOverlay>
               </DndContext>
 
-             {/* Visitas Completadas */}
               {!showHistory && visitasCobrador.some(v => v.estado === 'pagado') && (
                 <div className="mt-8">
                   <h3 className="font-bold text-slate-900 flex items-center gap-2 mb-4 opacity-50">
@@ -1235,131 +1092,6 @@ const VistaCobrador = () => {
             </div>
           </div>
         </div>
-
-        {/* Floating Action Buttons */}
-          {isFabOpen && (
-            <div 
-              className="fixed top-0 left-0 w-screen h-screen z-40 bg-slate-900/10 backdrop-blur-[1px] cursor-default" 
-              onClick={() => setIsFabOpen(false)}
-            />
-          )}
-          <div className="fixed right-6 z-50 flex flex-col items-end gap-3 bottom-[calc(1.5rem+env(safe-area-inset-bottom))] pointer-events-none">
-            {/* Actions Menu */}
-          <div
-            className={`flex flex-col gap-3 transition-all duration-200 origin-bottom-right ${
-              isFabOpen ? 'scale-100 opacity-100 translate-y-0' : 'scale-95 opacity-0 translate-y-2 pointer-events-none'
-            }`}
-          >
-            <button
-              onClick={() => {
-                setShowCreditModal(true)
-                setIsFabOpen(false)
-              }}
-              className={`flex items-center justify-between w-56 gap-3 ${isFabOpen ? 'pointer-events-auto' : 'pointer-events-none'}`}
-            >
-              <span className="bg-[#08557f] text-white text-xs font-bold px-3 py-1 rounded-full shadow-lg shadow-[#08557f]/20">Crear Crédito</span>
-              <div className="h-11 w-11 flex items-center justify-center rounded-full bg-white text-[#08557f] border border-[#08557f]/20 shadow-lg shadow-[#08557f]/10 hover:bg-[#f1f6fb] transition-all">
-                <CreditCard className="h-5 w-5" />
-              </div>
-            </button>
-            <button
-              onClick={() => {
-                setShowNewClientModal(true)
-                setIsFabOpen(false)
-              }}
-              className={`flex items-center justify-between w-56 gap-3 ${isFabOpen ? 'pointer-events-auto' : 'pointer-events-none'}`}
-            >
-              <span className="bg-[#08557f] text-white text-xs font-bold px-3 py-1 rounded-full shadow-lg shadow-[#08557f]/20">Nuevo Cliente</span>
-              <div className="h-11 w-11 flex items-center justify-center rounded-full bg-white text-[#08557f] border border-[#08557f]/20 shadow-lg shadow-[#08557f]/10 hover:bg-[#f1f6fb] transition-all">
-                <UserPlus className="h-5 w-5" />
-              </div>
-            </button>
-
-            {/* Registrar Abono Button (Added for consistency) */}
-            <button 
-              onClick={() => {
-                setIsFabOpen(false)
-                setVisitaPagoSeleccionadaId(null)
-                setPagoInitialIsAbono(true)
-                setShowPaymentModal(true)
-              }}
-              className={`flex items-center justify-between w-56 gap-3 ${isFabOpen ? 'pointer-events-auto' : 'pointer-events-none'}`}
-            >
-              <span className="bg-orange-600 text-white text-xs font-bold px-3 py-1 rounded-full shadow-lg shadow-orange-600/20">Registrar abono</span>
-              <div className="h-11 w-11 flex items-center justify-center rounded-full bg-white text-orange-600 border border-orange-200 shadow-lg shadow-orange-600/10 hover:bg-orange-50 transition-all">
-                <RefreshCw className="h-5 w-5" />
-              </div>
-            </button>
-
-            {/* Registrar Pago Button (Added for consistency) */}
-            <button 
-              onClick={() => {
-                setIsFabOpen(false)
-                setVisitaPagoSeleccionadaId(null)
-                setPagoInitialIsAbono(false)
-                setShowPaymentModal(true)
-              }}
-              className={`flex items-center justify-between w-56 gap-3 ${isFabOpen ? 'pointer-events-auto' : 'pointer-events-none'}`}
-            >
-              <span className="bg-[#08557f] text-white text-xs font-bold px-3 py-1 rounded-full shadow-lg shadow-[#08557f]/20">Registrar pago</span>
-              <div className="h-11 w-11 flex items-center justify-center rounded-full bg-white text-[#08557f] border border-[#08557f]/20 shadow-lg shadow-[#08557f]/10 hover:bg-[#f1f6fb] transition-all">
-                <DollarSign className="h-5 w-5" />
-              </div>
-            </button>
-
-            <button
-              onClick={() => {
-                router.push('/cobranzas/solicitudes')
-                setIsFabOpen(false)
-              }}
-              className={`flex items-center justify-between w-56 gap-3 ${isFabOpen ? 'pointer-events-auto' : 'pointer-events-none'}`}
-            >
-              <span className="bg-[#08557f] text-white text-xs font-bold px-3 py-1 rounded-full shadow-lg shadow-[#08557f]/20">Solicitudes</span>
-              <div className="h-11 w-11 flex items-center justify-center rounded-full bg-white text-[#08557f] border border-[#08557f]/20 shadow-lg shadow-[#08557f]/10 hover:bg-[#f1f6fb] transition-all">
-                <ClipboardList className="h-5 w-5" />
-              </div>
-            </button>
-
-            <button
-              onClick={() => {
-                setShowBaseModal(true)
-                setIsFabOpen(false)
-              }}
-              className={`flex items-center justify-between w-56 gap-3 ${isFabOpen ? 'pointer-events-auto' : 'pointer-events-none'}`}
-            >
-              <span className="bg-emerald-600 text-white text-xs font-bold px-3 py-1 rounded-full shadow-lg shadow-emerald-600/20">Pedir Base</span>
-              <div className="h-11 w-11 flex items-center justify-center rounded-full bg-white text-emerald-600 border border-emerald-200 shadow-lg shadow-emerald-600/10 hover:bg-emerald-50 transition-all">
-                <Wallet className="h-5 w-5" />
-              </div>
-            </button>
-
-            <button
-              onClick={() => {
-                setShowGastoModal(true)
-                setIsFabOpen(false)
-              }}
-              className={`flex items-center justify-between w-56 gap-3 ${isFabOpen ? 'pointer-events-auto' : 'pointer-events-none'}`}
-            >
-              <span className="bg-rose-600 text-white text-xs font-bold px-3 py-1 rounded-full shadow-lg shadow-rose-600/20">Gastos</span>
-              <div className="h-11 w-11 flex items-center justify-center rounded-full bg-white text-rose-600 border border-rose-200 shadow-lg shadow-rose-600/10 hover:bg-rose-50 transition-all">
-                <ReceiptText className="h-5 w-5" />
-              </div>
-            </button>
-          </div>
-
-          {/* Main Toggle Button */}
-          <button
-            onClick={() => setIsFabOpen(!isFabOpen)}
-            className={`pointer-events-auto p-4 rounded-full shadow-xl transition-all duration-300 ${
-              isFabOpen 
-                ? 'bg-[#063a58] text-white rotate-45' 
-                : 'bg-[#08557f] text-white hover:bg-[#063a58] hover:scale-105'
-            }`}
-          >
-            <Plus className="h-6 w-6" />
-          </button>
-        </div>
-
 
         {showClienteInfoModal && (
           <Portal>
@@ -1390,7 +1122,6 @@ const VistaCobrador = () => {
                   </div>
 
                   <div className="space-y-6">
-                    {/* Header Info */}
                     <div className="bg-slate-50 p-6 rounded-3xl border border-slate-100 relative overflow-hidden">
                       <div className="absolute top-0 right-0 w-32 h-32 bg-slate-100 rounded-full -mr-16 -mt-16"></div>
                       <div className="relative z-10 flex items-center gap-5">
@@ -1409,11 +1140,7 @@ const VistaCobrador = () => {
                       </div>
                     </div>
 
-
-
-                    {/* Detailed Info Sections */}
                     <div className="space-y-4">
-                       {/* Personal Data */}
                        <div className="space-y-3">
                           <h5 className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Información de contacto</h5>
                           <div className="grid grid-cols-1 gap-3">
@@ -1428,7 +1155,6 @@ const VistaCobrador = () => {
                           </div>
                        </div>
 
-                       {/* Financial Summary */}
                        <div className="space-y-3 pt-2">
                           <h5 className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Resumen Financiero</h5>
                           <div className="grid grid-cols-2 gap-3">
@@ -1439,16 +1165,6 @@ const VistaCobrador = () => {
                              <div className="bg-emerald-50 border border-emerald-100 p-4 rounded-2xl shadow-sm text-right">
                                 <div className="text-xs text-emerald-600 font-bold mb-1 uppercase tracking-tighter">Recaudado</div>
                                 <div className="text-emerald-900 font-black text-xl">$0</div>
-                             </div>
-                          </div>
-                          <div className="bg-slate-50 border border-slate-100 p-4 rounded-2xl flex justify-between items-center">
-                             <div>
-                                <div className="text-[10px] text-slate-500 font-bold uppercase">Cuota Proyectada</div>
-                                <div className="text-slate-900 font-bold text-lg">${visitaClienteSeleccionada?.montoCuota.toLocaleString('es-CO')}</div>
-                             </div>
-                             <div className="text-right">
-                                <div className="text-[10px] text-slate-500 font-bold uppercase">Próxima Fecha</div>
-                                <div className="text-[#08557f] font-bold">{visitaClienteSeleccionada?.proximaVisita}</div>
                              </div>
                           </div>
                        </div>
@@ -1473,7 +1189,6 @@ const VistaCobrador = () => {
           </Portal>
         )}
 
-        {/* Modales Compartidos */}
         <PagoModal
           isOpen={showPaymentModal}
           onClose={() => {
@@ -1544,9 +1259,134 @@ const VistaCobrador = () => {
             setShowBaseModal(false)
           }}
         />
+
+        {showClientSelector && (
+            <Portal>
+            <div 
+                className="fixed inset-0 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-200"
+                style={{ zIndex: MODAL_Z_INDEX + 10 }}
+                onClick={() => { setShowClientSelector(false); setPendingAction(null); }}
+            >
+                <div 
+                    className="w-full max-w-sm bg-white rounded-3xl shadow-xl overflow-hidden p-6 space-y-4"
+                    onClick={e => e.stopPropagation()}
+                >
+                    <div className="flex justify-between items-center">
+                        <h3 className="font-bold text-slate-900 text-lg">Seleccionar Cliente</h3>
+                        <button onClick={() => { setShowClientSelector(false); setPendingAction(null); }} className="p-2 bg-slate-100 rounded-full text-slate-500">
+                            <X className="w-5 h-5" />
+                        </button>
+                    </div>
+                    <div>
+                        <p className="text-sm text-slate-500 mb-2">Selecciona un cliente para {pendingAction === 'CUENTA' ? 'ver su estado de cuenta' : 'reprogramar visita'}.</p>
+                        <select 
+                            className="w-full p-4 rounded-xl border border-slate-200 bg-slate-50 text-slate-900 font-bold focus:ring-2 focus:ring-[#08557f] outline-none"
+                            onChange={(e) => {
+                                const visita = visitasCobrador.find(v => v.id === e.target.value);
+                                if (visita) {
+                                    if (pendingAction === 'CUENTA') {
+                                        setVisitaEstadoCuentaSeleccionada(visita);
+                                        setShowEstadoCuentaModal(true);
+                                    } else if (pendingAction === 'AGENDAR') {
+                                        setVisitaReprogramar(visita);
+                                        setShowReprogramModal(true);
+                                    }
+                                    setShowClientSelector(false);
+                                    setPendingAction(null);
+                                }
+                            }}
+                            defaultValue=""
+                        >
+                            <option value="" disabled>Buscar cliente...</option>
+                            {visitasCobrador.map(v => (
+                                <option key={v.id} value={v.id}>{v.cliente} - {v.direccion}</option>
+                            ))}
+                        </select>
+                    </div>
+                </div>
+            </div>
+            </Portal>
+        )}
+
+
+        {/* Floating Action Button (FAB) - Visible for Supervisor on ANY route */}
+          <>
+            {isFabOpen && (
+                <div 
+                className="fixed top-0 left-0 w-screen h-screen z-40 bg-slate-900/10 backdrop-blur-[1px] cursor-default" 
+                onClick={() => setIsFabOpen(false)}
+                />
+            )}
+            <div className="fixed right-6 z-50 flex flex-col items-end gap-3 bottom-[calc(1.5rem+env(safe-area-inset-bottom))] pointer-events-none">
+                {/* Actions Menu */}
+                <div
+                    className={`flex flex-col gap-3 transition-all duration-200 origin-bottom-right ${
+                    isFabOpen ? 'scale-100 opacity-100 translate-y-0' : 'scale-95 opacity-0 translate-y-2 pointer-events-none'
+                    }`}
+                >
+                    <button
+                        onClick={() => { setShowCreditModal(true); setIsFabOpen(false); }}
+                        className={`flex items-center justify-between w-56 gap-3 ${isFabOpen ? 'pointer-events-auto' : 'pointer-events-none'}`}
+                    >
+                        <span className="bg-[#08557f] text-white text-xs font-bold px-3 py-1 rounded-full shadow-lg shadow-[#08557f]/20">Crear Crédito</span>
+                        <div className="h-11 w-11 flex items-center justify-center rounded-full bg-white text-[#08557f] border border-[#08557f]/20 shadow-lg shadow-[#08557f]/10 hover:bg-[#f1f6fb] transition-all">
+                            <CreditCard className="h-5 w-5" />
+                        </div>
+                    </button>
+                    <button
+                        onClick={() => { setShowNewClientModal(true); setIsFabOpen(false); }}
+                        className={`flex items-center justify-between w-56 gap-3 ${isFabOpen ? 'pointer-events-auto' : 'pointer-events-none'}`}
+                    >
+                        <span className="bg-[#08557f] text-white text-xs font-bold px-3 py-1 rounded-full shadow-lg shadow-[#08557f]/20">Nuevo Cliente</span>
+                        <div className="h-11 w-11 flex items-center justify-center rounded-full bg-white text-[#08557f] border border-[#08557f]/20 shadow-lg shadow-[#08557f]/10 hover:bg-[#f1f6fb] transition-all">
+                            <UserPlus className="h-5 w-5" />
+                        </div>
+                    </button>
+                    <button 
+                        onClick={() => { setIsFabOpen(false); setVisitaPagoSeleccionadaId(null); setPagoInitialIsAbono(true); setShowPaymentModal(true); }}
+                        className={`flex items-center justify-between w-56 gap-3 ${isFabOpen ? 'pointer-events-auto' : 'pointer-events-none'}`}
+                    >
+                        <span className="bg-orange-600 text-white text-xs font-bold px-3 py-1 rounded-full shadow-lg shadow-orange-600/20">Registrar abono</span>
+                        <div className="h-11 w-11 flex items-center justify-center rounded-full bg-white text-orange-600 border border-orange-200 shadow-lg shadow-orange-600/10 hover:bg-orange-50 transition-all">
+                            <RefreshCw className="h-5 w-5" />
+                        </div>
+                    </button>
+                    <button 
+                        onClick={() => { setIsFabOpen(false); setVisitaPagoSeleccionadaId(null); setPagoInitialIsAbono(false); setShowPaymentModal(true); }}
+                        className={`flex items-center justify-between w-56 gap-3 ${isFabOpen ? 'pointer-events-auto' : 'pointer-events-none'}`}
+                    >
+                        <span className="bg-[#08557f] text-white text-xs font-bold px-3 py-1 rounded-full shadow-lg shadow-[#08557f]/20">Registrar pago</span>
+                        <div className="h-11 w-11 flex items-center justify-center rounded-full bg-white text-[#08557f] border border-[#08557f]/20 shadow-lg shadow-[#08557f]/10 hover:bg-[#f1f6fb] transition-all">
+                            <DollarSign className="h-5 w-5" />
+                        </div>
+                    </button>
+                    <button
+                        onClick={() => { setShowGastoModal(true); setIsFabOpen(false); }}
+                        className={`flex items-center justify-between w-56 gap-3 ${isFabOpen ? 'pointer-events-auto' : 'pointer-events-none'}`}
+                    >
+                        <span className="bg-rose-600 text-white text-xs font-bold px-3 py-1 rounded-full shadow-lg shadow-rose-600/20">Gastos</span>
+                        <div className="h-11 w-11 flex items-center justify-center rounded-full bg-white text-rose-600 border border-rose-200 shadow-lg shadow-rose-600/10 hover:bg-rose-50 transition-all">
+                            <ReceiptText className="h-5 w-5" />
+                        </div>
+                    </button>
+                </div>
+
+                {/* Main Toggle Button */}
+                <button
+                    onClick={() => setIsFabOpen(!isFabOpen)}
+                    className={`pointer-events-auto p-4 rounded-full shadow-xl transition-all duration-300 ${
+                    isFabOpen 
+                        ? 'bg-[#063a58] text-white rotate-45' 
+                        : 'bg-[#08557f] text-white hover:bg-[#063a58] hover:scale-105'
+                    }`}
+                >
+                    <Plus className="h-6 w-6" />
+                </button>
+            </div>
+          </>
       </div>
     </div>
   )
 }
 
-export default VistaCobrador
+export default SupervisorCobroView

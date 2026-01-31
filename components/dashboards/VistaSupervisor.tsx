@@ -1,8 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { useEffect, useState, type ReactNode } from 'react'
-import Image from 'next/image'
+import { useState, type ReactNode } from 'react'
 
 import {
   AlertCircle,
@@ -15,22 +14,22 @@ import {
   Plus,
   RefreshCw,
   DollarSign,
-  CheckCircle,
   CreditCard,
-  ShoppingBag,
   UserPlus,
   X,
   TrendingDown,
   TrendingUp,
+  ClipboardList,
 } from 'lucide-react'
+import { useRouter } from 'next/navigation'
 import { ExportButton } from '@/components/ui/ExportButton'
 import { MOCK_CLIENTES } from '@/services/clientes-service'
-import { MOCK_ARTICULOS, type OpcionCuotas } from '@/services/articulos-service'
-import { formatCOPInputValue, formatMilesCOP, parseCOPInputToNumber, formatCurrency } from '@/lib/utils'
+import { formatCurrency } from '@/lib/utils'
 import NuevoClienteModal from '@/components/clientes/NuevoClienteModal'
 import { Sparkline, PremiumBarChart } from '@/components/ui/PremiumCharts'
 
-import { Portal, MODAL_Z_INDEX } from '@/components/dashboards/shared/CobradorElements'
+import PagoModal from '@/components/dashboards/shared/PagoModal'
+import CrearCreditoModal from '@/components/dashboards/shared/CrearCreditoModal'
 
 
 interface MetricCard {
@@ -68,88 +67,37 @@ const VistaSupervisor = () => {
 
   const [isFabOpen, setIsFabOpen] = useState(false)
   const [showPagoModal, setShowPagoModal] = useState(false)
+  const [pagoInitialIsAbono, setPagoInitialIsAbono] = useState(false)
   const [showCreditoTipoModal, setShowCreditoTipoModal] = useState(false)
   const [showNewClientModal, setShowNewClientModal] = useState(false)
-
-  const [clientePagoId, setClientePagoId] = useState('')
-  const [metodoPago, setMetodoPago] = useState<'EFECTIVO' | 'TRANSFERENCIA'>('EFECTIVO')
-  const [montoPagoInput, setMontoPagoInput] = useState('')
-  const [comprobanteTransferencia, setComprobanteTransferencia] = useState<File | null>(null)
-  const [comprobanteTransferenciaPreviewUrl, setComprobanteTransferenciaPreviewUrl] = useState<string | null>(null)
-
-  const [clienteCreditoId, setClienteCreditoId] = useState('')
-  const [creditType, setCreditType] = useState<'prestamo' | 'articulo'>('prestamo')
-  const [montoPrestamoInput, setMontoPrestamoInput] = useState('')
-  const [tipoInteres, setTipoInteres] = useState<'SIMPLE' | 'AMORTIZABLE'>('AMORTIZABLE')
-  const [tasaInteresInput, setTasaInteresInput] = useState('')
-  const [cuotasPrestamoInput, setCuotasPrestamoInput] = useState('')
-  const [cuotaInicialArticuloInput, setCuotaInicialArticuloInput] = useState('')
+  const [selectedVisitaForPago, setSelectedVisitaForPago] = useState<{
+    id: string;
+    cliente: string;
+    direccion: string;
+    montoCuota: number;
+    saldoTotal: number;
+  } | undefined>(undefined)
   
-  // Estados para artículos
-  const [articuloSeleccionadoId, setArticuloSeleccionadoId] = useState<string>('')
-  const [opcionCuotasSeleccionada, setOpcionCuotasSeleccionada] = useState<OpcionCuotas | null>(null)
-  
-  const articuloSeleccionado = MOCK_ARTICULOS.find(a => a.id === articuloSeleccionadoId)
+  const router = useRouter()
 
-  // Efecto para crear y limpiar object URLs de previews de imágenes
-  useEffect(() => {
-    // Solo procesar si es transferencia y hay archivo de imagen
-    if (metodoPago !== 'TRANSFERENCIA' || !comprobanteTransferencia) {
-      if (comprobanteTransferenciaPreviewUrl) {
-        URL.revokeObjectURL(comprobanteTransferenciaPreviewUrl)
-        setComprobanteTransferenciaPreviewUrl(null)
-      }
-      return
-    }
-
-    const isImage = comprobanteTransferencia.type.startsWith('image/')
-    if (!isImage) {
-      if (comprobanteTransferenciaPreviewUrl) {
-        URL.revokeObjectURL(comprobanteTransferenciaPreviewUrl)
-        setComprobanteTransferenciaPreviewUrl(null)
-      }
-      return
-    }
-
-    // Limpiar URL anterior si existe
-    if (comprobanteTransferenciaPreviewUrl) {
-      URL.revokeObjectURL(comprobanteTransferenciaPreviewUrl)
-    }
-
-    // Crear nuevo URL
-    const url = URL.createObjectURL(comprobanteTransferencia)
-    setComprobanteTransferenciaPreviewUrl(url)
-
-    // Cleanup al desmontar o cambiar
-    return () => {
-      URL.revokeObjectURL(url)
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [comprobanteTransferencia, metodoPago])
-
-  const resetPagoModal = () => {
+  const handlePagoConfirm = (data: {
+    clienteId: string;
+    monto: number;
+    metodoPago: string;
+    comprobante: File | null;
+    isAbono: boolean;
+  }) => {
+    console.log('Pago confirmado en Supervisor:', data)
     setShowPagoModal(false)
-    setClientePagoId('')
-    setMetodoPago('EFECTIVO')
-    setMontoPagoInput('')
-    setComprobanteTransferencia(null)
-    setComprobanteTransferenciaPreviewUrl((prev) => {
-      if (prev) URL.revokeObjectURL(prev)
-      return null
-    })
+    setSelectedVisitaForPago(undefined)
   }
 
-  const resetCreditoModal = () => {
+  const handleCreditoConfirm = (data: {
+    creditType: 'prestamo' | 'articulo';
+    clienteCreditoId: string;
+  }) => {
+    console.log('Crédito confirmado en Supervisor:', data)
     setShowCreditoTipoModal(false)
-    setClienteCreditoId('')
-    setCreditType('prestamo')
-    setMontoPrestamoInput('')
-    setTipoInteres('AMORTIZABLE')
-    setTasaInteresInput('')
-    setCuotasPrestamoInput('')
-    setCuotaInicialArticuloInput('')
-    setArticuloSeleccionadoId('')
-    setOpcionCuotasSeleccionada(null)
   }
 
 
@@ -405,7 +353,7 @@ const VistaSupervisor = () => {
               {delinquentClients.map((client) => (
                 <div
                   key={client.id}
-                  className="flex items-center justify-between p-4 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 transition-colors"
+                  className="flex items-center justify-between p-4 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 transition-colors group"
                 >
                   <div className="flex items-center gap-3">
                     <div className="h-3 w-3 rounded-full" style={{ backgroundColor: getStatusColor(client.status) }} />
@@ -414,9 +362,47 @@ const VistaSupervisor = () => {
                       <div className="text-xs font-medium text-slate-500">Ruta: {client.route} · Cobrador: {client.collector}</div>
                     </div>
                   </div>
-                  <div className="text-right">
-                    <div className="text-sm font-bold text-slate-900">{formatCurrency(client.amountDue)}</div>
-                    <div className="text-xs font-bold text-slate-500">{client.daysLate} días</div>
+                  <div className="flex flex-col items-end gap-2">
+                    <div className="text-right">
+                      <div className="text-sm font-bold text-slate-900">{formatCurrency(client.amountDue)}</div>
+                      <div className="text-xs font-bold text-slate-500">{client.daysLate} días</div>
+                    </div>
+                    <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button 
+                        onClick={() => {
+                          setPagoInitialIsAbono(true)
+                          setSelectedVisitaForPago({
+                            id: String(client.id),
+                            cliente: client.client,
+                            direccion: 'Dirección no disponible',
+                            montoCuota: client.amountDue / 10,
+                            saldoTotal: client.amountDue * 2
+                          })
+                          setShowPagoModal(true)
+                        }}
+                        className="p-1 px-2 text-[10px] font-bold bg-orange-100 text-orange-700 rounded transition-colors hover:bg-orange-200 flex items-center gap-1"
+                      >
+                        <RefreshCw className="h-2.5 w-2.5" />
+                        Abonar
+                      </button>
+                      <button 
+                        onClick={() => {
+                          setPagoInitialIsAbono(false)
+                          setSelectedVisitaForPago({
+                            id: String(client.id),
+                            cliente: client.client,
+                            direccion: 'Dirección no disponible',
+                            montoCuota: client.amountDue,
+                            saldoTotal: client.amountDue * 2
+                          })
+                          setShowPagoModal(true)
+                        }}
+                        className="p-1 px-2 text-[10px] font-bold bg-blue-100 text-blue-700 rounded transition-colors hover:bg-blue-200 flex items-center gap-1"
+                      >
+                        <DollarSign className="h-2.5 w-2.5" />
+                        Pagar
+                      </button>
+                    </div>
                   </div>
                 </div>
               ))}
@@ -458,495 +444,46 @@ const VistaSupervisor = () => {
         </div>
       </div>
 
-      {showPagoModal && (
-        <Portal>
-          <div
-            className="fixed inset-0 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-200"
-            style={{ zIndex: MODAL_Z_INDEX }}
-            onClick={resetPagoModal}
-          >
-            <div
-              className="w-full max-w-md bg-white rounded-3xl shadow-2xl animate-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="p-6">
-                <div className="flex items-center justify-between mb-6">
-                  <h3 className="text-xl font-bold text-slate-900">Registrar Pago</h3>
-                  <button
-                    type="button"
-                    onClick={resetPagoModal}
-                    className="p-2 bg-slate-100 rounded-full text-slate-500 hover:bg-slate-200 transition-colors"
-                  >
-                    <X className="h-5 w-5" />
-                  </button>
-                </div>
 
-                <div className="space-y-6">
-                  <div>
-                    <label className="block text-sm font-bold text-slate-700 mb-2">Cliente</label>
-                    <select
-                      value={clientePagoId}
-                      onChange={(e) => setClientePagoId(e.target.value)}
-                      className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-white text-sm font-bold text-slate-700"
-                    >
-                      <option value="">Selecciona un cliente</option>
-                      {MOCK_CLIENTES.map((c) => (
-                        <option key={c.id} value={c.id}>
-                          {c.nombres} {c.apellidos}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
 
-                  <div>
-                    <label className="block text-sm font-bold text-slate-700 mb-2">Método de Pago</label>
-                    <div className="grid grid-cols-2 gap-2">
-                      <button
-                        type="button"
-                        onClick={() => setMetodoPago('EFECTIVO')}
-                        className={`py-3 rounded-xl border text-sm font-bold transition-colors ${
-                          metodoPago === 'EFECTIVO'
-                            ? 'bg-[#08557f] text-white border-[#08557f]'
-                            : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
-                        }`}
-                      >
-                        EFECTIVO
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setMetodoPago('TRANSFERENCIA')}
-                        className={`py-3 rounded-xl border text-sm font-bold transition-colors ${
-                          metodoPago === 'TRANSFERENCIA'
-                            ? 'bg-[#08557f] text-white border-[#08557f]'
-                            : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
-                        }`}
-                      >
-                        TRANSFERENCIA
-                      </button>
-                    </div>
-                  </div>
+      <PagoModal 
+        isOpen={showPagoModal}
+        onClose={() => {
+          setShowPagoModal(false)
+          setSelectedVisitaForPago(undefined)
+        }}
+        onConfirm={handlePagoConfirm}
+        initialIsAbono={pagoInitialIsAbono}
+        initialVisita={selectedVisitaForPago}
+      />
 
-                  <div>
-                    <label className="block text-sm font-bold text-slate-700 mb-2">Monto Recibido</label>
-                    <div className="relative">
-                      <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-6 w-6 text-slate-400" />
-                      <input
-                        type="text"
-                        inputMode="numeric"
-                        value={montoPagoInput}
-                        onChange={(e) => setMontoPagoInput(formatCOPInputValue(e.target.value))}
-                        className="w-full pl-10 pr-4 py-4 bg-white border-2 border-slate-200 rounded-xl focus:border-[#08557f] focus:ring-0 font-bold text-2xl text-slate-900 placeholder:text-slate-300"
-                        placeholder="0"
-                        autoFocus
-                      />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-3 gap-2">
-                    {[10000, 20000, 50000, 100000].map((amount) => (
-                      <button
-                        key={amount}
-                        type="button"
-                        onClick={() => {
-                          const nuevo = parseCOPInputToNumber(montoPagoInput) + amount
-                          setMontoPagoInput(nuevo === 0 ? '' : formatMilesCOP(nuevo))
-                        }}
-                        className="py-2 px-1 rounded-lg bg-slate-50 border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-100 hover:border-slate-300"
-                      >
-                        +${(amount / 1000).toFixed(0)}k
-                      </button>
-                    ))}
-                  </div>
-
-                  {metodoPago === 'TRANSFERENCIA' && (
-                    <div className="pt-2">
-                      <label className="block text-sm font-bold text-slate-700 mb-2">Comprobante (Obligatorio)</label>
-                      <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-4">
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="flex-1">
-                            <div className="flex items-center gap-2">
-                              <p className="text-sm font-bold text-slate-900">Sube el comprobante</p>
-                              {comprobanteTransferencia && (
-                                <span className="inline-flex items-center rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-bold text-[#08557f] border border-blue-100">
-                                  ADJUNTO
-                                </span>
-                              )}
-                            </div>
-                            <p className="text-xs text-slate-500">Imagen o PDF.</p>
-                          </div>
-                          {comprobanteTransferencia && (
-                            <button
-                              type="button"
-                              onClick={() => setComprobanteTransferencia(null)}
-                              className="px-3 py-1.5 rounded-xl bg-white border border-slate-200 text-xs font-bold text-slate-700 hover:bg-slate-100"
-                            >
-                              Quitar
-                            </button>
-                          )}
-                        </div>
-
-                        {comprobanteTransferenciaPreviewUrl && (
-                          <div className="mt-3 overflow-hidden rounded-xl border border-slate-200 bg-white relative h-48">
-                            <Image
-                              src={comprobanteTransferenciaPreviewUrl}
-                              alt="Comprobante"
-                              fill
-                              className="object-cover"
-                              unoptimized
-                            />
-                          </div>
-                        )}
-
-                        {comprobanteTransferencia && !comprobanteTransferenciaPreviewUrl && (
-                          <div className="mt-3 rounded-xl border border-slate-200 bg-white p-3">
-                            <p className="text-xs font-bold text-slate-700 truncate">Archivo: {comprobanteTransferencia.name}</p>
-                          </div>
-                        )}
-
-                        <div className="mt-3">
-                          <input
-                            type="file"
-                            accept="image/*,application/pdf"
-                            onChange={(e) => setComprobanteTransferencia(e.target.files?.[0] || null)}
-                            className="w-full text-sm"
-                            required
-                          />
-                        </div>
-                      </div>
-                      {!comprobanteTransferencia && (
-                        <p className="mt-2 text-xs font-bold text-rose-600">Adjunta el comprobante para confirmar una transferencia.</p>
-                      )}
-                    </div>
-                  )}
-
-                  <button
-                    type="button"
-                    onClick={() => {
-                      console.log('Registrar pago:', {
-                        clienteId: clientePagoId,
-                        monto: parseCOPInputToNumber(montoPagoInput),
-                        metodoPago,
-                        comprobanteTransferencia,
-                      })
-                      resetPagoModal()
-                    }}
-                    disabled={
-                      !clientePagoId ||
-                      parseCOPInputToNumber(montoPagoInput) <= 0 ||
-                      (metodoPago === 'TRANSFERENCIA' && !comprobanteTransferencia)
-                    }
-                    className="w-full bg-[#08557f] text-white font-bold py-4 rounded-xl shadow-lg shadow-[#08557f]/20 hover:bg-[#063a58] active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed disabled:active:scale-100"
-                  >
-                    <CheckCircle className="h-5 w-5" />
-                    Confirmar Pago
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </Portal>
-      )}
-
-      {showCreditoTipoModal && (
-        <Portal>
-          <div
-            className="fixed inset-0 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-200"
-            style={{ zIndex: MODAL_Z_INDEX }}
-            onClick={resetCreditoModal}
-          >
-            <div
-              className="w-full max-w-2xl bg-white rounded-3xl shadow-2xl animate-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="p-6">
-                <div className="flex items-center justify-between mb-6">
-                  <h3 className="text-xl font-bold text-slate-900">Crear Nuevo Crédito</h3>
-                  <button
-                    type="button"
-                    onClick={resetCreditoModal}
-                    className="p-2 bg-slate-100 rounded-full text-slate-500 hover:bg-slate-200 transition-colors"
-                  >
-                    <X className="h-5 w-5" />
-                  </button>
-                </div>
-
-                <div className="mb-6">
-                  <label className="block text-sm font-bold text-slate-700 mb-3">Tipo de Crédito</label>
-                  <div className="grid grid-cols-2 gap-3">
-                    <button
-                      type="button"
-                      onClick={() => setCreditType('prestamo')}
-                      className={`p-4 rounded-xl border-2 transition-all ${
-                        creditType === 'prestamo'
-                          ? 'border-blue-500 bg-blue-50 text-blue-700'
-                          : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'
-                      }`}
-                    >
-                      <DollarSign className="h-6 w-6 mx-auto mb-2" />
-                      <div className="font-bold text-sm">Préstamo en Efectivo</div>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setCreditType('articulo')}
-                      className={`p-4 rounded-xl border-2 transition-all ${
-                        creditType === 'articulo'
-                          ? 'border-orange-500 bg-orange-50 text-orange-700'
-                          : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'
-                      }`}
-                    >
-                      <ShoppingBag className="h-6 w-6 mx-auto mb-2" />
-                      <div className="font-bold text-sm">Crédito por Artículo</div>
-                    </button>
-                  </div>
-                </div>
-
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-bold text-slate-700 mb-2">Cliente</label>
-                    <select
-                      value={clienteCreditoId}
-                      onChange={(e) => setClienteCreditoId(e.target.value)}
-                      className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-white text-sm font-bold text-slate-700"
-                    >
-                      <option value="">Selecciona un cliente</option>
-                      {MOCK_CLIENTES.map((c) => (
-                        <option key={c.id} value={c.id}>
-                          {c.nombres} {c.apellidos}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  {creditType === 'prestamo' ? (
-                    <>
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <label className="block text-sm font-bold text-slate-700 mb-2">Monto del Préstamo</label>
-                          <div className="relative">
-                            <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
-                            <input
-                              type="text"
-                              inputMode="numeric"
-                              value={montoPrestamoInput}
-                              onChange={(e) => setMontoPrestamoInput(formatCOPInputValue(e.target.value))}
-                              className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-[#08557f] focus:ring-0 font-bold text-slate-900"
-                              placeholder="0"
-                            />
-                          </div>
-                        </div>
-                        <div>
-                          <label className="block text-sm font-bold text-slate-700 mb-2">Tipo de Interés</label>
-                          <select
-                            value={tipoInteres}
-                            onChange={(e) => setTipoInteres(e.target.value as 'SIMPLE' | 'AMORTIZABLE')}
-                            className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-[#08557f] focus:ring-0 font-medium text-slate-900"
-                          >
-                            <option value="AMORTIZABLE">Amortizable</option>
-                            <option value="SIMPLE">Interés Simple</option>
-                          </select>
-                        </div>
-                      </div>
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <label className="block text-sm font-bold text-slate-700 mb-2">Tasa de Interés (%)</label>
-                          <input
-                            type="text"
-                            inputMode="decimal"
-                            value={tasaInteresInput}
-                            onChange={(e) => setTasaInteresInput(e.target.value.replace(/[^0-9.]/g, ''))}
-                            className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-[#08557f] focus:ring-0 font-medium text-slate-900"
-                            placeholder="5.0"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-sm font-bold text-slate-700 mb-2">Cuotas</label>
-                          <input
-                            type="text"
-                            inputMode="numeric"
-                            value={cuotasPrestamoInput}
-                            onChange={(e) => setCuotasPrestamoInput(e.target.value.replace(/\D/g, ''))}
-                            className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-[#08557f] focus:ring-0 font-medium text-slate-900"
-                            placeholder="12"
-                          />
-                        </div>
-                      </div>
-                      <div>
-                        <label className="block text-sm font-bold text-slate-700 mb-2">Frecuencia de Pago</label>
-                        <select className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-[#08557f] focus:ring-0 font-medium text-slate-900">
-                          <option>Diario</option>
-                          <option>Semanal</option>
-                          <option>Quincenal</option>
-                          <option>Mensual</option>
-                        </select>
-                      </div>
-                    </>
-                  ) : (
-                    <>
-                      <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-4">
-                        <p className="text-sm font-medium text-blue-900">
-                          <strong>Nota:</strong> Los precios y cuotas de los artículos son asignados por el contable.
-                        </p>
-                      </div>
-                      
-                      <div>
-                        <label className="block text-sm font-bold text-slate-700 mb-2">Artículo</label>
-                        <select 
-                          value={articuloSeleccionadoId}
-                          onChange={(e) => {
-                            setArticuloSeleccionadoId(e.target.value)
-                            setOpcionCuotasSeleccionada(null)
-                          }}
-                          className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-[#08557f] focus:ring-0 font-medium text-slate-900"
-                        >
-                          <option value="">Seleccionar artículo...</option>
-                          {MOCK_ARTICULOS.map((articulo) => (
-                            <option key={articulo.id} value={articulo.id}>
-                              {articulo.nombre} - {formatCurrency(articulo.precioBase)}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                      
-                      {articuloSeleccionado && (
-                        <>
-                          <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
-                            <div className="text-xs font-bold text-slate-500 uppercase mb-2">Precio Base (Sin Financiamiento)</div>
-                            <div className="text-lg font-bold text-slate-900">{formatCurrency(articuloSeleccionado.precioBase)}</div>
-                          </div>
-                          
-                          <div>
-                            <label className="block text-sm font-bold text-slate-700 mb-2">Plan de Cuotas</label>
-                            <select 
-                              value={opcionCuotasSeleccionada ? articuloSeleccionado.opcionesCuotas.indexOf(opcionCuotasSeleccionada) : ''}
-                              onChange={(e) => {
-                                const index = parseInt(e.target.value)
-                                if (!isNaN(index) && articuloSeleccionado) {
-                                  setOpcionCuotasSeleccionada(articuloSeleccionado.opcionesCuotas[index])
-                                }
-                              }}
-                              className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-[#08557f] focus:ring-0 font-medium text-slate-900"
-                            >
-                              <option value="">Seleccionar plan...</option>
-                              {articuloSeleccionado.opcionesCuotas.map((opcion, index) => (
-                                <option key={index} value={index}>
-                                  {opcion.numeroCuotas} cuotas - {formatCurrency(opcion.valorCuota)}/cuota - Total: {formatCurrency(opcion.precioTotal)}
-                                </option>
-                              ))}
-                            </select>
-                          </div>
-                          
-                          {opcionCuotasSeleccionada && (
-                            <div className="bg-green-50 border border-green-200 rounded-xl p-4">
-                              <div className="grid grid-cols-2 gap-4 text-sm">
-                                <div>
-                                  <div className="text-xs font-medium text-green-700">Número de Cuotas</div>
-                                  <div className="font-bold text-green-900">{opcionCuotasSeleccionada.numeroCuotas} cuotas</div>
-                                </div>
-                                <div>
-                                  <div className="text-xs font-medium text-green-700">Valor por Cuota</div>
-                                  <div className="font-bold text-green-900">{formatCurrency(opcionCuotasSeleccionada.valorCuota)}</div>
-                                </div>
-                                <div>
-                                  <div className="text-xs font-medium text-green-700">Precio Total</div>
-                                  <div className="font-bold text-green-900">{formatCurrency(opcionCuotasSeleccionada.precioTotal)}</div>
-                                </div>
-                                <div>
-                                  <div className="text-xs font-medium text-green-700">Frecuencia</div>
-                                  <div className="font-bold text-green-900">{opcionCuotasSeleccionada.frecuenciaPago}</div>
-                                </div>
-                              </div>
-                            </div>
-                          )}
-                          
-                          <div>
-                            <label className="block text-sm font-bold text-slate-700 mb-2">Cuota Inicial (Opcional)</label>
-                            <div className="relative">
-                              <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
-                              <input
-                                type="text"
-                                inputMode="numeric"
-                                value={cuotaInicialArticuloInput}
-                                onChange={(e) => setCuotaInicialArticuloInput(formatCOPInputValue(e.target.value))}
-                                className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-[#08557f] focus:ring-0 font-medium text-slate-900"
-                                placeholder="0"
-                              />
-                            </div>
-                          </div>
-                        </>
-                      )}
-                    </>
-                  )}
-
-                  <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
-                    <div className="text-xs font-bold text-slate-500 uppercase mb-2">Resumen</div>
-                    <div className="space-y-1 text-sm">
-                      <div className="flex justify-between">
-                        <span className="text-slate-600">Tipo:</span>
-                        <span className="font-bold text-slate-900">
-                          {creditType === 'prestamo' ? 'Préstamo en Efectivo' : 'Crédito por Artículo'}
-                        </span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-slate-600">Estado:</span>
-                        <span className="font-bold text-orange-600">Pendiente de Aprobación</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="flex gap-3 pt-2">
-                    <button
-                      type="button"
-                      onClick={resetCreditoModal}
-                      className="flex-1 bg-slate-100 text-slate-700 font-bold py-3.5 rounded-xl hover:bg-slate-200 transition-all"
-                    >
-                      Cancelar
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        console.log('Crear crédito:', {
-                          clienteId: clienteCreditoId,
-                          tipo: creditType,
-                          montoPrestamo: parseCOPInputToNumber(montoPrestamoInput),
-                          tipoInteres: tipoInteres,
-                          tasaInteres: tasaInteresInput,
-                          cuotas: cuotasPrestamoInput,
-                          articuloId: articuloSeleccionadoId,
-                          opcionCuotas: opcionCuotasSeleccionada,
-                          cuotaInicial: parseCOPInputToNumber(cuotaInicialArticuloInput),
-                        })
-                        resetCreditoModal()
-                      }}
-                      disabled={
-                        !clienteCreditoId || 
-                        (creditType === 'articulo' && (!articuloSeleccionadoId || !opcionCuotasSeleccionada))
-                      }
-                      className="flex-1 bg-[#08557f] text-white font-bold py-3.5 rounded-xl shadow-lg shadow-[#08557f]/20 hover:bg-[#063a58] active:scale-[0.98] transition-all disabled:opacity-40 disabled:cursor-not-allowed disabled:active:scale-100"
-                    >
-                      Crear Crédito
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </Portal>
-      )}
+      <CrearCreditoModal 
+        isOpen={showCreditoTipoModal}
+        onClose={() => setShowCreditoTipoModal(false)}
+        onConfirm={handleCreditoConfirm}
+      />
 
       {showNewClientModal && (
         <NuevoClienteModal 
             onClose={() => setShowNewClientModal(false)}
             onClienteCreado={(nuevo) => {
                 MOCK_CLIENTES.unshift(nuevo);
-                setClienteCreditoId(nuevo.id); 
                 setShowNewClientModal(false);
             }}
         />
       )}
 
       <div className="fixed right-6 z-50 flex flex-col items-end gap-3 bottom-[calc(1.5rem+env(safe-area-inset-bottom))] pointer-events-none">
+        {/* Backdrop for FAB */}
+        {isFabOpen && (
+          <div 
+            className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm pointer-events-auto transition-all animate-in fade-in duration-300"
+            onClick={() => setIsFabOpen(false)}
+          />
+        )}
+
         <div
-          className={`flex flex-col gap-3 transition-all duration-200 origin-bottom-right ${
+          className={`relative z-10 flex flex-col gap-3 transition-all duration-300 origin-bottom-right ${
             isFabOpen ? 'scale-100 opacity-100 translate-y-0' : 'scale-95 opacity-0 translate-y-2 pointer-events-none'
           }`}
         >
@@ -966,6 +503,34 @@ const VistaSupervisor = () => {
           <button
             onClick={() => {
               setIsFabOpen(false)
+              setShowNewClientModal(true)
+            }}
+            className={`flex items-center justify-between w-56 gap-3 ${isFabOpen ? 'pointer-events-auto' : 'pointer-events-none'}`}
+          >
+            <span className="bg-[#08557f] text-white text-xs font-bold px-3 py-1 rounded-full shadow-lg shadow-[#08557f]/20">Nuevo Cliente</span>
+            <div className="h-11 w-11 flex items-center justify-center rounded-full bg-white text-[#08557f] border border-[#08557f]/20 shadow-lg shadow-[#08557f]/10 hover:bg-[#f1f6fb] transition-all">
+              <UserPlus className="h-5 w-5" />
+            </div>
+          </button>
+
+          <button
+            onClick={() => {
+              setIsFabOpen(false)
+              setPagoInitialIsAbono(true)
+              setShowPagoModal(true)
+            }}
+            className={`flex items-center justify-between w-56 gap-3 ${isFabOpen ? 'pointer-events-auto' : 'pointer-events-none'}`}
+          >
+            <span className="bg-orange-600 text-white text-xs font-bold px-3 py-1 rounded-full shadow-lg shadow-orange-600/20">Registrar abono</span>
+            <div className="h-11 w-11 flex items-center justify-center rounded-full bg-white text-orange-600 border border-orange-200 shadow-lg shadow-orange-600/10 hover:bg-orange-50 transition-all">
+              <RefreshCw className="h-5 w-5" />
+            </div>
+          </button>
+
+          <button
+            onClick={() => {
+              setIsFabOpen(false)
+              setPagoInitialIsAbono(false)
               setShowPagoModal(true)
             }}
             className={`flex items-center justify-between w-56 gap-3 ${isFabOpen ? 'pointer-events-auto' : 'pointer-events-none'}`}
@@ -978,24 +543,24 @@ const VistaSupervisor = () => {
 
           <button
             onClick={() => {
+              router.push('/cobranzas/solicitudes')
               setIsFabOpen(false)
-              setShowNewClientModal(true)
             }}
             className={`flex items-center justify-between w-56 gap-3 ${isFabOpen ? 'pointer-events-auto' : 'pointer-events-none'}`}
           >
-            <span className="bg-[#08557f] text-white text-xs font-bold px-3 py-1 rounded-full shadow-lg shadow-[#08557f]/20">Crear cliente</span>
+            <span className="bg-[#08557f] text-white text-xs font-bold px-3 py-1 rounded-full shadow-lg shadow-[#08557f]/20">Solicitudes</span>
             <div className="h-11 w-11 flex items-center justify-center rounded-full bg-white text-[#08557f] border border-[#08557f]/20 shadow-lg shadow-[#08557f]/10 hover:bg-[#f1f6fb] transition-all">
-              <UserPlus className="h-5 w-5" />
+              <ClipboardList className="h-5 w-5" />
             </div>
           </button>
         </div>
 
         <button
           onClick={() => setIsFabOpen((v) => !v)}
-          className="pointer-events-auto h-14 w-14 rounded-full bg-[#08557f] text-white shadow-xl shadow-[#08557f]/25 flex items-center justify-center border border-white/30"
+          className="relative z-10 pointer-events-auto h-14 w-14 rounded-full bg-[#08557f] text-white shadow-xl shadow-[#08557f]/25 flex items-center justify-center border border-white/30 transition-all duration-300 hover:scale-105 active:scale-95"
           aria-label={isFabOpen ? 'Cerrar acciones' : 'Abrir acciones'}
         >
-          {isFabOpen ? <X className="h-6 w-6" /> : <Plus className="h-6 w-6" />}
+          {isFabOpen ? <X className="h-6 w-6 rotate-90 transition-all duration-300" /> : <Plus className="h-6 w-6 transition-all duration-300" />}
         </button>
       </div>
     </div>

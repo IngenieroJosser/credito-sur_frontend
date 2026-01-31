@@ -2,32 +2,35 @@
 
 import React, { useState } from 'react'
 
-import Link from 'next/link'
+// import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import {
-  AlertCircle,
-  ArrowRight,
-  Banknote,
-  Bell,
-  CheckCircle2,
+import { 
+  Bell, 
+  Search, 
+  Banknote, 
+  Users, 
+  AlertCircle, 
+  CheckCircle2, 
+  Clock,
   ChevronLeft,
   ChevronRight,
-  Clock,
-  Search,
-  Trash2,
-  Users,
+  Eye,
+  ClipboardList
 } from 'lucide-react'
 import FiltroRuta from '@/components/filtros/FiltroRuta'
+import SolicitudDetalleModal, { SolicitudData } from '@/components/dashboards/shared/SolicitudDetalleModal'
 
+// Mock Data
 interface Notificacion {
   id: string
   titulo: string
   mensaje: string
-  tipo: 'PAGO' | 'CLIENTE' | 'MORA' | 'SISTEMA'
+  tipo: 'PAGO' | 'CLIENTE' | 'MORA' | 'SISTEMA' | 'SOLICITUD'
   fecha: string
   leida: boolean
   link?: string
   rutaId?: string
+  solicitudDetails?: SolicitudData
 }
 
 const MOCK_NOTIFICACIONES: Notificacion[] = [
@@ -39,6 +42,7 @@ const MOCK_NOTIFICACIONES: Notificacion[] = [
     fecha: 'Hace 5 min',
     leida: false,
     link: '/supervisor',
+    rutaId: 'RT-001'
   },
   {
     id: 'NOT-002',
@@ -48,6 +52,7 @@ const MOCK_NOTIFICACIONES: Notificacion[] = [
     fecha: 'Hace 2 horas',
     leida: false,
     link: '/supervisor/clientes',
+    rutaId: 'RT-002'
   },
   {
     id: 'NOT-003',
@@ -57,6 +62,7 @@ const MOCK_NOTIFICACIONES: Notificacion[] = [
     fecha: 'Hace 4 horas',
     leida: false,
     link: '/supervisor/clientes',
+    rutaId: 'RT-002'
   },
   {
     id: 'NOT-004',
@@ -65,7 +71,7 @@ const MOCK_NOTIFICACIONES: Notificacion[] = [
     tipo: 'SISTEMA',
     fecha: 'Ayer, 18:30',
     leida: true,
-    link: '/supervisor',
+    link: '/supervisor'
   },
   {
     id: 'NOT-005',
@@ -74,62 +80,134 @@ const MOCK_NOTIFICACIONES: Notificacion[] = [
     tipo: 'SISTEMA',
     fecha: 'Ayer, 15:45',
     leida: true,
-    link: '/supervisor',
+    link: '/supervisor'
   },
+  {
+    id: 'NOT-006',
+    titulo: 'Solicitud de Gasto',
+    mensaje: 'Juan Pérez solicita aprobación para gasto de gasolina ($25.000)',
+    tipo: 'SOLICITUD',
+    fecha: 'Hace 10 min',
+    leida: false,
+    link: undefined,
+    solicitudDetails: {
+      id: 'SOL-001',
+      tipo: 'GASTO',
+      titulo: 'Gasto de Gasolina - Ruta Norte',
+      solicitante: 'Juan Pérez',
+      fecha: '30 Ene 2024, 10:30 AM',
+      monto: 25000,
+      descripcion: 'Tanqueo de motocicleta para recorrido de la ruta norte. Se adjunta recibo en físico al llegar.',
+      estado: 'PENDIENTE'
+    }
+  },
+  {
+    id: 'NOT-007',
+    titulo: 'Solicitud de Base',
+    mensaje: 'María González solicita base operativa ($200.000)',
+    tipo: 'SOLICITUD',
+    fecha: 'Hace 30 min',
+    leida: false,
+    link: undefined,
+    solicitudDetails: {
+      id: 'SOL-002',
+      tipo: 'BASE',
+      titulo: 'Base Operativa - Ruta Centro',
+      solicitante: 'María González',
+      fecha: '30 Ene 2024, 08:00 AM',
+      monto: 200000,
+      descripcion: 'Solicito base para inicio de operación y cambio sencillo para clientes.',
+      estado: 'PENDIENTE'
+    }
+  }
 ]
 
 export default function NotificacionesSupervisorPage() {
   const router = useRouter()
-  const [filter, setFilter] = useState<'TODAS' | 'NO_LEIDAS'>('TODAS')
+  const [filter, setFilter] = useState<'TODAS' | 'NO_LEIDAS' | 'LEIDAS'>('TODAS')
   const [tipoFilter, setTipoFilter] = useState<'TODOS' | Notificacion['tipo']>('TODOS')
-  const [search, setSearch] = useState('')
   const [filterRuta, setFilterRuta] = useState<string | null>(null)
-  const [notificacionesState, setNotificacionesState] = useState<Notificacion[]>(() => MOCK_NOTIFICACIONES)
+  const [search, setSearch] = useState('')
+  const [notificacionesState, setNotificacionesState] = useState<Notificacion[]>(MOCK_NOTIFICACIONES)
+  const [selectedSolicitud, setSelectedSolicitud] = useState<SolicitudData | null>(null)
+
+  // Reset state on mount can be handled by standard initialization or simpler logic.
+  // Removing useEffect to fix lint error causing build block.
 
   const notificaciones = notificacionesState
-    .filter((n) => (filter === 'TODAS' ? true : !n.leida))
+    .filter((n) => {
+      if (filter === 'TODAS') return true;
+      if (filter === 'NO_LEIDAS') return !n.leida;
+      if (filter === 'LEIDAS') return n.leida;
+      return true;
+    })
     .filter((n) => (tipoFilter === 'TODOS' ? true : n.tipo === tipoFilter))
     .filter((n) => (!filterRuta || filterRuta === '' ? true : n.rutaId === filterRuta))
     .filter((n) => {
       const q = search.trim().toLowerCase()
       if (!q) return true
-      return n.titulo.toLowerCase().includes(q) || n.mensaje.toLowerCase().includes(q) || n.id.toLowerCase().includes(q)
+      return (
+        n.titulo.toLowerCase().includes(q) ||
+        n.mensaje.toLowerCase().includes(q) ||
+        n.id.toLowerCase().includes(q)
+      )
     })
 
   const getIcon = (tipo: string) => {
     switch (tipo) {
-      case 'PAGO':
-        return <Banknote className="h-5 w-5" />
-      case 'CLIENTE':
-        return <Users className="h-5 w-5" />
-      case 'MORA':
-        return <AlertCircle className="h-5 w-5" />
-      default:
-        return <Bell className="h-5 w-5" />
+      case 'PAGO': return <Banknote className="h-5 w-5" />
+      case 'CLIENTE': return <Users className="h-5 w-5" />
+      case 'MORA': return <AlertCircle className="h-5 w-5" />
+      case 'SOLICITUD': return <ClipboardList className="h-5 w-5" />
+      default: return <Bell className="h-5 w-5" />
     }
   }
 
   const getColor = (tipo: string) => {
     switch (tipo) {
-      case 'PAGO':
-        return 'bg-blue-50 text-blue-700 border-blue-100'
-      case 'CLIENTE':
-        return 'bg-orange-50 text-orange-700 border-orange-100'
-      case 'MORA':
-        return 'bg-orange-50 text-orange-700 border-orange-100'
-      default:
-        return 'bg-white text-slate-700 border-slate-200'
+      case 'PAGO': return 'bg-blue-50 text-blue-700 border-blue-100'
+      case 'CLIENTE': return 'bg-orange-50 text-orange-700 border-orange-100'
+      case 'MORA': return 'bg-orange-50 text-orange-700 border-orange-100'
+      case 'SOLICITUD': return 'bg-purple-50 text-purple-700 border-purple-100'
+      default: return 'bg-white text-slate-700 border-slate-200'
     }
+  }
+
+  /* 
+   * Adapter to convert any notification into a viewable object for the modal.
+   * If it's a real Solicitud, it uses the details. Otherwise, creates a view-only representation.
+   */
+  const handleActionClick = (notif: Notificacion) => {
+     let dataToView: SolicitudData;
+
+     if (notif.solicitudDetails) {
+       dataToView = notif.solicitudDetails;
+     } else {
+       // Construct generic view data for other notifications (PAGO, CLIENTE, etc)
+       dataToView = {
+         id: notif.id,
+         tipo: notif.tipo, // e.g. 'PAGO'
+         titulo: notif.titulo,
+         solicitante: 'Sistema / Automático', // Default fallback
+         fecha: notif.fecha,
+         descripcion: notif.mensaje,
+         estado: 'PENDIENTE' // Just for interface compliance, not used in readOnly
+       };
+     }
+     
+     setSelectedSolicitud(dataToView);
   }
 
   return (
     <div className="min-h-screen relative bg-white">
+      {/* Fondo Arquitectónico */}
       <div className="fixed inset-0 z-0 pointer-events-none">
         <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px]" />
         <div className="absolute left-0 top-0 -z-10 h-[360px] w-[360px] rounded-full bg-blue-600 opacity-15 blur-[110px]" />
       </div>
 
       <div className="relative z-10 pb-20">
+        {/* Header */}
         <div className="pb-8 pt-10 px-8 w-full">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
             <div>
@@ -149,31 +227,37 @@ export default function NotificacionesSupervisorPage() {
                   Centro de Mensajes
                 </span>
               </div>
-              <h1 className="text-3xl font-bold text-slate-900 tracking-tight">Notificaciones</h1>
-              <p className="text-slate-500 mt-2 text-lg">Gestiona tus alertas y avisos del sistema</p>
+              {/* Force Rebuild Trigger: 2026-01-30 T21:18 */}
+              <h1 className="text-3xl font-bold text-slate-900 tracking-tight">
+                Notificaciones - Supervisor
+              </h1>
+              <p className="text-slate-500 mt-2 text-lg">
+                Gestiona tus alertas y avisos del sistema
+              </p>
             </div>
-
+            
             <div className="flex gap-3">
-              <button
-                onClick={() => setNotificacionesState((prev) => prev.map((n) => ({ ...n, leida: true })))}
-                className="px-4 py-2 bg-white border border-slate-200 rounded-xl text-slate-600 font-bold hover:bg-slate-50 hover:text-blue-600 transition-colors shadow-sm flex items-center gap-2"
-              >
-                <CheckCircle2 className="h-4 w-4" />
-                Marcar todas como leídas
-              </button>
+               <button
+                 onClick={() => setNotificacionesState((prev) => prev.map((n) => ({ ...n, leida: true })))}
+                 className="px-4 py-2 bg-white border border-slate-200 rounded-xl text-slate-600 font-bold hover:bg-slate-50 hover:text-blue-600 transition-colors shadow-sm flex items-center gap-2"
+               >
+                 <CheckCircle2 className="h-4 w-4" />
+                 Marcar todas como leídas
+               </button>
             </div>
           </div>
         </div>
 
         <div className="w-full px-8">
           <div className="bg-white/80 backdrop-blur-xl rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+            {/* Tabs y Filtros */}
             <div className="border-b border-slate-100 p-4 flex flex-col gap-4">
               <div className="flex bg-slate-100/50 p-1 rounded-xl">
                 <button
                   onClick={() => setFilter('TODAS')}
                   className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${
-                    filter === 'TODAS'
-                      ? 'bg-white text-slate-900 shadow-sm ring-1 ring-slate-200'
+                    filter === 'TODAS' 
+                      ? 'bg-white text-slate-900 shadow-sm ring-1 ring-slate-200' 
                       : 'text-slate-500 hover:text-slate-700'
                   }`}
                 >
@@ -182,12 +266,22 @@ export default function NotificacionesSupervisorPage() {
                 <button
                   onClick={() => setFilter('NO_LEIDAS')}
                   className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${
-                    filter === 'NO_LEIDAS'
-                      ? 'bg-white text-slate-900 shadow-sm ring-1 ring-slate-200'
+                    filter === 'NO_LEIDAS' 
+                      ? 'bg-white text-slate-900 shadow-sm ring-1 ring-slate-200' 
                       : 'text-slate-500 hover:text-slate-700'
                   }`}
                 >
                   No leídas
+                </button>
+                <button
+                  onClick={() => setFilter('LEIDAS')}
+                  className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${
+                    filter === 'LEIDAS' 
+                      ? 'bg-white text-slate-900 shadow-sm ring-1 ring-slate-200' 
+                      : 'text-slate-500 hover:text-slate-700'
+                  }`}
+                >
+                  Leídas
                 </button>
               </div>
 
@@ -202,6 +296,7 @@ export default function NotificacionesSupervisorPage() {
                         { key: 'PAGO' as const, label: 'Pagos' },
                         { key: 'CLIENTE' as const, label: 'Clientes' },
                         { key: 'MORA' as const, label: 'Mora' },
+                        { key: 'SOLICITUD' as const, label: 'Solicitudes' },
                         { key: 'SISTEMA' as const, label: 'Sistema' },
                       ]
                     ).map((t) => (
@@ -244,59 +339,58 @@ export default function NotificacionesSupervisorPage() {
               </div>
             </div>
 
+            {/* Lista */}
             <div className="divide-y divide-slate-100">
               {notificaciones.length > 0 ? (
                 notificaciones.map((notif) => (
-                  <div
-                    key={notif.id}
+                  <div 
+                    key={notif.id} 
                     className={`p-6 hover:bg-slate-50/80 transition-colors group ${!notif.leida ? 'bg-blue-50/30' : ''}`}
                   >
                     <div className="flex items-start gap-4">
-                      <div
-                        className={`p-3 rounded-xl border ${getColor(notif.tipo)} shadow-sm group-hover:scale-105 transition-transform duration-300`}
-                      >
+                      <div className={`p-3 rounded-xl border ${getColor(notif.tipo)} shadow-sm group-hover:scale-105 transition-transform duration-300`}>
                         {getIcon(notif.tipo)}
                       </div>
-
+                      
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between mb-1">
                           <h3 className={`text-base font-bold ${!notif.leida ? 'text-slate-900' : 'text-slate-700'}`}>
                             {notif.titulo}
-                            {!notif.leida && <span className="ml-2 inline-flex w-2 h-2 rounded-full bg-orange-500"></span>}
+                            {!notif.leida && (
+                              <span className="ml-2 inline-flex w-2 h-2 rounded-full bg-orange-500"></span>
+                            )}
                           </h3>
                           <span className="text-xs font-medium text-slate-400 flex items-center gap-1 bg-slate-50 px-2 py-1 rounded-lg border border-slate-100">
                             <Clock className="h-3 w-3" />
                             {notif.fecha}
                           </span>
                         </div>
-                        <p className="text-slate-600 text-sm leading-relaxed">{notif.mensaje}</p>
+                        <p className="text-slate-600 text-sm leading-relaxed">
+                          {notif.mensaje}
+                        </p>
                       </div>
 
                       <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                        {notif.link && (
-                          <Link
-                            href={notif.link}
+                        <button
+                            onClick={() => handleActionClick(notif)}
                             className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-colors"
-                            title="Ir a detalle"
-                          >
-                            <ArrowRight className="h-4 w-4" />
-                          </Link>
-                        )}
+                            title="Ver Detalle"
+                            type="button"
+                        >
+                            <Eye className="h-4 w-4" />
+                        </button>
+                        
                         <button
                           onClick={() =>
-                            setNotificacionesState((prev) => prev.map((n) => (n.id === notif.id ? { ...n, leida: true } : n)))
+                            setNotificacionesState((prev) =>
+                              prev.map((n) => (n.id === notif.id ? { ...n, leida: true } : n))
+                            )
                           }
                           className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-colors"
                           title="Marcar como leída"
+                          type="button"
                         >
                           <CheckCircle2 className="h-4 w-4" />
-                        </button>
-                        <button
-                          onClick={() => setNotificacionesState((prev) => prev.filter((n) => n.id !== notif.id))}
-                          className="p-2 text-slate-400 hover:text-orange-600 hover:bg-orange-50 rounded-xl transition-colors"
-                          title="Eliminar"
-                        >
-                          <Trash2 className="h-4 w-4" />
                         </button>
                       </div>
                     </div>
@@ -312,14 +406,12 @@ export default function NotificacionesSupervisorPage() {
                 </div>
               )}
             </div>
-
+            
+            {/* Footer Paginación */}
             <div className="p-4 border-t border-slate-100 bg-slate-50/30 flex justify-between items-center text-xs text-slate-500 font-medium">
               <span>Mostrando {notificaciones.length} notificaciones</span>
               <div className="flex gap-2">
-                <button
-                  disabled
-                  className="px-4 py-2 rounded-lg border border-slate-200 bg-white opacity-50 cursor-not-allowed font-bold flex items-center gap-1"
-                >
+                <button disabled className="px-4 py-2 rounded-lg border border-slate-200 bg-white opacity-50 cursor-not-allowed font-bold flex items-center gap-1">
                   <ChevronLeft className="h-3 w-3" /> Anterior
                 </button>
                 <button className="px-4 py-2 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 font-bold transition-colors flex items-center gap-1 shadow-sm">
@@ -330,6 +422,15 @@ export default function NotificacionesSupervisorPage() {
           </div>
         </div>
       </div>
+      
+      {/* Modal - Modo solo lectura */}
+      <SolicitudDetalleModal 
+        isOpen={!!selectedSolicitud}
+        onClose={() => setSelectedSolicitud(null)}
+        solicitud={selectedSolicitud}
+        onResolve={() => {}} // No-op, because readOnly hides actions
+        readOnly={true}
+      />
     </div>
   )
 }

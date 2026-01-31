@@ -1,15 +1,15 @@
 'use client';
 
 import React, { useState } from 'react';
-import Link from 'next/link';
-import { 
-  User, Phone, Mail, MapPin, Calendar, FileText, 
+import {
+  User, Phone, Mail, MapPin, Calendar, FileText,
   DollarSign, TrendingUp, AlertCircle, CheckCircle,
-  Edit, MessageSquare, 
-  Shield, CreditCard, PieChart, Filter,
+  MessageSquare,
+  CreditCard, Filter,
   Plus, ExternalLink,
-  BarChart,
-  Bell
+  Camera,
+  Image as ImageIcon,
+  Map as MapIcon
 } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils';
 import { ExportButton } from '@/components/ui/ExportButton';
@@ -37,6 +37,8 @@ export interface Cliente {
   fechaRegistro: string;
   ocupacion?: string;
   avatarColor?: string;
+  ruta?: string;
+  fotos?: string[];
 }
 
 export interface Prestamo {
@@ -85,32 +87,20 @@ interface ClienteDetalleProps {
   prestamos: Prestamo[];
   pagos: Pago[];
   comentarios: Comentario[];
-  rolUsuario?: string;
-  onEdit?: () => void;
   onContact?: () => void;
   onNewLoan?: () => void;
-  viewOnly?: boolean;
 }
-const ClienteDetalleElegante: React.FC<ClienteDetalleProps> = ({ 
-  cliente, 
-  prestamos, 
-  pagos, 
+const ClienteDetalleElegante: React.FC<ClienteDetalleProps> = ({
+  cliente,
+  prestamos,
+  pagos,
   comentarios,
-  rolUsuario,
-  onNewLoan,
-  viewOnly = false
 }) => {
-  const [activeTab, setActiveTab] = useState<'resumen' | 'prestamos' | 'pagos' | 'comentarios' | 'analitica'>('resumen');
+  const [activeTab, setActiveTab] = useState<'resumen' | 'prestamos' | 'pagos' | 'comentarios' | 'fotos'>('resumen');
   const [isNoteModalOpen, setIsNoteModalOpen] = useState(false);
   const [newNote, setNewNote] = useState('');
 
-  const isSupervisor = rolUsuario === 'supervisor'
-  const hrefEditarCliente = `/admin/clientes/${cliente.id}/editar`
-  const hrefRegistrarPago = isSupervisor
-    ? `/supervisor/pagos/registrar/${cliente.id}`
-    : `/admin/pagos/registrar/${cliente.id}`
-  const hrefNuevoCredito = isSupervisor ? '/supervisor/creditos/nuevo' : '/admin/prestamos/nuevo'
-  
+
   const calcularTotales = () => {
     const totalPrestamos = prestamos.reduce((sum, p) => sum + p.montoTotal, 0);
     const totalPagado = prestamos.reduce((sum, p) => sum + p.montoPagado, 0);
@@ -184,44 +174,14 @@ const ClienteDetalleElegante: React.FC<ClienteDetalleProps> = ({
                     {cliente.codigo}
                   </span>
                   <span className="text-slate-400 text-sm">•</span>
-                  <span className="text-slate-500 text-sm font-medium">Cédula / CC: {cliente.dni}</span>
+                  <span className="text-slate-500 text-sm font-medium">Cédula de Ciudadanía: {cliente.dni}</span>
                 </div>
               </div>
             </div>
           </div>
           
           <div className="flex items-center gap-3">
-            {!viewOnly && !isSupervisor && (
-              <Link 
-                href={hrefEditarCliente}
-                className="px-5 py-2.5 border border-slate-200 bg-white rounded-xl hover:bg-slate-50 hover:border-slate-300 transition-all duration-200 text-sm font-bold text-slate-700 flex items-center gap-2 shadow-sm"
-              >
-                <Edit className="w-4 h-4" />
-                Editar
-              </Link>
-            )}
-
-            {!viewOnly && isSupervisor && (
-              <>
-                <Link
-                  href={hrefNuevoCredito}
-                  className="px-5 py-2.5 border border-slate-200 bg-white rounded-xl hover:bg-slate-50 hover:border-slate-300 transition-all duration-200 text-sm font-bold text-slate-700 flex items-center gap-2 shadow-sm"
-                >
-                  <CreditCard className="w-4 h-4" />
-                  Nuevo crédito
-                </Link>
-              </>
-            )}
-
-            {!viewOnly && (
-              <Link
-                href={hrefRegistrarPago}
-                className="px-5 py-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-all duration-200 text-sm font-bold flex items-center gap-2 shadow-lg shadow-blue-600/20"
-              >
-                <DollarSign className="w-4 h-4" />
-                Registrar Pago
-              </Link>
-            )}
+            {/* Botones de acción removidos por requerimiento */}
           </div>
         </div>
 
@@ -243,7 +203,7 @@ const ClienteDetalleElegante: React.FC<ClienteDetalleProps> = ({
             </div>
             <div>
               <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Email</p>
-              <p className="font-bold text-slate-700 truncate max-w-[150px]">{cliente.correo || 'No registrado'}</p>
+              <p className="font-bold text-slate-700 break-all text-xs lg:text-sm">{cliente.correo || 'No registrado'}</p>
             </div>
           </div>
           
@@ -251,19 +211,19 @@ const ClienteDetalleElegante: React.FC<ClienteDetalleProps> = ({
             <div className="p-3 rounded-xl bg-slate-100 border border-slate-200">
               <MapPin className="w-5 h-5 text-slate-600" />
             </div>
-            <div>
+            <div className="min-w-0 flex-1">
               <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Dirección</p>
-              <p className="font-bold text-slate-700 truncate max-w-[150px]">{cliente.direccion || 'No registrada'}</p>
+              <p className="font-bold text-slate-700 break-words">{cliente.direccion || 'No registrada'}</p>
             </div>
           </div>
           
           <div className="flex items-center gap-4 p-5 bg-white/80 backdrop-blur-sm rounded-2xl border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all">
             <div className="p-3 rounded-xl bg-slate-100 border border-slate-200">
-              <Calendar className="w-5 h-5 text-slate-600" />
+              <MapIcon className="w-5 h-5 text-slate-600" />
             </div>
             <div>
-              <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Registro</p>
-              <p className="font-bold text-slate-700">{cliente.fechaRegistro}</p>
+              <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Ruta</p>
+              <p className="font-bold text-slate-700">{cliente.ruta || 'No asignada'}</p>
             </div>
           </div>
         </div>
@@ -398,15 +358,15 @@ const ClienteDetalleElegante: React.FC<ClienteDetalleProps> = ({
             Comentarios
           </button>
           <button
-            onClick={() => setActiveTab('analitica')}
+            onClick={() => setActiveTab('fotos')}
             className={`px-6 py-3 rounded-xl text-sm font-bold transition-all duration-200 flex items-center gap-2 flex-1 justify-center ${
-              activeTab === 'analitica' 
+              activeTab === 'fotos' 
                 ? 'bg-white text-slate-900 shadow-sm ring-1 ring-black/5' 
                 : 'text-slate-500 hover:text-slate-900 hover:bg-white/50'
             }`}
           >
-            <BarChart className="w-4 h-4" />
-            Análisis
+            <Camera className="w-4 h-4" />
+            Fotos
           </button>
         </div>
       </div>
@@ -426,15 +386,6 @@ const ClienteDetalleElegante: React.FC<ClienteDetalleProps> = ({
                   <Filter className="w-4 h-4" />
                   Filtrar
                 </button>
-                {!viewOnly && (
-                  <button 
-                    onClick={onNewLoan}
-                    className="px-4 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-all duration-200 text-sm font-bold flex items-center gap-2 shadow-lg shadow-blue-600/20"
-                  >
-                    <Plus className="w-4 h-4" />
-                    Nuevo Préstamo
-                  </button>
-                )}
               </div>
             </div>
 
@@ -620,110 +571,56 @@ const ClienteDetalleElegante: React.FC<ClienteDetalleProps> = ({
           </div>
         )}
 
-        {/* Contenido de analítica */}
-        {activeTab === 'analitica' && (
+
+        {/* Contenido de Fotos */}
+        {activeTab === 'fotos' && (
           <div className="p-8">
-            <div className="mb-8">
-              <h2 className="text-xl font-bold text-slate-900 mb-2">Análisis de Riesgo</h2>
-              <p className="text-slate-500 text-sm font-medium">Evaluación basada en comportamiento de pagos</p>
+            <div className="flex items-center justify-between mb-8">
+              <div>
+                <h2 className="text-xl font-bold text-slate-900 mb-2">Galería del Cliente</h2>
+                <p className="text-slate-500 text-sm font-medium">Documentos y fotografías de verificación</p>
+              </div>
+              <button className="px-4 py-2 bg-slate-900 text-white rounded-xl hover:bg-slate-800 transition-all duration-200 text-sm font-bold flex items-center gap-2 active:scale-95 shadow-lg shadow-black/10">
+                <Camera className="w-4 h-4" />
+                Subir Foto
+              </button>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-6">
-                {/* Score Card */}
-                <div className="p-6 rounded-2xl border border-slate-200 bg-gradient-to-br from-white to-slate-50/50">
-                  <h3 className="font-bold text-slate-900 mb-4">Score Crediticio</h3>
-                  <div className="flex items-center gap-6">
-                    <div className="relative w-32 h-32 flex items-center justify-center">
-                      <svg className="w-full h-full transform -rotate-90">
-                        <circle
-                          cx="64"
-                          cy="64"
-                          r="56"
-                          stroke="currentColor"
-                          strokeWidth="10"
-                          fill="transparent"
-                          className="text-slate-100"
-                        />
-                        <circle
-                          cx="64"
-                          cy="64"
-                          r="56"
-                          stroke="currentColor"
-                          strokeWidth="10"
-                          fill="transparent"
-                          strokeDasharray={351.8}
-                          strokeDashoffset={351.8 - (351.8 * cliente.puntaje) / 100}
-                          className="text-slate-900 transition-all duration-1000 ease-out"
-                          strokeLinecap="round"
-                        />
-                      </svg>
-                      <span className="absolute text-3xl font-bold text-slate-900">{cliente.puntaje}</span>
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+              {(cliente.fotos && cliente.fotos.length > 0) ? (
+                cliente.fotos.map((foto, idx) => (
+                  <div key={idx} className="group relative aspect-square rounded-2xl overflow-hidden border border-slate-200 bg-slate-100 transition-all hover:shadow-xl">
+                    <img src={foto} alt={`Foto ${idx + 1}`} className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-end p-4">
+                      <p className="text-white text-xs font-bold font-sans">Verificación {idx + 1}</p>
                     </div>
-                    <div className="flex-1">
-                      <p className="text-sm text-slate-500 mb-4 leading-relaxed font-medium">
-                        El score se actualiza mensualmente basado en la puntualidad de pagos y comportamiento histórico.
-                      </p>
-                      <div className="flex items-center gap-3">
-                        <div className="h-2.5 flex-1 bg-slate-100 rounded-full overflow-hidden border border-slate-100">
-                          <div 
-                            className="h-full bg-slate-900 rounded-full"
-                            style={{ width: `${cliente.puntaje}%` }}
-                          />
-                        </div>
-                        <span className="font-bold text-slate-700 text-sm">{cliente.puntaje}/100</span>
-                      </div>
-                    </div>
+                  </div>
+                ))
+              ) : (
+                <>
+                  <div className="aspect-square rounded-2xl border-2 border-dashed border-slate-200 flex flex-col items-center justify-center text-slate-400 gap-2 bg-slate-50/50">
+                    <ImageIcon className="w-8 h-8 opacity-20" />
+                    <p className="text-[10px] font-black uppercase tracking-widest">Foto de Perfil</p>
+                  </div>
+                  <div className="aspect-square rounded-2xl border-2 border-dashed border-slate-200 flex flex-col items-center justify-center text-slate-400 gap-2 bg-slate-50/50">
+                    <ImageIcon className="w-8 h-8 opacity-20" />
+                    <div className="text-center">
+                    <p className="text-[10px] font-black uppercase tracking-widest">CC Frente</p>
                   </div>
                 </div>
-
-                {/* Comportamiento de pago */}
-                <div className="p-6 rounded-2xl border border-slate-200 bg-white/50">
-                  <h3 className="font-bold text-slate-900 mb-4">Comportamiento de Pago</h3>
-                  <div className="space-y-4">
-                    <div>
-                      <div className="flex justify-between text-sm mb-2 font-medium">
-                        <span className="text-slate-500">Puntualidad Global</span>
-                        <span className="font-bold text-green-600">85%</span>
-                      </div>
-                      <div className="h-2.5 bg-slate-100 rounded-full overflow-hidden border border-slate-100">
-                        <div className="h-full bg-green-500 rounded-full w-4/5" />
-                      </div>
-                    </div>
+                
+                {/* ID Back Placeholder */}
+                <div className="aspect-[1.58/1] bg-slate-100 rounded-xl border-2 border-dashed border-slate-200 flex flex-col items-center justify-center gap-2 p-4 text-slate-400">
+                  <ImageIcon className="w-8 h-8" />
+                  <div className="text-center">
+                    <p className="text-[10px] font-black uppercase tracking-widest">CC Reverso</p>
                   </div>
                 </div>
-              </div>
-
-              {!viewOnly && (
-                <div className="space-y-6">
-                  <div className="p-6 rounded-2xl border border-slate-200 bg-white/50">
-                    <h3 className="font-bold text-slate-900 mb-4">Acciones de Riesgo</h3>
-                    <div className="grid grid-cols-2 gap-4">
-                      <button className="p-4 rounded-xl border border-slate-200 hover:border-slate-300 hover:bg-slate-50 transition-all duration-200 flex flex-col items-center justify-center group bg-white">
-                        <Bell className="w-6 h-6 text-slate-400 group-hover:text-slate-900 mb-3 transition-colors" />
-                        <span className="text-sm font-bold text-slate-600 group-hover:text-slate-900">Recordatorio</span>
-                      </button>
-                      <button className="p-4 rounded-xl border border-slate-200 hover:border-slate-300 hover:bg-slate-50 transition-all duration-200 flex flex-col items-center justify-center group bg-white">
-                        <Shield className="w-6 h-6 text-slate-400 group-hover:text-slate-900 mb-3 transition-colors" />
-                        <span className="text-sm font-bold text-slate-600 group-hover:text-slate-900">Análisis Riesgo</span>
-                      </button>
-                      <button className="p-4 rounded-xl border border-slate-200 hover:border-slate-300 hover:bg-slate-50 transition-all duration-200 flex flex-col items-center justify-center group bg-white">
-                        <PieChart className="w-6 h-6 text-slate-400 group-hover:text-slate-900 mb-3 transition-colors" />
-                        <span className="text-sm font-bold text-slate-600 group-hover:text-slate-900">Proyección</span>
-                      </button>
-                    </div>
+                  <div className="aspect-square rounded-2xl border-2 border-dashed border-slate-200 flex flex-col items-center justify-center text-slate-400 gap-2 bg-slate-50/50">
+                    <ImageIcon className="w-8 h-8 opacity-20" />
+                    <p className="text-[10px] font-black uppercase tracking-widest">Fachada Domicilio</p>
                   </div>
-
-                  <div className="p-6 rounded-2xl border border-slate-200 bg-white/50">
-                    <h3 className="font-bold text-slate-900 mb-4">Referencias</h3>
-                    <div className="space-y-3">
-                      <div className="p-4 rounded-xl bg-slate-50 border border-slate-100">
-                        <p className="font-bold text-slate-900">{cliente.referencia || 'No registrada'}</p>
-                        <p className="text-xs font-bold text-slate-400 mt-1 uppercase tracking-wider">Referencia Personal</p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
+                </>
               )}
             </div>
           </div>
