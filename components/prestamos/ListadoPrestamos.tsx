@@ -1,27 +1,6 @@
 'use client';
 
-/**
- * ============================================================================
- * COMPONENTE DE LISTADO DE PRÉSTAMOS (CORE)
- * ============================================================================
- * 
- * @description
- * Componente principal responsable de mostrar, filtrar y gestionar el inventario
- * activo de préstamos. Es compartido entre Administración y Coordinación.
- * 
- * @features
- * - Filtrado en tiempo real (Rutas, Estado, Búsqueda texto).
- * - Paginación local.
- * - Cálculo automático de estadísticas globales (Header cards).
- * - Adaptación de rutas (Admin vs Coordinador).
- * 
- * @dependencies
- * - `FiltroRuta`: Componente desplegable para selección de rutas.
- * - `EditarPrestamoModal`: Modal para modificaciones rápidas.
- * - `PRESTAMOS_MOCK`: Fuente de datos actual (debe migrarse a API).
- */
-
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import {
@@ -41,13 +20,16 @@ import {
   Filter,
   Eye,
   Edit2,
-  Trash2
+  Trash2,
+  RefreshCw,
+  Loader2
 } from 'lucide-react';
 import { formatCurrency, cn } from '@/lib/utils';
-import { PRESTAMOS_MOCK, Prestamo, EstadoPrestamo } from './data';
 import FiltroRuta from '@/components/filtros/FiltroRuta';
 import EditarPrestamoModal from '@/components/prestamos/EditarPrestamoModal';
 import { useNotification } from '@/components/providers/NotificationProvider';
+import { loansService, Loan, LoansFilters } from '@/services/loans-service';
+import { formatErrorForComponent } from '@/lib/api/api';
 
 interface Filtros {
   estado: string;
@@ -64,15 +46,21 @@ const ListadoPrestamosElegante = () => {
   const router = useRouter();
   const pathname = usePathname();
   
-  // --------------------------------------------------------------------------
-  // DETECCIÓN DE CONTEXTO (ROL)
-  // Determina si se está visualizando como Coordinador o Admin para ajustar
-  // los enlaces de navegación interna (ej: detalle de préstamo).
-  // --------------------------------------------------------------------------
   const isCoordinador = pathname?.includes('/coordinador');
   const baseRoute = isCoordinador ? '/coordinador/creditos' : '/admin/creditos';
   
-  const [prestamos, setPrestamos] = useState<Prestamo[]>([]);
+  const [prestamos, setPrestamos] = useState<Loan[]>([]);
+  const [estadisticas, setEstadisticas] = useState({
+    total: 0,
+    activos: 0,
+    atrasados: 0,
+    morosos: 0,
+    pagados: 0,
+    cancelados: 0,
+    montoTotal: 0,
+    montoPendiente: 0,
+    moraTotal: 0
+  });
   const [filtros, setFiltros] = useState<Filtros>({
     estado: 'todos',
     cliente: 'todos',
@@ -87,65 +75,90 @@ const ListadoPrestamosElegante = () => {
   const [cargando, setCargando] = useState(true);
   const [mounted, setMounted] = useState(false);
   const [idPrestamoAEditar, setIdPrestamoAEditar] = useState<string | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
+  const [totalPrestamos, setTotalPrestamos] = useState(0);
+  const [error, setError] = useState<string | null>(null);
 
-  const handleEliminarPrestamo = (id: string) => {
-    if (confirm('¿Está seguro de que desea eliminar este préstamo?')) {
-      setPrestamos(prev => prev.filter(p => p.id !== id));
-      showNotification('success', 'El préstamo ha sido eliminado correctamente', 'Préstamo Eliminado');
+  const loadPrestamos = useCallback(async () => {
+    try {
+      if (!refreshing) setCargando(true);
+      setError(null);
+      
+      const filters: LoansFilters = {
+        estado: filtros.estado !== 'todos' ? filtros.estado : undefined,
+        ruta: filtros.ruta !== 'todas' ? filtros.ruta : undefined,
+        search: filtros.busqueda || undefined,
+        page: paginaActual,
+        limit: prestamosPorPagina,
+      };
+
+      const response = await loansService.getLoans(filters);
+      setPrestamos(response.prestamos);
+      setEstadisticas(response.estadisticas);
+      setTotalPrestamos(response.paginacion.total);
+      
+    } catch (err) {
+      const errorMessage = formatErrorForComponent(err);
+      setError(errorMessage);
+      console.error('Error loading loans:', err);
+    } finally {
+      setCargando(false);
+      setRefreshing(false);
     }
-  };
+  }, [filtros, paginaActual, prestamosPorPagina, refreshing]);
 
-  /**
-   * @effect Carga Inicial de Datos
-   * Simula la petición al backend. 
-   * @todo Reemplazar `PRESTAMOS_MOCK` con `fetch('/api/prestamos')`.
-   */
   useEffect(() => {
     const timer = setTimeout(() => {
       setMounted(true);
-      setPrestamos(PRESTAMOS_MOCK); // Cargar datos simulados
-      setCargando(false);
+      loadPrestamos();
     }, 500);
 
     return () => clearTimeout(timer);
   }, []);
 
-  const estadisticas = {
-    total: prestamos.length,
-    activos: prestamos.filter(p => p.estado === 'ACTIVO').length,
-    atrasados: prestamos.filter(p => p.estado === 'EN_MORA').length,
-    morosos: prestamos.filter(p => p.estado === 'INCUMPLIDO' || p.estado === 'PERDIDA').length,
-    pagados: prestamos.filter(p => p.estado === 'PAGADO').length,
-    cancelados: prestamos.filter(p => p.estado === 'PERDIDA').length,
-    montoTotal: prestamos.reduce((sum, p) => sum + p.montoTotal, 0),
-    montoPendiente: prestamos.reduce((sum, p) => sum + p.montoPendiente, 0),
-    moraTotal: prestamos.reduce((sum, p) => sum + (p.moraAcumulada || 0), 0)
+  useEffect(() => {
+    if (mounted) {
+      loadPrestamos();
+    }
+  }, [filtros, paginaActual, loadPrestamos, mounted]);
+
+  const handleEliminarPrestamo = async (id: string) => {
+    if (confirm('¿Está seguro de que desea marcar este préstamo como pérdida?\n\nEsta acción no se puede deshacer.')) {
+      try {
+        const userStr = localStorage.getItem('user');
+        const user = userStr ? JSON.parse(userStr) : null;
+        
+        await loansService.deleteLoan(id, user?.id || '');
+        showNotification('success', 'El préstamo ha sido marcado como pérdida', 'Préstamo Actualizado');
+        await loadPrestamos();
+      } catch (err) {
+        const errorMessage = formatErrorForComponent(err);
+        showNotification('error', errorMessage, 'Error');
+      }
+    }
+  };
+
+  const handleRefresh = () => {
+    setRefreshing(true);
+    loadPrestamos();
   };
 
   const prestamosFiltrados = prestamos.filter(prestamo => {
-    // if (prestamo.tipoProducto !== 'efectivo') return false; // REMOVED FILTER
-    if (filtros.estado !== 'todos' && prestamo.estado !== filtros.estado) return false;
-    if (filtros.cliente !== 'todos' && prestamo.clienteId !== filtros.cliente) return false;
     if (filtros.riesgo !== 'todos' && prestamo.riesgo !== filtros.riesgo) return false;
-    if (filtros.ruta !== 'todas' && filtros.ruta !== '' && prestamo.ruta !== filtros.ruta) return false;
-    
-    if (filtros.busqueda && !prestamo.cliente.toLowerCase().includes(filtros.busqueda.toLowerCase()) &&
-        !prestamo.producto.toLowerCase().includes(filtros.busqueda.toLowerCase()) &&
-        !prestamo.id.toLowerCase().includes(filtros.busqueda.toLowerCase())) return false;
-    
+    if (filtros.cliente !== 'todos' && prestamo.clienteId !== filtros.cliente) return false;
     return true;
   });
 
   const indiceUltimo = paginaActual * prestamosPorPagina;
   const indicePrimero = indiceUltimo - prestamosPorPagina;
   const prestamosPaginados = prestamosFiltrados.slice(indicePrimero, indiceUltimo);
-  const totalPaginas = Math.ceil(prestamosFiltrados.length / prestamosPorPagina);
+  const totalPaginas = Math.ceil(totalPrestamos / prestamosPorPagina);
 
   const cambiarPagina = (pagina: number) => {
     setPaginaActual(pagina);
   };
 
-  const getEstadoColor = (estado: EstadoPrestamo) => {
+  const getEstadoColor = (estado: string) => {
     switch(estado) {
       case 'ACTIVO': return 'bg-emerald-50 text-emerald-700 border-emerald-100';
       case 'PENDIENTE_APROBACION': return 'bg-amber-50 text-amber-700 border-amber-100';
@@ -157,7 +170,7 @@ const ListadoPrestamosElegante = () => {
     }
   };
 
-  const getEstadoIcono = (estado: EstadoPrestamo) => {
+  const getEstadoIcono = (estado: string) => {
     switch(estado) {
       case 'ACTIVO': return <TrendingUp className="w-3 h-3" />;
       case 'PENDIENTE_APROBACION': return <Clock className="w-3 h-3" />;
@@ -184,6 +197,28 @@ const ListadoPrestamosElegante = () => {
 
   if (!mounted) return null;
 
+  // Estado de error
+  if (error && !prestamos.length && cargando) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+        <div className="text-center max-w-md">
+          <div className="p-4 rounded-3xl bg-white border border-rose-100 shadow-lg inline-block mb-6">
+            <AlertCircle className="h-12 w-12 text-rose-500" />
+          </div>
+          <h3 className="text-lg font-black text-slate-800 mb-2">Error al cargar préstamos</h3>
+          <p className="text-sm text-slate-600 mb-6">{error}</p>
+          <button
+            onClick={handleRefresh}
+            className="px-6 py-2 bg-[#08557f] text-white font-bold rounded-xl hover:bg-[#063a58] transition-colors flex items-center gap-2 mx-auto"
+          >
+            <RefreshCw className="h-4 w-4" />
+            Reintentar
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-slate-50 relative">
       {/* Fondo arquitectónico */}
@@ -209,6 +244,14 @@ const ListadoPrestamosElegante = () => {
             </p>
           </div>
           <div className="flex items-center gap-3">
+            <button
+              onClick={handleRefresh}
+              disabled={refreshing}
+              className="p-2 rounded-xl bg-white border border-slate-200 hover:bg-slate-50 transition-colors disabled:opacity-50"
+              title="Actualizar lista"
+            >
+              <RefreshCw className={`h-4 w-4 text-slate-600 ${refreshing ? 'animate-spin' : ''}`} />
+            </button>
             <Link 
               href={`${baseRoute}/nuevo`}
               className="inline-flex items-center gap-2 px-6 py-2.5 bg-white border border-slate-300 text-slate-700 rounded-xl hover:border-slate-400 hover:bg-slate-50 transition-all duration-200 shadow-sm font-bold text-sm group"
@@ -221,6 +264,16 @@ const ListadoPrestamosElegante = () => {
       </div>
 
       <div className="p-6 md:p-8 space-y-8 max-w-[1600px] mx-auto">
+        {/* Estado de carga durante refresh */}
+        {refreshing && (
+          <div className="fixed top-20 right-4 z-50">
+            <div className="bg-white border border-slate-200 rounded-xl px-4 py-2 shadow-lg flex items-center gap-2">
+              <Loader2 className="h-4 w-4 text-[#08557f] animate-spin" />
+              <span className="text-xs font-bold text-slate-600">Actualizando datos...</span>
+            </div>
+          </div>
+        )}
+
         {/* Estadísticas */}
         <div className="grid grid-cols-2 md:grid-cols-6 gap-4">
           <div className="p-5 rounded-2xl border border-slate-100 bg-white shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all">
@@ -235,7 +288,7 @@ const ListadoPrestamosElegante = () => {
           
           <div className="p-5 rounded-2xl border border-slate-100 bg-white shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all">
             <p className="text-xs font-bold text-amber-600 uppercase tracking-wider mb-2">En Mora</p>
-            <p className="text-2xl font-bold text-slate-900 tracking-tight">{estadisticas.atrasados + estadisticas.morosos}</p>
+            <p className="text-2xl font-bold text-slate-900 tracking-tight">{estadisticas.atrasados}</p>
           </div>
           
           <div className="p-5 rounded-2xl border border-slate-100 bg-white shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all">
@@ -269,14 +322,21 @@ const ListadoPrestamosElegante = () => {
               placeholder="Buscar por cliente, ID o producto..."
               className="w-full pl-11 pr-4 py-2.5 rounded-xl border-slate-200 bg-slate-50/50 text-sm font-medium text-slate-900 focus:ring-2 focus:ring-slate-900/10 focus:border-slate-900/20 transition-all placeholder:text-slate-400"
               value={filtros.busqueda}
-              onChange={(e) => setFiltros(prev => ({ ...prev, busqueda: e.target.value }))}
+              onChange={(e) => {
+                setFiltros(prev => ({ ...prev, busqueda: e.target.value }));
+                setPaginaActual(1); // Resetear a primera página al buscar
+              }}
+              disabled={cargando}
             />
           </div>
           
           <div className="flex gap-3 w-full md:w-auto items-end">
               <div className="bg-slate-50 p-1 rounded-xl border border-slate-200">
                  <FiltroRuta 
-                    onRutaChange={(r) => setFiltros(prev => ({ ...prev, ruta: r || 'todas' }))}
+                    onRutaChange={(r) => {
+                      setFiltros(prev => ({ ...prev, ruta: r || 'todas' }));
+                      setPaginaActual(1);
+                    }}
                     selectedRutaId={filtros.ruta === 'todas' ? null : filtros.ruta}
                     className="w-48"
                     showAllOption={true}
@@ -289,8 +349,12 @@ const ListadoPrestamosElegante = () => {
                 </div>
                 <select
                   value={filtros.estado}
-                  onChange={(e) => setFiltros(prev => ({ ...prev, estado: e.target.value }))}
-                  className="w-full pl-10 pr-8 py-2.5 rounded-xl border-slate-200 bg-white text-sm font-medium text-slate-700 focus:ring-2 focus:ring-slate-900/10 focus:border-slate-900/20 appearance-none cursor-pointer hover:bg-slate-50 transition-colors"
+                  onChange={(e) => {
+                    setFiltros(prev => ({ ...prev, estado: e.target.value }));
+                    setPaginaActual(1);
+                  }}
+                  disabled={cargando}
+                  className="w-full pl-10 pr-8 py-2.5 rounded-xl border-slate-200 bg-white text-sm font-medium text-slate-700 focus:ring-2 focus:ring-slate-900/10 focus:border-slate-900/20 appearance-none cursor-pointer hover:bg-slate-50 transition-colors disabled:opacity-50"
                 >
                   <option value="todos">Todos los estados</option>
                   <option value="ACTIVO">Activos</option>
@@ -338,7 +402,7 @@ const ListadoPrestamosElegante = () => {
                     >
                       <td className="px-6 py-4">
                         <div className="flex flex-col">
-                          <span className="font-bold text-slate-900 group-hover:text-slate-700 transition-colors">{prestamo.id}</span>
+                          <span className="font-bold text-slate-900 group-hover:text-slate-700 transition-colors">{prestamo.numeroPrestamo}</span>
                           <span className="text-xs font-medium text-slate-500">{prestamo.cliente}</span>
                         </div>
                       </td>
@@ -378,7 +442,7 @@ const ListadoPrestamosElegante = () => {
                           <div className="w-24 h-1.5 bg-slate-100 rounded-full overflow-hidden">
                             <div 
                               className="h-full bg-slate-900 rounded-full transition-all duration-500"
-                              style={{ width: `${(prestamo.cuotasPagadas / prestamo.cuotasTotales) * 100}%` }}
+                              style={{ width: `${prestamo.progreso}%` }}
                             />
                           </div>
                           <span className="text-[10px] text-slate-400 font-bold">
@@ -408,7 +472,7 @@ const ListadoPrestamosElegante = () => {
                           <button 
                             onClick={() => handleEliminarPrestamo(prestamo.id)}
                             className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all"
-                            title="Eliminar préstamo"
+                            title="Marcar como pérdida"
                           >
                             <Trash2 className="h-4 w-4" />
                           </button>
@@ -434,19 +498,19 @@ const ListadoPrestamosElegante = () => {
           {/* Paginación */}
           <div className="p-4 border-t border-slate-100 bg-slate-50/30 flex justify-between items-center text-xs text-slate-500 font-medium">
             <span>
-              Mostrando {prestamosPaginados.length} de {prestamosFiltrados.length} resultados
+              Mostrando {Math.min(prestamosPaginados.length, prestamosPorPagina)} de {totalPrestamos} resultados
             </span>
             <div className="flex gap-2">
               <button 
                 onClick={() => cambiarPagina(paginaActual - 1)}
-                disabled={paginaActual === 1}
+                disabled={paginaActual === 1 || cargando}
                 className="px-4 py-2 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed font-bold flex items-center gap-1 transition-colors text-slate-700"
               >
                 <ChevronLeft className="h-3 w-3" /> Anterior
               </button>
               <button 
                 onClick={() => cambiarPagina(paginaActual + 1)}
-                disabled={paginaActual === totalPaginas || totalPaginas === 0}
+                disabled={paginaActual === totalPaginas || totalPaginas === 0 || cargando}
                 className="px-4 py-2 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed font-bold flex items-center gap-1 transition-colors text-slate-700"
               >
                 Siguiente <ChevronRightIcon className="h-3 w-3" />
@@ -463,7 +527,7 @@ const ListadoPrestamosElegante = () => {
           onClose={() => setIdPrestamoAEditar(null)}
           onSuccess={() => {
             setIdPrestamoAEditar(null);
-            // Re-fetch or update local state
+            handleRefresh();
           }}
         />
       )}
