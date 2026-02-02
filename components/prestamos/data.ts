@@ -21,6 +21,7 @@ export interface Prestamo {
   diasMora?: number;
   moraAcumulada?: number;
   riesgo: NivelRiesgo;
+  ruta?: string;
   // icono is UI concern, usually mapped from type/product, but here we can keep it optional or string
   tipoProducto?: 'electrodomestico' | 'efectivo' | 'mueble' | 'otro';
 }
@@ -44,7 +45,8 @@ export const PRESTAMOS_MOCK: Prestamo[] = [
     tasaInteres: 1.5,
     diasMora: 0,
     riesgo: 'AMARILLO',
-    tipoProducto: 'electrodomestico'
+    tipoProducto: 'electrodomestico',
+    ruta: 'Norte'
   },
   {
     id: 'PR-2023-002',
@@ -63,7 +65,8 @@ export const PRESTAMOS_MOCK: Prestamo[] = [
     estado: 'PAGADO',
     tasaInteres: 1.8,
     riesgo: 'VERDE',
-    tipoProducto: 'electrodomestico'
+    tipoProducto: 'electrodomestico',
+    ruta: 'Centro'
   },
   {
     id: 'PR-2023-003',
@@ -84,7 +87,8 @@ export const PRESTAMOS_MOCK: Prestamo[] = [
     diasMora: 7,
     moraAcumulada: 12500,
     riesgo: 'ROJO',
-    tipoProducto: 'electrodomestico'
+    tipoProducto: 'electrodomestico',
+    ruta: 'Sur'
   },
   {
     id: 'PR-2023-004',
@@ -103,7 +107,8 @@ export const PRESTAMOS_MOCK: Prestamo[] = [
     estado: 'ACTIVO',
     tasaInteres: 1.4,
     riesgo: 'VERDE',
-    tipoProducto: 'electrodomestico'
+    tipoProducto: 'electrodomestico',
+    ruta: 'Norte'
   },
   {
     id: 'PR-2023-005',
@@ -124,7 +129,8 @@ export const PRESTAMOS_MOCK: Prestamo[] = [
     diasMora: 45,
     moraAcumulada: 67800,
     riesgo: 'ROJO',
-    tipoProducto: 'electrodomestico'
+    tipoProducto: 'electrodomestico',
+    ruta: 'Centro'
   },
   {
     id: 'PR-2023-006',
@@ -143,7 +149,8 @@ export const PRESTAMOS_MOCK: Prestamo[] = [
     estado: 'PAGADO',
     tasaInteres: 1.3,
     riesgo: 'VERDE',
-    tipoProducto: 'electrodomestico'
+    tipoProducto: 'electrodomestico',
+    ruta: 'Sur'
   },
   {
     id: 'PR-2023-007',
@@ -162,7 +169,8 @@ export const PRESTAMOS_MOCK: Prestamo[] = [
     estado: 'ACTIVO',
     tasaInteres: 1.5,
     riesgo: 'AMARILLO',
-    tipoProducto: 'electrodomestico'
+    tipoProducto: 'electrodomestico',
+    ruta: 'Norte'
   },
   {
     id: 'PR-2023-008',
@@ -181,6 +189,7 @@ export const PRESTAMOS_MOCK: Prestamo[] = [
     estado: 'PERDIDA',
     tasaInteres: 1.8,
     riesgo: 'LISTA_NEGRA',
-    tipoProducto: 'electrodomestico'
+    tipoProducto: 'electrodomestico',
+    ruta: 'Norte'
   }
 ];
