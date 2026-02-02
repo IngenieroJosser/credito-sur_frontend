@@ -86,7 +86,7 @@ const LoginPage = () => {
           'SUPER_ADMINISTRADOR': '/admin',
           'ADMINISTRADOR': '/admin',
           'SUPERVISOR': '/supervisor',
-          'CONTADOR': '/contador'
+          'CONTADOR': '/contador/contable'
         };
         const redirectPath = roleRedirects[user.rol] || '/admin';
         router.replace(redirectPath);
@@ -212,7 +212,7 @@ const LoginPage = () => {
         'SUPER_ADMINISTRADOR': '/admin',
         'ADMINISTRADOR': '/admin',
         'SUPERVISOR': '/supervisor', // O su ruta específica si existe
-        'CONTADOR': '/contador'    // O su ruta específica si existe
+        'CONTADOR': '/contador/contable'    // O su ruta específica si existe
       };
 
       const redirectPath = roleRedirects[response.usuario.rol] || '/admin';
@@ -354,12 +354,11 @@ const LoginPage = () => {
         <div className="text-center mb-16">
           <div className="flex items-center justify-center mb-6">
             <div className="relative">
-              <div className="w-14 h-14 bg-white border border-gray-200 rounded-xl flex items-center justify-center">
-                <Image
-                  src='/favicon-32x32.png'
+              <div className="w-20 h-20 bg-white border border-gray-200 rounded-2xl flex items-center justify-center p-3 shadow-xl shadow-blue-900/10 transition-transform hover:scale-105 hover:rotate-2 overflow-hidden">
+                <img
+                  src='/favicon.ico'
                   alt='Logo Oficial - Credisur'
-                  width={32}
-                  height={32}
+                  className="w-full h-full object-contain"
                 />
               </div>
             </div>

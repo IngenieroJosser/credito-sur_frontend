@@ -6,10 +6,12 @@ import { BarChart3, Calendar, Eye } from 'lucide-react'
 import { formatCurrency, cn } from '@/lib/utils'
 import { ExportButton } from '@/components/ui/ExportButton'
 import FiltroRuta from '@/components/filtros/FiltroRuta'
+import DetalleReporteOperativoModal from '@/components/reportes/DetalleReporteOperativoModal'
 
 const ReportesCoordinador = () => {
   const router = useRouter()
   const [mounted, setMounted] = useState(false)
+  const [reporteAVisualizar, setReporteAVisualizar] = useState<string | null>(null)
 
   const handleExportExcel = () => console.log('Exporting Excel...')
   const handleExportPDF = () => console.log('Exporting PDF...')
@@ -85,18 +87,15 @@ const ReportesCoordinador = () => {
           </div>
         </div>
 
-        <div className="flex justify-between items-center mb-4">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-4 bg-white p-4 rounded-2xl border border-slate-200">
             <h3 className="text-xl font-bold text-slate-800">Desglose por Ruta</h3>
-            <div className="bg-slate-50 p-1 rounded-xl border border-slate-200 flex items-center gap-2">
+            <div className="flex flex-col md:flex-row items-start md:items-center gap-4">
               <FiltroRuta 
                   onRutaChange={(r: string | null) => console.log('Ruta:', r)} 
                   selectedRutaId={null}
-                  className="w-48"
                   showAllOption={true}
-                  hideLabel={true}
               />
-               <div className="h-6 w-[1px] bg-slate-200 mx-1"></div>
-               <button className="flex items-center gap-2 px-3 py-1.5 text-xs font-bold text-slate-600 hover:bg-white rounded-lg transition-all">
+               <button className="flex items-center gap-2 px-4 py-2.5 text-xs font-bold text-slate-600 bg-slate-50 border border-slate-200 hover:bg-white rounded-xl transition-all shadow-sm">
                   <Calendar className="h-4 w-4 text-slate-400" /> Hoy, 22 Ene 2026
                </button>
             </div>
@@ -139,7 +138,10 @@ const ReportesCoordinador = () => {
                                     </div>
                                 </td>
                                 <td className="px-6 py-4 text-right">
-                                    <button onClick={() => router.push(`/coordinador/reportes/${r.id}`)} className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg">
+                                    <button 
+                                      onClick={() => setReporteAVisualizar(r.id)} 
+                                      className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg"
+                                    >
                                         <Eye className="h-4 w-4" />
                                     </button>
                                 </td>
@@ -149,6 +151,13 @@ const ReportesCoordinador = () => {
                 </table>
             </div>
         </section>
+
+        {reporteAVisualizar && (
+          <DetalleReporteOperativoModal
+            id={reporteAVisualizar}
+            onClose={() => setReporteAVisualizar(null)}
+          />
+        )}
       </div>
     </div>
   )

@@ -15,6 +15,7 @@ import {
 import { formatCurrency } from '@/lib/utils'
 import { ExportButton } from '@/components/ui/ExportButton'
 import { PremiumBarChart } from '@/components/ui/PremiumCharts'
+import DetalleReporteFinancieroModal from '@/components/reportes/DetalleReporteFinancieroModal'
 
 // Interfaces
 interface FinancialSummary {
@@ -46,6 +47,7 @@ const ReportesFinancierosPage = () => {
   const [periodo, setPeriodo] = useState('ANUAL')
   const [loading, setLoading] = useState(true)
   const [mounted, setMounted] = useState(false)
+  const [reporteId, setReporteId] = useState<string | null>(null)
   
   const [summary, setSummary] = useState<FinancialSummary>({
     ingresos: 0,
@@ -354,7 +356,7 @@ const ReportesFinancierosPage = () => {
                     </td>
                     <td className="px-8 py-5 text-right">
                       <button 
-                        onClick={() => router.push(`${basePath}/reportes/financieros/detalle/${encodeURIComponent(`${row.mes}-${yearLabel}`)}`)}
+                        onClick={() => setReporteId(`${row.mes}-${yearLabel}`)}
                         className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
                         title="Ver Detalles"
                       >
@@ -368,6 +370,13 @@ const ReportesFinancierosPage = () => {
           </div>
         </div>
       </div>
+      
+      {reporteId && (
+        <DetalleReporteFinancieroModal
+          id={reporteId}
+          onClose={() => setReporteId(null)}
+        />
+      )}
     </div>
   )
 }

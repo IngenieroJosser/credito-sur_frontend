@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import { Download, FileSpreadsheet, FileText, ChevronDown } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -19,19 +20,48 @@ export const ExportButton = ({
 }: ExportButtonProps) => {
   const [isOpen, setIsOpen] = useState(false)
   const dropdownRef = useRef<HTMLDivElement>(null)
+  const [coords, setCoords] = useState({ top: 0, left: 0 })
 
   useEffect(() => {
+    const handleResize = () => {
+      if (isOpen) setIsOpen(false)
+    }
+    
+    const handleScroll = () => {
+       if (isOpen) setIsOpen(false)
+    }
+
     const handleClickOutside = (event: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-        setIsOpen(false)
+          const target = event.target as HTMLElement;
+          if(!target.closest('.export-dropdown-portal')) {
+             setIsOpen(false)
+          }
       }
     }
 
+    window.addEventListener('resize', handleResize)
+    window.addEventListener('scroll', handleScroll, { capture: true })
     document.addEventListener('mousedown', handleClickOutside)
+
     return () => {
+      window.removeEventListener('resize', handleResize)
+      window.removeEventListener('scroll', handleScroll, { capture: true })
       document.removeEventListener('mousedown', handleClickOutside)
     }
-  }, [])
+  }, [isOpen])
+
+  // Update coords when opening
+  useEffect(() => {
+      if(isOpen && dropdownRef.current) {
+          const rect = dropdownRef.current.getBoundingClientRect();
+          // Use fixed positioning relative to viewport, so NO scroll addition needed
+          setCoords({
+              top: rect.bottom + 8, 
+              left: rect.left
+          });
+      }
+  }, [isOpen])
 
   const handleOptionClick = (action?: () => void) => {
     if (action) {
@@ -58,8 +88,15 @@ export const ExportButton = ({
         )} />
       </button>
 
-      {isOpen && (
-        <div className="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-lg border border-slate-100 z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+      {isOpen && typeof document !== 'undefined' && createPortal(
+        <div 
+           className="export-dropdown-portal fixed z-[9999] bg-white rounded-xl shadow-xl border border-slate-200 overflow-hidden animate-in fade-in zoom-in-95 duration-200 w-48"
+           style={{
+             top: coords.top,
+             left: coords.left,
+           }}
+           onClick={(e) => e.stopPropagation()}
+        >
           <div className="p-1">
             <button
               onClick={() => handleOptionClick(onExportExcel)}
@@ -81,7 +118,8 @@ export const ExportButton = ({
               <span className="font-medium">PDF</span>
             </button>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   )

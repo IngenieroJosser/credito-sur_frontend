@@ -14,9 +14,7 @@ import {
   DollarSign,
   Eye,
   Pencil,
-  XCircle,
-  Calendar,
-  Truck
+  XCircle
 } from 'lucide-react'
 import { formatCOPInputValue, formatCurrency, parseCOPInputToNumber } from '@/lib/utils'
 
@@ -35,6 +33,7 @@ interface Articulo {
   marca: string
   modelo: string
   costo: number
+  precioContado?: number
   stock: number
   stockMinimo: number
   estado: 'activo' | 'inactivo'
@@ -51,6 +50,7 @@ const ARTICULOS_MOCK: Articulo[] = [
     marca: 'Samsung',
     modelo: 'UN50AU7000',
     costo: 1200000,
+    precioContado: 1600000,
     stock: 15,
     stockMinimo: 5,
     estado: 'activo',
@@ -68,6 +68,7 @@ const ARTICULOS_MOCK: Articulo[] = [
     marca: 'LG',
     modelo: 'WT18WP',
     costo: 1500000,
+    precioContado: 2100000,
     stock: 8,
     stockMinimo: 3,
     estado: 'activo',
@@ -85,6 +86,7 @@ const ARTICULOS_MOCK: Articulo[] = [
     marca: 'Xiaomi',
     modelo: 'Redmi Note 12',
     costo: 600000,
+    precioContado: 850000,
     stock: 4,
     stockMinimo: 10,
     estado: 'activo',
@@ -112,6 +114,7 @@ export default function ArticulosPage() {
     marca: '',
     modelo: '',
     costo: '',
+    precioContado: '',
     stock: '',
     stockMinimo: '',
     precios: [] as PrecioCuota[],
@@ -142,6 +145,7 @@ export default function ArticulosPage() {
       marca: '',
       modelo: '',
       costo: '',
+      precioContado: '',
       stock: '',
       stockMinimo: '',
       precios: [],
@@ -165,6 +169,7 @@ export default function ArticulosPage() {
       marca: articulo.marca,
       modelo: articulo.modelo,
       costo: String(articulo.costo),
+      precioContado: String(articulo.precioContado || ''),
       stock: String(articulo.stock),
       stockMinimo: String(articulo.stockMinimo),
       precios: [...articulo.precios],
@@ -201,6 +206,7 @@ export default function ArticulosPage() {
       marca: formData.marca,
       modelo: formData.modelo,
       costo: parseCOPInputToNumber(formData.costo),
+      precioContado: parseCOPInputToNumber(formData.precioContado),
       stock: Number(formData.stock || '0'),
       stockMinimo: Number(formData.stockMinimo || '0'),
       estado: 'activo',
@@ -344,7 +350,7 @@ export default function ArticulosPage() {
                   <th className="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Artículo</th>
                   <th className="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Categoría</th>
                   <th className="px-6 py-4 text-right text-xs font-bold text-slate-500 uppercase tracking-wider">Costo</th>
-                  <th className="px-6 py-4 text-right text-xs font-bold text-slate-500 uppercase tracking-wider">Precio Base (1 mes)</th>
+                  <th className="px-6 py-4 text-right text-xs font-bold text-slate-500 uppercase tracking-wider">Venta</th>
                   <th className="px-6 py-4 text-center text-xs font-bold text-slate-500 uppercase tracking-wider">Stock</th>
                   <th className="px-6 py-4 text-right text-xs font-bold text-slate-500 uppercase tracking-wider">Acciones</th>
                 </tr>
@@ -369,16 +375,16 @@ export default function ArticulosPage() {
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm text-slate-600">
-                      {formatCurrency(articulo.costo)}
+                      <div className="font-medium">{formatCurrency(articulo.costo)}</div>
+                      <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Costo</div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right">
-                      <div className="text-sm font-bold text-slate-900">
-                        {articulo.precios.length > 0 
-                          ? formatCurrency(articulo.precios[0].precio)
-                          : '$0'}
+                      <div className="text-sm font-bold text-blue-600">
+                        {formatCurrency(articulo.precioContado || 0)}
                       </div>
-                      <div className="text-xs text-slate-500 font-medium">
-                        {articulo.precios.length} opciones de cuotas
+                      <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Precio Contado</div>
+                      <div className="text-[10px] text-slate-500 font-medium mt-1">
+                        {articulo.precios.length} opciones de crédito
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-center">
@@ -521,6 +527,20 @@ export default function ArticulosPage() {
                       value={formData.costo}
                       onChange={(e) => setFormData((p) => ({ ...p, costo: formatCOPInputValue(e.target.value) }))}
                       className="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-200 bg-white font-bold text-slate-900"
+                      placeholder="0"
+                    />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-bold text-blue-700">Precio de Contado</label>
+                  <div className="relative">
+                    <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-blue-400" />
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      value={formData.precioContado}
+                      onChange={(e) => setFormData((p) => ({ ...p, precioContado: formatCOPInputValue(e.target.value) }))}
+                      className="w-full pl-10 pr-4 py-3 rounded-xl border border-blue-200 bg-blue-50/30 font-black text-blue-900 focus:ring-2 focus:ring-blue-500/20 outline-none"
                       placeholder="0"
                     />
                   </div>
@@ -694,6 +714,10 @@ export default function ArticulosPage() {
                 <div className="p-4 rounded-xl border border-slate-200 bg-slate-50">
                   <div className="text-xs font-bold text-slate-500 uppercase">Marca / Modelo</div>
                   <div className="mt-1 font-bold text-slate-900">{articuloSeleccionado.marca} {articuloSeleccionado.modelo}</div>
+                </div>
+                <div className="p-4 rounded-xl border border-blue-200 bg-blue-50">
+                  <div className="text-xs font-bold text-blue-500 uppercase">Precio de Contado</div>
+                  <div className="mt-1 font-black text-blue-900 text-lg">{formatCurrency(articuloSeleccionado.precioContado || 0)}</div>
                 </div>
                 <div className="p-4 rounded-xl border border-slate-200 bg-slate-50">
                   <div className="text-xs font-bold text-slate-500 uppercase">Costo</div>

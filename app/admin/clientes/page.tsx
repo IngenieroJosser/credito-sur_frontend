@@ -25,13 +25,12 @@
 
 import { useEffect, useState } from 'react';
 import { useNotification } from '@/components/providers/NotificationProvider';
-import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import { clientesService, Cliente, MOCK_CLIENTES } from '@/services/clientes-service';
 import {
   Search,
   Filter,
   UserPlus,
+  Users,
   User,
   Phone,
   Mail,
@@ -54,6 +53,7 @@ import { formatCurrency } from '@/lib/utils';
 import { Modal } from '@/components/ui/Modal';
 import FiltroRuta from '@/components/filtros/FiltroRuta';
 import NuevoClienteModal from '@/components/clientes/NuevoClienteModal';
+import ClientePortalModal from '@/components/cliente/ClientePortalModal';
 
 // Tipos alineados con Prisma Schema para consistencia en el ORM
 type NivelRiesgo = 'VERDE' | 'AMARILLO' | 'ROJO' | 'LISTA_NEGRA';
@@ -74,9 +74,15 @@ interface ClienteAdmin extends Cliente {
 
 const ClientesPage = () => {
   const { showNotification } = useNotification();
-  const router = useRouter();
 
-  const [clientes, setClientes] = useState<ClienteAdmin[]>([])
+  const [clientes, setClientes] = useState<ClienteAdmin[]>(() => 
+    MOCK_CLIENTES.map(c => ({
+      ...c,
+      score: Math.floor(Math.random() * (100 - 40 + 1)) + 40,
+      tendencia: Math.random() > 0.6 ? 'SUBE' : Math.random() > 0.3 ? 'ESTABLE' : 'BAJA',
+      ultimaVisita: new Date(Date.now() - Math.floor(Math.random() * 5) * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+    }))
+  )
 
   /**
    * @effect Carga de Datos Inicial
@@ -88,26 +94,24 @@ const ClientesPage = () => {
     ;(async () => {
       try {
         const data = await clientesService.obtenerClientes()
-        const rawData = Array.isArray(data) ? data : MOCK_CLIENTES
+        const rawData = Array.isArray(data) && data.length > 0 ? data : MOCK_CLIENTES
         
-        // ----------------------------------------------------
-        // ENRIQUECIMIENTO DE DATOS (DATA MAPPING)
-        // ----------------------------------------------------
-        // Aquí se inyectan propiedades visuales que el backend no envía por defecto,
-        // como scores calculados en tiempo real o tendencias.
-        // TODO: Mover lógica de cálculo de Score al Backend.
+        console.log('Datos raw obtenidos:', rawData.length)
+
         const enriched: ClienteAdmin[] = rawData.map(c => ({
           ...c,
-          score: Math.floor(Math.random() * (100 - 40 + 1)) + 40,
+          score: c.puntaje || Math.floor(Math.random() * (100 - 40 + 1)) + 40,
           tendencia: Math.random() > 0.6 ? 'SUBE' : Math.random() > 0.3 ? 'ESTABLE' : 'BAJA',
           ultimaVisita: new Date(Date.now() - Math.floor(Math.random() * 10) * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
         }))
 
-        if (mounted) setClientes(enriched)
-      } catch (error) {
-        console.warn('Usando datos mock de clientes', error)
         if (mounted) {
-           // Fallback en caso de error de API: Usar mocks locales enriquecidos
+          console.log('Estableciendo clientes enriquecidos:', enriched.length)
+          setClientes(enriched)
+        }
+      } catch (error) {
+        console.warn('Error en carga, usando fallback directo a mocks:', error)
+        if (mounted) {
            const enriched: ClienteAdmin[] = MOCK_CLIENTES.map(c => ({
             ...c,
             score: Math.floor(Math.random() * (100 - 40 + 1)) + 40,
@@ -115,10 +119,6 @@ const ClientesPage = () => {
             ultimaVisita: new Date().toISOString().split('T')[0]
           }))
           setClientes(enriched)
-        }
-      } finally {
-        if (mounted) {
-           // Success or error
         }
       }
     })()
@@ -153,6 +153,10 @@ const ClientesPage = () => {
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [clientToDelete, setClientToDelete] = useState<Cliente | null>(null);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
+  const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [clientToEdit, setClientToEdit] = useState<Cliente | null>(null);
 
   const [isDeleting, setIsDeleting] = useState(false)
 
@@ -308,24 +312,25 @@ const ClientesPage = () => {
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white/80 backdrop-blur-sm p-4 rounded-2xl border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)]">
           <div className="flex flex-col gap-4 md:flex-row md:items-center">
             {/* Filtro de Ruta Integrado */}
-            <div className="bg-slate-50 p-1 rounded-xl border border-slate-200">
+            <div className="bg-slate-50 p-2 rounded-xl border border-slate-200 w-full md:w-auto">
                 <FiltroRuta 
                     onRutaChange={setFilterRuta} 
                     selectedRutaId={filterRuta}
-                    className="w-48"
+                    layout="wrap"
                     showAllOption={true}
+                    hideLabel={true}
                 />
             </div>
 
-            <div className="flex items-center gap-2 overflow-x-auto pb-2 md:pb-0 scrollbar-hide">
-              <Filter className="h-4 w-4 text-slate-400 shrink-0 mr-2" />
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <Filter className="h-3.5 w-3.5 text-slate-400 shrink-0 mr-1" />
               
               {[
                 { id: 'all', label: 'Todos' },
                 { id: 'VERDE', label: 'Al Día' },
                 { id: 'AMARILLO', label: 'Riesgo' },
                 { id: 'ROJO', label: 'Mora' },
-                { id: 'LISTA_NEGRA', label: 'Lista Negra' }
+                { id: 'LISTA_NEGRA', label: 'Lista' }
               ].map((filtro) => (
                 <button
                   key={filtro.id}
@@ -333,10 +338,10 @@ const ClientesPage = () => {
                     setFilterRiesgo(filtro.id);
                     setCurrentPage(1);
                   }}
-                  className={`px-4 py-2 text-xs font-bold rounded-xl transition-all whitespace-nowrap ${
+                  className={`px-3 py-1.5 text-[11px] font-bold rounded-xl transition-all whitespace-nowrap ${
                     filterRiesgo === filtro.id 
-                      ? 'bg-primary text-white shadow-lg shadow-primary/20' 
-                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200 border border-slate-200'
+                      ? 'bg-primary text-white shadow-md shadow-primary/20' 
+                      : 'bg-slate-100/50 text-slate-600 hover:bg-slate-200/70 border border-slate-200'
                   }`}
                 >
                   {filtro.label}
@@ -376,142 +381,177 @@ const ClientesPage = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {currentItems.map((cliente) => (
-                  <tr
-                    key={cliente.id}
-                    className="hover:bg-slate-50/50 transition-colors group cursor-pointer"
-                    onClick={() => router.push(`/admin/clientes/${cliente.id}`)}
-                  >
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-3">
+                {currentItems.length > 0 ? (
+                  currentItems.map((cliente) => (
+                    <tr
+                      key={cliente.id}
+                      className="hover:bg-slate-50/50 transition-colors group cursor-pointer"
+                      onClick={() => {
+                        setSelectedClientId(cliente.id);
+                        setIsDetailsModalOpen(true);
+                      }}
+                    >
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-3">
+                          <div
+                            className={`w-10 h-10 rounded-xl flex items-center justify-center text-sm font-bold shadow-sm ${
+                              cliente.nivelRiesgo === 'VERDE'
+                                ? 'bg-emerald-100 text-emerald-700'
+                                : cliente.nivelRiesgo === 'AMARILLO'
+                                  ? 'bg-amber-100 text-amber-700'
+                                  : cliente.nivelRiesgo === 'ROJO'
+                                    ? 'bg-rose-100 text-rose-700'
+                                    : 'bg-slate-100 text-slate-600'
+                            }`}
+                          >
+                            {cliente.nombres.charAt(0)}
+                            {cliente.apellidos.charAt(0)}
+                          </div>
+                          <div className="ml-4">
+                            <div className="font-bold text-slate-900">
+                              {cliente.nombres} {cliente.apellidos}
+                            </div>
+                            <div className="text-xs text-slate-500 flex items-center mt-0.5 font-mono font-medium">
+                              {cliente.dni}
+                            </div>
+                          </div>
+                        </div>
+                      </td>
+
+                      <td className="px-6 py-4">
+                        <div className="space-y-1">
+                          <div
+                            className={`inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-bold ring-1 ring-inset ${getRiesgoColor(
+                              cliente.nivelRiesgo
+                            )}`}
+                          >
+                            <span className="mr-1.5">{getRiesgoIcon(cliente.nivelRiesgo)}</span>
+                            {cliente.nivelRiesgo.replace('_', ' ')}
+                          </div>
+                          {cliente.enListaNegra && (
+                            <div className="flex items-center text-xs text-rose-600 font-bold px-1">
+                              <Ban className="h-3 w-3 mr-1" />
+                              Lista Negra
+                            </div>
+                          )}
+                        </div>
+                      </td>
+
+                      <td className="px-6 py-4 text-center font-bold">
+                         {cliente.score && (
+                          <div className="flex flex-col items-center">
+                            <span className={`text-lg ${getScoreColor(cliente.score)}`}>{cliente.score}</span>
+                            <div className="w-12 h-1 bg-slate-100 rounded-full mt-1 overflow-hidden">
+                              <div className={`h-full ${cliente.score >= 70 ? 'bg-emerald-500' : 'bg-rose-500'}`} style={{ width: `${cliente.score}%` }} />
+                            </div>
+                          </div>
+                         )}
+                      </td>
+
+                      <td className="px-6 py-4">
+                        <div className="space-y-1">
+                          <div className="text-sm font-bold text-slate-900">
+                            {formatCurrency(cliente.montoTotal ?? 0)}
+                          </div>
+                          {(cliente.montoMora ?? 0) > 0 && (
+                            <div className="text-xs text-rose-600 font-bold flex items-center">
+                              Mora: {formatCurrency(cliente.montoMora ?? 0)}
+                            </div>
+                          )}
+                        </div>
+                      </td>
+
+                      <td className="px-6 py-4">
+                        {cliente.tendencia && (
+                          <div className="flex items-center gap-2 font-bold text-xs">
+                             <RenderTendencia t={cliente.tendencia} />
+                             <span className="text-slate-600">{cliente.tendencia}</span>
+                          </div>
+                        )}
+                        {cliente.ultimaVisita && (
+                          <div className="flex items-center gap-1.5 text-slate-400 text-[10px] font-medium mt-1">
+                            <Calendar className="h-3 w-3" />
+                            {cliente.ultimaVisita}
+                          </div>
+                        )}
+                      </td>
+
+                      <td className="px-6 py-4">
+                        <div className="space-y-1">
+                          <div className="flex items-center text-sm font-medium text-slate-600">
+                            <Phone className="h-3 w-3 mr-2 text-slate-400" />
+                            {cliente.telefono}
+                          </div>
+                          {cliente.correo && (
+                            <div className="flex items-center text-xs font-medium text-slate-500">
+                              <Mail className="h-3 w-3 mr-2 text-slate-400" />
+                              {cliente.correo}
+                            </div>
+                          )}
+                        </div>
+                      </td>
+
+                      <td className="px-6 py-4 text-right">
                         <div
-                          className={`w-10 h-10 rounded-xl flex items-center justify-center text-sm font-bold shadow-sm ${
-                            cliente.nivelRiesgo === 'VERDE'
-                              ? 'bg-emerald-100 text-emerald-700'
-                              : cliente.nivelRiesgo === 'AMARILLO'
-                                ? 'bg-amber-100 text-amber-700'
-                                : cliente.nivelRiesgo === 'ROJO'
-                                  ? 'bg-rose-100 text-rose-700'
-                                  : 'bg-slate-100 text-slate-600'
-                          }`}
+                          className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity"
+                          onClick={(e) => e.stopPropagation()}
                         >
-                          {cliente.nombres.charAt(0)}
-                          {cliente.apellidos.charAt(0)}
+                          <button
+                            onClick={() => {
+                              setSelectedClientId(cliente.id);
+                              setIsDetailsModalOpen(true);
+                            }}
+                            className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                            title="Ver Expediente"
+                          >
+                            <Eye className="h-4 w-4" />
+                          </button>
+                          <button
+                            onClick={() => {
+                              setClientToEdit(cliente);
+                              setIsEditModalOpen(true);
+                            }}
+                            className="p-2 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
+                            title="Editar cliente"
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </button>
+                          <button
+                            onClick={() => handleDeleteClick(cliente)}
+                            className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
+                            title="Eliminar cliente"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
                         </div>
-                        <div className="ml-4">
-                          <div className="font-bold text-slate-900">
-                            {cliente.nombres} {cliente.apellidos}
-                          </div>
-                          <div className="text-xs text-slate-500 flex items-center mt-0.5 font-mono font-medium">
-                            {cliente.dni}
-                          </div>
-                        </div>
-                      </div>
-                    </td>
-
-                    <td className="px-6 py-4">
-                      <div className="space-y-1">
-                        <div
-                          className={`inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-bold ring-1 ring-inset ${getRiesgoColor(
-                            cliente.nivelRiesgo
-                          )}`}
-                        >
-                          <span className="mr-1.5">{getRiesgoIcon(cliente.nivelRiesgo)}</span>
-                          {cliente.nivelRiesgo.replace('_', ' ')}
-                        </div>
-                        {cliente.enListaNegra && (
-                          <div className="flex items-center text-xs text-rose-600 font-bold px-1">
-                            <Ban className="h-3 w-3 mr-1" />
-                            Lista Negra
-                          </div>
-                        )}
-                      </div>
-                    </td>
-
-                    <td className="px-6 py-4 text-center font-bold">
-                       {cliente.score && (
-                        <div className="flex flex-col items-center">
-                          <span className={`text-lg ${getScoreColor(cliente.score)}`}>{cliente.score}</span>
-                          <div className="w-12 h-1 bg-slate-100 rounded-full mt-1 overflow-hidden">
-                            <div className={`h-full ${cliente.score >= 70 ? 'bg-emerald-500' : 'bg-rose-500'}`} style={{ width: `${cliente.score}%` }} />
-                          </div>
-                        </div>
-                       )}
-                    </td>
-
-                    <td className="px-6 py-4">
-                      <div className="space-y-1">
-                        <div className="text-sm font-bold text-slate-900">
-                          {formatCurrency(cliente.montoTotal ?? 0)}
-                        </div>
-                        {(cliente.montoMora ?? 0) > 0 && (
-                          <div className="text-xs text-rose-600 font-bold flex items-center">
-                            Mora: {formatCurrency(cliente.montoMora ?? 0)}
-                          </div>
-                        )}
-                      </div>
-                    </td>
-
-                    <td className="px-6 py-4">
-                      {cliente.tendencia && (
-                        <div className="flex items-center gap-2 font-bold text-xs">
-                           <RenderTendencia t={cliente.tendencia} />
-                           <span className="text-slate-600">{cliente.tendencia}</span>
-                        </div>
-                      )}
-                      {cliente.ultimaVisita && (
-                        <div className="flex items-center gap-1.5 text-slate-400 text-[10px] font-medium mt-1">
-                          <Calendar className="h-3 w-3" />
-                          {cliente.ultimaVisita}
-                        </div>
-                      )}
-                    </td>
-
-                    <td className="px-6 py-4">
-                      <div className="space-y-1">
-                        <div className="flex items-center text-sm font-medium text-slate-600">
-                          <Phone className="h-3 w-3 mr-2 text-slate-400" />
-                          {cliente.telefono}
-                        </div>
-                        {cliente.correo && (
-                          <div className="flex items-center text-xs font-medium text-slate-500">
-                            <Mail className="h-3 w-3 mr-2 text-slate-400" />
-                            {cliente.correo}
-                          </div>
-                        )}
-                      </div>
-                    </td>
-
-                    <td className="px-6 py-4 text-right">
-                      <div
-                        className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        <Link
-                          href={`/admin/clientes/${cliente.id}`}
-                          className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                          title="Ver Expediente"
-                        >
-                          <Eye className="h-4 w-4" />
-                        </Link>
-                        <Link
-                          href={`/admin/clientes/${cliente.id}/editar`}
-                          className="p-2 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
-                          title="Editar cliente"
-                        >
-                          <Pencil className="h-4 w-4" />
-                        </Link>
-                        <button
-                          onClick={() => handleDeleteClick(cliente)}
-                          className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
-                          title="Eliminar cliente"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan={7} className="px-6 py-20 text-center">
+                      <div className="flex flex-col items-center gap-3">
+                         <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center border border-slate-100 shadow-inner">
+                           <Users className="h-8 w-8 text-slate-200" />
+                         </div>
+                         <div className="space-y-1">
+                           <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest">Sin Clientes Disponibles</h3>
+                           <p className="text-[11px] text-slate-500 font-medium">No se encontraron registros que coincidan con los filtros aplicados.</p>
+                         </div>
+                         <button 
+                           onClick={() => {
+                             setSearchTerm('');
+                             setFilterRiesgo('all');
+                             setFilterRuta(null);
+                           }}
+                           className="mt-2 text-[10px] font-black text-blue-600 border-b border-blue-600 pb-0.5 hover:text-blue-800 hover:border-blue-800 transition-all uppercase tracking-widest"
+                         >
+                           Limpiar Filtros
+                         </button>
                       </div>
                     </td>
                   </tr>
-                ))}
+                )}
               </tbody>
             </table>
           </div>
@@ -586,12 +626,45 @@ const ClientesPage = () => {
         <NuevoClienteModal 
           onClose={() => setIsCreateModalOpen(false)} 
           onClienteCreado={(newClient) => {
-            console.log('Cliente creado:', newClient)
-            showNotification('success', 'El cliente ha sido registrado exitosamente', 'Cliente Creado')
-            // Aquí podrías recargar los clientes si tienes la función
+            const enriched: ClienteAdmin = {
+              ...newClient,
+              score: 100,
+              tendencia: 'ESTABLE',
+              ultimaVisita: new Date().toISOString().split('T')[0]
+            };
+            setClientes(prev => [enriched, ...prev]);
             setIsCreateModalOpen(false);
-            // window.location.reload(); // Evitemos recargar si podemos
           }}
+        />
+      )}
+
+
+      {/* Modal de Edición */}
+      {isEditModalOpen && clientToEdit && (
+        <NuevoClienteModal 
+          cliente={clientToEdit}
+          esEdicion={true}
+          onClose={() => {
+            setIsEditModalOpen(false);
+            setClientToEdit(null);
+          }} 
+          onClienteCreado={(updatedClient) => {
+            setClientes(prev => prev.map(c => c.id === updatedClient.id ? { ...c, ...updatedClient } : c));
+            setIsEditModalOpen(false);
+            setClientToEdit(null);
+          }}
+        />
+      )}
+
+      {/* Modal de Detalles del Cliente */}
+      {isDetailsModalOpen && selectedClientId && (
+        <ClientePortalModal 
+          clientId={selectedClientId} 
+          onClose={() => {
+            setIsDetailsModalOpen(false);
+            setSelectedClientId(null);
+          }} 
+          rolUsuario="admin"
         />
       )}
     </div>

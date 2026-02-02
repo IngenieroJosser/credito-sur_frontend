@@ -1,25 +1,17 @@
 'use client';
 
 import React, { useState } from 'react';
-import { 
-  Calendar, 
-  User, 
-  FileText,
-  TrendingUp,
-  ChevronRight,
-  Package,
-  Image as ImageIcon,
-  Clock
-} from 'lucide-react';
-import { formatCurrency, cn } from '@/lib/utils';
 import Link from 'next/link';
-import ReprogramarCuotaModal from './ReprogramarCuotaModal';
+import { Calendar, User, FileText, TrendingUp, Package, Image as ImageIcon, ChevronRight } from 'lucide-react';
+import { formatCurrency, cn } from '@/lib/utils';
 
 export interface PrestamoDetalle {
   id: string;
   clienteId: string;
   clienteNombre: string;
   clienteDni: string;
+  clienteTelefono?: string;
+  clienteDireccion?: string;
   montoPrestamo: number;
   montoTotal: number;
   saldoPendiente: number;
@@ -47,25 +39,6 @@ interface DetallePrestamoProps {
 
 export default function DetallePrestamo({ prestamo }: DetallePrestamoProps) {
   const [activeTab, setActiveTab] = useState<'info' | 'cuotas' | 'documentos'>('info');
-  const [selectedCuota, setSelectedCuota] = useState<number | null>(null);
-  const [showReprogramarModal, setShowReprogramarModal] = useState(false);
-
-  const handleReprogramar = (cuotaNumero: number) => {
-    setSelectedCuota(cuotaNumero);
-    setShowReprogramarModal(true);
-  };
-
-  const handleCloseReprogramar = () => {
-    setShowReprogramarModal(false);
-    setSelectedCuota(null);
-  };
-
-  const handleSuccessReprogramar = () => {
-    // TODO: Reload data
-    setShowReprogramarModal(false);
-    setSelectedCuota(null);
-    alert('Cuota reprogramada exitosamente. Recargar datos...');
-  };
 
   const getEstadoColor = (estado: string) => {
     switch (estado) {
@@ -87,82 +60,114 @@ export default function DetallePrestamo({ prestamo }: DetallePrestamoProps) {
     }
   };
 
+  const montoAbonado = prestamo.montoTotal - prestamo.saldoPendiente;
+  const progresoPorcentaje = Math.round((montoAbonado / prestamo.montoTotal) * 100);
+
   return (
-    <div className="w-full p-8 space-y-6">
-      {/* Resumen Principal */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="md:col-span-2 bg-white/80 backdrop-blur-sm rounded-2xl p-6 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-slate-200">
-          <div className="flex justify-between items-start mb-6">
-            <div>
-              <div className="flex items-center gap-3 mb-2">
-                <span className={cn("px-3 py-1 rounded-full text-xs font-medium tracking-wide", getEstadoColor(prestamo.estado))}>
-                  {prestamo.estado}
-                </span>
-                <span className="text-xs text-slate-400 font-mono">{prestamo.id}</span>
-              </div>
-              <h1 className="text-2xl font-bold text-slate-900">
-                {prestamo.producto ? prestamo.producto : 'Préstamo en Efectivo'}
-              </h1>
-            </div>
-            <div className="text-right">
-              <p className="text-sm text-slate-500 mb-1">Monto Total</p>
-              <p className="text-2xl font-bold text-slate-900">
-                {formatCurrency(prestamo.montoTotal)}
-              </p>
-            </div>
+    <div className="w-full p-6 md:p-8 space-y-8">
+      {/* 1. Header: Datos del Cliente (Full Width) */}
+      <div className="bg-white rounded-[2rem] p-6 shadow-sm border border-slate-100 relative overflow-hidden">
+        <div className="absolute top-0 right-0 p-4 opacity-10 pointer-events-none">
+          <User className="w-32 h-32 text-slate-900" />
+        </div>
+        <div className="relative z-10">
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
+             <div>
+                <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-1">Cliente Titular</h3>
+                <Link href={`/admin/clientes/${prestamo.clienteId}`} className="group flex items-center gap-2">
+                  <h2 className="text-2xl md:text-3xl font-black text-slate-900 group-hover:text-blue-600 transition-colors">
+                    {prestamo.clienteNombre}
+                  </h2>
+                  <ChevronRight className="w-5 h-5 text-slate-300 group-hover:text-blue-600 transition-colors" />
+                </Link>
+             </div>
+             <span className={cn("px-4 py-1.5 rounded-full text-xs font-black tracking-widest uppercase border", getEstadoColor(prestamo.estado))}>
+                {prestamo.estado}
+             </span>
           </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-6 border-t border-slate-100">
-            <div>
-              <p className="text-xs text-slate-500 mb-1">Capital Original</p>
-              <p className="text-sm font-bold text-slate-900">{formatCurrency(prestamo.montoPrestamo)}</p>
-            </div>
-            <div>
-              <p className="text-xs text-slate-500 mb-1">Saldo Pendiente</p>
-              <p className="text-sm font-bold text-rose-600">{formatCurrency(prestamo.saldoPendiente)}</p>
-            </div>
-            <div>
-              <p className="text-xs text-slate-500 mb-1">Frecuencia</p>
-              <p className="text-sm font-bold text-slate-900 capitalize">{prestamo.frecuencia}</p>
-            </div>
-            <div>
-              <p className="text-xs text-slate-500 mb-1">Próximo Venc.</p>
-              <p className="text-sm font-bold text-slate-900">
-                {prestamo.cuotas.find(c => c.estado === 'PENDIENTE' || c.estado === 'VENCIDO')?.fecha || '-'}
-              </p>
-            </div>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+             <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
+               <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Documento ID</span>
+               <span className="text-sm font-bold text-slate-700 block">{prestamo.clienteDni}</span>
+             </div>
+             <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
+               <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Teléfono</span>
+               <span className="text-sm font-bold text-slate-700 block">{prestamo.clienteTelefono || 'No registrado'}</span>
+             </div>
+             <div className="md:col-span-2 p-4 bg-slate-50 rounded-2xl border border-slate-100">
+               <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Dirección</span>
+               <span className="text-sm font-bold text-slate-700 block">{prestamo.clienteDireccion || 'No registrada'}</span>
+             </div>
           </div>
         </div>
+      </div>
 
-        <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-slate-200 flex flex-col justify-between">
-          <div>
-            <h3 className="text-sm font-bold text-slate-900 mb-4 flex items-center gap-2">
-              <User className="h-4 w-4 text-slate-500" />
-              Datos del Cliente
-            </h3>
-            <div className="space-y-3">
-              <Link href={`/admin/clientes/${prestamo.clienteId}`} className="block group">
-                <p className="text-xs text-slate-500">Nombre</p>
-                <div className="flex items-center justify-between">
-                  <p className="text-sm font-bold text-slate-900 group-hover:text-slate-700 transition-colors">
-                    {prestamo.clienteNombre}
-                  </p>
-                  <ChevronRight className="h-4 w-4 text-slate-300 group-hover:text-slate-700 transition-colors" />
-                </div>
-              </Link>
-              <div>
-                <p className="text-xs text-slate-500">CC</p>
-                <p className="text-sm text-slate-700">{prestamo.clienteDni}</p>
-              </div>
-            </div>
+      {/* 2. Loan Summary Grid (The 6 Requested Metrics) */}
+      <div>
+        <h3 className="text-sm font-black text-slate-900 flex items-center gap-2 mb-4">
+          <Package className="w-5 h-5 text-blue-600" />
+          Resumen de la Cuenta
+        </h3>
+        <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+          {/* Monto Prestado */}
+          <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm flex flex-col justify-between h-28">
+             <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Monto Prestado</span>
+             <p className="text-2xl font-bold text-slate-900 tracking-tight">{formatCurrency(prestamo.montoPrestamo)}</p>
           </div>
-          <div className="pt-4 mt-4 border-t border-slate-100">
-            <Link 
-              href={`/admin/pagos/registrar/${prestamo.clienteId}`}
-              className="w-full py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold rounded-xl transition-all shadow-lg shadow-blue-600/20 active:scale-[0.98] block text-center"
-            >
-              Registrar Pago
-            </Link>
+
+          {/* Abonado */}
+          <div className="bg-emerald-50/50 p-5 rounded-2xl border border-emerald-100 shadow-sm flex flex-col justify-between h-28">
+             <div className="flex justify-between items-start">
+               <span className="text-[10px] font-black text-emerald-600/70 uppercase tracking-widest">Abonado a la Fecha</span>
+               <span className="text-[10px] font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full">{progresoPorcentaje}%</span>
+             </div>
+             <p className="text-2xl font-bold text-emerald-700 tracking-tight">{formatCurrency(montoAbonado)}</p>
+          </div>
+
+          {/* Saldo Pendiente */}
+          <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm flex flex-col justify-between h-28">
+             <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Saldo Pendiente</span>
+             <p className="text-2xl font-bold text-rose-600 tracking-tight">{formatCurrency(prestamo.saldoPendiente)}</p>
+          </div>
+
+          {/* Frecuencia (now Row 2) */}
+          <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm flex flex-col justify-center gap-1 h-24">
+             <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-full bg-blue-50 flex items-center justify-center text-blue-600">
+                   <TrendingUp className="w-4 h-4" />
+                </div>
+                <div>
+                   <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">Frecuencia Pago</span>
+                   <span className="text-lg font-bold text-slate-900 capitalize block leading-none mt-1">{prestamo.frecuencia}</span>
+                </div>
+             </div>
+          </div>
+
+          {/* Fecha Inicio */}
+          <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm flex flex-col justify-center gap-1 h-24">
+             <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-full bg-purple-50 flex items-center justify-center text-purple-600">
+                   <Calendar className="w-4 h-4" />
+                </div>
+                <div>
+                   <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">Fecha Inicio</span>
+                   <span className="text-lg font-bold text-slate-900 block leading-none mt-1">{prestamo.fechaInicio}</span>
+                </div>
+             </div>
+          </div>
+
+          {/* Fecha Vencimiento */}
+          <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm flex flex-col justify-center gap-1 h-24">
+             <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-full bg-orange-50 flex items-center justify-center text-orange-600">
+                   <Calendar className="w-4 h-4" />
+                </div>
+                <div>
+                   <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">Vencimiento</span>
+                   <span className="text-lg font-bold text-slate-900 block leading-none mt-1">{prestamo.fechaVencimiento}</span>
+                </div>
+             </div>
           </div>
         </div>
       </div>
@@ -210,46 +215,38 @@ export default function DetallePrestamo({ prestamo }: DetallePrestamoProps) {
       </div>
 
       {/* Contenido de Tabs */}
-      <div className="min-h-[400px]">
+      <div className="min-h-[300px]">
         {activeTab === 'cuotas' && (
-          <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-slate-200 overflow-hidden">
+          <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
             <table className="min-w-full divide-y divide-slate-200">
-              <thead className="bg-slate-50">
+              <thead className="bg-slate-50/50">
                 <tr>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">#</th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Vencimiento</th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Monto</th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Estado</th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Fecha Pago</th>
-                  <th scope="col" className="px-6 py-3 text-right text-xs font-bold text-slate-500 uppercase tracking-wider">Acciones</th>
+                  <th scope="col" className="px-6 py-4 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">#</th>
+                  <th scope="col" className="px-6 py-4 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">Vencimiento</th>
+                  <th scope="col" className="px-6 py-4 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">Monto</th>
+                  <th scope="col" className="px-6 py-4 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">Estado</th>
+                  <th scope="col" className="px-6 py-4 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">Fecha Pago</th>
+                  <th scope="col" className="px-6 py-4 text-right text-[10px] font-black text-slate-400 uppercase tracking-widest">Ref</th>
                 </tr>
               </thead>
-              <tbody className="bg-white divide-y divide-slate-200">
+              <tbody className="bg-white divide-y divide-slate-100">
                 {prestamo.cuotas.map((cuota) => (
-                  <tr key={cuota.numero} className="hover:bg-slate-50 transition-colors">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">{cuota.numero}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-900">{cuota.fecha}</td>
+                  <tr key={cuota.numero} className="hover:bg-slate-50 transition-colors group">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-slate-500">{cuota.numero}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-700">{cuota.fecha}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-slate-900">
                       {formatCurrency(cuota.monto)}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={cn("px-2.5 py-0.5 rounded-full text-xs font-bold", getCuotaEstadoColor(cuota.estado))}>
+                      <span className={cn("px-2.5 py-1 rounded-full text-[10px] font-black tracking-wide uppercase border", getCuotaEstadoColor(cuota.estado))}>
                         {cuota.estado}
                       </span>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">
+                    <td className="px-6 py-4 whitespace-nowrap text-xs font-bold text-slate-500">
                       {cuota.fechaPago || '-'}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right">
-                      {(cuota.estado === 'PENDIENTE' || cuota.estado === 'VENCIDO') && (
-                        <button
-                          onClick={() => handleReprogramar(cuota.numero)}
-                          className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-blue-200 text-blue-600 font-bold rounded-lg hover:bg-blue-50 transition-all text-xs shadow-sm hover:shadow-md active:scale-95"
-                        >
-                          <Clock className="w-3.5 h-3.5" />
-                          Reprogramar
-                        </button>
-                      )}
+                       <span className="text-xs text-slate-300 font-mono">#{cuota.numero.toString().padStart(3, '0')}</span>
                     </td>
                   </tr>
                 ))}
@@ -260,50 +257,32 @@ export default function DetallePrestamo({ prestamo }: DetallePrestamoProps) {
 
         {activeTab === 'info' && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-slate-200">
-              <h3 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
-                <Package className="h-5 w-5 text-slate-500" />
+            <div className="bg-white rounded-2xl p-6 border border-slate-100">
+              <h3 className="text-xs font-black text-slate-900 uppercase tracking-widest mb-6 flex items-center gap-2">
+                <Package className="h-4 w-4 text-slate-400" />
                 Detalles del Producto
               </h3>
-              <dl className="grid grid-cols-1 gap-x-4 gap-y-6 sm:grid-cols-2">
-                <div className="sm:col-span-2">
-                  <dt className="text-xs text-slate-500">Descripción</dt>
-                  <dd className="mt-1 text-sm text-slate-900">{prestamo.producto || 'N/A'}</dd>
-                </div>
-                <div>
-                  <dt className="text-xs text-slate-500">Garantía</dt>
-                  <dd className="mt-1 text-sm text-slate-900">{prestamo.garantia || 'Sin garantía específica'}</dd>
-                </div>
-                <div>
-                  <dt className="text-xs text-slate-500">Fecha de Creación</dt>
-                  <dd className="mt-1 text-sm text-slate-900">{prestamo.fechaInicio}</dd>
+              <dl className="space-y-4">
+                <div className="flex justify-between border-b border-slate-50 pb-2">
+                  <dt className="text-xs font-bold text-slate-400">Descripción</dt>
+                  <dd className="text-sm font-bold text-slate-700">{prestamo.producto || 'N/A'}</dd>
                 </div>
               </dl>
             </div>
 
-            <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-slate-200">
-              <h3 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
-                <TrendingUp className="h-5 w-5 text-slate-500" />
-                Indicadores Financieros
+            <div className="bg-white rounded-2xl p-6 border border-slate-100">
+              <h3 className="text-xs font-black text-slate-900 uppercase tracking-widest mb-6 flex items-center gap-2">
+                <TrendingUp className="h-4 w-4 text-slate-400" />
+                Indicadores
               </h3>
-              <dl className="grid grid-cols-1 gap-x-4 gap-y-6 sm:grid-cols-2">
-                <div>
-                  <dt className="text-xs text-slate-500">Tasa de Interés</dt>
-                  <dd className="mt-1 text-sm text-slate-900">{prestamo.tasaInteres}%</dd>
+              <dl className="space-y-4">
+                <div className="flex justify-between border-b border-slate-50 pb-2">
+                  <dt className="text-xs font-bold text-slate-400">Tasa de Interés</dt>
+                  <dd className="text-sm font-bold text-slate-700">{prestamo.tasaInteres}%</dd>
                 </div>
-                <div>
-                  <dt className="text-xs text-slate-500">Progreso de Pago</dt>
-                  <div className="mt-1 flex items-center gap-2">
-                    <div className="flex-1 h-2 bg-slate-100 rounded-full overflow-hidden">
-                      <div 
-                        className="h-full bg-slate-900 rounded-full" 
-                        style={{ width: `${((prestamo.montoTotal - prestamo.saldoPendiente) / prestamo.montoTotal) * 100}%` }}
-                      />
-                    </div>
-                    <span className="text-xs font-bold text-slate-700">
-                      {Math.round(((prestamo.montoTotal - prestamo.saldoPendiente) / prestamo.montoTotal) * 100)}%
-                    </span>
-                  </div>
+                <div className="flex justify-between border-b border-slate-50 pb-2">
+                  <dt className="text-xs font-bold text-slate-400">Monto Total a Pagar</dt>
+                  <dd className="text-sm font-bold text-slate-700">{formatCurrency(prestamo.montoTotal)}</dd>
                 </div>
               </dl>
             </div>
@@ -311,7 +290,7 @@ export default function DetallePrestamo({ prestamo }: DetallePrestamoProps) {
         )}
 
         {activeTab === 'documentos' && (
-          <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-slate-200">
+          <div className="bg-white rounded-2xl p-6 border border-slate-100">
              {prestamo.fotos && prestamo.fotos.length > 0 ? (
                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                  {prestamo.fotos.map((foto, index) => (
@@ -341,19 +320,6 @@ export default function DetallePrestamo({ prestamo }: DetallePrestamoProps) {
           </div>
         )}
       </div>
-
-      {/* Modal de Reprogramación */}
-      {showReprogramarModal && selectedCuota !== null && (
-        <ReprogramarCuotaModal
-          prestamoId={prestamo.id}
-          cuotaNumero={selectedCuota}
-          fechaOriginal={prestamo.cuotas.find(c => c.numero === selectedCuota)?.fecha || ''}
-          frecuenciaPago={prestamo.frecuencia.toUpperCase() as 'DIARIO' | 'SEMANAL' | 'QUINCENAL' | 'MENSUAL'}
-          montoCuota={prestamo.cuotas.find(c => c.numero === selectedCuota)?.monto || 0}
-          onClose={handleCloseReprogramar}
-          onSuccess={handleSuccessReprogramar}
-        />
-      )}
     </div>
   );
 }
