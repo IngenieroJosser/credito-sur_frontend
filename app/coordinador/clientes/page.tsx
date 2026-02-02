@@ -1,8 +1,8 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { clientesService, Cliente, MOCK_CLIENTES } from '@/services/clientes-service';
+import { clientesService, Cliente, ClientesFilters } from '@/services/cliente-service';
 import {
   Search,
   User,
@@ -11,11 +11,15 @@ import {
   TrendingDown,
   Minus,
   Calendar,
-  UserPlus
+  UserPlus,
+  RefreshCw,
+  Loader2,
+  AlertCircle
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import FiltroRuta from '@/components/filtros/FiltroRuta';
 import NuevoClienteModal from '@/components/clientes/NuevoClienteModal';
+import { formatErrorForComponent } from '@/lib/api/api';
 
 type NivelRiesgo = 'VERDE' | 'AMARILLO' | 'ROJO' | 'LISTA_NEGRA';
 
@@ -28,50 +32,86 @@ interface ClienteCoordinador extends Cliente {
 
 const ClientesCoordinador = () => {
   const router = useRouter();
-  const [clientes, setClientes] = useState<ClienteCoordinador[]>([])
-  const [isLoading, setIsLoading] = useState(true)
+  const [clientes, setClientes] = useState<ClienteCoordinador[]>([]); // Inicializado como array vacío
+  const [estadisticas, setEstadisticas] = useState({
+    total: 0,
+    buenComportamiento: 0,
+    enRiesgo: 0,
+    scorePromedio: 0
+  });
+  const [isLoading, setIsLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const loadClientes = useCallback(async (filters: ClientesFilters = {}) => {
+    try {
+      if (!refreshing) setIsLoading(true);
+      setError(null);
+      
+      const response = await clientesService.obtenerClientes(filters);
+      
+      // Verificar si response.clientes existe, sino usar array vacío
+      const clientesData = response?.clientes || [];
+      
+      // Los datos ya vienen con score, tendencia y ultimaVisita del backend
+      setClientes(clientesData as ClienteCoordinador[]);
+      
+      // Asegúrate de que estadisticas tenga valores por defecto si viene undefined
+      setEstadisticas({
+        total: response?.estadisticas?.total || 0,
+        buenComportamiento: response?.estadisticas?.buenComportamiento || 0,
+        enRiesgo: response?.estadisticas?.enRiesgo || 0,
+        scorePromedio: response?.estadisticas?.scorePromedio || 0
+      });
+      
+    } catch (err) {
+      const errorMessage = formatErrorForComponent(err);
+      setError(errorMessage);
+      console.error('Error loading clients:', err);
+      // Asegurar que clientes sea array vacío en caso de error
+      setClientes([]);
+    } finally {
+      setIsLoading(false);
+      setRefreshing(false);
+    }
+  }, [refreshing]);
 
   useEffect(() => {
-    let mounted = true
-    ;(async () => {
-      try {
-        const data = await clientesService.obtenerClientes()
-        const rawData = Array.isArray(data) ? data : MOCK_CLIENTES
-        
-        // Mapear a datos enriquecidos para el coordinador
-        const enriched: ClienteCoordinador[] = rawData.map(c => ({
-          ...c,
-          score: Math.floor(Math.random() * (100 - 40 + 1)) + 40,
-          tendencia: Math.random() > 0.6 ? 'SUBE' : Math.random() > 0.3 ? 'ESTABLE' : 'BAJA',
-          ultimaVisita: new Date(Date.now() - Math.floor(Math.random() * 10) * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
-        }))
-
-        if (mounted) setClientes(enriched)
-      } catch {
-        if (mounted) setClientes([])
-      } finally {
-        if (mounted) setIsLoading(false)
-      }
-    })()
-
-    return () => { mounted = false }
-  }, [])
+    loadClientes();
+  }, [loadClientes]);
 
   const [searchTerm, setSearchTerm] = useState('');
   const [filterRiesgo, setFilterRiesgo] = useState<string>('all');
   const [filterRuta, setFilterRuta] = useState<string | null>(null);
 
-  const filteredClientes = clientes.filter(cliente => {
-    const matchesSearch = 
-      `${cliente.nombres} ${cliente.apellidos}`.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      cliente.dni.toLowerCase().includes(searchTerm.toLowerCase());
-    
-    const matchesRiesgo = filterRiesgo === 'all' || cliente.nivelRiesgo === filterRiesgo;
-    const matchesRuta = !filterRuta || filterRuta === '' || cliente.rutaId === filterRuta;
-    
-    return matchesSearch && matchesRiesgo && matchesRuta;
-  });
+  const handleFilterChange = () => {
+    const filters: ClientesFilters = {
+      nivelRiesgo: filterRiesgo !== 'all' ? filterRiesgo : undefined,
+      ruta: filterRuta || undefined,
+      search: searchTerm || undefined,
+    };
+    loadClientes(filters);
+  };
+
+  useEffect(() => {
+    // Usar debounce para evitar demasiadas llamadas a la API
+    const timeoutId = setTimeout(() => {
+      handleFilterChange();
+    }, 500);
+
+    return () => clearTimeout(timeoutId);
+  }, [searchTerm, filterRiesgo, filterRuta]);
+
+  const handleRefresh = () => {
+    setRefreshing(true);
+    loadClientes();
+  };
+
+  const handleNewClientCreated = async (cliente: any) => {
+    // Recargar la lista después de crear un cliente
+    await loadClientes();
+  };
 
   const getRiesgoColor = (riesgo: NivelRiesgo) => {
     switch (riesgo) {
@@ -96,6 +136,31 @@ const ClientesCoordinador = () => {
     return <Minus className="h-4 w-4 text-slate-400" />;
   };
 
+  // Verificar si hay clientes para mostrar
+  const hasClientes = clientes && clientes.length > 0;
+
+  // Estado de error
+  if (error && clientes.length === 0 && !isLoading) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+        <div className="text-center max-w-md">
+          <div className="p-4 rounded-3xl bg-white border border-rose-100 shadow-lg inline-block mb-6">
+            <AlertCircle className="h-12 w-12 text-rose-500" />
+          </div>
+          <h3 className="text-lg font-black text-slate-800 mb-2">Error al cargar clientes</h3>
+          <p className="text-sm text-slate-600 mb-6">{error}</p>
+          <button
+            onClick={handleRefresh}
+            className="px-6 py-2 bg-[#08557f] text-white font-bold rounded-xl hover:bg-[#063a58] transition-colors flex items-center gap-2 mx-auto"
+          >
+            <RefreshCw className="h-4 w-4" />
+            Reintentar
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-slate-50 relative">
       <div className="fixed inset-0 pointer-events-none">
@@ -104,6 +169,16 @@ const ClientesCoordinador = () => {
       </div>
 
       <div className="relative z-10 px-8 py-8 space-y-8 text-slate-900">
+        {/* Estado de carga durante refresh */}
+        {refreshing && (
+          <div className="fixed top-20 right-4 z-50">
+            <div className="bg-white border border-slate-200 rounded-xl px-4 py-2 shadow-lg flex items-center gap-2">
+              <Loader2 className="h-4 w-4 text-[#08557f] animate-spin" />
+              <span className="text-xs font-bold text-slate-600">Actualizando datos...</span>
+            </div>
+          </div>
+        )}
+
         <header className="flex flex-col md:flex-row md:items-end justify-between gap-4">
           <div>
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white border border-slate-200 text-xs font-bold text-slate-500 mb-2">
@@ -115,33 +190,47 @@ const ClientesCoordinador = () => {
             </h1>
             <p className="text-slate-500 mt-2 font-medium">Monitorea el cumplimiento y hábito de pago de cada cliente.</p>
           </div>
-          <button
-            onClick={() => setIsModalOpen(true)}
-            className="inline-flex items-center gap-2 px-6 py-3 bg-white border border-blue-200 text-[#08557f] rounded-xl hover:bg-blue-50 transition-all duration-200 shadow-sm font-black text-sm active:scale-95"
-          >
-            <UserPlus className="w-4 h-4" />
-            Nuevo Cliente
-          </button>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={handleRefresh}
+              disabled={refreshing}
+              className="p-2 rounded-xl bg-white border border-slate-200 hover:bg-slate-50 transition-colors disabled:opacity-50"
+              title="Actualizar lista"
+            >
+              <RefreshCw className={`h-4 w-4 text-slate-600 ${refreshing ? 'animate-spin' : ''}`} />
+            </button>
+            <button
+              onClick={() => setIsModalOpen(true)}
+              className="inline-flex items-center gap-2 px-6 py-3 bg-white border border-blue-200 text-[#08557f] rounded-xl hover:bg-blue-50 transition-all duration-200 shadow-sm font-black text-sm active:scale-95"
+            >
+              <UserPlus className="w-4 h-4" />
+              Nuevo Cliente
+            </button>
+          </div>
         </header>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-           <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
-              <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Buen Comportamiento</p>
-              <h3 className="text-2xl font-bold text-emerald-600 mt-1">{clientes.filter(c => c.score >= 80).length} Clientes</h3>
-              <p className="text-xs text-slate-500 mt-1">Con puntaje superior a 80 pts</p>
-           </div>
-           <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
-              <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">En Riesgo</p>
-              <h3 className="text-2xl font-bold text-rose-600 mt-1">{clientes.filter(c => c.score < 50).length} Clientes</h3>
-              <p className="text-xs text-slate-500 mt-1">Requieren intervención o cobro jurídico</p>
-           </div>
-           <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
-              <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Score Promedio</p>
-              <h3 className="text-2xl font-bold text-blue-600 mt-1">
-                {clientes.length > 0 ? (clientes.reduce((acc, c) => acc + c.score, 0) / clientes.length).toFixed(1) : 0} Pts
-              </h3>
-              <p className="text-xs text-slate-500 mt-1">Promedio global de la cartera</p>
-           </div>
+          <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+            <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Buen Comportamiento</p>
+            <h3 className="text-2xl font-bold text-emerald-600 mt-1">
+              {estadisticas?.buenComportamiento || 0} Clientes
+            </h3>
+            <p className="text-xs text-slate-500 mt-1">Con puntaje superior a 80 pts</p>
+          </div>
+          <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+            <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">En Riesgo</p>
+            <h3 className="text-2xl font-bold text-rose-600 mt-1">
+              {estadisticas?.enRiesgo || 0} Clientes
+            </h3>
+            <p className="text-xs text-slate-500 mt-1">Requieren intervención o cobro jurídico</p>
+          </div>
+          <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+            <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Score Promedio</p>
+            <h3 className="text-2xl font-bold text-blue-600 mt-1">
+              {estadisticas?.scorePromedio ? estadisticas.scorePromedio.toFixed(1) : '0.0'} Pts
+            </h3>
+            <p className="text-xs text-slate-500 mt-1">Promedio global de la cartera</p>
+          </div>
         </div>
 
         <div className="flex flex-col md:flex-row gap-4 justify-between bg-white border border-slate-200 p-4 rounded-2xl">
@@ -157,7 +246,14 @@ const ClientesCoordinador = () => {
                  <button 
                   key={r}
                   onClick={() => setFilterRiesgo(r)}
-                  className={cn("px-4 py-2 text-xs font-bold rounded-xl transition-all border", filterRiesgo === r ? "bg-slate-900 text-white border-slate-900 shadow-lg shadow-slate-900/20" : "bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100")}
+                  disabled={isLoading}
+                  className={cn(
+                    "px-4 py-2 text-xs font-bold rounded-xl transition-all border",
+                    filterRiesgo === r 
+                      ? "bg-slate-900 text-white border-slate-900 shadow-lg shadow-slate-900/20" 
+                      : "bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100",
+                    isLoading && "opacity-50 cursor-not-allowed"
+                  )}
                  >
                    {r === 'all' ? 'Todos' : r}
                  </button>
@@ -171,7 +267,8 @@ const ClientesCoordinador = () => {
               placeholder="Buscar cliente..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500/10 outline-none"
+              disabled={isLoading}
+              className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500/10 outline-none disabled:opacity-50"
             />
           </div>
         </div>
@@ -190,45 +287,89 @@ const ClientesCoordinador = () => {
             </thead>
             <tbody className="divide-y divide-slate-100 italic-header">
               {isLoading ? (
-                <tr><td colSpan={6} className="py-10 text-center text-slate-400">Cargando base de datos...</td></tr>
-              ) : filteredClientes.map(c => (
-                <tr key={c.id} className="hover:bg-slate-50/50 transition-colors group">
-                  <td className="px-6 py-4">
-                    <p className="font-bold text-slate-900">{c.nombres} {c.apellidos}</p>
-                    <p className="text-[10px] text-slate-500">{c.telefono}</p>
-                  </td>
-                  <td className="px-6 py-4">
-                     <span className={cn("px-2 py-1 rounded-lg text-[10px] font-bold border", getRiesgoColor(c.nivelRiesgo))}>
+                Array.from({ length: 5 }).map((_, i) => (
+                  <tr key={i} className="animate-pulse">
+                    <td className="px-6 py-4">
+                      <div className="h-4 bg-slate-100 rounded w-32 mb-2"></div>
+                      <div className="h-3 bg-slate-100 rounded w-24"></div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="h-6 bg-slate-100 rounded-full w-20"></div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="h-8 bg-slate-100 rounded w-12 mx-auto"></div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="h-4 bg-slate-100 rounded w-16"></div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="h-4 bg-slate-100 rounded w-20"></div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="h-8 bg-slate-100 rounded w-8 ml-auto"></div>
+                    </td>
+                  </tr>
+                ))
+              ) : hasClientes ? (
+                clientes.map(c => (
+                  <tr key={c.id} className="hover:bg-slate-50/50 transition-colors group">
+                    <td className="px-6 py-4">
+                      <p className="font-bold text-slate-900">{c.nombres} {c.apellidos}</p>
+                      <p className="text-[10px] text-slate-500">{c.telefono}</p>
+                    </td>
+                    <td className="px-6 py-4">
+                     <span className={cn("px-2 py-1 rounded-lg text-[10px] font-bold border", getRiesgoColor(c.nivelRiesgo as NivelRiesgo))}>
                         {c.nivelRiesgo}
                      </span>
-                  </td>
-                  <td className="px-6 py-4 text-center font-bold">
-                    <div className="flex flex-col items-center">
-                      <span className={cn("text-lg", getScoreColor(c.score))}>{c.score}</span>
-                      <div className="w-12 h-1 bg-slate-100 rounded-full mt-1 overflow-hidden">
-                        <div className={cn("h-full", c.score >= 70 ? 'bg-emerald-500' : 'bg-rose-500')} style={{ width: `${c.score}%` }} />
+                    </td>
+                    <td className="px-6 py-4 text-center font-bold">
+                      <div className="flex flex-col items-center">
+                        <span className={cn("text-lg", getScoreColor(c.score || c.puntaje || 0))}>
+                          {c.score || c.puntaje || 0}
+                        </span>
+                        <div className="w-12 h-1 bg-slate-100 rounded-full mt-1 overflow-hidden">
+                          <div 
+                            className={cn("h-full", (c.score || c.puntaje || 0) >= 70 ? 'bg-emerald-500' : 'bg-rose-500')} 
+                            style={{ width: `${Math.min((c.score || c.puntaje || 0), 100)}%` }} 
+                          />
+                        </div>
                       </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-2 font-bold text-xs">
+                         <RenderTendencia t={c.tendencia || 'ESTABLE'} />
+                         <span className="text-slate-600">{c.tendencia || 'ESTABLE'}</span>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-1.5 text-slate-600 text-[11px] font-medium">
+                        <Calendar className="h-3 w-3 text-slate-400" />
+                        {c.ultimaVisita || 'Nunca'}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 text-right">
+                      <button 
+                        onClick={() => router.push(`/coordinador/clientes/${c.id}`)} 
+                        className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg"
+                      >
+                        <Eye className="h-4 w-4" />
+                      </button>
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan={6} className="py-16 text-center">
+                    <div className="inline-flex p-4 rounded-full bg-slate-50 mb-4">
+                      <Search className="h-8 w-8 text-slate-300" />
                     </div>
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="flex items-center gap-2 font-bold text-xs">
-                       <RenderTendencia t={c.tendencia} />
-                       <span className="text-slate-600">{c.tendencia}</span>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="flex items-center gap-1.5 text-slate-600 text-[11px] font-medium">
-                      <Calendar className="h-3 w-3 text-slate-400" />
-                      {c.ultimaVisita}
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 text-right">
-                    <button onClick={() => router.push(`/coordinador/clientes/${c.id}`)} className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg">
-                      <Eye className="h-4 w-4" />
-                    </button>
+                    <h3 className="text-lg font-bold text-slate-900">No se encontraron clientes</h3>
+                    <p className="text-slate-500 mt-1 font-medium">
+                      {error ? 'Hubo un error al cargar los datos' : 'Intenta ajustar los filtros de búsqueda'}
+                    </p>
                   </td>
                 </tr>
-              ))}
+              )}
             </tbody>
           </table>
         </div>
@@ -237,11 +378,7 @@ const ClientesCoordinador = () => {
       {isModalOpen && (
         <NuevoClienteModal 
           onClose={() => setIsModalOpen(false)} 
-          onClienteCreado={(nuevo) => {
-            console.log('Cliente creado:', nuevo);
-            setIsModalOpen(false);
-            // Opcionalmente actualizar la lista local
-          }} 
+          onClienteCreado={handleNewClientCreated} 
         />
       )}
     </div>
