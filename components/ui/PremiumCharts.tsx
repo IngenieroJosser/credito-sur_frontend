@@ -28,9 +28,30 @@ export const PremiumBarChart = ({
   showTarget = false,
   type = 'single',
 }: PremiumBarChartProps) => {
+  // Manejar caso cuando no hay datos
+  const hasData = data && data.length > 0;
+  
   const maxValue = useMemo(() => {
+    if (!hasData) return 100;
     return Math.max(...data.map(d => Math.max(d.value, d.target || 0, d.secondaryValue || 0))) * 1.1;
-  }, [data]);
+  }, [data, hasData]);
+
+  // Datos de ejemplo para mostrar cuando no hay datos reales
+  const sampleData: ChartData[] = useMemo(() => {
+    if (hasData) return data;
+    
+    return [
+      { label: 'Lun', value: 2100000, target: 2500000 },
+      { label: 'Mar', value: 2400000, target: 2500000 },
+      { label: 'Mie', value: 1500000, target: 2500000 },
+      { label: 'Jue', value: 2800000, target: 2500000 },
+      { label: 'Vie', value: 2200000, target: 2500000 },
+      { label: 'Sab', value: 3100000, target: 2500000 },
+      { label: 'Dom', value: 900000, target: 1200000 },
+    ];
+  }, [data, hasData]);
+
+  const chartData = hasData ? data : sampleData;
 
   return (
     <div style={{ height }} className="w-full flex items-end justify-between gap-2 sm:gap-4 px-2 relative group mt-8">
@@ -45,7 +66,16 @@ export const PremiumBarChart = ({
         ))}
       </div>
 
-      {data.map((item, i) => {
+      {!hasData && (
+        <div className="absolute inset-0 flex items-center justify-center z-20">
+          <div className="text-center bg-white/90 backdrop-blur-sm p-6 rounded-2xl border border-slate-200 shadow-lg">
+            <div className="text-sm font-bold text-slate-600 mb-2">Cargando datos del gráfico...</div>
+            <div className="text-xs text-slate-500">Usando datos de muestra mientras se cargan los reales</div>
+          </div>
+        </div>
+      )}
+
+      {chartData.map((item, i) => {
         const heightPrimary = (item.value / maxValue) * 100;
         const heightTarget = item.target ? (item.target / maxValue) * 100 : 0;
         const heightSecondary = item.secondaryValue ? (item.secondaryValue / maxValue) * 100 : 0;
@@ -124,7 +154,10 @@ export const PremiumBarChart = ({
             </div>
 
             {/* Label */}
-            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest bg-slate-50 px-2 py-0.5 rounded-md border border-slate-100 group-hover/bar:text-slate-900 transition-colors">
+            <span className={cn(
+              "text-[10px] font-black uppercase tracking-widest bg-slate-50 px-2 py-0.5 rounded-md border border-slate-100 group-hover/bar:text-slate-900 transition-colors",
+              !hasData && "text-slate-400/60"
+            )}>
               {item.label}
             </span>
           </div>
@@ -178,14 +211,14 @@ export const Sparkline = ({
     <div style={{ height }} className="w-24 overflow-visible">
       <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="w-full h-full overflow-visible">
         <defs>
-          <linearGradient id={`grad-${color}`} x1="0%" y1="0%" x2="0%" y2="100%">
+          <linearGradient id={`grad-${color.replace('#', '')}`} x1="0%" y1="0%" x2="0%" y2="100%">
             <stop offset="0%" style={{ stopColor: color, stopOpacity: 0.2 }} />
             <stop offset="100%" style={{ stopColor: color, stopOpacity: 0 }} />
           </linearGradient>
         </defs>
         <path
           d={`${getCurvePath()} L 100 100 L 0 100 Z`}
-          fill={`url(#grad-${color})`}
+          fill={`url(#grad-${color.replace('#', '')})`}
           className="animate-in fade-in duration-1000"
         />
         <path

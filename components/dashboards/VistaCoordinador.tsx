@@ -1,79 +1,33 @@
 'use client'
 
 import Link from 'next/link';
-
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { 
   Bell, 
   Clock, 
   AlertCircle, 
+  CheckCircle, 
+  XCircle,
   Users,
   CreditCard, 
   Wallet, 
   BarChart3, 
   CalendarClock, 
   Target,
+  Shield,
   UserPlus,
-  // Restaurados para uso en dashboard general
   ChevronRight,
   Route,
   FileText,
-  UserCog
+  Loader2,
+  RefreshCw
 } from 'lucide-react';
 import { Rol } from '@/lib/permissions';
 import { formatCurrency } from '@/lib/utils';
 import { Sparkline, PremiumBarChart } from '@/components/ui/PremiumCharts';
-
-interface MetricCard {
-  title: string;
-  value: string;
-  change: number;
-  icon: React.ReactNode;
-  color: string;
-  trendData: number[];
-  subValue?: string;
-}
-
-interface QuickAccessItem {
-  title: string;
-  subtitle: string;
-  icon: React.ReactNode;
-  color: string;
-  badge?: number;
-  href: string;
-}
-
-interface ApprovalItem {
-  id: number;
-  type: 'cliente' | 'credito' | 'gasto' | 'base-dinero' | 'prorroga';
-  description: string;
-  requestedBy: string;
-  time: string;
-  amount?: number;
-  details: string;
-  status: 'pending' | 'approved' | 'rejected';
-  priority: 'high' | 'medium' | 'low';
-}
-
-interface DelinquentAccount {
-  id: number;
-  loanId: string;
-  client: string;
-  clientId: string;
-  phone: string;
-  address: string;
-  daysLate: number;
-  overdueInstallments: number;
-  amountDue: number;
-  totalDebt: number;
-  collector: string;
-  route: string;
-  status: 'critical' | 'moderate' | 'mild';
-  riskLevel: 'ALTO' | 'MEDIO' | 'BAJO';
-  recentManagement: string;
-  dueDate: string;
-}
+import { dashboardService, DashboardData } from '@/services/dashboard-coordinador-service';
+import { formatErrorForComponent } from '@/lib/api/api';
 
 interface Usuario {
   id?: string
@@ -87,10 +41,34 @@ interface Usuario {
   ciudad?: string
 }
 
+interface MetricCard {
+  title: string;
+  value: string;
+  change: number;
+  icon: React.ReactNode;
+  color: string;
+  trendData: number[];
+}
+
+interface QuickAccessItem {
+  title: string;
+  subtitle: string;
+  icon: React.ReactNode;
+  color: string;
+  badge?: number;
+  href: string;
+}
+
 const VistaCoordinador = () => {
   const [timeFilter, setTimeFilter] = useState<'today' | 'week' | 'month' | 'quarter'>('month');
   const [user, setUser] = useState<Usuario | null>(null)
   const [authChecked, setAuthChecked] = useState(false)
+  const [dashboardData, setDashboardData] = useState<DashboardData | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [refreshing, setRefreshing] = useState(false)
+  const [approvingId, setApprovingId] = useState<string | null>(null)
+  const [rejectingId, setRejectingId] = useState<string | null>(null)
   const router = useRouter()
   const currentDate = new Date();
 
@@ -118,6 +96,61 @@ const VistaCoordinador = () => {
     loadUserData()
   }, [router])
 
+  const loadDashboardData = useCallback(async () => {
+    try {
+      if (!refreshing) setLoading(true)
+      setError(null)
+      
+      const data = await dashboardService.getDashboardData(timeFilter)
+      setDashboardData(data)
+    } catch (err) {
+      const errorMessage = formatErrorForComponent(err)
+      setError(errorMessage)
+      console.error('Error loading dashboard data:', err)
+    } finally {
+      setLoading(false)
+      setRefreshing(false)
+    }
+  }, [timeFilter, refreshing])
+
+  useEffect(() => {
+    if (authChecked) {
+      loadDashboardData()
+    }
+  }, [authChecked, timeFilter, loadDashboardData])
+
+  const handleRefresh = () => {
+    setRefreshing(true)
+    loadDashboardData()
+  }
+
+  const handleApprove = async (id: string, type: string) => {
+    try {
+      setApprovingId(id)
+      await dashboardService.handleApprove(id, type)
+      await loadDashboardData()
+      // Aquí podrías agregar un toast de éxito
+    } catch (err) {
+      const errorMessage = formatErrorForComponent(err)
+      setError(errorMessage)
+    } finally {
+      setApprovingId(null)
+    }
+  }
+
+  const handleReject = async (id: string, type: string) => {
+    try {
+      setRejectingId(id)
+      await dashboardService.handleReject(id, type)
+      await loadDashboardData()
+      // Aquí podrías agregar un toast de éxito
+    } catch (err) {
+      const errorMessage = formatErrorForComponent(err)
+      setError(errorMessage)
+    } finally {
+      setRejectingId(null)
+    }
+  }
 
   // Formatear fecha elegante
   const formatDate = (date: Date) => {
@@ -130,11 +163,11 @@ const VistaCoordinador = () => {
     return date.toLocaleDateString('es-ES', options);
   };
 
-  // Métricas principales
-  const mainMetrics: MetricCard[] = [
+  // Métricas principales basadas en datos reales
+  const mainMetrics: MetricCard[] = dashboardData ? [
     {
-      title: 'Revisiones Pendientes',
-      value: '12',
+      title: 'Aprobaciones Pendientes',
+      value: dashboardData.metrics.pendingApprovals.toString(),
       change: 8.2,
       icon: <Bell className="h-4 w-4" />,
       color: '#08557f',
@@ -142,7 +175,7 @@ const VistaCoordinador = () => {
     },
     {
       title: 'Cuentas en Mora',
-      value: '24',
+      value: dashboardData.metrics.delinquentAccounts.toString(),
       change: -3.4,
       icon: <AlertCircle className="h-4 w-4" />,
       color: '#ef4444',
@@ -150,7 +183,7 @@ const VistaCoordinador = () => {
     },
     {
       title: 'Base Solicitada',
-      value: formatCurrency(150000),
+      value: formatCurrency(dashboardData.metrics.requestedBase),
       change: 12.5,
       icon: <Wallet className="h-4 w-4" />,
       color: '#fb851b',
@@ -158,14 +191,13 @@ const VistaCoordinador = () => {
     },
     {
       title: 'Eficiencia',
-      value: '92.3%',
-      subValue: `${formatCurrency(12500000)} / ${formatCurrency(13540000)}`,
+      value: `${dashboardData.metrics.efficiency.toFixed(1)}%`,
       change: 1.8,
       icon: <Target className="h-4 w-4" />,
       color: '#10b981',
       trendData: [80, 81, 82, 83, 84, 85, 86, 86.5, 87, 87.2, 87.3, 87.3]
     }
-  ];
+  ] : [];
 
   // Accesos rápidos
   const quickAccess: QuickAccessItem[] = [
@@ -199,87 +231,6 @@ const VistaCoordinador = () => {
     }
   ];
 
-  // Datos de aprobaciones
-  const approvalItems: ApprovalItem[] = [
-    { id: 1, type: 'cliente', description: 'Nuevo cliente', requestedBy: 'Carlos R.', time: '09:30', details: 'Juan Pérez - Documento 12345678', status: 'pending', priority: 'high' },
-    { id: 2, type: 'credito', description: 'Solicitud de crédito', requestedBy: 'María G.', time: '10:15', amount: 2500000, details: 'Refrigerador LG 320L - 12 meses', status: 'pending', priority: 'high' },
-    { id: 3, type: 'gasto', description: 'Gasto operativo', requestedBy: 'Pedro S.', time: '11:45', amount: 35000, details: 'Combustible y mantenimiento', status: 'pending', priority: 'medium' },
-    { id: 4, type: 'base-dinero', description: 'Base de efectivo', requestedBy: 'Ana L.', time: '12:20', amount: 150000, details: 'Para cambio a clientes', status: 'pending', priority: 'high' },
-    { id: 5, type: 'prorroga', description: 'Prórroga de cuota', requestedBy: 'Luis M.', time: '13:10', details: 'Reprogramación hasta 14/01', status: 'pending', priority: 'medium' },
-  ];
-
-  // Cuentas en mora
-  const delinquentAccounts: DelinquentAccount[] = [
-    { 
-      id: 1, 
-      loanId: 'P-2024-001',
-      client: 'Juan Pérez', 
-      clientId: 'V-12345678',
-      phone: '+58 412-5556677',
-      address: 'Av. Bolívar, Casa 5, Sector Centro',
-      daysLate: 45, 
-      overdueInstallments: 3,
-      amountDue: 150000, 
-      totalDebt: 450000,
-      collector: 'Carlos Ruiz', 
-      route: 'Ruta Centro', 
-      status: 'critical',
-      riskLevel: 'ALTO',
-      recentManagement: 'El cliente indica que realizará el pago el próximo viernes. Se le recordó que el interés por mora sigue aumentando.',
-      dueDate: '25/01/2024'
-    },
-    { 
-      id: 2, 
-      loanId: 'P-2024-042',
-      client: 'María Rodríguez', 
-      clientId: 'V-87654321',
-      phone: '+58 424-1112233',
-      address: 'Calle Páez, Apt 4-B, Urb. Las Flores',
-      daysLate: 8, 
-      overdueInstallments: 1,
-      amountDue: 45000, 
-      totalDebt: 120000,
-      collector: 'María González', 
-      route: 'Ruta Norte', 
-      status: 'moderate',
-      riskLevel: 'MEDIO',
-      recentManagement: 'Se contactó vía telefónica, informa inconveniente familiar temporal.',
-      dueDate: '20/01/2024'
-    },
-    { 
-      id: 3, 
-      loanId: 'P-2024-089',
-      client: 'Luis Sánchez', 
-      clientId: 'V-15222333',
-      phone: '+58 416-8889900',
-      address: 'Urb. La Paz, Vereda 12, Casa 3',
-      daysLate: 5, 
-      overdueInstallments: 1,
-      amountDue: 25000, 
-      totalDebt: 85000,
-      collector: 'Pedro Sánchez', 
-      route: 'Ruta Sur', 
-      status: 'mild',
-      riskLevel: 'BAJO',
-      recentManagement: 'Cobros normales, posible olvido de fecha.',
-      dueDate: '28/01/2024'
-    },
-  ];
-
-
-  // Actividad reciente
-  const recentActivity = [
-    { id: 1, client: 'González M.', action: 'Aprobación de crédito', amount: formatCurrency(2500000), time: '09:42', status: 'approved' },
-    { id: 2, client: 'López C.', action: 'Prórroga autorizada', amount: '-', time: '10:15', status: 'approved' },
-    { id: 3, client: 'Martínez A.', action: 'Cuenta en mora revisada', amount: formatCurrency(750000), time: '11:30', status: 'alert' },
-    { id: 4, client: 'Ramírez P.', action: 'Base de efectivo aprobada', amount: formatCurrency(150000), time: '13:20', status: 'approved' },
-    { id: 5, client: 'Sánchez L.', action: 'Nuevo cliente aprobado', amount: '-', time: '14:45', status: 'approved' }
-  ];
-
-
-
-  // Funciones de aprobación/rechazo
-
   // Función para obtener el color según el estado/prioridad
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -310,6 +261,45 @@ const VistaCoordinador = () => {
 
   if (!authChecked) return null
 
+  // Estado de carga inicial
+  if (loading && !dashboardData) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="relative">
+            <div className="w-20 h-20 border-4 border-slate-200 border-t-[#08557f] rounded-full animate-spin"></div>
+            <Shield className="absolute inset-0 m-auto h-10 w-10 text-[#08557f]" />
+          </div>
+          <p className="mt-6 text-sm font-bold text-slate-500 uppercase tracking-[0.2em]">
+            Cargando panel de coordinación...
+          </p>
+        </div>
+      </div>
+    )
+  }
+
+  // Estado de error
+  if (error && !dashboardData) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+        <div className="text-center max-w-md">
+          <div className="p-4 rounded-3xl bg-white border border-rose-100 shadow-lg inline-block mb-6">
+            <AlertCircle className="h-12 w-12 text-rose-500" />
+          </div>
+          <h3 className="text-lg font-black text-slate-800 mb-2">Error al cargar datos</h3>
+          <p className="text-sm text-slate-600 mb-6">{error}</p>
+          <button
+            onClick={handleRefresh}
+            className="px-6 py-2 bg-[#08557f] text-white font-bold rounded-xl hover:bg-[#063a58] transition-colors flex items-center gap-2 mx-auto"
+          >
+            <RefreshCw className="h-4 w-4" />
+            Reintentar
+          </button>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="min-h-screen bg-slate-50 relative pb-20">
       {/* Fondo arquitectónico */}
@@ -323,19 +313,29 @@ const VistaCoordinador = () => {
         <div className="mb-8">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
-              <div className="p-3 bg-white rounded-2xl shadow-xl shadow-blue-900/10 border border-slate-100 overflow-hidden w-28 h-28 flex items-center justify-center transition-all hover:scale-105 hover:rotate-2">
-                <UserCog className="w-16 h-16 text-[#08557f]" />
+              <div className="p-3 bg-gradient-to-br from-[#08557f] to-[#063a58] rounded-2xl shadow-lg shadow-blue-900/20">
+                <Shield className="h-7 w-7 text-white" />
               </div>
               <div>
                 <h1 className="text-2xl font-light text-slate-800 tracking-tight">
                   Hola, <span className="font-black text-[#08557f]">{user?.nombres || 'Coordinador'}</span>
                 </h1>
-                <p className="text-sm text-slate-500 font-medium">Gestión operativa y revisiones de crédito</p>
+                <p className="text-sm text-slate-500 font-medium">Gestión operativa y aprobaciones de crédito</p>
               </div>
             </div>
-            <p className="text-xs font-black text-[#fb851b] uppercase tracking-[0.2em] bg-orange-50 px-4 py-2 rounded-xl border border-orange-100" suppressHydrationWarning>
-              {formatDate(currentDate)}
-            </p>
+            <div className="flex items-center gap-4">
+              <button
+                onClick={handleRefresh}
+                disabled={refreshing}
+                className="p-2 rounded-xl bg-white border border-slate-200 hover:bg-slate-50 transition-colors disabled:opacity-50"
+                title="Actualizar datos"
+              >
+                <RefreshCw className={`h-4 w-4 text-slate-600 ${refreshing ? 'animate-spin' : ''}`} />
+              </button>
+              <p className="text-xs font-black text-[#fb851b] uppercase tracking-[0.2em] bg-orange-50 px-4 py-2 rounded-xl border border-orange-100" suppressHydrationWarning>
+                {formatDate(currentDate)}
+              </p>
+            </div>
           </div>
           
           {/* Filtro de tiempo */}
@@ -346,11 +346,12 @@ const VistaCoordinador = () => {
                 <button
                   key={item}
                   onClick={() => setTimeFilter(values[index])}
+                  disabled={loading}
                   className={`px-5 py-1.5 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all ${
                     timeFilter === values[index] 
                       ? 'bg-white text-[#08557f] shadow-md border border-slate-100' 
                       : 'text-slate-500 hover:text-slate-700'
-                  }`}
+                  } ${loading ? 'opacity-50 cursor-not-allowed' : ''}`}
                 >
                   {item}
                 </button>
@@ -359,41 +360,68 @@ const VistaCoordinador = () => {
           </div>
         </div>
 
+        {/* Estado de carga durante refresh */}
+        {refreshing && (
+          <div className="fixed top-4 right-4 z-50">
+            <div className="bg-white border border-slate-200 rounded-xl px-4 py-2 shadow-lg flex items-center gap-2">
+              <Loader2 className="h-4 w-4 text-[#08557f] animate-spin" />
+              <span className="text-xs font-bold text-slate-600">Actualizando datos...</span>
+            </div>
+          </div>
+        )}
+
         {/* Métricas principales */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
-          {mainMetrics.map((metric, index) => (
-            <div
-              key={index}
-              className="bg-white border border-slate-100 rounded-[2rem] p-6 hover:shadow-2xl hover:shadow-slate-200/50 transition-all duration-500 group relative overflow-hidden"
-            >
-              <div className="flex items-start justify-between mb-6">
-                <div className="flex items-center justify-center p-3 rounded-2xl bg-slate-50 text-slate-400 group-hover:text-[#08557f] group-hover:bg-blue-50 transition-colors border border-slate-100 shadow-sm">
-                  {metric.icon}
-                </div>
-                <div className={`flex flex-col items-end gap-2`}>
-                   <div className={`flex items-center font-black text-[10px] px-3 py-1 rounded-full ${
-                     metric.change >= 0 ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600'
-                   }`}>
-                     {metric.change >= 0 ? '+' : ''}{metric.change}%
-                   </div>
-                   <Sparkline data={metric.trendData} color={metric.color} height={30} />
-                </div>
-              </div>
-              <div className="space-y-1">
-                <div className="text-3xl font-black text-slate-900 tracking-tighter">
-                  {metric.value}
-                </div>
-                {metric.subValue && (
-                  <div className="text-[10px] font-bold text-slate-400 mt-1">
-                    {metric.subValue}
+          {loading && !dashboardData ? (
+            // Skeleton para métricas
+            Array(4).fill(0).map((_, i) => (
+              <div
+                key={i}
+                className="bg-white border border-slate-100 rounded-[2rem] p-6 animate-pulse"
+              >
+                <div className="flex items-start justify-between mb-6">
+                  <div className="p-3 rounded-2xl bg-slate-100"></div>
+                  <div className="flex flex-col items-end gap-2">
+                    <div className="w-16 h-6 bg-slate-100 rounded-full"></div>
+                    <div className="w-24 h-8 bg-slate-100 rounded"></div>
                   </div>
-                )}
-                <div className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] leading-none pt-1">
-                  {metric.title}
+                </div>
+                <div className="space-y-1">
+                  <div className="h-8 bg-slate-100 rounded w-1/2"></div>
+                  <div className="h-4 bg-slate-100 rounded w-3/4"></div>
                 </div>
               </div>
-            </div>
-          ))}
+            ))
+          ) : (
+            mainMetrics.map((metric, index) => (
+              <div
+                key={index}
+                className="bg-white border border-slate-100 rounded-[2rem] p-6 hover:shadow-2xl hover:shadow-slate-200/50 transition-all duration-500 group relative overflow-hidden"
+              >
+                <div className="flex items-start justify-between mb-6">
+                  <div className="flex items-center justify-center p-3 rounded-2xl bg-slate-50 text-slate-400 group-hover:text-[#08557f] group-hover:bg-blue-50 transition-colors border border-slate-100 shadow-sm">
+                    {metric.icon}
+                  </div>
+                  <div className={`flex flex-col items-end gap-2`}>
+                     <div className={`flex items-center font-black text-[10px] px-3 py-1 rounded-full ${
+                       metric.change >= 0 ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600'
+                     }`}>
+                       {metric.change >= 0 ? '+' : ''}{metric.change}%
+                     </div>
+                     <Sparkline data={metric.trendData} color={metric.color} height={30} />
+                  </div>
+                </div>
+                <div className="space-y-1">
+                  <div className="text-3xl font-black text-slate-900 tracking-tighter">
+                    {metric.value}
+                  </div>
+                  <div className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] leading-none">
+                    {metric.title}
+                  </div>
+                </div>
+              </div>
+            ))
+          )}
         </div>
 
         {/* Layout en Dos Columnas (2/3 - 1/3) */}
@@ -420,83 +448,134 @@ const VistaCoordinador = () => {
                   </div>
                 </div>
                 
-                <PremiumBarChart 
-                  showTarget
-                  data={[
-                    { label: 'Lun', value: 2100000, target: 2500000 },
-                    { label: 'Mar', value: 2400000, target: 2500000 },
-                    { label: 'Mie', value: 1500000, target: 2500000 },
-                    { label: 'Jue', value: 2800000, target: 2500000 },
-                    { label: 'Vie', value: 2200000, target: 2500000 },
-                    { label: 'Sab', value: 3100000, target: 2500000 },
-                    { label: 'Dom', value: 900000, target: 1200000 },
-                  ]}
-                />
+                {loading ? (
+                  <div className="h-64 flex items-center justify-center">
+                    <div className="w-full h-48 bg-slate-100 rounded-2xl animate-pulse"></div>
+                  </div>
+                ) : (
+                  <PremiumBarChart 
+                    showTarget
+                    data={dashboardData?.trend || []}
+                  />
+                )}
             </div>
 
-            {/* Bandeja de Revisiones */}
+            {/* Bandeja de Aprobaciones */}
             <div className="bg-white border border-slate-100 rounded-[2.5rem] p-8 shadow-sm">
               <div className="flex items-center justify-between mb-8">
                 <div>
-                  <h2 className="text-xl font-black text-slate-900 tracking-tight">Bandeja de Revisiones</h2>
+                  <h2 className="text-xl font-black text-slate-900 tracking-tight">Bandeja de Aprobaciones</h2>
                   <p className="text-sm text-slate-500 font-medium">Solicitudes pendientes de validación</p>
                 </div>
                 <div className="px-4 py-1.5 bg-blue-50 text-[#08557f] rounded-xl text-[10px] font-black uppercase tracking-widest border border-blue-100">
-                  {approvalItems.length} PENDIENTES
+                  {dashboardData?.pendingApprovals.length || 0} PENDIENTES
                 </div>
               </div>
               
-              <div className="space-y-4">
-                {approvalItems.map((item) => (
-                  <div key={item.id} className="p-6 border border-slate-100 rounded-3xl hover:border-blue-200 transition-all hover:bg-blue-50/30 group bg-white shadow-sm hover:shadow-md">
-                    <div className="flex items-start justify-between">
-                      <div className="flex items-start space-x-5">
-                        <div className="p-4 rounded-2xl bg-slate-50 text-slate-400 group-hover:bg-white group-hover:text-[#08557f] group-hover:shadow-md transition-all border border-slate-100">
-                          {getTypeIcon(item.type)}
-                        </div>
-                        <div>
-                          <div className="flex items-center space-x-3 mb-1">
-                            <h3 className="font-bold text-slate-900">{item.description}</h3>
-                            <span className="text-[9px] font-black px-2 py-0.5 rounded-lg uppercase tracking-widest border" style={{ 
-                              backgroundColor: `${getStatusColor(item.priority)}10`,
-                              color: getStatusColor(item.priority),
-                              borderColor: `${getStatusColor(item.priority)}20`
-                            }}>
-                              {item.priority === 'high' ? 'PRIORIDAD ALTA' : 'PRIORIDAD MEDIA'}
-                            </span>
-                          </div>
-                          <p className="text-sm text-slate-500 font-medium mb-4">{item.details}</p>
-                          <div className="flex items-center space-x-6 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-                            <span className="flex items-center bg-slate-100 px-2 py-1 rounded-lg">
-                              <Users className="h-3 w-3 mr-2" />
-                              {item.requestedBy}
-                            </span>
-                            <span className="flex items-center bg-slate-100 px-2 py-1 rounded-lg">
-                              <Clock className="h-3 w-3 mr-2" />
-                              {item.time}
-                            </span>
-                            {item.amount && (
-                              <span className="text-[#08557f] bg-blue-50 px-2 py-1 rounded-lg border border-blue-100">
-                                {formatCurrency(item.amount)}
-                              </span>
-                            )}
+              {loading ? (
+                // Skeleton para aprobaciones
+                <div className="space-y-4">
+                  {Array(3).fill(0).map((_, i) => (
+                    <div key={i} className="p-6 border border-slate-100 rounded-3xl bg-slate-50 animate-pulse">
+                      <div className="flex items-start justify-between">
+                        <div className="flex items-start space-x-5">
+                          <div className="p-4 rounded-2xl bg-slate-200"></div>
+                          <div className="space-y-3">
+                            <div className="flex items-center space-x-3">
+                              <div className="h-4 bg-slate-200 rounded w-32"></div>
+                              <div className="h-4 bg-slate-200 rounded w-20"></div>
+                            </div>
+                            <div className="h-3 bg-slate-200 rounded w-48"></div>
+                            <div className="flex items-center space-x-6">
+                              <div className="h-6 bg-slate-200 rounded w-24"></div>
+                              <div className="h-6 bg-slate-200 rounded w-20"></div>
+                            </div>
                           </div>
                         </div>
-                      </div>
-                      
-                      <div className="flex items-center space-x-3">
-                        <Link 
-                          href="/coordinador/notificaciones"
-                          className="px-4 py-2 bg-white text-slate-600 hover:text-[#08557f] hover:bg-slate-50 rounded-xl transition-all shadow-sm border border-slate-200 text-xs font-bold uppercase tracking-wider flex items-center gap-2 group/btn"
-                        >
-                          Revisar
-                          <ChevronRight className="h-4 w-4 group-hover/btn:translate-x-1 transition-transform" />
-                        </Link>
+                        <div className="flex items-center space-x-3">
+                          <div className="w-12 h-12 bg-slate-200 rounded-2xl"></div>
+                          <div className="w-12 h-12 bg-slate-200 rounded-2xl"></div>
+                        </div>
                       </div>
                     </div>
+                  ))}
+                </div>
+              ) : dashboardData?.pendingApprovals && dashboardData.pendingApprovals.length > 0 ? (
+                <div className="space-y-4">
+                  {dashboardData.pendingApprovals.map((item) => (
+                    <div key={item.id} className="p-6 border border-slate-100 rounded-3xl hover:border-blue-200 transition-all hover:bg-blue-50/30 group bg-white shadow-sm hover:shadow-md">
+                      <div className="flex items-start justify-between">
+                        <div className="flex items-start space-x-5">
+                          <div className="p-4 rounded-2xl bg-slate-50 text-slate-400 group-hover:bg-white group-hover:text-[#08557f] group-hover:shadow-md transition-all border border-slate-100">
+                            {getTypeIcon(item.type)}
+                          </div>
+                          <div>
+                            <div className="flex items-center space-x-3 mb-1">
+                              <h3 className="font-bold text-slate-900">{item.description}</h3>
+                              <span className="text-[9px] font-black px-2 py-0.5 rounded-lg uppercase tracking-widest border" style={{ 
+                                backgroundColor: `${getStatusColor(item.priority)}10`,
+                                color: getStatusColor(item.priority),
+                                borderColor: `${getStatusColor(item.priority)}20`
+                              }}>
+                                {item.priority === 'high' ? 'PRIORIDAD ALTA' : 'PRIORIDAD MEDIA'}
+                              </span>
+                            </div>
+                            <p className="text-sm text-slate-500 font-medium mb-4">{item.details}</p>
+                            <div className="flex items-center space-x-6 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                              <span className="flex items-center bg-slate-100 px-2 py-1 rounded-lg">
+                                <Users className="h-3 w-3 mr-2" />
+                                {item.requestedBy}
+                              </span>
+                              <span className="flex items-center bg-slate-100 px-2 py-1 rounded-lg">
+                                <Clock className="h-3 w-3 mr-2" />
+                                {item.time}
+                              </span>
+                              {item.amount && (
+                                <span className="text-[#08557f] bg-blue-50 px-2 py-1 rounded-lg border border-blue-100">
+                                  {formatCurrency(item.amount)}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                        
+                        <div className="flex items-center space-x-3">
+                          <button 
+                            onClick={() => handleApprove(item.id, item.type)}
+                            disabled={approvingId === item.id || rejectingId === item.id}
+                            className="w-12 h-12 flex items-center justify-center bg-white text-emerald-600 hover:bg-emerald-50 rounded-2xl transition-all shadow-sm border border-emerald-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            {approvingId === item.id ? (
+                              <Loader2 className="h-5 w-5 animate-spin" />
+                            ) : (
+                              <CheckCircle className="h-6 w-6" />
+                            )}
+                          </button>
+                          <button 
+                            onClick={() => handleReject(item.id, item.type)}
+                            disabled={rejectingId === item.id || approvingId === item.id}
+                            className="w-12 h-12 flex items-center justify-center bg-white text-rose-600 hover:bg-rose-50 rounded-2xl transition-all shadow-sm border border-rose-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            {rejectingId === item.id ? (
+                              <Loader2 className="h-5 w-5 animate-spin" />
+                            ) : (
+                              <XCircle className="h-6 w-6" />
+                            )}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-12">
+                  <div className="p-4 rounded-3xl bg-slate-50 border border-slate-100 inline-block mb-4">
+                    <CheckCircle className="h-8 w-8 text-slate-400" />
                   </div>
-                ))}
-              </div>
+                  <h3 className="text-lg font-bold text-slate-700 mb-2">¡Todo al día!</h3>
+                  <p className="text-sm text-slate-500">No hay aprobaciones pendientes en este momento.</p>
+                </div>
+              )}
             </div>
 
             {/* Actividad Reciente */}
@@ -508,23 +587,50 @@ const VistaCoordinador = () => {
                 </Link>
               </div>
               
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {recentActivity.map((item) => (
-                  <div key={item.id} className="p-5 border border-slate-50 rounded-3xl hover:bg-slate-50 transition-all flex items-center justify-between group shadow-sm">
-                    <div className="flex items-center space-x-4">
-                        <div className={`w-2.5 h-2.5 rounded-full shadow-sm ${item.status === 'alert' ? 'bg-rose-500 animate-pulse' : 'bg-emerald-500'}`}></div>
-                        <div>
-                          <div className="text-sm font-black text-slate-900">{item.client}</div>
-                          <div className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">{item.action}</div>
+              {loading ? (
+                // Skeleton para actividad reciente
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {Array(4).fill(0).map((_, i) => (
+                    <div key={i} className="p-5 border border-slate-50 rounded-3xl bg-slate-50 animate-pulse">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-4">
+                          <div className="w-2.5 h-2.5 rounded-full bg-slate-200"></div>
+                          <div>
+                            <div className="h-4 bg-slate-200 rounded w-24 mb-2"></div>
+                            <div className="h-3 bg-slate-200 rounded w-32"></div>
+                          </div>
                         </div>
+                        <div className="text-right">
+                          <div className="h-4 bg-slate-200 rounded w-20 mb-2"></div>
+                          <div className="h-3 bg-slate-200 rounded w-12"></div>
+                        </div>
+                      </div>
                     </div>
-                    <div className="text-right">
-                      <div className="text-sm font-black text-[#08557f]">{item.amount !== '-' ? item.amount : 'VÁLIDO'}</div>
-                      <div className="text-[10px] text-slate-400 font-bold tracking-tighter">{item.time}</div>
+                  ))}
+                </div>
+              ) : dashboardData?.recentActivity && dashboardData.recentActivity.length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {dashboardData.recentActivity.map((item) => (
+                    <div key={item.id} className="p-5 border border-slate-50 rounded-3xl hover:bg-slate-50 transition-all flex items-center justify-between group shadow-sm">
+                      <div className="flex items-center space-x-4">
+                          <div className={`w-2.5 h-2.5 rounded-full shadow-sm ${item.status === 'alert' ? 'bg-rose-500' : 'bg-emerald-500'}`}></div>
+                          <div>
+                            <div className="text-sm font-black text-slate-900">{item.client}</div>
+                            <div className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">{item.action}</div>
+                          </div>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-sm font-black text-[#08557f]">{item.amount}</div>
+                        <div className="text-[10px] text-slate-400 font-bold tracking-tighter">{item.time}</div>
+                      </div>
                     </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-8">
+                  <p className="text-sm text-slate-500">No hay actividad reciente para mostrar.</p>
+                </div>
+              )}
             </div>
           </div>
 
@@ -559,32 +665,70 @@ const VistaCoordinador = () => {
                 <h2 className="text-xs font-black text-slate-400 uppercase tracking-[0.2em]">Mora Crítica</h2>
                 <AlertCircle className="h-5 w-5 text-rose-500" />
               </div>
-              <div className="space-y-4">
-                {delinquentAccounts.map((account) => (
-                  <div key={account.id} className="p-5 border border-rose-100 rounded-[1.5rem] bg-rose-50/30 group relative transition-all hover:bg-white hover:shadow-lg hover:shadow-rose-100">
-                    <div className="flex items-center justify-between mb-3">
-                        <h3 className="font-black text-slate-900 text-sm tracking-tight">{account.client}</h3>
-                        <span className="text-[10px] font-black text-white bg-rose-500 px-3 py-1 rounded-full shadow-sm shadow-rose-200 uppercase tracking-tighter">
-                          {account.daysLate} DÍAS
-                        </span>
-                    </div>
-                    <div className="flex justify-between items-end">
-                        <div>
-                          <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest">Saldo Pendiente</p>
-                          <p className="text-base font-black text-rose-600">{formatCurrency(account.amountDue)}</p>
+              
+              {loading ? (
+                // Skeleton para cuentas en mora
+                <div className="space-y-4">
+                  {Array(3).fill(0).map((_, i) => (
+                    <div key={i} className="p-5 border border-rose-100 rounded-[1.5rem] bg-rose-50/30 animate-pulse">
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="h-4 bg-rose-100 rounded w-24"></div>
+                        <div className="h-6 bg-rose-100 rounded w-16"></div>
+                      </div>
+                      <div className="flex justify-between items-end">
+                        <div className="space-y-2">
+                          <div className="h-3 bg-rose-100 rounded w-20"></div>
+                          <div className="h-5 bg-rose-100 rounded w-28"></div>
                         </div>
-                        {/* Visual only - no actions from dashboard */}
+                        <div className="p-2 bg-white rounded-xl"></div>
+                      </div>
                     </div>
+                  ))}
+                </div>
+              ) : dashboardData?.delinquentAccounts && dashboardData.delinquentAccounts.length > 0 ? (
+                <div className="space-y-4">
+                  {dashboardData.delinquentAccounts.map((account) => (
+                    <div key={account.id} className="p-5 border border-rose-100 rounded-[1.5rem] bg-rose-50/30 group relative transition-all hover:bg-white hover:shadow-lg hover:shadow-rose-100">
+                      <div className="flex items-center justify-between mb-3">
+                          <h3 className="font-black text-slate-900 text-sm tracking-tight">{account.client}</h3>
+                          <span className="text-[10px] font-black text-white bg-rose-500 px-3 py-1 rounded-full shadow-sm shadow-rose-200 uppercase tracking-tighter">
+                            {account.daysLate} DÍAS
+                          </span>
+                      </div>
+                      <div className="flex justify-between items-end">
+                          <div>
+                            <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest">Saldo Pendiente</p>
+                            <p className="text-base font-black text-rose-600">{formatCurrency(account.amountDue)}</p>
+                          </div>
+                          <Link href={`/coordinador/cuentas-mora/${account.id}`} className="p-2 bg-white text-[#08557f] hover:bg-[#08557f] hover:text-white rounded-xl shadow-sm border border-slate-100 transition-all">
+                            <ChevronRight className="h-4 w-4" />
+                          </Link>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-8">
+                  <div className="p-4 rounded-3xl bg-emerald-50 border border-emerald-100 inline-block mb-4">
+                    <CheckCircle className="h-8 w-8 text-emerald-500" />
                   </div>
-                ))}
-              </div>
+                  <h3 className="text-sm font-bold text-slate-700 mb-1">¡Excelente!</h3>
+                  <p className="text-xs text-slate-500">No hay cuentas en mora crítica.</p>
+                </div>
+              )}
             </div>
           </div>
         </div>
 
         {/* Footer Refinado */}
         <div className="mt-20 flex flex-col items-center">
-
+          <div className="flex items-center space-x-8 mb-8">
+            <div className="h-px w-24 bg-gradient-to-r from-transparent to-slate-200" />
+            <div className="p-4 rounded-3xl bg-white border border-slate-200 shadow-xl rotate-3 hover:rotate-0 transition-all duration-700 hover:scale-110">
+              <Shield className="h-8 w-8 text-[#08557f]" />
+            </div>
+            <div className="h-px w-24 bg-gradient-to-l from-transparent to-slate-200" />
+          </div>
           <div className="text-center space-y-3">
             <p className="text-[12px] font-black text-slate-500 uppercase tracking-[0.5em]">
               Sincronizado: <span className="text-[#fb851b]">{new Date().toLocaleTimeString()}</span> • CrediSur v2.4 
@@ -592,11 +736,17 @@ const VistaCoordinador = () => {
             <div className="flex items-center justify-center space-x-2 text-[10px] font-bold text-slate-400 uppercase tracking-[0.3em]">
               <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]"></div>
               <span>Terminal de Coordinación Central Autenticada</span>
+            </div>
           </div>
         </div>
+      </div>
 
-      </div>
-      </div>
+      <style jsx global>{`
+        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #e5e7eb; border-radius: 2px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #d1d5db; }
+      `}</style>
     </div>
   );
 };
