@@ -9,10 +9,10 @@ import {
   List,
   Calendar
 } from 'lucide-react'
-import Link from 'next/link'
 import { formatCurrency, cn } from '@/lib/utils'
 import { ExportButton } from '@/components/ui/ExportButton'
 import FiltroRuta from '@/components/filtros/FiltroRuta'
+import GestionarVencidaModal from '@/components/cobranza/GestionarVencidaModal'
 
 // Enums
 type NivelRiesgo = 'VERDE' | 'AMARILLO' | 'ROJO' | 'LISTA_NEGRA';
@@ -54,10 +54,23 @@ const CuentasVencidasPage = () => {
   const [busqueda, setBusqueda] = useState('')
   const [filterRuta, setFilterRuta] = useState<string | null>(null)
   const [viewMode, setViewMode] = useState<ViewMode>('list')
+  const [showModal, setShowModal] = useState(false)
+  const [selectedCuenta, setSelectedCuenta] = useState<CuentaVencida | null>(null)
 
   const handleExportExcel = () => console.log('Exporting Excel...')
-
   const handleExportPDF = () => console.log('Exporting PDF...')
+
+  const handleGestionar = (cuenta: CuentaVencida) => {
+    setSelectedCuenta(cuenta)
+    setShowModal(true)
+  }
+
+  const handleSaveDecision = (data: { cobrarInteres: boolean; montoInteres: number }) => {
+    console.log('Decisión guardada:', data, 'para cuenta:', selectedCuenta?.id)
+    // Aquí iría la llamada al backend
+    setShowModal(false)
+    setSelectedCuenta(null)
+  }
 
   // Datos mock para Cuentas Vencidas
   const cuentas: CuentaVencida[] = [
@@ -69,7 +82,7 @@ const CuentasVencidasPage = () => {
       diasVencidos: 68,
       saldoPendiente: 5000000,
       montoOriginal: 5000000,
-      ruta: 'RT-004', // Ruta Sur
+      ruta: 'RT-004', 
       nivelRiesgo: 'LISTA_NEGRA'
     },
     {
@@ -80,7 +93,7 @@ const CuentasVencidasPage = () => {
       diasVencidos: 43,
       saldoPendiente: 700000,
       montoOriginal: 1200000,
-      ruta: 'RT-002', // Ruta Norte
+      ruta: 'RT-002', 
       nivelRiesgo: 'LISTA_NEGRA'
     },
     {
@@ -91,7 +104,7 @@ const CuentasVencidasPage = () => {
       diasVencidos: 22,
       saldoPendiente: 250000,
       montoOriginal: 3500000,
-      ruta: 'RT-001', // Ruta Centro
+      ruta: 'RT-001', 
       nivelRiesgo: 'ROJO'
     }
   ]
@@ -156,13 +169,14 @@ const CuentasVencidasPage = () => {
 
         <div className="flex flex-col md:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-3 w-full md:w-auto">
-            {/* Filtro de Ruta Integrado con estilo estándar */}
-            <div className="bg-slate-50 p-1 rounded-xl border border-slate-200">
+             {/* Filtro de Ruta Integrado con estilo estándar */}
+             <div className="bg-slate-50 p-2 rounded-xl border border-slate-200 w-full md:w-auto">
                 <FiltroRuta 
                     onRutaChange={setFilterRuta} 
                     selectedRutaId={filterRuta}
-                    className="w-48"
+                    layout="wrap"
                     showAllOption={true}
+                    hideLabel={true}
                 />
             </div>
 
@@ -218,16 +232,16 @@ const CuentasVencidasPage = () => {
                     </span>
                   </td>
                   <td className="px-6 py-4 text-right">
-                    <div className="font-bold text-slate-900">{formatCurrency(c.saldoPendiente)}</div>
-                    <div className="text-xs text-slate-400">Orig: {formatCurrency(c.montoOriginal)}</div>
+                    <div className="text-lg font-black text-slate-900">{formatCurrency(c.saldoPendiente)}</div>
+                    <div className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">Saldo Pendiente</div>
                   </td>
                   <td className="px-6 py-4 text-right">
-                    <Link 
-                      href={`/admin/cuentas-vencidas/${c.id}`} 
-                      className="inline-flex items-center gap-1.5 px-4 py-2 bg-white border border-blue-200 text-blue-600 font-bold rounded-lg hover:bg-blue-50 transition-all text-xs shadow-sm hover:shadow-md"
+                    <button 
+                      onClick={() => handleGestionar(c)} 
+                      className="inline-flex items-center gap-1.5 px-4 py-2 bg-white border border-rose-200 text-rose-600 font-bold rounded-lg hover:bg-rose-50 transition-all text-xs shadow-sm hover:shadow-md"
                     >
-                      Ver Expediente
-                    </Link>
+                      Gestionar
+                    </button>
                   </td>
                 </tr>
               ))}
@@ -235,6 +249,17 @@ const CuentasVencidasPage = () => {
           </table>
         </div>
       </div>
+
+      {showModal && selectedCuenta && (
+        <GestionarVencidaModal 
+          cuenta={selectedCuenta}
+          onClose={() => {
+            setShowModal(false)
+            setSelectedCuenta(null)
+          }}
+          onConfirm={handleSaveDecision}
+        />
+      )}
     </div>
   )
 }

@@ -9,18 +9,20 @@ import { Cliente } from '@/services/clientes-service';
 interface NuevoClienteModalProps {
   onClose: () => void;
   onClienteCreado: (cliente: Cliente) => void;
+  cliente?: Cliente | null;
+  esEdicion?: boolean;
 }
 
-export default function NuevoClienteModal({ onClose, onClienteCreado }: NuevoClienteModalProps) {
+export default function NuevoClienteModal({ onClose, onClienteCreado, cliente = null, esEdicion = false }: NuevoClienteModalProps) {
   const { showNotification } = useNotification();
   const [formulario, setFormulario] = useState({
-    dni: '',
-    nombres: '',
-    apellidos: '',
-    telefono: '',
-    correo: '',
-    direccion: '',
-    referencia: '',
+    dni: cliente?.dni || '',
+    nombres: cliente?.nombres || '',
+    apellidos: cliente?.apellidos || '',
+    telefono: cliente?.telefono || '',
+    correo: cliente?.correo || '',
+    direccion: cliente?.direccion || '',
+    referencia: cliente?.referencia || '',
   });
 
   const [fotos, setFotos] = useState({
@@ -37,7 +39,8 @@ export default function NuevoClienteModal({ onClose, onClienteCreado }: NuevoCli
     e.preventDefault();
     // Simulation of creation
     const nuevoCliente: Cliente = {
-      id: `NEW-${Date.now()}`,
+      ...(cliente || {}),
+      id: cliente?.id || `NEW-${Date.now()}`,
       nombres: formulario.nombres,
       apellidos: formulario.apellidos,
       dni: formulario.dni,
@@ -45,16 +48,16 @@ export default function NuevoClienteModal({ onClose, onClienteCreado }: NuevoCli
       correo: formulario.correo || null,
       direccion: formulario.direccion || null,
       referencia: formulario.referencia || null,
-      codigo: `CL-${Math.floor(Math.random() * 1000)}`,
-      nivelRiesgo: 'VERDE', 
-      puntaje: 100,
-      enListaNegra: false,
-      estadoAprobacion: 'APROBADO'
+      codigo: cliente?.codigo || `CL-${Math.floor(Math.random() * 1000)}`,
+      nivelRiesgo: cliente?.nivelRiesgo || 'VERDE', 
+      puntaje: cliente?.puntaje || 100,
+      enListaNegra: cliente?.enListaNegra || false,
+      estadoAprobacion: cliente?.estadoAprobacion || 'APROBADO'
     };
     
     // Simulate API delay
     setTimeout(() => {
-        showNotification('success', 'El cliente ha sido registrado exitosamente', 'Cliente Registrado');
+        showNotification('success', esEdicion ? 'El cliente ha sido actualizado exitosamente' : 'El cliente ha sido registrado exitosamente', esEdicion ? 'Cliente Actualizado' : 'Cliente Registrado');
         onClienteCreado(nuevoCliente);
         onClose();
     }, 500);
@@ -74,8 +77,8 @@ export default function NuevoClienteModal({ onClose, onClienteCreado }: NuevoCli
           <div className="p-6 md:p-8">
             <div className="flex items-center justify-between mb-8">
               <div>
-                <h3 className="text-2xl font-bold text-slate-900">Nuevo Cliente</h3>
-                <p className="text-slate-500">Complete la información para registrar un cliente</p>
+                <h3 className="text-2xl font-bold text-slate-900">{esEdicion ? 'Editar Cliente' : 'Nuevo Cliente'}</h3>
+                <p className="text-slate-500">{esEdicion ? 'Modifique la información necesaria del cliente' : 'Complete la información para registrar un cliente'}</p>
               </div>
               <button
                 type="button"
@@ -143,29 +146,31 @@ export default function NuevoClienteModal({ onClose, onClienteCreado }: NuevoCli
               </div>
 
               <div>
-                <label className="block text-sm font-bold text-slate-700 mb-2">Dirección (Opcional)</label>
+                <label className="block text-sm font-bold text-slate-700 mb-2">Dirección</label>
                 <input
                   value={formulario.direccion}
                   onChange={(e) => setFormulario(prev => ({ ...prev, direccion: e.target.value }))}
                   className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-[#08557f] focus:ring-0 font-medium text-slate-900 placeholder:text-slate-400"
                   placeholder="Dirección del cliente"
+                  required
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-bold text-slate-700 mb-2">Referencia (Opcional)</label>
+                <label className="block text-sm font-bold text-slate-700 mb-2">Referencia</label>
                 <textarea
                   value={formulario.referencia}
                   onChange={(e) => setFormulario(prev => ({ ...prev, referencia: e.target.value }))}
-                  className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-[#08557f] focus:ring-0 font-medium text-sl ate-900 placeholder:text-slate-400 resize-none"
+                  className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-[#08557f] focus:ring-0 font-medium text-slate-900 placeholder:text-slate-400 resize-none"
                   rows={3}
                   placeholder="Punto de referencia / observaciones"
+                  required
                 />
               </div>
 
               {/* Sección de Fotos */}
               <div className="space-y-4 border-t border-slate-200 pt-6">
-                <h4 className="text-sm font-bold text-slate-700 uppercase tracking-wide">Documentos y Fotos (Opcional)</h4>
+                <h4 className="text-sm font-bold text-slate-700 uppercase tracking-wide">Documentos y Fotos (Obligatorias)</h4>
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
@@ -173,6 +178,7 @@ export default function NuevoClienteModal({ onClose, onClienteCreado }: NuevoCli
                     <input
                       type="file"
                       accept="image/*"
+                      required
                       onChange={(e) => setFotos(prev => ({ ...prev, fotoPerfil: e.target.files?.[0] || null }))}
                       className="w-full text-xs text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 cursor-pointer"
                     />
@@ -183,6 +189,7 @@ export default function NuevoClienteModal({ onClose, onClienteCreado }: NuevoCli
                     <input
                       type="file"
                       accept="image/*"
+                      required
                       onChange={(e) => setFotos(prev => ({ ...prev, documentoFrente: e.target.files?.[0] || null }))}
                       className="w-full text-xs text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 cursor-pointer"
                     />
@@ -193,6 +200,7 @@ export default function NuevoClienteModal({ onClose, onClienteCreado }: NuevoCli
                     <input
                       type="file"
                       accept="image/*"
+                      required
                       onChange={(e) => setFotos(prev => ({ ...prev, documentoReverso: e.target.files?.[0] || null }))}
                       className="w-full text-xs text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 cursor-pointer"
                     />
@@ -203,6 +211,7 @@ export default function NuevoClienteModal({ onClose, onClienteCreado }: NuevoCli
                     <input
                       type="file"
                       accept="image/*"
+                      required
                       onChange={(e) => setFotos(prev => ({ ...prev, comprobanteDomicilio: e.target.files?.[0] || null }))}
                       className="w-full text-xs text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 cursor-pointer"
                     />
@@ -222,7 +231,7 @@ export default function NuevoClienteModal({ onClose, onClienteCreado }: NuevoCli
                   type="submit"
                   className="flex-1 bg-[#08557f] text-white font-bold py-3.5 rounded-xl shadow-xl shadow-[#08557f]/20 hover:bg-[#063a58] active:scale-[0.98] transition-all"
                 >
-                  Guardar Cliente
+                  {esEdicion ? 'Guardar Cambios' : 'Registrar Cliente'}
                 </button>
               </div>
             </form>

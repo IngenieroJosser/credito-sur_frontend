@@ -146,15 +146,11 @@ const ClientesCoordinador = () => {
 
         <div className="flex flex-col md:flex-row gap-4 justify-between bg-white border border-slate-200 p-4 rounded-2xl">
           <div className="flex flex-col md:flex-row md:items-center gap-3">
-            {/* Filtro de Ruta Integrado con estilo estándar */}
-            <div className="bg-slate-50 p-1 rounded-xl border border-slate-200">
-                <FiltroRuta 
-                    onRutaChange={setFilterRuta} 
-                    selectedRutaId={filterRuta}
-                    className="w-48"
-                    showAllOption={true}
-                />
-            </div>
+            <FiltroRuta 
+                onRutaChange={setFilterRuta} 
+                selectedRutaId={filterRuta}
+                showAllOption={true}
+            />
             
             <div className="flex items-center gap-1 overflow-x-auto whitespace-nowrap scrollbar-hide">
                {['all', 'VERDE', 'AMARILLO', 'ROJO'].map(r => (

@@ -12,7 +12,6 @@ import {
   Menu,
   LogOut,
   Mail,
-  Shield,
   UserCircle,
   Users,
   LayoutDashboard,
@@ -147,8 +146,8 @@ export default function SupervisorLayout({
               </button>
 
               <div className="flex items-center">
-                <div className="w-8 h-8 bg-linear-to-br from-blue-600 to-blue-800 rounded-lg flex items-center justify-center shadow-lg shadow-blue-600/20">
-                  <Shield className="h-4 w-4 text-white" />
+                <div className="w-12 h-12 rounded-xl flex items-center justify-center shadow-lg shadow-blue-600/10 overflow-hidden bg-white border border-gray-100 p-1.5 transition-transform hover:scale-105">
+                  <img src="/favicon.ico" alt="Logo" className="w-full h-full object-contain" />
                 </div>
                 <h1 className="ml-3 text-xl font-bold tracking-tight">
                   <span className="text-blue-600">Credi</span>
@@ -261,10 +260,10 @@ export default function SupervisorLayout({
                     <div className="absolute right-0 mt-2 w-96 bg-white rounded-xl shadow-xl border border-gray-100 py-2 z-50 animate-in fade-in slide-in-from-top-2">
                       <div className="px-6 py-6 bg-linear-to-r from-slate-50 to-white border-b border-gray-100">
                         <div className="flex flex-col items-center text-center gap-3">
-                          <div className="relative w-20 h-20 rounded-full flex items-center justify-center text-white text-2xl font-bold shadow-xl mb-1 bg-linear-to-br from-blue-600 to-blue-800">
+                          <div className="relative w-20 h-20 rounded-full flex items-center justify-center text-white text-2xl font-bold shadow-xl mb-1 bg-[#08557f]">
                             {getUserInitials()}
                             <div className="absolute -bottom-2 -right-2 w-8 h-8 rounded-full bg-white flex items-center justify-center shadow-md border-2 border-white">
-                              <div className="text-blue-600">
+                              <div className="text-orange-500">
                                 <Eye className="h-4 w-4" />
                               </div>
                             </div>
@@ -275,7 +274,7 @@ export default function SupervisorLayout({
                             <div className="flex items-center justify-center gap-2 flex-wrap">
                               <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold text-white shadow-sm bg-orange-500">
                                 <Eye className="h-3.5 w-3.5" />
-                                Supervisor
+                                Supervisor Operativo
                               </span>
                               <span className="text-xs text-gray-500">ID: {user?.id}</span>
                             </div>
@@ -318,8 +317,8 @@ export default function SupervisorLayout({
           <aside className="absolute left-0 top-0 bottom-0 w-72 bg-white shadow-xl border-r border-gray-100">
             <div className="h-16 px-4 flex items-center justify-between border-b border-gray-100">
               <div className="flex items-center gap-2">
-                <div className="w-8 h-8 bg-linear-to-br from-blue-600 to-blue-800 rounded-lg flex items-center justify-center shadow-lg shadow-blue-600/20">
-                  <Shield className="h-4 w-4 text-white" />
+                <div className="w-10 h-10 rounded-xl flex items-center justify-center shadow-lg shadow-blue-600/10 overflow-hidden bg-white border border-gray-100 p-1.5">
+                  <img src="/favicon.ico" alt="Logo" className="w-full h-full object-contain" />
                 </div>
                 <div className="font-bold text-gray-900">
                   <span className="text-blue-600">Credi</span>

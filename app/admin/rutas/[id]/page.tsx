@@ -21,27 +21,18 @@
  * - Modales de detalle (Historial, Estado de Cuenta).
  */
 
-import { useState, type ReactNode } from 'react'
-import { createPortal } from 'react-dom'
+import { useState } from 'react'
 import {
   CheckCircle2,
   XCircle,
-  MapPin,
   Banknote,
   ArrowLeft,
-  Pencil,
   Save,
   Search,
   Filter,
-  History as HistoryIcon,
-  GripVertical,
   Wallet,
-  ChevronRight,
   DollarSign,
-  Eye,
-  X,
   Calendar,
-  Clock,
   FileText as FileTextIcon
 } from 'lucide-react'
 
@@ -49,8 +40,6 @@ import { formatCOPInputValue, formatCurrency } from '@/lib/utils'
 import Link from 'next/link'
 import { useParams } from 'next/navigation'
 import { useCallback } from 'react'
-import { RolUsuario } from '@/lib/types/autenticacion-type'
-import {  formatMilesCOP } from '@/lib/utils'
 import { useRouter } from 'next/navigation'
 import { MOCK_CLIENTES } from '@/services/clientes-service'
 
@@ -58,8 +47,8 @@ import { MOCK_CLIENTES } from '@/services/clientes-service'
 import PagoModal from '@/components/cobranza/PagoModal'
 import EstadoCuentaModal from '@/components/cobranza/EstadoCuentaModal'
 import ReprogramarModal from '@/components/cobranza/ReprogramarModal'
-import { VisitaRuta, EstadoVisita, PeriodoRuta } from '@/lib/types/cobranza'
-import StaticVisitaItem from '@/components/cobranza/StaticVisitaItem'
+import { VisitaRuta, EstadoVisita } from '@/lib/types/cobranza'
+import { StaticVisitaItem, SeleccionClienteModal } from '@/components/dashboards/shared/CobradorElements'
 
 // Interfaces de datos
 interface ClienteRuta {
@@ -117,7 +106,7 @@ const DetalleRutaPage = () => {
     recaudado: 150000
   }
 
-  const totalGastos = gastos.reduce((acc, g) => acc + g.valor, 0)
+  // const totalGastos = gastos.reduce((acc, g) => acc + g.valor, 0) // Unused?
 
   const porcentajeProgreso = (progreso.visitados / progreso.total) * 100
 
@@ -125,10 +114,11 @@ const DetalleRutaPage = () => {
   const [nuevoGasto, setNuevoGasto] = useState({ tipo: 'OPERATIVO', descripcion: '', valor: '' })
   const [searchQuery, setSearchQuery] = useState('')
   const [showFilters, setShowFilters] = useState(false)
-  const [showHistory, setShowHistory] = useState(false)
+  // const [showHistory, setShowHistory] = useState(false) // Unused
   const [rutaCompletada, setRutaCompletada] = useState(false)
+  const [showClienteSelector, setShowClienteSelector] = useState(false)
 
-  const [periodoRutaFiltro, setPeriodoRutaFiltro] = useState<'TODOS' | 'DIA' | 'SEMANA' | 'MES'>('TODOS')
+  // const [periodoRutaFiltro, setPeriodoRutaFiltro] = useState<'TODOS' | 'DIA' | 'SEMANA' | 'MES'>('TODOS')
   // Datos de prueba iniciales para visitasCobrador
   const [visitasCobrador, setVisitasCobrador] = useState<VisitaRuta[]>([
     {
@@ -144,7 +134,8 @@ const DetalleRutaPage = () => {
       ordenVisita: 1,
       prioridad: 'alta',
       cobradorId: 'cob1',
-      periodoRuta: 'DIA'
+      periodoRuta: 'DIA',
+      nivelRiesgo: 'leve'
     },
     {
       id: 'v2',
@@ -159,7 +150,8 @@ const DetalleRutaPage = () => {
       ordenVisita: 2,
       prioridad: 'media',
       cobradorId: 'cob1',
-      periodoRuta: 'DIA'
+      periodoRuta: 'DIA',
+      nivelRiesgo: 'critico'
     },
     {
       id: 'v3',
@@ -174,7 +166,8 @@ const DetalleRutaPage = () => {
       ordenVisita: 3,
       prioridad: 'baja',
       cobradorId: 'cob1',
-      periodoRuta: 'DIA'
+      periodoRuta: 'DIA',
+      nivelRiesgo: 'bajo'
     },
     {
       id: 'v4',
@@ -189,14 +182,21 @@ const DetalleRutaPage = () => {
       ordenVisita: 4,
       prioridad: 'media',
       cobradorId: 'cob1',
-      periodoRuta: 'DIA'
+      periodoRuta: 'DIA',
+      nivelRiesgo: 'moderado'
     }
   ])
+  // ... existing code
   const [visitaSeleccionada, setVisitaSeleccionada] = useState<string | null>(null)
+  
+  // Estado para controlar qué acción se ejecuta tras seleccionar un cliente en el modal global
+  const [accionPendiente, setAccionPendiente] = useState<'PAGO' | 'ABONO' | 'REPROGRAMAR' | 'ESTADO_CUENTA' | null>(null)
+  
   /* infoClienteVisita eliminado ya que ahora redirigimos */
   const [estadoCuentaVisita, setEstadoCuentaVisita] = useState<VisitaRuta | null>(null)
   const [pagoVisita, setPagoVisita] = useState<{visita: VisitaRuta, tipo: 'PAGO' | 'ABONO'} | null>(null)
   const [visitaReprogramar, setVisitaReprogramar] = useState<VisitaRuta | null>(null)
+  const [detalleVisita, setDetalleVisita] = useState<VisitaRuta | null>(null)
 
   // ... Handlers auxiliares ...
 
@@ -228,22 +228,20 @@ const DetalleRutaPage = () => {
   }, [])
 
   const handleAbrirClienteInfo = useCallback((visita: VisitaRuta) => {
-    // Buscar el ID real del cliente en los mocks o usar uno por defecto
-    const clienteReal = MOCK_CLIENTES.find(c => c.nombres + ' ' + c.apellidos === visita.cliente) || MOCK_CLIENTES[0]
-    router.push(`/admin/clientes/${clienteReal?.id || '1'}`)
-  }, [router])
+    setDetalleVisita(visita)
+  }, [setDetalleVisita])
 
   const handleAbrirPago = useCallback((visita: VisitaRuta) => {
     setPagoVisita({ visita, tipo: 'PAGO' })
-  }, [])
+  }, [setPagoVisita])
 
   const handleAbrirAbono = useCallback((visita: VisitaRuta) => {
     setPagoVisita({ visita, tipo: 'ABONO' })
-  }, [])
+  }, [setPagoVisita])
 
   const handleAbrirEstadoCuenta = useCallback((visita: VisitaRuta) => {
     setEstadoCuentaVisita(visita)
-  }, [])
+  }, [setEstadoCuentaVisita])
 
   const handleGuardarGasto = (e: React.FormEvent) => {
     e.preventDefault()
@@ -338,6 +336,37 @@ const DetalleRutaPage = () => {
                 </div>
               </div>
         </div>
+        
+        <div className="flex flex-wrap gap-2 w-full">
+            <button
+               onClick={() => { setAccionPendiente('PAGO'); setShowClienteSelector(true); }}
+               className="flex-1 md:flex-none px-4 py-2.5 rounded-xl text-xs font-bold transition-all shadow-sm bg-[#08557f] text-white hover:bg-[#063a58] flex items-center justify-center gap-2 active:scale-95"
+            >
+              <DollarSign className="h-4 w-4" />
+              Registrar Pago
+            </button>
+            <button
+               onClick={() => { setAccionPendiente('ABONO'); setShowClienteSelector(true); }}
+               className="flex-1 md:flex-none px-4 py-2.5 rounded-xl text-xs font-bold transition-all shadow-sm bg-orange-500 text-white hover:bg-orange-600 flex items-center justify-center gap-2 active:scale-95"
+            >
+              <Wallet className="h-4 w-4" />
+              Registrar Abono
+            </button>
+            <button
+               onClick={() => { setAccionPendiente('ESTADO_CUENTA'); setShowClienteSelector(true); }} 
+               className="flex-1 md:flex-none px-4 py-2.5 rounded-xl text-xs font-bold transition-all shadow-sm bg-white text-slate-700 border border-slate-200 hover:bg-slate-50 flex items-center justify-center gap-2 active:scale-95"
+            >
+              <FileTextIcon className="h-4 w-4 text-slate-400" />
+              Ver Estado de Cuenta
+            </button>
+            <button
+               onClick={() => { setAccionPendiente('REPROGRAMAR'); setShowClienteSelector(true); }}
+               className="flex-1 md:flex-none px-4 py-2.5 rounded-xl text-xs font-bold transition-all shadow-sm bg-white text-slate-700 border border-slate-200 hover:bg-slate-50 flex items-center justify-center gap-2 active:scale-95"
+            >
+              <Calendar className="h-4 w-4 text-slate-400" />
+              Reprogramar
+            </button>
+        </div>
 
          {/* Lista de visitas ESTÁTICA (sin DnD) */}
          <div>
@@ -345,6 +374,25 @@ const DetalleRutaPage = () => {
                 <div className="flex items-center justify-between">
                   <h3 className="font-bold text-slate-900 text-lg">Visitas del Día</h3>
                 </div>
+                
+                 <div className="flex flex-wrap gap-3 text-xs font-bold text-slate-600 bg-white p-3 rounded-xl border border-slate-200 shadow-sm">
+                    <div className="flex items-center gap-2 px-2 py-1 bg-blue-50 rounded-lg border border-blue-500">
+                        <div className="w-2.5 h-2.5 rounded-full bg-blue-500"></div> 
+                        <span>Peligro Mínimo</span>
+                    </div>
+                    <div className="flex items-center gap-2 px-2 py-1 bg-emerald-50 rounded-lg border border-emerald-500">
+                        <div className="w-2.5 h-2.5 rounded-full bg-emerald-500"></div> 
+                        <span>Leve Retraso</span>
+                    </div>
+                    <div className="flex items-center gap-2 px-2 py-1 bg-orange-50 rounded-lg border border-orange-500">
+                        <div className="w-2.5 h-2.5 rounded-full bg-orange-500"></div> 
+                        <span>Riesgo Moderado</span>
+                    </div>
+                    <div className="flex items-center gap-2 px-2 py-1 bg-red-50 rounded-lg border border-red-500">
+                        <div className="w-2.5 h-2.5 rounded-full bg-red-500"></div> 
+                        <span>Alto Riesgo</span>
+                    </div>
+                 </div>
               </div>
 
               <div className="space-y-6">
@@ -354,16 +402,12 @@ const DetalleRutaPage = () => {
                         <StaticVisitaItem
                           key={visita.id}
                           visita={visita}
+                          allowClick={false}
                           isSelected={visitaSeleccionada === visita.id}
                           onSelect={(id: string) => setVisitaSeleccionada(id === visitaSeleccionada ? null : id)}
                           onVerCliente={handleAbrirClienteInfo}
-                          onRegistrarPago={handleAbrirPago}
-                          onRegistrarAbono={handleAbrirAbono}
-                          onReprogramar={(visita: VisitaRuta) => setVisitaReprogramar(visita)}
-                          onVerEstadoCuenta={handleAbrirEstadoCuenta}
                           getEstadoClasses={getEstadoClasses}
                           getPrioridadColor={getPrioridadColor}
-                          disableModificaciones={rutaCompletada}
                         />
                       ))}
                  </div>
@@ -501,6 +545,113 @@ const DetalleRutaPage = () => {
             }}
         />
       )}
+      {showClienteSelector && (
+        <SeleccionClienteModal
+          visitas={visitasCobrador}
+          onSelect={(visita) => {
+            setShowClienteSelector(false)
+            if (accionPendiente === 'PAGO') handleAbrirPago(visita)
+            else if (accionPendiente === 'ABONO') handleAbrirAbono(visita)
+            else if (accionPendiente === 'REPROGRAMAR') setVisitaReprogramar(visita)
+            else handleAbrirEstadoCuenta(visita) // Default or ESTADO_CUENTA
+            setAccionPendiente(null)
+          }}
+          onClose={() => setShowClienteSelector(false)}
+        />
+      )}
+      
+      {detalleVisita && (
+        <ClienteDetalleModal
+          visita={detalleVisita}
+          onClose={() => setDetalleVisita(null)}
+        />
+      )}
+    </div>
+  )
+}
+
+function ClienteDetalleModal({ visita, onClose }: { visita: VisitaRuta; onClose: () => void }) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-200">
+      <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-sm overflow-hidden animate-in zoom-in-95 duration-200 border border-slate-100">
+        
+        {/* Header */}
+        <div className="px-6 pt-6 flex justify-between items-center bg-white">
+          <h3 className="font-extrabold text-2xl text-slate-900">Cliente</h3>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 transition-colors p-2 hover:bg-slate-50 rounded-full">
+            <XCircle className="h-6 w-6" />
+          </button>
+        </div>
+        
+        <div className="p-6 space-y-6 max-h-[80vh] overflow-y-auto">
+          {/* Perfil Card */}
+          <div className="bg-white p-4 rounded-3xl border border-slate-100 shadow-sm flex items-center gap-4 relative overflow-hidden">
+             <div className="absolute top-0 right-0 w-24 h-24 bg-slate-50 rounded-bl-[4rem] -mr-4 -mt-4 z-0"></div>
+             <div className="w-16 h-16 bg-white rounded-2xl border-2 border-slate-100 flex items-center justify-center text-slate-300 z-10 shadow-sm">
+                <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                </svg>
+             </div>
+             <div className="z-10">
+               <h4 className="text-xl font-bold text-slate-900 leading-tight">{visita.cliente}</h4>
+               <div className="flex items-center gap-2 mt-1">
+                 <span className="bg-[#08557f] text-white text-[10px] font-black px-2 py-0.5 rounded-full uppercase">ACTIVO</span>
+                 <span className="text-xs font-bold text-slate-400">V-005</span>
+               </div>
+             </div>
+          </div>
+
+          {/* Información de Contacto */}
+          <div>
+            <h5 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">Información de Contacto</h5>
+            <div className="space-y-3">
+               <div className="p-4 rounded-2xl border border-slate-100 bg-white shadow-sm">
+                 <p className="text-[10px] font-bold text-slate-400 uppercase mb-1">Dirección Exacta</p>
+                 <p className="text-sm font-bold text-slate-900">{visita.direccion}</p>
+               </div>
+               <div className="p-4 rounded-2xl border border-slate-100 bg-white shadow-sm">
+                 <p className="text-[10px] font-bold text-slate-400 uppercase mb-1">Punto de Referencia</p>
+                 <p className="text-sm font-medium text-slate-700 italic">{visita.direccion} (Ref)</p>
+               </div>
+            </div>
+          </div>
+
+          {/* Resumen Financiero */}
+          <div>
+            <h5 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">Resumen Financiero</h5>
+            <div className="grid grid-cols-2 gap-3 mb-3">
+               <div className="p-4 rounded-2xl bg-[#fff7ed] border border-orange-100 flex flex-col justify-center">
+                 <p className="text-[10px] font-bold text-orange-500 uppercase mb-1">Por Entregar</p>
+                 <p className="text-xl font-black text-[#7c2d12]">${visita.saldoTotal.toLocaleString('es-CO')}</p>
+               </div>
+               <div className="p-4 rounded-2xl bg-[#f0fdf4] border border-emerald-100 flex flex-col justify-center text-right">
+                 <p className="text-[10px] font-bold text-emerald-600 uppercase mb-1">Recaudado</p>
+                 <p className="text-xl font-black text-[#064e3b]">$0</p>
+               </div>
+            </div>
+            <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100 flex justify-between items-center">
+               <div>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase mb-1">Cuota Proyectada</p>
+                  <p className="text-lg font-black text-slate-900">${visita.montoCuota.toLocaleString('es-CO')}</p>
+               </div>
+               <div className="text-right">
+                  <p className="text-[10px] font-bold text-slate-400 uppercase mb-1">Próxima Fecha</p>
+                  <p className="text-sm font-bold text-[#08557f]">Mañana</p>
+               </div>
+            </div>
+          </div>
+
+          {/* Botón Cerrar */}
+          <div className="pt-2">
+             <button 
+               onClick={onClose} 
+               className="w-full py-4 bg-[#08557f] hover:bg-[#063a58] text-white font-black rounded-2xl shadow-lg shadow-blue-900/20 transition-all active:scale-[0.98] uppercase tracking-wider text-sm"
+             >
+                Cerrar Detalles
+             </button>
+          </div>
+        </div>
+      </div>
     </div>
   )
 }

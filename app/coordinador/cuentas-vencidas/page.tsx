@@ -13,6 +13,7 @@ import Link from 'next/link'
 import { formatCurrency, cn } from '@/lib/utils'
 import { ExportButton } from '@/components/ui/ExportButton'
 import FiltroRuta from '@/components/filtros/FiltroRuta'
+import GestionarVencidaModal from '@/components/cobranza/GestionarVencidaModal'
 
 // Enums
 type NivelRiesgo = 'VERDE' | 'AMARILLO' | 'ROJO' | 'LISTA_NEGRA';
@@ -36,9 +37,23 @@ interface CuentaVencida {
 const CuentasVencidasCoordinador = () => {
   const [busqueda, setBusqueda] = useState('')
   const [viewMode, setViewMode] = useState<ViewMode>('list')
+  const [showModal, setShowModal] = useState(false)
+  const [selectedCuenta, setSelectedCuenta] = useState<CuentaVencida | null>(null)
 
   const handleExportExcel = () => console.log('Exporting Excel...')
   const handleExportPDF = () => console.log('Exporting PDF...')
+
+  const handleGestionar = (cuenta: CuentaVencida) => {
+    setSelectedCuenta(cuenta)
+    setShowModal(true)
+  }
+
+  const handleSaveDecision = (data: { cobrarInteres: boolean; montoInteres: number }) => {
+    console.log('Decisión guardada:', data, 'para cuenta:', selectedCuenta?.id)
+    // Aquí iría la llamada al backend
+    setShowModal(false)
+    setSelectedCuenta(null)
+  }
 
   // Datos mock para Cuentas Vencidas
   const cuentas: CuentaVencida[] = [
@@ -134,15 +149,11 @@ const CuentasVencidasCoordinador = () => {
 
         <div className="flex flex-col md:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-3 w-full md:w-auto">
-            {/* Filtro de Ruta Integrado con estilo estándar */}
-            <div className="bg-slate-50 p-1 rounded-xl border border-slate-200">
-                <FiltroRuta 
-                    onRutaChange={(r) => console.log('Ruta:', r)} 
-                    selectedRutaId={null}
-                    className="w-48"
-                    showAllOption={true}
-                />
-            </div>
+            <FiltroRuta 
+                onRutaChange={(r: string | null) => console.log('Ruta:', r)} 
+                selectedRutaId={null}
+                showAllOption={true}
+            />
 
             <div className="relative flex-1 md:w-64">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
@@ -196,22 +207,33 @@ const CuentasVencidasCoordinador = () => {
                     </span>
                   </td>
                   <td className="px-6 py-4 text-right">
-                    <div className="font-bold text-slate-900">{formatCurrency(c.saldoPendiente)}</div>
-                    <div className="text-xs text-slate-400">Orig: {formatCurrency(c.montoOriginal)}</div>
+                    <div className="text-lg font-black text-slate-900">{formatCurrency(c.saldoPendiente)}</div>
+                    <div className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">Saldo Pendiente</div>
                   </td>
                   <td className="px-6 py-4 text-right">
-                    <Link 
-                      href={`/coordinador/cuentas-vencidas/${c.id}`} 
-                      className="inline-flex items-center gap-1.5 px-4 py-2 bg-white border border-blue-200 text-blue-600 font-bold rounded-lg hover:bg-blue-50 transition-all text-xs shadow-sm hover:shadow-md"
+                    <button 
+                      onClick={() => handleGestionar(c)} 
+                      className="inline-flex items-center gap-1.5 px-4 py-2 bg-white border border-rose-200 text-rose-600 font-bold rounded-lg hover:bg-rose-50 transition-all text-xs shadow-sm hover:shadow-md"
                     >
-                      Ver Expediente
-                    </Link>
+                      Gestionar
+                    </button>
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
+
+        {showModal && selectedCuenta && (
+          <GestionarVencidaModal 
+            cuenta={selectedCuenta}
+            onClose={() => {
+              setShowModal(false)
+              setSelectedCuenta(null)
+            }}
+            onConfirm={handleSaveDecision}
+          />
+        )}
       </div>
     </div>
   )
