@@ -15,9 +15,7 @@ import { formatCOPInputValue, formatCurrency } from '@/lib/utils'
 import Link from 'next/link'
 import { useParams } from 'next/navigation'
 import { useCallback } from 'react'
-import { MOCK_CLIENTES } from '@/services/clientes-service'
-
-
+import { MOCK_CLIENTES, Cliente } from '@/services/cliente-service'
 import PagoModal from '@/components/cobranza/PagoModal'
 import EstadoCuentaModal from '@/components/cobranza/EstadoCuentaModal'
 import ReprogramarModal from '@/components/cobranza/ReprogramarModal'
@@ -130,7 +128,7 @@ const DetalleRutaPage = () => {
   const [estadoCuentaVisita, setEstadoCuentaVisita] = useState<VisitaRuta | null>(null)
   const [pagoVisita, setPagoVisita] = useState<{visita: VisitaRuta, tipo: 'PAGO' | 'ABONO'} | null>(null)
   const [visitaReprogramar, setVisitaReprogramar] = useState<VisitaRuta | null>(null)
-  const [clienteDetalle, setClienteDetalle] = useState<import('@/services/clientes-service').Cliente | null>(null)
+  const [clienteDetalle, setClienteDetalle] = useState<Cliente | null>(null)
   const [showClienteSelector, setShowClienteSelector] = useState(false)
 
   const getEstadoClasses = useCallback((estado: EstadoVisita) => {
@@ -429,7 +427,7 @@ const DetalleRutaPage = () => {
       
       {clienteDetalle && (
         <ClienteDetalleModal
-          cliente={clienteDetalle}
+          cliente={clienteDetalle as Cliente}
           onClose={() => setClienteDetalle(null)}
         />
       )}
@@ -437,7 +435,7 @@ const DetalleRutaPage = () => {
   )
 }
 
-function ClienteDetalleModal({ cliente, onClose }: { cliente: import('@/services/clientes-service').Cliente; onClose: () => void }) {
+function ClienteDetalleModal({ cliente, onClose }: { cliente: Cliente; onClose: () => void }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-200">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden animate-in zoom-in-95 duration-200">
