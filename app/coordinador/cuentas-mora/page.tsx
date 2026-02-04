@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import {
   AlertCircle,
   Search,
@@ -11,40 +11,31 @@ import {
   Ban,
   AlertTriangle,
   LayoutGrid,
-  List
+  List,
+  Loader2,
+  AlertCircle as AlertCircleIcon
 } from 'lucide-react'
 import { formatCurrency, cn } from '@/lib/utils'
 import { ExportButton } from '@/components/ui/ExportButton'
 import FiltroRuta from '@/components/filtros/FiltroRuta'
 import DetalleMoraModal from '@/components/cobranza/DetalleMoraModal'
 import ClientePortalModal from '@/components/cliente/ClientePortalModal'
+import { 
+  loansService_, 
+  type CuentaMora, 
+  type NivelRiesgo, 
+  type EstadoPrestamo,
+  type PrestamosMoraFiltros 
+} from '@/services/loans-service'
+import { toast } from 'sonner'
 
-// Enums alineados con Prisma
-type NivelRiesgo = 'VERDE' | 'AMARILLO' | 'ROJO' | 'LISTA_NEGRA';
-type EstadoPrestamo = 'EN_MORA' | 'INCUMPLIDO' | 'PERDIDA';
 type ViewMode = 'list' | 'grid';
 
-interface CuentaMora {
-  id: string
-  numeroPrestamo: string
-  cliente: {
-    nombre: string
-    documento: string
-    telefono: string
-    direccion: string
-  }
-  diasMora: number
-  montoMora: number
-  montoTotalDeuda: number
-  cuotasVencidas: number
-  ruta: string
-  cobrador: string
-  nivelRiesgo: NivelRiesgo
-  estado: EstadoPrestamo
-  ultimoPago?: string
-}
-
 const CuentasMoraCoordinador = () => {
+  const [cuentas, setCuentas] = useState<CuentaMora[]>([])
+  const [loading, setLoading] = useState(true)
+  const [exportLoading, setExportLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   const [busqueda, setBusqueda] = useState('')
   const [filtroRiesgo, setFiltroRiesgo] = useState<NivelRiesgo | 'TODOS'>('TODOS')
   const [filtroRuta, setFiltroRuta] = useState<string | null>(null)
@@ -53,6 +44,77 @@ const CuentasMoraCoordinador = () => {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [selectedClientId, setSelectedClientId] = useState<string | null>(null)
   const [isClientModalOpen, setIsClientModalOpen] = useState(false)
+  const [totales, setTotales] = useState({
+    totalMora: 0,
+    totalDeuda: 0,
+    totalCasosCriticos: 0
+  })
+
+  const fetchCuentasMora = async () => {
+    try {
+      setLoading(true)
+      setError(null)
+      
+      const filtros: PrestamosMoraFiltros = {
+        busqueda: busqueda || undefined,
+        nivelRiesgo: filtroRiesgo !== 'TODOS' ? filtroRiesgo : undefined,
+        rutaId: filtroRuta || undefined
+      }
+
+      const response = await loansService_.obtenerPrestamosMora(filtros)
+      
+      setCuentas(response.prestamos)
+      setTotales({
+        totalMora: response.totales.totalMora,
+        totalDeuda: response.totales.totalDeuda,
+        totalCasosCriticos: response.totales.totalCasosCriticos
+      })
+    } catch (err) {
+      setError('Error al cargar las cuentas en mora')
+      toast.error('No se pudieron cargar las cuentas en mora')
+      console.error('Error fetching cuentas en mora:', err)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleExportExcel = async () => {
+    try {
+      setExportLoading(true)
+      const filtros: PrestamosMoraFiltros = {
+        busqueda: busqueda || undefined,
+        nivelRiesgo: filtroRiesgo !== 'TODOS' ? filtroRiesgo : undefined,
+        rutaId: filtroRuta || undefined
+      }
+      
+      await loansService_.exportarReporteMora('excel', filtros)
+      toast.success('Reporte Excel generado exitosamente')
+    } catch (err) {
+      toast.error('Error al exportar el reporte')
+      console.error('Export error:', err)
+    } finally {
+      setExportLoading(false)
+    }
+  }
+
+  const handleExportPDF = async () => {
+    try {
+      setExportLoading(true)
+      const filtros: PrestamosMoraFiltros = {
+        busqueda: busqueda || undefined,
+        nivelRiesgo: filtroRiesgo !== 'TODOS' ? filtroRiesgo : undefined,
+        rutaId: filtroRuta || undefined
+      }
+      
+      await loansService_.exportarReporteMora('pdf', filtros)
+      toast.success('Reporte PDF generado exitosamente')
+    } catch (err) {
+      toast.error('Error al exportar el reporte')
+      console.error('Export error:', err)
+    } finally {
+      setExportLoading(false)
+    }
+  }
 
   const handleVerDetalle = (cuenta: CuentaMora) => {
     setSelectedCuenta(cuenta)
@@ -64,74 +126,19 @@ const CuentasMoraCoordinador = () => {
     setIsClientModalOpen(true)
   }
 
-  const handleExportExcel = () => {
-    console.log('Exporting Excel...')
-  }
+  // Efecto para cargar datos iniciales
+  useEffect(() => {
+    fetchCuentasMora()
+  }, [])
 
-  const handleExportPDF = () => {
-    console.log('Exporting PDF...')
-  }
+  // Efecto para filtrar con debounce
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      fetchCuentasMora()
+    }, 500)
 
-  // Datos de ejemplo optimizados para el Coordinador
-  const cuentas: CuentaMora[] = [
-    {
-      id: '1',
-      numeroPrestamo: 'P-2024-001',
-      cliente: {
-        nombre: 'Juan Pérez',
-        documento: 'V-12345678',
-        telefono: '310 123 4567',
-        direccion: 'Av. Bolívar, Casa 5'
-      },
-      diasMora: 45,
-      montoMora: 150000,
-      montoTotalDeuda: 450000,
-      cuotasVencidas: 3,
-      ruta: 'Ruta Centro',
-      cobrador: 'Carlos Ruiz',
-      nivelRiesgo: 'ROJO',
-      estado: 'EN_MORA',
-      ultimoPago: '2023-12-15'
-    },
-    {
-      id: '2',
-      numeroPrestamo: 'P-2024-045',
-      cliente: {
-        nombre: 'María Rodríguez',
-        documento: 'V-87654321',
-        telefono: '320 765 4321',
-        direccion: 'Barrio La Paz, Calle 3'
-      },
-      diasMora: 15,
-      montoMora: 50000,
-      montoTotalDeuda: 250000,
-      cuotasVencidas: 1,
-      ruta: 'Ruta Norte',
-      cobrador: 'Ana López',
-      nivelRiesgo: 'AMARILLO',
-      estado: 'EN_MORA',
-      ultimoPago: '2024-01-05'
-    },
-    {
-        id: '13',
-        numeroPrestamo: 'P-2023-999',
-        cliente: {
-          nombre: 'Juan Pérez',
-          documento: '1.333.444.555',
-          telefono: '300 444 5555',
-          direccion: 'Carrera 10 # 5-67'
-        },
-        diasMora: 40,
-        montoMora: 200000,
-        montoTotalDeuda: 500000,
-        cuotasVencidas: 5,
-        ruta: 'Ruta Sur',
-        cobrador: 'Pedro Sánchez',
-        nivelRiesgo: 'ROJO',
-        estado: 'EN_MORA',
-        ultimoPago: '2023-05-10'
-      }
-  ]
+    return () => clearTimeout(timer)
+  }, [busqueda, filtroRiesgo, filtroRuta])
 
   const getRiesgoColor = (riesgo: NivelRiesgo) => {
     switch (riesgo) {
@@ -153,22 +160,34 @@ const CuentasMoraCoordinador = () => {
     }
   }
 
-  const cuentasFiltradas = cuentas.filter((cuenta) => {
-    const coincideBusqueda = 
-      cuenta.cliente.nombre.toLowerCase().includes(busqueda.toLowerCase()) ||
-      cuenta.cliente.documento.toLowerCase().includes(busqueda.toLowerCase()) ||
-      cuenta.ruta.toLowerCase().includes(busqueda.toLowerCase())
-    
-    const coincideRiesgo = filtroRiesgo === 'TODOS' || cuenta.nivelRiesgo === filtroRiesgo
-    
-    const coincideRuta = !filtroRuta || cuenta.ruta.toLowerCase().includes(filtroRuta.toLowerCase())
+  if (loading && cuentas.length === 0) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="h-8 w-8 animate-spin text-blue-600 mx-auto mb-4" />
+          <p className="text-slate-600 font-medium">Cargando cuentas en mora...</p>
+        </div>
+      </div>
+    )
+  }
 
-    return coincideBusqueda && coincideRiesgo && coincideRuta
-  })
-
-  // Calcular totales
-  const totalMora = cuentasFiltradas.reduce((acc, curr) => acc + curr.montoMora, 0)
-  const totalDeuda = cuentasFiltradas.reduce((acc, curr) => acc + curr.montoTotalDeuda, 0)
+  if (error && cuentas.length === 0) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+        <div className="text-center">
+          <AlertCircleIcon className="h-12 w-12 text-rose-500 mx-auto mb-4" />
+          <h3 className="text-lg font-semibold text-slate-900 mb-2">Error al cargar datos</h3>
+          <p className="text-slate-600 mb-4">{error}</p>
+          <button
+            onClick={fetchCuentasMora}
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            Reintentar
+          </button>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen bg-slate-50 relative">
@@ -189,14 +208,15 @@ const CuentasMoraCoordinador = () => {
             </h1>
             <p className="text-sm text-slate-500 max-w-2xl mt-1 font-medium">
               Reporte consolidado de clientes con pagos retrasados y alertas de riesgo.
+              <span className="text-slate-400 ml-2">({cuentas.length} registros)</span>
             </p>
           </div>
 
           <div className="flex items-center gap-3">
             <ExportButton 
-              label="Exportar " 
+              label="Exportar" 
               onExportExcel={handleExportExcel} 
-              onExportPDF={handleExportPDF} 
+              onExportPDF={handleExportPDF}
             />
           </div>
         </div>
@@ -206,7 +226,7 @@ const CuentasMoraCoordinador = () => {
             <div className="flex justify-between items-start mb-4">
               <div>
                 <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Mora Acumulada</p>
-                <h3 className="text-2xl font-bold text-slate-900 mt-2">{formatCurrency(totalMora)}</h3>
+                <h3 className="text-2xl font-bold text-slate-900 mt-2">{formatCurrency(totales.totalMora)}</h3>
               </div>
               <div className="p-3 bg-rose-50 rounded-xl">
                 <AlertCircle className="h-5 w-5 text-rose-600" />
@@ -218,7 +238,7 @@ const CuentasMoraCoordinador = () => {
             <div className="flex justify-between items-start mb-4">
               <div>
                 <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Capital en Riesgo</p>
-                <h3 className="text-2xl font-bold text-slate-900 mt-2">{formatCurrency(totalDeuda)}</h3>
+                <h3 className="text-2xl font-bold text-slate-900 mt-2">{formatCurrency(totales.totalDeuda)}</h3>
               </div>
               <div className="p-3 bg-amber-50 rounded-xl">
                 <FileWarning className="h-5 w-5 text-amber-600" />
@@ -230,7 +250,7 @@ const CuentasMoraCoordinador = () => {
             <div className="flex justify-between items-start mb-4">
               <div>
                 <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Casos Críticos</p>
-                <h3 className="text-2xl font-bold text-slate-900 mt-2">{cuentasFiltradas.filter(c => c.nivelRiesgo === 'ROJO').length}</h3>
+                <h3 className="text-2xl font-bold text-slate-900 mt-2">{totales.totalCasosCriticos}</h3>
               </div>
               <div className="p-3 bg-sky-50 rounded-xl">
                 <User className="h-5 w-5 text-sky-600" />
@@ -282,7 +302,20 @@ const CuentasMoraCoordinador = () => {
           </div>
         </div>
 
-        {viewMode === 'list' ? (
+        {loading ? (
+          <div className="flex items-center justify-center py-12">
+            <Loader2 className="h-6 w-6 animate-spin text-blue-600" />
+            <span className="ml-2 text-slate-600">Actualizando datos...</span>
+          </div>
+        ) : cuentas.length === 0 ? (
+          <div className="text-center py-12">
+            <div className="mx-auto w-24 h-24 bg-slate-100 rounded-full flex items-center justify-center mb-4">
+              <FileWarning className="h-12 w-12 text-slate-400" />
+            </div>
+            <h3 className="text-lg font-semibold text-slate-900 mb-2">No hay cuentas en mora</h3>
+            <p className="text-slate-600">No se encontraron préstamos en mora con los filtros aplicados.</p>
+          </div>
+        ) : viewMode === 'list' ? (
           <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-left">
@@ -296,7 +329,7 @@ const CuentasMoraCoordinador = () => {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {cuentasFiltradas.map((cuenta) => (
+                  {cuentas.map((cuenta) => (
                     <tr key={cuenta.id} className="hover:bg-slate-50 transition-colors">
                       <td className="px-6 py-4">
                         <div className="font-bold text-slate-900">{cuenta.cliente.nombre}</div>
@@ -332,7 +365,7 @@ const CuentasMoraCoordinador = () => {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {cuentasFiltradas.map((cuenta) => (
+            {cuentas.map((cuenta) => (
               <div key={cuenta.id} className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm hover:shadow-md transition-all">
                 <div className="flex justify-between items-start mb-4">
                     <div>
@@ -364,6 +397,7 @@ const CuentasMoraCoordinador = () => {
           </div>
         )}
       </div>
+
       {/* Modal de Detalle */}
       {isModalOpen && selectedCuenta && (
         <DetalleMoraModal 
