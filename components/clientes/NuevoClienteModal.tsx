@@ -5,6 +5,8 @@ import { X } from 'lucide-react';
 import { useNotification } from '@/components/providers/NotificationProvider';
 import Portal, { MODAL_Z_INDEX } from '@/components/ui/Portal';
 import { Cliente } from '@/services/clientes-service';
+import MediaUpload from '@/components/ui/MediaUpload';
+import { NivelRiesgo, EstadoAprobacion } from '@/types/enums';
 
 interface NuevoClienteModalProps {
   onClose: () => void;
@@ -49,10 +51,12 @@ export default function NuevoClienteModal({ onClose, onClienteCreado, cliente = 
       direccion: formulario.direccion || null,
       referencia: formulario.referencia || null,
       codigo: cliente?.codigo || `CL-${Math.floor(Math.random() * 1000)}`,
-      nivelRiesgo: cliente?.nivelRiesgo || 'VERDE', 
+      nivelRiesgo: cliente?.nivelRiesgo || NivelRiesgo.VERDE, 
       puntaje: cliente?.puntaje || 100,
       enListaNegra: cliente?.enListaNegra || false,
-      estadoAprobacion: cliente?.estadoAprobacion || 'APROBADO'
+      estadoAprobacion: cliente?.estadoAprobacion || EstadoAprobacion.APROBADO,
+      creadoEn: cliente?.creadoEn || new Date().toISOString(),
+      actualizadoEn: new Date().toISOString()
     };
     
     // Simulate API delay
@@ -173,49 +177,33 @@ export default function NuevoClienteModal({ onClose, onClienteCreado, cliente = 
                 <h4 className="text-sm font-bold text-slate-700 uppercase tracking-wide">Documentos y Fotos (Obligatorias)</h4>
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-xs font-bold text-slate-600 mb-2">Foto de Perfil</label>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      required
-                      onChange={(e) => setFotos(prev => ({ ...prev, fotoPerfil: e.target.files?.[0] || null }))}
-                      className="w-full text-xs text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 cursor-pointer"
-                    />
-                  </div>
+                  <MediaUpload
+                    label="Foto de Perfil"
+                    accept="image/*"
+                    maxSize={2}
+                    onChange={(file) => setFotos(prev => ({ ...prev, fotoPerfil: file }))}
+                  />
 
-                  <div>
-                    <label className="block text-xs font-bold text-slate-600 mb-2">Documento Frente</label>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      required
-                      onChange={(e) => setFotos(prev => ({ ...prev, documentoFrente: e.target.files?.[0] || null }))}
-                      className="w-full text-xs text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 cursor-pointer"
-                    />
-                  </div>
+                  <MediaUpload
+                    label="Documento Frente"
+                    accept="image/*"
+                    maxSize={5}
+                    onChange={(file) => setFotos(prev => ({ ...prev, documentoFrente: file }))}
+                  />
 
-                  <div>
-                    <label className="block text-xs font-bold text-slate-600 mb-2">Documento Reverso</label>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      required
-                      onChange={(e) => setFotos(prev => ({ ...prev, documentoReverso: e.target.files?.[0] || null }))}
-                      className="w-full text-xs text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 cursor-pointer"
-                    />
-                  </div>
+                  <MediaUpload
+                    label="Documento Reverso"
+                    accept="image/*"
+                    maxSize={5}
+                    onChange={(file) => setFotos(prev => ({ ...prev, documentoReverso: file }))}
+                  />
 
-                  <div>
-                    <label className="block text-xs font-bold text-slate-600 mb-2">Comprobante Domicilio</label>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      required
-                      onChange={(e) => setFotos(prev => ({ ...prev, comprobanteDomicilio: e.target.files?.[0] || null }))}
-                      className="w-full text-xs text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 cursor-pointer"
-                    />
-                  </div>
+                  <MediaUpload
+                    label="Comprobante Domicilio"
+                    accept="image/*,video/mp4,video/webm"
+                    maxSize={50}
+                    onChange={(file) => setFotos(prev => ({ ...prev, comprobanteDomicilio: file }))}
+                  />
                 </div>
               </div>
 

@@ -146,5 +146,78 @@ export const clientesService = {
    */
   async asignarRuta(clienteId: string, data: AsignarRutaDto): Promise<void> {
     return apiRequest<void>('POST', `/clients/${clienteId}/assign-route`, data);
+  },
+
+  // Alias para compatibilidad
+  obtenerClientes: function(filtros?: FiltrosClientes): Promise<Cliente[]> {
+    return this.obtenerTodos(filtros);
+  },
+  
+  eliminarCliente: function(id: string): Promise<void> {
+    return this.eliminar(id);
   }
 };
+
+/**
+ * Datos mock para desarrollo/testing
+ * TODO: Remover cuando el backend esté completamente integrado
+ */
+export const MOCK_CLIENTES: Cliente[] = [
+  {
+    id: 'CLI-001',
+    codigo: 'CLI-001',
+    dni: '1234567890',
+    nombres: 'Juan Carlos',
+    apellidos: 'Pérez García',
+    correo: 'juan.perez@email.com',
+    telefono: '3001234567',
+    direccion: 'Calle 123 #45-67',
+    referencia: null,
+    nivelRiesgo: NivelRiesgo.VERDE,
+    puntaje: 850,
+    enListaNegra: false,
+    estadoAprobacion: EstadoAprobacion.APROBADO,
+    creadoEn: new Date().toISOString(),
+    actualizadoEn: new Date().toISOString(),
+    prestamosActivos: 1,
+    montoTotal: 5000000
+  },
+  {
+    id: 'CLI-002',
+    codigo: 'CLI-002',
+    dni: '0987654321',
+    nombres: 'María',
+    apellidos: 'González López',
+    correo: 'maria.gonzalez@email.com',
+    telefono: '3109876543',
+    direccion: 'Carrera 45 #12-34',
+    referencia: null,
+    nivelRiesgo: NivelRiesgo.AMARILLO,
+    puntaje: 650,
+    enListaNegra: false,
+    estadoAprobacion: EstadoAprobacion.APROBADO,
+    creadoEn: new Date().toISOString(),
+    actualizadoEn: new Date().toISOString(),
+    prestamosActivos: 2,
+    montoTotal: 3000000
+  },
+  {
+    id: 'CLI-003',
+    codigo: 'CLI-003',
+    dni: '1122334455',
+    nombres: 'Pedro',
+    apellidos: 'Martínez Ruiz',
+    correo: null,
+    telefono: '3201122334',
+    direccion: 'Avenida 68 #89-10',
+    referencia: null,
+    nivelRiesgo: NivelRiesgo.VERDE,
+    puntaje: 900,
+    enListaNegra: false,
+    estadoAprobacion: EstadoAprobacion.APROBADO,
+    creadoEn: new Date().toISOString(),
+    actualizadoEn: new Date().toISOString(),
+    prestamosActivos: 0,
+    montoTotal: 0
+  }
+];

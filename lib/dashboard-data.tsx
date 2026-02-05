@@ -1,35 +1,31 @@
-'use client';
-
-import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { DashboardClient } from './dashboard-client';
-import { Rol } from '@/lib/permissions';
-import {
+import { cookies } from 'next/headers';
+import { 
   CreditCard,
   Target,
   AlertCircle,
   Banknote,
   Users,
+  CheckCircle2,
+  Route,
   Wallet,
+  Receipt,
+  Map,
   FileText,
   Percent,
   Package,
   TrendingUp,
   PieChart,
+  Bell,
+  Eye,
+  Filter,
   Calculator,
   BarChart3,
   Landmark
 } from 'lucide-react';
+import { Rol } from '@/lib/permissions';
 import { formatCurrency } from '@/lib/utils';
 
-interface UserData {
-  id: string;
-  nombres: string;
-  apellidos: string;
-  rol: Rol;
-  correo?: string;
-  telefono?: string;
-}
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
 interface MetricItem {
   title: string;
@@ -50,158 +46,38 @@ interface QuickAccessItem {
   href: string;
 }
 
-interface DashboardData {
-  mainMetrics: MetricItem[];
-  quickAccess: QuickAccessItem[];
-  recentLoans: Array<{
-    client: string;
-    amount: number;
-    term: string;
-    status: string;
-    date: string;
-  }>;
-  topCollectors: Array<{
-    name: string;
-    collected: number;
-    efficiency: number;
-    trend: 'up' | 'down';
-  }>;
-  chartData: Array<{
-    label: string;
-    value: number;
-    target: number;
-  }>;
-  userFullName: string;
-  userRole: string;
+/**
+ * Obtiene los datos del Dashboard desde el backend
+ * Se ejecuta en el servidor
+ */
+export async function getDashboardData(rol: Rol) {
+  const cookieStore = await cookies();
+  const token = cookieStore.get('token')?.value;
+
+  // TODO: Cuando el backend esté listo, descomentar y usar esta llamada
+  // const response = await fetch(`${API_URL}/dashboard/stats?rol=${rol}`, {
+  //   headers: {
+  //     'Authorization': `Bearer ${token}`,
+  //     'Content-Type': 'application/json',
+  //   },
+  //   cache: 'no-store', // Siempre datos frescos para el dashboard
+  // });
+
+  // if (!response.ok) {
+  //   throw new Error('Failed to fetch dashboard data');
+  // }
+
+  // const backendData = await response.json();
+
+  // Por ahora, usamos datos mock configurados según el rol
+  return configurarDashboardPorRol(rol);
 }
 
 /**
- * ============================================================================
- * DASHBOARD PRINCIPAL DEL SISTEMA (HÍBRIDO CSR/SSR)
- * ============================================================================
- * 
- * @description
- * Versión temporal que usa localStorage mientras migramos a cookies.
- * Refactorizado para evitar hydration mismatches y antipatrones de React.
- * 
- * TODO: Migrar completamente a SSR cuando el login use cookies.
+ * Configura los datos del dashboard según el rol del usuario
+ * Esta lógica debería moverse al backend eventualmente
  */
-
-export default function DashboardPage() {
-  const router = useRouter();
-  
-  // Estado consolidado para evitar múltiples renders
-  const [state, setState] = useState<{
-    isLoading: boolean;
-    userData: UserData | null;
-    dashboardData: DashboardData | null;
-    shouldRedirect: string | null;
-  }>({
-    isLoading: true,
-    userData: null,
-    dashboardData: null,
-    shouldRedirect: null
-  });
-
-  useEffect(() => {
-    // Función para inicializar el dashboard
-    const initializeDashboard = () => {
-      const token = localStorage.getItem('token');
-      const user = localStorage.getItem('user');
-
-      if (!token || !user) {
-        router.replace('/');
-        return;
-      }
-
-      try {
-        const parsedUser = JSON.parse(user) as UserData;
-
-        // Verificar si necesita redirección
-        if (['COBRADOR', 'COORDINADOR', 'SUPERVISOR'].includes(parsedUser.rol)) {
-          const routes: Record<string, string> = {
-            COBRADOR: '/cobranzas',
-            COORDINADOR: '/coordinador',
-            SUPERVISOR: '/supervisor'
-          };
-          
-          setState({
-            isLoading: false,
-            userData: parsedUser,
-            dashboardData: null,
-            shouldRedirect: routes[parsedUser.rol]
-          });
-          return;
-        }
-
-        // Cargar datos del dashboard
-        const data = configurarDashboardPorRol(parsedUser.rol);
-        
-        setState({
-          isLoading: false,
-          userData: parsedUser,
-          dashboardData: {
-            ...data,
-            userFullName: `${parsedUser.nombres} ${parsedUser.apellidos}`,
-            userRole: parsedUser.rol?.replace('_', ' ') || 'Usuario'
-          },
-          shouldRedirect: null
-        });
-      } catch (error) {
-        console.error('Error al parsear datos del usuario:', error);
-        localStorage.removeItem('token');
-        localStorage.removeItem('user');
-        router.replace('/');
-      }
-    };
-
-    initializeDashboard();
-  }, [router]);
-
-  // Efecto separado para manejar redirecciones
-  useEffect(() => {
-    if (state.shouldRedirect) {
-      router.replace(state.shouldRedirect);
-    }
-  }, [state.shouldRedirect, router]);
-
-  // Estados de carga
-  if (state.isLoading) {
-    return (
-      <div className="min-h-screen bg-white flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-600">Cargando dashboard...</p>
-        </div>
-      </div>
-    );
-  }
-
-  // Estado de redirección
-  if (state.shouldRedirect) {
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-slate-50">
-        <div className="flex flex-col items-center gap-4">
-          <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
-          <p className="text-gray-600 font-medium">Redirigiendo a su panel...</p>
-        </div>
-      </div>
-    );
-  }
-
-  // Verificar que tengamos datos antes de renderizar
-  if (!state.dashboardData) {
-    return null;
-  }
-
-  return <DashboardClient data={state.dashboardData} />;
-}
-
-/**
- * Configurar datos del dashboard según rol
- * Temporal hasta migrar a SSR con fetch real del backend
- */
-function configurarDashboardPorRol(rol: Rol): Omit<DashboardData, 'userFullName' | 'userRole'> {
+function configurarDashboardPorRol(rol: Rol) {
   const metricsConfig: Record<Rol, MetricItem[]> = {
     SUPER_ADMINISTRADOR: [
       {
@@ -275,9 +151,108 @@ function configurarDashboardPorRol(rol: Rol): Omit<DashboardData, 'userFullName'
         color: '#f59e0b'
       }
     ],
-    COORDINADOR: [],
-    SUPERVISOR: [],
-    COBRADOR: [],
+    COORDINADOR: [
+      {
+        title: 'Préstamos Pendientes',
+        value: 15,
+        isCurrency: false,
+        change: 8.2,
+        icon: <CreditCard className="h-4 w-4" />,
+        color: '#0f172a'
+      },
+      {
+        title: 'Revisiones',
+        value: 8,
+        isCurrency: false,
+        change: -2.1,
+        icon: <CheckCircle2 className="h-4 w-4" />,
+        color: '#10b981'
+      },
+      {
+        title: 'Cuentas en Mora',
+        value: 23,
+        isCurrency: false,
+        change: -3.4,
+        icon: <AlertCircle className="h-4 w-4" />,
+        color: '#f43f5e'
+      },
+      {
+        title: 'Rutas Activas',
+        value: 12,
+        isCurrency: false,
+        change: 1.8,
+        icon: <Route className="h-4 w-4" />,
+        color: '#f59e0b'
+      }
+    ],
+    SUPERVISOR: [
+      {
+        title: 'Clientes Atendidos',
+        value: 89,
+        isCurrency: false,
+        change: 5.2,
+        icon: <Users className="h-4 w-4" />,
+        color: '#0f172a'
+      },
+      {
+        title: 'Gastos Aprobados',
+        value: 2350000,
+        isCurrency: true,
+        change: -1.3,
+        icon: <Receipt className="h-4 w-4" />,
+        color: '#10b981'
+      },
+      {
+        title: 'Mora Crítica',
+        value: 12,
+        isCurrency: false,
+        change: -3.4,
+        icon: <AlertCircle className="h-4 w-4" />,
+        color: '#f43f5e'
+      },
+      {
+        title: 'Cobertura Ruta',
+        value: '89.7%',
+        isCurrency: false,
+        change: 2.1,
+        icon: <Map className="h-4 w-4" />,
+        color: '#f59e0b'
+      }
+    ],
+    COBRADOR: [
+      {
+        title: 'Clientes por Visitar',
+        value: 24,
+        isCurrency: false,
+        change: -2,
+        icon: <Users className="h-4 w-4" />,
+        color: '#0f172a'
+      },
+      {
+        title: 'Recaudo Hoy',
+        value: 1250000,
+        isCurrency: true,
+        change: 15.3,
+        icon: <Wallet className="h-4 w-4" />,
+        color: '#10b981'
+      },
+      {
+        title: 'Gastos de Ruta',
+        value: 45000,
+        isCurrency: true,
+        change: -5.2,
+        icon: <Receipt className="h-4 w-4" />,
+        color: '#f43f5e'
+      },
+      {
+        title: 'Eficiencia Personal',
+        value: '94.2%',
+        isCurrency: false,
+        change: 2.8,
+        icon: <Target className="h-4 w-4" />,
+        color: '#f59e0b'
+      }
+    ],
     CONTADOR: [
       {
         title: 'Flujo de Caja',
@@ -386,9 +361,99 @@ function configurarDashboardPorRol(rol: Rol): Omit<DashboardData, 'userFullName'
         href: '/admin/reportes/operativos'
       }
     ],
-    COORDINADOR: [],
-    SUPERVISOR: [],
-    COBRADOR: [],
+    COORDINADOR: [
+      {
+        title: 'Centro de Control',
+        subtitle: 'Notificaciones y Revisiones',
+        icon: <Bell className="h-5 w-5" />,
+        color: '#0f172a',
+        badge: 8,
+        href: '/coordinador/notificaciones'
+      },
+      {
+        title: 'Nuevo Crédito',
+        subtitle: 'Crear préstamo',
+        icon: <CreditCard className="h-5 w-5" />,
+        color: '#10b981',
+        href: '/admin/creditos/nuevo'
+      },
+      {
+        title: 'Rutas',
+        subtitle: 'Gestión de cobradores',
+        icon: <Route className="h-5 w-5" />,
+        color: '#6366f1',
+        href: '/coordinador/rutas'
+      },
+      {
+        title: 'Reportes',
+        subtitle: 'Métricas diarias',
+        icon: <PieChart className="h-5 w-5" />,
+        color: '#f59e0b',
+        href: '/admin/reportes/operativos'
+      }
+    ],
+    SUPERVISOR: [
+      {
+        title: 'Monitoreo Cartera',
+        subtitle: 'Clientes atrasados',
+        icon: <Eye className="h-5 w-5" />,
+        color: '#0f172a',
+        href: '/admin/cuentas-mora'
+      },
+      {
+        title: 'Gastos Pendientes',
+        subtitle: 'Aprobar gastos de ruta',
+        icon: <Filter className="h-5 w-5" />,
+        color: '#10b981',
+        badge: 5,
+        href: '/admin/gastos-ruta'
+      },
+      {
+        title: 'Reportes',
+        subtitle: 'Métricas por ruta',
+        icon: <PieChart className="h-5 w-5" />,
+        color: '#6366f1',
+        href: '/admin/reportes/operativos'
+      },
+      {
+        title: 'Clientes',
+        subtitle: 'Consulta de cartera',
+        icon: <Users className="h-5 w-5" />,
+        color: '#f59e0b',
+        href: '/admin/clientes'
+      }
+    ],
+    COBRADOR: [
+      {
+        title: 'Mi Ruta',
+        subtitle: 'Clientes del día',
+        icon: <Map className="h-5 w-5" />,
+        color: '#0f172a',
+        badge: 24,
+        href: '/admin/ruta-diaria'
+      },
+      {
+        title: 'Registrar Pago',
+        subtitle: 'Cobranza inmediata',
+        icon: <Wallet className="h-5 w-5" />,
+        color: '#10b981',
+        href: '/admin/pagos/registro'
+      },
+      {
+        title: 'Nuevo Cliente',
+        subtitle: 'Registro rápido',
+        icon: <Users className="h-5 w-5" />,
+        color: '#6366f1',
+        href: '/admin/clientes/nuevo'
+      },
+      {
+        title: 'Base de Efectivo',
+        subtitle: 'Solicitar dinero',
+        icon: <Banknote className="h-5 w-5" />,
+        color: '#f59e0b',
+        href: '/admin/base-dinero'
+      }
+    ],
     CONTADOR: [
       {
         title: 'Control de Cajas',

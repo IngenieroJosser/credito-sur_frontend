@@ -205,9 +205,9 @@ const CreacionPrestamoElegante = () => {
 
   const { resumenPrestamo } = useMemo(() => calcularCuotasYResumen(form), [form]);
 
-  const clienteSeleccionado = clientes.find(c => String(c.id) === String(form.clienteId));
+  const clienteSeleccionado = clientes?.find(c => String(c.id) === String(form.clienteId));
 
-  const clientesFiltrados = clientes.filter(cliente => {
+  const clientesFiltrados = (clientes || []).filter(cliente => {
     const nombreCompleto = `${cliente.nombres || ''} ${cliente.apellidos || ''}`.toLowerCase();
     const cumpleBusqueda = 
       nombreCompleto.includes(busquedaCliente.toLowerCase()) || 

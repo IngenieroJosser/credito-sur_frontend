@@ -45,7 +45,7 @@ export const NotificationProvider = ({ children }: NotificationProviderProps) =>
       {children}
       {/* Portal para renderizar notificaciones fuera del flujo normal */}
       {mounted && createPortal(
-        <div className="fixed top-4 right-4 z-[9999] flex w-full max-w-sm flex-col gap-2 pointer-events-none p-4 md:p-0">
+        <div className="fixed top-4 right-4 flex w-full max-w-sm flex-col gap-2 pointer-events-none p-4 md:p-0" style={{ zIndex: 2147483647 }}>
           {notifications.map((notification) => (
             <Toast
               key={notification.id}
