@@ -5,6 +5,7 @@ import { createPortal } from 'react-dom';
 import Image from 'next/image';
 import { Upload, X, Check, Loader2, Image as ImageIcon, Video, AlertCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { uploadService, UploadResponse } from '@/services/upload-service';
 
 export type UploadStatus = 'idle' | 'uploading' | 'success' | 'error';
 
@@ -16,13 +17,13 @@ export interface MediaFile {
   url?: string; // URL del servidor después de subir
 }
 
-interface MediaUploadProps {
+export interface MediaUploadProps {
   label?: string;
   accept?: string;
   maxSize?: number; // en MB
   existingUrl?: string; // URL de imagen existente (al editar)
   onChange?: (file: File | null) => void;
-  onUploadComplete?: (url: string) => void;
+  onUploadComplete?: (data: UploadResponse) => void; // AHORA RECIBE DATA REAL
   className?: string;
   disabled?: boolean;
   multiple?: boolean;
@@ -32,32 +33,14 @@ interface MediaUploadProps {
  * ============================================================================
  * COMPONENTE DE CARGA DE MEDIOS CON PREVIEW Y ESTADOS
  * ============================================================================
- * 
- * @description
- * Componente elegante para subir imágenes/videos con:
- * - Vista previa inmediata
- * - Estados visuales de carga (uploading, success, error)
- * - Animación de iluminación verde al completar
- * - Conservación de imágenes existentes al editar
- * - Validación de tamaño y tipo
- * 
- * @example
- * ```tsx
- * <MediaUpload
- *   label="Foto de Perfil"
- *   accept="image/*"
- *   existingUrl={cliente?.fotoUrl}
- *   onChange={(file) => handleFileChange(file)}
- * />
- * ```
  */
 export default function MediaUpload({
   label = 'Cargar Archivo',
   accept = 'image/*',
-  maxSize = 5, // 5MB por defecto
+  maxSize = 50, // 50MB por defecto
   existingUrl,
   onChange,
-  onUploadComplete: _onUploadComplete, // Prefixed with _ - will be used when implementing real upload
+  onUploadComplete,
   className,
   disabled = false,
   multiple = false
@@ -75,39 +58,37 @@ export default function MediaUpload({
   const currentPreview = media?.preview || existingUrl;
   const hasMedia = !!currentPreview;
 
-  // Función de subida - declarada antes de handleFileSelect
-  const simulateUpload = useCallback(async () => {
+  // Función de subida REAL
+  const handleUpload = useCallback(async (file: File) => {
     setStatus('uploading');
-    setProgress(0);
+    setProgress(10); // Inicio visual
 
-    // Simulación de progreso de subida
-    const interval = setInterval(() => {
-      setProgress(prev => {
-        if (prev >= 100) {
-          clearInterval(interval);
-          return 100;
-        }
-        return prev + 10;
-      });
-    }, 200);
+    try {
+      // 1. Subir al servidor real
+      const result = await uploadService.uploadFile(file);
+      
+      setProgress(100);
+      setStatus('success');
+      setShowSuccess(true);
+      
+      // 2. Notificar al padre con los datos reales
+      if (onUploadComplete) {
+        onUploadComplete(result);
+      }
 
-    // Simular tiempo de subida
-    await new Promise(resolve => setTimeout(resolve, 2000));
+      // Quitar brillo de éxito luego
+      setTimeout(() => setShowSuccess(false), 2000);
 
-    clearInterval(interval);
-    setProgress(100);
-    setStatus('success');
-    setShowSuccess(true);
-
-    // Aquí iría la lógica real de subida al servidor
-    // const uploadedUrl = await uploadToServer(file);
-    // onUploadComplete?.(uploadedUrl);
-
-    // Quitar el glow de éxito después de 2 segundos
-    setTimeout(() => {
-      setShowSuccess(false);
-    }, 2000);
-  }, []); // No dependencies needed - all state setters are stable
+    } catch (error) {
+      console.error('Upload failed:', error);
+      setStatus('error');
+      setErrorMessage('Error al subir el archivo. Intente nuevamente.');
+      setShowErrorModal(true);
+      
+      // Resetear estado visual parcial
+      setMedia(prev => prev ? { ...prev, status: 'error' } : null);
+    }
+  }, [onUploadComplete]);
 
   const handleFileSelect = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -125,7 +106,7 @@ export default function MediaUpload({
       return;
     }
 
-    // Crear preview
+    // Crear preview local inmediata
     const preview = URL.createObjectURL(file);
     const newMedia: MediaFile = {
       file,
@@ -136,9 +117,9 @@ export default function MediaUpload({
     setMedia(newMedia);
     onChange?.(file);
 
-    // Simular subida automática
-    simulateUpload();
-  }, [maxSize, onChange, simulateUpload]);
+    // INICIAR SUBIDA AUTOMÁTICA
+    handleUpload(file);
+  }, [maxSize, onChange, handleUpload]);
 
   const handleRemove = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();

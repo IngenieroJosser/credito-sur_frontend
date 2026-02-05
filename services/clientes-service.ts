@@ -42,6 +42,14 @@ export interface CrearClienteDto {
   nivelRiesgo?: NivelRiesgo;
   puntaje?: number;
   creadoPorId: string;
+  archivos?: {
+    tipoContenido: string;
+    tipoArchivo: string;
+    nombreOriginal: string;
+    nombreAlmacenamiento: string;
+    ruta: string;
+    tamanoBytes: number;
+  }[];
 }
 
 export interface ActualizarClienteDto {
