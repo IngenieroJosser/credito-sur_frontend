@@ -1,6 +1,8 @@
 import { apiRequest } from "@/lib/api/api";
+import { NivelRiesgo, EstadoAprobacion } from '@/types/enums';
 
-// Tipos basados en lo que vimos en el componente, se pueden mover a un archivo de tipos centralizado luego
+export type { NivelRiesgo, EstadoAprobacion };
+
 export interface Cliente {
   id: string;
   codigo: string;
@@ -11,20 +13,22 @@ export interface Cliente {
   telefono: string;
   direccion: string | null;
   referencia: string | null;
-  nivelRiesgo: 'VERDE' | 'AMARILLO' | 'ROJO' | 'LISTA_NEGRA';
+  nivelRiesgo: NivelRiesgo;
   puntaje: number;
   enListaNegra: boolean;
-  estadoAprobacion: 'PENDIENTE' | 'APROBADO' | 'RECHAZADO' | 'CANCELADO';
-  // Campos calculados que podrían venir del backend
+  estadoAprobacion: EstadoAprobacion;
+  razonListaNegra?: string | null;
+  fechaListaNegra?: string | null;
+  creadoEn: string;
+  actualizadoEn: string;
+  eliminadoEn?: string | null;
+  // Campos calculados que vienen del backend
   prestamosActivos?: number;
   montoTotal?: number;
   montoMora?: number;
   diasMora?: number;
   ultimoPago?: string;
   rutaId?: string;
-  fechaRegistro?: string;
-  createdAt?: string;
-  updatedAt?: string;
 }
 
 export interface CrearClienteDto {
@@ -35,725 +39,112 @@ export interface CrearClienteDto {
   direccion?: string;
   correo?: string;
   referencia?: string;
-  nivelRiesgo?: 'VERDE' | 'AMARILLO' | 'ROJO' | 'LISTA_NEGRA';
+  nivelRiesgo?: NivelRiesgo;
   puntaje?: number;
-  enListaNegra?: boolean;
-  rutaId?: string;
-  observaciones?: string;
+  creadoPorId: string;
 }
 
-export const MOCK_CLIENTES: Cliente[] = [
-  {
-    id: '1',
-    codigo: 'CLI-001',
-    nombres: 'Juan Carlos',
-    apellidos: 'Pérez Rodriguez',
-    dni: '1.020.345.678',
-    telefono: '310 123 4567',
-    correo: 'juan.perez@email.com',
-    direccion: 'Calle 10 # 5-23, Centro',
-    referencia: 'Frente a la panadería',
-    nivelRiesgo: 'VERDE',
-    puntaje: 85,
-    enListaNegra: false,
-    montoTotal: 2500000,
-    montoMora: 0,
-    diasMora: 0,
-    rutaId: 'r1',
-    estadoAprobacion: 'APROBADO',
-    fechaRegistro: '2023-01-15',
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString()
-  },
-  {
-    id: '2',
-    codigo: 'CLI-002',
-    nombres: 'Ana María',
-    apellidos: 'Gómez López',
-    dni: '1.030.987.654',
-    telefono: '320 987 6543',
-    correo: 'ana.gomez@email.com',
-    direccion: 'Av. Principal # 20-10',
-    referencia: 'Al lado del supermercado',
-    nivelRiesgo: 'AMARILLO',
-    puntaje: 65,
-    enListaNegra: false,
-    montoTotal: 1500000,
-    montoMora: 80000,
-    diasMora: 10,
-    rutaId: 'r2',
-    estadoAprobacion: 'APROBADO',
-    fechaRegistro: '2023-02-20',
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString()
-  },
-  {
-    id: '3',
-    codigo: 'CLI-003',
-    nombres: 'Carlos Andrés',
-    apellidos: 'Ruiz Díaz',
-    dni: '1.040.123.456',
-    telefono: '300 456 7890',
-    correo: null,
-    direccion: 'Barrio La Paz, Mz C Casa 5',
-    referencia: 'Casa azul de dos pisos',
-    nivelRiesgo: 'ROJO',
-    puntaje: 45,
-    enListaNegra: false,
-    montoTotal: 800000,
-    montoMora: 150000,
-    diasMora: 25,
-    rutaId: 'r1',
-    estadoAprobacion: 'APROBADO',
-    fechaRegistro: '2023-03-10',
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString()
-  },
-  {
-    id: '4',
-    codigo: 'CLI-004',
-    nombres: 'Luisa Fernanda',
-    apellidos: 'Martínez',
-    dni: '1.050.555.555',
-    telefono: '315 555 5555',
-    correo: 'luisa.martinez@email.com',
-    direccion: 'Urb. Los Pinos, Bloque 4 Apto 201',
-    referencia: 'Entrada principal',
-    nivelRiesgo: 'LISTA_NEGRA',
-    puntaje: 0,
-    enListaNegra: true,
-    montoTotal: 5000000,
-    montoMora: 5000000,
-    diasMora: 45,
-    rutaId: 'r3',
-    estadoAprobacion: 'RECHAZADO',
-    fechaRegistro: '2022-11-05',
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString()
-  },
-  {
-    id: '5',
-    codigo: 'CLI-005',
-    nombres: 'Pedro',
-    apellidos: 'Ramírez',
-    dni: '1.060.101.010',
-    telefono: '301 111 2222',
-    correo: 'pedro.ramirez@email.com',
-    direccion: 'Calle 45 # 12-34',
-    referencia: 'Tienda de repuestos',
-    nivelRiesgo: 'VERDE',
-    puntaje: 90,
-    enListaNegra: false,
-    montoTotal: 300000,
-    montoMora: 0,
-    diasMora: 0,
-    rutaId: 'r2',
-    estadoAprobacion: 'APROBADO',
-    fechaRegistro: '2024-01-10',
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: '6',
-    codigo: 'CLI-006',
-    nombres: 'Sofía',
-    apellidos: 'Quintero',
-    dni: '1.070.202.020',
-    telefono: '302 222 3333',
-    correo: null,
-    direccion: 'Barrio San José, Mz 2 Casa 8',
-    referencia: null,
-    nivelRiesgo: 'AMARILLO',
-    puntaje: 62,
-    enListaNegra: false,
-    montoTotal: 1200000,
-    montoMora: 60000,
-    diasMora: 8,
-    rutaId: 'r3',
-    estadoAprobacion: 'APROBADO',
-    fechaRegistro: '2023-08-02',
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: '7',
-    codigo: 'CLI-007',
-    nombres: 'Mariana',
-    apellidos: 'Londoño',
-    dni: '1.080.303.030',
-    telefono: '303 333 4444',
-    correo: 'mariana.londono@email.com',
-    direccion: null,
-    referencia: 'Frente al parque',
-    nivelRiesgo: 'ROJO',
-    puntaje: 40,
-    enListaNegra: false,
-    montoTotal: 2100000,
-    montoMora: 180000,
-    diasMora: 31,
-    rutaId: 'r1',
-    estadoAprobacion: 'APROBADO',
-    fechaRegistro: '2023-06-18',
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: '8',
-    codigo: 'CLI-008',
-    nombres: 'Andrés',
-    apellidos: 'Vargas',
-    dni: '1.090.404.040',
-    telefono: '304 444 5555',
-    correo: 'andres.vargas@email.com',
-    direccion: 'Av. 30 # 99-10',
-    referencia: 'Local 12',
-    nivelRiesgo: 'AMARILLO',
-    puntaje: 58,
-    enListaNegra: false,
-    montoTotal: 3500000,
-    montoMora: 250000,
-    diasMora: 18,
-    rutaId: 'r4',
-    estadoAprobacion: 'PENDIENTE',
-    fechaRegistro: '2024-02-01',
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: '9',
-    codigo: 'CLI-009',
-    nombres: 'Camilo',
-    apellidos: 'Hernández',
-    dni: '1.100.505.050',
-    telefono: '305 555 6666',
-    correo: null,
-    direccion: 'Urb. Las Flores, Casa 12',
-    referencia: null,
-    nivelRiesgo: 'VERDE',
-    puntaje: 78,
-    enListaNegra: false,
-    montoTotal: 900000,
-    montoMora: 0,
-    diasMora: 0,
-    rutaId: 'r4',
-    estadoAprobacion: 'APROBADO',
-    fechaRegistro: '2023-10-11',
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: '10',
-    codigo: 'CLI-010',
-    nombres: 'Valentina',
-    apellidos: 'Castro',
-    dni: '1.110.606.060',
-    telefono: '306 666 7777',
-    correo: 'valentina.castro@email.com',
-    direccion: 'Cra 7 # 20-30',
-    referencia: 'Edificio rojo',
-    nivelRiesgo: 'LISTA_NEGRA',
-    puntaje: 10,
-    enListaNegra: true,
-    montoTotal: 700000,
-    montoMora: 700000,
-    diasMora: 60,
-    rutaId: 'r2',
-    estadoAprobacion: 'CANCELADO',
-    fechaRegistro: '2022-05-09',
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: '11',
-    codigo: 'CLI-011',
-    nombres: 'Roberto',
-    apellidos: 'Gómez',
-    dni: '1.111.777.888',
-    telefono: '310 999 0000',
-    correo: 'roberto.gomez@email.com',
-    direccion: 'Calle Falsa 123',
-    referencia: 'Esquina azul',
-    nivelRiesgo: 'VERDE',
-    puntaje: 85,
-    enListaNegra: false,
-    montoTotal: 1500000,
-    montoMora: 0,
-    diasMora: 0,
-    rutaId: 'r1',
-    estadoAprobacion: 'APROBADO',
-    fechaRegistro: '2024-01-15',
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: '12',
-    codigo: 'CLI-012',
-    nombres: 'Marta',
-    apellidos: 'Sánchez',
-    dni: '1.222.333.444',
-    telefono: '320 111 2222',
-    correo: 'marta.sanchez@email.com',
-    direccion: 'Av. Siempre Viva 742',
-    referencia: 'Cerca al parque',
-    nivelRiesgo: 'AMARILLO',
-    puntaje: 55,
-    enListaNegra: false,
-    montoTotal: 2000000,
-    montoMora: 150000,
-    diasMora: 12,
-    rutaId: 'RT-002',
-    estadoAprobacion: 'APROBADO',
-    fechaRegistro: '2023-11-20',
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: '13',
-    codigo: 'CLI-013',
-    nombres: 'Juan',
-    apellidos: 'Pérez',
-    dni: '1.333.444.555',
-    telefono: '300 444 5555',
-    correo: null,
-    direccion: 'Carrera 10 # 5-67',
-    referencia: 'Frente al CAI',
-    nivelRiesgo: 'ROJO',
-    puntaje: 30,
-    enListaNegra: false,
-    montoTotal: 500000,
-    montoMora: 200000,
-    diasMora: 40,
-    rutaId: 'RT-001',
-    estadoAprobacion: 'APROBADO',
-    fechaRegistro: '2023-05-10',
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: '14',
-    codigo: 'CLI-014',
-    nombres: 'Elena',
-    apellidos: 'Beltrán',
-    dni: '1.444.555.666',
-    telefono: '312 333 4444',
-    correo: 'elena.beltran@email.com',
-    direccion: 'Diagonal 45 # 12-34',
-    referencia: 'Portería de conjunto',
-    nivelRiesgo: 'VERDE',
-    puntaje: 95,
-    enListaNegra: false,
-    montoTotal: 3000000,
-    montoMora: 0,
-    diasMora: 0,
-    rutaId: 'RT-003',
-    estadoAprobacion: 'APROBADO',
-    fechaRegistro: '2024-01-20',
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: '15',
-    codigo: 'CLI-015',
-    nombres: 'Ricardo',
-    apellidos: 'Mendoza',
-    dni: '1.555.666.777',
-    telefono: '315 222 1111',
-    correo: 'ricardo.m@email.com',
-    direccion: 'Calle 100 # 15-20',
-    referencia: 'Local de celulares',
-    nivelRiesgo: 'AMARILLO',
-    puntaje: 68,
-    enListaNegra: false,
-    montoTotal: 1800000,
-    montoMora: 50000,
-    diasMora: 5,
-    rutaId: 'RT-002',
-    estadoAprobacion: 'APROBADO',
-    fechaRegistro: '2023-12-05',
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: '16',
-    codigo: 'CLI-016',
-    nombres: 'Gloria',
-    apellidos: 'Estefan',
-    dni: '1.666.777.888',
-    telefono: '318 444 5555',
-    correo: null,
-    direccion: 'Barrio El Porvenir, Casa 45',
-    referencia: 'Tienda Doña Rosa',
-    nivelRiesgo: 'ROJO',
-    puntaje: 35,
-    enListaNegra: false,
-    montoTotal: 1200000,
-    montoMora: 300000,
-    diasMora: 35,
-    rutaId: 'RT-003',
-    estadoAprobacion: 'APROBADO',
-    fechaRegistro: '2023-09-15',
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: '17',
-    codigo: 'CLI-017',
-    nombres: 'Fernando',
-    apellidos: 'Gaitan',
-    dni: '1.777.888.999',
-    telefono: '311 555 6666',
-    correo: 'f.gaitan@email.com',
-    direccion: 'Avenida 1 # 23-45',
-    referencia: 'Puente peatonal',
-    nivelRiesgo: 'VERDE',
-    puntaje: 88,
-    enListaNegra: false,
-    montoTotal: 400000,
-    montoMora: 0,
-    diasMora: 0,
-    rutaId: 'RT-001',
-    estadoAprobacion: 'APROBADO',
-    fechaRegistro: '2024-01-25',
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: '18',
-    codigo: 'CLI-018',
-    nombres: 'Monica',
-    apellidos: 'Fonseca',
-    dni: '1.888.999.000',
-    telefono: '316 777 8888',
-    correo: 'monica.f@email.com',
-    direccion: 'Transversal 5 # 6-78',
-    referencia: 'Edificio Las Palmas',
-    nivelRiesgo: 'AMARILLO',
-    puntaje: 60,
-    enListaNegra: false,
-    montoTotal: 2200000,
-    montoMora: 120000,
-    diasMora: 15,
-    rutaId: 'RT-004',
-    estadoAprobacion: 'APROBADO',
-    fechaRegistro: '2023-11-10',
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: '19',
-    codigo: 'CLI-019',
-    nombres: 'Hector',
-    apellidos: 'Lavoe',
-    dni: '1.999.000.111',
-    telefono: '313 000 1111',
-    correo: null,
-    direccion: 'Calle del Recodo # 1-2',
-    referencia: 'Esquina de la salsa',
-    nivelRiesgo: 'LISTA_NEGRA',
-    puntaje: 5,
-    enListaNegra: true,
-    montoTotal: 10000000,
-    montoMora: 8000000,
-    diasMora: 120,
-    rutaId: 'RT-002',
-    estadoAprobacion: 'RECHAZADO',
-    fechaRegistro: '2022-01-01',
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: '20',
-    codigo: 'CLI-020',
-    nombres: 'Carolina',
-    apellidos: 'Herrera',
-    dni: '2.000.111.222',
-    telefono: '318 111 2222',
-    correo: 'c.herrera@email.com',
-    direccion: 'Avenida Modas # 100',
-    referencia: 'Local de diseño',
-    nivelRiesgo: 'VERDE',
-    puntaje: 92,
-    enListaNegra: false,
-    montoTotal: 5000000,
-    montoMora: 0,
-    diasMora: 0,
-    rutaId: 'RT-001',
-    estadoAprobacion: 'APROBADO',
-    fechaRegistro: '2023-04-12',
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: '21',
-    codigo: 'CLI-021',
-    nombres: 'Gabriel',
-    apellidos: 'García Márquez',
-    dni: '2.111.222.333',
-    telefono: '317 222 3333',
-    correo: 'gabo@macondo.com',
-    direccion: 'Casa de los Buendía',
-    referencia: 'Donde las mariposas amarillas',
-    nivelRiesgo: 'AMARILLO',
-    puntaje: 75,
-    enListaNegra: false,
-    montoTotal: 1500000,
-    montoMora: 45000,
-    diasMora: 4,
-    rutaId: 'RT-002',
-    estadoAprobacion: 'APROBADO',
-    fechaRegistro: '2023-07-07',
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: '22',
-    codigo: 'CLI-022',
-    nombres: 'Shakira',
-    apellidos: 'Mebarak',
-    dni: '2.222.333.444',
-    telefono: '310 333 4444',
-    correo: 'shak@piesdescalzos.com',
-    direccion: 'Barranquilla, Cra 53',
-    referencia: 'Cerca al colegio',
-    nivelRiesgo: 'VERDE',
-    puntaje: 98,
-    enListaNegra: false,
-    montoTotal: 12000000,
-    montoMora: 0,
-    diasMora: 0,
-    rutaId: 'RT-003',
-    estadoAprobacion: 'APROBADO',
-    fechaRegistro: '2023-11-11',
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: '23',
-    codigo: 'CLI-023',
-    nombres: 'Juanes',
-    apellidos: 'Aristizábal',
-    dni: '2.333.444.555',
-    telefono: '315 444 5555',
-    correo: 'juanes@camisanegra.com',
-    direccion: 'Barrio Buenos Aires',
-    referencia: 'Parque de la paz',
-    nivelRiesgo: 'ROJO',
-    puntaje: 25,
-    enListaNegra: false,
-    montoTotal: 850000,
-    montoMora: 420000,
-    diasMora: 52,
-    rutaId: 'RT-001',
-    estadoAprobacion: 'APROBADO',
-    fechaRegistro: '2023-08-20',
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: '24',
-    codigo: 'CLI-024',
-    nombres: 'Sofía',
-    apellidos: 'Vergara',
-    dni: '2.444.555.666',
-    telefono: '300 555 6666',
-    correo: 'sofia.v@modern.com',
-    direccion: 'Calle Hollywood 123',
-    referencia: 'Mansión blanca',
-    nivelRiesgo: 'VERDE',
-    puntaje: 89,
-    enListaNegra: false,
-    montoTotal: 2000000,
-    montoMora: 0,
-    diasMora: 0,
-    rutaId: 'RT-004',
-    estadoAprobacion: 'APROBADO',
-    fechaRegistro: '2024-01-05',
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: '25',
-    codigo: 'CLI-025',
-    nombres: 'Radamel',
-    apellidos: 'Falcao García',
-    dni: '2.555.666.777',
-    telefono: '311 666 7777',
-    correo: 'el_tigre@falcao.com',
-    direccion: 'Estadio Metropolitano',
-    referencia: 'Área de penal',
-    nivelRiesgo: 'AMARILLO',
-    puntaje: 71,
-    enListaNegra: false,
-    montoTotal: 6500000,
-    montoMora: 125000,
-    diasMora: 7,
-    rutaId: 'RT-001',
-    estadoAprobacion: 'APROBADO',
-    fechaRegistro: '2023-10-31',
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: '26',
-    codigo: 'CLI-026',
-    nombres: 'Mariana',
-    apellidos: 'Pajón',
-    dni: '2.666.777.888',
-    telefono: '312 777 8888',
-    correo: 'mariana@bmx.com',
-    direccion: 'Pista de BMX',
-    referencia: 'Primer salto',
-    nivelRiesgo: 'VERDE',
-    puntaje: 99,
-    enListaNegra: false,
-    montoTotal: 450000,
-    montoMora: 0,
-    diasMora: 0,
-    rutaId: 'RT-002',
-    estadoAprobacion: 'APROBADO',
-    fechaRegistro: '2024-01-28',
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: '27',
-    codigo: 'CLI-027',
-    nombres: 'James',
-    apellidos: 'Rodríguez',
-    dni: '2.777.888.999',
-    telefono: '313 888 9999',
-    correo: '10james@envigado.com',
-    direccion: 'Cerca al polideportivo',
-    referencia: 'Puerta naranja',
-    nivelRiesgo: 'ROJO',
-    puntaje: 42,
-    enListaNegra: false,
-    montoTotal: 3400000,
-    montoMora: 950000,
-    diasMora: 28,
-    rutaId: 'RT-003',
-    estadoAprobacion: 'APROBADO',
-    fechaRegistro: '2023-05-15',
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: '28',
-    codigo: 'CLI-028',
-    nombres: 'Karol',
-    apellidos: 'G',
-    dni: '2.888.999.000',
-    telefono: '314 999 0000',
-    correo: 'bichota@medallo.com',
-    direccion: 'Provenza',
-    referencia: 'Discoteca principal',
-    nivelRiesgo: 'VERDE',
-    puntaje: 96,
-    enListaNegra: false,
-    montoTotal: 7800000,
-    montoMora: 0,
-    diasMora: 0,
-    rutaId: 'RT-004',
-    estadoAprobacion: 'APROBADO',
-    fechaRegistro: '2023-12-24',
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: '29',
-    codigo: 'CLI-029',
-    nombres: 'Luis',
-    apellidos: 'Díaz',
-    dni: '2.999.000.111',
-    telefono: '315 000 1111',
-    correo: 'luchodiaz@liverpool.com',
-    direccion: 'Barrancas, Guajira',
-    referencia: 'Casa de los papás',
-    nivelRiesgo: 'AMARILLO',
-    puntaje: 67,
-    enListaNegra: false,
-    montoTotal: 1200000,
-    montoMora: 85000,
-    diasMora: 12,
-    rutaId: 'RT-002',
-    estadoAprobacion: 'APROBADO',
-    fechaRegistro: '2023-09-09',
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: '30',
-    codigo: 'CLI-030',
-    nombres: 'Rigoberto',
-    apellidos: 'Urán',
-    dni: '3.000.111.222',
-    telefono: '316 111 2222',
-    correo: 'rigo@gorigogo.com',
-    direccion: 'Urrao, Antioquia',
-    referencia: 'Finca Los Urán',
-    nivelRiesgo: 'VERDE',
-    puntaje: 83,
-    enListaNegra: false,
-    montoTotal: 2500000,
-    montoMora: 0,
-    diasMora: 0,
-    rutaId: 'RT-001',
-    estadoAprobacion: 'APROBADO',
-    fechaRegistro: '2023-03-03',
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  }
-];
+export interface ActualizarClienteDto {
+  nombres?: string;
+  apellidos?: string;
+  telefono?: string;
+  correo?: string;
+  direccion?: string;
+  referencia?: string;
+  nivelRiesgo?: NivelRiesgo;
+  puntaje?: number;
+}
+
+export interface AgregarListaNegraDto {
+  razon: string;
+  agregadoPorId: string;
+}
+
+export interface AsignarRutaDto {
+  rutaId: string;
+  cobradorId: string;
+  diaSemana?: number;
+}
+
+export interface FiltrosClientes {
+  nivelRiesgo?: string;
+  ruta?: string;
+  search?: string;
+}
 
 export const clientesService = {
-  obtenerClientes: async () => {
-    try {
-      const response = await apiRequest<Cliente[] | { data: Cliente[] }>('GET', '/clients');
-      // Manejar tanto arrays como objetos con propiedad data
-      if (Array.isArray(response)) {
-        return response;
-      }
-      if (response && 'data' in response) {
-        return response.data;
-      }
-      return MOCK_CLIENTES;
-    } catch (error) {
-      console.warn('Usando datos mock de clientes', error);
-      return MOCK_CLIENTES;
-    }
+  /**
+   * Obtener todos los clientes
+   */
+  async obtenerTodos(filtros?: FiltrosClientes): Promise<Cliente[]> {
+    const params = new URLSearchParams();
+    
+    if (filtros?.nivelRiesgo) params.append('nivelRiesgo', filtros.nivelRiesgo);
+    if (filtros?.ruta) params.append('ruta', filtros.ruta);
+    if (filtros?.search) params.append('search', filtros.search);
+    
+    const query = params.toString();
+    const endpoint = query ? `/clients?${query}` : '/clients';
+    
+    return apiRequest<Cliente[]>('GET', endpoint);
   },
 
-  obtenerCliente: async (id: string) => {
-    try {
-      return await apiRequest<Cliente & { prestamos: unknown[]; pagos: unknown[] }>('GET', `/clients/${id}`);
-    } catch (error) {
-      console.warn(`Usando datos mock de cliente individual para ID: ${id}`, error);
-      // Normalizar ID para la búsqueda (asegurar string y trim)
-      const searchId = String(id).trim();
-      const cliente = MOCK_CLIENTES.find(c => String(c.id) === searchId);
-
-      if (!cliente) {
-        console.error(`Cliente con ID ${searchId} no encontrado en mocks. IDs disponibles:`, MOCK_CLIENTES.map(c => c.id));
-        throw new Error(`Cliente con ID ${searchId} no encontrado en mock`);
-      }
-
-      return {
-        ...cliente,
-        prestamos: [],
-        pagos: []
-      };
-    }
+  /**
+   * Obtener un cliente por ID
+   */
+  async obtenerPorId(id: string): Promise<Cliente> {
+    return apiRequest<Cliente>('GET', `/clients/${id}`);
   },
 
-  crearCliente: async (data: CrearClienteDto) => {
-    return await apiRequest<Cliente>('POST', '/clients', data);
+  /**
+   * Crear un nuevo cliente
+   */
+  async crear(data: CrearClienteDto): Promise<Cliente> {
+    return apiRequest<Cliente>('POST', '/clients', data);
   },
 
-  actualizarCliente: async (id: string, data: Partial<Cliente>) => {
-    return await apiRequest<Cliente>('PATCH', `/clients/${id}`, data);
+  /**
+   * Actualizar un cliente existente
+   */
+  async actualizar(id: string, data: ActualizarClienteDto): Promise<Cliente> {
+    return apiRequest<Cliente>('PUT', `/clients/${id}`, data);
   },
 
-  eliminarCliente: async (id: string) => {
-    return await apiRequest<void>('DELETE', `/clients/${id}`);
+  /**
+   * Eliminar un cliente (soft delete)
+   */
+  async eliminar(id: string): Promise<void> {
+    return apiRequest<void>('DELETE', `/clients/${id}`);
+  },
+
+  /**
+   * Aprobar un cliente
+   */
+  async aprobar(id: string, aprobadoPorId: string, datosAprobados?: unknown): Promise<Cliente> {
+    return apiRequest<Cliente>('POST', `/clients/approve/${id}`, { 
+      aprobadoPorId, 
+      datosAprobados 
+    });
+  },
+
+  /**
+   * Agregar cliente a lista negra
+   */
+  async agregarListaNegra(id: string, data: AgregarListaNegraDto): Promise<Cliente> {
+    return apiRequest<Cliente>('POST', `/clients/${id}/blacklist`, data);
+  },
+
+  /**
+   * Remover cliente de lista negra
+   */
+  async removerListaNegra(id: string): Promise<Cliente> {
+    return apiRequest<Cliente>('DELETE', `/clients/${id}/blacklist`);
+  },
+
+  /**
+   * Asignar cliente a una ruta
+   */
+  async asignarRuta(clienteId: string, data: AsignarRutaDto): Promise<void> {
+    return apiRequest<void>('POST', `/clients/${clienteId}/assign-route`, data);
   }
 };
