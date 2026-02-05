@@ -4,9 +4,6 @@ import { useState, useCallback } from 'react'
 import {
   CheckCircle2,
   XCircle,
-  Banknote,
-  ArrowLeft,
-  Save,
   Search,
   Filter,
   Wallet,
@@ -15,7 +12,7 @@ import {
   FileText as FileTextIcon
 } from 'lucide-react'
 
-import { formatCOPInputValue, formatCurrency } from '@/lib/utils'
+import { formatCurrency } from '@/lib/utils'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { RutaDetalleMock } from '@/lib/rutas-data'
@@ -39,33 +36,41 @@ interface RutaClientProps {
 }
 
 const RutaClient = ({ initialRuta }: RutaClientProps) => {
-  const router = useRouter()
+  // No router needed
   
-  // TODO: Cargar gastos reales del backend. Por ahora mock local para UI.
-  const [gastos] = useState<GastoRuta[]>([
-    {
-      id: '1',
-      tipo: 'TRANSPORTE',
-      descripcion: 'Gasolina',
-      valor: 15000,
-      hora: '08:00 AM'
-    }
-  ])
+  // No mocks. Use backend data or empty state managed by modals.
+  const [gastos] = useState<GastoRuta[]>([])
 
   const [isGastoModalOpen, setIsGastoModalOpen] = useState(false)
-  const [nuevoGasto, setNuevoGasto] = useState({ tipo: 'OPERATIVO', descripcion: '', valor: '' })
+  // const [nuevoGasto, setNuevoGasto] ... removed unused
+  // const [searchQuery, setSearchQuery] ... used in render
   const [searchQuery, setSearchQuery] = useState('')
-  const [showFilters, setShowFilters] = useState(false)
+  const [showFilters, setShowFilters] = useState(false) // Used in render toggle
   const [rutaCompletada, setRutaCompletada] = useState(false)
   const [showClienteSelector, setShowClienteSelector] = useState(false)
 
-  // MOCK de visitas (Debería venir de initialRuta.asignaciones o similar)
-  // Por ahora mantenemos el mock para no romper la visualización de la lista
-  const [visitasCobrador, setVisitasCobrador] = useState<VisitaRuta[]>([
-    { id: 'v1', cliente: 'Juan Pérez', direccion: 'Calle 10 # 5-23', telefono: '310 123 4567', horaSugerida: '09:00 AM', montoCuota: 25000, saldoTotal: 450000, estado: 'pendiente', proximaVisita: '2023-10-25', ordenVisita: 1, prioridad: 'alta', cobradorId: 'cob1', periodoRuta: 'DIA', nivelRiesgo: 'leve' },
-    { id: 'v2', cliente: 'Ana Gómez', direccion: 'Av. Principal # 20-10', telefono: '320 987 6543', horaSugerida: '10:30 AM', montoCuota: 15000, saldoTotal: 180000, estado: 'en_mora', proximaVisita: '2023-10-24', ordenVisita: 2, prioridad: 'media', cobradorId: 'cob1', periodoRuta: 'DIA', nivelRiesgo: 'critico' },
-    // ... más mocks si necesario
-  ])
+  // Map asignaciones from backend to visits UI model
+  const [visitasCobrador, setVisitasCobrador] = useState<VisitaRuta[]>(() => {
+      if (!initialRuta?.asignacionesRuta) return [];
+      // Map basic client info to visit structure
+      // Note: Backend might need to return richer 'Visita' objects in future.
+      return initialRuta.asignacionesRuta.map((asig: any, index: number) => ({
+          id: asig.id || `temp-${index}`,
+          cliente: `${asig.cliente.nombres} ${asig.cliente.apellidos}`,
+          direccion: asig.cliente.direccion || 'Sin dirección registrada',
+          telefono: asig.cliente.telefono || '',
+          horaSugerida: '08:00 AM', // Default
+          montoCuota: asig.cliente.prestamos?.[0]?.cuota || 0, // Simplified logic
+          saldoTotal: asig.cliente.prestamos?.[0]?.saldoPendiente || 0,
+          estado: 'pendiente',
+          proximaVisita: new Date().toISOString().split('T')[0],
+          ordenVisita: asig.ordenVisita || index + 1,
+          prioridad: 'media',
+          cobradorId: initialRuta.cobradorId || '',
+          periodoRuta: initialRuta.frecuenciaVisita || 'DIARIO',
+          nivelRiesgo: (asig.cliente.nivelRiesgo?.toLowerCase() as any) || 'leve'
+      }));
+  })
 
   const [visitaSeleccionada, setVisitaSeleccionada] = useState<string | null>(null)
   const [accionPendiente, setAccionPendiente] = useState<'PAGO' | 'ABONO' | 'REPROGRAMAR' | 'ESTADO_CUENTA' | null>(null)
@@ -134,7 +139,7 @@ const RutaClient = ({ initialRuta }: RutaClientProps) => {
     )
   }
 
-  const { id: rutaId, estadisticas, nivelRiesgo } = initialRuta;
+  const { estadisticas, nivelRiesgo } = initialRuta;
   const porcentajeProgreso = estadisticas.avanceDiario || 0;
 
   return (

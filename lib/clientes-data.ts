@@ -12,7 +12,7 @@ export async function getClientesData(): Promise<ClienteAdmin[]> {
     const cookieStore = await cookies();
     const token = cookieStore.get('token')?.value;
 
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:3001';
     
     // Server-side fetch needs absolute URL
     const res = await fetch(`${apiUrl}/clients`, {

@@ -17,8 +17,7 @@
 
 import { useState, FormEvent, useEffect } from 'react';
 import { Eye, EyeOff, Lock, User, ChevronRight } from 'lucide-react';
-import { iniciarSesion } from '@/services/autenticacion-service';
-import { LoginData, AuthResponse, UserProfile } from '@/lib/types/autenticacion-type';
+import { LoginData } from '@/lib/types/autenticacion-type';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 
@@ -34,13 +33,7 @@ interface ToastState {
   type: 'success' | 'error';
 }
 
-interface ApiError {
-  response?: {
-    status?: number;
-    data?: unknown;
-  };
-  message?: string;
-}
+
 
 const LoginPage = () => {
   const [formData, setFormData] = useState<LoginFormData>({
@@ -90,7 +83,7 @@ const LoginPage = () => {
         };
         const redirectPath = roleRedirects[user.rol] || '/admin';
         router.replace(redirectPath);
-      } catch (e) {
+      } catch {
         // Si hay error al parsear, limpiar sesión
         localStorage.removeItem('token');
         localStorage.removeItem('user');
@@ -292,11 +285,13 @@ const LoginPage = () => {
         <div className="text-center mb-16">
           <div className="flex items-center justify-center mb-6">
             <div className="relative">
-              <div className="w-20 h-20 bg-white border border-gray-200 rounded-2xl flex items-center justify-center p-3 shadow-xl shadow-blue-900/10 transition-transform hover:scale-105 hover:rotate-2 overflow-hidden">
-                <img
-                  src='/favicon.ico'
-                  alt='Logo Oficial - Credisur'
-                  className="w-full h-full object-contain"
+              <div className="w-20 h-20 bg-white border border-gray-200 rounded-2xl flex items-center justify-center p-3 shadow-xl shadow-blue-900/10 transition-transform hover:scale-105 hover:rotate-2 overflow-hidden relative">
+                <Image
+                  src="/favicon.ico"
+                  alt="Logo Oficial - Credisur"
+                  fill
+                  className="object-contain p-2"
+                  priority
                 />
               </div>
             </div>
@@ -420,7 +415,7 @@ const LoginPage = () => {
               <div className="w-full border-t border-gray-200"></div>
             </div>
             <div className="relative flex justify-center">
-              <span className="px-3 bg-white text-xs text-gray-400">v1.0.0</span>
+              <span className="px-3 bg-white text-xs text-gray-400">Versión Alpha 1.0</span>
             </div>
           </div>
 

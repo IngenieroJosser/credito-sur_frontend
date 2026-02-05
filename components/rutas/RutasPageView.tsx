@@ -58,15 +58,23 @@ interface RutasPageViewProps {
   readOnly?: boolean;
   rutasBasePath?: string;
   rutas?: Ruta[];
+  cobradores?: { id: string; nombre: string }[];
+  supervisores?: { id: string; nombre: string }[];
 }
 
-export const RutasPageView = ({ readOnly = false, rutasBasePath = '/admin/rutas', rutas = [] }: RutasPageViewProps) => {
+export const RutasPageView = ({ 
+  readOnly = false, 
+  rutasBasePath = '/admin/rutas', 
+  rutas = [],
+  cobradores = [],
+  supervisores = [] 
+}: RutasPageViewProps) => {
   const router = useRouter()
   const { user: currentUser } = useAuth()
   const [busqueda, setBusqueda] = useState('')
   const [estadoFiltro, setEstadoFiltro] = useState('TODAS')
   const [vista, setVista] = useState<'grid' | 'list'>('grid')
-  const [loading, setLoading] = useState(false)
+  // const [loading, setLoading]... removed unused
   const [showModal, setShowModal] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
 
@@ -81,38 +89,18 @@ export const RutasPageView = ({ readOnly = false, rutasBasePath = '/admin/rutas'
     descripcion: ''
   })
   
-  // Mocks restored for UI
-  const [cobradores] = useState<{ id: string, nombre: string }[]>([
-    { id: '1', nombre: 'Juan Pérez' },
-    { id: '2', nombre: 'María González' }
-  ])
-  const [supervisores] = useState<{ id: string, nombre: string }[]>([
-    { id: '1', nombre: 'Carlos Ruiz' }
-  ])
+  // Mocks removed. Data now passed via props.
+  // const [cobradores]... removed
+  // const [supervisores]... removed
+  
   const [clientesRuta] = useState<ClienteSelection[]>([]) // Typed array
   const [clientesDisponibles] = useState<ClienteSelection[]>([]) 
   const [isAddingCliente, setIsAddingCliente] = useState(false)
   
-  // Use mock data if rutas prop is empty for visualization
-  const displayRutas: Ruta[] = (rutas.length > 0 ? (rutas as Ruta[]) : [
-    {
-      id: '1',
-      nombre: 'Ruta Centro - Comercial',
-      codigo: 'RT-CEN-01',
-      zona: 'Centro',
-      estado: 'ACTIVA',
-      cobrador: 'Juan Pérez',
-      cobradorId: '1',
-      supervisorId: '1',
-      clientesAsignados: 45,
-      clientesNuevos: 3,
-      cobranzaDelDia: 1250000,
-      metaDelDia: 1500000,
-      descripcion: 'Zona comercial del centro',
-      frecuenciaVisita: 'DIARIO'
-    },
-    // ... mocks simplificados para ahorrar espacio, la lógica real usa 'rutas' prop
-  ]) as Ruta[];
+  // Use backend data directly
+  const displayRutas: Ruta[] = (rutas as Ruta[]);
+
+
   const [clienteSearch, setClienteSearch] = useState('')
   // const [clientesDisponibles] ... moved up
   const [clienteAMover, setClienteAMover] = useState<string | null>(null)
@@ -601,9 +589,9 @@ export const RutasPageView = ({ readOnly = false, rutasBasePath = '/admin/rutas'
                             <div className="w-10 h-10 rounded-xl bg-blue-50 text-primary flex items-center justify-center border border-blue-100">
                               <Route className="w-5 h-5" />
                             </div>
-                            <div>
-                              <div className="font-bold text-primary">{ruta.nombre}</div>
-                              <div className="text-xs text-slate-500 font-medium">{ruta.codigo}</div>
+                            <div className="flex-1 min-w-0">
+                              <div className="font-bold text-slate-900">{String(ruta.nombre || 'Ruta sin nombre')}</div>
+                              <div className="text-xs text-slate-500">{String(ruta.codigo || 'S/C')}</div>
                             </div>
                           </div>
                         </td>
@@ -937,11 +925,10 @@ export const RutasPageView = ({ readOnly = false, rutasBasePath = '/admin/rutas'
                       </button>
                       <button
                         type="submit"
-                        disabled={loading}
                         className="flex-1 px-4 py-2.5 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 shadow-lg shadow-blue-600/20 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         <Save className="h-4 w-4" />
-                        <span>{loading ? 'Guardando...' : 'Guardar'}</span>
+                        <span>Guardar</span>
                       </button>
                     </div>
                   </form>
@@ -994,12 +981,12 @@ export const RutasPageView = ({ readOnly = false, rutasBasePath = '/admin/rutas'
                             <div className="absolute top-full mt-2 left-0 w-full bg-white rounded-xl shadow-xl border border-slate-100 max-h-60 overflow-y-auto z-50 animate-in fade-in slide-in-from-top-2">
                               {clientesDisponibles.filter(c =>
                                 !clientesRuta.some(existing => existing.id === c.id) &&
-                                c.nombre.toLowerCase().includes(clienteSearch.toLowerCase())
+                                String(c.nombre || '').toLowerCase().includes(clienteSearch.toLowerCase())
                               ).length > 0 ? (
                                 clientesDisponibles
                                   .filter(c =>
                                     !clientesRuta.some(existing => existing.id === c.id) &&
-                                    c.nombre.toLowerCase().includes(clienteSearch.toLowerCase())
+                                    String(c.nombre || '').toLowerCase().includes(clienteSearch.toLowerCase())
                                   )
                                   .map(cliente => (
                                     <button
@@ -1007,10 +994,10 @@ export const RutasPageView = ({ readOnly = false, rutasBasePath = '/admin/rutas'
                                       onClick={() => confirmAddCliente(cliente)}
                                       className="w-full text-left px-4 py-3 hover:bg-blue-50 transition-colors border-b border-slate-50 last:border-0 group"
                                     >
-                                      <p className="font-bold text-sm text-slate-900 group-hover:text-blue-700">{cliente.nombre}</p>
+                                      <p className="font-bold text-sm text-slate-900 group-hover:text-blue-700">{String(cliente.nombre || 'Sin nombre')}</p>
                                       <div className="flex items-center gap-2 text-xs text-slate-500 mt-0.5">
                                         <MapPin className="h-3 w-3" />
-                                        <span>{cliente.direccion}</span>
+                                        <span>{String(cliente.direccion || '')}</span>
                                       </div>
                                     </button>
                                   ))
@@ -1031,17 +1018,17 @@ export const RutasPageView = ({ readOnly = false, rutasBasePath = '/admin/rutas'
                           <div className="flex items-center justify-between">
                             <div className="flex items-center gap-4">
                               <div className="h-10 w-10 bg-slate-100 rounded-full flex items-center justify-center text-slate-500 font-bold border border-slate-200">
-                                {cliente.nombre.charAt(0)}
+                                {String(cliente.nombre || '?').charAt(0)}
                               </div>
                               <div>
-                                <h4 className="font-bold text-slate-900">{cliente.nombre}</h4>
-                                <p className="text-xs text-slate-500 truncate max-w-[200px]">{cliente.direccion}</p>
+                                <h4 className="font-bold text-slate-900">{String(cliente.nombre || 'Sin nombre')}</h4>
+                                <p className="text-xs text-slate-500 truncate max-w-[200px]">{String(cliente.direccion || '')}</p>
                               </div>
                             </div>
 
                             <div className="text-right">
                               <p className="text-xs text-slate-400 font-bold uppercase">Deuda</p>
-                              <p className="font-bold text-slate-900">{formatCurrency(cliente.deuda)}</p>
+                              <p className="font-bold text-slate-900">{formatCurrency(Number(cliente.deuda || 0))}</p>
                             </div>
                           </div>
 
@@ -1068,11 +1055,11 @@ export const RutasPageView = ({ readOnly = false, rutasBasePath = '/admin/rutas'
                             </div>
 
                             <button
-                              disabled={loading || clienteAMover !== cliente.id || !rutaDestinoId}
+                              disabled={clienteAMover !== cliente.id || !rutaDestinoId}
                               onClick={() => handleMoveCliente(cliente.id)}
                               className="px-4 py-2 bg-slate-900 text-white text-sm font-bold rounded-lg hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center gap-2"
                             >
-                              {loading && clienteAMover === cliente.id ? 'Moviendo...' : 'Mover'}
+                              Mover
                             </button>
                           </div>
                         </div>

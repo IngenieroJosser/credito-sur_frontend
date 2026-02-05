@@ -10,6 +10,7 @@ export interface RutaEstadisticas {
   avanceDiario: number;
 }
 
+
 export interface RutaDetalleMock {
   id: string;
   codigo: string;
@@ -22,7 +23,10 @@ export interface RutaDetalleMock {
   estadisticas: RutaEstadisticas;
   nivelRiesgo: string;
   porcentajeMora: number;
-  asignaciones?: any[];
+  asignaciones?: Record<string, unknown>[];
+  asignacionesRuta?: Record<string, unknown>[];
+  cobradorId?: string;
+  frecuenciaVisita?: string;
 }
 
 export async function getRutaDetalle(id: string): Promise<RutaDetalleMock | null> {
@@ -51,7 +55,7 @@ export async function getRutaDetalle(id: string): Promise<RutaDetalleMock | null
   }
 }
 
-export async function getRutasList(): Promise<any[]> {
+export async function getRutasList(): Promise<Record<string, unknown>[]> {
   try {
     const cookieStore = await cookies();
     const token = cookieStore.get('token')?.value;

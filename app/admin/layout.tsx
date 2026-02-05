@@ -20,6 +20,7 @@
 import React, { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
+import Image from 'next/image'
 import { 
   Shield,
   Bell,
@@ -292,8 +293,8 @@ export default function AdminLayout({
               )}
               
               <div className="flex items-center">
-                <div className="w-12 h-12 rounded-xl flex items-center justify-center shadow-lg shadow-blue-600/10 overflow-hidden bg-white border border-gray-100 p-1.5 transition-transform hover:scale-105">
-                  <img src="/favicon.ico" alt="Logo" className="w-full h-full object-contain" />
+                <div className="w-12 h-12 rounded-xl flex items-center justify-center shadow-lg shadow-blue-600/10 overflow-hidden bg-white border border-gray-100 p-1.5 transition-transform hover:scale-105 relative">
+                  <Image src="/favicon.ico" alt="Logo" fill className="object-contain" />
                 </div>
                 <h1 className="ml-3 text-xl font-bold tracking-tight">
                   <span className="text-blue-600">Credi</span><span className="text-orange-500">Sur</span>
@@ -760,6 +761,12 @@ export default function AdminLayout({
                     )
                   })}
                 </div>
+              </div>
+              
+              <div className="mt-8 px-4 pb-4 border-t border-gray-50 pt-4">
+                <p className="text-[10px] text-gray-400 font-medium text-center uppercase tracking-widest bg-gray-50/50 py-1 rounded-full">
+                  Versión Alpha 1.0
+                </p>
               </div>
             </div>
           </nav>
