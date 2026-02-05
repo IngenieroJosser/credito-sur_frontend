@@ -137,118 +137,56 @@ const LoginPage = () => {
     setError('');
 
     try {
+      // Importamos la Server Action dinámicamente o la usamos si ya está importada
+      // Para este ejemplo, asumimos que se importa arriba como: 
+      // import { loginAction } from './actions';
+      // Como react server actions pueden ser importadas directamente:
+      const { loginAction } = await import('./actions');
+
       const payload: LoginData = {
         nombres: formData.nombres.trim(),
         contrasena: formData.password.trim(),
       };
 
-      // Depuración: Verificar qué se envía
-      console.log('Enviando payload:', payload);
+      console.log('Iniciando login SSR...');
+      const result = await loginAction(payload);
 
-      const response: AuthResponse = await iniciarSesion(payload);
-
-      // Depuración: Verificar la respuesta completa
-      console.log('Respuesta completa:', response);
-      console.log('Tipo de respuesta:', typeof response);
-
-      // Verificar si la respuesta es válida
-      if (!response || typeof response !== 'object') {
-        throw new Error('No se recibió respuesta del servidor');
+      if (!result.success) {
+        throw new Error(result.error || 'Error desconocido');
       }
 
-      // Verificar si la respuesta tiene la estructura AuthResponse esperada
-      if (!response.access_token) {
-        console.error('Respuesta no tiene access_token:', response);
-        throw new Error('Respuesta de autenticación inválida');
-      }
-
-      // Verificar si tiene la propiedad usuario
-      if (!response.usuario) {
-        console.error('Respuesta no tiene usuario:', response);
-
-        // Si no tiene usuario, crear un objeto básico con la información disponible
-        const userFullName = formData.nombres;
-        const userData: UserProfile & { nombreCompleto: string } = {
-          id: 'temp-' + Date.now(),
-          nombres: formData.nombres,
-          apellidos: '',
-          rol: 'SUPER_ADMINISTRADOR',
-          nombreCompleto: formData.nombres
-        };
-
-        // Guardar datos en localStorage
-        localStorage.setItem('token', response.access_token);
+      // Login Exitoso (La cookie ya fue puesta por el servidor)
+      
+      // Mantenemos localStorage por compatibilidad UI legado
+      if (result.user) {
+        const userFullName = `${result.user.nombres || ''} ${result.user.apellidos || ''}`.trim() || formData.nombres;
+        const userData = { ...result.user, nombreCompleto: userFullName };
+        
         localStorage.setItem('user', JSON.stringify(userData));
-
-        showToast('Bienvenido', userFullName, 'success');
-
-        setTimeout(() => {
-          router.replace('/admin');
-        }, 2000);
-        return;
+        // Ya no necesitamos guardar token en localStorage para SSR, pero lo dejamos por si acaso
+        // algún componente cliente viejo lo usa (ej. cliente HTTP axios interceptor)
       }
 
-      // Si tiene usuario, extraer los datos correctamente
-      const userName = response.usuario.nombres || formData.nombres;
-      const userFullName = `${response.usuario.nombres || ''} ${response.usuario.apellidos || ''}`.trim() || formData.nombres;
+      const userName = result.user?.nombres || formData.nombres;
+      const rol = result.user?.rol || 'Usuario';
+      
+      showToast('Bienvenido', `${userName} (${formatRol(rol)})`, 'success');
 
-      // Construir datos del usuario para localStorage
-      const userData: UserProfile & { nombreCompleto: string } = {
-        ...response.usuario,
-        nombreCompleto: userFullName
-      };
-
-      // Guardar token y datos del usuario en localStorage
-      localStorage.setItem('token', response.access_token);
-      localStorage.setItem('user', JSON.stringify(userData));
-
-      // Mostrar toast de éxito con información del rol
-      showToast('Bienvenido', `${userName} (${formatRol(response.usuario.rol)})`, 'success');
-
-      // Determinar redirección según rol
-      const roleRedirects: Record<string, string> = {
-        'COBRADOR': '/cobranzas',
-        'COORDINADOR': '/coordinador',
-        'SUPER_ADMINISTRADOR': '/admin',
-        'ADMINISTRADOR': '/admin',
-        'SUPERVISOR': '/supervisor', // O su ruta específica si existe
-        'CONTADOR': '/contador/contable'    // O su ruta específica si existe
-      };
-
-      const redirectPath = roleRedirects[response.usuario.rol] || '/admin';
-
-      // Siempre redirigir después de 2 segundos
+      // Redirigir
       setTimeout(() => {
-        console.log(`Redirigiendo a ${redirectPath} para usuario:`, userFullName);
-        router.replace(redirectPath);
-      }, 2000);
+        console.log(`Redirigiendo a ${result.redirectTo}`);
+        if (result.redirectTo) {
+          router.replace(result.redirectTo);
+          router.refresh(); // Importante para actualizar Server Components con la nueva cookie
+        }
+      }, 1500);
 
     } catch (err: unknown) {
       console.error('Error en login:', err);
-
-      // Convertir error a tipo ApiError
-      const error = err as ApiError;
-
-      // Manejo de errores específicos
-      if (error.response?.status === 401) {
-        setError('Credenciales inválidas');
-        showToast('Credenciales incorrectas', '', 'error');
-      } else if (error.response?.status === 404) {
-        setError('Usuario no encontrado');
-        showToast('Usuario no encontrado', '', 'error');
-      } else if (error.message === 'Network Error') {
-        setError('Error de conexión');
-        showToast('Error de conexión al servidor', '', 'error');
-      } else if (error.message === 'No se recibió respuesta del servidor') {
-        setError('No se recibió respuesta del servidor');
-        showToast('Error del servidor', '', 'error');
-      } else if (error.message === 'Respuesta de autenticación inválida') {
-        setError('Error en la autenticación');
-        showToast('Error en la autenticación', '', 'error');
-      } else {
-        setError('Error al iniciar sesión');
-        showToast('Error al iniciar sesión', '', 'error');
-      }
+      // Extraemos el mensaje de error de forma segura
+      const msg = err instanceof Error ? err.message : 'Error al iniciar sesión';
+      setError(msg);
+      showToast(msg, '', 'error');
     } finally {
       setIsLoading(false);
     }
