@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 
 // import Link from 'next/link'
 import { useRouter } from 'next/navigation'
@@ -19,21 +19,15 @@ import {
 } from 'lucide-react'
 import FiltroRuta from '@/components/filtros/FiltroRuta'
 import SolicitudDetalleModal, { SolicitudData } from '@/components/dashboards/shared/SolicitudDetalleModal'
+import { notificacionesService, type Notificacion as NotificacionBase } from '@/services/notificaciones-service'
 
-// Mock Data
-interface Notificacion {
-  id: string
-  titulo: string
-  mensaje: string
-  tipo: 'PAGO' | 'CLIENTE' | 'MORA' | 'SISTEMA' | 'SOLICITUD'
-  fecha: string
-  leida: boolean
-  link?: string
-  rutaId?: string
+// Extender la interfaz base para supervisor
+interface Notificacion extends NotificacionBase {
   solicitudDetails?: SolicitudData
 }
 
-const MOCK_NOTIFICACIONES: Notificacion[] = [
+// Mock fallback data
+const MOCK_NOTIFICACIONES_FALLBACK: Notificacion[] = [
   {
     id: 'NOT-001',
     titulo: 'Pago Recibido',
@@ -128,8 +122,25 @@ export default function NotificacionesSupervisorPage() {
   const [tipoFilter, setTipoFilter] = useState<'TODOS' | Notificacion['tipo']>('TODOS')
   const [filterRuta, setFilterRuta] = useState<string | null>(null)
   const [search, setSearch] = useState('')
-  const [notificacionesState, setNotificacionesState] = useState<Notificacion[]>(MOCK_NOTIFICACIONES)
+  const [notificacionesState, setNotificacionesState] = useState<Notificacion[]>([])
+  const [isLoading, setIsLoading] = useState(true)
   const [selectedSolicitud, setSelectedSolicitud] = useState<SolicitudData | null>(null)
+
+  useEffect(() => {
+    const cargarNotificaciones = async () => {
+      try {
+        const notifs = await notificacionesService.obtenerTodas()
+        setNotificacionesState(notifs as Notificacion[])
+      } catch (error) {
+        console.error('Error cargando notificaciones:', error)
+        setNotificacionesState(MOCK_NOTIFICACIONES_FALLBACK)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+    
+    cargarNotificaciones()
+  }, [])
 
   // Reset state on mount can be handled by standard initialization or simpler logic.
   // Removing useEffect to fix lint error causing build block.
@@ -341,7 +352,12 @@ export default function NotificacionesSupervisorPage() {
 
             {/* Lista */}
             <div className="divide-y divide-slate-100">
-              {notificaciones.length > 0 ? (
+              {isLoading ? (
+                <div className="p-16 text-center">
+                  <div className="animate-spin mx-auto mb-4 h-8 w-8 border-4 border-blue-600 border-t-transparent rounded-full"></div>
+                  <p className="text-slate-500 text-sm font-medium">Cargando notificaciones...</p>
+                </div>
+              ) : notificaciones.length > 0 ? (
                 notificaciones.map((notif) => (
                   <div 
                     key={notif.id} 

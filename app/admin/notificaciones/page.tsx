@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 
 import { useRouter } from 'next/navigation'
 import { 
@@ -23,39 +23,10 @@ import {
   Info
 } from 'lucide-react'
 import FiltroRuta from '@/components/filtros/FiltroRuta'
+import { notificacionesService, type Notificacion } from '@/services/notificaciones-service'
 
-// Mock Data
-interface Notificacion {
-  id: string
-  titulo: string
-  mensaje: string
-  tipo: 'PAGO' | 'CLIENTE' | 'MORA' | 'SISTEMA' | 'PRESTAMO' | 'GASTO' | 'SOLICITUD_DINERO'
-  fecha: string
-  leida: boolean
-  link?: string
-  rutaId?: string
-  estado?: 'PENDIENTE' | 'APROBADA' | 'RECHAZADA'
-  detalles?: {
-    monto?: number
-    cuotas?: number
-    porcentaje?: number
-    cliente?: string
-    cedula?: string
-    telefono?: string
-    direccion?: string
-    ocupacion?: string
-    articulo?: string
-    valorArticulo?: number
-    cuotaInicial?: number
-    beneficiario?: string
-    categoria?: string
-    frecuenciaPago?: 'DIARIO' | 'SEMANAL' | 'QUINCENAL' | 'MENSUAL'
-    motivo?: string
-  }
-  motivoRechazo?: string
-}
-
-const MOCK_NOTIFICACIONES: Notificacion[] = [
+// MOCK_NOTIFICACIONES eliminado - usar notificacionesService.obtenerTodas()
+const MOCK_NOTIFICACIONES_FALLBACK: Notificacion[] = [
   {
     id: 'NOT-LP-001',
     titulo: 'Solicitud de Préstamo - Juan Cobrador',
@@ -146,25 +117,39 @@ export default function NotificacionesPage() {
   const [tipoFilter, setTipoFilter] = useState<'TODOS' | Notificacion['tipo']>('TODOS')
   const [filterRuta, setFilterRuta] = useState<string | null>(null)
   const [search, setSearch] = useState('')
-  const [notificacionesState, setNotificacionesState] = useState<Notificacion[]>(() => {
-    if (typeof window === 'undefined') return MOCK_NOTIFICACIONES
-    try {
-      const userStr = localStorage.getItem('user')
-      if (!userStr) return MOCK_NOTIFICACIONES
-      const user = JSON.parse(userStr) as { rol?: string }
-      const basePath = user.rol === 'COBRADOR' ? '/cobranzas' : user.rol === 'CONTADOR' ? '/contador' : user.rol === 'COORDINADOR' ? '/coordinador' : '/admin'
-      return MOCK_NOTIFICACIONES.map((n) => {
-        let link = undefined
-        if (n.tipo === 'PAGO') link = basePath
-        if (n.tipo === 'CLIENTE') link = user.rol === 'COBRADOR' ? `${basePath}/clientes/nuevo` : undefined
-        if (n.tipo === 'MORA') link = basePath
-        if (n.tipo === 'SISTEMA') link = user.rol === 'COBRADOR' ? `${basePath}/solicitudes` : undefined
-        return { ...n, link }
-      })
-    } catch {
-      return MOCK_NOTIFICACIONES
+  const [notificacionesState, setNotificacionesState] = useState<Notificacion[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+
+  useEffect(() => {
+    const cargarNotificaciones = async () => {
+      try {
+        const notifs = await notificacionesService.obtenerTodas()
+        
+        // Agregar links basados en rol del usuario
+        const userStr = typeof window !== 'undefined' ? localStorage.getItem('user') : null
+        const user = userStr ? JSON.parse(userStr) as { rol?: string } : null
+        const basePath = user?.rol === 'COBRADOR' ? '/cobranzas' : user?.rol === 'CONTADOR' ? '/contador' : user?.rol === 'COORDINADOR' ? '/coordinador' : '/admin'
+        
+        const notifsConLinks = notifs.map((n) => {
+          let link = undefined
+          if (n.tipo === 'PAGO') link = basePath
+          if (n.tipo === 'CLIENTE') link = user?.rol === 'COBRADOR' ? `${basePath}/clientes/nuevo` : undefined
+          if (n.tipo === 'MORA') link = basePath
+          if (n.tipo === 'SISTEMA') link = user?.rol === 'COBRADOR' ? `${basePath}/solicitudes` : undefined
+          return { ...n, link }
+        })
+        
+        setNotificacionesState(notifsConLinks)
+      } catch (error) {
+        console.error('Error cargando notificaciones:', error)
+        setNotificacionesState(MOCK_NOTIFICACIONES_FALLBACK)
+      } finally {
+        setIsLoading(false)
+      }
     }
-  })
+    
+    cargarNotificaciones()
+  }, [])
 
   const [selectedNotif, setSelectedNotif] = useState<Notificacion | null>(null)
   const [editedDetails, setEditedDetails] = useState<Notificacion['detalles']>({})
@@ -320,7 +305,14 @@ export default function NotificacionesPage() {
             
             <div className="flex gap-3">
                <button
-                 onClick={() => setNotificacionesState((prev) => prev.map((n) => ({ ...n, leida: true })))}
+                 onClick={async () => {
+                   try {
+                     await notificacionesService.marcarTodasComoLeidas()
+                     setNotificacionesState((prev) => prev.map((n) => ({ ...n, leida: true })))
+                   } catch (error) {
+                     console.error('Error marcando notificaciones:', error)
+                   }
+                 }}
                  className="px-4 py-2 bg-white border border-slate-200 rounded-xl text-slate-600 font-bold hover:bg-slate-50 hover:text-blue-600 transition-colors shadow-sm flex items-center gap-2"
                >
                  <CheckCircle2 className="h-4 w-4" />
@@ -447,7 +439,12 @@ export default function NotificacionesPage() {
 
             {/* Lista */}
             <div className="divide-y divide-slate-100">
-              {notificaciones.length > 0 ? (
+              {isLoading ? (
+                <div className="p-16 text-center">
+                  <div className="animate-spin mx-auto mb-4 h-8 w-8 border-4 border-blue-600 border-t-transparent rounded-full"></div>
+                  <p className="text-slate-500 text-sm font-medium">Cargando notificaciones...</p>
+                </div>
+              ) : notificaciones.length > 0 ? (
                 notificaciones.map((notif) => (
                   <div 
                     key={notif.id} 
@@ -510,19 +507,24 @@ export default function NotificacionesPage() {
                           </>
                         )}
 
-                        {!notif.leida && (
-                          <button
-                            onClick={() =>
-                              setNotificacionesState((prev) =>
-                                prev.map((n) => (n.id === notif.id ? { ...n, leida: true } : n))
-                              )
-                            }
-                            className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-colors"
-                            title="Marcar como leída"
-                          >
-                            <CheckCircle2 className="h-4 w-4" />
-                          </button>
-                        )}
+                         {!notif.leida && (
+                           <button
+                             onClick={async () => {
+                               try {
+                                 await notificacionesService.marcarComoLeida(notif.id)
+                                 setNotificacionesState((prev) =>
+                                   prev.map((n) => (n.id === notif.id ? { ...n, leida: true } : n))
+                                 )
+                               } catch (error) {
+                                 console.error('Error marcando notificación:', error)
+                               }
+                             }}
+                             className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-colors"
+                             title="Marcar como leída"
+                           >
+                             <CheckCircle2 className="h-4 w-4" />
+                           </button>
+                         )}
                       </div>
                     </div>
                   </div>

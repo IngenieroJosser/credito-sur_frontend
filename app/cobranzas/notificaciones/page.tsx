@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { 
   Bell, 
@@ -14,19 +14,9 @@ import {
   Search,
   ArrowRight
 } from 'lucide-react'
+import { notificacionesService, type Notificacion } from '@/services/notificaciones-service'
 
-// Mock Data
-interface Notificacion {
-  id: string
-  titulo: string
-  mensaje: string
-  tipo: 'PAGO' | 'CLIENTE' | 'MORA' | 'SISTEMA'
-  fecha: string
-  leida: boolean
-  link?: string
-}
-
-const MOCK_NOTIFICACIONES: Notificacion[] = [
+const MOCK_NOTIFICACIONES_FALLBACK: Notificacion[] = [
   {
     id: 'NOT-001',
     titulo: 'Pago Recibido',
@@ -43,21 +33,30 @@ const MOCK_NOTIFICACIONES: Notificacion[] = [
     tipo: 'CLIENTE',
     fecha: 'Hace 2 horas',
     leida: false,
-    link: '/cobranzas'
+    link: '/cobranzas/clientes'
   },
   {
     id: 'NOT-003',
     titulo: 'Alerta de Mora',
-    mensaje: 'Cuentas en mora detectadas en tu ruta hoy',
+    mensaje: '3 cuentas han entrado en mora hoy',
     tipo: 'MORA',
     fecha: 'Hace 4 horas',
     leida: false,
+    link: '/cobranzas/clientes'
+  },
+  {
+    id: 'NOT-004',
+    titulo: 'Cierre Diario',
+    mensaje: 'El cierre diario se ha completado exitosamente',
+    tipo: 'SISTEMA',
+    fecha: 'Ayer, 18:30',
+    leida: true,
     link: '/cobranzas'
   },
   {
     id: 'NOT-005',
     titulo: 'Solicitud Aprobada',
-    mensaje: 'El préstamo P-1024 ha sido aprobado por Coordinación',
+    mensaje: 'Tu solicitud de préstamo P-1024 ha sido aprobada',
     tipo: 'SISTEMA',
     fecha: 'Ayer, 15:45',
     leida: true,
@@ -65,12 +64,29 @@ const MOCK_NOTIFICACIONES: Notificacion[] = [
   }
 ]
 
-export default function NotificacionesCobradorPage() {
+export default function NotificacionesCobranzasPage() {
   const router = useRouter()
-  const [filter, setFilter] = useState<'TODAS' | 'NO_LEIDAS'>('TODAS')
+  const [filter, setFilter] = useState<'TODAS' | 'NO_LEIDAS' | 'LEIDAS'>('TODAS')
   const [tipoFilter, setTipoFilter] = useState<'TODOS' | Notificacion['tipo']>('TODOS')
   const [search, setSearch] = useState('')
-  const [notificacionesState, setNotificacionesState] = useState<Notificacion[]>(MOCK_NOTIFICACIONES)
+  const [notificacionesState, setNotificacionesState] = useState<Notificacion[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  
+  useEffect(() => {
+    const cargarNotificaciones = async () => {
+      try {
+        const notifs = await notificacionesService.obtenerTodas()
+        setNotificacionesState(notifs)
+      } catch (error) {
+        console.error('Error cargando notificaciones:', error)
+        setNotificacionesState(MOCK_NOTIFICACIONES_FALLBACK)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+    
+    cargarNotificaciones()
+  }, [])
 
   const notificaciones = notificacionesState
     .filter((n) => (filter === 'TODAS' ? true : !n.leida))
