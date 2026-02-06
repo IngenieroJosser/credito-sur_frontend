@@ -70,7 +70,9 @@ interface DashboardData {
   chartData: Array<{
     label: string;
     value: number;
-    target: number;
+    target?: number;
+    date?: string;
+    time?: string;
   }>;
   userFullName: string;
   userRole: string;
@@ -239,7 +241,7 @@ function configurarDashboardPorRol(rol: Rol, period: TimeFilterPeriod = 'month')
         color: '#3b82f6'
       },
       {
-        title: 'Recaudo Real vs Esperado',
+        title: 'Recaudo Real vs Objetivo',
         value: period === 'today' ? '98.5%' : '94.2%',
         subValue: `${formatCurrency(12500000 * factor)} / ${formatCurrency(13200000 * factor)}`,
         isCurrency: false,
@@ -275,7 +277,7 @@ function configurarDashboardPorRol(rol: Rol, period: TimeFilterPeriod = 'month')
         color: '#3b82f6'
       },
       {
-        title: 'Recaudo Real vs Esperado',
+        title: 'Recaudo Real vs Objetivo',
         value: period === 'today' ? '98.5%' : '94.2%',
         subValue: `${formatCurrency(12500000 * factor)} / ${formatCurrency(13200000 * factor)}`,
         isCurrency: false,
@@ -450,16 +452,31 @@ function configurarDashboardPorRol(rol: Rol, period: TimeFilterPeriod = 'month')
       { name: 'Armando Mendoza', collected: 8500000 * factor, efficiency: 85, trend: 'down' as const },
     ],
     chartData: period === 'today' ? [
-      { label: '8am', value: 250000, target: 300000 },
-      { label: '10am', value: 580000, target: 500000 },
-      { label: '12pm', value: 490000, target: 500000 },
-      { label: '2pm', value: 840000, target: 700000 },
-      { label: '4pm', value: 295000, target: 400000 },
+      { label: 'Cobro-01', value: 125500.25, target: 150000, date: '06 de Febrero, 2026', time: '08:12:45' },
+      { label: 'Cobro-02', value: 450200.00, target: 150000, date: '06 de Febrero, 2026', time: '08:35:10' },
+      { label: 'Cobro-03', value: 85000.50, target: 100000, date: '06 de Febrero, 2026', time: '09:05:33' },
+      { label: 'Cobro-04', value: 520800.75, target: 200000, date: '06 de Febrero, 2026', time: '09:45:12' },
+      { label: 'Cobro-05', value: 310500.00, target: 250000, date: '06 de Febrero, 2026', time: '10:10:01' },
+      { label: 'Cobro-06', value: 95400.00, target: 100000, date: '06 de Febrero, 2026', time: '10:25:58' },
+      { label: 'Cobro-07', value: 642000.50, target: 500000, date: '06 de Febrero, 2026', time: '10:55:22' },
+      { label: 'Cobro-08', value: 295300.25, target: 300000, date: '06 de Febrero, 2026', time: '11:15:00' },
+      { label: 'Cobro-09', value: 180000.00, target: 150000, date: '06 de Febrero, 2026', time: '11:40:15' },
+      { label: 'Cobro-10', value: 420000.00, target: 400000, date: '06 de Febrero, 2026', time: '12:05:30' },
+      { label: 'Cobro-11', value: 155000.50, target: 200000, date: '06 de Febrero, 2026', time: '12:30:45' },
+      { label: 'Cobro-12', value: 380000.25, target: 300000, date: '06 de Febrero, 2026', time: '13:02:12' },
+      { label: 'Cobro-13', value: 92000.00, target: 100000, date: '06 de Febrero, 2026', time: '13:25:55' },
+      { label: 'Cobro-14', value: 510000.75, target: 450000, date: '06 de Febrero, 2026', time: '13:45:00' },
+      { label: 'Cobro-15', value: 245000.00, target: 200000, date: '06 de Febrero, 2026', time: '14:10:22' },
+      { label: 'Cobro-16', value: 670000.50, target: 600000, date: '06 de Febrero, 2026', time: '14:35:10' },
+      { label: 'Cobro-17', value: 115000.25, target: 150000, date: '06 de Febrero, 2026', time: '15:05:33' },
+      { label: 'Cobro-18', value: 430800.00, target: 400000, date: '06 de Febrero, 2026', time: '15:30:12' },
+      { label: 'Cobro-19', value: 210500.75, target: 200000, date: '06 de Febrero, 2026', time: '15:55:01' },
+      { label: 'Cobro-20', value: 780000.00, target: 700000, date: '06 de Febrero, 2026', time: '16:20:58' },
     ] : [
-      { label: 'Sem 1', value: 25000000 * factor, target: 30000000 * factor },
-      { label: 'Sem 2', value: 28000000 * factor, target: 30000000 * factor },
-      { label: 'Sem 3', value: 19000000 * factor, target: 30000000 * factor },
-      { label: 'Sem 4', value: 34000000 * factor, target: 30000000 * factor },
+      { label: 'Sem 1', value: 25012500 * factor, target: 30000000 * factor, date: 'Semana 1 de Febrero' },
+      { label: 'Sem 2', value: 28450600 * factor, target: 30000000 * factor, date: 'Semana 2 de Febrero' },
+      { label: 'Sem 3', value: 19500200 * factor, target: 30000000 * factor, date: 'Semana 3 de Febrero' },
+      { label: 'Sem 4', value: 34120800 * factor, target: 30000000 * factor, date: 'Semana 4 de Febrero' },
     ]
   };
 }

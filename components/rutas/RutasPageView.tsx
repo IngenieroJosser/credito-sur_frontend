@@ -185,9 +185,9 @@ export const RutasPageView = ({
   const rutasActivas = displayRutas.filter((ruta) => ruta.estado === 'ACTIVA').length
   const rutasPendientes = displayRutas.filter((ruta) => ruta.estado === 'PENDIENTE_ACTIVACION').length
   const totalClientes = displayRutas.reduce((acc, curr) => acc + curr.clientesAsignados, 0)
-  const metaTotal = displayRutas.reduce((acc, curr) => acc + curr.metaDelDia, 0)
+  const objetivoTotal = displayRutas.reduce((acc, curr) => acc + curr.metaDelDia, 0)
   const cobranzaTotal = displayRutas.reduce((acc, curr) => acc + curr.cobranzaDelDia, 0)
-  const porcentajeAvance = metaTotal > 0 ? (cobranzaTotal / metaTotal) * 100 : 0
+  const porcentajeAvance = objetivoTotal > 0 ? (cobranzaTotal / objetivoTotal) * 100 : 0
 
   // Force list view for Coordinador and Admin
   if ((rutasBasePath.includes('/coordinador') || rutasBasePath.includes('/admin')) && vista !== 'list') {
@@ -275,7 +275,7 @@ export const RutasPageView = ({
               {
                 label: 'Avance Cobranza',
                 value: `${porcentajeAvance.toFixed(1)}%`,
-                sub: `Meta: ${formatCurrency(metaTotal)}`,
+                sub: `Objetivo: ${formatCurrency(objetivoTotal)}`,
                 icon: TrendingUp,
                 color: 'text-slate-900',
                 subColor: 'text-slate-500',
@@ -472,7 +472,7 @@ export const RutasPageView = ({
                       </div>
                     </div>
 
-                    {/* Barra de progreso de meta diaria */}
+                    {/* Barra de progreso de objetivo diario */}
                     {ruta.estado === 'ACTIVA' && (
                       <div className="pt-6 border-t border-slate-100">
                         <div className="flex justify-between items-end mb-2">
@@ -492,7 +492,7 @@ export const RutasPageView = ({
                             }}
                           ></div>
                         </div>
-                        <p className="text-xs text-right text-slate-400 mt-2 font-medium">Meta: {formatCurrency(ruta.metaDelDia)}</p>
+                        <p className="text-xs text-right text-slate-400 mt-2 font-medium">Objetivo: {formatCurrency(ruta.metaDelDia)}</p>
                       </div>
                     )}
                   </div>

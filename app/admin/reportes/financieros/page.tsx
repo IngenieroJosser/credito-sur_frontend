@@ -14,7 +14,7 @@ import {
 } from 'lucide-react'
 import { formatCurrency } from '@/lib/utils'
 import { ExportButton } from '@/components/ui/ExportButton'
-import { PremiumBarChart } from '@/components/ui/PremiumCharts'
+import { TransactionalHighDetailChart } from '@/components/ui/TransactionalHighDetailChart'
 import DetalleReporteFinancieroModal from '@/components/reportes/DetalleReporteFinancieroModal'
 
 // Interfaces
@@ -274,7 +274,7 @@ const ReportesFinancierosPage = () => {
               </div>
             </div>
             
-            <PremiumBarChart 
+            <TransactionalHighDetailChart 
               type="double"
               data={monthlyData.map(d => ({
                 label: d.mes,

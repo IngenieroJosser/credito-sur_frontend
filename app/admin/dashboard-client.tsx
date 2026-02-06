@@ -12,7 +12,7 @@ import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import { TimeFilter, TimeFilterPeriod } from '@/components/ui/TimeFilter';
 import { formatCurrency } from '@/lib/utils';
 import { ExportButton } from '@/components/ui/ExportButton';
-import { PremiumBarChart } from '@/components/ui/PremiumCharts';
+import { TransactionalHighDetailChart } from '@/components/ui/TransactionalHighDetailChart';
 import CrearCreditoModal from '@/components/dashboards/shared/CrearCreditoModal';
 
 interface MetricItem {
@@ -55,7 +55,9 @@ interface DashboardData {
   chartData: Array<{
     label: string;
     value: number;
-    target: number;
+    target?: number;
+    date?: string;
+    time?: string;
   }>;
 }
 
@@ -109,7 +111,7 @@ export function DashboardClient({ data }: DashboardClientProps) {
         <div className="absolute left-0 right-0 top-0 -z-10 m-auto h-[310px] w-[310px] rounded-full bg-primary opacity-20 blur-[100px]"></div>
       </div>
 
-      <div className="relative z-10 p-6 lg:p-12 space-y-12">
+      <div className="relative z-10 p-6 lg:p-16 space-y-20 max-w-[1600px] mx-auto">
         {/* Header Standard */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 animate-in fade-in slide-in-from-top-4 duration-500">
           <div>
@@ -146,38 +148,48 @@ export function DashboardClient({ data }: DashboardClientProps) {
           </div>
         </div>
 
-        {/* Métricas principales */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        {/* Métricas principales - Optimizadas para evitar saturación */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
           {data.mainMetrics.map((metric, index) => (
             <div
               key={index}
-              className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-slate-100 hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all duration-300 group hover:-translate-y-1"
+              className="bg-white/90 backdrop-blur-md rounded-3xl p-8 shadow-[0_10px_40px_rgb(0,0,0,0.04)] border border-slate-100 hover:shadow-[0_20px_50px_rgb(0,0,0,0.1)] transition-all duration-500 group hover:-translate-y-2 relative overflow-hidden"
             >
-              <div className="flex items-start justify-between mb-4">
+              {/* Decoración sutil de fondo para la métrica */}
+              <div 
+                className="absolute -right-4 -bottom-4 w-24 h-24 rounded-full opacity-[0.03] transition-transform duration-700 group-hover:scale-150"
+                style={{ backgroundColor: metric.color }}
+              ></div>
+
+              <div className="flex items-start justify-between mb-6 relative z-10">
                 <div 
-                  className="p-3 rounded-xl transition-all duration-300"
-                  style={{ backgroundColor: `${metric.color}10`, color: metric.color }}
+                  className="p-4 rounded-2xl transition-all duration-500 shadow-sm group-hover:shadow-md group-hover:scale-110"
+                  style={{ backgroundColor: `${metric.color}15`, color: metric.color }}
                 >
-                  {metric.icon}
+                  {React.cloneElement(metric.icon as React.ReactElement<any>, { size: 24 })}
                 </div>
-                <div className={`flex items-center space-x-1 text-xs font-bold px-2 py-1 rounded-full ${
+                <div className={`flex items-center space-x-1.5 text-[11px] font-black px-3 py-1 rounded-full shadow-sm ${
                   metric.change >= 0 
-                    ? 'text-emerald-700 bg-emerald-50' 
-                    : 'text-rose-700 bg-rose-50'
+                    ? 'text-emerald-700 bg-emerald-100/50' 
+                    : 'text-rose-700 bg-rose-100/50'
                 }`}>
-                  {metric.change >= 0 ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
+                  {metric.change >= 0 ? <TrendingUp className="h-3.5 w-3.5" /> : <TrendingDown className="h-3.5 w-3.5" />}
                   <span>{metric.change >= 0 ? '+' : ''}{metric.change}%</span>
                 </div>
               </div>
               
-              <div className="space-y-1">
-                <div className="text-2xl font-bold text-slate-800 tracking-tight truncate" title={metric.isCurrency ? formatCurrency(Number(metric.value)) : String(metric.value)}>
-                  {metric.isCurrency ? formatCurrency(Number(metric.value)) : metric.value}
+              <div className="space-y-2 relative z-10">
+                <div className="text-3xl font-black text-slate-900 tracking-tight truncate leading-tight" title={metric.isCurrency ? formatCurrency(Number(metric.value)) : String(metric.value)}>
+                  {metric.isCurrency ? formatCurrency(Number(metric.value)).split(',')[0] : metric.value}
+                  {metric.isCurrency && <span className="text-sm font-bold text-slate-400 opacity-60 ml-1">,{formatCurrency(Number(metric.value)).split(',')[1]}</span>}
                 </div>
                 {metric.subValue && (
-                  <div className="text-xs font-medium text-slate-500">{metric.subValue}</div>
+                  <div className="text-[11px] font-bold text-slate-500/80 uppercase tracking-wide flex items-center gap-1.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-slate-300"></span>
+                    {metric.subValue}
+                  </div>
                 )}
-                <div className="text-xs font-medium text-slate-400 uppercase tracking-wider">{metric.title}</div>
+                <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest pt-1">{metric.title}</div>
               </div>
             </div>
           ))}
@@ -192,22 +204,11 @@ export function DashboardClient({ data }: DashboardClientProps) {
               <div className="flex items-center justify-between mb-6">
                 <div>
                   <h3 className="text-lg font-bold text-slate-800">Tendencia de Cobros</h3>
-                  <p className="text-slate-500 text-sm">Últimos 7 días vs Meta Diaria</p>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="flex items-center gap-1.5 text-xs font-medium text-slate-600">
-                    <div className="w-3 h-3 rounded-full bg-blue-500"></div>
-                    Real
-                  </div>
-                  <div className="flex items-center gap-1.5 text-xs font-medium text-slate-600">
-                    <div className="w-3 h-3 rounded-full border-2 border-dashed border-amber-500 bg-amber-50"></div>
-                    Meta
-                  </div>
+                  <p className="text-slate-500 text-sm">Últimos 7 días vs Objetivo Diario</p>
                 </div>
               </div>
               
-              <PremiumBarChart 
-                showTarget
+              <TransactionalHighDetailChart 
                 data={data.chartData}
               />
             </div>

@@ -127,8 +127,8 @@ const ReportesOperativosPage = () => {
   // CÁLCULOS AUTOMÁTICOS KPIs (Basados en datos filtrados)
   // Estos cálculos derivan métricas globales a partir de los datos individuales
   const totalRecaudo = rendimientoFiltrado.reduce((acc, item) => acc + item.recaudado, 0)
-  const totalMeta = rendimientoFiltrado.reduce((acc, item) => acc + item.meta, 0)
-  const porcentajeGlobal = totalMeta > 0 ? Math.round((totalRecaudo / totalMeta) * 100) : 0
+  const totalObjetivo = rendimientoFiltrado.reduce((acc, item) => acc + item.meta, 0)
+  const porcentajeGlobal = totalObjetivo > 0 ? Math.round((totalRecaudo / totalObjetivo) * 100) : 0
 
   if (!mounted) {
     return null
@@ -181,7 +181,7 @@ const ReportesOperativosPage = () => {
             <div className="flex items-center gap-2">
               <span className="inline-flex items-center gap-1 text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-full border border-emerald-100">
                 <TrendingUp className="h-3 w-3" />
-                {porcentajeGlobal}% meta
+                {porcentajeGlobal}% objetivo
               </span>
               <span className="text-xs text-slate-400 font-medium">vs ayer</span>
             </div>
@@ -260,7 +260,7 @@ const ReportesOperativosPage = () => {
                 <tr>
                   <th className="px-6 py-4 tracking-wider">Ruta</th>
                   <th className="px-6 py-4 tracking-wider">Cobrador</th>
-                  <th className="px-6 py-4 tracking-wider text-right">Meta</th>
+                  <th className="px-6 py-4 tracking-wider text-right">Objetivo</th>
                   <th className="px-6 py-4 tracking-wider text-right">Recaudado</th>
                   <th className="px-6 py-4 tracking-wider text-center">Eficiencia</th>
                   <th className="px-6 py-4 tracking-wider text-center">Nuevos Prést.</th>
@@ -323,7 +323,7 @@ const ReportesOperativosPage = () => {
         {/* Gráfico de Barras Simple (CSS) */}
         <section className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <div className="bg-white/80 backdrop-blur-sm p-6 rounded-2xl border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all">
-            <h3 className="font-bold text-slate-900 mb-6 text-lg">Comparativa de Recaudo vs Meta</h3>
+            <h3 className="font-bold text-slate-900 mb-6 text-lg">Comparativa de Recaudo vs Objetivo</h3>
             <div className="space-y-6">
               {rendimientoFiltrado.map((item, idx) => (
                 <div key={idx} className="space-y-2">
