@@ -19,7 +19,7 @@ import {
 } from 'lucide-react'
 import ClienteDetalleElegante, { Cliente, Prestamo, Pago, Comentario } from '@/components/cliente/DetalleCliente'
 import Link from 'next/link'
-import { MOCK_CLIENTES } from '@/services/clientes-service'
+import { clientesService } from '@/services/clientes-service'
 import { formatCOPInputValue, formatMilesCOP, parseCOPInputToNumber } from '@/lib/utils'
 
 const MODAL_Z_INDEX = 2147483647
@@ -67,16 +67,32 @@ export default function ClienteDetalleSupervisorPage() {
     comprobanteDomicilio: null as File | null,
   })
 
-  const clienteEncontrado = MOCK_CLIENTES.find((c) => c.id === id) || MOCK_CLIENTES[0]
+  const [clienteData, setClienteData] = useState<any>(null)
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
-  const clienteData = {
-    ...clienteEncontrado,
-    prestamos: [],
-    pagos: [],
-  }
-
-  const isLoading = false
-  const error = null
+  useEffect(() => {
+    const fetch = async () => {
+      try {
+        const data = await clientesService.obtenerPorId(id)
+        if (data) {
+           // Asegurar campos para UI
+           setClienteData({ 
+                ...data, 
+                prestamos: (data as any).prestamos || [], 
+                pagos: (data as any).pagos || []
+           })
+        } else {
+           setError('Cliente no encontrado')
+        }
+      } catch (e) {
+        setError('Error al cargar cliente')
+      } finally {
+        setIsLoading(false)
+      }
+    }
+    if (id) fetch()
+  }, [id])
 
   if (isLoading) {
     return (
@@ -249,7 +265,6 @@ export default function ClienteDetalleSupervisorPage() {
           prestamos={prestamos}
           pagos={pagos}
           comentarios={comentarios}
-          rolUsuario="supervisor"
         />
       </main>
 

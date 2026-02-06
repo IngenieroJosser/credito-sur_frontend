@@ -12,6 +12,7 @@ export interface Ruta {
   creadoEn: string;
   actualizadoEn: string;
   eliminadoEn: string | null;
+  asignaciones?: any[]; // Incluimos asignaciones para el detalle
 }
 
 export interface CrearRutaDto {

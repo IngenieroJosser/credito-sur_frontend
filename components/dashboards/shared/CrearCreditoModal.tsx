@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import {
   X,
   DollarSign,
@@ -12,8 +12,8 @@ import {
 } from 'lucide-react'
 import { formatCOPInputValue, formatCurrency, parseCOPInputToNumber } from '@/lib/utils'
 import { Portal, MODAL_Z_INDEX } from '@/components/dashboards/shared/CobradorElements'
-import { MOCK_CLIENTES } from '@/services/clientes-service'
-import { MOCK_ARTICULOS } from '@/services/articulos-service'
+import { clientesService, Cliente } from '@/services/clientes-service'
+import { articulosService, Articulo } from '@/services/articulos-service'
 
 interface CrearCreditoModalProps {
   isOpen: boolean
@@ -40,7 +40,23 @@ export default function CrearCreditoModal({ isOpen, onClose, onConfirm }: CrearC
   const [articuloSeleccionadoId, setArticuloSeleccionadoId] = useState<string>('')
   const [planArticuloIndex, setPlanArticuloIndex] = useState<number | null>(null)
   
-  const articuloSeleccionado = MOCK_ARTICULOS.find(a => a.id === articuloSeleccionadoId)
+  
+  const [clientes, setClientes] = useState<Cliente[]>([]);
+  const [articulos, setArticulos] = useState<Articulo[]>([]);
+
+  useEffect(() => {
+    if (isOpen) {
+        Promise.all([
+          clientesService.obtenerTodos(),
+          articulosService.obtenerArticulos()
+        ]).then(([c, a]) => {
+          setClientes(c);
+          setArticulos(a);
+        }).catch(err => console.error(err));
+    }
+  }, [isOpen]);
+
+  const articuloSeleccionado = articulos.find(a => a.id === articuloSeleccionadoId)
 
   const planSeleccionado = useMemo(() => (articuloSeleccionado && planArticuloIndex !== null) 
     ? articuloSeleccionado.opcionesCuotas[planArticuloIndex] 
@@ -152,7 +168,7 @@ export default function CrearCreditoModal({ isOpen, onClose, onConfirm }: CrearC
                   className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-white text-sm font-bold text-slate-700"
                 >
                   <option value="">Selecciona un cliente</option>
-                  {MOCK_CLIENTES.map((c) => (
+                  {clientes.map((c) => (
                     <option key={c.id} value={c.id}>
                       {c.nombres} {c.apellidos}
                     </option>
@@ -259,7 +275,7 @@ export default function CrearCreditoModal({ isOpen, onClose, onConfirm }: CrearC
                         className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-[#08557f] focus:ring-0 font-bold text-slate-900"
                       >
                         <option value="">Seleccionar artículo...</option>
-                        {MOCK_ARTICULOS.map((articulo) => (
+                        {articulos.map((articulo) => (
                           <option key={articulo.id} value={articulo.id}>
                             {articulo.nombre}
                           </option>

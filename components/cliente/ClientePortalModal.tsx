@@ -1,9 +1,9 @@
 'use client';
 
-import React from 'react';
+import { useState, useEffect } from 'react';
 import { X, BarChart3 } from 'lucide-react';
-import ClienteDetalleElegante, { Cliente, Prestamo, Pago, Comentario } from './DetalleCliente';
-import { MOCK_CLIENTES } from '@/services/clientes-service';
+import ClienteDetalleElegante, { Cliente as ClienteUI, Prestamo, Pago, Comentario } from './DetalleCliente';
+import { clientesService } from '@/services/clientes-service';
 import { Smartphone, DollarSign } from 'lucide-react';
 import { createPortal } from 'react-dom';
 
@@ -21,11 +21,69 @@ function Portal({ children }: { children: React.ReactNode }) {
 }
 
 export default function ClientePortalModal({ clientId, onClose, rolUsuario = 'contador' }: ClientePortalModalProps) {
-  // Buscar datos del cliente (mismo patrón que en la página)
-  // En un entorno real, esto sería un fetch
-  const clienteEncontrado = MOCK_CLIENTES.find(c => c.id === clientId) || MOCK_CLIENTES[0];
+  const [clienteData, setClienteData] = useState<ClienteUI | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [prestamos, setPrestamos] = useState<Prestamo[]>([]);
+  const [pagos, setPagos] = useState<Pago[]>([]);
+
+  useEffect(() => {
+    const fetchCliente = async () => {
+        try {
+            const data = await clientesService.obtenerPorId(clientId);
+            if (data) {
+                // Adaptar data backend a UI
+                setClienteData({
+                    id: data.id,
+                    nombres: data.nombres,
+                    apellidos: data.apellidos,
+                    dni: data.dni,
+                    telefono: data.telefono,
+                    direccion: data.direccion || 'Sin dirección',
+                    correo: data.correo || '',
+                    estado: 'activo', // Mock o derivado
+                    fechaRegistro: data.fechaRegistro || new Date().toISOString(),
+                    avatarColor: 'bg-blue-600',
+                    nivelRiesgo: data.nivelRiesgo as any || 'VERDE'
+                });
+                
+                // Si el backend devolviera prestamos y pagos (actualmente obtenerPorId retorna Cliente con include?)
+                // Por ahora inicializamos vacios o mocked si no vienen
+                // data.prestamos vendria si modificamos el service/backend
+                const prestamosBackend: any[] = (data as any).prestamos || [];
+                setPrestamos(prestamosBackend.map(p => ({
+                    id: p.id,
+                    monto: p.monto,
+                    fechaInicio: p.fechaInicio,
+                    estado: p.estado,
+                    icono: <Smartphone className="w-5 h-5" />,
+                    categoria: 'General'
+                })));
+                
+                const pagosBackend: any[] = (data as any).pagos || [];
+                setPagos(pagosBackend.map(p => ({
+                    id: String(p.id),
+                    fecha: p.fecha ? new Date(p.fecha).toLocaleDateString() : 'N/A',
+                    monto: Number(p.monto || 0),
+                    cuota: 1, // Default
+                    metodo: 'Efectivo',
+                    estado: 'confirmado',
+                    icono: <DollarSign className="w-5 h-5" />
+                })));
+            }
+        } catch (error) {
+            console.error("Error cargando cliente full", error);
+        } finally {
+            setLoading(false);
+        }
+    };
+    fetchCliente();
+  }, [clientId]);
   
-  if (!clienteEncontrado) {
+  const comentarios: Comentario[] = []; 
+
+  if (loading) return null;
+
+  if (!clienteData) {
     return (
       <Portal>
         <div className="fixed inset-0 z-[2147483647] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm">
@@ -38,27 +96,6 @@ export default function ClientePortalModal({ clientId, onClose, rolUsuario = 'co
       </Portal>
     );
   }
-
-  // Preparar datos para el componente DetalleCliente
-  const cliente: Cliente = {
-    ...clienteEncontrado,
-    fechaRegistro: clienteEncontrado.fechaRegistro || 'No disponible',
-    avatarColor: 'bg-blue-600'
-  };
-
-  const prestamos: Prestamo[] = (((clienteEncontrado as unknown) as Record<string, unknown>).prestamos as Record<string, unknown>[] || []).map((p) => ({
-    ...(p as Record<string, unknown>),
-    icono: <Smartphone className="w-5 h-5" />,
-    categoria: 'General',
-  })) as Prestamo[];
-
-  const pagos: Pago[] = (((clienteEncontrado as unknown) as Record<string, unknown>).pagos as Record<string, unknown>[] || []).map((p) => ({
-    ...(p as Record<string, unknown>),
-    icono: <DollarSign className="w-5 h-5" />,
-    estado: 'confirmado',
-  })) as Pago[];
-
-  const comentarios: Comentario[] = [];
 
   return (
     <Portal>
@@ -83,12 +120,10 @@ export default function ClientePortalModal({ clientId, onClose, rolUsuario = 'co
           {/* Contenido con Scroll */}
           <div className="flex-1 overflow-y-auto scrollbar-hide">
             <ClienteDetalleElegante 
-              cliente={cliente}
+              cliente={clienteData}
               prestamos={prestamos}
               pagos={pagos}
               comentarios={comentarios}
-              rolUsuario={rolUsuario}
-              viewOnly={true}
             />
           </div>
         </div>

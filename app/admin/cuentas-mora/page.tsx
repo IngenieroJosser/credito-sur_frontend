@@ -218,10 +218,10 @@ const CuentasMoraPage = () => {
 
   // Totales
   // Si tenemos estadísticas del backend las usamos, sino calculamos (aunque el cálculo local solo es sobre la página actual, así que preferimos backend)
-  const totalMora = estadisticas?.totalMora ?? cuentas.reduce((acc, curr) => acc + curr.montoMora, 0)
-  const totalDeuda = estadisticas?.totalDeudaRiesgo ?? cuentas.reduce((acc, curr) => acc + curr.montoTotalDeuda, 0)
-  const clientesAfectados = estadisticas?.totalClientesAfectados ?? cuentas.length
-  const clientesCriticos = estadisticas?.clientesCriticos ?? cuentas.filter(c => c.nivelRiesgo === 'ROJO').length
+  const totalMora = estadisticas?.totalMora ?? (cuentas?.reduce((acc, curr) => acc + curr.montoMora, 0) || 0)
+  const totalDeuda = estadisticas?.totalDeudaRiesgo ?? (cuentas?.reduce((acc, curr) => acc + curr.montoTotalDeuda, 0) || 0)
+  const clientesAfectados = estadisticas?.totalClientesAfectados ?? (cuentas?.length || 0)
+  const clientesCriticos = estadisticas?.clientesCriticos ?? (cuentas?.filter(c => c.nivelRiesgo === 'ROJO').length || 0)
 
   return (
     <div className="min-h-screen bg-slate-50 relative">
@@ -404,7 +404,7 @@ const CuentasMoraPage = () => {
                 <RefreshCw className="h-10 w-10 animate-spin text-primary mb-4" />
                 <p className="text-slate-500 font-medium">Cargando cuentas en mora...</p>
             </div>
-        ) : cuentas.length === 0 ? (
+        ) : !cuentas || cuentas.length === 0 ? (
           <div className="col-span-full text-center py-12 bg-white rounded-2xl border border-slate-200 border-dashed">
             <div className="inline-flex p-4 rounded-full bg-emerald-50 mb-4">
               <CheckCircle className="h-8 w-8 text-emerald-500" />

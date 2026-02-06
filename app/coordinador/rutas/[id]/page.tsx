@@ -14,8 +14,9 @@ import {
 import { formatCOPInputValue, formatCurrency } from '@/lib/utils'
 import Link from 'next/link'
 import { useParams } from 'next/navigation'
-import { useCallback } from 'react'
-import { MOCK_CLIENTES, Cliente } from '@/services/cliente-service'
+import { useCallback, useEffect } from 'react'
+import { Cliente, clientesService } from '@/services/clientes-service'
+import { rutasService } from '@/services/rutas-service'
 import PagoModal from '@/components/cobranza/PagoModal'
 import EstadoCuentaModal from '@/components/cobranza/EstadoCuentaModal'
 import ReprogramarModal from '@/components/cobranza/ReprogramarModal'
@@ -40,8 +41,9 @@ const DetalleRutaPage = () => {
   // Manejo seguro del ID de la ruta
   const rutaId = params?.id ? decodeURIComponent(params.id as string) : 'Desconocida'
 
-  // Datos de prueba (Mock Data)
-  const [clientes] = useState<ClienteRuta[]>([])
+  // Estado de carga
+  const [isLoading, setIsLoading] = useState(true)
+  const [clientes, setClientes] = useState<ClienteRuta[]>([])
 
   const progreso = {
     total: clientes.length,
@@ -57,73 +59,7 @@ const DetalleRutaPage = () => {
 
   const [rutaCompletada, setRutaCompletada] = useState(false)
 
-  // Datos de prueba iniciales para visitasCobrador
-  const [visitasCobrador] = useState<VisitaRuta[]>([
-    {
-      id: 'v1',
-      cliente: 'Juan Pérez',
-      direccion: 'Calle 10 # 5-23, Centro',
-      telefono: '310 123 4567',
-      horaSugerida: '09:00 AM',
-      montoCuota: 25000,
-      saldoTotal: 450000,
-      estado: 'pendiente',
-      proximaVisita: '2023-10-25',
-      ordenVisita: 1,
-      prioridad: 'alta',
-      cobradorId: 'cob1',
-      periodoRuta: 'DIA',
-      nivelRiesgo: 'leve'
-    },
-    {
-      id: 'v2',
-      cliente: 'Ana Gómez',
-      direccion: 'Av. Principal # 20-10',
-      telefono: '320 987 6543',
-      horaSugerida: '10:30 AM',
-      montoCuota: 15000,
-      saldoTotal: 180000,
-      estado: 'en_mora',
-      proximaVisita: '2023-10-24',
-      ordenVisita: 2,
-      prioridad: 'media',
-      cobradorId: 'cob1',
-      periodoRuta: 'DIA',
-      nivelRiesgo: 'critico'
-    },
-    {
-      id: 'v3',
-      cliente: 'Carlos Ruiz',
-      direccion: 'Barrio La Paz, Mz C Casa 5',
-      telefono: '300 456 7890',
-      horaSugerida: '11:45 AM',
-      montoCuota: 30000,
-      saldoTotal: 800000,
-      estado: 'pagado',
-      proximaVisita: '2023-10-26',
-      ordenVisita: 3,
-      prioridad: 'baja',
-      cobradorId: 'cob1',
-      periodoRuta: 'DIA',
-      nivelRiesgo: 'bajo'
-    },
-    {
-      id: 'v4',
-      cliente: 'Luisa Martínez',
-      direccion: 'Urb. Los Pinos, Bloque 4',
-      telefono: '315 555 5555',
-      horaSugerida: '02:00 PM',
-      montoCuota: 20000,
-      saldoTotal: 350000,
-      estado: 'ausente',
-      proximaVisita: '2023-10-25',
-      ordenVisita: 4,
-      prioridad: 'media',
-      cobradorId: 'cob1',
-      periodoRuta: 'DIA',
-      nivelRiesgo: 'moderado'
-    }
-  ])
+  const [visitasCobrador, setVisitasCobrador] = useState<VisitaRuta[]>([])
   
   const [estadoCuentaVisita, setEstadoCuentaVisita] = useState<VisitaRuta | null>(null)
   const [pagoVisita, setPagoVisita] = useState<{visita: VisitaRuta, tipo: 'PAGO' | 'ABONO'} | null>(null)
@@ -158,16 +94,77 @@ const DetalleRutaPage = () => {
   }, [])
 
 
-  const handleAbrirClienteInfo = (visita: VisitaRuta) => {
-    const clienteReal = MOCK_CLIENTES.find(c => c.nombres + ' ' + c.apellidos === visita.cliente) || {
-        ...MOCK_CLIENTES[0],
-        nombres: visita.cliente.split(' ')[0],
-        apellidos: visita.cliente.split(' ').slice(1).join(' '),
-        direccion: visita.direccion,
-        telefono: visita.telefono
+  const handleAbrirClienteInfo = async (visita: VisitaRuta) => {
+    try {
+        // Intentar obtener cliente completo por ID
+        // Como ID de visita es ID de cliente en nuestro mapeo actual:
+        const clienteReal = await clientesService.obtenerPorId(visita.id);
+        setClienteDetalle(clienteReal);
+    } catch (e) {
+        console.error('Error cargando detalle cliente', e);
+        // Fallback básico con datos de la visita
+        setClienteDetalle({
+            id: visita.id,
+            nombres: visita.cliente,
+            apellidos: '',
+            dni: '',
+            telefono: visita.telefono,
+            direccion: visita.direccion,
+            correo: '',
+            fechaRegistro: new Date().toISOString(),
+            nivelRiesgo: visita.nivelRiesgo as any || 'VERDE',
+            rutaId: rutaId,
+            prestamos: [],
+            pagos: [], 
+            ruta: undefined
+        } as unknown as Cliente);
     }
-    setClienteDetalle(clienteReal)
   }
+
+  // Cargar datos reales
+  useEffect(() => {
+    const cargarRuta = async () => {
+        if (!rutaId || rutaId === 'Desconocida') return;
+        try {
+            const ruta = await rutasService.obtenerRutaPorId(rutaId);
+            if (ruta && ruta.asignaciones) {
+                const visitas = ruta.asignaciones.map((a: any, index: number) => ({
+                    id: a.cliente.id, 
+                    cliente: `${a.cliente.nombres} ${a.cliente.apellidos}`,
+                    direccion: a.cliente.direccion || 'Sin dirección',
+                    telefono: a.cliente.telefono || '',
+                    horaSugerida: '09:00',
+                    montoCuota: 0,
+                    saldoTotal: 0,
+                    estado: 'pendiente' as EstadoVisita,
+                    proximaVisita: 'Hoy',
+                    ordenVisita: index + 1,
+                    prioridad: 'media' as const,
+                    nivelRiesgo: (a.cliente.nivelRiesgo?.toLowerCase() as any) || 'bajo',
+                    cobradorId: ruta.cobradorId,
+                    periodoRuta: 'DIA' as const
+                }));
+                // Filtrar por ID de cobrador si fuera necesario, aqui mostramos todos los de la ruta
+                setVisitasCobrador(visitas);
+                setClientes(visitas.map((v: any) => ({
+                    id: v.id,
+                    nombre: v.cliente,
+                    direccion: v.direccion,
+                    telefono: v.telefono,
+                    cuota: v.montoCuota,
+                    saldoPendiente: v.saldoTotal,
+                    diasMora: 0,
+                    estadoVisita: 'PENDIENTE',
+                })));
+            }
+        } catch (error) {
+            console.error('Error cargando ruta', error);
+        } finally {
+            setIsLoading(false);
+        }
+    };
+    cargarRuta();
+  }, [rutaId]);
 
   const handleAbrirEstadoCuenta = useCallback((visita: VisitaRuta) => {
     setEstadoCuentaVisita(visita)

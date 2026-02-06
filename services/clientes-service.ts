@@ -61,6 +61,10 @@ export interface ActualizarClienteDto {
   referencia?: string;
   nivelRiesgo?: NivelRiesgo;
   puntaje?: number;
+  dni?: string; // Permitir dni si es editable
+  enListaNegra?: boolean;
+  rutaId?: string;
+  observaciones?: string;
 }
 
 export interface AgregarListaNegraDto {
@@ -163,69 +167,12 @@ export const clientesService = {
   
   eliminarCliente: function(id: string): Promise<void> {
     return this.eliminar(id);
+  },
+  
+  actualizarCliente: function(id: string, data: ActualizarClienteDto): Promise<Cliente> {
+    return this.actualizar(id, data);
   }
 };
 
-/**
- * Datos mock para desarrollo/testing
- * TODO: Remover cuando el backend esté completamente integrado
- */
-export const MOCK_CLIENTES: Cliente[] = [
-  {
-    id: 'CLI-001',
-    codigo: 'CLI-001',
-    dni: '1234567890',
-    nombres: 'Juan Carlos',
-    apellidos: 'Pérez García',
-    correo: 'juan.perez@email.com',
-    telefono: '3001234567',
-    direccion: 'Calle 123 #45-67',
-    referencia: null,
-    nivelRiesgo: NivelRiesgo.VERDE,
-    puntaje: 850,
-    enListaNegra: false,
-    estadoAprobacion: EstadoAprobacion.APROBADO,
-    creadoEn: new Date().toISOString(),
-    actualizadoEn: new Date().toISOString(),
-    prestamosActivos: 1,
-    montoTotal: 5000000
-  },
-  {
-    id: 'CLI-002',
-    codigo: 'CLI-002',
-    dni: '0987654321',
-    nombres: 'María',
-    apellidos: 'González López',
-    correo: 'maria.gonzalez@email.com',
-    telefono: '3109876543',
-    direccion: 'Carrera 45 #12-34',
-    referencia: null,
-    nivelRiesgo: NivelRiesgo.AMARILLO,
-    puntaje: 650,
-    enListaNegra: false,
-    estadoAprobacion: EstadoAprobacion.APROBADO,
-    creadoEn: new Date().toISOString(),
-    actualizadoEn: new Date().toISOString(),
-    prestamosActivos: 2,
-    montoTotal: 3000000
-  },
-  {
-    id: 'CLI-003',
-    codigo: 'CLI-003',
-    dni: '1122334455',
-    nombres: 'Pedro',
-    apellidos: 'Martínez Ruiz',
-    correo: null,
-    telefono: '3201122334',
-    direccion: 'Avenida 68 #89-10',
-    referencia: null,
-    nivelRiesgo: NivelRiesgo.VERDE,
-    puntaje: 900,
-    enListaNegra: false,
-    estadoAprobacion: EstadoAprobacion.APROBADO,
-    creadoEn: new Date().toISOString(),
-    actualizadoEn: new Date().toISOString(),
-    prestamosActivos: 0,
-    montoTotal: 0
-  }
-];
+// MOCK_CLIENTES eliminado - usar clientesService.obtenerTodos() para obtener datos reales
+

@@ -23,7 +23,6 @@ import {
 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { ExportButton } from '@/components/ui/ExportButton'
-import { MOCK_CLIENTES } from '@/services/clientes-service'
 import { formatCurrency } from '@/lib/utils'
 import NuevoClienteModal from '@/components/clientes/NuevoClienteModal'
 import { Sparkline, PremiumBarChart } from '@/components/ui/PremiumCharts'
@@ -509,8 +508,8 @@ const VistaSupervisor = () => {
         <NuevoClienteModal 
             onClose={() => setShowNewClientModal(false)}
             onClienteCreado={(nuevo) => {
-                MOCK_CLIENTES.unshift(nuevo);
                 setShowNewClientModal(false);
+                // Todo: recargar datos
             }}
         />
       )}

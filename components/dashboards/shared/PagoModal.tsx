@@ -13,7 +13,7 @@ import {
 import Image from 'next/image'
 import { formatCOPInputValue, formatMilesCOP, parseCOPInputToNumber } from '@/lib/utils'
 import { Portal, MODAL_Z_INDEX } from '@/components/dashboards/shared/CobradorElements'
-import { MOCK_CLIENTES } from '@/services/clientes-service'
+import { clientesService, Cliente } from '@/services/clientes-service'
 
 interface Visita {
   id: string
@@ -70,6 +70,14 @@ export default function PagoModal({
   } else if (!isOpen && prevIsOpen) {
     setPrevIsOpen(false)
   }
+
+  const [todosLosClientes, setTodosLosClientes] = useState<Cliente[]>([]);
+  
+  useEffect(() => {
+    if (isOpen && (!availableVisitas || availableVisitas.length === 0)) {
+        clientesService.obtenerTodos().then(setTodosLosClientes).catch(console.error);
+    }
+  }, [isOpen, availableVisitas]);
 
   useEffect(() => {
     let url: string | null = null
@@ -136,16 +144,16 @@ export default function PagoModal({
                         setVisitaSeleccionada(v)
                         setMontoPagoInput(formatMilesCOP(v.montoCuota))
                       } else {
-                         const c = MOCK_CLIENTES.find(x => x.id === e.target.value);
+                         const c = todosLosClientes.find(x => x.id === e.target.value);
                          if(c) {
                             setVisitaSeleccionada({
                                id: c.id,
                                cliente: `${c.nombres} ${c.apellidos}`,
                                direccion: c.direccion || '',
-                               montoCuota: 120000,
-                               saldoTotal: 1500000
+                               montoCuota: 0, // Fallback si no es visita de ruta
+                               saldoTotal: 0
                             });
-                            setMontoPagoInput(formatMilesCOP(120000));
+                            setMontoPagoInput('');
                          }
                       }
                     }}
@@ -154,7 +162,8 @@ export default function PagoModal({
                     <option value="" disabled>Seleccione cliente...</option>
                     {availableVisitas?.map((v) => (
                       <option key={v.id} value={v.id}>{v.cliente}</option>
-                    )) || MOCK_CLIENTES.map(c => (
+                    ))}
+                    {!availableVisitas && todosLosClientes.map(c => (
                       <option key={c.id} value={c.id}>{c.nombres} {c.apellidos}</option>
                     ))}
                   </select>

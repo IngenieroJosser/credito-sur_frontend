@@ -4,7 +4,7 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
-import { clientesService, Cliente, MOCK_CLIENTES } from '@/services/clientes-service'
+import { clientesService, Cliente } from '@/services/clientes-service'
 import {
   Search,
   Filter,
@@ -49,7 +49,7 @@ function Portal({ children }: { children: ReactNode }) {
 
 const ClientesSupervisorPage = () => {
   const router = useRouter()
-  const [clientes, setClientes] = useState<Cliente[]>(MOCK_CLIENTES)
+  const [clientes, setClientes] = useState<Cliente[]>([])
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
@@ -58,14 +58,11 @@ const ClientesSupervisorPage = () => {
       try {
         const data = await clientesService.obtenerClientes()
         if (!mounted) return
-        if (Array.isArray(data) && data.length > 0) {
+        if (Array.isArray(data)) {
           setClientes(data)
-          return
         }
-        setClientes(MOCK_CLIENTES)
       } catch (error) {
-        console.warn('Usando datos mock de clientes', error)
-        if (mounted) setClientes(MOCK_CLIENTES)
+        console.error('Error cargando clientes:', error)
       } finally {
         if (mounted) setIsLoading(false)
       }
@@ -377,7 +374,7 @@ const ClientesSupervisorPage = () => {
                             {cliente.nombres} {cliente.apellidos}
                           </div>
                           <div className="text-xs text-slate-500 flex items-center mt-0.5 font-mono font-medium">
-                            {cliente.cc}
+                            {cliente.dni}
                           </div>
                         </div>
                       </div>
@@ -586,13 +583,12 @@ const ClientesSupervisorPage = () => {
                 <ClienteDetalleElegante
                   cliente={{
                     ...clienteDetalleSeleccionado,
-                    fechaRegistro: clienteDetalleSeleccionado.fechaRegistro || 'No disponible',
+                    fechaRegistro: clienteDetalleSeleccionado.creadoEn || 'No disponible',
                     avatarColor: 'bg-blue-600'
                   }}
                   prestamos={[]}
                   pagos={[]}
                   comentarios={[]}
-                  rolUsuario="supervisor"
                 />
               </div>
             </div>

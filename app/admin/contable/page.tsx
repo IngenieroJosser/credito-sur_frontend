@@ -47,6 +47,17 @@ import {
 import { formatCOPInputValue, formatCurrency, formatMilesCOP, parseCOPInputToNumber, cn } from '@/lib/utils'
 import { ExportButton } from '@/components/ui/ExportButton'
 import FiltroRuta from '@/components/filtros/FiltroRuta'
+import { 
+  getCajas, 
+  getTransacciones, 
+  getResumenFinanciero, 
+  createCaja as apiCreateCaja,
+  createTransaccion as apiCreateTransaccion,
+  type Caja as ApiCaja,
+  type Transaccion as ApiTransaccion,
+  type ResumenFinanciero as ApiResumen
+} from '@/services/contabilidad-service'
+import { toast } from 'sonner'
 
 // Interfaces alineadas con el dominio financiero
 interface Caja {
@@ -152,40 +163,9 @@ const ModuloContableContent = () => {
     { id: 'USR-006', nombre: 'Pedro Supervisor', rol: 'COBRADOR' },
   ]
 
-  // Mock Data: Cajas
-  const [cajas, setCajas] = useState<Caja[]>([
-    {
-      id: 'CAJA-MAIN',
-      nombre: 'Caja Principal Oficina',
-      tipo: 'PRINCIPAL',
-      responsable: 'Ana Admin',
-      saldo: 5200000,
-      estado: 'ABIERTA',
-      ultimaActualizacion: 'Hace 10 min'
-    },
-    {
-      id: 'CAJA-R1',
-      nombre: 'Caja Ruta Norte',
-      tipo: 'RUTA',
-      rutaId: 'RUTA-NORTE',
-      responsable: 'Carlos Cobrador',
-      saldo: 850000,
-      recaudoEsperado: 950000,
-      eficiencia: 89,
-      estado: 'ABIERTA',
-      ultimaActualizacion: 'Hace 2 horas'
-    },
-    {
-      id: 'CAJA-R2',
-      nombre: 'Caja Ruta Sur',
-      tipo: 'RUTA',
-      rutaId: 'RUTA-SUR',
-      responsable: 'Pedro Supervisor',
-      saldo: 120000,
-      estado: 'CERRADA',
-      ultimaActualizacion: 'Ayer 6:00 PM'
-    }
-  ])
+  // Estados de datos (cargados desde API)
+  const [cajas, setCajas] = useState<Caja[]>([])
+  const [isLoading, setIsLoading] = useState(true)
 
   const [crearCajaForm, setCrearCajaForm] = useState({
     tipo: 'RUTA' as Caja['tipo'],
@@ -203,39 +183,8 @@ const ModuloContableContent = () => {
     rutaId: '',
   })
 
-  // Mock Data: Historial Cierres
-  const [historialCierres] = useState<HistorialCierre[]>([
-    {
-      id: 'CIERRE-001',
-      fecha: '2026-01-22T18:30:00',
-      caja: 'Caja Principal Oficina',
-      responsable: 'Ana Admin',
-      saldoSistema: 5200000,
-      saldoReal: 5200000,
-      diferencia: 0,
-      estado: 'CUADRADA'
-    },
-    {
-      id: 'CIERRE-002',
-      fecha: '2026-01-22T17:00:00',
-      caja: 'Caja Ruta Norte',
-      responsable: 'Carlos Cobrador',
-      saldoSistema: 850000,
-      saldoReal: 845000,
-      diferencia: -5000,
-      estado: 'DESCUADRADA'
-    },
-    {
-      id: 'CIERRE-003',
-      fecha: '2026-01-21T18:00:00',
-      caja: 'Caja Principal Oficina',
-      responsable: 'Ana Admin',
-      saldoSistema: 4800000,
-      saldoReal: 4800000,
-      diferencia: 0,
-      estado: 'CUADRADA'
-    }
-  ])
+  // Historial de Cierres (pendiente implementar endpoint en backend)
+  const [historialCierres] = useState<HistorialCierre[]>([])
 
   const handleExportExcel = () => {
     console.log('Exporting Excel...')
@@ -245,75 +194,74 @@ const ModuloContableContent = () => {
     console.log('Exporting PDF...')
   }
 
-  // Datos de ejemplo (Mock Data) - Moved inside component state or effect to avoid hydration mismatch
-  const [resumenData] = useState<ResumenFinanciero>({
-    ingresos: 28500500,
-    egresos: 13250750,
-    utilidadNeta: 15249750,
-    capitalEnCalle: 45000000,
-    cajaActual: 5200000
+  // Estados de datos financieros (cargados desde API)
+  const [resumenData, setResumenData] = useState<ResumenFinanciero>({
+    ingresos: 0,
+    egresos: 0,
+    utilidadNeta: 0,
+    capitalEnCalle: 0,
+    cajaActual: 0
   })
 
-  const [movimientos, setMovimientos] = useState<MovimientoContable[]>([
-    {
-      id: 'MOV-001',
-      fecha: '2026-01-30T10:00:00.000Z', // Hoy
-      concepto: 'Cobro Cuota - Cliente Juan Pérez',
-      tipo: 'INGRESO',
-      monto: 150000,
-      categoria: 'COBRO_CUOTA',
-      responsable: 'Carlos Cobrador',
-      origen: 'COBRADOR',
-      rutaId: 'RUTA-NORTE',
-      estado: 'APROBADO'
-    },
-    {
-      id: 'MOV-002',
-      fecha: '2026-01-30T11:00:00.000Z', // Hoy
-      concepto: 'Combustible Ruta Norte',
-      tipo: 'EGRESO',
-      monto: 25000,
-      categoria: 'GASTO_OPERATIVO',
-      responsable: 'Carlos Cobrador',
-      origen: 'COBRADOR',
-      rutaId: 'RUTA-NORTE',
-      estado: 'PENDIENTE'
-    },
-    {
-      id: 'MOV-003',
-      fecha: '2026-01-30T12:00:00.000Z', // Hoy
-      concepto: 'Cobro Cuota - Cliente María Garcia',
-      tipo: 'INGRESO',
-      monto: 200000,
-      categoria: 'COBRO_CUOTA',
-      responsable: 'Carlos Cobrador',
-      origen: 'COBRADOR',
-      rutaId: 'RUTA-NORTE',
-      estado: 'APROBADO'
-    },
-    {
-      id: 'MOV-004',
-      fecha: '2026-01-19T14:30:00.000Z', // Ayer
-      concepto: 'Compra Papelería Oficina',
-      tipo: 'EGRESO',
-      monto: 45500,
-      categoria: 'GASTO_ADMINISTRATIVO',
-      responsable: 'Ana Admin',
-      origen: 'EMPRESA',
-      estado: 'APROBADO'
-    },
-    {
-      id: 'MOV-005',
-      fecha: '2026-01-19T16:45:00.000Z', // Ayer
-      concepto: 'Abono Capital - Cliente Luis Rodriguez',
-      tipo: 'INGRESO',
-      monto: 500000,
-      categoria: 'ABONO_CAPITAL',
-      responsable: 'Pedro Supervisor',
-      origen: 'EMPRESA',
-      estado: 'APROBADO'
+  const [movimientos, setMovimientos] = useState<MovimientoContable[]>([])
+
+  // Efecto para cargar datos desde la API
+  useEffect(() => {
+    const fetchData = async () => {
+      setIsLoading(true)
+      try {
+        // Cargar cajas
+        const cajasData = await getCajas()
+        if (cajasData.length > 0) {
+          setCajas(cajasData.map(c => ({
+            id: c.id,
+            nombre: c.nombre,
+            tipo: c.tipo,
+            rutaId: c.rutaId,
+            responsable: c.responsable,
+            saldo: c.saldo,
+            estado: c.estado,
+            ultimaActualizacion: c.ultimaActualizacion
+          })))
+        }
+
+        // Cargar resumen financiero
+        const resumen = await getResumenFinanciero()
+        if (resumen) {
+          setResumenData({
+            ingresos: resumen.ingresosHoy,
+            egresos: resumen.egresosHoy,
+            utilidadNeta: resumen.gananciaNeta,
+            capitalEnCalle: resumen.capitalEnCalle,
+            cajaActual: resumen.saldoCajas
+          })
+        }
+
+        // Cargar transacciones/movimientos
+        const transaccionesResp = await getTransacciones({ limit: 50 })
+        if (transaccionesResp.data.length > 0) {
+          setMovimientos(transaccionesResp.data.map(t => ({
+            id: t.id,
+            fecha: t.fecha,
+            concepto: t.descripcion,
+            tipo: t.tipo,
+            monto: t.monto,
+            categoria: 'GENERAL',
+            responsable: t.responsable,
+            origen: 'EMPRESA' as const,
+            estado: 'APROBADO' as const
+          })))
+        }
+      } catch (error) {
+        console.error('Error cargando datos contables:', error)
+        toast.error('Error al cargar datos financieros')
+      } finally {
+        setIsLoading(false)
+      }
     }
-  ])
+
+    fetchData()
+  }, [])
 
   const categoriasIngreso = [
     { id: 'APORTE_CAPITAL', label: 'Aporte de Capital' },
@@ -481,7 +429,7 @@ const ModuloContableContent = () => {
                 <span>Gestión Financiera</span>
               </div>
               <h1 className="text-4xl md:text-5xl font-bold tracking-tight">
-                <span className="text-blue-600">Gestión </span><span className="text-orange-500">Contable V2</span>
+                <span className="text-blue-600">Gestión </span><span className="text-orange-500">Contable</span>
               </h1>
               <p className="text-base text-slate-500 max-w-xl font-medium">
                 Control centralizado de flujos de caja, gastos operativos y rentabilidad.

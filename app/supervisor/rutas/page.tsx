@@ -13,100 +13,53 @@ import {
   AlertTriangle
 } from 'lucide-react'
 import { formatCurrency, cn } from '@/lib/utils'
-
-// --- TYPES ---
-interface ClienteMock {
-  id: string
-  nombre: string
-  direccion: string
-  telefono: string
-  deudaTotal: number
-  cuotaDiaria: number
-  ultimoPago: string
-  estado: 'AL_DIA' | 'PENDIENTE' | 'MORA_LEVE' | 'MORA_GRAVE' | 'PAGO_HOY'
-  diasAtraso: number
-}
-
-interface RutaMock {
-  id: string
-  nombre: string
-  codigo: string
-  cobrador: string
-  clientes: number
-  estado: 'ACTIVA' | 'PENDIENTE'
-  avance: number
-  meta: number
-  recaudo: number
-  isPersonal: boolean
-  listaClientes: ClienteMock[]
-}
-
-// --- MOCK DATA ---
-const MOCK_RUTAS_SUPERVISOR: RutaMock[] = [
-  {
-    id: 'RT-SUP',
-    nombre: 'Mi Ruta Personal',
-    codigo: 'SUP-001',
-    cobrador: 'Supervisor (Tú)',
-    clientes: 15,
-    estado: 'ACTIVA',
-    avance: 92,
-    meta: 500000,
-    recaudo: 460000,
-    isPersonal: true,
-    listaClientes: []
-  },
-  {
-    id: 'RT-001',
-    nombre: 'Ruta Norte Independencia',
-    codigo: 'NOR-001',
-    cobrador: 'Carlos Rodríguez',
-    clientes: 45, 
-    estado: 'ACTIVA',
-    avance: 65,
-    meta: 2500000,
-    recaudo: 1625000,
-    isPersonal: false,
-    listaClientes: []
-  },
-  {
-    id: 'RT-002',
-    nombre: 'Ruta Centro Comercial',
-    codigo: 'CEN-002',
-    cobrador: 'Ana María López',
-    clientes: 28,
-    estado: 'ACTIVA',
-    avance: 45,
-    meta: 3800000,
-    recaudo: 1710000,
-    isPersonal: false,
-    listaClientes: []
-  },
-  {
-    id: 'RT-003',
-    nombre: 'Ruta Sur - Expansión',
-    codigo: 'SUR-003',
-    cobrador: 'Jorge Martínez',
-    clientes: 12,
-    estado: 'PENDIENTE',
-    avance: 0,
-    meta: 1200000,
-    recaudo: 0,
-    isPersonal: false,
-    listaClientes: []
-  }
-]
+import { rutasService } from '@/services/rutas-service'
 
 export default function SupervisorRutasPage() {
   const router = useRouter()
   const [search, setSearch] = useState('')
+  const [rutas, setRutas] = useState<any[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+
+  React.useEffect(() => {
+    const cargarRutas = async () => {
+      try {
+        const data = await rutasService.obtenerRutas();
+        // Mapear datos si es necesario o usarlos directo si coinciden
+        const rutasMapeadas = Array.isArray(data) ? data.map((r: any) => ({
+            id: r.id,
+            nombre: r.nombre,
+            codigo: r.codigo,
+            cobrador: r.cobrador?.nombres ? `${r.cobrador.nombres} ${r.cobrador.apellidos}` : 'Sin asignar',
+            clientes: r.estadisticas?.clientesAsignados || 0,
+            estado: r.activa ? 'ACTIVA' : 'PENDIENTE',
+            avance: r.estadisticas?.avanceDiario || 0,
+            meta: r.estadisticas?.metaDelDia || 0,
+            recaudo: r.estadisticas?.cobranzaDelDia || 0,
+            isPersonal: false // TODO: Determinar si es personal basado en usuario actual
+        })) : [];
+        setRutas(rutasMapeadas);
+      } catch (error) {
+        console.error('Error cargando rutas', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    cargarRutas();
+  }, []);
   
   // Filtro
-  const rutasFiltradas = MOCK_RUTAS_SUPERVISOR.filter(r => 
+  const rutasFiltradas = rutas.filter(r => 
     r.nombre.toLowerCase().includes(search.toLowerCase()) ||
     r.cobrador.toLowerCase().includes(search.toLowerCase()) ||
     r.codigo.toLowerCase().includes(search.toLowerCase())
   )
+
+  if (isLoading) {
+      return <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+  }
 
   return (
     <div className="min-h-screen bg-slate-50 relative">
@@ -139,7 +92,7 @@ export default function SupervisorRutasPage() {
                 </div>
                 <div>
                     <p className="text-xs font-bold text-slate-400 uppercase">Total Rutas</p>
-                    <h3 className="text-2xl font-black text-slate-900">{MOCK_RUTAS_SUPERVISOR.length}</h3>
+                    <h3 className="text-2xl font-black text-slate-900">{rutas.length}</h3>
                 </div>
              </div>
              <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-4">
@@ -148,7 +101,7 @@ export default function SupervisorRutasPage() {
                 </div>
                 <div>
                     <p className="text-xs font-bold text-slate-400 uppercase">Meta Global</p>
-                    <h3 className="text-2xl font-black text-slate-900">{formatCurrency(MOCK_RUTAS_SUPERVISOR.reduce((acc, r) => acc + r.meta, 0))}</h3>
+                    <h3 className="text-2xl font-black text-slate-900">{formatCurrency(rutas.reduce((acc, r) => acc + r.meta, 0))}</h3>
                 </div>
              </div>
              <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-4">
@@ -158,7 +111,7 @@ export default function SupervisorRutasPage() {
                 <div>
                     <p className="text-xs font-bold text-slate-400 uppercase">Sin Actividad</p>
                     <h3 className="text-2xl font-black text-slate-900">
-                        {MOCK_RUTAS_SUPERVISOR.filter(r => r.recaudo === 0).length}
+                        {rutas.filter(r => r.recaudo === 0).length}
                     </h3>
                 </div>
              </div>
@@ -192,71 +145,79 @@ export default function SupervisorRutasPage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
-                    {rutasFiltradas.map((ruta) => (
-                      <tr 
-                        key={ruta.id}
-                        className={`hover:bg-slate-50/80 transition-colors group ${ruta.isPersonal ? 'bg-blue-50/30' : ''}`}
-                      >
-                        <td className="px-6 py-4">
-                          <div className="flex items-center gap-3">
-                            <div className={`w-10 h-10 rounded-xl flex items-center justify-center border ${ruta.isPersonal ? 'bg-blue-100 text-blue-700 border-blue-200' : 'bg-slate-100 text-slate-600 border-slate-200'}`}>
-                              <Route className="w-5 h-5" />
-                            </div>
-                            <div>
-                               <div className="font-bold text-slate-900 flex items-center gap-2">
-                                   {ruta.nombre}
-                                   {ruta.isPersonal && <span className="text-[10px] bg-blue-600 text-white px-1.5 py-0.5 rounded shadow-sm">YO</span>}
-                               </div>
-                               <div className="text-xs text-slate-500 font-medium">{ruta.codigo}</div>
-                            </div>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4">
-                           <div className="flex items-center gap-2 text-slate-700 font-medium">
-                               <User className="h-4 w-4 text-slate-400" />
-                               {ruta.cobrador}
-                           </div>
-                        </td>
-                        <td className="px-6 py-4">
-                            <span className={cn(
-                                'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold border',
-                                ruta.estado === 'ACTIVA' ? 'bg-emerald-50 text-emerald-700 border-emerald-100' : 
-                                'bg-orange-50 text-orange-700 border-orange-100'
-                            )}>
-                                {ruta.estado}
-                            </span>
-                        </td>
-                        <td className="px-6 py-4">
-                           <div className="flex items-center gap-1 font-bold text-slate-600">
-                               <Users className="h-4 w-4 text-slate-400" />
-                               {ruta.clientes}
-                           </div>
-                        </td>
-                        <td className="px-6 py-4">
-                            <div className="w-32">
-                                <div className="flex justify-between text-xs mb-1">
-                                    <span className="font-bold text-slate-700">{ruta.avance}%</span>
-                                    <span className="text-slate-500">{formatCurrency(ruta.recaudo)}</span>
+                    {rutasFiltradas.length > 0 ? (
+                        rutasFiltradas.map((ruta) => (
+                        <tr 
+                            key={ruta.id}
+                            className={`hover:bg-slate-50/80 transition-colors group ${ruta.isPersonal ? 'bg-blue-50/30' : ''}`}
+                        >
+                            <td className="px-6 py-4">
+                            <div className="flex items-center gap-3">
+                                <div className={`w-10 h-10 rounded-xl flex items-center justify-center border ${ruta.isPersonal ? 'bg-blue-100 text-blue-700 border-blue-200' : 'bg-slate-100 text-slate-600 border-slate-200'}`}>
+                                <Route className="w-5 h-5" />
                                 </div>
-                                <div className="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
-                                    <div 
-                                        className={`h-full rounded-full ${ruta.avance > 0 ? 'bg-blue-600' : 'bg-slate-300'}`} 
-                                        style={{ width: `${ruta.avance}%` }}
-                                    />
+                                <div>
+                                <div className="font-bold text-slate-900 flex items-center gap-2">
+                                    {ruta.nombre}
+                                    {ruta.isPersonal && <span className="text-[10px] bg-blue-600 text-white px-1.5 py-0.5 rounded shadow-sm">YO</span>}
+                                </div>
+                                <div className="text-xs text-slate-500 font-medium">{ruta.codigo}</div>
                                 </div>
                             </div>
-                        </td>
-                        <td className="px-6 py-4 text-right">
-                            <button 
-                              onClick={() => router.push(`/supervisor/rutas/${ruta.id}`)}
-                              className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                              title="Ver Detalle de Ruta"
-                            >
-                                <Eye className="h-4 w-4" />
-                            </button>
-                        </td>
-                      </tr>
-                    ))}
+                            </td>
+                            <td className="px-6 py-4">
+                            <div className="flex items-center gap-2 text-slate-700 font-medium">
+                                <User className="h-4 w-4 text-slate-400" />
+                                {ruta.cobrador}
+                            </div>
+                            </td>
+                            <td className="px-6 py-4">
+                                <span className={cn(
+                                    'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold border',
+                                    ruta.estado === 'ACTIVA' ? 'bg-emerald-50 text-emerald-700 border-emerald-100' : 
+                                    'bg-orange-50 text-orange-700 border-orange-100'
+                                )}>
+                                    {ruta.estado}
+                                </span>
+                            </td>
+                            <td className="px-6 py-4">
+                            <div className="flex items-center gap-1 font-bold text-slate-600">
+                                <Users className="h-4 w-4 text-slate-400" />
+                                {ruta.clientes}
+                            </div>
+                            </td>
+                            <td className="px-6 py-4">
+                                <div className="w-32">
+                                    <div className="flex justify-between text-xs mb-1">
+                                        <span className="font-bold text-slate-700">{ruta.avance}%</span>
+                                        <span className="text-slate-500">{formatCurrency(ruta.recaudo)}</span>
+                                    </div>
+                                    <div className="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
+                                        <div 
+                                            className={`h-full rounded-full ${ruta.avance > 0 ? 'bg-blue-600' : 'bg-slate-300'}`} 
+                                            style={{ width: `${ruta.avance}%` }}
+                                        />
+                                    </div>
+                                </div>
+                            </td>
+                            <td className="px-6 py-4 text-right">
+                                <button 
+                                onClick={() => router.push(`/supervisor/rutas/${ruta.id}`)}
+                                className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                                title="Ver Detalle de Ruta"
+                                >
+                                    <Eye className="h-4 w-4" />
+                                </button>
+                            </td>
+                        </tr>
+                        ))
+                    ) : (
+                        <tr>
+                            <td colSpan={6} className="px-6 py-10 text-center text-slate-500">
+                                No se encontraron rutas
+                            </td>
+                        </tr>
+                    )}
                   </tbody>
                 </table>
             </div>
