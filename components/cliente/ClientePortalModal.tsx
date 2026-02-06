@@ -34,39 +34,56 @@ export default function ClientePortalModal({ clientId, onClose, rolUsuario = 'co
                 // Adaptar data backend a UI
                 setClienteData({
                     id: data.id,
+                    codigo: data.codigo || 'S/C',
+                    dni: data.dni,
                     nombres: data.nombres,
                     apellidos: data.apellidos,
-                    dni: data.dni,
+                    correo: data.correo,
                     telefono: data.telefono,
-                    direccion: data.direccion || 'Sin dirección',
-                    correo: data.correo || '',
-                    estado: 'activo', // Mock o derivado
-                    fechaRegistro: data.fechaRegistro || new Date().toISOString(),
+                    direccion: data.direccion || null,
+                    referencia: data.referencia || null,
+                    nivelRiesgo: (data.nivelRiesgo as any) || 'VERDE',
+                    puntaje: data.puntaje || 0,
+                    enListaNegra: data.enListaNegra || false,
+                    estadoAprobacion: 'APROBADO', // Default si no viene
+                    fechaRegistro: (data as any).fechaRegistro ? new Date((data as any).fechaRegistro).toISOString() : new Date().toISOString(),
+                    ocupacion: 'No especificada',
                     avatarColor: 'bg-blue-600',
-                    nivelRiesgo: data.nivelRiesgo as any || 'VERDE'
+                    ruta: data.rutaId ? `Ruta ${data.rutaId}` : 'Sin Ruta'
                 });
                 
                 // Si el backend devolviera prestamos y pagos (actualmente obtenerPorId retorna Cliente con include?)
                 // Por ahora inicializamos vacios o mocked si no vienen
-                // data.prestamos vendria si modificamos el service/backend
                 const prestamosBackend: any[] = (data as any).prestamos || [];
                 setPrestamos(prestamosBackend.map(p => ({
                     id: p.id,
-                    monto: p.monto,
-                    fechaInicio: p.fechaInicio,
-                    estado: p.estado,
+                    producto: 'Préstamo Personal', // Default
+                    montoTotal: Number(p.monto || 0),
+                    montoPagado: 0, // Mock
+                    montoPendiente: Number(p.monto || 0),
+                    cuotasTotales: 10, // Mock
+                    cuotasPagadas: 0,
+                    cuotasPendientes: 10,
+                    fechaInicio: p.fechaInicio ? new Date(p.fechaInicio).toLocaleDateString() : new Date().toLocaleDateString(),
+                    fechaVencimiento: new Date(Date.now() + 30*24*60*60*1000).toLocaleDateString(),
+                    proximoPago: new Date(Date.now() + 24*60*60*1000).toLocaleDateString(),
+                    estado: p.estado || 'ACTIVO',
+                    tasaInteres: 20,
+                    frecuencia: 'DIARIO',
                     icono: <Smartphone className="w-5 h-5" />,
-                    categoria: 'General'
+                    categoria: 'Personal'
                 })));
                 
                 const pagosBackend: any[] = (data as any).pagos || [];
                 setPagos(pagosBackend.map(p => ({
                     id: String(p.id),
-                    fecha: p.fecha ? new Date(p.fecha).toLocaleDateString() : 'N/A',
+                    fecha: p.fecha ? new Date(p.fecha).toLocaleDateString() : new Date().toLocaleDateString(),
                     monto: Number(p.monto || 0),
                     cuota: 1, // Default
-                    metodo: 'Efectivo',
+                    referencia: `Pago ${p.id}`,
+                    metodo: 'EFECTIVO',
                     estado: 'confirmado',
+                    comprobante: undefined,
                     icono: <DollarSign className="w-5 h-5" />
                 })));
             }

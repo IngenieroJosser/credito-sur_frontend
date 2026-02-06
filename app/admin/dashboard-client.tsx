@@ -11,6 +11,7 @@ import {
 import { formatCurrency } from '@/lib/utils';
 import { ExportButton } from '@/components/ui/ExportButton';
 import { PremiumBarChart } from '@/components/ui/PremiumCharts';
+import CrearCreditoModal from '@/components/dashboards/shared/CrearCreditoModal';
 
 interface MetricItem {
   title: string;
@@ -67,6 +68,7 @@ interface DashboardClientProps {
 export function DashboardClient({ data }: DashboardClientProps) {
   const [timeFilter, setTimeFilter] = useState<'today' | 'week' | 'month' | 'quarter'>('month');
   const [currentDate] = useState(new Date());
+  const [showCrearCreditoModal, setShowCrearCreditoModal] = useState(false);
 
   const handleExportExcel = () => {
     console.log('Exporting Excel...');
@@ -327,21 +329,44 @@ export function DashboardClient({ data }: DashboardClientProps) {
             <div className="bg-slate-50 rounded-2xl p-6 border border-slate-200/60">
               <h3 className="text-sm font-bold text-slate-500 uppercase tracking-wider mb-4">Accesos Rápidos</h3>
               <div className="grid grid-cols-1 gap-3">
-                {data.quickAccess.slice(0, 3).map((item, index) => (
-                  <Link
-                    key={index}
-                    href={item.href}
-                    className="flex items-center gap-3 p-3 bg-white rounded-xl shadow-sm border border-slate-100 hover:shadow-md hover:border-blue-100 transition-all group"
-                  >
-                    <div className="p-2 rounded-lg bg-slate-50 text-slate-600 group-hover:bg-blue-50 group-hover:text-blue-600 transition-colors">
-                      {item.icon}
-                    </div>
-                    <div>
-                      <div className="font-medium text-slate-900 text-sm group-hover:text-blue-700">{item.title}</div>
-                      <div className="text-xs text-slate-500">{item.subtitle}</div>
-                    </div>
-                  </Link>
-                ))}
+                 {data.quickAccess.slice(0, 3).map((item, index) => {
+                   // Si es "Nuevo Crédito", mostrar modal en lugar de navegar
+                   const isNewCredit = item.title === 'Nuevo Crédito';
+                   
+                   if (isNewCredit) {
+                     return (
+                       <button
+                         key={index}
+                         onClick={() => setShowCrearCreditoModal(true)}
+                         className="w-full flex items-center gap-3 p-3 bg-white rounded-xl shadow-sm border border-slate-100 hover:shadow-md hover:border-blue-100 transition-all group text-left"
+                       >
+                         <div className="p-2 rounded-lg bg-slate-50 text-slate-600 group-hover:bg-blue-50 group-hover:text-blue-600 transition-colors">
+                           {item.icon}
+                         </div>
+                         <div>
+                           <div className="font-medium text-slate-900 text-sm group-hover:text-blue-700">{item.title}</div>
+                           <div className="text-xs text-slate-500">{item.subtitle}</div>
+                         </div>
+                       </button>
+                     );
+                   }
+                   
+                   return (
+                     <Link
+                       key={index}
+                       href={item.href}
+                       className="flex items-center gap-3 p-3 bg-white rounded-xl shadow-sm border border-slate-100 hover:shadow-md hover:border-blue-100 transition-all group"
+                     >
+                       <div className="p-2 rounded-lg bg-slate-50 text-slate-600 group-hover:bg-blue-50 group-hover:text-blue-600 transition-colors">
+                         {item.icon}
+                       </div>
+                       <div>
+                         <div className="font-medium text-slate-900 text-sm group-hover:text-blue-700">{item.title}</div>
+                         <div className="text-xs text-slate-500">{item.subtitle}</div>
+                       </div>
+                     </Link>
+                   );
+                 })}
               </div>
             </div>
 
@@ -355,6 +380,16 @@ export function DashboardClient({ data }: DashboardClientProps) {
           </p>
         </div>
       </div>
+
+      {/* Modal de Crear Crédito */}
+      <CrearCreditoModal
+        isOpen={showCrearCreditoModal}
+        onClose={() => setShowCrearCreditoModal(false)}
+        onConfirm={(data) => {
+          console.log('Crédito creado:', data);
+          setShowCrearCreditoModal(false);
+        }}
+      />
     </div>
   );
 }

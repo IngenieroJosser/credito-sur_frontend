@@ -3,12 +3,21 @@ import { apiRequest } from '@/lib/api/api';
 export interface RegistroAuditoria {
   id: string;
   usuarioId: string;
+  usuario?: {
+    nombres: string;
+    apellidos: string;
+    correo: string;
+    rol: string;
+  };
   accion: string;
   entidad: string;
   entidadId: string;
-  datosAnteriores: any;
-  datosNuevos: any;
-  direccionIP: string | null;
+  valoresAnteriores?: any;
+  valoresNuevos?: any;
+  cambios?: any;
+  direccionIP?: string | null;
+  agenteUsuario?: string | null;
+  endpoint?: string | null;
   creadoEn: string;
 }
 
@@ -19,7 +28,7 @@ export interface CrearAuditoriaDto {
   entidadId: string;
   datosAnteriores?: any;
   datosNuevos?: any;
-  direccionIP?: string;
+  metadata?: any;
 }
 
 export const auditoriaService = {

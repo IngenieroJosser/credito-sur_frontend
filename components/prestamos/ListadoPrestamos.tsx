@@ -27,6 +27,7 @@ import {
 import { formatCurrency, cn } from '@/lib/utils';
 import FiltroRuta from '@/components/filtros/FiltroRuta';
 import EditarPrestamoModal from '@/components/prestamos/EditarPrestamoModal';
+import CrearCreditoModal from '@/components/dashboards/shared/CrearCreditoModal';
 import { useNotification } from '@/components/providers/NotificationProvider';
 import { loansService, Loan, LoansFilters } from '@/services/loans-service';
 import { formatErrorForComponent } from '@/lib/api/api';
@@ -76,6 +77,7 @@ const ListadoPrestamosElegante = () => {
   const [mounted, setMounted] = useState(false);
   const [idPrestamoAEditar, setIdPrestamoAEditar] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [showCrearCreditoModal, setShowCrearCreditoModal] = useState(false);
   const [totalPrestamos, setTotalPrestamos] = useState(0);
   const [error, setError] = useState<string | null>(null);
 
@@ -254,13 +256,13 @@ const ListadoPrestamosElegante = () => {
             >
               <RefreshCw className={`h-4 w-4 text-slate-600 ${refreshing ? 'animate-spin' : ''}`} />
             </button>
-            <Link 
-              href={`${baseRoute}/nuevo`}
+            <button
+              onClick={() => setShowCrearCreditoModal(true)}
               className="inline-flex items-center gap-2 px-6 py-2.5 bg-white border border-slate-300 text-slate-700 rounded-xl hover:border-slate-400 hover:bg-slate-50 transition-all duration-200 shadow-sm font-bold text-sm group"
             >
               <Plus className="w-4 h-4 text-slate-500 group-hover:text-slate-900 transition-colors" />
               Nuevo Crédito
-            </Link>
+            </button>
           </div>
         </div>
       </div>
@@ -540,6 +542,17 @@ const ListadoPrestamosElegante = () => {
           }}
         />
       )}
+
+      {/* Modal de Crear Crédito */}
+      <CrearCreditoModal
+        isOpen={showCrearCreditoModal}
+        onClose={() => setShowCrearCreditoModal(false)}
+        onConfirm={(data) => {
+          console.log('Crédito creado:', data);
+          setShowCrearCreditoModal(false);
+          handleRefresh(); // Recargar lista después de crear
+        }}
+      />
     </div>
   );
 };
