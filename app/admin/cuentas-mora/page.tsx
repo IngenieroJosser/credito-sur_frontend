@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import {
   AlertCircle,
   Search,
@@ -15,13 +15,16 @@ import {
   Ban,
   AlertTriangle,
   LayoutGrid,
-  List
+  List,
+  RefreshCw
 } from 'lucide-react'
 import { formatCurrency, cn } from '@/lib/utils'
 import { ExportButton } from '@/components/ui/ExportButton'
 import FiltroRuta from '@/components/filtros/FiltroRuta'
 import DetalleMoraModal from '@/components/cobranza/DetalleMoraModal'
 import ClientePortalModal from '@/components/cliente/ClientePortalModal'
+import { apiRequest } from '@/lib/api/api'
+import { toast } from 'sonner'
 
 // Enums alineados con Prisma
 type NivelRiesgo = 'VERDE' | 'AMARILLO' | 'ROJO' | 'LISTA_NEGRA';
@@ -32,6 +35,7 @@ interface CuentaMora {
   id: string
   numeroPrestamo: string
   cliente: {
+    id: string
     nombre: string
     documento: string
     telefono: string
@@ -48,15 +52,105 @@ interface CuentaMora {
   ultimoPago?: string
 }
 
+interface EstadisticasMora {
+  totalMora: number;
+  totalDeudaRiesgo: number;
+  totalClientesAfectados: number;
+  clientesCriticos: number; // ROJO
+  variacionMensual: number;
+}
+
+interface PaginatedResponse<T> {
+  data: T[]
+  meta: {
+    total: number
+    page: number
+    limit: number
+    totalPages: number
+  }
+}
+
 const CuentasMoraPage = () => {
+  // Estados de datos
+  const [cuentas, setCuentas] = useState<CuentaMora[]>([])
+  const [estadisticas, setEstadisticas] = useState<EstadisticasMora | null>(null)
+  const [isStatsLoading, setIsStatsLoading] = useState(true)
+  const [isDataLoading, setIsDataLoading] = useState(true)
+
+  // Estados de filtros y UI
   const [busqueda, setBusqueda] = useState('')
   const [filtroRiesgo, setFiltroRiesgo] = useState<NivelRiesgo | 'TODOS'>('TODOS')
   const [filtroRuta, setFiltroRuta] = useState<string | null>(null)
   const [viewMode, setViewMode] = useState<ViewMode>('list')
+  
+  // Modales
   const [selectedCuenta, setSelectedCuenta] = useState<CuentaMora | null>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [selectedClientId, setSelectedClientId] = useState<string | null>(null)
   const [isClientModalOpen, setIsClientModalOpen] = useState(false)
+
+  // Paginación (si se necesitara implementar paginación server-side completa, se usaría esto)
+  const [page, setPage] = useState(1)
+  const limit = 50
+
+  const fetchData = useCallback(async () => {
+    setIsDataLoading(true)
+    try {
+      const params: any = {
+        pagina: page,
+        limite: limit,
+      }
+      
+      if (busqueda) params.busqueda = busqueda
+      if (filtroRiesgo !== 'TODOS') params.riesgo = filtroRiesgo
+      if (filtroRuta) params.rutaId = filtroRuta
+
+      const response = await apiRequest<PaginatedResponse<CuentaMora>>(
+        'GET',
+        '/reports/prestamos-mora',
+        undefined,
+        { params }
+      )
+      
+      setCuentas(response.data)
+    } catch (error) {
+      console.error('Error al cargar cuentas en mora:', error)
+      toast.error('Error al cargar la lista de cuentas en mora')
+    } finally {
+      setIsDataLoading(false)
+    }
+  }, [page, busqueda, filtroRiesgo, filtroRuta])
+
+  const fetchEstadisticas = async () => {
+    setIsStatsLoading(true)
+    try {
+      const items = await apiRequest<EstadisticasMora>(
+        'GET',
+        '/reports/estadisticas-mora'
+      )
+      setEstadisticas(items)
+    } catch (error) {
+      console.error('Error al cargar estadísticas:', error)
+      // Fallback a cálculo local si falla el endpoint de estadísticas
+      setEstadisticas(null)
+    } finally {
+      setIsStatsLoading(false)
+    }
+  }
+
+  // Cargar estadísticas al inicio
+  useEffect(() => {
+    fetchEstadisticas()
+  }, [])
+
+  // Cargar datos cuando cambian filtros
+  useEffect(() => {
+    // Debounce para búsqueda
+    const timeoutId = setTimeout(() => {
+      fetchData()
+    }, 500)
+    return () => clearTimeout(timeoutId)
+  }, [fetchData])
 
   const handleVerDetalle = (cuenta: CuentaMora) => {
     setSelectedCuenta(cuenta)
@@ -68,74 +162,39 @@ const CuentasMoraPage = () => {
     setIsClientModalOpen(true)
   }
 
-  const handleExportExcel = () => {
-    console.log('Exporting Excel...')
-  }
-
-  const handleExportPDF = () => {
-    console.log('Exporting PDF...')
-  }
-
-  // Datos de ejemplo
-  const cuentas: CuentaMora[] = [
-    {
-      id: '1',
-      numeroPrestamo: 'P-2024-001',
-      cliente: {
-        nombre: 'Juan Pérez',
-        documento: 'V-12345678',
-        telefono: '310 123 4567',
-        direccion: 'Av. Bolívar, Casa 5'
-      },
-      diasMora: 45,
-      montoMora: 150000,
-      montoTotalDeuda: 450000,
-      cuotasVencidas: 3,
-      ruta: 'Ruta Centro',
-      cobrador: 'Carlos Ruiz',
-      nivelRiesgo: 'ROJO',
-      estado: 'EN_MORA',
-      ultimoPago: '2023-12-15'
-    },
-    {
-      id: '2',
-      numeroPrestamo: 'P-2024-045',
-      cliente: {
-        nombre: 'María Rodríguez',
-        documento: 'V-87654321',
-        telefono: '320 765 4321',
-        direccion: 'Barrio La Paz, Calle 3'
-      },
-      diasMora: 15,
-      montoMora: 50000,
-      montoTotalDeuda: 250000,
-      cuotasVencidas: 1,
-      ruta: 'Ruta Norte',
-      cobrador: 'Ana López',
-      nivelRiesgo: 'AMARILLO',
-      estado: 'EN_MORA',
-      ultimoPago: '2024-01-05'
-    },
-    {
-      id: '3',
-      numeroPrestamo: 'P-2023-189',
-      cliente: {
-        nombre: 'Roberto Gómez',
-        documento: 'V-11223344',
-        telefono: '315 112 2334',
-        direccion: 'Urb. Los Pinos, Apto 4B'
-      },
-      diasMora: 95,
-      montoMora: 320000,
-      montoTotalDeuda: 320000,
-      cuotasVencidas: 8,
-      ruta: 'Ruta Sur',
-      cobrador: 'Pedro Sánchez',
-      nivelRiesgo: 'LISTA_NEGRA',
-      estado: 'PERDIDA',
-      ultimoPago: '2023-10-20'
+  const handleExportExcel = async () => {
+    try {
+      toast.info('Generando reporte Excel...')
+      await apiRequest('POST', '/reports/exportar-mora', {
+        filtros: {
+          busqueda,
+          riesgo: filtroRiesgo !== 'TODOS' ? filtroRiesgo : undefined,
+          rutaId: filtroRuta
+        },
+        formato: 'EXCEL'
+      })
+      toast.success('Reporte generado exitosamente')
+    } catch (error) {
+      toast.error('Error al exportar reporte')
     }
-  ]
+  }
+
+  const handleExportPDF = async () => {
+    try {
+      toast.info('Generando reporte PDF...')
+      await apiRequest('POST', '/reports/exportar-mora', {
+        filtros: {
+          busqueda,
+          riesgo: filtroRiesgo !== 'TODOS' ? filtroRiesgo : undefined,
+          rutaId: filtroRuta
+        },
+        formato: 'PDF'
+      })
+      toast.success('Reporte generado exitosamente')
+    } catch (error) {
+      toast.error('Error al exportar reporte')
+    }
+  }
 
   const getRiesgoColor = (riesgo: NivelRiesgo) => {
     switch (riesgo) {
@@ -157,24 +216,12 @@ const CuentasMoraPage = () => {
     }
   }
 
-  const cuentasFiltradas = cuentas.filter((cuenta) => {
-    const coincideBusqueda = 
-      cuenta.cliente.nombre.toLowerCase().includes(busqueda.toLowerCase()) ||
-      cuenta.cliente.documento.toLowerCase().includes(busqueda.toLowerCase()) ||
-      cuenta.ruta.toLowerCase().includes(busqueda.toLowerCase())
-    
-    const coincideRiesgo = filtroRiesgo === 'TODOS' || cuenta.nivelRiesgo === filtroRiesgo
-    
-    // Filtro por ruta (asumiendo que cuenta.ruta contiene el nombre o ID de la ruta)
-    // Para simplificar el mock, compararemos el nombre ya que es lo que hay en el objeto
-    const coincideRuta = !filtroRuta || cuenta.ruta.toLowerCase().includes(filtroRuta.toLowerCase())
-
-    return coincideBusqueda && coincideRiesgo && coincideRuta
-  })
-
-  // Calcular totales
-  const totalMora = cuentasFiltradas.reduce((acc, curr) => acc + curr.montoMora, 0)
-  const totalDeuda = cuentasFiltradas.reduce((acc, curr) => acc + curr.montoTotalDeuda, 0)
+  // Totales
+  // Si tenemos estadísticas del backend las usamos, sino calculamos (aunque el cálculo local solo es sobre la página actual, así que preferimos backend)
+  const totalMora = estadisticas?.totalMora ?? cuentas.reduce((acc, curr) => acc + curr.montoMora, 0)
+  const totalDeuda = estadisticas?.totalDeudaRiesgo ?? cuentas.reduce((acc, curr) => acc + curr.montoTotalDeuda, 0)
+  const clientesAfectados = estadisticas?.totalClientesAfectados ?? cuentas.length
+  const clientesCriticos = estadisticas?.clientesCriticos ?? cuentas.filter(c => c.nivelRiesgo === 'ROJO').length
 
   return (
     <div className="min-h-screen bg-slate-50 relative">
@@ -201,6 +248,13 @@ const CuentasMoraPage = () => {
           </div>
 
           <div className="flex items-center gap-3">
+             <button 
+              onClick={() => { fetchData(); fetchEstadisticas(); }}
+              className="p-2 text-slate-400 hover:text-blue-600 bg-white border border-slate-200 rounded-xl shadow-sm hover:shadow-md transition-all"
+              title="Actualizar datos"
+            >
+              <RefreshCw className={cn("h-5 w-5", (isDataLoading || isStatsLoading) && "animate-spin")} />
+            </button>
             <ExportButton 
               label="Exportar " 
               onExportExcel={handleExportExcel} 
@@ -209,14 +263,18 @@ const CuentasMoraPage = () => {
           </div>
         </div>
 
-        <div className="px-6 md:px-8 py-8 space-y-8">
+        <div className="px-1 md:px-1 py-4 space-y-8">
         {/* Resumen de métricas minimalista */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
           <div className="group relative overflow-hidden bg-white/80 backdrop-blur-sm p-6 rounded-2xl border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all duration-300">
             <div className="flex justify-between items-start mb-4">
               <div>
                 <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Total en Mora</p>
-                <h3 className="text-2xl font-bold text-slate-900 mt-2">{formatCurrency(totalMora)}</h3>
+                {isStatsLoading ? (
+                  <div className="h-8 w-32 bg-slate-200 animate-pulse rounded mt-2"></div>
+                ) : (
+                  <h3 className="text-2xl font-bold text-slate-900 mt-2">{formatCurrency(totalMora)}</h3>
+                )}
               </div>
               <div className="p-3 bg-rose-50 rounded-xl group-hover:scale-110 transition-transform duration-300">
                 <AlertCircle className="h-5 w-5 text-rose-600" />
@@ -225,7 +283,7 @@ const CuentasMoraPage = () => {
             <div className="flex items-center gap-2">
               <span className="inline-flex items-center gap-1 text-xs font-bold text-rose-600 bg-rose-50 px-2 py-1 rounded-full">
                 <TrendingUp className="h-3 w-3" />
-                +5.2%
+                {estadisticas?.variacionMensual ? `+${estadisticas.variacionMensual}%` : '+0%'}
               </span>
               <span className="text-xs font-medium text-slate-400">vs mes anterior</span>
             </div>
@@ -235,7 +293,11 @@ const CuentasMoraPage = () => {
             <div className="flex justify-between items-start mb-4">
               <div>
                 <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Deuda Total Riesgo</p>
-                <h3 className="text-2xl font-bold text-slate-900 mt-2">{formatCurrency(totalDeuda)}</h3>
+                {isStatsLoading ? (
+                  <div className="h-8 w-32 bg-slate-200 animate-pulse rounded mt-2"></div>
+                ) : (
+                  <h3 className="text-2xl font-bold text-slate-900 mt-2">{formatCurrency(totalDeuda)}</h3>
+                )}
               </div>
               <div className="p-3 bg-amber-50 rounded-xl group-hover:scale-110 transition-transform duration-300">
                 <FileWarning className="h-5 w-5 text-amber-600" />
@@ -250,7 +312,11 @@ const CuentasMoraPage = () => {
             <div className="flex justify-between items-start mb-4">
               <div>
                 <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Clientes Afectados</p>
-                <h3 className="text-2xl font-bold text-slate-900 mt-2">{cuentasFiltradas.length}</h3>
+                 {isStatsLoading ? (
+                  <div className="h-8 w-16 bg-slate-200 animate-pulse rounded mt-2"></div>
+                ) : (
+                  <h3 className="text-2xl font-bold text-slate-900 mt-2">{clientesAfectados}</h3>
+                )}
               </div>
               <div className="p-3 bg-sky-50 rounded-xl group-hover:scale-110 transition-transform duration-300">
                 <User className="h-5 w-5 text-sky-600" />
@@ -258,7 +324,7 @@ const CuentasMoraPage = () => {
             </div>
             <div className="flex items-center gap-2">
               <span className="text-xs font-medium text-slate-400">
-                {cuentasFiltradas.filter(c => c.nivelRiesgo === 'ROJO').length} en estado crítico
+                {clientesCriticos} en estado crítico
               </span>
             </div>
           </div>
@@ -333,7 +399,12 @@ const CuentasMoraPage = () => {
         </div>
 
         {/* Lista de cuentas */}
-        {cuentasFiltradas.length === 0 ? (
+        {isDataLoading ? (
+            <div className="flex flex-col items-center justify-center py-20">
+                <RefreshCw className="h-10 w-10 animate-spin text-primary mb-4" />
+                <p className="text-slate-500 font-medium">Cargando cuentas en mora...</p>
+            </div>
+        ) : cuentas.length === 0 ? (
           <div className="col-span-full text-center py-12 bg-white rounded-2xl border border-slate-200 border-dashed">
             <div className="inline-flex p-4 rounded-full bg-emerald-50 mb-4">
               <CheckCircle className="h-8 w-8 text-emerald-500" />
@@ -343,7 +414,7 @@ const CuentasMoraPage = () => {
           </div>
         ) : viewMode === 'grid' ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {cuentasFiltradas.map((cuenta) => (
+            {cuentas.map((cuenta) => (
               <div key={cuenta.id} className="bg-white rounded-2xl border border-slate-200 shadow-sm hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] hover:-translate-y-1 transition-all duration-300 overflow-hidden group flex flex-col">
                 <div className="p-6 flex-1 space-y-6">
                   {/* Info Cliente */}
@@ -389,14 +460,14 @@ const CuentasMoraPage = () => {
                     </div>
                     <div>
                       <p className="text-xs text-slate-400 uppercase tracking-wide font-bold">Último Pago</p>
-                      <p className="text-sm font-bold text-slate-700">{cuenta.ultimoPago || 'N/A'}</p>
+                      <p className="text-sm font-bold text-slate-700">{cuenta.ultimoPago ? new Date(cuenta.ultimoPago).toLocaleDateString() : 'N/A'}</p>
                     </div>
                   </div>
 
                   {/* Acciones */}
                   <div className="pt-4 border-t border-slate-100 flex gap-2">
                     <button
-                      onClick={() => handleVerCliente(cuenta.id)}
+                      onClick={() => handleVerCliente(cuenta.cliente.id)}
                       className="flex-1 inline-flex items-center justify-center px-4 py-2 bg-slate-50 text-slate-700 rounded-xl hover:bg-blue-50 hover:text-blue-700 text-sm font-bold transition-colors"
                     >
                       <User className="h-4 w-4 mr-2" />
@@ -436,7 +507,7 @@ const CuentasMoraPage = () => {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {cuentasFiltradas.map((cuenta) => (
+                  {cuentas.map((cuenta) => (
                     <tr key={cuenta.id} className="hover:bg-slate-50/50 transition-colors group">
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
@@ -475,7 +546,7 @@ const CuentasMoraPage = () => {
                       <td className="px-6 py-4 text-right">
                         <div className="flex items-center justify-end gap-2">
                           <button 
-                            onClick={() => handleVerCliente(cuenta.id)}
+                            onClick={() => handleVerCliente(cuenta.cliente.id)}
                             className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors" 
                             title="Ver Perfil"
                           >
@@ -496,7 +567,7 @@ const CuentasMoraPage = () => {
               </table>
             </div>
             
-            {cuentasFiltradas.length === 0 && (
+            {cuentas.length === 0 && (
               <div className="text-center py-12">
                 <div className="inline-flex p-4 rounded-full bg-slate-50 mb-4">
                   <CheckCircle className="h-8 w-8 text-slate-400" />

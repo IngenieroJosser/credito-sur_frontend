@@ -50,6 +50,7 @@ interface NavigationItem {
   href: string;
   icon: React.ReactNode;
   id?: string;
+  isNew?: boolean;
   submodulos?: NavigationItem[];
 }
 
@@ -81,6 +82,7 @@ export default function AdminLayout({
   const [isLoggingOut, setIsLoggingOut] = useState(false)
   const [navigation, setNavigation] = useState<NavigationItem[]>([])
   const [openMenus, setOpenMenus] = useState<Record<string, boolean>>({})
+  const [seenModules, setSeenModules] = useState<string[]>([])
   const pathname = usePathname()
   const router = useRouter()
 
@@ -95,6 +97,15 @@ export default function AdminLayout({
         [id]: !isCurrentlyOpen
       }
     })
+  }
+  
+  const handleModuleClick = (moduleId?: string, isNew?: boolean) => {
+    if (moduleId && isNew && !seenModules.includes(moduleId)) {
+      const newSeen = [...seenModules, moduleId]
+      setSeenModules(newSeen)
+      localStorage.setItem('seenModules', JSON.stringify(newSeen))
+    }
+    setIsMenuOpen(false)
   }
 
   useEffect(() => {
@@ -118,6 +129,16 @@ export default function AdminLayout({
       try {
         const token = localStorage.getItem('token')
         const userData = localStorage.getItem('user')
+        const seenModulesStored = localStorage.getItem('seenModules')
+        
+        if (seenModulesStored) {
+          try {
+            setSeenModules(JSON.parse(seenModulesStored))
+          } catch {
+            setSeenModules([])
+          }
+        }
+
         if (!token || !userData) {
           setUser(null)
           setNavigation([])
@@ -140,10 +161,12 @@ export default function AdminLayout({
               href: modulo.path,
               icon: getIconComponent(modulo.icono),
               id: modulo.id,
+              isNew: modulo.isNew,
               submodulos: modulo.submodulos?.map(sub => ({
                 id: sub.id,
                 name: sub.nombre,
                 href: sub.path,
+                isNew: sub.isNew,
                 icon: getIconComponent(sub.icono)
               }))
             }))
@@ -718,21 +741,29 @@ export default function AdminLayout({
                             <div className="pl-4 space-y-1 mt-1 border-l-2 border-gray-100 ml-4">
                               {item.submodulos?.map((subItem) => {
                                 const isSubActive = pathname === subItem.href
+                                const isNew = subItem.isNew && subItem.id &&!seenModules.includes(subItem.id);
                                 return (
                                   <Link
                                     key={subItem.id}
                                     href={subItem.href}
-                                    className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-all duration-75 group ${
+                                    className={`flex items-center justify-between gap-3 px-3 py-2 rounded-lg transition-all duration-75 group ${
                                       isSubActive 
                                         ? 'text-[#08557f] font-medium bg-[#08557f]/5' 
                                         : 'text-gray-500 hover:text-[#08557f] hover:bg-gray-50'
                                     }`}
-                                    onClick={() => setIsMenuOpen(false)}
+                                    onClick={() => handleModuleClick(subItem.id, subItem.isNew)}
                                   >
-                                    <div className={`transition-colors ${isSubActive ? 'text-[#08557f]' : 'text-gray-300 group-hover:text-[#08557f]'}`}>
-                                      {subItem.icon}
+                                    <div className="flex items-center gap-3">
+                                      <div className={`transition-colors ${isSubActive ? 'text-[#08557f]' : 'text-gray-300 group-hover:text-[#08557f]'}`}>
+                                        {subItem.icon}
+                                      </div>
+                                      <span className="text-sm">{subItem.name}</span>
                                     </div>
-                                    <span className="text-sm">{subItem.name}</span>
+                                    {isNew && (
+                                        <span className="text-[10px] font-bold text-white bg-gradient-to-r from-pink-500 to-rose-500 px-1.5 py-0.5 rounded-full shadow-sm animate-pulse">
+                                          NUEVO
+                                        </span>
+                                    )}
                                   </Link>
                                 )
                               })}
@@ -742,21 +773,30 @@ export default function AdminLayout({
                       )
                     }
 
+                    const isNew = item.isNew && item.id && !seenModules.includes(item.id);
+
                     return (
                       <Link
                         key={item.id || item.name}
                         href={item.href}
-                        className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-75 border group ${
+                        className={`flex items-center justify-between gap-3 px-3 py-2.5 rounded-xl transition-all duration-75 border group ${
                           isActive 
                             ? 'text-[#08557f] bg-gradient-to-r from-[#08557f]/10 to-[#063a58]/5 font-medium border-[#08557f]/20' 
                             : 'text-gray-600 border-transparent hover:text-[#08557f] hover:bg-gray-50 hover:border-gray-200'
                         }`}
-                        onClick={() => setIsMenuOpen(false)}
+                        onClick={() => handleModuleClick(item.id, item.isNew)}
                       >
-                        <div className={`transition-colors ${isActive ? 'text-[#08557f]' : 'text-gray-400 group-hover:text-[#08557f]'}`}>
-                          {item.icon}
+                        <div className="flex items-center gap-3">
+                          <div className={`transition-colors ${isActive ? 'text-[#08557f]' : 'text-gray-400 group-hover:text-[#08557f]'}`}>
+                            {item.icon}
+                          </div>
+                          <span className="text-sm">{item.name}</span>
                         </div>
-                        <span className="text-sm">{item.name}</span>
+                         {isNew && (
+                            <span className="text-[10px] font-bold text-white bg-gradient-to-r from-pink-500 to-rose-500 px-1.5 py-0.5 rounded-full shadow-sm animate-pulse">
+                              NUEVO
+                            </span>
+                        )}
                       </Link>
                     )
                   })}
@@ -799,118 +839,13 @@ export default function AdminLayout({
                 <span className={`text-xs mt-1 transition-colors ${
                   pathname === item.href ? 'font-medium text-[#08557f]' : 'text-gray-600'
                 }`}>
-                  {item.name.length > 10 ? `${item.name.substring(0, 9)}...` : item.name}
+                  {item.name}
                 </span>
               </Link>
             ))}
-            <button
-              onClick={() => setIsMenuOpen(true)}
-              className="flex flex-col items-center px-2 py-1 rounded-xl transition-all group"
-            >
-              <div className={`p-2 rounded-lg transition-all ${
-                isMenuOpen
-                  ? 'bg-gradient-to-br from-[#08557f] to-[#063a58] text-white shadow-md' 
-                  : 'text-gray-500 group-hover:bg-gray-100'
-              }`}>
-                <Menu className="h-5 w-5" />
-              </div>
-              <span className={`text-xs mt-1 transition-colors ${
-                isMenuOpen ? 'font-medium text-[#08557f]' : 'text-gray-600'
-              }`}>
-                Más
-              </span>
-            </button>
           </div>
         </div>
       )}
-
-      {/* Barra inferior móvil para COBRADOR cuando hideSidebar está activo */}
-      {hideSidebar && user?.rol === 'COBRADOR' && (
-        <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-40 shadow-lg">
-          <div className="flex items-center justify-around py-3 px-2">
-            {/* Botón Notificaciones */}
-            <Link
-              href="/cobranzas/notificaciones"
-              className="flex flex-col items-center px-2 py-1 rounded-xl transition-all group"
-            >
-              <div className={`p-2 rounded-lg transition-all ${
-                pathname === '/cobranzas/notificaciones'
-                  ? 'bg-gradient-to-br from-[#08557f] to-[#063a58] text-white shadow-md' 
-                  : 'text-gray-500 group-hover:bg-gray-100'
-              }`}>
-                <Bell className="h-5 w-5" />
-                <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-orange-500 rounded-full border-2 border-white"></span>
-              </div>
-              <span className={`text-xs mt-1 transition-colors ${
-                pathname === '/cobranzas/notificaciones' ? 'font-medium text-[#08557f]' : 'text-gray-600'
-              }`}>
-                Notificaciones
-              </span>
-            </Link>
-
-            {/* Botón Inicio */}
-            <Link
-              href="/cobranzas"
-              className="flex flex-col items-center px-2 py-1 rounded-xl transition-all group"
-            >
-              <div className={`p-2 rounded-lg transition-all ${
-                pathname === '/cobranzas' 
-                  ? 'bg-gradient-to-br from-[#08557f] to-[#063a58] text-white shadow-md' 
-                  : 'text-gray-500 group-hover:bg-gray-100'
-              }`}>
-                <Home className="h-5 w-5" />
-              </div>
-              <span className={`text-xs mt-1 transition-colors ${
-                pathname === '/cobranzas' ? 'font-medium text-[#08557f]' : 'text-gray-600'
-              }`}>
-                Inicio
-              </span>
-            </Link>
-
-            {/* Botón Perfil */}
-            <Link
-              href="/cobranzas/perfil"
-              className="flex flex-col items-center px-2 py-1 rounded-xl transition-all group"
-            >
-              <div className={`p-2 rounded-lg transition-all ${
-                pathname === '/cobranzas/perfil'
-                  ? 'bg-gradient-to-br from-[#08557f] to-[#063a58] text-white shadow-md' 
-                  : 'text-gray-500 group-hover:bg-gray-100'
-              }`}>
-                <User className="h-5 w-5" />
-              </div>
-              <span className={`text-xs mt-1 transition-colors ${
-                pathname === '/cobranzas/perfil' ? 'font-medium text-[#08557f]' : 'text-gray-600'
-              }`}>
-                Perfil
-              </span>
-            </Link>
-          </div>
-        </div>
-      )}
-
-      <style jsx global>{`
-        .custom-scrollbar::-webkit-scrollbar {
-          width: 4px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-track {
-          background: transparent;
-        }
-        .custom-scrollbar::-webkit-scrollbar-thumb {
-          background: #e5e7eb;
-          border-radius: 2px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-          background: #d1d5db;
-        }
-        @keyframes fadeIn {
-          from { opacity: 0; transform: translateY(-10px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-        .animate-in {
-          animation: fadeIn 0.2s ease-out;
-        }
-      `}</style>
     </div>
   )
 }
