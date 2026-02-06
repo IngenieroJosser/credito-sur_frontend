@@ -8,6 +8,8 @@ import {
   Calendar,
   LayoutDashboard,
 } from 'lucide-react';
+import { useRouter, useSearchParams, usePathname } from 'next/navigation';
+import { TimeFilter, TimeFilterPeriod } from '@/components/ui/TimeFilter';
 import { formatCurrency } from '@/lib/utils';
 import { ExportButton } from '@/components/ui/ExportButton';
 import { PremiumBarChart } from '@/components/ui/PremiumCharts';
@@ -66,7 +68,18 @@ interface DashboardClientProps {
  * Recibe los datos ya procesados desde el Server Component
  */
 export function DashboardClient({ data }: DashboardClientProps) {
-  const [timeFilter, setTimeFilter] = useState<'today' | 'week' | 'month' | 'quarter'>('month');
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  
+  const activePeriod = (searchParams.get('period') as TimeFilterPeriod) || 'month';
+
+  const handlePeriodChange = (period: TimeFilterPeriod) => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set('period', period);
+    router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+  };
+
   const [currentDate] = useState(new Date());
   const [showCrearCreditoModal, setShowCrearCreditoModal] = useState(false);
 
@@ -119,24 +132,11 @@ export function DashboardClient({ data }: DashboardClientProps) {
           </div>
           
           <div className="flex items-center gap-4">
-            <div className="hidden md:flex bg-white rounded-xl p-1 shadow-sm border border-slate-100">
-              {['Hoy', 'Sem', 'Mes', 'Trim'].map((item, index) => {
-                const values = ['today', 'week', 'month', 'quarter'] as const;
-                return (
-                  <button
-                    key={item}
-                    onClick={() => setTimeFilter(values[index])}
-                    className={`px-5 py-2 text-sm rounded-lg transition-all font-medium ${
-                      timeFilter === values[index] 
-                        ? 'bg-primary text-white shadow-md shadow-primary/20' 
-                        : 'text-slate-500 hover:text-primary hover:bg-primary/5'
-                    }`}
-                  >
-                    {item}
-                  </button>
-                );
-              })}
-            </div>
+            {/* El componente TimeFilter maneja internamente su responsividad (hidden md:flex y md:hidden) */}
+            <TimeFilter 
+              activePeriod={activePeriod} 
+              onPeriodChange={handlePeriodChange} 
+            />
             
             <ExportButton 
               label="Exportar" 
@@ -144,26 +144,6 @@ export function DashboardClient({ data }: DashboardClientProps) {
               onExportPDF={handleExportPDF} 
             />
           </div>
-        </div>
-        
-        {/* Filtro móvil */}
-        <div className="md:hidden flex overflow-x-auto pb-2 gap-2 scrollbar-hide">
-          {['Hoy', 'Semana', 'Mes', 'Trimestre'].map((item, index) => {
-             const values = ['today', 'week', 'month', 'quarter'] as const;
-             return (
-               <button
-                 key={item}
-                 onClick={() => setTimeFilter(values[index])}
-                 className={`px-4 py-2 text-sm rounded-full whitespace-nowrap transition-all font-medium ${
-                   timeFilter === values[index] 
-                     ? 'bg-primary text-white' 
-                     : 'bg-white text-slate-600 border border-slate-200'
-                 }`}
-               >
-                 {item}
-               </button>
-             );
-           })}
         </div>
 
         {/* Métricas principales */}

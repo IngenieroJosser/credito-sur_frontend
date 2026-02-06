@@ -1,9 +1,10 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { DashboardClient } from './dashboard-client';
 import { Rol } from '@/lib/permissions';
+import { TimeFilterPeriod } from '@/components/ui/TimeFilter';
 import {
   CreditCard,
   Target,
@@ -89,6 +90,8 @@ interface DashboardData {
 
 export default function DashboardPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const period = (searchParams.get('period') as TimeFilterPeriod) || 'month';
   
   // Estado consolidado para evitar múltiples renders
   const [state, setState] = useState<{
@@ -108,7 +111,7 @@ export default function DashboardPage() {
 
     // Función para inicializar el dashboard
     const initializeDashboard = () => {
-      console.log('Inicializando Dashboard...');
+      console.log('Inicializando Dashboard con periodo:', period);
       const token = localStorage.getItem('token');
       const user = localStorage.getItem('user');
 
@@ -143,8 +146,8 @@ export default function DashboardPage() {
           return;
         }
 
-        // Cargar datos del dashboard
-        const data = configurarDashboardPorRol(parsedUser.rol);
+        // Cargar datos del dashboard filtrados por periodo
+        const data = configurarDashboardPorRol(parsedUser.rol, period);
         
         if (isMounted) {
           setState({
@@ -159,33 +162,19 @@ export default function DashboardPage() {
           });
         }
       } catch (error) {
-        console.error('Error al parsear datos del usuario:', error);
+        console.error('Error al cargar datos:', error);
         localStorage.removeItem('token');
         localStorage.removeItem('user');
         router.replace('/');
       }
     };
 
-    // Timeout de seguridad para evitar pantalla de carga infinita
-    const safetyTimeout = setTimeout(() => {
-        if (isMounted) {
-             console.warn('Dashboard Safety Timeout Triggered');
-             setState(prev => {
-                if (prev.isLoading) {
-                    return { ...prev, isLoading: false };
-                }
-                return prev;
-             });
-        }
-    }, 1500);
-
     initializeDashboard();
 
     return () => {
         isMounted = false;
-        clearTimeout(safetyTimeout);
     };
-  }, [router]);
+  }, [router, period]); // Se recarga cuando cambia el periodo en la URL
 
   // Efecto separado para manejar redirecciones
   useEffect(() => {
@@ -227,15 +216,23 @@ export default function DashboardPage() {
 }
 
 /**
- * Configurar datos del dashboard según rol
+ * Configurar datos del dashboard según rol y periodo seleccionado
  * Temporal hasta migrar a SSR con fetch real del backend
  */
-function configurarDashboardPorRol(rol: Rol): Omit<DashboardData, 'userFullName' | 'userRole'> {
+function configurarDashboardPorRol(rol: Rol, period: TimeFilterPeriod = 'month'): Omit<DashboardData, 'userFullName' | 'userRole'> {
+  // Factores de simulación para que los números cambien según el periodo
+  const factor = {
+    today: 0.1,    // Aprox 1/10 del mes (un poco más que 1/30)
+    week: 0.25,    // 1/4 del mes
+    month: 1,      // Base
+    quarter: 3     // 3 meses
+  }[period];
+
   const metricsConfig: Record<Rol, MetricItem[]> = {
     SUPER_ADMINISTRADOR: [
       {
-        title: 'Total Prestado (Mes)',
-        value: 125000000,
+        title: `Total Prestado (${period === 'today' ? 'Hoy' : period === 'week' ? 'Sem' : period === 'month' ? 'Mes' : 'Trim'})`,
+        value: 125000000 * factor,
         isCurrency: true,
         change: 12.5,
         icon: <CreditCard className="h-4 w-4" />,
@@ -243,8 +240,8 @@ function configurarDashboardPorRol(rol: Rol): Omit<DashboardData, 'userFullName'
       },
       {
         title: 'Recaudo Real vs Esperado',
-        value: '94.2%',
-        subValue: `${formatCurrency(12500000)} / ${formatCurrency(13200000)}`,
+        value: period === 'today' ? '98.5%' : '94.2%',
+        subValue: `${formatCurrency(12500000 * factor)} / ${formatCurrency(13200000 * factor)}`,
         isCurrency: false,
         change: 2.1,
         icon: <Target className="h-4 w-4" />,
@@ -252,7 +249,7 @@ function configurarDashboardPorRol(rol: Rol): Omit<DashboardData, 'userFullName'
       },
       {
         title: 'Cartera en Mora',
-        value: 45000000,
+        value: 45000000, // La mora suele ser un acumulado, no cambia tanto por periodo de vista
         subValue: '8.5% del total',
         isCurrency: true,
         change: -3.4,
@@ -270,8 +267,8 @@ function configurarDashboardPorRol(rol: Rol): Omit<DashboardData, 'userFullName'
     ],
     ADMIN: [
       {
-        title: 'Total Prestado (Mes)',
-        value: 125000000,
+        title: `Total Prestado (${period === 'today' ? 'Hoy' : period === 'week' ? 'Sem' : period === 'month' ? 'Mes' : 'Trim'})`,
+        value: 125000000 * factor,
         isCurrency: true,
         change: 12.5,
         icon: <CreditCard className="h-4 w-4" />,
@@ -279,8 +276,8 @@ function configurarDashboardPorRol(rol: Rol): Omit<DashboardData, 'userFullName'
       },
       {
         title: 'Recaudo Real vs Esperado',
-        value: '94.2%',
-        subValue: `${formatCurrency(12500000)} / ${formatCurrency(13200000)}`,
+        value: period === 'today' ? '98.5%' : '94.2%',
+        subValue: `${formatCurrency(12500000 * factor)} / ${formatCurrency(13200000 * factor)}`,
         isCurrency: false,
         change: 2.1,
         icon: <Target className="h-4 w-4" />,
@@ -446,20 +443,23 @@ function configurarDashboardPorRol(rol: Rol): Omit<DashboardData, 'userFullName'
       { client: 'Shakira Mebarak', amount: 12000000, term: 'Mensual', status: 'APROBADO', date: 'Hace 1d' },
     ],
     topCollectors: [
-      { name: 'Juan Pérez', collected: 15400000, efficiency: 98, trend: 'up' as const },
-      { name: 'Maria Gonzalez', collected: 12800000, efficiency: 95, trend: 'up' as const },
-      { name: 'Pedro Coral', collected: 11200000, efficiency: 92, trend: 'down' as const },
-      { name: 'Betty Pinzon', collected: 9800000, efficiency: 89, trend: 'up' as const },
-      { name: 'Armando Mendoza', collected: 8500000, efficiency: 85, trend: 'down' as const },
+      { name: 'Juan Pérez', collected: 15400000 * factor, efficiency: 98, trend: 'up' as const },
+      { name: 'Maria Gonzalez', collected: 12800000 * factor, efficiency: 95, trend: 'up' as const },
+      { name: 'Pedro Coral', collected: 11200000 * factor, efficiency: 92, trend: 'down' as const },
+      { name: 'Betty Pinzon', collected: 9800000 * factor, efficiency: 89, trend: 'up' as const },
+      { name: 'Armando Mendoza', collected: 8500000 * factor, efficiency: 85, trend: 'down' as const },
     ],
-    chartData: [
-      { label: 'Lun', value: 2500000, target: 3000000 },
-      { label: 'Mar', value: 2800000, target: 3000000 },
-      { label: 'Mie', value: 1900000, target: 3000000 },
-      { label: 'Jue', value: 3400000, target: 3000000 },
-      { label: 'Vie', value: 2950000, target: 3000000 },
-      { label: 'Sab', value: 3800000, target: 3000000 },
-      { label: 'Dom', value: 1200000, target: 1500000 },
+    chartData: period === 'today' ? [
+      { label: '8am', value: 250000, target: 300000 },
+      { label: '10am', value: 580000, target: 500000 },
+      { label: '12pm', value: 490000, target: 500000 },
+      { label: '2pm', value: 840000, target: 700000 },
+      { label: '4pm', value: 295000, target: 400000 },
+    ] : [
+      { label: 'Sem 1', value: 25000000 * factor, target: 30000000 * factor },
+      { label: 'Sem 2', value: 28000000 * factor, target: 30000000 * factor },
+      { label: 'Sem 3', value: 19000000 * factor, target: 30000000 * factor },
+      { label: 'Sem 4', value: 34000000 * factor, target: 30000000 * factor },
     ]
   };
 }

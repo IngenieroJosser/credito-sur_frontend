@@ -17,6 +17,8 @@ import {
 } from 'lucide-react'
 import { formatCurrency, cn } from '@/lib/utils'
 import { ExportButton } from '@/components/ui/ExportButton'
+import { useRouter, useSearchParams, usePathname } from 'next/navigation'
+import { TimeFilter, TimeFilterPeriod } from '@/components/ui/TimeFilter'
 
 type EstadoPago = 'completado' | 'pendiente' | 'fallido' | 'en_revision'
 
@@ -32,6 +34,17 @@ interface Pago {
 }
 
 const HistorialPagosPage = () => {
+  const router = useRouter()
+  const pathname = usePathname()
+  const searchParams = useSearchParams()
+  const period = (searchParams.get('period') as TimeFilterPeriod) || 'month'
+
+  const handlePeriodChange = (newPeriod: TimeFilterPeriod) => {
+    const params = new URLSearchParams(searchParams.toString())
+    params.set('period', newPeriod)
+    router.replace(`${pathname}?${params.toString()}`, { scroll: false })
+  }
+
   const [estadoFiltro, setEstadoFiltro] = useState<EstadoPago | 'todos'>('todos')
   const [busqueda, setBusqueda] = useState('')
   const [paginaActual, setPaginaActual] = useState(1)
@@ -96,6 +109,12 @@ const HistorialPagosPage = () => {
   }
 
   const pagosFiltrados = pagos.filter((pago) => {
+    // Filtrado por periodo (Simulado)
+    if (period === 'today') {
+       // Solo mostrar algunos para simular "hoy"
+       if (pago.id === 'PG-003' || pago.id === 'PG-004') return false;
+    }
+
     if (estadoFiltro !== 'todos' && pago.estado !== estadoFiltro) return false
     if (
       busqueda &&
@@ -133,6 +152,7 @@ const HistorialPagosPage = () => {
               </p>
             </div>
             <div className="flex gap-3">
+              <TimeFilter activePeriod={period} onPeriodChange={handlePeriodChange} />
               <ExportButton 
                 label="Exportar Reporte" 
                 onExportExcel={handleExportExcel} 

@@ -1,15 +1,26 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams, usePathname } from 'next/navigation'
 import { BarChart3, Calendar, Eye } from 'lucide-react'
 import { formatCurrency, cn } from '@/lib/utils'
 import { ExportButton } from '@/components/ui/ExportButton'
 import FiltroRuta from '@/components/filtros/FiltroRuta'
 import DetalleReporteOperativoModal from '@/components/reportes/DetalleReporteOperativoModal'
+import { TimeFilter, TimeFilterPeriod } from '@/components/ui/TimeFilter'
 
 const ReportesCoordinador = () => {
   const router = useRouter()
+  const pathname = usePathname()
+  const searchParams = useSearchParams()
+  const period = (searchParams.get('period') as TimeFilterPeriod) || 'month'
+
+  const handlePeriodChange = (newPeriod: TimeFilterPeriod) => {
+    const params = new URLSearchParams(searchParams.toString())
+    params.set('period', newPeriod)
+    router.replace(`${pathname}?${params.toString()}`, { scroll: false })
+  }
+
   const [mounted, setMounted] = useState(false)
   const [reporteAVisualizar, setReporteAVisualizar] = useState<string | null>(null)
 
@@ -23,11 +34,19 @@ const ReportesCoordinador = () => {
     return () => clearTimeout(timer)
   }, [])
 
+  // Factores de simulación según el periodo
+  const factor = {
+    today: 0.1,
+    week: 0.25,
+    month: 1,
+    quarter: 3
+  }[period];
+
   // Mock Data - Rendimiento Operativo
   const rendimientoRutas = [
-    { id: '1', ruta: 'Ruta Centro', cobrador: 'Carlos Pérez', meta: 1500000, recaudado: 1250000, eficiencia: 83, nuevosPrestamos: 2, nuevosClientes: 1 },
-    { id: '2', ruta: 'Ruta Norte', cobrador: 'María Rodríguez', meta: 1000000, recaudado: 820000, eficiencia: 82, nuevosPrestamos: 0, nuevosClientes: 0 },
-    { id: '3', ruta: 'Ruta Sur', cobrador: 'Juanito Alimaña', meta: 500000, recaudado: 300000, eficiencia: 60, nuevosPrestamos: 1, nuevosClientes: 2 },
+    { id: '1', ruta: 'Ruta Centro', cobrador: 'Carlos Pérez', meta: 1500000 * factor, recaudado: 1250000 * factor, eficiencia: 83, nuevosPrestamos: Math.round(2 * factor), nuevosClientes: Math.round(1 * factor) },
+    { id: '2', ruta: 'Ruta Norte', cobrador: 'María Rodríguez', meta: 1000000 * factor, recaudado: 820000 * factor, eficiencia: 82, nuevosPrestamos: Math.round(0 * factor), nuevosClientes: Math.round(0 * factor) },
+    { id: '3', ruta: 'Ruta Sur', cobrador: 'Juanito Alimaña', meta: 500000 * factor, recaudado: 300000 * factor, eficiencia: 60, nuevosPrestamos: Math.round(1 * factor), nuevosClientes: Math.round(2 * factor) },
   ]
 
   const totalRecaudo = rendimientoRutas.reduce((acc, item) => acc + item.recaudado, 0)
@@ -95,9 +114,7 @@ const ReportesCoordinador = () => {
                   selectedRutaId={null}
                   showAllOption={true}
               />
-               <button className="flex items-center gap-2 px-4 py-2.5 text-xs font-bold text-slate-600 bg-slate-50 border border-slate-200 hover:bg-white rounded-xl transition-all shadow-sm">
-                  <Calendar className="h-4 w-4 text-slate-400" /> Hoy, 22 Ene 2026
-               </button>
+              <TimeFilter activePeriod={period} onPeriodChange={handlePeriodChange} />
             </div>
         </div>
 
