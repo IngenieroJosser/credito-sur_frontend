@@ -42,6 +42,7 @@ const LoginPage = () => {
   });
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [isRedirecting, setIsRedirecting] = useState(false); // Nuevo estado para transición
   const [error, setError] = useState('');
   const [focusedField, setFocusedField] = useState<string | null>(null);
   const [toast, setToast] = useState<ToastState>({
@@ -166,13 +167,18 @@ const LoginPage = () => {
       showToast('Bienvenido', `${userName} (${formatRol(rol)})`, 'success');
 
       // Redirigir
+      // Redirigir con transición suave
       setTimeout(() => {
-        console.log(`Redirigiendo a ${result.redirectTo}`);
-        if (result.redirectTo) {
-          router.replace(result.redirectTo);
-          router.refresh(); // Importante para actualizar Server Components con la nueva cookie
-        }
-      }, 1500);
+        setIsRedirecting(true); // 1. Activar cortina blanca (tarda ~700ms en aparecer)
+        
+        setTimeout(() => {
+          console.log(`Redirigiendo a ${result.redirectTo}`);
+          if (result.redirectTo) {
+            router.replace(result.redirectTo);
+            router.refresh(); // Actualizar componentes con cookie nueva
+          }
+        }, 800); // 2. Navegar cuando la pantalla ya es blanca
+      }, 1200); // Esperar un poco para que el usuario lea "Bienvenido"
 
     } catch (err: unknown) {
       console.error('Error en login:', err);
@@ -207,6 +213,7 @@ const LoginPage = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-white via-gray-50 to-gray-100 flex items-center justify-center p-4 relative">
+      
       {/* Toast Ultra Minimalista */}
       <div className={`fixed top-6 right-6 z-50 transform transition-all duration-500 ease-out ${toast.show ? 'translate-x-0 opacity-100' : 'translate-x-full opacity-0'
         }`}>
@@ -289,8 +296,9 @@ const LoginPage = () => {
                 <Image
                   src="/favicon.ico"
                   alt="Logo Oficial - Credisur"
-                  fill
-                  className="object-contain p-2"
+                  width={80}
+                  height={80}
+                  className="object-contain p-2 w-full h-full"
                   priority
                 />
               </div>
@@ -434,6 +442,82 @@ const LoginPage = () => {
           <div className="w-1.5 h-1.5 bg-green-400 rounded-full"></div>
           <span className="text-xs text-gray-500">En línea</span>
         </div>
+      </div>
+
+      {/* CORTINA DE TRANSICIÓN PREMIUM CON ESTILOS INLINE (ANTI-FOUC) */}
+      <div 
+        className={`fixed inset-0 z-[9999] bg-white flex flex-col items-center justify-center transition-all duration-700 ease-in-out pointer-events-none ${isRedirecting ? 'opacity-100 visible' : 'opacity-0 invisible'}`}
+        style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            width: '100%',
+            height: '100%',
+            zIndex: 9999,
+            backgroundColor: '#ffffff',
+            opacity: isRedirecting ? 1 : 0,
+            visibility: isRedirecting ? 'visible' : 'hidden',
+            pointerEvents: 'none',
+            display: isRedirecting ? 'flex' : 'none',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center'
+        }}
+      >
+         <div 
+            className={`flex flex-col items-center transform transition-all duration-1000 ${isRedirecting ? 'scale-100 opacity-100' : 'scale-95 opacity-0'}`}
+            style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}
+         >
+            <div 
+                className="relative w-24 h-24 mb-8"
+                style={{ width: '96px', height: '96px', marginBottom: '32px', position: 'relative' }}
+            >
+                <div 
+                    className="relative w-full h-full bg-white shadow-2xl rounded-2xl flex items-center justify-center border border-gray-100 p-5 z-10"
+                    style={{
+                        width: '100%',
+                        height: '100%',
+                        backgroundColor: '#ffffff',
+                        borderRadius: '16px',
+                        boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
+                        border: '1px solid #f3f4f6',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        padding: '1.25rem',
+                        zIndex: 10
+                    }}
+                >
+                   {/* Usamos img tag simple para evitar dependencias de Next/Image si JS falla */}
+                   <img 
+                      src="/favicon.ico" 
+                      alt="CrediSur" 
+                      width="64" 
+                      height="64" 
+                      style={{ objectFit: 'contain', width: '64px', height: '64px' }}
+                   />
+                </div>
+            </div>
+
+            <h2 className="text-2xl font-bold text-slate-800 mb-2 tracking-tight" style={{ fontFamily: 'sans-serif' }}>
+                <span style={{ color: '#08557f' }}>Credi</span><span style={{ color: '#fb851b' }}>Sur</span>
+            </h2>
+            <p className="text-slate-400 font-medium text-sm mb-10 tracking-widest uppercase text-xs" style={{ fontFamily: 'sans-serif', color: '#94a3b8' }}>Accediendo al sistema seguro</p>
+
+            <div className="flex flex-col items-center gap-3">
+               <div 
+                   className="w-12 h-12 border-4 border-slate-100 border-t-[#08557f] border-r-[#08557f] rounded-full animate-spin"
+                   style={{ 
+                       width: '48px', 
+                       height: '48px', 
+                       border: '4px solid #f1f5f9', 
+                       borderTop: '4px solid #08557f', 
+                       borderRight: '4px solid #08557f', 
+                       borderRadius: '50%' 
+                   }}
+               ></div>
+            </div>
+         </div>
       </div>
 
       <style jsx>{`

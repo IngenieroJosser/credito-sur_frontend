@@ -74,6 +74,7 @@ export default function AdminLayout({
   hideSidebar?: boolean;
 }) {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
+  const [isPageLoaded, setIsPageLoaded] = useState(false) // Nuevo estado para fade-in
   const [user, setUser] = useState<Usuario | null>(null)
   const [authChecked, setAuthChecked] = useState(false)
   const [showUserMenu, setShowUserMenu] = useState(false)
@@ -139,7 +140,9 @@ export default function AdminLayout({
           }
         }
 
-        if (!token || !userData) {
+        // El token está en cookies HttpOnly, solo validamos userData local
+        if (!userData) {
+          console.log('AdminLayout: No user data found, redirecting to login');
           setUser(null)
           setNavigation([])
           setAuthChecked(true)
@@ -178,6 +181,8 @@ export default function AdminLayout({
         console.error('Error al cargar datos del usuario:', error)
       } finally {
         setAuthChecked(true)
+        // Delay optimizado: 300ms es suficiente para pintar CSS sin que parezca bloqueado
+        setTimeout(() => setIsPageLoaded(true), 300)
       }
     }
 
@@ -299,9 +304,13 @@ export default function AdminLayout({
   const mobileNavItems = getMobileNavigation()
 
   return (
-    <div className="min-h-screen bg-linear-to-br from-gray-50 to-white">
+    <div className="min-h-screen bg-linear-to-br from-gray-50 to-white relative">
+
       {/* Header ultra minimalista */}
-      <header className="fixed top-0 left-0 right-0 z-40 bg-white/80 backdrop-blur-sm border-b border-gray-100">
+      <header 
+        className={`fixed top-0 left-0 right-0 z-40 bg-white/80 backdrop-blur-sm border-b border-gray-100 transition-opacity duration-300 ${isPageLoaded ? 'opacity-100' : 'opacity-0'}`}
+        style={{ opacity: isPageLoaded ? 1 : 0 }}
+      >
         <div className="px-4 sm:px-6 lg:px-8 py-3">
           <div className="flex items-center justify-between">
             {/* Logo y título */}
@@ -316,8 +325,11 @@ export default function AdminLayout({
               )}
               
               <div className="flex items-center">
-                <div className="w-12 h-12 rounded-xl flex items-center justify-center shadow-lg shadow-blue-600/10 overflow-hidden bg-white border border-gray-100 p-1.5 transition-transform hover:scale-105 relative">
-                  <Image src="/favicon.ico" alt="Logo" fill className="object-contain" />
+                <div 
+                  className="w-12 h-12 rounded-xl flex items-center justify-center shadow-lg shadow-blue-600/10 overflow-hidden bg-white border border-gray-100 p-1.5 transition-transform hover:scale-105 relative"
+                  style={{ width: '48px', height: '48px', flexShrink: 0, position: 'relative' }}
+                >
+                  <Image src="/favicon.ico" alt="Logo" width={48} height={48} className="object-contain w-full h-full" />
                 </div>
                 <h1 className="ml-3 text-xl font-bold tracking-tight">
                   <span className="text-blue-600">Credi</span><span className="text-orange-500">Sur</span>
@@ -666,9 +678,12 @@ export default function AdminLayout({
 
       {/* Sidebar elegante para desktop */}
       {!hideSidebar && user?.rol !== 'COBRADOR' && (
-        <aside className={`fixed left-0 top-16 bottom-0 w-64 bg-white/80 backdrop-blur-sm border-r border-gray-100 transition-all duration-300 z-20 ${
-          isMenuOpen ? 'translate-x-0' : '-translate-x-full'
-        } lg:translate-x-0 lg:block`}>
+        <aside 
+          className={`fixed left-0 top-16 bottom-0 w-64 bg-white/80 backdrop-blur-sm border-r border-gray-100 transition-all duration-300 z-20 ${
+            isMenuOpen ? 'translate-x-0' : '-translate-x-full'
+          } lg:translate-x-0 lg:block ${isPageLoaded ? 'opacity-100' : 'opacity-0'}`}
+          style={{ opacity: isPageLoaded ? 1 : 0 }}
+        >
           <nav className="p-6 h-full overflow-y-auto custom-scrollbar">
             <div className="space-y-6">
               {/* Info del usuario en sidebar móvil */}
@@ -813,8 +828,11 @@ export default function AdminLayout({
         </aside>
       )}
 
-      {/* Contenido principal */}
-      <main className={`pt-16 ${hideSidebar || user?.rol === 'COBRADOR' ? '' : 'lg:pl-64'} transition-all duration-300 ${(isMenuOpen && !hideSidebar && user?.rol !== 'COBRADOR') ? 'lg:pl-64' : ''}`}>
+      {/* Contenido principal animado */}
+      <main 
+        className={`pt-16 ${hideSidebar || user?.rol === 'COBRADOR' ? '' : 'lg:pl-64'} transition-all duration-700 ease-out ${(isMenuOpen && !hideSidebar && user?.rol !== 'COBRADOR') ? 'lg:pl-64' : ''} ${isPageLoaded ? 'opacity-100 transform-none' : 'translate-y-4 opacity-0 scale-[0.99]'}`}
+        style={{ opacity: isPageLoaded ? 1 : 0 }}
+      >
         {children}
       </main>
 
@@ -846,6 +864,41 @@ export default function AdminLayout({
           </div>
         </div>
       )}
+      {/* Overlay de Transición Anti-FOUC (Blanco Puro para transición invisible desde Login) */}
+      <div 
+        role="presentation"
+        className="fixed inset-0 bg-white transition-opacity duration-1000 ease-out z-[9999] flex flex-col items-center justify-center"
+        style={{ 
+            opacity: isPageLoaded ? 0 : 1,
+            pointerEvents: isPageLoaded ? 'none' : 'all',
+            position: 'fixed',
+            top: 0, 
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: '#ffffff',
+            zIndex: 9999
+        }}
+      >
+         {/* Spinner de respaldo minimalista, solo visible si tarda mucho */}
+         {/* Overlay Simplificado (Blanco + Spinner Robusto) para evitar FOUC de logo complejo */}
+         <div 
+            className={`flex items-center justify-center transition-all duration-700 ${isPageLoaded ? 'opacity-0' : 'opacity-100'}`}
+            style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+         >
+            <div 
+                className="w-12 h-12 border-4 border-slate-100 border-t-[#08557f] border-r-[#08557f] rounded-full animate-spin" 
+                style={{ 
+                    width: '48px', 
+                    height: '48px', 
+                    border: '4px solid #f1f5f9', 
+                    borderTop: '4px solid #08557f', 
+                    borderRight: '4px solid #08557f', 
+                    borderRadius: '50%' 
+                }}
+            ></div>
+         </div>
+      </div>
     </div>
   )
 }

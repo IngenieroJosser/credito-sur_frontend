@@ -104,18 +104,25 @@ export default function DashboardPage() {
   });
 
   useEffect(() => {
+    let isMounted = true;
+
     // Función para inicializar el dashboard
     const initializeDashboard = () => {
+      console.log('Inicializando Dashboard...');
       const token = localStorage.getItem('token');
       const user = localStorage.getItem('user');
 
-      if (!token || !user) {
+      // Validamos solo user. El token ahora viaja en cookies HttpOnly y no es accesible por JS.
+      // La seguridad real la da el backend al rechazar peticiones sin cookie.
+      if (!user) {
+        console.log('No hay usuario en localStorage, redirigiendo a login');
         router.replace('/');
         return;
       }
 
       try {
         const parsedUser = JSON.parse(user) as UserData;
+        console.log('Usuario parseado:', parsedUser.rol);
 
         // Verificar si necesita redirección
         if (['COBRADOR', 'COORDINADOR', 'SUPERVISOR'].includes(parsedUser.rol)) {
@@ -125,28 +132,32 @@ export default function DashboardPage() {
             SUPERVISOR: '/supervisor'
           };
           
-          setState({
-            isLoading: false,
-            userData: parsedUser,
-            dashboardData: null,
-            shouldRedirect: routes[parsedUser.rol]
-          });
+          if (isMounted) {
+            setState({
+              isLoading: false,
+              userData: parsedUser,
+              dashboardData: null,
+              shouldRedirect: routes[parsedUser.rol]
+            });
+          }
           return;
         }
 
         // Cargar datos del dashboard
         const data = configurarDashboardPorRol(parsedUser.rol);
         
-        setState({
-          isLoading: false,
-          userData: parsedUser,
-          dashboardData: {
-            ...data,
-            userFullName: `${parsedUser.nombres} ${parsedUser.apellidos}`,
-            userRole: parsedUser.rol?.replace('_', ' ') || 'Usuario'
-          },
-          shouldRedirect: null
-        });
+        if (isMounted) {
+          setState({
+            isLoading: false,
+            userData: parsedUser,
+            dashboardData: {
+              ...data,
+              userFullName: `${parsedUser.nombres} ${parsedUser.apellidos}`,
+              userRole: parsedUser.rol?.replace('_', ' ') || 'Usuario'
+            },
+            shouldRedirect: null
+          });
+        }
       } catch (error) {
         console.error('Error al parsear datos del usuario:', error);
         localStorage.removeItem('token');
@@ -155,7 +166,25 @@ export default function DashboardPage() {
       }
     };
 
+    // Timeout de seguridad para evitar pantalla de carga infinita
+    const safetyTimeout = setTimeout(() => {
+        if (isMounted) {
+             console.warn('Dashboard Safety Timeout Triggered');
+             setState(prev => {
+                if (prev.isLoading) {
+                    return { ...prev, isLoading: false };
+                }
+                return prev;
+             });
+        }
+    }, 1500);
+
     initializeDashboard();
+
+    return () => {
+        isMounted = false;
+        clearTimeout(safetyTimeout);
+    };
   }, [router]);
 
   // Efecto separado para manejar redirecciones
