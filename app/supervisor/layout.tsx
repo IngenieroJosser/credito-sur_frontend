@@ -78,13 +78,15 @@ export default function SupervisorLayout({
 
       if (parsedUser.rol !== 'SUPERVISOR') {
         const ROLE_REDIRECT_MAP: Record<string, string> = {
-          SUPER_ADMINISTRADOR: '/admin',
-          COORDINADOR: '/coordinador',
-          COBRADOR: '/cobranzas',
-          CONTADOR: '/contador',
+          'SUPER_ADMINISTRADOR': '/admin',
+          'ADMIN': '/admin',
+          'COORDINADOR': '/coordinador',
+          'SUPERVISOR': '/supervisor',
+          'COBRADOR': '/cobranzas',
+          'CONTADOR': '/contador/contable',
         }
 
-        router.replace(ROLE_REDIRECT_MAP[parsedUser.rol] ?? '/admin')
+        router.replace(ROLE_REDIRECT_MAP[parsedUser.rol] || '/admin')
         return
       }
     } catch {

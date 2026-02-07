@@ -8,7 +8,8 @@ export interface LoginResult {
   success: boolean;
   error?: string;
   redirectTo?: string;
-  user?: any; // Retornamos usuario para que el cliente lo guarde en context/localStorage si desea
+  user?: any;
+  token?: string;
 }
 
 /**
@@ -51,7 +52,7 @@ export async function loginAction(data: LoginData): Promise<LoginResult> {
       'COORDINADOR': '/coordinador',
       'SUPER_ADMINISTRADOR': '/admin',
       'ADMINISTRADOR': '/admin',
-      'SUPERVISOR': '/admin', // Temporalmente a admin
+      'SUPERVISOR': '/supervisor',
       'CONTADOR': '/contador/contable'
     };
 
@@ -61,7 +62,8 @@ export async function loginAction(data: LoginData): Promise<LoginResult> {
     return {
       success: true,
       redirectTo: redirectPath,
-      user: response.usuario
+      user: response.usuario,
+      token: response.access_token
     };
 
   } catch (error: any) {

@@ -85,6 +85,23 @@ const VistaCoordinador = () => {
 
         if (userData) {
           const parsedUser = JSON.parse(userData) as Usuario
+          
+          // Verificar que el rol sea COORDINADOR
+          if (parsedUser.rol !== 'COORDINADOR') {
+            const ROLE_REDIRECT_MAP: Record<string, string> = {
+              'SUPER_ADMINISTRADOR': '/admin',
+              'ADMIN': '/admin',
+              'COORDINADOR': '/coordinador',
+              'SUPERVISOR': '/supervisor',
+              'COBRADOR': '/cobranzas',
+              'CONTADOR': '/contador/contable',
+            };
+            
+            const redirectPath = ROLE_REDIRECT_MAP[parsedUser.rol] || '/';
+            router.replace(redirectPath);
+            return;
+          }
+
           setUser(parsedUser)
         }
       } catch (error) {

@@ -190,17 +190,19 @@ export default function AdminLayout({
   }, [router])
 
   useEffect(() => {
-    if (!authChecked) return
-    if (!user?.rol) return
+    if (!authChecked || !user?.rol) return
 
-    if (user.rol === 'SUPERVISOR') {
-      router.replace('/supervisor')
-      return
+    // Redirección proactiva si el rol no pertenece a la sección /admin
+    const roleRedirects: Record<string, string> = {
+      'COBRADOR': '/cobranzas',
+      'COORDINADOR': '/coordinador',
+      'SUPERVISOR': '/supervisor',
+      'CONTADOR': '/contador/contable'
     }
 
-    if (user.rol === 'CONTADOR' && pathname?.startsWith('/admin')) {
-      router.replace('/contador')
-      return
+    if (roleRedirects[user.rol] && pathname?.startsWith('/admin')) {
+      console.log(`AdminLayout: Redirecting ${user.rol} to ${roleRedirects[user.rol]}`)
+      router.replace(roleRedirects[user.rol])
     }
   }, [authChecked, pathname, router, user?.rol])
 

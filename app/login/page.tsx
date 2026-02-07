@@ -157,8 +157,11 @@ const LoginPage = () => {
         const userData = { ...result.user, nombreCompleto: userFullName };
         
         localStorage.setItem('user', JSON.stringify(userData));
-        // Ya no necesitamos guardar token en localStorage para SSR, pero lo dejamos por si acaso
-        // algún componente cliente viejo lo usa (ej. cliente HTTP axios interceptor)
+        
+        // Guardar token en localStorage para que apiRequest lo use
+        if (result.token) {
+          localStorage.setItem('token', result.token);
+        }
       }
 
       const userName = result.user?.nombres || formData.nombres;

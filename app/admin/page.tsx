@@ -130,11 +130,12 @@ export default function DashboardPage() {
         console.log('Usuario parseado:', parsedUser.rol);
 
         // Verificar si necesita redirección
-        if (['COBRADOR', 'COORDINADOR', 'SUPERVISOR'].includes(parsedUser.rol)) {
+        if (['COBRADOR', 'COORDINADOR', 'SUPERVISOR', 'CONTADOR'].includes(parsedUser.rol)) {
           const routes: Record<string, string> = {
             COBRADOR: '/cobranzas',
             COORDINADOR: '/coordinador',
-            SUPERVISOR: '/supervisor'
+            SUPERVISOR: '/supervisor',
+            CONTADOR: '/contador/contable'
           };
           
           if (isMounted) {

@@ -296,7 +296,7 @@ const VistaCobrador = () => {
               COORDINADOR: '/coordinador',
               SUPERVISOR: '/supervisor',
               COBRADOR: '/cobranzas',
-              CONTADOR: '/contabilidad',
+              CONTADOR: '/contador/contable',
             };
             
             const redirectPath = ROLE_REDIRECT_MAP[user.rol as RolUsuario] ?? '/';
