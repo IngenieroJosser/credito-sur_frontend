@@ -43,56 +43,51 @@ const ReportesOperativosPage = () => {
     router.replace(`${pathname}?${params.toString()}`, { scroll: false })
   }
   
-  // Control de hidratación para evitar mismatch entre servidor y cliente
+  // --- ESTADO & RUTAS ---
+  // Controlamos si el componente ya se montó en el cliente para evitar errores de hidratación
   const [mounted, setMounted] = useState(false)
   
   /**
-   * @state basePath
-   * @description Ruta base dinámica para navegación interna.
-   * Permite que este componente sea reutilizable por Admin y Coordinadores sin
-   * romper la navegación. Evita que un Coordinador sea enviado a /admin/.
-   * @default '/admin'
+   * Ruta base dinámica para navegación inteligente.
+   * Esto permite que este mismo reporte sirva para Admin, Coordinadores y Supervisores,
+   * redirigiendo a cada uno a su sección correcta sin "sacarlos" de su layout.
    */
   const [basePath, setBasePath] = useState('/admin')
 
-  // Estado para el filtro de ruta
+  // Filtro específico para ver el rendimiento de una sola ruta
   const [filterRuta, setFilterRuta] = useState<string | null>(null);
 
+  // Funciones placeholder para exportación (aquí conectaríamos librerías como 'xlsx' o 'jspdf')
   const handleExportExcel = () => {
-    // TODO: Implementar lógica de exportación a Excel (usar librería xlsx)
-    console.log('Exporting Excel...')
+    console.log('Generando Excel con los KPI operativos...')
   }
 
   const handleExportPDF = () => {
-    // TODO: Implementar generación de PDF (usar librería jsPDF o html2pdf)
-    console.log('Exporting PDF...')
+    console.log('Generando reporte PDF para impresión...')
   }
 
   /**
-   * @effect Inicialización de Contexto de Usuario
-   * Se ejecuta al montar el componente para determinar el rol del usuario
-   * y configurar las rutas de navegación apropiadas.
+   * Al cargar la página, verificamos quién es el usuario.
+   * Dependiendo de si es Coordinador, Supervisor o Admin, ajustamos los enlaces
+   * para que la navegación sea fluida y segura.
    */
   useEffect(() => {
     const timer = setTimeout(() => {
       setMounted(true)
       
-      // Lógica de detección de rol para routing dinámico
       const userData = localStorage.getItem('user')
       if (userData) {
         try {
           const user = JSON.parse(userData)
           
-          // REGLAS DE ENRUTAMIENTO:
-          // Si se agregan nuevos roles con vistas propias (ej: 'AUDITOR'), agregarlos aquí.
           if (user.rol === 'COORDINADOR') {
             setBasePath('/coordinador')
           } else if (user.rol === 'SUPERVISOR') {
             setBasePath('/supervisor')
           }
-          // Default: '/admin' (para ADMIN y SUPER_ADMINISTRADOR)
+          // Si es ADMIN, se queda con el default '/admin'
         } catch (e) {
-          console.error('Error parsing user data', e)
+          console.error('Ups, error al leer datos del usuario', e)
         }
       }
     }, 0)
@@ -100,12 +95,9 @@ const ReportesOperativosPage = () => {
     return () => clearTimeout(timer)
   }, [])
 
-  // --------------------------------------------------------------------------
-  // MOCK DATA: Simulación de datos del backend
-  // Reemplazar este bloque con un hook de datos real (ej: useSWR o useQuery)
-  // que consulte: GET /api/reportes/operativos
-  // --------------------------------------------------------------------------
-  // Factores de simulación según el periodo
+  // --- DATOS SIMULADOS (MOCK) ---
+  // Estos datos simulan lo que nos devolvería el backend.
+  // Ajustamos los números según el filtro de tiempo (día, semana, mes) para dar sensación de realismo.
   const factor = {
     today: 0.1,
     week: 0.25,
@@ -119,15 +111,16 @@ const ReportesOperativosPage = () => {
     { id: 'RT-003', ruta: 'Ruta Este', cobrador: 'Pedro Gómez', meta: 500000 * factor, recaudado: 300000 * factor, eficiencia: 60, nuevosPrestamos: Math.round(1 * factor), nuevosClientes: Math.round(2 * factor) },
   ]
 
-  // FILTRADO DE DATOS
+  // --- FILTRADO Y CÁLCULOS ---
+  // Si el usuario seleccionó una ruta específica, filtramos los datos aquí.
   const rendimientoFiltrado = filterRuta 
     ? rendimientoRutas.filter(r => r.id === filterRuta)
     : rendimientoRutas;
 
-  // CÁLCULOS AUTOMÁTICOS KPIs (Basados en datos filtrados)
-  // Estos cálculos derivan métricas globales a partir de los datos individuales
+  // Calculamos los totales globales sumando los datos de todas las rutas visibles
   const totalRecaudo = rendimientoFiltrado.reduce((acc, item) => acc + item.recaudado, 0)
   const totalObjetivo = rendimientoFiltrado.reduce((acc, item) => acc + item.meta, 0)
+  // Evitamos división por cero si el objetivo es 0
   const porcentajeGlobal = totalObjetivo > 0 ? Math.round((totalRecaudo / totalObjetivo) * 100) : 0
 
   if (!mounted) {

@@ -73,25 +73,35 @@ export default function AdminLayout({
   children: React.ReactNode;
   hideSidebar?: boolean;
 }) {
+  // Manejo de estado visual (menú lateral, notificaciones, confirmaciones)
   const [isMenuOpen, setIsMenuOpen] = useState(false)
-  const [isPageLoaded, setIsPageLoaded] = useState(false) // Nuevo estado para fade-in
+  const [isPageLoaded, setIsPageLoaded] = useState(false) // Efecto visual de entrada suave
+  
+  // Datos y estado de autenticación
   const [user, setUser] = useState<Usuario | null>(null)
   const [authChecked, setAuthChecked] = useState(false)
+  
+  // Menús desplegables del header
   const [showUserMenu, setShowUserMenu] = useState(false)
   const [showNotifications, setShowNotifications] = useState(false)
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false)
   const [isLoggingOut, setIsLoggingOut] = useState(false)
+  
+  // Construcción dinámica del menú lateral
   const [navigation, setNavigation] = useState<NavigationItem[]>([])
-  const [openMenus, setOpenMenus] = useState<Record<string, boolean>>({})
-  const [seenModules, setSeenModules] = useState<string[]>([])
+  const [openMenus, setOpenMenus] = useState<Record<string, boolean>>({}) // Controla qué submenús están expandidos
+  const [seenModules, setSeenModules] = useState<string[]>([]) // Rastrea qué módulos "Nuevos" ya vio el usuario
+
   const pathname = usePathname()
   const router = useRouter()
 
   const userMenuRef = useRef<HTMLDivElement>(null)
   const notificationRef = useRef<HTMLDivElement>(null)
 
+  // Abre o cierra los submenús del sidebar
   const toggleMenu = (id: string) => {
     setOpenMenus(prev => {
+      // Si ya estaba abierto o si es la ruta actual, invertimos el estado
       const isCurrentlyOpen = prev[id] ?? navigation.find(n => n.id === id)?.submodulos?.some(s => pathname === s.href) ?? false
       return {
         ...prev,
@@ -100,15 +110,18 @@ export default function AdminLayout({
     })
   }
   
+  // Marca un módulo nuevo como "visto" para que deje de brillar
   const handleModuleClick = (moduleId?: string, isNew?: boolean) => {
     if (moduleId && isNew && !seenModules.includes(moduleId)) {
       const newSeen = [...seenModules, moduleId]
       setSeenModules(newSeen)
       localStorage.setItem('seenModules', JSON.stringify(newSeen))
     }
+    // En móvil cerramos el menú al navegar
     setIsMenuOpen(false)
   }
 
+  // Cierra los menús flotantes si haces clic fuera de ellos
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (userMenuRef.current && !userMenuRef.current.contains(event.target as Node)) {
@@ -125,6 +138,7 @@ export default function AdminLayout({
     }
   }, [])
 
+  // Carga inicial de datos del usuario y configuración del menú
   useEffect(() => {
     const loadUserData = () => {
       try {
@@ -132,6 +146,7 @@ export default function AdminLayout({
         const userData = localStorage.getItem('user')
         const seenModulesStored = localStorage.getItem('seenModules')
         
+        // Recuperamos qué novedades ya vio el usuario
         if (seenModulesStored) {
           try {
             setSeenModules(JSON.parse(seenModulesStored))
@@ -140,9 +155,10 @@ export default function AdminLayout({
           }
         }
 
-        // El token está en cookies HttpOnly, solo validamos userData local
+        // Validación básica de sesión. El token real seguro está en cookies httpOnly,
+        // pero verificamos localStorage para feedback inmediato en UI.
         if (!userData) {
-          console.log('AdminLayout: No user data found, redirecting to login');
+          console.log('Sesión no encontrada, redirigiendo al login...');
           setUser(null)
           setNavigation([])
           setAuthChecked(true)
@@ -154,11 +170,11 @@ export default function AdminLayout({
           const parsedUser = JSON.parse(userData) as Usuario
           setUser(parsedUser)
           
-          // Obtener módulos según el rol del usuario
+          // Generamos el menú lateral dinámicamente según los permisos del rol
           if (parsedUser.rol) {
             const modulos = obtenerModulosPorRol(parsedUser.rol)
             
-            // Convertir módulos a formato de navegación
+            // Transformamos los módulos de permisos a items de navegación visual
             const navItems = modulos.map(modulo => ({
               name: modulo.nombre,
               href: modulo.path,
@@ -178,10 +194,10 @@ export default function AdminLayout({
           }
         }
       } catch (error) {
-        console.error('Error al cargar datos del usuario:', error)
+        console.error('No pudimos cargar tu perfil:', error)
       } finally {
         setAuthChecked(true)
-        // Delay optimizado: 300ms es suficiente para pintar CSS sin que parezca bloqueado
+        // Pequeño retardo para que la transición de entrada sea suave y se sienta premium
         setTimeout(() => setIsPageLoaded(true), 300)
       }
     }
@@ -189,10 +205,11 @@ export default function AdminLayout({
     loadUserData()
   }, [router])
 
+  // Seguridad Proactiva: Redirección automática si estás en el lugar equivocado
   useEffect(() => {
     if (!authChecked || !user?.rol) return
 
-    // Redirección proactiva si el rol no pertenece a la sección /admin
+    // Si un usuario con rol específico intenta entrar al admin general, lo movemos a su dashboard
     const roleRedirects: Record<string, string> = {
       'COBRADOR': '/cobranzas',
       'COORDINADOR': '/coordinador',
@@ -201,13 +218,15 @@ export default function AdminLayout({
     }
 
     if (roleRedirects[user.rol] && pathname?.startsWith('/admin')) {
-      console.log(`AdminLayout: Redirecting ${user.rol} to ${roleRedirects[user.rol]}`)
+      console.log(`Redirigiendo usuario ${user.rol} a su panel correcto: ${roleRedirects[user.rol]}`)
       router.replace(roleRedirects[user.rol])
     }
   }, [authChecked, pathname, router, user?.rol])
 
+  // Mientras verificamos la sesión, no mostramos nada para evitar parpadeos
   if (!authChecked) return null
 
+  // Última línea de defensa: Si el usuario no tiene permiso explícito para esta ruta específica
   if (pathname && user?.rol && !tieneAcceso(user.rol, pathname)) {
     return <NotFoundPage />
   }
@@ -220,6 +239,7 @@ export default function AdminLayout({
   const handleLogout = () => {
     if (isLoggingOut) return
     setIsLoggingOut(true)
+    // Simulamos un pequeño tiempo de espera para feedback visual
     window.setTimeout(() => {
       localStorage.removeItem('token')
       localStorage.removeItem('user')

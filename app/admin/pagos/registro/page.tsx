@@ -58,7 +58,9 @@ interface PrestamoMock {
 }
 
 const RegistroPagoPage = () => {
-  // Estado simulado que vendría de props o contexto/API
+  // --- DATOS SIMULADOS (MOCK) ---
+  // En el futuro, estos datos vendrán de una API o de la selección previa del cliente.
+  // Por ahora, usamos datos estáticos para visualizar la funcionalidad.
   const [cliente] = useState<ClienteMock>({
     id: 'c1',
     nombre: 'Carlos Rodríguez',
@@ -72,13 +74,18 @@ const RegistroPagoPage = () => {
     riesgo: 'MEDIO'
   })
 
+  // --- ESTADO DEL FORMULARIO ---
+  // Método de pago seleccionado (Efectivo es el rey por ahora)
   const [metodoPago, setMetodoPago] = useState<MetodoPago>('EFECTIVO')
   const [monto, setMonto] = useState('')
   const [comentarios, setComentarios] = useState('')
   const [esAbonoParcial, setEsAbonoParcial] = useState(false)
+  
+  // Estado de la petición de red (idle -> enviando -> exito/error)
   const [estadoEnvio, setEstadoEnvio] = useState<'idle' | 'enviando' | 'exito' | 'error'>('idle')
   const [mensajeEstado, setMensajeEstado] = useState('')
 
+  // Simulación de cómo se aplicaría este pago a las diferentes deudas
   const resumenCuota: ResumenCuota = {
     capital: 120000,
     interes: 30000,
@@ -86,7 +93,7 @@ const RegistroPagoPage = () => {
     total: 160000
   }
 
-  // Utilidad para formateo de fecha
+  // Helper para mostrar fechas en formato local (DD/MM/AAAA)
   const formatDate = (dateStr: string) => {
     return new Date(dateStr).toLocaleDateString('es-CO', {
       day: '2-digit',
@@ -95,23 +102,25 @@ const RegistroPagoPage = () => {
     })
   }
 
+  // --- MANEJO DEL ENVÍO (SUBMIT) ---
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
 
+    // Validaciones básicas antes de enviar
     if (!monto.trim() || !comentarios.trim()) {
       setEstadoEnvio('error')
-      setMensajeEstado('Monto y comentario son obligatorios')
+      setMensajeEstado('Monto y comentario son obligatorios. ¡No olvides anotar los detalles!')
       return
     }
 
     setEstadoEnvio('enviando')
     setMensajeEstado('')
 
-    // Simulación de envío a API / Store offline
+    // Simulamos una llamada al backend con un pequeño delay para feedback visual
     setTimeout(() => {
       setEstadoEnvio('exito')
-      setMensajeEstado('Pago registrado en cola de sincronización')
-      // Reset form opcional
+      setMensajeEstado('¡Listo! El pago ha sido registrado y está en cola de sincronización.')
+      // Aquí podríamos limpiar el formulario si quisiéramos registrar otro pago seguido
       // setMonto('')
       // setComentarios('')
     }, 800)

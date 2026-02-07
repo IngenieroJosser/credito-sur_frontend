@@ -22,11 +22,11 @@ const ReportesOperativosSupervisorPage = () => {
   const [mounted, setMounted] = useState(false)
 
   const handleExportExcel = () => {
-    console.log('Exporting Excel...')
+    console.log('Generando reporte Excel para el supervisor...')
   }
 
   const handleExportPDF = () => {
-    console.log('Exporting PDF...')
+    console.log('Imprimiendo reporte PDF de la operación...')
   }
 
   useEffect(() => {
@@ -37,7 +37,9 @@ const ReportesOperativosSupervisorPage = () => {
     return () => clearTimeout(timer)
   }, [])
 
-  // Factores de simulación según el periodo
+  // --- DATOS SIMULADOS (MOCK) ---
+  // Ajustamos los valores mostrados según el filtro de tiempo seleccionado
+  // para dar una sensación de cambio real de datos.
   const factor = {
     today: 0.1,
     week: 0.25,
@@ -78,6 +80,7 @@ const ReportesOperativosSupervisorPage = () => {
     },
   ]
 
+  // Cálculos automáticos de totales
   const totalRecaudo = rendimientoRutas.reduce((acc, item) => acc + item.recaudado, 0)
   const totalObjetivo = rendimientoRutas.reduce((acc, item) => acc + item.meta, 0)
   const porcentajeGlobal = Math.round((totalRecaudo / totalObjetivo) * 100)

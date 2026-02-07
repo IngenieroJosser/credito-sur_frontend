@@ -13,28 +13,33 @@ const ReportesCoordinador = () => {
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
+  // Filtro de tiempo por URL (ej: period=week)
   const period = (searchParams.get('period') as TimeFilterPeriod) || 'month'
 
   const handlePeriodChange = (newPeriod: TimeFilterPeriod) => {
     const params = new URLSearchParams(searchParams.toString())
     params.set('period', newPeriod)
+    // Actualizamos la URL sin recargar la página
     router.replace(`${pathname}?${params.toString()}`, { scroll: false })
   }
 
   const [mounted, setMounted] = useState(false)
   const [reporteAVisualizar, setReporteAVisualizar] = useState<string | null>(null)
 
-  const handleExportExcel = () => console.log('Exporting Excel...')
-  const handleExportPDF = () => console.log('Exporting PDF...')
+  const handleExportExcel = () => console.log('Generando reporte Excel...')
+  const handleExportPDF = () => console.log('Imprimiendo reporte PDF...')
 
   useEffect(() => {
+    // Pequeño hack para evitar problemas de hidratación con componentes de cliente
     const timer = setTimeout(() => {
       setMounted(true)
     }, 0)
     return () => clearTimeout(timer)
   }, [])
 
-  // Factores de simulación según el periodo
+  // --- DATOS SIMULADOS (MOCK) ---
+  // Ajustamos los valores mostrados según el filtro de tiempo seleccionado
+  // para dar una sensación de cambio real de datos.
   const factor = {
     today: 0.1,
     week: 0.25,
@@ -42,13 +47,13 @@ const ReportesCoordinador = () => {
     quarter: 3
   }[period];
 
-  // Mock Data - Rendimiento Operativo
   const rendimientoRutas = [
     { id: '1', ruta: 'Ruta Centro', cobrador: 'Carlos Pérez', meta: 1500000 * factor, recaudado: 1250000 * factor, eficiencia: 83, nuevosPrestamos: Math.round(2 * factor), nuevosClientes: Math.round(1 * factor) },
     { id: '2', ruta: 'Ruta Norte', cobrador: 'María Rodríguez', meta: 1000000 * factor, recaudado: 820000 * factor, eficiencia: 82, nuevosPrestamos: Math.round(0 * factor), nuevosClientes: Math.round(0 * factor) },
     { id: '3', ruta: 'Ruta Sur', cobrador: 'Juanito Alimaña', meta: 500000 * factor, recaudado: 300000 * factor, eficiencia: 60, nuevosPrestamos: Math.round(1 * factor), nuevosClientes: Math.round(2 * factor) },
   ]
 
+  // Cálculos automáticos de totales
   const totalRecaudo = rendimientoRutas.reduce((acc, item) => acc + item.recaudado, 0)
   const totalMeta = rendimientoRutas.reduce((acc, item) => acc + item.meta, 0)
   const porcentajeGlobal = Math.round((totalRecaudo / totalMeta) * 100)
@@ -57,6 +62,7 @@ const ReportesCoordinador = () => {
 
   return (
     <div className="min-h-screen bg-slate-50 relative text-slate-900">
+      {/* Fondo Arquitectónico (Estilo consistente) */}
       <div className="fixed inset-0 pointer-events-none">
         <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px]"></div>
         <div className="absolute left-0 right-0 top-0 -z-10 m-auto h-[310px] w-[310px] rounded-full bg-blue-400 opacity-20 blur-[100px]"></div>

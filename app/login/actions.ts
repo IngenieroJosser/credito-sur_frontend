@@ -13,40 +13,40 @@ export interface LoginResult {
 }
 
 /**
- * Server Action para iniciar sesión
- * - Ejecuta la petición al backend desde el servidor de Next.js
- * - Maneja la cookie de sesión de forma segura (HttpOnly)
+ * Acción de servidor para manejar el inicio de sesión.
+ * Se ejecuta exclusivamente en el lado del servidor, protegiendo la lógica sensible.
  */
 export async function loginAction(data: LoginData): Promise<LoginResult> {
   const cookieStore = await cookies();
 
   try {
-    // 1. Llamar al backend real
-    // Nota: iniciarSesion debe usar fetch compatible con Node o lo adaptamos
+    // Intentamos autenticar contra el backend principal
     const response = await iniciarSesion(data);
 
     if (!response || !response.access_token) {
       return { success: false, error: 'Respuesta inválida del servidor' };
     }
 
-    // 2. Establecer Cookie Segura
-    // Esta cookie será visible para el servidor en futuras peticiones SSR
+    // Guardamos el token en una cookie segura HttpOnly.
+    // Esto es vital porque evita que JavaScript del lado del cliente pueda leer el token,
+    // protegiendo contra ataques XSS.
     cookieStore.set('token', response.access_token, {
-      httpOnly: true, // No accesible por JS del cliente (seguridad XSS)
+      httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
-      maxAge: 60 * 60 * 24 * 7, // 1 semana
+      maxAge: 60 * 60 * 24 * 7, // Sesión válida por 1 semana
       path: '/',
     });
     
-    // También guardamos una cookie pública con el rol para middleware/redirecciones ligeras
+    // Además, guardamos el rol en una cookie pública.
+    // Esto sí puede leerlo el cliente para saber qué interfaz mostrar antes de hacer peticiones.
     if (response.usuario?.rol) {
       cookieStore.set('user_role', response.usuario.rol, {
-        httpOnly: false, // Accesible por JS para UI condicional
+        httpOnly: false, // Accesible por JS para lógica UI
         path: '/',
       });
     }
 
-    // 3. Determinar redirección
+    // Definimos a dónde debe ir cada tipo de usuario
     const roleRedirects: Record<string, string> = {
       'COBRADOR': '/cobranzas',
       'COORDINADOR': '/coordinador',
@@ -56,9 +56,10 @@ export async function loginAction(data: LoginData): Promise<LoginResult> {
       'CONTADOR': '/contador/contable'
     };
 
+    // Si el rol no está en la lista, lo mandamos al panel general por defecto
     const redirectPath = (response.usuario?.rol && roleRedirects[response.usuario.rol]) || '/admin';
 
-    // 4. Retornar éxito
+    // Todo salió bien, devolvemos los datos al cliente para que actualice su estado
     return {
       success: true,
       redirectTo: redirectPath,
@@ -69,8 +70,7 @@ export async function loginAction(data: LoginData): Promise<LoginResult> {
   } catch (error: any) {
     console.error('Error en loginAction:', error);
     
-    // Manejo de errores básicos
-    // En una app real, mapearíamos códigos de error del backend
+    // Traducimos los errores técnicos a mensajes amigables para el usuario
     let msg = 'Error al iniciar sesión';
     if (error?.response?.status === 401) msg = 'Credenciales incorrectas';
     if (error?.code === 'ECONNREFUSED') msg = 'No se pudo conectar con el servidor';
@@ -80,10 +80,11 @@ export async function loginAction(data: LoginData): Promise<LoginResult> {
 }
 
 /**
- * Server Action para cerrar sesión
+ * Cierra la sesión eliminando las cookies de autenticación.
  */
 export async function logoutAction() {
   const cookieStore = await cookies();
+  // Limpiamos tanto la cookie segura como la pública
   cookieStore.delete('token');
   cookieStore.delete('user_role');
   return { success: true };

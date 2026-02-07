@@ -7,20 +7,30 @@ import { useRouter } from 'next/navigation'
 
 const PerfilUsuarioPage = () => {
   const router = useRouter()
+  // Estado para controlar que el componente ya está en el cliente (evita errores de hidratación)
   const [mounted, setMounted] = useState(false)
+  
+  // Control del modal de cambio de contraseña
   const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false)
+  
+  // Ruta inteligente para el botón "Volver" según el rol
   const [volverRuta, setVolverRuta] = useState('/admin')
+  
+  // Estados para el formulario de contraseña
   const [passwordForm, setPasswordForm] = useState({
     currentPassword: '',
     newPassword: '',
     confirmPassword: ''
   })
+  
+  // Control de visibilidad de contraseñas (el ojito)
   const [showPassword, setShowPassword] = useState({
     current: false,
     new: false,
     confirm: false
   })
 
+  // Datos simulados iniciales que se hidratarán con info real del localStorage
   const [userData, setUserData] = useState({
     nombres: 'Personal',
     apellidos: 'Sistema',
@@ -36,11 +46,13 @@ const PerfilUsuarioPage = () => {
     efectividadCobro: '0%'
   })
 
+  // Efecto para marcar que ya estamos en el cliente
   useEffect(() => {
     const handle = requestAnimationFrame(() => setMounted(true))
     return () => cancelAnimationFrame(handle)
   }, [])
 
+  // Carga de datos del usuario desde el almacenamiento local
   useEffect(() => {
     const loadUserData = () => {
       try {
@@ -48,8 +60,10 @@ const PerfilUsuarioPage = () => {
         if (!userStr) return
         const user = JSON.parse(userStr)
         
+        // Ajustamos la ruta de retorno para no confundir a los cobradores
         setVolverRuta(user.rol === 'COBRADOR' ? '/cobranzas' : '/admin')
         
+        // Actualizamos la UI con los datos reales del usuario
         setUserData({
           nombres: user.nombres || 'Personal',
           apellidos: user.apellidos || 'Sistema',
@@ -65,13 +79,14 @@ const PerfilUsuarioPage = () => {
           efectividadCobro: '98%'
         })
       } catch (err) {
-        console.error('Error al cargar datos de usuario:', err)
+        console.error('Ups, no pudimos cargar tu perfil:', err)
       }
     }
 
     loadUserData()
   }, [])
 
+  // Abre el modal y limpia el formulario por seguridad
   const handleOpenPasswordModal = () => {
     setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' })
     setShowPassword({ current: false, new: false, confirm: false })

@@ -1,15 +1,7 @@
 /**
- * ============================================================================
- * PÁGINA DE GESTIÓN DE PRÉSTAMOS (WRAPPER)
- * ============================================================================
- * 
- * @description
- * Punto de entrada para el módulo de listado de préstamos.
- * Actúa como un contenedor (Wrapper Component) que configura los metadatos SEO
- * y renderiza el componente principal `ListadoPrestamosElegante`.
- * 
- * @component ListadoPrestamosElegante
- * Contiene toda la lógica de negocio: filtros, tabla de datos y acciones.
+ * Componente principal para el módulo de Préstamos.
+ * Funciona como un envoltorio (wrapper) sencillo que nos ayuda con el SEO
+ * y carga el componente real donde ocurre toda la gestión (listado, filtros, etc).
  */
 import { Metadata } from 'next';
 import ListadoPrestamosElegante from '@/components/prestamos/ListadoPrestamos';
@@ -20,5 +12,6 @@ export const metadata: Metadata = {
 };
 
 export default function PrestamosPage() {
+  // Aquí delegamos toda la responsabilidad al componente "ListadoPrestamosElegante"
   return <ListadoPrestamosElegante />;
 }

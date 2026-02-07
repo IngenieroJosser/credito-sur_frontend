@@ -55,7 +55,26 @@ export async function getRutaDetalle(id: string): Promise<RutaDetalleMock | null
   }
 }
 
-export async function getRutasList(): Promise<Record<string, unknown>[]> {
+
+export interface Ruta {
+  id: string;
+  nombre: string;
+  codigo: string;
+  zona?: string;
+  estado: 'ACTIVA' | 'INACTIVA' | 'PENDIENTE_ACTIVACION' | 'COMPLETADA';
+  cobrador: string;
+  cobradorId?: string;
+  supervisorId?: string;
+  clientesAsignados: number;
+  clientesNuevos: number;
+  cobranzaDelDia: number;
+  metaDelDia: number;
+  descripcion?: string;
+  nivelRiesgo?: string;
+  frecuenciaVisita?: string;
+}
+
+export async function getRutasList(): Promise<Ruta[]> {
   try {
     const cookieStore = await cookies();
     const token = cookieStore.get('token')?.value;
@@ -87,7 +106,7 @@ export async function getRutasList(): Promise<Record<string, unknown>[]> {
     }
 
     const json = await res.json();
-    return json.data || [];
+    return (json.data || []) as Ruta[];
   } catch (error) {
     console.error('Error fetching routes list:', error);
     return [];

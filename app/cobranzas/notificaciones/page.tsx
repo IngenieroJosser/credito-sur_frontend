@@ -16,6 +16,9 @@ import {
 } from 'lucide-react'
 import { notificacionesService, type Notificacion } from '@/services/notificaciones-service'
 
+// --- DATA DE EJEMPLO (MOCK) ---
+// Simulamos algunas notificaciones para mostrar cuando la API falla o está cargando.
+// Cubre casos típicos: Pagos, Clientes Nuevos, Mora y Avisos de Sistema.
 const MOCK_NOTIFICACIONES_FALLBACK: Notificacion[] = [
   {
     id: 'NOT-001',
@@ -66,19 +69,25 @@ const MOCK_NOTIFICACIONES_FALLBACK: Notificacion[] = [
 
 export default function NotificacionesCobranzasPage() {
   const router = useRouter()
+  
+  // --- ESTADOS DE FILTROS ---
   const [filter, setFilter] = useState<'TODAS' | 'NO_LEIDAS' | 'LEIDAS'>('TODAS')
   const [tipoFilter, setTipoFilter] = useState<'TODOS' | Notificacion['tipo']>('TODOS')
   const [search, setSearch] = useState('')
+  
+  // --- ESTADO DE DATOS ---
   const [notificacionesState, setNotificacionesState] = useState<Notificacion[]>([])
   const [isLoading, setIsLoading] = useState(true)
   
+  // Al montar el componente, intentamos traer las notificaciones reales del backend
   useEffect(() => {
     const cargarNotificaciones = async () => {
       try {
         const notifs = await notificacionesService.obtenerTodas()
         setNotificacionesState(notifs)
       } catch (error) {
-        console.error('Error cargando notificaciones:', error)
+        // Si falla, usamos el mock para no dejar la pantalla en blanco
+        console.error('Ups, no pudimos cargar las notificaciones:', error)
         setNotificacionesState(MOCK_NOTIFICACIONES_FALLBACK)
       } finally {
         setIsLoading(false)
@@ -88,18 +97,21 @@ export default function NotificacionesCobranzasPage() {
     cargarNotificaciones()
   }, [])
 
+  // --- LÓGICA DE FILTRADO EN CLIENTE ---
   const notificaciones = notificacionesState
     .filter((n) => (filter === 'TODAS' ? true : !n.leida))
     .filter((n) => (tipoFilter === 'TODOS' ? true : n.tipo === tipoFilter))
     .filter((n) => {
       const q = search.trim().toLowerCase()
       if (!q) return true
+      // Búsqueda simple por título o contenido del mensaje
       return (
         n.titulo.toLowerCase().includes(q) ||
         n.mensaje.toLowerCase().includes(q)
       )
     })
 
+  // Helper para iconos según el tipo de notificación
   const getIcon = (tipo: string) => {
     switch (tipo) {
       case 'PAGO': return <Banknote className="h-5 w-5" />
@@ -109,6 +121,7 @@ export default function NotificacionesCobranzasPage() {
     }
   }
 
+  // Helper para colores de fondo/borde
   const getColor = (tipo: string) => {
     switch (tipo) {
       case 'PAGO': return 'bg-blue-50 text-blue-700 border-blue-100'

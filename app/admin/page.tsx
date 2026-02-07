@@ -90,12 +90,16 @@ interface DashboardData {
  * TODO: Migrar completamente a SSR cuando el login use cookies.
  */
 
+// Esta es la página principal que ve el usuario al entrar al sistema.
+// Funciona como un "Dashboard Híbrido", cargando datos del cliente pero preparándose para SSR.
 export default function DashboardPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  // Recuperamos el filtro de tiempo de la URL (día, semana, mes) o usamos 'mes' por defecto
   const period = (searchParams.get('period') as TimeFilterPeriod) || 'month';
   
-  // Estado consolidado para evitar múltiples renders
+  // Agrupamos todo el estado en un solo objeto para evitar re-renderizados innecesarios
+  // y mantener la UI fluida.
   const [state, setState] = useState<{
     isLoading: boolean;
     userData: UserData | null;
@@ -111,25 +115,26 @@ export default function DashboardPage() {
   useEffect(() => {
     let isMounted = true;
 
-    // Función para inicializar el dashboard
+    // Función maestra de inicialización
     const initializeDashboard = () => {
-      console.log('Inicializando Dashboard con periodo:', period);
-      const token = localStorage.getItem('token');
+      console.log('Cargando tablero para el periodo:', period);
+      
+      // Intentamos recuperar la sesión del usuario
       const user = localStorage.getItem('user');
 
-      // Validamos solo user. El token ahora viaja en cookies HttpOnly y no es accesible por JS.
-      // La seguridad real la da el backend al rechazar peticiones sin cookie.
+      // Validamos solo los datos del usuario. El token viaja seguro en cookies HttpOnly
+      // así que no necesitamos leerlo aquí por seguridad.
       if (!user) {
-        console.log('No hay usuario en localStorage, redirigiendo a login');
+        console.log('No encontramos sesión, enviando al login...');
         router.replace('/');
         return;
       }
 
       try {
         const parsedUser = JSON.parse(user) as UserData;
-        console.log('Usuario parseado:', parsedUser.rol);
-
-        // Verificar si necesita redirección
+        
+        // Seguridad: Si un usuario con rol específico (ej: Cobrador) intenta ver el dashboard general,
+        // lo redirigimos amablemente a su área correspondiente.
         if (['COBRADOR', 'COORDINADOR', 'SUPERVISOR', 'CONTADOR'].includes(parsedUser.rol)) {
           const routes: Record<string, string> = {
             COBRADOR: '/cobranzas',
@@ -149,7 +154,8 @@ export default function DashboardPage() {
           return;
         }
 
-        // Cargar datos del dashboard filtrados por periodo
+        // Si el usuario es Admin o Super Admin, cargamos los datos correspondientes
+        // simulados o reales según la configuración.
         const data = configurarDashboardPorRol(parsedUser.rol, period);
         
         if (isMounted) {
@@ -165,7 +171,8 @@ export default function DashboardPage() {
           });
         }
       } catch (error) {
-        console.error('Error al cargar datos:', error);
+        console.error('Algo salió mal cargando los datos:', error);
+        // Si los datos están corruptos, limpiamos para evitar bucles de error
         localStorage.removeItem('token');
         localStorage.removeItem('user');
         router.replace('/');
@@ -177,50 +184,51 @@ export default function DashboardPage() {
     return () => {
         isMounted = false;
     };
-  }, [router, period]); // Se recarga cuando cambia el periodo en la URL
+  }, [router, period]); // Recargamos si cambia la ruta o el filtro de tiempo
 
-  // Efecto separado para manejar redirecciones
+  // Efecto dedicado para ejecutar la redirección si es necesaria
   useEffect(() => {
     if (state.shouldRedirect) {
       router.replace(state.shouldRedirect);
     }
   }, [state.shouldRedirect, router]);
 
-  // Estados de carga
+  // Pantalla de carga limpia y centrada
   if (state.isLoading) {
     return (
       <div className="min-h-screen bg-white flex items-center justify-center">
         <div className="text-center">
           <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-600">Cargando dashboard...</p>
+          <p className="text-gray-600">Preparando tu dashboard...</p>
         </div>
       </div>
     );
   }
 
-  // Estado de redirección
+  // Pantalla de transición para redirecciones
   if (state.shouldRedirect) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-slate-50">
         <div className="flex flex-col items-center gap-4">
           <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
-          <p className="text-gray-600 font-medium">Redirigiendo a su panel...</p>
+          <p className="text-gray-600 font-medium">Te estamos redirigiendo...</p>
         </div>
       </div>
     );
   }
 
-  // Verificar que tengamos datos antes de renderizar
+  // Si no hay datos (y no estamos cargando ni redirigiendo), no mostramos nada roto.
   if (!state.dashboardData) {
     return null;
   }
 
+  // Renderizamos el cliente del dashboard con los datos preparados
   return <DashboardClient data={state.dashboardData} />;
 }
 
 /**
- * Configurar datos del dashboard según rol y periodo seleccionado
- * Temporal hasta migrar a SSR con fetch real del backend
+ * Prepara los datos "Dummy" o reales según el rol y el periodo.
+ * Esto simula una respuesta de backend para prototipado rápido.
  */
 function configurarDashboardPorRol(rol: Rol, period: TimeFilterPeriod = 'month'): Omit<DashboardData, 'userFullName' | 'userRole'> {
   // Factores de simulación para que los números cambien según el periodo

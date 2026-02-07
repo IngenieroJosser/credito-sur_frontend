@@ -29,11 +29,16 @@ interface SolicitudDinero {
 }
 
 const SolicitudesPage = () => {
+  // Estado para controlar si mostramos el formulario o la lista
   const [showForm, setShowForm] = useState(false)
+  
+  // Estados para los campos del formulario
   const [monto, setMonto] = useState('')
   const [descripcion, setDescripcion] = useState('')
   
-  // Mock Data
+  // --- DATOS DE EJEMPLO (MOCK) ---
+  // Simulamos algunas solicitudes previas para que la tabla no se vea vacía.
+  // En un entorno real, estos datos vendrían de una base de datos.
   const [solicitudes] = useState<SolicitudDinero[]>([
     {
       id: 'SOL-001',
@@ -60,20 +65,26 @@ const SolicitudesPage = () => {
     }
   ])
 
+  // Manejamos el envío del formulario
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    // Lógica de envío
-    console.log({ monto: parseCOPInputToNumber(monto), descripcion })
+    
+    // Aquí iría la llamada a la API para guardar la solicitud
+    console.log('Enviando solicitud:', { monto: parseCOPInputToNumber(monto), descripcion })
+    
+    // Limpiamos y cerramos el formulario
     setShowForm(false)
     setMonto('')
     setDescripcion('')
   }
 
+  // --- HELPERS VISUALES ---
+  // Define los colores de las etiquetas de estado (Verde, Rojo, Amarillo)
   const getEstadoColor = (estado: string) => {
     switch (estado) {
       case 'APROBADO': return 'bg-emerald-50 text-emerald-600 border-emerald-100'
       case 'RECHAZADO': return 'bg-rose-50 text-rose-600 border-rose-100'
-      default: return 'bg-amber-50 text-amber-600 border-amber-100'
+      default: return 'bg-amber-50 text-amber-600 border-amber-100' // Pendiente
     }
   }
 
