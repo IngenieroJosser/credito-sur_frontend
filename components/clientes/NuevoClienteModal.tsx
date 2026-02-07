@@ -1,10 +1,12 @@
 'use client';
 
 import { useState } from 'react';
-import { X } from 'lucide-react';
+import { X, Loader2 } from 'lucide-react';
 import { useNotification } from '@/components/providers/NotificationProvider';
 import Portal, { MODAL_Z_INDEX } from '@/components/ui/Portal';
-import { Cliente } from '@/services/clientes-service';
+import { clientesService, CrearClienteDto, Cliente } from '@/services/clientes-service';
+import MediaUpload from '@/components/ui/MediaUpload';
+import { UploadResponse } from '@/services/upload-service';
 
 interface NuevoClienteModalProps {
   onClose: () => void;
@@ -15,6 +17,7 @@ interface NuevoClienteModalProps {
 
 export default function NuevoClienteModal({ onClose, onClienteCreado, cliente = null, esEdicion = false }: NuevoClienteModalProps) {
   const { showNotification } = useNotification();
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [formulario, setFormulario] = useState({
     dni: cliente?.dni || '',
     nombres: cliente?.nombres || '',
@@ -25,42 +28,82 @@ export default function NuevoClienteModal({ onClose, onClienteCreado, cliente = 
     referencia: cliente?.referencia || '',
   });
 
-  const [fotos, setFotos] = useState({
-    fotoPerfil: null as File | null,
-    documentoFrente: null as File | null,
-    documentoReverso: null as File | null,
-    comprobanteDomicilio: null as File | null,
+  const [archivosCargados, setArchivosCargados] = useState<{
+    fotoPerfil: UploadResponse | null;
+    documentoFrente: UploadResponse | null;
+    documentoReverso: UploadResponse | null;
+    comprobanteDomicilio: UploadResponse | null;
+  }>({
+    fotoPerfil: null,
+    documentoFrente: null,
+    documentoReverso: null,
+    comprobanteDomicilio: null,
   });
 
-  // Keep for future implementation of photo uploads
-  if (false && fotos) setFotos(fotos);
-
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Simulation of creation
-    const nuevoCliente: Cliente = {
-      ...(cliente || {}),
-      id: cliente?.id || `NEW-${Date.now()}`,
-      nombres: formulario.nombres,
-      apellidos: formulario.apellidos,
-      dni: formulario.dni,
-      telefono: formulario.telefono,
-      correo: formulario.correo || null,
-      direccion: formulario.direccion || null,
-      referencia: formulario.referencia || null,
-      codigo: cliente?.codigo || `CL-${Math.floor(Math.random() * 1000)}`,
-      nivelRiesgo: cliente?.nivelRiesgo || 'VERDE', 
-      puntaje: cliente?.puntaje || 100,
-      enListaNegra: cliente?.enListaNegra || false,
-      estadoAprobacion: cliente?.estadoAprobacion || 'APROBADO'
-    };
-    
-    // Simulate API delay
-    setTimeout(() => {
-        showNotification('success', esEdicion ? 'El cliente ha sido actualizado exitosamente' : 'El cliente ha sido registrado exitosamente', esEdicion ? 'Cliente Actualizado' : 'Cliente Registrado');
-        onClienteCreado(nuevoCliente);
-        onClose();
-    }, 500);
+    setIsSubmitting(true);
+
+    try {
+      // Preparar arreglo de archivos
+      const archivos = [];
+      const mapeoArchivos = [
+        { key: 'fotoPerfil', tipo: 'FOTO_PERFIL' },
+        { key: 'documentoFrente', tipo: 'DOCUMENTO_IDENTIDAD_FRENTE' },
+        { key: 'documentoReverso', tipo: 'DOCUMENTO_IDENTIDAD_REVERSO' },
+        { key: 'comprobanteDomicilio', tipo: 'COMPROBANTE_DOMICILIO' },
+      ];
+
+      for (const map of mapeoArchivos) {
+        const upload = archivosCargados[map.key as keyof typeof archivosCargados];
+        if (upload) {
+          archivos.push({
+            tipoContenido: map.tipo,
+            tipoArchivo: upload.mimetype,
+            nombreOriginal: upload.filename, // Ajuste temporal
+            nombreAlmacenamiento: upload.filename,
+            ruta: upload.path,
+            tamanoBytes: upload.size,
+          });
+        }
+      }
+
+      const payload: CrearClienteDto = {
+        dni: formulario.dni,
+        nombres: formulario.nombres,
+        apellidos: formulario.apellidos,
+        telefono: formulario.telefono,
+        correo: formulario.correo || undefined,
+        direccion: formulario.direccion || undefined,
+        referencia: formulario.referencia || undefined,
+        creadoPorId: 'temp-user-id', // TODO: Obtener del contexto de autenticación real
+        archivos: archivos.length > 0 ? archivos : undefined,
+      };
+
+      let resultado: Cliente;
+      
+      if (esEdicion && cliente?.id) {
+        throw new Error("Edición aún no soportada completamente con archivos");
+      } else {
+        resultado = await clientesService.crear(payload);
+      }
+
+      showNotification(
+        'success', 
+        esEdicion ? 'El cliente ha sido actualizado exitosamente' : 'Solicitud de cliente enviada correctamente', 
+        esEdicion ? 'Cliente Actualizado' : 'Solicitud Enviada'
+      );
+      
+      onClienteCreado(resultado);
+      onClose();
+
+    } catch (error) {
+      console.error(error);
+      const message = error instanceof Error ? error.message : 'Error al guardar el cliente';
+      showNotification('error', message, 'Error');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -173,49 +216,33 @@ export default function NuevoClienteModal({ onClose, onClienteCreado, cliente = 
                 <h4 className="text-sm font-bold text-slate-700 uppercase tracking-wide">Documentos y Fotos (Obligatorias)</h4>
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-xs font-bold text-slate-600 mb-2">Foto de Perfil</label>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      required
-                      onChange={(e) => setFotos(prev => ({ ...prev, fotoPerfil: e.target.files?.[0] || null }))}
-                      className="w-full text-xs text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 cursor-pointer"
-                    />
-                  </div>
+                  <MediaUpload
+                    label="Foto de Perfil"
+                    accept="image/*"
+                    maxSize={2}
+                    onUploadComplete={(data) => setArchivosCargados(prev => ({ ...prev, fotoPerfil: data }))}
+                  />
 
-                  <div>
-                    <label className="block text-xs font-bold text-slate-600 mb-2">Documento Frente</label>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      required
-                      onChange={(e) => setFotos(prev => ({ ...prev, documentoFrente: e.target.files?.[0] || null }))}
-                      className="w-full text-xs text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 cursor-pointer"
-                    />
-                  </div>
+                  <MediaUpload
+                    label="Documento Frente"
+                    accept="image/*"
+                    maxSize={5}
+                    onUploadComplete={(data) => setArchivosCargados(prev => ({ ...prev, documentoFrente: data }))}
+                  />
 
-                  <div>
-                    <label className="block text-xs font-bold text-slate-600 mb-2">Documento Reverso</label>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      required
-                      onChange={(e) => setFotos(prev => ({ ...prev, documentoReverso: e.target.files?.[0] || null }))}
-                      className="w-full text-xs text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 cursor-pointer"
-                    />
-                  </div>
+                  <MediaUpload
+                    label="Documento Reverso"
+                    accept="image/*"
+                    maxSize={5}
+                    onUploadComplete={(data) => setArchivosCargados(prev => ({ ...prev, documentoReverso: data }))}
+                  />
 
-                  <div>
-                    <label className="block text-xs font-bold text-slate-600 mb-2">Comprobante Domicilio</label>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      required
-                      onChange={(e) => setFotos(prev => ({ ...prev, comprobanteDomicilio: e.target.files?.[0] || null }))}
-                      className="w-full text-xs text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 cursor-pointer"
-                    />
-                  </div>
+                  <MediaUpload
+                    label="Comprobante Domicilio"
+                    accept="image/*,video/mp4,video/webm"
+                    maxSize={50}
+                    onUploadComplete={(data) => setArchivosCargados(prev => ({ ...prev, comprobanteDomicilio: data }))}
+                  />
                 </div>
               </div>
 
@@ -223,15 +250,24 @@ export default function NuevoClienteModal({ onClose, onClienteCreado, cliente = 
                 <button
                   type="button"
                   onClick={onClose}
-                  className="flex-1 bg-white border border-slate-200 text-slate-700 font-bold py-3.5 rounded-xl hover:bg-slate-50 transition-all"
+                  disabled={isSubmitting}
+                  className="flex-1 bg-white border border-slate-200 text-slate-700 font-bold py-3.5 rounded-xl hover:bg-slate-50 transition-all disabled:opacity-50"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 bg-[#08557f] text-white font-bold py-3.5 rounded-xl shadow-xl shadow-[#08557f]/20 hover:bg-[#063a58] active:scale-[0.98] transition-all"
+                  disabled={isSubmitting}
+                  className="flex-1 bg-[#08557f] text-white font-bold py-3.5 rounded-xl shadow-xl shadow-[#08557f]/20 hover:bg-[#063a58] active:scale-[0.98] transition-all disabled:opacity-50 flex items-center justify-center gap-2"
                 >
-                  {esEdicion ? 'Guardar Cambios' : 'Registrar Cliente'}
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                      Procesando...
+                    </>
+                  ) : (
+                    esEdicion ? 'Guardar Cambios' : 'Registrar Cliente'
+                  )}
                 </button>
               </div>
             </form>

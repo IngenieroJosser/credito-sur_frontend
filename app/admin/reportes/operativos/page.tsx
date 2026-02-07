@@ -24,14 +24,24 @@
  */
 
 import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams, usePathname } from 'next/navigation'
 import { BarChart3, Calendar, TrendingUp, Users, FilePlus, DollarSign, MapPin, Eye } from 'lucide-react'
 import { formatCurrency, cn } from '@/lib/utils'
 import { ExportButton } from '@/components/ui/ExportButton'
 import FiltroRuta from '@/components/filtros/FiltroRuta'
+import { TimeFilter, TimeFilterPeriod } from '@/components/ui/TimeFilter'
 
 const ReportesOperativosPage = () => {
   const router = useRouter()
+  const pathname = usePathname()
+  const searchParams = useSearchParams()
+  const period = (searchParams.get('period') as TimeFilterPeriod) || 'month'
+
+  const handlePeriodChange = (newPeriod: TimeFilterPeriod) => {
+    const params = new URLSearchParams(searchParams.toString())
+    params.set('period', newPeriod)
+    router.replace(`${pathname}?${params.toString()}`, { scroll: false })
+  }
   
   // Control de hidratación para evitar mismatch entre servidor y cliente
   const [mounted, setMounted] = useState(false)
@@ -95,10 +105,18 @@ const ReportesOperativosPage = () => {
   // Reemplazar este bloque con un hook de datos real (ej: useSWR o useQuery)
   // que consulte: GET /api/reportes/operativos
   // --------------------------------------------------------------------------
+  // Factores de simulación según el periodo
+  const factor = {
+    today: 0.1,
+    week: 0.25,
+    month: 1,
+    quarter: 3
+  }[period];
+
   const rendimientoRutas = [
-    { id: 'RT-001', ruta: 'Ruta Centro', cobrador: 'Carlos Pérez', meta: 1500000, recaudado: 1250000, eficiencia: 83, nuevosPrestamos: 2, nuevosClientes: 1 },
-    { id: 'RT-002', ruta: 'Ruta Norte', cobrador: 'María Rodríguez', meta: 1000000, recaudado: 820000, eficiencia: 82, nuevosPrestamos: 0, nuevosClientes: 0 },
-    { id: 'RT-003', ruta: 'Ruta Este', cobrador: 'Pedro Gómez', meta: 500000, recaudado: 300000, eficiencia: 60, nuevosPrestamos: 1, nuevosClientes: 2 },
+    { id: 'RT-001', ruta: 'Ruta Centro', cobrador: 'Carlos Pérez', meta: 1500000 * factor, recaudado: 1250000 * factor, eficiencia: 83, nuevosPrestamos: Math.round(2 * factor), nuevosClientes: Math.round(1 * factor) },
+    { id: 'RT-002', ruta: 'Ruta Norte', cobrador: 'María Rodríguez', meta: 1000000 * factor, recaudado: 820000 * factor, eficiencia: 82, nuevosPrestamos: Math.round(0 * factor), nuevosClientes: Math.round(0 * factor) },
+    { id: 'RT-003', ruta: 'Ruta Este', cobrador: 'Pedro Gómez', meta: 500000 * factor, recaudado: 300000 * factor, eficiencia: 60, nuevosPrestamos: Math.round(1 * factor), nuevosClientes: Math.round(2 * factor) },
   ]
 
   // FILTRADO DE DATOS
@@ -109,8 +127,8 @@ const ReportesOperativosPage = () => {
   // CÁLCULOS AUTOMÁTICOS KPIs (Basados en datos filtrados)
   // Estos cálculos derivan métricas globales a partir de los datos individuales
   const totalRecaudo = rendimientoFiltrado.reduce((acc, item) => acc + item.recaudado, 0)
-  const totalMeta = rendimientoFiltrado.reduce((acc, item) => acc + item.meta, 0)
-  const porcentajeGlobal = totalMeta > 0 ? Math.round((totalRecaudo / totalMeta) * 100) : 0
+  const totalObjetivo = rendimientoFiltrado.reduce((acc, item) => acc + item.meta, 0)
+  const porcentajeGlobal = totalObjetivo > 0 ? Math.round((totalRecaudo / totalObjetivo) * 100) : 0
 
   if (!mounted) {
     return null
@@ -138,13 +156,8 @@ const ReportesOperativosPage = () => {
               Consolidado de operaciones del día: cobranza, colocación de créditos y captación de clientes.
             </p>
           </div>
-          <div className="flex items-center gap-3 items-end">
-
-
-            <div className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-600 shadow-sm font-bold h-[46px]"> {/* Altura fija para alinear */}
-              <Calendar className="h-4 w-4 text-slate-400" />
-              <span>Hoy, 19 Ene 2026</span>
-            </div>
+          <div className="flex items-center gap-3">
+            <TimeFilter activePeriod={period} onPeriodChange={handlePeriodChange} />
             <ExportButton 
               label="Exportar" 
               onExportExcel={handleExportExcel} 
@@ -168,7 +181,7 @@ const ReportesOperativosPage = () => {
             <div className="flex items-center gap-2">
               <span className="inline-flex items-center gap-1 text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-full border border-emerald-100">
                 <TrendingUp className="h-3 w-3" />
-                {porcentajeGlobal}% meta
+                {porcentajeGlobal}% objetivo
               </span>
               <span className="text-xs text-slate-400 font-medium">vs ayer</span>
             </div>
@@ -247,7 +260,7 @@ const ReportesOperativosPage = () => {
                 <tr>
                   <th className="px-6 py-4 tracking-wider">Ruta</th>
                   <th className="px-6 py-4 tracking-wider">Cobrador</th>
-                  <th className="px-6 py-4 tracking-wider text-right">Meta</th>
+                  <th className="px-6 py-4 tracking-wider text-right">Objetivo</th>
                   <th className="px-6 py-4 tracking-wider text-right">Recaudado</th>
                   <th className="px-6 py-4 tracking-wider text-center">Eficiencia</th>
                   <th className="px-6 py-4 tracking-wider text-center">Nuevos Prést.</th>
@@ -310,7 +323,7 @@ const ReportesOperativosPage = () => {
         {/* Gráfico de Barras Simple (CSS) */}
         <section className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <div className="bg-white/80 backdrop-blur-sm p-6 rounded-2xl border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all">
-            <h3 className="font-bold text-slate-900 mb-6 text-lg">Comparativa de Recaudo vs Meta</h3>
+            <h3 className="font-bold text-slate-900 mb-6 text-lg">Comparativa de Recaudo vs Objetivo</h3>
             <div className="space-y-6">
               {rendimientoFiltrado.map((item, idx) => (
                 <div key={idx} className="space-y-2">

@@ -17,8 +17,7 @@
 
 import { useState, FormEvent, useEffect } from 'react';
 import { Eye, EyeOff, Lock, User, ChevronRight } from 'lucide-react';
-import { iniciarSesion } from '@/services/autenticacion-service';
-import { LoginData, AuthResponse, UserProfile } from '@/lib/types/autenticacion-type';
+import { LoginData } from '@/lib/types/autenticacion-type';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 
@@ -34,13 +33,7 @@ interface ToastState {
   type: 'success' | 'error';
 }
 
-interface ApiError {
-  response?: {
-    status?: number;
-    data?: unknown;
-  };
-  message?: string;
-}
+
 
 const LoginPage = () => {
   const [formData, setFormData] = useState<LoginFormData>({
@@ -49,6 +42,7 @@ const LoginPage = () => {
   });
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [isRedirecting, setIsRedirecting] = useState(false); // Nuevo estado para transición
   const [error, setError] = useState('');
   const [focusedField, setFocusedField] = useState<string | null>(null);
   const [toast, setToast] = useState<ToastState>({
@@ -90,7 +84,7 @@ const LoginPage = () => {
         };
         const redirectPath = roleRedirects[user.rol] || '/admin';
         router.replace(redirectPath);
-      } catch (e) {
+      } catch {
         // Si hay error al parsear, limpiar sesión
         localStorage.removeItem('token');
         localStorage.removeItem('user');
@@ -137,118 +131,61 @@ const LoginPage = () => {
     setError('');
 
     try {
+      // Importamos la Server Action dinámicamente o la usamos si ya está importada
+      // Para este ejemplo, asumimos que se importa arriba como: 
+      // import { loginAction } from './actions';
+      // Como react server actions pueden ser importadas directamente:
+      const { loginAction } = await import('./actions');
+
       const payload: LoginData = {
         nombres: formData.nombres.trim(),
         contrasena: formData.password.trim(),
       };
 
-      // Depuración: Verificar qué se envía
-      console.log('Enviando payload:', payload);
+      console.log('Iniciando login SSR...');
+      const result = await loginAction(payload);
 
-      const response: AuthResponse = await iniciarSesion(payload);
-
-      // Depuración: Verificar la respuesta completa
-      console.log('Respuesta completa:', response);
-      console.log('Tipo de respuesta:', typeof response);
-
-      // Verificar si la respuesta es válida
-      if (!response || typeof response !== 'object') {
-        throw new Error('No se recibió respuesta del servidor');
+      if (!result.success) {
+        throw new Error(result.error || 'Error desconocido');
       }
 
-      // Verificar si la respuesta tiene la estructura AuthResponse esperada
-      if (!response.access_token) {
-        console.error('Respuesta no tiene access_token:', response);
-        throw new Error('Respuesta de autenticación inválida');
-      }
-
-      // Verificar si tiene la propiedad usuario
-      if (!response.usuario) {
-        console.error('Respuesta no tiene usuario:', response);
-
-        // Si no tiene usuario, crear un objeto básico con la información disponible
-        const userFullName = formData.nombres;
-        const userData: UserProfile & { nombreCompleto: string } = {
-          id: 'temp-' + Date.now(),
-          nombres: formData.nombres,
-          apellidos: '',
-          rol: 'SUPER_ADMINISTRADOR',
-          nombreCompleto: formData.nombres
-        };
-
-        // Guardar datos en localStorage
-        localStorage.setItem('token', response.access_token);
+      // Login Exitoso (La cookie ya fue puesta por el servidor)
+      
+      // Mantenemos localStorage por compatibilidad UI legado
+      if (result.user) {
+        const userFullName = `${result.user.nombres || ''} ${result.user.apellidos || ''}`.trim() || formData.nombres;
+        const userData = { ...result.user, nombreCompleto: userFullName };
+        
         localStorage.setItem('user', JSON.stringify(userData));
-
-        showToast('Bienvenido', userFullName, 'success');
-
-        setTimeout(() => {
-          router.replace('/admin');
-        }, 2000);
-        return;
+        // Ya no necesitamos guardar token en localStorage para SSR, pero lo dejamos por si acaso
+        // algún componente cliente viejo lo usa (ej. cliente HTTP axios interceptor)
       }
 
-      // Si tiene usuario, extraer los datos correctamente
-      const userName = response.usuario.nombres || formData.nombres;
-      const userFullName = `${response.usuario.nombres || ''} ${response.usuario.apellidos || ''}`.trim() || formData.nombres;
+      const userName = result.user?.nombres || formData.nombres;
+      const rol = result.user?.rol || 'Usuario';
+      
+      showToast('Bienvenido', `${userName} (${formatRol(rol)})`, 'success');
 
-      // Construir datos del usuario para localStorage
-      const userData: UserProfile & { nombreCompleto: string } = {
-        ...response.usuario,
-        nombreCompleto: userFullName
-      };
-
-      // Guardar token y datos del usuario en localStorage
-      localStorage.setItem('token', response.access_token);
-      localStorage.setItem('user', JSON.stringify(userData));
-
-      // Mostrar toast de éxito con información del rol
-      showToast('Bienvenido', `${userName} (${formatRol(response.usuario.rol)})`, 'success');
-
-      // Determinar redirección según rol
-      const roleRedirects: Record<string, string> = {
-        'COBRADOR': '/cobranzas',
-        'COORDINADOR': '/coordinador',
-        'SUPER_ADMINISTRADOR': '/admin',
-        'ADMINISTRADOR': '/admin',
-        'SUPERVISOR': '/supervisor', // O su ruta específica si existe
-        'CONTADOR': '/contador/contable'    // O su ruta específica si existe
-      };
-
-      const redirectPath = roleRedirects[response.usuario.rol] || '/admin';
-
-      // Siempre redirigir después de 2 segundos
+      // Redirigir
+      // Redirigir con transición suave
       setTimeout(() => {
-        console.log(`Redirigiendo a ${redirectPath} para usuario:`, userFullName);
-        router.replace(redirectPath);
-      }, 2000);
+        setIsRedirecting(true); // 1. Activar cortina blanca (tarda ~700ms en aparecer)
+        
+        setTimeout(() => {
+          console.log(`Redirigiendo a ${result.redirectTo}`);
+          if (result.redirectTo) {
+            router.replace(result.redirectTo);
+            router.refresh(); // Actualizar componentes con cookie nueva
+          }
+        }, 800); // 2. Navegar cuando la pantalla ya es blanca
+      }, 1200); // Esperar un poco para que el usuario lea "Bienvenido"
 
     } catch (err: unknown) {
       console.error('Error en login:', err);
-
-      // Convertir error a tipo ApiError
-      const error = err as ApiError;
-
-      // Manejo de errores específicos
-      if (error.response?.status === 401) {
-        setError('Credenciales inválidas');
-        showToast('Credenciales incorrectas', '', 'error');
-      } else if (error.response?.status === 404) {
-        setError('Usuario no encontrado');
-        showToast('Usuario no encontrado', '', 'error');
-      } else if (error.message === 'Network Error') {
-        setError('Error de conexión');
-        showToast('Error de conexión al servidor', '', 'error');
-      } else if (error.message === 'No se recibió respuesta del servidor') {
-        setError('No se recibió respuesta del servidor');
-        showToast('Error del servidor', '', 'error');
-      } else if (error.message === 'Respuesta de autenticación inválida') {
-        setError('Error en la autenticación');
-        showToast('Error en la autenticación', '', 'error');
-      } else {
-        setError('Error al iniciar sesión');
-        showToast('Error al iniciar sesión', '', 'error');
-      }
+      // Extraemos el mensaje de error de forma segura
+      const msg = err instanceof Error ? err.message : 'Error al iniciar sesión';
+      setError(msg);
+      showToast(msg, '', 'error');
     } finally {
       setIsLoading(false);
     }
@@ -276,6 +213,7 @@ const LoginPage = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-white via-gray-50 to-gray-100 flex items-center justify-center p-4 relative">
+      
       {/* Toast Ultra Minimalista */}
       <div className={`fixed top-6 right-6 z-50 transform transition-all duration-500 ease-out ${toast.show ? 'translate-x-0 opacity-100' : 'translate-x-full opacity-0'
         }`}>
@@ -354,11 +292,14 @@ const LoginPage = () => {
         <div className="text-center mb-16">
           <div className="flex items-center justify-center mb-6">
             <div className="relative">
-              <div className="w-20 h-20 bg-white border border-gray-200 rounded-2xl flex items-center justify-center p-3 shadow-xl shadow-blue-900/10 transition-transform hover:scale-105 hover:rotate-2 overflow-hidden">
-                <img
-                  src='/favicon.ico'
-                  alt='Logo Oficial - Credisur'
-                  className="w-full h-full object-contain"
+              <div className="w-20 h-20 bg-white border border-gray-200 rounded-2xl flex items-center justify-center p-3 shadow-xl shadow-blue-900/10 transition-transform hover:scale-105 hover:rotate-2 overflow-hidden relative">
+                <Image
+                  src="/favicon.ico"
+                  alt="Logo Oficial - Credisur"
+                  width={80}
+                  height={80}
+                  className="object-contain p-2 w-full h-full"
+                  priority
                 />
               </div>
             </div>
@@ -482,7 +423,7 @@ const LoginPage = () => {
               <div className="w-full border-t border-gray-200"></div>
             </div>
             <div className="relative flex justify-center">
-              <span className="px-3 bg-white text-xs text-gray-400">v1.0.0</span>
+              <span className="px-3 bg-white text-xs text-gray-400">Versión Alpha 1.0</span>
             </div>
           </div>
 
@@ -501,6 +442,82 @@ const LoginPage = () => {
           <div className="w-1.5 h-1.5 bg-green-400 rounded-full"></div>
           <span className="text-xs text-gray-500">En línea</span>
         </div>
+      </div>
+
+      {/* CORTINA DE TRANSICIÓN PREMIUM CON ESTILOS INLINE (ANTI-FOUC) */}
+      <div 
+        className={`fixed inset-0 z-[9999] bg-white flex flex-col items-center justify-center transition-all duration-700 ease-in-out pointer-events-none ${isRedirecting ? 'opacity-100 visible' : 'opacity-0 invisible'}`}
+        style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            width: '100%',
+            height: '100%',
+            zIndex: 9999,
+            backgroundColor: '#ffffff',
+            opacity: isRedirecting ? 1 : 0,
+            visibility: isRedirecting ? 'visible' : 'hidden',
+            pointerEvents: 'none',
+            display: isRedirecting ? 'flex' : 'none',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center'
+        }}
+      >
+         <div 
+            className={`flex flex-col items-center transform transition-all duration-1000 ${isRedirecting ? 'scale-100 opacity-100' : 'scale-95 opacity-0'}`}
+            style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}
+         >
+            <div 
+                className="relative w-24 h-24 mb-8"
+                style={{ width: '96px', height: '96px', marginBottom: '32px', position: 'relative' }}
+            >
+                <div 
+                    className="relative w-full h-full bg-white shadow-2xl rounded-2xl flex items-center justify-center border border-gray-100 p-5 z-10"
+                    style={{
+                        width: '100%',
+                        height: '100%',
+                        backgroundColor: '#ffffff',
+                        borderRadius: '16px',
+                        boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
+                        border: '1px solid #f3f4f6',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        padding: '1.25rem',
+                        zIndex: 10
+                    }}
+                >
+                   {/* Usamos img tag simple para evitar dependencias de Next/Image si JS falla */}
+                   <img 
+                      src="/favicon.ico" 
+                      alt="CrediSur" 
+                      width="64" 
+                      height="64" 
+                      style={{ objectFit: 'contain', width: '64px', height: '64px' }}
+                   />
+                </div>
+            </div>
+
+            <h2 className="text-2xl font-bold text-slate-800 mb-2 tracking-tight" style={{ fontFamily: 'sans-serif' }}>
+                <span style={{ color: '#08557f' }}>Credi</span><span style={{ color: '#fb851b' }}>Sur</span>
+            </h2>
+            <p className="text-slate-400 font-medium text-sm mb-10 tracking-widest uppercase text-xs" style={{ fontFamily: 'sans-serif', color: '#94a3b8' }}>Accediendo al sistema seguro</p>
+
+            <div className="flex flex-col items-center gap-3">
+               <div 
+                   className="w-12 h-12 border-4 border-slate-100 border-t-[#08557f] border-r-[#08557f] rounded-full animate-spin"
+                   style={{ 
+                       width: '48px', 
+                       height: '48px', 
+                       border: '4px solid #f1f5f9', 
+                       borderTop: '4px solid #08557f', 
+                       borderRight: '4px solid #08557f', 
+                       borderRadius: '50%' 
+                   }}
+               ></div>
+            </div>
+         </div>
       </div>
 
       <style jsx>{`

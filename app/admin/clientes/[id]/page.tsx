@@ -1,30 +1,40 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { ChevronLeft, BarChart3, Smartphone, DollarSign, Loader2 } from 'lucide-react';
 import ClienteDetalleElegante, { Cliente, Prestamo, Pago, Comentario } from '@/components/cliente/DetalleCliente';
 import Link from 'next/link';
-import { MOCK_CLIENTES } from '@/services/clientes-service';
+import { clientesService } from '@/services/clientes-service';
 
 export default function ClienteDetallePage() {
   const params = useParams();
-  // Asegurar que el ID sea un string limpio
   const rawId = params?.id;
   const id = Array.isArray(rawId) ? rawId[0] : rawId as string;
   
-  // MODO FRONTEND: Buscar directamente en los mocks sin llamadas asíncronas fallidas
-  const clienteEncontrado = MOCK_CLIENTES.find(c => c.id === id) || MOCK_CLIENTES[0];
-  
-  // Construir el objeto de datos completo simulado
-  const clienteData = {
-    ...clienteEncontrado,
-    prestamos: [],
-    pagos: []
-  };
+  const [clienteData, setClienteData] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const isLoading = false;
-  const error = null;
+  useEffect(() => {
+    const cargarCliente = async () => {
+      try {
+        const cliente = await clientesService.obtenerPorId(id);
+        setClienteData({
+          ...cliente,
+          prestamos: [],
+          pagos: []
+        });
+      } catch (err) {
+        console.error('Error cargando cliente:', err);
+        setError('No se pudo cargar el cliente');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    if (id) cargarCliente();
+  }, [id]);
 
   if (isLoading) {
     return (
@@ -121,7 +131,6 @@ export default function ClienteDetallePage() {
           prestamos={prestamos}
           pagos={pagos}
           comentarios={comentarios}
-          rolUsuario="administrador"
         />
       </main>
     </div>

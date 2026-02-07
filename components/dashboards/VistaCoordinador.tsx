@@ -25,7 +25,8 @@ import {
 } from 'lucide-react';
 import { Rol } from '@/lib/permissions';
 import { formatCurrency } from '@/lib/utils';
-import { Sparkline, PremiumBarChart } from '@/components/ui/PremiumCharts';
+import { Sparkline } from '@/components/ui/PremiumCharts';
+import { TransactionalHighDetailChart } from '@/components/ui/TransactionalHighDetailChart';
 import { dashboardService, DashboardData } from '@/services/dashboard-coordinador-service';
 import { formatErrorForComponent } from '@/lib/api/api';
 
@@ -443,7 +444,7 @@ const VistaCoordinador = () => {
                     </div>
                     <div className="flex items-center gap-2 group">
                       <div className="w-3 h-3 rounded-full border-2 border-dashed border-amber-500 bg-amber-50"></div>
-                      <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Meta</span>
+                      <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Objetivo</span>
                     </div>
                   </div>
                 </div>
@@ -453,8 +454,7 @@ const VistaCoordinador = () => {
                     <div className="w-full h-48 bg-slate-100 rounded-2xl animate-pulse"></div>
                   </div>
                 ) : (
-                  <PremiumBarChart 
-                    showTarget
+                  <TransactionalHighDetailChart 
                     data={dashboardData?.trend || []}
                   />
                 )}

@@ -694,7 +694,7 @@ const VistaCobrador = () => {
                 ${cajaRuta.recaudoTotal.toLocaleString('es-CO')}
               </div>
               <div className="text-[10px] font-bold text-slate-400 mt-1">
-                Meta: ${cajaRuta.recaudoEsperado.toLocaleString('es-CO')}
+                Objetivo: ${cajaRuta.recaudoEsperado.toLocaleString('es-CO')}
               </div>
               <div className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] leading-none pt-1">
                 Mi Recaudo

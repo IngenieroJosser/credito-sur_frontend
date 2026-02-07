@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, ChangeEvent, FormEvent } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import {
@@ -17,54 +17,67 @@ import {
   List,
   Pencil,
   X,
-  Save,
   CheckCircle2,
   Trash2,
-  ArrowRightLeft,
   ChevronLeft,
   ChevronRight,
+  Save,
+  ArrowRightLeft,
   XCircle,
-  Loader2,
 } from 'lucide-react'
 import { formatCurrency, cn } from '@/lib/utils'
 import { useAuth } from '@/hooks/useAuth'
-import { routesService, type Route as ApiRoute, type Cobrador, type Supervisor } from '@/services/routes-service'
-import { formatErrorForComponent } from '@/lib/api/api'
+
+interface Ruta {
+  id: string;
+  nombre: string;
+  codigo: string;
+  zona?: string;
+  estado: 'ACTIVA' | 'INACTIVA' | 'PENDIENTE_ACTIVACION' | 'COMPLETADA';
+  cobrador: string;
+  cobradorId?: string;
+  supervisorId?: string;
+  clientesAsignados: number;
+  clientesNuevos: number;
+  cobranzaDelDia: number;
+  metaDelDia: number;
+  descripcion?: string;
+  nivelRiesgo?: string;
+  frecuenciaVisita?: string;
+}
+
+interface ClienteSelection {
+  id: string;
+  nombre?: string;
+  codigo?: string;
+  // Allow other properties to avoid tight coupling with backend response in this view
+  [key: string]: unknown;
+}
 
 interface RutasPageViewProps {
   readOnly?: boolean;
   rutasBasePath?: string;
-  rutas?: any[];
+  rutas?: Ruta[];
+  cobradores?: { id: string; nombre: string }[];
+  supervisores?: { id: string; nombre: string }[];
 }
 
-export const RutasPageView = ({ readOnly = false, rutasBasePath = '/admin/rutas', rutas = [] }: RutasPageViewProps) => {
+export const RutasPageView = ({ 
+  readOnly = false, 
+  rutasBasePath = '/admin/rutas', 
+  rutas = [],
+  cobradores = [],
+  supervisores = [] 
+}: RutasPageViewProps) => {
   const router = useRouter()
   const { user: currentUser } = useAuth()
   const [busqueda, setBusqueda] = useState('')
-  const [estadoFiltro, setEstadoFiltro] = useState<'TODAS' | 'ACTIVA' | 'INACTIVA' | 'PENDIENTE_ACTIVACION'>('TODAS')
+  const [estadoFiltro, setEstadoFiltro] = useState('TODAS')
   const [vista, setVista] = useState<'grid' | 'list'>('grid')
-  const [loading, setLoading] = useState(false)
+  // const [loading, setLoading]... removed unused
   const [showModal, setShowModal] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
-  const [error, setError] = useState<string | null>(null)
 
-  // Estados para datos
-  const [displayRutas, setDisplayRutas] = useState<ApiRoute[]>([])
-  const [totalPages, setTotalPages] = useState(1)
-  const [isLoadingData, setIsLoadingData] = useState(true)
-  const [cobradores, setCobradores] = useState<Cobrador[]>([])
-  const [supervisores, setSupervisores] = useState<Supervisor[]>([])
-  const [stats, setStats] = useState({
-    totalRutas: 0,
-    rutasActivas: 0,
-    totalClientesAsignados: 0,
-    cobranzaHoy: 0,
-    metaHoy: 0,
-    porcentajeAvance: 0,
-    totalSupervisores: 0,
-  })
-
-  // Estado del formulario
   const [formData, setFormData] = useState({
     nombre: '',
     codigo: '',
@@ -75,64 +88,23 @@ export const RutasPageView = ({ readOnly = false, rutasBasePath = '/admin/rutas'
     supervisorId: '',
     descripcion: ''
   })
+  
+  // Mocks removed. Data now passed via props.
+  // const [cobradores]... removed
+  // const [supervisores]... removed
+  
+  const [clientesRuta] = useState<ClienteSelection[]>([]) // Typed array
+  const [clientesDisponibles] = useState<ClienteSelection[]>([]) 
+  const [isAddingCliente, setIsAddingCliente] = useState(false)
+  
+  // Use backend data directly
+  const displayRutas: Ruta[] = (rutas as Ruta[]);
 
-  // PAGINACIÓN
-  const [currentPage, setCurrentPage] = useState(1)
-  const itemsPerPage = 9
 
-  // Cargar datos iniciales
-  useEffect(() => {
-    if (rutas.length > 0) {
-      setDisplayRutas(rutas)
-      setIsLoadingData(false)
-    } else {
-      loadInitialData()
-    }
-  }, [])
-
-  // Cargar cobradores y supervisores
-  useEffect(() => {
-    if (!readOnly && currentUser?.role !== 'COBRADOR') {
-      loadCobradoresSupervisores()
-    }
-  }, [readOnly, currentUser])
-
-  const loadInitialData = async () => {
-    try {
-      setIsLoadingData(true)
-      setError(null)
-
-      const [routesData, statistics] = await Promise.all([
-        routesService.getAll({
-          page: currentPage,
-          limit: itemsPerPage,
-        }),
-        routesService.getStatistics(),
-      ])
-
-      setDisplayRutas(routesData.data)
-      setTotalPages(Math.ceil(routesData.meta.total / itemsPerPage))
-      setStats(statistics)
-    } catch (err) {
-      setError(formatErrorForComponent(err))
-      console.error('Error cargando datos:', err)
-    } finally {
-      setIsLoadingData(false)
-    }
-  }
-
-  const loadCobradoresSupervisores = async () => {
-    try {
-      const [cobradoresData, supervisoresData] = await Promise.all([
-        routesService.getCobradores(),
-        routesService.getSupervisores(),
-      ])
-      setCobradores(cobradoresData)
-      setSupervisores(supervisoresData)
-    } catch (err) {
-      console.error('Error cargando cobradores y supervisores:', err)
-    }
-  }
+  const [clienteSearch, setClienteSearch] = useState('')
+  // const [clientesDisponibles] ... moved up
+  const [clienteAMover, setClienteAMover] = useState<string | null>(null)
+  const [rutaDestinoId, setRutaDestinoId] = useState('')
 
   const handleCreateClick = () => {
     setEditingId(null)
@@ -149,79 +121,46 @@ export const RutasPageView = ({ readOnly = false, rutasBasePath = '/admin/rutas'
     setShowModal(true)
   }
 
-  const handleEditClick = (ruta: ApiRoute) => {
+  const handleEditClick = (ruta: Ruta) => {
     setEditingId(ruta.id)
     setFormData({
       nombre: ruta.nombre,
       codigo: ruta.codigo,
-      zona: ruta.zona,
-      frecuenciaVisita: 'DIARIO',
-      estado: ruta.activa ? 'ACTIVA' : 'INACTIVA',
-      cobradorId: ruta.cobradorId,
+      zona: ruta.zona || '',
+      frecuenciaVisita: ruta.frecuenciaVisita || 'DIARIO',
+      estado: ruta.estado || 'ACTIVA',
+      cobradorId: ruta.cobradorId || '',
       supervisorId: ruta.supervisorId || '',
       descripcion: ruta.descripcion || ''
     })
     setShowModal(true)
   }
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+  const handleInputChange = (e: ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target
     setFormData(prev => ({ ...prev, [name]: value }))
   }
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: FormEvent) => {
     e.preventDefault()
-    setLoading(true)
-    setError(null)
-
-    try {
-      const routeData = {
-        codigo: formData.codigo,
-        nombre: formData.nombre,
-        descripcion: formData.descripcion,
-        zona: formData.zona,
-        cobradorId: formData.cobradorId,
-        supervisorId: formData.supervisorId || undefined,
-        activa: formData.estado === 'ACTIVA',
-      }
-
-      if (editingId) {
-        await routesService.update(editingId, routeData)
-      } else {
-        await routesService.create(routeData)
-      }
-
-      // Recargar datos
-      await loadInitialData()
-      setShowModal(false)
-    } catch (err) {
-      setError(formatErrorForComponent(err))
-    } finally {
-      setLoading(false)
-    }
+    setShowModal(false)
   }
 
-  const handleToggleEstado = async (id: string) => {
-    try {
-      setLoading(true)
-      await routesService.toggleActive(id)
-      
-      // Actualizar estado local
-      setDisplayRutas(prev => prev.map(ruta => 
-        ruta.id === id ? { ...ruta, activa: !ruta.activa, estado: !ruta.activa ? 'ACTIVA' : 'INACTIVA' } : ruta
-      ))
-      
-      // Actualizar estadísticas
-      const newStats = await routesService.getStatistics()
-      setStats(newStats)
-    } catch (err) {
-      setError(formatErrorForComponent(err))
-    } finally {
-      setLoading(false)
-    }
+  const handleToggleEstado = (id: string) => {
+    console.log('Toggle estado', id)
+    // Mock toggle logic
+    // displayRutas updates would happen here with backend integration
   }
+  const handleMoveCliente = (id: string) => { console.log('Mover', id) }
+  const confirmAddCliente = (cliente: ClienteSelection) => { console.log('Add', cliente) }
+  const [activeTab, setActiveTab] = useState<'info' | 'clientes'>('info')
 
-  // Filtrar rutas
+  // PAGINACIÓN
+  const [currentPage, setCurrentPage] = useState(1)
+  const itemsPerPage = 9
+
+  // ... (Rest of code)
+
   const rutasFiltradas = displayRutas.filter((ruta) => {
     const cumpleEstado = estadoFiltro === 'TODAS' || ruta.estado === estadoFiltro
     const cumpleBusqueda =
@@ -232,96 +171,44 @@ export const RutasPageView = ({ readOnly = false, rutasBasePath = '/admin/rutas'
     return cumpleEstado && cumpleBusqueda
   })
 
+  // Lógica de Paginación
+  const indexOfLastItem = currentPage * itemsPerPage;
+  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+  const currentRutas = rutasFiltradas.slice(indexOfFirstItem, indexOfLastItem);
+  const totalPages = Math.ceil(rutasFiltradas.length / itemsPerPage);
+
   // Reset página al filtrar
   if (currentPage > totalPages && totalPages > 0) {
     setCurrentPage(1);
   }
 
-  // Forzar vista lista para coordinador y admin
-  useEffect(() => {
-    if ((rutasBasePath.includes('/coordinador') || rutasBasePath.includes('/admin')) && vista !== 'list') {
-      setVista('list')
-    }
-  }, [rutasBasePath, vista])
+  const rutasActivas = displayRutas.filter((ruta) => ruta.estado === 'ACTIVA').length
+  const rutasPendientes = displayRutas.filter((ruta) => ruta.estado === 'PENDIENTE_ACTIVACION').length
+  const totalClientes = displayRutas.reduce((acc, curr) => acc + curr.clientesAsignados, 0)
+  const objetivoTotal = displayRutas.reduce((acc, curr) => acc + curr.metaDelDia, 0)
+  const cobranzaTotal = displayRutas.reduce((acc, curr) => acc + curr.cobranzaDelDia, 0)
+  const porcentajeAvance = objetivoTotal > 0 ? (cobranzaTotal / objetivoTotal) * 100 : 0
 
-  // Estados del modal
-  const [activeTab, setActiveTab] = useState<'info' | 'clientes'>('info')
-  const [clientesRuta, setClientesRuta] = useState<any[]>([])
-  const [isAddingCliente, setIsAddingCliente] = useState(false)
-  const [clienteSearch, setClienteSearch] = useState('')
-  const [clientesDisponibles] = useState<any[]>([])
-  const [clienteAMover, setClienteAMover] = useState<string | null>(null)
-  const [rutaDestinoId, setRutaDestinoId] = useState('')
+  // Force list view for Coordinador and Admin
+  if ((rutasBasePath.includes('/coordinador') || rutasBasePath.includes('/admin')) && vista !== 'list') {
+    setVista('list')
+  }
 
-  const handleMoveCliente = async (clienteId: string) => {
-    if (!clienteAMover || !rutaDestinoId || !editingId) return
-    
-    try {
-      setLoading(true)
-      await routesService.moveClient(clienteId, editingId, rutaDestinoId)
-      
-      // Recargar datos de la ruta
-      const rutaActualizada = await routesService.getById(editingId)
-      setClientesRuta(rutaActualizada.asignaciones || [])
-      
-      // Reset estados
-      setClienteAMover(null)
-      setRutaDestinoId('')
-    } catch (err) {
-      setError(formatErrorForComponent(err))
-    } finally {
-      setLoading(false)
+  // Determine risk color classes
+  const getRiesgoColor = (riesgo: string) => {
+    if (!riesgo) return 'hidden';
+    switch (riesgo) {
+        case 'PELIGRO_MINIMO': return 'bg-emerald-50 text-emerald-700 border-emerald-200';
+        case 'LEVE_RETRASO': return 'bg-blue-50 text-blue-700 border-blue-200';
+        case 'RIESGO_MODERADO': return 'bg-amber-50 text-amber-700 border-amber-200';
+        case 'ALTO_RIESGO': return 'bg-rose-50 text-rose-700 border-rose-200';
+        default: return 'bg-slate-50 text-slate-600 border-slate-200';
     }
   }
 
-  const confirmAddCliente = async (cliente: any) => {
-    if (!editingId || !formData.cobradorId) return
-    
-    try {
-      setLoading(true)
-      await routesService.assignClient(editingId, cliente.id, formData.cobradorId)
-      
-      // Recargar datos de la ruta
-      const rutaActualizada = await routesService.getById(editingId)
-      setClientesRuta(rutaActualizada.asignaciones || [])
-      
-      // Reset búsqueda
-      setIsAddingCliente(false)
-      setClienteSearch('')
-    } catch (err) {
-      setError(formatErrorForComponent(err))
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  // Cargar clientes cuando se abre el modal de edición
-  useEffect(() => {
-    if (editingId && showModal && activeTab === 'clientes') {
-      loadClientesRuta()
-    }
-  }, [editingId, showModal, activeTab])
-
-  const loadClientesRuta = async () => {
-    if (!editingId) return
-    
-    try {
-      const ruta = await routesService.getById(editingId)
-      setClientesRuta(ruta.asignaciones || [])
-    } catch (err) {
-      console.error('Error cargando clientes de la ruta:', err)
-    }
-  }
-
-  if (isLoadingData) {
-    return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
-        <div className="text-center">
-          <Loader2 className="h-12 w-12 animate-spin text-blue-600 mx-auto" />
-          <p className="mt-4 text-slate-600">Cargando rutas...</p>
-        </div>
-      </div>
-    )
+  const getRiesgoLabel = (riesgo: string) => {
+      if (!riesgo) return '';
+      return riesgo.replace('_', ' ');
   }
 
   return (
@@ -361,23 +248,13 @@ export const RutasPageView = ({ readOnly = false, rutasBasePath = '/admin/rutas'
           </div>
         </div>
 
-        {/* Mostrar error si existe */}
-        {error && (
-          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl animate-in fade-in">
-            <div className="flex items-center gap-2">
-              <XCircle className="h-5 w-5" />
-              <span className="font-bold">{error}</span>
-            </div>
-          </div>
-        )}
-
         <div className="space-y-8">
           {/* Tarjetas de Resumen (Stats) */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
             {[
               {
                 label: 'Rutas Activas',
-                value: stats.rutasActivas,
+                value: rutasActivas,
                 sub: 'Operativas hoy',
                 icon: MapPin,
                 color: 'text-slate-900',
@@ -387,8 +264,8 @@ export const RutasPageView = ({ readOnly = false, rutasBasePath = '/admin/rutas'
               },
               {
                 label: 'Clientes Asignados',
-                value: stats.totalClientesAsignados,
-                sub: `En ${stats.rutasActivas} rutas`,
+                value: totalClientes,
+                sub: `En ${rutasActivas} rutas`,
                 icon: Users,
                 color: 'text-slate-900',
                 subColor: 'text-slate-500',
@@ -397,8 +274,8 @@ export const RutasPageView = ({ readOnly = false, rutasBasePath = '/admin/rutas'
               },
               {
                 label: 'Avance Cobranza',
-                value: `${stats.porcentajeAvance.toFixed(1)}%`,
-                sub: `Meta: ${formatCurrency(stats.metaHoy)}`,
+                value: `${porcentajeAvance.toFixed(1)}%`,
+                sub: `Objetivo: ${formatCurrency(objetivoTotal)}`,
                 icon: TrendingUp,
                 color: 'text-slate-900',
                 subColor: 'text-slate-500',
@@ -407,7 +284,7 @@ export const RutasPageView = ({ readOnly = false, rutasBasePath = '/admin/rutas'
               },
               {
                 label: 'Coordinadores',
-                value: stats.totalSupervisores,
+                value: '2',
                 sub: 'Supervisando rutas',
                 icon: User,
                 color: 'text-slate-900',
@@ -450,11 +327,11 @@ export const RutasPageView = ({ readOnly = false, rutasBasePath = '/admin/rutas'
               />
             </div>
             <div className="flex gap-2 overflow-x-auto pb-2 md:pb-0 scrollbar-hide">
-              {(['TODAS', 'ACTIVA', 'INACTIVA'] as const).map((estado) => {
-                const count = estado === 'ACTIVA' ? stats.rutasActivas : estado === 'INACTIVA' ? stats.totalRutas - stats.rutasActivas : null
+              {(['TODAS', 'PENDIENTE_ACTIVACION', 'ACTIVA', 'INACTIVA'] as const).map((estado) => {
+                const count = estado === 'PENDIENTE_ACTIVACION' ? rutasPendientes : null
                 const label = estado === 'TODAS' ? 'Todas'
-                  : estado === 'ACTIVA' ? 'Activas'
-                    : 'Inactivas'
+                  : estado === 'PENDIENTE_ACTIVACION' ? 'Pendientes'
+                    : estado.charAt(0) + estado.slice(1).toLowerCase()
 
                 return (
                   <button
@@ -484,36 +361,43 @@ export const RutasPageView = ({ readOnly = false, rutasBasePath = '/admin/rutas'
             </div>
 
             {!rutasBasePath.includes('/coordinador') && !rutasBasePath.includes('/admin') && (
-              <div className="flex gap-1 bg-slate-100 p-1 rounded-xl">
-                <button
-                  onClick={() => setVista('grid')}
-                  className={cn(
-                    'p-2.5 rounded-lg transition-all',
-                    vista === 'grid' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-400 hover:text-slate-600',
-                  )}
-                >
-                  <LayoutGrid className="h-5 w-5" />
-                </button>
-                <button
-                  onClick={() => setVista('list')}
-                  className={cn(
-                    'p-2.5 rounded-lg transition-all',
-                    vista === 'list' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-400 hover:text-slate-600',
-                  )}
-                >
-                  <List className="h-5 w-5" />
-                </button>
-              </div>
+            <div className="flex gap-1 bg-slate-100 p-1 rounded-xl">
+              <button
+                onClick={() => setVista('grid')}
+                className={cn(
+                  'p-2.5 rounded-lg transition-all',
+                  vista === 'grid' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-400 hover:text-slate-600',
+                )}
+              >
+                <LayoutGrid className="h-5 w-5" />
+              </button>
+              <button
+                onClick={() => setVista('list')}
+                className={cn(
+                  'p-2.5 rounded-lg transition-all',
+                  vista === 'list' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-400 hover:text-slate-600',
+                )}
+              >
+                <List className="h-5 w-5" />
+              </button>
+            </div>
             )}
           </div>
 
           {/* Contenido Principal */}
           {vista === 'grid' ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-              {rutasFiltradas.map((ruta) => (
+              {currentRutas.map((ruta) => (
                 <div
                   key={ruta.id}
-                  className="group bg-white/80 backdrop-blur-sm rounded-2xl border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] hover:-translate-y-1 transition-all duration-300 overflow-hidden flex flex-col"
+                  className={cn(
+                    "group bg-white/80 backdrop-blur-sm rounded-2xl border shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] hover:-translate-y-1 transition-all duration-300 overflow-hidden flex flex-col",
+                    ruta.nivelRiesgo === 'ALTO_RIESGO' ? "border-rose-200 shadow-rose-100" :
+                    ruta.nivelRiesgo === 'RIESGO_MODERADO' ? "border-amber-200 shadow-amber-100" :
+                    ruta.nivelRiesgo === 'LEVE_RETRASO' ? "border-blue-200 shadow-blue-100" :
+                    ruta.nivelRiesgo === 'PELIGRO_MINIMO' ? "border-emerald-200 shadow-emerald-100" :
+                    "border-slate-200"
+                  )}
                 >
                   <div className="p-8 flex-1 space-y-6">
                     <div className="flex justify-between items-start">
@@ -537,11 +421,23 @@ export const RutasPageView = ({ readOnly = false, rutasBasePath = '/admin/rutas'
                           'px-3 py-1 rounded-full text-xs font-bold border',
                           ruta.estado === 'ACTIVA'
                             ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                            : 'bg-slate-50 text-slate-600 border-slate-200',
+                            : ruta.estado === 'PENDIENTE_ACTIVACION'
+                              ? 'bg-orange-50 text-orange-700 border-orange-200'
+                              : ruta.estado === 'COMPLETADA'
+                                ? 'bg-blue-50 text-blue-700 border-blue-200'
+                                : 'bg-slate-50 text-slate-600 border-slate-200',
                         )}
                       >
-                        {ruta.estado}
+                        {ruta.estado === 'PENDIENTE_ACTIVACION' ? 'PENDIENTE' : ruta.estado}
                       </div>
+                      {ruta.nivelRiesgo && (
+                          <div className={cn(
+                              'px-3 py-1 rounded-full text-[10px] font-bold border uppercase ml-2',
+                              getRiesgoColor(ruta.nivelRiesgo)
+                          )}>
+                              {getRiesgoLabel(ruta.nivelRiesgo)}
+                          </div>
+                      )}
                     </div>
 
                     <div className="space-y-4 pt-2">
@@ -576,7 +472,7 @@ export const RutasPageView = ({ readOnly = false, rutasBasePath = '/admin/rutas'
                       </div>
                     </div>
 
-                    {/* Barra de progreso de meta diaria */}
+                    {/* Barra de progreso de objetivo diario */}
                     {ruta.estado === 'ACTIVA' && (
                       <div className="pt-6 border-t border-slate-100">
                         <div className="flex justify-between items-end mb-2">
@@ -596,7 +492,7 @@ export const RutasPageView = ({ readOnly = false, rutasBasePath = '/admin/rutas'
                             }}
                           ></div>
                         </div>
-                        <p className="text-xs text-right text-slate-400 mt-2 font-medium">Meta: {formatCurrency(ruta.metaDelDia)}</p>
+                        <p className="text-xs text-right text-slate-400 mt-2 font-medium">Objetivo: {formatCurrency(ruta.metaDelDia)}</p>
                       </div>
                     )}
                   </div>
@@ -606,44 +502,36 @@ export const RutasPageView = ({ readOnly = false, rutasBasePath = '/admin/rutas'
                       <span className="text-xs text-slate-400 font-bold">ID: {ruta.id}</span>
 
                       <div className="flex items-center gap-2">
-                        {/* Botones de acción */}
+                        {/* Botones de acción (siempre visibles) */}
                         <div className="flex items-center gap-1">
-                          {!readOnly && currentUser?.role !== 'COBRADOR' && (
-                            <>
-                              <button
+                          {!readOnly && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                handleEditClick(ruta)
+                              }}
+                              className="p-2 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-all"
+                              title="Editar"
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </button>
+                          )}
+                          {!readOnly && (
+                            <button
                                 onClick={(e) => {
-                                  e.stopPropagation()
-                                  handleEditClick(ruta)
-                                }}
-                                className="p-2 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-all"
-                                title="Editar"
-                                disabled={loading}
-                              >
-                                <Pencil className="h-4 w-4" />
-                              </button>
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation()
-                                  handleToggleEstado(ruta.id)
+                                    e.stopPropagation()
+                                    handleToggleEstado(ruta.id)
                                 }}
                                 className={cn(
-                                  "p-2 rounded-lg transition-all",
-                                  ruta.estado === 'ACTIVA' 
-                                    ? "text-slate-400 hover:text-rose-600 hover:bg-rose-50" 
-                                    : "text-slate-400 hover:text-emerald-600 hover:bg-emerald-50"
+                                    "p-2 rounded-lg transition-all",
+                                    ruta.estado === 'ACTIVA' 
+                                        ? "text-slate-400 hover:text-rose-600 hover:bg-rose-50" 
+                                        : "text-slate-400 hover:text-emerald-600 hover:bg-emerald-50"
                                 )}
                                 title={ruta.estado === 'ACTIVA' ? "Desactivar" : "Activar"}
-                                disabled={loading}
-                              >
-                                {loading ? (
-                                  <Loader2 className="h-4 w-4 animate-spin" />
-                                ) : ruta.estado === 'ACTIVA' ? (
-                                  <Trash2 className="h-4 w-4" />
-                                ) : (
-                                  <CheckCircle2 className="h-4 w-4" />
-                                )}
-                              </button>
-                            </>
+                            >
+                                {ruta.estado === 'ACTIVA' ? <Trash2 className="h-4 w-4" /> : <CheckCircle2 className="h-4 w-4" />}
+                            </button>
                           )}
                           <Link
                             href={`${rutasBasePath}/${ruta.id}`}
@@ -660,11 +548,10 @@ export const RutasPageView = ({ readOnly = false, rutasBasePath = '/admin/rutas'
               ))}
 
               {/* Card para añadir nueva ruta */}
-              {!readOnly && currentUser?.role !== 'COBRADOR' && (
+              {!readOnly && (
                 <button
                   onClick={handleCreateClick}
                   className="group flex flex-col items-center justify-center p-8 rounded-2xl border-2 border-dashed border-slate-300 hover:border-slate-900 hover:bg-slate-50 transition-all duration-300 min-h-[400px]"
-                  disabled={loading}
                 >
                   <div className="p-6 rounded-full bg-slate-100 group-hover:bg-white group-hover:shadow-md transition-all mb-6 duration-300 border border-slate-200">
                     <Plus className="h-8 w-8 text-slate-400 group-hover:text-slate-900" />
@@ -691,7 +578,7 @@ export const RutasPageView = ({ readOnly = false, rutasBasePath = '/admin/rutas'
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
-                    {rutasFiltradas.map((ruta) => (
+                    {currentRutas.map((ruta) => (
                       <tr
                         key={ruta.id}
                         onClick={() => router.push(`${rutasBasePath}/${ruta.id}`)}
@@ -702,9 +589,9 @@ export const RutasPageView = ({ readOnly = false, rutasBasePath = '/admin/rutas'
                             <div className="w-10 h-10 rounded-xl bg-blue-50 text-primary flex items-center justify-center border border-blue-100">
                               <Route className="w-5 h-5" />
                             </div>
-                            <div>
-                              <div className="font-bold text-primary">{ruta.nombre}</div>
-                              <div className="text-xs text-slate-500 font-medium">{ruta.codigo}</div>
+                            <div className="flex-1 min-w-0">
+                              <div className="font-bold text-slate-900">{String(ruta.nombre || 'Ruta sin nombre')}</div>
+                              <div className="text-xs text-slate-500">{String(ruta.codigo || 'S/C')}</div>
                             </div>
                           </div>
                         </td>
@@ -719,6 +606,16 @@ export const RutasPageView = ({ readOnly = false, rutasBasePath = '/admin/rutas'
                           >
                             {ruta.estado}
                           </span>
+                          {ruta.nivelRiesgo && (
+                              <span
+                                className={cn(
+                                  'inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border ml-2 lowercase first-letter:uppercase',
+                                  getRiesgoColor(ruta.nivelRiesgo)
+                                )}
+                              >
+                                {getRiesgoLabel(ruta.nivelRiesgo)}
+                              </span>
+                          )}
                         </td>
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-2">
@@ -738,17 +635,13 @@ export const RutasPageView = ({ readOnly = false, rutasBasePath = '/admin/rutas'
                           {ruta.estado === 'ACTIVA' ? (
                             <div className="w-32 space-y-1">
                               <div className="flex justify-between text-xs">
-                                <span className="font-bold text-primary">
-                                  {ruta.metaDelDia > 0 ? ((ruta.cobranzaDelDia / ruta.metaDelDia) * 100).toFixed(0) : 0}%
-                                </span>
+                                <span className="font-bold text-primary">{((ruta.cobranzaDelDia / ruta.metaDelDia) * 100).toFixed(0)}%</span>
                                 <span className="text-slate-500 font-medium">{formatCurrency(ruta.cobranzaDelDia)}</span>
                               </div>
                               <div className="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden border border-slate-200">
                                 <div
                                   className="bg-slate-900 h-1.5 rounded-full"
-                                  style={{ 
-                                    width: `${ruta.metaDelDia > 0 ? Math.min((ruta.cobranzaDelDia / ruta.metaDelDia) * 100, 100) : 0}%` 
-                                  }}
+                                  style={{ width: `${Math.min((ruta.cobranzaDelDia / ruta.metaDelDia) * 100, 100)}%` }}
                                 ></div>
                               </div>
                             </div>
@@ -768,42 +661,34 @@ export const RutasPageView = ({ readOnly = false, rutasBasePath = '/admin/rutas'
                             >
                               <Eye className="w-4 h-4" />
                             </button>
-                            {!readOnly && currentUser?.role !== 'COBRADOR' && (
-                              <>
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation()
-                                    handleEditClick(ruta)
-                                  }}
-                                  className="p-2 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
-                                  title="Editar"
-                                  disabled={loading}
-                                >
-                                  <Pencil className="w-4 h-4" />
-                                </button>
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation()
-                                    handleToggleEstado(ruta.id)
-                                  }}
-                                  className={cn(
+                            {!readOnly && (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  handleEditClick(ruta)
+                                }}
+                                className="p-2 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
+                                title="Editar"
+                              >
+                                <Pencil className="w-4 h-4" />
+                              </button>
+                            )}
+                            {!readOnly && (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  handleToggleEstado(ruta.id)
+                                }}
+                                className={cn(
                                     "p-2 rounded-lg transition-all",
                                     ruta.estado === 'ACTIVA' 
-                                      ? "text-slate-400 hover:text-rose-600 hover:bg-rose-50" 
-                                      : "text-slate-400 hover:text-emerald-600 hover:bg-emerald-50"
-                                  )}
-                                  title={ruta.estado === 'ACTIVA' ? "Desactivar" : "Activar"}
-                                  disabled={loading}
-                                >
-                                  {loading ? (
-                                    <Loader2 className="w-4 h-4 animate-spin" />
-                                  ) : ruta.estado === 'ACTIVA' ? (
-                                    <Trash2 className="w-4 h-4" />
-                                  ) : (
-                                    <CheckCircle2 className="w-4 h-4" />
-                                  )}
-                                </button>
-                              </>
+                                        ? "text-slate-400 hover:text-rose-600 hover:bg-rose-50" 
+                                        : "text-slate-400 hover:text-emerald-600 hover:bg-emerald-50"
+                                )}
+                                title={ruta.estado === 'ACTIVA' ? "Desactivar" : "Activar"}
+                              >
+                                {ruta.estado === 'ACTIVA' ? <Trash2 className="w-4 h-4" /> : <CheckCircle2 className="w-4 h-4" />}
+                              </button>
                             )}
                           </div>
                         </td>
@@ -818,7 +703,7 @@ export const RutasPageView = ({ readOnly = false, rutasBasePath = '/admin/rutas'
           {/* Paginación Elegante Estandarizada */}
           <div className="p-4 border-t border-slate-100 bg-slate-50/30 flex justify-between items-center text-xs text-slate-500 font-medium rounded-2xl">
             <span>
-              Mostrando {rutasFiltradas.length} de {displayRutas.length} resultados
+              Mostrando {currentRutas.length} de {rutasFiltradas.length} resultados
             </span>
             <div className="flex gap-2">
               <button
@@ -840,7 +725,7 @@ export const RutasPageView = ({ readOnly = false, rutasBasePath = '/admin/rutas'
         </div>
       </div>
 
-      {/* Modal Nueva/Editar Ruta */}
+      {/* Modal Nueva Ruta */}
       {!readOnly && showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6">
           <div className="absolute inset-0 bg-slate-900/30 backdrop-blur-sm transition-opacity" onClick={() => setShowModal(false)} />
@@ -864,7 +749,6 @@ export const RutasPageView = ({ readOnly = false, rutasBasePath = '/admin/rutas'
                 <button
                   onClick={() => setShowModal(false)}
                   className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
-                  disabled={loading}
                 >
                   <X className="h-5 w-5" />
                 </button>
@@ -881,7 +765,6 @@ export const RutasPageView = ({ readOnly = false, rutasBasePath = '/admin/rutas'
                         ? 'border-blue-600 text-blue-600'
                         : 'border-transparent text-slate-500 hover:text-slate-700'
                     )}
-                    disabled={loading}
                   >
                     Información General
                   </button>
@@ -893,7 +776,6 @@ export const RutasPageView = ({ readOnly = false, rutasBasePath = '/admin/rutas'
                         ? 'border-blue-600 text-blue-600'
                         : 'border-transparent text-slate-500 hover:text-slate-700'
                     )}
-                    disabled={loading}
                   >
                     Clientes Asignados
                   </button>
@@ -914,7 +796,6 @@ export const RutasPageView = ({ readOnly = false, rutasBasePath = '/admin/rutas'
                           placeholder="Ej: Ruta Centro - Comercial"
                           className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50/50 focus:bg-white focus:ring-2 focus:ring-blue-600/10 focus:border-blue-600 outline-none transition-all font-bold text-slate-900 placeholder:text-slate-400"
                           required
-                          disabled={loading}
                         />
                       </div>
 
@@ -928,7 +809,6 @@ export const RutasPageView = ({ readOnly = false, rutasBasePath = '/admin/rutas'
                           placeholder="Ej: RT-CEN-01"
                           className="w-full px-4 py-2.5 rounded-xl border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-blue-600/20 focus:border-blue-600 transition-all font-medium text-slate-900 placeholder:text-slate-400"
                           required
-                          disabled={loading}
                         />
                       </div>
 
@@ -943,7 +823,6 @@ export const RutasPageView = ({ readOnly = false, rutasBasePath = '/admin/rutas'
                             placeholder="Ej: Sector Norte"
                             className="w-full px-4 py-2.5 rounded-xl border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-blue-600/20 focus:border-blue-600 transition-all font-medium text-slate-900 placeholder:text-slate-400"
                             required
-                            disabled={loading}
                           />
                           <MapPin className="absolute right-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
                         </div>
@@ -958,7 +837,6 @@ export const RutasPageView = ({ readOnly = false, rutasBasePath = '/admin/rutas'
                             onChange={handleInputChange}
                             className="w-full px-4 py-2.5 rounded-xl border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-blue-600/20 focus:border-blue-600 transition-all font-medium text-slate-900 appearance-none"
                             required
-                            disabled={loading || cobradores.length === 0}
                           >
                             <option value="">Seleccione un cobrador</option>
                             {cobradores.map((c) => (
@@ -979,7 +857,7 @@ export const RutasPageView = ({ readOnly = false, rutasBasePath = '/admin/rutas'
                             value={formData.supervisorId}
                             onChange={handleInputChange}
                             className="w-full px-4 py-2.5 rounded-xl border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-blue-600/20 focus:border-blue-600 transition-all font-medium text-slate-900 appearance-none"
-                            disabled={loading || supervisores.length === 0}
+                            required
                           >
                             <option value="">Seleccione un supervisor</option>
                             {supervisores.map((s) => (
@@ -1004,7 +882,6 @@ export const RutasPageView = ({ readOnly = false, rutasBasePath = '/admin/rutas'
                                 ? "bg-white text-emerald-700 shadow-sm ring-1 ring-black/5" 
                                 : "text-slate-400 hover:text-slate-600"
                             )}
-                            disabled={loading}
                           >
                             <CheckCircle2 className={cn("h-4 w-4", formData.estado === 'ACTIVA' ? "text-emerald-500" : "text-slate-400")} />
                             Activa
@@ -1018,7 +895,6 @@ export const RutasPageView = ({ readOnly = false, rutasBasePath = '/admin/rutas'
                                 ? "bg-white text-slate-700 shadow-sm ring-1 ring-black/5"
                                 : "text-slate-400 hover:text-slate-600"
                             )}
-                            disabled={loading}
                           >
                             <XCircle className="h-4 w-4" />
                             Inactiva
@@ -1035,46 +911,24 @@ export const RutasPageView = ({ readOnly = false, rutasBasePath = '/admin/rutas'
                           rows={3}
                           className="w-full px-4 py-3 rounded-xl border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-blue-600/20 focus:border-blue-600 transition-all font-medium text-slate-900 resize-none"
                           placeholder="Detalles de la ruta..."
-                          disabled={loading}
                         />
                       </div>
                     </div>
-
-                    {/* Mostrar error del formulario */}
-                    {error && (
-                      <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl">
-                        <div className="flex items-center gap-2">
-                          <XCircle className="h-5 w-5" />
-                          <span className="font-bold">{error}</span>
-                        </div>
-                      </div>
-                    )}
 
                     <div className="flex gap-3 pt-4 border-t border-slate-100">
                       <button
                         type="button"
                         onClick={() => setShowModal(false)}
-                        className="flex-1 px-4 py-2.5 bg-white border border-slate-200 text-slate-700 font-bold rounded-xl hover:bg-slate-50 transition-colors disabled:opacity-50"
-                        disabled={loading}
+                        className="flex-1 px-4 py-2.5 bg-white border border-slate-200 text-slate-700 font-bold rounded-xl hover:bg-slate-50 transition-colors"
                       >
                         Cancelar
                       </button>
                       <button
                         type="submit"
-                        disabled={loading}
                         className="flex-1 px-4 py-2.5 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 shadow-lg shadow-blue-600/20 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                       >
-                        {loading ? (
-                          <>
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                            <span>Guardando...</span>
-                          </>
-                        ) : (
-                          <>
-                            <Save className="h-4 w-4" />
-                            <span>Guardar</span>
-                          </>
-                        )}
+                        <Save className="h-4 w-4" />
+                        <span>Guardar</span>
                       </button>
                     </div>
                   </form>
@@ -1095,7 +949,6 @@ export const RutasPageView = ({ readOnly = false, rutasBasePath = '/admin/rutas'
                           onClick={() => setIsAddingCliente(true)}
                           type="button"
                           className="px-4 py-2 bg-white text-blue-600 font-bold text-sm rounded-lg shadow-sm border border-blue-100 hover:bg-blue-50 transition-colors flex items-center gap-2"
-                          disabled={loading}
                         >
                           <Plus className="h-4 w-4" />
                           Agregar Cliente
@@ -1111,7 +964,6 @@ export const RutasPageView = ({ readOnly = false, rutasBasePath = '/admin/rutas'
                               className="w-full pl-9 pr-9 py-2.5 text-sm border border-blue-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 shadow-sm text-slate-900"
                               value={clienteSearch}
                               onChange={e => setClienteSearch(e.target.value)}
-                              disabled={loading}
                             />
                             <button
                               onClick={() => {
@@ -1119,7 +971,6 @@ export const RutasPageView = ({ readOnly = false, rutasBasePath = '/admin/rutas'
                                 setClienteSearch('')
                               }}
                               className="absolute right-2 top-1/2 -translate-y-1/2 p-1 hover:bg-slate-100 rounded-full text-slate-400 hover:text-slate-600 transition-colors"
-                              disabled={loading}
                             >
                               <X className="h-4 w-4" />
                             </button>
@@ -1130,25 +981,23 @@ export const RutasPageView = ({ readOnly = false, rutasBasePath = '/admin/rutas'
                             <div className="absolute top-full mt-2 left-0 w-full bg-white rounded-xl shadow-xl border border-slate-100 max-h-60 overflow-y-auto z-50 animate-in fade-in slide-in-from-top-2">
                               {clientesDisponibles.filter(c =>
                                 !clientesRuta.some(existing => existing.id === c.id) &&
-                                c.nombre.toLowerCase().includes(clienteSearch.toLowerCase())
+                                String(c.nombre || '').toLowerCase().includes(clienteSearch.toLowerCase())
                               ).length > 0 ? (
                                 clientesDisponibles
                                   .filter(c =>
                                     !clientesRuta.some(existing => existing.id === c.id) &&
-                                    c.nombre.toLowerCase().includes(clienteSearch.toLowerCase())
+                                    String(c.nombre || '').toLowerCase().includes(clienteSearch.toLowerCase())
                                   )
                                   .map(cliente => (
                                     <button
                                       key={cliente.id}
                                       onClick={() => confirmAddCliente(cliente)}
                                       className="w-full text-left px-4 py-3 hover:bg-blue-50 transition-colors border-b border-slate-50 last:border-0 group"
-                                      disabled={loading}
-                                      type="button"
                                     >
-                                      <p className="font-bold text-sm text-slate-900 group-hover:text-blue-700">{cliente.nombre}</p>
+                                      <p className="font-bold text-sm text-slate-900 group-hover:text-blue-700">{String(cliente.nombre || 'Sin nombre')}</p>
                                       <div className="flex items-center gap-2 text-xs text-slate-500 mt-0.5">
                                         <MapPin className="h-3 w-3" />
-                                        <span>{cliente.direccion}</span>
+                                        <span>{String(cliente.direccion || '')}</span>
                                       </div>
                                     </button>
                                   ))
@@ -1169,17 +1018,17 @@ export const RutasPageView = ({ readOnly = false, rutasBasePath = '/admin/rutas'
                           <div className="flex items-center justify-between">
                             <div className="flex items-center gap-4">
                               <div className="h-10 w-10 bg-slate-100 rounded-full flex items-center justify-center text-slate-500 font-bold border border-slate-200">
-                                {cliente.nombre.charAt(0)}
+                                {String(cliente.nombre || '?').charAt(0)}
                               </div>
                               <div>
-                                <h4 className="font-bold text-slate-900">{cliente.nombre}</h4>
-                                <p className="text-xs text-slate-500 truncate max-w-[200px]">{cliente.direccion}</p>
+                                <h4 className="font-bold text-slate-900">{String(cliente.nombre || 'Sin nombre')}</h4>
+                                <p className="text-xs text-slate-500 truncate max-w-[200px]">{String(cliente.direccion || '')}</p>
                               </div>
                             </div>
 
                             <div className="text-right">
                               <p className="text-xs text-slate-400 font-bold uppercase">Deuda</p>
-                              <p className="font-bold text-slate-900">{formatCurrency(cliente.deuda || 0)}</p>
+                              <p className="font-bold text-slate-900">{formatCurrency(Number(cliente.deuda || 0))}</p>
                             </div>
                           </div>
 
@@ -1193,10 +1042,9 @@ export const RutasPageView = ({ readOnly = false, rutasBasePath = '/admin/rutas'
                                   setClienteAMover(cliente.id)
                                   setRutaDestinoId(e.target.value)
                                 }}
-                                disabled={loading}
                               >
                                 <option value="">Mover a otra ruta...</option>
-                                {displayRutas
+                                {rutas
                                   .filter(r => r.id !== editingId)
                                   .map(r => (
                                     <option key={r.id} value={r.id}>{r.nombre}</option>
@@ -1207,16 +1055,11 @@ export const RutasPageView = ({ readOnly = false, rutasBasePath = '/admin/rutas'
                             </div>
 
                             <button
-                              disabled={loading || clienteAMover !== cliente.id || !rutaDestinoId}
+                              disabled={clienteAMover !== cliente.id || !rutaDestinoId}
                               onClick={() => handleMoveCliente(cliente.id)}
                               className="px-4 py-2 bg-slate-900 text-white text-sm font-bold rounded-lg hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center gap-2"
                             >
-                              {loading && clienteAMover === cliente.id ? (
-                                <>
-                                  <Loader2 className="h-4 w-4 animate-spin" />
-                                  Moviendo...
-                                </>
-                              ) : 'Mover'}
+                              Mover
                             </button>
                           </div>
                         </div>

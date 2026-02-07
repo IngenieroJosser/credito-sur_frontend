@@ -185,21 +185,4 @@ export const clientesService = {
   },
 };
 
-// Datos de ejemplo para cuando la API no esté disponible
-export const MOCK_CLIENTES: Cliente[] = [
-  {
-    id: '1',
-    codigo: 'CLI-001',
-    dni: '12345678',
-    nombres: 'Juan',
-    apellidos: 'Pérez',
-    telefono: '3001234567',
-    correo: 'juan@email.com',
-    direccion: 'Calle 123',
-    referencia: 'Cerca al parque',
-    nivelRiesgo: 'VERDE',
-    puntaje: 85,
-    enListaNegra: false,
-    estadoAprobacion: 'APROBADO',
-  },
-];
+// MOCK_CLIENTES eliminado - usar clientesService.obtenerTodos() para obtener datos reales

@@ -20,6 +20,7 @@
 import React, { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
+import Image from 'next/image'
 import { 
   Shield,
   Bell,
@@ -49,6 +50,7 @@ interface NavigationItem {
   href: string;
   icon: React.ReactNode;
   id?: string;
+  isNew?: boolean;
   submodulos?: NavigationItem[];
 }
 
@@ -72,6 +74,7 @@ export default function AdminLayout({
   hideSidebar?: boolean;
 }) {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
+  const [isPageLoaded, setIsPageLoaded] = useState(false) // Nuevo estado para fade-in
   const [user, setUser] = useState<Usuario | null>(null)
   const [authChecked, setAuthChecked] = useState(false)
   const [showUserMenu, setShowUserMenu] = useState(false)
@@ -80,6 +83,7 @@ export default function AdminLayout({
   const [isLoggingOut, setIsLoggingOut] = useState(false)
   const [navigation, setNavigation] = useState<NavigationItem[]>([])
   const [openMenus, setOpenMenus] = useState<Record<string, boolean>>({})
+  const [seenModules, setSeenModules] = useState<string[]>([])
   const pathname = usePathname()
   const router = useRouter()
 
@@ -94,6 +98,15 @@ export default function AdminLayout({
         [id]: !isCurrentlyOpen
       }
     })
+  }
+  
+  const handleModuleClick = (moduleId?: string, isNew?: boolean) => {
+    if (moduleId && isNew && !seenModules.includes(moduleId)) {
+      const newSeen = [...seenModules, moduleId]
+      setSeenModules(newSeen)
+      localStorage.setItem('seenModules', JSON.stringify(newSeen))
+    }
+    setIsMenuOpen(false)
   }
 
   useEffect(() => {
@@ -117,7 +130,19 @@ export default function AdminLayout({
       try {
         const token = localStorage.getItem('token')
         const userData = localStorage.getItem('user')
-        if (!token || !userData) {
+        const seenModulesStored = localStorage.getItem('seenModules')
+        
+        if (seenModulesStored) {
+          try {
+            setSeenModules(JSON.parse(seenModulesStored))
+          } catch {
+            setSeenModules([])
+          }
+        }
+
+        // El token está en cookies HttpOnly, solo validamos userData local
+        if (!userData) {
+          console.log('AdminLayout: No user data found, redirecting to login');
           setUser(null)
           setNavigation([])
           setAuthChecked(true)
@@ -139,10 +164,12 @@ export default function AdminLayout({
               href: modulo.path,
               icon: getIconComponent(modulo.icono),
               id: modulo.id,
+              isNew: modulo.isNew,
               submodulos: modulo.submodulos?.map(sub => ({
                 id: sub.id,
                 name: sub.nombre,
                 href: sub.path,
+                isNew: sub.isNew,
                 icon: getIconComponent(sub.icono)
               }))
             }))
@@ -154,6 +181,8 @@ export default function AdminLayout({
         console.error('Error al cargar datos del usuario:', error)
       } finally {
         setAuthChecked(true)
+        // Delay optimizado: 300ms es suficiente para pintar CSS sin que parezca bloqueado
+        setTimeout(() => setIsPageLoaded(true), 300)
       }
     }
 
@@ -275,9 +304,13 @@ export default function AdminLayout({
   const mobileNavItems = getMobileNavigation()
 
   return (
-    <div className="min-h-screen bg-linear-to-br from-gray-50 to-white">
+    <div className="min-h-screen bg-linear-to-br from-gray-50 to-white relative">
+
       {/* Header ultra minimalista */}
-      <header className="fixed top-0 left-0 right-0 z-40 bg-white/80 backdrop-blur-sm border-b border-gray-100">
+      <header 
+        className={`fixed top-0 left-0 right-0 z-40 bg-white/80 backdrop-blur-sm border-b border-gray-100 transition-opacity duration-300 ${isPageLoaded ? 'opacity-100' : 'opacity-0'}`}
+        style={{ opacity: isPageLoaded ? 1 : 0 }}
+      >
         <div className="px-4 sm:px-6 lg:px-8 py-3">
           <div className="flex items-center justify-between">
             {/* Logo y título */}
@@ -292,8 +325,11 @@ export default function AdminLayout({
               )}
               
               <div className="flex items-center">
-                <div className="w-12 h-12 rounded-xl flex items-center justify-center shadow-lg shadow-blue-600/10 overflow-hidden bg-white border border-gray-100 p-1.5 transition-transform hover:scale-105">
-                  <img src="/favicon.ico" alt="Logo" className="w-full h-full object-contain" />
+                <div 
+                  className="w-12 h-12 rounded-xl flex items-center justify-center shadow-lg shadow-blue-600/10 overflow-hidden bg-white border border-gray-100 p-1.5 transition-transform hover:scale-105 relative"
+                  style={{ width: '48px', height: '48px', flexShrink: 0, position: 'relative' }}
+                >
+                  <Image src="/favicon.ico" alt="Logo" width={48} height={48} className="object-contain w-full h-full" />
                 </div>
                 <h1 className="ml-3 text-xl font-bold tracking-tight">
                   <span className="text-blue-600">Credi</span><span className="text-orange-500">Sur</span>
@@ -642,9 +678,12 @@ export default function AdminLayout({
 
       {/* Sidebar elegante para desktop */}
       {!hideSidebar && user?.rol !== 'COBRADOR' && (
-        <aside className={`fixed left-0 top-16 bottom-0 w-64 bg-white/80 backdrop-blur-sm border-r border-gray-100 transition-all duration-300 z-20 ${
-          isMenuOpen ? 'translate-x-0' : '-translate-x-full'
-        } lg:translate-x-0 lg:block`}>
+        <aside 
+          className={`fixed left-0 top-16 bottom-0 w-64 bg-white/80 backdrop-blur-sm border-r border-gray-100 transition-all duration-300 z-20 ${
+            isMenuOpen ? 'translate-x-0' : '-translate-x-full'
+          } lg:translate-x-0 lg:block ${isPageLoaded ? 'opacity-100' : 'opacity-0'}`}
+          style={{ opacity: isPageLoaded ? 1 : 0 }}
+        >
           <nav className="p-6 h-full overflow-y-auto custom-scrollbar">
             <div className="space-y-6">
               {/* Info del usuario en sidebar móvil */}
@@ -717,21 +756,29 @@ export default function AdminLayout({
                             <div className="pl-4 space-y-1 mt-1 border-l-2 border-gray-100 ml-4">
                               {item.submodulos?.map((subItem) => {
                                 const isSubActive = pathname === subItem.href
+                                const isNew = subItem.isNew && subItem.id &&!seenModules.includes(subItem.id);
                                 return (
                                   <Link
                                     key={subItem.id}
                                     href={subItem.href}
-                                    className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-all duration-75 group ${
+                                    className={`flex items-center justify-between gap-3 px-3 py-2 rounded-lg transition-all duration-75 group ${
                                       isSubActive 
                                         ? 'text-[#08557f] font-medium bg-[#08557f]/5' 
                                         : 'text-gray-500 hover:text-[#08557f] hover:bg-gray-50'
                                     }`}
-                                    onClick={() => setIsMenuOpen(false)}
+                                    onClick={() => handleModuleClick(subItem.id, subItem.isNew)}
                                   >
-                                    <div className={`transition-colors ${isSubActive ? 'text-[#08557f]' : 'text-gray-300 group-hover:text-[#08557f]'}`}>
-                                      {subItem.icon}
+                                    <div className="flex items-center gap-3">
+                                      <div className={`transition-colors ${isSubActive ? 'text-[#08557f]' : 'text-gray-300 group-hover:text-[#08557f]'}`}>
+                                        {subItem.icon}
+                                      </div>
+                                      <span className="text-sm">{subItem.name}</span>
                                     </div>
-                                    <span className="text-sm">{subItem.name}</span>
+                                    {isNew && (
+                                        <span className="text-[10px] font-bold text-white bg-gradient-to-r from-pink-500 to-rose-500 px-1.5 py-0.5 rounded-full shadow-sm animate-pulse">
+                                          NUEVO
+                                        </span>
+                                    )}
                                   </Link>
                                 )
                               })}
@@ -741,33 +788,51 @@ export default function AdminLayout({
                       )
                     }
 
+                    const isNew = item.isNew && item.id && !seenModules.includes(item.id);
+
                     return (
                       <Link
                         key={item.id || item.name}
                         href={item.href}
-                        className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-75 border group ${
+                        className={`flex items-center justify-between gap-3 px-3 py-2.5 rounded-xl transition-all duration-75 border group ${
                           isActive 
                             ? 'text-[#08557f] bg-gradient-to-r from-[#08557f]/10 to-[#063a58]/5 font-medium border-[#08557f]/20' 
                             : 'text-gray-600 border-transparent hover:text-[#08557f] hover:bg-gray-50 hover:border-gray-200'
                         }`}
-                        onClick={() => setIsMenuOpen(false)}
+                        onClick={() => handleModuleClick(item.id, item.isNew)}
                       >
-                        <div className={`transition-colors ${isActive ? 'text-[#08557f]' : 'text-gray-400 group-hover:text-[#08557f]'}`}>
-                          {item.icon}
+                        <div className="flex items-center gap-3">
+                          <div className={`transition-colors ${isActive ? 'text-[#08557f]' : 'text-gray-400 group-hover:text-[#08557f]'}`}>
+                            {item.icon}
+                          </div>
+                          <span className="text-sm">{item.name}</span>
                         </div>
-                        <span className="text-sm">{item.name}</span>
+                         {isNew && (
+                            <span className="text-[10px] font-bold text-white bg-gradient-to-r from-pink-500 to-rose-500 px-1.5 py-0.5 rounded-full shadow-sm animate-pulse">
+                              NUEVO
+                            </span>
+                        )}
                       </Link>
                     )
                   })}
                 </div>
+              </div>
+              
+              <div className="mt-8 px-4 pb-4 border-t border-gray-50 pt-4">
+                <p className="text-[10px] text-gray-400 font-medium text-center uppercase tracking-widest bg-gray-50/50 py-1 rounded-full">
+                  Versión Alpha 1.0
+                </p>
               </div>
             </div>
           </nav>
         </aside>
       )}
 
-      {/* Contenido principal */}
-      <main className={`pt-16 ${hideSidebar || user?.rol === 'COBRADOR' ? '' : 'lg:pl-64'} transition-all duration-300 ${(isMenuOpen && !hideSidebar && user?.rol !== 'COBRADOR') ? 'lg:pl-64' : ''}`}>
+      {/* Contenido principal animado */}
+      <main 
+        className={`pt-16 ${hideSidebar || user?.rol === 'COBRADOR' ? '' : 'lg:pl-64'} transition-all duration-700 ease-out ${(isMenuOpen && !hideSidebar && user?.rol !== 'COBRADOR') ? 'lg:pl-64' : ''} ${isPageLoaded ? 'opacity-100 transform-none' : 'translate-y-4 opacity-0 scale-[0.99]'}`}
+        style={{ opacity: isPageLoaded ? 1 : 0 }}
+      >
         {children}
       </main>
 
@@ -792,118 +857,48 @@ export default function AdminLayout({
                 <span className={`text-xs mt-1 transition-colors ${
                   pathname === item.href ? 'font-medium text-[#08557f]' : 'text-gray-600'
                 }`}>
-                  {item.name.length > 10 ? `${item.name.substring(0, 9)}...` : item.name}
+                  {item.name}
                 </span>
               </Link>
             ))}
-            <button
-              onClick={() => setIsMenuOpen(true)}
-              className="flex flex-col items-center px-2 py-1 rounded-xl transition-all group"
-            >
-              <div className={`p-2 rounded-lg transition-all ${
-                isMenuOpen
-                  ? 'bg-gradient-to-br from-[#08557f] to-[#063a58] text-white shadow-md' 
-                  : 'text-gray-500 group-hover:bg-gray-100'
-              }`}>
-                <Menu className="h-5 w-5" />
-              </div>
-              <span className={`text-xs mt-1 transition-colors ${
-                isMenuOpen ? 'font-medium text-[#08557f]' : 'text-gray-600'
-              }`}>
-                Más
-              </span>
-            </button>
           </div>
         </div>
       )}
-
-      {/* Barra inferior móvil para COBRADOR cuando hideSidebar está activo */}
-      {hideSidebar && user?.rol === 'COBRADOR' && (
-        <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-40 shadow-lg">
-          <div className="flex items-center justify-around py-3 px-2">
-            {/* Botón Notificaciones */}
-            <Link
-              href="/cobranzas/notificaciones"
-              className="flex flex-col items-center px-2 py-1 rounded-xl transition-all group"
-            >
-              <div className={`p-2 rounded-lg transition-all ${
-                pathname === '/cobranzas/notificaciones'
-                  ? 'bg-gradient-to-br from-[#08557f] to-[#063a58] text-white shadow-md' 
-                  : 'text-gray-500 group-hover:bg-gray-100'
-              }`}>
-                <Bell className="h-5 w-5" />
-                <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-orange-500 rounded-full border-2 border-white"></span>
-              </div>
-              <span className={`text-xs mt-1 transition-colors ${
-                pathname === '/cobranzas/notificaciones' ? 'font-medium text-[#08557f]' : 'text-gray-600'
-              }`}>
-                Notificaciones
-              </span>
-            </Link>
-
-            {/* Botón Inicio */}
-            <Link
-              href="/cobranzas"
-              className="flex flex-col items-center px-2 py-1 rounded-xl transition-all group"
-            >
-              <div className={`p-2 rounded-lg transition-all ${
-                pathname === '/cobranzas' 
-                  ? 'bg-gradient-to-br from-[#08557f] to-[#063a58] text-white shadow-md' 
-                  : 'text-gray-500 group-hover:bg-gray-100'
-              }`}>
-                <Home className="h-5 w-5" />
-              </div>
-              <span className={`text-xs mt-1 transition-colors ${
-                pathname === '/cobranzas' ? 'font-medium text-[#08557f]' : 'text-gray-600'
-              }`}>
-                Inicio
-              </span>
-            </Link>
-
-            {/* Botón Perfil */}
-            <Link
-              href="/cobranzas/perfil"
-              className="flex flex-col items-center px-2 py-1 rounded-xl transition-all group"
-            >
-              <div className={`p-2 rounded-lg transition-all ${
-                pathname === '/cobranzas/perfil'
-                  ? 'bg-gradient-to-br from-[#08557f] to-[#063a58] text-white shadow-md' 
-                  : 'text-gray-500 group-hover:bg-gray-100'
-              }`}>
-                <User className="h-5 w-5" />
-              </div>
-              <span className={`text-xs mt-1 transition-colors ${
-                pathname === '/cobranzas/perfil' ? 'font-medium text-[#08557f]' : 'text-gray-600'
-              }`}>
-                Perfil
-              </span>
-            </Link>
-          </div>
-        </div>
-      )}
-
-      <style jsx global>{`
-        .custom-scrollbar::-webkit-scrollbar {
-          width: 4px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-track {
-          background: transparent;
-        }
-        .custom-scrollbar::-webkit-scrollbar-thumb {
-          background: #e5e7eb;
-          border-radius: 2px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-          background: #d1d5db;
-        }
-        @keyframes fadeIn {
-          from { opacity: 0; transform: translateY(-10px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-        .animate-in {
-          animation: fadeIn 0.2s ease-out;
-        }
-      `}</style>
+      {/* Overlay de Transición Anti-FOUC (Blanco Puro para transición invisible desde Login) */}
+      <div 
+        role="presentation"
+        className="fixed inset-0 bg-white transition-opacity duration-1000 ease-out z-[9999] flex flex-col items-center justify-center"
+        style={{ 
+            opacity: isPageLoaded ? 0 : 1,
+            pointerEvents: isPageLoaded ? 'none' : 'all',
+            position: 'fixed',
+            top: 0, 
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: '#ffffff',
+            zIndex: 9999
+        }}
+      >
+         {/* Spinner de respaldo minimalista, solo visible si tarda mucho */}
+         {/* Overlay Simplificado (Blanco + Spinner Robusto) para evitar FOUC de logo complejo */}
+         <div 
+            className={`flex items-center justify-center transition-all duration-700 ${isPageLoaded ? 'opacity-0' : 'opacity-100'}`}
+            style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+         >
+            <div 
+                className="w-12 h-12 border-4 border-slate-100 border-t-[#08557f] border-r-[#08557f] rounded-full animate-spin" 
+                style={{ 
+                    width: '48px', 
+                    height: '48px', 
+                    border: '4px solid #f1f5f9', 
+                    borderTop: '4px solid #08557f', 
+                    borderRight: '4px solid #08557f', 
+                    borderRadius: '50%' 
+                }}
+            ></div>
+         </div>
+      </div>
     </div>
   )
 }

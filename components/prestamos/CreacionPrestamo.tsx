@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   DollarSign, Percent, Clock,
   CheckCircle,
@@ -11,7 +11,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { formatCurrency } from '@/lib/utils';
 import { useNotification } from '@/components/providers/NotificationProvider';
 import NuevoClienteModal from '@/components/clientes/NuevoClienteModal';
-import { MOCK_CLIENTES, Cliente } from '@/services/clientes-service';
+import { clientesService, Cliente } from '@/services/clientes-service';
 
 // Enums alineados con Prisma
 type FrecuenciaPago = 'DIARIO' | 'SEMANAL' | 'QUINCENAL' | 'MENSUAL';
@@ -182,7 +182,25 @@ const CreacionPrestamoElegante = () => {
   
   const [busquedaCliente, setBusquedaCliente] = useState('');
   const [filtroRiesgo, setFiltroRiesgo] = useState<NivelRiesgo | 'TODOS'>('TODOS');
-  const [clientes, setClientes] = useState<Cliente[]>(MOCK_CLIENTES as unknown as Cliente[]);
+  const [clientes, setClientes] = useState<Cliente[]>([]);
+  const [cargandoClientes, setCargandoClientes] = useState(true);
+
+  // Cargar clientes desde API
+  useEffect(() => {
+    const cargarClientes = async () => {
+      try {
+        const data = await clientesService.obtenerTodos();
+        if (Array.isArray(data)) {
+          setClientes(data);
+        }
+      } catch (error) {
+        console.error('Error cargando clientes:', error);
+      } finally {
+        setCargandoClientes(false);
+      }
+    };
+    cargarClientes();
+  }, []);
 
   const [form, setForm] = useState<FormularioPrestamo>({
     clienteId: '',
@@ -205,9 +223,9 @@ const CreacionPrestamoElegante = () => {
 
   const { resumenPrestamo } = useMemo(() => calcularCuotasYResumen(form), [form]);
 
-  const clienteSeleccionado = clientes.find(c => String(c.id) === String(form.clienteId));
+  const clienteSeleccionado = clientes?.find(c => String(c.id) === String(form.clienteId));
 
-  const clientesFiltrados = clientes.filter(cliente => {
+  const clientesFiltrados = (clientes || []).filter(cliente => {
     const nombreCompleto = `${cliente.nombres || ''} ${cliente.apellidos || ''}`.toLowerCase();
     const cumpleBusqueda = 
       nombreCompleto.includes(busquedaCliente.toLowerCase()) || 

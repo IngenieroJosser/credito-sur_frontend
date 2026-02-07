@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 
 // import Link from 'next/link'
 import { useRouter } from 'next/navigation'
@@ -19,108 +19,14 @@ import {
 } from 'lucide-react'
 import FiltroRuta from '@/components/filtros/FiltroRuta'
 import SolicitudDetalleModal, { SolicitudData } from '@/components/dashboards/shared/SolicitudDetalleModal'
+import { notificacionesService, type Notificacion as NotificacionBase } from '@/services/notificaciones-service'
 
-// Mock Data
-interface Notificacion {
-  id: string
-  titulo: string
-  mensaje: string
-  tipo: 'PAGO' | 'CLIENTE' | 'MORA' | 'SISTEMA' | 'SOLICITUD'
-  fecha: string
-  leida: boolean
-  link?: string
-  rutaId?: string
+// Extender la interfaz base para supervisor
+interface Notificacion extends NotificacionBase {
   solicitudDetails?: SolicitudData
 }
 
-const MOCK_NOTIFICACIONES: Notificacion[] = [
-  {
-    id: 'NOT-001',
-    titulo: 'Pago Recibido',
-    mensaje: 'Cliente #1456 ha realizado un pago de $50.000',
-    tipo: 'PAGO',
-    fecha: 'Hace 5 min',
-    leida: false,
-    link: '/supervisor',
-    rutaId: 'RT-001'
-  },
-  {
-    id: 'NOT-002',
-    titulo: 'Nuevo Cliente',
-    mensaje: 'Solicitud de registro pendiente para María González',
-    tipo: 'CLIENTE',
-    fecha: 'Hace 2 horas',
-    leida: false,
-    link: '/supervisor/clientes',
-    rutaId: 'RT-002'
-  },
-  {
-    id: 'NOT-003',
-    titulo: 'Alerta de Mora',
-    mensaje: '3 cuentas han entrado en mora hoy (Ruta Norte)',
-    tipo: 'MORA',
-    fecha: 'Hace 4 horas',
-    leida: false,
-    link: '/supervisor/clientes',
-    rutaId: 'RT-002'
-  },
-  {
-    id: 'NOT-004',
-    titulo: 'Cierre Diario',
-    mensaje: 'El cierre diario se ha completado exitosamente',
-    tipo: 'SISTEMA',
-    fecha: 'Ayer, 18:30',
-    leida: true,
-    link: '/supervisor'
-  },
-  {
-    id: 'NOT-005',
-    titulo: 'Solicitud Aprobada',
-    mensaje: 'El préstamo P-1024 ha sido aprobado por Coordinación',
-    tipo: 'SISTEMA',
-    fecha: 'Ayer, 15:45',
-    leida: true,
-    link: '/supervisor'
-  },
-  {
-    id: 'NOT-006',
-    titulo: 'Solicitud de Gasto',
-    mensaje: 'Juan Pérez solicita aprobación para gasto de gasolina ($25.000)',
-    tipo: 'SOLICITUD',
-    fecha: 'Hace 10 min',
-    leida: false,
-    link: undefined,
-    solicitudDetails: {
-      id: 'SOL-001',
-      tipo: 'GASTO',
-      titulo: 'Gasto de Gasolina - Ruta Norte',
-      solicitante: 'Juan Pérez',
-      fecha: '30 Ene 2024, 10:30 AM',
-      monto: 25000,
-      descripcion: 'Tanqueo de motocicleta para recorrido de la ruta norte. Se adjunta recibo en físico al llegar.',
-      estado: 'PENDIENTE'
-    }
-  },
-  {
-    id: 'NOT-007',
-    titulo: 'Solicitud de Base',
-    mensaje: 'María González solicita base operativa ($200.000)',
-    tipo: 'SOLICITUD',
-    fecha: 'Hace 30 min',
-    leida: false,
-    link: undefined,
-    solicitudDetails: {
-      id: 'SOL-002',
-      tipo: 'BASE',
-      titulo: 'Base Operativa - Ruta Centro',
-      solicitante: 'María González',
-      fecha: '30 Ene 2024, 08:00 AM',
-      monto: 200000,
-      descripcion: 'Solicito base para inicio de operación y cambio sencillo para clientes.',
-      estado: 'PENDIENTE'
-    }
-  }
-]
+// MOCKS ELIMINADOS - La aplicación solo funciona con datos reales del backend
 
 export default function NotificacionesSupervisorPage() {
   const router = useRouter()
@@ -128,8 +34,34 @@ export default function NotificacionesSupervisorPage() {
   const [tipoFilter, setTipoFilter] = useState<'TODOS' | Notificacion['tipo']>('TODOS')
   const [filterRuta, setFilterRuta] = useState<string | null>(null)
   const [search, setSearch] = useState('')
-  const [notificacionesState, setNotificacionesState] = useState<Notificacion[]>(MOCK_NOTIFICACIONES)
+  const [notificacionesState, setNotificacionesState] = useState<Notificacion[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [selectedSolicitud, setSelectedSolicitud] = useState<SolicitudData | null>(null)
+
+  useEffect(() => {
+    const cargarNotificaciones = async () => {
+      try {
+        const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null
+        if (!token) {
+          setError('No hay sesión activa. Por favor, inicia sesión.')
+          setIsLoading(false)
+          return
+        }
+
+        const notifs = await notificacionesService.obtenerTodas()
+        setNotificacionesState(notifs as Notificacion[])
+        setError(null)
+      } catch (err) {
+        console.error('Error cargando notificaciones:', err)
+        setError('No se pudieron cargar las notificaciones. Verifica tu conexión.')
+      } finally {
+        setIsLoading(false)
+      }
+    }
+    
+    cargarNotificaciones()
+  }, [])
 
   // Reset state on mount can be handled by standard initialization or simpler logic.
   // Removing useEffect to fix lint error causing build block.
@@ -341,7 +273,12 @@ export default function NotificacionesSupervisorPage() {
 
             {/* Lista */}
             <div className="divide-y divide-slate-100">
-              {notificaciones.length > 0 ? (
+              {isLoading ? (
+                <div className="p-16 text-center">
+                  <div className="animate-spin mx-auto mb-4 h-8 w-8 border-4 border-blue-600 border-t-transparent rounded-full"></div>
+                  <p className="text-slate-500 text-sm font-medium">Cargando notificaciones...</p>
+                </div>
+              ) : notificaciones.length > 0 ? (
                 notificaciones.map((notif) => (
                   <div 
                     key={notif.id} 

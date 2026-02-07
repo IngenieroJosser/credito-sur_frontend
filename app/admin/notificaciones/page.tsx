@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 
 import { useRouter } from 'next/navigation'
 import { 
@@ -23,122 +23,10 @@ import {
   Info
 } from 'lucide-react'
 import FiltroRuta from '@/components/filtros/FiltroRuta'
+import { notificacionesService, type Notificacion } from '@/services/notificaciones-service'
+import ConfirmModal from '@/components/ui/ConfirmModal'
 
-// Mock Data
-interface Notificacion {
-  id: string
-  titulo: string
-  mensaje: string
-  tipo: 'PAGO' | 'CLIENTE' | 'MORA' | 'SISTEMA' | 'PRESTAMO' | 'GASTO' | 'SOLICITUD_DINERO'
-  fecha: string
-  leida: boolean
-  link?: string
-  rutaId?: string
-  estado?: 'PENDIENTE' | 'APROBADA' | 'RECHAZADA'
-  detalles?: {
-    monto?: number
-    cuotas?: number
-    porcentaje?: number
-    cliente?: string
-    cedula?: string
-    telefono?: string
-    direccion?: string
-    ocupacion?: string
-    articulo?: string
-    valorArticulo?: number
-    cuotaInicial?: number
-    beneficiario?: string
-    categoria?: string
-    frecuenciaPago?: 'DIARIO' | 'SEMANAL' | 'QUINCENAL' | 'MENSUAL'
-    motivo?: string
-  }
-  motivoRechazo?: string
-}
-
-const MOCK_NOTIFICACIONES: Notificacion[] = [
-  {
-    id: 'NOT-LP-001',
-    titulo: 'Solicitud de Préstamo - Juan Cobrador',
-    mensaje: 'Solicitud de préstamo en efectivo: $500,000 para cliente nuevo.',
-    tipo: 'PRESTAMO',
-    fecha: 'Hace 2 min',
-    leida: false,
-    rutaId: 'RT-002',
-    estado: 'PENDIENTE',
-    detalles: {
-      monto: 500000,
-      cuotas: 20,
-      porcentaje: 20,
-      cliente: 'Roberto Gómez',
-      cedula: '1.098.765.432',
-      telefono: '312 456 7890',
-      direccion: 'Calle 45 #12-34, Barrio El Centro',
-      ocupacion: 'Comerciante Independiente',
-      frecuenciaPago: 'DIARIO'
-    }
-  },
-  {
-    id: 'NOT-CR-002',
-    titulo: 'Crédito de Artículo - Juan Cobrador',
-    mensaje: 'Solicitud de crédito para Lavadora Samsung 19kg.',
-    tipo: 'PRESTAMO',
-    fecha: 'Hace 15 min',
-    leida: false,
-    rutaId: 'RT-002',
-    estado: 'PENDIENTE',
-    detalles: {
-      articulo: 'Lavadora Samsung 19kg',
-      valorArticulo: 1800000,
-      cuotaInicial: 200000,
-      cuotas: 12,
-      porcentaje: 15,
-      cliente: 'Lucía Fernández',
-      cedula: '52.345.678',
-      telefono: '300 987 6543',
-      direccion: 'Carrera 10 #5-20, Edificio Los Pinos',
-      ocupacion: 'Docente'
-    }
-  },
-  {
-    id: 'NOT-001',
-    titulo: 'Pago Recibido',
-    mensaje: 'Cliente #1456 ha realizado un pago de $50.000',
-    tipo: 'PAGO',
-    fecha: 'Hace 5 min',
-    leida: false,
-    rutaId: 'RT-001',
-    estado: 'PENDIENTE'
-  },
-  {
-    id: 'NOT-003',
-    titulo: 'Registro de Gasto',
-    mensaje: 'Gasto reportado por mantenimiento de motocicleta',
-    tipo: 'GASTO',
-    fecha: 'Hace 4 horas',
-    leida: false,
-    rutaId: 'RT-002',
-    estado: 'PENDIENTE',
-    detalles: {
-      monto: 45000,
-      categoria: 'Mantenimiento Vehículo',
-      beneficiario: 'Taller El Rayo'
-    }
-  },
-  {
-    id: 'NOT-005',
-    titulo: 'Solicitud de Base',
-    mensaje: 'Solicitud de dinero para base de ruta centro',
-    tipo: 'SOLICITUD_DINERO',
-    fecha: 'Hace 1 hora',
-    leida: false,
-    rutaId: 'RT-001',
-    estado: 'PENDIENTE',
-    detalles: {
-      monto: 2000000,
-      motivo: 'Fondo inicial para jornada de cobranza'
-    }
-  }
-]
+// MOCKS ELIMINADOS - La aplicación solo funciona con datos reales del backend
 
 export default function NotificacionesPage() {
   const router = useRouter()
@@ -146,25 +34,49 @@ export default function NotificacionesPage() {
   const [tipoFilter, setTipoFilter] = useState<'TODOS' | Notificacion['tipo']>('TODOS')
   const [filterRuta, setFilterRuta] = useState<string | null>(null)
   const [search, setSearch] = useState('')
-  const [notificacionesState, setNotificacionesState] = useState<Notificacion[]>(() => {
-    if (typeof window === 'undefined') return MOCK_NOTIFICACIONES
-    try {
-      const userStr = localStorage.getItem('user')
-      if (!userStr) return MOCK_NOTIFICACIONES
-      const user = JSON.parse(userStr) as { rol?: string }
-      const basePath = user.rol === 'COBRADOR' ? '/cobranzas' : user.rol === 'CONTADOR' ? '/contador' : user.rol === 'COORDINADOR' ? '/coordinador' : '/admin'
-      return MOCK_NOTIFICACIONES.map((n) => {
-        let link = undefined
-        if (n.tipo === 'PAGO') link = basePath
-        if (n.tipo === 'CLIENTE') link = user.rol === 'COBRADOR' ? `${basePath}/clientes/nuevo` : undefined
-        if (n.tipo === 'MORA') link = basePath
-        if (n.tipo === 'SISTEMA') link = user.rol === 'COBRADOR' ? `${basePath}/solicitudes` : undefined
-        return { ...n, link }
-      })
-    } catch {
-      return MOCK_NOTIFICACIONES
+  const [notificacionesState, setNotificacionesState] = useState<Notificacion[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    const cargarNotificaciones = async () => {
+      try {
+        // Verificar si hay token antes de intentar cargar
+        const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null
+        if (!token) {
+          setError('No hay sesión activa. Por favor, inicia sesión.')
+          setIsLoading(false)
+          return
+        }
+
+        const notifs = await notificacionesService.obtenerTodas()
+        
+        // Agregar links basados en rol del usuario
+        const userStr = typeof window !== 'undefined' ? localStorage.getItem('user') : null
+        const user = userStr ? JSON.parse(userStr) as { rol?: string } : null
+        const basePath = user?.rol === 'COBRADOR' ? '/cobranzas' : user?.rol === 'CONTADOR' ? '/contador' : user?.rol === 'COORDINADOR' ? '/coordinador' : '/admin'
+        
+        const notifsConLinks = notifs.map((n) => {
+          let link = undefined
+          if (n.tipo === 'PAGO') link = basePath
+          if (n.tipo === 'CLIENTE') link = user?.rol === 'COBRADOR' ? `${basePath}/clientes/nuevo` : undefined
+          if (n.tipo === 'MORA') link = basePath
+          if (n.tipo === 'SISTEMA') link = user?.rol === 'COBRADOR' ? `${basePath}/solicitudes` : undefined
+          return { ...n, link }
+        })
+        
+        setNotificacionesState(notifsConLinks)
+        setError(null)
+      } catch (err) {
+        console.error('Error cargando notificaciones:', err)
+        setError('No se pudieron cargar las notificaciones. Verifica tu conexión o intenta más tarde.')
+      } finally {
+        setIsLoading(false)
+      }
     }
-  })
+    
+    cargarNotificaciones()
+  }, [])
 
   const [selectedNotif, setSelectedNotif] = useState<Notificacion | null>(null)
   const [editedDetails, setEditedDetails] = useState<Notificacion['detalles']>({})
@@ -173,6 +85,7 @@ export default function NotificacionesPage() {
   const [isEditingMode, setIsEditingMode] = useState(false)
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false)
   const [confirmAction, setConfirmAction] = useState<'APPROVE' | 'REJECT' | null>(null)
+  const [showMarkAllReadConfirm, setShowMarkAllReadConfirm] = useState(false)
 
   const notificaciones = notificacionesState
     .filter((n) => {
@@ -320,7 +233,7 @@ export default function NotificacionesPage() {
             
             <div className="flex gap-3">
                <button
-                 onClick={() => setNotificacionesState((prev) => prev.map((n) => ({ ...n, leida: true })))}
+                 onClick={() => setShowMarkAllReadConfirm(true)}
                  className="px-4 py-2 bg-white border border-slate-200 rounded-xl text-slate-600 font-bold hover:bg-slate-50 hover:text-blue-600 transition-colors shadow-sm flex items-center gap-2"
                >
                  <CheckCircle2 className="h-4 w-4" />
@@ -447,7 +360,24 @@ export default function NotificacionesPage() {
 
             {/* Lista */}
             <div className="divide-y divide-slate-100">
-              {notificaciones.length > 0 ? (
+              {isLoading ? (
+                <div className="p-16 text-center">
+                  <div className="animate-spin mx-auto mb-4 h-8 w-8 border-4 border-blue-600 border-t-transparent rounded-full"></div>
+                  <p className="text-slate-500 text-sm font-medium">Cargando notificaciones...</p>
+                </div>
+              ) : error ? (
+                <div className="p-16 text-center">
+                  <AlertCircle className="mx-auto mb-4 h-12 w-12 text-rose-500" />
+                  <h3 className="text-lg font-bold text-slate-900 mb-2">{error}</h3>
+                  <p className="text-slate-500 text-sm mb-6">Por favor, verifica tu conexión o intenta más tarde.</p>
+                  <button
+                    onClick={() => window.location.reload()}
+                    className="px-6 py-2.5 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 transition-colors"
+                  >
+                    Reintentar
+                  </button>
+                </div>
+              ) : notificaciones.length > 0 ? (
                 notificaciones.map((notif) => (
                   <div 
                     key={notif.id} 
@@ -510,19 +440,24 @@ export default function NotificacionesPage() {
                           </>
                         )}
 
-                        {!notif.leida && (
-                          <button
-                            onClick={() =>
-                              setNotificacionesState((prev) =>
-                                prev.map((n) => (n.id === notif.id ? { ...n, leida: true } : n))
-                              )
-                            }
-                            className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-colors"
-                            title="Marcar como leída"
-                          >
-                            <CheckCircle2 className="h-4 w-4" />
-                          </button>
-                        )}
+                         {!notif.leida && (
+                           <button
+                             onClick={async () => {
+                               try {
+                                 await notificacionesService.marcarComoLeida(notif.id)
+                                 setNotificacionesState((prev) =>
+                                   prev.map((n) => (n.id === notif.id ? { ...n, leida: true } : n))
+                                 )
+                               } catch (error) {
+                                 console.error('Error marcando notificación:', error)
+                               }
+                             }}
+                             className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-colors"
+                             title="Marcar como leída"
+                           >
+                             <CheckCircle2 className="h-4 w-4" />
+                           </button>
+                         )}
                       </div>
                     </div>
                   </div>
@@ -969,6 +904,25 @@ export default function NotificacionesPage() {
           </div>
         </div>
       )}
+
+      {/* Modal de Confirmación - Marcar Todas como Leídas */}
+      <ConfirmModal
+        isOpen={showMarkAllReadConfirm}
+        onClose={() => setShowMarkAllReadConfirm(false)}
+        onConfirm={async () => {
+          try {
+            await notificacionesService.marcarTodasComoLeidas()
+            setNotificacionesState((prev) => prev.map((n) => ({ ...n, leida: true })))
+          } catch (error) {
+            console.error('Error marcando notificaciones:', error)
+          }
+        }}
+        title="Marcar todas como leídas"
+        message="¿Estás seguro de que deseas marcar todas las notificaciones como leídas? Esta acción no se puede deshacer."
+        confirmText="Sí, marcar todas"
+        cancelText="Cancelar"
+        variant="info"
+      />
     </div>
   )
 }
