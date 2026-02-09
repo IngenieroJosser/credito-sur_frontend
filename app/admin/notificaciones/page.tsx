@@ -27,12 +27,17 @@ import { notificacionesService, type Notificacion } from '@/services/notificacio
 import ConfirmModal from '@/components/ui/ConfirmModal'
 
 // MOCKS ELIMINADOS - La aplicación solo funciona con datos reales del backend
+// (Comentario original: MOCK_NOTIFICACIONES_ADMIN)
 
 export default function NotificacionesPage() {
   const router = useRouter()
+  
+  // --- ESTADOS DE FILTROS ---
   const [filter, setFilter] = useState<'TODAS' | 'NO_LEIDAS' | 'LEIDAS' | 'APROBADAS' | 'RECHAZADAS'>('TODAS')
   const [tipoFilter, setTipoFilter] = useState<'TODOS' | Notificacion['tipo']>('TODOS')
   const [filterRuta, setFilterRuta] = useState<string | null>(null)
+  
+  // --- ESTADOS DE DATOS Y UI ---
   const [search, setSearch] = useState('')
   const [notificacionesState, setNotificacionesState] = useState<Notificacion[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -51,7 +56,8 @@ export default function NotificacionesPage() {
 
         const notifs = await notificacionesService.obtenerTodas()
         
-        // Agregar links basados en rol del usuario
+        // Agregar links inteligentes basados en el rol del usuario
+        // Esto permite que al hacer clic en una notificación, el usuario vaya al lugar correcto
         const userStr = typeof window !== 'undefined' ? localStorage.getItem('user') : null
         const user = userStr ? JSON.parse(userStr) as { rol?: string } : null
         const basePath = user?.rol === 'COBRADOR' ? '/cobranzas' : user?.rol === 'CONTADOR' ? '/contador' : user?.rol === 'COORDINADOR' ? '/coordinador' : '/admin'
@@ -78,6 +84,7 @@ export default function NotificacionesPage() {
     cargarNotificaciones()
   }, [])
 
+  // Estados para modales y acciones
   const [selectedNotif, setSelectedNotif] = useState<Notificacion | null>(null)
   const [editedDetails, setEditedDetails] = useState<Notificacion['detalles']>({})
   const [rejectionReason, setRejectionReason] = useState('')
@@ -87,6 +94,7 @@ export default function NotificacionesPage() {
   const [confirmAction, setConfirmAction] = useState<'APPROVE' | 'REJECT' | null>(null)
   const [showMarkAllReadConfirm, setShowMarkAllReadConfirm] = useState(false)
 
+  // --- LÓGICA DE FILTRADO ---
   const notificaciones = notificacionesState
     .filter((n) => {
       if (filter === 'TODAS') return true

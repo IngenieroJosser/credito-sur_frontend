@@ -41,27 +41,42 @@ interface ClientesClientProps {
 }
 
 export default function ClientesClient({ initialClientes }: ClientesClientProps) {
+  // Hook de notificaciones para dar feedback visual al usuario (ej: "Cliente eliminado")
   const { showNotification } = useNotification();
+  
+  // Estado local de clientes, inicializado con lo que recibimos del servidor (SSR)
   const [clientes, setClientes] = useState<ClienteAdmin[]>(initialClientes);
 
-  // Estados de UI
+  // --- CONTROLES DE INTERFAZ & FILTROS ---
+  // Buscador textual: busca por nombre, cédula o correo
   const [searchTerm, setSearchTerm] = useState('');
+  
+  // Filtro por semáforo de riesgo: 'all', 'VERDE', 'AMARILLO', 'ROJO', 'LISTA_NEGRA'
   const [filterRiesgo, setFilterRiesgo] = useState<string>('all');
+  
+  // Filtro por ruta específica asignada
   const [filterRuta, setFilterRuta] = useState<string | null>(null);
+  
+  // Control de paginación
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 8;
+  const itemsPerPage = 8; // Número de clientes por página para mantener la tabla limpia
 
-  // Estados de Modales
+  // --- GESTIÓN DE MODALES ---
+  // Modal de confirmación para eliminar
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [clientToDelete, setClientToDelete] = useState<Cliente | null>(null);
-  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
-  const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
-  const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
-  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [clientToEdit, setClientToEdit] = useState<Cliente | null>(null);
-  const [isDeleting, setIsDeleting] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false); // Flag de carga durante el borrado
 
-  // Helpers de Renderizado
+  // Modales de creación, edición y detalles
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false); // Nuevo Cliente
+  const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false); // Ver Expediente
+  const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false); // Editar Cliente
+  const [clientToEdit, setClientToEdit] = useState<Cliente | null>(null);
+
+  // --- AYUDAS VISUALES (HELPERS) ---
+  
+  // Determina el color del Score crediticio (Verde = bueno, Rojo = malo)
   const getScoreColor = (score: number) => {
     if (score >= 85) return 'text-emerald-600';
     if (score >= 70) return 'text-blue-600';
@@ -69,12 +84,14 @@ export default function ClientesClient({ initialClientes }: ClientesClientProps)
     return 'text-rose-600';
   };
 
+  // Icono visual para la tendencia (si el cliente mejora o empeora su comportamiento)
   const RenderTendencia =({ t }: { t: string }) => {
     if (t === 'SUBE') return <TrendingUp className="h-4 w-4 text-emerald-500" />;
     if (t === 'BAJA') return <TrendingDown className="h-4 w-4 text-rose-500" />;
     return <Minus className="h-4 w-4 text-slate-400" />;
   };
 
+  // Estilos CSS (Colores y Fondos) según el nivel de riesgo
   const getRiesgoColor = (riesgo: NivelRiesgo) => {
     switch (riesgo) {
       case 'VERDE': return 'text-emerald-600 bg-emerald-50 ring-emerald-600/20';
@@ -85,6 +102,7 @@ export default function ClientesClient({ initialClientes }: ClientesClientProps)
     }
   };
 
+  // Icono representativo para cada nivel de riesgo
   const getRiesgoIcon = (riesgo: NivelRiesgo) => {
     switch (riesgo) {
       case 'VERDE': return <CheckCircle className="h-4 w-4" />;
@@ -94,31 +112,37 @@ export default function ClientesClient({ initialClientes }: ClientesClientProps)
     }
   };
 
-  // Lógica de Negocio (Eliminar)
+  // --- LÓGICA DE NEGOCIO ---
+
+  // Prepara la eliminación de un cliente (abre modal)
   const handleDeleteClick = (cliente: Cliente) => {
     setClientToDelete(cliente);
     setIsDeleteModalOpen(true);
   };
 
+  // Ejecuta la eliminación real contra el servicio
   const confirmDelete = async () => {
     if (!clientToDelete) return;
 
     setIsDeleting(true);
     try {
       await clientesService.eliminarCliente(clientToDelete.id);
+      
+      // Actualizamos la lista localmente para que desaparezca al instante
       setClientes((prev) => prev.filter((c) => c.id !== clientToDelete.id));
+      
       setIsDeleteModalOpen(false);
       setClientToDelete(null);
       showNotification('success', 'El cliente ha sido eliminado exitosamente', 'Cliente Eliminado');
     } catch (error) {
-      console.error('Error al eliminar cliente:', error);
+      console.error('Ups, falló la eliminación:', error);
       showNotification('error', 'No se pudo eliminar el cliente. Por favor intente de nuevo.', 'Error');
     } finally {
       setIsDeleting(false);
     }
   };
 
-  // Estadísticas (Calculadas al vuelo)
+  // Cálculo de estadísticas en tiempo real basado en los clientes cargados
   const stats = {
     total: clientes.length,
     verde: clientes.filter(c => c.nivelRiesgo === 'VERDE').length,
@@ -129,20 +153,26 @@ export default function ClientesClient({ initialClientes }: ClientesClientProps)
     totalMora: clientes.reduce((sum, c) => sum + (c.montoMora ?? 0), 0)
   };
 
-  // Filtros y Búsqueda
+  // --- FILTRADO DE DATOS ---
+  // Aquí aplicamos los filtros de búsqueda, riesgo y ruta combinados
   const filteredClientes = clientes.filter(cliente => {
+    // 1. Buscador texto
     const matchesSearch = 
       `${cliente.nombres} ${cliente.apellidos}`.toLowerCase().includes(searchTerm.toLowerCase()) ||
       cliente.dni.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (cliente.correo && cliente.correo.toLowerCase().includes(searchTerm.toLowerCase()));
     
+    // 2. Filtro Riesgo
     const matchesRiesgo = filterRiesgo === 'all' || cliente.nivelRiesgo === filterRiesgo;
+    
+    // 3. Filtro Ruta
     const matchesRuta = !filterRuta || filterRuta === '' || cliente.rutaId === filterRuta;
     
     return matchesSearch && matchesRiesgo && matchesRuta;
   });
 
-  // Paginación
+  // --- PAGINACIÓN ---
+  // Calculamos qué segmento del array mostramos
   const totalPages = Math.ceil(filteredClientes.length / itemsPerPage);
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;

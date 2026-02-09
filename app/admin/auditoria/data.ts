@@ -1,17 +1,20 @@
 import { formatCurrency } from '@/lib/utils';
 
+// Definición de tipos para los logs de auditoría
 export interface LogAuditoria {
   id: string
   usuario: string
   rol: string
   accion: string
   modulo: string
-  detalle: string
+  detalle: string // Descripción humana del evento
   fecha: string
   ip: string
   nivel: 'INFO' | 'WARNING' | 'CRITICAL'
 }
 
+// --- DATA DE EJEMPLO (MOCK) ---
+// Simulamos eventos variados para demostrar la capacidad de filtrado y visualización.
 export const MOCK_LOGS: LogAuditoria[] = [
   {
     id: 'LOG-001',

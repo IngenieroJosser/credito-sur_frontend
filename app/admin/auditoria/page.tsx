@@ -19,20 +19,25 @@ import { cn } from '@/lib/utils'
 import { ExportButton } from '@/components/ui/ExportButton'
 
 const AuditoriaSistemaPage = () => {
+  // Estado para los filtros de búsqueda
   const [busqueda, setBusqueda] = useState('')
   const [filtroNivel, setFiltroNivel] = useState<'TODOS' | 'INFO' | 'WARNING' | 'CRITICAL'>('TODOS')
+  
+  // Estado para el modal de detalle
   const [selectedLog, setSelectedLog] = useState<LogAuditoria | null>(null)
   
+  // Datos iniciales mockeados (importados de data.ts)
   const [logs] = useState<LogAuditoria[]>(MOCK_LOGS);
 
   const handleExportExcel = () => {
-    console.log('Exporting Excel...')
+    console.log('Generando reporte de auditoría en Excel...')
   }
 
   const handleExportPDF = () => {
-    console.log('Exporting PDF...')
+    console.log('Generando reporte de auditoría en PDF...')
   }
 
+  // --- LÓGICA DE FILTRADO ---
   const logsFiltrados = logs.filter(log => {
     const coincideTexto = 
       log.usuario.toLowerCase().includes(busqueda.toLowerCase()) ||
@@ -44,6 +49,7 @@ const AuditoriaSistemaPage = () => {
     return coincideTexto && coincideNivel
   })
 
+  // Helper para formatear fechas amigablemente
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
     return new Intl.DateTimeFormat('es-CO', {
@@ -56,6 +62,7 @@ const AuditoriaSistemaPage = () => {
     }).format(date)
   }
 
+  // Helper para los colores de las etiquetas de nivel
   const getNivelBadge = (nivel: string) => {
     switch(nivel) {
       case 'CRITICAL': return 'bg-rose-50 text-rose-700 border-rose-100'

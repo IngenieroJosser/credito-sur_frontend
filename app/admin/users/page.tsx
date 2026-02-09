@@ -68,9 +68,13 @@ interface Role {
 
 const UserManagementPage = () => {
   const { showNotification } = useNotification();
-  // Mock del rol actual (en una implementación real vendría del contexto de autenticación)
+  
+  // Mock del rol actual (en produccion vendría de useSession)
   const currentUserRole: RolUsuario = 'SUPER_ADMINISTRADOR';
 
+  // --- ESTADO DE USUARIOS (MOCK) ---
+  // Simulación de base de datos de usuarios.
+  // En producción, esto vendría de una API / Prisma.
   const [users, setUsers] = useState<User[]>([
     {
       id: '1',
@@ -134,9 +138,11 @@ const UserManagementPage = () => {
     }
   ]);
 
+  // --- FILTROS Y VISTAS ---
   const [searchTerm, setSearchTerm] = useState('');
   const [filterRole, setFilterRole] = useState('all');
   const [filterStatus] = useState('all');
+  // Alternar entre vista de tabla (list) o tarjetas (grid)
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('list');
   
   const [selectedUser, setSelectedUser] = useState<User | null>(null);

@@ -59,13 +59,15 @@ import {
 } from '@/services/contabilidad-service'
 import { toast } from 'sonner'
 
-// Interfaces alineadas con el dominio financiero
+// --- TIPOS DE DATOS ---
+// Definimos la estructura de nuestras "Cajas".
+// Una caja puede ser la PRINCIPAL (Caja fuerte de la oficina) o DE RUTA (La billetera del cobrador).
 interface Caja {
   id: string
   nombre: string
   tipo: 'PRINCIPAL' | 'RUTA'
-  rutaId?: string // Vinculación opcional a una ruta específica
-  responsable: string
+  rutaId?: string // Si es de tipo RUTA, aquí guardamos a cuál pertenece
+  responsable: string // Quién responde por la plata
   saldo: number
   estado: 'ABIERTA' | 'CERRADA'
   recaudoEsperado?: number
@@ -73,37 +75,40 @@ interface Caja {
   ultimaActualizacion: string
 }
 
+// Historial de cuando se cierra la caja (El famoso "Cuadre")
 interface HistorialCierre {
   id: string
   fecha: string
   caja: string
   responsable: string
   saldoSistema: number // Lo que el software dice que debe haber
-  saldoReal: number    // Lo que se contó físicamente
-  diferencia: number   // Surplus (+) o Deficit (-)
+  saldoReal: number    // Lo que se contó físicamente (billete sobre billete)
+  diferencia: number   // Si sobra (+) o falta (-) plata
   estado: 'CUADRADA' | 'DESCUADRADA'
 }
 
+// Cada movimiento de dinero que entra o sale
 interface MovimientoContable {
   id: string
-  fecha: string // Changed to string for serialization safety
+  fecha: string
   concepto: string
   tipo: 'INGRESO' | 'EGRESO'
   monto: number
-  categoria: string
+  categoria: string // Ej: 'Transporte', 'Papelería', 'Aporte Capital'
   responsable: string
-  origen: 'EMPRESA' | 'COBRADOR'
+  origen: 'EMPRESA' | 'COBRADOR' // Quién generó el movimiento
   estado: 'PENDIENTE' | 'APROBADO' | 'RECHAZADO'
-  referencia?: string
-  rutaId?: string // Vinculación opcional a una ruta
+  referencia?: string // Número de recibo, factura, etc.
+  rutaId?: string
 }
 
+// Resumen general para los indicadores de arriba (KPIs)
 interface ResumenFinanciero {
   ingresos: number
   egresos: number
   utilidadNeta: number
-  capitalEnCalle: number
-  cajaActual: number
+  capitalEnCalle: number // Dinero prestado que aún no ha regresado
+  cajaActual: number // Dinero disponible ya mismo
 }
 
 type RutaResumen = {
@@ -113,6 +118,8 @@ type RutaResumen = {
 }
 
 const ModuloContableContent = () => {
+  // --- AUTENTICACIÓN Y PERMISOS ---
+  // Identificamos quién está usando el módulo para mostrar/ocultar botones sensibles
   const [userRole, setUserRole] = useState<Rol | null>(null)
   
   useEffect(() => {
@@ -122,19 +129,23 @@ const ModuloContableContent = () => {
         const user = JSON.parse(userData)
         setUserRole(user.rol)
       } catch (e) {
-        console.error('Error parsing user data', e)
+        console.error('Error al leer datos del usuario', e)
       }
     }
   }, [])
 
+  // --- ESTADOS DE LA INTERFAZ (UI) ---
   const [showCrearCajaModal, setShowCrearCajaModal] = useState(false)
   const { showNotification } = useNotification()
-  const [busqueda] = useState('')
+  
+  // Filtros para la tabla de movimientos
+  const [busqueda, setBusqueda] = useState('') // Buscará por concepto, responsable o categoría
   const [filtroTipo, setFiltroTipo] = useState<'TODOS' | 'INGRESO' | 'EGRESO'>('TODOS')
   const [filtroOrigen, setFiltroOrigen] = useState<'TODOS' | MovimientoContable['origen']>('TODOS')
   const [filtroEstado, setFiltroEstado] = useState<'TODOS' | MovimientoContable['estado']>('TODOS')
   const [filtroRuta, setFiltroRuta] = useState<string>('TODOS')
 
+  // Control de todos los modales (ventanas emergentes)
   const [showEditarCajaModal, setShowEditarCajaModal] = useState(false)
   const [showVerArqueoModal, setShowVerArqueoModal] = useState(false)
   const [arqueoSeleccionado, setArqueoSeleccionado] = useState<HistorialCierre | null>(null)
@@ -147,13 +158,14 @@ const ModuloContableContent = () => {
   const [showDetalleModal, setShowDetalleModal] = useState(false)
   const [detalleTipo, setDetalleTipo] = useState<'INGRESOS' | 'EGRESOS' | null>(null)
 
+  // Datos semilla para selectores (en un futuro vendrían de API)
   const rutasDisponibles: RutaResumen[] = [
     { id: 'RUTA-NORTE', nombre: 'Ruta Norte', responsable: 'Carlos Cobrador' },
     { id: 'RUTA-SUR', nombre: 'Ruta Sur', responsable: 'Pedro Supervisor' },
     { id: 'RUTA-CENTRO', nombre: 'Ruta Centro', responsable: 'Ana Admin' },
   ]
 
-  // Usuarios del sistema (Administrativos y Cobradores)
+  // Usuarios del sistema para asignar responsables
   const usuarios = [
     { id: 'USR-001', nombre: 'María Rodríguez', rol: 'SUPER_ADMINISTRADOR' },
     { id: 'USR-002', nombre: 'Laura Sánchez', rol: 'CONTADOR' },
@@ -163,10 +175,11 @@ const ModuloContableContent = () => {
     { id: 'USR-006', nombre: 'Pedro Supervisor', rol: 'COBRADOR' },
   ]
 
-  // Estados de datos (cargados desde API)
+  // --- ESTADOS DE DATOS (DATA) ---
   const [cajas, setCajas] = useState<Caja[]>([])
   const [isLoading, setIsLoading] = useState(true)
 
+  // Formularios controlados
   const [crearCajaForm, setCrearCajaForm] = useState({
     tipo: 'RUTA' as Caja['tipo'],
     nombre: '',
@@ -183,18 +196,19 @@ const ModuloContableContent = () => {
     rutaId: '',
   })
 
-  // Historial de Cierres (pendiente implementar endpoint en backend)
+  // Historial de Cierres (Mock por ahora)
   const [historialCierres] = useState<HistorialCierre[]>([])
 
+  // Funciones placeholder para exportación
   const handleExportExcel = () => {
-    console.log('Exporting Excel...')
+    console.log('Generando reporte Excel...')
   }
 
   const handleExportPDF = () => {
-    console.log('Exporting PDF...')
+    console.log('Generando PDF...')
   }
 
-  // Estados de datos financieros (cargados desde API)
+  // Resumen financiero global
   const [resumenData, setResumenData] = useState<ResumenFinanciero>({
     ingresos: 0,
     egresos: 0,
@@ -205,12 +219,13 @@ const ModuloContableContent = () => {
 
   const [movimientos, setMovimientos] = useState<MovimientoContable[]>([])
 
-  // Efecto para cargar datos desde la API
+  // --- CARGA DE DATOS INICIAL (EFFECT) ---
+  // Aquí traemos toda la data del backend al iniciar el componente
   useEffect(() => {
     const fetchData = async () => {
       setIsLoading(true)
       try {
-        // Cargar cajas
+        // 1. Traemos las cajas configuradas
         const cajasData = await getCajas()
         if (cajasData.length > 0) {
           setCajas(cajasData.map(c => ({
@@ -225,7 +240,7 @@ const ModuloContableContent = () => {
           })))
         }
 
-        // Cargar resumen financiero
+        // 2. Traemos los números grandes (Resumen)
         const resumen = await getResumenFinanciero()
         if (resumen) {
           setResumenData({
@@ -237,7 +252,7 @@ const ModuloContableContent = () => {
           })
         }
 
-        // Cargar transacciones/movimientos
+        // 3. Traemos la lista de movimientos recientes
         const transaccionesResp = await getTransacciones({ limit: 50 })
         if (transaccionesResp.data.length > 0) {
           setMovimientos(transaccionesResp.data.map(t => ({
@@ -254,7 +269,7 @@ const ModuloContableContent = () => {
         }
       } catch (error) {
         console.error('Error cargando datos contables:', error)
-        toast.error('Error al cargar datos financieros')
+        toast.error('Hubo un problema cargando la información financiera.')
       } finally {
         setIsLoading(false)
       }

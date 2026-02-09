@@ -29,11 +29,15 @@ interface RutaAsignable {
 }
 
 const AsignacionCobradoresPage = () => {
+  // Estado para saber qué cobrador estamos analizando para reasignarle rutas
   const [cobradorSeleccionado, setCobradorSeleccionado] = useState<string | null>(
     null
   )
   const [expandido, setExpandido] = useState(true)
 
+  // --- MOCK DATA: Cobradores ---
+  // Simulamos la lista de cobradores con su carga actual de trabajo.
+  // "capacidadMaxima" nos ayuda a visualizar si alguien está sobrecargado.
   const cobradores: Cobrador[] = [
     {
       id: 'CB-001',

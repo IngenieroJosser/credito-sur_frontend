@@ -36,27 +36,33 @@ interface ToastState {
 
 
 const LoginPage = () => {
+  // Manejamos los datos del formulario aquí
   const [formData, setFormData] = useState<LoginFormData>({
     nombres: '',
     password: ''
   });
+  
+  // Estados para controlar la interfaz visual
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [isRedirecting, setIsRedirecting] = useState(false); // Nuevo estado para transición
+  const [isRedirecting, setIsRedirecting] = useState(false); // Para mostrar la pantalla blanca de carga al final
   const [error, setError] = useState('');
-  const [focusedField, setFocusedField] = useState<string | null>(null);
+  const [focusedField, setFocusedField] = useState<string | null>(null); // Para animar los inputs cuando los seleccionas
+  
+  // Sistema de notificaciones (Toasts)
   const [toast, setToast] = useState<ToastState>({
     show: false,
     message: '',
     userName: '',
     type: 'success'
   });
+  
   const router = useRouter();
 
-  // Obtener año actual dinámico
+  // Obtenemos el año actual para el footer
   const currentYear = new Date().getFullYear();
 
-  // Efecto para auto-ocultar el toast después de 3 segundos
+  // Este efecto oculta la notificación automáticamente después de 3 segundos
   useEffect(() => {
     if (toast.show) {
       const timer = setTimeout(() => {
@@ -66,7 +72,7 @@ const LoginPage = () => {
     }
   }, [toast]);
 
-  // Verificar si ya hay una sesión activa y redirigir a la ruta correspondiente
+  // Si el usuario ya tiene sesión iniciada, lo mandamos directo a su panel
   useEffect(() => {
     const token = localStorage.getItem('token');
     const userStr = localStorage.getItem('user');
@@ -74,6 +80,7 @@ const LoginPage = () => {
     if (token && userStr) {
       try {
         const user = JSON.parse(userStr);
+        // Mapa de redirección según el rol del usuario
         const roleRedirects: Record<string, string> = {
           'COBRADOR': '/cobranzas',
           'COORDINADOR': '/coordinador',
@@ -82,22 +89,27 @@ const LoginPage = () => {
           'SUPERVISOR': '/supervisor',
           'CONTADOR': '/contador/contable'
         };
+        
+        // Si el rol existe en el mapa, usamos esa ruta, si no, por defecto a admin
         const redirectPath = roleRedirects[user.rol] || '/admin';
         router.replace(redirectPath);
       } catch {
-        // Si hay error al parsear, limpiar sesión
+        // Si los datos están corruptos, mejor limpiamos todo para que inicie de cero
         localStorage.removeItem('token');
         localStorage.removeItem('user');
       }
     }
   }, [router]);
 
+  // Actualiza el estado cuando el usuario escribe en los inputs
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
+    // Si había un error mostrado, lo quitamos apenas empiece a escribir
     if (error) setError('');
   };
 
+  // Convierte los roles técnicos (SUPER_ADMINISTRADOR) a texto legible (Super Administrador)
   const formatRol = (rol: string): string => {
     const roles: Record<string, string> = {
       'SUPER_ADMINISTRADOR': 'Super Administrador',
@@ -109,6 +121,7 @@ const LoginPage = () => {
     return roles[rol] || rol;
   };
 
+  // Utilidad para mostrar notificaciones flotantes
   const showToast = (message: string, userName: string = '', type: ToastState['type'] = 'success') => {
     setToast({
       show: true,
@@ -118,9 +131,11 @@ const LoginPage = () => {
     });
   };
 
+  // Lógica principal de inicio de sesión
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
 
+    // Validamos que no envíe campos vacíos
     if (!formData.nombres.trim() || !formData.password.trim()) {
       setError('Credenciales requeridas');
       showToast('Credenciales requeridas', '', 'error');
@@ -131,10 +146,7 @@ const LoginPage = () => {
     setError('');
 
     try {
-      // Importamos la Server Action dinámicamente o la usamos si ya está importada
-      // Para este ejemplo, asumimos que se importa arriba como: 
-      // import { loginAction } from './actions';
-      // Como react server actions pueden ser importadas directamente:
+      // Cargamos la acción del servidor dinámicamente
       const { loginAction } = await import('./actions');
 
       const payload: LoginData = {
@@ -142,23 +154,23 @@ const LoginPage = () => {
         contrasena: formData.password.trim(),
       };
 
-      console.log('Iniciando login SSR...');
+      console.log('Iniciando proceso de login...');
       const result = await loginAction(payload);
 
       if (!result.success) {
         throw new Error(result.error || 'Error desconocido');
       }
 
-      // Login Exitoso (La cookie ya fue puesta por el servidor)
+      // Login Exitoso
       
-      // Mantenemos localStorage por compatibilidad UI legado
+      // Guardamos datos en localStorage para uso en el cliente
       if (result.user) {
         const userFullName = `${result.user.nombres || ''} ${result.user.apellidos || ''}`.trim() || formData.nombres;
         const userData = { ...result.user, nombreCompleto: userFullName };
         
         localStorage.setItem('user', JSON.stringify(userData));
         
-        // Guardar token en localStorage para que apiRequest lo use
+        // Guardamos el token también para las peticiones desde el cliente
         if (result.token) {
           localStorage.setItem('token', result.token);
         }
@@ -169,23 +181,22 @@ const LoginPage = () => {
       
       showToast('Bienvenido', `${userName} (${formatRol(rol)})`, 'success');
 
-      // Redirigir
-      // Redirigir con transición suave
+      // Animación de salida y redirección
       setTimeout(() => {
-        setIsRedirecting(true); // 1. Activar cortina blanca (tarda ~700ms en aparecer)
+        setIsRedirecting(true); // 1. Mostramos la pantalla blanca de carga
         
         setTimeout(() => {
           console.log(`Redirigiendo a ${result.redirectTo}`);
           if (result.redirectTo) {
             router.replace(result.redirectTo);
-            router.refresh(); // Actualizar componentes con cookie nueva
+            router.refresh(); // Refrescamos para asegurar que el estado global se actualice
           }
-        }, 800); // 2. Navegar cuando la pantalla ya es blanca
-      }, 1200); // Esperar un poco para que el usuario lea "Bienvenido"
+        }, 800); // 2. Navegamos cuando ya no se ve nada
+      }, 1200); // 3. Damos tiempo para ver el mensaje de éxito
 
     } catch (err: unknown) {
       console.error('Error en login:', err);
-      // Extraemos el mensaje de error de forma segura
+      // Manejamos el error de forma amigable
       const msg = err instanceof Error ? err.message : 'Error al iniciar sesión';
       setError(msg);
       showToast(msg, '', 'error');
@@ -194,7 +205,7 @@ const LoginPage = () => {
     }
   };
 
-  // Estilos ultra minimalistas
+  // Estilos ultra minimalistas para los toasts
   const toastStyles = {
     success: {
       base: 'bg-white border border-gray-200',
@@ -217,20 +228,19 @@ const LoginPage = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-white via-gray-50 to-gray-100 flex items-center justify-center p-4 relative">
       
-      {/* Toast Ultra Minimalista */}
+      {/* --- NOTIFICACIONES FLOTANTES (TOASTS) --- */}
       <div className={`fixed top-6 right-6 z-50 transform transition-all duration-500 ease-out ${toast.show ? 'translate-x-0 opacity-100' : 'translate-x-full opacity-0'
         }`}>
         <div className="relative">
-          {/* Tarjeta minimalista */}
+          {/* Tarjeta con efecto glassmorphism */}
           <div className={`${styles.base} rounded-xl shadow-lg min-w-[280px] overflow-hidden backdrop-blur-sm bg-white/95`}>
-            {/* Línea superior sutil */}
+            {/* Línea superior de color (indicador de estado) */}
             <div className={`h-0.5 bg-gradient-to-r ${styles.accent}`}></div>
 
-            {/* Contenido */}
             <div className="p-4">
               <div className="flex items-start justify-between">
                 <div className="flex-1">
-                  {/* Mensaje principal */}
+                  {/* Título y Nombre de usuario */}
                   <div className="flex items-baseline gap-2">
                     <h3 className={`text-sm font-medium ${styles.text}`}>
                       {toast.message}
@@ -242,14 +252,14 @@ const LoginPage = () => {
                     )}
                   </div>
 
-                  {/* Detalle sutil */}
+                  {/* Mensaje descriptivo */}
                   <p className={`text-xs ${styles.detail} mt-1`}>
                     {toast.type === 'success' && toast.userName
                       ? 'Redirigiendo al panel de administración...'
                       : 'Verifica tus credenciales'}
                   </p>
 
-                  {/* Indicador de tiempo ultra sutil */}
+                  {/* Barra de progreso de tiempo (solo éxito) */}
                   {toast.type === 'success' && (
                     <div className="mt-3">
                       <div className="flex items-center justify-between text-xs text-gray-400 mb-1">
@@ -263,35 +273,37 @@ const LoginPage = () => {
                   )}
                 </div>
 
-                {/* Punto indicador de tiempo */}
+                {/* Indicador visual circular */}
                 <div className="flex-shrink-0 pl-3">
                   <div className={`w-1.5 h-1.5 rounded-full ${styles.time}`}></div>
                 </div>
               </div>
             </div>
 
-            {/* Efecto de luz sutil */}
+            {/* Efecto de brillo superior */}
             <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-white/50 to-transparent"></div>
           </div>
 
-          {/* Sombra ultra sutil */}
+          {/* Sombra difusa trasera */}
           <div className="absolute -inset-2 -z-10 bg-gradient-to-br from-gray-200/10 to-transparent blur-sm"></div>
         </div>
       </div>
 
-      {/* Fondo minimalista */}
+      {/* --- FONDO DECORATIVO --- */}
       <div className="absolute inset-0 overflow-hidden">
+        {/* Orbes de color difuminados */}
         <div className="absolute top-1/4 -left-24 w-96 h-96 bg-gradient-to-br from-[#08557f]/[0.02] to-transparent rounded-full blur-3xl"></div>
         <div className="absolute bottom-1/4 -right-24 w-96 h-96 bg-gradient-to-tr from-[#fb851b]/[0.02] to-transparent rounded-full blur-3xl"></div>
 
-        {/* Líneas decorativas sutiles */}
+        {/* Líneas sutiles */}
         <div className="absolute top-0 left-0 w-full h-px bg-gradient-to-r from-transparent via-[#08557f]/5 to-transparent"></div>
         <div className="absolute bottom-0 left-0 w-full h-px bg-gradient-to-r from-transparent via-[#08557f]/5 to-transparent"></div>
       </div>
 
-      {/* Contenedor principal */}
+      {/* --- TARJETA DE LOGIN PRINCIPAL --- */}
       <div className="w-full max-w-sm relative z-10">
-        {/* Encabezado ultra minimalista */}
+        
+        {/* Header con Logo */}
         <div className="text-center mb-16">
           <div className="flex items-center justify-center mb-6">
             <div className="relative">
@@ -314,10 +326,11 @@ const LoginPage = () => {
           <p className="text-xs text-gray-400 uppercase tracking-wider mt-4">Plataforma Financiera</p>
         </div>
 
-        {/* Formulario de login */}
+        {/* Formulario */}
         <div className="mb-8">
           <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Campo Usuario */}
+            
+            {/* Input Usuario */}
             <div className="relative">
               <div className={`absolute left-0 top-1/2 -translate-y-1/2 transition-all duration-300 ${focusedField === 'usuario' || formData.nombres
                 ? 'opacity-100'
@@ -338,11 +351,12 @@ const LoginPage = () => {
                 autoComplete="username"
                 disabled={isLoading}
               />
+              {/* Línea animada inferior */}
               <div className={`h-px bg-gradient-to-r from-[#08557f] to-transparent absolute bottom-0 left-0 transition-all duration-500 ${focusedField === 'usuario' ? 'w-full' : 'w-0'
                 }`}></div>
             </div>
 
-            {/* Campo Contraseña */}
+            {/* Input Contraseña */}
             <div className="relative">
               <div className={`absolute left-0 top-1/2 -translate-y-1/2 transition-all duration-300 ${focusedField === 'password' || formData.password
                 ? 'opacity-100'
@@ -363,6 +377,7 @@ const LoginPage = () => {
                 autoComplete="current-password"
                 disabled={isLoading}
               />
+              {/* Toggle ver contraseña */}
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
@@ -379,7 +394,7 @@ const LoginPage = () => {
                 }`}></div>
             </div>
 
-            {/* Botón de acceso minimalista */}
+            {/* Botón de Ingreso */}
             <div className="pt-4">
               <button
                 type="submit"
@@ -398,7 +413,7 @@ const LoginPage = () => {
                   </div>
                 </div>
 
-                {/* Spinner minimalista */}
+                {/* Spinner de carga (visible solo isLoading) */}
                 {isLoading && (
                   <div className="absolute right-4 top-1/2 -translate-y-1/2">
                     <div className="w-4 h-4 border border-gray-300 border-t-[#08557f] rounded-full animate-spin"></div>
@@ -406,7 +421,7 @@ const LoginPage = () => {
                 )}
               </button>
 
-              {/* Mensaje de error elegante */}
+              {/* Mensaje de Error */}
               {error && (
                 <div className="mt-4 text-center">
                   <div className="inline-flex items-center space-x-2 px-3 py-2 bg-red-50/80 border border-red-100 rounded-lg">
@@ -419,7 +434,7 @@ const LoginPage = () => {
           </form>
         </div>
 
-        {/* Información de seguridad */}
+        {/* Footer / Copyright */}
         <div className="text-center space-y-4">
           <div className="relative">
             <div className="absolute inset-0 flex items-center">
@@ -435,12 +450,12 @@ const LoginPage = () => {
               Acceso restringido
             </p>
             <p className="text-[9px] text-gray-300">
-              © {currentYear} CrediFinanzas
+              © {currentYear} CrediSur
             </p>
           </div>
         </div>
 
-        {/* Indicador de sistema activo */}
+        {/* Indicador de estado del sistema (Decorativo) */}
         <div className="fixed bottom-8 right-8 flex items-center space-x-2 opacity-40 hover:opacity-100 transition-opacity duration-300">
           <div className="w-1.5 h-1.5 bg-green-400 rounded-full"></div>
           <span className="text-xs text-gray-500">En línea</span>

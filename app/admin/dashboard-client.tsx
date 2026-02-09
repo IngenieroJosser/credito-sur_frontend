@@ -66,16 +66,19 @@ interface DashboardClientProps {
 }
 
 /**
- * CLIENT COMPONENT - Maneja la interactividad del Dashboard
- * Recibe los datos ya procesados desde el Server Component
+ * Componente Cliente del Dashboard.
+ * Este archivo se encarga de toda la magia visual y la interacción (modales, filtros, exportación).
+ * Recibe los datos "limpios" desde el componente servidor para mantener el cliente ligero.
  */
 export function DashboardClient({ data }: DashboardClientProps) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
   
+  // Detectamos qué filtro de tiempo está activo desde la URL (ej: ?period=week)
   const activePeriod = (searchParams.get('period') as TimeFilterPeriod) || 'month';
 
+  // Cambiamos la URL sin recargar toda la página cuando el usuario elige otro periodo
   const handlePeriodChange = (period: TimeFilterPeriod) => {
     const params = new URLSearchParams(searchParams.toString());
     params.set('period', period);
@@ -83,16 +86,20 @@ export function DashboardClient({ data }: DashboardClientProps) {
   };
 
   const [currentDate] = useState(new Date());
+  
+  // Controlamos la visibilidad del modal de creación de créditos
   const [showCrearCreditoModal, setShowCrearCreditoModal] = useState(false);
 
+  // Funciones placeholder para exportación (a futuro conectarán con el backend)
   const handleExportExcel = () => {
-    console.log('Exporting Excel...');
+    console.log('Generando reporte Excel...');
   };
 
   const handleExportPDF = () => {
-    console.log('Exporting PDF...');
+    console.log('Generando PDF...');
   };
 
+  // Formato de fecha amigable para el encabezado (ej: Vie, 6 Feb 2026)
   const formatDate = (date: Date) => {
     const options: Intl.DateTimeFormatOptions = {
       weekday: 'short',
@@ -105,14 +112,14 @@ export function DashboardClient({ data }: DashboardClientProps) {
 
   return (
     <div className="min-h-screen bg-slate-50 relative">
-      {/* Fondo arquitectónico */}
+      {/* Fondo técnico/arquitectónico sutil para darle profundidad */}
       <div className="fixed inset-0 pointer-events-none">
         <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px]"></div>
         <div className="absolute left-0 right-0 top-0 -z-10 m-auto h-[310px] w-[310px] rounded-full bg-primary opacity-20 blur-[100px]"></div>
       </div>
 
       <div className="relative z-10 p-6 lg:p-16 space-y-20 max-w-[1600px] mx-auto">
-        {/* Header Standard */}
+        {/* Encabezado Principal */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 animate-in fade-in slide-in-from-top-4 duration-500">
           <div>
             <div className="flex items-center gap-2 mb-2">
@@ -134,12 +141,13 @@ export function DashboardClient({ data }: DashboardClientProps) {
           </div>
           
           <div className="flex items-center gap-4">
-            {/* El componente TimeFilter maneja internamente su responsividad (hidden md:flex y md:hidden) */}
+            {/* Selector de periodo (Mes, Semana, Día) */}
             <TimeFilter 
               activePeriod={activePeriod} 
               onPeriodChange={handlePeriodChange} 
             />
             
+            {/* Botones de acción rápida */}
             <ExportButton 
               label="Exportar" 
               onExportExcel={handleExportExcel} 

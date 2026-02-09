@@ -43,9 +43,12 @@ interface Role {
 
 const RoleManagementPage = () => {
   // Simulación de usuario actual (esto vendría del contexto de auth)
+  // En producción, usar `useSession` o similar.
   const [currentUserRole] = useState<'SUPER_ADMINISTRADOR' | 'COORDINADOR' | 'SUPERVISOR' | 'COBRADOR' | 'CONTADOR'>('SUPER_ADMINISTRADOR');
 
-  // Datos iniciales alineados con los Enums de Prisma y estructura propuesta
+  // --- DATOS INICIALES (MOCK) ---
+  // Estos roles deben estar sincronizados con los Enums de Prisma.
+  // "usuariosAsignados" es un contador visual para saber impacto de cambios.
   const [roles, setRoles] = useState<Role[]>([
     {
       id: 'SUPER_ADMINISTRADOR',
@@ -94,6 +97,9 @@ const RoleManagementPage = () => {
     }
   ]);
 
+  // --- CATÁLOGO DE PERMISOS ---
+  // Definición exhaustiva de todas las acciones posibles en el sistema.
+  // Agrupadas por módulo para facilitar la assignación en la UI.
   const [allPermissions] = useState<Permission[]>([
     // Usuarios & Sistema
     { id: 'sys_1', modulo: 'Usuarios', accion: 'user_view', nombre: 'Ver Usuarios', descripcion: 'Visualizar lista de usuarios', categoria: 'lectura', activo: true },
@@ -136,13 +142,18 @@ const RoleManagementPage = () => {
     { id: 'rep_2', modulo: 'Reportes', accion: 'report_financial', nombre: 'Reportes Financieros', descripcion: 'Reportes de dinero y utilidad', categoria: 'administracion', activo: true },
   ]);
 
+  // --- ESTADOS DE UI ---
   const [searchTerm, setSearchTerm] = useState('');
   const [filterModule, setFilterModule] = useState<string>('all');
   const [filterCategory] = useState<string>('all');
+  
+  // Selección y Modales
   const [selectedRole, setSelectedRole] = useState<Role | null>(null);
   const [isCreateRoleModalOpen, setIsCreateRoleModalOpen] = useState(false);
   const [isDeleteRoleModalOpen, setIsDeleteRoleModalOpen] = useState(false);
   const [isPermissionsModalOpen, setIsPermissionsModalOpen] = useState(false);
+  
+  // Formulario temporal
   const [roleFormData, setRoleFormData] = useState({
     nombre: '',
     descripcion: ''
