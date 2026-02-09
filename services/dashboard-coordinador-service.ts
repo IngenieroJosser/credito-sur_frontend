@@ -69,3 +69,4 @@ export const dashboardService = {
     return apiRequest('POST', `/approvals/${id}/reject`, { type });
   },
 };
+
