@@ -3,8 +3,9 @@
 import { createPortal } from 'react-dom'
 import { use, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { ArrowLeft, Wallet, TrendingUp, TrendingDown, Calendar, User, DollarSign, CheckCircle, AlertCircle, XCircle, ArrowDownLeft, ArrowUpRight, ChevronLeft, ChevronRight } from 'lucide-react'
+import { ArrowLeft, Wallet, TrendingUp, TrendingDown, Calendar, User, DollarSign, CheckCircle, AlertCircle, XCircle, ArrowDownLeft, ArrowUpRight, ChevronLeft, ChevronRight, CheckCircle2, X } from 'lucide-react'
 import { formatCOPInputValue, formatCurrency, parseCOPInputToNumber } from '@/lib/utils'
+import { useNotification } from '@/components/providers/NotificationProvider'
 
 // Mock data para el detalle de caja
 const MOCK_CAJA = {
@@ -53,18 +54,41 @@ export default function DetalleCajaPage({ params }: { params: Promise<{ id: stri
     referencia: '',
   })
 
-  const categoriasIngreso = [
+  const { showNotification } = useNotification()
+
+  const [categoriasIngreso, setCategoriasIngreso] = useState([
     { id: 'APORTE_CAPITAL', label: 'Aporte de Capital' },
     { id: 'AJUSTE_POSITIVO', label: 'Ajuste de Caja (+)' },
     { id: 'OTROS_INGRESOS', label: 'Otros Ingresos' },
-  ]
+  ])
 
-  const categoriasEgreso = [
+  const [categoriasEgreso, setCategoriasEgreso] = useState([
     { id: 'GASTO_OPERATIVO', label: 'Gasto Operativo (Transporte, Comida)' },
     { id: 'GASTO_ADMINISTRATIVO', label: 'Gasto Administrativo (Papelería, Servicios)' },
     { id: 'BASE_COBRADOR', label: 'Entrega Base a Cobrador' },
     { id: 'RETIRO_UTILIDADES', label: 'Retiro de Utilidades' },
-  ]
+  ])
+
+  // Estado para crear nueva categoría inline
+  const [nuevaCategoria, setNuevaCategoria] = useState('')
+  const [isCreatingCategory, setIsCreatingCategory] = useState(false)
+
+  const handleCrearCategoria = () => {
+    if (!nuevaCategoria.trim()) return
+    const id = nuevaCategoria.trim().toUpperCase().replace(/\s+/g, '_')
+    const nueva = { id, label: nuevaCategoria.trim() }
+    
+    if (movimientoForm.tipo === 'INGRESO') {
+      setCategoriasIngreso(prev => [...prev, nueva])
+    } else {
+      setCategoriasEgreso(prev => [...prev, nueva])
+    }
+    
+    setMovimientoForm(p => ({ ...p, categoria: id }))
+    setNuevaCategoria('')
+    setIsCreatingCategory(false)
+    showNotification('success', 'Categoría creada correctamente', 'Éxito')
+  }
 
   const movimientosPorPagina = 4
   const [paginaMovimientos, setPaginaMovimientos] = useState(1)
@@ -407,18 +431,52 @@ export default function DetalleCajaPage({ params }: { params: Promise<{ id: stri
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <label className="text-sm font-bold text-slate-700">Categoría</label>
-                    <select
-                      value={movimientoForm.categoria}
-                      onChange={(e) => setMovimientoForm((p) => ({ ...p, categoria: e.target.value }))}
-                      className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-900"
-                    >
-                      <option value="">Seleccione una categoría...</option>
-                      {(movimientoForm.tipo === 'INGRESO' ? categoriasIngreso : categoriasEgreso).map((cat) => (
-                        <option key={cat.id} value={cat.id}>
-                          {cat.label}
-                        </option>
-                      ))}
-                    </select>
+                    {isCreatingCategory ? (
+                        <div className="flex gap-2">
+                             <input 
+                                autoFocus
+                                value={nuevaCategoria}
+                                onChange={(e) => setNuevaCategoria(e.target.value)}
+                                placeholder="Nombre nueva categoría..."
+                                className="flex-1 px-4 py-3 rounded-xl border border-blue-200 bg-blue-50 text-sm font-bold text-blue-900 focus:ring-2 focus:ring-blue-100 outline-none placeholder:text-blue-300"
+                             />
+                             <button
+                                type="button" 
+                                onClick={handleCrearCategoria}
+                                className="p-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors"
+                             >
+                                <CheckCircle2 className="h-5 w-5" />
+                             </button>
+                             <button 
+                                type="button"
+                                onClick={() => setIsCreatingCategory(false)}
+                                className="p-3 bg-slate-100 text-slate-500 rounded-xl hover:bg-slate-200 transition-colors"
+                             >
+                                <X className="h-5 w-5" />
+                             </button>
+                        </div>
+                    ) : (
+                        <select
+                        value={movimientoForm.categoria}
+                        onChange={(e) => {
+                            if (e.target.value === 'NUEVA_CATEGORIA') {
+                                setIsCreatingCategory(true)
+                                setNuevaCategoria('')
+                            } else {
+                                setMovimientoForm((p) => ({ ...p, categoria: e.target.value }))
+                            }
+                        }}
+                        className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-900"
+                        >
+                        <option value="">Seleccione una categoría...</option>
+                        {(movimientoForm.tipo === 'INGRESO' ? categoriasIngreso : categoriasEgreso).map((cat) => (
+                            <option key={cat.id} value={cat.id}>
+                            {cat.label}
+                            </option>
+                        ))}
+                        <option value="NUEVA_CATEGORIA" className="font-bold text-blue-600 bg-blue-50">+ Crear nueva categoría...</option>
+                        </select>
+                    )}
                   </div>
 
                   <div className="space-y-2">

@@ -75,7 +75,8 @@ export const rutasService = {
     const query = params.toString();
     const endpoint = query ? `/routes?${query}` : '/routes';
     
-    return apiRequest<Ruta[]>('GET', endpoint);
+    const response = await apiRequest<{ data: Ruta[], meta: any }>('GET', endpoint);
+    return response.data || [];
   },
 
   /**

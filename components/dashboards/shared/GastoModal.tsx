@@ -9,11 +9,10 @@ import { Portal, MODAL_Z_INDEX } from '@/components/dashboards/shared/CobradorEl
 interface GastoModalProps {
   isOpen: boolean
   onClose: () => void
-  onConfirm: (data: { tipo: string; descripcion: string; valor: number; comprobante: File | null }) => void
+  onConfirm: (data: { descripcion: string; valor: number; comprobante: File | null }) => void
 }
 
 export default function GastoModal({ isOpen, onClose, onConfirm }: GastoModalProps) {
-  const [tipo, setTipo] = useState('')
   const [descripcion, setDescripcion] = useState('')
   const [valorInput, setValorInput] = useState('')
   const [comprobante, setComprobante] = useState<File | null>(null)
@@ -23,12 +22,11 @@ export default function GastoModal({ isOpen, onClose, onConfirm }: GastoModalPro
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     const valor = parseInt(valorInput.replace(/\D/g, '')) || 0
-    onConfirm({ tipo, descripcion, valor, comprobante })
+    onConfirm({ descripcion, valor, comprobante })
     handleReset()
   }
 
   const handleReset = () => {
-    setTipo('OPERATIVO')
     setDescripcion('')
     setValorInput('')
     setComprobante(null)
@@ -62,14 +60,7 @@ export default function GastoModal({ isOpen, onClose, onConfirm }: GastoModalPro
           </div>
 
           <form onSubmit={handleSubmit} className="p-6 space-y-4">
-            <div className="space-y-2">
-              <SelectCategoria
-                tipo="GASTO"
-                label="Categoría de Gasto"
-                value={tipo}
-                onChange={(val) => setTipo(val)}
-              />
-            </div>
+
 
             <div className="space-y-2">
               <label className="text-sm font-bold text-slate-700">Descripción</label>

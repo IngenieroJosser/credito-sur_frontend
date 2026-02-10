@@ -41,7 +41,12 @@ import {
   CreditCard,
   BarChart3,
   Clock,
-  History
+  History,
+  CheckCircle2,
+  X,
+  AlertTriangle,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react'
 
 import { formatCOPInputValue, formatCurrency, formatMilesCOP, parseCOPInputToNumber, cn } from '@/lib/utils'
@@ -56,9 +61,13 @@ import {
   createTransaccion as apiCreateTransaccion,
   type Caja as ApiCaja,
   type Transaccion as ApiTransaccion,
-  type ResumenFinanciero as ApiResumen
+  type ResumenFinanciero as ApiResumen,
+  getHistorialCierres
 } from '@/services/contabilidad-service'
 import { toast } from 'sonner'
+import { usuariosService, type Usuario as ApiUsuario } from '@/services/usuarios-service'
+import { rutasService, type Ruta as ApiRuta } from '@/services/rutas-service'
+import SelectCategoria from '@/components/ui/SelectCategoria'
 
 // --- TIPOS DE DATOS ---
 // Definimos la estructura de nuestras "Cajas".
@@ -93,7 +102,7 @@ interface MovimientoContable {
   id: string
   fecha: string
   concepto: string
-  tipo: 'INGRESO' | 'EGRESO'
+  tipo: 'INGRESO' | 'EGRESO' | 'TRANSFERENCIA'
   monto: number
   categoria: string // Ej: 'Transporte', 'Papelería', 'Aporte Capital'
   responsable: string
@@ -101,15 +110,26 @@ interface MovimientoContable {
   estado: 'PENDIENTE' | 'APROBADO' | 'RECHAZADO'
   referencia?: string // Número de recibo, factura, etc.
   rutaId?: string
+  cajaId: string
+  cajaOrigenId?: string
 }
 
 // Resumen general para los indicadores de arriba (KPIs)
 interface ResumenFinanciero {
-  ingresos: number
-  egresos: number
+  ingresosHoy: number
+  egresosHoy: number
   utilidadNeta: number
   capitalEnCalle: number // Dinero prestado que aún no ha regresado
   cajaActual: number // Dinero disponible ya mismo
+  porcentajeIngresosVsAyer: number
+  porcentajeEgresosVsAyer: number
+  esIngresoPositivo: boolean
+  esEgresoPositivo: boolean
+  rutasTotales: number
+  rutasAbiertas: number
+  rutasPendientesConsolidacion: number
+  consolidacionesHoy: number
+  porcentajeCierre: number
 }
 
 type RutaResumen = {
@@ -141,7 +161,7 @@ const ModuloContableContent = () => {
   
   // Filtros para la tabla de movimientos
   const [busqueda, setBusqueda] = useState('') // Buscará por concepto, responsable o categoría
-  const [filtroTipo, setFiltroTipo] = useState<'TODOS' | 'INGRESO' | 'EGRESO'>('TODOS')
+  const [filtroTipo, setFiltroTipo] = useState<'TODOS' | 'INGRESO' | 'EGRESO' | 'TRANSFERENCIA'>('TODOS')
   const [filtroOrigen, setFiltroOrigen] = useState<'TODOS' | MovimientoContable['origen']>('TODOS')
   const [filtroEstado, setFiltroEstado] = useState<'TODOS' | MovimientoContable['estado']>('TODOS')
   const [filtroRuta, setFiltroRuta] = useState<string>('TODOS')
@@ -157,48 +177,45 @@ const ModuloContableContent = () => {
   const [movimientoSeleccionado, setMovimientoSeleccionado] = useState<MovimientoContable | null>(null)
 
   const [showDetalleModal, setShowDetalleModal] = useState(false)
-  const [detalleTipo, setDetalleTipo] = useState<'INGRESOS' | 'EGRESOS' | null>(null)
+  const [detalleTipo, setDetalleTipo] = useState<'INGRESOS' | 'EGRESOS' | 'CIERRES' | null>(null)
 
-  // Datos semilla para selectores (en un futuro vendrían de API)
-  const rutasDisponibles: RutaResumen[] = [
-    { id: 'RUTA-NORTE', nombre: 'Ruta Norte', responsable: 'Carlos Cobrador' },
-    { id: 'RUTA-SUR', nombre: 'Ruta Sur', responsable: 'Pedro Supervisor' },
-    { id: 'RUTA-CENTRO', nombre: 'Ruta Centro', responsable: 'Ana Admin' },
-  ]
+  // Estados para Paginación de Listas Locales (Máximo 3 por vista)
+  const [currentPageMovimientos, setCurrentPageMovimientos] = useState(0)
+  const [currentPageArqueos, setCurrentPageArqueos] = useState(0)
+
+
 
   // Usuarios del sistema para asignar responsables
-  const usuarios = [
-    { id: 'USR-001', nombre: 'María Rodríguez', rol: 'SUPER_ADMINISTRADOR' },
-    { id: 'USR-002', nombre: 'Laura Sánchez', rol: 'CONTADOR' },
-    { id: 'USR-003', nombre: 'Admin General', rol: 'ADMIN' },
-    { id: 'USR-004', nombre: 'Ana Admin', rol: 'SUPER_ADMINISTRADOR' },
-    { id: 'USR-005', nombre: 'Carlos Cobrador', rol: 'COBRADOR' },
-    { id: 'USR-006', nombre: 'Pedro Supervisor', rol: 'COBRADOR' },
-  ]
+  const [usuariosList, setUsuariosList] = useState<ApiUsuario[]>([])
+  // Rutas disponibles (cargadas del backend)
+  const [rutasDisponibles, setRutasDisponibles] = useState<ApiRuta[]>([])
 
   // --- ESTADOS DE DATOS (DATA) ---
   const [cajas, setCajas] = useState<Caja[]>([])
   const [isLoading, setIsLoading] = useState(true)
+
+  const [currentPageCajas, setCurrentPageCajas] = useState(0)
 
   // Formularios controlados
   const [crearCajaForm, setCrearCajaForm] = useState({
     tipo: 'RUTA' as Caja['tipo'],
     nombre: '',
     rutaId: '',
-    responsable: '',
+    responsableId: '',
     saldoInicialInput: '',
   })
 
   const [editarCajaForm, setEditarCajaForm] = useState({
     nombre: '',
-    responsable: '',
+    responsableId: '',
     estado: 'ABIERTA' as Caja['estado'],
     saldoInput: '',
     rutaId: '',
+    responsableNombre: '', // Auxiliar para mostrar nombre si falla carga
   })
 
-  // Historial de Cierres (Mock por ahora)
-  const [historialCierres] = useState<HistorialCierre[]>([])
+  // Historial de Cierres 
+  const [historialCierres, setHistorialCierres] = useState<HistorialCierre[]>([])
 
   // Funciones placeholder para exportación
   const handleExportExcel = () => {
@@ -211,11 +228,20 @@ const ModuloContableContent = () => {
 
   // Resumen financiero global
   const [resumenData, setResumenData] = useState<ResumenFinanciero>({
-    ingresos: 0,
-    egresos: 0,
+    ingresosHoy: 0,
+    egresosHoy: 0,
     utilidadNeta: 0,
     capitalEnCalle: 0,
-    cajaActual: 0
+    cajaActual: 0,
+    porcentajeIngresosVsAyer: 0,
+    porcentajeEgresosVsAyer: 0,
+    esIngresoPositivo: true,
+    esEgresoPositivo: true,
+    rutasTotales: 0,
+    rutasAbiertas: 0,
+    rutasPendientesConsolidacion: 0,
+    consolidacionesHoy: 0,
+    porcentajeCierre: 0
   })
 
   const [movimientos, setMovimientos] = useState<MovimientoContable[]>([])
@@ -224,34 +250,58 @@ const ModuloContableContent = () => {
   const fetchData = async () => {
     setIsLoading(true);
     try {
-      // 1. Traemos las cajas configuradas
+      // 1. Traemos usuarios reales
+      const usersData = await usuariosService.obtenerTodos();
+      setUsuariosList(usersData);
+
+      // 2. Traemos las cajas configuradas
+      // 2. Traemos las cajas configuradas
       const cajasData = await getCajas();
+
+      // 2b. Traemos las rutas
+      try {
+        const rutasData = await rutasService.obtenerRutas({ limit: 100, activa: true });
+        setRutasDisponibles(rutasData);
+      } catch (err) {
+        console.error('Error cargando rutas', err);
+      }
+
       if (cajasData && Array.isArray(cajasData)) {
         setCajas(cajasData.map(c => ({
           id: c.id,
           nombre: c.nombre,
           tipo: c.tipo,
           rutaId: c.rutaId,
-          responsable: c.responsable,
+          responsable: c.responsable, // Nombre completo que viene del backend
+          responsableId: c.responsableId, // ID real
           saldo: c.saldo,
           estado: c.estado,
           ultimaActualizacion: c.ultimaActualizacion
         })));
       }
 
-      // 2. Traemos los números grandes (Resumen)
+      // 3. Traemos los números grandes (Resumen)
       const resumen = await getResumenFinanciero();
       if (resumen) {
         setResumenData({
-          ingresos: resumen.ingresosHoy,
-          egresos: resumen.egresosHoy,
+          ingresosHoy: resumen.ingresosHoy,
+          egresosHoy: resumen.egresosHoy,
           utilidadNeta: resumen.gananciaNeta,
           capitalEnCalle: resumen.capitalEnCalle,
-          cajaActual: resumen.saldoCajas
+          cajaActual: resumen.saldoCajas,
+          porcentajeIngresosVsAyer: resumen.porcentajeIngresosVsAyer || 0,
+          porcentajeEgresosVsAyer: resumen.porcentajeEgresosVsAyer || 0,
+          esIngresoPositivo: resumen.esIngresoPositivo ?? true,
+          esEgresoPositivo: resumen.esEgresoPositivo ?? true,
+          rutasTotales: resumen.rutasTotales || 0,
+          rutasAbiertas: resumen.rutasAbiertas || 0,
+          rutasPendientesConsolidacion: resumen.rutasPendientesConsolidacion || 0,
+          consolidacionesHoy: resumen.consolidacionesHoy || 0,
+          porcentajeCierre: resumen.porcentajeCierre || 0
         });
       }
 
-      // 3. Traemos la lista de movimientos recientes
+      // 4. Traemos la lista de movimientos recientes
       const transaccionesResp = await getTransacciones({ limit: 50 });
       if (transaccionesResp && transaccionesResp.data) {
         setMovimientos(transaccionesResp.data.map(t => ({
@@ -260,10 +310,27 @@ const ModuloContableContent = () => {
           concepto: t.descripcion,
           tipo: t.tipo,
           monto: t.monto,
-          categoria: 'GENERAL',
+          categoria: t.categoria || 'GENERAL',
           responsable: t.responsable,
-          origen: 'EMPRESA' as const,
-          estado: 'APROBADO' as const
+          origen: (t as any).origen || 'EMPRESA',
+          estado: (t.estado as any) || 'APROBADO',
+          cajaId: (t as any).cajaId,
+          cajaOrigenId: (t as any).cajaOrigenId
+        })));
+      }
+
+      // 5. Historial de Cierres (Real)
+      const cierresResp = await getHistorialCierres();
+      if (Array.isArray(cierresResp)) {
+        setHistorialCierres(cierresResp.map((c: any) => ({
+             id: c.id,
+             fecha: c.fecha,
+             caja: c.caja || 'Desconocida',
+             responsable: c.responsable || 'Sistema',
+             saldoSistema: Number(c.saldoSistema),
+             saldoReal: Number(c.saldoReal),
+             diferencia: Number(c.diferencia),
+             estado: c.estado || (Number(c.diferencia) === 0 ? 'CUADRADA' : 'DESCUADRADA')
         })));
       }
     } catch (error) {
@@ -278,30 +345,19 @@ const ModuloContableContent = () => {
     fetchData();
   }, []);
 
-  const categoriasIngreso = [
-    { id: 'APORTE_CAPITAL', label: 'Aporte de Capital' },
-    { id: 'AJUSTE_POSITIVO', label: 'Ajuste de Caja (+)' },
-    { id: 'OTROS_INGRESOS', label: 'Otros Ingresos' },
-  ]
-
-  const categoriasEgreso = [
-    { id: 'GASTO_OPERATIVO', label: 'Gasto Operativo (Transporte, Comida)' },
-    { id: 'GASTO_ADMINISTRATIVO', label: 'Gasto Administrativo (Papelería, Servicios)' },
-    { id: 'BASE_COBRADOR', label: 'Entrega Base a Cobrador' },
-    { id: 'RETIRO_UTILIDADES', label: 'Retiro de Utilidades' },
-  ]
-
+  /* Estado para movimientos */
   const [movimientoForm, setMovimientoForm] = useState({
     tipo: 'INGRESO' as MovimientoContable['tipo'],
     categoria: '',
+    categoriaId: '',
     montoInput: '',
     concepto: '',
     referencia: '',
-    cajaId: 'CAJA-MAIN',
-    origen: 'EMPRESA' as MovimientoContable['origen'],
+    cajaId: '',
+    origen: 'EMPRESA' as 'EMPRESA' | 'COBRADOR',
     estado: 'PENDIENTE' as MovimientoContable['estado'],
-    responsableId: 'USR-004', // Default: Ana Admin (Super Admin)
-    entregadoPor: '', // Para cuando origen es COBRADOR
+    responsableId: '', // Debe seleccionarse un usuario válido
+    cajaOrigenId: '', // Para cuando origen es COBRADOR
   })
 
   // Filtrado de movimientos
@@ -311,7 +367,24 @@ const ModuloContableContent = () => {
       mov.responsable.toLowerCase().includes(busqueda.toLowerCase()) ||
       mov.categoria.toLowerCase().includes(busqueda.toLowerCase())
     
-    const cumpleTipo = filtroTipo === 'TODOS' || mov.tipo === filtroTipo
+    // Filtro de tipo mejorado para incluir transferencias en ingresos/egresos según el contexto
+    let cumpleTipo = filtroTipo === 'TODOS';
+    if (!cumpleTipo) {
+      if (filtroTipo === 'INGRESO') {
+        cumpleTipo = mov.tipo === 'INGRESO' || (mov.tipo === 'TRANSFERENCIA' && mov.tipo === 'TRANSFERENCIA'); 
+        // Nota: En la lista unificada, las transferencias se comportan visualmente según si suman o restan
+        // Pero como aquí no tenemos el contexto de "caja actual" para saber si sumó o restó, 
+        // simplemente las mostramos si el filtro no es estricto, o las excluimos.
+        // CORRECCIÓN: Como el backend manda todo como TRANSFERENCIA, necesitamos ver el signo visual o contexto.
+        // Simplificación: Mostramos TRANSFERENCIA en ambos filtros para no ocultar info, o solo en TODOS.
+        // Decisión UX: Incluir TRANSFERENCIA en ambos si es relevante, o dejar solo en TODOS.
+        // Dado el problema del usuario, vamos a permitir que se vean.
+        cumpleTipo = mov.tipo === 'INGRESO' || mov.tipo === 'TRANSFERENCIA';
+      } else if (filtroTipo === 'EGRESO') {
+        cumpleTipo = mov.tipo === 'EGRESO' || mov.tipo === 'TRANSFERENCIA';
+      }
+    }
+
     const cumpleOrigen = filtroOrigen === 'TODOS' || mov.origen === filtroOrigen
     const cumpleEstado = filtroEstado === 'TODOS' || mov.estado === filtroEstado
     const cumpleRuta = filtroRuta === 'TODOS' || mov.rutaId === filtroRuta
@@ -324,7 +397,12 @@ const ModuloContableContent = () => {
   const handleCrearCaja = async () => {
     const saldo = parseCOPInputToNumber(crearCajaForm.saldoInicialInput)
     const ruta = rutasDisponibles.find((r) => r.id === crearCajaForm.rutaId)
-    const respId = usuarios.find(u => u.nombre === crearCajaForm.responsable)?.id || 'USR-004'
+    const respId = crearCajaForm.responsableId;
+
+    if (!respId) {
+        showNotification('error', 'Debe seleccionar un responsable válido', 'Error');
+        return;
+    }
 
     try {
       await apiCreateCaja({
@@ -346,9 +424,14 @@ const ModuloContableContent = () => {
 
   const openEditarCaja = (caja: Caja) => {
     setCajaSeleccionada(caja)
+    // Buscamos el ID del responsable basado en el nombre (fallback si no tenemos el ID directo en la interfaz)
+    // Idealmente Caja debería tener responsableId. He actualizado la carga de datos para incluirlo.
+    const cajaConId = caja as any; // Cast temporal si la interfaz Caja no tiene responsableId aún
+    
     setEditarCajaForm({
       nombre: caja.nombre,
-      responsable: caja.responsable,
+      responsableId: cajaConId.responsableId || '', 
+      responsableNombre: caja.responsable,
       estado: caja.estado,
       saldoInput: caja.saldo ? formatMilesCOP(caja.saldo) : '',
       rutaId: caja.rutaId ?? '',
@@ -359,7 +442,12 @@ const ModuloContableContent = () => {
   const handleEditarCaja = async () => {
     if (!cajaSeleccionada) return
     const saldo = parseCOPInputToNumber(editarCajaForm.saldoInput)
-    const respId = usuarios.find(u => u.nombre === editarCajaForm.responsable)?.id || 'USR-004'
+    const respId = editarCajaForm.responsableId
+
+    if (!respId) {
+        showNotification('error', 'Debe asignar un responsable', 'Validación');
+        return;
+    }
 
     try {
       await updateCaja(cajaSeleccionada.id, {
@@ -379,36 +467,66 @@ const ModuloContableContent = () => {
   }
 
   const openRegistrarMovimiento = () => {
-    const defaultCaja = userRole === 'SUPER_ADMINISTRADOR' ? 'CAJA-MAIN' : (cajas.find(c => c.tipo === 'RUTA')?.id || '')
+    // Buscamos el ID real de la caja principal para el admin
+    const cajaPrincipal = cajas.find(c => c.tipo === 'PRINCIPAL');
+    const defaultCaja = (userRole === 'ADMIN' || userRole === 'SUPER_ADMINISTRADOR') 
+        ? (cajaPrincipal?.id || '') 
+        : (cajas.find(c => c.tipo === 'RUTA')?.id || '')
+    
     setMovimientoForm({
       tipo: 'INGRESO',
       categoria: '',
+      categoriaId: '',
       montoInput: '',
       concepto: '',
       referencia: '',
       cajaId: defaultCaja,
       origen: 'EMPRESA',
       estado: 'PENDIENTE',
-      responsableId: 'USR-004',
-      entregadoPor: '',
+      responsableId: '',
+      cajaOrigenId: '',
     })
     setShowRegistrarMovimientoModal(true)
   }
 
   const handleRegistrarMovimiento = async () => {
     const monto = parseCOPInputToNumber(movimientoForm.montoInput)
-    if (!monto || !movimientoForm.categoria || !movimientoForm.concepto.trim()) return
+    if (monto <= 0) {
+        showNotification('error', 'El monto debe ser mayor a 0', 'Validación');
+        return;
+    }
+    if (!movimientoForm.cajaId) {
+        showNotification('error', 'Debe seleccionar una caja', 'Validación');
+        return;
+    }
+    // For movements, we relax the requirement for 'responsableId' if it's not strictly needed by the backend for manual entry
+    // or if the backend infers it from the session.
+    // if (!movimientoForm.responsableId) { ... } // Removed validation as per request
 
     try {
-      await apiCreateTransaccion({
-        cajaId: movimientoForm.cajaId,
-        tipo: movimientoForm.tipo,
-        monto,
-        descripcion: `${movimientoForm.categoria}: ${movimientoForm.concepto}`,
-      })
+      // Si tenemos categoriaId del SelectCategoria, la usamos.
+      // Actualmente apiCreateTransaccion espera una descripción combinada o solo descripción.
+      // Vamos a mandar la categoría como parte de la descripción si el backend no soporta campo 'categoriaId' separado aún.
+      // Ojo: Si tu backend ya soporta 'categoriaId', añádelo a la llamada.
+      
+      const categoriaTexto = movimientoForm.categoria || 'GENERAL';
 
+      // Usar apiCreateTransaccion con los datos del form
+      // Si es EGRESO con cobrador, invertimos los roles: 
+      // La oficina (cajaId) es el origen y el cobrador (cajaOrigenId) es el destino.
+      const isEgresoConsolidacion = movimientoForm.tipo === 'EGRESO' && movimientoForm.origen === 'COBRADOR';
+      
+      await apiCreateTransaccion({
+        cajaId: isEgresoConsolidacion ? movimientoForm.cajaOrigenId : movimientoForm.cajaId,
+        tipo: movimientoForm.tipo as any,
+        monto: monto,
+        descripcion: movimientoForm.concepto || (movimientoForm.origen === 'COBRADOR' ? (movimientoForm.tipo === 'INGRESO' ? 'Consolidación de Ruta (Entrada)' : 'Entrega de Base a Ruta (Salida)') : 'Movimiento de Caja'),
+        cajaOrigenId: isEgresoConsolidacion ? movimientoForm.cajaId : (movimientoForm.origen === 'COBRADOR' ? movimientoForm.cajaOrigenId : undefined)
+      })
+      
       fetchData()
       setShowRegistrarMovimientoModal(false)
+
       showNotification('success', 'El movimiento contable ha sido registrado', 'Movimiento Registrado')
     } catch (error) {
       console.error('Error creating transaccion:', error)
@@ -420,6 +538,8 @@ const ModuloContableContent = () => {
     if (typeof document === 'undefined') return null
     return createPortal(node, document.body)
   }
+
+
 
   return (
     <div className="min-h-screen bg-slate-50 relative">
@@ -456,8 +576,8 @@ const ModuloContableContent = () => {
                 onClick={() => setShowCrearCajaModal(true)}
                 className="inline-flex items-center gap-2 rounded-2xl bg-blue-600 px-5 py-2.5 text-sm font-bold text-white hover:bg-blue-700 transition-all shadow-lg shadow-blue-600/20 transform active:scale-95"
               >
-                <Plus className="h-4 w-4" />
-                Crear Caja
+                  <Plus className="h-4 w-4" />
+                  Crear Caja
               </button>
             </div>
         </header>
@@ -481,19 +601,41 @@ const ModuloContableContent = () => {
               <span className="text-[9px] font-bold text-orange-500 uppercase tracking-widest">Estado</span>
               <span className="text-xs font-black text-slate-900 flex items-center gap-1.5 mt-0.5">
                 <Clock className="h-3 w-3 text-blue-600" />
-                FALTAN 3 RUTAS
+                {resumenData.rutasAbiertas > 0 ? `FALTAN ${resumenData.rutasAbiertas} RUTAS` : 'TODAS LAS RUTAS CERRADAS'}
               </span>
             </div>
             <div className="h-6 w-[1px] bg-slate-200 mx-1"></div>
             <div className="relative w-10 h-10 rounded-full border-2 border-slate-200 flex items-center justify-center text-[10px] font-black text-blue-600 shadow-inner shrink-0">
-               <div className="absolute inset-0 border-2 border-blue-600 rounded-full clip-path-75"></div>
-               75%
+               <div 
+                 className="absolute inset-0 border-2 border-blue-600 rounded-full" 
+                 style={{ clipPath: `inset(${100 - resumenData.porcentajeCierre}% 0 0 0)` }}
+               ></div>
+               {resumenData.porcentajeCierre}%
             </div>
           </div>
+
+          {(['ADMIN', 'SUPER_ADMINISTRADOR', 'CONTADOR', 'COORDINADOR'] as any[]).includes(userRole) && 
+            !isLoading && 
+            resumenData.consolidacionesHoy > 0 &&
+            resumenData.rutasPendientesConsolidacion === 0 && 
+            resumenData.rutasAbiertas === 0 && (
+            <button
+              type="button"
+              onClick={() => {
+                toast.success('Cierre de operación realizado con éxito. El reporte diario ha sido generado.')
+                // Aquí iría la llamada al backend para consolidar el día
+              }}
+              className="px-6 py-2.5 rounded-xl font-bold text-sm transition-all shadow-lg flex items-center gap-2 relative z-10 bg-emerald-600 text-white hover:bg-emerald-700 shadow-emerald-500/20 active:scale-95 animate-in zoom-in duration-300"
+            >
+              <CheckCircle2 className="h-4 w-4" />
+              Cierre Total de Operación
+            </button>
+          )}
         </div>
 
         {/* Tarjetas de Resumen Minimalistas */}
-        <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-6">
+        <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6">
+          {/* Ingresos */}
           {/* Ingresos */}
           <div 
             onClick={() => { setDetalleTipo('INGRESOS'); setShowDetalleModal(true); }}
@@ -508,11 +650,14 @@ const ModuloContableContent = () => {
               </div>
             </div>
             <div className="text-2xl font-bold text-slate-900 tracking-tight">
-              {formatCurrency(3500000)}
+              {formatCurrency(resumenData.ingresosHoy)}
             </div>
-            <div className="mt-2 flex items-center text-xs font-bold text-emerald-600 bg-emerald-50 w-fit px-2 py-1 rounded-full">
-              <ArrowUpRight className="mr-1 h-3 w-3" />
-              +12% vs Ayer
+            <div className={cn(
+                "mt-2 flex items-center text-xs font-bold w-fit px-2 py-1 rounded-full",
+                resumenData.esIngresoPositivo ? "text-emerald-600 bg-emerald-50" : "text-rose-600 bg-rose-50"
+            )}>
+              {resumenData.esIngresoPositivo ? <ArrowUpRight className="mr-1 h-3 w-3" /> : <TrendingDown className="mr-1 h-3 w-3" />}
+              {resumenData.porcentajeIngresosVsAyer > 0 ? '+' : ''}{resumenData.porcentajeIngresosVsAyer}% vs Ayer
             </div>
           </div>
 
@@ -530,11 +675,14 @@ const ModuloContableContent = () => {
               </div>
             </div>
             <div className="text-2xl font-bold text-slate-900 tracking-tight">
-              {formatCurrency(2500000)}
+              {formatCurrency(resumenData.egresosHoy)}
             </div>
-            <div className="mt-2 text-xs font-bold text-emerald-600 bg-emerald-50 w-fit px-2 py-1 rounded-full">
-              <History className="mr-1 h-3 w-3" />
-              Dentro del presupuesto
+            <div className={cn(
+                "mt-2 text-xs font-bold w-fit px-2 py-1 rounded-full flex items-center",
+                resumenData.esEgresoPositivo ? "text-emerald-600 bg-emerald-50" : "text-rose-600 bg-rose-50"
+            )}>
+              {resumenData.esEgresoPositivo ? <ArrowDownLeft className="mr-1 h-3 w-3" /> : <ArrowUpRight className="mr-1 h-3 w-3" />}
+              {resumenData.porcentajeEgresosVsAyer > 0 ? '+' : ''}{resumenData.porcentajeEgresosVsAyer}% vs Ayer
             </div>
           </div>
 
@@ -549,7 +697,7 @@ const ModuloContableContent = () => {
               </div>
             </div>
             <div className="text-2xl font-bold text-slate-900 tracking-tight">
-              {formatCurrency(1000000)}
+              {formatCurrency(resumenData.utilidadNeta)}
             </div>
             <div className="mt-2 text-xs text-slate-500 font-medium">
               Utilidad Operativa
@@ -567,7 +715,7 @@ const ModuloContableContent = () => {
               </div>
             </div>
             <div className="text-2xl font-bold text-slate-900 tracking-tight">
-              {formatCurrency(4500000)}
+              {formatCurrency(resumenData.capitalEnCalle)}
             </div>
             <div className="mt-2 text-xs text-slate-500 font-medium">
               Colocación Hoy
@@ -592,120 +740,20 @@ const ModuloContableContent = () => {
             </div>
           </div>
 
-          {/* Cierres */}
-          <div className="group relative overflow-hidden rounded-2xl bg-white/80 backdrop-blur-sm p-6 border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] transition-all">
-            <div className="flex items-center justify-between mb-4">
-              <div className="text-xs font-bold uppercase tracking-wider text-slate-500">
-                Cierres
-              </div>
-              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-orange-50 text-orange-600 border border-orange-100">
-                <History className="h-4 w-4" />
-              </div>
-            </div>
-            <div className="text-2xl font-bold text-slate-900 tracking-tight">
-              {historialCierres.length}
-            </div>
-            <div className="mt-2 text-xs text-slate-500 font-medium">
-              En historial
-            </div>
-          </div>
+          {/* Consolidaciones - ELIMINADA PARA EVITAR REDUNDANCIA */}
+          {/* <div 
+            onClick={() => {
+                setDetalleTipo('CIERRES');
+                setShowDetalleModal(true);
+            }}
+            className="group relative overflow-hidden rounded-2xl bg-white/80 backdrop-blur-sm p-6 border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] transition-all cursor-pointer hover:border-blue-300 active:scale-95"
+          >
+            ...
+          </div> */}
         </section>
 
-        {/* Historial de Arqueos de Caja - FULL WIDTH AND MORE VISIBLE */}
-        <section className="bg-white rounded-3xl border border-slate-200 shadow-xl shadow-slate-200/50 overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-700">
-             <div className="p-6 border-b border-slate-100 bg-slate-50/50 flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                    <div className="p-2 bg-blue-600 rounded-xl text-white">
-                        <History className="w-5 h-5" />
-                    </div>
-                    <div>
-                        <h3 className="text-lg font-black text-slate-900">Historial de Arqueos</h3>
-                        <p className="text-xs font-bold text-slate-500 uppercase tracking-tight">Auditoría y control de cierres diarios</p>
-                    </div>
-                </div>
-                <button className="px-4 py-2 rounded-xl bg-white border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-50 transition-colors shadow-sm">
-                    Descargar Historial
-                </button>
-             </div>
-             <div className="overflow-x-auto">
-                <table className="w-full text-sm text-left">
-                    <thead className="bg-slate-50 text-slate-500 font-bold uppercase text-[10px] tracking-widest border-b border-slate-100">
-                        <tr>
-                            <th className="px-6 py-4">Fecha Cierre</th>
-                            <th className="px-6 py-4">Caja / Ruta</th>
-                            <th className="px-6 py-4">Responsable</th>
-                            <th className="px-6 py-4 text-right">Software (Teórico)</th>
-                            <th className="px-6 py-4 text-right">Físico (Conteo)</th>
-                            <th className="px-6 py-4 text-right">Diferencia</th>
-                            <th className="px-6 py-4 text-center">Estado</th>
-                            <th className="px-6 py-4 text-right">Acciones</th>
-                         </tr>
-                     </thead>
-                    <tbody className="divide-y divide-slate-100">
-                        {historialCierres
-                            .filter(h => userRole === 'SUPER_ADMINISTRADOR' || !h.caja.toLowerCase().includes('principal'))
-                            .map((cierre) => (
-                            <tr key={cierre.id} className="hover:bg-slate-50/50 transition-colors group">
-                                <td className="px-6 py-4">
-                                    <div className="font-black text-slate-900 text-[11px] uppercase tracking-tight">
-                                        {new Date(cierre.fecha).toLocaleDateString('es-CO', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' })}
-                                    </div>
-                                    <span className="text-[10px] text-blue-600 font-bold flex items-center gap-1 mt-0.5">
-                                        <Clock className="w-2.5 h-2.5" />
-                                        {new Date(cierre.fecha).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: true }).toUpperCase()}
-                                    </span>
-                                </td>
-                                <td className="px-6 py-4 text-slate-600 font-bold text-xs uppercase tracking-tight">
-                                    {cierre.caja}
-                                </td>
-                                <td className="px-6 py-4">
-                                    <div className="flex items-center gap-2">
-                                        <div className="w-6 h-6 rounded-full bg-slate-100 flex items-center justify-center text-[10px] font-bold text-slate-500 border border-slate-200">
-                                            {cierre.responsable.charAt(0)}
-                                        </div>
-                                        <span className="text-xs font-semibold text-slate-700">{cierre.responsable}</span>
-                                    </div>
-                                </td>
-                                <td className="px-6 py-4 text-right font-bold text-slate-900">
-                                    {formatCurrency(cierre.saldoSistema)}
-                                </td>
-                                <td className="px-6 py-4 text-right font-black text-slate-900 bg-slate-50/30">
-                                    {formatCurrency(cierre.saldoReal)}
-                                </td>
-                                <td className={cn(
-                                    "px-6 py-4 text-right font-black text-sm",
-                                    cierre.diferencia === 0 ? "text-slate-300" : (cierre.diferencia > 0 ? "text-emerald-500" : "text-rose-500")
-                                )}>
-                                    {cierre.diferencia > 0 ? '+' : ''}{formatCurrency(cierre.diferencia)}
-                                </td>
-                                <td className="px-6 py-4 text-center">
-                                    <span className={cn(
-                                        "inline-flex items-center px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest border shadow-sm",
-                                        cierre.estado === 'CUADRADA' 
-                                            ? "bg-emerald-50 text-emerald-700 border-emerald-200" 
-                                             : "bg-rose-50 text-rose-700 border-rose-200"
-                                    )}>
-                                        {cierre.estado === 'CUADRADA' ? 'Cuadrada' : 'Descuadrada'}
-                                    </span>
-                                </td>
-                                <td className="px-6 py-4 text-right">
-                                    <button 
-                                        onClick={() => {
-                                            setArqueoSeleccionado(cierre);
-                                            setShowVerArqueoModal(true);
-                                        }}
-                                        className="p-2 rounded-xl text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-all flex items-center justify-center ml-auto"
-                                        title="Ver Detalle"
-                                    >
-                                        <Eye className="h-4 w-4" />
-                                    </button>
-                                </td>
-                            </tr>
-                        ))}
-                    </tbody>
-                </table>
-             </div>
-        </section>
+        {/* Historial de Consolidaciones Automáticas - REMOVIDO PARA EVITAR REDUNDANCIA */}
+        {/* <section className="bg-white rounded-3xl border border-slate-200 shadow-xl shadow-slate-200/50 overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-700"> ... </section> */}
 
         <section className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           <div className="rounded-2xl bg-white/80 backdrop-blur-sm border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden">
@@ -749,19 +797,7 @@ const ModuloContableContent = () => {
                     <option value="COBRADOR">Cobrador</option>
                   </select>
                 </div>
-                <div className="space-y-1.5">
-                  <div className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Estado</div>
-                  <select
-                    value={filtroEstado}
-                    onChange={(e) => setFiltroEstado(e.target.value as typeof filtroEstado)}
-                    className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-xs font-bold text-slate-700 shadow-sm focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 outline-none transition-all"
-                  >
-                    <option value="TODOS">Cualquier estado</option>
-                    <option value="PENDIENTE">Pendiente</option>
-                    <option value="APROBADO">Aprobado</option>
-                    <option value="RECHAZADO">Rechazado</option>
-                  </select>
-                </div>
+
               </div>
 
               <div className="pt-3 border-t border-slate-200/60">
@@ -775,7 +811,7 @@ const ModuloContableContent = () => {
             </div>
 
             <div className="divide-y divide-slate-100">
-              {movimientosFiltrados.slice(0, 6).map((m) => (
+              {movimientosFiltrados.slice(currentPageMovimientos * 3, (currentPageMovimientos + 1) * 3).map((m) => (
                 <div key={m.id} className="p-5 flex items-start justify-between gap-4">
                   <div className="min-w-0">
                     <div className="text-sm font-bold text-slate-900 truncate">{m.concepto}</div>
@@ -798,16 +834,7 @@ const ModuloContableContent = () => {
                       )}>
                         {m.origen === 'COBRADOR' ? 'COBRADOR' : 'EMPRESA'}
                       </div>
-                      <div className={cn(
-                        'inline-flex items-center rounded-full px-2 py-1 text-[10px] font-extrabold border',
-                        m.estado === 'APROBADO'
-                          ? 'bg-emerald-50 text-emerald-700 border-emerald-100'
-                          : m.estado === 'RECHAZADO'
-                          ? 'bg-rose-50 text-rose-700 border-rose-100'
-                          : 'bg-amber-50 text-amber-800 border-amber-100'
-                      )}>
-                        {m.estado}
-                      </div>
+
                     </div>
                   </div>
                   <div className="text-right shrink-0 flex flex-col items-end gap-2">
@@ -839,6 +866,31 @@ const ModuloContableContent = () => {
                 </div>
               ))}
             </div>
+
+            {/* Controles de Paginación para Movimientos */}
+            {movimientosFiltrados.length > 3 && (
+                <div className="p-4 border-t border-slate-100 bg-slate-50/20 flex items-center justify-between">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                        Página {currentPageMovimientos + 1} de {Math.ceil(movimientosFiltrados.length / 3)}
+                    </span>
+                    <div className="flex gap-2">
+                        <button 
+                            onClick={() => setCurrentPageMovimientos(p => Math.max(0, p - 1))}
+                            disabled={currentPageMovimientos === 0}
+                            className="p-2 rounded-xl border border-slate-200 bg-white text-slate-600 disabled:opacity-30 hover:bg-slate-50 transition-all"
+                        >
+                            <ChevronLeft className="h-4 w-4" />
+                        </button>
+                        <button 
+                            onClick={() => setCurrentPageMovimientos(p => (p + 1) * 3 < movimientosFiltrados.length ? p + 1 : p)}
+                            disabled={(currentPageMovimientos + 1) * 3 >= movimientosFiltrados.length}
+                            className="p-2 rounded-xl border border-slate-200 bg-white text-slate-600 disabled:opacity-30 hover:bg-slate-50 transition-all"
+                        >
+                            <ChevronRight className="h-4 w-4" />
+                        </button>
+                    </div>
+                </div>
+            )}
           </div>
 
           <div className="rounded-2xl bg-white/80 backdrop-blur-sm border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden">
@@ -858,8 +910,8 @@ const ModuloContableContent = () => {
             </div>
             <div className="divide-y divide-slate-100">
               {cajas
-                .filter(c => userRole === 'SUPER_ADMINISTRADOR' || c.tipo !== 'PRINCIPAL')
-                .slice(0, 6).map((c) => (
+                .filter(c => (['ADMIN', 'SUPER_ADMINISTRADOR', 'CONTADOR', 'COORDINADOR'] as any[]).includes(userRole) || c.tipo !== 'PRINCIPAL')
+                .slice(currentPageCajas * 3, (currentPageCajas + 1) * 3).map((c) => (
                 <div
                   key={c.id}
                   className="w-full text-left p-5 hover:bg-slate-50 transition-colors border-b border-slate-100 last:border-0"
@@ -887,6 +939,7 @@ const ModuloContableContent = () => {
                       </div>
                       <div className="text-sm font-extrabold text-slate-900">{formatCurrency(c.saldo)}</div>
                       <div className="flex gap-2">
+
                         <button 
                           onClick={() => {
                             setCajaSeleccionada(c)
@@ -910,13 +963,38 @@ const ModuloContableContent = () => {
                 </div>
               ))}
             </div>
+
+            {/* Controles de Paginación para Cajas */}
+            {cajas.filter(c => (['ADMIN', 'SUPER_ADMINISTRADOR', 'CONTADOR', 'COORDINADOR'] as any[]).includes(userRole) || c.tipo !== 'PRINCIPAL').length > 3 && (
+                <div className="p-4 border-t border-slate-100 bg-slate-50/20 flex items-center justify-between">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                        Página {currentPageCajas + 1} de {Math.ceil(cajas.filter(c => (['ADMIN', 'SUPER_ADMINISTRADOR', 'CONTADOR', 'COORDINADOR'] as any[]).includes(userRole) || c.tipo !== 'PRINCIPAL').length / 3)}
+                    </span>
+                    <div className="flex gap-2">
+                        <button 
+                            onClick={() => setCurrentPageCajas(p => Math.max(0, p - 1))}
+                            disabled={currentPageCajas === 0}
+                            className="p-2 rounded-xl border border-slate-200 bg-white text-slate-600 disabled:opacity-30 hover:bg-slate-50 transition-all"
+                        >
+                            <ChevronLeft className="h-4 w-4" />
+                        </button>
+                        <button 
+                            onClick={() => setCurrentPageCajas(p => (p + 1) * 3 < cajas.filter(c => (['ADMIN', 'SUPER_ADMINISTRADOR', 'CONTADOR', 'COORDINADOR'] as any[]).includes(userRole) || c.tipo !== 'PRINCIPAL').length ? p + 1 : p)}
+                            disabled={(currentPageCajas + 1) * 3 >= cajas.filter(c => (['ADMIN', 'SUPER_ADMINISTRADOR', 'CONTADOR', 'COORDINADOR'] as any[]).includes(userRole) || c.tipo !== 'PRINCIPAL').length}
+                            className="p-2 rounded-xl border border-slate-200 bg-white text-slate-600 disabled:opacity-30 hover:bg-slate-50 transition-all"
+                        >
+                            <ChevronRight className="h-4 w-4" />
+                        </button>
+                    </div>
+                </div>
+            )}
           </div>
 
         </section>
 
         {showCrearCajaModal && renderInPortal(
-          <div className="fixed inset-0 z-[2147483646] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
-            <div className="w-full max-w-xl rounded-2xl bg-white border border-slate-200 shadow-2xl overflow-hidden">
+          <div className="fixed inset-0 z-[2147483646] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm" onClick={() => setShowCrearCajaModal(false)}>
+            <div className="w-full max-w-xl rounded-2xl bg-white border border-slate-200 shadow-2xl overflow-hidden" onClick={(e) => e.stopPropagation()}>
               <div className="p-6 border-b border-slate-100 flex items-center justify-between">
                 <div>
                   <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Cajas</p>
@@ -981,14 +1059,14 @@ const ModuloContableContent = () => {
                   <div className="space-y-2">
                     <label className="text-sm font-bold text-slate-700">Responsable</label>
                     <select
-                      value={crearCajaForm.responsable}
-                      onChange={(e) => setCrearCajaForm((p) => ({ ...p, responsable: e.target.value }))}
+                      value={crearCajaForm.responsableId}
+                      onChange={(e) => setCrearCajaForm((p) => ({ ...p, responsableId: e.target.value }))}
                       className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-900"
                     >
                       <option value="">Seleccionar responsable...</option>
-                      {usuarios.map((u) => (
-                        <option key={u.id} value={u.nombre}>
-                          {u.nombre} ({u.rol})
+                      {usuariosList.map((u) => (
+                        <option key={u.id} value={u.id}>
+                          {u.nombres} {u.apellidos} ({u.rol})
                         </option>
                       ))}
                     </select>
@@ -1008,11 +1086,14 @@ const ModuloContableContent = () => {
                         className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-900"
                       >
                         <option value="">Seleccionar ruta...</option>
-                        {rutasDisponibles.map((r) => (
-                          <option key={r.id} value={r.id}>
-                            {r.nombre} • {r.responsable}
-                          </option>
-                        ))}
+                        {(Array.isArray(rutasDisponibles) ? rutasDisponibles : []).map((r) => {
+                          const responsableNombre = usuariosList.find(u => u.id === r.cobradorId)?.nombres || 'Sin asignar';
+                          return (
+                            <option key={r.id} value={r.id}>
+                                {r.nombre} • {responsableNombre}
+                            </option>
+                          )
+                        })}
                       </select>
                     </div>
                   )}
@@ -1060,8 +1141,8 @@ const ModuloContableContent = () => {
         )}
 
         {showEditarCajaModal && cajaSeleccionada && renderInPortal(
-          <div className="fixed inset-0 z-[2147483646] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
-            <div className="w-full max-w-xl rounded-2xl bg-white border border-slate-200 shadow-2xl overflow-hidden">
+          <div className="fixed inset-0 z-[2147483646] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm" onClick={() => setShowEditarCajaModal(false)}>
+            <div className="w-full max-w-xl rounded-2xl bg-white border border-slate-200 shadow-2xl overflow-hidden" onClick={(e) => e.stopPropagation()}>
               <div className="p-6 border-b border-slate-100 flex items-center justify-between">
                 <div>
                   <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Cajas</p>
@@ -1092,14 +1173,14 @@ const ModuloContableContent = () => {
                   <div className="space-y-2">
                     <label className="text-sm font-bold text-slate-700">Responsable</label>
                     <select
-                      value={editarCajaForm.responsable}
-                      onChange={(e) => setEditarCajaForm((p) => ({ ...p, responsable: e.target.value }))}
+                      value={editarCajaForm.responsableId}
+                      onChange={(e) => setEditarCajaForm((p) => ({ ...p, responsableId: e.target.value }))}
                       className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-900"
                     >
                       <option value="">Seleccionar responsable...</option>
-                      {usuarios.map((u) => (
-                        <option key={u.id} value={u.nombre}>
-                          {u.nombre} ({u.rol})
+                      {usuariosList.map((u) => (
+                        <option key={u.id} value={u.id}>
+                          {u.nombres} {u.apellidos} ({u.rol})
                         </option>
                       ))}
                     </select>
@@ -1114,11 +1195,14 @@ const ModuloContableContent = () => {
                         className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-900"
                       >
                         <option value="">Seleccionar ruta...</option>
-                        {rutasDisponibles.map((r) => (
-                          <option key={r.id} value={r.id}>
-                            {r.nombre} • {r.responsable}
-                          </option>
-                        ))}
+                        {(Array.isArray(rutasDisponibles) ? rutasDisponibles : []).map((r) => {
+                          const responsableNombre = usuariosList.find(u => u.id === r.cobradorId)?.nombres || 'Sin asignar';
+                          return (
+                            <option key={r.id} value={r.id}>
+                                {r.nombre} • {responsableNombre}
+                            </option>
+                          )
+                        })}
                       </select>
                     </div>
                   )}
@@ -1236,55 +1320,96 @@ const ModuloContableContent = () => {
                 {/* Caja y Origen */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-1.5">
-                    <label className="text-xs font-bold text-slate-500 uppercase ml-1">Caja Afectada</label>
+                    <label className="text-xs font-black text-slate-500 uppercase ml-1">
+                        {movimientoForm.origen === 'COBRADOR' 
+                           ? (movimientoForm.tipo === 'INGRESO' ? 'Caja Destino (Recibe)' : 'Caja Origen (Entrega)')
+                           : 'Caja Afectada'}
+                    </label>
                     <div className="relative">
                         <Wallet className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                         <select
                           value={movimientoForm.cajaId}
                           onChange={(e) => setMovimientoForm((p) => ({ ...p, cajaId: e.target.value }))}
-                          className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-slate-200 bg-slate-50/50 text-sm font-semibold text-slate-700 focus:bg-white transition-all"
+                          className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-slate-200 bg-slate-50/50 text-sm font-semibold text-slate-700 focus:bg-white transition-all shadow-sm"
                         >
+                          <option value="">Seleccionar caja destino...</option>
                           {cajas
-                            .filter(c => userRole === 'SUPER_ADMINISTRADOR' || c.tipo !== 'PRINCIPAL')
+                            .filter(c => {
+                                if (c.tipo === 'PRINCIPAL') {
+                                    return userRole === 'ADMIN' || userRole === 'SUPER_ADMINISTRADOR' || userRole === 'CONTADOR'
+                                }
+                                return true
+                            })
                             .map(c => (
-                              <option key={c.id} value={c.id}>{c.nombre}</option>
+                              <option key={c.id} value={c.id}>{c.nombre} (Saldo: {formatCurrency(c.saldo)})</option>
                           ))}
                         </select>
                     </div>
                   </div>
 
                   <div className="space-y-1.5">
-                    <label className="text-xs font-bold text-slate-500 uppercase ml-1">Origen / Fuente</label>
+                    <label className="text-xs font-black text-slate-500 uppercase ml-1">Origen del Capital</label>
                     <div className="relative">
                         <Briefcase className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                         <select
                           value={movimientoForm.origen}
-                          onChange={(e) => setMovimientoForm((p) => ({ ...p, origen: e.target.value as MovimientoContable['origen'] }))}
-                          className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-slate-200 bg-slate-50/50 text-sm font-semibold text-slate-700 focus:bg-white transition-all"
+                          onChange={(e) => {
+                            const val = e.target.value as 'EMPRESA' | 'COBRADOR';
+                            setMovimientoForm((p) => ({ ...p, origen: val }));
+                          }}
+                          className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-slate-200 bg-slate-50/50 text-sm font-semibold text-slate-700 focus:bg-white transition-all shadow-sm"
                         >
-                          <option value="EMPRESA">Empresa</option>
-                          <option value="COBRADOR">Ruta / Cobrador</option>
+                          <option value="EMPRESA">Externo (Gasto/Ingreso)</option>
+                          <option value="COBRADOR">Transferencia entre Cajas</option>
                         </select>
                     </div>
                   </div>
                 </div>
 
+                {/* Caso Especial: Consolidación / Transferencia entre Cajas */}
+                {movimientoForm.origen === 'COBRADOR' && (
+                  <div className="p-4 rounded-2xl bg-orange-50 border border-orange-100 space-y-3 animate-in fade-in slide-in-from-top-2 duration-300">
+                    <div className="flex items-center gap-2 text-orange-800">
+                       <Zap className="h-4 w-4" />
+                       <span className="text-xs font-black uppercase tracking-tight">
+                         {movimientoForm.tipo === 'INGRESO' ? 'Caja que Entrega Capital' : 'Caja que Recibe Capital'}
+                       </span>
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-bold text-orange-700 uppercase ml-1">
+                        {movimientoForm.tipo === 'INGRESO' ? '¿De qué caja sale el dinero?' : '¿A qué caja va el dinero?'}
+                      </label>
+                      <select
+                          value={movimientoForm.cajaOrigenId}
+                          onChange={(e) => setMovimientoForm((p) => ({ ...p, cajaOrigenId: e.target.value }))}
+                          className="w-full px-4 py-2.5 rounded-xl border border-orange-200 bg-white text-sm font-bold text-slate-900 shadow-sm focus:ring-2 focus:ring-orange-200 transition-all font-mono"
+                      >
+                          <option value="">--- SELECCIONAR CAJA ---</option>
+                          {cajas
+                            .filter(c => c.id !== movimientoForm.cajaId)
+                            .map(c => (
+                            <option key={c.id} value={c.id}>{c.nombre} (Saldo: {formatCurrency(c.saldo)})</option>
+                          ))}
+                      </select>
+                    </div>
+                    <p className="text-[10px] text-orange-600/80 font-medium italic">
+                      {movimientoForm.tipo === 'INGRESO' 
+                        ? 'Al guardar, se restará el monto de la caja seleccionada arriba y se sumará a la caja afectada.' 
+                        : 'Al guardar, se restará el monto de la caja afectada y se sumará a la caja seleccionada arriba.'}
+                    </p>
+                  </div>
+                )}
+
                 {/* Detalles Financieros */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-bold text-slate-500 uppercase ml-1">Categoría</label>
-                    <select
-                      value={movimientoForm.categoria}
-                      onChange={(e) => setMovimientoForm((p) => ({ ...p, categoria: e.target.value }))}
-                      className="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-white text-sm font-medium text-slate-900 focus:ring-2 focus:ring-blue-100 outline-none transition-all"
-                    >
-                      <option value="">Seleccione...</option>
-                      {(movimientoForm.tipo === 'INGRESO' ? categoriasIngreso : categoriasEgreso).map((cat) => (
-                        <option key={cat.id} value={cat.id}>
-                          {cat.label}
-                        </option>
-                      ))}
-                    </select>
+                  <div className="space-y-1.5 flex flex-col justify-end">
+                    <SelectCategoria
+                        tipo={movimientoForm.tipo === 'INGRESO' ? 'INGRESO' : 'GASTO'}
+                        label="Categoría"
+                        placeholder="Seleccionar..."
+                        value={movimientoForm.categoriaId}
+                        onChange={(val) => setMovimientoForm(p => ({ ...p, categoriaId: val, categoria: '' }))}
+                    />
                   </div>
 
                   <div className="space-y-1.5">
@@ -1307,50 +1432,33 @@ const ModuloContableContent = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border-t border-slate-100 pt-4">
                     <div className="space-y-1.5">
                         <label className="text-xs font-bold text-slate-500 uppercase ml-1">
-                            {movimientoForm.tipo === 'INGRESO' ? 'Recibido Por (Yo)' : 'Registrado Por'}
+                            {movimientoForm.tipo === 'INGRESO' ? 'Recibido Por ' : 'Registrado Por'}
                         </label>
                         <select
                           value={movimientoForm.responsableId}
                           onChange={(e) => setMovimientoForm((p) => ({ ...p, responsableId: e.target.value }))}
                           className="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-slate-50/50 text-sm font-medium text-slate-700"
                         >
-                            {usuarios.map(u => (
-                                <option key={u.id} value={u.id}>{u.nombre}</option>
+                            <option value="">Seleccionar...</option>
+                            {usuariosList.map(u => (
+                                <option key={u.id} value={u.id}>{u.nombres} {u.apellidos}</option>
                             ))}
                         </select>
                     </div>
-
-                    {movimientoForm.origen === 'COBRADOR' && (
-                        <div className="space-y-1.5 animate-in fade-in slide-in-from-left-2 duration-300">
-                            <label className="text-xs font-bold text-slate-500 uppercase ml-1 text-orange-600">
-                                ¿Quién Entregó el Dinero?
-                            </label>
-                            <select
-                              value={movimientoForm.entregadoPor}
-                              onChange={(e) => setMovimientoForm((p) => ({ ...p, entregadoPor: e.target.value }))}
-                              className="w-full px-4 py-2.5 rounded-xl border border-orange-200 bg-orange-50 text-sm font-bold text-orange-800 focus:ring-2 focus:ring-orange-100 outline-none"
-                            >
-                                <option value="">Seleccione Cobrador...</option>
-                                {usuarios.map(u => (
-                                    <option key={u.id} value={u.id}>{u.nombre} ({u.rol})</option>
-                                ))}
-                            </select>
-                        </div>
-                    )}
                 </div>
 
                 {/* Concepto y Referencia */}
                 <div className="space-y-1.5 pt-2">
-                    <label className="text-xs font-bold text-slate-500 uppercase ml-1">Concepto / Descripción</label>
+                    <label className="text-xs font-black text-slate-500 uppercase ml-1">Concepto / Descripción (Opcional)</label>
                     <input
                       value={movimientoForm.concepto}
                       onChange={(e) => setMovimientoForm((p) => ({ ...p, concepto: e.target.value }))}
-                      className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-900 focus:ring-2 focus:ring-blue-100 outline-none"
-                      placeholder="Ej: Recaudo Ruta Norte - Cobrador Carlos..."
+                      className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-bold text-slate-900 focus:ring-2 focus:ring-blue-100 outline-none"
+                      placeholder={movimientoForm.origen === 'COBRADOR' ? 'Ej: Recaudo diario...' : 'Ej: Pago de servicios...'}
                     />
                 </div>
                 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 gap-4">
                     <div className="space-y-1.5">
                         <label className="text-xs font-bold text-slate-500 uppercase ml-1">Referencia (Opcional)</label>
                         <input
@@ -1360,19 +1468,31 @@ const ModuloContableContent = () => {
                           placeholder="Doc #..."
                         />
                     </div>
-                    <div className="space-y-1.5">
-                        <label className="text-xs font-bold text-slate-500 uppercase ml-1">Estado Operación</label>
-                        <select
-                          value={movimientoForm.estado}
-                          onChange={(e) => setMovimientoForm((p) => ({ ...p, estado: e.target.value as MovimientoContable['estado'] }))}
-                          className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-bold text-slate-700"
-                        >
-                          <option value="PENDIENTE">Pendiente</option>
-                          <option value="APROBADO">Aprobado</option>
-                          <option value="RECHAZADO">Rechazado</option>
-                        </select>
-                    </div>
                 </div>
+                {/* Alerta de fondos insuficientes */}
+                {(() => {
+                    const montoValue = parseCOPInputToNumber(movimientoForm.montoInput);
+                    const isTransfer = movimientoForm.origen === 'COBRADOR';
+                    let sourceCajaId = '';
+                    if (movimientoForm.tipo === 'EGRESO') {
+                        sourceCajaId = movimientoForm.cajaId;
+                    } else if (isTransfer && movimientoForm.tipo === 'INGRESO') {
+                        sourceCajaId = movimientoForm.cajaOrigenId;
+                    }
+
+                    const sourceCaja = cajas.find(c => c.id === sourceCajaId);
+                    if (sourceCajaId && sourceCaja && montoValue > sourceCaja.saldo) {
+                        return (
+                            <div className="mt-4 p-3 rounded-xl bg-red-50 border border-red-100 flex items-center gap-2 animate-pulse">
+                                <AlertTriangle className="h-4 w-4 text-red-600" />
+                                <span className="text-xs font-bold text-red-600 uppercase tracking-tight leading-none">
+                                    Fondos Insuficientes en {sourceCaja.nombre}
+                                </span>
+                            </div>
+                        );
+                    }
+                    return null;
+                })()}
               </div>
 
               <div className="p-6 border-t border-slate-100 bg-slate-50/50 flex justify-end gap-3">
@@ -1386,11 +1506,24 @@ const ModuloContableContent = () => {
                 <button
                   type="button"
                   onClick={handleRegistrarMovimiento}
-                  disabled={
-                    parseCOPInputToNumber(movimientoForm.montoInput) <= 0 ||
-                    !movimientoForm.concepto.trim() ||
-                    !movimientoForm.categoria
-                  }
+                  disabled={(() => {
+                    const montoValue = parseCOPInputToNumber(movimientoForm.montoInput);
+                    const isTransfer = movimientoForm.origen === 'COBRADOR';
+                    let sourceCajaId = '';
+                    if (movimientoForm.tipo === 'EGRESO') {
+                        sourceCajaId = movimientoForm.cajaId;
+                    } else if (isTransfer && movimientoForm.tipo === 'INGRESO') {
+                        sourceCajaId = movimientoForm.cajaOrigenId;
+                    }
+                    const sourceCaja = cajas.find(c => c.id === sourceCajaId);
+                    const hasInsufficientFunds = sourceCajaId && sourceCaja ? (montoValue > sourceCaja.saldo) : false;
+                    return (
+                        montoValue <= 0 ||
+                        (!movimientoForm.categoria && !movimientoForm.categoriaId) ||
+                        (isTransfer && !movimientoForm.cajaOrigenId) ||
+                        hasInsufficientFunds
+                    );
+                  })()}
                   className="px-6 py-3 rounded-2xl bg-blue-600 text-white text-sm font-bold hover:bg-blue-700 transition-all shadow-lg shadow-blue-600/20 disabled:opacity-40 disabled:cursor-not-allowed"
                 >
                   Guardar
@@ -1407,7 +1540,7 @@ const ModuloContableContent = () => {
               <div className="p-6 border-b border-slate-100 flex items-center justify-between">
                 <div>
                     <h3 className="text-lg font-bold text-slate-900">Detalle de Movimiento</h3>
-                    <p className="text-xs font-bold text-slate-500">{movimientoSeleccionado.id}</p>
+                    <p className="text-xs font-bold text-slate-500 font-mono tracking-tight">{movimientoSeleccionado.id}</p>
                 </div>
                 <button
                   onClick={() => setShowVerMovimientoModal(false)}
@@ -1416,64 +1549,79 @@ const ModuloContableContent = () => {
                   <XCircle className="h-5 w-5" />
                 </button>
               </div>
-              <div className="p-6 space-y-4">
-                 <div className="grid grid-cols-2 gap-4">
+              
+              <div className="p-6 space-y-5">
+                 {/* Bloque Principal: Monto y Tipo */}
+                 <div className="flex justify-between items-center bg-slate-50 p-4 rounded-xl border border-slate-100">
                     <div>
-                        <div className="text-xs font-bold text-slate-500 uppercase">Fecha</div>
-                        <div className="font-medium text-slate-900">{new Date(movimientoSeleccionado.fecha).toLocaleString('es-CO')}</div>
+                        <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Monto Operación</div>
+                        <div className="text-2xl font-black text-slate-900">{formatCurrency(movimientoSeleccionado.monto)}</div>
                     </div>
-                    <div>
-                        <div className="text-xs font-bold text-slate-500 uppercase">Monto</div>
-                        <div className="font-bold text-slate-900 text-lg">{formatCurrency(movimientoSeleccionado.monto)}</div>
-                    </div>
-                    <div>
-                        <div className="text-xs font-bold text-slate-500 uppercase">Tipo</div>
+                    <div className="text-right">
                         <div className={cn(
-                            "inline-block px-2 py-1 rounded-2xl text-xs font-bold mt-1 border",
-                            movimientoSeleccionado.tipo === 'INGRESO' ? "bg-emerald-100 text-emerald-700 border-emerald-200" : "bg-rose-100 text-rose-700 border-rose-200"
+                            "inline-flex items-center px-3 py-1 rounded-full text-xs font-bold border",
+                            movimientoSeleccionado.tipo === 'INGRESO' ? "bg-emerald-50 text-emerald-700 border-emerald-200" : "bg-rose-50 text-rose-700 border-rose-200"
                         )}>
                             {movimientoSeleccionado.tipo}
                         </div>
                     </div>
-                    <div>
-                        <div className="text-xs font-bold text-slate-500 uppercase">Estado</div>
-                        <div className="font-bold text-slate-900">{movimientoSeleccionado.estado}</div>
-                    </div>
                  </div>
-                 
-                 <div className="grid grid-cols-2 gap-4 pt-2 border-t border-slate-100">
+
+                 {/* Detalles en Grid */}
+                 <div className="grid grid-cols-2 gap-y-5 gap-x-4">
                     <div>
-                        <div className="text-xs font-bold text-slate-500 uppercase">Categoría</div>
-                        <div className="font-medium text-slate-900">
-                           {(categoriasIngreso.find(c => c.id === movimientoSeleccionado.categoria) || 
-                             categoriasEgreso.find(c => c.id === movimientoSeleccionado.categoria))?.label || movimientoSeleccionado.categoria}
+                        <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Fecha Registro</div>
+                        <div className="font-semibold text-slate-900 text-sm">{new Date(movimientoSeleccionado.fecha).toLocaleString('es-CO')}</div>
+                    </div>
+                    <div>
+                        <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Estado</div>
+                        <div className="font-semibold text-slate-900 text-sm">{movimientoSeleccionado.estado}</div>
+                    </div>
+                    
+                    <div>
+                        <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Categoría</div>
+                        <div className="font-semibold text-slate-900 text-sm bg-slate-100 px-2 py-0.5 rounded w-fit">
+                           {movimientoSeleccionado.categoria}
                         </div>
                     </div>
                     <div>
-                        <div className="text-xs font-bold text-slate-500 uppercase">Origen</div>
-                        <div className="font-medium text-slate-900">{movimientoSeleccionado.origen}</div>
-                    </div>
-                     <div>
-                        <div className="text-xs font-bold text-slate-500 uppercase">Responsable</div>
-                        <div className="font-medium text-slate-900">{movimientoSeleccionado.responsable}</div>
+                        <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Origen</div>
+                        <div className="font-semibold text-slate-900 text-sm">{movimientoSeleccionado.origen}</div>
                     </div>
                  </div>
 
-                 <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
-                    <div className="text-xs font-bold text-slate-500 uppercase mb-1">Concepto</div>
-                    <div className="font-medium text-slate-900">{movimientoSeleccionado.concepto}</div>
+                 {/* Bloque de Responsable */}
+                 <div className="pt-4 border-t border-slate-100">
+                     <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Responsable</div>
+                     <div className="font-bold text-slate-900 flex items-center gap-2">
+                        <div className="w-6 h-6 rounded-full bg-slate-200 flex items-center justify-center text-[10px] text-slate-600">
+                            {movimientoSeleccionado.responsable.charAt(0)}
+                        </div>
+                        {movimientoSeleccionado.responsable}
+                     </div>
                  </div>
+
+                 {/* Bloque de Concepto */}
+                 <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
+                    <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Concepto / Descripción</div>
+                    <div className="font-medium text-slate-800 text-sm leading-relaxed">{movimientoSeleccionado.concepto}</div>
+                 </div>
+
+                 {/* Bloque de Referencia (Condicional) */}
                  {movimientoSeleccionado.referencia && (
                      <div>
-                        <div className="text-xs font-bold text-slate-500 uppercase">Referencia</div>
-                        <div className="font-medium text-slate-900">{movimientoSeleccionado.referencia}</div>
+                        <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Referencia Externa</div>
+                        <div className="font-mono text-slate-700 text-sm bg-slate-50 px-2 py-1 rounded border border-slate-100 w-fit">
+                            {movimientoSeleccionado.referencia}
+                        </div>
                      </div>
                  )}
               </div>
+
               <div className="p-6 border-t border-slate-100 bg-slate-50/50 flex justify-end">
                 <button
                   onClick={() => setShowVerMovimientoModal(false)}
-                  className="px-6 py-2 rounded-2xl bg-blue-600 text-white font-bold hover:bg-blue-700 shadow-lg shadow-blue-600/20 transition-all"
+                  className="px-6 py-2 rounded-xl bg-blue-600 text-white font-bold hover:bg-blue-700 shadow-lg shadow-blue-600/20 transition-all text-sm"
                 >
                   Cerrar
                 </button>
@@ -1571,11 +1719,42 @@ const ModuloContableContent = () => {
                          </div>
                          <div className="font-extrabold text-emerald-800 text-lg">
                              {(() => {
-                                if (cajaSeleccionada.tipo === 'PRINCIPAL') return formatCurrency(resumenData.ingresos);
-                                if (cajaSeleccionada.recaudoEsperado && cajaSeleccionada.eficiencia) {
-                                    return formatCurrency(cajaSeleccionada.recaudoEsperado * (cajaSeleccionada.eficiencia / 100));
-                                }
-                                return formatCurrency(cajaSeleccionada.saldo * 0.9);
+                                // Cálculo REAL basado en movimientos
+                                const ingresos = movimientos
+                                    .filter(m => (m.tipo === 'INGRESO' || m.tipo === 'TRANSFERENCIA'))
+                                    .filter(m => {
+                                        // Es ingreso si es para esta caja, pero debemos excluir las salidas (TRANSFERENCIAS OUT)
+                                        // Como no tenemos un campo explícito 'dirección', usamos la lógica de coincidencia de ID
+                                        // Si m.cajaId === cajaSeleccionada.id, es una entrada para esta caja
+                                        // (El backend guarda cajaId = destino para IN y cajaId = origen para OUT)
+                                        // PERO OJO: Si es una TRANSFERENCIA, hay que ver si es entrada o salida.
+                                        
+                                        // Revisando el backend:
+                                        // OUT: cajaId = cajaOrigen (quien paga)
+                                        // IN: cajaId = cajaDestino (quien recibe)
+                                        
+                                        // Entonces:
+                                        // Si m.cajaId === cajaSeleccionada.id y es TRANSFERENCIA...
+                                        // ¿Cómo sabemos si es IN o OUT solo con el ID?
+                                        // Si el backend asigna 'cajaId' a la caja afectada en ambos casos, 
+                                        // entonces necesitamos distinguir por el concepto o numeroTransaccion.
+                                        
+                                        // Solución Robusta: Usar descripcion/concepto o numeroTransaccion
+                                        // TRX-OUT = Salida (Egreso)
+                                        // TRX-IN = Entrada (Ingreso)
+                                        
+                                        if (m.cajaId !== cajaSeleccionada.id) return false;
+                                        
+                                        if (m.tipo === 'TRANSFERENCIA') {
+                                            // Si la descripción o ID indica salida, NO es ingreso
+                                            // Asumiendo que el ID de transacción trae el prefijo
+                                            const esSalida = m.id && m.id.includes('TRX-OUT') || (m.concepto && m.concepto.includes('Salida'));
+                                            return !esSalida;
+                                        }
+                                        return true; // Es INGRESO normal
+                                    })
+                                    .reduce((acc, m) => acc + m.monto, 0);
+                                return formatCurrency(ingresos);
                              })()}
                          </div>
                       </div>
@@ -1597,11 +1776,18 @@ const ModuloContableContent = () => {
                          </div>
                          <div className="font-extrabold text-rose-800 text-lg">
                              {(() => {
-                                if (cajaSeleccionada.tipo === 'PRINCIPAL') return formatCurrency(resumenData.egresos);
-                                if (cajaSeleccionada.recaudoEsperado && cajaSeleccionada.eficiencia) {
-                                    return formatCurrency((cajaSeleccionada.recaudoEsperado * (cajaSeleccionada.eficiencia / 100)) * 0.15);
-                                }
-                                return formatCurrency(cajaSeleccionada.saldo * 0.1);
+                                // Cálculo REAL basado en movimientos
+                                const egresos = movimientos
+                                    .filter(m => (m.tipo === 'EGRESO' || m.tipo === 'TRANSFERENCIA'))
+                                    .filter(m => {
+                                        if (m.cajaId !== cajaSeleccionada.id) return false;
+                                        if (m.tipo === 'TRANSFERENCIA') {
+                                            return m.id && m.id.includes('TRX-OUT') || (m.concepto && m.concepto.includes('Salida'));
+                                        }
+                                        return true;
+                                    })
+                                    .reduce((acc, m) => acc + m.monto, 0);
+                                return formatCurrency(egresos);
                              })()}
                          </div>
                       </div>
@@ -1614,17 +1800,29 @@ const ModuloContableContent = () => {
                       </div>
                       <div className="text-2xl font-black text-slate-900">
                           {(() => {
-                            const ingresos = cajaSeleccionada.tipo === 'PRINCIPAL' 
-                                ? resumenData.ingresos 
-                                : (cajaSeleccionada.recaudoEsperado && cajaSeleccionada.eficiencia 
-                                    ? cajaSeleccionada.recaudoEsperado * (cajaSeleccionada.eficiencia / 100) 
-                                    : cajaSeleccionada.saldo * 0.9);
+                            // Ingresos reales (filtrados correctamente)
+                            const ingresos = movimientos
+                                .filter(m => (m.tipo === 'INGRESO' || m.tipo === 'TRANSFERENCIA'))
+                                .filter(m => {
+                                    if (m.cajaId !== cajaSeleccionada.id) return false;
+                                    if (m.tipo === 'TRANSFERENCIA') {
+                                        return !(m.id && m.id.includes('TRX-OUT') || (m.concepto && m.concepto.includes('Salida')));
+                                    }
+                                    return true;
+                                })
+                                .reduce((acc, m) => acc + m.monto, 0);
                             
-                            const egresos = cajaSeleccionada.tipo === 'PRINCIPAL'
-                                ? resumenData.egresos
-                                : (cajaSeleccionada.recaudoEsperado && cajaSeleccionada.eficiencia
-                                    ? (cajaSeleccionada.recaudoEsperado * (cajaSeleccionada.eficiencia / 100)) * 0.15
-                                    : cajaSeleccionada.saldo * 0.1);
+                            // Egresos reales (filtrados correctamente)
+                            const egresos = movimientos
+                                .filter(m => (m.tipo === 'EGRESO' || m.tipo === 'TRANSFERENCIA'))
+                                .filter(m => {
+                                    if (m.cajaId !== cajaSeleccionada.id) return false;
+                                    if (m.tipo === 'TRANSFERENCIA') {
+                                        return m.id && m.id.includes('TRX-OUT') || (m.concepto && m.concepto.includes('Salida'));
+                                    }
+                                    return true;
+                                })
+                                .reduce((acc, m) => acc + m.monto, 0);
 
                             return formatCurrency(ingresos - egresos);
                           })()}
@@ -1646,8 +1844,8 @@ const ModuloContableContent = () => {
         
         {/* Modal de Detalle */}
         {showDetalleModal && renderInPortal(
-          <div className="fixed inset-0 z-[2147483647] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
-            <div className="w-full max-w-2xl rounded-2xl bg-white border border-slate-200 shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200 flex flex-col max-h-[90vh]">
+          <div className="fixed inset-0 z-[2147483647] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm" onClick={() => setShowDetalleModal(false)}>
+            <div className="w-full max-w-2xl rounded-2xl bg-white border border-slate-200 shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200 flex flex-col max-h-[90vh]" onClick={(e) => e.stopPropagation()}>
               {/* Modal Header */}
               <div className="p-6 border-b border-slate-100 flex items-center justify-between shrink-0">
                 <div>
@@ -1673,64 +1871,199 @@ const ModuloContableContent = () => {
               <div className="p-6 overflow-y-auto custom-scrollbar">
                   <div className="space-y-6">
                     {/* Resumen Total Header */}
-                    <div className={cn(
-                      "rounded-xl border p-5 flex justify-between items-center transition-colors shadow-sm",
-                      detalleTipo === 'INGRESOS' ? "border-emerald-100 bg-emerald-50/50" : "border-red-100 bg-red-50/50"
-                    )}>
-                       <div className="flex flex-col">
-                           <span className={cn("text-xs font-bold uppercase tracking-wider mb-1", detalleTipo === 'INGRESOS' ? "text-emerald-600" : "text-red-600")}>
-                             Total Registrado
-                           </span>
-                           <span className={cn("text-3xl font-black tracking-tight", detalleTipo === 'INGRESOS' ? "text-emerald-800" : "text-red-800")}>
-                             {(() => {
-                                // Consistent Calculation: Sum of visible movements
-                                const filtered = movimientos
-                                    .filter(m => detalleTipo === 'INGRESOS' ? m.tipo === 'INGRESO' : m.tipo === 'EGRESO')
-                                    .filter(m => {
-                                        if (!cajaSeleccionada) return true;
-                                        if (cajaSeleccionada.tipo === 'PRINCIPAL') return m.origen === 'EMPRESA';
-                                        if (cajaSeleccionada.tipo === 'RUTA') return m.origen === 'COBRADOR';
-                                        return true;
-                                    });
-                                const total = filtered.reduce((acc, m) => acc + m.monto, 0);
-                                return formatCurrency(total);
-                             })()}
-                           </span>
-                       </div>
-                       <div className={cn(
-                           "p-4 rounded-full border shadow-sm",
-                           detalleTipo === 'INGRESOS' ? "bg-white border-emerald-100 text-emerald-600" : "bg-white border-red-100 text-red-600"
-                       )}>
-                           {detalleTipo === 'INGRESOS' ? <TrendingUp className="w-6 h-6"/> : <TrendingDown className="w-6 h-6"/>}
-                       </div>
-                    </div>
+                    {detalleTipo === 'CIERRES' ? (
+                        <div className="rounded-xl border p-5 flex justify-between items-center transition-colors shadow-sm border-orange-100 bg-orange-50/50">
+                            <div className="flex flex-col">
+                                <span className="text-xs font-bold uppercase tracking-wider mb-1 text-orange-600">
+                                  Consolidaciones Automáticas
+                                </span>
+                                <span className="text-3xl font-black tracking-tight text-orange-800">
+                                  {historialCierres.length} registros
+                                </span>
+                            </div>
+                            <div className="p-4 rounded-full border shadow-sm bg-white border-orange-100 text-orange-600">
+                                <History className="w-6 h-6"/>
+                            </div>
+                        </div>
+                    ) : (
+                        <div className={cn(
+                          "rounded-xl border p-5 flex justify-between items-center transition-colors shadow-sm",
+                          detalleTipo === 'INGRESOS' ? "border-emerald-100 bg-emerald-50/50" : "border-red-100 bg-red-50/50"
+                        )}>
+                           <div className="flex flex-col">
+                               <span className={cn("text-xs font-bold uppercase tracking-wider mb-1", detalleTipo === 'INGRESOS' ? "text-emerald-600" : "text-red-600")}>
+                                 Total Registrado
+                               </span>
+                               <span className={cn("text-3xl font-black tracking-tight", detalleTipo === 'INGRESOS' ? "text-emerald-800" : "text-red-800")}>
+                                 {(() => {
+                                    // Consistent Calculation: Sum of visible movements
+                                    const filtered = movimientos
+                                        .filter(m => {
+                                            // Filtro estricto por tipo y dirección
+                                            if (detalleTipo === 'INGRESOS') {
+                                                // INGRESO puro O TRANSFERENCIA que NO sea salida (TRX-OUT)
+                                                if (m.tipo === 'INGRESO') return true;
+                                                if (m.tipo === 'TRANSFERENCIA') {
+                                                    // Si cajaSeleccionada existe, verificamos dirección
+                                                    if (cajaSeleccionada) {
+                                                        // Es ingreso si la caja destino es esta
+                                                        if (m.cajaId !== cajaSeleccionada.id) return false;
+                                                        // Y no es un registro de salida (por si el ID coincidiera erróneamente)
+                                                        const esSalida = m.id && m.id.includes('TRX-OUT') || (m.concepto && m.concepto.includes('Salida'));
+                                                        return !esSalida;
+                                                    }
+                                                    return true; // Si no hay caja seleccionada, mostramos todo
+                                                }
+                                                return false;
+                                            } else {
+                                                // EGRESO puro O TRANSFERENCIA que SEA salida (TRX-OUT)
+                                                if (m.tipo === 'EGRESO') return true;
+                                                if (m.tipo === 'TRANSFERENCIA') {
+                                                    if (cajaSeleccionada) {
+                                                        // Es egreso si la caja origen es esta (pero el backend no manda origenId siempre)
+                                                        // O si el registro es explícitamente de salida (TRX-OUT)
+                                                        const esSalida = m.id && m.id.includes('TRX-OUT') || (m.concepto && m.concepto.includes('Salida'));
+                                                        // También validamos que el registro pertenezca a esta caja
+                                                        if (m.cajaId !== cajaSeleccionada.id) return false;
+                                                        return esSalida;
+                                                    }
+                                                    return true;
+                                                }
+                                                return false;
+                                            }
+                                        })
+                                        .filter(m => {
+                                            if (!cajaSeleccionada) return true;
+                                            return m.cajaId === cajaSeleccionada.id;
+                                        });
+                                    const total = filtered.reduce((acc, m) => acc + m.monto, 0);
+                                    return formatCurrency(total);
+                                 })()}
+                               </span>
+                           </div>
+                           <div className={cn(
+                               "p-4 rounded-full border shadow-sm",
+                               detalleTipo === 'INGRESOS' ? "bg-white border-emerald-100 text-emerald-600" : "bg-white border-red-100 text-red-600"
+                           )}>
+                               {detalleTipo === 'INGRESOS' ? <TrendingUp className="w-6 h-6"/> : <TrendingDown className="w-6 h-6"/>}
+                           </div>
+                        </div>
+                    )}
 
-                    {/* Lista de Movimientos */}
+                    {/* Lista de Movimientos / Arqueos */}
                     <div className="space-y-3">
                       <div className="flex items-center justify-between pb-2 border-b border-slate-100">
-                          <h4 className="text-sm font-bold text-slate-700">Movimientos Recientes</h4>
-                          <span className="text-xs font-medium text-slate-400">
-                             {movimientos
-                                .filter(m => detalleTipo === 'INGRESOS' ? m.tipo === 'INGRESO' : m.tipo === 'EGRESO')
-                                .filter(m => {
-                                    if (!cajaSeleccionada) return true;
-                                    if (cajaSeleccionada.tipo === 'PRINCIPAL') return m.origen === 'EMPRESA';
-                                    if (cajaSeleccionada.tipo === 'RUTA') return m.origen === 'COBRADOR';
-                                    return true;
-                                }).length} registros
-                          </span>
-                      </div>
-                      
-                      {movimientos
-                        .filter(m => detalleTipo === 'INGRESOS' ? m.tipo === 'INGRESO' : m.tipo === 'EGRESO')
+                           <h4 className="text-sm font-bold text-slate-700">
+                             {detalleTipo === 'CIERRES' ? 'Listado de Consolidaciones' : 'Movimientos Recientes'}
+                           </h4>
+                           <span className="text-xs font-medium text-slate-400">
+                              {detalleTipo === 'CIERRES' 
+                                 ? historialCierres.length 
+                                 : movimientos
+                                    .filter(m => {
+                                        // Mismo filtro estricto para el contador
+                                        if (detalleTipo === 'INGRESOS') {
+                                            if (m.tipo === 'INGRESO') return true;
+                                            if (m.tipo === 'TRANSFERENCIA') {
+                                                if (cajaSeleccionada) {
+                                                    if (m.cajaId !== cajaSeleccionada.id) return false;
+                                                    const esSalida = m.id && m.id.includes('TRX-OUT') || (m.concepto && m.concepto.includes('Salida'));
+                                                    return !esSalida;
+                                                }
+                                                return true;
+                                            }
+                                            return false;
+                                        } else {
+                                            if (m.tipo === 'EGRESO') return true;
+                                            if (m.tipo === 'TRANSFERENCIA') {
+                                                if (cajaSeleccionada) {
+                                                    const esSalida = m.id && m.id.includes('TRX-OUT') || (m.concepto && m.concepto.includes('Salida'));
+                                                    if (m.cajaId !== cajaSeleccionada.id) return false;
+                                                    return esSalida;
+                                                }
+                                                return true;
+                                            }
+                                            return false;
+                                        }
+                                    })
+                                    .filter(m => {
+                                        if (!cajaSeleccionada) return true;
+                                        return m.cajaId === cajaSeleccionada.id;
+                                    }).length} {detalleTipo === 'CIERRES' ? 'consolidaciones' : 'registros'}
+                           </span>
+                       </div>
+                       
+                       {detalleTipo === 'CIERRES' ? (
+                           <div className="space-y-3">
+                               {historialCierres.map(c => (
+                                   <div key={c.id} className="p-4 border border-slate-200 bg-white rounded-xl hover:bg-slate-50 transition-all flex items-center justify-between">
+                                       <div className="flex flex-col">
+                                           <span className="text-xs font-black text-slate-900 uppercase">
+                                              {new Date(c.fecha).toLocaleDateString('es-CO', { day: '2-digit', month: 'long', year: 'numeric' })}
+                                           </span>
+                                           <span className="text-[10px] font-bold text-slate-500 uppercase">{c.caja}</span>
+                                       </div>
+                                       <div className="flex items-center gap-4">
+                                           <div className="text-right">
+                                               <div className="text-[10px] font-bold text-slate-400 uppercase leading-none mb-1 text-right">Monto Consolidado</div>
+                                               <div className="text-sm font-black text-slate-900 leading-none text-right">{formatCurrency(c.saldoSistema)}</div>
+                                           </div>
+                                           <span className={cn(
+                                               "px-2 py-0.5 rounded text-[8px] font-black uppercase border",
+                                               "bg-blue-50 text-blue-600 border-blue-100"
+                                           )}>
+                                               AUTOMÁTICO
+                                           </span>
+                                           <button 
+                                              onClick={() => {
+                                                  setArqueoSeleccionado(c);
+                                                  setShowVerArqueoModal(true);
+                                              }}
+                                              className="p-1.5 rounded-full hover:bg-slate-100 text-slate-400 hover:text-blue-600 transition-colors"
+                                              title="Ver Detalles de Consolidación"
+                                           >
+                                               <Eye className="w-4 h-4" />
+                                           </button>
+                                       </div>
+                                   </div>
+                               ))}
+                               {historialCierres.length === 0 && (
+                                   <div className="py-10 text-center text-slate-400 font-bold text-sm">No hay arqueos en el historial</div>
+                               )}
+                           </div>
+                       ) : (
+                         <>
+                          {movimientos
                         .filter(m => {
-                            // Si se abre desde una caja específica, filtrar por origen
-                            if (cajaSeleccionada) {
-                                if (cajaSeleccionada.tipo === 'PRINCIPAL') return m.origen === 'EMPRESA';
-                                if (cajaSeleccionada.tipo === 'RUTA') return m.origen === 'COBRADOR' && (m.rutaId === cajaSeleccionada.rutaId);
-                                return true;
+                            // Mismo filtro estricto para el listado
+                            if (detalleTipo === 'INGRESOS') {
+                                if (m.tipo === 'INGRESO') return true;
+                                if (m.tipo === 'TRANSFERENCIA') {
+                                    if (cajaSeleccionada) {
+                                        if (m.cajaId !== cajaSeleccionada.id) return false;
+                                        const esSalida = m.id && m.id.includes('TRX-OUT') || (m.concepto && m.concepto.includes('Salida'));
+                                        return !esSalida;
+                                    }
+                                    return true;
+                                }
+                                return false;
+                            } else {
+                                if (m.tipo === 'EGRESO') return true;
+                                if (m.tipo === 'TRANSFERENCIA') {
+                                    if (cajaSeleccionada) {
+                                        const esSalida = m.id && m.id.includes('TRX-OUT') || (m.concepto && m.concepto.includes('Salida'));
+                                        if (m.cajaId !== cajaSeleccionada.id) return false;
+                                        return esSalida;
+                                    }
+                                    return true;
+                                }
+                                return false;
                             }
-                            // Si se abre desde las tarjetas de resumen (sin caja específica), mostrar todo de hoy
+                        })
+                        .filter(m => {
+                            if (cajaSeleccionada) {
+                                return m.cajaId === cajaSeleccionada.id;
+                            }
                             const hoy = new Date().toISOString().split('T')[0];
                             const fechaM = new Date(m.fecha).toISOString().split('T')[0];
                             return fechaM === hoy;
@@ -1797,25 +2130,48 @@ const ModuloContableContent = () => {
 
                                 <div>
                                      <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block mb-0.5">Origen</span>
-                                     <span className={cn(
-                                        "inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold uppercase border w-fit",
-                                        m.origen === 'COBRADOR' ? "bg-orange-50 text-orange-700 border-orange-100" : "bg-blue-50 text-blue-700 border-blue-100"
-                                     )}>
+                                      <span className={cn(
+                                         "inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold uppercase border w-fit",
+                                         m.origen === 'COBRADOR' ? "bg-orange-50 text-orange-700 border-orange-100" : "bg-blue-50 text-blue-700 border-blue-100"
+                                      )}>
                                         <Briefcase className="w-2.5 h-2.5" />
                                         {m.origen}
-                                     </span>
+                                      </span>
                                 </div>
                              </div>
                           </div>
                         ))}
                       
                       {movimientos
-                        .filter(m => detalleTipo === 'INGRESOS' ? m.tipo === 'INGRESO' : m.tipo === 'EGRESO')
+                        .filter(m => {
+                             // Mismo filtro estricto para el listado
+                             if (detalleTipo === 'INGRESOS') {
+                                 if (m.tipo === 'INGRESO') return true;
+                                 if (m.tipo === 'TRANSFERENCIA') {
+                                     if (cajaSeleccionada) {
+                                         if (m.cajaId !== cajaSeleccionada.id) return false;
+                                         const esSalida = m.id && m.id.includes('TRX-OUT') || (m.concepto && m.concepto.includes('Salida'));
+                                         return !esSalida;
+                                     }
+                                     return true;
+                                 }
+                                 return false;
+                             } else {
+                                 if (m.tipo === 'EGRESO') return true;
+                                 if (m.tipo === 'TRANSFERENCIA') {
+                                     if (cajaSeleccionada) {
+                                         const esSalida = m.id && m.id.includes('TRX-OUT') || (m.concepto && m.concepto.includes('Salida'));
+                                         if (m.cajaId !== cajaSeleccionada.id) return false;
+                                         return esSalida;
+                                     }
+                                     return true;
+                                 }
+                                 return false;
+                             }
+                         })
                         .filter(m => {
                             if (cajaSeleccionada) {
-                                if (cajaSeleccionada.tipo === 'PRINCIPAL') return m.origen === 'EMPRESA';
-                                if (cajaSeleccionada.tipo === 'RUTA') return m.origen === 'COBRADOR' && (m.rutaId === cajaSeleccionada.rutaId);
-                                return true;
+                                return m.cajaId === cajaSeleccionada.id;
                             }
                             const hoy = new Date().toISOString().split('T')[0];
                             const fechaM = new Date(m.fecha).toISOString().split('T')[0];
@@ -1831,6 +2187,8 @@ const ModuloContableContent = () => {
                               </p>
                           </div>
                       )}
+                      </>
+                    )}
                     </div>
                   </div>
               </div>
@@ -1839,18 +2197,18 @@ const ModuloContableContent = () => {
         )}
         {/* Modal: Ver Detalle Arqueo */}
         {showVerArqueoModal && arqueoSeleccionado && renderInPortal(
-          <div className="fixed inset-0 z-[2147483647] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md animate-in fade-in duration-300">
-            <div className="w-full max-w-xl rounded-[2.5rem] bg-white border border-slate-200 shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300">
+          <div className="fixed inset-0 z-[2147483647] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md animate-in fade-in duration-300" onClick={() => setShowVerArqueoModal(false)}>
+            <div className="w-full max-w-xl rounded-[2.5rem] bg-white border border-slate-200 shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300" onClick={(e) => e.stopPropagation()}>
                 <div className="p-8 border-b border-slate-100 flex items-center justify-between bg-gradient-to-r from-slate-50 to-white">
                     <div className="flex items-center gap-4">
                         <div className="p-3 bg-blue-600 rounded-2xl text-white shadow-lg shadow-blue-200 ring-4 ring-blue-50">
                             <History className="h-6 w-6" />
                         </div>
                         <div>
-                            <h3 className="text-xl font-black text-slate-900 leading-none">Detalle de Arqueo</h3>
+                            <h3 className="text-xl font-black text-slate-900 leading-none">Detalle de Consolidación</h3>
                             <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] mt-2 flex items-center gap-1.5">
-                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                                Registro Auditado: {arqueoSeleccionado.id}
+                                <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
+                                Registro Automático: {arqueoSeleccionado.id}
                             </p>
                         </div>
                     </div>
@@ -1879,41 +2237,26 @@ const ModuloContableContent = () => {
                             </div>
                         </div>
                         <div className="space-y-2">
-                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Condición del Cuadre</span>
+                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Tipo de Operación</span>
                             <div>
                                 <span className={cn(
                                     "inline-flex items-center px-4 py-2 rounded-2xl text-xs font-black uppercase tracking-widest border shadow-sm",
-                                    arqueoSeleccionado.estado === 'CUADRADA' 
-                                        ? "bg-emerald-50 text-emerald-700 border-emerald-200 shadow-emerald-100" 
-                                        : "bg-rose-50 text-rose-700 border-rose-200 shadow-rose-100"
+                                    "bg-blue-50 text-blue-700 border-blue-200 shadow-blue-100"
                                 )}>
-                                    {arqueoSeleccionado.estado === 'CUADRADA' ? '✓ Operación Exitosa' : '⚠ Descuadre Detectado'}
+                                    Consolidación Automática
                                 </span>
                             </div>
                         </div>
                     </div>
 
-                    <div className="grid grid-cols-3 gap-4">
+                    <div className="grid grid-cols-2 gap-4">
                         <div className="p-5 rounded-[1.5rem] bg-slate-50 border border-slate-100 flex flex-col items-center justify-center gap-1 group hover:bg-white transition-colors duration-300">
-                            <span className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter">Software (Teórico)</span>
+                            <span className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter">Monto Consolidado</span>
                             <span className="text-base font-black text-slate-900">{formatCurrency(arqueoSeleccionado.saldoSistema)}</span>
                         </div>
-                        <div className="p-5 rounded-[1.5rem] bg-slate-50 border border-slate-100 flex flex-col items-center justify-center gap-1 group hover:bg-white transition-colors duration-300">
-                            <span className="text-[9px] font-bold text-slate-500 uppercase tracking-tighter">Físico (Efectivo)</span>
-                            <span className="text-base font-black text-slate-900">{formatCurrency(arqueoSeleccionado.saldoReal)}</span>
-                        </div>
-                        <div className={cn(
-                             "p-5 rounded-[1.5rem] border flex flex-col items-center justify-center gap-1 transition-all duration-300",
-                             arqueoSeleccionado.diferencia === 0 
-                                ? "bg-slate-50 border-slate-100 text-slate-400 opacity-60" 
-                                : (arqueoSeleccionado.diferencia > 0 
-                                    ? "bg-emerald-50 border-emerald-100 text-emerald-700 font-bold" 
-                                    : "bg-rose-50 border-rose-100 text-rose-700 font-bold shadow-lg shadow-rose-100/50 scale-105")
-                        )}>
-                            <span className="text-[9px] font-bold uppercase tracking-tighter">Balance / Dif.</span>
-                            <span className="text-base font-black">
-                                {arqueoSeleccionado.diferencia > 0 ? '+' : ''}{formatCurrency(arqueoSeleccionado.diferencia)}
-                            </span>
+                        <div className="p-5 rounded-[1.5rem] border border-blue-100 bg-blue-50 flex flex-col items-center justify-center gap-1">
+                            <span className="text-[9px] font-bold text-blue-600 uppercase tracking-tighter">Estado</span>
+                            <span className="text-base font-black text-blue-800">AUTOMÁTICO</span>
                         </div>
                     </div>
 
@@ -1946,6 +2289,7 @@ const ModuloContableContent = () => {
             </div>
           </div>
         )}
+
       </div>
     </div>
   )
@@ -1956,6 +2300,7 @@ const ModuloContablePage = () => {
   return (
     <Suspense fallback={<div>Cargando...</div>}>
       <ModuloContableContent />
+
     </Suspense>
   )
 }

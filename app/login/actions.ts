@@ -68,13 +68,6 @@ export async function loginAction(data: LoginData): Promise<LoginResult> {
     };
 
   } catch (error: any) {
-    console.error('--- DEBUG LOGIN ACTION ERROR ---');
-    console.error('Error object:', error);
-    console.error('Error message:', error?.message);
-    console.error('Error statusCode:', error?.statusCode);
-    console.error('Error response status:', error?.response?.status);
-    console.error('---------------------------------');
-    
     // Traducimos los errores técnicos a mensajes amigables para el usuario
     const status = error?.statusCode || error?.response?.status;
     let msg = error?.message || 'Error al iniciar sesión';

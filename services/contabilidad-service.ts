@@ -26,9 +26,14 @@ export interface Transaccion {
   monto: number;
   descripcion: string;
   caja: string;
-  cajaId: string;
   responsable: string;
   estado: string;
+  categoria?: string;
+  origen?: 'EMPRESA' | 'COBRADOR';
+  rutaId?: string;
+  cajaId: string;
+  cajaOrigenId?: string;
+  cajaSaldo?: number;
 }
 
 export interface ResumenFinanciero {
@@ -37,8 +42,17 @@ export interface ResumenFinanciero {
   gananciaNeta: number;
   capitalEnCalle: number;
   saldoCajas: number;
-  cajasAbiertas: number;
+  cajasAbiertasCount: number;
+  rutasTotales: number;
+  rutasAbiertas: number;
+  rutasPendientesConsolidacion: number;
+  consolidacionesHoy: number;
+  porcentajeCierre: number;
   fecha: string;
+  porcentajeIngresosVsAyer?: number;
+  porcentajeEgresosVsAyer?: number;
+  esIngresoPositivo?: boolean;
+  esEgresoPositivo?: boolean;
 }
 
 export interface Gasto {
@@ -110,7 +124,15 @@ export async function updateCaja(id: string, data: {
   try {
     return await apiRequest<Caja>('PATCH', `/accounting/cajas/${id}`, data);
   } catch (error) {
-    console.error('Error updating caja:', error);
+    throw error;
+  }
+}
+
+export async function consolidarCaja(cajaId: string) {
+  try {
+    return await apiRequest('POST', `/accounting/cajas/${cajaId}/consolidar`);
+  } catch (error) {
+    console.error('Error consolidating caja:', error);
     throw error;
   }
 }
@@ -153,6 +175,7 @@ export async function createTransaccion(data: {
   descripcion: string;
   tipoReferencia?: string;
   referenciaId?: string;
+  cajaOrigenId?: string;
 }): Promise<Transaccion | null> {
   try {
     return await apiRequest<Transaccion>('POST', '/accounting/transacciones', data);
@@ -207,4 +230,17 @@ export async function getGastos(filtros?: {
     console.error('Error fetching gastos:', error);
     return { data: [], meta: { total: 0, page: 1, limit: 50, totalPages: 0 } };
   }
+}
+
+// =====================
+// CIERRES
+// =====================
+
+export async function getHistorialCierres(): Promise<any[]> {
+    try {
+        return await apiRequest<any[]>('GET', '/accounting/cierres');
+    } catch (error) {
+        console.error('Error fetching cierres:', error);
+        return [];
+    }
 }
