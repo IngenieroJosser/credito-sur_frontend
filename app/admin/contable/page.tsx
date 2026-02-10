@@ -52,6 +52,7 @@ import {
   getTransacciones, 
   getResumenFinanciero, 
   createCaja as apiCreateCaja,
+  updateCaja,
   createTransaccion as apiCreateTransaccion,
   type Caja as ApiCaja,
   type Transaccion as ApiTransaccion,
@@ -219,64 +220,63 @@ const ModuloContableContent = () => {
 
   const [movimientos, setMovimientos] = useState<MovimientoContable[]>([])
 
-  // --- CARGA DE DATOS INICIAL (EFFECT) ---
-  // Aquí traemos toda la data del backend al iniciar el componente
-  useEffect(() => {
-    const fetchData = async () => {
-      setIsLoading(true)
-      try {
-        // 1. Traemos las cajas configuradas
-        const cajasData = await getCajas()
-        if (cajasData.length > 0) {
-          setCajas(cajasData.map(c => ({
-            id: c.id,
-            nombre: c.nombre,
-            tipo: c.tipo,
-            rutaId: c.rutaId,
-            responsable: c.responsable,
-            saldo: c.saldo,
-            estado: c.estado,
-            ultimaActualizacion: c.ultimaActualizacion
-          })))
-        }
-
-        // 2. Traemos los números grandes (Resumen)
-        const resumen = await getResumenFinanciero()
-        if (resumen) {
-          setResumenData({
-            ingresos: resumen.ingresosHoy,
-            egresos: resumen.egresosHoy,
-            utilidadNeta: resumen.gananciaNeta,
-            capitalEnCalle: resumen.capitalEnCalle,
-            cajaActual: resumen.saldoCajas
-          })
-        }
-
-        // 3. Traemos la lista de movimientos recientes
-        const transaccionesResp = await getTransacciones({ limit: 50 })
-        if (transaccionesResp.data.length > 0) {
-          setMovimientos(transaccionesResp.data.map(t => ({
-            id: t.id,
-            fecha: t.fecha,
-            concepto: t.descripcion,
-            tipo: t.tipo,
-            monto: t.monto,
-            categoria: 'GENERAL',
-            responsable: t.responsable,
-            origen: 'EMPRESA' as const,
-            estado: 'APROBADO' as const
-          })))
-        }
-      } catch (error) {
-        console.error('Error cargando datos contables:', error)
-        toast.error('Hubo un problema cargando la información financiera.')
-      } finally {
-        setIsLoading(false)
+  // --- CARGA DE DATOS (REUSABLE) ---
+  const fetchData = async () => {
+    setIsLoading(true);
+    try {
+      // 1. Traemos las cajas configuradas
+      const cajasData = await getCajas();
+      if (cajasData && Array.isArray(cajasData)) {
+        setCajas(cajasData.map(c => ({
+          id: c.id,
+          nombre: c.nombre,
+          tipo: c.tipo,
+          rutaId: c.rutaId,
+          responsable: c.responsable,
+          saldo: c.saldo,
+          estado: c.estado,
+          ultimaActualizacion: c.ultimaActualizacion
+        })));
       }
-    }
 
-    fetchData()
-  }, [])
+      // 2. Traemos los números grandes (Resumen)
+      const resumen = await getResumenFinanciero();
+      if (resumen) {
+        setResumenData({
+          ingresos: resumen.ingresosHoy,
+          egresos: resumen.egresosHoy,
+          utilidadNeta: resumen.gananciaNeta,
+          capitalEnCalle: resumen.capitalEnCalle,
+          cajaActual: resumen.saldoCajas
+        });
+      }
+
+      // 3. Traemos la lista de movimientos recientes
+      const transaccionesResp = await getTransacciones({ limit: 50 });
+      if (transaccionesResp && transaccionesResp.data) {
+        setMovimientos(transaccionesResp.data.map(t => ({
+          id: t.id,
+          fecha: t.fecha,
+          concepto: t.descripcion,
+          tipo: t.tipo,
+          monto: t.monto,
+          categoria: 'GENERAL',
+          responsable: t.responsable,
+          origen: 'EMPRESA' as const,
+          estado: 'APROBADO' as const
+        })));
+      }
+    } catch (error) {
+      console.error('Error cargando datos contables:', error);
+      toast.error('Hubo un problema cargando la información financiera.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchData();
+  }, []);
 
   const categoriasIngreso = [
     { id: 'APORTE_CAPITAL', label: 'Aporte de Capital' },
@@ -321,31 +321,27 @@ const ModuloContableContent = () => {
 
 
 
-  const handleCrearCaja = () => {
-    const now = new Date().toISOString()
+  const handleCrearCaja = async () => {
     const saldo = parseCOPInputToNumber(crearCajaForm.saldoInicialInput)
     const ruta = rutasDisponibles.find((r) => r.id === crearCajaForm.rutaId)
+    const respId = usuarios.find(u => u.nombre === crearCajaForm.responsable)?.id || 'USR-004'
 
-    const nuevaCaja: Caja = {
-      id: `CAJA-${Date.now()}`,
-      nombre:
-        crearCajaForm.nombre.trim() ||
-        (crearCajaForm.tipo === 'PRINCIPAL'
-          ? 'Caja Principal'
-          : `Caja ${ruta?.nombre ?? 'Ruta'}`),
-      tipo: crearCajaForm.tipo,
-      rutaId: crearCajaForm.tipo === 'RUTA' ? (crearCajaForm.rutaId || undefined) : undefined,
-      responsable:
-        crearCajaForm.responsable.trim() ||
-        (crearCajaForm.tipo === 'RUTA' ? ruta?.responsable ?? 'Sin asignar' : 'Oficina'),
-      saldo,
-      estado: 'ABIERTA',
-      ultimaActualizacion: `Creada ${new Date(now).toLocaleDateString('es-CO')}`,
+    try {
+      await apiCreateCaja({
+        nombre: crearCajaForm.nombre.trim() || (crearCajaForm.tipo === 'PRINCIPAL' ? 'Caja Principal' : `Caja ${ruta?.nombre ?? 'Ruta'}`),
+        tipo: crearCajaForm.tipo,
+        rutaId: crearCajaForm.tipo === 'RUTA' ? (crearCajaForm.rutaId || undefined) : undefined,
+        responsableId: respId,
+        saldoInicial: saldo
+      })
+
+      fetchData()
+      setShowCrearCajaModal(false)
+      showNotification('success', 'La caja ha sido creada correctamente', 'Caja Creada')
+    } catch (error) {
+      console.error('Error creating caja:', error)
+      showNotification('error', 'No se pudo crear la caja', 'Error')
     }
-
-    setCajas((prev) => [nuevaCaja, ...prev])
-    setShowCrearCajaModal(false)
-    showNotification('success', 'La caja ha sido creada correctamente', 'Caja Creada')
   }
 
   const openEditarCaja = (caja: Caja) => {
@@ -360,28 +356,26 @@ const ModuloContableContent = () => {
     setShowEditarCajaModal(true)
   }
 
-  const handleEditarCaja = () => {
+  const handleEditarCaja = async () => {
     if (!cajaSeleccionada) return
     const saldo = parseCOPInputToNumber(editarCajaForm.saldoInput)
+    const respId = usuarios.find(u => u.nombre === editarCajaForm.responsable)?.id || 'USR-004'
 
-    setCajas((prev) =>
-      prev.map((c) =>
-        c.id === cajaSeleccionada.id
-          ? {
-              ...c,
-              nombre: editarCajaForm.nombre,
-              responsable: editarCajaForm.responsable,
-              estado: editarCajaForm.estado,
-              saldo,
-              rutaId: c.tipo === 'RUTA' ? (editarCajaForm.rutaId || undefined) : undefined,
-              ultimaActualizacion: 'Actualizada hace 1 min',
-            }
-          : c
-      )
-    )
-    setShowEditarCajaModal(false)
-    setCajaSeleccionada(null)
-    showNotification('success', 'La información de la caja ha sido actualizada', 'Caja Actualizada')
+    try {
+      await updateCaja(cajaSeleccionada.id, {
+        nombre: editarCajaForm.nombre,
+        responsableId: respId,
+        saldoActual: saldo
+      })
+
+      fetchData()
+      setShowEditarCajaModal(false)
+      setCajaSeleccionada(null)
+      showNotification('success', 'La información de la caja ha sido actualizada', 'Caja Actualizada')
+    } catch (error) {
+      console.error('Error updating caja:', error)
+      showNotification('error', 'No se pudo actualizar la caja', 'Error')
+    }
   }
 
   const openRegistrarMovimiento = () => {
@@ -401,25 +395,25 @@ const ModuloContableContent = () => {
     setShowRegistrarMovimientoModal(true)
   }
 
-  const handleRegistrarMovimiento = () => {
+  const handleRegistrarMovimiento = async () => {
     const monto = parseCOPInputToNumber(movimientoForm.montoInput)
     if (!monto || !movimientoForm.categoria || !movimientoForm.concepto.trim()) return
 
-    const nuevo: MovimientoContable = {
-      id: `MOV-${Date.now()}`,
-      fecha: new Date().toISOString(),
-      concepto: movimientoForm.concepto,
-      tipo: movimientoForm.tipo,
-      monto,
-      categoria: movimientoForm.categoria,
-      responsable: 'Contador',
-      origen: movimientoForm.origen,
-      estado: movimientoForm.estado,
-      referencia: movimientoForm.referencia || undefined,
+    try {
+      await apiCreateTransaccion({
+        cajaId: movimientoForm.cajaId,
+        tipo: movimientoForm.tipo,
+        monto,
+        descripcion: `${movimientoForm.categoria}: ${movimientoForm.concepto}`,
+      })
+
+      fetchData()
+      setShowRegistrarMovimientoModal(false)
+      showNotification('success', 'El movimiento contable ha sido registrado', 'Movimiento Registrado')
+    } catch (error) {
+      console.error('Error creating transaccion:', error)
+      showNotification('error', 'No se pudo registrar el movimiento', 'Error')
     }
-    setMovimientos((prev) => [nuevo, ...prev])
-    setShowRegistrarMovimientoModal(false)
-    showNotification('success', 'El movimiento contable ha sido registrado', 'Movimiento Registrado')
   }
 
   const renderInPortal = (node: React.ReactNode) => {

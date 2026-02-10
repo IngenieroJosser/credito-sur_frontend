@@ -76,8 +76,9 @@ export const permisosPorRol: Record<Rol, ModuloPermiso[]> = {
       path: '#',
       roles: ['SUPER_ADMINISTRADOR'],
       submodulos: [
-        { id: 'contable', nombre: 'Módulo contable', icono: 'Calculator', path: '/admin/contable', roles: ['SUPER_ADMINISTRADOR', 'CONTADOR'] },
-        { id: 'tesoreria', nombre: 'Tesorería', icono: 'Landmark', path: '/admin/tesoreria', roles: ['SUPER_ADMINISTRADOR', 'CONTADOR'] },
+        { id: 'contable', nombre: 'Movimientos', icono: 'Calculator', path: '/admin/contable', roles: ['SUPER_ADMINISTRADOR', 'CONTADOR'] },
+        { id: 'tesoreria', nombre: 'Tesorería', icono: 'Landmark', path: '/admin/tesoreria', roles: ['SUPER_ADMINISTRADOR'], isNew: true },
+        { id: 'arqueo', nombre: 'Arqueo de Caja', icono: 'History', path: '/admin/contable/cierre-caja', roles: ['SUPER_ADMINISTRADOR', 'CONTADOR'], isNew: true },
         { id: 'articulos', nombre: 'Artículos (Inventario)', icono: 'Package', path: '/admin/articulos', roles: ['SUPER_ADMINISTRADOR', 'CONTADOR'] },
         { id: 'reportes-financieros', nombre: 'Reportes financieros', icono: 'BarChart3', path: '/admin/reportes/financieros', roles: ['SUPER_ADMINISTRADOR', 'CONTADOR'] },
       ]
@@ -141,8 +142,9 @@ export const permisosPorRol: Record<Rol, ModuloPermiso[]> = {
       path: '#',
       roles: ['SUPER_ADMINISTRADOR', 'ADMIN'],
       submodulos: [
-        { id: 'contable', nombre: 'Módulo contable', icono: 'Calculator', path: '/admin/contable', roles: ['SUPER_ADMINISTRADOR', 'ADMIN', 'CONTADOR'] },
-        { id: 'tesoreria', nombre: 'Tesorería', icono: 'Landmark', path: '/admin/tesoreria', roles: ['SUPER_ADMINISTRADOR', 'ADMIN'] },
+        { id: 'contable', nombre: 'Movimientos', icono: 'Calculator', path: '/admin/contable', roles: ['SUPER_ADMINISTRADOR', 'ADMIN', 'CONTADOR'] },
+        { id: 'tesoreria', nombre: 'Tesorería', icono: 'Landmark', path: '/admin/tesoreria', roles: ['SUPER_ADMINISTRADOR', 'ADMIN'], isNew: true },
+        { id: 'arqueo', nombre: 'Arqueo de Caja', icono: 'History', path: '/admin/contable/cierre-caja', roles: ['SUPER_ADMINISTRADOR', 'ADMIN'], isNew: true },
         { id: 'articulos', nombre: 'Artículos (Inventario)', icono: 'Package', path: '/admin/articulos', roles: ['SUPER_ADMINISTRADOR', 'ADMIN', 'CONTADOR'] },
         { id: 'reportes-financieros', nombre: 'Reportes financieros', icono: 'BarChart3', path: '/admin/reportes/financieros', roles: ['SUPER_ADMINISTRADOR', 'ADMIN', 'CONTADOR'], isNew: true },
       ]
@@ -210,7 +212,8 @@ export const permisosPorRol: Record<Rol, ModuloPermiso[]> = {
       path: '#',
       roles: ['CONTADOR'],
       submodulos: [
-        { id: 'contable', nombre: 'Módulo contable', icono: 'Calculator', path: '/contador/contable', roles: ['CONTADOR'] },
+        { id: 'contable', nombre: 'Movimientos', icono: 'Calculator', path: '/contador/contable', roles: ['CONTADOR'] },
+        { id: 'arqueo', nombre: 'Arqueo de Caja', icono: 'Landmark', path: '/contador/contable/cierre-caja', roles: ['CONTADOR'], isNew: true },
         { id: 'articulos', nombre: 'Artículos (Inventario)', icono: 'Package', path: '/contador/articulos', roles: ['CONTADOR'] },
       ]
     },

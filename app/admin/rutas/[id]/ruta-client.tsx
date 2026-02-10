@@ -9,13 +9,21 @@ import {
   Wallet,
   DollarSign,
   Calendar,
-  FileText as FileTextIcon
+  FileText as FileTextIcon,
+  ArrowLeft as ArrowLeftIcon,
+  ChevronRight,
+  TrendingUp,
+  Sparkles,
+  MapPin,
+  AlertCircle
 } from 'lucide-react'
 
 import { formatCurrency } from '@/lib/utils'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { RutaDetalleMock } from '@/lib/rutas-data'
+import { routesService } from '@/services/routes-service'
+import { useNotification } from '@/components/providers/NotificationProvider'
 
 import PagoModal from '@/components/cobranza/PagoModal'
 import EstadoCuentaModal from '@/components/cobranza/EstadoCuentaModal'
@@ -36,13 +44,14 @@ interface RutaClientProps {
 }
 
 const RutaClient = ({ initialRuta }: RutaClientProps) => {
-  // No router needed
+  const { showNotification } = useNotification()
+  const router = useRouter()
   
   // No mocks. Use backend data or empty state managed by modals.
   const [gastos] = useState<GastoRuta[]>([])
 
   const [isGastoModalOpen, setIsGastoModalOpen] = useState(false)
-  // const [nuevoGasto, setNuevoGasto] ... removed unused
+  const [nuevoGasto, setNuevoGasto] = useState({ tipo: 'OPERATIVO', descripcion: '', valor: '' })
   // const [searchQuery, setSearchQuery] ... used in render
   const [searchQuery, setSearchQuery] = useState('')
   const [showFilters, setShowFilters] = useState(false) // Used in render toggle
@@ -51,24 +60,24 @@ const RutaClient = ({ initialRuta }: RutaClientProps) => {
 
   // Map asignaciones from backend to visits UI model
   const [visitasCobrador, setVisitasCobrador] = useState<VisitaRuta[]>(() => {
-      if (!initialRuta?.asignacionesRuta) return [];
-      // Map basic client info to visit structure
-      // Note: Backend might need to return richer 'Visita' objects in future.
-      return initialRuta.asignacionesRuta.map((asig: any, index: number) => ({
+      const asignaciones = initialRuta?.asignaciones || initialRuta?.asignacionesRuta;
+      if (!asignaciones || !Array.isArray(asignaciones)) return [];
+      
+      return (asignaciones as any[]).map((asig: any, index: number) => ({
           id: asig.id || `temp-${index}`,
-          cliente: `${asig.cliente.nombres} ${asig.cliente.apellidos}`,
-          direccion: asig.cliente.direccion || 'Sin dirección registrada',
-          telefono: asig.cliente.telefono || '',
-          horaSugerida: '08:00 AM', // Default
-          montoCuota: asig.cliente.prestamos?.[0]?.cuota || 0, // Simplified logic
-          saldoTotal: asig.cliente.prestamos?.[0]?.saldoPendiente || 0,
-          estado: 'pendiente',
+          cliente: `${asig.cliente?.nombres || ''} ${asig.cliente?.apellidos || ''}`.trim() || 'Cliente Desconocido',
+          direccion: asig.cliente?.direccion || 'Sin dirección registrada',
+          telefono: asig.cliente?.telefono || '',
+          horaSugerida: asig.horaSugerida || '08:00 AM',
+          montoCuota: asig.cliente?.prestamos?.[0]?.cuota || 0,
+          saldoTotal: asig.cliente?.prestamos?.[0]?.saldoPendiente || 0,
+          estado: asig.estado?.toLowerCase() || 'pendiente',
           proximaVisita: new Date().toISOString().split('T')[0],
           ordenVisita: asig.ordenVisita || index + 1,
-          prioridad: 'media',
+          prioridad: (asig.prioridad?.toLowerCase() as any) || 'media',
           cobradorId: initialRuta.cobradorId || '',
-          periodoRuta: initialRuta.frecuenciaVisita || 'DIARIO',
-          nivelRiesgo: (asig.cliente.nivelRiesgo?.toLowerCase() as any) || 'leve'
+          periodoRuta: (initialRuta.frecuenciaVisita === 'DIARIO' ? 'DIA' : 'SEMANA') as any,
+          nivelRiesgo: (asig.cliente?.nivelRiesgo?.toLowerCase() as any) || 'leve'
       }));
   })
 
@@ -109,8 +118,16 @@ const RutaClient = ({ initialRuta }: RutaClientProps) => {
     setNuevoGasto({ tipo: 'OPERATIVO', descripcion: '', valor: '' })
   }
   
-  const handleActivarRuta = () => {
-    setRutaCompletada(!rutaCompletada)
+  const handleActivarRuta = async () => {
+    if (!initialRuta) return;
+    try {
+      await routesService.toggleActive(initialRuta.id);
+      setRutaCompletada(!rutaCompletada);
+      showNotification('success', `Ruta ${!rutaCompletada ? 'activada' : 'desactivada'} correctamente`, 'Éxito');
+    } catch (error) {
+      console.error('Error toggling route:', error);
+      showNotification('error', 'No se pudo cambiar el estado de la ruta', 'Error');
+    }
   }
 
   // Clases de riesgo para el badge superior
@@ -153,7 +170,7 @@ const RutaClient = ({ initialRuta }: RutaClientProps) => {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
                <Link href="/admin/rutas" className="p-2 bg-white rounded-full shadow-sm hover:bg-slate-100 transition-colors">
-                  <ArrowLeft className="h-5 w-5 text-slate-600" />
+                  <ArrowLeftIcon className="h-5 w-5 text-slate-600" />
                </Link>
                <div>
                  <div className="flex items-center gap-3">

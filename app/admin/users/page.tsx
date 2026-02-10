@@ -4,6 +4,8 @@ import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 
 import { useNotification } from '@/components/providers/NotificationProvider';
+import { usuariosService } from '@/services/usuarios-service';
+import { RolUsuario, EstadoUsuario } from '@/types/enums';
 
 import {
   Search,
@@ -38,10 +40,11 @@ import {
 } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
+import { useAuth } from '@/hooks/useAuth';
 
-// Tipos adaptados a los enums de Prisma y permissions.tsx
-type RolUsuario = 'SUPER_ADMINISTRADOR' | 'COORDINADOR' | 'SUPERVISOR' | 'COBRADOR' | 'CONTADOR' | 'ADMIN';
-type EstadoUsuario = 'ACTIVO' | 'INACTIVO' | 'SUSPENDIDO';
+// Tipos importados de enums
+// type RolUsuario = ... (Removed)
+// type EstadoUsuario = ... (Removed)
 
 interface User {
   id: string;
@@ -69,76 +72,44 @@ interface Role {
 const UserManagementPage = () => {
   const { showNotification } = useNotification();
   
-  // Mock del rol actual (en produccion vendría de useSession)
-  const currentUserRole: RolUsuario = 'SUPER_ADMINISTRADOR';
+  // Integración con autenticación real
+  const { user: currentUser, loading: authLoading } = useAuth();
+  const currentUserRole: RolUsuario = currentUser?.rol as RolUsuario;
 
-  // --- ESTADO DE USUARIOS (MOCK) ---
-  // Simulación de base de datos de usuarios.
-  // En producción, esto vendría de una API / Prisma.
-  const [users, setUsers] = useState<User[]>([
-    {
-      id: '1',
-      nombres: 'María',
-      apellidos: 'Rodríguez',
-      correo: 'maria.rodriguez@credisur.com',
-      telefono: '+57 300 123 4567',
-      rol: 'SUPER_ADMINISTRADOR',
-      estado: 'ACTIVO',
-      fechaCreacion: '2023-01-15',
-      ultimoAcceso: 'Hoy 09:42',
-      permisos: ['full_access', 'user_management', 'financial_reports']
-    },
-    {
-      id: '2',
-      nombres: 'Carlos',
-      apellidos: 'Méndez',
-      correo: 'carlos.mendez@credisur.com',
-      telefono: '+57 310 234 5678',
-      rol: 'COORDINADOR',
-      estado: 'ACTIVO',
-      fechaCreacion: '2023-03-20',
-      ultimoAcceso: 'Hoy 08:30',
-      permisos: ['loan_approval', 'team_management', 'reports_view']
-    },
-    {
-      id: '3',
-      nombres: 'Ana',
-      apellidos: 'López',
-      correo: 'ana.lopez@credisur.com',
-      telefono: '+57 320 345 6789',
-      rol: 'SUPERVISOR',
-      estado: 'ACTIVO',
-      fechaCreacion: '2023-05-10',
-      ultimoAcceso: 'Ayer 14:20',
-      permisos: ['collection_supervision', 'reports_view']
-    },
-    {
-      id: '4',
-      nombres: 'Pedro',
-      apellidos: 'Gómez',
-      correo: 'pedro.gomez@credisur.com',
-      telefono: '+57 315 456 7890',
-      rol: 'COBRADOR',
-      estado: 'ACTIVO',
-      fechaCreacion: '2023-07-25',
-      ultimoAcceso: 'Hoy 10:15',
-      permisos: ['collection_management', 'client_view']
-    },
-    {
-      id: '5',
-      nombres: 'Laura',
-      apellidos: 'Sánchez',
-      correo: 'laura.sanchez@credisur.com',
-      telefono: '+57 316 567 8901',
-      rol: 'CONTADOR',
-      estado: 'INACTIVO',
-      fechaCreacion: '2023-09-05',
-      ultimoAcceso: '10 Mar 16:45',
-      permisos: ['financial_operations', 'reports_view']
+  // --- ESTADO DE USUARIOS ---
+  const [users, setUsers] = useState<User[]>([]);
+
+  /* Removed early return */
+  const [loading, setLoading] = useState(true);
+
+  const fetchUsers = async () => {
+    try {
+      setLoading(true);
+      const data = await usuariosService.obtenerTodos();
+      const mappedUsers: User[] = data.map(u => ({
+        id: u.id,
+        nombres: u.nombres,
+        apellidos: u.apellidos,
+        correo: u.correo,
+        telefono: u.telefono || '',
+        rol: u.rol as RolUsuario,
+        estado: u.estado as EstadoUsuario,
+        fechaCreacion: new Date(u.creadoEn).toLocaleDateString('es-CO'),
+        ultimoAcceso: u.ultimoIngreso ? new Date(u.ultimoIngreso).toLocaleString('es-CO', { dateStyle: 'short', timeStyle: 'short' }) : 'Nunca',
+        permisos: [] // Los permisos se manejan por rol actualmente en el backend
+      }));
+      setUsers(mappedUsers);
+    } catch (error) {
+      console.error('Error fetching users:', error);
+      showNotification('error', 'No se pudieron cargar los usuarios', 'Error de Conexión');
+    } finally {
+      setLoading(false);
     }
-  ]);
+  };
 
-  // --- FILTROS Y VISTAS ---
+  useEffect(() => {
+    fetchUsers();
+  }, []);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterRole, setFilterRole] = useState('all');
   const [filterStatus] = useState('all');
@@ -162,34 +133,34 @@ const UserManagementPage = () => {
     
     const allModules = [
         // Operaciones
-        { id: 'gestion-creditos', label: 'Créditos', description: 'Gestión de solicitudes y préstamos', category: 'Operaciones', roles: ['SUPER_ADMINISTRADOR', 'ADMIN', 'COORDINADOR'] },
-        { id: 'rutas', label: 'Rutas', description: 'Gestión de rutas y zonas', category: 'Operaciones', roles: ['SUPER_ADMINISTRADOR', 'ADMIN', 'COORDINADOR', 'SUPERVISOR'] },
+        { id: 'gestion-creditos', label: 'Créditos', description: 'Gestión de solicitudes y préstamos', category: 'Operaciones', roles: [RolUsuario.SUPER_ADMINISTRADOR, RolUsuario.ADMIN, RolUsuario.COORDINADOR] },
+        { id: 'rutas', label: 'Rutas', description: 'Gestión de rutas y zonas', category: 'Operaciones', roles: [RolUsuario.SUPER_ADMINISTRADOR, RolUsuario.ADMIN, RolUsuario.COORDINADOR, RolUsuario.SUPERVISOR] },
         
         // Gestión Clientes
-        { id: 'clientes', label: 'Clientes', description: 'Directorio de clientes', category: 'Gestión Clientes', roles: ['SUPER_ADMINISTRADOR', 'ADMIN', 'COORDINADOR', 'COBRADOR', 'SUPERVISOR'] },
-        { id: 'cuentas-mora', label: 'Cuentas en Mora', description: 'Gestión de carteras vencidas', category: 'Gestión Clientes', roles: ['SUPER_ADMINISTRADOR', 'ADMIN', 'COORDINADOR', 'SUPERVISOR', 'CONTADOR'] },
-        { id: 'cuentas-vencidas', label: 'Cuentas Vencidas', description: 'Cartera castigada', category: 'Gestión Clientes', roles: ['SUPER_ADMINISTRADOR', 'ADMIN', 'COORDINADOR', 'CONTADOR'] },
-        { id: 'archivados', label: 'Archivados', description: 'Registros históricos', category: 'Gestión Clientes', roles: ['SUPER_ADMINISTRADOR', 'ADMIN'] },
+        { id: 'clientes', label: 'Clientes', description: 'Directorio de clientes', category: 'Gestión Clientes', roles: [RolUsuario.SUPER_ADMINISTRADOR, RolUsuario.ADMIN, RolUsuario.COORDINADOR, RolUsuario.COBRADOR, RolUsuario.SUPERVISOR] },
+        { id: 'cuentas-mora', label: 'Cuentas en Mora', description: 'Gestión de carteras vencidas', category: 'Gestión Clientes', roles: [RolUsuario.SUPER_ADMINISTRADOR, RolUsuario.ADMIN, RolUsuario.COORDINADOR, RolUsuario.SUPERVISOR, RolUsuario.CONTADOR] },
+        { id: 'cuentas-vencidas', label: 'Cuentas Vencidas', description: 'Cartera castigada', category: 'Gestión Clientes', roles: [RolUsuario.SUPER_ADMINISTRADOR, RolUsuario.ADMIN, RolUsuario.COORDINADOR, RolUsuario.CONTADOR] },
+        { id: 'archivados', label: 'Archivados', description: 'Registros históricos', category: 'Gestión Clientes', roles: [RolUsuario.SUPER_ADMINISTRADOR, RolUsuario.ADMIN] },
 
         // Finanzas
-        { id: 'contable', label: 'Módulo Contable', description: 'Contabilidad general', category: 'Finanzas', roles: ['SUPER_ADMINISTRADOR', 'ADMIN', 'CONTADOR'] },
-        { id: 'tesoreria', label: 'Tesorería', description: 'Caja y bancos', category: 'Finanzas', roles: ['SUPER_ADMINISTRADOR', 'ADMIN', 'CONTADOR'] },
-        { id: 'articulos', label: 'Artículos (Inventario)', description: 'Control de inventario', category: 'Finanzas', roles: ['SUPER_ADMINISTRADOR', 'ADMIN', 'CONTADOR'] },
-        { id: 'reportes-financieros', label: 'Reportes Financieros', description: 'Balances y estados', category: 'Finanzas', roles: ['SUPER_ADMINISTRADOR', 'ADMIN', 'CONTADOR'] },
+        { id: 'contable', label: 'Módulo Contable', description: 'Contabilidad general', category: 'Finanzas', roles: [RolUsuario.SUPER_ADMINISTRADOR, RolUsuario.ADMIN, RolUsuario.CONTADOR] },
+        { id: 'tesoreria', label: 'Tesorería', description: 'Caja y bancos', category: 'Finanzas', roles: [RolUsuario.SUPER_ADMINISTRADOR, RolUsuario.ADMIN, RolUsuario.CONTADOR] },
+        { id: 'articulos', label: 'Artículos (Inventario)', description: 'Control de inventario', category: 'Finanzas', roles: [RolUsuario.SUPER_ADMINISTRADOR, RolUsuario.ADMIN, RolUsuario.CONTADOR] },
+        { id: 'reportes-financieros', label: 'Reportes Financieros', description: 'Balances y estados', category: 'Finanzas', roles: [RolUsuario.SUPER_ADMINISTRADOR, RolUsuario.ADMIN, RolUsuario.CONTADOR] },
 
         // Administración
-        { id: 'usuarios', label: 'Usuarios', description: 'Gestión de acceso', category: 'Administración', roles: ['SUPER_ADMINISTRADOR'] },
-        { id: 'auditoria', label: 'Auditoría', description: 'Logs del sistema', category: 'Administración', roles: ['SUPER_ADMINISTRADOR', 'ADMIN'] },
+        { id: 'usuarios', label: 'Usuarios', description: 'Gestión de acceso', category: 'Administración', roles: [RolUsuario.SUPER_ADMINISTRADOR] },
+        { id: 'auditoria', label: 'Auditoría', description: 'Logs del sistema', category: 'Administración', roles: [RolUsuario.SUPER_ADMINISTRADOR, RolUsuario.ADMIN] },
         
         // Cobranza (Específico App Móvil / Frontend)
-        { id: 'prestamos-dinero', label: 'Solicitar Crédito', description: 'Crear solicitudes', category: 'Cobranza', roles: ['COBRADOR'] },
-        { id: 'notificaciones', label: 'Notificaciones', description: 'Alertas del sistema', category: 'Cobranza', roles: ['COBRADOR'] },
+        { id: 'prestamos-dinero', label: 'Solicitar Crédito', description: 'Crear solicitudes', category: 'Cobranza', roles: [RolUsuario.COBRADOR] },
+        { id: 'notificaciones', label: 'Notificaciones', description: 'Alertas del sistema', category: 'Cobranza', roles: [RolUsuario.COBRADOR] },
         
         // Reportes
-        { id: 'reportes-operativos', label: 'Reportes Operativos', description: 'Métricas de rendimiento', category: 'Reportes', roles: ['SUPER_ADMINISTRADOR', 'ADMIN', 'COORDINADOR', 'SUPERVISOR'] },
+        { id: 'reportes-operativos', label: 'Reportes Operativos', description: 'Métricas de rendimiento', category: 'Reportes', roles: [RolUsuario.SUPER_ADMINISTRADOR, RolUsuario.ADMIN, RolUsuario.COORDINADOR, RolUsuario.SUPERVISOR] },
     ];
     
-    return allModules.filter(m => m.roles.includes(selectedUser.rol));
+    return allModules;
   }, [selectedUser]);
 
   useEffect(() => {
@@ -214,7 +185,7 @@ const UserManagementPage = () => {
     apellidos: string;
     correo: string;
     telefono: string;
-    contrasena: string;
+    password: string;
     rol: RolUsuario;
     estado: EstadoUsuario;
   }
@@ -224,18 +195,18 @@ const UserManagementPage = () => {
     apellidos: '',
     correo: '',
     telefono: '',
-    contrasena: '',
-    rol: 'COBRADOR' as RolUsuario,
-    estado: 'ACTIVO' as EstadoUsuario
+    password: '',
+    rol: RolUsuario.COBRADOR,
+    estado: EstadoUsuario.ACTIVO
   });
 
   const roles: Role[] = [
-    { id: 'SUPER_ADMINISTRADOR', nombre: 'Administrador', label: 'Administrador', descripcion: 'Acceso total al sistema', color: 'text-violet-600', bgColor: 'bg-violet-50', icon: <Shield className="h-3.5 w-3.5" /> },
-    { id: 'ADMIN', nombre: 'Admin General', label: 'Admin General', descripcion: 'Gestión operativa y financiera', color: 'text-blue-600', bgColor: 'bg-blue-50', icon: <Briefcase className="h-3.5 w-3.5" /> },
-    { id: 'COORDINADOR', nombre: 'Coordinador', label: 'Coordinador', descripcion: 'Gestión operativa', color: 'text-sky-600', bgColor: 'bg-sky-50', icon: <Users className="h-3.5 w-3.5" /> },
-    { id: 'SUPERVISOR', nombre: 'Supervisor', label: 'Supervisor', descripcion: 'Supervisión y control', color: 'text-violet-600', bgColor: 'bg-violet-50', icon: <Eye className="h-3.5 w-3.5" /> },
-    { id: 'COBRADOR', nombre: 'Cobrador', label: 'Cobrador', descripcion: 'Gestión de cobranza', color: 'text-emerald-600', bgColor: 'bg-emerald-50', icon: <Briefcase className="h-3.5 w-3.5" /> },
-    { id: 'CONTADOR', nombre: 'Contable', label: 'Contable', descripcion: 'Operaciones financieras', color: 'text-amber-600', bgColor: 'bg-amber-50', icon: <Sparkles className="h-3.5 w-3.5" /> }
+    { id: RolUsuario.SUPER_ADMINISTRADOR, nombre: 'Administrador', label: 'Administrador', descripcion: 'Acceso total al sistema', color: 'text-violet-600', bgColor: 'bg-violet-50', icon: <Shield className="h-3.5 w-3.5" /> },
+    { id: RolUsuario.ADMIN, nombre: 'Admin General', label: 'Admin General', descripcion: 'Gestión operativa y financiera', color: 'text-blue-600', bgColor: 'bg-blue-50', icon: <Briefcase className="h-3.5 w-3.5" /> },
+    { id: RolUsuario.COORDINADOR, nombre: 'Coordinador', label: 'Coordinador', descripcion: 'Gestión operativa', color: 'text-sky-600', bgColor: 'bg-sky-50', icon: <Users className="h-3.5 w-3.5" /> },
+    { id: RolUsuario.SUPERVISOR, nombre: 'Supervisor', label: 'Supervisor', descripcion: 'Supervisión y control', color: 'text-violet-600', bgColor: 'bg-violet-50', icon: <Eye className="h-3.5 w-3.5" /> },
+    { id: RolUsuario.COBRADOR, nombre: 'Cobrador', label: 'Cobrador', descripcion: 'Gestión de cobranza', color: 'text-emerald-600', bgColor: 'bg-emerald-50', icon: <Briefcase className="h-3.5 w-3.5" /> },
+    { id: RolUsuario.CONTADOR, nombre: 'Contable', label: 'Contable', descripcion: 'Operaciones financieras', color: 'text-amber-600', bgColor: 'bg-amber-50', icon: <Sparkles className="h-3.5 w-3.5" /> }
   ];
 
   const roleFilters = [
@@ -256,9 +227,9 @@ const UserManagementPage = () => {
 
   const stats = {
     total: users.length,
-    active: users.filter(u => u.estado === 'ACTIVO').length,
-    admins: users.filter(u => u.rol === 'SUPER_ADMINISTRADOR').length,
-    inactive: users.filter(u => u.estado !== 'ACTIVO').length
+    active: users.filter(u => u.estado === EstadoUsuario.ACTIVO).length,
+    admins: users.filter(u => u.rol === RolUsuario.SUPER_ADMINISTRADOR).length,
+    inactive: users.filter(u => u.estado !== EstadoUsuario.ACTIVO).length
   };
 
   // PAGINACIÓN
@@ -279,16 +250,16 @@ const UserManagementPage = () => {
       apellidos: '',
       correo: '',
       telefono: '',
-      contrasena: '',
-      rol: 'COBRADOR',
-      estado: 'ACTIVO'
+      password: '',
+      rol: RolUsuario.COBRADOR,
+      estado: EstadoUsuario.ACTIVO
     });
     setSelectedPermissions([]);
     setIsCreateModalOpen(true);
   };
 
   const handleOpenEditModal = (user: User) => {
-    if (user.rol === 'SUPER_ADMINISTRADOR' && currentUserRole !== 'SUPER_ADMINISTRADOR') {
+    if (user.rol === RolUsuario.SUPER_ADMINISTRADOR && currentUserRole !== RolUsuario.SUPER_ADMINISTRADOR) {
       return;
     }
 
@@ -298,7 +269,7 @@ const UserManagementPage = () => {
       apellidos: user.apellidos,
       correo: user.correo,
       telefono: user.telefono,
-      contrasena: '', // No password on edit
+      password: '', // No password on edit
       rol: user.rol,
       estado: user.estado
     });
@@ -312,7 +283,7 @@ const UserManagementPage = () => {
   };
 
   const handleOpenPermissionsModal = (user: User) => {
-    if (user.rol === 'SUPER_ADMINISTRADOR' && currentUserRole !== 'SUPER_ADMINISTRADOR') {
+    if (user.rol === RolUsuario.SUPER_ADMINISTRADOR && currentUserRole !== RolUsuario.SUPER_ADMINISTRADOR) {
       return;
     }
 
@@ -331,7 +302,7 @@ const UserManagementPage = () => {
   };
 
   const handleOpenDeleteModal = (user: User) => {
-    if (user.rol === 'SUPER_ADMINISTRADOR') {
+    if (user.rol === RolUsuario.SUPER_ADMINISTRADOR) {
       return;
     }
 
@@ -339,62 +310,72 @@ const UserManagementPage = () => {
     setIsDeleteModalOpen(true);
   };
 
-  const handleCreateUser = () => {
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { contrasena, ...userData } = formData;
-    const newUser: User = {
-      id: (users.length + 1).toString(),
-      ...userData,
-      fechaCreacion: new Date().toLocaleDateString('es-CO'),
-      ultimoAcceso: 'Hoy ' + new Date().toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' }),
-      permisos: selectedPermissions
-    };
+  const handleCreateUser = async () => {
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { password, ...userData } = formData;
+      // Validar campos mínimos
+      if (!formData.nombres || !formData.apellidos || !formData.correo || !formData.password) {
+        showNotification('error', 'Por favor complete todos los campos obligatorios', 'Campos Faltantes');
+        return;
+      }
 
-    setUsers([...users, newUser]);
-    setIsCreateModalOpen(false);
-    showNotification('success', 'El usuario ha sido creado exitosamente', 'Usuario Creado');
+      await usuariosService.crear(formData);
+      
+      showNotification('success', 'El usuario ha sido creado exitosamente', 'Usuario Creado');
+      setIsCreateModalOpen(false);
+      fetchUsers(); // Recargar lista
+    } catch (error) {
+      console.error('Error creating user:', error);
+      showNotification('error', 'No se pudo crear el usuario', 'Error');
+    }
   };
 
-  const handleToggleUserStatus = () => {
+  const handleToggleUserStatus = async () => {
     if (!selectedUser) return;
 
-    if (selectedUser.rol === 'SUPER_ADMINISTRADOR') {
+    if (selectedUser.rol === RolUsuario.SUPER_ADMINISTRADOR) {
       return;
     }
 
-    const updatedUsers = users.map(user => {
-      if (user.id === selectedUser.id) {
-        const newEstado: User['estado'] = user.estado === 'ACTIVO' ? 'INACTIVO' : 'ACTIVO';
-        return { ...user, estado: newEstado };
-      }
-      return user;
-    });
-
-    setUsers(updatedUsers);
-    setIsDeleteModalOpen(false);
-    const action = selectedUser.estado === 'ACTIVO' ? 'desactivado' : 'activado';
-    showNotification('success', `El usuario ha sido ${action} exitosamente`, 'Estado Actualizado');
+    try {
+      const nuevoEstado: EstadoUsuario = selectedUser.estado === EstadoUsuario.ACTIVO ? EstadoUsuario.INACTIVO : EstadoUsuario.ACTIVO;
+      await usuariosService.toggleEstado(selectedUser.id, nuevoEstado);
+      
+      const action = selectedUser.estado === EstadoUsuario.ACTIVO ? 'desactivado' : 'activado';
+      showNotification('success', `El usuario ha sido ${action} exitosamente`, 'Estado Actualizado');
+      setIsDeleteModalOpen(false); // Modal se usa para confirmar toggle
+      fetchUsers();
+    } catch (error) {
+      console.error('Error toggling status:', error);
+      showNotification('error', 'No se pudo cambiar el estado del usuario', 'Error');
+    }
   };
 
-  const handleUpdateUser = () => {
+  const handleUpdateUser = async () => {
     if (!selectedUser) return;
     
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { contrasena, ...userData } = formData;
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { password, ...userData } = formData;
+      
+      await usuariosService.actualizar(selectedUser.id, {
+        nombres: formData.nombres,
+        apellidos: formData.apellidos,
+        correo: formData.correo,
+        telefono: formData.telefono,
+        rol: formData.rol,
+        // No enviamos estado aquí si no se modificó en form, pero el form lo tiene.
+        // Lo ideal es enviar solo lo cambiado. Enviamos todo el form por ahora.
+      });
 
-    const updatedUsers = users.map(user => {
-      if (user.id === selectedUser.id) {
-        return {
-          ...user,
-          ...userData
-        };
-      }
-      return user;
-    });
-
-    setUsers(updatedUsers);
-    setIsEditModalOpen(false);
-    showNotification('success', 'Los datos del usuario han sido actualizados', 'Usuario Actualizado');
+      showNotification('success', 'Los datos del usuario han sido actualizados', 'Usuario Actualizado');
+      setIsEditModalOpen(false);
+      fetchUsers();
+    } catch (error) {
+      console.error('Error updating user:', error);
+      showNotification('error', 'No se pudo actualizar el usuario', 'Error');
+    }
   };
 
   const handleUpdatePermissions = () => {
@@ -432,18 +413,18 @@ const UserManagementPage = () => {
 
   const getStatusColor = (estado: User['estado']) => {
     switch (estado) {
-      case 'ACTIVO': return 'text-emerald-700 bg-emerald-50 border-emerald-100';
-      case 'INACTIVO': return 'text-slate-600 bg-slate-100 border-slate-200';
-      case 'SUSPENDIDO': return 'text-rose-700 bg-rose-50 border-rose-100';
+      case EstadoUsuario.ACTIVO: return 'text-emerald-700 bg-emerald-50 border-emerald-100';
+      case EstadoUsuario.INACTIVO: return 'text-slate-600 bg-slate-100 border-slate-200';
+      case EstadoUsuario.SUSPENDIDO: return 'text-rose-700 bg-rose-50 border-rose-100';
       default: return 'text-slate-600 bg-slate-100 border-slate-200';
     }
   };
 
   const getStatusText = (estado: User['estado']) => {
     switch (estado) {
-      case 'ACTIVO': return 'Activo';
-      case 'INACTIVO': return 'Inactivo';
-      case 'SUSPENDIDO': return 'Suspendido';
+      case EstadoUsuario.ACTIVO: return 'Activo';
+      case EstadoUsuario.INACTIVO: return 'Inactivo';
+      case EstadoUsuario.SUSPENDIDO: return 'Suspendido';
       default: return 'Desconocido';
     }
   };
@@ -880,8 +861,8 @@ const UserManagementPage = () => {
                   <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Contraseña</label>
                   <input
                     type="password"
-                    value={formData.contrasena}
-                    onChange={(e) => setFormData({...formData, contrasena: e.target.value})}
+                    value={formData.password}
+                    onChange={(e) => setFormData({...formData, password: e.target.value})}
                     className="w-full px-4 py-3 border border-slate-200 rounded-2xl bg-slate-50 focus:bg-white focus:border-blue-600 focus:ring-2 focus:ring-blue-600/20 transition-all text-sm font-medium text-slate-900 placeholder:text-slate-400"
                     placeholder="••••••••"
                   />
@@ -991,8 +972,8 @@ const UserManagementPage = () => {
                   <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Contraseña</label>
                   <input
                     type="password"
-                    value={formData.contrasena}
-                    onChange={(e) => setFormData({...formData, contrasena: e.target.value})}
+                    value={formData.password}
+                    onChange={(e) => setFormData({...formData, password: e.target.value})}
                     className="w-full px-4 py-3 border border-slate-200 rounded-2xl bg-slate-50 focus:bg-white focus:border-blue-600 focus:ring-2 focus:ring-blue-600/20 transition-all text-sm font-medium text-slate-900 placeholder:text-slate-400"
                     placeholder="Dejar vacío para no cambiar"
                   />

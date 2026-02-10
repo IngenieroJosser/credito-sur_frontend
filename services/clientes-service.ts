@@ -29,6 +29,7 @@ export interface Cliente {
   diasMora?: number;
   ultimoPago?: string;
   rutaId?: string;
+  categoriaId?: string;
 }
 
 export interface CrearClienteDto {
@@ -41,7 +42,8 @@ export interface CrearClienteDto {
   referencia?: string;
   nivelRiesgo?: NivelRiesgo;
   puntaje?: number;
-  creadoPorId: string;
+  creadoPorId?: string;
+  categoriaId?: string;
   archivos?: {
     tipoContenido: string;
     tipoArchivo: string;
@@ -64,6 +66,7 @@ export interface ActualizarClienteDto {
   dni?: string; // Permitir dni si es editable
   enListaNegra?: boolean;
   rutaId?: string;
+  categoriaId?: string;
   observaciones?: string;
 }
 
@@ -98,7 +101,8 @@ export const clientesService = {
     const query = params.toString();
     const endpoint = query ? `/clients?${query}` : '/clients';
     
-    return apiRequest<Cliente[]>('GET', endpoint);
+    const response = await apiRequest<any>('GET', endpoint);
+    return Array.isArray(response) ? response : (response.clientes || []);
   },
 
   /**

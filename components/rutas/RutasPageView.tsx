@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, ChangeEvent, FormEvent } from 'react'
+import { useState, ChangeEvent, FormEvent, useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import {
@@ -27,6 +27,8 @@ import {
 } from 'lucide-react'
 import { formatCurrency, cn } from '@/lib/utils'
 import { useAuth } from '@/hooks/useAuth'
+import { routesService } from '@/services/routes-service';
+import { useNotification } from '@/components/providers/NotificationProvider';
 
 interface Ruta {
   id: string;
@@ -75,6 +77,7 @@ export const RutasPageView = ({
   const [estadoFiltro, setEstadoFiltro] = useState('TODAS')
   const [vista, setVista] = useState<'grid' | 'list'>('grid')
   // const [loading, setLoading]... removed unused
+  const { showNotification } = useNotification();
   const [showModal, setShowModal] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
 
@@ -97,8 +100,38 @@ export const RutasPageView = ({
   const [clientesDisponibles] = useState<ClienteSelection[]>([]) 
   const [isAddingCliente, setIsAddingCliente] = useState(false)
   
-  // Use backend data directly
-  const displayRutas: Ruta[] = (rutas as Ruta[]);
+  // Use state for routes to allow client-side updates
+  const [rutasList, setRutasList] = useState<Ruta[]>(rutas as Ruta[]);
+  
+  const displayRutas: Ruta[] = rutasList;
+  
+  // State for lists with fallback fetching
+  const [cobradoresList, setCobradoresList] = useState(cobradores);
+  const [supervisoresList, setSupervisoresList] = useState(supervisores);
+
+  useEffect(() => {
+    const fetchLists = async () => {
+      try {
+        if (cobradoresList.length === 0) {
+          const fetchedCobradores = await routesService.getCobradores();
+          setCobradoresList(fetchedCobradores);
+        }
+        if (supervisoresList.length === 0) {
+          const fetchedSupervisores = await routesService.getSupervisores();
+          setSupervisoresList(fetchedSupervisores);
+        }
+        // Fetch routes if empty (fallback)
+        if (rutasList.length === 0) {
+           const response = await routesService.getAll({ limit: 100 });
+           setRutasList(response.data as unknown as Ruta[]);
+        }
+      } catch (error) {
+        console.error('Error fetching data:', error);
+      }
+    };
+
+    fetchLists();
+  }, []); // Run once on mount
 
 
   const [clienteSearch, setClienteSearch] = useState('')
@@ -141,15 +174,66 @@ export const RutasPageView = ({
     setFormData(prev => ({ ...prev, [name]: value }))
   }
 
-  const handleSubmit = (e: FormEvent) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
-    setShowModal(false)
+    
+    try {
+      if (editingId) {
+        await routesService.update(editingId, {
+          nombre: formData.nombre,
+          codigo: formData.codigo,
+          zona: formData.zona,
+          cobradorId: formData.cobradorId,
+          supervisorId: formData.supervisorId || undefined,
+          descripcion: formData.descripcion,
+          activa: formData.estado === 'ACTIVA'
+        });
+        showNotification('success', 'Ruta actualizada correctamente', 'Éxito');
+      } else {
+        await routesService.create({
+          nombre: formData.nombre,
+          codigo: formData.codigo,
+          zona: formData.zona,
+          cobradorId: formData.cobradorId,
+          supervisorId: formData.supervisorId || undefined,
+          descripcion: formData.descripcion
+        });
+        showNotification('success', 'Ruta creada correctamente', 'Éxito');
+      }
+      
+      setShowModal(false);
+      
+      // Refresh list client-side to ensure UI updates immediately
+      try {
+        const response = await routesService.getAll({ limit: 100 });
+        setRutasList(response.data as unknown as Ruta[]);
+      } catch (e) { console.error('Error refreshing routes:', e); }
+
+      router.refresh(); // Recargar datos del servidor (como backup)
+    } catch (error: any) {
+      console.error('Error saving route:', error);
+      console.error('Error details:', error.response?.data || error.message);
+      const errorMessage = error.response?.data?.message || 'No se pudo guardar la ruta';
+      showNotification('error', Array.isArray(errorMessage) ? errorMessage.join(', ') : errorMessage, 'Error');
+    }
   }
 
-  const handleToggleEstado = (id: string) => {
-    console.log('Toggle estado', id)
-    // Mock toggle logic
-    // displayRutas updates would happen here with backend integration
+  const handleToggleEstado = async (id: string) => {
+    try {
+      await routesService.toggleActive(id);
+      
+      // Update local state optimistic or fetch
+      try {
+         const response = await routesService.getAll({ limit: 100 });
+         setRutasList(response.data as unknown as Ruta[]);
+      } catch (e) { console.error(e); }
+
+      showNotification('success', 'Estado de la ruta actualizado', 'Éxito');
+      router.refresh();
+    } catch (error) {
+      console.error('Error toggling route status:', error);
+      showNotification('error', 'No se pudo cambiar el estado', 'Error');
+    }
   }
   const handleMoveCliente = (id: string) => { console.log('Mover', id) }
   const confirmAddCliente = (cliente: ClienteSelection) => { console.log('Add', cliente) }
@@ -839,7 +923,7 @@ export const RutasPageView = ({
                             required
                           >
                             <option value="">Seleccione un cobrador</option>
-                            {cobradores.map((c) => (
+                            {cobradoresList.map((c) => (
                               <option key={c.id} value={c.id}>
                                 {c.nombre}
                               </option>
@@ -860,7 +944,7 @@ export const RutasPageView = ({
                             required
                           >
                             <option value="">Seleccione un supervisor</option>
-                            {supervisores.map((s) => (
+                            {supervisoresList.map((s) => (
                               <option key={s.id} value={s.id}>
                                 {s.nombre}
                               </option>

@@ -150,9 +150,16 @@ export default function MediaUpload({
     }
   };
 
-  // Detectar tipo de archivo basado en el archivo actual o el accept
-  const isImage = media?.file ? media.file.type.startsWith('image/') : accept.includes('image');
-  const isVideo = media?.file ? media.file.type.startsWith('video/') : accept.includes('video');
+  // Detectar tipo de archivo basado en el archivo actual, la url existente o el accept
+  const isUrlVideo = existingUrl?.match(/\.(mp4|webm|ogg|mov)$/i);
+  
+  const isImage = media?.file 
+    ? media.file.type.startsWith('image/') 
+    : (existingUrl ? !isUrlVideo : accept.includes('image'));
+
+  const isVideo = media?.file 
+    ? media.file.type.startsWith('video/') 
+    : (existingUrl ? !!isUrlVideo : accept.includes('video'));
 
   return (
     <div className={cn('space-y-2', className)}>

@@ -68,12 +68,19 @@ export async function loginAction(data: LoginData): Promise<LoginResult> {
     };
 
   } catch (error: any) {
-    console.error('Error en loginAction:', error);
+    console.error('--- DEBUG LOGIN ACTION ERROR ---');
+    console.error('Error object:', error);
+    console.error('Error message:', error?.message);
+    console.error('Error statusCode:', error?.statusCode);
+    console.error('Error response status:', error?.response?.status);
+    console.error('---------------------------------');
     
     // Traducimos los errores técnicos a mensajes amigables para el usuario
-    let msg = 'Error al iniciar sesión';
-    if (error?.response?.status === 401) msg = 'Credenciales incorrectas';
-    if (error?.code === 'ECONNREFUSED') msg = 'No se pudo conectar con el servidor';
+    const status = error?.statusCode || error?.response?.status;
+    let msg = error?.message || 'Error al iniciar sesión';
+    
+    if (status === 401) msg = 'Credenciales incorrectas';
+    if (error?.code === 'ECONNREFUSED' || error?.message?.includes('fetch')) msg = 'No se pudo conectar con el servidor';
 
     return { success: false, error: msg };
   }

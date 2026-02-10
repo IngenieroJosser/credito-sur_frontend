@@ -118,13 +118,9 @@ export const apiRequest = async <T>(
       error: err.response.data
     };
 
-    console.error('API Error:', {
-      status: apiError.statusCode,
-      message: apiError.message,
-      url,
-      method,
-      data: err.response.data
-    });
+    console.error(`API Request Failed: ${method} ${url} | Status: ${apiError.statusCode}`);
+    console.error('Full Error Object:', err);
+    console.error('Response Data:', err.response?.data);
 
     throw apiError;
   }

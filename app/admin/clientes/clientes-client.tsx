@@ -158,8 +158,8 @@ export default function ClientesClient({ initialClientes }: ClientesClientProps)
   const filteredClientes = clientes.filter(cliente => {
     // 1. Buscador texto
     const matchesSearch = 
-      `${cliente.nombres} ${cliente.apellidos}`.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      cliente.dni.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      `${cliente.nombres || ''} ${cliente.apellidos || ''}`.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (cliente.dni || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
       (cliente.correo && cliente.correo.toLowerCase().includes(searchTerm.toLowerCase()));
     
     // 2. Filtro Riesgo
@@ -330,9 +330,9 @@ export default function ClientesClient({ initialClientes }: ClientesClientProps)
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {currentItems.length > 0 ? (
-                  currentItems.map((cliente) => (
+                  currentItems.map((cliente, index) => (
                     <tr
-                      key={cliente.id}
+                      key={cliente.id || `client-${index}`}
                       className="hover:bg-slate-50/50 transition-colors group cursor-pointer"
                       onClick={() => {
                         setSelectedClientId(cliente.id);
@@ -352,16 +352,23 @@ export default function ClientesClient({ initialClientes }: ClientesClientProps)
                                     : 'bg-slate-100 text-slate-600'
                             }`}
                           >
-                            {cliente.nombres.charAt(0)}
-                            {cliente.apellidos.charAt(0)}
+                            {cliente.nombres?.charAt(0) || '?'}
+                            {cliente.apellidos?.charAt(0) || ''}
                           </div>
                           <div className="ml-4">
                             <div className="font-bold text-slate-900">
-                              {cliente.nombres} {cliente.apellidos}
+                              {(cliente.nombres || cliente.apellidos) ? `${cliente.nombres} ${cliente.apellidos}` : 'Cliente sin nombre'}
                             </div>
                             <div className="text-xs text-slate-500 flex items-center mt-0.5 font-mono font-medium">
                               {cliente.dni}
                             </div>
+                            {cliente.estadoAprobacion && cliente.estadoAprobacion !== 'APROBADO' && (
+                              <div className="mt-1">
+                                <span className="inline-flex items-center px-1.5 py-0.5 rounded-md text-[10px] font-bold bg-amber-100 text-amber-700 ring-1 ring-inset ring-amber-200 uppercase">
+                                  {cliente.estadoAprobacion}
+                                </span>
+                              </div>
+                            )}
                           </div>
                         </div>
                       </td>
@@ -370,11 +377,11 @@ export default function ClientesClient({ initialClientes }: ClientesClientProps)
                         <div className="space-y-1">
                           <div
                             className={`inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-bold ring-1 ring-inset ${getRiesgoColor(
-                              cliente.nivelRiesgo
+                              cliente.nivelRiesgo || 'VERDE' as any
                             )}`}
                           >
-                            <span className="mr-1.5">{getRiesgoIcon(cliente.nivelRiesgo)}</span>
-                            {cliente.nivelRiesgo.replace('_', ' ')}
+                            <span className="mr-1.5">{getRiesgoIcon(cliente.nivelRiesgo || 'VERDE' as any) || <AlertCircle className="h-4 w-4" />}</span>
+                            {(cliente.nivelRiesgo || 'VERDE').replace('_', ' ')}
                           </div>
                           {cliente.enListaNegra && (
                             <div className="flex items-center text-xs text-rose-600 font-bold px-1">
@@ -476,7 +483,7 @@ export default function ClientesClient({ initialClientes }: ClientesClientProps)
                     </tr>
                   ))
                 ) : (
-                  <tr>
+                  <tr key="empty-state">
                     <td colSpan={7} className="px-6 py-20 text-center">
                       <div className="flex flex-col items-center gap-3">
                          <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center border border-slate-100 shadow-inner">
@@ -572,9 +579,11 @@ export default function ClientesClient({ initialClientes }: ClientesClientProps)
       {isCreateModalOpen && (
         <NuevoClienteModal 
           onClose={() => setIsCreateModalOpen(false)} 
-          onClienteCreado={(newClient) => {
+          onClienteCreado={(newClient: any) => {
             const enriched: ClienteAdmin = {
               ...newClient,
+              id: newClient.id || newClient.aprobacionId || newClient.clienteCodigo || `temp-${Date.now()}`,
+              codigo: newClient.codigo || newClient.clienteCodigo || 'PENDIENTE',
               score: 100,
               tendencia: 'ESTABLE',
               ultimaVisita: new Date().toISOString().split('T')[0]

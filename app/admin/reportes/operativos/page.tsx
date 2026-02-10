@@ -30,12 +30,24 @@ import { formatCurrency, cn } from '@/lib/utils'
 import { ExportButton } from '@/components/ui/ExportButton'
 import FiltroRuta from '@/components/filtros/FiltroRuta'
 import { TimeFilter, TimeFilterPeriod } from '@/components/ui/TimeFilter'
+import type { RoutePerformance } from '@/services/reportes-coordinador-service'
+import { useReportesCoordinador } from '@/hooks/useReportesCoordinador'
 
 const ReportesOperativosPage = () => {
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
   const period = (searchParams.get('period') as TimeFilterPeriod) || 'month'
+
+
+  
+  const {
+      loading,
+      error,
+      reportData,
+      fetchOperationalReport,
+      exportReport
+  } = useReportesCoordinador()
 
   const handlePeriodChange = (newPeriod: TimeFilterPeriod) => {
     const params = new URLSearchParams(searchParams.toString())
@@ -53,17 +65,35 @@ const ReportesOperativosPage = () => {
    * redirigiendo a cada uno a su sección correcta sin "sacarlos" de su layout.
    */
   const [basePath, setBasePath] = useState('/admin')
+  const [exporting, setExporting] = useState(false)
 
   // Filtro específico para ver el rendimiento de una sola ruta
   const [filterRuta, setFilterRuta] = useState<string | null>(null);
 
-  // Funciones placeholder para exportación (aquí conectaríamos librerías como 'xlsx' o 'jspdf')
-  const handleExportExcel = () => {
-    console.log('Generando Excel con los KPI operativos...')
+  const handleExportExcel = async () => {
+    setExporting(true)
+    try {
+      await exportReport({ period, routeId: filterRuta || undefined }, 'excel')
+      alert('Reporte exportado exitosamente')
+    } catch (error) {
+      console.error('Error exporting Excel:', error);
+      alert('Error al exportar reporte')
+    } finally {
+      setExporting(false)
+    }
   }
 
-  const handleExportPDF = () => {
-    console.log('Generando reporte PDF para impresión...')
+  const handleExportPDF = async () => {
+    setExporting(true)
+    try {
+      await exportReport({ period, routeId: filterRuta || undefined }, 'pdf')
+      alert('Reporte exportado exitosamente')
+    } catch (error) {
+       console.error('Error exporting PDF:', error);
+       alert('Error al exportar reporte')
+    } finally {
+      setExporting(false)
+    }
   }
 
   /**
@@ -95,37 +125,40 @@ const ReportesOperativosPage = () => {
     return () => clearTimeout(timer)
   }, [])
 
-  // --- DATOS SIMULADOS (MOCK) ---
-  // Estos datos simulan lo que nos devolvería el backend.
-  // Ajustamos los números según el filtro de tiempo (día, semana, mes) para dar sensación de realismo.
-  const factor = {
-    today: 0.1,
-    week: 0.25,
-    month: 1,
-    quarter: 3
-  }[period];
+  // Fetch Data Reintegration
+  useEffect(() => {
+    if (mounted) {
+      fetchOperationalReport({
+        period,
+        routeId: filterRuta || undefined
+      }).catch(err => console.error("Error loading report:", err));
+    }
+  }, [period, filterRuta, mounted, fetchOperationalReport]);
 
-  const rendimientoRutas = [
-    { id: 'RT-001', ruta: 'Ruta Centro', cobrador: 'Carlos Pérez', meta: 1500000 * factor, recaudado: 1250000 * factor, eficiencia: 83, nuevosPrestamos: Math.round(2 * factor), nuevosClientes: Math.round(1 * factor) },
-    { id: 'RT-002', ruta: 'Ruta Norte', cobrador: 'María Rodríguez', meta: 1000000 * factor, recaudado: 820000 * factor, eficiencia: 82, nuevosPrestamos: Math.round(0 * factor), nuevosClientes: Math.round(0 * factor) },
-    { id: 'RT-003', ruta: 'Ruta Este', cobrador: 'Pedro Gómez', meta: 500000 * factor, recaudado: 300000 * factor, eficiencia: 60, nuevosPrestamos: Math.round(1 * factor), nuevosClientes: Math.round(2 * factor) },
-  ]
-
-  // --- FILTRADO Y CÁLCULOS ---
-  // Si el usuario seleccionó una ruta específica, filtramos los datos aquí.
-  const rendimientoFiltrado = filterRuta 
-    ? rendimientoRutas.filter(r => r.id === filterRuta)
-    : rendimientoRutas;
-
-  // Calculamos los totales globales sumando los datos de todas las rutas visibles
-  const totalRecaudo = rendimientoFiltrado.reduce((acc, item) => acc + item.recaudado, 0)
-  const totalObjetivo = rendimientoFiltrado.reduce((acc, item) => acc + item.meta, 0)
-  // Evitamos división por cero si el objetivo es 0
-  const porcentajeGlobal = totalObjetivo > 0 ? Math.round((totalRecaudo / totalObjetivo) * 100) : 0
 
   if (!mounted) {
     return null
   }
+
+  // Usamos los datos reales del hook, o valores por defecto seguros si aún no cargan
+  const data = reportData || {
+    totalRecaudo: 0,
+    totalMeta: 0,
+    porcentajeGlobal: 0,
+    totalPrestamosNuevos: 0,
+    totalAfiliaciones: 0,
+    efectividadPromedio: 0,
+    rendimientoRutas: [],
+    periodo: period,
+    fechaInicio: '',
+    fechaFin: ''
+  };
+
+  const rendimientoFiltrado = data.rendimientoRutas;
+  const totalRecaudo = data.totalRecaudo;
+  const porcentajeGlobal = data.porcentajeGlobal;
+
+
 
   return (
     <div className="min-h-screen bg-slate-50 relative">
@@ -184,7 +217,7 @@ const ReportesOperativosPage = () => {
             <div className="flex justify-between items-start mb-4">
               <div>
                 <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Préstamos Nuevos</p>
-                <h3 className="text-2xl font-bold text-slate-900 mt-2">3</h3>
+                <h3 className="text-2xl font-bold text-slate-900 mt-2">{data.totalPrestamosNuevos}</h3>
               </div>
               <div className="p-3 bg-blue-50 rounded-xl group-hover:scale-110 transition-transform border border-blue-100">
                 <FilePlus className="h-5 w-5 text-blue-600" />
@@ -192,7 +225,7 @@ const ReportesOperativosPage = () => {
             </div>
             <div className="flex items-center gap-2">
               <span className="text-xs font-medium text-slate-500">
-                Total colocado: <span className="text-slate-900 font-bold">{formatCurrency(450000)}</span>
+                Total colocado: <span className="text-slate-900 font-bold">{formatCurrency(data.rendimientoRutas.reduce((acc: number, r: RoutePerformance) => acc + (r.meta - r.recaudado), 0))}</span>
               </span>
             </div>
           </div>
@@ -201,14 +234,14 @@ const ReportesOperativosPage = () => {
             <div className="flex justify-between items-start mb-4">
               <div>
                 <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Clientes Nuevos</p>
-                <h3 className="text-2xl font-bold text-slate-900 mt-2">3</h3>
+                <h3 className="text-2xl font-bold text-slate-900 mt-2">{data.totalAfiliaciones}</h3>
               </div>
               <div className="p-3 bg-purple-50 rounded-xl group-hover:scale-110 transition-transform border border-purple-100">
                 <Users className="h-5 w-5 text-purple-600" />
               </div>
             </div>
             <div className="flex items-center gap-2">
-              <span className="text-xs text-slate-500 font-medium">En 2 rutas diferentes</span>
+              <span className="text-xs text-slate-500 font-medium">En {data.rendimientoRutas.filter((r: RoutePerformance) => r.nuevosClientes > 0).length} rutas diferentes</span>
             </div>
           </div>
 
@@ -262,7 +295,7 @@ const ReportesOperativosPage = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {rendimientoFiltrado.map((item, idx) => (
+                {rendimientoFiltrado.map((item: RoutePerformance, idx: number) => (
                   <tr key={idx} className="hover:bg-slate-50/50 transition-colors bg-white/0">
                     <td className="px-6 py-4 font-bold text-slate-900">{item.ruta}</td>
                     <td className="px-6 py-4 text-slate-600 font-medium">{item.cobrador}</td>
@@ -318,7 +351,7 @@ const ReportesOperativosPage = () => {
           <div className="bg-white/80 backdrop-blur-sm p-6 rounded-2xl border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all">
             <h3 className="font-bold text-slate-900 mb-6 text-lg">Comparativa de Recaudo vs Objetivo</h3>
             <div className="space-y-6">
-              {rendimientoFiltrado.map((item, idx) => (
+              {rendimientoFiltrado.map((item: RoutePerformance, idx: number) => (
                 <div key={idx} className="space-y-2">
                   <div className="flex justify-between text-sm">
                     <span className="font-bold text-slate-700">{item.ruta}</span>
@@ -341,31 +374,36 @@ const ReportesOperativosPage = () => {
 
           <div className="bg-white/80 backdrop-blur-sm p-6 rounded-2xl border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all flex flex-col justify-between relative overflow-hidden group">
             <div className="relative z-10">
-              <h3 className="font-bold text-xl mb-3 text-slate-900">Resumen</h3>
+              <h3 className="font-bold text-xl mb-3 text-slate-900">Resumen del Período</h3>
               <p className="text-slate-500 text-sm mb-8 leading-relaxed font-medium">
-                La operación de hoy muestra un rendimiento sólido en la Ruta Centro. Se recomienda revisar la Ruta Sur que está por debajo del 70% de cumplimiento.
+                Resumen operativo para el período seleccionado. Se muestra el rendimiento consolidado de todas las rutas activas.
               </p>
               
-              <div className="space-y-4">
-                <div className="flex items-center gap-4 bg-slate-50 p-3 rounded-xl border border-slate-100">
-                  <div className="w-10 h-10 rounded-full bg-emerald-50 flex items-center justify-center border border-emerald-100">
-                    <TrendingUp className="h-5 w-5 text-emerald-600" />
+              {data.rendimientoRutas.length > 0 && (
+                <div className="space-y-4">
+                  <div className="flex items-center gap-4 bg-slate-50 p-3 rounded-xl border border-slate-100">
+                    <div className="w-10 h-10 rounded-full bg-emerald-50 flex items-center justify-center border border-emerald-100">
+                      <TrendingUp className="h-5 w-5 text-emerald-600" />
+                    </div>
+                    <div>
+                      <p className="text-xs text-slate-500 uppercase tracking-wider font-bold">Mejor Ruta</p>
+                      <p className="font-bold text-slate-900">
+                       {data.rendimientoRutas.reduce((prev: RoutePerformance, current: RoutePerformance) => (prev.eficiencia > current.eficiencia) ? prev : current).ruta}
+                        {' '}({data.rendimientoRutas.reduce((prev: RoutePerformance, current: RoutePerformance) => (prev.eficiencia > current.eficiencia) ? prev : current).eficiencia}%)
+                      </p>
+                    </div>
                   </div>
-                  <div>
-                    <p className="text-xs text-slate-500 uppercase tracking-wider font-bold">Mejor Ruta</p>
-                    <p className="font-bold text-slate-900">Ruta Centro (83%)</p>
+                  <div className="flex items-center gap-4 bg-slate-50 p-3 rounded-xl border border-slate-100">
+                    <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center border border-slate-200">
+                      <Users className="h-5 w-5 text-slate-600" />
+                    </div>
+                    <div>
+                      <p className="text-xs text-slate-500 uppercase tracking-wider font-bold">Total Clientes Nuevos</p>
+                      <p className="font-bold text-slate-900">{data.totalAfiliaciones} afiliados</p>
+                    </div>
                   </div>
                 </div>
-                <div className="flex items-center gap-4 bg-slate-50 p-3 rounded-xl border border-slate-100">
-                  <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center border border-slate-200">
-                    <Users className="h-5 w-5 text-slate-600" />
-                  </div>
-                  <div>
-                    <p className="text-xs text-slate-500 uppercase tracking-wider font-bold">Clientes Atendidos</p>
-                    <p className="font-bold text-slate-900">95 visitas realizadas</p>
-                  </div>
-                </div>
-              </div>
+              )}
             </div>
           </div>
         </section>

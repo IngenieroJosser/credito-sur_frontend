@@ -156,6 +156,7 @@ const LoginPage = () => {
 
       console.log('Iniciando proceso de login...');
       const result = await loginAction(payload);
+      console.log('Resultado del login:', result);
 
       if (!result.success) {
         throw new Error(result.error || 'Error desconocido');

@@ -26,12 +26,19 @@ export default function ClientePortalModal({ clientId, onClose, rolUsuario = 'co
   const [prestamos, setPrestamos] = useState<Prestamo[]>([]);
   const [pagos, setPagos] = useState<Pago[]>([]);
 
+  const [comentarios, setComentarios] = useState<Comentario[]>([]);
+
   useEffect(() => {
     const fetchCliente = async () => {
         try {
             const data = await clientesService.obtenerPorId(clientId);
             if (data) {
                 // Adaptar data backend a UI
+                // Adaptar data backend a UI
+                const fotos: string[] = (data as any).archivos?.map((a: any) => {
+                  return a.url || a.path || a.ruta;
+                }).filter(Boolean) || [];
+
                 setClienteData({
                     id: data.id,
                     codigo: data.codigo || 'S/C',
@@ -45,11 +52,12 @@ export default function ClientePortalModal({ clientId, onClose, rolUsuario = 'co
                     nivelRiesgo: (data.nivelRiesgo as any) || 'VERDE',
                     puntaje: data.puntaje || 0,
                     enListaNegra: data.enListaNegra || false,
-                    estadoAprobacion: 'APROBADO', // Default si no viene
-                    fechaRegistro: (data as any).fechaRegistro ? new Date((data as any).fechaRegistro).toISOString() : new Date().toISOString(),
+                    estadoAprobacion: data.estadoAprobacion || 'APROBADO',
+                    fechaRegistro: (data as any).fechaRegistro || (data as any).creadoEn ? new Date((data as any).fechaRegistro || (data as any).creadoEn).toISOString() : new Date().toISOString(),
                     ocupacion: 'No especificada',
                     avatarColor: 'bg-blue-600',
-                    ruta: data.rutaId ? `Ruta ${data.rutaId}` : 'Sin Ruta'
+                    ruta: data.rutaId ? `Ruta ${data.rutaId}` : 'Sin Ruta',
+                    fotos: fotos
                 });
                 
                 // Si el backend devolviera prestamos y pagos (actualmente obtenerPorId retorna Cliente con include?)
@@ -96,8 +104,6 @@ export default function ClientePortalModal({ clientId, onClose, rolUsuario = 'co
     fetchCliente();
   }, [clientId]);
   
-  const comentarios: Comentario[] = []; 
-
   if (loading) return null;
 
   if (!clienteData) {
@@ -141,6 +147,18 @@ export default function ClientePortalModal({ clientId, onClose, rolUsuario = 'co
               prestamos={prestamos}
               pagos={pagos}
               comentarios={comentarios}
+              onSaveNote={(note) => {
+                const newComment: Comentario = {
+                  id: Math.random().toString(36).substr(2, 9),
+                  fecha: new Date().toLocaleDateString(),
+                  autor: 'Administrador', // TODO: Get from useAuth
+                  rolAutor: 'Admin',
+                  contenido: note,
+                  tipo: 'observacion',
+                  avatarColor: 'bg-indigo-600'
+                };
+                setComentarios(prev => [newComment, ...prev]);
+              }}
             />
           </div>
         </div>

@@ -168,12 +168,20 @@ export const routesService = {
 
   // Obtener cobradores
   async getCobradores() {
-    return apiRequest<Cobrador[]>('GET', '/routes/cobradores', undefined, { cacheTTL: 120000 });
+    const users = await apiRequest<any[]>('GET', '/routes/cobradores', undefined, { cacheTTL: 120000 });
+    return users.map(u => ({
+      ...u,
+      nombre: u.nombre || `${u.nombres} ${u.apellidos}`.trim()
+    })) as Cobrador[];
   },
 
   // Obtener supervisores
   async getSupervisores() {
-    return apiRequest<Supervisor[]>('GET', '/routes/supervisores', undefined, { cacheTTL: 120000 });
+    const users = await apiRequest<any[]>('GET', '/routes/supervisores', undefined, { cacheTTL: 120000 });
+    return users.map(u => ({
+      ...u,
+      nombre: u.nombre || `${u.nombres} ${u.apellidos}`.trim()
+    })) as Supervisor[];
   },
 
   // Asignar cliente a ruta

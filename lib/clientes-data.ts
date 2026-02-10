@@ -33,7 +33,7 @@ export async function getClientesData(): Promise<ClienteAdmin[]> {
     }
 
     const data = await res.json();
-    return data;
+    return Array.isArray(data) ? data : (data.clientes || []);
     
   } catch (error) {
     console.error('Error fetching clients:', error);

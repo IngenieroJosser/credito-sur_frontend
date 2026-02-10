@@ -40,6 +40,7 @@ export interface Cliente {
   avatarColor?: string;
   ruta?: string;
   fotos?: string[];
+  categoria?: { id: string; nombre: string; color?: string };
 }
 
 export interface Prestamo {
@@ -90,6 +91,7 @@ interface ClienteDetalleProps {
   comentarios: Comentario[];
   onContact?: () => void;
   onNewLoan?: () => void;
+  onSaveNote?: (note: string) => void;
 }
 
 const ClienteDetalleElegante: React.FC<ClienteDetalleProps> = ({
@@ -97,6 +99,7 @@ const ClienteDetalleElegante: React.FC<ClienteDetalleProps> = ({
   prestamos,
   pagos,
   comentarios,
+  onSaveNote
 }) => {
   const [activeTab, setActiveTab] = useState<'resumen' | 'prestamos' | 'pagos' | 'comentarios' | 'fotos'>('resumen');
   const [isNoteModalOpen, setIsNoteModalOpen] = useState(false);
@@ -403,7 +406,7 @@ const ClienteDetalleElegante: React.FC<ClienteDetalleProps> = ({
                         <div className="flex items-center gap-3 mb-2">
                           <h3 className="font-bold text-slate-900">{prestamo.producto}</h3>
                           <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold border ${getEstadoColor(prestamo.estado)}`}>
-                            {prestamo.estado.replace('_', ' ')}
+                            {(prestamo.estado || 'ACTIVO').replace('_', ' ')}
                           </span>
                         </div>
                         <div className="flex items-center gap-4 text-sm text-slate-500 mb-4 font-medium">
@@ -546,7 +549,7 @@ const ClienteDetalleElegante: React.FC<ClienteDetalleProps> = ({
               {comentarios.map((comentario) => (
                 <div key={comentario.id} className="flex gap-4">
                   <div className={`w-10 h-10 rounded-full flex-shrink-0 flex items-center justify-center text-white text-sm font-bold shadow-md ${comentario.avatarColor}`}>
-                    {comentario.autor.charAt(0)}
+                    {comentario.autor?.charAt(0) || '?'}
                   </div>
                   <div className="flex-1">
                     <div className="bg-slate-50 p-5 rounded-2xl rounded-tl-none border border-slate-200">
@@ -565,7 +568,7 @@ const ClienteDetalleElegante: React.FC<ClienteDetalleProps> = ({
                           comentario.tipo === 'incidencia' ? 'bg-red-50 text-red-700 border-red-200' :
                           'bg-slate-100 text-slate-600 border-slate-200'
                         }`}>
-                          {comentario.tipo.charAt(0).toUpperCase() + comentario.tipo.slice(1)}
+                          {comentario.tipo ? (comentario.tipo.charAt(0).toUpperCase() + comentario.tipo.slice(1)) : 'Nota'}
                         </span>
                       </div>
                     </div>
@@ -585,22 +588,36 @@ const ClienteDetalleElegante: React.FC<ClienteDetalleProps> = ({
                 <h2 className="text-xl font-bold text-slate-900 mb-2">Galería del Cliente</h2>
                 <p className="text-slate-500 text-sm font-medium">Documentos y fotografías de verificación</p>
               </div>
-              <button className="px-4 py-2 bg-slate-900 text-white rounded-xl hover:bg-slate-800 transition-all duration-200 text-sm font-bold flex items-center gap-2 active:scale-95 shadow-lg shadow-black/10">
-                <Camera className="w-4 h-4" />
-                Subir Foto
-              </button>
             </div>
-
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
               {(cliente.fotos && cliente.fotos.length > 0) ? (
-                cliente.fotos.map((foto, idx) => (
+                cliente.fotos.map((foto, idx) => {
+                   const isVideo = foto.match(/\.(mp4|webm|ogg|mov)$/i);
+                   const src = foto.startsWith('http') ? foto : `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}${foto}`;
+                   
+                   return (
                   <div key={idx} className="group relative aspect-square rounded-2xl overflow-hidden border border-slate-200 bg-slate-100 transition-all hover:shadow-xl">
-                    <img src={foto} alt={`Foto ${idx + 1}`} className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110" />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-end p-4">
-                      <p className="text-white text-xs font-bold font-sans">Verificación {idx + 1}</p>
-                    </div>
+                    {isVideo ? (
+                      <video 
+                        src={src} 
+                        controls 
+                        className="h-full w-full object-cover"
+                      />
+                    ) : (
+                      <img 
+                        src={src} 
+                        alt={`Foto ${idx + 1}`} 
+                        className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110" 
+                      />
+                    )}
+                    {!isVideo && (
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-end p-4">
+                        <p className="text-white text-xs font-bold font-sans">Verificación {idx + 1}</p>
+                      </div>
+                    )}
                   </div>
-                ))
+                   );
+                })
               ) : (
                 <>
                   <div className="aspect-square rounded-2xl border-2 border-dashed border-slate-200 flex flex-col items-center justify-center text-slate-400 gap-2 bg-slate-50/50">
@@ -669,7 +686,9 @@ const ClienteDetalleElegante: React.FC<ClienteDetalleProps> = ({
                    </button>
                    <button 
                      onClick={() => {
-                       console.log('Sending note:', newNote);
+                       if (newNote.trim() && onSaveNote) {
+                         onSaveNote(newNote);
+                       }
                        setIsNoteModalOpen(false);
                        setNewNote('');
                      }}

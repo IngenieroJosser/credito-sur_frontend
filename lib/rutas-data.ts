@@ -44,7 +44,7 @@ export async function getRutaDetalle(id: string): Promise<RutaDetalleMock | null
     });
 
     if (!res.ok) {
-      if (res.status === 404) return null;
+      if (res.status === 404 || res.status === 400) return null;
       throw new Error(`Error fetching route: ${res.statusText}`);
     }
 
@@ -87,8 +87,8 @@ export async function getRutasList(): Promise<Ruta[]> {
 
     const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
-    // Fetch all routes (pagination handling might be needed later)
-    const res = await fetch(`${apiUrl}/routes?take=100`, { 
+    // Fetch routes with a safer limit to avoid timeouts
+    const res = await fetch(`${apiUrl}/routes?limit=20`, { 
       headers: {
         'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json',
@@ -101,7 +101,8 @@ export async function getRutasList(): Promise<Ruta[]> {
         // Token expirado o inválido
         return [];
       }
-      console.error(`Error fetching routes list: ${res.status} ${res.statusText}`);
+      const errorText = await res.text();
+      console.error(`Error fetching routes list: ${res.status} ${res.statusText}`, errorText);
       return [];
     }
 

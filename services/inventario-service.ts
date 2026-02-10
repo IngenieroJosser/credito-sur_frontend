@@ -1,11 +1,17 @@
 import { apiRequest } from '@/lib/api/api';
 
+export interface PrecioProducto {
+  meses: number;
+  precio: number;
+}
+
 export interface Producto {
   id: string;
   codigo: string;
   nombre: string;
   descripcion: string | null;
   categoria: string;
+  categoriaId?: string;
   marca: string | null;
   modelo: string | null;
   costo: number;
@@ -14,18 +20,22 @@ export interface Producto {
   activo: boolean;
   creadoEn: string;
   actualizadoEn: string;
+  precios?: PrecioProducto[];
 }
 
 export interface CrearProductoDto {
   codigo: string;
   nombre: string;
   descripcion?: string;
-  categoria: string;
+  categoria?: string;
+  categoriaId?: string;
   marca?: string;
   modelo?: string;
   costo: number;
   stock?: number;
   stockMinimo?: number;
+  precioContado?: number;
+  precios?: { meses: number; precio: number }[];
 }
 
 export interface ActualizarProductoDto {
@@ -33,12 +43,15 @@ export interface ActualizarProductoDto {
   nombre?: string;
   descripcion?: string;
   categoria?: string;
+  categoriaId?: string;
   marca?: string;
   modelo?: string;
   costo?: number;
   stock?: number;
   stockMinimo?: number;
   activo?: boolean;
+  precioContado?: number;
+  precios?: { meses: number; precio: number }[];
 }
 
 export interface EstadisticasInventario {

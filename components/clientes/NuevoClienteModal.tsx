@@ -1,11 +1,12 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { X, Loader2 } from 'lucide-react';
 import { useNotification } from '@/components/providers/NotificationProvider';
 import Portal, { MODAL_Z_INDEX } from '@/components/ui/Portal';
 import { clientesService, CrearClienteDto, Cliente } from '@/services/clientes-service';
 import MediaUpload from '@/components/ui/MediaUpload';
+
 import { UploadResponse } from '@/services/upload-service';
 
 interface NuevoClienteModalProps {
@@ -15,8 +16,11 @@ interface NuevoClienteModalProps {
   esEdicion?: boolean;
 }
 
+import { useAuth } from '@/hooks/useAuth';
+
 export default function NuevoClienteModal({ onClose, onClienteCreado, cliente = null, esEdicion = false }: NuevoClienteModalProps) {
   const { showNotification } = useNotification();
+  const { user: currentUser } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formulario, setFormulario] = useState({
     dni: cliente?.dni || '',
@@ -26,6 +30,7 @@ export default function NuevoClienteModal({ onClose, onClienteCreado, cliente = 
     correo: cliente?.correo || '',
     direccion: cliente?.direccion || '',
     referencia: cliente?.referencia || '',
+
   });
 
   const [archivosCargados, setArchivosCargados] = useState<{
@@ -39,6 +44,42 @@ export default function NuevoClienteModal({ onClose, onClienteCreado, cliente = 
     documentoReverso: null,
     comprobanteDomicilio: null,
   });
+
+  /* State for existing files in edit mode */
+  const [existingFiles, setExistingFiles] = useState<{
+    fotoPerfil: string | null;
+    documentoFrente: string | null;
+    documentoReverso: string | null;
+    comprobanteDomicilio: string | null;
+  }>({
+    fotoPerfil: null,
+    documentoFrente: null,
+    documentoReverso: null,
+    comprobanteDomicilio: null,
+  });
+
+  useEffect(() => {
+    if (esEdicion && cliente?.id) {
+      // Fetch full client details to get archives
+      clientesService.obtenerPorId(cliente.id).then((fullClient: any) => {
+        if (fullClient.archivos) {
+          const newExisting = { ...existingFiles };
+          fullClient.archivos.forEach((file: any) => {
+             const url = file.url || file.path || file.ruta; // Fallback
+             // Ensure url has full path if needed
+             const fullUrl = url.startsWith('http') ? url : `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}${url}`;
+             
+             if (file.tipoContenido === 'FOTO_PERFIL') newExisting.fotoPerfil = fullUrl;
+             if (file.tipoContenido === 'DOCUMENTO_IDENTIDAD_FRENTE') newExisting.documentoFrente = fullUrl;
+             if (file.tipoContenido === 'DOCUMENTO_IDENTIDAD_REVERSO') newExisting.documentoReverso = fullUrl;
+             if (file.tipoContenido === 'COMPROBANTE_DOMICILIO') newExisting.comprobanteDomicilio = fullUrl;
+          });
+          setExistingFiles(newExisting);
+
+        }
+      });
+    }
+  }, [esEdicion, cliente]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -76,14 +117,18 @@ export default function NuevoClienteModal({ onClose, onClienteCreado, cliente = 
         correo: formulario.correo || undefined,
         direccion: formulario.direccion || undefined,
         referencia: formulario.referencia || undefined,
-        creadoPorId: 'temp-user-id', // TODO: Obtener del contexto de autenticación real
+
+        creadoPorId: currentUser?.id || undefined, 
         archivos: archivos.length > 0 ? archivos : undefined,
       };
 
       let resultado: Cliente;
       
       if (esEdicion && cliente?.id) {
-        throw new Error("Edición aún no soportada completamente con archivos");
+        if (archivos.length > 0) {
+           showNotification('warning', 'La actualización de archivos no está soportada aún. Solo se actualizarán los datos de texto.', 'Advertencia');
+        }
+        resultado = await clientesService.actualizar(cliente.id, payload as any);
       } else {
         resultado = await clientesService.crear(payload);
       }
@@ -94,12 +139,15 @@ export default function NuevoClienteModal({ onClose, onClienteCreado, cliente = 
         esEdicion ? 'Cliente Actualizado' : 'Solicitud Enviada'
       );
       
-      onClienteCreado(resultado);
+      onClienteCreado({
+        ...formulario,
+        ...resultado,
+      } as any);
       onClose();
 
-    } catch (error) {
+    } catch (error: any) {
       console.error(error);
-      const message = error instanceof Error ? error.message : 'Error al guardar el cliente';
+      const message = error?.message || 'Error al guardar el cliente';
       showNotification('error', message, 'Error');
     } finally {
       setIsSubmitting(false);
@@ -137,20 +185,30 @@ export default function NuevoClienteModal({ onClose, onClienteCreado, cliente = 
                 <div>
                   <label className="block text-sm font-bold text-slate-700 mb-2">CC o Documento</label>
                   <input
+                    type="text"
+                    inputMode="numeric"
                     value={formulario.dni}
-                    onChange={(e) => setFormulario(prev => ({ ...prev, dni: e.target.value }))}
+                    onChange={(e) => {
+                      const val = e.target.value.replace(/\D/g, '');
+                      setFormulario(prev => ({ ...prev, dni: val }));
+                    }}
                     className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-[#08557f] focus:ring-0 font-medium text-slate-900"
-                    placeholder="1234567890"
+                    placeholder="Solo números"
                     required
                   />
                 </div>
                 <div>
                   <label className="block text-sm font-bold text-slate-700 mb-2">Teléfono</label>
                   <input
+                    type="text"
+                    inputMode="numeric"
                     value={formulario.telefono}
-                    onChange={(e) => setFormulario(prev => ({ ...prev, telefono: e.target.value }))}
+                    onChange={(e) => {
+                      const val = e.target.value.replace(/\D/g, '');
+                      setFormulario(prev => ({ ...prev, telefono: val }));
+                    }}
                     className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-[#08557f] focus:ring-0 font-medium text-slate-900"
-                    placeholder="300 123 4567"
+                    placeholder="Solo números"
                     required
                   />
                 </div>
@@ -213,13 +271,14 @@ export default function NuevoClienteModal({ onClose, onClienteCreado, cliente = 
 
               {/* Sección de Fotos */}
               <div className="space-y-4 border-t border-slate-200 pt-6">
-                <h4 className="text-sm font-bold text-slate-700 uppercase tracking-wide">Documentos y Fotos (Obligatorias)</h4>
+                <h4 className="text-sm font-bold text-slate-700 uppercase tracking-wide">Documentos y Fotos (Opcionales)</h4>
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <MediaUpload
                     label="Foto de Perfil"
                     accept="image/*"
                     maxSize={2}
+                    existingUrl={existingFiles.fotoPerfil || undefined}
                     onUploadComplete={(data) => setArchivosCargados(prev => ({ ...prev, fotoPerfil: data }))}
                   />
 
@@ -227,6 +286,7 @@ export default function NuevoClienteModal({ onClose, onClienteCreado, cliente = 
                     label="Documento Frente"
                     accept="image/*"
                     maxSize={5}
+                    existingUrl={existingFiles.documentoFrente || undefined}
                     onUploadComplete={(data) => setArchivosCargados(prev => ({ ...prev, documentoFrente: data }))}
                   />
 
@@ -234,6 +294,7 @@ export default function NuevoClienteModal({ onClose, onClienteCreado, cliente = 
                     label="Documento Reverso"
                     accept="image/*"
                     maxSize={5}
+                    existingUrl={existingFiles.documentoReverso || undefined}
                     onUploadComplete={(data) => setArchivosCargados(prev => ({ ...prev, documentoReverso: data }))}
                   />
 
@@ -241,6 +302,7 @@ export default function NuevoClienteModal({ onClose, onClienteCreado, cliente = 
                     label="Comprobante Domicilio"
                     accept="image/*,video/mp4,video/webm"
                     maxSize={50}
+                    existingUrl={existingFiles.comprobanteDomicilio || undefined}
                     onUploadComplete={(data) => setArchivosCargados(prev => ({ ...prev, comprobanteDomicilio: data }))}
                   />
                 </div>

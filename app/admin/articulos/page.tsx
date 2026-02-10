@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import {
   Package,
   Search,
@@ -17,8 +17,11 @@ import {
   XCircle
 } from 'lucide-react'
 import { formatCOPInputValue, formatCurrency, parseCOPInputToNumber } from '@/lib/utils'
+import { inventarioService, Producto as BackendProducto } from '@/services/inventario-service'
+import { useNotification } from '@/components/providers/NotificationProvider'
+import SelectCategoria from '@/components/ui/SelectCategoria'
 
-// Mock Data
+// Interfaces
 interface PrecioCuota {
   meses: number
   precio: number
@@ -30,6 +33,7 @@ interface Articulo {
   codigo: string
   descripcion?: string
   categoria: string
+  categoriaId?: string
   marca: string
   modelo: string
   costo: number
@@ -40,70 +44,52 @@ interface Articulo {
   precios: PrecioCuota[]
 }
 
-const ARTICULOS_MOCK: Articulo[] = [
-  {
-    id: '1',
-    nombre: 'Televisor Smart TV 50"',
-    codigo: 'TV-50-SMART',
-    descripcion: 'Televisor 4K UHD con Smart Hub',
-    categoria: 'Electrónica',
-    marca: 'Samsung',
-    modelo: 'UN50AU7000',
-    costo: 1200000,
-    precioContado: 1600000,
-    stock: 15,
-    stockMinimo: 5,
-    estado: 'activo',
-    precios: [
-      { meses: 1, precio: 1800000 },
-      { meses: 3, precio: 2100000 },
-      { meses: 6, precio: 2400000 }
-    ]
-  },
-  {
-    id: '2',
-    nombre: 'Lavadora 18kg Carga Superior',
-    codigo: 'LAV-18-CS',
-    categoria: 'Hogar',
-    marca: 'LG',
-    modelo: 'WT18WP',
-    costo: 1500000,
-    precioContado: 2100000,
-    stock: 8,
-    stockMinimo: 3,
-    estado: 'activo',
-    precios: [
-      { meses: 1, precio: 2300000 },
-      { meses: 6, precio: 2900000 },
-      { meses: 12, precio: 3500000 }
-    ]
-  },
-  {
-    id: '3',
-    nombre: 'Celular Gama Media 128GB',
-    codigo: 'CEL-GM-128',
-    categoria: 'Tecnología',
-    marca: 'Xiaomi',
-    modelo: 'Redmi Note 12',
-    costo: 600000,
-    precioContado: 850000,
-    stock: 4,
-    stockMinimo: 10,
-    estado: 'activo',
-    precios: [
-      { meses: 1, precio: 950000 },
-      { meses: 3, precio: 1100000 }
-    ]
-  }
-]
-
 export default function ArticulosPage() {
-  const [articulos, setArticulos] = useState<Articulo[]>(ARTICULOS_MOCK)
+  const [articulos, setArticulos] = useState<Articulo[]>([])
   const [busqueda, setBusqueda] = useState('')
+  const { showNotification } = useNotification()
+
+  useEffect(() => {
+    fetchArticulos()
+  }, [])
+
+  const fetchArticulos = async () => {
+    try {
+      const data = await inventarioService.obtenerProductos()
+      // Map backend data to frontend model
+      const mapped: Articulo[] = data.map(p => {
+        // Find precioContado (meses === 0)
+        const precioContadoItem = p.precios?.find(pr => pr.meses === 0);
+        const creditPrecios = p.precios?.filter(pr => pr.meses > 0) || [];
+        
+        return {
+          id: p.id,
+          nombre: p.nombre,
+          codigo: p.codigo,
+          descripcion: p.descripcion || undefined,
+          categoria: p.categoria,
+          categoriaId: p.categoriaId,
+          marca: p.marca || '',
+          modelo: p.modelo || '',
+          costo: Number(p.costo),
+          precioContado: precioContadoItem ? Number(precioContadoItem.precio) : undefined,
+          stock: p.stock,
+          stockMinimo: p.stockMinimo,
+          estado: p.activo ? 'activo' : 'inactivo',
+          precios: creditPrecios.map(cp => ({ ...cp, precio: Number(cp.precio) }))
+        }
+      })
+      setArticulos(mapped)
+    } catch (error) {
+      console.error('Error fetching inventory:', error)
+      showNotification('error', 'No se pudo cargar el inventario', 'Error')
+    }
+  }
 
   const [showNuevoModal, setShowNuevoModal] = useState(false)
   const [showEditarModal, setShowEditarModal] = useState(false)
   const [showDetalleModal, setShowDetalleModal] = useState(false)
+  const [showEliminarModal, setShowEliminarModal] = useState(false)
   const [articuloSeleccionado, setArticuloSeleccionado] = useState<Articulo | null>(null)
 
   const [formData, setFormData] = useState({
@@ -111,6 +97,7 @@ export default function ArticulosPage() {
     codigo: '',
     descripcion: '',
     categoria: '',
+    categoriaId: '',
     marca: '',
     modelo: '',
     costo: '',
@@ -129,9 +116,24 @@ export default function ArticulosPage() {
       a.categoria.toLowerCase().includes(busqueda.toLowerCase())
   )
 
-  const handleEliminar = (id: string) => {
-    if (window.confirm('¿Estás seguro de eliminar este artículo?')) {
-      setArticulos(articulos.filter((a) => a.id !== id))
+  const handleEliminar = (articulo: Articulo) => {
+    setArticuloSeleccionado(articulo)
+    setShowEliminarModal(true)
+  }
+
+  const confirmarEliminar = async () => {
+    if (articuloSeleccionado) {
+      try {
+        await inventarioService.eliminarProducto(articuloSeleccionado.id)
+        showNotification('success', 'El artículo ha sido eliminado', 'Éxito')
+        fetchArticulos()
+      } catch (error) {
+        console.error('Error deleting product', error)
+        showNotification('error', 'No se pudo eliminar el artículo', 'Error')
+      } finally {
+        setShowEliminarModal(false)
+        setArticuloSeleccionado(null)
+      }
     }
   }
 
@@ -142,6 +144,7 @@ export default function ArticulosPage() {
       codigo: '',
       descripcion: '',
       categoria: '',
+      categoriaId: '',
       marca: '',
       modelo: '',
       costo: '',
@@ -166,6 +169,7 @@ export default function ArticulosPage() {
       codigo: articulo.codigo,
       descripcion: articulo.descripcion || '',
       categoria: articulo.categoria,
+      categoriaId: articulo.categoriaId || '',
       marca: articulo.marca,
       modelo: articulo.modelo,
       costo: String(articulo.costo),
@@ -196,32 +200,39 @@ export default function ArticulosPage() {
     }))
   }
 
-  const handleGuardar = () => {
-    const payload: Articulo = {
-      id: articuloSeleccionado?.id ?? String(Date.now()),
+  const handleGuardar = async () => {
+    const commonData = {
       nombre: formData.nombre,
       codigo: formData.codigo,
       descripcion: formData.descripcion || undefined,
       categoria: formData.categoria,
-      marca: formData.marca,
-      modelo: formData.modelo,
+      categoriaId: formData.categoriaId || undefined,
+      marca: formData.marca || undefined,
+      modelo: formData.modelo || undefined,
       costo: parseCOPInputToNumber(formData.costo),
-      precioContado: parseCOPInputToNumber(formData.precioContado),
       stock: Number(formData.stock || '0'),
       stockMinimo: Number(formData.stockMinimo || '0'),
-      estado: 'activo',
+      precioContado: formData.precioContado ? parseCOPInputToNumber(formData.precioContado) : undefined,
       precios: formData.precios,
     }
 
-    setArticulos((prev) => {
-      const exists = prev.some((a) => a.id === payload.id)
-      if (!exists) return [payload, ...prev]
-      return prev.map((a) => (a.id === payload.id ? payload : a))
-    })
-
-    setShowNuevoModal(false)
-    setShowEditarModal(false)
-    setArticuloSeleccionado(null)
+    try {
+      if (articuloSeleccionado) {
+         await inventarioService.actualizarProducto(articuloSeleccionado.id, commonData)
+         showNotification('success', 'Artículo actualizado correctamente', 'Éxito')
+      } else {
+         await inventarioService.crearProducto(commonData)
+         showNotification('success', 'Artículo creado correctamente', 'Éxito')
+      }
+      fetchArticulos()
+      setShowNuevoModal(false)
+      setShowEditarModal(false)
+      setArticuloSeleccionado(null)
+    } catch (error: any) {
+      console.error('Error saving:', error)
+      const errorMsg = error.response?.data?.message || 'Error al guardar el artículo. Verifique el código o los datos.'
+      showNotification('error', errorMsg, 'Error')
+    }
   }
 
   return (
@@ -415,7 +426,7 @@ export default function ArticulosPage() {
                           <Pencil className="w-4 h-4" />
                         </button>
                         <button 
-                          onClick={() => handleEliminar(articulo.id)}
+                          onClick={() => handleEliminar(articulo)}
                           className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
                           title="Eliminar"
                         >
@@ -490,14 +501,21 @@ export default function ArticulosPage() {
                     placeholder="SKU"
                   />
                 </div>
+                {/* Categoría: Replaced with SelectCategoria */}
                 <div className="space-y-2">
-                  <label className="text-sm font-bold text-slate-700">Categoría</label>
-                  <input
-                    value={formData.categoria}
-                    onChange={(e) => setFormData((p) => ({ ...p, categoria: e.target.value }))}
-                    className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-900"
-                    placeholder="Ej: Electrónica"
+                  <SelectCategoria
+                    tipo="ARTICULO"
+                    label="Categoría"
+                    placeholder="Seleccionar..."
+                    value={formData.categoriaId}
+                    onChange={(val) => setFormData(p => ({ ...p, categoriaId: val, categoria: '' }))} // Clear string so backend uses ID lookup
                   />
+                  {/* Fallback display for legacy categories without ID */}
+                  {!formData.categoriaId && formData.categoria && (
+                      <p className="text-xs text-amber-600 font-medium">
+                          Categoría actual: {formData.categoria} (Seleccione una nueva para actualizar)
+                      </p>
+                  )}
                 </div>
                 <div className="space-y-2">
                   <label className="text-sm font-bold text-slate-700">Marca</label>
@@ -666,6 +684,40 @@ export default function ArticulosPage() {
         </div>
       )}
 
+      {showEliminarModal && articuloSeleccionado && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/40">
+          <div className="w-full max-w-sm rounded-2xl bg-white border border-slate-200 shadow-2xl p-6 text-center">
+            <div className="w-16 h-16 bg-rose-50 rounded-full flex items-center justify-center mx-auto mb-4 border border-rose-100">
+              <Trash2 className="h-8 w-8 text-rose-600" />
+            </div>
+            <h3 className="text-xl font-bold text-slate-900 mb-2">¿Eliminar artículo?</h3>
+            <p className="text-slate-500 text-sm mb-6 font-medium">
+              Estás a punto de eliminar <span className="font-bold text-slate-900">{articuloSeleccionado.nombre}</span> del inventario.
+              Esta acción no se puede deshacer.
+            </p>
+            <div className="flex gap-3 justify-center">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowEliminarModal(false)
+                  setArticuloSeleccionado(null)
+                }}
+                className="px-5 py-2.5 rounded-xl border border-slate-200 bg-white text-sm font-bold text-slate-700 hover:bg-slate-50"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={confirmarEliminar}
+                className="px-5 py-2.5 rounded-xl bg-rose-600 text-white text-sm font-bold hover:bg-rose-700 shadow-lg shadow-rose-600/20"
+              >
+                Sí, eliminar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {showDetalleModal && articuloSeleccionado && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/40">
           <div className="w-full max-w-2xl rounded-2xl bg-white border border-slate-200 shadow-2xl overflow-hidden">
@@ -761,8 +813,6 @@ export default function ArticulosPage() {
           </div>
         </div>
       )}
-
-
     </div>
   )
 }

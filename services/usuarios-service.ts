@@ -21,7 +21,7 @@ export interface Usuario {
 
 export interface CreateUsuarioDto {
   correo: string;
-  contrasena: string;
+  password: string;
   nombres: string;
   apellidos: string;
   telefono?: string;

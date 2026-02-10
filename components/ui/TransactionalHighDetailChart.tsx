@@ -44,11 +44,22 @@ const CustomTooltip = ({ active, payload }: any) => {
         
         <div className="space-y-3">
           <div className="flex items-center justify-between gap-6">
-            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tight">Recaudado</span>
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tight">
+              {data.secondaryValue !== undefined ? 'Ingresos' : 'Recaudado'}
+            </span>
             <span className="text-sm font-black text-slate-900 tracking-tight">
               {formatCurrency(data.value)}
             </span>
           </div>
+
+          {data.secondaryValue !== undefined && (
+            <div className="flex items-center justify-between gap-6 pt-2 border-t border-slate-50">
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tight">Egresos</span>
+              <span className="text-sm font-black text-rose-600 tracking-tight">
+                {formatCurrency(data.secondaryValue)}
+              </span>
+            </div>
+          )}
 
           {data.target && (
             <div className="flex items-center justify-between gap-6 pt-2 border-t border-slate-50">
@@ -182,31 +193,44 @@ export const TransactionalHighDetailChart = ({ data, height = 400, type = 'singl
                 allowEscapeViewBox={{ x: false, y: true }}
               />
 
-              {/* 1. OBJETIVO (FONDO) */}
-              <Bar 
-                dataKey="target" 
-                fill="#fbbf2405" 
-                stroke="#fbbf2450"
-                strokeDasharray="5 3"
-                strokeWidth={1.5}
-                radius={[12, 12, 0, 0]}
-                barSize={targetSize} 
-                isAnimationActive={false}
-              />
+              {/* 1. OBJETIVO O VALOR SECUNDARIO (FONDO/LADO) */}
+              {type === 'single' ? (
+                <Bar 
+                  dataKey="target" 
+                  fill="#fbbf2405" 
+                  stroke="#fbbf2450"
+                  strokeDasharray="5 3"
+                  strokeWidth={1.5}
+                  radius={[12, 12, 0, 0]}
+                  barSize={targetSize} 
+                  isAnimationActive={false}
+                />
+              ) : (
+                <Bar 
+                  dataKey="secondaryValue" 
+                  radius={[6, 6, 0, 0]} 
+                  fill="url(#failGradient)"
+                  barSize={barSize}
+                  name="Egresos / Gasto"
+                  animationDuration={1500}
+                />
+              )}
               
-              {/* 2. RECAUDADO (FRENTE) */}
+              {/* 2. RECAUDADO / VALOR PRINCIPAL (FRENTE) */}
               <Bar 
                 dataKey="value" 
                 radius={[6, 6, 0, 0]} 
-                name="Recaudado"
+                name={type === 'double' ? "Ingresos / Utilidad" : "Recaudado"}
                 barSize={barSize}
                 animationDuration={1500}
               >
                 {data.map((entry, index) => {
                   const isLast = index === data.length - 1;
                   let color = 'url(#barGradient)';
-                  if (entry.target && entry.value >= entry.target) color = 'url(#successGradient)';
-                  else if (entry.target && entry.value < entry.target && !isLast) color = 'url(#failGradient)';
+                  if (type === 'single') {
+                    if (entry.target && entry.value >= entry.target) color = 'url(#successGradient)';
+                    else if (entry.target && entry.value < entry.target && !isLast) color = 'url(#failGradient)';
+                  }
                   return <Cell key={`cell-${index}`} fill={color} />;
                 })}
               </Bar>
