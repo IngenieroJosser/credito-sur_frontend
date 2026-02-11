@@ -176,12 +176,12 @@ export default function CatalogArticulosCoordinador() {
 
         <div className="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm">
           <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
-            <div className="relative w-full md:w-96">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+            <div className="w-full md:w-96 buscador-3d">
+              <Search className="icon h-4 w-4" />
               <input
                 type="text"
                 placeholder="Buscar artículos..."
-                className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 focus:border-blue-500 outline-none text-sm"
+                className="buscador-3d-input"
                 value={busqueda}
                 onChange={(e) => setBusqueda(e.target.value)}
               />

@@ -17,8 +17,9 @@ import {
   XCircle
 } from 'lucide-react'
 import { formatCOPInputValue, formatCurrency, parseCOPInputToNumber } from '@/lib/utils'
-import { inventarioService, Producto as BackendProducto } from '@/services/inventario-service'
+import { inventarioService, Producto as BackendProducto, EstadisticasInventario } from '@/services/inventario-service'
 import { useNotification } from '@/components/providers/NotificationProvider'
+import { categoriasService, Categoria } from '@/services/categorias-service'
 import SelectCategoria from '@/components/ui/SelectCategoria'
 
 // Interfaces
@@ -47,10 +48,15 @@ interface Articulo {
 export default function ArticulosPage() {
   const [articulos, setArticulos] = useState<Articulo[]>([])
   const [busqueda, setBusqueda] = useState('')
+  const [categoriaFiltroId, setCategoriaFiltroId] = useState<string>('')
+  const [categorias, setCategorias] = useState<Categoria[]>([])
+  const [statsBase, setStatsBase] = useState<EstadisticasInventario | null>(null)
   const { showNotification } = useNotification()
 
   useEffect(() => {
     fetchArticulos()
+    fetchCategorias()
+    fetchStats()
   }, [])
 
   const fetchArticulos = async () => {
@@ -86,6 +92,24 @@ export default function ArticulosPage() {
     }
   }
 
+  const fetchCategorias = async () => {
+    try {
+      const data = await categoriasService.obtenerTodas('ARTICULO')
+      setCategorias(data)
+    } catch (error) {
+      console.error('Error fetching categories:', error)
+    }
+  }
+
+  const fetchStats = async () => {
+    try {
+      const data = await inventarioService.obtenerEstadisticas()
+      setStatsBase(data)
+    } catch (error) {
+      console.error('Error fetching inventory stats:', error)
+    }
+  }
+
   const [showNuevoModal, setShowNuevoModal] = useState(false)
   const [showEditarModal, setShowEditarModal] = useState(false)
   const [showDetalleModal, setShowDetalleModal] = useState(false)
@@ -109,12 +133,30 @@ export default function ArticulosPage() {
 
   const [nuevaCuota, setNuevaCuota] = useState({ meses: 1, precio: '' })
 
-  const articulosFiltrados = articulos.filter(
-    (a) =>
-      a.nombre.toLowerCase().includes(busqueda.toLowerCase()) ||
-      a.codigo.toLowerCase().includes(busqueda.toLowerCase()) ||
-      a.categoria.toLowerCase().includes(busqueda.toLowerCase())
-  )
+  const articulosFiltrados = articulos.filter((a) => {
+    const q = busqueda.toLowerCase()
+    const coincideBusqueda =
+      a.nombre.toLowerCase().includes(q) ||
+      a.codigo.toLowerCase().includes(q) ||
+      a.categoria.toLowerCase().includes(q)
+    const coincideCategoria = !categoriaFiltroId || a.categoriaId === categoriaFiltroId
+    return coincideBusqueda && coincideCategoria
+  })
+
+  const totalArticulos = articulosFiltrados.length
+  const enStock = articulosFiltrados.filter(a => a.stock > 0).length
+  const atencionStockBajo = articulosFiltrados.filter(a => a.stock <= a.stockMinimo).length
+  const valorInventario = articulosFiltrados.reduce((acc, a) => {
+    const precio = a.precioContado !== undefined ? Number(a.precioContado) : Number(a.costo)
+    return acc + (precio * Number(a.stock))
+  }, 0)
+
+  const deltaInventarioPorcentaje = (() => {
+    if (!statsBase || statsBase.valorTotalInventario === 0) return 0
+    const base = Number(statsBase.valorTotalInventario)
+    const actual = Number(valorInventario)
+    return Math.round(((actual - base) / base) * 100)
+  })()
 
   const handleEliminar = (articulo: Articulo) => {
     setArticuloSeleccionado(articulo)
@@ -276,13 +318,9 @@ export default function ArticulosPage() {
               <div className="p-3 bg-slate-50 text-slate-600 rounded-xl group-hover:scale-110 transition-transform duration-300">
                 <Package className="w-6 h-6" />
               </div>
-              <span className="flex items-center text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-lg">
-                <TrendingUp className="w-3 h-3 mr-1" />
-                +12%
-              </span>
             </div>
             <p className="text-sm font-medium text-slate-500">Total Artículos</p>
-            <h3 className="text-2xl font-bold text-slate-900 mt-1">145</h3>
+            <h3 className="text-2xl font-bold text-slate-900 mt-1">{totalArticulos}</h3>
           </div>
 
           <div className="bg-white rounded-2xl p-6 border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all duration-300 group">
@@ -295,7 +333,7 @@ export default function ArticulosPage() {
               </span>
             </div>
             <p className="text-sm font-medium text-slate-500">En Stock</p>
-            <h3 className="text-2xl font-bold text-slate-900 mt-1">128</h3>
+            <h3 className="text-2xl font-bold text-slate-900 mt-1">{enStock}</h3>
           </div>
 
           <div className="bg-white rounded-2xl p-6 border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all duration-300 group">
@@ -308,7 +346,7 @@ export default function ArticulosPage() {
               </span>
             </div>
             <p className="text-sm font-medium text-slate-500">Stock Bajo</p>
-            <h3 className="text-2xl font-bold text-slate-900 mt-1">12</h3>
+            <h3 className="text-2xl font-bold text-slate-900 mt-1">{atencionStockBajo}</h3>
           </div>
 
           <div className="bg-white rounded-2xl p-6 border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all duration-300 group">
@@ -316,31 +354,46 @@ export default function ArticulosPage() {
               <div className="p-3 bg-emerald-50 text-emerald-600 rounded-xl group-hover:scale-110 transition-transform duration-300">
                 <DollarSign className="w-6 h-6" />
               </div>
+              <span className={`flex items-center text-xs font-bold px-2 py-1 rounded-lg ${
+                deltaInventarioPorcentaje >= 0 ? 'text-emerald-600 bg-emerald-50' : 'text-rose-600 bg-rose-50'
+              }`}>
+                <TrendingUp className={`w-3 h-3 mr-1 ${deltaInventarioPorcentaje < 0 ? 'rotate-180' : ''}`} />
+                {deltaInventarioPorcentaje >= 0 ? `+${deltaInventarioPorcentaje}%` : `${deltaInventarioPorcentaje}%`}
+              </span>
             </div>
             <p className="text-sm font-medium text-slate-500">Valor Inventario</p>
-            <h3 className="text-2xl font-bold text-slate-900 mt-1">{formatCurrency(45200000)}</h3>
+            <h3 className="text-2xl font-bold text-slate-900 mt-1">{formatCurrency(valorInventario)}</h3>
           </div>
         </div>
 
         {/* Filters & Search */}
         <div className="bg-white rounded-2xl p-4 border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] animate-in fade-in slide-in-from-bottom-4 duration-500 delay-200">
           <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
-            <div className="relative w-full md:w-96">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+            <div className="w-full md:w-96 buscador-3d">
+              <Search className="icon h-4 w-4" />
               <input
                 type="text"
                 placeholder="Buscar por nombre, código o categoría..."
-                className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 focus:border-slate-900 focus:ring-1 focus:ring-slate-900 outline-none text-sm text-slate-900 placeholder:text-slate-400 transition-all"
+                className="buscador-3d-input"
                 value={busqueda}
                 onChange={(e) => setBusqueda(e.target.value)}
               />
             </div>
-            
             <div className="flex gap-2 w-full md:w-auto overflow-x-auto pb-2 md:pb-0">
-              <button className="inline-flex items-center gap-2 px-4 py-2.5 bg-slate-900 text-white rounded-xl text-sm font-medium shadow-sm whitespace-nowrap">
-                <Filter className="w-4 h-4" />
-                Todos
-              </button>
+              {categorias.map((cat) => (
+                <button
+                  key={cat.id}
+                  type="button"
+                  onClick={() => setCategoriaFiltroId(prev => prev === cat.id ? '' : cat.id)}
+                  className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium whitespace-nowrap border transition-all ${
+                    categoriaFiltroId === cat.id ? 'bg-slate-900 text-white' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+                  }`}
+                >
+                  {cat.nombre}
+                </button>
+              ))}
+            </div>
+            <div className="flex gap-2 w-full md:w-auto overflow-x-auto pb-2 md:pb-0">
               <button className="inline-flex items-center gap-2 px-4 py-2.5 bg-white text-slate-600 border border-slate-200 rounded-xl hover:bg-slate-50 hover:border-slate-300 transition-all text-sm font-medium whitespace-nowrap">
                 Stock Bajo
               </button>

@@ -224,14 +224,14 @@ const DetalleRutaPage = () => {
 
         <div className="bg-white/80 backdrop-blur-sm rounded-2xl border border-slate-200 p-4 shadow-[0_8px_30px_rgb(0,0,0,0.04)]">
               <div className="flex flex-col md:flex-row gap-4">
-                <div className="relative flex-1">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                <div className="flex-1 buscador-3d">
+                  <Search className="icon h-4 w-4" />
                   <input
                     type="text"
                     placeholder="Buscar cliente, dirección..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full pl-10 pr-4 py-3 rounded-xl bg-white border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#08557f]/20 focus:border-[#08557f] shadow-sm text-slate-900 placeholder:text-slate-400"
+                    className="buscador-3d-input"
                   />
                 </div>
                 <div className="flex gap-2">

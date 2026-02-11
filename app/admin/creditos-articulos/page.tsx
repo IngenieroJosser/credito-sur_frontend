@@ -187,16 +187,14 @@ export default function CreditosArticulosPage() {
 
         {/* Filters & Search */}
         <div className="flex flex-col md:flex-row gap-4 items-center justify-between mb-8 animate-in fade-in slide-in-from-bottom-4 duration-700 delay-200">
-          <div className="flex-1 relative">
-            <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-              <Search className="h-4 w-4 text-slate-400" />
-            </div>
+          <div className="flex-1 buscador-3d">
+            <Search className="icon h-4 w-4" />
             <input
               type="text"
               placeholder="Buscar por cliente, artículo o ID..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-11 pr-4 py-2.5 rounded-xl border-slate-200 bg-slate-50/50 focus:bg-white focus:ring-2 focus:ring-primary/10 focus:border-primary/20 transition-all text-sm font-medium text-primary placeholder:text-slate-400"
+              className="buscador-3d-input"
             />
           </div>
           

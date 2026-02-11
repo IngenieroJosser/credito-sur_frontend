@@ -187,14 +187,14 @@ export default function NotificacionesCobranzasPage() {
                 </div>
 
                 {/* Búsqueda */}
-                <div className="relative w-full">
-                  <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                <div className="w-full buscador-3d">
+                  <Search className="icon h-4 w-4" />
                   <input
                     type="text"
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
                     placeholder="Buscar mensaje..."
-                    className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-medium focus:bg-white focus:ring-2 focus:ring-[#08557f]/10 focus:border-[#08557f] outline-none transition-all placeholder:text-slate-400"
+                    className="buscador-3d-input"
                   />
                 </div>
               </div>

@@ -401,14 +401,14 @@ export const RutasPageView = ({
 
           {/* Filtros y Búsqueda */}
           <div className="flex flex-col md:flex-row gap-6 bg-white/80 backdrop-blur-sm p-4 rounded-2xl border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)]">
-            <div className="relative flex-1">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+            <div className="flex-1 buscador-3d">
+              <Search className="icon h-4 w-4" />
               <input
                 type="text"
                 placeholder="Buscar por nombre, código o cobrador..."
                 value={busqueda}
                 onChange={(e) => setBusqueda(e.target.value)}
-                className="w-full pl-11 pr-4 py-2.5 rounded-xl border-slate-200 bg-slate-50/50 text-sm font-medium text-slate-900 focus:ring-2 focus:ring-slate-900/10 focus:border-slate-900/20 transition-all placeholder:text-slate-400"
+                className="buscador-3d-input"
               />
             </div>
             <div className="flex gap-2 overflow-x-auto pb-2 md:pb-0 scrollbar-hide">
