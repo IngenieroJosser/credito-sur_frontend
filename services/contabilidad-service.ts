@@ -244,3 +244,41 @@ export async function getHistorialCierres(): Promise<any[]> {
         return [];
     }
 }
+
+export async function getHistorialCierresFiltrado(filtros?: {
+  tipo?: 'ARQUEO' | 'CONSOLIDACION' | 'TODOS';
+  cajaId?: string;
+  soloRutas?: boolean;
+  estado?: 'CUADRADA' | 'DESCUADRADA' | 'TODOS';
+  fechaInicio?: string;
+  fechaFin?: string;
+}): Promise<any[]> {
+  try {
+    const params = new URLSearchParams();
+    if (filtros?.tipo && filtros.tipo !== 'TODOS') params.append('tipo', filtros.tipo);
+    if (filtros?.cajaId) params.append('cajaId', filtros.cajaId);
+    if (typeof filtros?.soloRutas !== 'undefined') params.append('soloRutas', filtros.soloRutas ? '1' : '0');
+    if (filtros?.estado && filtros.estado !== 'TODOS') params.append('estado', filtros.estado);
+    if (filtros?.fechaInicio) params.append('fechaInicio', filtros.fechaInicio);
+    if (filtros?.fechaFin) params.append('fechaFin', filtros.fechaFin);
+    const qs = params.toString();
+    return await apiRequest<any[]>('GET', `/accounting/cierres${qs ? `?${qs}` : ''}`);
+  } catch (error) {
+    console.error('Error fetching cierres filtrados:', error);
+    return [];
+  }
+}
+
+export async function registrarArqueo(cajaId: string, data: {
+  efectivoReal: number;
+  saldoSistema: number;
+  diferencia: number;
+  observaciones?: string;
+}): Promise<any> {
+  try {
+    return await apiRequest<any>('POST', `/accounting/cajas/${cajaId}/arqueos`, data);
+  } catch (error) {
+    console.error('Error registrando arqueo:', error);
+    throw error;
+  }
+}
