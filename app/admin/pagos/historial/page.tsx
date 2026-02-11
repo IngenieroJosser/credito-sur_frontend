@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import {
   Search,
   Filter,
@@ -19,6 +19,7 @@ import { formatCurrency, cn } from '@/lib/utils'
 import { ExportButton } from '@/components/ui/ExportButton'
 import { useRouter, useSearchParams, usePathname } from 'next/navigation'
 import { TimeFilter, TimeFilterPeriod } from '@/components/ui/TimeFilter'
+import AnimacionCarga from '@/components/ui/AnimacionCarga'
 
 type EstadoPago = 'completado' | 'pendiente' | 'fallido' | 'en_revision'
 
@@ -49,6 +50,7 @@ const HistorialPagosPage = () => {
   const [busqueda, setBusqueda] = useState('')
   const [paginaActual, setPaginaActual] = useState(1)
   const [vista, setVista] = useState<'grid' | 'list'>('list')
+  const [isLoading, setIsLoading] = useState(true)
 
   const handleExportExcel = () => {
     console.log('Exporting Excel...')
@@ -56,6 +58,15 @@ const HistorialPagosPage = () => {
 
   const handleExportPDF = () => {
     console.log('Exporting PDF...')
+  }
+
+  useEffect(() => {
+    const t = setTimeout(() => setIsLoading(false), 500)
+    return () => clearTimeout(t)
+  }, [])
+
+  if (isLoading) {
+    return <AnimacionCarga texto="Cargando historial de pagos..." />
   }
 
   const pagos: Pago[] = [

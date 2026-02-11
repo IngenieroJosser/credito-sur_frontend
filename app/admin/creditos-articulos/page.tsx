@@ -22,6 +22,7 @@ import {
 } from 'lucide-react'
 import { formatCurrency } from '@/lib/utils'
 import { PRESTAMOS_MOCK, EstadoPrestamo, NivelRiesgo } from '@/components/prestamos/data'
+import AnimacionCarga from '@/components/ui/AnimacionCarga'
 
 export default function CreditosArticulosPage() {
   const router = useRouter()
@@ -103,6 +104,10 @@ export default function CreditosArticulosPage() {
     activos: creditos.filter(c => c.estado === 'ACTIVO').length,
     mora: creditos.filter(c => c.estado === 'EN_MORA').length,
     valorTotal: creditos.reduce((acc, curr) => acc + curr.montoTotal, 0)
+  }
+
+  if (isLoading) {
+    return <AnimacionCarga texto="Cargando créditos de artículos..." />
   }
 
   return (

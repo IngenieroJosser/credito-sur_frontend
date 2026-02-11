@@ -11,6 +11,7 @@ interface SelectCategoriaProps {
   label?: string;
   placeholder?: string;
   disabled?: boolean;
+  onCreated?: (categoria: Categoria) => void;
 }
 
 export default function SelectCategoria({ 
@@ -19,7 +20,8 @@ export default function SelectCategoria({
   onChange, 
   label = 'Categoría',
   placeholder = 'Seleccionar...',
-  disabled = false 
+  disabled = false,
+  onCreated
 }: SelectCategoriaProps) {
   const [categorias, setCategorias] = useState<Categoria[]>([]);
   const [loading, setLoading] = useState(false);
@@ -63,6 +65,9 @@ export default function SelectCategoria({
       });
       setCategorias([...categorias, nueva]);
       onChange(nueva.id);
+      if (onCreated) {
+        onCreated(nueva);
+      }
       setNewCatName('');
       setShowCreate(false);
       showNotification('success', 'Categoría creada', 'Éxito');

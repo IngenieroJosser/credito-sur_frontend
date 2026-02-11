@@ -103,28 +103,11 @@ export const TransactionalHighDetailChart = ({ data, height = 400, type = 'singl
   
   // Cálculo de desplazamiento negativo para centrar barras de diferente ancho
   const centringGap = -(barSize + targetSize) / 2;
+  const barGapValue = type === 'double' ? 6 : centringGap;
+  const barCategoryGapValue = type === 'double' ? '20%' : undefined;
 
   return (
     <div className="w-full relative bg-white overflow-hidden rounded-2xl border border-slate-50">
-      {/* Leyenda Profesional */}
-      <div className="flex flex-wrap items-center justify-end gap-x-5 gap-y-2 mb-6 text-[10px] font-black uppercase tracking-widest text-slate-400 pr-4 mt-2">
-        <div className="flex items-center gap-2">
-          <div className="w-3 h-3 rounded-full bg-blue-500 shadow-sm"></div>
-          <span>En Progreso</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="w-3 h-3 rounded-full bg-emerald-500 shadow-sm"></div>
-          <span>Objetivo Cumplido</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="w-3 h-3 rounded-full bg-rose-500 shadow-sm"></div>
-          <span>Objetivo No Alcanzado</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="w-4 h-0.5 border-t-2 border-dashed border-amber-400"></div>
-          <span>Objetivo</span>
-        </div>
-      </div>
 
       {/* Contenedor de Scroll Horizontal Estricto */}
       <div 
@@ -151,7 +134,8 @@ export const TransactionalHighDetailChart = ({ data, height = 400, type = 'singl
             <BarChart
               data={data}
               margin={{ top: 10, right: 40, left: 10, bottom: 20 }}
-              barGap={centringGap} 
+              barGap={barGapValue}
+              barCategoryGap={barCategoryGapValue as any}
             >
               <defs>
                 <linearGradient id="barGradient" x1="0" y1="0" x2="0" y2="1">

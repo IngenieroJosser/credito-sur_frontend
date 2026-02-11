@@ -68,6 +68,7 @@ import { toast } from 'sonner'
 import { usuariosService, type Usuario as ApiUsuario } from '@/services/usuarios-service'
 import { rutasService, type Ruta as ApiRuta } from '@/services/rutas-service'
 import SelectCategoria from '@/components/ui/SelectCategoria'
+import AnimacionCarga from '@/components/ui/AnimacionCarga'
 
 // --- TIPOS DE DATOS ---
 // Definimos la estructura de nuestras "Cajas".
@@ -548,6 +549,10 @@ const ModuloContableContent = () => {
   }
 
 
+
+  if (isLoading) {
+    return <AnimacionCarga texto="Cargando módulo contable..." />
+  }
 
   return (
     <div className="min-h-screen bg-slate-50 relative">

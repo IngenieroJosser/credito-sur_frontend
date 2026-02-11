@@ -16,6 +16,10 @@ import { formatCurrency } from '@/lib/utils'
 import { ExportButton } from '@/components/ui/ExportButton'
 import { TransactionalHighDetailChart } from '@/components/ui/TransactionalHighDetailChart'
 import DetalleReporteFinancieroModal from '@/components/reportes/DetalleReporteFinancieroModal'
+import DetalleGastoModal from '../../../../components/reportes/DetalleGastoModal'
+import AnimacionCarga from '@/components/ui/AnimacionCarga'
+import { getFinancialSummary, getMonthlyEvolution, getExpenseDistribution, getFinancialTargets } from '@/services/reportes-service'
+import { getTransacciones } from '@/services/contabilidad-service'
 
 // Interfaces
 interface FinancialSummary {
@@ -30,6 +34,8 @@ interface MonthlyEvolution {
   ingresos: number;
   egresos: number;
   utilidad: number;
+  fecha?: string;
+  yearMonth?: string;
 }
 
 interface ExpenseDistribution {
@@ -58,6 +64,10 @@ const ReportesFinancierosPage = () => {
   
   const [monthlyData, setMonthlyData] = useState<MonthlyEvolution[]>([])
   const [expenseData, setExpenseData] = useState<ExpenseWithPercentage[]>([])
+  const [categoriaSeleccionada, setCategoriaSeleccionada] = useState<ExpenseWithPercentage | null>(null)
+  const [trendIngresos, setTrendIngresos] = useState<number | null>(null)
+  const [trendEgresos, setTrendEgresos] = useState<number | null>(null)
+  const [metaMargen, setMetaMargen] = useState<number | null>(null)
 
   const basePath = pathname?.startsWith('/contador') ? '/contador' : '/admin'
   const yearLabel = new Date().getFullYear()
@@ -75,45 +85,262 @@ const ReportesFinancierosPage = () => {
     const fetchData = async () => {
       setLoading(true)
       try {
-        // Simulación de datos para demostración (Valores en COP)
-        await new Promise(resolve => setTimeout(resolve, 800)); // Simular latencia
+        try {
+          const targets = await getFinancialTargets()
+          if (targets && typeof (targets as any).metaMargen === 'number') {
+            setMetaMargen((targets as any).metaMargen)
+          } else {
+            setMetaMargen(null)
+          }
+        } catch {}
+        const ahora = new Date()
+        const inicio = new Date(ahora)
+        if (periodo === 'DIARIO') {
+          inicio.setHours(0, 0, 0, 0)
+        } else if (periodo === 'MENSUAL') {
+          inicio.setMonth(ahora.getMonth(), 1)
+          inicio.setHours(0, 0, 0, 0)
+        } else if (periodo === 'TRIMESTRAL') {
+          inicio.setMonth(ahora.getMonth() - 3, 1)
+          inicio.setHours(0, 0, 0, 0)
+        } else if (periodo === 'ANUAL') {
+          inicio.setMonth(0, 1)
+          inicio.setHours(0, 0, 0, 0)
+        }
+        const startDate = inicio.toISOString()
+        const endDate = ahora.toISOString()
 
-        const mockSummary: FinancialSummary = {
-          ingresos: 285000000,
-          egresos: 132500000,
-          utilidad: 152500000,
-          margen: 53.5
-        };
+        const [summaryResp, monthlyRespMaybe, expensesResp] = await Promise.all([
+          getFinancialSummary(startDate, endDate),
+          periodo === 'DIARIO' ? Promise.resolve(null) : getMonthlyEvolution(ahora.getFullYear()),
+          getExpenseDistribution(startDate, endDate)
+        ])
 
-        const mockMonthly: MonthlyEvolution[] = [
-          { mes: 'Ene', ingresos: 42000000, egresos: 18000000, utilidad: 24000000 },
-          { mes: 'Feb', ingresos: 45000000, egresos: 20000000, utilidad: 25000000 },
-          { mes: 'Mar', ingresos: 38000000, egresos: 19000000, utilidad: 19000000 },
-          { mes: 'Abr', ingresos: 48000000, egresos: 22000000, utilidad: 26000000 },
-          { mes: 'May', ingresos: 52000000, egresos: 24000000, utilidad: 28000000 },
-          { mes: 'Jun', ingresos: 60000000, egresos: 29500000, utilidad: 30500000 }
-        ];
+        const [ingSumRes, egreSumRes] = await Promise.all([
+          getTransacciones({ tipo: 'INGRESO', fechaInicio: startDate, fechaFin: endDate, limit: 10000 }),
+          getTransacciones({ tipo: 'EGRESO', fechaInicio: startDate, fechaFin: endDate, limit: 10000 })
+        ])
+        const totalIngresosPeriodo = ingSumRes.data.reduce((acc, t) => acc + (t.monto || 0), 0)
+        const totalEgresosPeriodo = egreSumRes.data.reduce((acc, t) => acc + (t.monto || 0), 0)
+        const utilidadPeriodo = Math.max(0, totalIngresosPeriodo - totalEgresosPeriodo)
+        const margenPeriodo = totalIngresosPeriodo > 0 ? (utilidadPeriodo / totalIngresosPeriodo) * 100 : 0
+        setSummary({
+          ingresos: totalIngresosPeriodo,
+          egresos: totalEgresosPeriodo,
+          utilidad: utilidadPeriodo,
+          margen: Number(margenPeriodo.toFixed(1))
+        })
 
-        const mockExpenses: ExpenseDistribution[] = [
-          { categoria: 'Nómina', monto: 65000000 },
-          { categoria: 'Servicios', monto: 12000000 },
-          { categoria: 'Marketing', monto: 15000000 },
-          { categoria: 'Transporte', monto: 25000000 },
-          { categoria: 'Otros', monto: 15500000 }
-        ];
+        const prevStart = new Date(inicio)
+        const prevEnd = new Date(inicio)
+        if (periodo === 'DIARIO') {
+          prevStart.setDate(prevStart.getDate() - 1)
+          prevStart.setHours(0,0,0,0)
+          prevEnd.setDate(prevEnd.getDate() - 1)
+          prevEnd.setHours(23,59,59,999)
+        } else if (periodo === 'MENSUAL') {
+          prevStart.setMonth(prevStart.getMonth() - 1, 1)
+          prevStart.setHours(0,0,0,0)
+          prevEnd.setMonth(prevStart.getMonth() + 1, 0)
+          prevEnd.setHours(23,59,59,999)
+        } else if (periodo === 'TRIMESTRAL') {
+          const endPrev = new Date(inicio)
+          endPrev.setDate(endPrev.getDate() - 1)
+          endPrev.setHours(23,59,59,999)
+          prevEnd.setTime(endPrev.getTime())
+          prevStart.setMonth(prevStart.getMonth() - 3, 1)
+          prevStart.setHours(0,0,0,0)
+        } else {
+          prevStart.setFullYear(prevStart.getFullYear() - 1, 0, 1)
+          prevStart.setHours(0,0,0,0)
+          prevEnd.setFullYear(prevStart.getFullYear(), 11, 31)
+          prevEnd.setHours(23,59,59,999)
+        }
+        try {
+          const [prevIngRes, prevEgreRes] = await Promise.all([
+            getTransacciones({ tipo: 'INGRESO', fechaInicio: prevStart.toISOString(), fechaFin: prevEnd.toISOString(), limit: 10000 }),
+            getTransacciones({ tipo: 'EGRESO', fechaInicio: prevStart.toISOString(), fechaFin: prevEnd.toISOString(), limit: 10000 })
+          ])
+          const prevIng = prevIngRes.data.reduce((acc, t) => acc + (t.monto || 0), 0)
+          const prevEgr = prevEgreRes.data.reduce((acc, t) => acc + (t.monto || 0), 0)
+          const ingresosPerc = prevIng > 0 ? ((totalIngresosPeriodo - prevIng) / prevIng) * 100 : (totalIngresosPeriodo > 0 ? 100 : 0)
+          const egresosPerc = prevEgr > 0 ? ((totalEgresosPeriodo - prevEgr) / prevEgr) * 100 : (totalEgresosPeriodo > 0 ? 100 : 0)
+          setTrendIngresos(Number(ingresosPerc.toFixed(1)))
+          setTrendEgresos(Number(egresosPerc.toFixed(1)))
+        } catch {
+          setTrendIngresos(null)
+          setTrendEgresos(null)
+        }
 
-        setSummary(mockSummary);
-        setMonthlyData(mockMonthly);
+        if (periodo === 'DIARIO') {
+          const desde7 = new Date(ahora)
+          desde7.setDate(ahora.getDate() - 6)
+          desde7.setHours(0, 0, 0, 0)
+          const fechaInicio = desde7.toISOString()
+          const fechaFin = ahora.toISOString()
 
-        // Calcular porcentajes para gastos
-        const totalGastos = mockExpenses.reduce((acc, curr) => acc + curr.monto, 0);
-        const expensesWithPercentage = mockExpenses.map(item => ({
-          categoria: item.categoria,
-          monto: item.monto,
-          porcentaje: totalGastos > 0 ? Math.round((item.monto / totalGastos) * 100) : 0
-        })).sort((a, b) => b.monto - a.monto);
+          const [ingRes, egreRes] = await Promise.all([
+            getTransacciones({ tipo: 'INGRESO', fechaInicio, fechaFin, limit: 1000 }),
+            getTransacciones({ tipo: 'EGRESO', fechaInicio, fechaFin, limit: 1000 })
+          ])
 
-        setExpenseData(expensesWithPercentage);
+          const dias: { [key: string]: { ingresos: number; egresos: number } } = {}
+          const range: Date[] = []
+          for (let i = 0; i < 7; i++) {
+            const d = new Date(desde7)
+            d.setDate(desde7.getDate() + i)
+            const key = d.toISOString().slice(0, 10)
+            dias[key] = { ingresos: 0, egresos: 0 }
+            range.push(d)
+          }
+          ingRes.data.forEach(t => {
+            const key = t.fecha.slice(0, 10)
+            if (dias[key]) dias[key].ingresos += t.monto || 0
+          })
+          egreRes.data.forEach(t => {
+            const key = t.fecha.slice(0, 10)
+            if (dias[key]) dias[key].egresos += t.monto || 0
+          })
+
+          const labels = range.map(d => {
+            try {
+              const w = d.toLocaleDateString('es-CO', { weekday: 'short' })
+              return w.replace('.', '').slice(0, 3).charAt(0).toUpperCase() + w.replace('.', '').slice(1, 3)
+            } catch {
+              const map = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb']
+              return map[d.getDay()]
+            }
+          })
+          const series: MonthlyEvolution[] = range.map((d, idx) => {
+            const key = d.toISOString().slice(0, 10)
+            const v = dias[key]
+            return {
+              mes: labels[idx],
+              ingresos: v.ingresos,
+              egresos: v.egresos,
+              utilidad: Math.max(0, v.ingresos - v.egresos),
+              fecha: d.toISOString()
+            }
+          })
+          setMonthlyData(series)
+
+          const totalIngresos7 = Object.values(dias).reduce((acc, v) => acc + v.ingresos, 0)
+          const totalEgresos7 = Object.values(dias).reduce((acc, v) => acc + v.egresos, 0)
+          const utilidad7 = Math.max(0, totalIngresos7 - totalEgresos7)
+          const margen7 = totalIngresos7 > 0 ? (utilidad7 / totalIngresos7) * 100 : 0
+          setSummary({
+            ingresos: totalIngresos7,
+            egresos: totalEgresos7,
+            utilidad: utilidad7,
+            margen: Number(margen7.toFixed(1))
+          })
+
+          const prevDesde7 = new Date(desde7)
+          prevDesde7.setDate(prevDesde7.getDate() - 7)
+          prevDesde7.setHours(0,0,0,0)
+          const prevFin7 = new Date(desde7)
+          prevFin7.setDate(prevFin7.getDate() - 1)
+          prevFin7.setHours(23,59,59,999)
+          try {
+            const [prevIng7Res, prevEgre7Res] = await Promise.all([
+              getTransacciones({ tipo: 'INGRESO', fechaInicio: prevDesde7.toISOString(), fechaFin: prevFin7.toISOString(), limit: 1000 }),
+              getTransacciones({ tipo: 'EGRESO', fechaInicio: prevDesde7.toISOString(), fechaFin: prevFin7.toISOString(), limit: 1000 })
+            ])
+            const prevIng7 = prevIng7Res.data.reduce((acc, t) => acc + (t.monto || 0), 0)
+            const prevEgr7 = prevEgre7Res.data.reduce((acc, t) => acc + (t.monto || 0), 0)
+            const ingresosPerc7 = prevIng7 > 0 ? ((totalIngresos7 - prevIng7) / prevIng7) * 100 : (totalIngresos7 > 0 ? 100 : 0)
+            const egresosPerc7 = prevEgr7 > 0 ? ((totalEgresos7 - prevEgr7) / prevEgr7) * 100 : (totalEgresos7 > 0 ? 100 : 0)
+            setTrendIngresos(Number(ingresosPerc7.toFixed(1)))
+            setTrendEgresos(Number(egresosPerc7.toFixed(1)))
+          } catch {
+            setTrendIngresos(null)
+            setTrendEgresos(null)
+          }
+        } else {
+          const ingResAll = await getTransacciones({ tipo: 'INGRESO', fechaInicio: startDate, fechaFin: endDate, limit: 10000 })
+          const egreResAll = await getTransacciones({ tipo: 'EGRESO', fechaInicio: startDate, fechaFin: endDate, limit: 10000 })
+          
+          if (periodo === 'MENSUAL') {
+            const startD = new Date(inicio)
+            const endD = new Date(ahora)
+            const days: Date[] = []
+            const dayMap: Record<string, { ingresos: number; egresos: number; fecha: string }> = {}
+            const iter = new Date(startD)
+            iter.setHours(0,0,0,0)
+            while (iter <= endD) {
+              const key = iter.toISOString().slice(0,10)
+              dayMap[key] = { ingresos: 0, egresos: 0, fecha: iter.toISOString() }
+              days.push(new Date(iter))
+              iter.setDate(iter.getDate() + 1)
+            }
+            ingResAll.data.forEach(t => {
+              const key = t.fecha.slice(0,10)
+              if (dayMap[key]) dayMap[key].ingresos += t.monto || 0
+            })
+            egreResAll.data.forEach(t => {
+              const key = t.fecha.slice(0,10)
+              if (dayMap[key]) dayMap[key].egresos += t.monto || 0
+            })
+            const series: MonthlyEvolution[] = days.map(d => {
+              const key = d.toISOString().slice(0,10)
+              const v = dayMap[key]
+              const label = d.toLocaleDateString('es-CO', { day: '2-digit', month: 'short' })
+              return {
+                mes: label,
+                ingresos: v?.ingresos || 0,
+                egresos: v?.egresos || 0,
+                utilidad: Math.max(0, (v?.ingresos || 0) - (v?.egresos || 0)),
+                fecha: v?.fecha || d.toISOString()
+              }
+            })
+            setMonthlyData(series)
+          } else {
+            const startM = new Date(inicio)
+            const endM = new Date(ahora)
+            const monthMap: Record<string, { ingresos: number; egresos: number }> = {}
+            const months: { key: string; label: string }[] = []
+            const iter = new Date(startM.getFullYear(), startM.getMonth(), 1)
+            while (iter <= endM) {
+              const key = `${iter.getFullYear()}-${String(iter.getMonth()+1).padStart(2,'0')}`
+              const label = iter.toLocaleString('es-CO', { month: 'short' })
+              monthMap[key] = { ingresos: 0, egresos: 0 }
+              months.push({ key, label })
+              iter.setMonth(iter.getMonth() + 1, 1)
+            }
+            ingResAll.data.forEach(t => {
+              const d = new Date(t.fecha)
+              const key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`
+              if (monthMap[key]) monthMap[key].ingresos += t.monto || 0
+            })
+            egreResAll.data.forEach(t => {
+              const d = new Date(t.fecha)
+              const key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`
+              if (monthMap[key]) monthMap[key].egresos += t.monto || 0
+            })
+            const series: MonthlyEvolution[] = months.map(m => {
+              const v = monthMap[m.key]
+              return {
+                mes: m.label,
+                ingresos: v.ingresos,
+                egresos: v.egresos,
+                utilidad: Math.max(0, v.ingresos - v.egresos),
+                yearMonth: m.key
+              }
+            })
+            setMonthlyData(series)
+          }
+        }
+
+        if (expensesResp) {
+          const e = expensesResp as ExpenseDistribution[]
+          const total = e.reduce((acc, curr) => acc + (curr.monto || 0), 0)
+          const withPct = e.map(item => ({
+            categoria: item.categoria,
+            monto: item.monto,
+            porcentaje: total > 0 ? Math.round((item.monto / total) * 100) : 0
+          })).sort((a, b) => b.monto - a.monto)
+          setExpenseData(withPct)
+        }
 
       } catch (error) {
         console.error('Error fetching financial reports:', error)
@@ -131,12 +358,7 @@ const ReportesFinancierosPage = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-50/50">
-        <div className="text-center">
-          <div className="w-16 h-16 border-4 border-slate-900 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-slate-500 font-bold">Cargando reportes financieros...</p>
-        </div>
-      </div>
+      <AnimacionCarga texto="Cargando reportes financieros..." />
     )
   }
 
@@ -164,14 +386,14 @@ const ReportesFinancierosPage = () => {
           </div>
           <div className="flex flex-wrap gap-2">
             <div className="flex rounded-xl border border-slate-200 bg-white p-1 shadow-sm">
-              {['MENSUAL', 'TRIMESTRAL', 'ANUAL'].map((p) => (
+              {['DIARIO','MENSUAL', 'TRIMESTRAL', 'ANUAL'].map((p) => (
                 <button
                   key={p}
                   onClick={() => setPeriodo(p)}
                   className={`px-4 py-2 text-xs font-bold rounded-lg transition-all ${
                     periodo === p 
-                      ? 'bg-slate-900 text-white shadow-md' 
-                      : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50'
+                      ? 'bg-blue-600 text-white shadow-md' 
+                      : 'text-slate-600 hover:text-blue-600 hover:bg-blue-50'
                   }`}
                 >
                   {p}
@@ -198,10 +420,12 @@ const ReportesFinancierosPage = () => {
                 <TrendingUp className="h-5 w-5 text-emerald-600" />
               </div>
             </div>
-            <div className="flex items-center text-xs text-emerald-600 font-bold bg-emerald-50 w-fit px-2 py-1 rounded-full border border-emerald-100">
-              <ArrowUpRight className="h-3 w-3 mr-1" />
-              <span>+12.5% vs mes anterior</span>
-            </div>
+            {trendIngresos !== null && (
+              <div className={`flex items-center text-xs font-bold w-fit px-2 py-1 rounded-full border ${trendIngresos >= 0 ? 'text-emerald-600 bg-emerald-50 border-emerald-100' : 'text-rose-600 bg-rose-50 border-rose-100'}`}>
+                <ArrowUpRight className="h-3 w-3 mr-1" />
+                <span>{trendIngresos >= 0 ? `+${trendIngresos}%` : `${trendIngresos}%`} vs periodo anterior</span>
+              </div>
+            )}
           </div>
 
           <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all">
@@ -214,10 +438,12 @@ const ReportesFinancierosPage = () => {
                 <TrendingDown className="h-5 w-5 text-rose-600" />
               </div>
             </div>
-            <div className="flex items-center text-xs text-rose-600 font-bold bg-rose-50 w-fit px-2 py-1 rounded-full border border-rose-100">
-              <ArrowUpRight className="h-3 w-3 mr-1" />
-              <span>+5.2% vs mes anterior</span>
-            </div>
+            {trendEgresos !== null && (
+              <div className={`flex items-center text-xs font-bold w-fit px-2 py-1 rounded-full border ${trendEgresos >= 0 ? 'text-rose-600 bg-rose-50 border-rose-100' : 'text-emerald-600 bg-emerald-50 border-emerald-100'}`}>
+                <ArrowUpRight className="h-3 w-3 mr-1" />
+                <span>{trendEgresos >= 0 ? `+${trendEgresos}%` : `${trendEgresos}%`} vs periodo anterior</span>
+              </div>
+            )}
           </div>
 
           <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all">
@@ -230,9 +456,9 @@ const ReportesFinancierosPage = () => {
                 <DollarSign className="h-5 w-5 text-blue-600" />
               </div>
             </div>
-            <div className="flex items-center text-xs text-blue-600 font-bold bg-blue-50 w-fit px-2 py-1 rounded-full border border-blue-100">
+            <div className={`flex items-center text-xs font-bold w-fit px-2 py-1 rounded-full border ${summary.utilidad >= 0 ? 'text-blue-600 bg-blue-50 border-blue-100' : 'text-rose-600 bg-rose-50 border-rose-100'}`}>
               <ArrowUpRight className="h-3 w-3 mr-1" />
-              <span>Rentable</span>
+              <span>{summary.utilidad >= 0 ? 'Rentable' : 'No rentable'}</span>
             </div>
           </div>
 
@@ -246,21 +472,17 @@ const ReportesFinancierosPage = () => {
                 <PieChart className="h-5 w-5 text-purple-600" />
               </div>
             </div>
-            <div className="flex items-center text-xs text-slate-500 font-bold bg-slate-100 w-fit px-2 py-1 rounded-full border border-slate-200">
-              <Target className="h-3 w-3 mr-1" />
-              <span>Meta: 45%</span>
-            </div>
           </div>
         </div>
 
         {/* Charts Section */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 gap-8">
           {/* Main Chart: Monthly Trends */}
-          <div className="lg:col-span-2 bg-white/80 backdrop-blur-sm rounded-2xl border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-8">
+          <div className="bg-white/80 backdrop-blur-sm rounded-2xl border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-8">
             <div className="flex items-center justify-between mb-8">
               <div>
                 <h3 className="text-lg font-bold text-slate-900">Evolución Financiera</h3>
-                <p className="text-sm text-slate-400 font-medium">Comportamiento mensual de ingresos y egresos</p>
+                <p className="text-sm text-slate-400 font-medium">Comportamiento por periodo seleccionado de ingresos y egresos</p>
               </div>
               <div className="flex items-center gap-4 text-xs font-bold">
                 <div className="flex items-center gap-2">
@@ -283,38 +505,27 @@ const ReportesFinancierosPage = () => {
               }))}
             />
           </div>
+        </div>
 
-          {/* Side Chart: Expense Breakdown */}
-          <div className="bg-white/80 backdrop-blur-sm rounded-2xl border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-8">
-            <h3 className="text-lg font-bold text-slate-900 mb-6">Distribución de Gastos</h3>
-            <div className="space-y-6">
-              {expenseData.length > 0 ? (
-                expenseData.map((cat) => (
-                  <div key={cat.categoria} className="group">
-                    <div className="flex justify-between text-sm mb-2">
-                      <span className="text-slate-700 font-bold group-hover:text-slate-900 transition-colors">{cat.categoria}</span>
-                      <span className="text-slate-500 font-bold">{cat.porcentaje}%</span>
-                    </div>
-                    <div className="w-full bg-slate-100 rounded-full h-2.5 overflow-hidden">
-                      <div 
-                        className="bg-slate-800 h-2.5 rounded-full transition-all duration-1000 group-hover:bg-slate-900" 
-                        style={{ width: `${cat.porcentaje}%` }}
-                      ></div>
-                    </div>
-                    <p className="text-xs text-slate-400 mt-1.5 text-right font-medium">{formatCurrency(cat.monto)}</p>
-                  </div>
-                ))
-              ) : (
-                <p className="text-sm text-slate-500 text-center py-4">No hay gastos registrados en este periodo.</p>
-              )}
-            </div>
-            
-            <div className="mt-8 p-5 bg-blue-50/50 rounded-xl border border-blue-100">
-              <h4 className="text-sm font-bold text-blue-700 mb-2">Observación del Contador</h4>
-              <p className="text-xs text-slate-600 leading-relaxed font-medium">
-                Los gastos operativos se han mantenido estables. Se recomienda revisar el presupuesto de marketing para el próximo trimestre para optimizar el retorno de inversión.
-              </p>
-            </div>
+        {/* Distribución de Gastos (Full Width) */}
+        <div className="bg-white/80 backdrop-blur-sm rounded-2xl border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-4">
+          <h3 className="text-base font-bold text-slate-900 mb-3">Distribución de Gastos</h3>
+          <div className="flex flex-wrap gap-1 max-h-40 overflow-y-auto">
+            {expenseData.length > 0 ? (
+              expenseData.map((cat) => (
+                <button
+                  key={cat.categoria}
+                  onClick={() => setCategoriaSeleccionada(cat)}
+                  title="Ver detalles del gasto"
+                  className="inline-flex items-center gap-1.5 px-2 py-1 rounded-full border border-slate-200 bg-white text-slate-700 text-xs font-bold hover:bg-blue-50 hover:border-blue-200 hover:text-blue-700 transition-colors"
+                >
+                  <span>{cat.categoria}</span>
+                  <Eye className="h-3 w-3" />
+                </button>
+              ))
+            ) : (
+              <p className="text-sm text-slate-500 text-center py-4">No hay gastos registrados en este periodo.</p>
+            )}
           </div>
         </div>
 
@@ -342,7 +553,11 @@ const ReportesFinancierosPage = () => {
               <tbody className="divide-y divide-slate-100">
                 {monthlyData.map((row) => (
                   <tr key={row.mes} className="hover:bg-slate-50/80 transition-colors group">
-                    <td className="px-8 py-5 font-bold text-slate-800 group-hover:text-slate-900">{row.mes} {yearLabel}</td>
+                    <td className="px-8 py-5 font-bold text-slate-800 group-hover:text-slate-900">
+                      {row.fecha 
+                        ? new Date(row.fecha).toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' })
+                        : `${row.mes} ${yearLabel}`}
+                    </td>
                     <td className="px-8 py-5 text-right text-slate-600 font-medium">{formatCurrency(row.ingresos)}</td>
                     <td className="px-8 py-5 text-right text-rose-500 font-medium">-{formatCurrency(row.egresos)}</td>
                     <td className="px-8 py-5 text-right font-bold text-slate-900 bg-slate-50/30">{formatCurrency(row.utilidad)}</td>
@@ -356,7 +571,15 @@ const ReportesFinancierosPage = () => {
                     </td>
                     <td className="px-8 py-5 text-right">
                       <button 
-                        onClick={() => setReporteId(`${row.mes}-${yearLabel}`)}
+                        onClick={() => {
+                          if (row.fecha && periodo === 'DIARIO') {
+                            setReporteId(`DIARIO:${row.fecha}`)
+                          } else if (row.yearMonth) {
+                            setReporteId(`MES:${row.yearMonth}`)
+                          } else {
+                            setReporteId(`${row.mes}-${yearLabel}`)
+                          }
+                        }}
                         className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
                         title="Ver Detalles"
                       >
@@ -375,6 +598,15 @@ const ReportesFinancierosPage = () => {
         <DetalleReporteFinancieroModal
           id={reporteId}
           onClose={() => setReporteId(null)}
+        />
+      )}
+      
+      {categoriaSeleccionada && (
+        <DetalleGastoModal 
+          categoria={categoriaSeleccionada.categoria}
+          porcentaje={categoriaSeleccionada.porcentaje}
+          monto={categoriaSeleccionada.monto}
+          onClose={() => setCategoriaSeleccionada(null)}
         />
       )}
     </div>

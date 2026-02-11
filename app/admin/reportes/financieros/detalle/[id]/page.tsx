@@ -1,9 +1,10 @@
 'use client'
 
-import { useMemo } from 'react'
+import { useMemo, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { ArrowLeft, Calendar, Eye, LineChart, TrendingDown, TrendingUp } from 'lucide-react'
 import { formatCurrency } from '@/lib/utils'
+import { getTransacciones } from '@/services/contabilidad-service'
 
 type DetalleRow = {
   label: string
@@ -15,41 +16,83 @@ type DetalleRow = {
 export default function DetalleReporteFinancieroPage({ params }: { params: { id: string } }) {
   const router = useRouter()
   const rawId = params?.id ?? ''
+  const [ingresos, setIngresos] = useState(0)
+  const [egresos, setEgresos] = useState(0)
+  const [utilidad, setUtilidad] = useState(0)
+  const [margen, setMargen] = useState(0)
+  const [rows, setRows] = useState<DetalleRow[]>([])
+  const [loading, setLoading] = useState(true)
 
-  const { periodoLabel, ingresos, egresos, utilidad, margen, rows } = useMemo(() => {
+  const periodoLabel = useMemo(() => {
     const parts = decodeURIComponent(rawId).split('-')
     const mes = parts[0] || 'Periodo'
     const year = parts[1] || String(new Date().getFullYear())
+    return `${mes} ${year}`
+  }, [rawId])
 
-    const ingresosBase = 42000000
-    const egresosBase = 18000000
+  useEffect(() => {
+    const cargar = async () => {
+      setLoading(true)
+      try {
+        const parts = decodeURIComponent(rawId).split('-')
+        const mesAbbr = (parts[0] || '').toLowerCase()
+        const yearNum = Number(parts[1] || new Date().getFullYear())
 
-    const seed = rawId
-      .split('')
-      .reduce((acc, ch) => acc + ch.charCodeAt(0), 0)
+        const mapMes: Record<string, number> = {
+          ene: 0, feb: 1, mar: 2, abr: 3, may: 4, jun: 5, jul: 6, ago: 7, sep: 8, oct: 9, nov: 10, dic: 11
+        }
+        const monthIdx = mapMes[mesAbbr] ?? new Date().getMonth()
 
-    const ingresos = ingresosBase + (seed % 7) * 1500000
-    const egresos = egresosBase + (seed % 5) * 900000
-    const utilidad = Math.max(0, ingresos - egresos)
-    const margen = ingresos > 0 ? (utilidad / ingresos) * 100 : 0
+        const inicio = new Date(yearNum, monthIdx, 1)
+        const fin = new Date(yearNum, monthIdx + 1, 0)
+        fin.setHours(23, 59, 59, 999)
 
-    const rows: DetalleRow[] = [
-      { label: 'Cobros de cuotas', valor: Math.round(ingresos * 0.72), tipo: 'INGRESO', categoria: 'COBRO_CUOTA' },
-      { label: 'Abonos a capital', valor: Math.round(ingresos * 0.18), tipo: 'INGRESO', categoria: 'ABONO_CAPITAL' },
-      { label: 'Otros ingresos', valor: Math.max(0, ingresos - (Math.round(ingresos * 0.72) + Math.round(ingresos * 0.18))), tipo: 'INGRESO', categoria: 'OTROS_INGRESOS' },
-      { label: 'Gastos operativos', valor: Math.round(egresos * 0.55), tipo: 'EGRESO', categoria: 'GASTO_OPERATIVO' },
-      { label: 'Gastos administrativos', valor: Math.round(egresos * 0.35), tipo: 'EGRESO', categoria: 'GASTO_ADMINISTRATIVO' },
-      { label: 'Otros egresos', valor: Math.max(0, egresos - (Math.round(egresos * 0.55) + Math.round(egresos * 0.35))), tipo: 'EGRESO', categoria: 'OTROS_EGRESOS' },
-    ]
+        const fechaInicio = inicio.toISOString()
+        const fechaFin = fin.toISOString()
 
-    return {
-      periodoLabel: `${mes} ${year}`,
-      ingresos,
-      egresos,
-      utilidad,
-      margen,
-      rows,
+        const [ingRes, egreRes] = await Promise.all([
+          getTransacciones({ tipo: 'INGRESO', fechaInicio, fechaFin, limit: 2000 }),
+          getTransacciones({ tipo: 'EGRESO', fechaInicio, fechaFin, limit: 2000 })
+        ])
+
+        const totalIngresos = ingRes.data.reduce((acc, t) => acc + (t.monto || 0), 0)
+        const totalEgresos = egreRes.data.reduce((acc, t) => acc + (t.monto || 0), 0)
+        const utilidadCalc = Math.max(0, totalIngresos - totalEgresos)
+        const margenCalc = totalIngresos > 0 ? (utilidadCalc / totalIngresos) * 100 : 0
+
+        setIngresos(totalIngresos)
+        setEgresos(totalEgresos)
+        setUtilidad(utilidadCalc)
+        setMargen(margenCalc)
+
+        const agrupados: Record<string, { label: string; valor: number; tipo: 'INGRESO' | 'EGRESO' }> = {}
+        ingRes.data.forEach(t => {
+          const cat = t.categoria || 'OTROS_INGRESOS'
+          if (!agrupados[cat]) agrupados[cat] = { label: cat.replace(/_/g, ' '), valor: 0, tipo: 'INGRESO' }
+          agrupados[cat].valor += t.monto || 0
+        })
+        egreRes.data.forEach(t => {
+          const cat = t.categoria || 'OTROS_EGRESOS'
+          if (!agrupados[cat]) agrupados[cat] = { label: cat.replace(/_/g, ' '), valor: 0, tipo: 'EGRESO' }
+          agrupados[cat].valor += t.monto || 0
+        })
+        const lista: DetalleRow[] = Object.entries(agrupados)
+          .map(([categoria, info]) => ({ categoria, label: info.label, valor: info.valor, tipo: info.tipo }))
+          .sort((a, b) => b.valor - a.valor)
+
+        setRows(lista)
+      } catch (e) {
+        console.error('Error cargando detalle financiero:', e)
+        setIngresos(0)
+        setEgresos(0)
+        setUtilidad(0)
+        setMargen(0)
+        setRows([])
+      } finally {
+        setLoading(false)
+      }
     }
+    cargar()
   }, [rawId])
 
   return (
@@ -130,7 +173,7 @@ export default function DetalleReporteFinancieroPage({ params }: { params: { id:
         <section className="bg-white/80 backdrop-blur-sm rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
           <div className="px-6 py-5 border-b border-slate-200 bg-white/50">
             <h2 className="text-lg font-bold text-slate-900">Detalle de movimientos</h2>
-            <p className="text-sm text-slate-500 font-medium">Desglose mock por categoría</p>
+            <p className="text-sm text-slate-500 font-medium">Desglose por categoría (datos reales)</p>
           </div>
 
           <div className="overflow-x-auto">

@@ -10,6 +10,9 @@ import {
   AlertCircle
 } from 'lucide-react'
 import { formatCurrency } from '@/lib/utils'
+import { inventarioService } from '@/services/inventario-service'
+import { useNotification } from '@/components/providers/NotificationProvider'
+import AnimacionCarga from '@/components/ui/AnimacionCarga'
 
 // Reutilizamos el tipo y mock de la vista de admin
 interface PrecioCuota {
@@ -33,69 +36,14 @@ interface Articulo {
   precios: PrecioCuota[]
 }
 
-const ARTICULOS_MOCK: Articulo[] = [
-  {
-    id: '1',
-    nombre: 'Televisor Smart TV 50"',
-    codigo: 'TV-50-SMART',
-    descripcion: 'Televisor 4K UHD con Smart Hub',
-    categoria: 'Electrónica',
-    marca: 'Samsung',
-    modelo: 'UN50AU7000',
-    costo: 1200000,
-    precioContado: 1600000,
-    stock: 15,
-    stockMinimo: 5,
-    estado: 'activo',
-    precios: [
-      { meses: 1, precio: 1800000 },
-      { meses: 3, precio: 2100000 },
-      { meses: 6, precio: 2400000 }
-    ]
-  },
-  {
-    id: '2',
-    nombre: 'Lavadora 18kg Carga Superior',
-    codigo: 'LAV-18-CS',
-    categoria: 'Hogar',
-    marca: 'LG',
-    modelo: 'WT18WP',
-    costo: 1500000,
-    precioContado: 2100000,
-    stock: 8,
-    stockMinimo: 3,
-    estado: 'activo',
-    precios: [
-      { meses: 1, precio: 2300000 },
-      { meses: 6, precio: 2900000 },
-      { meses: 12, precio: 3500000 }
-    ]
-  },
-  {
-    id: '3',
-    nombre: 'Celular Gama Media 128GB',
-    codigo: 'CEL-GM-128',
-    categoria: 'Tecnología',
-    marca: 'Xiaomi',
-    modelo: 'Redmi Note 12',
-    costo: 600000,
-    precioContado: 850000,
-    stock: 4,
-    stockMinimo: 10,
-    estado: 'activo',
-    precios: [
-      { meses: 1, precio: 950000 },
-      { meses: 3, precio: 1100000 }
-    ]
-  }
-]
-
 export default function CatalogArticulosCoordinador() {
-  const [articulos] = useState<Articulo[]>(ARTICULOS_MOCK)
+  const [articulos, setArticulos] = useState<Articulo[]>([])
   const [busqueda, setBusqueda] = useState('')
   const [showDetalleModal, setShowDetalleModal] = useState(false)
   const [articuloSeleccionado, setArticuloSeleccionado] = useState<Articulo | null>(null)
   const [mounted, setMounted] = useState(false) // Added for useEffect fix
+  const [loading, setLoading] = useState(true)
+  const { showNotification } = useNotification()
 
   const articulosFiltrados = articulos.filter(
     (a) =>
@@ -109,6 +57,41 @@ export default function CatalogArticulosCoordinador() {
     setShowDetalleModal(true)
   }
 
+  useEffect(() => {
+    const cargar = async () => {
+      setLoading(true)
+      try {
+        const data = await inventarioService.obtenerProductos()
+        const mapped: Articulo[] = data.map(p => {
+          const precioContadoItem = p.precios?.find(pr => pr.meses === 0)
+          const creditPrecios = p.precios?.filter(pr => pr.meses > 0) || []
+          return {
+            id: p.id,
+            nombre: p.nombre,
+            codigo: p.codigo,
+            descripcion: p.descripcion || undefined,
+            categoria: p.categoria,
+            marca: p.marca || '',
+            modelo: p.modelo || '',
+            costo: Number(p.costo),
+            precioContado: precioContadoItem ? Number(precioContadoItem.precio) : undefined,
+            stock: p.stock,
+            stockMinimo: p.stockMinimo,
+            estado: p.activo ? 'activo' : 'inactivo',
+            precios: creditPrecios.map(cp => ({ ...cp, precio: Number(cp.precio) }))
+          }
+        })
+        setArticulos(mapped)
+      } catch (error) {
+        console.error(error)
+        showNotification('error', 'No se pudo cargar el inventario', 'Error')
+      } finally {
+        setLoading(false)
+      }
+    }
+    cargar()
+  }, [])
+
   // Fix synchronous setState in useEffect
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -117,7 +100,9 @@ export default function CatalogArticulosCoordinador() {
     return () => clearTimeout(timer)
   }, [])
 
-  if (!mounted) return null;
+  if (!mounted || loading) {
+    return <AnimacionCarga texto="Cargando catálogo..." />
+  }
 
   return (
     <div className="min-h-screen bg-slate-50 relative">
@@ -198,6 +183,7 @@ export default function CatalogArticulosCoordinador() {
                   <th className="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Categoría</th>
                   <th className="px-6 py-4 text-right text-xs font-bold text-slate-500 uppercase tracking-wider">Precio Contado</th>
                   <th className="px-6 py-4 text-right text-xs font-bold text-slate-500 uppercase tracking-wider">Venta Crédito</th>
+                  <th className="px-6 py-4 text-right text-xs font-bold text-slate-500 uppercase tracking-wider">Valor Inventario</th>
                   <th className="px-6 py-4 text-center text-xs font-bold text-slate-500 uppercase tracking-wider">Stock</th>
                   <th className="px-6 py-4 text-right text-xs font-bold text-slate-500 uppercase tracking-wider">Acciones</th>
                 </tr>
@@ -230,6 +216,12 @@ export default function CatalogArticulosCoordinador() {
                         {articulo.precios.length > 0 ? formatCurrency(articulo.precios[0].precio) : 'N/A'}
                       </div>
                       <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Base Crédito</div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-right">
+                      <div className="text-sm font-bold text-slate-900">
+                        {formatCurrency(((articulo.precioContado !== undefined ? Number(articulo.precioContado) : Number(articulo.costo)) * Number(articulo.stock)) || 0)}
+                      </div>
+                      <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Valor Inventario</div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-center">
                       <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${

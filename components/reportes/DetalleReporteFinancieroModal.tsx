@@ -1,8 +1,9 @@
 'use client'
 
-import { useMemo } from 'react'
+import { useMemo, useState, useEffect } from 'react'
 import { X, Calendar, TrendingUp, TrendingDown, Eye, LineChart } from 'lucide-react'
 import { formatCurrency } from '@/lib/utils'
+import { getTransacciones } from '@/services/contabilidad-service'
 
 interface DetalleReporteFinancieroModalProps {
   id: string
@@ -14,58 +15,129 @@ type DetalleRow = {
   valor: number
   tipo: 'INGRESO' | 'EGRESO'
   categoria: string
+  fecha: string
+  hora: string
 }
 
 export default function DetalleReporteFinancieroModal({ id, onClose }: DetalleReporteFinancieroModalProps) {
-  const { periodoLabel, ingresos, egresos, utilidad, margen, rows } = useMemo(() => {
-    // Si id viene vacío, evitamos errores
-    if (!id) {
-      return {
-        periodoLabel: '',
-        ingresos: 0,
-        egresos: 0,
-        utilidad: 0,
-        margen: 0,
-        rows: []
+  const [periodoLabel, setPeriodoLabel] = useState<string>('')
+  const [ingresos, setIngresos] = useState<number>(0)
+  const [egresos, setEgresos] = useState<number>(0)
+  const [utilidad, setUtilidad] = useState<number>(0)
+  const [margen, setMargen] = useState<number>(0)
+  const [rows, setRows] = useState<DetalleRow[]>([])
+
+  useEffect(() => {
+    let cancelado = false
+    async function cargar() {
+      if (!id) return
+      let start: Date
+      let end: Date
+      if (id.startsWith('DIARIO:')) {
+        const iso = id.replace('DIARIO:', '')
+        const d = new Date(iso)
+        start = new Date(d)
+        start.setHours(0,0,0,0)
+        end = new Date(d)
+        end.setHours(23,59,59,999)
+        setPeriodoLabel(d.toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' }))
+      } else if (id.startsWith('MES:')) {
+        const ym = id.replace('MES:', '')
+        const [yStr, mStr] = ym.split('-')
+        const y = parseInt(yStr, 10)
+        const m = parseInt(mStr, 10) - 1
+        start = new Date(y, m, 1)
+        start.setHours(0,0,0,0)
+        end = new Date(y, m + 1, 0)
+        end.setHours(23,59,59,999)
+        setPeriodoLabel(start.toLocaleDateString('es-CO', { month: 'short', year: 'numeric' }))
+      } else {
+        const parts = decodeURIComponent(id).split('-')
+        const mes = parts[0] || 'Periodo'
+        const year = parts[1] || String(new Date().getFullYear())
+        setPeriodoLabel(`${mes} ${year}`)
+        const monthsMap: Record<string, number> = { Ene: 0, Feb: 1, Mar: 2, Abr: 3, May: 4, Jun: 5, Jul: 6, Ago: 7, Sep: 8, Oct: 9, Nov: 10, Dic: 11 }
+        const monthIndex = monthsMap[mes] ?? null
+        const yearNum = Number(year) || new Date().getFullYear()
+        start = monthIndex !== null ? new Date(yearNum, monthIndex, 1) : new Date()
+        start.setHours(0,0,0,0)
+        end = monthIndex !== null ? new Date(yearNum, (monthIndex as number) + 1, 0) : new Date()
+        end.setHours(23,59,59,999)
       }
+
+      const fechaInicio = start.toISOString()
+      const fechaFin = end.toISOString()
+
+      const [ingRes, egreRes] = await Promise.all([
+        getTransacciones({ tipo: 'INGRESO', fechaInicio, fechaFin, limit: 10000 }),
+        getTransacciones({ tipo: 'EGRESO', fechaInicio, fechaFin, limit: 10000 })
+      ])
+
+      if (cancelado) return
+
+      const ingresosTotal = ingRes.data.reduce((acc, t) => acc + (t.monto || 0), 0)
+      const egresosTotal = egreRes.data.reduce((acc, t) => acc + (t.monto || 0), 0)
+      const utilidadTotal = Math.max(0, ingresosTotal - egresosTotal)
+      const margenTotal = ingresosTotal > 0 ? (utilidadTotal / ingresosTotal) * 100 : 0
+
+      setIngresos(ingresosTotal)
+      setEgresos(egresosTotal)
+      setUtilidad(utilidadTotal)
+      setMargen(Number(margenTotal.toFixed(1)))
+
+      const formatFechaHora = (iso: string) => {
+        const d = new Date(iso)
+        const fecha = d.toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' })
+        const hora = d.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: true })
+        return { fecha, hora }
+      }
+
+      const filasIng: DetalleRow[] = ingRes.data.map(t => {
+        const { fecha, hora } = formatFechaHora(t.fecha)
+        return {
+          label: t.descripcion || 'Movimiento',
+          valor: t.monto || 0,
+          tipo: 'INGRESO',
+          categoria: (t.categoria || 'INGRESO').replace(/\s+/g, '_'),
+          fecha,
+          hora
+        }
+      })
+      const filasEgr: DetalleRow[] = egreRes.data.map(t => {
+        const { fecha, hora } = formatFechaHora(t.fecha)
+        return {
+          label: t.descripcion || 'Movimiento',
+          valor: t.monto || 0,
+          tipo: 'EGRESO',
+          categoria: (t.categoria || 'EGRESO').replace(/\s+/g, '_'),
+          fecha,
+          hora
+        }
+      })
+
+      const todas = [...filasIng, ...filasEgr]
+      setRows(todas)
     }
-
-    const parts = decodeURIComponent(id).split('-')
-    const mes = parts[0] || 'Periodo'
-    const year = parts[1] || String(new Date().getFullYear())
-
-    const ingresosBase = 42000000
-    const egresosBase = 18000000
-
-    const seed = id
-      .split('')
-      .reduce((acc, ch) => acc + ch.charCodeAt(0), 0)
-
-    const ingresos = ingresosBase + (seed % 7) * 1500000
-    const egresos = egresosBase + (seed % 5) * 900000
-    const utilidad = Math.max(0, ingresos - egresos)
-    const margen = ingresos > 0 ? (utilidad / ingresos) * 100 : 0
-
-    const rows: DetalleRow[] = [
-      { label: 'Cobros de cuotas', valor: Math.round(ingresos * 0.72), tipo: 'INGRESO', categoria: 'COBRO_CUOTA' },
-      { label: 'Abonos a capital', valor: Math.round(ingresos * 0.18), tipo: 'INGRESO', categoria: 'ABONO_CAPITAL' },
-      { label: 'Otros ingresos', valor: Math.max(0, ingresos - (Math.round(ingresos * 0.72) + Math.round(ingresos * 0.18))), tipo: 'INGRESO', categoria: 'OTROS_INGRESOS' },
-      { label: 'Gastos operativos', valor: Math.round(egresos * 0.55), tipo: 'EGRESO', categoria: 'GASTO_OPERATIVO' },
-      { label: 'Gastos administrativos', valor: Math.round(egresos * 0.35), tipo: 'EGRESO', categoria: 'GASTO_ADMINISTRATIVO' },
-      { label: 'Otros egresos', valor: Math.max(0, egresos - (Math.round(egresos * 0.55) + Math.round(egresos * 0.35))), tipo: 'EGRESO', categoria: 'OTROS_EGRESOS' },
-    ]
-
-    return {
-      periodoLabel: `${mes} ${year}`,
-      ingresos,
-      egresos,
-      utilidad,
-      margen,
-      rows,
-    }
+    cargar()
+    return () => { cancelado = true }
   }, [id])
 
   if (!id) return null
+  
+  const fechaReporteTexto = useMemo(() => {
+    try {
+      return new Date().toLocaleDateString('es-CO', { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' })
+    } catch {
+      return new Date().toLocaleDateString()
+    }
+  }, [])
+  
+  const [pagina, setPagina] = useState(1)
+  const pageSize = 5
+  const totalPaginas = Math.max(1, Math.ceil(rows.length / pageSize))
+  const start = (pagina - 1) * pageSize
+  const end = start + pageSize
+  const rowsPaginadas = rows.slice(start, end)
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-in fade-in duration-200">
@@ -79,10 +151,12 @@ export default function DetalleReporteFinancieroModal({ id, onClose }: DetalleRe
               <span>Detalle de Transacción</span>
             </div>
             <h2 className="text-2xl font-bold text-slate-900 tracking-tight">Reporte Financiero</h2>
-            <p className="flex items-center gap-2 text-slate-500 font-medium mt-1 text-sm">
-              <Calendar className="h-4 w-4" />
-              {periodoLabel}
-            </p>
+            <div className="flex items-center gap-4 mt-1">
+              <p className="flex items-center gap-2 text-slate-600 font-bold text-sm">
+                <Calendar className="h-4 w-4" />
+                <span className="text-slate-700">{periodoLabel}</span>
+              </p>
+            </div>
           </div>
           <button 
             onClick={onClose}
@@ -147,11 +221,13 @@ export default function DetalleReporteFinancieroModal({ id, onClose }: DetalleRe
                     <th className="px-6 py-3 text-left">Concepto</th>
                     <th className="px-6 py-3 text-left">Categoría</th>
                     <th className="px-6 py-3 text-center">Tipo</th>
+                    <th className="px-6 py-3 text-left">Fecha</th>
+                    <th className="px-6 py-3 text-left">Hora</th>
                     <th className="px-6 py-3 text-right">Monto</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 bg-white">
-                  {rows.map((r, i) => (
+                  {rowsPaginadas.map((r, i) => (
                     <tr key={i} className="hover:bg-slate-50 transition-colors">
                       <td className="px-6 py-4 font-bold text-slate-800">{r.label}</td>
                       <td className="px-6 py-4 text-slate-500 font-medium text-xs">{r.categoria.replace(/_/g, ' ')}</td>
@@ -166,6 +242,8 @@ export default function DetalleReporteFinancieroModal({ id, onClose }: DetalleRe
                           {r.tipo}
                         </span>
                       </td>
+                      <td className="px-6 py-4 text-slate-600 font-medium text-xs">{r.fecha}</td>
+                      <td className="px-6 py-4 text-slate-600 font-medium text-xs">{r.hora}</td>
                       <td className={r.tipo === 'INGRESO' ? 'px-6 py-4 text-right font-black text-slate-900' : 'px-6 py-4 text-right font-black text-rose-600'}>
                         {r.tipo === 'INGRESO' ? formatCurrency(r.valor) : `-${formatCurrency(r.valor)}`}
                       </td>
@@ -173,6 +251,25 @@ export default function DetalleReporteFinancieroModal({ id, onClose }: DetalleRe
                   ))}
                 </tbody>
               </table>
+            </div>
+            <div className="flex items-center justify-between px-6 py-4 bg-white border-t border-slate-100">
+              <span className="text-xs font-bold text-slate-500">Página {pagina} de {totalPaginas}</span>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setPagina(p => Math.max(1, p - 1))}
+                  disabled={pagina === 1}
+                  className={`px-3 py-1.5 text-xs font-bold rounded-lg border transition-all ${pagina === 1 ? 'text-slate-300 border-slate-200 bg-slate-50 cursor-not-allowed' : 'text-slate-600 border-slate-200 hover:bg-slate-50'}`}
+                >
+                  Anterior
+                </button>
+                <button
+                  onClick={() => setPagina(p => Math.min(totalPaginas, p + 1))}
+                  disabled={pagina === totalPaginas}
+                  className={`px-3 py-1.5 text-xs font-bold rounded-lg border transition-all ${pagina === totalPaginas ? 'text-slate-300 border-slate-200 bg-slate-50 cursor-not-allowed' : 'text-slate-600 border-slate-200 hover:bg-slate-50'}`}
+                >
+                  Siguiente
+                </button>
+              </div>
             </div>
           </section>
         </div>

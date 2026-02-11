@@ -20,6 +20,7 @@ import { cn } from '@/lib/utils';
 import FiltroRuta from '@/components/filtros/FiltroRuta';
 import NuevoClienteModal from '@/components/clientes/NuevoClienteModal';
 import { formatErrorForComponent } from '@/lib/api/api';
+import AnimacionCarga from '@/components/ui/AnimacionCarga';
 
 type NivelRiesgo = 'VERDE' | 'AMARILLO' | 'ROJO' | 'LISTA_NEGRA';
 
@@ -140,6 +141,10 @@ const ClientesCoordinador = () => {
   const hasClientes = clientes && clientes.length > 0;
 
   // Estado de error
+  if (isLoading) {
+    return <AnimacionCarga texto="Cargando clientes..." />
+  }
+
   if (error && clientes.length === 0 && !isLoading) {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center">

@@ -22,6 +22,7 @@ import EstadoCuentaModal from '@/components/cobranza/EstadoCuentaModal'
 import ReprogramarModal from '@/components/cobranza/ReprogramarModal'
 import { VisitaRuta, EstadoVisita } from '@/lib/types/cobranza'
 import { StaticVisitaItem, SeleccionClienteModal } from '@/components/dashboards/shared/CobradorElements'
+import AnimacionCarga from '@/components/ui/AnimacionCarga'
 
 // Interfaces de datos
 interface ClienteRuta {
@@ -181,6 +182,10 @@ const DetalleRutaPage = () => {
   const handleActivarRuta = () => {
     setRutaCompletada(!rutaCompletada)
     alert(rutaCompletada ? 'Ruta desactivada' : 'Ruta activada correctamente')
+  }
+
+  if (isLoading) {
+    return <AnimacionCarga texto="Cargando detalle de ruta..." />
   }
 
   return (

@@ -21,6 +21,7 @@ import { inventarioService, Producto as BackendProducto, EstadisticasInventario 
 import { useNotification } from '@/components/providers/NotificationProvider'
 import { categoriasService, Categoria } from '@/services/categorias-service'
 import SelectCategoria from '@/components/ui/SelectCategoria'
+import AnimacionCarga from '@/components/ui/AnimacionCarga'
 
 // Interfaces
 interface PrecioCuota {
@@ -48,15 +49,22 @@ interface Articulo {
 export default function ArticulosPage() {
   const [articulos, setArticulos] = useState<Articulo[]>([])
   const [busqueda, setBusqueda] = useState('')
-  const [categoriaFiltroId, setCategoriaFiltroId] = useState<string>('')
   const [categorias, setCategorias] = useState<Categoria[]>([])
   const [statsBase, setStatsBase] = useState<EstadisticasInventario | null>(null)
   const { showNotification } = useNotification()
+  const [loading, setLoading] = useState(true)
+  
 
   useEffect(() => {
-    fetchArticulos()
-    fetchCategorias()
-    fetchStats()
+    const cargar = async () => {
+      setLoading(true)
+      try {
+        await Promise.all([fetchArticulos(), fetchCategorias(), fetchStats()])
+      } finally {
+        setLoading(false)
+      }
+    }
+    cargar()
   }, [])
 
   const fetchArticulos = async () => {
@@ -139,8 +147,7 @@ export default function ArticulosPage() {
       a.nombre.toLowerCase().includes(q) ||
       a.codigo.toLowerCase().includes(q) ||
       a.categoria.toLowerCase().includes(q)
-    const coincideCategoria = !categoriaFiltroId || a.categoriaId === categoriaFiltroId
-    return coincideBusqueda && coincideCategoria
+    return coincideBusqueda
   })
 
   const totalArticulos = articulosFiltrados.length
@@ -277,6 +284,12 @@ export default function ArticulosPage() {
     }
   }
 
+  if (loading) {
+    return (
+      <AnimacionCarga texto="Cargando inventario..." />
+    )
+  }
+
   return (
     <div className="min-h-screen bg-slate-50 relative">
       {/* Fondo arquitectónico */}
@@ -379,20 +392,7 @@ export default function ArticulosPage() {
                 onChange={(e) => setBusqueda(e.target.value)}
               />
             </div>
-            <div className="flex gap-2 w-full md:w-auto overflow-x-auto pb-2 md:pb-0">
-              {categorias.map((cat) => (
-                <button
-                  key={cat.id}
-                  type="button"
-                  onClick={() => setCategoriaFiltroId(prev => prev === cat.id ? '' : cat.id)}
-                  className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium whitespace-nowrap border transition-all ${
-                    categoriaFiltroId === cat.id ? 'bg-slate-900 text-white' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
-                  }`}
-                >
-                  {cat.nombre}
-                </button>
-              ))}
-            </div>
+            
             <div className="flex gap-2 w-full md:w-auto overflow-x-auto pb-2 md:pb-0">
               <button className="inline-flex items-center gap-2 px-4 py-2.5 bg-white text-slate-600 border border-slate-200 rounded-xl hover:bg-slate-50 hover:border-slate-300 transition-all text-sm font-medium whitespace-nowrap">
                 Stock Bajo
@@ -415,6 +415,7 @@ export default function ArticulosPage() {
                   <th className="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Categoría</th>
                   <th className="px-6 py-4 text-right text-xs font-bold text-slate-500 uppercase tracking-wider">Costo</th>
                   <th className="px-6 py-4 text-right text-xs font-bold text-slate-500 uppercase tracking-wider">Venta</th>
+                  <th className="px-6 py-4 text-right text-xs font-bold text-slate-500 uppercase tracking-wider">Valor Inventario</th>
                   <th className="px-6 py-4 text-center text-xs font-bold text-slate-500 uppercase tracking-wider">Stock</th>
                   <th className="px-6 py-4 text-right text-xs font-bold text-slate-500 uppercase tracking-wider">Acciones</th>
                 </tr>
@@ -450,6 +451,12 @@ export default function ArticulosPage() {
                       <div className="text-[10px] text-slate-500 font-medium mt-1">
                         {articulo.precios.length} opciones de crédito
                       </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-right">
+                      <div className="text-sm font-bold text-slate-900">
+                        {formatCurrency(((articulo.precioContado !== undefined ? Number(articulo.precioContado) : Number(articulo.costo)) * Number(articulo.stock)) || 0)}
+                      </div>
+                      <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Valor Inventario</div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-center">
                       <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
@@ -572,6 +579,9 @@ export default function ArticulosPage() {
                     placeholder="Seleccionar..."
                     value={formData.categoriaId}
                     onChange={(val) => setFormData(p => ({ ...p, categoriaId: val, categoria: '' }))} // Clear string so backend uses ID lookup
+                    onCreated={(nueva) => {
+                      setCategorias(prev => [...prev, nueva]);
+                    }}
                   />
                   {/* Fallback display for legacy categories without ID */}
                   {!formData.categoriaId && formData.categoria && (

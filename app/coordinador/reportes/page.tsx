@@ -9,6 +9,7 @@ import FiltroRuta from '@/components/filtros/FiltroRuta'
 import DetalleReporteOperativoModal from '@/components/reportes/DetalleReporteOperativoModal'
 import { TimeFilter, TimeFilterPeriod } from '@/components/ui/TimeFilter'
 import { useReportesCoordinador } from '@/hooks/useReportesCoordinador'
+import AnimacionCarga from '@/components/ui/AnimacionCarga'
 
 const ReportesCoordinador = () => {
   const router = useRouter()
@@ -104,55 +105,7 @@ const ReportesCoordinador = () => {
   }
 
   if (!mounted || loading) {
-    return (
-      <div className="min-h-screen bg-slate-50 relative">
-        <div className="relative z-10 w-full p-8 space-y-8">
-          <header className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
-            <div className="space-y-3">
-              <div className="h-6 w-48 bg-slate-200 rounded animate-pulse"></div>
-              <div className="h-10 w-64 bg-slate-200 rounded animate-pulse"></div>
-              <div className="h-4 w-80 bg-slate-200 rounded animate-pulse"></div>
-            </div>
-            <div className="flex gap-3">
-              <div className="h-10 w-32 bg-slate-200 rounded animate-pulse"></div>
-            </div>
-          </header>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            {[1, 2, 3, 4].map((i) => (
-              <div key={i} className="bg-white p-6 rounded-2xl border border-slate-200">
-                <div className="h-4 w-32 bg-slate-200 rounded animate-pulse mb-2"></div>
-                <div className="h-8 w-24 bg-slate-200 rounded animate-pulse mb-3"></div>
-                <div className="h-3 w-20 bg-slate-200 rounded animate-pulse"></div>
-              </div>
-            ))}
-          </div>
-
-          <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
-            <div className="px-6 py-4 bg-slate-50 border-b border-slate-200">
-              <div className="h-6 w-64 bg-slate-200 rounded animate-pulse"></div>
-            </div>
-            <div className="p-6 space-y-4">
-              {[1, 2, 3].map((i) => (
-                <div key={i} className="flex items-center justify-between py-4 border-b border-slate-100 last:border-0">
-                  <div className="space-y-2">
-                    <div className="h-4 w-32 bg-slate-200 rounded animate-pulse"></div>
-                    <div className="h-3 w-24 bg-slate-200 rounded animate-pulse"></div>
-                  </div>
-                  <div className="flex gap-8">
-                    <div className="h-4 w-24 bg-slate-200 rounded animate-pulse"></div>
-                    <div className="h-4 w-24 bg-slate-200 rounded animate-pulse"></div>
-                    <div className="h-4 w-16 bg-slate-200 rounded animate-pulse"></div>
-                    <div className="h-4 w-16 bg-slate-200 rounded animate-pulse"></div>
-                    <div className="h-8 w-8 bg-slate-200 rounded-lg animate-pulse"></div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      </div>
-    )
+    return <AnimacionCarga texto="Cargando reportes operativos..." />
   }
 
   const rendimientoRutas = reportData?.rendimientoRutas || []

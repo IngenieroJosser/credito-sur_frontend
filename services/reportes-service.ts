@@ -41,3 +41,7 @@ export const getExpenseDistribution = async (startDate?: string, endDate?: strin
   
   return apiRequest<ExpenseDistribution[]>('GET', `/reports/financial/expenses?${query.toString()}`);
 };
+
+export const getFinancialTargets = async () => {
+  return apiRequest<{ metaMargen: number | null }>('GET', `/reports/financial/targets`, undefined, { cacheTTL: 0 });
+};
