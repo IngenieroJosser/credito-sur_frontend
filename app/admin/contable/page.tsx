@@ -100,6 +100,7 @@ interface HistorialCierre {
 // Cada movimiento de dinero que entra o sale
 interface MovimientoContable {
   id: string
+  numero?: string // TRX-IN... TRX-OUT...
   fecha: string
   concepto: string
   tipo: 'INGRESO' | 'EGRESO' | 'TRANSFERENCIA'
@@ -217,6 +218,10 @@ const ModuloContableContent = () => {
   // Historial de Cierres 
   const [historialCierres, setHistorialCierres] = useState<HistorialCierre[]>([])
 
+  // Filtros para el modal de detalles (Histórico)
+  const [fechaInicioModal, setFechaInicioModal] = useState<string>('')
+  const [fechaFinModal, setFechaFinModal] = useState<string>('')
+
   // Funciones placeholder para exportación
   const handleExportExcel = () => {
     console.log('Generando reporte Excel...')
@@ -306,6 +311,7 @@ const ModuloContableContent = () => {
       if (transaccionesResp && transaccionesResp.data) {
         setMovimientos(transaccionesResp.data.map(t => ({
           id: t.id,
+          numero: t.numero, // Mapeamos el número de transacción real (TRX-IN/OUT)
           fecha: t.fecha,
           concepto: t.descripcion,
           tipo: t.tipo,
@@ -520,6 +526,8 @@ const ModuloContableContent = () => {
         cajaId: isEgresoConsolidacion ? movimientoForm.cajaOrigenId : movimientoForm.cajaId,
         tipo: movimientoForm.tipo as any,
         monto: monto,
+        // Eliminamos la lógica mágica de descripción automática para transferencias manuales
+        // para que el usuario siempre vea lo que escribió o un default claro.
         descripcion: movimientoForm.concepto || (movimientoForm.origen === 'COBRADOR' ? (movimientoForm.tipo === 'INGRESO' ? 'Consolidación de Ruta (Entrada)' : 'Entrega de Base a Ruta (Salida)') : 'Movimiento de Caja'),
         cajaOrigenId: isEgresoConsolidacion ? movimientoForm.cajaId : (movimientoForm.origen === 'COBRADOR' ? movimientoForm.cajaOrigenId : undefined)
       })
@@ -554,14 +562,14 @@ const ModuloContableContent = () => {
         <header className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between mb-8">
             <div className="space-y-2">
               <div className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-600 ring-1 ring-slate-200">
-                <DollarSign className="h-3.5 w-3.5" />
+                <Wallet className="h-3.5 w-3.5" />
                 <span>Gestión Financiera</span>
               </div>
               <h1 className="text-4xl md:text-5xl font-bold tracking-tight">
                 <span className="text-blue-600">Gestión </span><span className="text-orange-500">Contable</span>
               </h1>
               <p className="text-base text-slate-500 max-w-xl font-medium">
-                Control centralizado de flujos de caja, gastos operativos y rentabilidad.
+                Administración centralizada de Cajas, Saldos y Recursos.
               </p>
             </div>
             
@@ -739,24 +747,12 @@ const ModuloContableContent = () => {
               Operativas hoy
             </div>
           </div>
-
-          {/* Consolidaciones - ELIMINADA PARA EVITAR REDUNDANCIA */}
-          {/* <div 
-            onClick={() => {
-                setDetalleTipo('CIERRES');
-                setShowDetalleModal(true);
-            }}
-            className="group relative overflow-hidden rounded-2xl bg-white/80 backdrop-blur-sm p-6 border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] transition-all cursor-pointer hover:border-blue-300 active:scale-95"
-          >
-            ...
-          </div> */}
         </section>
 
-        {/* Historial de Consolidaciones Automáticas - REMOVIDO PARA EVITAR REDUNDANCIA */}
-        {/* <section className="bg-white rounded-3xl border border-slate-200 shadow-xl shadow-slate-200/50 overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-700"> ... </section> */}
-
-        <section className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          <div className="rounded-2xl bg-white/80 backdrop-blur-sm border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Sección Movimientos Recientes (Restaurada) */}
+          <section className="space-y-8">
+            <div className="rounded-2xl bg-white/80 backdrop-blur-sm border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden">
             <div className="p-5 border-b border-slate-100 flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Receipt className="h-4 w-4 text-blue-600" />
@@ -811,67 +807,93 @@ const ModuloContableContent = () => {
             </div>
 
             <div className="divide-y divide-slate-100">
-              {movimientosFiltrados.slice(currentPageMovimientos * 3, (currentPageMovimientos + 1) * 3).map((m) => (
-                <div key={m.id} className="p-5 flex items-start justify-between gap-4">
-                  <div className="min-w-0">
-                    <div className="text-sm font-bold text-slate-900 truncate">{m.concepto}</div>
-                    <div className="mt-1 flex flex-col gap-0.5">
-                      <span className="text-xs font-bold text-slate-900 flex items-center gap-1.5 uppercase tracking-tight">
-                        <Clock className="w-3.5 h-3.5 text-blue-500" />
-                        {new Date(m.fecha).toLocaleDateString('es-CO', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' })}
-                      </span>
-                      <span className="text-[10px] text-blue-600 font-black pl-5 uppercase tracking-widest">
-                        Registrado a las {new Date(m.fecha).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: true })}
-                        {m.categoria ? ` • ${m.categoria.replace(/_/g, ' ')}` : ''}
-                      </span>
-                    </div>
-                    <div className="mt-2 flex flex-wrap gap-2">
-                      <div className={cn(
-                        'inline-flex items-center rounded-full px-2 py-1 text-[10px] font-extrabold border',
-                        m.origen === 'COBRADOR'
-                          ? 'bg-orange-50 text-orange-800 border-orange-100'
-                          : 'bg-slate-50 text-slate-700 border-slate-200'
-                      )}>
-                        {m.origen === 'COBRADOR' ? 'COBRADOR' : 'EMPRESA'}
-                      </div>
+              {movimientosFiltrados.slice(currentPageMovimientos * 7, (currentPageMovimientos + 1) * 7).map((m) => {
+                // Determinar si es un movimiento positivo (Ingreso/Entrada) o negativo (Egreso/Salida)
+                // Nos guiamos PRINCIPALMENTE por la categoría base que se asignó al crear el movimiento
+                // Si la categoría contiene "INGRESO" o "ENTRADA", es positivo. Si es "EGRESO", "GASTO" o "SALIDA", es negativo.
+                // Esto simplifica la lógica y respeta la intención original del registro.
+                
+                const categoriaUpper = m.categoria.toUpperCase();
+                let isIngreso = false;
 
-                    </div>
+                if (m.tipo === 'INGRESO') {
+                    isIngreso = true;
+                } else if (m.tipo === 'EGRESO') {
+                    isIngreso = false;
+                } else if (m.tipo === 'TRANSFERENCIA') {
+                    // Para transferencias, intentamos deducir por el concepto o categoría
+                    if (categoriaUpper.includes('INGRESO') || categoriaUpper.includes('ENTRADA')) {
+                        isIngreso = true;
+                    } else if (m.concepto.toUpperCase().includes('ENTRADA') || m.concepto.toUpperCase().includes('RECIBIDA')) {
+                        isIngreso = true;
+                    } else {
+                        // Por defecto transferencia es salida si no se demuestra lo contrario (o si es 'SALIDA' explícita)
+                        isIngreso = false;
+                    }
+                }
+
+                // Limpiar concepto para visualización
+                const conceptoLimpio = m.concepto
+                    .replace(/^Entrada desde .*?: |^Salida hacia .*?: |^Consolidación .*?: /i, '')
+                    .replace(/^Transferencia enviada a .*?: |^Transferencia recibida de .*?: /i, '')
+                    .replace(/\(Entrada\)|\(Salida\)/gi, '')
+                    .trim();
+
+                return (
+                <div key={m.id} className="w-full text-left p-4 hover:bg-slate-50 transition-colors flex items-center justify-between group">
+                  <div className="flex items-center gap-3 overflow-hidden">
+                     <div className={cn(
+                        "p-2.5 rounded-full shrink-0 flex items-center justify-center border",
+                        isIngreso ? "bg-emerald-50 text-emerald-600 border-emerald-100" : "bg-rose-50 text-rose-600 border-rose-100"
+                     )}>
+                        {isIngreso ? <ArrowDownLeft className="h-4 w-4" /> : <ArrowUpRight className="h-4 w-4" />}
+                     </div>
+                     <div className="min-w-0">
+                        <div className="text-sm font-bold text-slate-900 truncate" title={m.concepto}>
+                            {conceptoLimpio || m.concepto}
+                        </div>
+                        <div className="flex items-center gap-2 text-[10px] font-medium text-slate-500 mt-0.5">
+                           <span>{new Date(m.fecha).toLocaleDateString('es-CO', { day: '2-digit', month: 'short' })}</span>
+                           <span className="text-slate-300">•</span>
+                           <span>{new Date(m.fecha).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: true })}</span>
+                           {m.referencia && (
+                               <>
+                                <span className="text-slate-300">•</span>
+                                <span className="bg-slate-100 px-1 rounded text-slate-600">Ref: {m.referencia}</span>
+                               </>
+                           )}
+                        </div>
+                     </div>
                   </div>
-                  <div className="text-right shrink-0 flex flex-col items-end gap-2">
-                    <div className={cn(
-                      'inline-flex items-center rounded-full px-2 py-1 text-[10px] font-extrabold border',
-                      m.tipo === 'INGRESO'
-                        ? 'bg-emerald-50 text-emerald-700 border-emerald-100'
-                        : 'bg-rose-50 text-rose-700 border-rose-100'
-                    )}>
-                      {m.tipo}
-                    </div>
-                    <div className={cn(
-                      'text-sm font-extrabold',
-                      m.tipo === 'INGRESO' ? 'text-emerald-700' : 'text-rose-700'
-                    )}>
-                      {m.tipo === 'INGRESO' ? '+' : '-'}{formatCurrency(m.monto)}
-                    </div>
-                    <button
-                      onClick={() => {
-                        setMovimientoSeleccionado(m)
-                        setShowVerMovimientoModal(true)
-                      }}
-                      className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                      title="Ver Detalle"
-                    >
-                      <Eye className="h-4 w-4" />
-                    </button>
+                  <div className="flex items-center gap-3 pl-4 shrink-0">
+                     <div className="text-right">
+                        <div className={cn(
+                           "text-sm font-black tracking-tight",
+                           isIngreso ? "text-emerald-700" : "text-rose-700"
+                        )}>
+                           {isIngreso ? '+' : '-'}{formatCurrency(m.monto)}
+                        </div>
+                     </div>
+                     <button
+                       onClick={() => {
+                         setMovimientoSeleccionado(m)
+                         setShowVerMovimientoModal(true)
+                       }}
+                       className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-colors"
+                       title="Ver Detalle"
+                     >
+                       <Eye className="h-4 w-4" />
+                     </button>
                   </div>
                 </div>
-              ))}
+              )})}
             </div>
 
             {/* Controles de Paginación para Movimientos */}
-            {movimientosFiltrados.length > 3 && (
+            {movimientosFiltrados.length > 7 && (
                 <div className="p-4 border-t border-slate-100 bg-slate-50/20 flex items-center justify-between">
                     <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-                        Página {currentPageMovimientos + 1} de {Math.ceil(movimientosFiltrados.length / 3)}
+                        Página {currentPageMovimientos + 1} de {Math.ceil(movimientosFiltrados.length / 7)}
                     </span>
                     <div className="flex gap-2">
                         <button 
@@ -882,8 +904,8 @@ const ModuloContableContent = () => {
                             <ChevronLeft className="h-4 w-4" />
                         </button>
                         <button 
-                            onClick={() => setCurrentPageMovimientos(p => (p + 1) * 3 < movimientosFiltrados.length ? p + 1 : p)}
-                            disabled={(currentPageMovimientos + 1) * 3 >= movimientosFiltrados.length}
+                            onClick={() => setCurrentPageMovimientos(p => (p + 1) * 7 < movimientosFiltrados.length ? p + 1 : p)}
+                            disabled={(currentPageMovimientos + 1) * 7 >= movimientosFiltrados.length}
                             className="p-2 rounded-xl border border-slate-200 bg-white text-slate-600 disabled:opacity-30 hover:bg-slate-50 transition-all"
                         >
                             <ChevronRight className="h-4 w-4" />
@@ -892,12 +914,15 @@ const ModuloContableContent = () => {
                 </div>
             )}
           </div>
+          </section>
 
+        {/* Sección Cajas Registradas (Restaurada) */}
+        <section className="w-full">
           <div className="rounded-2xl bg-white/80 backdrop-blur-sm border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden">
             <div className="p-5 border-b border-slate-100 flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Wallet className="h-4 w-4 text-orange-500" />
-                <div className="text-sm font-extrabold text-slate-900">Cajas</div>
+                <div className="text-sm font-extrabold text-slate-900">Cajas Registradas</div>
               </div>
               <button
                 type="button"
@@ -920,7 +945,14 @@ const ModuloContableContent = () => {
                     <div className="min-w-0">
                       <div className="text-sm font-extrabold text-slate-900 truncate">{c.nombre}</div>
                       <div className="mt-1 text-xs text-slate-500 font-medium">{c.responsable}</div>
-                      {c.rutaId && <div className="mt-1 text-[10px] text-blue-600 font-bold bg-blue-50 inline-block px-1.5 py-0.5 rounded border border-blue-100">{c.rutaId}</div>}
+                      {c.rutaId && (
+                        <div 
+                          className="mt-1 text-[10px] text-blue-600 font-bold bg-blue-50 inline-block px-1.5 py-0.5 rounded border border-blue-100"
+                          title="Caja asociada a Ruta"
+                        >
+                          Ruta
+                        </div>
+                      )}
                       {c.recaudoEsperado && (
                         <div className="mt-2 flex items-center gap-3">
                            <div className="text-[10px] font-bold text-slate-400 uppercase">Goal: {formatCurrency(c.recaudoEsperado)}</div>
@@ -989,8 +1021,10 @@ const ModuloContableContent = () => {
                 </div>
             )}
           </div>
-
         </section>
+        </div>
+
+
 
         {showCrearCajaModal && renderInPortal(
           <div className="fixed inset-0 z-[2147483646] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm" onClick={() => setShowCrearCajaModal(false)}>
@@ -1225,23 +1259,24 @@ const ModuloContableContent = () => {
                   </div>
 
                   <div className="space-y-2">
-                    <label className="text-sm font-bold text-slate-700">Saldo</label>
-                    <div className="relative">
+                    <label className="text-sm font-bold text-slate-700 flex justify-between">
+                        Saldo
+                        <span className="text-[10px] font-medium text-slate-400 uppercase tracking-wide bg-slate-100 px-2 py-0.5 rounded">Solo Lectura</span>
+                    </label>
+                    <div className="relative opacity-60">
                       <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
                       <input
                         type="text"
-                        inputMode="numeric"
+                        readOnly
+                        disabled
                         value={editarCajaForm.saldoInput}
-                        onChange={(e) =>
-                          setEditarCajaForm((p) => ({
-                            ...p,
-                            saldoInput: formatCOPInputValue(e.target.value),
-                          }))
-                        }
-                        className="w-full pl-10 pr-4 py-3 rounded-2xl border border-slate-200 bg-white font-bold text-slate-900"
+                        className="w-full pl-10 pr-4 py-3 rounded-2xl border border-slate-200 bg-slate-50 font-bold text-slate-500 cursor-not-allowed"
                         placeholder="0"
                       />
                     </div>
+                    <p className="text-[10px] text-slate-400 px-1">
+                        Para ajustar el saldo, debe registrar un Movimiento de Ingreso o Egreso (Ajuste de Caja).
+                    </p>
                   </div>
                 </div>
               </div>
@@ -1270,8 +1305,8 @@ const ModuloContableContent = () => {
         )}
 
         {showRegistrarMovimientoModal && renderInPortal(
-          <div className="fixed inset-0 z-[2147483646] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
-            <div className="w-full max-w-2xl rounded-2xl bg-white border border-slate-200 shadow-2xl overflow-hidden">
+          <div className="fixed inset-0 z-[2147483646] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm" onClick={() => setShowRegistrarMovimientoModal(false)}>
+            <div className="w-full max-w-2xl rounded-2xl bg-white border border-slate-200 shadow-2xl overflow-hidden" onClick={(e) => e.stopPropagation()}>
               <div className="p-6 border-b border-slate-100 flex items-center justify-between">
                 <div>
                   <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Movimientos</p>
@@ -1289,32 +1324,38 @@ const ModuloContableContent = () => {
               <div className="p-6 space-y-5">
                 {/* Tipo de Movimiento */}
                 <div className="grid grid-cols-2 gap-3">
-                  <button
-                    type="button"
-                    onClick={() => setMovimientoForm((p) => ({ ...p, tipo: 'INGRESO', categoria: '' }))}
-                    className={cn(
-                      'flex items-center justify-center gap-2 py-3 rounded-2xl border text-sm font-bold transition-colors shadow-sm',
-                      movimientoForm.tipo === 'INGRESO'
-                        ? 'bg-emerald-600 text-white border-emerald-600 ring-2 ring-emerald-100 ring-offset-2'
-                        : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
-                    )}
-                  >
-                    <ArrowDownLeft className="h-4 w-4" />
-                    Ingreso
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setMovimientoForm((p) => ({ ...p, tipo: 'EGRESO', categoria: '' }))}
-                    className={cn(
-                      'flex items-center justify-center gap-2 py-3 rounded-2xl border text-sm font-bold transition-colors shadow-sm',
-                      movimientoForm.tipo === 'EGRESO'
-                        ? 'bg-rose-600 text-white border-rose-600 ring-2 ring-rose-100 ring-offset-2'
-                        : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
-                    )}
-                  >
-                    <ArrowUpRight className="h-4 w-4" />
-                    Egreso
-                  </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                     setMovimientoForm((p) => ({ ...p, tipo: 'INGRESO', categoria: 'INGRESO', concepto: '', referencia: '', cajaOrigenId: '', origen: 'EMPRESA' }));
+                     // Limpiamos los campos que podrían causar confusión
+                  }}
+                  className={cn(
+                    'flex items-center justify-center gap-2 py-3 rounded-2xl border text-sm font-bold transition-colors shadow-sm',
+                    movimientoForm.tipo === 'INGRESO'
+                      ? 'bg-emerald-600 text-white border-emerald-600 ring-2 ring-emerald-100 ring-offset-2'
+                      : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+                  )}
+                >
+                  <ArrowDownLeft className="h-4 w-4" />
+                  Ingreso
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                     setMovimientoForm((p) => ({ ...p, tipo: 'EGRESO', categoria: 'EGRESO', concepto: '', referencia: '', cajaOrigenId: '', origen: 'EMPRESA' }));
+                     // Limpiamos los campos
+                  }}
+                  className={cn(
+                    'flex items-center justify-center gap-2 py-3 rounded-2xl border text-sm font-bold transition-colors shadow-sm',
+                    movimientoForm.tipo === 'EGRESO'
+                      ? 'bg-rose-600 text-white border-rose-600 ring-2 ring-rose-100 ring-offset-2'
+                      : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+                  )}
+                >
+                  <ArrowUpRight className="h-4 w-4" />
+                  Egreso
+                </button>
                 </div>
 
                 {/* Caja y Origen */}
@@ -1409,6 +1450,8 @@ const ModuloContableContent = () => {
                         placeholder="Seleccionar..."
                         value={movimientoForm.categoriaId}
                         onChange={(val) => setMovimientoForm(p => ({ ...p, categoriaId: val, categoria: '' }))}
+                        // Forzamos un valor por defecto visual si no hay selección (aunque SelectCategoria maneja su estado)
+                        // La idea es que el componente SelectCategoria debería permitir seleccionar "INGRESO" o "EGRESO" base
                     />
                   </div>
 
@@ -1447,28 +1490,6 @@ const ModuloContableContent = () => {
                     </div>
                 </div>
 
-                {/* Concepto y Referencia */}
-                <div className="space-y-1.5 pt-2">
-                    <label className="text-xs font-black text-slate-500 uppercase ml-1">Concepto / Descripción (Opcional)</label>
-                    <input
-                      value={movimientoForm.concepto}
-                      onChange={(e) => setMovimientoForm((p) => ({ ...p, concepto: e.target.value }))}
-                      className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-bold text-slate-900 focus:ring-2 focus:ring-blue-100 outline-none"
-                      placeholder={movimientoForm.origen === 'COBRADOR' ? 'Ej: Recaudo diario...' : 'Ej: Pago de servicios...'}
-                    />
-                </div>
-                
-                <div className="grid grid-cols-1 gap-4">
-                    <div className="space-y-1.5">
-                        <label className="text-xs font-bold text-slate-500 uppercase ml-1">Referencia (Opcional)</label>
-                        <input
-                          value={movimientoForm.referencia}
-                          onChange={(e) => setMovimientoForm((p) => ({ ...p, referencia: e.target.value }))}
-                          className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-900 focus:ring-2 focus:ring-blue-100 outline-none"
-                          placeholder="Doc #..."
-                        />
-                    </div>
-                </div>
                 {/* Alerta de fondos insuficientes */}
                 {(() => {
                     const montoValue = parseCOPInputToNumber(movimientoForm.montoInput);
@@ -1535,12 +1556,12 @@ const ModuloContableContent = () => {
 
 
         {showVerMovimientoModal && movimientoSeleccionado && renderInPortal(
-          <div className="fixed inset-0 z-[2147483646] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
-            <div className="w-full max-w-lg rounded-2xl bg-white border border-slate-200 shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
+          <div className="fixed inset-0 z-[2147483646] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm" onClick={() => setShowVerMovimientoModal(false)}>
+            <div className="w-full max-w-lg rounded-2xl bg-white border border-slate-200 shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200" onClick={(e) => e.stopPropagation()}>
               <div className="p-6 border-b border-slate-100 flex items-center justify-between">
                 <div>
                     <h3 className="text-lg font-bold text-slate-900">Detalle de Movimiento</h3>
-                    <p className="text-xs font-bold text-slate-500 font-mono tracking-tight">{movimientoSeleccionado.id}</p>
+                    {/* ID Oculto por solicitud del usuario */}
                 </div>
                 <button
                   onClick={() => setShowVerMovimientoModal(false)}
@@ -1585,8 +1606,35 @@ const ModuloContableContent = () => {
                         </div>
                     </div>
                     <div>
-                        <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Origen</div>
-                        <div className="font-semibold text-slate-900 text-sm">{movimientoSeleccionado.origen}</div>
+                        <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">
+                            {movimientoSeleccionado.tipo === 'TRANSFERENCIA' || movimientoSeleccionado.categoria === 'CONSOLIDACION' 
+                                ? (movimientoSeleccionado.tipo === 'INGRESO' ? 'Recibido De' : 'Enviado A')
+                                : 'Origen'}
+                        </div>
+                        <div className="font-semibold text-slate-900 text-sm">
+                            {(() => {
+                                // Intentar extraer la caja de la descripción si es transferencia
+                                if (movimientoSeleccionado.tipo === 'TRANSFERENCIA' || movimientoSeleccionado.categoria === 'CONSOLIDACION') {
+                                    const desc = movimientoSeleccionado.concepto;
+                                    // Patrones comunes según accounting.service.ts
+                                    // "Salida hacia [Caja]: ..."
+                                    // "Entrada desde [Caja]: ..."
+                                    // "Consolidación hacia [Caja]..."
+                                    // "Consolidación desde [Caja]..."
+                                    
+                                    const matchHacia = desc.match(/(?:hacia|a)\s+(.*?)(?::|\(|\)|$)/i);
+                                    const matchDesde = desc.match(/(?:desde|de)\s+(.*?)(?::|\(|\)|$)/i);
+                                    
+                                    if (movimientoSeleccionado.tipo === 'EGRESO' || desc.includes('Salida') || desc.includes('hacia')) {
+                                        if (matchHacia && matchHacia[1]) return matchHacia[1].trim();
+                                    }
+                                    if (movimientoSeleccionado.tipo === 'INGRESO' || desc.includes('Entrada') || desc.includes('desde')) {
+                                        if (matchDesde && matchDesde[1]) return matchDesde[1].trim();
+                                    }
+                                }
+                                return movimientoSeleccionado.origen;
+                            })()}
+                        </div>
                     </div>
                  </div>
 
@@ -1604,7 +1652,40 @@ const ModuloContableContent = () => {
                  {/* Bloque de Concepto */}
                  <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
                     <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Concepto / Descripción</div>
-                    <div className="font-medium text-slate-800 text-sm leading-relaxed">{movimientoSeleccionado.concepto}</div>
+                    <div className="font-medium text-slate-800 text-sm leading-relaxed">
+                        {(() => {
+                            let conceptoMostrar = movimientoSeleccionado.concepto
+                                .replace(/^Entrada desde .*?: |^Salida hacia .*?: |^Consolidación .*?: /i, '')
+                                .replace(/^Transferencia enviada a .*?: |^Transferencia recibida de .*?: /i, '')
+                                .replace(/\(Entrada\)|\(Salida\)/gi, '')
+                                .trim();
+                            
+                            // Si es una transferencia/consolidación, mejorar el texto
+                            if (movimientoSeleccionado.tipo === 'TRANSFERENCIA' || movimientoSeleccionado.categoria === 'CONSOLIDACION') {
+                                // Determinamos si visualmente es un ingreso o egreso para este modal
+                                const isIngreso = movimientoSeleccionado.tipo === 'INGRESO' || 
+                                    (movimientoSeleccionado.categoria.includes('INGRESO') || movimientoSeleccionado.concepto.includes('Entrada') || movimientoSeleccionado.concepto.includes('recibida'));
+                                    
+                                if (isIngreso) {
+                                     const origen = movimientoSeleccionado.concepto.match(/desde (.*?)[:\(]/i)?.[1] || movimientoSeleccionado.concepto.match(/de (.*?)($|[:\(])/i)?.[1] || 'Caja Origen';
+                                     conceptoMostrar = `Ingreso de: ${origen}`;
+                                } else {
+                                     const destino = movimientoSeleccionado.concepto.match(/hacia (.*?)[:\(]/i)?.[1] || movimientoSeleccionado.concepto.match(/a (.*?)($|[:\(])/i)?.[1] || 'Caja Destino';
+                                     conceptoMostrar = `Egreso a: ${destino}`;
+                                }
+                                conceptoMostrar = conceptoMostrar.replace('Caja Caja', 'Caja');
+                            }
+                            
+                            if (conceptoMostrar.includes('undefined') || conceptoMostrar.length < 5) {
+                                conceptoMostrar = movimientoSeleccionado.concepto
+                                    .replace(/^Entrada desde .*?: |^Salida hacia .*?: |^Consolidación .*?: /i, '')
+                                    .replace(/^Transferencia enviada a .*?: |^Transferencia recibida de .*?: /i, '')
+                                    .trim();
+                            }
+                            
+                            return conceptoMostrar;
+                        })()}
+                    </div>
                  </div>
 
                  {/* Bloque de Referencia (Condicional) */}
@@ -1632,8 +1713,8 @@ const ModuloContableContent = () => {
 
 
         {showVerCajaModal && cajaSeleccionada && renderInPortal(
-          <div className="fixed inset-0 z-[2147483646] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
-            <div className="w-full max-w-lg rounded-2xl bg-white border border-slate-200 shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
+          <div className="fixed inset-0 z-[2147483646] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm" onClick={() => setShowVerCajaModal(false)}>
+            <div className="w-full max-w-lg rounded-2xl bg-white border border-slate-200 shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200" onClick={(e) => e.stopPropagation()}>
               <div className="p-6 border-b border-slate-100 flex items-center justify-between">
                 <div>
                     <h3 className="text-lg font-bold text-slate-900">Detalle de Caja</h3>
@@ -1662,7 +1743,7 @@ const ModuloContableContent = () => {
                         <div>
                             {cajaSeleccionada.tipo === 'RUTA' ? (
                                 <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                                    {cajaSeleccionada.rutaId || 'Ruta'}
+                                    Ruta
                                 </span>
                             ) : (
                                 <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
@@ -1739,16 +1820,17 @@ const ModuloContableContent = () => {
                                         // Si el backend asigna 'cajaId' a la caja afectada en ambos casos, 
                                         // entonces necesitamos distinguir por el concepto o numeroTransaccion.
                                         
-                                        // Solución Robusta: Usar descripcion/concepto o numeroTransaccion
-                                        // TRX-OUT = Salida (Egreso)
-                                        // TRX-IN = Entrada (Ingreso)
+                                        // Solución Robusta: Usar descripcion/concepto
+                                        // TRX-OUT = Salida (Egreso) -> "enviada a", "Salida", "Egreso"
+                                        // TRX-IN = Entrada (Ingreso) -> "recibida de", "Entrada", "Ingreso"
                                         
                                         if (m.cajaId !== cajaSeleccionada.id) return false;
                                         
                                         if (m.tipo === 'TRANSFERENCIA') {
-                                            // Si la descripción o ID indica salida, NO es ingreso
-                                            // Asumiendo que el ID de transacción trae el prefijo
-                                            const esSalida = m.id && m.id.includes('TRX-OUT') || (m.concepto && m.concepto.includes('Salida'));
+                                            const concepto = m.concepto.toUpperCase();
+                                            const esSalida = concepto.includes('SALIDA') || 
+                                                           concepto.includes('ENVIADA A') || 
+                                                           concepto.includes('EGRESO');
                                             return !esSalida;
                                         }
                                         return true; // Es INGRESO normal
@@ -1782,7 +1864,10 @@ const ModuloContableContent = () => {
                                     .filter(m => {
                                         if (m.cajaId !== cajaSeleccionada.id) return false;
                                         if (m.tipo === 'TRANSFERENCIA') {
-                                            return m.id && m.id.includes('TRX-OUT') || (m.concepto && m.concepto.includes('Salida'));
+                                            const concepto = m.concepto.toUpperCase();
+                                            return concepto.includes('SALIDA') || 
+                                                   concepto.includes('ENVIADA A') || 
+                                                   concepto.includes('EGRESO');
                                         }
                                         return true;
                                     })
@@ -1806,7 +1891,11 @@ const ModuloContableContent = () => {
                                 .filter(m => {
                                     if (m.cajaId !== cajaSeleccionada.id) return false;
                                     if (m.tipo === 'TRANSFERENCIA') {
-                                        return !(m.id && m.id.includes('TRX-OUT') || (m.concepto && m.concepto.includes('Salida')));
+                                        const concepto = m.concepto.toUpperCase();
+                                        const esSalida = concepto.includes('SALIDA') || 
+                                                       concepto.includes('ENVIADA A') || 
+                                                       concepto.includes('EGRESO');
+                                        return !esSalida;
                                     }
                                     return true;
                                 })
@@ -1818,7 +1907,7 @@ const ModuloContableContent = () => {
                                 .filter(m => {
                                     if (m.cajaId !== cajaSeleccionada.id) return false;
                                     if (m.tipo === 'TRANSFERENCIA') {
-                                        return m.id && m.id.includes('TRX-OUT') || (m.concepto && m.concepto.includes('Salida'));
+                                        return (m.id && m.id.includes('TRX-OUT')) || (m.concepto && m.concepto.includes('Salida') && !m.concepto.startsWith('Entrada'));
                                     }
                                     return true;
                                 })
@@ -1850,13 +1939,11 @@ const ModuloContableContent = () => {
               <div className="p-6 border-b border-slate-100 flex items-center justify-between shrink-0">
                 <div>
                    <h3 className="text-lg font-bold text-slate-900">
-                      {cajaSeleccionada
-                          ? (detalleTipo === 'INGRESOS' ? `Ingresos: ${cajaSeleccionada.nombre}` : `Egresos: ${cajaSeleccionada.nombre}`)
-                          : (detalleTipo === 'INGRESOS' ? 'Detalle de Ingresos' : 'Detalle de Egresos')}
+                      {detalleTipo === 'INGRESOS' ? 'Historial de Ingresos' : 'Historial de Egresos'}
                    </h3>
                     <p className="text-xs font-bold text-blue-600 mt-1 uppercase tracking-widest flex items-center gap-1.5">
-                       <Clock className="w-3.5 h-3.5" />
-                       {new Date().toLocaleDateString('es-CO', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+                       <History className="w-3.5 h-3.5" />
+                       Consulta detallada
                     </p>
                 </div>
                 <button
@@ -1896,46 +1983,55 @@ const ModuloContableContent = () => {
                                </span>
                                <span className={cn("text-3xl font-black tracking-tight", detalleTipo === 'INGRESOS' ? "text-emerald-800" : "text-red-800")}>
                                  {(() => {
-                                    // Consistent Calculation: Sum of visible movements
+                                    // Cálculo consistente: Suma de movimientos visibles
                                     const filtered = movimientos
                                         .filter(m => {
-                                            // Filtro estricto por tipo y dirección
+                                            if (!cajaSeleccionada && m.categoria === 'CONSOLIDACION') return false;
                                             if (detalleTipo === 'INGRESOS') {
-                                                // INGRESO puro O TRANSFERENCIA que NO sea salida (TRX-OUT)
                                                 if (m.tipo === 'INGRESO') return true;
+                                                if (m.tipo === 'EGRESO') return false;
                                                 if (m.tipo === 'TRANSFERENCIA') {
-                                                    // Si cajaSeleccionada existe, verificamos dirección
-                                                    if (cajaSeleccionada) {
-                                                        // Es ingreso si la caja destino es esta
-                                                        if (m.cajaId !== cajaSeleccionada.id) return false;
-                                                        // Y no es un registro de salida (por si el ID coincidiera erróneamente)
-                                                        const esSalida = m.id && m.id.includes('TRX-OUT') || (m.concepto && m.concepto.includes('Salida'));
-                                                        return !esSalida;
-                                                    }
-                                                    return true; // Si no hay caja seleccionada, mostramos todo
+                                                    // Lógica basada en texto (Concepto) como en el detalle de cajas
+                                                    const concepto = m.concepto.toUpperCase();
+                                                    
+                                                    // Detectar si es Salida por palabras clave
+                                                    const esSalida = concepto.includes('SALIDA') || 
+                                                                   concepto.includes('ENVIADA A') || 
+                                                                   concepto.includes('EGRESO');
+                                                                   
+                                                    return !esSalida;
                                                 }
-                                                return false;
                                             } else {
-                                                // EGRESO puro O TRANSFERENCIA que SEA salida (TRX-OUT)
                                                 if (m.tipo === 'EGRESO') return true;
+                                                if (m.tipo === 'INGRESO') return false;
                                                 if (m.tipo === 'TRANSFERENCIA') {
-                                                    if (cajaSeleccionada) {
-                                                        // Es egreso si la caja origen es esta (pero el backend no manda origenId siempre)
-                                                        // O si el registro es explícitamente de salida (TRX-OUT)
-                                                        const esSalida = m.id && m.id.includes('TRX-OUT') || (m.concepto && m.concepto.includes('Salida'));
-                                                        // También validamos que el registro pertenezca a esta caja
-                                                        if (m.cajaId !== cajaSeleccionada.id) return false;
-                                                        return esSalida;
-                                                    }
-                                                    return true;
+                                                    // Lógica basada en texto (Concepto) como en el detalle de cajas
+                                                    const concepto = m.concepto.toUpperCase();
+                                                    
+                                                    // Detectar si es Salida por palabras clave
+                                                    const esSalida = concepto.includes('SALIDA') || 
+                                                                   concepto.includes('ENVIADA A') || 
+                                                                   concepto.includes('EGRESO');
+                                                                   
+                                                    return esSalida;
                                                 }
-                                                return false;
                                             }
+                                            return false;
                                         })
                                         .filter(m => {
                                             if (!cajaSeleccionada) return true;
-                                            return m.cajaId === cajaSeleccionada.id;
-                                        });
+                                        return m.cajaId === cajaSeleccionada.id;
+                                    })
+                                    .filter(m => {
+                                        // Si hay filtros de fecha manuales, usarlos
+                                        if (fechaInicioModal || fechaFinModal) {
+                                            const fechaM = new Date(m.fecha).toISOString().split('T')[0];
+                                            if (fechaInicioModal && fechaM < fechaInicioModal) return false;
+                                            if (fechaFinModal && fechaM > fechaFinModal) return false;
+                                            return true;
+                                        }
+                                        return true;
+                                    });
                                     const total = filtered.reduce((acc, m) => acc + m.monto, 0);
                                     return formatCurrency(total);
                                  })()}
@@ -1952,43 +2048,83 @@ const ModuloContableContent = () => {
 
                     {/* Lista de Movimientos / Arqueos */}
                     <div className="space-y-3">
+                      {detalleTipo !== 'CIERRES' && (
+                        <div className="flex gap-2 mb-4 bg-slate-50 p-2 rounded-xl">
+                            <div className="flex-1">
+                                <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1">Desde</label>
+                                <input 
+                                    type="date" 
+                                    value={fechaInicioModal}
+                                    onChange={(e) => setFechaInicioModal(e.target.value)}
+                                    className="w-full text-xs font-bold text-slate-700 bg-white border border-slate-200 rounded-lg px-2 py-1.5 focus:ring-2 focus:ring-blue-100 outline-none"
+                                />
+                            </div>
+                            <div className="flex-1">
+                                <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1">Hasta</label>
+                                <input 
+                                    type="date" 
+                                    value={fechaFinModal}
+                                    onChange={(e) => setFechaFinModal(e.target.value)}
+                                    className="w-full text-xs font-bold text-slate-700 bg-white border border-slate-200 rounded-lg px-2 py-1.5 focus:ring-2 focus:ring-blue-100 outline-none"
+                                />
+                            </div>
+                        </div>
+                      )}
+
                       <div className="flex items-center justify-between pb-2 border-b border-slate-100">
                            <h4 className="text-sm font-bold text-slate-700">
-                             {detalleTipo === 'CIERRES' ? 'Listado de Consolidaciones' : 'Movimientos Recientes'}
+                             {detalleTipo === 'CIERRES' ? 'Listado de Consolidaciones' : 'Historial de Movimientos'}
                            </h4>
                            <span className="text-xs font-medium text-slate-400">
                               {detalleTipo === 'CIERRES' 
                                  ? historialCierres.length 
                                  : movimientos
                                     .filter(m => {
-                                        // Mismo filtro estricto para el contador
+                                        if (!cajaSeleccionada && m.categoria === 'CONSOLIDACION') return false;
                                         if (detalleTipo === 'INGRESOS') {
                                             if (m.tipo === 'INGRESO') return true;
+                                            if (m.tipo === 'EGRESO') return false;
                                             if (m.tipo === 'TRANSFERENCIA') {
-                                                if (cajaSeleccionada) {
-                                                    if (m.cajaId !== cajaSeleccionada.id) return false;
-                                                    const esSalida = m.id && m.id.includes('TRX-OUT') || (m.concepto && m.concepto.includes('Salida'));
-                                                    return !esSalida;
-                                                }
-                                                return true;
+                                                // Lógica basada en texto (Concepto) como en el detalle de cajas
+                                                const concepto = m.concepto.toUpperCase();
+                                                
+                                                // Detectar si es Salida por palabras clave
+                                                const esSalida = concepto.includes('SALIDA') || 
+                                                               concepto.includes('ENVIADA A') || 
+                                                               concepto.includes('EGRESO');
+                                                               
+                                                return !esSalida;
                                             }
-                                            return false;
                                         } else {
                                             if (m.tipo === 'EGRESO') return true;
+                                            if (m.tipo === 'INGRESO') return false;
                                             if (m.tipo === 'TRANSFERENCIA') {
-                                                if (cajaSeleccionada) {
-                                                    const esSalida = m.id && m.id.includes('TRX-OUT') || (m.concepto && m.concepto.includes('Salida'));
-                                                    if (m.cajaId !== cajaSeleccionada.id) return false;
-                                                    return esSalida;
-                                                }
-                                                return true;
+                                                // Lógica basada en texto (Concepto) como en el detalle de cajas
+                                                const concepto = m.concepto.toUpperCase();
+                                                
+                                                // Detectar si es Salida por palabras clave
+                                                const esSalida = concepto.includes('SALIDA') || 
+                                                               concepto.includes('ENVIADA A') || 
+                                                               concepto.includes('EGRESO');
+                                                               
+                                                return esSalida;
                                             }
-                                            return false;
                                         }
+                                        return false;
                                     })
                                     .filter(m => {
                                         if (!cajaSeleccionada) return true;
                                         return m.cajaId === cajaSeleccionada.id;
+                                    })
+                                    .filter(m => {
+                                        // Si hay filtros de fecha manuales, usarlos
+                                        if (fechaInicioModal || fechaFinModal) {
+                                            const fechaM = new Date(m.fecha).toISOString().split('T')[0];
+                                            if (fechaInicioModal && fechaM < fechaInicioModal) return false;
+                                            if (fechaFinModal && fechaM > fechaFinModal) return false;
+                                            return true;
+                                        }
+                                        return true;
                                     }).length} {detalleTipo === 'CIERRES' ? 'consolidaciones' : 'registros'}
                            </span>
                        </div>
@@ -2035,40 +2171,75 @@ const ModuloContableContent = () => {
                          <>
                           {movimientos
                         .filter(m => {
-                            // Mismo filtro estricto para el listado
-                            if (detalleTipo === 'INGRESOS') {
-                                if (m.tipo === 'INGRESO') return true;
-                                if (m.tipo === 'TRANSFERENCIA') {
-                                    if (cajaSeleccionada) {
-                                        if (m.cajaId !== cajaSeleccionada.id) return false;
-                                        const esSalida = m.id && m.id.includes('TRX-OUT') || (m.concepto && m.concepto.includes('Salida'));
-                                        return !esSalida;
-                                    }
-                                    return true;
-                                }
-                                return false;
-                            } else {
-                                if (m.tipo === 'EGRESO') return true;
-                                if (m.tipo === 'TRANSFERENCIA') {
-                                    if (cajaSeleccionada) {
-                                        const esSalida = m.id && m.id.includes('TRX-OUT') || (m.concepto && m.concepto.includes('Salida'));
-                                        if (m.cajaId !== cajaSeleccionada.id) return false;
-                                        return esSalida;
-                                    }
-                                    return true;
-                                }
-                                return false;
-                            }
+                            if (!cajaSeleccionada && m.categoria === 'CONSOLIDACION') return false;
+                            
+                             // Mismo filtro estricto para el listado
+                             const categoriaUpper = m.categoria.toUpperCase();
+                             let isIngreso = false;
+
+                             if (m.tipo === 'INGRESO') {
+                                 isIngreso = true;
+                             } else if (m.tipo === 'EGRESO') {
+                                 isIngreso = false;
+                             } else if (m.tipo === 'TRANSFERENCIA') {
+                                 // Lógica basada en texto (Concepto) como en el detalle de cajas
+                                 const concepto = m.concepto.toUpperCase();
+                                 
+                                 // Detectar si es Salida por palabras clave
+                                 const esSalida = concepto.includes('SALIDA') || 
+                                                concepto.includes('ENVIADA A') || 
+                                                concepto.includes('EGRESO');
+                                                
+                                 isIngreso = !esSalida;
+                             }
+                             
+                             if (detalleTipo === 'INGRESOS') return isIngreso;
+                             return !isIngreso;
                         })
                         .filter(m => {
                             if (cajaSeleccionada) {
                                 return m.cajaId === cajaSeleccionada.id;
                             }
-                            const hoy = new Date().toISOString().split('T')[0];
-                            const fechaM = new Date(m.fecha).toISOString().split('T')[0];
-                            return fechaM === hoy;
+                            
+                            // Si hay filtros de fecha manuales, usarlos
+                            if (fechaInicioModal || fechaFinModal) {
+                                const fechaM = new Date(m.fecha).toISOString().split('T')[0];
+                                if (fechaInicioModal && fechaM < fechaInicioModal) return false;
+                                if (fechaFinModal && fechaM > fechaFinModal) return false;
+                                return true;
+                            }
+                            
+                            // Si NO hay filtros, mostrar TODO el histórico (sin restricción de 'hoy')
+                            return true;
                         })
-                        .map((m) => (
+                        .map((m) => {
+                            // Construir concepto más limpio y descriptivo
+                            let conceptoMostrar = m.concepto
+                                .replace(/^Entrada desde .*?: |^Salida hacia .*?: |^Consolidación .*?: /i, '')
+                                .replace(/^Transferencia enviada a .*?: |^Transferencia recibida de .*?: /i, '')
+                                .replace(/\(Entrada\)|\(Salida\)/gi, '')
+                                .trim();
+                                
+                            // Si es una transferencia/consolidación, mejorar el texto
+                            if (m.tipo === 'TRANSFERENCIA' || m.categoria === 'CONSOLIDACION') {
+                                if (detalleTipo === 'INGRESOS') {
+                                     conceptoMostrar = `Ingreso de: ${m.concepto.match(/desde (.*?)[:\(]/i)?.[1] || m.concepto.match(/de (.*?)($|[:\(])/i)?.[1] || 'Caja Origen'}`;
+                                } else {
+                                     conceptoMostrar = `Egreso a: ${m.concepto.match(/hacia (.*?)[:\(]/i)?.[1] || m.concepto.match(/a (.*?)($|[:\(])/i)?.[1] || 'Caja Destino'}`;
+                                }
+                                // Limpiar caracteres residuales
+                                conceptoMostrar = conceptoMostrar.replace('Caja Caja', 'Caja'); 
+                            }
+                            
+                            // Si no pudimos extraer nada útil, usar el concepto limpio original
+                            if (conceptoMostrar.includes('undefined') || conceptoMostrar.length < 5) {
+                                conceptoMostrar = m.concepto
+                                    .replace(/^Entrada desde .*?: |^Salida hacia .*?: |^Consolidación .*?: /i, '')
+                                    .replace(/^Transferencia enviada a .*?: |^Transferencia recibida de .*?: /i, '')
+                                    .trim();
+                            }
+                            
+                            return (
                           <div key={m.id} className="group p-4 border border-slate-200 bg-white rounded-xl hover:bg-slate-50 hover:border-slate-300 transition-all shadow-sm">
                              <div className="flex justify-between items-start mb-3">
                                 <div className="flex items-start gap-3">
@@ -2077,12 +2248,10 @@ const ModuloContableContent = () => {
                                        detalleTipo === 'INGRESOS' ? "bg-emerald-500 ring-emerald-100" : "bg-rose-500 ring-rose-100"
                                    )} />
                                    <div>
-                                       <div className="font-bold text-slate-900 text-base leading-snug">{m.concepto}</div>
-                                       {m.referencia && (
-                                           <div className="text-[10px] font-mono mt-1 text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded w-fit border border-slate-200/50">
-                                               REF: {m.referencia}
-                                           </div>
-                                       )}
+                                       <div className="font-bold text-slate-900 text-base leading-snug">
+                                          {conceptoMostrar}
+                                       </div>
+                                       {/* Ocultamos el ID interno técnico que no aporta valor al usuario */}
                                    </div>
                                 </div>
                                 <div className={cn(
@@ -2111,9 +2280,9 @@ const ModuloContableContent = () => {
                                 
                                 <div>
                                      <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block mb-0.5">Categoría</span>
-                                     <span className="inline-block truncate max-w-full text-xs font-semibold text-slate-600 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
-                                        {m.categoria.replace(/_/g, ' ')}
-                                     </span>
+                                    <span className="inline-block truncate max-w-full text-xs font-semibold text-slate-600 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
+                                       {m.categoria.replace(/_/g, ' ')}
+                                    </span>
                                 </div>
 
                                 <div>
@@ -2140,50 +2309,48 @@ const ModuloContableContent = () => {
                                 </div>
                              </div>
                           </div>
-                        ))}
+                        )})}
                       
                       {movimientos
                         .filter(m => {
                              // Mismo filtro estricto para el listado
-                             if (detalleTipo === 'INGRESOS') {
-                                 if (m.tipo === 'INGRESO') return true;
-                                 if (m.tipo === 'TRANSFERENCIA') {
-                                     if (cajaSeleccionada) {
-                                         if (m.cajaId !== cajaSeleccionada.id) return false;
-                                         const esSalida = m.id && m.id.includes('TRX-OUT') || (m.concepto && m.concepto.includes('Salida'));
-                                         return !esSalida;
-                                     }
-                                     return true;
-                                 }
-                                 return false;
-                             } else {
-                                 if (m.tipo === 'EGRESO') return true;
-                                 if (m.tipo === 'TRANSFERENCIA') {
-                                     if (cajaSeleccionada) {
-                                         const esSalida = m.id && m.id.includes('TRX-OUT') || (m.concepto && m.concepto.includes('Salida'));
-                                         if (m.cajaId !== cajaSeleccionada.id) return false;
-                                         return esSalida;
-                                     }
-                                     return true;
-                                 }
-                                 return false;
+                             const categoriaUpper = m.categoria.toUpperCase();
+                             let isIngreso = false;
+
+                             if (m.tipo === 'INGRESO') {
+                                 isIngreso = true;
+                             } else if (m.tipo === 'EGRESO') {
+                                 isIngreso = false;
+                             } else if (m.tipo === 'TRANSFERENCIA') {
+                                 // Lógica basada en texto (Concepto) como en el detalle de cajas
+                                 const concepto = m.concepto.toUpperCase();
+                                 
+                                 // Detectar si es Salida por palabras clave
+                                 const esSalida = concepto.includes('SALIDA') || 
+                                                concepto.includes('ENVIADA A') || 
+                                                concepto.includes('EGRESO');
+                                                
+                                 isIngreso = !esSalida;
                              }
+                             
+                             if (detalleTipo === 'INGRESOS') return isIngreso;
+                             return !isIngreso;
                          })
                         .filter(m => {
                             if (cajaSeleccionada) {
                                 return m.cajaId === cajaSeleccionada.id;
                             }
-                            const hoy = new Date().toISOString().split('T')[0];
-                            const fechaM = new Date(m.fecha).toISOString().split('T')[0];
-                            return fechaM === hoy;
+                            
+                            // Si NO hay filtros, mostrar TODO el histórico (sin restricción de 'hoy')
+                            return true;
                         }).length === 0 && (
                           <div className="flex flex-col items-center justify-center py-16 text-slate-400 bg-slate-50/50 rounded-2xl border border-dashed border-slate-200">
                               <div className="p-4 bg-white rounded-full shadow-sm mb-3">
                                 <History className="h-8 w-8 text-slate-300" />
                               </div>
-                              <p className="font-bold text-sm text-slate-500">No hay movimientos registrados</p>
+                              <p className="font-bold text-sm text-slate-500">No hay movimientos en este rango</p>
                               <p className="text-xs text-slate-400 max-w-[200px] text-center mt-1">
-                                  No se encontraron transacciones que coincidan con los filtros actuales.
+                                  No se encontraron transacciones en las fechas seleccionadas.
                               </p>
                           </div>
                       )}

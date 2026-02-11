@@ -33,6 +33,15 @@ export default function SelectCategoria({
     try {
       const data = await categoriasService.obtenerTodas(tipo);
       setCategorias(data);
+      
+      // Auto-seleccionar categoría por defecto si existe y no hay valor seleccionado
+      if (!value && data.length > 0) {
+        // Buscar categoría que coincida con el tipo (INGRESO o EGRESO/GASTO)
+        const defaultCat = data.find(c => c.nombre.toUpperCase() === tipo.toUpperCase()) || data[0];
+        if (defaultCat) {
+           onChange(defaultCat.id);
+        }
+      }
     } catch (err) {
       console.error(err);
     } finally {
@@ -69,15 +78,6 @@ export default function SelectCategoria({
     <div className="space-y-2">
       <div className="flex justify-between items-center">
         <label className="block text-sm font-bold text-slate-700">{label}</label>
-        {!disabled && !showCreate && (
-           <button 
-             type="button"
-             onClick={() => setShowCreate(true)}
-             className="text-xs text-blue-600 font-bold hover:underline flex items-center gap-1"
-           >
-             <Plus className="w-3 h-3" /> Nueva
-           </button>
-        )}
       </div>
 
       {showCreate ? (
