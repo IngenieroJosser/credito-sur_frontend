@@ -10,7 +10,7 @@ export interface LogAuditoria {
   detalle: string // Descripción humana del evento
   fecha: string
   ip: string
-  nivel: 'INFO' | 'WARNING' | 'CRITICAL'
+  nivel: 'INFORMATIVO' | 'ADVERTENCIA' | 'CRITICO'
 }
 
 // --- DATA DE EJEMPLO (MOCK) ---

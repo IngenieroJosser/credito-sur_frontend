@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { useState, type ReactNode } from 'react'
+import { useState, type ReactNode, useMemo } from 'react'
 
 import {
   AlertCircle,
@@ -23,6 +23,7 @@ import {
 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { ExportButton } from '@/components/ui/ExportButton'
+import { TimeFilter } from '@/components/ui/TimeFilter'
 import { formatCurrency } from '@/lib/utils'
 import NuevoClienteModal from '@/components/clientes/NuevoClienteModal'
 import { Sparkline, PremiumBarChart } from '@/components/ui/PremiumCharts'
@@ -129,35 +130,38 @@ const VistaSupervisor = () => {
     return '#10b981'
   }
 
-  const mainMetrics: MetricCard[] = [
-    {
-      title: 'Mora Crítica',
-      value: '12',
-      subValue: 'Clientes con alto riesgo',
-      change: -3.4,
-      icon: <AlertCircle className="h-4 w-4" />,
-      color: '#ef4444',
-      trendData: [15, 14, 16, 14, 13, 12, 12]
-    },
-    {
-      title: 'Gestiones Hoy',
-      value: '18',
-      subValue: 'Visitas / llamadas',
-      change: 5.2,
-      icon: <Calendar className="h-4 w-4" />,
-      color: '#08557f',
-      trendData: [10, 12, 11, 15, 14, 16, 18]
-    },
-    {
-      title: 'Cobertura de Ruta',
-      value: '89.7%',
-      subValue: 'Cumplimiento de visitas',
-      change: 2.1,
-      icon: <Map className="h-4 w-4" />,
-      color: '#10b981',
-      trendData: [85, 86, 84, 88, 87, 89, 89.7]
-    },
-  ]
+  const mainMetrics: MetricCard[] = useMemo(() => {
+    const factor = timeFilter === 'today' ? 0.1 : timeFilter === 'week' ? 0.25 : timeFilter === 'month' ? 1 : 3
+    return [
+      {
+        title: 'Mora Crítica',
+        value: '12',
+        subValue: 'Clientes con alto riesgo',
+        change: -3.4,
+        icon: <AlertCircle className="h-4 w-4" />,
+        color: '#ef4444',
+        trendData: [15, 14, 16, 14, 13, 12, 12]
+      },
+      {
+        title: 'Gestiones',
+        value: String(Math.round(18 * factor)),
+        subValue: timeFilter === 'today' ? 'Visitas / llamadas (día)' : timeFilter === 'week' ? 'Visitas / llamadas (semana)' : timeFilter === 'month' ? 'Visitas / llamadas (mes)' : 'Visitas / llamadas (trimestre)',
+        change: 5.2,
+        icon: <Calendar className="h-4 w-4" />,
+        color: '#08557f',
+        trendData: [10, 12, 11, 15, 14, 16, 18]
+      },
+      {
+        title: 'Cobertura de Ruta',
+        value: '89.7%',
+        subValue: 'Cumplimiento de visitas',
+        change: 2.1,
+        icon: <Map className="h-4 w-4" />,
+        color: '#10b981',
+        trendData: [85, 86, 84, 88, 87, 89, 89.7]
+      },
+    ]
+  }, [timeFilter])
 
   const delinquentClients: DelinquentClient[] = [
     {
@@ -252,23 +256,8 @@ const VistaSupervisor = () => {
             </div>
           </div>
 
-          <div className="mt-4 flex items-center space-x-1 bg-gray-100 rounded-lg p-1 w-fit">
-            {['Hoy', 'Sem', 'Mes', 'Trim'].map((item, index) => {
-              const values = ['today', 'week', 'month', 'quarter'] as const
-              return (
-                <button
-                  key={item}
-                  onClick={() => setTimeFilter(values[index])}
-                  className={`px-3 py-1 text-xs rounded-md transition-all ${
-                    timeFilter === values[index]
-                      ? 'bg-white text-gray-800 shadow-sm'
-                      : 'text-gray-500 hover:text-gray-700'
-                  }`}
-                >
-                  {item}
-                </button>
-              )
-            })}
+          <div className="mt-4">
+            <TimeFilter activePeriod={timeFilter} onPeriodChange={setTimeFilter} />
           </div>
         </div>
 

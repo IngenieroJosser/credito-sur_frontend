@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { 
   Shield, 
   Search, 
@@ -14,30 +14,79 @@ import {
   X,
   Laptop
 } from 'lucide-react'
-import { MOCK_LOGS, type LogAuditoria } from './data'
+import { auditoriaService, type RegistroAuditoria } from '@/services/auditoria-service'
+import { routesService, type Route } from '@/services/routes-service'
 import { cn } from '@/lib/utils'
 import { ExportButton } from '@/components/ui/ExportButton'
 
 const AuditoriaSistemaPage = () => {
-  // Estado para los filtros de búsqueda
   const [busqueda, setBusqueda] = useState('')
-  const [filtroNivel, setFiltroNivel] = useState<'TODOS' | 'INFO' | 'WARNING' | 'CRITICAL'>('TODOS')
-  
-  // Estado para el modal de detalle
-  const [selectedLog, setSelectedLog] = useState<LogAuditoria | null>(null)
-  
-  // Datos iniciales mockeados (importados de data.ts)
-  const [logs] = useState<LogAuditoria[]>(MOCK_LOGS);
+  const [filtroNivel, setFiltroNivel] = useState<'TODOS' | 'INFORMATIVO' | 'ADVERTENCIA' | 'CRITICO'>('TODOS')
+  const [selectedLog, setSelectedLog] = useState<LogItem | null>(null)
+  const [logs, setLogs] = useState<LogItem[]>([])
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [filtroRuta, setFiltroRuta] = useState<string>('Todas')
+  const [rutas, setRutas] = useState<Route[]>([])
 
-  const handleExportExcel = () => {
-    console.log('Generando reporte de auditoría en Excel...')
+  interface LogItem {
+    id: string
+    usuario: string
+    rol: string
+    accion: string
+    modulo: string
+    detalle: string
+    fecha: string
+    ip: string
+    nivel: 'INFORMATIVO' | 'ADVERTENCIA' | 'CRITICO'
+    rutaNombre?: string
   }
 
-  const handleExportPDF = () => {
-    console.log('Generando reporte de auditoría en PDF...')
+  const deriveNivel = (accion: string): LogItem['nivel'] => {
+    const a = (accion || '').toUpperCase()
+    if (a.includes('FALLIDO') || a.includes('ERROR') || a.includes('RECHAZ')) return 'ADVERTENCIA'
+    if (a.includes('APROBAR') || a.includes('ELIMINAR') || a.includes('CERRAR')) return 'CRITICO'
+    return 'INFORMATIVO'
   }
 
-  // --- LÓGICA DE FILTRADO ---
+  useEffect(() => {
+    ;(async () => {
+      try {
+        setLoading(true)
+        setError(null)
+        const [registrosResp, rutasResp] = await Promise.all([
+          auditoriaService.obtenerRegistros(),
+          routesService.getAll({ limit: 1000 })
+        ])
+        const registros = registrosResp
+        const rutasList = rutasResp?.data || []
+        setRutas(rutasList)
+        const rutaMap = new Map<string, string>()
+        rutasList.forEach(r => rutaMap.set(r.id, r.nombre))
+        const items: LogItem[] = registros.map((r: RegistroAuditoria) => ({
+          id: r.id,
+          usuario: r.usuario ? `${r.usuario.nombres} ${r.usuario.apellidos}` : r.usuarioId,
+          rol: r.usuario?.rol || 'DESCONOCIDO',
+          accion: r.accion,
+          modulo: r.entidad,
+          detalle: r.endpoint ? `${r.endpoint}` : r.entidadId,
+          fecha: r.creadoEn,
+          ip: r.direccionIP || '',
+          nivel: deriveNivel(r.accion),
+          rutaNombre: r.entidad?.toLowerCase() === 'ruta' ? (rutaMap.get(r.entidadId) || '') : ''
+        }))
+        setLogs(items)
+      } catch (e: any) {
+        setError('No se pudo cargar auditoría')
+      } finally {
+        setLoading(false)
+      }
+    })()
+  }, [])
+
+  const handleExportExcel = () => {}
+  const handleExportPDF = () => {}
+
   const logsFiltrados = logs.filter(log => {
     const coincideTexto = 
       log.usuario.toLowerCase().includes(busqueda.toLowerCase()) ||
@@ -45,11 +94,16 @@ const AuditoriaSistemaPage = () => {
       log.detalle.toLowerCase().includes(busqueda.toLowerCase())
     
     const coincideNivel = filtroNivel === 'TODOS' || log.nivel === filtroNivel
+    const coincideRuta = filtroRuta === 'Todas' || (log.rutaNombre && log.rutaNombre === filtroRuta)
 
-    return coincideTexto && coincideNivel
+    return coincideTexto && coincideNivel && coincideRuta
   })
 
-  // Helper para formatear fechas amigablemente
+  const todayStr = new Date().toDateString()
+  const eventosHoy = logs.filter(l => new Date(l.fecha).toDateString() === todayStr).length
+  const alertasCriticas = logs.filter(l => l.nivel === 'CRITICO').length
+  const usuariosActivos = new Set(logs.map(l => l.usuario)).size
+
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
     return new Intl.DateTimeFormat('es-CO', {
@@ -62,12 +116,11 @@ const AuditoriaSistemaPage = () => {
     }).format(date)
   }
 
-  // Helper para los colores de las etiquetas de nivel
   const getNivelBadge = (nivel: string) => {
     switch(nivel) {
-      case 'CRITICAL': return 'bg-rose-50 text-rose-700 border-rose-100'
-      case 'WARNING': return 'bg-amber-50 text-amber-700 border-amber-100'
-      case 'INFO': return 'bg-blue-50 text-blue-700 border-blue-100'
+      case 'CRITICO': return 'bg-rose-50 text-rose-700 border-rose-100'
+      case 'ADVERTENCIA': return 'bg-amber-50 text-amber-700 border-amber-100'
+      case 'INFORMATIVO': return 'bg-blue-50 text-blue-700 border-blue-100'
       default: return 'bg-slate-50 text-slate-700 border-slate-100'
     }
   }
@@ -112,7 +165,7 @@ const AuditoriaSistemaPage = () => {
               </div>
               <div>
                 <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Eventos Hoy</p>
-                <h3 className="text-3xl font-bold text-slate-900 tracking-tight">24</h3>
+                <h3 className="text-3xl font-bold text-slate-900 tracking-tight">{eventosHoy}</h3>
               </div>
             </div>
           </div>
@@ -123,7 +176,7 @@ const AuditoriaSistemaPage = () => {
               </div>
               <div>
                 <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Alertas Críticas</p>
-                <h3 className="text-3xl font-bold text-slate-900 tracking-tight">2</h3>
+                <h3 className="text-3xl font-bold text-slate-900 tracking-tight">{alertasCriticas}</h3>
               </div>
             </div>
           </div>
@@ -134,7 +187,7 @@ const AuditoriaSistemaPage = () => {
               </div>
               <div>
                 <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Usuarios Activos</p>
-                <h3 className="text-3xl font-bold text-slate-900 tracking-tight">5</h3>
+                <h3 className="text-3xl font-bold text-slate-900 tracking-tight">{usuariosActivos}</h3>
               </div>
             </div>
           </div>
@@ -153,7 +206,7 @@ const AuditoriaSistemaPage = () => {
               />
             </div>
             <div className="flex gap-1 w-full md:w-auto overflow-x-auto p-1 bg-slate-100 rounded-xl border border-slate-200">
-              {(['TODOS', 'INFO', 'WARNING', 'CRITICAL'] as const).map((nivel) => (
+              {(['TODOS', 'INFORMATIVO', 'ADVERTENCIA', 'CRITICO'] as const).map((nivel) => (
                 <button
                   key={nivel}
                   onClick={() => setFiltroNivel(nivel)}
@@ -165,6 +218,24 @@ const AuditoriaSistemaPage = () => {
                   )}
                 >
                   {nivel}
+                </button>
+              ))}
+            </div>
+            <div className="flex gap-1 w-full md:w-auto overflow-x-auto p-1 bg-slate-100 rounded-xl border border-slate-200">
+              {['Todas', 'Ruta Centro', 'Ruta Norte', 'Ruta Este', 'Ruta Sur - Expansión']
+                .filter(label => label === 'Todas' || rutas.some(r => r.nombre === label))
+                .map(label => (
+                <button
+                  key={label}
+                  onClick={() => setFiltroRuta(label)}
+                  className={cn(
+                    "px-4 py-2 rounded-lg text-xs font-bold tracking-wide transition-all duration-300",
+                    filtroRuta === label 
+                      ? 'bg-white text-slate-900 shadow-sm' 
+                      : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50'
+                  )}
+                >
+                  {label}
                 </button>
               ))}
             </div>
@@ -205,7 +276,7 @@ const AuditoriaSistemaPage = () => {
                     <td className="px-6 py-4">
                       <div className="flex flex-col">
                         <span className="font-bold text-slate-900">{log.accion.replace(/_/g, ' ')}</span>
-                        <span className="text-xs text-slate-400 font-medium">{log.modulo}</span>
+                        <span className="text-xs text-slate-400 font-medium">{log.modulo}{log.rutaNombre ? ` · ${log.rutaNombre}` : ''}</span>
                       </div>
                     </td>
                     <td className="px-6 py-4 max-w-xs truncate text-slate-600 font-medium" title={log.detalle}>

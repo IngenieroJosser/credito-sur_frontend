@@ -29,6 +29,7 @@ import { Sparkline } from '@/components/ui/PremiumCharts';
 import { TransactionalHighDetailChart } from '@/components/ui/TransactionalHighDetailChart';
 import { dashboardService, DashboardData } from '@/services/dashboard-coordinador-service';
 import { formatErrorForComponent } from '@/lib/api/api';
+import { TimeFilter, TimeFilterPeriod } from '@/components/ui/TimeFilter';
 
 interface Usuario {
   id?: string
@@ -61,7 +62,7 @@ interface QuickAccessItem {
 }
 
 const VistaCoordinador = () => {
-  const [timeFilter, setTimeFilter] = useState<'today' | 'week' | 'month' | 'quarter'>('month');
+  const [timeFilter, setTimeFilter] = useState<TimeFilterPeriod>('month');
   const [user, setUser] = useState<Usuario | null>(null)
   const [authChecked, setAuthChecked] = useState(false)
   const [dashboardData, setDashboardData] = useState<DashboardData | null>(null)
@@ -357,25 +358,11 @@ const VistaCoordinador = () => {
           </div>
           
           {/* Filtro de tiempo */}
-          <div className="mt-6 flex items-center space-x-1 bg-slate-200/50 backdrop-blur-sm rounded-xl p-1 w-fit">
-            {['Hoy', 'Sem', 'Mes', 'Trim'].map((item, index) => {
-              const values = ['today', 'week', 'month', 'quarter'] as const;
-              return (
-                <button
-                  key={item}
-                  onClick={() => setTimeFilter(values[index])}
-                  disabled={loading}
-                  className={`px-5 py-1.5 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all ${
-                    timeFilter === values[index] 
-                      ? 'bg-white text-[#08557f] shadow-md border border-slate-100' 
-                      : 'text-slate-500 hover:text-slate-700'
-                  } ${loading ? 'opacity-50 cursor-not-allowed' : ''}`}
-                >
-                  {item}
-                </button>
-              );
-            })}
-          </div>
+          <TimeFilter
+            activePeriod={timeFilter}
+            onPeriodChange={(p) => setTimeFilter(p)}
+            className="mt-6"
+          />
         </div>
 
         {/* Estado de carga durante refresh */}

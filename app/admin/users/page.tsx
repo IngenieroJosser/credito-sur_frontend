@@ -6,6 +6,7 @@ import { createPortal } from 'react-dom';
 import { useNotification } from '@/components/providers/NotificationProvider';
 import { usuariosService } from '@/services/usuarios-service';
 import { RolUsuario, EstadoUsuario } from '@/types/enums';
+import { apiRequest } from '@/lib/api/api';
 
 import {
   Search,
@@ -108,8 +109,10 @@ const UserManagementPage = () => {
   };
 
   useEffect(() => {
-    fetchUsers();
-  }, []);
+    if (!authLoading && currentUser) {
+      fetchUsers();
+    }
+  }, [authLoading, currentUser]);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterRole, setFilterRole] = useState('all');
   const [filterStatus] = useState('all');
@@ -125,6 +128,74 @@ const UserManagementPage = () => {
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
+
+  const [detalle, setDetalle] = useState<{
+    dineroCaja: number;
+    recaudoDia: number;
+    metaDiaria: number;
+    porcentajeMeta: number;
+    rutaNombre: string;
+    zona: string;
+    progreso: number;
+    enMora: number;
+    gastosHoy: number;
+    actividadReciente: Array<{ time: string; action: string; detail: string; amount?: string; type: 'in' | 'out' | 'neutral' }>;
+    ingresosDia: number;
+    egresosDia: number;
+    balanceDia: number;
+    gastosCategorias: Array<{ categoria: string; monto: number }>;
+    rutasActivas: number;
+    rutasTotal: number;
+    rutasInactivas: number;
+  }>({
+    dineroCaja: 0,
+    recaudoDia: 0,
+    metaDiaria: 0,
+    porcentajeMeta: 0,
+    rutaNombre: '',
+    zona: '',
+    progreso: 0,
+    enMora: 0,
+    gastosHoy: 0,
+    actividadReciente: [],
+    ingresosDia: 0,
+    egresosDia: 0,
+    balanceDia: 0,
+    gastosCategorias: [],
+    rutasActivas: 0,
+    rutasTotal: 0,
+    rutasInactivas: 0,
+  });
+
+  const [timelineCount, setTimelineCount] = useState(20);
+  const [timelinePage, setTimelinePage] = useState(1);
+  const [timelineLimit] = useState(20);
+  const [timelineLoading, setTimelineLoading] = useState(false);
+  const [filtroFechaInicio, setFiltroFechaInicio] = useState<string>('');
+  const [filtroFechaFin, setFiltroFechaFin] = useState<string>('');
+
+  const roleTheme = React.useMemo(() => {
+    const base = {
+      accentIcon: 'text-blue-600',
+      kpiBorderHover: 'hover:border-blue-300',
+    };
+    if (!selectedUser?.rol) return base;
+    switch (selectedUser.rol) {
+      case RolUsuario.COBRADOR:
+        return { accentIcon: 'text-blue-600', kpiBorderHover: 'hover:border-blue-300' };
+      case RolUsuario.CONTADOR:
+        return { accentIcon: 'text-amber-600', kpiBorderHover: 'hover:border-amber-300' };
+      case RolUsuario.COORDINADOR:
+        return { accentIcon: 'text-indigo-600', kpiBorderHover: 'hover:border-indigo-300' };
+      case RolUsuario.SUPERVISOR:
+        return { accentIcon: 'text-violet-600', kpiBorderHover: 'hover:border-violet-300' };
+      case RolUsuario.ADMIN:
+      case RolUsuario.SUPER_ADMINISTRADOR:
+        return { accentIcon: 'text-sky-600', kpiBorderHover: 'hover:border-sky-300' };
+      default:
+        return base;
+    }
+  }, [selectedUser]);
 
 
   // Define available modules based on the selected user's role using useMemo to avoid bad setState calls
@@ -280,6 +351,168 @@ const UserManagementPage = () => {
   const handleOpenDetailModal = (user: User) => {
     setSelectedUser(user);
     setIsDetailModalOpen(true);
+    if (user.rol === RolUsuario.COBRADOR) {
+      (async () => {
+        try {
+          const routesResp = await apiRequest<any[]>('GET', `/routes?cobradorId=${user.id}&activa=true`);
+          const ruta = routesResp?.[0];
+          if (!ruta) return;
+          const routeId = ruta.id;
+          const detalleRuta = await apiRequest<any>('GET', `/reports/operational/route-detail/${routeId}?period=today`);
+          const resumenRuta = await apiRequest<any>('GET', `/reports/operational/coordinator?period=today&routeId=${routeId}`);
+          const gastosResp = await apiRequest<any>('GET', `/accounting/gastos?rutaId=${routeId}&estado=APROBADO&page=1&limit=50`);
+          
+          const recaudo = Number(detalleRuta?.estadisticas?.totalRecaudado || 0);
+          const meta = Number(resumenRuta?.rendimientoRutas?.[0]?.meta || 0);
+          const porcentaje = meta > 0 ? Math.round((recaudo / meta) * 100) : 0;
+          const pagos = (detalleRuta?.pagosRecientes || []).map((p: any) => ({
+            time: new Date(p.fecha).toLocaleString('es-CO', { dateStyle: 'short', timeStyle: 'short' }),
+            action: 'Pago registrado',
+            detail: `Cliente: ${p.cliente}`,
+            amount: `+$${Number(p.monto).toLocaleString('es-CO')}`,
+            type: 'in' as const,
+          }));
+          const gastosHoy = Array.isArray(gastosResp?.items)
+            ? gastosResp.items
+                .filter((g: any) => new Date(g.fecha).toDateString() === new Date().toDateString())
+                .reduce((s: number, g: any) => s + Number(g.monto || 0), 0)
+            : 0;
+
+          setDetalle({
+            dineroCaja: recaudo,
+            recaudoDia: recaudo,
+            metaDiaria: meta,
+            porcentajeMeta: porcentaje,
+            rutaNombre: detalleRuta?.ruta?.nombre || '',
+            zona: detalleRuta?.ruta?.zona || '',
+            progreso: porcentaje,
+            enMora: 0,
+            gastosHoy,
+            actividadReciente: pagos,
+            ingresosDia: 0,
+            egresosDia: 0,
+            balanceDia: 0,
+            gastosCategorias: [],
+            rutasActivas: 1,
+            rutasTotal: 1,
+            rutasInactivas: 0,
+          });
+        } catch (e) {
+          console.error('Error cargando detalle de cobrador:', e);
+        }
+      })();
+    }
+    // Historial del usuario (auditoría)
+    (async () => {
+      try {
+        setTimelineLoading(true);
+        const params = new URLSearchParams();
+        params.set('page', '1');
+        params.set('limit', `${timelineLimit}`);
+        if (filtroFechaInicio) params.set('startDate', new Date(filtroFechaInicio).toISOString());
+        if (filtroFechaFin) params.set('endDate', new Date(filtroFechaFin).toISOString());
+        const audit = await apiRequest<any[]>('GET', `/audit/user/${user.id}?${params.toString()}`);
+        const roleFilters: Record<RolUsuario, string[]> = {
+          [RolUsuario.SUPER_ADMINISTRADOR]: [],
+          [RolUsuario.ADMIN]: [],
+          [RolUsuario.COORDINADOR]: ['ruta', 'reporte', 'prestamo', 'cliente'],
+          [RolUsuario.SUPERVISOR]: ['ruta', 'cliente', 'visita'],
+          [RolUsuario.COBRADOR]: ['pago', 'visita', 'gasto', 'ruta'],
+          [RolUsuario.CONTADOR]: ['transaccion', 'arqueo', 'cierre', 'gasto', 'caja'],
+        } as any;
+        const permissionEntityMap: Record<string, string[]> = {
+          'usuarios': ['usuario'],
+          'auditoria': ['audit', 'registro', 'log'],
+          'clientes': ['cliente'],
+          'rutas': ['ruta', 'visita', 'pago'],
+          'reportes-operativos': ['reporte'],
+          'prestamos-dinero': ['prestamo', 'solicitud', 'pago'],
+          'contable': ['transaccion', 'arqueo', 'cierre', 'gasto', 'caja'],
+          'tesoreria': ['caja', 'transaccion'],
+          'articulos': ['inventario', 'articulo'],
+          'notificaciones': ['notificacion'],
+        };
+        const allowedModules = (selectedPermissions && selectedPermissions.length > 0)
+          ? selectedPermissions
+          : (availableModules || []).filter((m: any) => (m.roles || []).includes(user.rol)).map((m: any) => m.id);
+        const permissionFilters = allowedModules.flatMap((id: string) => permissionEntityMap[id] || []);
+        const filtros = (permissionFilters.length > 0 ? permissionFilters : roleFilters[user.rol] || []).map((s) => s.toLowerCase());
+        const filtrados = filtros.length
+          ? (audit || []).filter((a: any) => filtros.some((f) => (a.entidad || '').toLowerCase().includes(f)))
+          : audit || [];
+        const timeline = filtrados.slice(0, timelineLimit).map((a: any) => ({
+          time: new Date(a.creadoEn).toLocaleString('es-CO', {
+            dateStyle: 'short',
+            timeStyle: 'short',
+          }),
+          action: a.accion,
+          detail: `${a.entidad} ${a.entidadId || ''}`.trim(),
+          type: 'neutral' as const,
+        }));
+        setDetalle((d) => ({ ...d, actividadReciente: timeline }));
+        setTimelinePage(1);
+      } catch (e) {
+        console.error('Error cargando auditoría del usuario:', e);
+      } finally {
+        setTimelineLoading(false);
+      }
+    })();
+    // Resumen general para otros roles
+    if (user.rol !== RolUsuario.COBRADOR) {
+      (async () => {
+        try {
+          const resumenGeneral = await apiRequest<any>('GET', `/reports/operational/coordinator?period=today`);
+          const hoy = new Date();
+          const startDate = hoy.toISOString();
+          const endDate = hoy.toISOString();
+          const financiero = await apiRequest<any>('GET', `/reports/financial/summary?startDate=${startDate}&endDate=${endDate}`);
+          const cajas = await apiRequest<any[]>('GET', `/accounting/cajas`);
+          const moraStats = await apiRequest<any>('GET', `/reports/estadisticas-mora`);
+          const querySupervisor = user.rol === RolUsuario.SUPERVISOR ? `&supervisorId=${user.id}` : '';
+          const rutasActivasResp = await apiRequest<any[]>('GET', `/routes?activa=true${querySupervisor}`);
+          const rutasInactivasResp = await apiRequest<any[]>('GET', `/routes?activa=false${querySupervisor}`);
+          const rutasTotalResp = await apiRequest<any[]>('GET', `/routes?${querySupervisor}`);
+          const ingresosDia = Number(financiero?.ingresos?.total || 0);
+          const egresosDia = Number(financiero?.egresos?.total || 0);
+          const balanceDia = ingresosDia - egresosDia;
+          const recaudo = ingresosDia || Number(resumenGeneral?.totalRecaudo || 0);
+          const meta = Number(resumenGeneral?.totalMeta || 0);
+          const dineroCaja = Array.isArray(cajas)
+            ? cajas.reduce((s: number, c: any) => s + Number(c.saldoActual || 0), 0)
+            : 0;
+          const porcentaje = meta > 0 ? Math.round((recaudo / meta) * 100) : 0;
+          let gastosCategorias: Array<{ categoria: string; monto: number }> = [];
+          if (user.rol === RolUsuario.CONTADOR) {
+            const distribucion = await apiRequest<any>('GET', `/reports/financial/expenses?startDate=${startDate}&endDate=${endDate}`);
+            const categorias = Array.isArray(distribucion?.categorias) ? distribucion.categorias : [];
+            gastosCategorias = categorias
+              .map((c: any) => ({ categoria: c.nombre || c.categoria || 'Otro', monto: Number(c.total || c.monto || 0) }))
+              .sort((a: any, b: any) => b.monto - a.monto)
+              .slice(0, 5);
+          }
+          setDetalle((d) => ({
+            ...d,
+            dineroCaja,
+            recaudoDia: recaudo,
+            metaDiaria: meta,
+            porcentajeMeta: porcentaje,
+            rutaNombre: 'General',
+            zona: '',
+            progreso: porcentaje,
+            enMora: Number(moraStats?.totalPrestamosMora || 0),
+            ingresosDia,
+            egresosDia,
+            balanceDia,
+            gastosCategorias,
+            rutasActivas: Array.isArray(rutasActivasResp) ? rutasActivasResp.length : 0,
+            rutasTotal: Array.isArray(rutasTotalResp) ? rutasTotalResp.length : 0,
+            rutasInactivas: Array.isArray(rutasInactivasResp) ? rutasInactivasResp.length : 0,
+          }));
+        } catch (e) {
+          console.error('Error cargando resumen general:', e);
+        }
+      })();
+    }
   };
 
   const handleOpenPermissionsModal = (user: User) => {
@@ -794,7 +1027,7 @@ const UserManagementPage = () => {
           onClick={() => setIsCreateModalOpen(false)}
         >
           <div 
-            className="bg-white rounded-2xl w-full max-w-lg border border-slate-200 shadow-2xl p-8 transform scale-100 animate-in zoom-in-95 duration-200"
+            className="bg-white rounded-2xl w-full max-w-3xl border border-slate-200 shadow-2xl p-10 transform scale-100 animate-in zoom-in-95 duration-200"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center gap-3 mb-8">
@@ -909,7 +1142,7 @@ const UserManagementPage = () => {
           onClick={() => setIsEditModalOpen(false)}
         >
           <div 
-            className="bg-white rounded-2xl w-full max-w-lg border border-slate-200 shadow-2xl p-8 transform scale-100 animate-in zoom-in-95 duration-200"
+            className="bg-white rounded-2xl w-full max-w-3xl border border-slate-200 shadow-2xl p-10 transform scale-100 animate-in zoom-in-95 duration-200"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center gap-3 mb-8">
@@ -1020,7 +1253,7 @@ const UserManagementPage = () => {
           onClick={() => setIsPermissionsModalOpen(false)}
         >
           <div 
-            className="bg-white rounded-2xl w-full max-w-2xl border border-slate-200 shadow-2xl p-8 transform scale-100 animate-in zoom-in-95 duration-200 flex flex-col max-h-[90vh]"
+            className="bg-white rounded-2xl w-full max-w-5xl border border-slate-200 shadow-2xl p-10 transform scale-100 animate-in zoom-in-95 duration-200 flex flex-col max-h-[90vh]"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center gap-3 mb-6 shrink-0">
@@ -1109,8 +1342,8 @@ const UserManagementPage = () => {
 
       {/* Delete Confirmation Modal */}
       {isDeleteModalOpen && selectedUser && (
-        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in duration-200">
-          <div className="bg-white rounded-2xl w-full max-w-sm border border-slate-200 shadow-2xl p-8 transform scale-100 animate-in zoom-in-95 duration-200">
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in duration-200" onClick={() => setIsDeleteModalOpen(false)}>
+          <div className="bg-white rounded-2xl w-full max-w-md border border-slate-200 shadow-2xl p-10 transform scale-100 animate-in zoom-in-95 duration-200" onClick={(e) => e.stopPropagation()}>
             <div className="flex flex-col items-center text-center">
               <div className={cn(
                 "w-12 h-12 rounded-full flex items-center justify-center mb-4",
@@ -1161,7 +1394,7 @@ const UserManagementPage = () => {
             onClick={(e) => e.stopPropagation()}
           >
              {/* LEFT SIDE - PROFILE SUMMARY */}
-             <div className="md:w-1/3 bg-slate-50 border-r border-slate-200 flex flex-col items-center p-8 relative overflow-y-auto">
+             <div className="md:w-1/3 bg-slate-50 border-r border-slate-200 flex flex-col items-center p-10 relative overflow-y-auto">
                  <div className="absolute top-0 left-0 right-0 h-32 bg-gradient-to-br from-slate-200 to-slate-100 z-0 pointer-events-none mb-12"></div>
                  
                  <div className="relative z-10 mb-4 items-center flex flex-col mt-4">
@@ -1223,7 +1456,7 @@ const UserManagementPage = () => {
              </div>
 
              {/* RIGHT SIDE - DETAILED CONTENT */}
-             <div className="md:w-2/3 p-8 overflow-y-auto bg-white relative">
+             <div className="md:w-2/3 p-10 overflow-y-auto bg-white relative">
                  <button 
                     onClick={() => setIsDetailModalOpen(false)}
                     className="absolute top-6 right-6 p-2 rounded-full hover:bg-slate-100 text-slate-400 hover:text-slate-900 transition-all z-20"
@@ -1266,10 +1499,11 @@ const UserManagementPage = () => {
                                         <Wallet className="w-3.5 h-3.5 text-blue-600" />
                                         Dinero en Caja
                                     </div>
-                                    <div className="text-3xl font-black tracking-tight text-slate-900 mb-1">$ 1,245,000</div>
+                                    <div className="text-3xl font-black tracking-tight text-slate-900 mb-1">$ {detalle.dineroCaja.toLocaleString('es-CO')}
+                                    </div>
                                     <div className="flex items-center gap-1 text-xs text-blue-700 bg-blue-50 w-fit px-2 py-0.5 rounded-lg border border-blue-100">
                                         <TrendingUp className="w-3 h-3" />
-                                        <span className="font-semibold">+12% vs ayer</span>
+                                        <span className="font-semibold">{detalle.porcentajeMeta}% vs meta</span>
                                     </div>
                                 </div>
                             </div>
@@ -1283,19 +1517,19 @@ const UserManagementPage = () => {
                                         <CheckCircle2 className="w-3.5 h-3.5" />
                                         Recaudo del Día
                                     </div>
-                                    <div className="text-3xl font-black tracking-tight text-slate-900 mb-1">$ 450,000</div>
+                                    <div className="text-3xl font-black tracking-tight text-slate-900 mb-1">$ {detalle.recaudoDia.toLocaleString('es-CO')}</div>
                                     <div className="text-xs text-slate-500">
-                                        Meta diaria: <span className="font-bold text-slate-700">$ 600,000</span> (75%)
+                                        Meta diaria: <span className="font-bold text-slate-700">$ {detalle.metaDiaria.toLocaleString('es-CO')}</span> ({detalle.porcentajeMeta}%)
                                     </div>
                                     <div className="w-full h-1.5 bg-slate-100 rounded-full mt-3 overflow-hidden">
-                                        <div className="h-full bg-emerald-500 rounded-full w-[75%]"></div>
+                                        <div className="h-full bg-emerald-500 rounded-full" style={{ width: `${detalle.porcentajeMeta}%` }}></div>
                                     </div>
                                 </div>
                             </div>
                         </div>
 
                         {/* 2. ESTADISTICAS DETALLADAS (GRID 3) */}
-                        <div className="grid grid-cols-3 gap-3">
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                             <div className="bg-slate-50 border border-slate-200 p-3 rounded-xl hover:bg-slate-100 transition-colors">
                                 <div className="flex items-center gap-2 mb-1.5">
                                     <div className="p-1.5 bg-white rounded-md shadow-sm text-violet-600 border border-slate-100">
@@ -1303,8 +1537,8 @@ const UserManagementPage = () => {
                                     </div>
                                     <span className="text-[10px] font-bold text-slate-400 uppercase">Ruta Activa</span>
                                 </div>
-                                <div className="font-bold text-slate-900 text-sm">Zona Norte</div>
-                                <div className="text-[10px] text-slate-500 font-medium mt-0.5">85% completado hoy</div>
+                                <div className="font-bold text-slate-900 text-sm">{detalle.zona || '—'}</div>
+                                <div className="text-[10px] text-slate-500 font-medium mt-0.5">{detalle.progreso}% completado hoy</div>
                             </div>
                             
                             <div className="bg-slate-50 border border-slate-200 p-3 rounded-xl hover:bg-slate-100 transition-colors">
@@ -1314,7 +1548,7 @@ const UserManagementPage = () => {
                                     </div>
                                     <span className="text-[10px] font-bold text-slate-400 uppercase">En Mora</span>
                                 </div>
-                                <div className="font-bold text-slate-900 text-sm">12 Clientes</div>
+                                <div className="font-bold text-slate-900 text-sm">{detalle.enMora} Clientes</div>
                                 <div className="text-[10px] text-rose-600 font-bold mt-0.5">Atención requerida</div>
                             </div>
 
@@ -1325,26 +1559,66 @@ const UserManagementPage = () => {
                                     </div>
                                     <span className="text-[10px] font-bold text-slate-400 uppercase">Gastos</span>
                                 </div>
-                                <div className="font-bold text-slate-900 text-sm">$ 25,000</div>
-                                <div className="text-[10px] text-slate-500 font-medium mt-0.5">Combustible (Hoy)</div>
+                                <div className="font-bold text-slate-900 text-sm">$ {detalle.gastosHoy.toLocaleString('es-CO')}</div>
+                                <div className="text-[10px] text-slate-500 font-medium mt-0.5">Hoy</div>
                             </div>
                         </div>
 
                         {/* 3. ACTIVIDAD RECIENTE (TIMELINE) */}
                         <div className="border border-slate-200 rounded-2xl overflow-hidden">
-                            <div className="bg-slate-50 px-4 py-3 border-b border-slate-200 flex justify-between items-center">
+                            <div className="bg-slate-50 px-4 py-3 border-b border-slate-200 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
                                 <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wide flex items-center gap-2">
                                     <Calendar className="w-3.5 h-3.5" />
                                     Actividad Reciente
                                 </h4>
+                                <div className="flex items-center gap-2">
+                                  <input
+                                    type="date"
+                                    className="text-[10px] px-2 py-1 border border-slate-200 rounded-md"
+                                    value={filtroFechaInicio}
+                                    onChange={(e) => setFiltroFechaInicio(e.target.value)}
+                                  />
+                                  <input
+                                    type="date"
+                                    className="text-[10px] px-2 py-1 border border-slate-200 rounded-md"
+                                    value={filtroFechaFin}
+                                    onChange={(e) => setFiltroFechaFin(e.target.value)}
+                                  />
+                                  <button
+                                    className="text-[10px] font-bold text-blue-700 bg-blue-50 px-2 py-1 rounded-md border border-blue-200 hover:bg-blue-100"
+                                    onClick={async () => {
+                                      if (!selectedUser) return;
+                                      setTimelineLoading(true);
+                                      try {
+                                        const params = new URLSearchParams();
+                                        params.set('page', '1');
+                                        params.set('limit', `${timelineLimit}`);
+                                        if (filtroFechaInicio) params.set('startDate', new Date(filtroFechaInicio).toISOString());
+                                        if (filtroFechaFin) params.set('endDate', new Date(filtroFechaFin).toISOString());
+                                        const audit = await apiRequest<any[]>('GET', `/audit/user/${selectedUser.id}?${params.toString()}`);
+                                        const filtrados = (audit || []).filter(
+                                          (a: any) => a.entidad && a.accion
+                                        );
+                                        const timeline = filtrados.slice(0, timelineLimit).map((a: any) => ({
+                                          time: new Date(a.creadoEn).toLocaleString('es-CO', { dateStyle: 'short', timeStyle: 'short' }),
+                                          action: a.accion,
+                                          detail: `${a.entidad} ${a.entidadId || ''}`.trim(),
+                                          type: 'neutral' as const,
+                                        }));
+                                        setDetalle((d) => ({ ...d, actividadReciente: timeline }));
+                                        setTimelinePage(1);
+                                        setTimelineCount(timelineLimit);
+                                      } finally {
+                                        setTimelineLoading(false);
+                                      }
+                                    }}
+                                  >
+                                    Aplicar
+                                  </button>
+                                </div>
                             </div>
                             <div className="bg-white p-0">
-                                {[
-                                    { time: '31/01 14:30', action: 'Pago registrado', detail: 'Cliente: María Gonzalez', amount: '+$50,000', type: 'in' },
-                                    { time: '31/01 13:15', action: 'Visita completada', detail: 'Cliente: Taller Los Amigos', amount: '', type: 'neutral' },
-                                    { time: '31/01 11:45', action: 'Gasto reportado', detail: 'Combustible moto', amount: '-$15,000', type: 'out' },
-                                    { time: '31/01 09:30', action: 'Inicio de ruta', detail: 'Zona Norte - Sector 3', amount: '', type: 'neutral' },
-                                ].map((item, idx) => (
+                                {detalle.actividadReciente.map((item, idx) => (
                                     <div key={idx} className="flex items-center gap-4 p-3 border-b border-slate-50 last:border-0 hover:bg-slate-50 transition-colors">
                                         <div className="w-20 text-[10px] font-bold text-slate-500 text-right leading-tight">{item.time}</div>
                                         <div className={cn(
@@ -1367,13 +1641,246 @@ const UserManagementPage = () => {
 
                      </div>
                     ) : (
-                        <div className="flex flex-col items-center justify-center py-12 text-slate-400 bg-slate-50 rounded-2xl border border-slate-100 border-dashed">
-                            <div className="p-4 bg-white rounded-full shadow-sm mb-3">
-                                <Sparkles className="w-8 h-8 text-slate-300" />
+                      <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                          <div className={cn("bg-white rounded-2xl p-5 border border-slate-200 shadow-sm relative overflow-hidden group transition-colors", roleTheme.kpiBorderHover)}>
+                            <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:scale-110 transition-transform duration-500">
+                              <Wallet className={cn("w-24 h-24", roleTheme.accentIcon)} />
                             </div>
-                            <p className="font-medium text-sm">Vista detallada no configurada para este rol</p>
-                            <p className="text-xs mt-1">La información disponible varía según el perfil</p>
+                            <div className="relative z-10">
+                              <div className="flex items-center gap-2 text-slate-500 text-xs font-bold uppercase tracking-wider mb-2">
+                                <Wallet className={cn("w-3.5 h-3.5", roleTheme.accentIcon)} />
+                                Dinero en Caja
+                              </div>
+                              <div className="text-3xl font-black tracking-tight text-slate-900 mb-1">$ {detalle.dineroCaja.toLocaleString('es-CO')}</div>
+                              <div className="flex items-center gap-1 text-xs text-blue-700 bg-blue-50 w-fit px-2 py-0.5 rounded-lg border border-blue-100">
+                                <TrendingUp className="w-3 h-3" />
+                                <span className="font-semibold">{detalle.porcentajeMeta}% vs meta</span>
+                              </div>
+                            </div>
+                          </div>
+                          <div className={cn("bg-white border border-slate-200 rounded-2xl p-5 shadow-sm relative overflow-hidden group transition-colors", roleTheme.kpiBorderHover)}>
+                            <div className="absolute top-0 right-0 p-4 opacity-[0.03] group-hover:scale-110 transition-transform duration-500 text-emerald-600">
+                              <Sparkles className="w-24 h-24" />
+                            </div>
+                            <div className="relative z-10">
+                              <div className="flex items-center gap-2 text-slate-400 text-xs font-bold uppercase tracking-wider mb-2">
+                                <CheckCircle2 className="w-3.5 h-3.5" />
+                                Recaudo del Día
+                              </div>
+                              <div className="text-3xl font-black tracking-tight text-slate-900 mb-1">$ {detalle.recaudoDia.toLocaleString('es-CO')}</div>
+                              <div className="text-xs text-slate-500">
+                                Meta diaria: <span className="font-bold text-slate-700">$ {detalle.metaDiaria.toLocaleString('es-CO')}</span> ({detalle.porcentajeMeta}%)
+                              </div>
+                              <div className="w-full h-1.5 bg-slate-100 rounded-full mt-3 overflow-hidden">
+                                <div className="h-full bg-emerald-500 rounded-full" style={{ width: `${detalle.porcentajeMeta}%` }}></div>
+                              </div>
+                            </div>
+                          </div>
                         </div>
+                        {selectedUser?.rol === RolUsuario.CONTADOR && (
+                          <>
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                              <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm">
+                                <div className="text-[10px] font-bold text-slate-400 uppercase mb-1">Ingresos Hoy</div>
+                                <div className="text-2xl font-black">$ {detalle.ingresosDia.toLocaleString('es-CO')}</div>
+                              </div>
+                              <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm">
+                                <div className="text-[10px] font-bold text-slate-400 uppercase mb-1">Egresos Hoy</div>
+                                <div className="text-2xl font-black">$ {detalle.egresosDia.toLocaleString('es-CO')}</div>
+                              </div>
+                              <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm">
+                                <div className="text-[10px] font-bold text-slate-400 uppercase mb-1">Balance Hoy</div>
+                                <div className="text-2xl font-black">$ {detalle.balanceDia.toLocaleString('es-CO')}</div>
+                              </div>
+                            </div>
+                            <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm">
+                              <div className="text-[10px] font-bold text-slate-400 uppercase mb-3">Top Gastos por Categoría</div>
+                              <div className="space-y-2">
+                                {detalle.gastosCategorias.length === 0 && (
+                                  <div className="text-xs text-slate-500">Sin gastos registrados hoy</div>
+                                )}
+                                {detalle.gastosCategorias.map((g, i) => (
+                                  <div key={i} className="flex items-center justify-between text-sm">
+                                    <span className="font-medium text-slate-700">{g.categoria}</span>
+                                    <span className="font-bold">$ {g.monto.toLocaleString('es-CO')}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          </>
+                        )}
+                        {selectedUser?.rol === RolUsuario.COORDINADOR && (
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                            <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm">
+                              <div className="text-[10px] font-bold text-slate-400 uppercase mb-1">Rutas Activas</div>
+                              <div className="text-2xl font-black">{detalle.rutasActivas}</div>
+                              <div className="text-[10px] text-slate-500 font-medium mt-0.5">de {detalle.rutasTotal}</div>
+                            </div>
+                            <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm">
+                              <div className="text-[10px] font-bold text-slate-400 uppercase mb-1">Rutas Inactivas</div>
+                              <div className="text-2xl font-black">{detalle.rutasInactivas}</div>
+                            </div>
+                            <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm">
+                              <div className="text-[10px] font-bold text-slate-400 uppercase mb-1">Eficiencia Promedio</div>
+                              <div className="text-2xl font-black">{detalle.porcentajeMeta}%</div>
+                            </div>
+                            <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm">
+                              <div className="text-[10px] font-bold text-slate-400 uppercase mb-1">Recaudo Total Hoy</div>
+                              <div className="text-2xl font-black">$ {detalle.recaudoDia.toLocaleString('es-CO')}</div>
+                            </div>
+                          </div>
+                        )}
+                        {selectedUser?.rol === RolUsuario.SUPERVISOR && (
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                            <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm">
+                              <div className="text-[10px] font-bold text-slate-400 uppercase mb-1">Rutas Activas</div>
+                              <div className="text-2xl font-black">{detalle.rutasActivas}</div>
+                              <div className="text-[10px] text-slate-500 font-medium mt-0.5">de {detalle.rutasTotal}</div>
+                            </div>
+                            <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm">
+                              <div className="text-[10px] font-bold text-slate-400 uppercase mb-1">Rutas Inactivas</div>
+                              <div className="text-2xl font-black">{detalle.rutasInactivas}</div>
+                            </div>
+                            <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm">
+                              <div className="text-[10px] font-bold text-slate-400 uppercase mb-1">En Mora</div>
+                              <div className="text-2xl font-black">{detalle.enMora}</div>
+                            </div>
+                            <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm">
+                              <div className="text-[10px] font-bold text-slate-400 uppercase mb-1">Gastos Hoy</div>
+                              <div className="text-2xl font-black">$ {detalle.gastosHoy.toLocaleString('es-CO')}</div>
+                            </div>
+                          </div>
+                        )}
+                        {(selectedUser?.rol === RolUsuario.ADMIN || selectedUser?.rol === RolUsuario.SUPER_ADMINISTRADOR) && (
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                            <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm">
+                              <div className="text-[10px] font-bold text-slate-400 uppercase mb-1">Recaudo Hoy</div>
+                              <div className="text-2xl font-black">$ {detalle.recaudoDia.toLocaleString('es-CO')}</div>
+                            </div>
+                            <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm">
+                              <div className="text-[10px] font-bold text-slate-400 uppercase mb-1">Meta Hoy</div>
+                              <div className="text-2xl font-black">$ {detalle.metaDiaria.toLocaleString('es-CO')}</div>
+                            </div>
+                            <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm">
+                              <div className="text-[10px] font-bold text-slate-400 uppercase mb-1">% Cumplimiento</div>
+                              <div className="text-2xl font-black">{detalle.porcentajeMeta}%</div>
+                            </div>
+                          </div>
+                        )}
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                          <div className="bg-slate-50 border border-slate-200 p-3 rounded-xl hover:bg-slate-100 transition-colors">
+                            <div className="flex items-center gap-2 mb-1.5">
+                              <div className="p-1.5 bg-white rounded-md shadow-sm text-violet-600 border border-slate-100">
+                                <MapPin className="w-3.5 h-3.5" />
+                              </div>
+                              <span className="text-[10px] font-bold text-slate-400 uppercase">Resumen</span>
+                            </div>
+                            <div className="font-bold text-slate-900 text-sm">{detalle.rutaNombre}</div>
+                            <div className="text-[10px] text-slate-500 font-medium mt-0.5">{detalle.progreso}% avance</div>
+                          </div>
+                          <div className="bg-slate-50 border border-slate-200 p-3 rounded-xl hover:bg-slate-100 transition-colors">
+                            <div className="flex items-center gap-2 mb-1.5">
+                              <div className="p-1.5 bg-white rounded-md shadow-sm text-rose-600 border border-slate-100">
+                                <AlertCircle className="w-3.5 h-3.5" />
+                              </div>
+                              <span className="text-[10px] font-bold text-slate-400 uppercase">En Mora</span>
+                            </div>
+                            <div className="font-bold text-slate-900 text-sm">{detalle.enMora} Clientes</div>
+                            <div className="text-[10px] text-rose-600 font-bold mt-0.5">Atención requerida</div>
+                          </div>
+                          <div className="bg-slate-50 border border-slate-200 p-3 rounded-xl hover:bg-slate-100 transition-colors">
+                            <div className="flex items-center gap-2 mb-1.5">
+                              <div className="p-1.5 bg-white rounded-md shadow-sm text-amber-600 border border-slate-100">
+                                <DollarSign className="w-3.5 h-3.5" />
+                              </div>
+                              <span className="text-[10px] font-bold text-slate-400 uppercase">Gastos</span>
+                            </div>
+                            <div className="font-bold text-slate-900 text-sm">$ {detalle.gastosHoy.toLocaleString('es-CO')}</div>
+                            <div className="text-[10px] text-slate-500 font-medium mt-0.5">Hoy</div>
+                          </div>
+                        </div>
+                        <div className="border border-slate-200 rounded-2xl overflow-hidden">
+                          <div className="bg-slate-50 px-4 py-3 border-b border-slate-200 flex justify-between items-center">
+                            <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wide flex items-center gap-2">
+                              <Calendar className="w-3.5 h-3.5" />
+                              Actividad Reciente
+                            </h4>
+                          </div>
+                          <div className="bg-white p-0">
+                            {detalle.actividadReciente.slice(0, timelineCount).map((item, idx) => (
+                              <div key={idx} className="flex items-center gap-4 p-3 border-b border-slate-50 last:border-0 hover:bg-slate-50 transition-colors">
+                                <div className="w-20 text-[10px] font-bold text-slate-500 text-right leading-tight">{item.time}</div>
+                                <div className={cn(
+                                  "w-2 h-2 rounded-full ring-4 ring-white",
+                                  item.type === 'in' ? 'bg-emerald-500' : item.type === 'out' ? 'bg-rose-500' : 'bg-slate-300'
+                                )}></div>
+                                <div className="flex-1 min-w-0">
+                                    <div className="flex items-center gap-2">
+                                      <div className="text-xs font-bold text-slate-900">{item.action}</div>
+                                      <span className={cn("text-[10px] px-1.5 py-0.5 rounded-md border",
+                                        item.action.toLowerCase().includes('pago') ? 'bg-emerald-100 text-emerald-700 border-emerald-200' :
+                                        item.action.toLowerCase().includes('gasto') ? 'bg-amber-100 text-amber-700 border-amber-200' :
+                                        item.action.toLowerCase().includes('visita') ? 'bg-indigo-100 text-indigo-700 border-indigo-200' :
+                                        item.action.toLowerCase().includes('transaccion') || item.action.toLowerCase().includes('caja') ? 'bg-sky-100 text-sky-700 border-sky-200' :
+                                        item.action.toLowerCase().includes('arqueo') || item.action.toLowerCase().includes('cierre') ? 'bg-purple-100 text-purple-700 border-purple-200' :
+                                        'bg-slate-100 text-slate-700 border-slate-200'
+                                      )}>
+                                        {item.action.toLowerCase().includes('pago') ? 'Pago' :
+                                        item.action.toLowerCase().includes('gasto') ? 'Gasto' :
+                                        item.action.toLowerCase().includes('visita') ? 'Visita' :
+                                        item.action.toLowerCase().includes('transaccion') ? 'Transacción' :
+                                        item.action.toLowerCase().includes('arqueo') ? 'Arqueo' :
+                                        item.action.toLowerCase().includes('cierre') ? 'Cierre' :
+                                        item.action.toLowerCase().includes('caja') ? 'Caja' :
+                                        'Evento'}
+                                      </span>
+                                    </div>
+                                  <div className="text-[10px] text-slate-500 truncate">{item.detail}</div>
+                                </div>
+                                {item.amount && (
+                                  <div className="text-xs font-bold text-black px-2 py-0.5 rounded-md bg-slate-100">
+                                    {item.amount}
+                                  </div>
+                                )}
+                              </div>
+                            ))}
+                            {detalle.actividadReciente.length > timelineCount && (
+                              <div className="flex justify-center p-3 border-t border-slate-100">
+                                <button
+                                  className="text-xs font-bold text-blue-700 bg-blue-50 px-3 py-1 rounded-md border border-blue-200 hover:bg-blue-100"
+                                  onClick={async () => {
+                                    if (timelineLoading) return;
+                                    setTimelineLoading(true);
+                                    try {
+                                      const nextPage = timelinePage + 1;
+                                      const params = new URLSearchParams();
+                                      params.set('page', `${nextPage}`);
+                                      params.set('limit', `${timelineLimit}`);
+                                      if (filtroFechaInicio) params.set('startDate', new Date(filtroFechaInicio).toISOString());
+                                      if (filtroFechaFin) params.set('endDate', new Date(filtroFechaFin).toISOString());
+                                      const audit = await apiRequest<any[]>('GET', `/audit/user/${selectedUser?.id}?${params.toString()}`);
+                                      const more = (audit || []).map((a: any) => ({
+                                        time: new Date(a.creadoEn).toLocaleString('es-CO', { dateStyle: 'short', timeStyle: 'short' }),
+                                        action: a.accion,
+                                        detail: `${a.entidad} ${a.entidadId || ''}`.trim(),
+                                        type: 'neutral' as const,
+                                      }));
+                                      setDetalle((d) => ({ ...d, actividadReciente: [...d.actividadReciente, ...more] }));
+                                      setTimelinePage(nextPage);
+                                      setTimelineCount(timelineCount + timelineLimit);
+                                    } finally {
+                                      setTimelineLoading(false);
+                                    }
+                                  }}
+                                >
+                                  Ver más
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
                     )}
                  </div>
              </div>
