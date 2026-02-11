@@ -20,7 +20,6 @@ jest.mock('next/navigation', () => ({
 jest.mock('next/image', () => ({
   __esModule: true,
   default: (props: any) => {
-    // eslint-disable-next-line @next/next/no-img-element
     // Filtramos props exclusivas de Next/Image que React lanza warning en <img>
     const { fill, priority, ...rest } = props
     return <img {...rest} alt={props.alt} />

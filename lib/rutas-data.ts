@@ -33,11 +33,14 @@ export async function getRutaDetalle(id: string): Promise<RutaDetalleMock | null
   try {
     const cookieStore = await cookies();
     const token = cookieStore.get('token')?.value;
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+    if (!token) {
+      return null;
+    }
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:3001';
 
     const res = await fetch(`${apiUrl}/routes/${id}`, {
       headers: {
-        'Authorization': `Bearer ${token || ''}`,
+        'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json',
       },
       cache: 'no-store',
@@ -45,7 +48,9 @@ export async function getRutaDetalle(id: string): Promise<RutaDetalleMock | null
 
     if (!res.ok) {
       if (res.status === 404 || res.status === 400) return null;
-      throw new Error(`Error fetching route: ${res.statusText}`);
+      if (res.status === 401) return null;
+      console.error(`Error fetching route: ${res.status} ${res.statusText}`);
+      return null;
     }
 
     return await res.json();
@@ -85,7 +90,7 @@ export async function getRutasList(): Promise<Ruta[]> {
       return [];
     }
 
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:3001';
 
     // Fetch routes with a safer limit to avoid timeouts
     const res = await fetch(`${apiUrl}/routes?limit=20`, { 

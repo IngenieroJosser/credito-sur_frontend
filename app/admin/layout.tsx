@@ -44,6 +44,7 @@ import {
 } from 'lucide-react'
 import { Rol, obtenerModulosPorRol, getIconComponent, tieneAcceso } from '@/lib/permissions'
 import NotFoundPage from '../not-found'
+import { notificacionesService, type Notificacion } from '@/services/notificaciones-service'
 
 interface NavigationItem {
   name: string;
@@ -86,6 +87,8 @@ export default function AdminLayout({
   const [showNotifications, setShowNotifications] = useState(false)
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false)
   const [isLoggingOut, setIsLoggingOut] = useState(false)
+  const [notificaciones, setNotificaciones] = useState<Notificacion[]>([])
+  const [isLoadingNotificaciones, setIsLoadingNotificaciones] = useState(false)
   
   // Construcción dinámica del menú lateral
   const [navigation, setNavigation] = useState<NavigationItem[]>([])
@@ -222,6 +225,26 @@ export default function AdminLayout({
       router.replace(roleRedirects[user.rol])
     }
   }, [authChecked, pathname, router, user?.rol])
+
+  useEffect(() => {
+    const cargarNotificaciones = async () => {
+      try {
+        setIsLoadingNotificaciones(true)
+        const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null
+        if (!token || !user?.id) {
+          setNotificaciones([])
+          return
+        }
+        const notifs = await notificacionesService.obtenerTodas()
+        setNotificaciones(notifs)
+      } catch (error) {
+        setNotificaciones([])
+      } finally {
+        setIsLoadingNotificaciones(false)
+      }
+    }
+    if (authChecked && user?.id) cargarNotificaciones()
+  }, [authChecked, user?.id])
 
   // Mientras verificamos la sesión, no mostramos nada para evitar parpadeos
   if (!authChecked) return null
@@ -383,52 +406,51 @@ export default function AdminLayout({
                     className="relative p-2 hover:bg-gray-100 rounded-lg transition-colors"
                   >
                     <Bell className={`h-5 w-5 ${showNotifications ? 'text-blue-600' : 'text-gray-500'}`} />
-                    <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-orange-500 rounded-full border-2 border-white"></span>
+                    {notificaciones.some(n => !n.leida) && (
+                      <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-orange-500 rounded-full border-2 border-white"></span>
+                    )}
                   </button>
 
                   {showNotifications && (
                     <div className="absolute right-0 mt-2 w-80 bg-white rounded-xl shadow-xl border border-gray-100 py-2 z-50 animate-in fade-in slide-in-from-top-2">
                       <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
                         <h3 className="font-semibold text-gray-900">Notificaciones</h3>
-                        <span className="text-xs font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded-full">3 Nuevas</span>
+                        <span className="text-xs font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded-full">
+                          {notificaciones.filter(n => !n.leida).length} Nuevas
+                        </span>
                       </div>
                       <div className="max-h-[300px] overflow-y-auto">
-                        <div className="p-4 border-b border-gray-50 hover:bg-gray-50 transition-colors cursor-pointer group">
-                          <div className="flex gap-3">
-                            <div className="mt-1 p-2 bg-green-50 rounded-full text-green-600 group-hover:scale-110 transition-transform">
-                              <Banknote className="h-4 w-4" />
+                        {isLoadingNotificaciones ? (
+                          <div className="p-4 text-center text-xs text-gray-500">Cargando...</div>
+                        ) : notificaciones.length > 0 ? (
+                          notificaciones.slice(0, 3).map((n) => (
+                            <div key={n.id} className="p-4 border-b border-gray-50 hover:bg-gray-50 transition-colors cursor-pointer group">
+                              <div className="flex gap-3">
+                                <div
+                                  className={
+                                    `mt-1 p-2 rounded-full group-hover:scale-110 transition-transform ` +
+                                    (n.tipo === 'PAGO'
+                                      ? 'bg-green-50 text-green-600'
+                                      : n.tipo === 'CLIENTE'
+                                        ? 'bg-blue-50 text-blue-600'
+                                        : n.tipo === 'MORA'
+                                          ? 'bg-amber-50 text-amber-600'
+                                          : 'bg-gray-50 text-gray-600')
+                                  }
+                                >
+                                  {n.tipo === 'PAGO' ? <Banknote className="h-4 w-4" /> : n.tipo === 'CLIENTE' ? <Users className="h-4 w-4" /> : n.tipo === 'MORA' ? <AlertCircle className="h-4 w-4" /> : <Bell className="h-4 w-4" />}
+                                </div>
+                                <div>
+                                  <p className="text-sm font-medium text-gray-900">{n.titulo}</p>
+                                  <p className="text-xs text-gray-500 mt-0.5">{n.mensaje}</p>
+                                  <p className="text-xs text-blue-600 mt-1 font-medium">{n.fecha}</p>
+                                </div>
+                              </div>
                             </div>
-                            <div>
-                              <p className="text-sm font-medium text-gray-900">Pago Recibido</p>
-                              <p className="text-xs text-gray-500 mt-0.5">Cliente #1456 ha realizado un pago</p>
-                              <p className="text-xs text-blue-600 mt-1 font-medium">Hace 5 min</p>
-                            </div>
-                          </div>
-                        </div>
-                        <div className="p-4 border-b border-gray-50 hover:bg-gray-50 transition-colors cursor-pointer group">
-                          <div className="flex gap-3">
-                            <div className="mt-1 p-2 bg-blue-50 rounded-full text-blue-600 group-hover:scale-110 transition-transform">
-                              <Users className="h-4 w-4" />
-                            </div>
-                            <div>
-                              <p className="text-sm font-medium text-gray-900">Nuevo Cliente</p>
-                              <p className="text-xs text-gray-500 mt-0.5">Solicitud de registro pendiente</p>
-                              <p className="text-xs text-blue-600 mt-1 font-medium">Hace 2 horas</p>
-                            </div>
-                          </div>
-                        </div>
-                        <div className="p-4 hover:bg-gray-50 transition-colors cursor-pointer group">
-                          <div className="flex gap-3">
-                            <div className="mt-1 p-2 bg-amber-50 rounded-full text-amber-600 group-hover:scale-110 transition-transform">
-                              <AlertCircle className="h-4 w-4" />
-                            </div>
-                            <div>
-                              <p className="text-sm font-medium text-gray-900">Alerta de Mora</p>
-                              <p className="text-xs text-gray-500 mt-0.5">3 cuentas han entrado en mora hoy</p>
-                              <p className="text-xs text-blue-600 mt-1 font-medium">Hace 4 horas</p>
-                            </div>
-                          </div>
-                        </div>
+                          ))
+                        ) : (
+                          <div className="p-6 text-center text-xs text-gray-500">Sin notificaciones</div>
+                        )}
                       </div>
                       <div className="p-2 border-t border-gray-100">
                         <button 

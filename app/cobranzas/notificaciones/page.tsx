@@ -16,57 +16,6 @@ import {
 } from 'lucide-react'
 import { notificacionesService, type Notificacion } from '@/services/notificaciones-service'
 
-// --- DATA DE EJEMPLO (MOCK) ---
-// Simulamos algunas notificaciones para mostrar cuando la API falla o está cargando.
-// Cubre casos típicos: Pagos, Clientes Nuevos, Mora y Avisos de Sistema.
-const MOCK_NOTIFICACIONES_FALLBACK: Notificacion[] = [
-  {
-    id: 'NOT-001',
-    titulo: 'Pago Recibido',
-    mensaje: 'Cliente #1456 ha realizado un pago de $50.000',
-    tipo: 'PAGO',
-    fecha: 'Hace 5 min',
-    leida: false,
-    link: '/cobranzas'
-  },
-  {
-    id: 'NOT-002',
-    titulo: 'Nuevo Cliente',
-    mensaje: 'Solicitud de registro pendiente para María González',
-    tipo: 'CLIENTE',
-    fecha: 'Hace 2 horas',
-    leida: false,
-    link: '/cobranzas/clientes'
-  },
-  {
-    id: 'NOT-003',
-    titulo: 'Alerta de Mora',
-    mensaje: '3 cuentas han entrado en mora hoy',
-    tipo: 'MORA',
-    fecha: 'Hace 4 horas',
-    leida: false,
-    link: '/cobranzas/clientes'
-  },
-  {
-    id: 'NOT-004',
-    titulo: 'Cierre Diario',
-    mensaje: 'El cierre diario se ha completado exitosamente',
-    tipo: 'SISTEMA',
-    fecha: 'Ayer, 18:30',
-    leida: true,
-    link: '/cobranzas'
-  },
-  {
-    id: 'NOT-005',
-    titulo: 'Solicitud Aprobada',
-    mensaje: 'Tu solicitud de préstamo P-1024 ha sido aprobada',
-    tipo: 'SISTEMA',
-    fecha: 'Ayer, 15:45',
-    leida: true,
-    link: '/cobranzas'
-  }
-]
-
 export default function NotificacionesCobranzasPage() {
   const router = useRouter()
   
@@ -83,12 +32,15 @@ export default function NotificacionesCobranzasPage() {
   useEffect(() => {
     const cargarNotificaciones = async () => {
       try {
+        const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null
+        if (!token) {
+          setNotificacionesState([])
+          return
+        }
         const notifs = await notificacionesService.obtenerTodas()
         setNotificacionesState(notifs)
       } catch (error) {
-        // Si falla, usamos el mock para no dejar la pantalla en blanco
-        console.error('Ups, no pudimos cargar las notificaciones:', error)
-        setNotificacionesState(MOCK_NOTIFICACIONES_FALLBACK)
+        setNotificacionesState([])
       } finally {
         setIsLoading(false)
       }

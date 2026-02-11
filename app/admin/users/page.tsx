@@ -312,7 +312,6 @@ const UserManagementPage = () => {
 
   const handleCreateUser = async () => {
     try {
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const { password, ...userData } = formData;
       // Validar campos mínimos
       if (!formData.nombres || !formData.apellidos || !formData.correo || !formData.password) {
@@ -356,7 +355,6 @@ const UserManagementPage = () => {
     if (!selectedUser) return;
     
     try {
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const { password, ...userData } = formData;
       
       await usuariosService.actualizar(selectedUser.id, {

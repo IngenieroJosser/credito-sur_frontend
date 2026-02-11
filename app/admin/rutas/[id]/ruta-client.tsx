@@ -15,7 +15,8 @@ import {
   TrendingUp,
   Sparkles,
   MapPin,
-  AlertCircle
+  AlertCircle,
+  UserPlus
 } from 'lucide-react'
 
 import { formatCurrency } from '@/lib/utils'
@@ -30,6 +31,11 @@ import EstadoCuentaModal from '@/components/cobranza/EstadoCuentaModal'
 import ReprogramarModal from '@/components/cobranza/ReprogramarModal'
 import { VisitaRuta, EstadoVisita } from '@/lib/types/cobranza'
 import { StaticVisitaItem, SeleccionClienteModal } from '@/components/dashboards/shared/CobradorElements'
+import NuevoClienteModal from '@/components/clientes/NuevoClienteModal'
+import { useAuth } from '@/hooks/useAuth'
+import CrearCreditoModal from '@/components/dashboards/shared/CrearCreditoModal'
+import { prestamosService } from '@/services/prestamos-service'
+import { FrecuenciaPago } from '@/types/enums'
 
 interface GastoRuta {
   id: string
@@ -46,6 +52,7 @@ interface RutaClientProps {
 const RutaClient = ({ initialRuta }: RutaClientProps) => {
   const { showNotification } = useNotification()
   const router = useRouter()
+  const { user: currentUser } = useAuth()
   
   // No mocks. Use backend data or empty state managed by modals.
   const [gastos] = useState<GastoRuta[]>([])
@@ -55,8 +62,11 @@ const RutaClient = ({ initialRuta }: RutaClientProps) => {
   // const [searchQuery, setSearchQuery] ... used in render
   const [searchQuery, setSearchQuery] = useState('')
   const [showFilters, setShowFilters] = useState(false) // Used in render toggle
-  const [rutaCompletada, setRutaCompletada] = useState(false)
+  const [rutaCompletada, setRutaCompletada] = useState(!!initialRuta?.activa)
   const [showClienteSelector, setShowClienteSelector] = useState(false)
+  const [showNewClientModal, setShowNewClientModal] = useState(false)
+  const [showCrearCreditoModal, setShowCrearCreditoModal] = useState(false)
+  const [defaultClienteId, setDefaultClienteId] = useState<string | null>(null)
 
   // Map asignaciones from backend to visits UI model
   const [visitasCobrador, setVisitasCobrador] = useState<VisitaRuta[]>(() => {
@@ -135,6 +145,7 @@ const RutaClient = ({ initialRuta }: RutaClientProps) => {
     switch (riesgo) {
         case 'PELIGRO_MINIMO': return 'bg-emerald-100 text-emerald-800 border-emerald-200';
         case 'LEVE_RETRASO': return 'bg-blue-100 text-blue-800 border-blue-200';
+        case 'PRECAUCION': return 'bg-yellow-100 text-yellow-800 border-yellow-200';
         case 'RIESGO_MODERADO': return 'bg-amber-100 text-amber-800 border-amber-200';
         case 'ALTO_RIESGO': return 'bg-rose-100 text-rose-800 border-rose-200';
         default: return 'bg-slate-100 text-slate-800 border-slate-200';
@@ -175,11 +186,13 @@ const RutaClient = ({ initialRuta }: RutaClientProps) => {
                <div>
                  <div className="flex items-center gap-3">
                     <h1 className="text-3xl font-bold tracking-tight">
-                        <span className="text-blue-600">Ruta </span><span className="text-orange-500">{initialRuta.nombre}</span>
+                        <span className="text-blue-600">Ruta </span>
+                        <span className="text-orange-500">{(initialRuta.nombre || '').replace(/^Ruta\s+/i, '')}</span>
                     </h1>
                     <span className={`px-3 py-1 rounded-full text-xs font-bold border ${getRiesgoBadgeClasses(nivelRiesgo)}`}>
                         {getRiesgoLabel(nivelRiesgo)}
                     </span>
+                    
                  </div>
                  <p className="text-slate-500 font-medium text-sm">
                    {new Date().toLocaleDateString('es-CO', { weekday: 'long', day: 'numeric', month: 'long' })} • {initialRuta.codigo} • {initialRuta.cobrador}
@@ -226,18 +239,16 @@ const RutaClient = ({ initialRuta }: RutaClientProps) => {
                     <span>Filtros</span>
                   </button>
                  
-                  <button 
-                    type="button"
-                    onClick={handleActivarRuta}
-                    className={`px-4 py-2 border rounded-xl flex items-center gap-2 font-bold shadow-sm transition-colors ${
-                      rutaCompletada
-                        ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                        : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
-                    }`}
-                  >
-                    <CheckCircle2 className="h-4 w-4" />
-                    <span className="hidden md:inline">{rutaCompletada ? 'Ruta Activa' : 'Activar Ruta'}</span>
-                  </button>
+                  {!rutaCompletada && (
+                    <button 
+                      type="button"
+                      onClick={handleActivarRuta}
+                      className="px-4 py-2 border rounded-xl flex items-center gap-2 font-bold shadow-sm bg-white text-slate-700 border-slate-200 hover:bg-slate-50 transition-colors"
+                    >
+                      <CheckCircle2 className="h-4 w-4" />
+                      <span className="hidden md:inline">Activar Ruta</span>
+                    </button>
+                  )}
                 </div>
               </div>
 
@@ -271,6 +282,20 @@ const RutaClient = ({ initialRuta }: RutaClientProps) => {
                   <Calendar className="h-4 w-4 text-slate-400" />
                   Reprogramar
                 </button>
+                {(currentUser?.rol === 'SUPER_ADMINISTRADOR' || currentUser?.rol === 'ADMIN') && (
+                  <button
+                    onClick={() => setShowNewClientModal(true)}
+                    className="px-4 py-3 rounded-xl text-sm font-bold shadow-sm bg-white text-slate-700 border border-slate-200 hover:bg-slate-50 flex items-center justify-center gap-2 active:scale-[0.98] transition-all"
+                  >
+                    <UserPlus className="h-4 w-4 text-slate-400" />
+                    Crear Cliente
+                  </button>
+                )}
+                {(currentUser?.rol === 'SUPER_ADMINISTRADOR' || currentUser?.rol === 'ADMIN') && (
+                  <span className="text-[11px] font-bold text-slate-500 self-center">
+                    Si creas un crédito, se asignará a esta ruta
+                  </span>
+                )}
             </div>
         </div>
         
@@ -289,6 +314,10 @@ const RutaClient = ({ initialRuta }: RutaClientProps) => {
                     <div className="flex items-center gap-2 px-2 py-1 bg-blue-50 rounded-lg border border-blue-500">
                         <div className="w-2.5 h-2.5 rounded-full bg-blue-500"></div> 
                         <span>Leve Retraso</span>
+                    </div>
+                    <div className="flex items-center gap-2 px-2 py-1 bg-yellow-50 rounded-lg border border-yellow-500">
+                        <div className="w-2.5 h-2.5 rounded-full bg-yellow-500"></div> 
+                        <span>Precaución</span>
                     </div>
                     <div className="flex items-center gap-2 px-2 py-1 bg-amber-50 rounded-lg border border-amber-500">
                         <div className="w-2.5 h-2.5 rounded-full bg-amber-500"></div> 
@@ -379,6 +408,79 @@ const RutaClient = ({ initialRuta }: RutaClientProps) => {
         <ClienteDetalleModal
           visita={detalleVisita}
           onClose={() => setDetalleVisita(null)}
+        />
+      )}
+      
+      {showNewClientModal && (
+        <NuevoClienteModal
+          onClose={() => setShowNewClientModal(false)}
+          onClienteCreado={async (nuevo) => {
+            setShowNewClientModal(false)
+            if (nuevo?.id) {
+              const deseaCredito = typeof window !== 'undefined' ? window.confirm('¿Deseas crearle un crédito a este cliente ahora?') : false
+              if (deseaCredito) {
+                setDefaultClienteId(nuevo.id)
+                setShowCrearCreditoModal(true)
+              } else {
+                showNotification('success', 'Cliente creado correctamente', 'Éxito')
+              }
+            } else {
+              showNotification('warning', 'Cliente creado, pero no se obtuvo el ID', 'Aviso')
+            }
+          }}
+        />
+      )}
+      
+      {showCrearCreditoModal && (
+        <CrearCreditoModal
+          isOpen={showCrearCreditoModal}
+          defaultClienteId={defaultClienteId || undefined}
+          onClose={() => setShowCrearCreditoModal(false)}
+          onConfirm={async (data) => {
+            try {
+              if (data.creditType === 'prestamo' && data.clienteCreditoId) {
+                const mapFrecuencia = (f: string): FrecuenciaPago => {
+                  const val = (f || '').toLowerCase().trim()
+                  if (val.startsWith('diar')) return FrecuenciaPago.DIARIO
+                  if (val.startsWith('seman')) return FrecuenciaPago.SEMANAL
+                  if (val.startsWith('quin')) return FrecuenciaPago.QUINCENAL
+                  if (val.startsWith('mens')) return FrecuenciaPago.MENSUAL
+                  return FrecuenciaPago.MENSUAL
+                }
+                const pagosPorMes = (f: string) => {
+                  switch (f) {
+                    case 'Diaria': return 30
+                    case 'Semanal': return 4
+                    case 'Quincenal': return 2
+                    default: return 1
+                  }
+                }
+                const cuotas = Number(data.cuotasPrestamo || 0)
+                const meses = Math.max(1, Math.ceil(cuotas / pagosPorMes(data.frecuenciaPago || 'Mensuales')))
+                await prestamosService.crearPrestamo({
+                  clienteId: data.clienteCreditoId,
+                  tipoPrestamo: 'EFECTIVO',
+                  monto: Number(data.montoPrestamo || 0),
+                  tasaInteres: Number(data.tasaInteres || 0),
+                  tasaInteresMora: 0,
+                  plazoMeses: meses,
+                  frecuenciaPago: mapFrecuencia(data.frecuenciaPago || 'Mensuales'),
+                  fechaInicio: data.fechaInicio || new Date().toISOString().split('T')[0],
+                  creadoPorId: currentUser?.id || ''
+                })
+                if (initialRuta?.id && initialRuta?.cobradorId) {
+                  await routesService.assignClient(initialRuta.id, data.clienteCreditoId, initialRuta.cobradorId)
+                }
+                showNotification('success', 'Crédito creado y cliente asignado a la ruta', 'Éxito')
+                setShowCrearCreditoModal(false)
+              } else {
+                showNotification('warning', 'Selecciona “Préstamo” y un cliente válido', 'Aviso')
+              }
+            } catch (e) {
+              console.error('Error creando crédito/asignando ruta', e)
+              showNotification('error', 'Ocurrió un error al crear el crédito', 'Error')
+            }
+          }}
         />
       )}
     </div>

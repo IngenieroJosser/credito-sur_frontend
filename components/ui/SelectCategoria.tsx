@@ -78,6 +78,15 @@ export default function SelectCategoria({
     <div className="space-y-2">
       <div className="flex justify-between items-center">
         <label className="block text-sm font-bold text-slate-700">{label}</label>
+        <button
+          type="button"
+          onClick={() => setShowCreate(true)}
+          className="inline-flex items-center gap-1 px-2 py-1 text-xs font-bold text-blue-600 hover:text-blue-700 rounded-lg hover:bg-blue-50 transition-colors"
+          title="Crear categoría"
+        >
+          <Plus className="w-3 h-3" />
+          Crear
+        </button>
       </div>
 
       {showCreate ? (

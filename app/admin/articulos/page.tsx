@@ -459,8 +459,18 @@ export default function ArticulosPage() {
       </div>
 
       {(showNuevoModal || showEditarModal) && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/40">
-          <div className="w-full max-w-4xl rounded-2xl bg-white border border-slate-200 shadow-2xl overflow-hidden">
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm"
+          onClick={() => {
+            setShowNuevoModal(false)
+            setShowEditarModal(false)
+            setArticuloSeleccionado(null)
+          }}
+        >
+          <div
+            className="w-full max-w-4xl rounded-2xl bg-white border border-slate-200 shadow-2xl overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="p-6 border-b border-slate-100 flex items-center justify-between">
               <div>
                 <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Inventario</p>
@@ -685,8 +695,17 @@ export default function ArticulosPage() {
       )}
 
       {showEliminarModal && articuloSeleccionado && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/40">
-          <div className="w-full max-w-sm rounded-2xl bg-white border border-slate-200 shadow-2xl p-6 text-center">
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm"
+          onClick={() => {
+            setShowEliminarModal(false)
+            setArticuloSeleccionado(null)
+          }}
+        >
+          <div
+            className="w-full max-w-sm rounded-2xl bg-white border border-slate-200 shadow-2xl p-6 text-center"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="w-16 h-16 bg-rose-50 rounded-full flex items-center justify-center mx-auto mb-4 border border-rose-100">
               <Trash2 className="h-8 w-8 text-rose-600" />
             </div>
@@ -719,8 +738,17 @@ export default function ArticulosPage() {
       )}
 
       {showDetalleModal && articuloSeleccionado && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/40">
-          <div className="w-full max-w-2xl rounded-2xl bg-white border border-slate-200 shadow-2xl overflow-hidden">
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm"
+          onClick={() => {
+            setShowDetalleModal(false)
+            setArticuloSeleccionado(null)
+          }}
+        >
+          <div
+            className="w-full max-w-2xl rounded-2xl bg-white border border-slate-200 shadow-2xl overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="p-6 border-b border-slate-100 flex items-center justify-between">
               <div>
                 <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Inventario</p>

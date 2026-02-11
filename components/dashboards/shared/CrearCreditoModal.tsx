@@ -21,11 +21,21 @@ interface CrearCreditoModalProps {
   onConfirm: (data: {
     creditType: 'prestamo' | 'articulo'
     clienteCreditoId: string
-    [key: string]: unknown
+    montoPrestamo?: number
+    tipoInteres?: 'SIMPLE' | 'AMORTIZABLE'
+    tasaInteres?: number
+    cuotasPrestamo?: number
+    frecuenciaPago?: string
+    fechaInicio?: string
+    fechaPrimerCobro?: string
+    articuloId?: string
+    planArticuloIndex?: number | null
+    cuotaInicialArticulo?: number
   }) => void
+  defaultClienteId?: string
 }
 
-export default function CrearCreditoModal({ isOpen, onClose, onConfirm }: CrearCreditoModalProps) {
+export default function CrearCreditoModal({ isOpen, onClose, onConfirm, defaultClienteId }: CrearCreditoModalProps) {
   const [creditType, setCreditType] = useState<'prestamo' | 'articulo'>('prestamo')
   const [clienteCreditoId, setClienteCreditoId] = useState('')
   const [montoPrestamoInput, setMontoPrestamoInput] = useState('')
@@ -46,6 +56,7 @@ export default function CrearCreditoModal({ isOpen, onClose, onConfirm }: CrearC
 
   useEffect(() => {
     if (isOpen) {
+        if (defaultClienteId) setClienteCreditoId(defaultClienteId)
         Promise.all([
           clientesService.obtenerTodos(),
           articulosService.obtenerArticulos()
@@ -54,7 +65,7 @@ export default function CrearCreditoModal({ isOpen, onClose, onConfirm }: CrearC
           setArticulos(a);
         }).catch(err => console.error(err));
     }
-  }, [isOpen]);
+  }, [isOpen, defaultClienteId]);
 
   const articuloSeleccionado = articulos.find(a => a.id === articuloSeleccionadoId)
 
@@ -424,7 +435,28 @@ export default function CrearCreditoModal({ isOpen, onClose, onConfirm }: CrearC
                 </button>
                 <button 
                   onClick={() => {
-                    onConfirm({ creditType, clienteCreditoId })
+                    const payload = creditType === 'prestamo' 
+                      ? {
+                          creditType,
+                          clienteCreditoId,
+                          montoPrestamo: parseCOPInputToNumber(montoPrestamoInput),
+                          tipoInteres,
+                          tasaInteres: Number(tasaInteresInput),
+                          cuotasPrestamo: Number(cuotasPrestamoInput),
+                          frecuenciaPago,
+                          fechaInicio: fechaCreditoInput,
+                          fechaPrimerCobro
+                        }
+                      : {
+                          creditType,
+                          clienteCreditoId,
+                          articuloId: articuloSeleccionadoId,
+                          planArticuloIndex,
+                          cuotaInicialArticulo: parseCOPInputToNumber(cuotaInicialArticuloInput),
+                          frecuenciaPago,
+                          fechaInicio: fechaCreditoInput
+                        }
+                    onConfirm(payload)
                     handleReset()
                   }}
                   disabled={!clienteCreditoId || (creditType === 'prestamo' ? !montoPrestamoInput : !calculoCreditoArticulo)}

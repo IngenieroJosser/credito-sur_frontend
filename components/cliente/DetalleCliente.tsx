@@ -179,7 +179,7 @@ const ClienteDetalleElegante: React.FC<ClienteDetalleProps> = ({
                     {cliente.codigo}
                   </span>
                   <span className="text-slate-400 text-sm">•</span>
-                  <span className="text-slate-500 text-sm font-medium">Cédula de Ciudadanía: {cliente.dni}</span>
+                  <span className="text-slate-500 text-sm font-medium">CC / Número de documento: {cliente.dni}</span>
                 </div>
               </div>
             </div>

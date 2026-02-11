@@ -127,7 +127,6 @@ export const apiRequest = async <T>(
 };
 
 // Función auxiliar para formatear errores para el estado del componente
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const formatErrorForComponent = (error: any): string => {
   if (typeof error === 'string') return error;
   

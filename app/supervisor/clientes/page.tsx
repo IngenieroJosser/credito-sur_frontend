@@ -374,7 +374,7 @@ const ClientesSupervisorPage = () => {
                             {cliente.nombres} {cliente.apellidos}
                           </div>
                           <div className="text-xs text-slate-500 flex items-center mt-0.5 font-mono font-medium">
-                            {cliente.dni}
+                              CC: {cliente.dni}
                           </div>
                         </div>
                       </div>

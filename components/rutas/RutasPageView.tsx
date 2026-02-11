@@ -284,6 +284,7 @@ export const RutasPageView = ({
     switch (riesgo) {
         case 'PELIGRO_MINIMO': return 'bg-emerald-50 text-emerald-700 border-emerald-200';
         case 'LEVE_RETRASO': return 'bg-blue-50 text-blue-700 border-blue-200';
+        case 'PRECAUCION': return 'bg-yellow-50 text-yellow-700 border-yellow-200';
         case 'RIESGO_MODERADO': return 'bg-amber-50 text-amber-700 border-amber-200';
         case 'ALTO_RIESGO': return 'bg-rose-50 text-rose-700 border-rose-200';
         default: return 'bg-slate-50 text-slate-600 border-slate-200';
@@ -478,6 +479,7 @@ export const RutasPageView = ({
                     "group bg-white/80 backdrop-blur-sm rounded-2xl border shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] hover:-translate-y-1 transition-all duration-300 overflow-hidden flex flex-col",
                     ruta.nivelRiesgo === 'ALTO_RIESGO' ? "border-rose-200 shadow-rose-100" :
                     ruta.nivelRiesgo === 'RIESGO_MODERADO' ? "border-amber-200 shadow-amber-100" :
+                    ruta.nivelRiesgo === 'PRECAUCION' ? "border-yellow-200 shadow-yellow-100" :
                     ruta.nivelRiesgo === 'LEVE_RETRASO' ? "border-blue-200 shadow-blue-100" :
                     ruta.nivelRiesgo === 'PELIGRO_MINIMO' ? "border-emerald-200 shadow-emerald-100" :
                     "border-slate-200"
