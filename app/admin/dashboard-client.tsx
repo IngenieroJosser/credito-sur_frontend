@@ -14,6 +14,7 @@ import { formatCurrency } from '@/lib/utils';
 import { ExportButton } from '@/components/ui/ExportButton';
 import { TransactionalHighDetailChart } from '@/components/ui/TransactionalHighDetailChart';
 import CrearCreditoModal from '@/components/dashboards/shared/CrearCreditoModal';
+import NuevoClienteModal from '@/components/clientes/NuevoClienteModal';
 
 interface MetricItem {
   title: string;
@@ -87,8 +88,9 @@ export function DashboardClient({ data }: DashboardClientProps) {
 
   const [currentDate] = useState(new Date());
   
-  // Controlamos la visibilidad del modal de creación de créditos
+  // Controlamos la visibilidad de los modales de creación
   const [showCrearCreditoModal, setShowCrearCreditoModal] = useState(false);
+  const [showNuevoClienteModal, setShowNuevoClienteModal] = useState(false);
 
   // Funciones placeholder para exportación (a futuro conectarán con el backend)
   const handleExportExcel = () => {
@@ -319,14 +321,17 @@ export function DashboardClient({ data }: DashboardClientProps) {
               <h3 className="text-sm font-bold text-slate-500 uppercase tracking-wider mb-4">Accesos Rápidos</h3>
               <div className="grid grid-cols-1 gap-3">
                  {data.quickAccess.slice(0, 3).map((item, index) => {
-                   // Si es "Nuevo Crédito", mostrar modal en lugar de navegar
-                   const isNewCredit = item.title === 'Nuevo Crédito';
+                   // Acciones que abren modal en lugar de navegar
+                   const modalAction = 
+                     item.title === 'Nuevo Crédito' ? () => setShowCrearCreditoModal(true) :
+                     item.title === 'Nuevo Cliente' ? () => setShowNuevoClienteModal(true) :
+                     null;
                    
-                   if (isNewCredit) {
+                   if (modalAction) {
                      return (
                        <button
                          key={index}
-                         onClick={() => setShowCrearCreditoModal(true)}
+                         onClick={modalAction}
                          className="w-full flex items-center gap-3 p-3 bg-white rounded-xl shadow-sm border border-slate-100 hover:shadow-md hover:border-blue-100 transition-all group text-left"
                        >
                          <div className="p-2 rounded-lg bg-slate-50 text-slate-600 group-hover:bg-blue-50 group-hover:text-blue-600 transition-colors">
@@ -379,6 +384,17 @@ export function DashboardClient({ data }: DashboardClientProps) {
           setShowCrearCreditoModal(false);
         }}
       />
+
+      {/* Modal de Nuevo Cliente */}
+      {showNuevoClienteModal && (
+        <NuevoClienteModal
+          onClose={() => setShowNuevoClienteModal(false)}
+          onClienteCreado={(nuevo) => {
+            console.log('Cliente creado:', nuevo);
+            setShowNuevoClienteModal(false);
+          }}
+        />
+      )}
     </div>
   );
 }

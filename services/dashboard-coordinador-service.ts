@@ -55,6 +55,7 @@ export interface DashboardData {
 
 export const dashboardService = {
   getDashboardData: async (timeFilter: string = 'month'): Promise<DashboardData> => {
+    // El backend maneja la seguridad por rol en el endpoint /dashboard
     const config: AxiosRequestConfig = {
       params: { timeFilter },
     };

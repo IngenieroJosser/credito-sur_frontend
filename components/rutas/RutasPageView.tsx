@@ -29,6 +29,7 @@ import { formatCurrency, cn } from '@/lib/utils'
 import { useAuth } from '@/hooks/useAuth'
 import { routesService } from '@/services/routes-service';
 import { useNotification } from '@/components/providers/NotificationProvider';
+import { usePermission } from '@/hooks/usePermission';
 
 interface Ruta {
   id: string;
@@ -73,6 +74,9 @@ export const RutasPageView = ({
 }: RutasPageViewProps) => {
   const router = useRouter()
   const { user: currentUser } = useAuth()
+  const { can, canForPath } = usePermission()
+  const puedeCrear = can('RUTAS_CREATE') || canForPath(rutasBasePath || '/admin/rutas')
+  const puedeEditar = can('RUTAS_EDIT') || canForPath(rutasBasePath || '/admin/rutas')
   const [busqueda, setBusqueda] = useState('')
   const [estadoFiltro, setEstadoFiltro] = useState('TODAS')
   const [vista, setVista] = useState<'grid' | 'list'>('grid')
@@ -80,6 +84,7 @@ export const RutasPageView = ({
   const { showNotification } = useNotification();
   const [showModal, setShowModal] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
+  const permitido = can('RUTAS_VIEW') || canForPath(rutasBasePath || '/admin/rutas')
 
   const [formData, setFormData] = useState({
     nombre: '',
@@ -140,6 +145,7 @@ export const RutasPageView = ({
   const [rutaDestinoId, setRutaDestinoId] = useState('')
 
   const handleCreateClick = () => {
+    if (!puedeCrear) return
     setEditingId(null)
     setFormData({
       nombre: '',
@@ -155,6 +161,7 @@ export const RutasPageView = ({
   }
 
   const handleEditClick = (ruta: Ruta) => {
+    if (!puedeEditar) return
     setEditingId(ruta.id)
     setFormData({
       nombre: ruta.nombre,
@@ -296,6 +303,20 @@ export const RutasPageView = ({
       return riesgo.replace('_', ' ');
   }
 
+  if (!permitido) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-8 text-center">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-slate-100 text-xs text-slate-600 font-bold border border-slate-200">
+            <Route className="h-3.5 w-3.5" />
+            <span>Acceso no autorizado</span>
+          </div>
+          <p className="mt-4 text-slate-500 font-medium">No tienes permisos para ver Rutas.</p>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="min-h-screen bg-slate-50 relative">
       {/* Fondo Arquitectónico */}
@@ -321,7 +342,7 @@ export const RutasPageView = ({
             </p>
           </div>
           <div className="flex gap-4">
-            {!readOnly && currentUser?.role !== 'COBRADOR' && (
+            {!readOnly && currentUser?.role !== 'COBRADOR' && puedeCrear && (
               <button
                 onClick={handleCreateClick}
                 className="inline-flex items-center gap-2 px-6 py-2.5 bg-white border border-slate-300 text-slate-700 rounded-xl hover:border-slate-400 hover:bg-slate-50 transition-all duration-200 shadow-sm font-bold text-sm group"

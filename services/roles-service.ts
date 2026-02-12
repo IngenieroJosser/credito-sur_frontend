@@ -57,5 +57,12 @@ export const rolesService = {
    */
   async eliminar(id: string): Promise<void> {
     return apiRequest<void>('DELETE', `/roles/${id}`);
+  },
+
+  /**
+   * Asignar permisos a un rol
+   */
+  async asignarPermisos(id: string, permisosIds: string[]): Promise<Rol> {
+    return apiRequest<Rol>('POST', `/roles/${id}/permisos`, { permisosIds });
   }
 };

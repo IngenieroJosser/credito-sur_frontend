@@ -212,7 +212,7 @@ export default function NuevoCreditoArticuloPage() {
 
   const confirmarCredito = () => {
     alert('Crédito creado exitosamente (Simulación)');
-    const destino = pathname?.startsWith('/supervisor') ? '/supervisor' : '/admin/creditos-articulos'
+    const destino = '/creditos-articulos'
     router.push(destino);
   };
 

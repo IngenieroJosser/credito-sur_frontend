@@ -50,7 +50,7 @@ export default function DetalleCuentaMoraPage({
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               <Link 
-                href="/coordinador/cuentas-mora" 
+                href="/cuentas-mora" 
                 className="p-2 rounded-lg hover:bg-slate-100 transition-colors text-slate-500 hover:text-slate-900"
               >
                 <ChevronLeft className="w-5 h-5" />

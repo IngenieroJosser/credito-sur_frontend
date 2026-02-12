@@ -34,7 +34,7 @@ export default function EditarCajaPage({ params }: { params: Promise<{ id: strin
     await new Promise(resolve => setTimeout(resolve, 1000))
     
     setSaving(false)
-    router.push(`/admin/contable/cajas/${id}`)
+    router.push(`/contable/cajas/${id}`)
   }
 
   return (

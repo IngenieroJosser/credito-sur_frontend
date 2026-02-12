@@ -1,5 +1,18 @@
-import AdminCierreCajaPage from '../../../admin/contable/cierre-caja/page'
+'use client'
 
-export default function ContadorCierreCajaPage() {
-  return <AdminCierreCajaPage />
+/**
+ * @deprecated Ruta legacy. Redirige a la ruta unificada /contable/cierre-caja
+ * @migration Permission-Based Routing
+ */
+import { useEffect } from 'react'
+import { useRouter } from 'next/navigation'
+
+export default function ContadorCierreCajaRedirect() {
+  const router = useRouter()
+
+  useEffect(() => {
+    router.replace('/contable/cierre-caja')
+  }, [router])
+
+  return null
 }

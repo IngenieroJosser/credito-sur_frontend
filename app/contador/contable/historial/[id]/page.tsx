@@ -1,9 +1,20 @@
-import AdminDetalleCierrePage from '../../../../admin/contable/historial/[id]/page'
+'use client'
 
-export default function ContadorDetalleCierrePage({
-  params,
-}: {
-  params: { id: string }
-}) {
-  return <AdminDetalleCierrePage params={params} />
+/**
+ * @deprecated Ruta legacy. Redirige a la ruta unificada /contable/historial/[id]
+ * @migration Permission-Based Routing
+ */
+import { useEffect } from 'react'
+import { useRouter } from 'next/navigation'
+import { use } from 'react'
+
+export default function ContadorDetalleCierreRedirect({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = use(params)
+  const router = useRouter()
+
+  useEffect(() => {
+    router.replace(`/contable/historial/${id}`)
+  }, [router, id])
+
+  return null
 }

@@ -118,9 +118,13 @@ export const apiRequest = async <T>(
       error: err.response.data
     };
 
-    console.error(`API Request Failed: ${method} ${url} | Status: ${apiError.statusCode}`);
-    console.error('Full Error Object:', err);
-    console.error('Response Data:', err.response?.data);
+    if (status === 403) {
+      console.warn(`API Permission Denied: ${method} ${url} | Status: 403`);
+    } else {
+      console.error(`API Request Failed: ${method} ${url} | Status: ${apiError.statusCode}`);
+      console.error('Full Error Object:', err);
+      console.error('Response Data:', err.response?.data);
+    }
 
     throw apiError;
   }

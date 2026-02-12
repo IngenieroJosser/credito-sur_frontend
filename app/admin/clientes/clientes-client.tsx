@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useNotification } from '@/components/providers/NotificationProvider';
 import { clientesService, Cliente } from '@/services/clientes-service';
 import { ClienteAdmin } from '@/lib/clientes-data';
+import { usePermission } from '@/hooks/usePermission';
 import {
   Search,
   Filter,
@@ -41,6 +42,12 @@ interface ClientesClientProps {
 }
 
 export default function ClientesClient({ initialClientes }: ClientesClientProps) {
+  const { can, canForPath } = usePermission();
+  const permitido = can('CLIENTES_VIEW') || canForPath('/admin/clientes');
+  const puedeCrear = can('CLIENTES_CREATE') || canForPath('/admin/clientes');
+  const puedeEditar = can('CLIENTES_EDIT') || canForPath('/admin/clientes');
+  const puedeEliminar = can('CLIENTES_DELETE') || canForPath('/admin/clientes');
+  
   // Hook de notificaciones para dar feedback visual al usuario (ej: "Cliente eliminado")
   const { showNotification } = useNotification();
   
@@ -178,6 +185,20 @@ export default function ClientesClient({ initialClientes }: ClientesClientProps)
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
   const currentItems = filteredClientes.slice(indexOfFirstItem, indexOfLastItem);
 
+  if (!permitido) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-8 text-center">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-slate-100 text-xs text-slate-600 font-bold border border-slate-200">
+            <Users className="h-3.5 w-3.5" />
+            <span>Acceso no autorizado</span>
+          </div>
+          <p className="mt-4 text-slate-500 font-medium">No tienes permisos para ver Clientes.</p>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="min-h-screen bg-slate-50 relative">
       {/* Fondo arquitectónico */}
@@ -199,13 +220,15 @@ export default function ClientesClient({ initialClientes }: ClientesClientProps)
               <span className="text-blue-600">Listado de </span><span className="text-orange-500">Clientes</span>
             </h1>
           </div>
-          <button
-            onClick={() => setIsCreateModalOpen(true)}
-            className="inline-flex items-center gap-2 px-6 py-2.5 bg-white border border-slate-300 text-slate-700 rounded-xl hover:border-slate-400 hover:bg-slate-50 transition-all duration-200 shadow-sm font-bold text-sm"
-          >
-            <UserPlus className="w-4 h-4 text-slate-500 group-hover:text-slate-900 transition-colors" />
-            Nuevo Cliente
-          </button>
+          {puedeCrear && (
+            <button
+              onClick={() => setIsCreateModalOpen(true)}
+              className="inline-flex items-center gap-2 px-6 py-2.5 bg-white border border-slate-300 text-slate-700 rounded-xl hover:border-slate-400 hover:bg-slate-50 transition-all duration-200 shadow-sm font-bold text-sm"
+            >
+              <UserPlus className="w-4 h-4 text-slate-500 group-hover:text-slate-900 transition-colors" />
+              Nuevo Cliente
+            </button>
+          )}
         </div>
 
         {/* Estadísticas Elegantes */}
@@ -461,23 +484,27 @@ export default function ClientesClient({ initialClientes }: ClientesClientProps)
                           >
                             <Eye className="h-4 w-4" />
                           </button>
-                          <button
-                            onClick={() => {
-                              setClientToEdit(cliente);
-                              setIsEditModalOpen(true);
-                            }}
-                            className="p-2 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
-                            title="Editar cliente"
-                          >
-                            <Pencil className="h-4 w-4" />
-                          </button>
-                          <button
-                            onClick={() => handleDeleteClick(cliente)}
-                            className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
-                            title="Eliminar cliente"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </button>
+                          {puedeEditar && (
+                            <button
+                              onClick={() => {
+                                setClientToEdit(cliente);
+                                setIsEditModalOpen(true);
+                              }}
+                              className="p-2 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
+                              title="Editar cliente"
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </button>
+                          )}
+                          {puedeEliminar && (
+                            <button
+                              onClick={() => handleDeleteClick(cliente)}
+                              className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
+                              title="Eliminar cliente"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>

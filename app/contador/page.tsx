@@ -24,7 +24,7 @@ export default function ContadorRootPage() {
       
       // Si eres CONTADOR, te enviamos a tu panel contable principal
       if (user.rol === 'CONTADOR') {
-        router.replace('/contador/contable')
+        router.replace('/contable')
       } else {
         // Si te perdiste y tienes otro rol, te devolvemos a tu sitio
         const ROLE_REDIRECT_MAP: Record<string, string> = {
@@ -33,7 +33,7 @@ export default function ContadorRootPage() {
           'COORDINADOR': '/coordinador',
           'SUPERVISOR': '/supervisor',
           'COBRADOR': '/cobranzas',
-          'CONTADOR': '/contador/contable',
+          'CONTADOR': '/contable',
         };
         
         const redirectPath = (user.rol && ROLE_REDIRECT_MAP[user.rol]) || '/login';

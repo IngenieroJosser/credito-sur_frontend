@@ -31,6 +31,7 @@ import CrearCreditoModal from '@/components/dashboards/shared/CrearCreditoModal'
 import { useNotification } from '@/components/providers/NotificationProvider';
 import { loansService, Loan, LoansFilters } from '@/services/loans-service';
 import { formatErrorForComponent } from '@/lib/api/api';
+import { usePermission } from '@/hooks/usePermission';
 
 interface Filtros {
   estado: string;
@@ -46,9 +47,13 @@ const ListadoPrestamosElegante = () => {
   const { showNotification } = useNotification();
   const router = useRouter();
   const pathname = usePathname();
+  const { can, canForPath } = usePermission();
   
   const isCoordinador = pathname?.includes('/coordinador');
-  const baseRoute = isCoordinador ? '/coordinador/creditos' : '/admin/creditos';
+  const isSupervisor = pathname?.includes('/supervisor');
+  const baseRoute = isCoordinador ? '/coordinador/creditos' : isSupervisor ? '/supervisor/creditos' : '/admin/creditos';
+  const permitido = can('CREDITOS_VIEW') || can('LOANS_VIEW') || canForPath(baseRoute);
+  const puedeCrear = can('CREDITOS_CREATE') || can('LOANS_CREATE') || canForPath(baseRoute);
   
   const [prestamos, setPrestamos] = useState<Loan[]>([]);
   const [estadisticas, setEstadisticas] = useState({
@@ -200,6 +205,20 @@ const ListadoPrestamosElegante = () => {
 
   if (!mounted) return null;
 
+  if (!permitido) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-8 text-center">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-slate-100 text-xs text-slate-600 font-bold border border-slate-200">
+            <CreditCard className="h-3.5 w-3.5" />
+            <span>Acceso no autorizado</span>
+          </div>
+          <p className="mt-4 text-slate-500 font-medium">No tienes permisos para ver Créditos.</p>
+        </div>
+      </div>
+    )
+  }
+
   // Estado de error
   if (error && !prestamos.length && cargando) {
     return (
@@ -255,13 +274,15 @@ const ListadoPrestamosElegante = () => {
             >
               <RefreshCw className={`h-4 w-4 text-slate-600 ${refreshing ? 'animate-spin' : ''}`} />
             </button>
-            <button
-              onClick={() => setShowCrearCreditoModal(true)}
-              className="inline-flex items-center gap-2 px-6 py-2.5 bg-white border border-slate-300 text-slate-700 rounded-xl hover:border-slate-400 hover:bg-slate-50 transition-all duration-200 shadow-sm font-bold text-sm group"
-            >
-              <Plus className="w-4 h-4 text-slate-500 group-hover:text-slate-900 transition-colors" />
-              Nuevo Crédito
-            </button>
+            {puedeCrear && (
+              <button
+                onClick={() => setShowCrearCreditoModal(true)}
+                className="inline-flex items-center gap-2 px-6 py-2.5 bg-white border border-slate-300 text-slate-700 rounded-xl hover:border-slate-400 hover:bg-slate-50 transition-all duration-200 shadow-sm font-bold text-sm group"
+              >
+                <Plus className="w-4 h-4 text-slate-500 group-hover:text-slate-900 transition-colors" />
+                Nuevo Crédito
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -472,20 +493,24 @@ const ListadoPrestamosElegante = () => {
                           >
                             <Eye className="h-4 w-4" />
                           </button>
-                          <button 
-                            onClick={() => setIdPrestamoAEditar(prestamo.id)}
-                            className="p-2 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-all"
-                            title="Editar préstamo"
-                          >
-                            <Edit2 className="h-4 w-4" />
-                          </button>
-                          <button 
-                            onClick={() => handleEliminarPrestamo(prestamo.id)}
-                            className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all"
-                            title="Marcar como pérdida"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </button>
+                          {can('CREDITOS_EDIT') || can('LOANS_EDIT') || canForPath(baseRoute) ? (
+                            <button 
+                              onClick={() => setIdPrestamoAEditar(prestamo.id)}
+                              className="p-2 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-all"
+                              title="Editar préstamo"
+                            >
+                              <Edit2 className="h-4 w-4" />
+                            </button>
+                          ) : null}
+                          {can('CREDITOS_DELETE') || can('LOANS_DELETE') || canForPath(baseRoute) ? (
+                            <button 
+                              onClick={() => handleEliminarPrestamo(prestamo.id)}
+                              className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all"
+                              title="Marcar como pérdida"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          ) : null}
                         </div>
                       </td>
                     </tr>

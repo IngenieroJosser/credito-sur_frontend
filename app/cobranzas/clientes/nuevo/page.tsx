@@ -1,3 +1,18 @@
 'use client'
 
-export { default } from '@/app/admin/clientes/nuevo/page'
+/**
+ * @deprecated Ruta legacy. La creación de clientes se maneja via NuevoClienteModal.
+ * Redirige al dashboard de cobranzas.
+ */
+import { useEffect } from 'react'
+import { useRouter } from 'next/navigation'
+
+export default function CobranzasNuevoClienteRedirect() {
+  const router = useRouter()
+
+  useEffect(() => {
+    router.replace('/cobranzas')
+  }, [router])
+
+  return null
+}

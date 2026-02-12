@@ -1,5 +1,5 @@
 import { getClientesData } from '../../../lib/clientes-data';
-import ClientesClient from './clientes-client';
+import ClientesFeature from '@/components/clientes/ClientesFeature';
 
 export const metadata = {
   title: 'Gestión de Cartera | Crédito Sur',
@@ -8,5 +8,5 @@ export const metadata = {
 
 export default async function ClientesPage() {
   const data = await getClientesData();
-  return <ClientesClient initialClientes={data} />;
+  return <ClientesFeature initialClientes={data} />;
 }

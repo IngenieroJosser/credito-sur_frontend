@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useEffect, useState } from 'react'
+import { useMemo } from 'react'
 import { 
   Shield, 
   Search, 
@@ -18,8 +19,11 @@ import { auditoriaService, type RegistroAuditoria } from '@/services/auditoria-s
 import { routesService, type Route } from '@/services/routes-service'
 import { cn } from '@/lib/utils'
 import { ExportButton } from '@/components/ui/ExportButton'
+import { usePermission } from '@/hooks/usePermission'
 
 const AuditoriaSistemaPage = () => {
+  const { can, canForPath } = usePermission()
+  const permitido = useMemo(() => can('AUDIT_VIEW') || canForPath('/admin/auditoria') || canForPath('/auditoria'), [can, canForPath])
   const [busqueda, setBusqueda] = useState('')
   const [filtroNivel, setFiltroNivel] = useState<'TODOS' | 'INFORMATIVO' | 'ADVERTENCIA' | 'CRITICO'>('TODOS')
   const [selectedLog, setSelectedLog] = useState<LogItem | null>(null)
@@ -123,6 +127,20 @@ const AuditoriaSistemaPage = () => {
       case 'INFORMATIVO': return 'bg-blue-50 text-blue-700 border-blue-100'
       default: return 'bg-slate-50 text-slate-700 border-slate-100'
     }
+  }
+
+  if (!permitido) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-8 text-center">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-slate-100 text-xs text-slate-600 font-bold border border-slate-200">
+            <Shield className="h-3.5 w-3.5" />
+            <span>Acceso no autorizado</span>
+          </div>
+          <p className="mt-4 text-slate-500 font-medium">No tienes permisos para ver Auditoría.</p>
+        </div>
+      </div>
+    )
   }
 
   return (

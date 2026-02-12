@@ -131,7 +131,7 @@ export default function CierreCajaPage() {
         {/* Header */}
         <div className="flex items-center gap-4">
           <Link 
-            href="/admin/contable"
+            href="/contable"
             className="inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-slate-600 shadow-sm transition-colors hover:bg-slate-50 hover:text-slate-900"
           >
             <ArrowLeft className="h-6 w-6" />
@@ -346,7 +346,7 @@ export default function CierreCajaPage() {
             </p>
             <div className="flex gap-4">
               <Link 
-                href="/admin/contable"
+                href="/contable"
                 className="inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm font-bold text-slate-600 shadow-sm transition-colors hover:bg-slate-50 hover:text-slate-900"
               >
                 Volver al Tablero

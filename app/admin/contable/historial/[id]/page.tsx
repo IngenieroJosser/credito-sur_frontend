@@ -53,7 +53,7 @@ export default function DetalleCierrePage({ params }: { params: Promise<{ id: st
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
             <Link 
-              href="/admin/contable"
+              href="/contable"
               className="p-2 -ml-2 text-slate-400 hover:text-slate-900 transition-colors"
             >
               <ArrowLeft className="h-6 w-6" />

@@ -359,7 +359,7 @@ function configurarDashboardPorRol(rol: Rol, period: TimeFilterPeriod = 'month')
         icon: <CreditCard className="h-5 w-5" />,
         color: '#0f172a',
         badge: 3,
-        href: '/admin/creditos/nuevo'
+        href: '#'
       },
       {
         title: 'Cobranza',
@@ -398,7 +398,7 @@ function configurarDashboardPorRol(rol: Rol, period: TimeFilterPeriod = 'month')
         icon: <CreditCard className="h-5 w-5" />,
         color: '#0f172a',
         badge: 3,
-        href: '/admin/creditos/nuevo'
+        href: '#'
       },
       {
         title: 'Cobranza',

@@ -56,7 +56,7 @@ export default function NuevoArticuloPage() {
     // Simular guardado
     await new Promise(resolve => setTimeout(resolve, 1000))
     setLoading(false)
-    router.push('/admin/articulos')
+    router.push('/articulos')
   }
 
   const addPrecioCuota = () => {

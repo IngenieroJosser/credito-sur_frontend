@@ -1,5 +1,18 @@
-import AdminCuentasMoraPage from '../../admin/cuentas-mora/page'
+'use client'
 
-export default function ContadorCuentasMoraPage() {
-  return <AdminCuentasMoraPage />
+/**
+ * @deprecated Ruta legacy. Redirige a la ruta unificada /cuentas-mora
+ * @migration Permission-Based Routing
+ */
+import { useEffect } from 'react'
+import { useRouter } from 'next/navigation'
+
+export default function ContadorCuentasMoraRedirect() {
+  const router = useRouter()
+
+  useEffect(() => {
+    router.replace('/cuentas-mora')
+  }, [router])
+
+  return null
 }

@@ -256,20 +256,22 @@ const ModuloContableContent = () => {
   const fetchData = async () => {
     setIsLoading(true);
     try {
-      // 1. Traemos usuarios reales
-      const usersData = await usuariosService.obtenerTodos();
-      setUsuariosList(usersData);
+      // 1. Usuarios se cargan en un useEffect separado (solo para ADMIN/SUPER_ADMINISTRADOR)
 
-      // 2. Traemos las cajas configuradas
       // 2. Traemos las cajas configuradas
       const cajasData = await getCajas();
 
-      // 2b. Traemos las rutas
-      try {
-        const rutasData = await rutasService.obtenerRutas({ limit: 100, activa: true });
-        setRutasDisponibles(rutasData);
-      } catch (err) {
-        console.error('Error cargando rutas', err);
+      // 2b. Traemos las rutas (solo roles con permiso: ADMIN, SUPER_ADMIN, COORDINADOR, SUPERVISOR)
+      const rolActual = (() => {
+        try { return JSON.parse(localStorage.getItem('user') || '{}').rol } catch { return null }
+      })()
+      if (rolActual !== 'CONTADOR') {
+        try {
+          const rutasData = await rutasService.obtenerRutas({ limit: 100, activa: true });
+          setRutasDisponibles(rutasData);
+        } catch (err) {
+          console.warn('No se pudo cargar rutas (permiso insuficiente)');
+        }
       }
 
       if (cajasData && Array.isArray(cajasData)) {
@@ -351,6 +353,15 @@ const ModuloContableContent = () => {
   useEffect(() => {
     fetchData();
   }, []);
+
+  // Cargar usuarios solo cuando el rol está disponible y es admin
+  useEffect(() => {
+    if (userRole && ['ADMIN', 'SUPER_ADMINISTRADOR'].includes(userRole)) {
+      usuariosService.obtenerTodos()
+        .then(data => setUsuariosList(data))
+        .catch(() => {})
+    }
+  }, [userRole]);
 
   /* Estado para movimientos */
   const [movimientoForm, setMovimientoForm] = useState({

@@ -65,6 +65,7 @@ import ReprogramarModal from '@/components/cobranza/ReprogramarModal'
 import GastoModal from '@/components/dashboards/shared/GastoModal'
 import BaseModal from '@/components/dashboards/shared/BaseModal'
 import DetalleMoraModal from '@/components/cobranza/DetalleMoraModal'
+import FloatingActionMenu, { FabAction } from '@/components/dashboards/shared/FloatingActionMenu'
 
 interface OperacionCaja {
   id: string
@@ -1237,81 +1238,14 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
           />
         )}
 
-        {/* Floating Action Button (FAB) - Visible for Supervisor on ANY route */}
-          <>
-            {isFabOpen && (
-                <div 
-                className="fixed top-0 left-0 w-screen h-screen z-40 bg-slate-900/10 backdrop-blur-[1px] cursor-default" 
-                onClick={() => setIsFabOpen(false)}
-                />
-            )}
-            <div className="fixed right-6 z-50 flex flex-col items-end gap-3 bottom-[calc(1.5rem+env(safe-area-inset-bottom))] pointer-events-none">
-                {/* Actions Menu */}
-                <div
-                    className={`flex flex-col gap-3 transition-all duration-200 origin-bottom-right ${
-                    isFabOpen ? 'scale-100 opacity-100 translate-y-0' : 'scale-95 opacity-0 translate-y-2 pointer-events-none'
-                    }`}
-                >
-                    <button
-                        onClick={() => { setShowCreditModal(true); setIsFabOpen(false); }}
-                        className={`flex items-center justify-between w-56 gap-3 ${isFabOpen ? 'pointer-events-auto' : 'pointer-events-none'}`}
-                    >
-                        <span className="bg-[#08557f] text-white text-xs font-bold px-3 py-1 rounded-full shadow-lg shadow-[#08557f]/20">Crear Crédito</span>
-                        <div className="h-11 w-11 flex items-center justify-center rounded-full bg-white text-[#08557f] border border-[#08557f]/20 shadow-lg shadow-[#08557f]/10 hover:bg-[#f1f6fb] transition-all">
-                            <CreditCard className="h-5 w-5" />
-                        </div>
-                    </button>
-                    <button
-                        onClick={() => { setShowNewClientModal(true); setIsFabOpen(false); }}
-                        className={`flex items-center justify-between w-56 gap-3 ${isFabOpen ? 'pointer-events-auto' : 'pointer-events-none'}`}
-                    >
-                        <span className="bg-[#08557f] text-white text-xs font-bold px-3 py-1 rounded-full shadow-lg shadow-[#08557f]/20">Nuevo Cliente</span>
-                        <div className="h-11 w-11 flex items-center justify-center rounded-full bg-white text-[#08557f] border border-[#08557f]/20 shadow-lg shadow-[#08557f]/10 hover:bg-[#f1f6fb] transition-all">
-                            <UserPlus className="h-5 w-5" />
-                        </div>
-                    </button>
-                    <button 
-                        onClick={() => { setIsFabOpen(false); setVisitaPagoSeleccionadaId(null); setPagoInitialIsAbono(true); setShowPaymentModal(true); }}
-                        className={`flex items-center justify-between w-56 gap-3 ${isFabOpen ? 'pointer-events-auto' : 'pointer-events-none'}`}
-                    >
-                        <span className="bg-orange-600 text-white text-xs font-bold px-3 py-1 rounded-full shadow-lg shadow-orange-600/20">Registrar abono</span>
-                        <div className="h-11 w-11 flex items-center justify-center rounded-full bg-white text-orange-600 border border-orange-200 shadow-lg shadow-orange-600/10 hover:bg-orange-50 transition-all">
-                            <RefreshCw className="h-5 w-5" />
-                        </div>
-                    </button>
-                    <button 
-                        onClick={() => { setIsFabOpen(false); setVisitaPagoSeleccionadaId(null); setPagoInitialIsAbono(false); setShowPaymentModal(true); }}
-                        className={`flex items-center justify-between w-56 gap-3 ${isFabOpen ? 'pointer-events-auto' : 'pointer-events-none'}`}
-                    >
-                        <span className="bg-[#08557f] text-white text-xs font-bold px-3 py-1 rounded-full shadow-lg shadow-[#08557f]/20">Registrar pago</span>
-                        <div className="h-11 w-11 flex items-center justify-center rounded-full bg-white text-[#08557f] border border-[#08557f]/20 shadow-lg shadow-[#08557f]/10 hover:bg-[#f1f6fb] transition-all">
-                            <DollarSign className="h-5 w-5" />
-                        </div>
-                    </button>
-                    <button
-                        onClick={() => { setShowGastoModal(true); setIsFabOpen(false); }}
-                        className={`flex items-center justify-between w-56 gap-3 ${isFabOpen ? 'pointer-events-auto' : 'pointer-events-none'}`}
-                    >
-                        <span className="bg-rose-600 text-white text-xs font-bold px-3 py-1 rounded-full shadow-lg shadow-rose-600/20">Gastos</span>
-                        <div className="h-11 w-11 flex items-center justify-center rounded-full bg-white text-rose-600 border border-rose-200 shadow-lg shadow-rose-600/10 hover:bg-rose-50 transition-all">
-                            <ReceiptText className="h-5 w-5" />
-                        </div>
-                    </button>
-                </div>
-
-                {/* Main Toggle Button */}
-                <button
-                    onClick={() => setIsFabOpen(!isFabOpen)}
-                    className={`pointer-events-auto p-4 rounded-full shadow-xl transition-all duration-300 ${
-                    isFabOpen 
-                        ? 'bg-[#063a58] text-white rotate-45' 
-                        : 'bg-[#08557f] text-white hover:bg-[#063a58] hover:scale-105'
-                    }`}
-                >
-                    <Plus className="h-6 w-6" />
-                </button>
-            </div>
-          </>
+        {/* Floating Action Button (FAB) */}
+        <FloatingActionMenu actions={[
+          { label: 'Crear Crédito', icon: <CreditCard className="h-5 w-5" />, onClick: () => setShowCreditModal(true) },
+          { label: 'Nuevo Cliente', icon: <UserPlus className="h-5 w-5" />, onClick: () => setShowNewClientModal(true) },
+          { label: 'Registrar abono', icon: <RefreshCw className="h-5 w-5" />, color: 'orange', onClick: () => { setVisitaPagoSeleccionadaId(null); setPagoInitialIsAbono(true); setShowPaymentModal(true); } },
+          { label: 'Registrar pago', icon: <DollarSign className="h-5 w-5" />, onClick: () => { setVisitaPagoSeleccionadaId(null); setPagoInitialIsAbono(false); setShowPaymentModal(true); } },
+          { label: 'Gastos', icon: <ReceiptText className="h-5 w-5" />, color: 'rose', onClick: () => setShowGastoModal(true) },
+        ] as FabAction[]} />
       </div>
     </div>
   )

@@ -30,6 +30,7 @@ import { TransactionalHighDetailChart } from '@/components/ui/TransactionalHighD
 import { dashboardService, DashboardData } from '@/services/dashboard-coordinador-service';
 import { formatErrorForComponent } from '@/lib/api/api';
 import { TimeFilter, TimeFilterPeriod } from '@/components/ui/TimeFilter';
+import CrearCreditoModal from '@/components/dashboards/shared/CrearCreditoModal';
 
 interface Usuario {
   id?: string
@@ -71,6 +72,7 @@ const VistaCoordinador = () => {
   const [refreshing, setRefreshing] = useState(false)
   const [approvingId, setApprovingId] = useState<string | null>(null)
   const [rejectingId, setRejectingId] = useState<string | null>(null)
+  const [showCrearCreditoModal, setShowCrearCreditoModal] = useState(false)
   const router = useRouter()
   const currentDate = new Date();
 
@@ -225,7 +227,7 @@ const VistaCoordinador = () => {
       subtitle: 'Definir tasas y cuotas',
       icon: <CreditCard className="h-5 w-5" />,
       color: '#08557f',
-      href: '/coordinador/creditos/nuevo'
+      href: '#'
     },
     {
       title: 'Asignar Rutas',
@@ -471,7 +473,7 @@ const VistaCoordinador = () => {
                   <h2 className="text-xl font-black text-slate-900 tracking-tight">Bandeja de Aprobaciones</h2>
                   <p className="text-sm text-slate-500 font-medium">Solicitudes pendientes de validación</p>
                 </div>
-                <div className="px-4 py-1.5 bg-blue-50 text-[#08557f] rounded-xl text-[10px] font-black uppercase tracking-widest border border-blue-100">
+                <div className="px-4 py-1.5 bg-blue-50 text-[#08557f] rounded-xl text-[10px] font-black uppercase tracking-[0.2em] border border-blue-100">
                   {dashboardData?.pendingApprovals.length || 0} PENDIENTES
                 </div>
               </div>
@@ -644,22 +646,45 @@ const VistaCoordinador = () => {
             <div className="bg-white border border-slate-100 rounded-[2.5rem] p-8 shadow-sm">
               <h2 className="text-lg font-black text-slate-900 mb-6 uppercase tracking-widest text-[10px] text-slate-400">Acciones Directas</h2>
               <div className="space-y-4">
-                {quickAccess.map((item, index) => (
-                  <Link
-                    key={index}
-                    href={item.href}
-                    className="flex items-center p-5 rounded-[1.5rem] border border-slate-100 hover:border-[#08557f]/30 hover:bg-blue-50/20 transition-all group shadow-sm bg-white"
-                  >
-                    <div className="p-3 rounded-2xl mr-4 transition-all group-hover:scale-110 shadow-sm border border-slate-100 bg-white" style={{ color: item.color }}>
-                      {item.icon}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-black text-slate-800 truncate">{item.title}</p>
-                      <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest truncate">{item.subtitle}</p>
-                    </div>
-                    <ChevronRight className="h-4 w-4 text-slate-300 group-hover:text-[#08557f] group-hover:translate-x-1 transition-all" />
-                  </Link>
-                ))}
+                {quickAccess.map((item, index) => {
+                  const modalAction = item.title === 'Crear Crédito' ? () => setShowCrearCreditoModal(true) : null;
+
+                  if (modalAction) {
+                    return (
+                      <button
+                        key={index}
+                        onClick={modalAction}
+                        className="w-full flex items-center p-5 rounded-[1.5rem] border border-slate-100 hover:border-[#08557f]/30 hover:bg-blue-50/20 transition-all group shadow-sm bg-white text-left"
+                      >
+                        <div className="p-3 rounded-2xl mr-4 transition-all group-hover:scale-110 shadow-sm border border-slate-100 bg-white" style={{ color: item.color }}>
+                          {item.icon}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-black text-slate-800 truncate">{item.title}</p>
+                          <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest truncate">{item.subtitle}</p>
+                        </div>
+                        <ChevronRight className="h-4 w-4 text-slate-300 group-hover:text-[#08557f] group-hover:translate-x-1 transition-all" />
+                      </button>
+                    );
+                  }
+
+                  return (
+                    <Link
+                      key={index}
+                      href={item.href}
+                      className="flex items-center p-5 rounded-[1.5rem] border border-slate-100 hover:border-[#08557f]/30 hover:bg-blue-50/20 transition-all group shadow-sm bg-white"
+                    >
+                      <div className="p-3 rounded-2xl mr-4 transition-all group-hover:scale-110 shadow-sm border border-slate-100 bg-white" style={{ color: item.color }}>
+                        {item.icon}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-black text-slate-800 truncate">{item.title}</p>
+                        <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest truncate">{item.subtitle}</p>
+                      </div>
+                      <ChevronRight className="h-4 w-4 text-slate-300 group-hover:text-[#08557f] group-hover:translate-x-1 transition-all" />
+                    </Link>
+                  );
+                })}
               </div>
             </div>
 
@@ -744,6 +769,16 @@ const VistaCoordinador = () => {
           </div>
         </div>
       </div>
+
+      {/* Modal de Crear Crédito */}
+      <CrearCreditoModal
+        isOpen={showCrearCreditoModal}
+        onClose={() => setShowCrearCreditoModal(false)}
+        onConfirm={(data) => {
+          console.log('Crédito creado:', data);
+          setShowCrearCreditoModal(false);
+        }}
+      />
 
       <style jsx global>{`
         .custom-scrollbar::-webkit-scrollbar { width: 4px; }

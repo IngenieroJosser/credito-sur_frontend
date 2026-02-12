@@ -65,7 +65,7 @@ export default async function CreditoDetallePage({
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               <Link
-                href="/admin/creditos-articulos"
+                href="/creditos-articulos"
                 className="p-2 rounded-lg hover:bg-slate-100 transition-colors text-slate-500 hover:text-slate-900"
               >
                 <ChevronLeft className="w-5 h-5" />
@@ -88,7 +88,7 @@ export default async function CreditoDetallePage({
             </div>
 
             <Link
-              href={`/admin/creditos-articulos/${id}/editar`}
+              href={`/creditos-articulos/${id}/editar`}
               className="px-4 py-2 bg-white border border-slate-200 text-slate-700 font-bold rounded-xl hover:bg-slate-50 transition-all text-sm shadow-sm hover:shadow-md"
             >
               Editar Crédito

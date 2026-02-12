@@ -17,6 +17,7 @@ export interface Usuario {
   creadoEn: string;
   actualizadoEn: string;
   eliminadoEn: string | null;
+  permisos?: string[];
 }
 
 export interface CreateUsuarioDto {
@@ -100,5 +101,12 @@ export const usuariosService = {
    */
   async toggleEstado(id: string, estado: EstadoUsuario): Promise<Usuario> {
     return apiRequest<Usuario>('PATCH', `/usuarios/${id}`, { estado });
+  },
+
+  /**
+   * Asignar permisos específicos a un usuario
+   */
+  async asignarPermisos(id: string, permisos: string[]): Promise<void> {
+    return apiRequest<void>('POST', `/usuarios/${id}/permisos`, { permisos });
   }
 };

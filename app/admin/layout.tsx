@@ -173,7 +173,7 @@ export default function AdminLayout({
           const parsedUser = JSON.parse(userData) as Usuario
           setUser(parsedUser)
           
-          // Generamos el menú lateral dinámicamente según los permisos del rol
+          // Generamos el menú lateral dinámicamente según los permisos del rol (baseline por rol)
           if (parsedUser.rol) {
             const modulos = obtenerModulosPorRol(parsedUser.rol)
             
@@ -217,7 +217,7 @@ export default function AdminLayout({
       'COBRADOR': '/cobranzas',
       'COORDINADOR': '/coordinador',
       'SUPERVISOR': '/supervisor',
-      'CONTADOR': '/contador/contable'
+      'CONTADOR': '/contable'
     }
 
     if (roleRedirects[user.rol] && pathname?.startsWith('/admin')) {
@@ -249,10 +249,15 @@ export default function AdminLayout({
   // Mientras verificamos la sesión, no mostramos nada para evitar parpadeos
   if (!authChecked) return null
 
-  // Última línea de defensa: Si el usuario no tiene permiso explícito para esta ruta específica
+  // Última línea de defensa: Validación básica de rol.
+  // NOTA: Hemos relajado esta validación para permitir que el sistema de permisos granular (Feature-first)
+  // decida si el usuario puede o no ver el contenido específico.
+  // El componente de la página (ej: ClientesFeature) es responsable de mostrar "Acceso Denegado" si falta el permiso.
+  /* 
   if (pathname && user?.rol && !tieneAcceso(user.rol, pathname)) {
     return <NotFoundPage />
-  }
+  } 
+  */
 
   const requestLogout = () => {
     setShowUserMenu(false)

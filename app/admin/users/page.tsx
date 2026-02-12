@@ -42,6 +42,8 @@ import {
 
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/hooks/useAuth';
+import { usePermission } from '@/hooks/usePermission';
+import { permisosPorRol } from '@/lib/permissions';
 
 // Tipos importados de enums
 // type RolUsuario = ... (Removed)
@@ -77,6 +79,13 @@ const UserManagementPage = () => {
   const { user: currentUser, loading: authLoading } = useAuth();
   const currentUserRole: RolUsuario = currentUser?.rol as RolUsuario;
 
+  const { can, canForPath } = usePermission();
+  const permitido = can('USUARIOS_VIEW') || canForPath('/admin/users');
+  const puedeCrear = can('USUARIOS_CREATE') || canForPath('/admin/users');
+  const puedeEditar = can('USUARIOS_EDIT') || canForPath('/admin/users');
+  const puedeEliminar = can('USUARIOS_DELETE') || canForPath('/admin/users');
+  const puedeGestionarPermisos = can('USUARIOS_MANAGE') || canForPath('/admin/users');
+
   // --- ESTADO DE USUARIOS ---
   const [users, setUsers] = useState<User[]>([]);
 
@@ -97,7 +106,7 @@ const UserManagementPage = () => {
         estado: u.estado as EstadoUsuario,
         fechaCreacion: new Date(u.creadoEn).toLocaleDateString('es-CO'),
         ultimoAcceso: u.ultimoIngreso ? new Date(u.ultimoIngreso).toLocaleString('es-CO', { dateStyle: 'short', timeStyle: 'short' }) : 'Nunca',
-        permisos: [] // Los permisos se manejan por rol actualmente en el backend
+        permisos: u.permisos || [] 
       }));
       setUsers(mappedUsers);
     } catch (error) {
@@ -200,38 +209,35 @@ const UserManagementPage = () => {
 
   // Define available modules based on the selected user's role using useMemo to avoid bad setState calls
   const availableModules = React.useMemo(() => {
-    if (!selectedUser || !selectedUser.rol) return [];
+    if (!selectedUser) return [];
     
-    const allModules = [
-        // Operaciones
-        { id: 'gestion-creditos', label: 'Créditos', description: 'Gestión de solicitudes y préstamos', category: 'Operaciones', roles: [RolUsuario.SUPER_ADMINISTRADOR, RolUsuario.ADMIN, RolUsuario.COORDINADOR] },
-        { id: 'rutas', label: 'Rutas', description: 'Gestión de rutas y zonas', category: 'Operaciones', roles: [RolUsuario.SUPER_ADMINISTRADOR, RolUsuario.ADMIN, RolUsuario.COORDINADOR, RolUsuario.SUPERVISOR] },
-        
-        // Gestión Clientes
-        { id: 'clientes', label: 'Clientes', description: 'Directorio de clientes', category: 'Gestión Clientes', roles: [RolUsuario.SUPER_ADMINISTRADOR, RolUsuario.ADMIN, RolUsuario.COORDINADOR, RolUsuario.COBRADOR, RolUsuario.SUPERVISOR] },
-        { id: 'cuentas-mora', label: 'Cuentas en Mora', description: 'Gestión de carteras vencidas', category: 'Gestión Clientes', roles: [RolUsuario.SUPER_ADMINISTRADOR, RolUsuario.ADMIN, RolUsuario.COORDINADOR, RolUsuario.SUPERVISOR, RolUsuario.CONTADOR] },
-        { id: 'cuentas-vencidas', label: 'Cuentas Vencidas', description: 'Cartera castigada', category: 'Gestión Clientes', roles: [RolUsuario.SUPER_ADMINISTRADOR, RolUsuario.ADMIN, RolUsuario.COORDINADOR, RolUsuario.CONTADOR] },
-        { id: 'archivados', label: 'Archivados', description: 'Registros históricos', category: 'Gestión Clientes', roles: [RolUsuario.SUPER_ADMINISTRADOR, RolUsuario.ADMIN] },
+    // Usamos los módulos del SUPER_ADMINISTRADOR como base para la lista de permisos disponibles
+    const superAdminModules = permisosPorRol['SUPER_ADMINISTRADOR'];
+    const flattenedModules: any[] = [];
 
-        // Finanzas
-        { id: 'contable', label: 'Módulo Contable', description: 'Contabilidad general', category: 'Finanzas', roles: [RolUsuario.SUPER_ADMINISTRADOR, RolUsuario.ADMIN, RolUsuario.CONTADOR] },
-        { id: 'tesoreria', label: 'Tesorería', description: 'Caja y bancos', category: 'Finanzas', roles: [RolUsuario.SUPER_ADMINISTRADOR, RolUsuario.ADMIN, RolUsuario.CONTADOR] },
-        { id: 'articulos', label: 'Artículos (Inventario)', description: 'Control de inventario', category: 'Finanzas', roles: [RolUsuario.SUPER_ADMINISTRADOR, RolUsuario.ADMIN, RolUsuario.CONTADOR] },
-        { id: 'reportes-financieros', label: 'Reportes Financieros', description: 'Balances y estados', category: 'Finanzas', roles: [RolUsuario.SUPER_ADMINISTRADOR, RolUsuario.ADMIN, RolUsuario.CONTADOR] },
-
-        // Administración
-        { id: 'usuarios', label: 'Usuarios', description: 'Gestión de acceso', category: 'Administración', roles: [RolUsuario.SUPER_ADMINISTRADOR] },
-        { id: 'auditoria', label: 'Auditoría', description: 'Logs del sistema', category: 'Administración', roles: [RolUsuario.SUPER_ADMINISTRADOR, RolUsuario.ADMIN] },
-        
-        // Cobranza (Específico App Móvil / Frontend)
-        { id: 'prestamos-dinero', label: 'Solicitar Crédito', description: 'Crear solicitudes', category: 'Cobranza', roles: [RolUsuario.COBRADOR] },
-        { id: 'notificaciones', label: 'Notificaciones', description: 'Alertas del sistema', category: 'Cobranza', roles: [RolUsuario.COBRADOR] },
-        
-        // Reportes
-        { id: 'reportes-operativos', label: 'Reportes Operativos', description: 'Métricas de rendimiento', category: 'Reportes', roles: [RolUsuario.SUPER_ADMINISTRADOR, RolUsuario.ADMIN, RolUsuario.COORDINADOR, RolUsuario.SUPERVISOR] },
-    ];
+    superAdminModules.forEach(module => {
+      if (module.submodulos && module.submodulos.length > 0) {
+        module.submodulos.forEach(sub => {
+          flattenedModules.push({
+            id: sub.id,
+            label: sub.nombre,
+            description: sub.nombre,
+            category: module.nombre,
+            roles: sub.roles
+          });
+        });
+      } else {
+        flattenedModules.push({
+          id: module.id,
+          label: module.nombre,
+          description: module.nombre,
+          category: 'General',
+          roles: module.roles
+        });
+      }
+    });
     
-    return allModules;
+    return flattenedModules;
   }, [selectedUser]);
 
   useEffect(() => {
@@ -609,22 +615,29 @@ const UserManagementPage = () => {
     }
   };
 
-  const handleUpdatePermissions = () => {
+  const handleUpdatePermissions = async () => {
     if (!selectedUser) return;
 
-    const updatedUsers = users.map(user => {
-      if (user.id === selectedUser.id) {
-        return {
-          ...user,
-          permisos: selectedPermissions
-        };
-      }
-      return user;
-    });
+    try {
+      await usuariosService.asignarPermisos(selectedUser.id, selectedPermissions);
+      
+      const updatedUsers = users.map(user => {
+        if (user.id === selectedUser.id) {
+          return {
+            ...user,
+            permisos: selectedPermissions
+          };
+        }
+        return user;
+      });
 
-    setUsers(updatedUsers);
-    setIsPermissionsModalOpen(false);
-    showNotification('success', 'Los permisos del usuario han sido actualizados', 'Permisos Actualizados');
+      setUsers(updatedUsers);
+      setIsPermissionsModalOpen(false);
+      showNotification('success', 'Los permisos del usuario han sido actualizados', 'Permisos Actualizados');
+    } catch (error) {
+      console.error('Error updating permissions:', error);
+      showNotification('error', 'No se pudieron actualizar los permisos', 'Error');
+    }
   };
 
   // Obtener la estructura de módulos basada en el rol del usuario seleccionado
@@ -660,6 +673,20 @@ const UserManagementPage = () => {
     }
   };
 
+  if (!permitido) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-8 text-center">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-slate-100 text-xs text-slate-600 font-bold border border-slate-200">
+            <Users className="h-3.5 w-3.5" />
+            <span>Acceso no autorizado</span>
+          </div>
+          <p className="mt-4 text-slate-500 font-medium">No tienes permisos para ver Usuarios.</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <>
     <div className="min-h-screen bg-slate-50 relative">
@@ -686,13 +713,15 @@ const UserManagementPage = () => {
             </div>
 
             <div className="flex items-center gap-4">
-              <button
-                onClick={handleOpenCreateModal}
-                className="inline-flex items-center gap-2 rounded-2xl bg-white border border-slate-200 px-6 py-2.5 text-sm font-bold text-slate-700 shadow-sm hover:bg-slate-50 hover:text-slate-900 transition-all duration-300 whitespace-nowrap"
-              >
-                <UserPlus className="h-4 w-4" />
-                <span>Nuevo Usuario</span>
-              </button>
+              {puedeCrear && (
+                <button
+                  onClick={handleOpenCreateModal}
+                  className="inline-flex items-center gap-2 rounded-2xl bg-white border border-slate-200 px-6 py-2.5 text-sm font-bold text-slate-700 shadow-sm hover:bg-slate-50 hover:text-slate-900 transition-all duration-300 whitespace-nowrap"
+                >
+                  <UserPlus className="h-4 w-4" />
+                  <span>Nuevo Usuario</span>
+                </button>
+              )}
             </div>
           </div>
 
@@ -854,38 +883,44 @@ const UserManagementPage = () => {
                           >
                             <Eye className="h-4 w-4" />
                           </button>
-                          <button
-                            onClick={() => handleOpenEditModal(user)}
-                            className="p-2 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
-                            title="Editar"
-                            disabled={user.rol === 'SUPER_ADMINISTRADOR' && currentUserRole !== 'SUPER_ADMINISTRADOR'}
-                            style={user.rol === 'SUPER_ADMINISTRADOR' && currentUserRole !== 'SUPER_ADMINISTRADOR' ? { pointerEvents: 'none', opacity: 0.5 } : {}}
-                          >
-                            <Edit2 className="h-4 w-4" />
-                          </button>
-                          <button
-                            onClick={() => handleOpenPermissionsModal(user)}
-                            className="p-2 text-slate-400 hover:text-violet-600 hover:bg-violet-50 rounded-lg transition-colors"
-                            title="Permisos"
-                            disabled={user.rol === 'SUPER_ADMINISTRADOR' && currentUserRole !== 'SUPER_ADMINISTRADOR'}
-                          >
-                            <Key className="h-4 w-4" />
-                          </button>
-                          <button
-                            onClick={() => handleOpenDeleteModal(user)}
-                            className={cn(
-                              "p-2 rounded-lg transition-colors",
-                              user.estado === 'ACTIVO' ? 'text-slate-400 hover:text-rose-600 hover:bg-rose-50' : 'text-slate-400 hover:text-emerald-600 hover:bg-emerald-50'
-                            )}
-                            title={user.estado === 'ACTIVO' ? 'Desactivar' : 'Activar'}
-                            disabled={user.rol === 'SUPER_ADMINISTRADOR'}
-                          >
-                            {user.estado === 'ACTIVO' ? (
-                              <Trash2 className="h-4 w-4" />
-                            ) : (
-                              <Eye className="h-4 w-4" />
-                            )}
-                          </button>
+                          {puedeEditar && (
+                            <button
+                              onClick={() => handleOpenEditModal(user)}
+                              className="p-2 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
+                              title="Editar"
+                              disabled={user.rol === 'SUPER_ADMINISTRADOR' && currentUserRole !== 'SUPER_ADMINISTRADOR'}
+                              style={user.rol === 'SUPER_ADMINISTRADOR' && currentUserRole !== 'SUPER_ADMINISTRADOR' ? { pointerEvents: 'none', opacity: 0.5 } : {}}
+                            >
+                              <Edit2 className="h-4 w-4" />
+                            </button>
+                          )}
+                          {puedeGestionarPermisos && (
+                            <button
+                              onClick={() => handleOpenPermissionsModal(user)}
+                              className="p-2 text-slate-400 hover:text-violet-600 hover:bg-violet-50 rounded-lg transition-colors"
+                              title="Permisos"
+                              disabled={user.rol === 'SUPER_ADMINISTRADOR' && currentUserRole !== 'SUPER_ADMINISTRADOR'}
+                            >
+                              <Key className="h-4 w-4" />
+                            </button>
+                          )}
+                          {puedeEliminar && (
+                            <button
+                              onClick={() => handleOpenDeleteModal(user)}
+                              className={cn(
+                                "p-2 rounded-lg transition-colors",
+                                user.estado === 'ACTIVO' ? 'text-slate-400 hover:text-rose-600 hover:bg-rose-50' : 'text-slate-400 hover:text-emerald-600 hover:bg-emerald-50'
+                              )}
+                              title={user.estado === 'ACTIVO' ? 'Desactivar' : 'Activar'}
+                              disabled={user.rol === 'SUPER_ADMINISTRADOR'}
+                            >
+                              {user.estado === 'ACTIVO' ? (
+                                <Trash2 className="h-4 w-4" />
+                              ) : (
+                                <Eye className="h-4 w-4" />
+                              )}
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>

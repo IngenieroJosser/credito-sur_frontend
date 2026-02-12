@@ -33,10 +33,11 @@ interface CrearCreditoModalProps {
     cuotaInicialArticulo?: number
   }) => void
   defaultClienteId?: string
+  defaultCreditType?: 'prestamo' | 'articulo'
 }
 
-export default function CrearCreditoModal({ isOpen, onClose, onConfirm, defaultClienteId }: CrearCreditoModalProps) {
-  const [creditType, setCreditType] = useState<'prestamo' | 'articulo'>('prestamo')
+export default function CrearCreditoModal({ isOpen, onClose, onConfirm, defaultClienteId, defaultCreditType }: CrearCreditoModalProps) {
+  const [creditType, setCreditType] = useState<'prestamo' | 'articulo'>(defaultCreditType || 'prestamo')
   const [clienteCreditoId, setClienteCreditoId] = useState('')
   const [montoPrestamoInput, setMontoPrestamoInput] = useState('')
   const [tipoInteres, setTipoInteres] = useState<'SIMPLE' | 'AMORTIZABLE'>('SIMPLE')

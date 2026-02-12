@@ -65,7 +65,8 @@ export const permisosPorRol: Record<Rol, ModuloPermiso[]> = {
       roles: ['SUPER_ADMINISTRADOR'],
       submodulos: [
         { id: 'clientes', nombre: 'Clientes', icono: 'Users', path: '/admin/clientes', roles: ['SUPER_ADMINISTRADOR', 'COORDINADOR', 'COBRADOR'] },
-        { id: 'cuentas-mora', nombre: 'Cuentas en mora', icono: 'AlertCircle', path: '/admin/cuentas-mora', roles: ['SUPER_ADMINISTRADOR', 'COORDINADOR', 'SUPERVISOR', 'CONTADOR'], isNew: true },
+        { id: 'cuentas-mora', nombre: 'Cuentas en mora', icono: 'AlertCircle', path: '/cuentas-mora', roles: ['SUPER_ADMINISTRADOR', 'COORDINADOR', 'SUPERVISOR', 'CONTADOR'], isNew: true },
+        { id: 'cuentas-vencidas', nombre: 'Cuentas vencidas', icono: 'Archive', path: '/cuentas-vencidas', roles: ['SUPER_ADMINISTRADOR', 'ADMIN'] },
         { id: 'archivados', nombre: 'Archivados', icono: 'Archive', path: '/admin/archivados', roles: ['SUPER_ADMINISTRADOR'] },
       ]
     },
@@ -76,10 +77,10 @@ export const permisosPorRol: Record<Rol, ModuloPermiso[]> = {
       path: '#',
       roles: ['SUPER_ADMINISTRADOR'],
       submodulos: [
-        { id: 'contable', nombre: 'Movimientos', icono: 'Calculator', path: '/admin/contable', roles: ['SUPER_ADMINISTRADOR', 'CONTADOR'] },
-        { id: 'arqueo', nombre: 'Arqueo de Caja', icono: 'History', path: '/admin/contable/cierre-caja', roles: ['SUPER_ADMINISTRADOR', 'CONTADOR'], isNew: true },
-        { id: 'articulos', nombre: 'Artículos (Inventario)', icono: 'Package', path: '/admin/articulos', roles: ['SUPER_ADMINISTRADOR', 'CONTADOR'] },
-        { id: 'reportes-financieros', nombre: 'Reportes financieros', icono: 'BarChart3', path: '/admin/reportes/financieros', roles: ['SUPER_ADMINISTRADOR', 'CONTADOR'] },
+        { id: 'contable', nombre: 'Movimientos', icono: 'Calculator', path: '/contable', roles: ['SUPER_ADMINISTRADOR', 'CONTADOR'] },
+        { id: 'arqueo', nombre: 'Arqueo de Caja', icono: 'History', path: '/contable/cierre-caja', roles: ['SUPER_ADMINISTRADOR', 'CONTADOR'], isNew: true },
+        { id: 'articulos', nombre: 'Artículos (Inventario)', icono: 'Package', path: '/articulos', roles: ['SUPER_ADMINISTRADOR', 'COORDINADOR', 'CONTADOR'] },
+        { id: 'reportes-financieros', nombre: 'Reportes financieros', icono: 'BarChart3', path: '/reportes/financieros', roles: ['SUPER_ADMINISTRADOR', 'CONTADOR'] },
       ]
     },
     {
@@ -129,8 +130,8 @@ export const permisosPorRol: Record<Rol, ModuloPermiso[]> = {
       roles: ['SUPER_ADMINISTRADOR', 'ADMIN'],
       submodulos: [
         { id: 'clientes', nombre: 'Clientes', icono: 'Users', path: '/admin/clientes', roles: ['SUPER_ADMINISTRADOR', 'ADMIN', 'COORDINADOR', 'COBRADOR'] },
-        { id: 'cuentas-mora', nombre: 'Cuentas en mora', icono: 'AlertCircle', path: '/admin/cuentas-mora', roles: ['SUPER_ADMINISTRADOR', 'ADMIN', 'COORDINADOR', 'SUPERVISOR', 'CONTADOR'], isNew: true },
-        { id: 'cuentas-vencidas', nombre: 'Cuentas vencidas', icono: 'Archive', path: '/admin/cuentas-vencidas', roles: ['SUPER_ADMINISTRADOR', 'ADMIN'] },
+        { id: 'cuentas-mora', nombre: 'Cuentas en mora', icono: 'AlertCircle', path: '/cuentas-mora', roles: ['SUPER_ADMINISTRADOR', 'ADMIN', 'COORDINADOR', 'CONTADOR'], isNew: true },
+        { id: 'cuentas-vencidas', nombre: 'Cuentas vencidas', icono: 'Archive', path: '/cuentas-vencidas', roles: ['SUPER_ADMINISTRADOR', 'ADMIN'] },
         { id: 'archivados', nombre: 'Archivados', icono: 'Archive', path: '/admin/archivados', roles: ['SUPER_ADMINISTRADOR', 'ADMIN'] },
       ]
     },
@@ -141,10 +142,10 @@ export const permisosPorRol: Record<Rol, ModuloPermiso[]> = {
       path: '#',
       roles: ['SUPER_ADMINISTRADOR', 'ADMIN'],
       submodulos: [
-        { id: 'contable', nombre: 'Movimientos', icono: 'Calculator', path: '/admin/contable', roles: ['SUPER_ADMINISTRADOR', 'ADMIN', 'CONTADOR'] },
-        { id: 'arqueo', nombre: 'Arqueo de Caja', icono: 'History', path: '/admin/contable/cierre-caja', roles: ['SUPER_ADMINISTRADOR', 'ADMIN'], isNew: true },
-        { id: 'articulos', nombre: 'Artículos (Inventario)', icono: 'Package', path: '/admin/articulos', roles: ['SUPER_ADMINISTRADOR', 'ADMIN', 'CONTADOR'] },
-        { id: 'reportes-financieros', nombre: 'Reportes financieros', icono: 'BarChart3', path: '/admin/reportes/financieros', roles: ['SUPER_ADMINISTRADOR', 'ADMIN', 'CONTADOR'], isNew: true },
+        { id: 'contable', nombre: 'Movimientos', icono: 'Calculator', path: '/contable', roles: ['SUPER_ADMINISTRADOR', 'ADMIN', 'CONTADOR'] },
+        { id: 'arqueo', nombre: 'Arqueo de Caja', icono: 'History', path: '/contable/cierre-caja', roles: ['SUPER_ADMINISTRADOR', 'ADMIN'], isNew: true },
+        { id: 'articulos', nombre: 'Artículos (Inventario)', icono: 'Package', path: '/articulos', roles: ['SUPER_ADMINISTRADOR', 'ADMIN', 'COORDINADOR', 'CONTADOR'] },
+        { id: 'reportes-financieros', nombre: 'Reportes financieros', icono: 'BarChart3', path: '/reportes/financieros', roles: ['SUPER_ADMINISTRADOR', 'ADMIN', 'CONTADOR'], isNew: true },
       ]
     },
     { id: 'reportes-operativos', nombre: 'Reportes operativos', icono: 'ClipboardList', path: '/admin/reportes/operativos', roles: ['SUPER_ADMINISTRADOR', 'ADMIN', 'COORDINADOR', 'SUPERVISOR'] },
@@ -161,8 +162,9 @@ export const permisosPorRol: Record<Rol, ModuloPermiso[]> = {
       submodulos: [
         { id: 'gestion-creditos', nombre: 'Créditos', icono: 'CreditCard', path: '/coordinador/creditos', roles: ['COORDINADOR'] },
         { id: 'clientes', nombre: 'Clientes', icono: 'Users', path: '/coordinador/clientes', roles: ['COORDINADOR'] },
-        { id: 'cuentas-mora', nombre: 'Cuentas en mora', icono: 'AlertCircle', path: '/coordinador/cuentas-mora', roles: ['COORDINADOR'], isNew: true },
-        { id: 'cuentas-vencidas', nombre: 'Cuentas vencidas', icono: 'Archive', path: '/coordinador/cuentas-vencidas', roles: ['COORDINADOR'] },
+        { id: 'cuentas-mora', nombre: 'Cuentas en mora', icono: 'AlertCircle', path: '/cuentas-mora', roles: ['COORDINADOR'], isNew: true },
+        { id: 'cuentas-vencidas', nombre: 'Cuentas vencidas', icono: 'Archive', path: '/cuentas-vencidas', roles: ['COORDINADOR'] },
+        { id: 'articulos', nombre: 'Artículos (Catálogo)', icono: 'Package', path: '/articulos', roles: ['COORDINADOR'] },
       ]
     },
     {
@@ -188,6 +190,7 @@ export const permisosPorRol: Record<Rol, ModuloPermiso[]> = {
       roles: ['SUPERVISOR'],
       submodulos: [
         { id: 'clientes', nombre: 'Clientes', icono: 'Users', path: '/supervisor/clientes', roles: ['SUPERVISOR'] },
+        { id: 'creditos-articulos', nombre: 'Créditos Artículos', icono: 'ShoppingBag', path: '/creditos-articulos', roles: ['SUPERVISOR'] },
         { id: 'rutas', nombre: 'Rutas', icono: 'Route', path: '/supervisor/rutas', roles: ['SUPERVISOR'] },
       ]
     },
@@ -210,9 +213,9 @@ export const permisosPorRol: Record<Rol, ModuloPermiso[]> = {
       path: '#',
       roles: ['CONTADOR'],
       submodulos: [
-        { id: 'contable', nombre: 'Movimientos', icono: 'Calculator', path: '/contador/contable', roles: ['CONTADOR'] },
-        { id: 'arqueo', nombre: 'Arqueo de Caja', icono: 'Landmark', path: '/contador/contable/cierre-caja', roles: ['CONTADOR'], isNew: true },
-        { id: 'articulos', nombre: 'Artículos (Inventario)', icono: 'Package', path: '/contador/articulos', roles: ['CONTADOR'] },
+        { id: 'contable', nombre: 'Movimientos', icono: 'Calculator', path: '/contable', roles: ['CONTADOR'] },
+        { id: 'arqueo', nombre: 'Arqueo de Caja', icono: 'Landmark', path: '/contable/cierre-caja', roles: ['CONTADOR'], isNew: true },
+        { id: 'articulos', nombre: 'Artículos (Inventario)', icono: 'Package', path: '/articulos', roles: ['CONTADOR'] },
       ]
     },
     {
@@ -222,9 +225,9 @@ export const permisosPorRol: Record<Rol, ModuloPermiso[]> = {
       path: '#',
       roles: ['CONTADOR'],
       submodulos: [
-        { id: 'cuentas-mora', nombre: 'Cuentas en mora', icono: 'AlertCircle', path: '/contador/cuentas-mora', roles: ['CONTADOR'], isNew: true },
-        { id: 'cuentas-vencidas', nombre: 'Cuentas vencidas', icono: 'Archive', path: '/contador/cuentas-vencidas', roles: ['CONTADOR'] },
-        { id: 'reportes-financieros', nombre: 'Reportes financieros', icono: 'BarChart3', path: '/contador/reportes/financieros', roles: ['CONTADOR'], isNew: true },
+        { id: 'cuentas-mora', nombre: 'Cuentas en mora', icono: 'AlertCircle', path: '/cuentas-mora', roles: ['CONTADOR'], isNew: true },
+        { id: 'cuentas-vencidas', nombre: 'Cuentas vencidas', icono: 'Archive', path: '/cuentas-vencidas', roles: ['CONTADOR'] },
+        { id: 'reportes-financieros', nombre: 'Reportes financieros', icono: 'BarChart3', path: '/reportes/financieros', roles: ['CONTADOR'], isNew: true },
       ]
     },
   ],
@@ -319,7 +322,13 @@ export const tieneAcceso = (rol: Rol, path: string): boolean => {
 
   const normalizado = path.split('?')[0]?.split('#')[0] ?? path;
 
-  // Excepciones Globales: Permitir acceso a Notificaciones y Perfil solo si están bajo su prefijo de rol
+  // Rutas unificadas accesibles para todos los roles autenticados
+  if (normalizado === '/perfil') return true;
+  if (normalizado === '/notificaciones') return true;
+  // /creditos-articulos accesible para SUPER_ADMIN/ADMIN aunque no esté en su sidebar
+  if (normalizado.startsWith('/creditos-articulos') && (rol === 'SUPER_ADMINISTRADOR' || rol === 'ADMIN')) return true;
+
+  // Excepciones Globales: Permitir acceso a Notificaciones y Perfil role-prefixed
   const prefijoRol = rol === 'COBRADOR' ? '/cobranzas' : 
                     rol === 'CONTADOR' ? '/contador' : 
                     rol === 'SUPER_ADMINISTRADOR' || rol === 'ADMIN' ? '/admin' :
