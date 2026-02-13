@@ -203,7 +203,7 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
 
   // Filtrar y ordenar visitas
   const visitasCobrador = useMemo(() => {
-    const filtradas = visitasBase.filter(v => v.cobradorId === 'CB-001') // Temporal
+    const filtradas = visitasBase
     
     const buscadas = filtradas.filter(v => 
       v.cliente.toLowerCase().includes(searchQuery.toLowerCase()) ||

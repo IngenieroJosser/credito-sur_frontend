@@ -1,63 +1,86 @@
-import { Metadata } from 'next';
+'use client';
+
+import { useState, useEffect } from 'react';
+import { useParams } from 'next/navigation';
 import { ChevronLeft, BarChart3 } from 'lucide-react';
 import Link from 'next/link';
 import DetallePrestamo, { PrestamoDetalle } from '@/components/prestamos/DetallePrestamo';
+import { prestamosService } from '@/services/prestamos-service';
 
-// Datos MOCK para demostración
-const prestamoMock: PrestamoDetalle = {
-  id: 'PR-2024-001',
-  clienteId: 'CLI-001',
-  clienteNombre: 'Carlos Andrés Rodríguez Pérez',
-  clienteDni: '0912345678',
-  montoPrestamo: 1500000,
-  montoTotal: 1800000,
-  saldoPendiente: 1200000,
-  tasaInteres: 20,
-  duracion: '6 Meses',
-  frecuencia: 'mensual',
-  fechaInicio: '15/01/2024',
-  fechaVencimiento: '15/07/2024',
-  estado: 'ACTIVO',
-  producto: 'Préstamo Personal - Libre Inversión',
-  garantia: 'Pagaré firmado + Referencia Laboral',
-  fotos: ['foto1', 'foto2'], // Simulación de fotos existentes
-  cuotas: [
-    { numero: 1, fecha: '15/02/2024', monto: 300000, estado: 'PAGADO', fechaPago: '14/02/2024' },
-    { numero: 2, fecha: '15/03/2024', monto: 300000, estado: 'PAGADO', fechaPago: '15/03/2024' },
-    { numero: 3, fecha: '15/04/2024', monto: 300000, estado: 'PENDIENTE' },
-    { numero: 4, fecha: '15/05/2024', monto: 300000, estado: 'PENDIENTE' },
-    { numero: 5, fecha: '15/06/2024', monto: 300000, estado: 'PENDIENTE' },
-    { numero: 6, fecha: '15/07/2024', monto: 300000, estado: 'PENDIENTE' },
-  ]
-};
+export default function PrestamoDetallePage() {
+  const params = useParams();
+  const id = params?.id as string;
+  const [prestamo, setPrestamo] = useState<PrestamoDetalle | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
-  const { id } = await params;
-  return {
-    title: `Detalle de Préstamo ${id} • CrediSur`,
-    description: `Gestión y detalles del préstamo ${id}`
-  };
-}
+  useEffect(() => {
+    if (!id) return;
+    const fetchData = async () => {
+      setLoading(true);
+      try {
+        const data = await prestamosService.obtenerPrestamoPorId(id);
+        const cuotasData = await prestamosService.obtenerCuotas(id).catch(() => []);
+        setPrestamo({
+          id: data.id || id,
+          clienteId: data.clienteId || data.cliente?.id || '',
+          clienteNombre: data.cliente ? `${data.cliente.nombres} ${data.cliente.apellidos}` : '',
+          clienteDni: data.cliente?.dni || '',
+          clienteTelefono: data.cliente?.telefono || '',
+          clienteDireccion: data.cliente?.direccion || '',
+          montoPrestamo: data.monto || 0,
+          montoTotal: data.montoTotal || data.monto || 0,
+          saldoPendiente: data.saldoPendiente || data.montoPendiente || 0,
+          tasaInteres: data.tasaInteres || 0,
+          duracion: data.plazoMeses ? `${data.plazoMeses} Meses` : '',
+          frecuencia: data.frecuenciaPago || 'mensual',
+          fechaInicio: data.fechaInicio || '',
+          fechaVencimiento: data.fechaFin || '',
+          estado: data.estado || 'ACTIVO',
+          producto: data.tipoPrestamo || 'Préstamo Personal',
+          garantia: data.garantia || '',
+          fotos: data.fotos || [],
+          cuotas: cuotasData.map((c: any) => ({
+            numero: c.numeroCuota,
+            fecha: c.fechaVencimiento,
+            monto: c.monto,
+            estado: c.estado,
+            fechaPago: c.fechaPago || undefined,
+          })),
+        });
+      } catch (err) {
+        console.error('Error cargando préstamo:', err);
+        setError('No se pudo cargar el préstamo');
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchData();
+  }, [id]);
 
-export default async function PrestamoDetallePage({ 
-  params 
-}: { 
-  params: Promise<{ id: string }>
-}) {
-  const { id } = await params;
-  
-  // Simulamos datos específicos si el ID cambia, o usamos el default
-  const prestamo = { ...prestamoMock, id };
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
+
+  if (error || !prestamo) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+        <p className="text-red-500">{error || 'Préstamo no encontrado'}</p>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-slate-50 relative">
-      {/* Fondo arquitectónico ultra sutil */}
       <div className="fixed inset-0 pointer-events-none z-0">
         <div className="fixed inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px]"></div>
         <div className="fixed left-0 right-0 top-0 -z-10 m-auto h-[310px] w-[310px] rounded-full bg-blue-500 opacity-20 blur-[100px]"></div>
       </div>
 
-      {/* Header General de la Página */}
       <header className="sticky top-0 z-10 bg-white/80 backdrop-blur-sm border-b border-slate-200">
         <div className="px-6 lg:px-8 py-4">
           <div className="flex items-center justify-between">

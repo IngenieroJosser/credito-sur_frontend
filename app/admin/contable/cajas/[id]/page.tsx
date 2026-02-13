@@ -1,50 +1,84 @@
 'use client'
 
 import { createPortal } from 'react-dom'
-import { use, useMemo, useState } from 'react'
+import { use, useMemo, useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { ArrowLeft, Wallet, TrendingUp, TrendingDown, Calendar, User, DollarSign, CheckCircle, AlertCircle, XCircle, ArrowDownLeft, ArrowUpRight, ChevronLeft, ChevronRight, CheckCircle2, X } from 'lucide-react'
 import { formatCOPInputValue, formatCurrency, parseCOPInputToNumber } from '@/lib/utils'
 import { useNotification } from '@/components/providers/NotificationProvider'
+import { getCajaById, getTransacciones } from '@/services/contabilidad-service'
+import { usuariosService } from '@/services/usuarios-service'
 
-// Mock data para el detalle de caja
-const MOCK_CAJA = {
-  id: '1',
-  nombre: 'Caja Principal Oficina',
-  responsable: 'Ana Admin',
-  tipo: 'PRINCIPAL',
-  estado: 'ABIERTA',
-  saldoActual: 5200000,
-  saldoInicial: 1000000,
-  ingresosDia: 4500000,
-  egresosDia: 300000,
-  fechaApertura: '2024-01-23 08:00 AM',
-  movimientos: [
-    { id: 1, tipo: 'INGRESO', concepto: 'Pago Cuota #45 - Juan Perez', monto: 150000, hora: '08:30 AM', usuario: 'Ana Admin' },
-    { id: 2, tipo: 'INGRESO', concepto: 'Pago Cuota #12 - Maria Lopez', monto: 200000, hora: '09:15 AM', usuario: 'Ana Admin' },
-    { id: 3, tipo: 'EGRESO', concepto: 'Pago Servicio Internet', monto: 120000, hora: '10:00 AM', usuario: 'Ana Admin' },
-    { id: 4, tipo: 'INGRESO', concepto: 'Cierre Ruta Centro', monto: 2500000, hora: '12:00 PM', usuario: 'Carlos Cobrador' },
-    { id: 5, tipo: 'EGRESO', concepto: 'Adelanto Gasolina', monto: 50000, hora: '02:00 PM', usuario: 'Ana Admin' },
-  ]
+interface CajaDetalle {
+  id: string
+  nombre: string
+  responsable: string
+  tipo: string
+  estado: string
+  saldoActual: number
+  saldoInicial: number
+  ingresosDia: number
+  egresosDia: number
+  fechaApertura: string
+  movimientos: Array<{ id: string | number; tipo: string; concepto: string; monto: number; hora: string; usuario: string }>
 }
-
-const USUARIOS_AUTORIZADOS = [
-  { id: 'USR-001', nombre: 'María Rodríguez', rol: 'SUPER_ADMINISTRADOR' },
-  { id: 'USR-002', nombre: 'Laura Sánchez', rol: 'CONTADOR' },
-  { id: 'USR-003', nombre: 'Admin General', rol: 'ADMIN' },
-  { id: 'USR-004', nombre: 'Ana Admin', rol: 'SUPER_ADMINISTRADOR' },
-]
 
 export default function DetalleCajaPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
   const router = useRouter()
+  const [caja, setCaja] = useState<CajaDetalle | null>(null)
+  const [loadingCaja, setLoadingCaja] = useState(true)
+  const [usuariosAutorizados, setUsuariosAutorizados] = useState<Array<{id: string; nombre: string; rol: string}>>([])
   const [showEditarCajaModal, setShowEditarCajaModal] = useState(false)
   const [showRegistrarMovimientoModal, setShowRegistrarMovimientoModal] = useState(false)
   const [editForm, setEditForm] = useState({
-    nombre: MOCK_CAJA.nombre,
-    responsable: MOCK_CAJA.responsable,
+    nombre: '',
+    responsable: '',
     saldoInicialInput: '',
   })
+
+  useEffect(() => {
+    const fetchCaja = async () => {
+      setLoadingCaja(true)
+      try {
+        const cajaData = await getCajaById(id)
+        const txRes = await getTransacciones({ cajaId: id, limit: 50 })
+        const ingresos = txRes.data.filter(t => t.tipo === 'INGRESO').reduce((s, t) => s + t.monto, 0)
+        const egresos = txRes.data.filter(t => t.tipo === 'EGRESO').reduce((s, t) => s + t.monto, 0)
+        setCaja({
+          id: cajaData?.id || id,
+          nombre: cajaData?.nombre || '',
+          responsable: cajaData?.responsable || '',
+          tipo: cajaData?.tipo || 'PRINCIPAL',
+          estado: cajaData?.estado || 'ABIERTA',
+          saldoActual: cajaData?.saldo || 0,
+          saldoInicial: 0,
+          ingresosDia: ingresos,
+          egresosDia: egresos,
+          fechaApertura: cajaData?.ultimaActualizacion || '',
+          movimientos: txRes.data.map(t => ({
+            id: t.id,
+            tipo: t.tipo,
+            concepto: t.descripcion,
+            monto: t.monto,
+            hora: new Date(t.fecha).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' }),
+            usuario: t.responsable,
+          })),
+        })
+        setEditForm({ nombre: cajaData?.nombre || '', responsable: cajaData?.responsable || '', saldoInicialInput: '' })
+        try {
+          const users = await usuariosService.obtenerTodos()
+          setUsuariosAutorizados((users as any[]).map((u: any) => ({ id: u.id, nombre: `${u.nombres} ${u.apellidos}`, rol: u.rol })))
+        } catch { /* ignore */ }
+      } catch (err) {
+        console.error('Error cargando caja:', err)
+        setCaja(null)
+      } finally {
+        setLoadingCaja(false)
+      }
+    }
+    fetchCaja()
+  }, [id])
 
   const [movimientoForm, setMovimientoForm] = useState({
     tipo: 'INGRESO' as 'INGRESO' | 'EGRESO',
@@ -93,8 +127,21 @@ export default function DetalleCajaPage({ params }: { params: Promise<{ id: stri
   const movimientosPorPagina = 4
   const [paginaMovimientos, setPaginaMovimientos] = useState(1)
 
-  // En una implementación real, aquí se cargaría la data basada en el ID
-  const caja = MOCK_CAJA
+  if (loadingCaja) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    )
+  }
+
+  if (!caja) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+        <p className="text-red-500">No se pudo cargar la caja</p>
+      </div>
+    )
+  }
 
   const totalPaginasMovimientos = Math.max(1, Math.ceil(caja.movimientos.length / movimientosPorPagina))
   const movimientosPaginados = useMemo(() => {
@@ -336,7 +383,7 @@ export default function DetalleCajaPage({ params }: { params: Promise<{ id: stri
                       className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-900"
                     >
                       <option value="">Seleccionar responsable...</option>
-                      {USUARIOS_AUTORIZADOS.map((u) => (
+                      {usuariosAutorizados.map((u) => (
                         <option key={u.id} value={u.nombre}>
                           {u.nombre} ({u.rol})
                         </option>

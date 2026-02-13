@@ -4,47 +4,56 @@ import { Archive, Search, Filter, RefreshCw, RotateCcw } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { cn } from '@/lib/utils'
+import { auditoriaService } from '@/services/auditoria-service'
 
-// Mock data para elementos archivados
-const ARCHIVADOS_MOCK = [
-  {
-    id: 1,
-    tipo: 'cliente',
-    nombre: 'Juan Pérez',
-    fechaEliminacion: '2024-01-20T10:30:00',
-    motivo: 'Duplicado',
-    usuarioEliminador: 'Admin'
-  },
-  {
-    id: 2,
-    tipo: 'prestamo',
-    nombre: 'Préstamo #1234 - María Gómez',
-    fechaEliminacion: '2024-01-19T15:45:00',
-    motivo: 'Error en registro',
-    usuarioEliminador: 'Coordinador'
-  },
-  {
-    id: 3,
-    tipo: 'usuario',
-    nombre: 'Carlos Vendedor',
-    fechaEliminacion: '2024-01-15T09:00:00',
-    motivo: 'Baja de personal',
-    usuarioEliminador: 'Super Admin'
-  }
-]
+interface ArchivedItem {
+  id: string
+  tipo: string
+  nombre: string
+  fechaEliminacion: string
+  motivo: string
+  usuarioEliminador: string
+}
 
 export default function ArchivadosPage() {
   const [searchTerm, setSearchTerm] = useState('')
   const [tipoFiltro, setTipoFiltro] = useState('todos')
   const [isRestoreModalOpen, setIsRestoreModalOpen] = useState(false)
-  const [selectedItem, setSelectedItem] = useState<typeof ARCHIVADOS_MOCK[0] | null>(null)
+  const [selectedItem, setSelectedItem] = useState<ArchivedItem | null>(null)
   const [mounted, setMounted] = useState(false)
+  const [items, setItems] = useState<ArchivedItem[]>([])
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     setMounted(true)
+    const loadArchivados = async () => {
+      setLoading(true)
+      try {
+        const registros = await auditoriaService.obtenerRegistros()
+        const eliminaciones = registros
+          .filter((r: any) => (r.accion || '').toUpperCase().includes('ELIMINAR') || (r.accion || '').toUpperCase().includes('DELETE'))
+          .map((r: any) => ({
+            id: r.id,
+            tipo: (r.entidad || 'desconocido').toLowerCase(),
+            nombre: r.valoresAnteriores?.nombres
+              ? `${r.valoresAnteriores.nombres} ${r.valoresAnteriores.apellidos || ''}`
+              : r.valoresAnteriores?.nombre || `${r.entidad} #${r.entidadId?.slice(0, 8)}`,
+            fechaEliminacion: r.creadoEn,
+            motivo: r.cambios?.motivo || r.endpoint || 'Eliminación',
+            usuarioEliminador: r.usuario ? `${r.usuario.nombres} ${r.usuario.apellidos}` : 'Sistema',
+          }))
+        setItems(eliminaciones)
+      } catch (err) {
+        console.error('Error cargando archivados:', err)
+        setItems([])
+      } finally {
+        setLoading(false)
+      }
+    }
+    loadArchivados()
   }, [])
 
-  const filteredItems = ARCHIVADOS_MOCK.filter(item => {
+  const filteredItems = items.filter(item => {
     const matchesSearch = item.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          item.motivo.toLowerCase().includes(searchTerm.toLowerCase())
     const matchesType = tipoFiltro === 'todos' || item.tipo === tipoFiltro

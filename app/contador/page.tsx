@@ -34,6 +34,7 @@ export default function ContadorRootPage() {
           'SUPERVISOR': '/supervisor',
           'COBRADOR': '/cobranzas',
           'CONTADOR': '/contable',
+          'PUNTO_DE_VENTA': '/punto-de-venta',
         };
         
         const redirectPath = (user.rol && ROLE_REDIRECT_MAP[user.rol]) || '/login';

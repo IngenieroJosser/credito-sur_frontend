@@ -21,8 +21,9 @@ import {
   Eye
 } from 'lucide-react'
 import { formatCurrency } from '@/lib/utils'
-import { PRESTAMOS_MOCK, EstadoPrestamo, NivelRiesgo } from '@/components/prestamos/data'
+import { EstadoPrestamo, NivelRiesgo, type Prestamo } from '@/components/prestamos/data'
 import AnimacionCarga from '@/components/ui/AnimacionCarga'
+import { loansService } from '@/services/loans-service'
 import CrearCreditoModal from '@/components/dashboards/shared/CrearCreditoModal'
 
 export default function CreditosArticulosPage() {
@@ -30,7 +31,7 @@ export default function CreditosArticulosPage() {
   const [searchTerm, setSearchTerm] = useState('')
   const [estadoFiltro, setEstadoFiltro] = useState('todos')
   const [riesgoFiltro, setRiesgoFiltro] = useState('todos')
-  const [creditos, setCreditos] = useState<typeof PRESTAMOS_MOCK>([])
+  const [creditos, setCreditos] = useState<Prestamo[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [showCrearCreditoModal, setShowCrearCreditoModal] = useState(false)
   
@@ -39,20 +40,46 @@ export default function CreditosArticulosPage() {
   const [itemsPorPagina] = useState(8)
 
   useEffect(() => {
-    // Simular carga y filtrar solo créditos de artículos
-    const loadData = () => {
-      // Filtramos solo los que son artículos (electrodomésticos, muebles, etc)
-      // Asumimos que "efectivo" es el único que NO es artículo
-      const creditosArticulos = PRESTAMOS_MOCK.filter(p => 
-        p.tipoProducto === 'electrodomestico' || 
-        p.tipoProducto === 'mueble' || 
-        p.tipoProducto === 'otro'
-      )
-      setCreditos(creditosArticulos)
-      setIsLoading(false)
+    const loadData = async () => {
+      setIsLoading(true)
+      try {
+        const response = await loansService.getLoans({ limit: 100 })
+        const prestamos = (response?.prestamos || []).map((p: any) => ({
+          id: p.id || p.numeroPrestamo,
+          cliente: p.cliente || '',
+          clienteId: p.clienteId || '',
+          producto: p.producto || p.tipoPrestamo || '',
+          montoTotal: p.montoTotal || 0,
+          montoPagado: p.montoPagado || 0,
+          montoPendiente: p.montoPendiente || 0,
+          cuotasTotales: p.cuotasTotales || 0,
+          cuotasPagadas: p.cuotasPagadas || 0,
+          cuotasPendientes: (p.cuotasTotales || 0) - (p.cuotasPagadas || 0),
+          fechaInicio: p.fechaInicio || '',
+          fechaVencimiento: p.fechaFin || p.fechaVencimiento || '',
+          proximoPago: p.proximoPago || '',
+          estado: p.estado || 'ACTIVO',
+          tasaInteres: p.tasaInteres || 0,
+          diasMora: p.diasMora || 0,
+          moraAcumulada: p.moraAcumulada || 0,
+          riesgo: p.riesgo || 'VERDE',
+          ruta: p.ruta || '',
+          tipoProducto: p.tipoProducto || 'electrodomestico',
+        }))
+        // Filtrar solo créditos de artículos (no efectivo)
+        const creditosArticulos = prestamos.filter((p: Prestamo) => 
+          p.tipoProducto !== 'efectivo'
+        )
+        setCreditos(creditosArticulos)
+      } catch (err) {
+        console.error('Error cargando créditos de artículos:', err)
+        setCreditos([])
+      } finally {
+        setIsLoading(false)
+      }
     }
     
-    setTimeout(loadData, 500)
+    loadData()
   }, [])
 
   const getEstadoColor = (estado: EstadoPrestamo) => {

@@ -6,12 +6,13 @@ import { BarChart3, Calendar, DollarSign, FilePlus, MapPin, TrendingUp, Users, E
 import { cn, formatCurrency } from '@/lib/utils'
 import { ExportButton } from '@/components/ui/ExportButton'
 import { TimeFilter, TimeFilterPeriod } from '@/components/ui/TimeFilter'
+import { reportesCoordinadorService, type RoutePerformance } from '@/services/reportes-coordinador-service'
 
 const ReportesOperativosSupervisorPage = () => {
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
-  const period = (searchParams.get('period') as TimeFilterPeriod) || 'month'
+  const period = (searchParams.get('period') as TimeFilterPeriod) || 'today'
 
   const handlePeriodChange = (newPeriod: TimeFilterPeriod) => {
     const params = new URLSearchParams(searchParams.toString())
@@ -20,70 +21,38 @@ const ReportesOperativosSupervisorPage = () => {
   }
 
   const [mounted, setMounted] = useState(false)
+  const [rendimientoRutas, setRendimientoRutas] = useState<RoutePerformance[]>([])
+  const [totalRecaudo, setTotalRecaudo] = useState(0)
+  const [totalObjetivo, setTotalObjetivo] = useState(0)
+  const [porcentajeGlobal, setPorcentajeGlobal] = useState(0)
 
   const handleExportExcel = () => {
-    console.log('Generando reporte Excel para el supervisor...')
+    reportesCoordinadorService.exportReport({ period }, 'excel').catch(console.error)
   }
 
   const handleExportPDF = () => {
-    console.log('Imprimiendo reporte PDF de la operación...')
+    reportesCoordinadorService.exportReport({ period }, 'pdf').catch(console.error)
   }
 
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setMounted(true)
-    }, 0)
-
+    const timer = setTimeout(() => setMounted(true), 0)
     return () => clearTimeout(timer)
   }, [])
 
-  // --- DATOS SIMULADOS (MOCK) ---
-  // Ajustamos los valores mostrados según el filtro de tiempo seleccionado
-  // para dar una sensación de cambio real de datos.
-  const factor = {
-    today: 0.1,
-    week: 0.25,
-    month: 1,
-    quarter: 3
-  }[period];
-
-  const rendimientoRutas = [
-    {
-      id: '1',
-      ruta: 'Ruta Centro',
-      cobrador: 'Carlos Pérez',
-      meta: 1500000 * factor,
-      recaudado: 1250000 * factor,
-      eficiencia: 83,
-      nuevosPrestamos: Math.round(2 * factor),
-      nuevosClientes: Math.round(1 * factor),
-    },
-    {
-      id: '2',
-      ruta: 'Ruta Norte',
-      cobrador: 'María Rodríguez',
-      meta: 1000000 * factor,
-      recaudado: 820000 * factor,
-      eficiencia: 82,
-      nuevosPrestamos: Math.round(0 * factor),
-      nuevosClientes: Math.round(0 * factor),
-    },
-    {
-      id: '3',
-      ruta: 'Ruta Sur',
-      cobrador: 'Juanito Alimaña',
-      meta: 500000 * factor,
-      recaudado: 300000 * factor,
-      eficiencia: 60,
-      nuevosPrestamos: Math.round(1 * factor),
-      nuevosClientes: Math.round(2 * factor),
-    },
-  ]
-
-  // Cálculos automáticos de totales
-  const totalRecaudo = rendimientoRutas.reduce((acc, item) => acc + item.recaudado, 0)
-  const totalObjetivo = rendimientoRutas.reduce((acc, item) => acc + item.meta, 0)
-  const porcentajeGlobal = Math.round((totalRecaudo / totalObjetivo) * 100)
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const data = await reportesCoordinadorService.getOperationalReport({ period })
+        setRendimientoRutas(data.rendimientoRutas || [])
+        setTotalRecaudo(data.totalRecaudo || 0)
+        setTotalObjetivo(data.totalMeta || 0)
+        setPorcentajeGlobal(data.porcentajeGlobal || 0)
+      } catch (err) {
+        console.error('Error cargando reportes operativos:', err)
+      }
+    }
+    fetchData()
+  }, [period])
 
   if (!mounted) return null
 

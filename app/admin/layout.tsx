@@ -42,9 +42,10 @@ import {
   Eye,
   Home
 } from 'lucide-react'
-import { Rol, obtenerModulosPorRol, getIconComponent, tieneAcceso } from '@/lib/permissions'
+import { Rol, obtenerModulos, getIconComponent, tieneAcceso } from '@/lib/permissions'
 import NotFoundPage from '../not-found'
 import { notificacionesService, type Notificacion } from '@/services/notificaciones-service'
+import UserDropdownMenu, { formatRoleName, getRoleColor, getRoleIcon } from '@/components/ui/UserDropdownMenu'
 
 interface NavigationItem {
   name: string;
@@ -69,11 +70,10 @@ interface Usuario {
 
 export default function AdminLayout({
   children,
-  hideSidebar = false,
 }: {
   children: React.ReactNode;
-  hideSidebar?: boolean;
 }) {
+  const hideSidebar = false;
   // Manejo de estado visual (menú lateral, notificaciones, confirmaciones)
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const [isPageLoaded, setIsPageLoaded] = useState(false) // Efecto visual de entrada suave
@@ -83,10 +83,7 @@ export default function AdminLayout({
   const [authChecked, setAuthChecked] = useState(false)
   
   // Menús desplegables del header
-  const [showUserMenu, setShowUserMenu] = useState(false)
   const [showNotifications, setShowNotifications] = useState(false)
-  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false)
-  const [isLoggingOut, setIsLoggingOut] = useState(false)
   const [notificaciones, setNotificaciones] = useState<Notificacion[]>([])
   const [isLoadingNotificaciones, setIsLoadingNotificaciones] = useState(false)
   
@@ -98,7 +95,6 @@ export default function AdminLayout({
   const pathname = usePathname()
   const router = useRouter()
 
-  const userMenuRef = useRef<HTMLDivElement>(null)
   const notificationRef = useRef<HTMLDivElement>(null)
 
   // Abre o cierra los submenús del sidebar
@@ -127,9 +123,6 @@ export default function AdminLayout({
   // Cierra los menús flotantes si haces clic fuera de ellos
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (userMenuRef.current && !userMenuRef.current.contains(event.target as Node)) {
-        setShowUserMenu(false)
-      }
       if (notificationRef.current && !notificationRef.current.contains(event.target as Node)) {
         setShowNotifications(false)
       }
@@ -173,9 +166,9 @@ export default function AdminLayout({
           const parsedUser = JSON.parse(userData) as Usuario
           setUser(parsedUser)
           
-          // Generamos el menú lateral dinámicamente según los permisos del rol (baseline por rol)
+          // Generamos el menú lateral: primero intenta sidebar dinámico del backend, luego fallback estático
           if (parsedUser.rol) {
-            const modulos = obtenerModulosPorRol(parsedUser.rol)
+            const modulos = obtenerModulos(parsedUser.rol, (parsedUser as any).sidebar)
             
             // Transformamos los módulos de permisos a items de navegación visual
             const navItems = modulos.map(modulo => ({
@@ -217,14 +210,24 @@ export default function AdminLayout({
       'COBRADOR': '/cobranzas',
       'COORDINADOR': '/coordinador',
       'SUPERVISOR': '/supervisor',
-      'CONTADOR': '/contable'
+      'CONTADOR': '/contable',
+      'PUNTO_DE_VENTA': '/punto-de-venta'
     }
 
-    if (roleRedirects[user.rol] && pathname?.startsWith('/admin')) {
+    const hasAllowedAdminRoute = (() => {
+      if (!pathname?.startsWith('/admin')) return false
+
+      const allHrefs = navigation.flatMap((n) => [n.href, ...(n.submodulos?.map((s) => s.href) ?? [])])
+      const allowedAdminBases = allHrefs.filter((h) => typeof h === 'string' && h.startsWith('/admin'))
+
+      return allowedAdminBases.some((base) => pathname === base || pathname.startsWith(`${base}/`))
+    })()
+
+    if (roleRedirects[user.rol] && pathname?.startsWith('/admin') && !hasAllowedAdminRoute) {
       console.log(`Redirigiendo usuario ${user.rol} a su panel correcto: ${roleRedirects[user.rol]}`)
       router.replace(roleRedirects[user.rol])
     }
-  }, [authChecked, pathname, router, user?.rol])
+  }, [authChecked, navigation, pathname, router, user?.rol])
 
   useEffect(() => {
     const cargarNotificaciones = async () => {
@@ -259,21 +262,15 @@ export default function AdminLayout({
   } 
   */
 
-  const requestLogout = () => {
-    setShowUserMenu(false)
-    setShowLogoutConfirm(true)
+  const handleLogout = () => {
+    localStorage.removeItem('token')
+    localStorage.removeItem('user')
+    router.push('/login')
   }
 
-  const handleLogout = () => {
-    if (isLoggingOut) return
-    setIsLoggingOut(true)
-    // Simulamos un pequeño tiempo de espera para feedback visual
-    window.setTimeout(() => {
-      localStorage.removeItem('token')
-      localStorage.removeItem('user')
-      router.push('/login')
-    }, 450)
-  }
+  const userRoleColor = user ? getRoleColor(user.rol) : '#2563eb'
+  const userRoleIcon = user ? getRoleIcon(user.rol) : <Shield className="h-4 w-4" />
+  const userRoleName = user ? formatRoleName(user.rol) : 'Administrador'
 
   function getUserInitials() {
     if (!user) return 'U'
@@ -287,56 +284,11 @@ export default function AdminLayout({
     return `${user.nombres} ${user.apellidos}`
   }
 
-  function getUserRoleName() {
-    if (!user) return 'Administrador'
-
-    const roleNames: Record<string, string> = {
-      'SUPER_ADMINISTRADOR': 'Super Administrador',
-      'ADMIN': 'Administrador',
-      'COORDINADOR': 'Coordinador',
-      'SUPERVISOR': 'Supervisor',
-      'COBRADOR': 'Cobrador',
-      'CONTADOR': 'Contador'
-    }
-
-    return roleNames[user.rol] || user.rol
-  }
-
-  function getRoleColor() {
-    if (!user) return '#2563eb'
-
-    const roleColors: Record<string, string> = {
-      'SUPER_ADMINISTRADOR': '#2563eb',
-      'ADMIN': '#0891b2',
-      'COORDINADOR': '#f97316',
-      'SUPERVISOR': '#8b5cf6',
-      'COBRADOR': '#f97316',
-      'CONTADOR': '#6366f1'
-    }
-
-    return roleColors[user.rol] || '#2563eb'
-  }
-
-  function getRoleIcon() {
-    if (!user) return <Shield className="h-4 w-4" />
-
-    const roleIcons: Record<string, React.ReactNode> = {
-      'SUPER_ADMINISTRADOR': <Shield className="h-4 w-4" />,
-      'ADMIN': <User className="h-4 w-4" />,
-      'COORDINADOR': <User className="h-4 w-4" />,
-      'SUPERVISOR': <Eye className="h-4 w-4" />,
-      'COBRADOR': <Wallet className="h-4 w-4" />,
-      'CONTADOR': <CreditCard className="h-4 w-4" />
-    }
-
-    return roleIcons[user.rol] || <User className="h-4 w-4" />
-  }
-
   // Filtrar navegación móvil (solo 4 elementos principales)
   const getMobileNavigation = () => {
     if (!user) return []
     
-    const modulos = obtenerModulosPorRol(user.rol)
+    const modulos = obtenerModulos(user.rol, (user as any).sidebar)
     
     // Tomar los primeros 4 módulos importantes para móvil
     const importantModules = ['dashboard', 'prestamos-dinero', 'cobranza', 'perfil']
@@ -391,10 +343,10 @@ export default function AdminLayout({
                 <div className="hidden md:block">
                   <div 
                     className="flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium text-white"
-                    style={{ backgroundColor: getRoleColor() }}
+                    style={{ backgroundColor: userRoleColor }}
                   >
-                    {getRoleIcon()}
-                    <span>{getUserRoleName()}</span>
+                    {userRoleIcon}
+                    <span>{userRoleName}</span>
                   </div>
                 </div>
               )}
@@ -404,7 +356,7 @@ export default function AdminLayout({
             <div className="flex items-center space-x-2">
 
               {/* Notificaciones (solo para ciertos roles) */}
-              {user?.rol && ['SUPER_ADMINISTRADOR', 'ADMIN', 'COORDINADOR', 'COBRADOR', 'CONTADOR'].includes(user.rol) && (
+              {user?.rol && ['SUPER_ADMINISTRADOR', 'ADMIN', 'COORDINADOR', 'SUPERVISOR', 'COBRADOR', 'CONTADOR', 'PUNTO_DE_VENTA'].includes(user.rol) && (
                 <div ref={notificationRef} className="relative">
                   <button 
                     onClick={() => setShowNotifications(!showNotifications)}
@@ -463,8 +415,10 @@ export default function AdminLayout({
                             setShowNotifications(false)
                             let target = '/admin/notificaciones'
                             if (user?.rol === 'COORDINADOR') target = '/coordinador/notificaciones'
+                            if (user?.rol === 'SUPERVISOR') target = '/supervisor/notificaciones'
                             if (user?.rol === 'CONTADOR') target = '/contador/notificaciones'
                             if (user?.rol === 'COBRADOR') target = '/cobranzas/notificaciones'
+                            if (user?.rol === 'PUNTO_DE_VENTA') target = '/notificaciones'
                             router.push(target)
                           }}
                           className="w-full py-2 text-sm font-medium text-gray-600 hover:text-blue-600 hover:bg-gray-50 rounded-lg transition-colors"
@@ -477,253 +431,12 @@ export default function AdminLayout({
                 </div>
               )}
 
-              {/* Avatar de usuario con menú desplegable mejorado */}
-              <div ref={userMenuRef} className="relative">
-                <button 
-                  onClick={() => setShowUserMenu(!showUserMenu)}
-                  className="flex items-center space-x-3 p-1 hover:bg-gray-100 rounded-lg transition-colors group"
-                >
-                  <div 
-                    className="relative w-9 h-9 rounded-full flex items-center justify-center text-white text-sm font-medium shadow-sm"
-                    style={{ 
-                      background: `linear-gradient(135deg, ${getRoleColor()}, ${getRoleColor()}CC)`,
-                      boxShadow: `0 0 0 2px white, 0 0 0 4px ${getRoleColor()}40`
-                    }}
-                  >
-                    {getUserInitials()}
-                  </div>
-                  <div className="hidden lg:block text-left">
-                    <div className="text-sm font-medium text-gray-800 group-hover:text-[#08557f] transition-colors">
-                      {getUserFullName()}
-                    </div>
-                    <div className="text-xs text-gray-500 flex items-center gap-1">
-                      <Mail className="h-3 w-3" />
-                      <span className="truncate max-w-[120px]">{user?.correo}</span>
-                    </div>
-                  </div>
-                  <ChevronDown className={`h-4 w-4 text-gray-400 transition-transform ${showUserMenu ? 'rotate-180' : ''}`} />
-                </button>
-
-                {/* Menú desplegable del usuario mejorado */}
-                {showUserMenu && (
-                  <>
-                    <div 
-                      className="fixed inset-0 z-40" 
-                      onClick={() => setShowUserMenu(false)}
-                    />
-                    <div className="absolute right-0 mt-2 w-96 bg-white rounded-xl shadow-xl border border-gray-100 py-2 z-50 animate-in fade-in slide-in-from-top-2">
-                      {/* Header mejorado */}
-                      <div className="px-6 py-6 bg-linear-to-r from-slate-50 to-white border-b border-gray-100">
-                        <div className="flex flex-col items-center text-center gap-3">
-                          <div 
-                            className="relative w-20 h-20 rounded-full flex items-center justify-center text-white text-2xl font-bold shadow-xl mb-1"
-                            style={{ 
-                              background: `linear-gradient(135deg, ${getRoleColor()}, ${getRoleColor()}CC)`,
-                              boxShadow: `0 8px 20px ${getRoleColor()}40`
-                            }}
-                          >
-                            {getUserInitials()}
-                            <div className="absolute -bottom-2 -right-2 w-8 h-8 rounded-full bg-white flex items-center justify-center shadow-md border-2 border-white">
-                              <div style={{ color: getRoleColor() }}>
-                                {getRoleIcon()}
-                              </div>
-                            </div>
-                          </div>
-                          
-                          <div className="w-full">
-                            <h3 className="font-bold text-gray-900 text-lg mb-1">
-                              {getUserFullName()}
-                            </h3>
-                            <div className="flex items-center justify-center gap-2 flex-wrap">
-                              <span 
-                                className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold text-white shadow-sm"
-                                style={{ backgroundColor: getRoleColor() }}
-                              >
-                                {getRoleIcon()}
-                                {getUserRoleName()}
-                              </span>
-                              <span className="text-xs text-gray-400">•</span>
-                              <span className="text-xs text-gray-500 font-medium bg-gray-100 px-2 py-1 rounded-full">
-                                {user?.correo?.split('@')[0] || 'usuario'}
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Información detallada */}
-                      {user && (
-                        <div className="px-4 py-3 space-y-3 border-b border-gray-100">
-                          {/* Correo con icono */}
-                          <div className="flex items-start gap-3">
-                            <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center flex-shrink-0">
-                              <Mail className="h-4 w-4 text-blue-600" />
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <div className="text-xs text-gray-500">Correo electrónico</div>
-                              <div className="text-sm font-medium text-gray-900 truncate" title={user.correo}>
-                                {user.correo}
-                              </div>
-                            </div>
-                          </div>
-
-                          {/* Teléfono (si existe) */}
-                          {user.telefono && (
-                            <div className="flex items-start gap-3">
-                              <div className="w-8 h-8 rounded-lg bg-green-50 flex items-center justify-center flex-shrink-0">
-                                <Phone className="h-4 w-4 text-green-600" />
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <div className="text-xs text-gray-500">Teléfono</div>
-                                <div className="text-sm font-medium text-gray-900">
-                                  {user.telefono}
-                                </div>
-                              </div>
-                            </div>
-                          )}
-
-                          {/* Ubicación (si existe) */}
-                          {(user.ciudad || user.direccion) && (
-                            <div className="flex items-start gap-3">
-                              <div className="w-8 h-8 rounded-lg bg-purple-50 flex items-center justify-center flex-shrink-0">
-                                <MapPin className="h-4 w-4 text-purple-600" />
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <div className="text-xs text-gray-500">Ubicación</div>
-                                <div className="text-sm font-medium text-gray-900">
-                                  {user.ciudad}
-                                  {user.ciudad && user.direccion && ' • '}
-                                  {user.direccion && <span className="text-xs text-gray-500">{user.direccion}</span>}
-                                </div>
-                              </div>
-                            </div>
-                          )}
-
-                          {/* Fecha de creación */}
-                          {user.fecha_creacion && (
-                            <div className="flex items-start gap-3">
-                              <div className="w-8 h-8 rounded-lg bg-amber-50 flex items-center justify-center flex-shrink-0">
-                                <Calendar className="h-4 w-4 text-amber-600" />
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <div className="text-xs text-gray-500">Miembro desde</div>
-                                <div className="text-sm font-medium text-gray-900">
-                                  {new Date(user.fecha_creacion).toLocaleDateString('es-ES', {
-                                    year: 'numeric',
-                                    month: 'long',
-                                    day: 'numeric'
-                                  })}
-                                </div>
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      )}
-
-                      {/* Acciones rápidas */}
-                      <div className="py-2">
-                        <Link
-                          href={user?.rol === 'COBRADOR' ? '/cobranzas/perfil' : user?.rol === 'CONTADOR' ? '/contador/perfil' : '/admin/perfil'}
-                          className="flex items-center px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors group"
-                          onClick={() => setShowUserMenu(false)}
-                        >
-                          <div className="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center mr-3 group-hover:bg-[#08557f]/10 transition-colors">
-                            <User className="h-4 w-4 text-gray-600 group-hover:text-[#08557f]" />
-                          </div>
-                          <div>
-                            <div className="font-medium">Mi perfil</div>
-                            <div className="text-xs text-gray-500">Ver y editar información personal</div>
-                          </div>
-                        </Link>
-                        
-                        {/* Configuración solo para admin */}
-                        {user?.rol === 'SUPER_ADMINISTRADOR' && (
-                          <Link
-                            href="/admin/sistema/configuracion"
-                            className="flex items-center px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors group"
-                            onClick={() => setShowUserMenu(false)}
-                          >
-                            <div className="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center mr-3 group-hover:bg-[#08557f]/10 transition-colors">
-                              <Settings className="h-4 w-4 text-gray-600 group-hover:text-[#08557f]" />
-                            </div>
-                            <div>
-                              <div className="font-medium">Configuración</div>
-                              <div className="text-xs text-gray-500">Preferencias y ajustes del sistema</div>
-                            </div>
-                          </Link>
-                        )}
-                      </div>
-
-                      {/* Cerrar sesión */}
-                      <div className="pt-2 border-t border-gray-100">
-                        <button
-                          onClick={requestLogout}
-                          className="flex items-center w-full px-4 py-3 text-sm text-red-600 hover:bg-red-50 transition-colors group"
-                        >
-                          <div className="w-8 h-8 rounded-lg bg-red-100 flex items-center justify-center mr-3 group-hover:bg-red-200 transition-colors">
-                            <LogOut className="h-4 w-4" />
-                          </div>
-                          <div>
-                            <div className="font-medium">Cerrar sesión</div>
-                            <div className="text-xs text-red-500">Salir del sistema</div>
-                          </div>
-                        </button>
-                      </div>
-                    </div>
-                  </>
-                )}
-              </div>
+              {/* Avatar de usuario con menú desplegable reutilizable */}
+              <UserDropdownMenu user={user} onLogout={handleLogout} />
             </div>
           </div>
         </div>
       </header>
-
-      {showLogoutConfirm && (
-        <div className="fixed inset-0 z-[2147483647] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
-          <div className="w-full max-w-md rounded-3xl bg-white shadow-2xl overflow-hidden">
-            <div className="p-6">
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <h3 className="text-lg font-bold text-slate-900">Cerrar sesión</h3>
-                  <p className="mt-1 text-sm text-slate-600">¿Seguro que deseas cerrar sesión?</p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (isLoggingOut) return
-                    setShowLogoutConfirm(false)
-                  }}
-                  className="p-2 rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200"
-                >
-                  <X className="h-5 w-5" />
-                </button>
-              </div>
-
-              <div className="mt-6 flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (isLoggingOut) return
-                    setShowLogoutConfirm(false)
-                  }}
-                  disabled={isLoggingOut}
-                  className="flex-1 rounded-xl bg-slate-100 px-3 py-3 text-sm font-bold text-slate-700 hover:bg-slate-200 disabled:opacity-60"
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="button"
-                  onClick={handleLogout}
-                  disabled={isLoggingOut}
-                  className="flex-1 rounded-xl bg-red-600 px-3 py-3 text-sm font-bold text-white hover:bg-red-700 disabled:opacity-60"
-                >
-                  {isLoggingOut ? 'Cerrando sesión…' : 'Cerrar sesión'}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Sidebar elegante para desktop */}
       {!hideSidebar && user?.rol !== 'COBRADOR' && (
@@ -736,40 +449,7 @@ export default function AdminLayout({
           <nav className="p-6 h-full overflow-y-auto custom-scrollbar">
             <div className="space-y-6">
               {/* Info del usuario en sidebar móvil */}
-              {user && (
-                <div className="lg:hidden mb-6 p-4 bg-linear-to-r from-gray-50 to-white rounded-xl border border-gray-100 shadow-sm">
-                  <div className="flex items-center gap-3">
-                    <div 
-                      className="relative w-12 h-12 rounded-full flex items-center justify-center text-white text-sm font-medium shadow-md"
-                      style={{ 
-                        background: `linear-gradient(135deg, ${getRoleColor()}, ${getRoleColor()}CC)`,
-                        boxShadow: `0 0 0 2px white, 0 0 0 4px ${getRoleColor()}40`
-                      }}
-                    >
-                      {getUserInitials()}
-                      <div className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-white flex items-center justify-center shadow-sm">
-                        <div className="text-xs" style={{ color: getRoleColor() }}>
-                          {getRoleIcon()}
-                        </div>
-                      </div>
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="font-medium text-gray-900 text-sm truncate">
-                        {getUserFullName()}
-                      </div>
-                      <div className="text-xs text-gray-500 flex items-center gap-2 mt-0.5">
-                        <div 
-                          className="text-xs font-medium px-2 py-0.5 rounded-full text-white"
-                          style={{ backgroundColor: getRoleColor() }}
-                        >
-                          {getUserRoleName()}
-                        </div>
-                        <span className="truncate">{user.correo}</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
+              {null}
 
               {/* Navegación principal filtrada por rol */}
               <div>

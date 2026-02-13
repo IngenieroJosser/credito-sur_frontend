@@ -34,9 +34,10 @@ interface CrearCreditoModalProps {
   }) => void
   defaultClienteId?: string
   defaultCreditType?: 'prestamo' | 'articulo'
+  hideTypeSelector?: boolean
 }
 
-export default function CrearCreditoModal({ isOpen, onClose, onConfirm, defaultClienteId, defaultCreditType }: CrearCreditoModalProps) {
+export default function CrearCreditoModal({ isOpen, onClose, onConfirm, defaultClienteId, defaultCreditType, hideTypeSelector }: CrearCreditoModalProps) {
   const [creditType, setCreditType] = useState<'prestamo' | 'articulo'>(defaultCreditType || 'prestamo')
   const [clienteCreditoId, setClienteCreditoId] = useState('')
   const [montoPrestamoInput, setMontoPrestamoInput] = useState('')
@@ -141,35 +142,44 @@ export default function CrearCreditoModal({ isOpen, onClose, onConfirm, defaultC
               </button>
             </div>
 
-            <div className="mb-6">
-              <label className="block text-sm font-bold text-slate-700 mb-3">Tipo de Crédito</label>
-              <div className="grid grid-cols-2 gap-3">
-                <button
-                  type="button"
-                  onClick={() => setCreditType('prestamo')}
-                  className={`p-4 rounded-xl border-2 transition-all ${
-                    creditType === 'prestamo'
-                      ? 'border-blue-500 bg-blue-50 text-blue-700'
-                      : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'
-                  }`}
-                >
-                  <DollarSign className="h-6 w-6 mx-auto mb-2" />
-                  <div className="font-bold text-sm">Préstamo en Efectivo</div>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setCreditType('articulo')}
-                  className={`p-4 rounded-xl border-2 transition-all ${
-                    creditType === 'articulo'
-                      ? 'border-orange-500 bg-orange-50 text-orange-700'
-                      : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'
-                  }`}
-                >
+            {!hideTypeSelector ? (
+              <div className="mb-6">
+                <label className="block text-sm font-bold text-slate-700 mb-3">Tipo de Crédito</label>
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setCreditType('prestamo')}
+                    className={`p-4 rounded-xl border-2 transition-all ${
+                      creditType === 'prestamo'
+                        ? 'border-blue-500 bg-blue-50 text-blue-700'
+                        : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'
+                    }`}
+                  >
+                    <DollarSign className="h-6 w-6 mx-auto mb-2" />
+                    <div className="font-bold text-sm">Préstamo en Efectivo</div>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setCreditType('articulo')}
+                    className={`p-4 rounded-xl border-2 transition-all ${
+                      creditType === 'articulo'
+                        ? 'border-orange-500 bg-orange-50 text-orange-700'
+                        : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'
+                    }`}
+                  >
+                    <Package className="h-6 w-6 mx-auto mb-2" />
+                    <div className="font-bold text-sm">Crédito por Artículo</div>
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="mb-6 flex justify-center">
+                <div className="p-4 rounded-xl border-2 border-orange-500 bg-orange-50 text-orange-700 text-center w-56">
                   <Package className="h-6 w-6 mx-auto mb-2" />
                   <div className="font-bold text-sm">Crédito por Artículo</div>
-                </button>
+                </div>
               </div>
-            </div>
+            )}
 
             <div className="space-y-4">
               <div>

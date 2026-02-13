@@ -12,16 +12,11 @@ import {
   Banknote,
   Users,
   Wallet,
-  FileText,
-  Percent,
-  Package,
-  TrendingUp,
   PieChart,
-  Calculator,
-  BarChart3,
   Landmark
 } from 'lucide-react';
-import { formatCurrency } from '@/lib/utils';
+import { dashboardService } from '@/services/dashboard-coordinador-service';
+import { prestamosService } from '@/services/prestamos-service';
 
 interface UserData {
   id: string;
@@ -51,7 +46,7 @@ interface QuickAccessItem {
   href: string;
 }
 
-interface DashboardData {
+interface FrontendDashboardData {
   mainMetrics: MetricItem[];
   quickAccess: QuickAccessItem[];
   recentLoans: Array<{
@@ -78,32 +73,29 @@ interface DashboardData {
   userRole: string;
 }
 
-/**
- * ============================================================================
- * DASHBOARD PRINCIPAL DEL SISTEMA (HÍBRIDO CSR/SSR)
- * ============================================================================
- * 
- * @description
- * Versión temporal que usa localStorage mientras migramos a cookies.
- * Refactorizado para evitar hydration mismatches y antipatrones de React.
- * 
- * TODO: Migrar completamente a SSR cuando el login use cookies.
- */
+const TIME_FILTER_MAP: Record<TimeFilterPeriod, string> = {
+  today: 'today',
+  week: 'week',
+  month: 'month',
+  quarter: 'quarter',
+};
 
-// Esta es la página principal que ve el usuario al entrar al sistema.
-// Funciona como un "Dashboard Híbrido", cargando datos del cliente pero preparándose para SSR.
+const PERIOD_LABEL: Record<TimeFilterPeriod, string> = {
+  today: 'Hoy',
+  week: 'Semana',
+  month: 'Mes',
+  quarter: 'Trimestre',
+};
+
 export default function DashboardPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  // Recuperamos el filtro de tiempo de la URL (día, semana, mes) o usamos 'mes' por defecto
-  const period = (searchParams.get('period') as TimeFilterPeriod) || 'month';
+  const period = (searchParams.get('period') as TimeFilterPeriod) || 'today';
   
-  // Agrupamos todo el estado en un solo objeto para evitar re-renderizados innecesarios
-  // y mantener la UI fluida.
   const [state, setState] = useState<{
     isLoading: boolean;
     userData: UserData | null;
-    dashboardData: DashboardData | null;
+    dashboardData: FrontendDashboardData | null;
     shouldRedirect: string | null;
   }>({
     isLoading: true,
@@ -115,17 +107,10 @@ export default function DashboardPage() {
   useEffect(() => {
     let isMounted = true;
 
-    // Función maestra de inicialización
-    const initializeDashboard = () => {
-      console.log('Cargando tablero para el periodo:', period);
-      
-      // Intentamos recuperar la sesión del usuario
+    const initializeDashboard = async () => {
       const user = localStorage.getItem('user');
 
-      // Validamos solo los datos del usuario. El token viaja seguro en cookies HttpOnly
-      // así que no necesitamos leerlo aquí por seguridad.
       if (!user) {
-        console.log('No encontramos sesión, enviando al login...');
         router.replace('/');
         return;
       }
@@ -133,14 +118,13 @@ export default function DashboardPage() {
       try {
         const parsedUser = JSON.parse(user) as UserData;
         
-        // Seguridad: Si un usuario con rol específico (ej: Cobrador) intenta ver el dashboard general,
-        // lo redirigimos amablemente a su área correspondiente.
-        if (['COBRADOR', 'COORDINADOR', 'SUPERVISOR', 'CONTADOR'].includes(parsedUser.rol)) {
+        if (['COBRADOR', 'COORDINADOR', 'SUPERVISOR', 'CONTADOR', 'PUNTO_DE_VENTA'].includes(parsedUser.rol)) {
           const routes: Record<string, string> = {
             COBRADOR: '/cobranzas',
             COORDINADOR: '/coordinador',
             SUPERVISOR: '/supervisor',
-            CONTADOR: '/contador/contable'
+            CONTADOR: '/contador/contable',
+            PUNTO_DE_VENTA: '/punto-de-venta',
           };
           
           if (isMounted) {
@@ -154,16 +138,140 @@ export default function DashboardPage() {
           return;
         }
 
-        // Si el usuario es Admin o Super Admin, cargamos los datos correspondientes
-        // simulados o reales según la configuración.
-        const data = configurarDashboardPorRol(parsedUser.rol, period);
-        
+        // Fetch real data from backend in parallel
+        const [backendData, prestamosData] = await Promise.allSettled([
+          dashboardService.getDashboardData(TIME_FILTER_MAP[period]),
+          prestamosService.obtenerPrestamos({ limit: 5 }),
+        ]);
+
+        const dashboard = backendData.status === 'fulfilled' ? backendData.value : null;
+        const prestamos = prestamosData.status === 'fulfilled' ? prestamosData.value : null;
+        const stats = prestamos?.estadisticas;
+
+        // Build metrics from real backend data
+        const moraPercent = stats && stats.montoTotal > 0
+          ? ((stats.moraTotal / stats.montoTotal) * 100).toFixed(1)
+          : '0';
+
+        const mainMetrics: MetricItem[] = [
+          {
+            title: `Capital Prestado (${PERIOD_LABEL[period]})`,
+            value: stats?.montoTotal || 0,
+            isCurrency: true,
+            change: 0,
+            icon: <CreditCard className="h-4 w-4" />,
+            color: '#3b82f6'
+          },
+          {
+            title: 'Eficiencia de Cobro',
+            value: dashboard ? `${dashboard.metrics.efficiency}%` : '0%',
+            subValue: `${stats?.pagados || 0} pagados de ${stats?.total || 0}`,
+            isCurrency: false,
+            change: 0,
+            icon: <Target className="h-4 w-4" />,
+            color: '#8b5cf6'
+          },
+          {
+            title: 'Cartera en Mora',
+            value: stats?.moraTotal || 0,
+            subValue: `${moraPercent}% del total · ${stats?.morosos || 0} cuentas`,
+            isCurrency: true,
+            change: 0,
+            icon: <AlertCircle className="h-4 w-4" />,
+            color: '#f43f5e'
+          },
+          {
+            title: 'Saldo Pendiente',
+            value: stats?.montoPendiente || 0,
+            subValue: `${stats?.activos || 0} créditos activos`,
+            isCurrency: true,
+            change: 0,
+            icon: <Banknote className="h-4 w-4" />,
+            color: '#f59e0b'
+          }
+        ];
+
+        // Build quick access (static, no mock data needed)
+        const quickAccess: QuickAccessItem[] = [
+          {
+            title: 'Nuevo Crédito',
+            subtitle: 'Registro rápido',
+            icon: <CreditCard className="h-5 w-5" />,
+            color: '#0f172a',
+            badge: dashboard?.metrics.pendingApprovals || undefined,
+            href: '#'
+          },
+          {
+            title: 'Cobranza',
+            subtitle: 'Gestionar pagos',
+            icon: <Wallet className="h-5 w-5" />,
+            color: '#10b981',
+            badge: dashboard?.metrics.delinquentAccounts || undefined,
+            href: '/admin/pagos/registro'
+          },
+          {
+            title: 'Clientes',
+            subtitle: 'Base de datos',
+            icon: <Users className="h-5 w-5" />,
+            color: '#6366f1',
+            href: '/admin/clientes'
+          },
+          {
+            title: 'Análisis',
+            subtitle: 'Reportes avanzados',
+            icon: <PieChart className="h-5 w-5" />,
+            color: '#f59e0b',
+            href: '/admin/reportes/operativos'
+          },
+          {
+            title: 'Tesorería',
+            subtitle: 'Caja Fuerte / Bancos',
+            icon: <Landmark className="h-5 w-5" />,
+            color: '#08557f',
+            href: '/admin/tesoreria'
+          }
+        ];
+
+        // Build recent loans from real prestamos data
+        const recentLoans = (prestamos?.prestamos || []).slice(0, 5).map((p: any) => {
+          const clientName = p.cliente
+            ? `${p.cliente.nombres || ''} ${p.cliente.apellidos || ''}`.trim()
+            : 'Cliente';
+          const dateStr = p.creadoEn ? new Date(p.creadoEn).toLocaleDateString('es-CO', { day: '2-digit', month: 'short' }) : '';
+          return {
+            client: clientName,
+            amount: p.montoTotal || p.monto || 0,
+            term: p.frecuenciaPago || 'Mensual',
+            status: p.estado || 'PENDIENTE',
+            date: dateStr,
+          };
+        });
+
+        // Build chart data from backend trend
+        const chartData = (dashboard?.trend || []).map((t) => ({
+          label: t.label,
+          value: t.value,
+          target: t.target,
+        }));
+
+        // Build top collectors from recent activity (best approximation from available data)
+        const topCollectors = (dashboard?.recentActivity || []).slice(0, 5).map((a, idx) => ({
+          name: a.client,
+          collected: 0,
+          efficiency: 0,
+          trend: (a.status === 'approved' ? 'up' : 'down') as 'up' | 'down',
+        }));
+
         if (isMounted) {
           setState({
             isLoading: false,
             userData: parsedUser,
             dashboardData: {
-              ...data,
+              mainMetrics,
+              quickAccess,
+              recentLoans,
+              topCollectors,
+              chartData,
               userFullName: `${parsedUser.nombres} ${parsedUser.apellidos}`,
               userRole: parsedUser.rol?.replace('_', ' ') || 'Usuario'
             },
@@ -171,8 +279,7 @@ export default function DashboardPage() {
           });
         }
       } catch (error) {
-        console.error('Algo salió mal cargando los datos:', error);
-        // Si los datos están corruptos, limpiamos para evitar bucles de error
+        console.error('Error cargando dashboard:', error);
         localStorage.removeItem('token');
         localStorage.removeItem('user');
         router.replace('/');
@@ -184,16 +291,14 @@ export default function DashboardPage() {
     return () => {
         isMounted = false;
     };
-  }, [router, period]); // Recargamos si cambia la ruta o el filtro de tiempo
+  }, [router, period]);
 
-  // Efecto dedicado para ejecutar la redirección si es necesaria
   useEffect(() => {
     if (state.shouldRedirect) {
       router.replace(state.shouldRedirect);
     }
   }, [state.shouldRedirect, router]);
 
-  // Pantalla de carga limpia y centrada
   if (state.isLoading) {
     return (
       <div className="min-h-screen bg-white flex items-center justify-center">
@@ -205,7 +310,6 @@ export default function DashboardPage() {
     );
   }
 
-  // Pantalla de transición para redirecciones
   if (state.shouldRedirect) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-slate-50">
@@ -217,275 +321,9 @@ export default function DashboardPage() {
     );
   }
 
-  // Si no hay datos (y no estamos cargando ni redirigiendo), no mostramos nada roto.
   if (!state.dashboardData) {
     return null;
   }
 
-  // Renderizamos el cliente del dashboard con los datos preparados
   return <DashboardClient data={state.dashboardData} />;
-}
-
-/**
- * Prepara los datos "Dummy" o reales según el rol y el periodo.
- * Esto simula una respuesta de backend para prototipado rápido.
- */
-function configurarDashboardPorRol(rol: Rol, period: TimeFilterPeriod = 'month'): Omit<DashboardData, 'userFullName' | 'userRole'> {
-  // Factores de simulación para que los números cambien según el periodo
-  const factor = {
-    today: 0.1,    // Aprox 1/10 del mes (un poco más que 1/30)
-    week: 0.25,    // 1/4 del mes
-    month: 1,      // Base
-    quarter: 3     // 3 meses
-  }[period];
-
-  const metricsConfig: Record<Rol, MetricItem[]> = {
-    SUPER_ADMINISTRADOR: [
-      {
-        title: `Total Prestado (${period === 'today' ? 'Hoy' : period === 'week' ? 'Sem' : period === 'month' ? 'Mes' : 'Trim'})`,
-        value: 125000000 * factor,
-        isCurrency: true,
-        change: 12.5,
-        icon: <CreditCard className="h-4 w-4" />,
-        color: '#3b82f6'
-      },
-      {
-        title: 'Recaudo Real vs Objetivo',
-        value: period === 'today' ? '98.5%' : '94.2%',
-        subValue: `${formatCurrency(12500000 * factor)} / ${formatCurrency(13200000 * factor)}`,
-        isCurrency: false,
-        change: 2.1,
-        icon: <Target className="h-4 w-4" />,
-        color: '#8b5cf6'
-      },
-      {
-        title: 'Cartera en Mora',
-        value: 45000000, // La mora suele ser un acumulado, no cambia tanto por periodo de vista
-        subValue: '8.5% del total',
-        isCurrency: true,
-        change: -3.4,
-        icon: <AlertCircle className="h-4 w-4" />,
-        color: '#f43f5e'
-      },
-      {
-        title: 'Capital Activo',
-        value: 2850000000,
-        isCurrency: true,
-        change: 5.8,
-        icon: <Banknote className="h-4 w-4" />,
-        color: '#f59e0b'
-      }
-    ],
-    ADMIN: [
-      {
-        title: `Total Prestado (${period === 'today' ? 'Hoy' : period === 'week' ? 'Sem' : period === 'month' ? 'Mes' : 'Trim'})`,
-        value: 125000000 * factor,
-        isCurrency: true,
-        change: 12.5,
-        icon: <CreditCard className="h-4 w-4" />,
-        color: '#3b82f6'
-      },
-      {
-        title: 'Recaudo Real vs Objetivo',
-        value: period === 'today' ? '98.5%' : '94.2%',
-        subValue: `${formatCurrency(12500000 * factor)} / ${formatCurrency(13200000 * factor)}`,
-        isCurrency: false,
-        change: 2.1,
-        icon: <Target className="h-4 w-4" />,
-        color: '#8b5cf6'
-      },
-      {
-        title: 'Cartera en Mora',
-        value: 45000000,
-        subValue: '8.5% del total',
-        isCurrency: true,
-        change: -3.4,
-        icon: <AlertCircle className="h-4 w-4" />,
-        color: '#f43f5e'
-      },
-      {
-        title: 'Capital Activo',
-        value: 2850000000,
-        isCurrency: true,
-        change: 5.8,
-        icon: <Banknote className="h-4 w-4" />,
-        color: '#f59e0b'
-      }
-    ],
-    COORDINADOR: [],
-    SUPERVISOR: [],
-    COBRADOR: [],
-    CONTADOR: [
-      {
-        title: 'Flujo de Caja',
-        value: 32500000,
-        isCurrency: true,
-        change: 12.5,
-        icon: <TrendingUp className="h-4 w-4" />,
-        color: '#0f172a'
-      },
-      {
-        title: 'Cuentas Incobrables',
-        value: 3,
-        isCurrency: false,
-        change: -1.2,
-        icon: <FileText className="h-4 w-4" />,
-        color: '#f43f5e'
-      },
-      {
-        title: 'Margen Utilidad',
-        value: '42.3%',
-        isCurrency: false,
-        change: 3.1,
-        icon: <Percent className="h-4 w-4" />,
-        color: '#10b981'
-      },
-      {
-        title: 'Inventario Activo',
-        value: 185000000,
-        isCurrency: true,
-        change: 8.7,
-        icon: <Package className="h-4 w-4" />,
-        color: '#f59e0b'
-      }
-    ]
-  };
-
-  const quickAccessConfig: Record<Rol, QuickAccessItem[]> = {
-    SUPER_ADMINISTRADOR: [
-      {
-        title: 'Nuevo Crédito',
-        subtitle: 'Registro rápido',
-        icon: <CreditCard className="h-5 w-5" />,
-        color: '#0f172a',
-        badge: 3,
-        href: '#'
-      },
-      {
-        title: 'Cobranza',
-        subtitle: 'Gestionar pagos',
-        icon: <Wallet className="h-5 w-5" />,
-        color: '#10b981',
-        badge: 12,
-        href: '/admin/pagos/registro'
-      },
-      {
-        title: 'Clientes',
-        subtitle: 'Base de datos',
-        icon: <Users className="h-5 w-5" />,
-        color: '#6366f1',
-        href: '/admin/clientes'
-      },
-      {
-        title: 'Análisis',
-        subtitle: 'Reportes avanzados',
-        icon: <PieChart className="h-5 w-5" />,
-        color: '#f59e0b',
-        href: '/admin/reportes/operativos'
-      },
-      {
-        title: 'Tesorería',
-        subtitle: 'Caja Fuerte / Bancos',
-        icon: <Landmark className="h-5 w-5" />,
-        color: '#08557f',
-        href: '/admin/tesoreria'
-      }
-    ],
-    ADMIN: [
-      {
-        title: 'Nuevo Crédito',
-        subtitle: 'Registro rápido',
-        icon: <CreditCard className="h-5 w-5" />,
-        color: '#0f172a',
-        badge: 3,
-        href: '#'
-      },
-      {
-        title: 'Cobranza',
-        subtitle: 'Gestionar pagos',
-        icon: <Wallet className="h-5 w-5" />,
-        color: '#10b981',
-        badge: 12,
-        href: '/admin/pagos/registro'
-      },
-      {
-        title: 'Clientes',
-        subtitle: 'Base de datos',
-        icon: <Users className="h-5 w-5" />,
-        color: '#6366f1',
-        href: '/admin/clientes'
-      },
-      {
-        title: 'Análisis',
-        subtitle: 'Reportes avanzados',
-        icon: <PieChart className="h-5 w-5" />,
-        color: '#f59e0b',
-        href: '/admin/reportes/operativos'
-      }
-    ],
-    COORDINADOR: [],
-    SUPERVISOR: [],
-    COBRADOR: [],
-    CONTADOR: [
-      {
-        title: 'Control de Cajas',
-        subtitle: 'Caja principal y ruta',
-        icon: <Calculator className="h-5 w-5" />,
-        color: '#08557f',
-        href: '/contador/contable'
-      },
-      {
-        title: 'Reportes Financieros',
-        subtitle: 'Análisis detallado',
-        icon: <BarChart3 className="h-5 w-5" />,
-        color: '#fb851b',
-        href: '/contador/reportes/financieros'
-      }
-    ]
-  };
-
-  return {
-    mainMetrics: metricsConfig[rol] || [],
-    quickAccess: quickAccessConfig[rol] || [],
-    recentLoans: [
-      { client: 'Ana María Polo', amount: 1500000, term: 'Mensual', status: 'APROBADO', date: 'Hace 2h' },
-      { client: 'Carlos Vives', amount: 5000000, term: 'Quincenal', status: 'PENDIENTE', date: 'Hace 4h' },
-      { client: 'Juanes', amount: 800000, term: 'Diario', status: 'APROBADO', date: 'Hace 5h' },
-      { client: 'Shakira Mebarak', amount: 12000000, term: 'Mensual', status: 'APROBADO', date: 'Hace 1d' },
-    ],
-    topCollectors: [
-      { name: 'Juan Pérez', collected: 15400000 * factor, efficiency: 98, trend: 'up' as const },
-      { name: 'Maria Gonzalez', collected: 12800000 * factor, efficiency: 95, trend: 'up' as const },
-      { name: 'Pedro Coral', collected: 11200000 * factor, efficiency: 92, trend: 'down' as const },
-      { name: 'Betty Pinzon', collected: 9800000 * factor, efficiency: 89, trend: 'up' as const },
-      { name: 'Armando Mendoza', collected: 8500000 * factor, efficiency: 85, trend: 'down' as const },
-    ],
-    chartData: period === 'today' ? [
-      { label: 'Cobro-01', value: 125500.25, target: 150000, date: '06 de Febrero, 2026', time: '08:12:45' },
-      { label: 'Cobro-02', value: 450200.00, target: 150000, date: '06 de Febrero, 2026', time: '08:35:10' },
-      { label: 'Cobro-03', value: 85000.50, target: 100000, date: '06 de Febrero, 2026', time: '09:05:33' },
-      { label: 'Cobro-04', value: 520800.75, target: 200000, date: '06 de Febrero, 2026', time: '09:45:12' },
-      { label: 'Cobro-05', value: 310500.00, target: 250000, date: '06 de Febrero, 2026', time: '10:10:01' },
-      { label: 'Cobro-06', value: 95400.00, target: 100000, date: '06 de Febrero, 2026', time: '10:25:58' },
-      { label: 'Cobro-07', value: 642000.50, target: 500000, date: '06 de Febrero, 2026', time: '10:55:22' },
-      { label: 'Cobro-08', value: 295300.25, target: 300000, date: '06 de Febrero, 2026', time: '11:15:00' },
-      { label: 'Cobro-09', value: 180000.00, target: 150000, date: '06 de Febrero, 2026', time: '11:40:15' },
-      { label: 'Cobro-10', value: 420000.00, target: 400000, date: '06 de Febrero, 2026', time: '12:05:30' },
-      { label: 'Cobro-11', value: 155000.50, target: 200000, date: '06 de Febrero, 2026', time: '12:30:45' },
-      { label: 'Cobro-12', value: 380000.25, target: 300000, date: '06 de Febrero, 2026', time: '13:02:12' },
-      { label: 'Cobro-13', value: 92000.00, target: 100000, date: '06 de Febrero, 2026', time: '13:25:55' },
-      { label: 'Cobro-14', value: 510000.75, target: 450000, date: '06 de Febrero, 2026', time: '13:45:00' },
-      { label: 'Cobro-15', value: 245000.00, target: 200000, date: '06 de Febrero, 2026', time: '14:10:22' },
-      { label: 'Cobro-16', value: 670000.50, target: 600000, date: '06 de Febrero, 2026', time: '14:35:10' },
-      { label: 'Cobro-17', value: 115000.25, target: 150000, date: '06 de Febrero, 2026', time: '15:05:33' },
-      { label: 'Cobro-18', value: 430800.00, target: 400000, date: '06 de Febrero, 2026', time: '15:30:12' },
-      { label: 'Cobro-19', value: 210500.75, target: 200000, date: '06 de Febrero, 2026', time: '15:55:01' },
-      { label: 'Cobro-20', value: 780000.00, target: 700000, date: '06 de Febrero, 2026', time: '16:20:58' },
-    ] : [
-      { label: 'Sem 1', value: 25012500 * factor, target: 30000000 * factor, date: 'Semana 1 de Febrero' },
-      { label: 'Sem 2', value: 28450600 * factor, target: 30000000 * factor, date: 'Semana 2 de Febrero' },
-      { label: 'Sem 3', value: 19500200 * factor, target: 30000000 * factor, date: 'Semana 3 de Febrero' },
-      { label: 'Sem 4', value: 34120800 * factor, target: 30000000 * factor, date: 'Semana 4 de Febrero' },
-    ]
-  };
 }

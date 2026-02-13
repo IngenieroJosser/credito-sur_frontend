@@ -20,8 +20,8 @@ export function usePermission() {
 
   const canForPath = (path: string) => {
     if (!rol) return false;
-    return tieneAcceso(rol as any, path);
+    return tieneAcceso(rol, path, permisos);
   };
 
-  return { can, canForPath, rol };
+  return { can, canForPath, rol, permisos };
 }

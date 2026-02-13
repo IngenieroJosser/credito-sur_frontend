@@ -167,7 +167,7 @@ export const TransactionalHighDetailChart = ({ data, height = 400, type = 'singl
                 axisLine={false} 
                 tickLine={false} 
                 tick={{ fontSize: 9, fontWeight: 700, fill: '#CBD5E1' }}
-                tickFormatter={(value) => `$${(value / 1000).toFixed(0)}k`}
+                tickFormatter={(value) => formatCurrency(Number(value))}
                 width={45}
               />
               

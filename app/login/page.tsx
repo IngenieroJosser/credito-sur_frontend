@@ -87,7 +87,8 @@ const LoginPage = () => {
           'SUPER_ADMINISTRADOR': '/admin',
           'ADMINISTRADOR': '/admin',
           'SUPERVISOR': '/supervisor',
-          'CONTADOR': '/contador/contable'
+          'CONTADOR': '/contador/contable',
+          'PUNTO_DE_VENTA': '/punto-de-venta'
         };
         
         // Si el rol existe en el mapa, usamos esa ruta, si no, por defecto a admin

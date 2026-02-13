@@ -1,6 +1,6 @@
 'use client'
 
-import React, { use } from 'react'
+import React, { use, useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import {
@@ -17,24 +17,64 @@ import {
   Download
 } from 'lucide-react'
 import { formatCurrency, cn } from '@/lib/utils'
+import { getTransacciones } from '@/services/contabilidad-service'
+
+interface MovimientoDetalle {
+  id: string; fecha: string; concepto: string; tipo: string;
+  monto: number; categoria: string; responsable: string;
+  referencia: string; estado: string; caja: string; creadoPor: string;
+}
 
 export default function DetalleMovimientoPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
   const router = useRouter()
+  const [movimiento, setMovimiento] = useState<MovimientoDetalle | null>(null)
+  const [loading, setLoading] = useState(true)
 
-  // Mock data - En producción vendría de DB
-  const movimiento = {
-    id: id,
-    fecha: '2026-01-20T11:00:00.000Z',
-    concepto: 'Combustible Ruta Norte',
-    tipo: 'EGRESO',
-    monto: 25000,
-    categoria: 'GASTO_OPERATIVO',
-    responsable: 'Carlos Cobrador',
-    referencia: 'Ticket #998877',
-    estado: 'APROBADO',
-    caja: 'Caja Principal Oficina',
-    creadoPor: 'Ana Admin'
+  useEffect(() => {
+    const fetchMovimiento = async () => {
+      setLoading(true)
+      try {
+        const res = await getTransacciones({ limit: 200 })
+        const found: any = res.data.find((t: any) => t.id === id)
+        if (found) {
+          setMovimiento({
+            id: found.id,
+            fecha: found.fecha || '',
+            concepto: found.descripcion || '',
+            tipo: found.tipo || 'EGRESO',
+            monto: found.monto || 0,
+            categoria: found.categoria || '',
+            responsable: found.responsable || '',
+            referencia: found.numero || '',
+            estado: found.estado || 'APROBADO',
+            caja: found.caja || '',
+            creadoPor: found.responsable || '',
+          })
+        }
+      } catch (err) {
+        console.error('Error cargando movimiento:', err)
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchMovimiento()
+  }, [id])
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    )
+  }
+
+  if (!movimiento) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+        <p className="text-red-500">No se encontró el movimiento</p>
+      </div>
+    )
   }
 
   return (

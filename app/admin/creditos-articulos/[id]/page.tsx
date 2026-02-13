@@ -1,57 +1,78 @@
-import { Metadata } from 'next';
+'use client';
+
+import { useState, useEffect } from 'react';
+import { useParams } from 'next/navigation';
 import { ChevronLeft, Package } from 'lucide-react';
 import Link from 'next/link';
 import DetallePrestamo, { PrestamoDetalle } from '@/components/prestamos/DetallePrestamo';
+import { prestamosService } from '@/services/prestamos-service';
 
-// Mock data adapted for Credit/Article
-const creditoMock: PrestamoDetalle = {
-  id: 'CR-2024-001',
-  clienteId: 'CLI-001',
-  clienteNombre: 'Carlos Andrés Rodríguez Pérez',
-  clienteDni: '0912345678',
-  montoPrestamo: 2500000,
-  montoTotal: 3000000,
-  saldoPendiente: 2000000,
-  tasaInteres: 15,
-  duracion: '12 Meses',
-  frecuencia: 'mensual',
-  fechaInicio: '15/01/2024',
-  fechaVencimiento: '15/01/2025',
-  estado: 'ACTIVO',
-  producto: 'Televisor Samsung 55" 4K',
-  garantia: 'Prenda sobre artículo',
-  fotos: ['foto1'],
-  cuotas: [
-    { numero: 1, fecha: '15/02/2024', monto: 250000, estado: 'PAGADO', fechaPago: '14/02/2024' },
-    { numero: 2, fecha: '15/03/2024', monto: 250000, estado: 'PAGADO', fechaPago: '15/03/2024' },
-    { numero: 3, fecha: '15/04/2024', monto: 250000, estado: 'PENDIENTE' },
-    { numero: 4, fecha: '15/05/2024', monto: 250000, estado: 'PENDIENTE' },
-    { numero: 5, fecha: '15/06/2024', monto: 250000, estado: 'PENDIENTE' },
-    { numero: 6, fecha: '15/07/2024', monto: 250000, estado: 'PENDIENTE' },
-    { numero: 7, fecha: '15/08/2024', monto: 250000, estado: 'PENDIENTE' },
-    { numero: 8, fecha: '15/09/2024', monto: 250000, estado: 'PENDIENTE' },
-    { numero: 9, fecha: '15/10/2024', monto: 250000, estado: 'PENDIENTE' },
-    { numero: 10, fecha: '15/11/2024', monto: 250000, estado: 'PENDIENTE' },
-    { numero: 11, fecha: '15/12/2024', monto: 250000, estado: 'PENDIENTE' },
-    { numero: 12, fecha: '15/01/2025', monto: 250000, estado: 'PENDIENTE' },
-  ]
-};
+export default function CreditoDetallePage() {
+  const params = useParams();
+  const id = params?.id as string;
+  const [credito, setCredito] = useState<PrestamoDetalle | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
-  const { id } = await params;
-  return {
-    title: `Detalle de Crédito ${id} • CrediSur`,
-    description: `Gestión y detalles del crédito ${id}`
-  };
-}
+  useEffect(() => {
+    if (!id) return;
+    const fetchData = async () => {
+      setLoading(true);
+      try {
+        const data = await prestamosService.obtenerPrestamoPorId(id);
+        const cuotasData = await prestamosService.obtenerCuotas(id).catch(() => []);
+        setCredito({
+          id: data.id || id,
+          clienteId: data.clienteId || data.cliente?.id || '',
+          clienteNombre: data.cliente ? `${data.cliente.nombres} ${data.cliente.apellidos}` : '',
+          clienteDni: data.cliente?.dni || '',
+          clienteTelefono: data.cliente?.telefono || '',
+          clienteDireccion: data.cliente?.direccion || '',
+          montoPrestamo: data.monto || 0,
+          montoTotal: data.montoTotal || data.monto || 0,
+          saldoPendiente: data.saldoPendiente || data.montoPendiente || 0,
+          tasaInteres: data.tasaInteres || 0,
+          duracion: data.plazoMeses ? `${data.plazoMeses} Meses` : '',
+          frecuencia: data.frecuenciaPago || 'mensual',
+          fechaInicio: data.fechaInicio || '',
+          fechaVencimiento: data.fechaFin || '',
+          estado: data.estado || 'ACTIVO',
+          producto: data.tipoPrestamo || data.producto?.nombre || 'Crédito Artículo',
+          garantia: data.garantia || 'Prenda sobre artículo',
+          fotos: data.fotos || [],
+          cuotas: cuotasData.map((c: any) => ({
+            numero: c.numeroCuota,
+            fecha: c.fechaVencimiento,
+            monto: c.monto,
+            estado: c.estado,
+            fechaPago: c.fechaPago || undefined,
+          })),
+        });
+      } catch (err) {
+        console.error('Error cargando crédito:', err);
+        setError('No se pudo cargar el crédito');
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchData();
+  }, [id]);
 
-export default async function CreditoDetallePage({
-  params
-}: {
-  params: Promise<{ id: string }>
-}) {
-  const { id } = await params;
-  const credito = { ...creditoMock, id };
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
+
+  if (error || !credito) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+        <p className="text-red-500">{error || 'Crédito no encontrado'}</p>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-slate-50 relative">

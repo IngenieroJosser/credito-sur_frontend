@@ -15,8 +15,9 @@ import {
 } from 'lucide-react'
 import { formatCOPInputValue, formatCurrency, formatMilesCOP, parseCOPInputToNumber } from '@/lib/utils'
 import SelectCategoria from '@/components/ui/SelectCategoria'
+import { inventarioService } from '@/services/inventario-service'
 
-// Types (mirrored from main page for now)
+// Types
 interface PrecioCuota {
   meses: number
   precio: number
@@ -37,61 +38,6 @@ interface Articulo {
   estado: 'activo' | 'inactivo'
   precios: PrecioCuota[]
 }
-
-// Mock Data (mirrored for initial load)
-const ARTICULOS_MOCK: Articulo[] = [
-  {
-    id: '1',
-    nombre: 'Televisor Smart TV 50"',
-    codigo: 'TV-50-SMART',
-    descripcion: 'Televisor 4K UHD con Smart Hub',
-    categoria: 'Electrónica',
-    marca: 'Samsung',
-    modelo: 'UN50AU7000',
-    costo: 1200000,
-    stock: 15,
-    stockMinimo: 5,
-    estado: 'activo',
-    precios: [
-      { meses: 1, precio: 1800000 },
-      { meses: 3, precio: 2100000 },
-      { meses: 6, precio: 2400000 }
-    ]
-  },
-  {
-    id: '2',
-    nombre: 'Lavadora 18kg Carga Superior',
-    codigo: 'LAV-18-CS',
-    categoria: 'Hogar',
-    marca: 'LG',
-    modelo: 'WT18WP',
-    costo: 1500000,
-    stock: 8,
-    stockMinimo: 3,
-    estado: 'activo',
-    precios: [
-      { meses: 1, precio: 2300000 },
-      { meses: 6, precio: 2900000 },
-      { meses: 12, precio: 3500000 }
-    ]
-  },
-  {
-    id: '3',
-    nombre: 'Celular Gama Media 128GB',
-    codigo: 'CEL-GM-128',
-    categoria: 'Tecnología',
-    marca: 'Xiaomi',
-    modelo: 'Redmi Note 12',
-    costo: 600000,
-    stock: 4,
-    stockMinimo: 10,
-    estado: 'activo',
-    precios: [
-      { meses: 1, precio: 950000 },
-      { meses: 3, precio: 1100000 }
-    ]
-  }
-]
 
 export default function EditarArticuloPage({ params }: { params: Promise<{ id: string }> }) {
   const router = useRouter()
@@ -114,23 +60,29 @@ export default function EditarArticuloPage({ params }: { params: Promise<{ id: s
   const [nuevaCuota, setNuevaCuota] = useState({ meses: 1, precio: '' })
 
   useEffect(() => {
-    // Simular carga de datos
-    const articulo = ARTICULOS_MOCK.find(a => a.id === id)
-    if (articulo) {
-      setFormData({
-        nombre: articulo.nombre,
-        codigo: articulo.codigo,
-        descripcion: articulo.descripcion || '',
-        categoria: articulo.categoria,
-        categoriaId: articulo.categoriaId || '',
-        marca: articulo.marca,
-        modelo: articulo.modelo,
-        costo: formatMilesCOP(articulo.costo),
-        stock: String(articulo.stock),
-        stockMinimo: String(articulo.stockMinimo),
-        precios: [...articulo.precios]
-      })
+    const cargarArticulo = async () => {
+      try {
+        const data: any = await inventarioService.obtenerProductoPorId(id)
+        if (data) {
+          setFormData({
+            nombre: data.nombre || '',
+            codigo: data.codigo || data.sku || '',
+            descripcion: data.descripcion || '',
+            categoria: data.categoria?.nombre || data.categoria || '',
+            categoriaId: data.categoriaId || data.categoria?.id || '',
+            marca: data.marca || '',
+            modelo: data.modelo || '',
+            costo: formatMilesCOP(data.costo || data.precio || 0),
+            stock: String(data.stock || data.cantidad || 0),
+            stockMinimo: String(data.stockMinimo || 0),
+            precios: data.precios || []
+          })
+        }
+      } catch (err) {
+        console.error('Error cargando artículo:', err)
+      }
     }
+    cargarArticulo()
   }, [id])
 
   const handleSave = async (e: React.FormEvent) => {
@@ -144,11 +96,15 @@ export default function EditarArticuloPage({ params }: { params: Promise<{ id: s
       stock: Number(formData.stock || '0'),
       stockMinimo: Number(formData.stockMinimo || '0'),
     }
-    console.log('Guardar artículo (editar):', id, payload)
-    // Simular guardado
-    await new Promise(resolve => setTimeout(resolve, 1000))
-    setLoading(false)
-    router.push('/admin/articulos')
+    try {
+      await inventarioService.actualizarProducto(id, payload as any)
+      router.push('/admin/articulos')
+    } catch (err) {
+      console.error('Error guardando artículo:', err)
+      alert('Error al guardar el artículo')
+    } finally {
+      setLoading(false)
+    }
   }
 
   const addPrecioCuota = () => {

@@ -1,6 +1,6 @@
 'use client'
 
-import { use, useState } from 'react'
+import { use, useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { 
@@ -14,30 +14,64 @@ import {
   Wallet
 } from 'lucide-react'
 import { formatCurrency, cn } from '@/lib/utils'
+import { getHistorialCierres } from '@/services/contabilidad-service'
+
+interface CierreDetalle {
+  id: string; fecha: string; caja: string; responsable: string;
+  saldoSistema: number; saldoReal: number; diferencia: number;
+  estado: string; billetes: Array<{ denominacion: number; cantidad: number; total: number }>;
+}
 
 export default function DetalleCierrePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
   const router = useRouter()
-  
-  // State for editable observations
-  const [observaciones, setObservaciones] = useState('Cierre normal sin novedades.')
+  const [observaciones, setObservaciones] = useState('')
+  const [cierre, setCierre] = useState<CierreDetalle | null>(null)
+  const [loading, setLoading] = useState(true)
 
-  // Mock Data
-  const cierre = {
-    id: id,
-    fecha: '2026-01-22T18:30:00',
-    caja: 'Caja Principal Oficina',
-    responsable: 'Ana Admin',
-    saldoSistema: 5200000,
-    saldoReal: 5200000,
-    diferencia: 0,
-    estado: 'CUADRADA',
-    billetes: [
-      { denominacion: 100000, cantidad: 20, total: 2000000 },
-      { denominacion: 50000, cantidad: 40, total: 2000000 },
-      { denominacion: 20000, cantidad: 50, total: 1000000 },
-      { denominacion: 10000, cantidad: 20, total: 200000 }
-    ]
+  useEffect(() => {
+    const fetchCierre = async () => {
+      setLoading(true)
+      try {
+        const cierres = await getHistorialCierres()
+        const found: any = cierres.find((c: any) => c.id === id)
+        if (found) {
+          setCierre({
+            id: found.id,
+            fecha: found.fecha || found.creadoEn || '',
+            caja: found.caja?.nombre || found.cajaNombre || '',
+            responsable: found.responsable || found.usuario || '',
+            saldoSistema: found.saldoSistema || 0,
+            saldoReal: found.saldoReal || found.efectivoReal || 0,
+            diferencia: found.diferencia || 0,
+            estado: found.estado || (found.diferencia === 0 ? 'CUADRADA' : 'DESCUADRADA'),
+            billetes: found.billetes || [],
+          })
+          setObservaciones(found.observaciones || '')
+        }
+      } catch (err) {
+        console.error('Error cargando cierre:', err)
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchCierre()
+  }, [id])
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    )
+  }
+
+  if (!cierre) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+        <p className="text-red-500">No se encontró el cierre</p>
+      </div>
+    )
   }
 
   return (

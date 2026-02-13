@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { 
   ChevronLeft, 
@@ -18,47 +18,110 @@ import {
   CheckCircle2
 } from 'lucide-react'
 import { formatCurrency, cn } from '@/lib/utils'
+import { loansService_ } from '@/services/loans-service'
 
-// Mock Data para demostración
-const moraDetalleMock = {
-  id: '1',
-  numeroPrestamo: 'P-2024-001',
+interface MoraDetalle {
+  id: string
+  numeroPrestamo: string
   cliente: {
-    id: 'CLI-001',
-    nombre: 'Juan Pérez',
-    documento: 'V-12345678',
-    telefono: '310 123 4567',
-    direccion: 'Av. Bolívar, Casa 5',
-    estado: 'ACTIVO'
-  },
+    id: string
+    nombre: string
+    documento: string
+    telefono: string
+    direccion: string
+    estado: string
+  }
   prestamo: {
-    montoOriginal: 1500000,
-    saldoCapital: 800000,
-    cuotaPromedio: 150000,
-    frecuencia: 'quincenal',
-    proximoVencimiento: '2024-02-15'
-  },
+    montoOriginal: number
+    saldoCapital: number
+    cuotaPromedio: number
+    frecuencia: string
+    proximoVencimiento: string
+  }
   mora: {
-    diasAtraso: 45,
-    capitalVencido: 300000, // 2 cuotas de 150k
-    interesMora: 15000,
-    gastosCobranza: 0,
-    totalPagarYa: 315000,
-    fechaInicioMora: '2024-01-01',
-    nivelRiesgo: 'ROJO'
-  },
-  historialGestion: [
-    { fecha: '2024-01-15', usuario: 'Carlos Ruiz', tipo: 'VISITA', nota: 'Cliente no estaba, se dejó aviso.' },
-    { fecha: '2024-01-10', usuario: 'Admin', tipo: 'LLAMADA', nota: 'Promesa de pago incumplida.' }
-  ]
+    diasAtraso: number
+    capitalVencido: number
+    interesMora: number
+    gastosCobranza: number
+    totalPagarYa: number
+    fechaInicioMora: string
+    nivelRiesgo: string
+  }
+  historialGestion: Array<{
+    fecha: string
+    usuario: string
+    tipo: string
+    nota: string
+  }>
 }
 
 export default function DetalleCuentaMoraPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = React.use(params);
   
-  const data = moraDetalleMock; 
+  const [data, setData] = useState<MoraDetalle | null>(null);
+  const [loading, setLoading] = useState(true);
   const [nota, setNota] = useState('');
   const [activeTab, setActiveTab] = useState<'historial' | 'reprogramar' | 'supervisor'>('historial');
+
+  useEffect(() => {
+    const fetchData = async () => {
+      setLoading(true);
+      try {
+        const detalle: any = await loansService_.obtenerDetallePrestamo(id);
+        setData({
+          id,
+          numeroPrestamo: detalle.numeroPrestamo || id,
+          cliente: {
+            id: detalle.cliente?.id || '',
+            nombre: detalle.cliente?.nombre || `${detalle.cliente?.nombres || ''} ${detalle.cliente?.apellidos || ''}`.trim(),
+            documento: detalle.cliente?.documento || detalle.cliente?.dni || '',
+            telefono: detalle.cliente?.telefono || '',
+            direccion: detalle.cliente?.direccion || '',
+            estado: 'ACTIVO',
+          },
+          prestamo: {
+            montoOriginal: detalle.montoOriginal || detalle.monto || 0,
+            saldoCapital: detalle.saldoCapital || detalle.montoPendiente || 0,
+            cuotaPromedio: detalle.cuotaPromedio || detalle.valorCuota || 0,
+            frecuencia: detalle.frecuencia || detalle.frecuenciaPago || 'mensual',
+            proximoVencimiento: detalle.proximoVencimiento || '',
+          },
+          mora: {
+            diasAtraso: detalle.diasMora || detalle.mora?.diasAtraso || 0,
+            capitalVencido: detalle.capitalVencido || detalle.mora?.capitalVencido || 0,
+            interesMora: detalle.interesMora || detalle.mora?.interesMora || 0,
+            gastosCobranza: detalle.gastosCobranza || 0,
+            totalPagarYa: detalle.totalPagarYa || detalle.montoMora || 0,
+            fechaInicioMora: detalle.fechaInicioMora || '',
+            nivelRiesgo: detalle.nivelRiesgo || 'ROJO',
+          },
+          historialGestion: detalle.historialGestion || [],
+        });
+      } catch (err) {
+        console.error('Error cargando detalle de mora:', err);
+        setData(null);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchData();
+  }, [id]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-rose-600"></div>
+      </div>
+    );
+  }
+
+  if (!data) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+        <p className="text-red-500">No se pudo cargar el detalle de mora</p>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-slate-50 relative pb-8">

@@ -37,7 +37,7 @@ const ReportesOperativosPage = () => {
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
-  const period = (searchParams.get('period') as TimeFilterPeriod) || 'month'
+  const period = (searchParams.get('period') as TimeFilterPeriod) || 'today'
 
 
   

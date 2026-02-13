@@ -1,14 +1,16 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import {
   ArrowLeft, Package, User, CheckCircle, Search, Filter,
   Plus, Trash2, Calendar, DollarSign, ShoppingBag, AlertCircle
 } from 'lucide-react';
 import { formatCOPInputValue, formatCurrency, parseCOPInputToNumber, cn } from '@/lib/utils';
+import { clientesService } from '@/services/clientes-service';
+import { inventarioService } from '@/services/inventario-service';
 
-// --- Tipos y Mocks ---
+// --- Tipos ---
 
 type FrecuenciaPago = 'DIARIO' | 'SEMANAL' | 'QUINCENAL' | 'MENSUAL';
 type NivelRiesgo = 'VERDE' | 'AMARILLO' | 'ROJO' | 'LISTA_NEGRA';
@@ -38,29 +40,9 @@ interface ArticuloSeleccionado extends Articulo {
     total: number;
   }
 
-// Datos Mock
-const CLIENTES_MOCK: Cliente[] = [
-  { id: 'CL-001', nombre: 'Carlos', apellido: 'Rodríguez', identificacion: '12.345.678', telefono: '300-1234567', email: 'carlos@email.com', nivelRiesgo: 'VERDE', saldoDisponible: 5200000 },
-  { id: 'CL-002', nombre: 'Ana', apellido: 'Gómez', identificacion: '23.456.789', telefono: '310-9876543', email: 'ana@email.com', nivelRiesgo: 'VERDE', saldoDisponible: 8500000 },
-  { id: 'CL-003', nombre: 'Roberto', apellido: 'Sánchez', identificacion: '34.567.890', telefono: '320-5556666', email: 'roberto@email.com', nivelRiesgo: 'AMARILLO', saldoDisponible: 3200000 },
-];
-
-const PRODUCTOS_MOCK: Articulo[] = [
-  { id: 'ART-001', nombre: 'Televisor Samsung 55" 4K', categoria: 'Tecnología', precioBase: 1800000 },
-  { id: 'ART-002', nombre: 'Nevera Haceb 300L', categoria: 'Electrodomésticos', precioBase: 1500000 },
-  { id: 'ART-003', nombre: 'Lavadora LG 18kg', categoria: 'Electrodomésticos', precioBase: 2100000 },
-  { id: 'ART-004', nombre: 'Celular Xiaomi Redmi Note 13', categoria: 'Tecnología', precioBase: 900000 },
-  { id: 'ART-005', nombre: 'Juego de Sala en L', categoria: 'Muebles', precioBase: 2500000 },
-  { id: 'ART-006', nombre: 'Cama Doble con Colchón', categoria: 'Muebles', precioBase: 1200000 },
-];
-
 export default function NuevoCreditoArticuloPage() {
-  const router = useRouter();
-  const pathname = usePathname();
-  const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
-  const [animating, setAnimating] = useState(false);
-
-  // Estados del Formulario
+  const [clientesList, setClientesList] = useState<Cliente[]>([]);
+  const [productosList, setProductosList] = useState<Articulo[]>([]);
   const [clienteId, setClienteId] = useState<string>('');
   const [articulosSeleccionados, setArticulosSeleccionados] = useState<ArticuloSeleccionado[]>([]);
   
@@ -78,28 +60,66 @@ export default function NuevoCreditoArticuloPage() {
   const [filtroCategoria, setFiltroCategoria] = useState('TODAS');
   const [ordenPrecio, setOrdenPrecio] = useState<'asc' | 'desc' | 'none'>('none');
 
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        const [clientesRes, productosRes] = await Promise.all([
+          clientesService.obtenerClientes().catch(() => ({ data: [] })),
+          inventarioService.obtenerProductos().catch(() => []),
+        ]);
+        const clientes = (clientesRes as any)?.data || clientesRes || [];
+        setClientesList((clientes as any[]).map((c: any) => ({
+          id: c.id,
+          nombre: c.nombres || c.nombre || '',
+          apellido: c.apellidos || c.apellido || '',
+          identificacion: c.dni || c.identificacion || '',
+          telefono: c.telefono || '',
+          email: c.correo || c.email || '',
+          nivelRiesgo: (c.nivelRiesgo || 'VERDE') as NivelRiesgo,
+          saldoDisponible: c.saldoDisponible || 0,
+        })));
+        const productos = Array.isArray(productosRes) ? productosRes : (productosRes as any)?.data || [];
+        setProductosList((productos as any[]).map((p: any) => ({
+          id: p.id,
+          nombre: p.nombre || '',
+          categoria: p.categoria?.nombre || p.categoria || 'General',
+          precioBase: p.precio || p.precioBase || 0,
+          imagen: p.imagen,
+        })));
+      } catch (err) {
+        console.error('Error cargando datos:', err);
+      }
+    };
+    loadData();
+  }, []);
+
+  const router = useRouter();
+  const pathname = usePathname();
+  const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
+  const [animating, setAnimating] = useState(false);
+
   // --- Lógica Derivada ---
 
   const clienteSeleccionado = useMemo(() => 
-    CLIENTES_MOCK.find(c => c.id === clienteId), 
-  [clienteId]);
+    clientesList.find(c => c.id === clienteId), 
+  [clienteId, clientesList]);
 
   const clientesFiltrados = useMemo(() => 
-    CLIENTES_MOCK.filter(c => {
+    clientesList.filter(c => {
       const matchNombre = c.nombre.toLowerCase().includes(busquedaCliente.toLowerCase()) || 
                           c.identificacion.includes(busquedaCliente);
       const matchRiesgo = filtroRiesgo === 'TODOS' || c.nivelRiesgo === filtroRiesgo;
       return matchNombre && matchRiesgo;
     }), 
-  [busquedaCliente, filtroRiesgo]);
+  [busquedaCliente, filtroRiesgo, clientesList]);
 
   const categorias = useMemo(() => {
-    const cats = new Set(PRODUCTOS_MOCK.map(p => p.categoria));
+    const cats = new Set(productosList.map(p => p.categoria));
     return ['TODAS', ...Array.from(cats)];
-  }, []);
+  }, [productosList]);
 
   const productosFiltrados = useMemo(() => {
-    let filtrados = PRODUCTOS_MOCK.filter(p => {
+    let filtrados = productosList.filter(p => {
       const matchNombre = p.nombre.toLowerCase().includes(busquedaProducto.toLowerCase());
       const matchCategoria = filtroCategoria === 'TODAS' || p.categoria === filtroCategoria;
       return matchNombre && matchCategoria;
@@ -112,7 +132,7 @@ export default function NuevoCreditoArticuloPage() {
     }
 
     return filtrados;
-  }, [busquedaProducto, filtroCategoria, ordenPrecio]);
+  }, [busquedaProducto, filtroCategoria, ordenPrecio, productosList]);
 
   // Cálculo de Precios según Cuotas (Regla de Negocio: Precio depende de meses)
   const calcularPrecioCredito = (precioBase: number, duracionMeses: number) => {

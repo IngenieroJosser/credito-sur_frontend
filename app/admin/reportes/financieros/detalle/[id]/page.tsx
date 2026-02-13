@@ -1,7 +1,7 @@
 'use client'
 
 import { useMemo, useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useParams } from 'next/navigation'
 import { ArrowLeft, Calendar, Eye, LineChart, TrendingDown, TrendingUp } from 'lucide-react'
 import { formatCurrency } from '@/lib/utils'
 import { getTransacciones } from '@/services/contabilidad-service'
@@ -13,9 +13,10 @@ type DetalleRow = {
   categoria: string
 }
 
-export default function DetalleReporteFinancieroPage({ params }: { params: { id: string } }) {
+export default function DetalleReporteFinancieroPage() {
   const router = useRouter()
-  const rawId = params?.id ?? ''
+  const params = useParams()
+  const rawId = (params?.id as string) ?? ''
   const [ingresos, setIngresos] = useState(0)
   const [egresos, setEgresos] = useState(0)
   const [utilidad, setUtilidad] = useState(0)

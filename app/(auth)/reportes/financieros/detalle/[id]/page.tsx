@@ -7,10 +7,10 @@
 import ProtectedPage from '@/components/auth/ProtectedPage'
 import AdminDetalleReporteFinancieroPage from '@/app/admin/reportes/financieros/detalle/[id]/page'
 
-export default function DetalleReporteFinancieroPage({ params }: { params: { id: string } }) {
+export default function DetalleReporteFinancieroPage() {
   return (
     <ProtectedPage permiso="REPORTES_FINANCIEROS_VIEW">
-      <AdminDetalleReporteFinancieroPage params={params} />
+      <AdminDetalleReporteFinancieroPage />
     </ProtectedPage>
   )
 }

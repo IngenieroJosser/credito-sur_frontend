@@ -29,9 +29,29 @@ import ConfirmModal from '@/components/ui/ConfirmModal'
 // MOCKS ELIMINADOS - La aplicación solo funciona con datos reales del backend
 // (Comentario original: MOCK_NOTIFICACIONES_ADMIN)
 
+// Roles que pueden aprobar/rechazar solicitudes
+const ROLES_APROBADORES = ['SUPER_ADMINISTRADOR', 'ADMIN', 'COORDINADOR']
+// Roles que tienen acceso a filtro de rutas
+const ROLES_CON_RUTAS = ['SUPER_ADMINISTRADOR', 'ADMIN', 'COORDINADOR', 'SUPERVISOR']
+
 export default function NotificacionesPage() {
   const router = useRouter()
-  
+
+  // --- ROL DEL USUARIO ---
+  const [userRol, setUserRol] = useState<string | null>(null)
+  useEffect(() => {
+    try {
+      const userData = localStorage.getItem('user')
+      if (userData) {
+        const parsed = JSON.parse(userData)
+        setUserRol(parsed.rol || null)
+      }
+    } catch { /* ignore */ }
+  }, [])
+
+  const canApprove = userRol ? ROLES_APROBADORES.includes(userRol) : false
+  const canFilterByRoute = userRol ? ROLES_CON_RUTAS.includes(userRol) : false
+
   // --- ESTADOS DE FILTROS ---
   const [filter, setFilter] = useState<'TODAS' | 'NO_LEIDAS' | 'LEIDAS' | 'APROBADAS' | 'RECHAZADAS'>('TODAS')
   const [tipoFilter, setTipoFilter] = useState<'TODOS' | Notificacion['tipo']>('TODOS')
@@ -286,26 +306,30 @@ export default function NotificacionesPage() {
                 >
                   Leídas
                 </button>
-                <button
-                  onClick={() => setFilter('APROBADAS')}
-                  className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${
-                    filter === 'APROBADAS' 
-                      ? 'bg-white text-slate-900 shadow-sm ring-1 ring-slate-200' 
-                      : 'text-slate-500 hover:text-slate-700'
-                  }`}
-                >
-                  Aprobadas
-                </button>
-                <button
-                  onClick={() => setFilter('RECHAZADAS')}
-                  className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${
-                    filter === 'RECHAZADAS' 
-                      ? 'bg-white text-slate-900 shadow-sm ring-1 ring-slate-200' 
-                      : 'text-slate-500 hover:text-slate-700'
-                  }`}
-                >
-                  Rechazadas
-                </button>
+                {canApprove && (
+                  <button
+                    onClick={() => setFilter('APROBADAS')}
+                    className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${
+                      filter === 'APROBADAS' 
+                        ? 'bg-white text-slate-900 shadow-sm ring-1 ring-slate-200' 
+                        : 'text-slate-500 hover:text-slate-700'
+                    }`}
+                  >
+                    Aprobadas
+                  </button>
+                )}
+                {canApprove && (
+                  <button
+                    onClick={() => setFilter('RECHAZADAS')}
+                    className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${
+                      filter === 'RECHAZADAS' 
+                        ? 'bg-white text-slate-900 shadow-sm ring-1 ring-slate-200' 
+                        : 'text-slate-500 hover:text-slate-700'
+                    }`}
+                  >
+                    Rechazadas
+                  </button>
+                )}
               </div>
 
               <div className="flex flex-col gap-6">
@@ -340,19 +364,21 @@ export default function NotificacionesPage() {
                   </div>
                 </div>
 
-                {/* Filtro de Ruta */}
+                {/* Filtro de Ruta + Búsqueda */}
                 <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-6">
-                  <div className="flex-1 min-w-0">
-                    <FiltroRuta 
-                        onRutaChange={setFilterRuta} 
-                        selectedRutaId={filterRuta}
-                        layout="wrap"
-                        showAllOption={true}
-                        hideLabel={true}
-                    />
-                  </div>
+                  {canFilterByRoute && (
+                    <div className="flex-1 min-w-0">
+                      <FiltroRuta 
+                          onRutaChange={setFilterRuta} 
+                          selectedRutaId={filterRuta}
+                          layout="wrap"
+                          showAllOption={true}
+                          hideLabel={true}
+                      />
+                    </div>
+                  )}
 
-                  <div className="relative w-full lg:w-80">
+                  <div className={`relative w-full ${canFilterByRoute ? 'lg:w-80' : ''}`}>
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                     <input
                       type="text"
@@ -429,7 +455,7 @@ export default function NotificacionesPage() {
                           <Eye className="h-4 w-4" />
                         </button>
                         
-                        {notif.estado === 'PENDIENTE' && (
+                        {canApprove && notif.estado === 'PENDIENTE' && (
                           <>
                             <button
                               onClick={() => handleOpenConfirm(notif, 'REJECT')}
@@ -591,16 +617,18 @@ export default function NotificacionesPage() {
                       <div className="space-y-3">
                         <div className="flex items-center justify-between px-1">
                            <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest leading-none">Análisis de Cartera</p>
-                           <button 
-                             onClick={() => setIsEditingMode(!isEditingMode)}
-                             className={`px-2 py-1 rounded-md text-[9px] font-black uppercase tracking-widest transition-all ${
-                               isEditingMode 
-                                 ? 'bg-orange-500 text-white shadow-sm' 
-                                 : 'bg-blue-600 text-white shadow-sm hover:bg-blue-700'
-                             }`}
-                           >
-                             {isEditingMode ? 'Bloquear' : 'Editar'}
-                           </button>
+                           {canApprove && (
+                             <button 
+                               onClick={() => setIsEditingMode(!isEditingMode)}
+                               className={`px-2 py-1 rounded-md text-[9px] font-black uppercase tracking-widest transition-all ${
+                                 isEditingMode 
+                                   ? 'bg-orange-500 text-white shadow-sm' 
+                                   : 'bg-blue-600 text-white shadow-sm hover:bg-blue-700'
+                               }`}
+                             >
+                               {isEditingMode ? 'Bloquear' : 'Editar'}
+                             </button>
+                           )}
                         </div>
 
                         <div className="space-y-3">
@@ -773,7 +801,7 @@ export default function NotificacionesPage() {
             </div>
 
             <div className="p-4 bg-slate-50 border-t border-slate-100 flex justify-end gap-2">
-              {selectedNotif.estado === 'PENDIENTE' && (
+              {canApprove && selectedNotif.estado === 'PENDIENTE' && (
                 <>
                   <button 
                     onClick={() => {
@@ -795,7 +823,7 @@ export default function NotificacionesPage() {
                   </button>
                 </>
               )}
-              {selectedNotif.estado !== 'PENDIENTE' && (
+              {(!canApprove || selectedNotif.estado !== 'PENDIENTE') && (
                 <button 
                   onClick={() => setIsDetailModalOpen(false)}
                   className="w-full py-3 bg-slate-900 text-white font-black text-[11px] uppercase tracking-widest rounded-xl hover:bg-slate-800 transition-colors shadow-lg"

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { cn } from '@/lib/utils'
+import { routesService } from '@/services/routes-service'
 
 interface RutaOption {
   id: string
@@ -31,21 +32,23 @@ export default function FiltroRuta({
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    // Simular carga de rutas desde API
     const fetchRutas = async () => {
       setLoading(true)
-      // TODO: Reemplazar con llamada real a la API
-      await new Promise(resolve => setTimeout(resolve, 500))
-      
-      const mockRutas: RutaOption[] = [
-        { id: 'RT-001', nombre: 'Ruta Centro', codigo: 'CENTRO-01', cobrador: 'Carlos Pérez' },
-        { id: 'RT-002', nombre: 'Ruta Norte', codigo: 'NORTE-01', cobrador: 'María Rodríguez' },
-        { id: 'RT-003', nombre: 'Ruta Este', codigo: 'ESTE-01', cobrador: 'Pedro Gómez' },
-        { id: 'RT-004', nombre: 'Ruta Sur - Expansión', codigo: 'SUR-EXP-01', cobrador: 'Juanito Alimaña' },
-      ]
-      
-      setRutas(mockRutas)
-      setLoading(false)
+      try {
+        const response = await routesService.getAll({ limit: 100 })
+        const rutasData: RutaOption[] = (response?.data || []).map((r) => ({
+          id: r.id,
+          nombre: r.nombre,
+          codigo: r.codigo,
+          cobrador: r.cobrador || (r.cobrador_ ? `${r.cobrador_.nombres} ${r.cobrador_.apellidos}` : undefined),
+        }))
+        setRutas(rutasData)
+      } catch (err) {
+        console.error('Error cargando rutas:', err)
+        setRutas([])
+      } finally {
+        setLoading(false)
+      }
     }
 
     fetchRutas()

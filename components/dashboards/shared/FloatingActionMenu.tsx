@@ -7,7 +7,7 @@ export interface FabAction {
   label: string
   icon: React.ReactNode
   onClick: () => void
-  color?: 'primary' | 'orange' | 'emerald' | 'rose'
+  color?: 'primary' | 'orange' | 'emerald' | 'rose' | 'blue'
 }
 
 interface FloatingActionMenuProps {
@@ -31,6 +31,10 @@ const colorMap = {
     badge: 'bg-rose-600 text-white shadow-lg shadow-rose-600/20',
     icon: 'bg-white text-rose-600 border-rose-200 shadow-lg shadow-rose-600/10 hover:bg-rose-50',
   },
+  blue: {
+    badge: 'bg-blue-600 text-white shadow-lg shadow-blue-600/20',
+    icon: 'bg-white text-blue-600 border-blue-200 shadow-lg shadow-blue-600/10 hover:bg-blue-50',
+  },
 }
 
 export default function FloatingActionMenu({ actions }: FloatingActionMenuProps) {
@@ -44,7 +48,7 @@ export default function FloatingActionMenu({ actions }: FloatingActionMenuProps)
           onClick={() => setIsOpen(false)}
         />
       )}
-      <div className="fixed right-6 z-50 flex flex-col items-end gap-3 bottom-[calc(1.5rem+env(safe-area-inset-bottom))] pointer-events-none">
+      <div className="fixed right-4 sm:right-6 z-50 flex flex-col items-end gap-3 bottom-24 md:bottom-[calc(1.5rem+env(safe-area-inset-bottom))] pointer-events-none">
         <div
           className={`flex flex-col gap-3 transition-all duration-200 origin-bottom-right ${
             isOpen ? 'scale-100 opacity-100 translate-y-0' : 'scale-95 opacity-0 translate-y-2 pointer-events-none'

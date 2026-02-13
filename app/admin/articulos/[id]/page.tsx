@@ -1,6 +1,6 @@
 'use client'
 
-import { use } from 'react'
+import { use, useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import {
@@ -13,33 +13,65 @@ import {
   Calendar
 } from 'lucide-react'
 import { formatCurrency } from '@/lib/utils'
+import { inventarioService } from '@/services/inventario-service'
 
-// Mock Data (simulating fetch)
-const ARTICULO_MOCK = {
-  id: '1',
-  nombre: 'Televisor Smart TV 50"',
-  codigo: 'TV-SAM-50',
-  descripcion: 'Televisor Samsung 4K UHD con procesador Crystal, HDR y Smart TV integrado.',
-  categoria: 'Electrónica',
-  marca: 'Samsung',
-  modelo: 'UN50AU7000',
-  costo: 1200000,
-  stock: 15,
-  stockMinimo: 5,
-  estado: 'activo',
-  fechaCreacion: '2024-01-15',
-  precios: [
-    { meses: 1, precio: 1500000 },
-    { meses: 3, precio: 1800000 },
-    { meses: 6, precio: 2200000 }
-  ]
+interface ArticuloDetalle {
+  id: string; nombre: string; codigo: string; descripcion: string;
+  categoria: string; marca: string; modelo: string; costo: number;
+  stock: number; stockMinimo: number; estado: string; fechaCreacion: string;
+  precios: Array<{ meses: number; precio: number }>;
 }
 
 export default function DetalleArticuloPage({ params }: { params: Promise<{ id: string }> }) {
   const router = useRouter()
-  // Unwrap params using React.use()
   const { id } = use(params)
-  const articulo = ARTICULO_MOCK // In real app, fetch by id
+  const [articulo, setArticulo] = useState<ArticuloDetalle | null>(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    const fetchArticulo = async () => {
+      setLoading(true)
+      try {
+        const data: any = await inventarioService.obtenerProductoPorId(id)
+        setArticulo({
+          id: data.id || id,
+          nombre: data.nombre || '',
+          codigo: data.codigo || data.sku || '',
+          descripcion: data.descripcion || '',
+          categoria: data.categoria?.nombre || data.categoria || '',
+          marca: data.marca || '',
+          modelo: data.modelo || '',
+          costo: data.costo || data.precio || 0,
+          stock: data.stock || data.cantidad || 0,
+          stockMinimo: data.stockMinimo || 0,
+          estado: data.estado || 'activo',
+          fechaCreacion: data.creadoEn || '',
+          precios: data.precios || [],
+        })
+      } catch (err) {
+        console.error('Error cargando artículo:', err)
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchArticulo()
+  }, [id])
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    )
+  }
+
+  if (!articulo) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+        <p className="text-red-500">No se pudo cargar el artículo</p>
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen bg-slate-50 relative">

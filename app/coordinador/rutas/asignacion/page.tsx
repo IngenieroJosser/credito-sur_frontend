@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import {
   Users,
   User,
@@ -11,6 +11,7 @@ import {
   ChevronUp
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { rutasService } from '@/services/rutas-service'
 
 interface Cobrador {
   id: string
@@ -29,62 +30,43 @@ interface RutaAsignable {
 }
 
 const AsignacionCobradoresPage = () => {
-  // Estado para saber qué cobrador estamos analizando para reasignarle rutas
-  const [cobradorSeleccionado, setCobradorSeleccionado] = useState<string | null>(
-    null
-  )
+  const [cobradorSeleccionado, setCobradorSeleccionado] = useState<string | null>(null)
   const [expandido, setExpandido] = useState(true)
+  const [cobradores, setCobradores] = useState<Cobrador[]>([])
+  const [rutas, setRutas] = useState<RutaAsignable[]>([])
+  const [loadingData, setLoadingData] = useState(true)
 
-  // --- MOCK DATA: Cobradores ---
-  // Simulamos la lista de cobradores con su carga actual de trabajo.
-  // "capacidadMaxima" nos ayuda a visualizar si alguien está sobrecargado.
-  const cobradores: Cobrador[] = [
-    {
-      id: 'CB-001',
-      nombre: 'Carlos Pérez',
-      rutasAsignadas: 3,
-      clientesTotales: 96,
-      capacidadMaxima: 120
-    },
-    {
-      id: 'CB-002',
-      nombre: 'María Rodríguez',
-      rutasAsignadas: 2,
-      clientesTotales: 68,
-      capacidadMaxima: 110
-    },
-    {
-      id: 'CB-003',
-      nombre: 'Pedro Gómez',
-      rutasAsignadas: 1,
-      clientesTotales: 32,
-      capacidadMaxima: 90
+  useEffect(() => {
+    const loadData = async () => {
+      setLoadingData(true)
+      try {
+        const [cobradoresRes, rutasRes] = await Promise.all([
+          rutasService.obtenerCobradores().catch(() => []),
+          rutasService.obtenerRutas().catch(() => ({ data: [] })),
+        ])
+        setCobradores((cobradoresRes as any[]).map((c: any) => ({
+          id: c.id,
+          nombre: c.nombre || `${c.nombres || ''} ${c.apellidos || ''}`.trim(),
+          rutasAsignadas: c.rutasAsignadas || 0,
+          clientesTotales: c.clientesTotales || 0,
+          capacidadMaxima: c.capacidadMaxima || 120,
+        })))
+        const rutasList = (rutasRes as any)?.data || rutasRes || []
+        setRutas((rutasList as any[]).map((r: any) => ({
+          id: r.id,
+          nombre: r.nombre || '',
+          codigo: r.codigo || '',
+          clientes: r.totalClientes || r.clientes || 0,
+          cobradorActual: r.cobrador ? `${r.cobrador.nombres || ''} ${r.cobrador.apellidos || ''}`.trim() : 'Sin asignar',
+        })))
+      } catch (err) {
+        console.error('Error cargando datos de asignación:', err)
+      } finally {
+        setLoadingData(false)
+      }
     }
-  ]
-
-  const rutas: RutaAsignable[] = [
-    {
-      id: 'RT-001',
-      nombre: 'Ruta Centro',
-      codigo: 'CENTRO-01',
-      clientes: 48,
-      cobradorActual: 'Carlos Pérez'
-    },
-    {
-      id: 'RT-002',
-      nombre: 'Ruta Norte',
-      codigo: 'NORTE-01',
-      clientes: 32,
-      cobradorActual: 'María Rodríguez'
-    },
-    {
-      id: 'RT-003',
-      nombre: 'Ruta Este',
-      codigo: 'ESTE-01',
-      clientes: 24,
-      cobradorActual: 'Sin asignar'
-    }
-  ]
+    loadData()
+  }, [])
 
   const capacidadUsada = (cobrador: Cobrador) =>
     Math.round((cobrador.clientesTotales / cobrador.capacidadMaxima) * 100)

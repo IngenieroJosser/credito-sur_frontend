@@ -35,6 +35,7 @@ export default function CobranzasPage() {
           'SUPERVISOR': '/supervisor',
           'COBRADOR': '/cobranzas',
           'CONTADOR': '/contador/contable',
+          'PUNTO_DE_VENTA': '/punto-de-venta',
         };
         
         // Buscamos tu ruta o te mandamos al login si algo raro pasa

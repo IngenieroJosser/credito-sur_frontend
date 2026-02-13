@@ -63,7 +63,7 @@ interface QuickAccessItem {
 }
 
 const VistaCoordinador = () => {
-  const [timeFilter, setTimeFilter] = useState<TimeFilterPeriod>('month');
+  const [timeFilter, setTimeFilter] = useState<TimeFilterPeriod>('today');
   const [user, setUser] = useState<Usuario | null>(null)
   const [authChecked, setAuthChecked] = useState(false)
   const [dashboardData, setDashboardData] = useState<DashboardData | null>(null)

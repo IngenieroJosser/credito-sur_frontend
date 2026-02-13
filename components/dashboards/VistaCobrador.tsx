@@ -67,6 +67,8 @@ import { useRouter } from 'next/navigation'
 import { RolUsuario } from '@/lib/types/autenticacion-type'
 import { obtenerPerfil } from '@/services/autenticacion-service'
 import { formatCurrency } from '@/lib/utils'
+import { rutasService } from '@/services/rutas-service'
+import { prestamosService } from '@/services/prestamos-service'
 import { ExportButton } from '@/components/ui/ExportButton'
 import NuevoClienteModal from '@/components/clientes/NuevoClienteModal'
 import { VisitaRuta, EstadoVisita, PeriodoRuta, HistorialDia } from '@/lib/types/cobranza'
@@ -153,98 +155,12 @@ const VistaCobrador = () => {
 
   const router = useRouter();
 
-  // Datos base
-  const [visitasBase, setVisitasBase] = useState<VisitaRuta[]>(() => [
-    {
-      id: 'V-001',
-      cliente: 'Carlos Rodríguez',
-      direccion: 'Av. Principal #123',
-      telefono: '3001234567',
-      horaSugerida: '09:30',
-      montoCuota: 125000,
-      saldoTotal: 500000,
-      estado: 'pendiente',
-      proximaVisita: 'Hoy',
-      ordenVisita: 1,
-      prioridad: 'alta',
-      nivelRiesgo: 'moderado',
-      cobradorId: 'CB-001',
-      periodoRuta: 'DIA'
-    },
-    {
-      id: 'V-002',
-      cliente: 'Ana Martínez',
-      direccion: 'Calle 45, Urbanización Norte',
-      telefono: '3109876543',
-      horaSugerida: '10:15',
-      montoCuota: 80000,
-      saldoTotal: 320000,
-      estado: 'en_mora',
-      proximaVisita: 'Hoy',
-      ordenVisita: 2,
-      prioridad: 'alta',
-      nivelRiesgo: 'critico',
-      cobradorId: 'CB-001',
-      periodoRuta: 'DIA'
-    },
-    {
-      id: 'V-003',
-      cliente: 'Luis Fernández',
-      direccion: 'Conjunto Residencial Vista Azul',
-      telefono: '3205551234',
-      horaSugerida: '11:00',
-      montoCuota: 95750,
-      saldoTotal: 382000,
-      estado: 'pendiente',
-      proximaVisita: 'Hoy',
-      ordenVisita: 3,
-      prioridad: 'media',
-      nivelRiesgo: 'leve',
-      cobradorId: 'CB-001',
-      periodoRuta: 'SEMANA'
-    },
-    {
-      id: 'V-004',
-      cliente: 'María González',
-      direccion: 'Diagonal 56 #78-90',
-      telefono: '3157778888',
-      horaSugerida: '13:45',
-      montoCuota: 110000,
-      saldoTotal: 440000,
-      estado: 'pagado',
-      proximaVisita: '15/01',
-      ordenVisita: 4,
-      prioridad: 'baja',
-      nivelRiesgo: 'bajo',
-      cobradorId: 'CB-001',
-      periodoRuta: 'SEMANA'
-    },
-    {
-      id: 'V-005',
-      cliente: 'José Pérez',
-      direccion: 'Avenida 7 #23-45',
-      telefono: '3004445555',
-      horaSugerida: '14:30',
-      montoCuota: 95000,
-      saldoTotal: 380000,
-      estado: 'ausente',
-      proximaVisita: 'Mañana',
-      ordenVisita: 5,
-      prioridad: 'media',
-      nivelRiesgo: 'moderado',
-      cobradorId: 'CB-001',
-      periodoRuta: 'MES'
-    }
-  ])
+  // Datos base - se cargan desde el backend
+  const [visitasBase, setVisitasBase] = useState<VisitaRuta[]>([])
 
-  const [visitasOrden, setVisitasOrden] = useState<string[]>(() => visitasBase.map(v => v.id))
+  const [visitasOrden, setVisitasOrden] = useState<string[]>([])
 
-  const operacionesCaja: OperacionCaja[] = useMemo(() => [
-    { id: 'OP-001', tipo: 'pago', descripcion: 'Pago Carlos Rodríguez', monto: 125000, hora: '09:42', estado: 'completado', cobradorId: 'CB-001' },
-    { id: 'OP-002', tipo: 'gasto', descripcion: 'Combustible', monto: 35000, hora: '08:15', estado: 'completado', cobradorId: 'CB-001' },
-    { id: 'OP-003', tipo: 'base', descripcion: 'Base solicitada', monto: 50000, hora: '10:30', estado: 'pendiente', cobradorId: 'CB-001' },
-    { id: 'OP-004', tipo: 'pago', descripcion: 'Pago María González', monto: 110000, hora: '13:50', estado: 'completado', cobradorId: 'CB-001' },
-  ], [])
+  const [operacionesCaja, setOperacionesCaja] = useState<OperacionCaja[]>([])
 
   const historialRutas = useMemo(() => ({
     '2024-01-05': {
@@ -326,10 +242,58 @@ const VistaCobrador = () => {
     cargarUsuario();
   }, [router]);
 
+  // Cargar visitas reales desde el backend cuando el usuario está disponible
+  useEffect(() => {
+    if (!userSession?.id) return;
+
+    const cargarVisitas = async () => {
+      try {
+        // Obtener rutas asignadas al cobrador
+        const rutas = await rutasService.obtenerRutas({ cobradorId: userSession.id, limit: 10 });
+        const ruta = rutas[0]; // Ruta principal del cobrador
+        if (!ruta || !ruta.asignaciones) {
+          setVisitasBase([]);
+          setVisitasOrden([]);
+          return;
+        }
+
+        // Construir visitas desde las asignaciones de la ruta
+        const visitas: VisitaRuta[] = ruta.asignaciones.map((asig: any, idx: number) => {
+          const cliente = asig.cliente || {};
+          const prestamo = asig.prestamo || {};
+          return {
+            id: asig.id || `V-${idx}`,
+            cliente: `${cliente.nombres || ''} ${cliente.apellidos || ''}`.trim() || 'Sin nombre',
+            direccion: cliente.direccion || 'Sin dirección',
+            telefono: cliente.telefono || '',
+            horaSugerida: '',
+            montoCuota: prestamo.valorCuota || prestamo.montoPendiente || 0,
+            saldoTotal: prestamo.saldoPendiente || prestamo.montoTotal || 0,
+            estado: (prestamo.diasMora > 0 ? 'en_mora' : prestamo.estado === 'PAGADO' ? 'pagado' : 'pendiente') as EstadoVisita,
+            proximaVisita: 'Hoy',
+            ordenVisita: idx + 1,
+            prioridad: prestamo.diasMora > 15 ? 'alta' : prestamo.diasMora > 0 ? 'media' : 'baja',
+            nivelRiesgo: prestamo.riesgo === 'ROJO' ? 'critico' : prestamo.riesgo === 'AMARILLO' ? 'moderado' : 'bajo',
+            cobradorId: userSession.id,
+            periodoRuta: (asig.frecuencia || 'DIA') as PeriodoRuta,
+          };
+        });
+
+        setVisitasBase(visitas);
+        setVisitasOrden(visitas.map(v => v.id));
+      } catch (err) {
+        console.error('Error cargando visitas de ruta:', err);
+        setVisitasBase([]);
+        setVisitasOrden([]);
+      }
+    };
+
+    cargarVisitas();
+  }, [userSession?.id]);
 
   // Filtrar y ordenar visitas
   const visitasCobrador = useMemo(() => {
-    const filtradas = visitasBase.filter(v => v.cobradorId === 'CB-001') // Temporal
+    const filtradas = visitasBase.filter(v => !userSession?.id || v.cobradorId === userSession.id)
     
     // Aplicar búsqueda
     const buscadas = filtradas.filter(v => 

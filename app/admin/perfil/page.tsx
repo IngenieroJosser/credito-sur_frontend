@@ -1,97 +1,165 @@
 'use client'
 
-import { User, Shield, Lock, Phone, Calendar, Clock, FileText, CheckCircle2, X, Eye, EyeOff, ChevronLeft } from 'lucide-react'
+import { User, Lock, Phone, Calendar, Clock, FileText, CheckCircle2, X, Eye, EyeOff, ChevronLeft, Loader2, AlertCircle } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
+import { usuariosService, type Usuario } from '@/services/usuarios-service'
+import { obtenerPerfil } from '@/services/autenticacion-service'
+import { formatRoleName, getRoleColor, getRoleIcon } from '@/components/ui/UserDropdownMenu'
+
+const VOLVER_RUTAS: Record<string, string> = {
+  'SUPER_ADMINISTRADOR': '/admin',
+  'ADMIN': '/admin',
+  'COORDINADOR': '/coordinador',
+  'SUPERVISOR': '/supervisor',
+  'COBRADOR': '/cobranzas',
+  'CONTADOR': '/contable',
+  'PUNTO_DE_VENTA': '/punto-de-venta',
+}
 
 const PerfilUsuarioPage = () => {
   const router = useRouter()
-  // Estado para controlar que el componente ya está en el cliente (evita errores de hidratación)
   const [mounted, setMounted] = useState(false)
-  
-  // Control del modal de cambio de contraseña
   const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false)
-  
-  // Ruta inteligente para el botón "Volver" según el rol
-  const [volverRuta, setVolverRuta] = useState('/admin')
-  
-  // Estados para el formulario de contraseña
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [backendUser, setBackendUser] = useState<Usuario | null>(null)
+  const [isSavingPassword, setIsSavingPassword] = useState(false)
+  const [passwordError, setPasswordError] = useState<string | null>(null)
+  const [passwordSuccess, setPasswordSuccess] = useState(false)
+
   const [passwordForm, setPasswordForm] = useState({
     currentPassword: '',
     newPassword: '',
     confirmPassword: ''
   })
-  
-  // Control de visibilidad de contraseñas (el ojito)
+
   const [showPassword, setShowPassword] = useState({
     current: false,
     new: false,
     confirm: false
   })
 
-  // Datos simulados iniciales que se hidratarán con info real del localStorage
-  const [userData, setUserData] = useState({
-    nombres: 'Personal',
-    apellidos: 'Sistema',
-    correo: 'usuario@sistema.local',
-    telefono: '+57 300 000 0000',
-    rol: 'USUARIO',
-    estado: 'ACTIVO',
-    fechaCreacion: '2024-01-01',
-    ultimoIngreso: 'Ahora',
-    intentosFallidos: 0,
-    clientesRegistrados: 0,
-    prestamosAprobados: 0,
-    efectividadCobro: '0%'
-  })
-
-  // Efecto para marcar que ya estamos en el cliente
   useEffect(() => {
     const handle = requestAnimationFrame(() => setMounted(true))
     return () => cancelAnimationFrame(handle)
   }, [])
 
-  // Carga de datos del usuario desde el almacenamiento local
   useEffect(() => {
-    const loadUserData = () => {
+    const loadUserData = async () => {
       try {
-        const userStr = localStorage.getItem('user')
-        if (!userStr) return
-        const user = JSON.parse(userStr)
-        
-        // Ajustamos la ruta de retorno para no confundir a los cobradores
-        setVolverRuta(user.rol === 'COBRADOR' ? '/cobranzas' : '/admin')
-        
-        // Actualizamos la UI con los datos reales del usuario
-        setUserData({
-          nombres: user.nombres || 'Personal',
-          apellidos: user.apellidos || 'Sistema',
-          correo: user.correo || 'usuario@sistema.local',
-          telefono: user.telefono || '+57 300 000 0000',
-          rol: user.rol || 'USUARIO',
-          estado: user.estado || 'ACTIVO',
-          fechaCreacion: user.fechaCreacion ? new Date(user.fechaCreacion).toLocaleDateString() : '2024-01-01',
-          ultimoIngreso: 'Hoy, 08:30 AM',
+        setIsLoading(true)
+
+        // 1. Intentar obtener perfil desde /auth/perfil (siempre disponible para el usuario autenticado)
+        const perfil = await obtenerPerfil()
+
+        // 2. Intentar obtener datos extendidos desde /usuarios/:id (tiene creadoEn, ultimoIngreso, etc.)
+        let fullUser: Usuario | null = null
+        if (perfil.id) {
+          try {
+            fullUser = await usuariosService.obtenerPorId(perfil.id)
+          } catch {
+            // Si falla (permisos, etc.), usamos solo los datos del perfil
+          }
+        }
+
+        // 3. Construir el usuario final: datos extendidos si están disponibles, sino datos del perfil
+        setBackendUser(fullUser || {
+          id: perfil.id,
+          correo: perfil.correo || '',
+          nombres: perfil.nombres,
+          apellidos: perfil.apellidos,
+          telefono: perfil.telefono || null,
+          rol: perfil.rol as any,
+          estado: (perfil.estado || 'ACTIVO') as any,
+          ultimoIngreso: null,
           intentosFallidos: 0,
-          clientesRegistrados: user.rol === 'COBRADOR' ? 15 : 0,
-          prestamosAprobados: user.rol === 'COBRADOR' ? 42 : 0,
-          efectividadCobro: '98%'
+          debeCambiarContrasena: false,
+          creadoEn: '',
+          actualizadoEn: '',
+          eliminadoEn: null,
+          permisos: perfil.permisos,
         })
+        setError(null)
       } catch (err) {
-        console.error('Ups, no pudimos cargar tu perfil:', err)
+        console.error('Error cargando perfil:', err)
+        // Fallback: intentar desde localStorage
+        try {
+          const userStr = localStorage.getItem('user')
+          if (userStr) {
+            const local = JSON.parse(userStr)
+            setBackendUser({
+              id: local.id || '',
+              correo: local.correo || '',
+              nombres: local.nombres || '',
+              apellidos: local.apellidos || '',
+              telefono: local.telefono || null,
+              rol: local.rol || 'USUARIO',
+              estado: local.estado || 'ACTIVO',
+              ultimoIngreso: null,
+              intentosFallidos: 0,
+              debeCambiarContrasena: false,
+              creadoEn: local.creadoEn || '',
+              actualizadoEn: '',
+              eliminadoEn: null,
+            } as Usuario)
+            setError(null)
+            return
+          }
+        } catch { /* ignore */ }
+        setError('No se pudo cargar la información del perfil.')
+      } finally {
+        setIsLoading(false)
       }
     }
 
     loadUserData()
   }, [])
 
-  // Abre el modal y limpia el formulario por seguridad
   const handleOpenPasswordModal = () => {
     setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' })
     setShowPassword({ current: false, new: false, confirm: false })
+    setPasswordError(null)
+    setPasswordSuccess(false)
     setIsPasswordModalOpen(true)
   }
+
+  const handleChangePassword = async () => {
+    if (!backendUser) return
+    if (!passwordForm.currentPassword || !passwordForm.newPassword) {
+      setPasswordError('Todos los campos son obligatorios.')
+      return
+    }
+    if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+      setPasswordError('Las contraseñas no coinciden.')
+      return
+    }
+    if (passwordForm.newPassword.length < 6) {
+      setPasswordError('La contraseña debe tener al menos 6 caracteres.')
+      return
+    }
+
+    try {
+      setIsSavingPassword(true)
+      setPasswordError(null)
+      await usuariosService.cambiarContrasena(backendUser.id, {
+        contrasenaActual: passwordForm.currentPassword,
+        contrasenaNueva: passwordForm.newPassword,
+      })
+      setPasswordSuccess(true)
+      setTimeout(() => setIsPasswordModalOpen(false), 1500)
+    } catch (err: any) {
+      setPasswordError(err?.message || 'Error al cambiar la contraseña. Verifica tu contraseña actual.')
+    } finally {
+      setIsSavingPassword(false)
+    }
+  }
+
+  const volverRuta = backendUser ? (VOLVER_RUTAS[backendUser.rol] || '/admin') : '/admin'
+  const roleColor = backendUser ? getRoleColor(backendUser.rol) : '#2563eb'
+  const roleIcon = backendUser ? getRoleIcon(backendUser.rol) : <User className="h-4 w-4" />
+  const roleName = backendUser ? formatRoleName(backendUser.rol) : 'Usuario'
 
   return (
     <div className="min-h-screen bg-slate-50 relative">
@@ -102,166 +170,186 @@ const PerfilUsuarioPage = () => {
       </div>
 
       <div className="relative z-10 w-full px-6 md:px-8 py-8 space-y-8">
-        <header className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between animate-in fade-in slide-in-from-bottom-4 duration-700">
-          <div>
-            <button
-              type="button"
-              onClick={() => router.push(volverRuta)}
-              className="mb-3 inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-slate-600 shadow-sm transition-colors hover:bg-slate-50 hover:text-slate-900"
-            >
-              <ChevronLeft className="h-4 w-4" />
-              Volver
+        {isLoading ? (
+          <div className="flex flex-col items-center justify-center py-32">
+            <Loader2 className="h-10 w-10 text-blue-600 animate-spin mb-4" />
+            <p className="text-slate-500 font-medium">Cargando perfil...</p>
+          </div>
+        ) : error ? (
+          <div className="flex flex-col items-center justify-center py-32">
+            <AlertCircle className="h-12 w-12 text-rose-500 mb-4" />
+            <h3 className="text-lg font-bold text-slate-900 mb-2">{error}</h3>
+            <button onClick={() => window.location.reload()} className="px-6 py-2.5 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 transition-colors">
+              Reintentar
             </button>
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-slate-100 text-xs text-slate-600 tracking-wide font-bold border border-slate-200 mb-2">
-              <User className="h-3.5 w-3.5" />
-              <span>Mi Perfil</span>
-            </div>
-            <h1 className="text-3xl font-bold tracking-tight">
-              <span className="text-blue-600">Información personal </span><span className="text-orange-500">y de acceso</span>
-            </h1>
           </div>
-          <div className="flex items-center gap-3">
-             <span className={`px-3 py-1 rounded-full text-xs font-bold border ${userData.estado === 'ACTIVO' ? 'bg-emerald-50 text-emerald-700 border-emerald-100' : 'bg-slate-100 text-slate-600 border-slate-200'}`}>
-                {userData.estado}
-             </span>
-          </div>
-        </header>
-
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Columna Izquierda: Tarjeta Principal */}
-          <div className="lg:col-span-1 space-y-6">
-            <div className="rounded-2xl border border-slate-200 bg-white/80 backdrop-blur-sm p-8 shadow-sm flex flex-col items-center text-center">
-              <div className="relative mb-6 group">
-                <div className="h-32 w-32 rounded-full bg-slate-100 flex items-center justify-center text-slate-300 border-4 border-white shadow-lg overflow-hidden">
-                   <User className="h-16 w-16" />
-                </div>
-                <button className="absolute bottom-0 right-0 p-2 bg-orange-500 text-white rounded-full hover:bg-orange-600 transition-colors shadow-lg">
-                  <Shield className="h-4 w-4" />
+        ) : backendUser && (
+          <>
+            <header className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between animate-in fade-in slide-in-from-bottom-4 duration-700">
+              <div>
+                <button
+                  type="button"
+                  onClick={() => router.push(volverRuta)}
+                  className="mb-3 inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-slate-600 shadow-sm transition-colors hover:bg-slate-50 hover:text-slate-900"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                  Volver
                 </button>
-              </div>
-              
-              <h2 className="text-xl font-bold text-slate-900">{userData.nombres} {userData.apellidos}</h2>
-              <p className="text-sm text-slate-500 font-medium mb-4">{userData.correo}</p>
-              
-              <div className="w-full pt-6 border-t border-slate-100 space-y-4">
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-slate-500 font-medium flex items-center gap-2">
-                    <Shield className="h-4 w-4" /> Rol
-                  </span>
-                  <span className="font-bold text-slate-900 bg-slate-100 px-2 py-0.5 rounded text-xs">
-                    {(userData.rol || 'USUARIO').replace('_', ' ')}
-                  </span>
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-slate-100 text-xs text-slate-600 tracking-wide font-bold border border-slate-200 mb-2">
+                  <User className="h-3.5 w-3.5" />
+                  <span>Mi Perfil</span>
                 </div>
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-slate-500 font-medium flex items-center gap-2">
-                    <Calendar className="h-4 w-4" /> Miembro desde
-                  </span>
-                  <span className="font-bold text-slate-900">{userData.fechaCreacion}</span>
-                </div>
+                <h1 className="text-3xl font-bold tracking-tight">
+                  <span className="text-blue-600">Información personal </span><span className="text-orange-500">y de acceso</span>
+                </h1>
               </div>
-            </div>
-
-            {/* Resumen de Actividad */}
-            <div className="rounded-2xl border border-slate-200 bg-white/80 backdrop-blur-sm p-6 shadow-sm">
-              <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider mb-4 flex items-center gap-2">
-                <Eye className="h-4 w-4" />
-                {userData.rol === 'COBRADOR' ? 'Impacto en Ruta' : 'Impacto Operativo'}
-              </h3>
-              <div className="grid grid-cols-2 gap-4">
-                 <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
-                    <div className="text-2xl font-bold text-slate-900">{userData.rol === 'COBRADOR' ? userData.clientesRegistrados : '-'}</div>
-                    <div className="text-[10px] text-slate-500 font-bold uppercase mt-1">{userData.rol === 'COBRADOR' ? 'Clientes' : 'Gestiones'}</div>
-                 </div>
-                 <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
-                    <div className="text-2xl font-bold text-slate-900">{userData.rol === 'COBRADOR' ? userData.prestamosAprobados : '-'}</div>
-                    <div className="text-[10px] text-slate-500 font-bold uppercase mt-1">{userData.rol === 'COBRADOR' ? 'Préstamos' : 'Revisiones'}</div>
-                 </div>
+              <div className="flex items-center gap-3">
+                 <span className={`px-3 py-1 rounded-full text-xs font-bold border ${backendUser.estado === 'ACTIVO' ? 'bg-emerald-50 text-emerald-700 border-emerald-100' : 'bg-slate-100 text-slate-600 border-slate-200'}`}>
+                    {backendUser.estado}
+                 </span>
               </div>
-            </div>
-          </div>
+            </header>
 
-          {/* Columna Derecha: Detalles y Configuración */}
-          <div className="lg:col-span-2 space-y-6">
-            
-            {/* Información de Contacto */}
-            <section className="rounded-2xl border border-slate-200 bg-white/80 backdrop-blur-sm p-8 shadow-sm">
-              <h3 className="text-lg font-bold text-slate-900 mb-6 flex items-center gap-2">
-                <FileText className="h-5 w-5 text-slate-400" />
-                Detalles de Contacto
-              </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">
-                    Teléfono Móvil
-                  </label>
-                  <div className="flex items-center gap-3 p-3 bg-slate-50 rounded-xl border border-slate-100">
-                    <Phone className="h-4 w-4 text-slate-400" />
-                    <span className="text-sm font-bold text-slate-900">{userData.telefono}</span>
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+              {/* Columna Izquierda: Tarjeta Principal */}
+              <div className="lg:col-span-1 space-y-6">
+                <div className="rounded-2xl border border-slate-200 bg-white/80 backdrop-blur-sm p-8 shadow-sm flex flex-col items-center text-center">
+                  <div className="relative mb-6 group">
+                    <div 
+                      className="h-32 w-32 rounded-full flex items-center justify-center text-white text-4xl font-bold border-4 border-white shadow-lg"
+                      style={{ background: `linear-gradient(135deg, ${roleColor}, ${roleColor}CC)` }}
+                    >
+                      {backendUser.nombres?.charAt(0)}{backendUser.apellidos?.charAt(0)}
+                    </div>
+                    <div 
+                      className="absolute bottom-0 right-0 p-2 text-white rounded-full shadow-lg"
+                      style={{ backgroundColor: roleColor }}
+                    >
+                      {roleIcon}
+                    </div>
                   </div>
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">
-                    Correo Electrónico
-                  </label>
-                  <div className="flex items-center gap-3 p-3 bg-slate-50 rounded-xl border border-slate-100">
-                    <div className="h-4 w-4 rounded-full bg-slate-200 flex items-center justify-center text-[10px] font-bold text-slate-600">@</div>
-                    <span className="text-sm font-bold text-slate-900">{userData.correo}</span>
+                  
+                  <h2 className="text-xl font-bold text-slate-900">{backendUser.nombres} {backendUser.apellidos}</h2>
+                  <p className="text-sm text-slate-500 font-medium mb-4">{backendUser.correo}</p>
+                  
+                  <div className="w-full pt-6 border-t border-slate-100 space-y-4">
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-slate-500 font-medium flex items-center gap-2">
+                        <span style={{ color: roleColor }}>{roleIcon}</span> Rol
+                      </span>
+                      <span 
+                        className="font-bold text-white px-3 py-0.5 rounded-full text-xs"
+                        style={{ backgroundColor: roleColor }}
+                      >
+                        {roleName}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-slate-500 font-medium flex items-center gap-2">
+                        <Calendar className="h-4 w-4" /> Miembro desde
+                      </span>
+                      <span className="font-bold text-slate-900">
+                        {backendUser.creadoEn && !isNaN(new Date(backendUser.creadoEn).getTime())
+                          ? new Date(backendUser.creadoEn).toLocaleDateString('es-ES', { year: 'numeric', month: 'long', day: 'numeric' })
+                          : 'No disponible'}
+                      </span>
+                    </div>
                   </div>
                 </div>
               </div>
-            </section>
 
-            {/* Seguridad y Acceso */}
-            <section className="rounded-2xl border border-slate-200 bg-white/80 backdrop-blur-sm p-8 shadow-sm">
-              <div className="flex items-center justify-between mb-6">
-                <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
-                  <Lock className="h-5 w-5 text-slate-400" />
-                  Seguridad y Acceso
-                </h3>
-                <span className="text-xs font-medium text-slate-500 flex items-center gap-1">
-                  <Clock className="h-3 w-3" />
-                  Último ingreso: {userData.ultimoIngreso}
-                </span>
-              </div>
-              
-              <div className="space-y-4">
-                <div className="flex items-center justify-between p-4 rounded-xl border border-slate-100 bg-slate-50/50 hover:bg-slate-50 transition-colors">
-                  <div className="flex items-center gap-4">
-                    <div className="p-2 bg-white rounded-lg border border-slate-100 shadow-sm">
-                      <Lock className="h-5 w-5 text-slate-600" />
+              {/* Columna Derecha: Detalles y Configuración */}
+              <div className="lg:col-span-2 space-y-6">
+                
+                {/* Información de Contacto */}
+                <section className="rounded-2xl border border-slate-200 bg-white/80 backdrop-blur-sm p-8 shadow-sm">
+                  <h3 className="text-lg font-bold text-slate-900 mb-6 flex items-center gap-2">
+                    <FileText className="h-5 w-5 text-slate-400" />
+                    Detalles de Contacto
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                      <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">
+                        Teléfono Móvil
+                      </label>
+                      <div className="flex items-center gap-3 p-3 bg-slate-50 rounded-xl border border-slate-100">
+                        <Phone className="h-4 w-4 text-slate-400" />
+                        <span className="text-sm font-bold text-slate-900">{backendUser.telefono || 'No registrado'}</span>
+                      </div>
                     </div>
                     <div>
-                      <h4 className="text-sm font-bold text-slate-900">Contraseña</h4>
-                      <p className="text-xs text-slate-500">Se recomienda cambiarla cada 90 días</p>
+                      <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">
+                        Correo Electrónico
+                      </label>
+                      <div className="flex items-center gap-3 p-3 bg-slate-50 rounded-xl border border-slate-100">
+                        <div className="h-4 w-4 rounded-full bg-slate-200 flex items-center justify-center text-[10px] font-bold text-slate-600">@</div>
+                        <span className="text-sm font-bold text-slate-900">{backendUser.correo}</span>
+                      </div>
                     </div>
                   </div>
-                  <button 
-                    onClick={handleOpenPasswordModal}
-                    className="text-sm font-bold text-slate-900 hover:text-blue-600 transition-colors"
-                  >
-                    Actualizar
-                  </button>
-                </div>
+                </section>
 
-                <div className="flex items-center justify-between p-4 rounded-xl border border-slate-100 bg-slate-50/50 hover:bg-slate-50 transition-colors">
-                  <div className="flex items-center gap-4">
-                    <div className="p-2 bg-white rounded-lg border border-slate-100 shadow-sm">
-                      <Shield className="h-5 w-5 text-emerald-600" />
+                {/* Seguridad y Acceso */}
+                <section className="rounded-2xl border border-slate-200 bg-white/80 backdrop-blur-sm p-8 shadow-sm">
+                  <div className="flex items-center justify-between mb-6">
+                    <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                      <Lock className="h-5 w-5 text-slate-400" />
+                      Seguridad y Acceso
+                    </h3>
+                    {backendUser.ultimoIngreso && (
+                      <span className="text-xs font-medium text-slate-500 flex items-center gap-1">
+                        <Clock className="h-3 w-3" />
+                        Último ingreso: {new Date(backendUser.ultimoIngreso).toLocaleString('es-ES')}
+                      </span>
+                    )}
+                  </div>
+                  
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between p-4 rounded-xl border border-slate-100 bg-slate-50/50 hover:bg-slate-50 transition-colors">
+                      <div className="flex items-center gap-4">
+                        <div className="p-2 bg-white rounded-lg border border-slate-100 shadow-sm">
+                          <Lock className="h-5 w-5 text-slate-600" />
+                        </div>
+                        <div>
+                          <h4 className="text-sm font-bold text-slate-900">Contraseña</h4>
+                          <p className="text-xs text-slate-500">Se recomienda cambiarla cada 90 días</p>
+                        </div>
+                      </div>
+                      <button 
+                        onClick={handleOpenPasswordModal}
+                        className="text-sm font-bold text-slate-900 hover:text-blue-600 transition-colors"
+                      >
+                        Actualizar
+                      </button>
                     </div>
-                    <div>
-                      <h4 className="text-sm font-bold text-slate-900">Estado de Cuenta</h4>
-                      <p className="text-xs text-slate-500">Tu cuenta está activa y sin restricciones</p>
+
+                    <div className="flex items-center justify-between p-4 rounded-xl border border-slate-100 bg-slate-50/50 hover:bg-slate-50 transition-colors">
+                      <div className="flex items-center gap-4">
+                        <div className="p-2 bg-white rounded-lg border border-slate-100 shadow-sm">
+                          <CheckCircle2 className="h-5 w-5 text-emerald-600" />
+                        </div>
+                        <div>
+                          <h4 className="text-sm font-bold text-slate-900">Estado de Cuenta</h4>
+                          <p className="text-xs text-slate-500">
+                            {backendUser.estado === 'ACTIVO' ? 'Tu cuenta está activa y sin restricciones' : 'Tu cuenta tiene restricciones'}
+                          </p>
+                        </div>
+                      </div>
+                      <div className={`flex items-center gap-2 text-xs font-bold px-3 py-1.5 rounded-lg border ${
+                        backendUser.estado === 'ACTIVO' 
+                          ? 'text-emerald-700 bg-emerald-50 border-emerald-100' 
+                          : 'text-rose-700 bg-rose-50 border-rose-100'
+                      }`}>
+                        <CheckCircle2 className="h-3.5 w-3.5" />
+                        {backendUser.estado === 'ACTIVO' ? 'Protegida' : backendUser.estado}
+                      </div>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2 text-xs font-bold text-emerald-700 bg-emerald-50 px-3 py-1.5 rounded-lg border border-emerald-100">
-                    <CheckCircle2 className="h-3.5 w-3.5" />
-                    Protegida
-                  </div>
-                </div>
+                </section>
               </div>
-            </section>
-          </div>
-        </div>
+            </div>
+          </>
+        )}
       </div>
 
       {/* Password Update Modal */}
@@ -339,17 +427,31 @@ const PerfilUsuarioPage = () => {
                 </div>
               </div>
 
+              {passwordError && (
+                <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-sm text-rose-700 font-medium">
+                  {passwordError}
+                </div>
+              )}
+              {passwordSuccess && (
+                <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-sm text-emerald-700 font-medium flex items-center gap-2">
+                  <CheckCircle2 className="h-4 w-4" /> Contraseña actualizada correctamente
+                </div>
+              )}
+
               <div className="pt-4 flex gap-3">
                 <button
                   onClick={() => setIsPasswordModalOpen(false)}
-                  className="flex-1 px-4 py-2.5 border border-slate-200 rounded-xl text-slate-600 font-bold text-sm hover:bg-slate-50 transition-all"
+                  disabled={isSavingPassword}
+                  className="flex-1 px-4 py-2.5 border border-slate-200 rounded-xl text-slate-600 font-bold text-sm hover:bg-slate-50 transition-all disabled:opacity-50"
                 >
                   Cancelar
                 </button>
                 <button
-                  className="flex-1 px-4 py-2.5 bg-slate-900 text-white rounded-xl font-bold text-sm hover:bg-slate-800 transition-all shadow-lg shadow-slate-900/20"
+                  onClick={handleChangePassword}
+                  disabled={isSavingPassword || passwordSuccess}
+                  className="flex-1 px-4 py-2.5 bg-slate-900 text-white rounded-xl font-bold text-sm hover:bg-slate-800 transition-all shadow-lg shadow-slate-900/20 disabled:opacity-50"
                 >
-                  Guardar Cambios
+                  {isSavingPassword ? 'Guardando...' : 'Guardar Cambios'}
                 </button>
               </div>
             </div>

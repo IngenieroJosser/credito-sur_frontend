@@ -46,18 +46,20 @@ export async function loginAction(data: LoginData): Promise<LoginResult> {
       });
     }
 
-    // Definimos a dónde debe ir cada tipo de usuario
-    const roleRedirects: Record<string, string> = {
+    // Usamos rutaDefault del backend (dinámico). Fallback hardcodeado por compatibilidad.
+    const fallbackRedirects: Record<string, string> = {
       'COBRADOR': '/cobranzas',
       'COORDINADOR': '/coordinador',
       'SUPER_ADMINISTRADOR': '/admin',
       'ADMINISTRADOR': '/admin',
       'SUPERVISOR': '/supervisor',
-      'CONTADOR': '/contador/contable'
+      'CONTADOR': '/contable',
+      'PUNTO_DE_VENTA': '/punto-de-venta'
     };
 
-    // Si el rol no está en la lista, lo mandamos al panel general por defecto
-    const redirectPath = (response.usuario?.rol && roleRedirects[response.usuario.rol]) || '/admin';
+    const redirectPath = response.usuario?.rutaDefault 
+      || (response.usuario?.rol && fallbackRedirects[response.usuario.rol]) 
+      || '/admin';
 
     // Todo salió bien, devolvemos los datos al cliente para que actualice su estado
     return {

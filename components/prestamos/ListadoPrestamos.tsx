@@ -574,7 +574,7 @@ const ListadoPrestamosElegante = () => {
         onConfirm={(data) => {
           console.log('Crédito creado:', data);
           setShowCrearCreditoModal(false);
-          handleRefresh(); // Recargar lista después de crear
+          handleRefresh();
         }}
       />
     </div>

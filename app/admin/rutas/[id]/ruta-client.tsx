@@ -471,14 +471,14 @@ const RutaClient = ({ initialRuta }: RutaClientProps) => {
                 if (initialRuta?.id && initialRuta?.cobradorId) {
                   await routesService.assignClient(initialRuta.id, data.clienteCreditoId, initialRuta.cobradorId)
                 }
-                showNotification('success', 'Crédito creado y cliente asignado a la ruta', 'Éxito')
+                showNotification('success', 'Cr\u00e9dito creado y cliente asignado a la ruta', '\u00c9xito')
                 setShowCrearCreditoModal(false)
               } else {
-                showNotification('warning', 'Selecciona “Préstamo” y un cliente válido', 'Aviso')
+                showNotification('warning', 'Selecciona "Pr\u00e9stamo" y un cliente v\u00e1lido', 'Aviso')
               }
             } catch (e) {
-              console.error('Error creando crédito/asignando ruta', e)
-              showNotification('error', 'Ocurrió un error al crear el crédito', 'Error')
+              console.error('Error creando cr\u00e9dito/asignando ruta', e)
+              showNotification('error', 'Ocurri\u00f3 un error al crear el cr\u00e9dito', 'Error')
             }
           }}
         />

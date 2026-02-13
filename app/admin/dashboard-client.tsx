@@ -77,7 +77,7 @@ export function DashboardClient({ data }: DashboardClientProps) {
   const searchParams = useSearchParams();
   
   // Detectamos qué filtro de tiempo está activo desde la URL (ej: ?period=week)
-  const activePeriod = (searchParams.get('period') as TimeFilterPeriod) || 'month';
+  const activePeriod = (searchParams.get('period') as TimeFilterPeriod) || 'today';
 
   // Cambiamos la URL sin recargar toda la página cuando el usuario elige otro periodo
   const handlePeriodChange = (period: TimeFilterPeriod) => {

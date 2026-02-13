@@ -2,15 +2,15 @@
 
 export { usuariosService } from './usuarios-service';
 export type { Usuario, CreateUsuarioDto, UpdateUsuarioDto, ChangePasswordDto } from './usuarios-service';
-export { RolUsuario, EstadoUsuario } from './usuarios-service';
+export type { RolUsuario, EstadoUsuario } from './usuarios-service';
 
 export { clientesService } from './clientes-service';
 export type { Cliente, CrearClienteDto, ActualizarClienteDto, AgregarListaNegraDto, AsignarRutaDto, FiltrosClientes } from './clientes-service';
-export { NivelRiesgo, EstadoAprobacion } from './clientes-service';
+export type { NivelRiesgo, EstadoAprobacion } from './clientes-service';
 
 export { prestamosService } from './prestamos-service';
 export type { Cuota, CrearPrestamoDto, FiltrosPrestamos, EstadisticasPrestamos, RespuestaPrestamos } from './prestamos-service';
-export { EstadoPrestamo, FrecuenciaPago, EstadoCuota } from './prestamos-service';
+export type { EstadoPrestamo, FrecuenciaPago, EstadoCuota } from './prestamos-service';
 
 export { rutasService } from './rutas-service';
 export type { Ruta, CrearRutaDto, ActualizarRutaDto, FiltrosRutas, EstadisticasRutas, Cobrador } from './rutas-service';
@@ -20,7 +20,7 @@ export type { Producto, CrearProductoDto, ActualizarProductoDto, EstadisticasInv
 
 export { pagosService } from './pagos-service';
 export type { Pago, CrearPagoDto, ActualizarPagoDto } from './pagos-service';
-export { MetodoPago } from './pagos-service';
+export type { MetodoPago } from './pagos-service';
 
 export { gastosService } from './gastos-service';
 export type { Gasto, CrearGastoDto, ActualizarGastoDto } from './gastos-service';

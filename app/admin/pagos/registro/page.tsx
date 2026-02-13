@@ -32,6 +32,7 @@ import {
   Smartphone
 } from 'lucide-react'
 import { formatCOPInputValue, formatCurrency, parseCOPInputToNumber, cn } from '@/lib/utils'
+import { pagosService } from '@/services/pagos-service'
 
 // Enums alineados con Prisma (asumiendo convención UPPERCASE)
 type MetodoPago = 'EFECTIVO' | 'TRANSFERENCIA' | 'PAGO_MOVIL' | 'OTRO'
@@ -103,7 +104,7 @@ const RegistroPagoPage = () => {
   }
 
   // --- MANEJO DEL ENVÍO (SUBMIT) ---
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
     // Validaciones básicas antes de enviar
@@ -116,14 +117,21 @@ const RegistroPagoPage = () => {
     setEstadoEnvio('enviando')
     setMensajeEstado('')
 
-    // Simulamos una llamada al backend con un pequeño delay para feedback visual
-    setTimeout(() => {
+    try {
+      await pagosService.registrarPago({
+        prestamoId: prestamo.id,
+        monto: parseCOPInputToNumber(monto),
+        metodoPago: metodoPago,
+        observaciones: comentarios,
+        esAbonoParcial: esAbonoParcial,
+      } as any)
       setEstadoEnvio('exito')
-      setMensajeEstado('¡Listo! El pago ha sido registrado y está en cola de sincronización.')
-      // Aquí podríamos limpiar el formulario si quisiéramos registrar otro pago seguido
-      // setMonto('')
-      // setComentarios('')
-    }, 800)
+      setMensajeEstado('¡Listo! El pago ha sido registrado correctamente.')
+    } catch (err) {
+      console.error('Error registrando pago:', err)
+      setEstadoEnvio('error')
+      setMensajeEstado('Error al registrar el pago. Intente nuevamente.')
+    }
   }
 
   return (

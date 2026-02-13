@@ -21,15 +21,15 @@ export function TimeFilter({ activePeriod, onPeriodChange, className = '' }: Tim
   return (
     <div className={className}>
       {/* Desktop View */}
-      <div className="hidden md:flex bg-white rounded-xl p-1 shadow-sm border border-slate-100">
+      <div className="hidden md:flex rounded-xl border border-slate-200 bg-white p-1 shadow-sm">
         {periods.map((period) => (
           <button
             key={period.id}
             onClick={() => onPeriodChange(period.id)}
-            className={`px-5 py-2 text-sm rounded-lg transition-all font-medium ${
+            className={`px-4 py-2 text-xs font-bold rounded-lg transition-all ${
               activePeriod === period.id
-                ? 'bg-blue-600 text-white shadow-md shadow-blue-600/20'
-                : 'text-slate-500 hover:text-blue-600 hover:bg-blue-50'
+                ? 'bg-blue-600 text-white shadow-md'
+                : 'text-slate-600 hover:text-blue-600 hover:bg-blue-50'
             }`}
           >
             {period.label}
@@ -43,7 +43,7 @@ export function TimeFilter({ activePeriod, onPeriodChange, className = '' }: Tim
           <button
             key={period.id}
             onClick={() => onPeriodChange(period.id)}
-            className={`px-4 py-2 text-sm rounded-full whitespace-nowrap transition-all font-medium ${
+            className={`px-4 py-2 text-xs font-bold rounded-full whitespace-nowrap transition-all ${
               activePeriod === period.id
                 ? 'bg-blue-600 text-white'
                 : 'bg-white text-slate-600 border border-slate-200'

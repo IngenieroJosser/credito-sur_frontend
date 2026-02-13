@@ -7,10 +7,10 @@
 import ProtectedPage from '@/components/auth/ProtectedPage'
 import AdminDetalleCreditoArticuloPage from '@/app/admin/creditos-articulos/[id]/page'
 
-export default function DetalleCreditoArticuloPage({ params }: { params: Promise<{ id: string }> }) {
+export default function DetalleCreditoArticuloPage() {
   return (
     <ProtectedPage permiso="CREDITOS_ARTICULOS_VIEW">
-      <AdminDetalleCreditoArticuloPage params={params} />
+      <AdminDetalleCreditoArticuloPage />
     </ProtectedPage>
   )
 }

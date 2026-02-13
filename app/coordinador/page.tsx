@@ -35,6 +35,7 @@ export default function CoordinadorPage() {
           'SUPERVISOR': '/supervisor',
           'COBRADOR': '/cobranzas',
           'CONTADOR': '/contador/contable',
+          'PUNTO_DE_VENTA': '/punto-de-venta',
         };
         
         // Lo mandamos a su casa

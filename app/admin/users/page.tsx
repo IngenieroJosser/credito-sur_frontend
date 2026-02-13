@@ -37,7 +37,7 @@ import {
   AlertCircle,
   CheckCircle2,
   Wallet,
-
+  ShoppingBag,
 } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
@@ -194,6 +194,8 @@ const UserManagementPage = () => {
         return { accentIcon: 'text-blue-600', kpiBorderHover: 'hover:border-blue-300' };
       case RolUsuario.CONTADOR:
         return { accentIcon: 'text-amber-600', kpiBorderHover: 'hover:border-amber-300' };
+      case RolUsuario.PUNTO_DE_VENTA:
+        return { accentIcon: 'text-teal-600', kpiBorderHover: 'hover:border-teal-300' };
       case RolUsuario.COORDINADOR:
         return { accentIcon: 'text-indigo-600', kpiBorderHover: 'hover:border-indigo-300' };
       case RolUsuario.SUPERVISOR:
@@ -283,7 +285,8 @@ const UserManagementPage = () => {
     { id: RolUsuario.COORDINADOR, nombre: 'Coordinador', label: 'Coordinador', descripcion: 'Gestión operativa', color: 'text-sky-600', bgColor: 'bg-sky-50', icon: <Users className="h-3.5 w-3.5" /> },
     { id: RolUsuario.SUPERVISOR, nombre: 'Supervisor', label: 'Supervisor', descripcion: 'Supervisión y control', color: 'text-violet-600', bgColor: 'bg-violet-50', icon: <Eye className="h-3.5 w-3.5" /> },
     { id: RolUsuario.COBRADOR, nombre: 'Cobrador', label: 'Cobrador', descripcion: 'Gestión de cobranza', color: 'text-emerald-600', bgColor: 'bg-emerald-50', icon: <Briefcase className="h-3.5 w-3.5" /> },
-    { id: RolUsuario.CONTADOR, nombre: 'Contable', label: 'Contable', descripcion: 'Operaciones financieras', color: 'text-amber-600', bgColor: 'bg-amber-50', icon: <Sparkles className="h-3.5 w-3.5" /> }
+    { id: RolUsuario.CONTADOR, nombre: 'Contable', label: 'Contable', descripcion: 'Operaciones financieras', color: 'text-amber-600', bgColor: 'bg-amber-50', icon: <Sparkles className="h-3.5 w-3.5" /> },
+    { id: RolUsuario.PUNTO_DE_VENTA, nombre: 'Punto de Venta', label: 'Punto de Venta', descripcion: 'Ventas de artículos', color: 'text-teal-600', bgColor: 'bg-teal-50', icon: <ShoppingBag className="h-3.5 w-3.5" /> }
   ];
 
   const roleFilters = [
@@ -425,6 +428,7 @@ const UserManagementPage = () => {
           [RolUsuario.SUPERVISOR]: ['ruta', 'cliente', 'visita'],
           [RolUsuario.COBRADOR]: ['pago', 'visita', 'gasto', 'ruta'],
           [RolUsuario.CONTADOR]: ['transaccion', 'arqueo', 'cierre', 'gasto', 'caja'],
+          [RolUsuario.PUNTO_DE_VENTA]: ['articulo', 'prestamo', 'cliente'],
         } as any;
         const permissionEntityMap: Record<string, string[]> = {
           'usuarios': ['usuario'],

@@ -12,7 +12,8 @@ export enum RolUsuario {
   COORDINADOR = 'COORDINADOR',
   SUPERVISOR = 'SUPERVISOR',
   COBRADOR = 'COBRADOR',
-  CONTADOR = 'CONTADOR'
+  CONTADOR = 'CONTADOR',
+  PUNTO_DE_VENTA = 'PUNTO_DE_VENTA'
 }
 
 export enum NivelRiesgo {

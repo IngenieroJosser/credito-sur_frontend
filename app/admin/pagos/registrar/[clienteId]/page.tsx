@@ -14,6 +14,9 @@ import {
   CheckCircle2
 } from 'lucide-react'
 import { formatCOPInputValue, formatCurrency, formatMilesCOP, parseCOPInputToNumber, cn } from '@/lib/utils'
+import { clientesService } from '@/services/cliente-service'
+import { prestamosService } from '@/services/prestamos-service'
+import { pagosService } from '@/services/pagos-service'
 
 type TipoProducto = 'PRESTAMO_EFECTIVO' | 'CREDITO_ARTICULO'
 
@@ -50,66 +53,69 @@ const RegistrarPagoClientePage = () => {
   const [comentarios, setComentarios] = useState('')
   const [estadoEnvio, setEstadoEnvio] = useState<'idle' | 'enviando' | 'exito' | 'error'>('idle')
 
-  // Mock Data Loading
   useEffect(() => {
-    // Simular carga de datos según ID
-    const loadData = () => {
+    const loadData = async () => {
       setLoading(true)
-      setTimeout(() => {
-        // Datos básicos del cliente
+      try {
+        const clienteData = await clientesService.obtenerClientePorId(clienteId)
         setCliente({
-          id: clienteId,
-          nombre: clienteId === '2' ? 'Juan Taller Motos' : 'Maria Tienda Esquina',
-          dni: '1.023.456.789',
-          direccion: 'Calle Principal #123'
+          id: clienteData.id,
+          nombre: `${clienteData.nombres} ${clienteData.apellidos}`,
+          dni: clienteData.dni,
+          direccion: clienteData.direccion || ''
         })
 
-        // Simular diferentes productos según el ID del cliente
-        if (clienteId === '2') {
-          // Caso: Crédito de Artículo
+        const prestamosResp = await prestamosService.obtenerPrestamos({ search: clienteId, limit: 1 })
+        const prestamo = prestamosResp?.prestamos?.[0]
+        if (prestamo) {
+          const tipoPrestamo = prestamo.tipoPrestamo || prestamo.producto || ''
+          const esArticulo = tipoPrestamo.toLowerCase() !== 'efectivo' && tipoPrestamo.toLowerCase() !== 'préstamo'
           setProducto({
-            id: 'cred-001',
-            tipo: 'CREDITO_ARTICULO',
-            codigo: 'ART-2024-885',
-            descripcion: 'Moto Bera SBR 2024',
-            saldoPendiente: 3500000,
-            proximaCuota: '2024-02-15',
-            valorCuota: 150000,
-            diasMora: 2,
-            imagen: 'moto'
-          })
-        } else {
-          // Caso: Préstamo Efectivo (Default)
-          setProducto({
-            id: 'prest-001',
-            tipo: 'PRESTAMO_EFECTIVO',
-            codigo: 'PR-2024-125',
-            descripcion: 'Préstamo',
-            saldoPendiente: 450000,
-            proximaCuota: '2024-02-10',
-            valorCuota: 50000,
-            diasMora: 0
+            id: prestamo.id,
+            tipo: esArticulo ? 'CREDITO_ARTICULO' : 'PRESTAMO_EFECTIVO',
+            codigo: prestamo.numeroPrestamo || prestamo.id,
+            descripcion: tipoPrestamo || 'Préstamo',
+            saldoPendiente: prestamo.montoPendiente || prestamo.saldoPendiente || 0,
+            proximaCuota: prestamo.proximoPago || prestamo.fechaFin || '',
+            valorCuota: prestamo.valorCuota || 0,
+            diasMora: prestamo.diasMora || 0,
           })
         }
+      } catch (err) {
+        console.error('Error cargando datos del cliente:', err)
+      } finally {
         setLoading(false)
-      }, 500)
+      }
     }
 
     if (clienteId) loadData()
   }, [clienteId])
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (parseCOPInputToNumber(monto) <= 0) return
+    if (parseCOPInputToNumber(monto) <= 0 || !producto || !cliente) return
 
     setEstadoEnvio('enviando')
-    setTimeout(() => {
+    try {
+      const userStr = localStorage.getItem('user')
+      const user = userStr ? JSON.parse(userStr) : null
+
+      await pagosService.registrarPago({
+        clienteId: cliente.id,
+        prestamoId: producto.id,
+        cobradorId: user?.id || '',
+        montoTotal: parseCOPInputToNumber(monto),
+        metodoPago: 'EFECTIVO' as any,
+        notas: comentarios || undefined,
+      })
       setEstadoEnvio('exito')
-      // Redirigir después de un momento
       setTimeout(() => {
         router.back()
       }, 1500)
-    }, 1000)
+    } catch (err) {
+      console.error('Error registrando pago:', err)
+      setEstadoEnvio('error')
+    }
   }
 
   if (loading) {

@@ -1,6 +1,6 @@
 'use client'
 
-import { use, useState } from 'react'
+import { use, useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { 
@@ -20,23 +20,60 @@ import {
   EyeOff
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { usuariosService } from '@/services/usuarios-service'
+
+interface UserDetalle {
+  id: string; nombres: string; apellidos: string; correo: string;
+  telefono: string; rol: string; estado: string; fechaCreacion: string;
+  ultimoAcceso: string; permisos: string[];
+}
 
 export default function DetalleUsuarioPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
   const router = useRouter()
+  const [user, setUser] = useState<UserDetalle | null>(null)
+  const [loading, setLoading] = useState(true)
 
-  // Mock Data
-  const user = {
-    id: id,
-    nombres: 'María',
-    apellidos: 'Rodríguez',
-    correo: 'maria.rodriguez@credisur.com',
-    telefono: '300 123 4567',
-    rol: 'SUPER_ADMINISTRADOR',
-    estado: 'ACTIVO',
-    fechaCreacion: '2023-01-15',
-    ultimoAcceso: 'Hoy 09:42',
-    permisos: ['full_access', 'user_management', 'financial_reports']
+  useEffect(() => {
+    const fetchUser = async () => {
+      setLoading(true)
+      try {
+        const data: any = await usuariosService.obtenerPorId(id)
+        setUser({
+          id: data.id || id,
+          nombres: data.nombres || '',
+          apellidos: data.apellidos || '',
+          correo: data.correo || data.email || '',
+          telefono: data.telefono || '',
+          rol: data.rol || '',
+          estado: data.estado || 'ACTIVO',
+          fechaCreacion: data.creadoEn || '',
+          ultimoAcceso: data.ultimoAcceso || '',
+          permisos: data.permisos?.map((p: any) => p.codigo || p) || [],
+        })
+      } catch (err) {
+        console.error('Error cargando usuario:', err)
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchUser()
+  }, [id])
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    )
+  }
+
+  if (!user) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+        <p className="text-red-500">No se pudo cargar el usuario</p>
+      </div>
+    )
   }
 
   const getRoleBadge = (rol: string) => {
