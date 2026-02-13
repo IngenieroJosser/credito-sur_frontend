@@ -81,7 +81,7 @@ const NuevaRutaPage = () => {
         estado: formData.estado,
         descripcion: formData.descripcion,
       } as any);
-      router.push('/admin/rutas');
+      router.push('/rutas');
     } catch (err) {
       console.error('Error creando ruta:', err);
       alert('Error al crear la ruta');
@@ -103,7 +103,7 @@ const NuevaRutaPage = () => {
         <div className="flex items-center justify-between animate-in fade-in slide-in-from-top-4 duration-500">
           <div className="flex items-center gap-4">
             <Link 
-              href="/admin/rutas"
+              href="/rutas"
               className="p-2 hover:bg-slate-100 rounded-lg transition-colors text-slate-500 hover:text-slate-900"
             >
               <ArrowLeft className="h-5 w-5" />
@@ -120,7 +120,7 @@ const NuevaRutaPage = () => {
 
           <div className="flex items-center gap-3">
             <Link
-              href="/admin/rutas"
+              href="/rutas"
               className="px-4 py-2 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors text-sm font-medium"
             >
               Cancelar

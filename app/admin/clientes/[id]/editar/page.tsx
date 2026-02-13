@@ -143,11 +143,11 @@ const EditarClientePage = () => {
         }
         await clientesService.actualizarCliente(id, updateData)
         alert('Cliente actualizado exitosamente (Simulado)')
-        router.push('/admin/clientes')
+        router.push('/clientes')
       } catch (error) {
         console.error('Error al actualizar cliente:', error)
         alert('Cliente actualizado exitosamente (Simulado Frontend)')
-        router.push('/admin/clientes')
+        router.push('/clientes')
       } finally {
         setIsSaving(false)
       }
@@ -183,7 +183,7 @@ const EditarClientePage = () => {
 
       <div className="relative z-10 px-8 pt-8">
         <div className="mb-8 flex items-center justify-between">
-          <Link href="/admin/clientes" className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-slate-600 shadow-sm transition-colors hover:bg-slate-50 hover:text-slate-900">
+          <Link href="/clientes" className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-slate-600 shadow-sm transition-colors hover:bg-slate-50 hover:text-slate-900">
             <ArrowLeft className="w-5 h-5" />
             <span>Volver</span>
           </Link>

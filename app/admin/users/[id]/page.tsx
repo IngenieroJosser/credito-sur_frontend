@@ -102,7 +102,7 @@ export default function DetalleUsuarioPage({ params }: { params: Promise<{ id: s
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
             <Link 
-              href="/admin/users"
+              href="/users"
               className="p-2 -ml-2 text-slate-400 hover:text-slate-900 transition-colors"
             >
               <ArrowLeft className="h-6 w-6" />
@@ -120,7 +120,7 @@ export default function DetalleUsuarioPage({ params }: { params: Promise<{ id: s
           
           <div className="flex gap-2">
              <Link 
-                href={`/admin/users/${id}/editar`}
+                href={`/users/${id}/editar`}
                 className="px-4 py-2 bg-white border border-slate-200 text-slate-700 font-bold rounded-xl hover:bg-slate-50 transition-colors text-sm shadow-sm flex items-center gap-2"
              >
                 <Edit2 className="h-4 w-4" />

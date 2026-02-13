@@ -54,6 +54,7 @@ import {
   type DecisionCastigo,
   type DecisionCastigoRequest
 } from '@/services/vencidas-service'
+import { exportService } from '@/services/export-service'
 import { toast } from 'sonner'
 
 type ViewMode = 'list' | 'grid';
@@ -108,14 +109,12 @@ function CuentasVencidasContent() {
   const handleExportExcel = async () => {
     try {
       setExportLoading(true)
-      const filtros = {
+      await exportService.exportCuentasVencidas('excel', {
         busqueda: busqueda || undefined,
         nivelRiesgo: filtroRiesgo !== 'TODOS' ? filtroRiesgo : undefined,
-        rutaId: filtroRuta || undefined
-      }
-      
-      await vencidasService.exportarReporteVencidas('excel', filtros)
-      toast.success('Reporte Excel generado exitosamente')
+        rutaId: filtroRuta || undefined,
+      })
+      toast.success('Archivo descargado exitosamente')
     } catch (err) {
       toast.error('Error al exportar el reporte')
       console.error('Export error:', err)
@@ -127,14 +126,12 @@ function CuentasVencidasContent() {
   const handleExportPDF = async () => {
     try {
       setExportLoading(true)
-      const filtros = {
+      await exportService.exportCuentasVencidas('pdf', {
         busqueda: busqueda || undefined,
         nivelRiesgo: filtroRiesgo !== 'TODOS' ? filtroRiesgo : undefined,
-        rutaId: filtroRuta || undefined
-      }
-      
-      await vencidasService.exportarReporteVencidas('pdf', filtros)
-      toast.success('Reporte PDF generado exitosamente')
+        rutaId: filtroRuta || undefined,
+      })
+      toast.success('Archivo descargado exitosamente')
     } catch (err) {
       toast.error('Error al exportar el reporte')
       console.error('Export error:', err)

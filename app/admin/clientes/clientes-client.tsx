@@ -43,10 +43,10 @@ interface ClientesClientProps {
 
 export default function ClientesClient({ initialClientes }: ClientesClientProps) {
   const { can, canForPath } = usePermission();
-  const permitido = can('CLIENTES_VIEW') || canForPath('/admin/clientes');
-  const puedeCrear = can('CLIENTES_CREATE') || canForPath('/admin/clientes');
-  const puedeEditar = can('CLIENTES_EDIT') || canForPath('/admin/clientes');
-  const puedeEliminar = can('CLIENTES_DELETE') || canForPath('/admin/clientes');
+  const permitido = can('CLIENTES_VIEW') || canForPath('/clientes');
+  const puedeCrear = can('CLIENTES_CREATE') || canForPath('/clientes');
+  const puedeEditar = can('CLIENTES_EDIT') || canForPath('/clientes');
+  const puedeEliminar = can('CLIENTES_DELETE') || canForPath('/clientes');
   
   // Hook de notificaciones para dar feedback visual al usuario (ej: "Cliente eliminado")
   const { showNotification } = useNotification();

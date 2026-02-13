@@ -53,6 +53,7 @@ import ClientePortalModal from '@/components/cliente/ClientePortalModal'
 import ProtectedPage from '@/components/auth/ProtectedPage'
 import { usePermission } from '@/hooks/usePermission'
 import { apiRequest } from '@/lib/api/api'
+import { exportService } from '@/services/export-service'
 import { toast } from 'sonner'
 
 // Enums alineados con Prisma
@@ -215,15 +216,12 @@ function CuentasMoraContent() {
   const handleExportExcel = async () => {
     try {
       toast.info('Generando reporte Excel...')
-      await apiRequest('POST', '/reports/exportar-mora', {
-        filtros: {
-          busqueda,
-          riesgo: filtroRiesgo !== 'TODOS' ? filtroRiesgo : undefined,
-          rutaId: filtroRuta
-        },
-        formato: 'EXCEL'
+      await exportService.exportMora('excel', {
+        busqueda,
+        riesgo: filtroRiesgo !== 'TODOS' ? filtroRiesgo : undefined,
+        rutaId: filtroRuta || undefined,
       })
-      toast.success('Reporte generado exitosamente')
+      toast.success('Archivo descargado exitosamente')
     } catch (error) {
       toast.error('Error al exportar reporte')
     }
@@ -232,15 +230,12 @@ function CuentasMoraContent() {
   const handleExportPDF = async () => {
     try {
       toast.info('Generando reporte PDF...')
-      await apiRequest('POST', '/reports/exportar-mora', {
-        filtros: {
-          busqueda,
-          riesgo: filtroRiesgo !== 'TODOS' ? filtroRiesgo : undefined,
-          rutaId: filtroRuta
-        },
-        formato: 'PDF'
+      await exportService.exportMora('pdf', {
+        busqueda,
+        riesgo: filtroRiesgo !== 'TODOS' ? filtroRiesgo : undefined,
+        rutaId: filtroRuta || undefined,
       })
-      toast.success('Reporte generado exitosamente')
+      toast.success('Archivo descargado exitosamente')
     } catch (error) {
       toast.error('Error al exportar reporte')
     }

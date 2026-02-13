@@ -106,12 +106,16 @@ const VistaSupervisor = () => {
   }
 
 
+  // TODO: Exportar resumen de supervisión
+  // Qué exportar: Rutas supervisadas, Eficiencia por cobrador, Alertas, Resumen de recaudo
+  // Backend: Reutilizar GET /reports/operational/export filtrado por supervisor
+  // Frontend: Usar exportService.exportOperationalReport(format, { period })
   const handleExportExcel = () => {
-    console.log('Exporting Excel...')
+    console.log('TODO: Exportar resumen supervisor en Excel')
   }
 
   const handleExportPDF = () => {
-    console.log('Exporting PDF...')
+    console.log('TODO: Exportar resumen supervisor en PDF')
   }
 
   const formatDate = (date: Date) => {

@@ -219,11 +219,11 @@ export default function ArticulosContent() {
     if (articuloSeleccionado) {
       try {
         await inventarioService.eliminarProducto(articuloSeleccionado.id)
-        showNotification('success', 'El artículo ha sido eliminado', 'Éxito')
+        showNotification('success', 'El artículo ha sido archivado', 'Éxito')
         fetchArticulos()
       } catch (error) {
         console.error('Error deleting product', error)
-        showNotification('error', 'No se pudo eliminar el artículo', 'Error')
+        showNotification('error', 'No se pudo archivar el artículo', 'Error')
       } finally {
         setShowEliminarModal(false)
         setArticuloSeleccionado(null)
@@ -576,7 +576,7 @@ export default function ArticulosContent() {
                           <button 
                             onClick={() => handleEliminar(articulo)}
                             className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
-                            title="Eliminar"
+                            title="Archivar"
                           >
                             <Trash2 className="w-4 h-4" />
                           </button>
@@ -862,10 +862,10 @@ export default function ArticulosContent() {
             <div className="w-16 h-16 bg-rose-50 rounded-full flex items-center justify-center mx-auto mb-4 border border-rose-100">
               <Trash2 className="h-8 w-8 text-rose-600" />
             </div>
-            <h3 className="text-xl font-bold text-slate-900 mb-2">¿Eliminar artículo?</h3>
+            <h3 className="text-xl font-bold text-slate-900 mb-2">¿Archivar artículo?</h3>
             <p className="text-slate-500 text-sm mb-6 font-medium">
-              Estás a punto de eliminar <span className="font-bold text-slate-900">{articuloSeleccionado.nombre}</span> del inventario.
-              Esta acción no se puede deshacer.
+              Estás a punto de archivar <span className="font-bold text-slate-900">{articuloSeleccionado.nombre}</span> del inventario.
+              Podrá ser restaurado desde la sección de Archivados.
             </p>
             <div className="flex gap-3 justify-center">
               <button
@@ -883,7 +883,7 @@ export default function ArticulosContent() {
                 onClick={confirmarEliminar}
                 className="px-5 py-2.5 rounded-xl bg-rose-600 text-white text-sm font-bold hover:bg-rose-700 shadow-lg shadow-rose-600/20"
               >
-                Sí, eliminar
+                Sí, archivar
               </button>
             </div>
           </div>

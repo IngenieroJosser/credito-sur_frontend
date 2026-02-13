@@ -22,6 +22,7 @@ import React, { useState, Suspense, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { useNotification } from '@/components/providers/NotificationProvider'
 import { Rol } from '@/lib/permissions'
+import { exportService } from '@/services/export-service'
 
 import {
   DollarSign,
@@ -223,13 +224,22 @@ const ModuloContableContent = () => {
   const [fechaInicioModal, setFechaInicioModal] = useState<string>('')
   const [fechaFinModal, setFechaFinModal] = useState<string>('')
 
-  // Funciones placeholder para exportación
-  const handleExportExcel = () => {
-    console.log('Generando reporte Excel...')
+  const handleExportExcel = async () => {
+    try {
+      await exportService.exportAccounting('excel')
+      toast.success('Reporte contable Excel descargado')
+    } catch (e) {
+      toast.error('Error al exportar reporte contable')
+    }
   }
 
-  const handleExportPDF = () => {
-    console.log('Generando PDF...')
+  const handleExportPDF = async () => {
+    try {
+      await exportService.exportAccounting('pdf')
+      toast.success('Reporte contable PDF descargado')
+    } catch (e) {
+      toast.error('Error al exportar reporte contable')
+    }
   }
 
   // Resumen financiero global

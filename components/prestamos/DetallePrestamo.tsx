@@ -1,9 +1,18 @@
 'use client';
 
 import React, { useState } from 'react';
-import Link from 'next/link';
-import { Calendar, User, FileText, TrendingUp, Package, Image as ImageIcon, ChevronRight } from 'lucide-react';
+import { Calendar, User, FileText, TrendingUp, Package, Image as ImageIcon, ChevronRight, ChevronLeft, Clock } from 'lucide-react';
 import { formatCurrency, cn } from '@/lib/utils';
+import ClientePortalModal from '@/components/cliente/ClientePortalModal';
+
+const formatDate = (dateStr: string | undefined | null): string => {
+  if (!dateStr) return '—';
+  try {
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return dateStr;
+    return d.toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' });
+  } catch { return dateStr; }
+};
 
 export interface PrestamoDetalle {
   id: string;
@@ -16,6 +25,9 @@ export interface PrestamoDetalle {
   montoTotal: number;
   saldoPendiente: number;
   tasaInteres: number;
+  interesTotal?: number;
+  capitalPagado?: number;
+  interesPagado?: number;
   duracion: string;
   frecuencia: string;
   fechaInicio: string;
@@ -28,6 +40,8 @@ export interface PrestamoDetalle {
     numero: number;
     fecha: string;
     monto: number;
+    montoCapital?: number;
+    montoInteres?: number;
     estado: 'PAGADO' | 'PENDIENTE' | 'PARCIAL' | 'VENCIDO';
     fechaPago?: string;
   }[];
@@ -38,7 +52,10 @@ interface DetallePrestamoProps {
 }
 
 export default function DetallePrestamo({ prestamo }: DetallePrestamoProps) {
-  const [activeTab, setActiveTab] = useState<'info' | 'cuotas' | 'documentos'>('info');
+  const [activeTab, setActiveTab] = useState<'info' | 'cuotas' | 'documentos'>('cuotas');
+  const [showClienteModal, setShowClienteModal] = useState(false);
+  const [cuotaPage, setCuotaPage] = useState(1);
+  const CUOTAS_PER_PAGE = 5;
 
   const getEstadoColor = (estado: string) => {
     switch (estado) {
@@ -74,12 +91,12 @@ export default function DetallePrestamo({ prestamo }: DetallePrestamoProps) {
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
              <div>
                 <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-1">Cliente Titular</h3>
-                <Link href={`/admin/clientes/${prestamo.clienteId}`} className="group flex items-center gap-2">
+                <button onClick={() => setShowClienteModal(true)} className="group flex items-center gap-2 text-left">
                   <h2 className="text-2xl md:text-3xl font-black text-slate-900 group-hover:text-blue-600 transition-colors">
                     {prestamo.clienteNombre}
                   </h2>
                   <ChevronRight className="w-5 h-5 text-slate-300 group-hover:text-blue-600 transition-colors" />
-                </Link>
+                </button>
              </div>
              <span className={cn("px-4 py-1.5 rounded-full text-xs font-black tracking-widest uppercase border", getEstadoColor(prestamo.estado))}>
                 {prestamo.estado}
@@ -131,6 +148,30 @@ export default function DetallePrestamo({ prestamo }: DetallePrestamoProps) {
              <p className="text-2xl font-bold text-rose-600 tracking-tight">{formatCurrency(prestamo.saldoPendiente)}</p>
           </div>
 
+          {/* Interés Total */}
+          {prestamo.interesTotal != null && (
+          <div className="bg-amber-50/50 p-5 rounded-2xl border border-amber-100 shadow-sm flex flex-col justify-between h-28">
+             <span className="text-[10px] font-black text-amber-600/70 uppercase tracking-widest">Interés Total</span>
+             <p className="text-2xl font-bold text-amber-700 tracking-tight">{formatCurrency(prestamo.interesTotal)}</p>
+          </div>
+          )}
+
+          {/* Capital Pagado */}
+          {prestamo.capitalPagado != null && (
+          <div className="bg-blue-50/50 p-5 rounded-2xl border border-blue-100 shadow-sm flex flex-col justify-between h-28">
+             <span className="text-[10px] font-black text-blue-600/70 uppercase tracking-widest">Capital Pagado</span>
+             <p className="text-2xl font-bold text-blue-700 tracking-tight">{formatCurrency(prestamo.capitalPagado)}</p>
+          </div>
+          )}
+
+          {/* Interés Pagado */}
+          {prestamo.interesPagado != null && (
+          <div className="bg-violet-50/50 p-5 rounded-2xl border border-violet-100 shadow-sm flex flex-col justify-between h-28">
+             <span className="text-[10px] font-black text-violet-600/70 uppercase tracking-widest">Interés Pagado</span>
+             <p className="text-2xl font-bold text-violet-700 tracking-tight">{formatCurrency(prestamo.interesPagado)}</p>
+          </div>
+          )}
+
           {/* Frecuencia (now Row 2) */}
           <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm flex flex-col justify-center gap-1 h-24">
              <div className="flex items-center gap-2">
@@ -152,7 +193,7 @@ export default function DetallePrestamo({ prestamo }: DetallePrestamoProps) {
                 </div>
                 <div>
                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">Fecha Inicio</span>
-                   <span className="text-lg font-bold text-slate-900 block leading-none mt-1">{prestamo.fechaInicio}</span>
+                   <span className="text-lg font-bold text-slate-900 block leading-none mt-1">{formatDate(prestamo.fechaInicio)}</span>
                 </div>
              </div>
           </div>
@@ -165,7 +206,7 @@ export default function DetallePrestamo({ prestamo }: DetallePrestamoProps) {
                 </div>
                 <div>
                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">Vencimiento</span>
-                   <span className="text-lg font-bold text-slate-900 block leading-none mt-1">{prestamo.fechaVencimiento}</span>
+                   <span className="text-lg font-bold text-slate-900 block leading-none mt-1">{formatDate(prestamo.fechaVencimiento)}</span>
                 </div>
              </div>
           </div>
@@ -224,34 +265,79 @@ export default function DetallePrestamo({ prestamo }: DetallePrestamoProps) {
                   <th scope="col" className="px-6 py-4 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">#</th>
                   <th scope="col" className="px-6 py-4 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">Vencimiento</th>
                   <th scope="col" className="px-6 py-4 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">Monto</th>
+                  <th scope="col" className="px-6 py-4 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">Capital</th>
+                  <th scope="col" className="px-6 py-4 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">Interés</th>
                   <th scope="col" className="px-6 py-4 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">Estado</th>
                   <th scope="col" className="px-6 py-4 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">Fecha Pago</th>
-                  <th scope="col" className="px-6 py-4 text-right text-[10px] font-black text-slate-400 uppercase tracking-widest">Ref</th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-slate-100">
-                {prestamo.cuotas.map((cuota) => (
+                {prestamo.cuotas
+                  .slice((cuotaPage - 1) * CUOTAS_PER_PAGE, cuotaPage * CUOTAS_PER_PAGE)
+                  .map((cuota) => (
                   <tr key={cuota.numero} className="hover:bg-slate-50 transition-colors group">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-slate-500">{cuota.numero}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-700">{cuota.fecha}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-slate-900">
+                    <td className="px-4 py-3 whitespace-nowrap text-sm font-bold text-slate-500">{cuota.numero}</td>
+                    <td className="px-4 py-3 whitespace-nowrap text-sm text-slate-700 font-medium">{formatDate(cuota.fecha)}</td>
+                    <td className="px-4 py-3 whitespace-nowrap text-sm font-bold text-slate-900">
                       {formatCurrency(cuota.monto)}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="px-4 py-3 whitespace-nowrap text-sm text-blue-700 font-medium">
+                      {cuota.montoCapital != null ? formatCurrency(cuota.montoCapital) : '-'}
+                    </td>
+                    <td className="px-4 py-3 whitespace-nowrap text-sm text-violet-700 font-medium">
+                      {cuota.montoInteres != null ? formatCurrency(cuota.montoInteres) : '-'}
+                    </td>
+                    <td className="px-4 py-3 whitespace-nowrap">
                       <span className={cn("px-2.5 py-1 rounded-full text-[10px] font-black tracking-wide uppercase border", getCuotaEstadoColor(cuota.estado))}>
                         {cuota.estado}
                       </span>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-xs font-bold text-slate-500">
-                      {cuota.fechaPago || '-'}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right">
-                       <span className="text-xs text-slate-300 font-mono">#{cuota.numero.toString().padStart(3, '0')}</span>
+                    <td className="px-4 py-3 whitespace-nowrap text-xs font-bold text-slate-500">
+                      {cuota.fechaPago ? formatDate(cuota.fechaPago) : '—'}
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
+
+            {/* Paginador de cuotas */}
+            {prestamo.cuotas.length > CUOTAS_PER_PAGE && (
+              <div className="px-4 py-3 border-t border-slate-100 bg-slate-50/50 flex items-center justify-between">
+                <span className="text-xs font-medium text-slate-500">
+                  {(cuotaPage - 1) * CUOTAS_PER_PAGE + 1}–{Math.min(cuotaPage * CUOTAS_PER_PAGE, prestamo.cuotas.length)} de {prestamo.cuotas.length} cuotas
+                </span>
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => setCuotaPage(p => Math.max(1, p - 1))}
+                    disabled={cuotaPage === 1}
+                    className="p-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                  >
+                    <ChevronLeft className="w-4 h-4 text-slate-600" />
+                  </button>
+                  {Array.from({ length: Math.ceil(prestamo.cuotas.length / CUOTAS_PER_PAGE) }, (_, i) => i + 1).map(page => (
+                    <button
+                      key={page}
+                      onClick={() => setCuotaPage(page)}
+                      className={cn(
+                        "w-8 h-8 rounded-lg text-xs font-bold transition-colors",
+                        page === cuotaPage
+                          ? "bg-slate-900 text-white"
+                          : "bg-white border border-slate-200 text-slate-600 hover:bg-slate-50"
+                      )}
+                    >
+                      {page}
+                    </button>
+                  ))}
+                  <button
+                    onClick={() => setCuotaPage(p => Math.min(Math.ceil(prestamo.cuotas.length / CUOTAS_PER_PAGE), p + 1))}
+                    disabled={cuotaPage === Math.ceil(prestamo.cuotas.length / CUOTAS_PER_PAGE)}
+                    className="p-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                  >
+                    <ChevronRight className="w-4 h-4 text-slate-600" />
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -320,6 +406,13 @@ export default function DetallePrestamo({ prestamo }: DetallePrestamoProps) {
           </div>
         )}
       </div>
+
+      {showClienteModal && (
+        <ClientePortalModal
+          clientId={prestamo.clienteId}
+          onClose={() => setShowClienteModal(false)}
+        />
+      )}
     </div>
   );
 }

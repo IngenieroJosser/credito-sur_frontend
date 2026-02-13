@@ -80,11 +80,11 @@ const UserManagementPage = () => {
   const currentUserRole: RolUsuario = currentUser?.rol as RolUsuario;
 
   const { can, canForPath } = usePermission();
-  const permitido = can('USUARIOS_VIEW') || canForPath('/admin/users');
-  const puedeCrear = can('USUARIOS_CREATE') || canForPath('/admin/users');
-  const puedeEditar = can('USUARIOS_EDIT') || canForPath('/admin/users');
-  const puedeEliminar = can('USUARIOS_DELETE') || canForPath('/admin/users');
-  const puedeGestionarPermisos = can('USUARIOS_MANAGE') || canForPath('/admin/users');
+  const permitido = can('USUARIOS_VIEW') || canForPath('/users');
+  const puedeCrear = can('USUARIOS_CREATE') || canForPath('/users');
+  const puedeEditar = can('USUARIOS_EDIT') || canForPath('/users');
+  const puedeEliminar = can('USUARIOS_DELETE') || canForPath('/users');
+  const puedeGestionarPermisos = can('USUARIOS_MANAGE') || canForPath('/users');
 
   // --- ESTADO DE USUARIOS ---
   const [users, setUsers] = useState<User[]>([]);

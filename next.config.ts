@@ -12,7 +12,29 @@ const withPWA = require("@ducanh2912/next-pwa").default({
 });
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  async rewrites() {
+    return [
+      // Clean URLs for ADMIN/SUPER_ADMIN — strip /admin prefix
+      // Each admin sub-route gets a clean alias
+      { source: '/creditos', destination: '/admin/creditos' },
+      { source: '/creditos/:path*', destination: '/admin/creditos/:path*' },
+      { source: '/clientes', destination: '/admin/clientes' },
+      { source: '/clientes/:path*', destination: '/admin/clientes/:path*' },
+      { source: '/prestamos', destination: '/admin/prestamos' },
+      { source: '/prestamos/:path*', destination: '/admin/prestamos/:path*' },
+      { source: '/rutas', destination: '/admin/rutas' },
+      { source: '/rutas/:path*', destination: '/admin/rutas/:path*' },
+      { source: '/users', destination: '/admin/users' },
+      { source: '/users/:path*', destination: '/admin/users/:path*' },
+      { source: '/archivados', destination: '/admin/archivados' },
+      { source: '/pagos', destination: '/admin/pagos' },
+      { source: '/pagos/:path*', destination: '/admin/pagos/:path*' },
+      { source: '/solicitudes', destination: '/admin/solicitudes' },
+      { source: '/sistema/:path*', destination: '/admin/sistema/:path*' },
+      { source: '/reportes/operativos', destination: '/admin/reportes/operativos' },
+      { source: '/aprobaciones', destination: '/admin/aprobaciones' },
+    ];
+  },
 };
 
 export default withPWA(nextConfig);

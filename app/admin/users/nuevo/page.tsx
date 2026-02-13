@@ -47,7 +47,7 @@ export default function NuevoUsuarioPage() {
     await new Promise(resolve => setTimeout(resolve, 1000))
     
     console.log('Usuario creado:', formData)
-    router.push('/admin/users')
+    router.push('/users')
   }
 
   return (
@@ -63,7 +63,7 @@ export default function NuevoUsuarioPage() {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
             <Link 
-              href="/admin/users"
+              href="/users"
               className="p-2 -ml-2 text-slate-400 hover:text-slate-900 transition-colors"
             >
               <ArrowLeft className="h-6 w-6" />
@@ -238,7 +238,7 @@ export default function NuevoUsuarioPage() {
           {/* Botones */}
           <div className="flex items-center justify-end gap-4 pt-4">
             <Link
-              href="/admin/users"
+              href="/users"
               className="px-6 py-3 rounded-xl border border-slate-200 text-slate-600 font-bold text-sm hover:bg-slate-50 transition-colors"
             >
               Cancelar

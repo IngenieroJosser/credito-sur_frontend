@@ -27,11 +27,14 @@ import {
 import { formatCurrency, cn } from '@/lib/utils';
 import FiltroRuta from '@/components/filtros/FiltroRuta';
 import EditarPrestamoModal from '@/components/prestamos/EditarPrestamoModal';
+import DetallePrestamoModal from '@/components/prestamos/DetallePrestamoModal';
 import CrearCreditoModal from '@/components/dashboards/shared/CrearCreditoModal';
 import { useNotification } from '@/components/providers/NotificationProvider';
 import { loansService, Loan, LoansFilters } from '@/services/loans-service';
 import { formatErrorForComponent } from '@/lib/api/api';
 import { usePermission } from '@/hooks/usePermission';
+import { ExportButton } from '@/components/ui/ExportButton';
+import { exportService } from '@/services/export-service';
 
 interface Filtros {
   estado: string;
@@ -51,7 +54,7 @@ const ListadoPrestamosElegante = () => {
   
   const isCoordinador = pathname?.includes('/coordinador');
   const isSupervisor = pathname?.includes('/supervisor');
-  const baseRoute = isCoordinador ? '/coordinador/creditos' : isSupervisor ? '/supervisor/creditos' : '/admin/creditos';
+  const baseRoute = isCoordinador ? '/coordinador/creditos' : isSupervisor ? '/supervisor/creditos' : '/creditos';
   const permitido = can('CREDITOS_VIEW') || can('LOANS_VIEW') || canForPath(baseRoute);
   const puedeCrear = can('CREDITOS_CREATE') || can('LOANS_CREATE') || canForPath(baseRoute);
   
@@ -105,9 +108,10 @@ const ListadoPrestamosElegante = () => {
       setTotalPrestamos(response.paginacion.total);
       
     } catch (err) {
-      const errorMessage = formatErrorForComponent(err);
-      setError(errorMessage);
-      console.error('Error loading loans:', err);
+      console.error('Error cargando préstamos:', err);
+      setError(formatErrorForComponent(err));
+      setPrestamos([]);
+      setTotalPrestamos(0);
     } finally {
       setCargando(false);
       setRefreshing(false);
@@ -131,13 +135,13 @@ const ListadoPrestamosElegante = () => {
   }, [filtros, paginaActual, loadPrestamos, mounted]);
 
   const handleEliminarPrestamo = async (id: string) => {
-    if (confirm('¿Está seguro de que desea marcar este préstamo como pérdida?\n\nEsta acción no se puede deshacer.')) {
+    if (confirm('¿Está seguro de que desea archivar este préstamo?\n\nEl préstamo será archivado y podrá ser restaurado desde la sección de Archivados.')) {
       try {
         const userStr = localStorage.getItem('user');
         const user = userStr ? JSON.parse(userStr) : null;
         
         await loansService.deleteLoan(id, user?.id || '');
-        showNotification('success', 'El préstamo ha sido marcado como pérdida', 'Préstamo Actualizado');
+        showNotification('success', 'El préstamo ha sido archivado exitosamente', 'Préstamo Archivado');
         await loadPrestamos();
       } catch (err) {
         const errorMessage = formatErrorForComponent(err);
@@ -151,15 +155,43 @@ const ListadoPrestamosElegante = () => {
     loadPrestamos();
   };
 
+  const handleExportExcel = async () => {
+    try {
+      showNotification('info', 'Generando archivo Excel...', 'Exportando');
+      await exportService.exportLoans('excel', {
+        estado: filtros.estado !== 'todos' ? filtros.estado : undefined,
+        ruta: filtros.ruta !== 'todas' ? filtros.ruta : undefined,
+        search: filtros.busqueda || undefined,
+      });
+      showNotification('success', 'Archivo descargado correctamente', 'Exportación Exitosa');
+    } catch (err) {
+      showNotification('error', 'Error al exportar. Intente de nuevo.', 'Error');
+    }
+  };
+
+  const handleExportPDF = async () => {
+    try {
+      showNotification('info', 'Generando archivo PDF...', 'Exportando');
+      await exportService.exportLoans('pdf', {
+        estado: filtros.estado !== 'todos' ? filtros.estado : undefined,
+        ruta: filtros.ruta !== 'todas' ? filtros.ruta : undefined,
+        search: filtros.busqueda || undefined,
+      });
+      showNotification('success', 'Archivo descargado correctamente', 'Exportación Exitosa');
+    } catch (err) {
+      showNotification('error', 'Error al exportar. Intente de nuevo.', 'Error');
+    }
+  };
+
+  // Client-side filters for fields not handled by backend
   const prestamosFiltrados = prestamos.filter(prestamo => {
     if (filtros.riesgo !== 'todos' && prestamo.riesgo !== filtros.riesgo) return false;
     if (filtros.cliente !== 'todos' && prestamo.clienteId !== filtros.cliente) return false;
     return true;
   });
 
-  const indiceUltimo = paginaActual * prestamosPorPagina;
-  const indicePrimero = indiceUltimo - prestamosPorPagina;
-  const prestamosPaginados = prestamosFiltrados.slice(indicePrimero, indiceUltimo);
+  // Backend already paginates — don't slice again
+  const prestamosPaginados = prestamosFiltrados;
   const totalPaginas = Math.ceil(totalPrestamos / prestamosPorPagina);
 
   const cambiarPagina = (pagina: number) => {
@@ -199,8 +231,10 @@ const ListadoPrestamosElegante = () => {
     }
   };
 
+  const [idPrestamoDetalle, setIdPrestamoDetalle] = useState<string | null>(null);
+
   const irADetallePrestamo = (id: string) => {
-    router.push(`${baseRoute}/${id}`);
+    setIdPrestamoDetalle(id);
   };
 
   if (!mounted) return null;
@@ -266,6 +300,12 @@ const ListadoPrestamosElegante = () => {
             </p>
           </div>
           <div className="flex items-center gap-3">
+            <ExportButton
+              onExportExcel={handleExportExcel}
+              onExportPDF={handleExportPDF}
+              label="Exportar"
+              className="!px-4 !py-2 text-sm"
+            />
             <button
               onClick={handleRefresh}
               disabled={refreshing}
@@ -564,6 +604,13 @@ const ListadoPrestamosElegante = () => {
             setIdPrestamoAEditar(null);
             handleRefresh();
           }}
+        />
+      )}
+
+      {idPrestamoDetalle && (
+        <DetallePrestamoModal
+          id={idPrestamoDetalle}
+          onClose={() => setIdPrestamoDetalle(null)}
         />
       )}
 

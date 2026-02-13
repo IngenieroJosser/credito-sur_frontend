@@ -477,6 +477,11 @@ const ClienteDetalleElegante: React.FC<ClienteDetalleProps> = ({
                 <h2 className="text-xl font-bold text-slate-900 mb-2">Historial de Pagos</h2>
                 <p className="text-slate-500 text-sm font-medium">{pagos.length} transacciones registradas</p>
               </div>
+              {/* TODO: Exportar ficha del cliente
+                  Qué exportar: Datos personales, Historial de préstamos, Historial de pagos, Estado de cuenta
+                  Backend: Crear GET /clients/:id/export?format=excel|pdf en clients.controller.ts
+                  Backend: Método exportClientProfile() en clients.service.ts usando ExcelJS + PDFKit
+                  Frontend: Usar exportService.downloadFile(`clients/${id}/export`, { format }, 'ficha-cliente.xlsm') */}
               <ExportButton label="Exportar" />
             </div>
 

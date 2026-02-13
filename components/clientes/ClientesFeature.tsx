@@ -146,10 +146,10 @@ export default function ClientesFeature({ initialClientes, basePath = '/admin/cl
       
       setIsDeleteModalOpen(false);
       setClientToDelete(null);
-      showNotification('success', 'El cliente ha sido eliminado exitosamente', 'Cliente Eliminado');
+      showNotification('success', 'El cliente ha sido archivado exitosamente', 'Cliente Archivado');
     } catch (error) {
       console.error('Ups, falló la eliminación:', error);
-      showNotification('error', 'No se pudo eliminar el cliente. Por favor intente de nuevo.', 'Error');
+      showNotification('error', 'No se pudo archivar el cliente. Por favor intente de nuevo.', 'Error');
     } finally {
       setIsDeleting(false);
     }
@@ -506,7 +506,7 @@ export default function ClientesFeature({ initialClientes, basePath = '/admin/cl
                             <button
                               onClick={() => handleDeleteClick(cliente)}
                               className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
-                              title="Eliminar cliente"
+                              title="Archivar cliente"
                             >
                               <Trash2 className="h-4 w-4" />
                             </button>
@@ -573,7 +573,7 @@ export default function ClientesFeature({ initialClientes, basePath = '/admin/cl
       <Modal
         isOpen={isDeleteModalOpen}
         onClose={() => setIsDeleteModalOpen(false)}
-        title="Confirmar Eliminación"
+        title="Confirmar Archivado"
         footer={
           <>
             <button
@@ -588,7 +588,7 @@ export default function ClientesFeature({ initialClientes, basePath = '/admin/cl
               disabled={isDeleting}
               className="px-4 py-2 text-sm font-bold text-white bg-rose-600 hover:bg-rose-700 rounded-xl transition-colors shadow-lg shadow-rose-600/20 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {isDeleting ? 'Eliminando...' : 'Sí, eliminar cliente'}
+              {isDeleting ? 'Archivando...' : 'Sí, archivar cliente'}
             </button>
           </>
         }
@@ -599,10 +599,10 @@ export default function ClientesFeature({ initialClientes, basePath = '/admin/cl
           </div>
           <div>
             <p className="text-slate-600">
-              ¿Estás seguro que deseas eliminar al cliente <span className="font-bold text-slate-900">{clientToDelete?.nombres} {clientToDelete?.apellidos}</span>?
+              ¿Estás seguro que deseas archivar al cliente <span className="font-bold text-slate-900">{clientToDelete?.nombres} {clientToDelete?.apellidos}</span>?
             </p>
             <p className="text-xs text-slate-500 mt-1">
-              Esta acción no se puede deshacer y eliminará todos los préstamos asociados.
+              El cliente será archivado y podrá ser restaurado desde la sección de Archivados.
             </p>
           </div>
         </div>

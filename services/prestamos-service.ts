@@ -127,5 +127,19 @@ export const prestamosService = {
       rechazadoPorId, 
       motivo 
     });
+  },
+
+  /**
+   * Actualizar un préstamo existente
+   */
+  async actualizarPrestamo(id: string, data: {
+    monto?: number;
+    tasaInteres?: number;
+    plazoMeses?: number;
+    frecuenciaPago?: string;
+    estado?: string;
+    notas?: string;
+  }): Promise<any> {
+    return apiRequest('PATCH', `/loans/${id}`, data);
   }
 };

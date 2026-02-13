@@ -60,7 +60,7 @@ export default function DetalleCuentaVencidaPage({
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               <Link 
-                href="/admin/cuentas-vencidas" 
+                href="/cuentas-vencidas" 
                 className="p-2 rounded-lg hover:bg-slate-100 transition-colors text-slate-500 hover:text-slate-900"
               >
                 <ChevronLeft className="w-5 h-5" />
@@ -77,7 +77,7 @@ export default function DetalleCuentaVencidaPage({
             </div>
             <div className="flex items-center gap-4">
                 <div className="w-[1px] h-8 bg-slate-200 hidden md:block" />
-                <Link href={`/admin/creditos/${id}`} className="px-4 py-2 text-sm font-bold text-blue-600 hover:bg-blue-50 rounded-xl transition-all">
+                <Link href={`/creditos/${id}`} className="px-4 py-2 text-sm font-bold text-blue-600 hover:bg-blue-50 rounded-xl transition-all">
                     Ver Crédito
                  </Link>
             </div>

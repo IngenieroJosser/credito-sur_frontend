@@ -176,7 +176,7 @@ export default function DetalleCuentaMoraPage({ params }: { params: Promise<{ id
                     </div>
 
                     <div className="mt-6 flex gap-2">
-                         <Link href={`/admin/clientes/${data.cliente.id}`} className="flex-1 py-2 text-center text-sm font-bold text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors">
+                         <Link href={`/clientes/${data.cliente.id}`} className="flex-1 py-2 text-center text-sm font-bold text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors">
                             Ver Perfil
                         </Link>
                         {/* Botón Llamar eliminado a petición del usuario */}
@@ -215,7 +215,7 @@ export default function DetalleCuentaMoraPage({ params }: { params: Promise<{ id
                 </div>
 
                 <div className="mt-6 pt-4 border-t border-rose-100">
-                     <Link href={`/admin/pagos/registrar/${data.cliente.id}`} className="w-full sm:w-auto flex items-center justify-center gap-2 py-3 px-6 bg-white text-slate-900 border border-slate-200 font-bold rounded-xl hover:bg-slate-50 shadow-sm transition-all">
+                     <Link href={`/pagos/registrar/${data.cliente.id}`} className="w-full sm:w-auto flex items-center justify-center gap-2 py-3 px-6 bg-white text-slate-900 border border-slate-200 font-bold rounded-xl hover:bg-slate-50 shadow-sm transition-all">
                         <DollarSign className="w-5 h-5 text-emerald-600" />
                         Registrar Pago
                      </Link>

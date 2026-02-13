@@ -19,7 +19,7 @@ export { inventarioService } from './inventario-service';
 export type { Producto, CrearProductoDto, ActualizarProductoDto, EstadisticasInventario } from './inventario-service';
 
 export { pagosService } from './pagos-service';
-export type { Pago, CrearPagoDto, ActualizarPagoDto } from './pagos-service';
+export type { Pago, CrearPagoDto, ResultadoPago, DescomposicionPago, PagosResponse } from './pagos-service';
 export type { MetodoPago } from './pagos-service';
 
 export { gastosService } from './gastos-service';

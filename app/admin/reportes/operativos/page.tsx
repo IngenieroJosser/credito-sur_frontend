@@ -64,7 +64,7 @@ const ReportesOperativosPage = () => {
    * Esto permite que este mismo reporte sirva para Admin, Coordinadores y Supervisores,
    * redirigiendo a cada uno a su sección correcta sin "sacarlos" de su layout.
    */
-  const [basePath, setBasePath] = useState('/admin')
+  const [basePath, setBasePath] = useState('')
   const [exporting, setExporting] = useState(false)
 
   // Filtro específico para ver el rendimiento de una sola ruta

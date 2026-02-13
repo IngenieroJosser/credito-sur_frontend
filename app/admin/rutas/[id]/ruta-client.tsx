@@ -161,7 +161,7 @@ const RutaClient = ({ initialRuta }: RutaClientProps) => {
       <div className="min-h-screen flex items-center justify-center bg-slate-50">
         <div className="text-center">
             <h2 className="text-xl font-bold text-slate-800">Ruta no encontrada</h2>
-            <Link href="/admin/rutas" className="text-primary hover:underline mt-2 block">Volver al listado</Link>
+            <Link href="/rutas" className="text-primary hover:underline mt-2 block">Volver al listado</Link>
         </div>
       </div>
     )
@@ -180,7 +180,7 @@ const RutaClient = ({ initialRuta }: RutaClientProps) => {
         <header className="flex flex-col gap-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
-               <Link href="/admin/rutas" className="p-2 bg-white rounded-full shadow-sm hover:bg-slate-100 transition-colors">
+               <Link href="/rutas" className="p-2 bg-white rounded-full shadow-sm hover:bg-slate-100 transition-colors">
                   <ArrowLeftIcon className="h-5 w-5 text-slate-600" />
                </Link>
                <div>

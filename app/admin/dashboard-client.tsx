@@ -92,13 +92,17 @@ export function DashboardClient({ data }: DashboardClientProps) {
   const [showCrearCreditoModal, setShowCrearCreditoModal] = useState(false);
   const [showNuevoClienteModal, setShowNuevoClienteModal] = useState(false);
 
-  // Funciones placeholder para exportación (a futuro conectarán con el backend)
+  // TODO: Exportar resumen del dashboard administrativo
+  // Qué exportar: Estadísticas generales, Cartera activa, Recaudo del día, Alertas
+  // Backend: Crear GET /dashboard/export?format=excel|pdf en dashboard.controller.ts
+  // Backend: Método exportDashboardSummary() en dashboard.service.ts usando ExcelJS + PDFKit
+  // Frontend: Usar exportService.downloadFile('dashboard/export', params, 'resumen-dashboard.xlsm')
   const handleExportExcel = () => {
-    console.log('Generando reporte Excel...');
+    console.log('TODO: Exportar resumen dashboard en Excel');
   };
 
   const handleExportPDF = () => {
-    console.log('Generando PDF...');
+    console.log('TODO: Exportar resumen dashboard en PDF');
   };
 
   // Formato de fecha amigable para el encabezado (ej: Vie, 6 Feb 2026)
@@ -227,7 +231,7 @@ export function DashboardClient({ data }: DashboardClientProps) {
             <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
               <div className="flex items-center justify-between mb-6">
                 <h3 className="text-lg font-bold text-slate-800">Últimos Préstamos Aprobados</h3>
-                <Link href="/admin/prestamos" className="text-sm font-medium text-blue-600 hover:text-blue-700 hover:underline">
+                <Link href="/prestamos" className="text-sm font-medium text-blue-600 hover:text-blue-700 hover:underline">
                   Ver todos
                 </Link>
               </div>
@@ -310,7 +314,7 @@ export function DashboardClient({ data }: DashboardClientProps) {
                 ))}
               </div>
               <div className="mt-6 pt-4 border-t border-slate-100">
-                <Link href="/admin/reportes/operativos" className="block w-full text-center text-sm font-medium text-slate-600 hover:text-slate-900 transition-colors">
+                <Link href="/reportes/operativos" className="block w-full text-center text-sm font-medium text-slate-600 hover:text-slate-900 transition-colors">
                   Ver reporte completo
                 </Link>
               </div>

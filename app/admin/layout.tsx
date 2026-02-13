@@ -220,7 +220,13 @@ export default function AdminLayout({
       const allHrefs = navigation.flatMap((n) => [n.href, ...(n.submodulos?.map((s) => s.href) ?? [])])
       const allowedAdminBases = allHrefs.filter((h) => typeof h === 'string' && h.startsWith('/admin'))
 
-      return allowedAdminBases.some((base) => pathname === base || pathname.startsWith(`${base}/`))
+      // Also check if the current /admin path has a matching clean URL in the sidebar
+      // e.g. /admin/creditos is allowed if /creditos is in the sidebar (via rewrites)
+      const cleanPath = pathname.replace(/^\/admin/, '')
+      const allowedCleanBases = allHrefs.filter((h) => typeof h === 'string' && !h.startsWith('/admin') && h !== '#' && h !== '/')
+
+      return allowedAdminBases.some((base) => pathname === base || pathname.startsWith(`${base}/`)) ||
+             allowedCleanBases.some((base) => cleanPath === base || cleanPath.startsWith(`${base}/`))
     })()
 
     if (roleRedirects[user.rol] && pathname?.startsWith('/admin') && !hasAllowedAdminRoute) {
@@ -413,12 +419,11 @@ export default function AdminLayout({
                         <button 
                           onClick={() => {
                             setShowNotifications(false)
-                            let target = '/admin/notificaciones'
+                            let target = '/notificaciones'
                             if (user?.rol === 'COORDINADOR') target = '/coordinador/notificaciones'
                             if (user?.rol === 'SUPERVISOR') target = '/supervisor/notificaciones'
                             if (user?.rol === 'CONTADOR') target = '/contador/notificaciones'
                             if (user?.rol === 'COBRADOR') target = '/cobranzas/notificaciones'
-                            if (user?.rol === 'PUNTO_DE_VENTA') target = '/notificaciones'
                             router.push(target)
                           }}
                           className="w-full py-2 text-sm font-medium text-gray-600 hover:text-blue-600 hover:bg-gray-50 rounded-lg transition-colors"

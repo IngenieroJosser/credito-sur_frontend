@@ -2,10 +2,12 @@
 
 import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
-import { ChevronLeft, Package } from 'lucide-react';
+import { ChevronLeft, Package, FileText } from 'lucide-react';
 import Link from 'next/link';
 import DetallePrestamo, { PrestamoDetalle } from '@/components/prestamos/DetallePrestamo';
 import { prestamosService } from '@/services/prestamos-service';
+import { exportService } from '@/services/export-service';
+import { toast } from 'sonner';
 
 export default function CreditoDetallePage() {
   const params = useParams();
@@ -29,9 +31,12 @@ export default function CreditoDetallePage() {
           clienteTelefono: data.cliente?.telefono || '',
           clienteDireccion: data.cliente?.direccion || '',
           montoPrestamo: data.monto || 0,
-          montoTotal: data.montoTotal || data.monto || 0,
+          montoTotal: data.montoTotal || (Number(data.monto || 0) + Number(data.interesTotal || 0)),
           saldoPendiente: data.saldoPendiente || data.montoPendiente || 0,
           tasaInteres: data.tasaInteres || 0,
+          interesTotal: data.interesTotal != null ? Number(data.interesTotal) : undefined,
+          capitalPagado: data.capitalPagado != null ? Number(data.capitalPagado) : undefined,
+          interesPagado: data.interesPagado != null ? Number(data.interesPagado) : undefined,
           duracion: data.plazoMeses ? `${data.plazoMeses} Meses` : '',
           frecuencia: data.frecuenciaPago || 'mensual',
           fechaInicio: data.fechaInicio || '',
@@ -44,6 +49,8 @@ export default function CreditoDetallePage() {
             numero: c.numeroCuota,
             fecha: c.fechaVencimiento,
             monto: c.monto,
+            montoCapital: c.montoCapital != null ? Number(c.montoCapital) : undefined,
+            montoInteres: c.montoInteres != null ? Number(c.montoInteres) : undefined,
             estado: c.estado,
             fechaPago: c.fechaPago || undefined,
           })),
@@ -108,12 +115,28 @@ export default function CreditoDetallePage() {
               </div>
             </div>
 
-            <Link
-              href={`/creditos-articulos/${id}/editar`}
-              className="px-4 py-2 bg-white border border-slate-200 text-slate-700 font-bold rounded-xl hover:bg-slate-50 transition-all text-sm shadow-sm hover:shadow-md"
-            >
-              Editar Crédito
-            </Link>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={async () => {
+                  try {
+                    await exportService.exportContrato(id);
+                    toast.success('Contrato descargado');
+                  } catch (e) {
+                    toast.error('Error al descargar contrato');
+                  }
+                }}
+                className="px-4 py-2 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 transition-all text-sm shadow-sm hover:shadow-md flex items-center gap-2"
+              >
+                <FileText className="w-4 h-4" />
+                Descargar Contrato
+              </button>
+              <Link
+                href={`/creditos-articulos/${id}/editar`}
+                className="px-4 py-2 bg-white border border-slate-200 text-slate-700 font-bold rounded-xl hover:bg-slate-50 transition-all text-sm shadow-sm hover:shadow-md"
+              >
+                Editar Crédito
+              </Link>
+            </div>
           </div>
         </div>
       </header>

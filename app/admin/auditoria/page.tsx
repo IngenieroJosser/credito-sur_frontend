@@ -18,6 +18,8 @@ import {
 import { auditoriaService, type RegistroAuditoria } from '@/services/auditoria-service'
 import { routesService, type Route } from '@/services/routes-service'
 import { cn } from '@/lib/utils'
+import { exportService } from '@/services/export-service'
+import { toast } from 'sonner'
 import { ExportButton } from '@/components/ui/ExportButton'
 import { usePermission } from '@/hooks/usePermission'
 
@@ -88,8 +90,22 @@ const AuditoriaSistemaPage = () => {
     })()
   }, [])
 
-  const handleExportExcel = () => {}
-  const handleExportPDF = () => {}
+  const handleExportExcel = async () => {
+    try {
+      await exportService.exportAudit('excel')
+      toast.success('Log de auditoría Excel descargado')
+    } catch (e) {
+      toast.error('Error al exportar log de auditoría')
+    }
+  }
+  const handleExportPDF = async () => {
+    try {
+      await exportService.exportAudit('pdf')
+      toast.success('Log de auditoría PDF descargado')
+    } catch (e) {
+      toast.error('Error al exportar log de auditoría')
+    }
+  }
 
   const logsFiltrados = logs.filter(log => {
     const coincideTexto = 

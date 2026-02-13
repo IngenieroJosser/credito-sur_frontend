@@ -16,7 +16,7 @@ import {
 import { formatCOPInputValue, formatCurrency, formatMilesCOP, parseCOPInputToNumber, cn } from '@/lib/utils'
 import { clientesService } from '@/services/cliente-service'
 import { prestamosService } from '@/services/prestamos-service'
-import { pagosService } from '@/services/pagos-service'
+import { pagosService, type DescomposicionPago } from '@/services/pagos-service'
 
 type TipoProducto = 'PRESTAMO_EFECTIVO' | 'CREDITO_ARTICULO'
 
@@ -52,6 +52,7 @@ const RegistrarPagoClientePage = () => {
   const [monto, setMonto] = useState('')
   const [comentarios, setComentarios] = useState('')
   const [estadoEnvio, setEstadoEnvio] = useState<'idle' | 'enviando' | 'exito' | 'error'>('idle')
+  const [descomposicion, setDescomposicion] = useState<DescomposicionPago | null>(null)
 
   useEffect(() => {
     const loadData = async () => {
@@ -100,7 +101,7 @@ const RegistrarPagoClientePage = () => {
       const userStr = localStorage.getItem('user')
       const user = userStr ? JSON.parse(userStr) : null
 
-      await pagosService.registrarPago({
+      const resultado = await pagosService.registrarPago({
         clienteId: cliente.id,
         prestamoId: producto.id,
         cobradorId: user?.id || '',
@@ -108,10 +109,8 @@ const RegistrarPagoClientePage = () => {
         metodoPago: 'EFECTIVO' as any,
         notas: comentarios || undefined,
       })
+      setDescomposicion(resultado.descomposicion)
       setEstadoEnvio('exito')
-      setTimeout(() => {
-        router.back()
-      }, 1500)
     } catch (err) {
       console.error('Error registrando pago:', err)
       setEstadoEnvio('error')
@@ -274,6 +273,45 @@ const RegistrarPagoClientePage = () => {
                         {estadoEnvio === 'enviando' ? 'Procesando...' : estadoEnvio === 'exito' ? '¡Pago Exitoso!' : 'Confirmar Pago de Artículo'}
                       </button>
                    </div>
+
+                   {estadoEnvio === 'exito' && descomposicion && (
+                     <div className="mt-6 bg-emerald-50 border border-emerald-200 rounded-2xl p-5 space-y-3 animate-in fade-in slide-in-from-bottom-2 duration-500">
+                       <h4 className="font-bold text-emerald-800 flex items-center gap-2">
+                         <CheckCircle2 className="h-5 w-5" />
+                         Resumen del Pago
+                       </h4>
+                       <div className="grid grid-cols-2 gap-3 text-sm">
+                         <div>
+                           <p className="text-emerald-600 font-medium">Capital Recuperado</p>
+                           <p className="text-lg font-bold text-slate-900">{formatCurrency(descomposicion.capitalRecuperado)}</p>
+                         </div>
+                         <div>
+                           <p className="text-emerald-600 font-medium">Interés Recuperado</p>
+                           <p className="text-lg font-bold text-slate-900">{formatCurrency(descomposicion.interesRecuperado)}</p>
+                         </div>
+                         <div>
+                           <p className="text-emerald-600 font-medium">Saldo Anterior</p>
+                           <p className="font-bold text-slate-700">{formatCurrency(descomposicion.saldoAnterior)}</p>
+                         </div>
+                         <div>
+                           <p className="text-emerald-600 font-medium">Nuevo Saldo</p>
+                           <p className="font-bold text-slate-900">{formatCurrency(descomposicion.saldoNuevo)}</p>
+                         </div>
+                       </div>
+                       {descomposicion.prestamoQuedaPagado && (
+                         <div className="mt-2 text-center py-2 bg-emerald-100 rounded-xl text-emerald-800 font-bold text-sm">
+                           Préstamo pagado en su totalidad
+                         </div>
+                       )}
+                       <button
+                         type="button"
+                         onClick={() => router.back()}
+                         className="w-full mt-2 py-3 rounded-xl border border-emerald-300 text-emerald-700 font-bold text-sm hover:bg-emerald-100 transition-colors"
+                       >
+                         Volver
+                       </button>
+                     </div>
+                   )}
                 </form>
               </div>
             </div>
@@ -487,6 +525,45 @@ const RegistrarPagoClientePage = () => {
                       "Confirmar Pago"
                     )}
                   </button>
+
+                  {estadoEnvio === 'exito' && descomposicion && (
+                    <div className="mt-6 bg-emerald-50 border border-emerald-200 rounded-2xl p-5 space-y-3 animate-in fade-in slide-in-from-bottom-2 duration-500">
+                      <h4 className="font-bold text-emerald-800 flex items-center gap-2">
+                        <CheckCircle2 className="h-5 w-5" />
+                        Resumen del Pago
+                      </h4>
+                      <div className="grid grid-cols-2 gap-3 text-sm">
+                        <div>
+                          <p className="text-emerald-600 font-medium">Capital Recuperado</p>
+                          <p className="text-lg font-bold text-slate-900">{formatCurrency(descomposicion.capitalRecuperado)}</p>
+                        </div>
+                        <div>
+                          <p className="text-emerald-600 font-medium">Interés Recuperado</p>
+                          <p className="text-lg font-bold text-slate-900">{formatCurrency(descomposicion.interesRecuperado)}</p>
+                        </div>
+                        <div>
+                          <p className="text-emerald-600 font-medium">Saldo Anterior</p>
+                          <p className="font-bold text-slate-700">{formatCurrency(descomposicion.saldoAnterior)}</p>
+                        </div>
+                        <div>
+                          <p className="text-emerald-600 font-medium">Nuevo Saldo</p>
+                          <p className="font-bold text-slate-900">{formatCurrency(descomposicion.saldoNuevo)}</p>
+                        </div>
+                      </div>
+                      {descomposicion.prestamoQuedaPagado && (
+                        <div className="mt-2 text-center py-2 bg-emerald-100 rounded-xl text-emerald-800 font-bold text-sm">
+                          Préstamo pagado en su totalidad
+                        </div>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => router.back()}
+                        className="w-full mt-2 py-3 rounded-xl border border-emerald-300 text-emerald-700 font-bold text-sm hover:bg-emerald-100 transition-colors"
+                      >
+                        Volver
+                      </button>
+                    </div>
+                  )}
                 </form>
               </div>
             </div>

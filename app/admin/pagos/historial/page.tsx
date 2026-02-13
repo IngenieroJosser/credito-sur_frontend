@@ -18,6 +18,8 @@ import {
 import { formatCurrency, cn } from '@/lib/utils'
 import { ExportButton } from '@/components/ui/ExportButton'
 import { pagosService } from '@/services/pagos-service'
+import { exportService } from '@/services/export-service'
+import { toast } from 'sonner'
 import { useRouter, useSearchParams, usePathname } from 'next/navigation'
 import { TimeFilter, TimeFilterPeriod } from '@/components/ui/TimeFilter'
 import AnimacionCarga from '@/components/ui/AnimacionCarga'
@@ -54,20 +56,31 @@ const HistorialPagosPage = () => {
   const [isLoading, setIsLoading] = useState(true)
   const [pagos, setPagos] = useState<Pago[]>([])
 
-  const handleExportExcel = () => {
-    console.log('Exporting Excel...')
+  const handleExportExcel = async () => {
+    try {
+      await exportService.exportPayments('excel')
+      toast.success('Historial de pagos Excel descargado')
+    } catch (e) {
+      toast.error('Error al exportar historial de pagos')
+    }
   }
 
-  const handleExportPDF = () => {
-    console.log('Exporting PDF...')
+  const handleExportPDF = async () => {
+    try {
+      await exportService.exportPayments('pdf')
+      toast.success('Historial de pagos PDF descargado')
+    } catch (e) {
+      toast.error('Error al exportar historial de pagos')
+    }
   }
 
   useEffect(() => {
     const loadPagos = async () => {
       setIsLoading(true)
       try {
-        const data = await pagosService.obtenerPagos()
-        const mapped: Pago[] = (data || []).map((p: any) => ({
+        const resp = await pagosService.obtenerPagos()
+        const data = resp?.pagos || resp || []
+        const mapped: Pago[] = (Array.isArray(data) ? data : []).map((p: any) => ({
           id: p.numeroPago || p.id,
           fecha: p.fechaPago || p.creadoEn || '',
           cliente: p.cliente ? `${p.cliente.nombres} ${p.cliente.apellidos}` : (p.clienteId || ''),

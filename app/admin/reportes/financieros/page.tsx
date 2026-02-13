@@ -20,6 +20,8 @@ import DetalleGastoModal from '../../../../components/reportes/DetalleGastoModal
 import AnimacionCarga from '@/components/ui/AnimacionCarga'
 import { getFinancialSummary, getMonthlyEvolution, getExpenseDistribution, getFinancialTargets } from '@/services/reportes-service'
 import { getTransacciones } from '@/services/contabilidad-service'
+import { exportService } from '@/services/export-service'
+import { toast } from 'sonner'
 
 // Interfaces
 interface FinancialSummary {
@@ -72,12 +74,22 @@ const ReportesFinancierosPage = () => {
   const basePath = pathname?.startsWith('/contador') ? '/contador' : '/admin'
   const yearLabel = new Date().getFullYear()
 
-  const handleExportExcel = () => {
-    console.log('Exporting Excel...')
+  const handleExportExcel = async () => {
+    try {
+      await exportService.exportFinancialReport('excel')
+      toast.success('Reporte financiero Excel descargado')
+    } catch (e) {
+      toast.error('Error al exportar reporte financiero')
+    }
   }
 
-  const handleExportPDF = () => {
-    console.log('Exporting PDF...')
+  const handleExportPDF = async () => {
+    try {
+      await exportService.exportFinancialReport('pdf')
+      toast.success('Reporte financiero PDF descargado')
+    } catch (e) {
+      toast.error('Error al exportar reporte financiero')
+    }
   }
 
   useEffect(() => {
