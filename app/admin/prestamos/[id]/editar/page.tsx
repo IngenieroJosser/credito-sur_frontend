@@ -28,7 +28,7 @@ export default function EditarPrestamoPage() {
     };
     alert('Préstamo actualizado (Simulado)');
     console.log('Actualizar préstamo:', id, payload);
-    router.push(`/admin/prestamos/${id}`);
+    router.push(`/prestamos/${id}`);
   };
 
   return (
@@ -40,7 +40,7 @@ export default function EditarPrestamoPage() {
 
       <div className="relative z-10 px-4 pt-4">
         <div className="mb-4 flex items-center justify-between">
-          <Link href={`/admin/prestamos/${id}`} className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-slate-600 shadow-sm transition-colors hover:bg-slate-50 hover:text-slate-900">
+          <Link href={`/prestamos/${id}`} className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-slate-600 shadow-sm transition-colors hover:bg-slate-50 hover:text-slate-900">
             <ArrowLeft className="w-5 h-5" />
             <span>Volver al Detalle</span>
           </Link>
@@ -122,7 +122,7 @@ export default function EditarPrestamoPage() {
             </div>
 
                 <div className="col-span-full pt-4 flex justify-end gap-3 border-t border-slate-100 mt-2">
-                    <Link href={`/admin/prestamos/${id}`} className="px-4 py-2 text-slate-600 font-bold hover:bg-slate-100 rounded-xl transition-colors">
+                    <Link href={`/prestamos/${id}`} className="px-4 py-2 text-slate-600 font-bold hover:bg-slate-100 rounded-xl transition-colors">
                         Cancelar
                     </Link>
                     <button type="submit" className="px-6 py-2 bg-slate-900 text-white font-bold rounded-xl hover:bg-slate-800 transition-all shadow-lg shadow-slate-900/20 flex items-center gap-2">

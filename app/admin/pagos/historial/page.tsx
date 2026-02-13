@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import {
   Search,
   Filter,
@@ -17,6 +17,12 @@ import {
 } from 'lucide-react'
 import { formatCurrency, cn } from '@/lib/utils'
 import { ExportButton } from '@/components/ui/ExportButton'
+import { pagosService } from '@/services/pagos-service'
+import { exportService } from '@/services/export-service'
+import { toast } from 'sonner'
+import { useRouter, useSearchParams, usePathname } from 'next/navigation'
+import { TimeFilter, TimeFilterPeriod } from '@/components/ui/TimeFilter'
+import AnimacionCarga from '@/components/ui/AnimacionCarga'
 
 type EstadoPago = 'completado' | 'pendiente' | 'fallido' | 'en_revision'
 
@@ -32,61 +38,72 @@ interface Pago {
 }
 
 const HistorialPagosPage = () => {
+  const router = useRouter()
+  const pathname = usePathname()
+  const searchParams = useSearchParams()
+  const period = (searchParams.get('period') as TimeFilterPeriod) || 'today'
+
+  const handlePeriodChange = (newPeriod: TimeFilterPeriod) => {
+    const params = new URLSearchParams(searchParams.toString())
+    params.set('period', newPeriod)
+    router.replace(`${pathname}?${params.toString()}`, { scroll: false })
+  }
+
   const [estadoFiltro, setEstadoFiltro] = useState<EstadoPago | 'todos'>('todos')
   const [busqueda, setBusqueda] = useState('')
   const [paginaActual, setPaginaActual] = useState(1)
   const [vista, setVista] = useState<'grid' | 'list'>('list')
+  const [isLoading, setIsLoading] = useState(true)
+  const [pagos, setPagos] = useState<Pago[]>([])
 
-  const handleExportExcel = () => {
-    console.log('Exporting Excel...')
-  }
-
-  const handleExportPDF = () => {
-    console.log('Exporting PDF...')
-  }
-
-  const pagos: Pago[] = [
-    {
-      id: 'PG-001',
-      fecha: '2024-03-10 09:42',
-      cliente: 'María González',
-      cobrador: 'Carlos Pérez',
-      ruta: 'Ruta Centro',
-      monto: 125500,
-      metodo: 'Efectivo',
-      estado: 'completado'
-    },
-    {
-      id: 'PG-002',
-      fecha: '2024-03-10 10:15',
-      cliente: 'Carlos Rodríguez',
-      cobrador: 'Ana López',
-      ruta: 'Ruta Este',
-      monto: 80000,
-      metodo: 'Transferencia',
-      estado: 'en_revision'
-    },
-    {
-      id: 'PG-003',
-      fecha: '2024-03-10 10:50',
-      cliente: 'Ana Martínez',
-      cobrador: 'Pedro Gómez',
-      ruta: 'Ruta Norte',
-      monto: 150000,
-      metodo: 'Efectivo',
-      estado: 'pendiente'
-    },
-    {
-      id: 'PG-004',
-      fecha: '2024-03-10 11:20',
-      cliente: 'Luis Fernández',
-      cobrador: 'Carlos Pérez',
-      ruta: 'Ruta Centro',
-      monto: 95750,
-      metodo: 'Transferencia',
-      estado: 'completado'
+  const handleExportExcel = async () => {
+    try {
+      await exportService.exportPayments('excel')
+      toast.success('Historial de pagos Excel descargado')
+    } catch (e) {
+      toast.error('Error al exportar historial de pagos')
     }
-  ]
+  }
+
+  const handleExportPDF = async () => {
+    try {
+      await exportService.exportPayments('pdf')
+      toast.success('Historial de pagos PDF descargado')
+    } catch (e) {
+      toast.error('Error al exportar historial de pagos')
+    }
+  }
+
+  useEffect(() => {
+    const loadPagos = async () => {
+      setIsLoading(true)
+      try {
+        const resp = await pagosService.obtenerPagos()
+        const data = resp?.pagos || resp || []
+        const mapped: Pago[] = (Array.isArray(data) ? data : []).map((p: any) => ({
+          id: p.numeroPago || p.id,
+          fecha: p.fechaPago || p.creadoEn || '',
+          cliente: p.cliente ? `${p.cliente.nombres} ${p.cliente.apellidos}` : (p.clienteId || ''),
+          cobrador: p.cobrador ? `${p.cobrador.nombres} ${p.cobrador.apellidos}` : (p.cobradorId || ''),
+          ruta: p.ruta || '',
+          monto: p.montoTotal || 0,
+          metodo: p.metodoPago || 'Efectivo',
+          estado: (p.estado || 'completado').toLowerCase() as EstadoPago,
+        }))
+        setPagos(mapped)
+      } catch (err) {
+        console.error('Error cargando historial de pagos:', err)
+        setPagos([])
+      } finally {
+        setIsLoading(false)
+      }
+    }
+    loadPagos()
+  }, [])
+
+  if (isLoading) {
+    return <AnimacionCarga texto="Cargando historial de pagos..." />
+  }
 
   const getEstadoChipClasses = (estado: EstadoPago) => {
     if (estado === 'completado') return 'bg-emerald-50 text-emerald-700 border-emerald-100'
@@ -95,8 +112,38 @@ const HistorialPagosPage = () => {
     return 'bg-sky-50 text-sky-700 border-sky-100'
   }
 
+  const getDateRangeForPeriod = (p: TimeFilterPeriod) => {
+    const ahora = new Date()
+    const inicio = new Date(ahora)
+
+    if (p === 'today') {
+      inicio.setHours(0, 0, 0, 0)
+    } else if (p === 'week') {
+      inicio.setDate(ahora.getDate() - 6)
+      inicio.setHours(0, 0, 0, 0)
+    } else if (p === 'month') {
+      inicio.setMonth(ahora.getMonth(), 1)
+      inicio.setHours(0, 0, 0, 0)
+    } else if (p === 'quarter') {
+      inicio.setMonth(ahora.getMonth() - 3, 1)
+      inicio.setHours(0, 0, 0, 0)
+    }
+
+    return { start: inicio, end: ahora }
+  }
+
+  const { start, end } = getDateRangeForPeriod(period)
+
   const pagosFiltrados = pagos.filter((pago) => {
     if (estadoFiltro !== 'todos' && pago.estado !== estadoFiltro) return false
+
+    if (pago.fecha) {
+      const fechaPago = new Date(pago.fecha)
+      if (!Number.isNaN(fechaPago.getTime())) {
+        if (fechaPago < start || fechaPago > end) return false
+      }
+    }
+
     if (
       busqueda &&
       !`${pago.id} ${pago.cliente} ${pago.cobrador} ${pago.ruta}`
@@ -133,6 +180,7 @@ const HistorialPagosPage = () => {
               </p>
             </div>
             <div className="flex gap-3">
+              <TimeFilter activePeriod={period} onPeriodChange={handlePeriodChange} />
               <ExportButton 
                 label="Exportar Reporte" 
                 onExportExcel={handleExportExcel} 
@@ -249,7 +297,7 @@ const HistorialPagosPage = () => {
                 </div>
                 <div className="flex items-center gap-2 text-[10px] font-bold text-slate-400 bg-white px-2 py-1 rounded border border-slate-200">
                   <AlertCircle className="h-3 w-3" />
-                  <span>Datos de ejemplo</span>
+                  <span>{pagos.length} registros</span>
                 </div>
               </div>
 

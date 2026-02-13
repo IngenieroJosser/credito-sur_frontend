@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation'
 export default function NuevoMovimientoPage() {
   const router = useRouter()
   useEffect(() => {
-    router.replace('/admin/contable')
+    router.replace('/contable')
   }, [router])
 
   return (

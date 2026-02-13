@@ -8,6 +8,8 @@ interface ChartData {
   value: number;
   target?: number;
   secondaryValue?: number;
+  date?: string; // Ej: "06 de Febrero, 2026"
+  time?: string; // Ej: "13:45:00"
 }
 
 interface PremiumBarChartProps {
@@ -52,28 +54,38 @@ export const PremiumBarChart = ({
   }, [data, hasData]);
 
   const chartData = hasData ? data : sampleData;
+  const isHighDensity = chartData.length > 12;
 
   return (
-    <div style={{ height }} className="w-full flex items-end justify-between gap-2 sm:gap-4 px-2 relative group mt-8">
-      {/* Grid Lines */}
-      <div className="absolute inset-0 flex flex-col justify-between pointer-events-none pb-8">
-        {[0, 1, 2, 3].map((i) => (
-          <div key={i} className="w-full border-t border-slate-100 border-dashed relative">
-             <span className="absolute -left-2 -top-2 px-1 text-[8px] font-bold text-slate-300 bg-white">
-                {formatCurrency((maxValue / 3) * (3 - i)).split(',')[0]}
-             </span>
+    <div className="w-full relative mt-4 pb-20">
+      {/* Contenedor con amplio espacio superior (tooltips) e inferior (etiquetas) */}
+      <div className="w-full overflow-visible pt-32 pb-4">
+        <div 
+          style={{ height: height + 60 }} 
+          className={cn(
+            "flex items-end justify-between px-2 relative group",
+            isHighDensity ? "gap-1 sm:gap-2" : "gap-4"
+          )}
+        >
+          {/* Grid Lines - Optimizadas para visibilidad */}
+          <div className="absolute inset-0 flex flex-col justify-between pointer-events-none pb-8">
+            {[0, 1, 2, 3].map((i) => (
+              <div key={i} className="w-full border-t border-slate-100 border-dashed relative">
+                 <span className="absolute -left-2 -top-2 px-1 text-[8px] font-bold text-slate-300 bg-white z-20">
+                    {formatCurrency((maxValue / 3) * (3 - i)).split(',')[0]}
+                 </span>
+              </div>
+            ))}
           </div>
-        ))}
-      </div>
 
-      {!hasData && (
-        <div className="absolute inset-0 flex items-center justify-center z-20">
-          <div className="text-center bg-white/90 backdrop-blur-sm p-6 rounded-2xl border border-slate-200 shadow-lg">
-            <div className="text-sm font-bold text-slate-600 mb-2">Cargando datos del gráfico...</div>
-            <div className="text-xs text-slate-500">Usando datos de muestra mientras se cargan los reales</div>
-          </div>
-        </div>
-      )}
+          {!hasData && (
+            <div className="absolute inset-0 flex items-center justify-center z-20">
+              <div className="text-center bg-white/90 backdrop-blur-sm p-6 rounded-2xl border border-slate-200 shadow-lg">
+                <div className="text-sm font-bold text-slate-600 mb-2">Cargando datos del gráfico...</div>
+                <div className="text-xs text-slate-500">Usando datos de muestra mientras se cargan los reales</div>
+              </div>
+            </div>
+          )}
 
       {chartData.map((item, i) => {
         const heightPrimary = (item.value / maxValue) * 100;
@@ -82,50 +94,91 @@ export const PremiumBarChart = ({
 
         return (
           <div key={i} className="flex-1 flex flex-col items-center gap-3 group/bar h-full justify-end relative z-10">
-            {/* Tooltip Overlay */}
+            {/* Tooltip Overlay Mejorado con Alto Detalle */}
             <div className="absolute bottom-full mb-4 opacity-0 group-hover/bar:opacity-100 transition-all duration-300 pointer-events-none z-50 transform -translate-y-2 group-hover/bar:translate-y-0">
-               <div className="bg-slate-900 text-white p-3 rounded-2xl shadow-2xl border border-white/10 min-w-[140px]">
-                  <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">{item.label}</p>
-                  <div className="space-y-1.5">
-                    <div className="flex items-center justify-between gap-4">
-                      <span className="text-[10px] font-bold text-white/70">Actual:</span>
-                      <span className="text-xs font-black text-emerald-400">{formatCurrency(item.value)}</span>
+               <div className="bg-slate-900 text-white p-4 rounded-2xl shadow-2xl border border-white/10 min-w-[200px]">
+                  <div className="flex items-center justify-between mb-3 border-b border-white/10 pb-2">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">{item.label}</p>
+                    {item.time && (
+                      <span className="text-[9px] font-bold px-2 py-0.5 bg-blue-500/20 text-blue-400 rounded-full border border-blue-500/30">
+                        {item.time}
+                      </span>
+                    )}
+                  </div>
+                  
+                  {item.date && (
+                    <p className="text-[10px] font-medium text-slate-400 mb-3 -mt-1 flex items-center gap-1.5">
+                      <span className="w-1 h-1 rounded-full bg-slate-500"></span>
+                      {item.date}
+                    </p>
+                  )}
+
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between gap-6">
+                      <span className="text-[10px] font-bold text-white/50">MONTO EXACTO:</span>
+                      <span className="text-sm font-black text-emerald-400 tracking-tight">
+                        {formatCurrency(item.value)}
+                      </span>
                     </div>
+                    
                     {item.target && (
-                      <div className="flex items-center justify-between gap-4">
-                        <span className="text-[10px] font-bold text-white/70">Meta:</span>
-                        <span className="text-xs font-black text-slate-300">{formatCurrency(item.target)}</span>
+                      <div className="flex items-center justify-between gap-6">
+                        <span className="text-[10px] font-bold text-white/50">OBJETIVO DIARIO:</span>
+                        <span className="text-sm font-black text-slate-300 tracking-tight">
+                          {formatCurrency(item.target)}
+                        </span>
                       </div>
                     )}
+
+                    {(item.value > 0 && item.target && item.target > 0) && (
+                      <div className="pt-2 mt-2 border-t border-white/5 flex items-center justify-between">
+                        <span className="text-[9px] font-bold text-slate-500">CUMPLIMIENTO:</span>
+                        <span className={cn(
+                          "text-[10px] font-black",
+                          item.value >= item.target ? "text-emerald-500" : "text-amber-500"
+                        )}>
+                          {((item.value / item.target) * 100).toFixed(2)}%
+                        </span>
+                      </div>
+                    )}
+
                     {item.secondaryValue && (
-                      <div className="flex items-center justify-between gap-4">
-                        <span className="text-[10px] font-bold text-white/70">Egreso:</span>
-                        <span className="text-xs font-black text-rose-400">{formatCurrency(item.secondaryValue)}</span>
+                      <div className="flex items-center justify-between gap-6 border-t border-white/5 pt-2">
+                        <span className="text-[10px] font-bold text-white/50">EGRESO/SALIDA:</span>
+                        <span className="text-sm font-black text-rose-400 tracking-tight">
+                          {formatCurrency(item.secondaryValue)}
+                        </span>
                       </div>
                     )}
                   </div>
+                  
                   {/* Arrow tooltip */}
-                  <div className="absolute top-full left-1/2 -translate-x-1/2 w-0 h-0 border-l-[6px] border-l-transparent border-r-[6px] border-r-transparent border-t-[6px] border-t-slate-900"></div>
+                  <div className="absolute top-full left-1/2 -translate-x-1/2 w-0 h-0 border-l-[8px] border-l-transparent border-r-[8px] border-r-transparent border-t-[8px] border-t-slate-900"></div>
                </div>
             </div>
 
-            <div className="relative w-full max-w-[44px] h-full flex items-end justify-center gap-1">
-              {/* Target Line / Bar (High Visibility) */}
+            <div 
+              className={cn(
+                "relative w-full h-full flex items-end justify-center gap-1 transition-all duration-300",
+                isHighDensity ? "max-w-[18px]" : "max-w-[44px]"
+              )}
+            >
+              {/* Target Outline (Objetivo) */}
               {showTarget && item.target && (
                 <div 
-                  className="absolute bottom-0 w-full rounded-t-xl border-2 border-dashed border-amber-400/60 bg-amber-50/20 transition-all duration-700 z-0"
+                  className="absolute bottom-0 w-full rounded-t-lg border-2 border-dashed border-amber-500/30 bg-amber-500/5 transition-all duration-700 z-0"
                   style={{ height: `${heightTarget}%` }}
                 >
-                  {/* Small Target Descriptor Tag (Optional visual hint) */}
-                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 w-4 h-1 bg-amber-400/40 rounded-full"></div>
+                  {/* Target Match Line */}
+                  <div className="absolute top-0 inset-x-0 h-[2px] bg-amber-500/40"></div>
                 </div>
               )}
 
               {/* Primary Bar */}
               <div 
                 className={cn(
-                  "relative w-full rounded-t-xl transition-all duration-1000 z-10 shadow-lg group-hover/bar:brightness-110",
-                  item.target && item.value >= item.target ? "bg-emerald-500 shadow-emerald-500/20" : "bg-blue-600 shadow-blue-600/20"
+                  "relative w-full rounded-t-lg transition-all duration-1000 z-10 shadow-sm group-hover/bar:brightness-110 group-hover/bar:scale-x-125 group-hover/bar:shadow-lg origin-bottom",
+                  item.target && item.value >= item.target ? "bg-emerald-500" : "bg-blue-600"
                 )}
                 style={{ 
                   height: `${heightPrimary}%`,
@@ -153,16 +206,23 @@ export const PremiumBarChart = ({
               )}
             </div>
 
-            {/* Label */}
-            <span className={cn(
-              "text-[10px] font-black uppercase tracking-widest bg-slate-50 px-2 py-0.5 rounded-md border border-slate-100 group-hover/bar:text-slate-900 transition-colors",
-              !hasData && "text-slate-400/60"
+            {/* Label - Siempre visible y adaptativa */}
+            <div className={cn(
+              "flex flex-col items-center gap-1 transition-all duration-300",
+              isHighDensity && "rotate-[-90deg] translate-y-4 h-12 w-4 origin-top"
             )}>
-              {item.label}
-            </span>
+              <span className={cn(
+                 "text-[8px] font-black uppercase tracking-tight text-slate-500 whitespace-nowrap",
+                 "group-hover/bar:text-blue-600 group-hover/bar:scale-110 transition-all"
+              )}>
+                {item.label}
+              </span>
+            </div>
           </div>
         );
       })}
+        </div>
+      </div>
     </div>
   );
 };

@@ -9,11 +9,11 @@ import {
 import { useNotification } from '@/components/providers/NotificationProvider';
 import { formatCOPInputValue, formatCurrency, parseCOPInputToNumber } from '@/lib/utils';
 
-import { MOCK_CLIENTES, Cliente } from '@/services/clientes-service';
+import { clientesService, Cliente } from '@/services/clientes-service';
 import NuevoClienteModal from '@/components/clientes/NuevoClienteModal';
 
-// --- Tipos y Mocks ---
-import { MOCK_ARTICULOS, Articulo } from '@/services/articulos-service';
+// --- Tipos y Servicios ---
+import { articulosService, Articulo } from '@/services/articulos-service';
 
 type FrecuenciaPago = 'DIARIO' | 'SEMANAL' | 'QUINCENAL' | 'MENSUAL';
 
@@ -46,7 +46,29 @@ export default function CreacionCreditoArticulo() {
   const [busquedaProducto, setBusquedaProducto] = useState('');
   const [filtroCategoria, setFiltroCategoria] = useState('TODAS');
   const [ordenPrecio, setOrdenPrecio] = useState<'asc' | 'desc' | 'none'>('none');
-  const [listaClientes, setListaClientes] = useState<Cliente[]>(MOCK_CLIENTES);
+  const [listaClientes, setListaClientes] = useState<Cliente[]>([]);
+  const [listaArticulos, setListaArticulos] = useState<Articulo[]>([]);
+  const [loadingDatos, setLoadingDatos] = useState(true);
+
+  // Cargar datos iniciales
+  React.useEffect(() => {
+    const cargar = async () => {
+      try {
+        const [clientes, articulos] = await Promise.all([
+          clientesService.obtenerTodos(),
+          articulosService.obtenerArticulos()
+        ]);
+        setListaClientes(clientes);
+        setListaArticulos(articulos);
+      } catch (error) {
+        console.error("Error cargando datos", error);
+        showNotification('error', 'Error al cargar clientes o artículos');
+      } finally {
+        setLoadingDatos(false);
+      }
+    };
+    cargar();
+  }, []);
 
   // --- Lógica Derivada ---
 
@@ -68,12 +90,12 @@ export default function CreacionCreditoArticulo() {
   [clienteId, listaClientes]);
 
   const categorias = useMemo(() => {
-    const cats = new Set(MOCK_ARTICULOS.map(p => p.categoria));
+    const cats = new Set(listaArticulos.map(p => p.categoria));
     return ['TODAS', ...Array.from(cats)];
-  }, []);
+  }, [listaArticulos]);
 
   const productosFiltrados = useMemo(() => {
-    const filtrados = MOCK_ARTICULOS.filter(p => {
+    const filtrados = listaArticulos.filter(p => {
       const matchNombre = p.nombre.toLowerCase().includes(busquedaProducto.toLowerCase());
       const matchCategoria = filtroCategoria === 'TODAS' || p.categoria === filtroCategoria;
       return matchNombre && matchCategoria;
@@ -86,7 +108,7 @@ export default function CreacionCreditoArticulo() {
     }
 
     return filtrados;
-  }, [busquedaProducto, filtroCategoria, ordenPrecio]);
+  }, [busquedaProducto, filtroCategoria, ordenPrecio, listaArticulos]);
 
   // Plazos disponibles (Intersección de todos los artículos)
   const opcionesCuotasDisponibles = useMemo(() => {
@@ -311,14 +333,14 @@ export default function CreacionCreditoArticulo() {
                   <div className="lg:col-span-2 space-y-4">
                     <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
                       <div className="flex flex-col gap-4 mb-4">
-                        <div className="relative">
-                          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                        <div className="buscador-3d">
+                          <Search className="icon w-4 h-4" />
                           <input 
                             type="text"
                             placeholder="Buscar artículos..."
                             value={busquedaProducto}
                             onChange={(e) => setBusquedaProducto(e.target.value)}
-                            className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 bg-slate-50 text-sm font-medium focus:ring-2 focus:ring-blue-500/20"
+                            className="buscador-3d-input"
                           />
                         </div>
                         

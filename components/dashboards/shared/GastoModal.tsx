@@ -3,16 +3,16 @@
 import { useState } from 'react'
 import { X, Receipt, Save, Banknote, Camera } from 'lucide-react'
 import { formatCOPInputValue } from '@/lib/utils'
+import SelectCategoria from '@/components/ui/SelectCategoria'
 import { Portal, MODAL_Z_INDEX } from '@/components/dashboards/shared/CobradorElements'
 
 interface GastoModalProps {
   isOpen: boolean
   onClose: () => void
-  onConfirm: (data: { tipo: string; descripcion: string; valor: number; comprobante: File | null }) => void
+  onConfirm: (data: { descripcion: string; valor: number; comprobante: File | null }) => void
 }
 
 export default function GastoModal({ isOpen, onClose, onConfirm }: GastoModalProps) {
-  const [tipo, setTipo] = useState('OPERATIVO')
   const [descripcion, setDescripcion] = useState('')
   const [valorInput, setValorInput] = useState('')
   const [comprobante, setComprobante] = useState<File | null>(null)
@@ -22,12 +22,11 @@ export default function GastoModal({ isOpen, onClose, onConfirm }: GastoModalPro
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     const valor = parseInt(valorInput.replace(/\D/g, '')) || 0
-    onConfirm({ tipo, descripcion, valor, comprobante })
+    onConfirm({ descripcion, valor, comprobante })
     handleReset()
   }
 
   const handleReset = () => {
-    setTipo('OPERATIVO')
     setDescripcion('')
     setValorInput('')
     setComprobante(null)
@@ -61,20 +60,7 @@ export default function GastoModal({ isOpen, onClose, onConfirm }: GastoModalPro
           </div>
 
           <form onSubmit={handleSubmit} className="p-6 space-y-4">
-            <div className="space-y-2">
-              <label className="text-sm font-bold text-slate-700">Tipo de Gasto</label>
-              <select
-                required
-                className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-rose-500/10 focus:border-rose-500 transition-all font-bold text-slate-700"
-                value={tipo}
-                onChange={(e) => setTipo(e.target.value)}
-              >
-                <option value="REPARACIOONES">Reparaciones</option>
-                <option value="TRANSPORTE">Gasolina</option>
-                <option value="PERSONAL">Gasto Personal</option>
-                <option value="OTRO">Otro</option>
-              </select>
-            </div>
+
 
             <div className="space-y-2">
               <label className="text-sm font-bold text-slate-700">Descripción</label>

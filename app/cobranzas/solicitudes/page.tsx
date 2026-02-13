@@ -30,26 +30,32 @@ type EstadoFiltro = 'TODAS' | SolicitudDinero['estado']
 
 export default function SolicitudesCobradorPage() {
   const router = useRouter()
+  
+  // Identificador del cobrador logueado para filtrar sus solicitudes
   const [perfilId, setPerfilId] = useState<string>('')
   const [loadingPerfil, setLoadingPerfil] = useState(true)
 
+  // --- FILTROS DE VISTA ---
   const [estadoFiltro, setEstadoFiltro] = useState<EstadoFiltro>('TODAS')
   const [busqueda, setBusqueda] = useState('')
-  const [showFilters, setShowFilters] = useState(false)
+  const [showFilters, setShowFilters] = useState(false) // Colapsar/Expandir barra de filtros
 
+  // Al cargar, obtenemos la info del cobrador actual
   useEffect(() => {
     let mounted = true
     ;(async () => {
       try {
         const perfil = await obtenerPerfil()
         if (!mounted) return
+        
+        // Si hay sesión activa, guardamos el ID para filtrar la data
         if (perfil?.rol === 'COBRADOR' && perfil?.id) {
           setPerfilId(String(perfil.id))
         } else if (perfil?.id) {
           setPerfilId(String(perfil.id))
         }
       } catch {
-        // fallback: dejar vacío, igual se muestran mocks filtrados por un id default
+        // Si falla la autenticación, el usuario verá la lista vacía o data de prueba
       } finally {
         if (mounted) setLoadingPerfil(false)
       }
@@ -60,7 +66,9 @@ export default function SolicitudesCobradorPage() {
     }
   }, [])
 
-  // Mock (mismo look & feel de admin/solicitudes, pero filtrable por solicitanteId)
+  // --- DATOS SIMULADOS (MOCK) ---
+  // Replicamos la estructura del módulo admin pero enfocado solo en lectura para el cobrador.
+  // En producción, esto se reemplazaría por un `useQuery` filtrando por solicitanteId.
   const solicitudesBase: SolicitudDinero[] = useMemo(
     () => [
       {
@@ -96,22 +104,25 @@ export default function SolicitudesCobradorPage() {
     []
   )
 
+  // Por defecto filtramos por el usuario 'CB-001' si no hay sesión real (para demo)
   const solicitanteIdFiltrado = perfilId || 'CB-001'
 
+  // --- LÓGICA DE FILTRADO ---
   const solicitudesFiltradas = useMemo(() => {
     const normalized = busqueda.trim().toLowerCase()
 
     return solicitudesBase
-      .filter((s) => s.solicitanteId === solicitanteIdFiltrado)
+      .filter((s) => s.solicitanteId === solicitanteIdFiltrado) // Solo MIS solicitudes
       .filter((s) => (estadoFiltro === 'TODAS' ? true : s.estado === estadoFiltro))
       .filter((s) => {
         if (!normalized) return true
+        // Búsqueda inteligente por ID o contenido
         return (
           s.descripcion.toLowerCase().includes(normalized) ||
           s.id.toLowerCase().includes(normalized)
         )
       })
-      .sort((a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime())
+      .sort((a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime()) // Más recientes primero
   }, [busqueda, estadoFiltro, solicitudesBase, solicitanteIdFiltrado])
 
   const getEstadoColor = (estado: SolicitudDinero['estado']) => {
@@ -170,14 +181,14 @@ export default function SolicitudesCobradorPage() {
 
         <div className="bg-white/80 backdrop-blur-sm rounded-2xl border border-slate-200 shadow-sm p-4">
           <div className="flex flex-col md:flex-row gap-3 md:items-center md:justify-between">
-            <div className="relative w-full md:max-w-md">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+            <div className="w-full md:max-w-md buscador-3d">
+              <Search className="icon h-4 w-4" />
               <input
                 type="text"
                 value={busqueda}
                 onChange={(e) => setBusqueda(e.target.value)}
                 placeholder="Buscar por ID o descripción..."
-                className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-slate-900/10 focus:border-slate-900/20 text-sm font-medium text-slate-900"
+                className="buscador-3d-input"
               />
             </div>
             <div className="flex items-center gap-2">

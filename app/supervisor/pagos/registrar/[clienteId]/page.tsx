@@ -226,7 +226,7 @@ export default function RegistrarPagoClienteSupervisorPage() {
               <div>
                 <div className="text-sm text-slate-500 font-medium">Cliente</div>
                 <div className="text-lg font-bold text-slate-900">{cliente.nombre}</div>
-                <div className="text-xs text-slate-500 font-mono">{cliente.dni}</div>
+                <div className="text-xs text-slate-500 font-mono">CC: {cliente.dni}</div>
               </div>
             </div>
 

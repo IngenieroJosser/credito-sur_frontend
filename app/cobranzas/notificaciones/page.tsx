@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { 
   Bell, 
@@ -14,76 +14,56 @@ import {
   Search,
   ArrowRight
 } from 'lucide-react'
+import { notificacionesService, type Notificacion } from '@/services/notificaciones-service'
 
-// Mock Data
-interface Notificacion {
-  id: string
-  titulo: string
-  mensaje: string
-  tipo: 'PAGO' | 'CLIENTE' | 'MORA' | 'SISTEMA'
-  fecha: string
-  leida: boolean
-  link?: string
-}
-
-const MOCK_NOTIFICACIONES: Notificacion[] = [
-  {
-    id: 'NOT-001',
-    titulo: 'Pago Recibido',
-    mensaje: 'Cliente #1456 ha realizado un pago de $50.000',
-    tipo: 'PAGO',
-    fecha: 'Hace 5 min',
-    leida: false,
-    link: '/cobranzas'
-  },
-  {
-    id: 'NOT-002',
-    titulo: 'Nuevo Cliente',
-    mensaje: 'Solicitud de registro pendiente para María González',
-    tipo: 'CLIENTE',
-    fecha: 'Hace 2 horas',
-    leida: false,
-    link: '/cobranzas'
-  },
-  {
-    id: 'NOT-003',
-    titulo: 'Alerta de Mora',
-    mensaje: 'Cuentas en mora detectadas en tu ruta hoy',
-    tipo: 'MORA',
-    fecha: 'Hace 4 horas',
-    leida: false,
-    link: '/cobranzas'
-  },
-  {
-    id: 'NOT-005',
-    titulo: 'Solicitud Aprobada',
-    mensaje: 'El préstamo P-1024 ha sido aprobado por Coordinación',
-    tipo: 'SISTEMA',
-    fecha: 'Ayer, 15:45',
-    leida: true,
-    link: '/cobranzas'
-  }
-]
-
-export default function NotificacionesCobradorPage() {
+export default function NotificacionesCobranzasPage() {
   const router = useRouter()
-  const [filter, setFilter] = useState<'TODAS' | 'NO_LEIDAS'>('TODAS')
+  
+  // --- ESTADOS DE FILTROS ---
+  const [filter, setFilter] = useState<'TODAS' | 'NO_LEIDAS' | 'LEIDAS'>('TODAS')
   const [tipoFilter, setTipoFilter] = useState<'TODOS' | Notificacion['tipo']>('TODOS')
   const [search, setSearch] = useState('')
-  const [notificacionesState, setNotificacionesState] = useState<Notificacion[]>(MOCK_NOTIFICACIONES)
+  
+  // --- ESTADO DE DATOS ---
+  const [notificacionesState, setNotificacionesState] = useState<Notificacion[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  
+  // Al montar el componente, intentamos traer las notificaciones reales del backend
+  useEffect(() => {
+    const cargarNotificaciones = async () => {
+      try {
+        const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null
+        if (!token) {
+          setNotificacionesState([])
+          return
+        }
+        const notifs = await notificacionesService.obtenerTodas()
+        setNotificacionesState(notifs)
+      } catch (error) {
+        setNotificacionesState([])
+      } finally {
+        setIsLoading(false)
+      }
+    }
+    
+    cargarNotificaciones()
+  }, [])
 
+  // --- LÓGICA DE FILTRADO EN CLIENTE ---
   const notificaciones = notificacionesState
     .filter((n) => (filter === 'TODAS' ? true : !n.leida))
     .filter((n) => (tipoFilter === 'TODOS' ? true : n.tipo === tipoFilter))
     .filter((n) => {
       const q = search.trim().toLowerCase()
       if (!q) return true
+      // Búsqueda simple por título o contenido del mensaje
       return (
         n.titulo.toLowerCase().includes(q) ||
         n.mensaje.toLowerCase().includes(q)
       )
     })
 
+  // Helper para iconos según el tipo de notificación
   const getIcon = (tipo: string) => {
     switch (tipo) {
       case 'PAGO': return <Banknote className="h-5 w-5" />
@@ -93,6 +73,7 @@ export default function NotificacionesCobradorPage() {
     }
   }
 
+  // Helper para colores de fondo/borde
   const getColor = (tipo: string) => {
     switch (tipo) {
       case 'PAGO': return 'bg-blue-50 text-blue-700 border-blue-100'
@@ -206,14 +187,14 @@ export default function NotificacionesCobradorPage() {
                 </div>
 
                 {/* Búsqueda */}
-                <div className="relative w-full">
-                  <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                <div className="w-full buscador-3d">
+                  <Search className="icon h-4 w-4" />
                   <input
                     type="text"
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
                     placeholder="Buscar mensaje..."
-                    className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-medium focus:bg-white focus:ring-2 focus:ring-[#08557f]/10 focus:border-[#08557f] outline-none transition-all placeholder:text-slate-400"
+                    className="buscador-3d-input"
                   />
                 </div>
               </div>

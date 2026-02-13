@@ -1,40 +1,83 @@
 'use client'
 
-import { use, useState } from 'react'
+import { use, useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { ArrowLeft, Save, Wallet } from 'lucide-react'
 import { formatCOPInputValue } from '@/lib/utils'
+import { getCajaById, updateCaja } from '@/services/contabilidad-service'
+import { usuariosService } from '@/services/usuarios-service'
 
 export default function EditarCajaPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
   const router = useRouter()
   const [saving, setSaving] = useState(false)
+  const [loading, setLoading] = useState(true)
 
-  // Mock data inicial (simulando carga)
   const [formData, setFormData] = useState({
-    nombre: 'Caja Principal Oficina',
-    responsable: 'Ana Admin',
-    montoBase: '1000000',
-    descripcion: 'Caja principal para operaciones diarias en oficina'
+    nombre: '',
+    responsable: '',
+    responsableId: '',
+    montoBase: '',
+    descripcion: ''
   })
 
-  // Usuarios autorizados para ser responsables de caja (Roles: ADMIN, SUPER_ADMINISTRADOR, CONTADOR)
-  const usuariosAutorizados = [
-    { id: 'USR-001', nombre: 'María Rodríguez', rol: 'SUPER_ADMINISTRADOR' },
-    { id: 'USR-002', nombre: 'Laura Sánchez', rol: 'CONTADOR' },
-    { id: 'USR-003', nombre: 'Admin General', rol: 'ADMIN' },
-    { id: 'USR-004', nombre: 'Ana Admin', rol: 'SUPER_ADMINISTRADOR' },
-  ]
+  const [usuariosAutorizados, setUsuariosAutorizados] = useState<Array<{id: string; nombre: string; rol: string}>>([])
+
+  useEffect(() => {
+    const loadData = async () => {
+      setLoading(true)
+      try {
+        const [cajaData, users] = await Promise.all([
+          getCajaById(id),
+          usuariosService.obtenerTodos().catch(() => []),
+        ])
+        if (cajaData) {
+          setFormData({
+            nombre: cajaData.nombre || '',
+            responsable: cajaData.responsable || '',
+            responsableId: cajaData.responsableId || '',
+            montoBase: String(cajaData.saldo || 0),
+            descripcion: ''
+          })
+        }
+        setUsuariosAutorizados((users as any[]).map((u: any) => ({
+          id: u.id,
+          nombre: `${u.nombres || ''} ${u.apellidos || ''}`.trim(),
+          rol: u.rol || ''
+        })))
+      } catch (err) {
+        console.error('Error cargando caja:', err)
+      } finally {
+        setLoading(false)
+      }
+    }
+    loadData()
+  }, [id])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setSaving(true)
-    
-    // Simular API call
-    await new Promise(resolve => setTimeout(resolve, 1000))
-    
-    setSaving(false)
-    router.push(`/admin/contable/cajas/${id}`)
+    try {
+      await updateCaja(id, {
+        nombre: formData.nombre,
+        responsableId: formData.responsableId || undefined,
+        saldoActual: Number(formData.montoBase) || undefined,
+      })
+      router.push(`/contable/cajas/${id}`)
+    } catch (err) {
+      console.error('Error guardando caja:', err)
+      alert('Error al guardar la caja')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    )
   }
 
   return (

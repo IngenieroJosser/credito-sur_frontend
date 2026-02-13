@@ -5,5 +5,5 @@ export default function CobranzasLayout({
 }: {
   children: React.ReactNode;
 }) {
-  return <AdminLayout hideSidebar>{children}</AdminLayout>;
+  return <AdminLayout>{children}</AdminLayout>;
 }

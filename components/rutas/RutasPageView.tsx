@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, ChangeEvent, FormEvent, useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import {
@@ -13,39 +13,78 @@ import {
   Plus,
   Search,
   TrendingUp,
-  AlertTriangle,
   LayoutGrid,
   List,
   Pencil,
   X,
-  Save,
   CheckCircle2,
   Trash2,
-  ArrowRightLeft,
   ChevronLeft,
   ChevronRight,
+  Save,
+  ArrowRightLeft,
   XCircle,
 } from 'lucide-react'
 import { formatCurrency, cn } from '@/lib/utils'
 import { useAuth } from '@/hooks/useAuth'
+import { routesService } from '@/services/routes-service';
+import { useNotification } from '@/components/providers/NotificationProvider';
+import { usePermission } from '@/hooks/usePermission';
 
-// ... (Resto del código)
+interface Ruta {
+  id: string;
+  nombre: string;
+  codigo: string;
+  zona?: string;
+  estado: 'ACTIVA' | 'INACTIVA' | 'PENDIENTE_ACTIVACION' | 'COMPLETADA';
+  cobrador: string;
+  cobradorId?: string;
+  supervisorId?: string;
+  clientesAsignados: number;
+  clientesNuevos: number;
+  cobranzaDelDia: number;
+  metaDelDia: number;
+  descripcion?: string;
+  nivelRiesgo?: string;
+  frecuenciaVisita?: string;
+}
+
+interface ClienteSelection {
+  id: string;
+  nombre?: string;
+  codigo?: string;
+  // Allow other properties to avoid tight coupling with backend response in this view
+  [key: string]: unknown;
+}
 
 interface RutasPageViewProps {
   readOnly?: boolean;
   rutasBasePath?: string;
-  rutas?: any[];
+  rutas?: Ruta[];
+  cobradores?: { id: string; nombre: string }[];
+  supervisores?: { id: string; nombre: string }[];
 }
 
-export const RutasPageView = ({ readOnly = false, rutasBasePath = '/admin/rutas', rutas = [] }: RutasPageViewProps) => {
+export const RutasPageView = ({ 
+  readOnly = false, 
+  rutasBasePath = '/admin/rutas', 
+  rutas = [],
+  cobradores = [],
+  supervisores = [] 
+}: RutasPageViewProps) => {
   const router = useRouter()
   const { user: currentUser } = useAuth()
+  const { can, canForPath } = usePermission()
+  const puedeCrear = can('RUTAS_CREATE') || canForPath(rutasBasePath || '/admin/rutas')
+  const puedeEditar = can('RUTAS_EDIT') || canForPath(rutasBasePath || '/admin/rutas')
   const [busqueda, setBusqueda] = useState('')
   const [estadoFiltro, setEstadoFiltro] = useState('TODAS')
   const [vista, setVista] = useState<'grid' | 'list'>('grid')
-  const [loading, setLoading] = useState(false)
+  // const [loading, setLoading]... removed unused
+  const { showNotification } = useNotification();
   const [showModal, setShowModal] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
+  const permitido = can('RUTAS_VIEW') || canForPath(rutasBasePath || '/admin/rutas')
 
   const [formData, setFormData] = useState({
     nombre: '',
@@ -57,92 +96,56 @@ export const RutasPageView = ({ readOnly = false, rutasBasePath = '/admin/rutas'
     supervisorId: '',
     descripcion: ''
   })
-
-  // Mocks
-  const [cobradores] = useState<{ id: string, nombre: string }[]>([
-    { id: '1', nombre: 'Juan Pérez' },
-    { id: '2', nombre: 'María González' },
-    { id: '3', nombre: 'Pedro Sánchez' },
-    { id: '4', nombre: 'Ana López' },
-    { id: '5', nombre: 'Luis Martínez' }
-  ])
-  const [supervisores] = useState<{ id: string, nombre: string }[]>([
-    { id: '1', nombre: 'Carlos Ruiz' },
-    { id: '2', nombre: 'Sofia Torres' }
-  ])
   
-  // Use mock data if rutas prop is empty for visualization
-  const displayRutas = rutas.length > 0 ? rutas : [
-    {
-      id: '1',
-      nombre: 'Ruta Centro - Comercial',
-      codigo: 'RT-CEN-01',
-      zona: 'Centro',
-      estado: 'ACTIVA',
-      cobrador: 'Juan Pérez',
-      cobradorId: '1',
-      supervisorId: '1',
-      clientesAsignados: 45,
-      clientesNuevos: 3,
-      cobranzaDelDia: 1250000,
-      metaDelDia: 1500000,
-      descripcion: 'Zona comercial del centro'
-    },
-    {
-      id: '2',
-      nombre: 'Ruta Norte - Residencial',
-      codigo: 'RT-NOR-01',
-      zona: 'Norte',
-      estado: 'ACTIVA',
-      cobrador: 'Juan Pérez', // Same collector, testing multiple routes
-      cobradorId: '1',
-      supervisorId: '1',
-      clientesAsignados: 32,
-      clientesNuevos: 0,
-      cobranzaDelDia: 850000,
-      metaDelDia: 1200000,
-      descripcion: 'Zona residencial norte'
-    },
-     {
-      id: '3',
-      nombre: 'Ruta Sur - Mixta',
-      codigo: 'RT-SUR-01',
-      zona: 'Sur',
-      estado: 'PENDIENTE_ACTIVACION',
-      cobrador: 'Pedro Sánchez',
-      cobradorId: '3',
-      supervisorId: '2',
-      clientesAsignados: 18,
-      clientesNuevos: 5,
-      cobranzaDelDia: 0,
-      metaDelDia: 800000,
-       descripcion: 'Nueva zona de expansión'
-    },
-     {
-      id: '4',
-      nombre: 'Ruta Oeste - Industrial',
-      codigo: 'RT-OES-01',
-      zona: 'Oeste',
-      estado: 'INACTIVA',
-      cobrador: 'Ana López',
-      cobradorId: '4',
-      supervisorId: '2',
-      clientesAsignados: 0,
-      clientesNuevos: 0,
-      cobranzaDelDia: 0,
-      metaDelDia: 0,
-      descripcion: 'Zona industrial, temporalmente inactiva'
-    }
-  ];
-
-  const [clientesRuta, setClientesRuta] = useState<any[]>([])
+  // Mocks removed. Data now passed via props.
+  // const [cobradores]... removed
+  // const [supervisores]... removed
+  
+  const [clientesRuta] = useState<ClienteSelection[]>([]) // Typed array
+  const [clientesDisponibles] = useState<ClienteSelection[]>([]) 
   const [isAddingCliente, setIsAddingCliente] = useState(false)
+  
+  // Use state for routes to allow client-side updates
+  const [rutasList, setRutasList] = useState<Ruta[]>(rutas as Ruta[]);
+  
+  const displayRutas: Ruta[] = rutasList;
+  
+  // State for lists with fallback fetching
+  const [cobradoresList, setCobradoresList] = useState(cobradores);
+  const [supervisoresList, setSupervisoresList] = useState(supervisores);
+
+  useEffect(() => {
+    const fetchLists = async () => {
+      try {
+        if (cobradoresList.length === 0) {
+          const fetchedCobradores = await routesService.getCobradores();
+          setCobradoresList(fetchedCobradores);
+        }
+        if (supervisoresList.length === 0) {
+          const fetchedSupervisores = await routesService.getSupervisores();
+          setSupervisoresList(fetchedSupervisores);
+        }
+        // Fetch routes if empty (fallback)
+        if (rutasList.length === 0) {
+           const response = await routesService.getAll({ limit: 100 });
+           setRutasList(response.data as unknown as Ruta[]);
+        }
+      } catch (error) {
+        console.error('Error fetching data:', error);
+      }
+    };
+
+    fetchLists();
+  }, []); // Run once on mount
+
+
   const [clienteSearch, setClienteSearch] = useState('')
-  const [clientesDisponibles] = useState<any[]>([])
+  // const [clientesDisponibles] ... moved up
   const [clienteAMover, setClienteAMover] = useState<string | null>(null)
   const [rutaDestinoId, setRutaDestinoId] = useState('')
 
   const handleCreateClick = () => {
+    if (!puedeCrear) return
     setEditingId(null)
     setFormData({
       nombre: '',
@@ -157,7 +160,8 @@ export const RutasPageView = ({ readOnly = false, rutasBasePath = '/admin/rutas'
     setShowModal(true)
   }
 
-  const handleEditClick = (ruta: any) => {
+  const handleEditClick = (ruta: Ruta) => {
+    if (!puedeEditar) return
     setEditingId(ruta.id)
     setFormData({
       nombre: ruta.nombre,
@@ -172,23 +176,74 @@ export const RutasPageView = ({ readOnly = false, rutasBasePath = '/admin/rutas'
     setShowModal(true)
   }
 
-  const handleInputChange = (e: any) => {
+  const handleInputChange = (e: ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target
     setFormData(prev => ({ ...prev, [name]: value }))
   }
 
-  const handleSubmit = (e: any) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
-    setShowModal(false)
+    
+    try {
+      if (editingId) {
+        await routesService.update(editingId, {
+          nombre: formData.nombre,
+          codigo: formData.codigo,
+          zona: formData.zona,
+          cobradorId: formData.cobradorId,
+          supervisorId: formData.supervisorId || undefined,
+          descripcion: formData.descripcion,
+          activa: formData.estado === 'ACTIVA'
+        });
+        showNotification('success', 'Ruta actualizada correctamente', 'Éxito');
+      } else {
+        await routesService.create({
+          nombre: formData.nombre,
+          codigo: formData.codigo,
+          zona: formData.zona,
+          cobradorId: formData.cobradorId,
+          supervisorId: formData.supervisorId || undefined,
+          descripcion: formData.descripcion
+        });
+        showNotification('success', 'Ruta creada correctamente', 'Éxito');
+      }
+      
+      setShowModal(false);
+      
+      // Refresh list client-side to ensure UI updates immediately
+      try {
+        const response = await routesService.getAll({ limit: 100 });
+        setRutasList(response.data as unknown as Ruta[]);
+      } catch (e) { console.error('Error refreshing routes:', e); }
+
+      router.refresh(); // Recargar datos del servidor (como backup)
+    } catch (error: any) {
+      console.error('Error saving route:', error);
+      console.error('Error details:', error.response?.data || error.message);
+      const errorMessage = error.response?.data?.message || 'No se pudo guardar la ruta';
+      showNotification('error', Array.isArray(errorMessage) ? errorMessage.join(', ') : errorMessage, 'Error');
+    }
   }
 
-  const handleToggleEstado = (id: string) => {
-    console.log('Toggle estado', id)
-    // Mock toggle logic
-    // displayRutas updates would happen here with backend integration
+  const handleToggleEstado = async (id: string) => {
+    try {
+      await routesService.toggleActive(id);
+      
+      // Update local state optimistic or fetch
+      try {
+         const response = await routesService.getAll({ limit: 100 });
+         setRutasList(response.data as unknown as Ruta[]);
+      } catch (e) { console.error(e); }
+
+      showNotification('success', 'Estado de la ruta actualizado', 'Éxito');
+      router.refresh();
+    } catch (error) {
+      console.error('Error toggling route status:', error);
+      showNotification('error', 'No se pudo cambiar el estado', 'Error');
+    }
   }
   const handleMoveCliente = (id: string) => { console.log('Mover', id) }
-  const confirmAddCliente = (cliente: any) => { console.log('Add', cliente) }
+  const confirmAddCliente = (cliente: ClienteSelection) => { console.log('Add', cliente) }
   const [activeTab, setActiveTab] = useState<'info' | 'clientes'>('info')
 
   // PAGINACIÓN
@@ -221,13 +276,45 @@ export const RutasPageView = ({ readOnly = false, rutasBasePath = '/admin/rutas'
   const rutasActivas = displayRutas.filter((ruta) => ruta.estado === 'ACTIVA').length
   const rutasPendientes = displayRutas.filter((ruta) => ruta.estado === 'PENDIENTE_ACTIVACION').length
   const totalClientes = displayRutas.reduce((acc, curr) => acc + curr.clientesAsignados, 0)
-  const metaTotal = displayRutas.reduce((acc, curr) => acc + curr.metaDelDia, 0)
+  const objetivoTotal = displayRutas.reduce((acc, curr) => acc + curr.metaDelDia, 0)
   const cobranzaTotal = displayRutas.reduce((acc, curr) => acc + curr.cobranzaDelDia, 0)
-  const porcentajeAvance = metaTotal > 0 ? (cobranzaTotal / metaTotal) * 100 : 0
+  const porcentajeAvance = objetivoTotal > 0 ? (cobranzaTotal / objetivoTotal) * 100 : 0
 
   // Force list view for Coordinador and Admin
   if ((rutasBasePath.includes('/coordinador') || rutasBasePath.includes('/admin')) && vista !== 'list') {
     setVista('list')
+  }
+
+  // Determine risk color classes
+  const getRiesgoColor = (riesgo: string) => {
+    if (!riesgo) return 'hidden';
+    switch (riesgo) {
+        case 'PELIGRO_MINIMO': return 'bg-emerald-50 text-emerald-700 border-emerald-200';
+        case 'LEVE_RETRASO': return 'bg-blue-50 text-blue-700 border-blue-200';
+        case 'PRECAUCION': return 'bg-yellow-50 text-yellow-700 border-yellow-200';
+        case 'RIESGO_MODERADO': return 'bg-amber-50 text-amber-700 border-amber-200';
+        case 'ALTO_RIESGO': return 'bg-rose-50 text-rose-700 border-rose-200';
+        default: return 'bg-slate-50 text-slate-600 border-slate-200';
+    }
+  }
+
+  const getRiesgoLabel = (riesgo: string) => {
+      if (!riesgo) return '';
+      return riesgo.replace('_', ' ');
+  }
+
+  if (!permitido) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-8 text-center">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-slate-100 text-xs text-slate-600 font-bold border border-slate-200">
+            <Route className="h-3.5 w-3.5" />
+            <span>Acceso no autorizado</span>
+          </div>
+          <p className="mt-4 text-slate-500 font-medium">No tienes permisos para ver Rutas.</p>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -255,7 +342,7 @@ export const RutasPageView = ({ readOnly = false, rutasBasePath = '/admin/rutas'
             </p>
           </div>
           <div className="flex gap-4">
-            {!readOnly && currentUser?.role !== 'COBRADOR' && (
+            {!readOnly && currentUser?.role !== 'COBRADOR' && puedeCrear && (
               <button
                 onClick={handleCreateClick}
                 className="inline-flex items-center gap-2 px-6 py-2.5 bg-white border border-slate-300 text-slate-700 rounded-xl hover:border-slate-400 hover:bg-slate-50 transition-all duration-200 shadow-sm font-bold text-sm group"
@@ -294,7 +381,7 @@ export const RutasPageView = ({ readOnly = false, rutasBasePath = '/admin/rutas'
               {
                 label: 'Avance Cobranza',
                 value: `${porcentajeAvance.toFixed(1)}%`,
-                sub: `Meta: ${formatCurrency(metaTotal)}`,
+                sub: `Objetivo: ${formatCurrency(objetivoTotal)}`,
                 icon: TrendingUp,
                 color: 'text-slate-900',
                 subColor: 'text-slate-500',
@@ -335,14 +422,14 @@ export const RutasPageView = ({ readOnly = false, rutasBasePath = '/admin/rutas'
 
           {/* Filtros y Búsqueda */}
           <div className="flex flex-col md:flex-row gap-6 bg-white/80 backdrop-blur-sm p-4 rounded-2xl border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)]">
-            <div className="relative flex-1">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+            <div className="flex-1 buscador-3d">
+              <Search className="icon h-4 w-4" />
               <input
                 type="text"
                 placeholder="Buscar por nombre, código o cobrador..."
                 value={busqueda}
                 onChange={(e) => setBusqueda(e.target.value)}
-                className="w-full pl-11 pr-4 py-2.5 rounded-xl border-slate-200 bg-slate-50/50 text-sm font-medium text-slate-900 focus:ring-2 focus:ring-slate-900/10 focus:border-slate-900/20 transition-all placeholder:text-slate-400"
+                className="buscador-3d-input"
               />
             </div>
             <div className="flex gap-2 overflow-x-auto pb-2 md:pb-0 scrollbar-hide">
@@ -409,7 +496,15 @@ export const RutasPageView = ({ readOnly = false, rutasBasePath = '/admin/rutas'
               {currentRutas.map((ruta) => (
                 <div
                   key={ruta.id}
-                  className="group bg-white/80 backdrop-blur-sm rounded-2xl border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] hover:-translate-y-1 transition-all duration-300 overflow-hidden flex flex-col"
+                  className={cn(
+                    "group bg-white/80 backdrop-blur-sm rounded-2xl border shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] hover:-translate-y-1 transition-all duration-300 overflow-hidden flex flex-col",
+                    ruta.nivelRiesgo === 'ALTO_RIESGO' ? "border-rose-200 shadow-rose-100" :
+                    ruta.nivelRiesgo === 'RIESGO_MODERADO' ? "border-amber-200 shadow-amber-100" :
+                    ruta.nivelRiesgo === 'PRECAUCION' ? "border-yellow-200 shadow-yellow-100" :
+                    ruta.nivelRiesgo === 'LEVE_RETRASO' ? "border-blue-200 shadow-blue-100" :
+                    ruta.nivelRiesgo === 'PELIGRO_MINIMO' ? "border-emerald-200 shadow-emerald-100" :
+                    "border-slate-200"
+                  )}
                 >
                   <div className="p-8 flex-1 space-y-6">
                     <div className="flex justify-between items-start">
@@ -442,6 +537,14 @@ export const RutasPageView = ({ readOnly = false, rutasBasePath = '/admin/rutas'
                       >
                         {ruta.estado === 'PENDIENTE_ACTIVACION' ? 'PENDIENTE' : ruta.estado}
                       </div>
+                      {ruta.nivelRiesgo && (
+                          <div className={cn(
+                              'px-3 py-1 rounded-full text-[10px] font-bold border uppercase ml-2',
+                              getRiesgoColor(ruta.nivelRiesgo)
+                          )}>
+                              {getRiesgoLabel(ruta.nivelRiesgo)}
+                          </div>
+                      )}
                     </div>
 
                     <div className="space-y-4 pt-2">
@@ -476,7 +579,7 @@ export const RutasPageView = ({ readOnly = false, rutasBasePath = '/admin/rutas'
                       </div>
                     </div>
 
-                    {/* Barra de progreso de meta diaria */}
+                    {/* Barra de progreso de objetivo diario */}
                     {ruta.estado === 'ACTIVA' && (
                       <div className="pt-6 border-t border-slate-100">
                         <div className="flex justify-between items-end mb-2">
@@ -496,7 +599,7 @@ export const RutasPageView = ({ readOnly = false, rutasBasePath = '/admin/rutas'
                             }}
                           ></div>
                         </div>
-                        <p className="text-xs text-right text-slate-400 mt-2 font-medium">Meta: {formatCurrency(ruta.metaDelDia)}</p>
+                        <p className="text-xs text-right text-slate-400 mt-2 font-medium">Objetivo: {formatCurrency(ruta.metaDelDia)}</p>
                       </div>
                     )}
                   </div>
@@ -593,9 +696,9 @@ export const RutasPageView = ({ readOnly = false, rutasBasePath = '/admin/rutas'
                             <div className="w-10 h-10 rounded-xl bg-blue-50 text-primary flex items-center justify-center border border-blue-100">
                               <Route className="w-5 h-5" />
                             </div>
-                            <div>
-                              <div className="font-bold text-primary">{ruta.nombre}</div>
-                              <div className="text-xs text-slate-500 font-medium">{ruta.codigo}</div>
+                            <div className="flex-1 min-w-0">
+                              <div className="font-bold text-slate-900">{String(ruta.nombre || 'Ruta sin nombre')}</div>
+                              <div className="text-xs text-slate-500">{String(ruta.codigo || 'S/C')}</div>
                             </div>
                           </div>
                         </td>
@@ -610,6 +713,16 @@ export const RutasPageView = ({ readOnly = false, rutasBasePath = '/admin/rutas'
                           >
                             {ruta.estado}
                           </span>
+                          {ruta.nivelRiesgo && (
+                              <span
+                                className={cn(
+                                  'inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border ml-2 lowercase first-letter:uppercase',
+                                  getRiesgoColor(ruta.nivelRiesgo)
+                                )}
+                              >
+                                {getRiesgoLabel(ruta.nivelRiesgo)}
+                              </span>
+                          )}
                         </td>
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-2">
@@ -833,7 +946,7 @@ export const RutasPageView = ({ readOnly = false, rutasBasePath = '/admin/rutas'
                             required
                           >
                             <option value="">Seleccione un cobrador</option>
-                            {cobradores.map((c) => (
+                            {cobradoresList.map((c) => (
                               <option key={c.id} value={c.id}>
                                 {c.nombre}
                               </option>
@@ -854,7 +967,7 @@ export const RutasPageView = ({ readOnly = false, rutasBasePath = '/admin/rutas'
                             required
                           >
                             <option value="">Seleccione un supervisor</option>
-                            {supervisores.map((s) => (
+                            {supervisoresList.map((s) => (
                               <option key={s.id} value={s.id}>
                                 {s.nombre}
                               </option>
@@ -919,11 +1032,10 @@ export const RutasPageView = ({ readOnly = false, rutasBasePath = '/admin/rutas'
                       </button>
                       <button
                         type="submit"
-                        disabled={loading}
                         className="flex-1 px-4 py-2.5 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 shadow-lg shadow-blue-600/20 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         <Save className="h-4 w-4" />
-                        <span>{loading ? 'Guardando...' : 'Guardar'}</span>
+                        <span>Guardar</span>
                       </button>
                     </div>
                   </form>
@@ -976,12 +1088,12 @@ export const RutasPageView = ({ readOnly = false, rutasBasePath = '/admin/rutas'
                             <div className="absolute top-full mt-2 left-0 w-full bg-white rounded-xl shadow-xl border border-slate-100 max-h-60 overflow-y-auto z-50 animate-in fade-in slide-in-from-top-2">
                               {clientesDisponibles.filter(c =>
                                 !clientesRuta.some(existing => existing.id === c.id) &&
-                                c.nombre.toLowerCase().includes(clienteSearch.toLowerCase())
+                                String(c.nombre || '').toLowerCase().includes(clienteSearch.toLowerCase())
                               ).length > 0 ? (
                                 clientesDisponibles
                                   .filter(c =>
                                     !clientesRuta.some(existing => existing.id === c.id) &&
-                                    c.nombre.toLowerCase().includes(clienteSearch.toLowerCase())
+                                    String(c.nombre || '').toLowerCase().includes(clienteSearch.toLowerCase())
                                   )
                                   .map(cliente => (
                                     <button
@@ -989,10 +1101,10 @@ export const RutasPageView = ({ readOnly = false, rutasBasePath = '/admin/rutas'
                                       onClick={() => confirmAddCliente(cliente)}
                                       className="w-full text-left px-4 py-3 hover:bg-blue-50 transition-colors border-b border-slate-50 last:border-0 group"
                                     >
-                                      <p className="font-bold text-sm text-slate-900 group-hover:text-blue-700">{cliente.nombre}</p>
+                                      <p className="font-bold text-sm text-slate-900 group-hover:text-blue-700">{String(cliente.nombre || 'Sin nombre')}</p>
                                       <div className="flex items-center gap-2 text-xs text-slate-500 mt-0.5">
                                         <MapPin className="h-3 w-3" />
-                                        <span>{cliente.direccion}</span>
+                                        <span>{String(cliente.direccion || '')}</span>
                                       </div>
                                     </button>
                                   ))
@@ -1013,17 +1125,17 @@ export const RutasPageView = ({ readOnly = false, rutasBasePath = '/admin/rutas'
                           <div className="flex items-center justify-between">
                             <div className="flex items-center gap-4">
                               <div className="h-10 w-10 bg-slate-100 rounded-full flex items-center justify-center text-slate-500 font-bold border border-slate-200">
-                                {cliente.nombre.charAt(0)}
+                                {String(cliente.nombre || '?').charAt(0)}
                               </div>
                               <div>
-                                <h4 className="font-bold text-slate-900">{cliente.nombre}</h4>
-                                <p className="text-xs text-slate-500 truncate max-w-[200px]">{cliente.direccion}</p>
+                                <h4 className="font-bold text-slate-900">{String(cliente.nombre || 'Sin nombre')}</h4>
+                                <p className="text-xs text-slate-500 truncate max-w-[200px]">{String(cliente.direccion || '')}</p>
                               </div>
                             </div>
 
                             <div className="text-right">
                               <p className="text-xs text-slate-400 font-bold uppercase">Deuda</p>
-                              <p className="font-bold text-slate-900">{formatCurrency(cliente.deuda)}</p>
+                              <p className="font-bold text-slate-900">{formatCurrency(Number(cliente.deuda || 0))}</p>
                             </div>
                           </div>
 
@@ -1050,11 +1162,11 @@ export const RutasPageView = ({ readOnly = false, rutasBasePath = '/admin/rutas'
                             </div>
 
                             <button
-                              disabled={loading || clienteAMover !== cliente.id || !rutaDestinoId}
+                              disabled={clienteAMover !== cliente.id || !rutaDestinoId}
                               onClick={() => handleMoveCliente(cliente.id)}
                               className="px-4 py-2 bg-slate-900 text-white text-sm font-bold rounded-lg hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center gap-2"
                             >
-                              {loading && clienteAMover === cliente.id ? 'Moviendo...' : 'Mover'}
+                              Mover
                             </button>
                           </div>
                         </div>

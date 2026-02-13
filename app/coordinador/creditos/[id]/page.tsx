@@ -1,39 +1,12 @@
 'use client';
 
-import { useState, use } from 'react';
+import { useState, useEffect, use } from 'react';
 import { ChevronLeft, BarChart3, Pencil, UserCog, Percent } from 'lucide-react';
 import Link from 'next/link';
 import DetallePrestamo, { PrestamoDetalle } from '@/components/prestamos/DetallePrestamo';
 import EditarPrestamoModal from '@/components/prestamos/EditarPrestamoModal';
 import ModificarInteresModal from '@/components/prestamos/ModificarInteresModal';
-
-// Datos MOCK para demostración
-const prestamoMock: PrestamoDetalle = {
-  id: 'PR-2024-001',
-  clienteId: 'CLI-001',
-  clienteNombre: 'Carlos Andrés Rodríguez Pérez',
-  clienteDni: '0912345678',
-  montoPrestamo: 1500000,
-  montoTotal: 1800000,
-  saldoPendiente: 1200000,
-  tasaInteres: 20,
-  duracion: '6 Meses',
-  frecuencia: 'mensual',
-  fechaInicio: '15/01/2024',
-  fechaVencimiento: '15/07/2024',
-  estado: 'ACTIVO',
-  producto: 'Préstamo Personal - Libre Inversión',
-  garantia: 'Pagaré firmado + Referencia Laboral',
-  fotos: ['foto1', 'foto2'], // Simulación de fotos existentes
-  cuotas: [
-    { numero: 1, fecha: '15/02/2024', monto: 300000, estado: 'PAGADO', fechaPago: '14/02/2024' },
-    { numero: 2, fecha: '15/03/2024', monto: 300000, estado: 'PAGADO', fechaPago: '15/03/2024' },
-    { numero: 3, fecha: '15/04/2024', monto: 300000, estado: 'PENDIENTE' },
-    { numero: 4, fecha: '15/05/2024', monto: 300000, estado: 'PENDIENTE' },
-    { numero: 5, fecha: '15/06/2024', monto: 300000, estado: 'PENDIENTE' },
-    { numero: 6, fecha: '15/07/2024', monto: 300000, estado: 'PENDIENTE' },
-  ]
-};
+import { prestamosService } from '@/services/prestamos-service';
 
 export default function PrestamoDetallePage({ 
   params 
@@ -41,11 +14,59 @@ export default function PrestamoDetallePage({
   params: Promise<{ id: string }>
 }) {
   const { id } = use(params);
+  const [prestamo, setPrestamo] = useState<PrestamoDetalle | null>(null);
+  const [loading, setLoading] = useState(true);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isModifyInterestModalOpen, setIsModifyInterestModalOpen] = useState(false);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      setLoading(true);
+      try {
+        const data = await prestamosService.obtenerPrestamoPorId(id);
+        const cuotasData = await prestamosService.obtenerCuotas(id).catch(() => []);
+        setPrestamo({
+          id: data.id || id,
+          clienteId: data.clienteId || data.cliente?.id || '',
+          clienteNombre: data.cliente ? `${data.cliente.nombres} ${data.cliente.apellidos}` : '',
+          clienteDni: data.cliente?.dni || '',
+          clienteTelefono: data.cliente?.telefono || '',
+          clienteDireccion: data.cliente?.direccion || '',
+          montoPrestamo: data.monto || 0,
+          montoTotal: data.montoTotal || (Number(data.monto || 0) + Number(data.interesTotal || 0)),
+          saldoPendiente: data.saldoPendiente || data.montoPendiente || 0,
+          tasaInteres: data.tasaInteres || 0,
+          interesTotal: data.interesTotal != null ? Number(data.interesTotal) : undefined,
+          capitalPagado: data.capitalPagado != null ? Number(data.capitalPagado) : undefined,
+          interesPagado: data.interesPagado != null ? Number(data.interesPagado) : undefined,
+          duracion: data.plazoMeses ? `${data.plazoMeses} Meses` : '',
+          frecuencia: data.frecuenciaPago || 'mensual',
+          fechaInicio: data.fechaInicio || '',
+          fechaVencimiento: data.fechaFin || '',
+          estado: data.estado || 'ACTIVO',
+          producto: data.tipoPrestamo || 'Préstamo Personal',
+          garantia: data.garantia || '',
+          fotos: data.fotos || [],
+          cuotas: cuotasData.map((c: any) => ({
+            numero: c.numeroCuota,
+            fecha: c.fechaVencimiento,
+            monto: c.monto,
+            montoCapital: c.montoCapital != null ? Number(c.montoCapital) : undefined,
+            montoInteres: c.montoInteres != null ? Number(c.montoInteres) : undefined,
+            estado: c.estado,
+            fechaPago: c.fechaPago || undefined,
+          })),
+        });
+      } catch (err) {
+        console.error('Error cargando préstamo:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchData();
+  }, [id]);
   
   const handlePassToSupervisor = () => {
-    // TODO: Implement API call to escalate to supervisor
     if (confirm('¿Está seguro de pasar esta cuenta a revisión del supervisor?')) {
       console.log('Pasando cuenta', id, 'al supervisor');
       alert('Cuenta enviada al supervisor para revisión');
@@ -55,9 +76,22 @@ export default function PrestamoDetallePage({
   const handleModifyInterest = () => {
     setIsModifyInterestModalOpen(true);
   };
-  
-  // Simulamos datos específicos si el ID cambia, o usamos el default
-  const prestamo = { ...prestamoMock, id };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
+
+  if (!prestamo) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+        <p className="text-red-500">No se pudo cargar el préstamo</p>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-slate-50 relative">

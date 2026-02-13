@@ -1,9 +1,19 @@
 'use client';
 
-import { use } from 'react';
+import { use, useState, useEffect } from 'react';
 import { ChevronLeft, BarChart3, TrendingUp, Users, Calendar, ArrowRight, DollarSign } from 'lucide-react';
 import Link from 'next/link';
-import { formatCurrency } from '@/lib/utils';
+import { formatCurrency, cn } from '@/lib/utils';
+import { reportesCoordinadorService } from '@/services/reportes-coordinador-service';
+
+interface ReporteDetalle {
+  id: string; ruta: string; cobrador: string; fecha: string;
+  meta: number; recaudado: number; eficiencia: number;
+  clientesVisitados: number; clientesNoVisitados: number;
+  nuevosPrestamos: number; valorNuevosPrestamos: number;
+  nuevosClientes: number; gastosDia: number; novedades: string;
+  movimientos: Array<{ id: string; cliente: string; tipo: string; monto: number; hora: string }>;
+}
 
 export default function DetalleReporteOperativoPage({ 
   params 
@@ -11,29 +21,61 @@ export default function DetalleReporteOperativoPage({
   params: Promise<{ id: string }>
 }) {
   const { id } = use(params);
-  
-  // Mock data for a specific route report
-  const reporte = {
-    id,
-    ruta: 'Ruta Centro',
-    cobrador: 'Carlos Pérez',
-    fecha: '2026-01-22',
-    meta: 1500000,
-    recaudado: 1250000,
-    eficiencia: 83,
-    clientesVisitados: 45,
-    clientesNoVisitados: 3,
-    nuevosPrestamos: 2,
-    valorNuevosPrestamos: 300000,
-    nuevosClientes: 1,
-    gastosDia: 15000,
-    novedades: 'Ruta completada sin incidentes mayores. 2 clientes solicitaron re-programación.',
-    movimientos: [
-      { id: 'm1', cliente: 'Roberto Gómez', tipo: 'COBRO', monto: 50000, hora: '08:30 AM' },
-      { id: 'm2', cliente: 'Marta Lucía', tipo: 'PRESTAMO', monto: 150000, hora: '09:15 AM' },
-      { id: 'm3', cliente: 'Julio Casas', tipo: 'COBRO', monto: 80000, hora: '10:00 AM' },
-    ]
-  };
+  const [reporte, setReporte] = useState<ReporteDetalle | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchReporte = async () => {
+      setLoading(true);
+      try {
+        const data = await reportesCoordinadorService.getRouteDetail(id, 'today');
+        setReporte({
+          id,
+          ruta: data.ruta?.nombre || '',
+          cobrador: data.ruta?.cobrador ? `${data.ruta.cobrador.nombres} ${data.ruta.cobrador.apellidos}` : '',
+          fecha: data.periodo?.inicio || new Date().toISOString().split('T')[0],
+          meta: 0,
+          recaudado: data.estadisticas?.totalRecaudado || 0,
+          eficiencia: data.estadisticas?.totalClientes ? Math.round((data.estadisticas.totalPagos / data.estadisticas.totalClientes) * 100) : 0,
+          clientesVisitados: data.estadisticas?.totalPagos || 0,
+          clientesNoVisitados: (data.estadisticas?.totalClientes || 0) - (data.estadisticas?.totalPagos || 0),
+          nuevosPrestamos: 0,
+          valorNuevosPrestamos: 0,
+          nuevosClientes: 0,
+          gastosDia: 0,
+          novedades: '',
+          movimientos: (data.pagosRecientes || []).map((p: any) => ({
+            id: p.id,
+            cliente: p.cliente || '',
+            tipo: 'COBRO',
+            monto: p.monto || 0,
+            hora: p.fecha ? new Date(p.fecha).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' }) : '',
+          })),
+        });
+      } catch (err) {
+        console.error('Error cargando reporte:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchReporte();
+  }, [id]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
+
+  if (!reporte) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+        <p className="text-red-500">No se pudo cargar el reporte</p>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-slate-50 relative">

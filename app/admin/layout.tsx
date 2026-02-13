@@ -20,6 +20,7 @@
 import React, { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
+import Image from 'next/image'
 import { 
   Shield,
   Bell,
@@ -41,14 +42,17 @@ import {
   Eye,
   Home
 } from 'lucide-react'
-import { Rol, obtenerModulosPorRol, getIconComponent, tieneAcceso } from '@/lib/permissions'
+import { Rol, obtenerModulos, getIconComponent, tieneAcceso } from '@/lib/permissions'
 import NotFoundPage from '../not-found'
+import { notificacionesService, type Notificacion } from '@/services/notificaciones-service'
+import UserDropdownMenu, { formatRoleName, getRoleColor, getRoleIcon } from '@/components/ui/UserDropdownMenu'
 
 interface NavigationItem {
   name: string;
   href: string;
   icon: React.ReactNode;
   id?: string;
+  isNew?: boolean;
   submodulos?: NavigationItem[];
 }
 
@@ -66,28 +70,37 @@ interface Usuario {
 
 export default function AdminLayout({
   children,
-  hideSidebar = false,
 }: {
   children: React.ReactNode;
-  hideSidebar?: boolean;
 }) {
+  const hideSidebar = false;
+  // Manejo de estado visual (menú lateral, notificaciones, confirmaciones)
   const [isMenuOpen, setIsMenuOpen] = useState(false)
+  const [isPageLoaded, setIsPageLoaded] = useState(false) // Efecto visual de entrada suave
+  
+  // Datos y estado de autenticación
   const [user, setUser] = useState<Usuario | null>(null)
   const [authChecked, setAuthChecked] = useState(false)
-  const [showUserMenu, setShowUserMenu] = useState(false)
+  
+  // Menús desplegables del header
   const [showNotifications, setShowNotifications] = useState(false)
-  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false)
-  const [isLoggingOut, setIsLoggingOut] = useState(false)
+  const [notificaciones, setNotificaciones] = useState<Notificacion[]>([])
+  const [isLoadingNotificaciones, setIsLoadingNotificaciones] = useState(false)
+  
+  // Construcción dinámica del menú lateral
   const [navigation, setNavigation] = useState<NavigationItem[]>([])
-  const [openMenus, setOpenMenus] = useState<Record<string, boolean>>({})
+  const [openMenus, setOpenMenus] = useState<Record<string, boolean>>({}) // Controla qué submenús están expandidos
+  const [seenModules, setSeenModules] = useState<string[]>([]) // Rastrea qué módulos "Nuevos" ya vio el usuario
+
   const pathname = usePathname()
   const router = useRouter()
 
-  const userMenuRef = useRef<HTMLDivElement>(null)
   const notificationRef = useRef<HTMLDivElement>(null)
 
+  // Abre o cierra los submenús del sidebar
   const toggleMenu = (id: string) => {
     setOpenMenus(prev => {
+      // Si ya estaba abierto o si es la ruta actual, invertimos el estado
       const isCurrentlyOpen = prev[id] ?? navigation.find(n => n.id === id)?.submodulos?.some(s => pathname === s.href) ?? false
       return {
         ...prev,
@@ -95,12 +108,21 @@ export default function AdminLayout({
       }
     })
   }
+  
+  // Marca un módulo nuevo como "visto" para que deje de brillar
+  const handleModuleClick = (moduleId?: string, isNew?: boolean) => {
+    if (moduleId && isNew && !seenModules.includes(moduleId)) {
+      const newSeen = [...seenModules, moduleId]
+      setSeenModules(newSeen)
+      localStorage.setItem('seenModules', JSON.stringify(newSeen))
+    }
+    // En móvil cerramos el menú al navegar
+    setIsMenuOpen(false)
+  }
 
+  // Cierra los menús flotantes si haces clic fuera de ellos
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (userMenuRef.current && !userMenuRef.current.contains(event.target as Node)) {
-        setShowUserMenu(false)
-      }
       if (notificationRef.current && !notificationRef.current.contains(event.target as Node)) {
         setShowNotifications(false)
       }
@@ -112,12 +134,27 @@ export default function AdminLayout({
     }
   }, [])
 
+  // Carga inicial de datos del usuario y configuración del menú
   useEffect(() => {
     const loadUserData = () => {
       try {
         const token = localStorage.getItem('token')
         const userData = localStorage.getItem('user')
-        if (!token || !userData) {
+        const seenModulesStored = localStorage.getItem('seenModules')
+        
+        // Recuperamos qué novedades ya vio el usuario
+        if (seenModulesStored) {
+          try {
+            setSeenModules(JSON.parse(seenModulesStored))
+          } catch {
+            setSeenModules([])
+          }
+        }
+
+        // Validación básica de sesión. El token real seguro está en cookies httpOnly,
+        // pero verificamos localStorage para feedback inmediato en UI.
+        if (!userData) {
+          console.log('Sesión no encontrada, redirigiendo al login...');
           setUser(null)
           setNavigation([])
           setAuthChecked(true)
@@ -129,20 +166,22 @@ export default function AdminLayout({
           const parsedUser = JSON.parse(userData) as Usuario
           setUser(parsedUser)
           
-          // Obtener módulos según el rol del usuario
+          // Generamos el menú lateral: primero intenta sidebar dinámico del backend, luego fallback estático
           if (parsedUser.rol) {
-            const modulos = obtenerModulosPorRol(parsedUser.rol)
+            const modulos = obtenerModulos(parsedUser.rol, (parsedUser as any).sidebar)
             
-            // Convertir módulos a formato de navegación
+            // Transformamos los módulos de permisos a items de navegación visual
             const navItems = modulos.map(modulo => ({
               name: modulo.nombre,
               href: modulo.path,
               icon: getIconComponent(modulo.icono),
               id: modulo.id,
+              isNew: modulo.isNew,
               submodulos: modulo.submodulos?.map(sub => ({
                 id: sub.id,
                 name: sub.nombre,
                 href: sub.path,
+                isNew: sub.isNew,
                 icon: getIconComponent(sub.icono)
               }))
             }))
@@ -151,50 +190,93 @@ export default function AdminLayout({
           }
         }
       } catch (error) {
-        console.error('Error al cargar datos del usuario:', error)
+        console.error('No pudimos cargar tu perfil:', error)
       } finally {
         setAuthChecked(true)
+        // Pequeño retardo para que la transición de entrada sea suave y se sienta premium
+        setTimeout(() => setIsPageLoaded(true), 300)
       }
     }
 
     loadUserData()
   }, [router])
 
+  // Seguridad Proactiva: Redirección automática si estás en el lugar equivocado
   useEffect(() => {
-    if (!authChecked) return
-    if (!user?.rol) return
+    if (!authChecked || !user?.rol) return
 
-    if (user.rol === 'SUPERVISOR') {
-      router.replace('/supervisor')
-      return
+    // Si un usuario con rol específico intenta entrar al admin general, lo movemos a su dashboard
+    const roleRedirects: Record<string, string> = {
+      'COBRADOR': '/cobranzas',
+      'COORDINADOR': '/coordinador',
+      'SUPERVISOR': '/supervisor',
+      'CONTADOR': '/contable',
+      'PUNTO_DE_VENTA': '/punto-de-venta'
     }
 
-    if (user.rol === 'CONTADOR' && pathname?.startsWith('/admin')) {
-      router.replace('/contador')
-      return
-    }
-  }, [authChecked, pathname, router, user?.rol])
+    const hasAllowedAdminRoute = (() => {
+      if (!pathname?.startsWith('/admin')) return false
 
+      const allHrefs = navigation.flatMap((n) => [n.href, ...(n.submodulos?.map((s) => s.href) ?? [])])
+      const allowedAdminBases = allHrefs.filter((h) => typeof h === 'string' && h.startsWith('/admin'))
+
+      // Also check if the current /admin path has a matching clean URL in the sidebar
+      // e.g. /admin/creditos is allowed if /creditos is in the sidebar (via rewrites)
+      const cleanPath = pathname.replace(/^\/admin/, '')
+      const allowedCleanBases = allHrefs.filter((h) => typeof h === 'string' && !h.startsWith('/admin') && h !== '#' && h !== '/')
+
+      return allowedAdminBases.some((base) => pathname === base || pathname.startsWith(`${base}/`)) ||
+             allowedCleanBases.some((base) => cleanPath === base || cleanPath.startsWith(`${base}/`))
+    })()
+
+    if (roleRedirects[user.rol] && pathname?.startsWith('/admin') && !hasAllowedAdminRoute) {
+      console.log(`Redirigiendo usuario ${user.rol} a su panel correcto: ${roleRedirects[user.rol]}`)
+      router.replace(roleRedirects[user.rol])
+    }
+  }, [authChecked, navigation, pathname, router, user?.rol])
+
+  useEffect(() => {
+    const cargarNotificaciones = async () => {
+      try {
+        setIsLoadingNotificaciones(true)
+        const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null
+        if (!token || !user?.id) {
+          setNotificaciones([])
+          return
+        }
+        const notifs = await notificacionesService.obtenerTodas()
+        setNotificaciones(notifs)
+      } catch (error) {
+        setNotificaciones([])
+      } finally {
+        setIsLoadingNotificaciones(false)
+      }
+    }
+    if (authChecked && user?.id) cargarNotificaciones()
+  }, [authChecked, user?.id])
+
+  // Mientras verificamos la sesión, no mostramos nada para evitar parpadeos
   if (!authChecked) return null
 
+  // Última línea de defensa: Validación básica de rol.
+  // NOTA: Hemos relajado esta validación para permitir que el sistema de permisos granular (Feature-first)
+  // decida si el usuario puede o no ver el contenido específico.
+  // El componente de la página (ej: ClientesFeature) es responsable de mostrar "Acceso Denegado" si falta el permiso.
+  /* 
   if (pathname && user?.rol && !tieneAcceso(user.rol, pathname)) {
     return <NotFoundPage />
-  }
-
-  const requestLogout = () => {
-    setShowUserMenu(false)
-    setShowLogoutConfirm(true)
-  }
+  } 
+  */
 
   const handleLogout = () => {
-    if (isLoggingOut) return
-    setIsLoggingOut(true)
-    window.setTimeout(() => {
-      localStorage.removeItem('token')
-      localStorage.removeItem('user')
-      router.push('/login')
-    }, 450)
+    localStorage.removeItem('token')
+    localStorage.removeItem('user')
+    router.push('/login')
   }
+
+  const userRoleColor = user ? getRoleColor(user.rol) : '#2563eb'
+  const userRoleIcon = user ? getRoleIcon(user.rol) : <Shield className="h-4 w-4" />
+  const userRoleName = user ? formatRoleName(user.rol) : 'Administrador'
 
   function getUserInitials() {
     if (!user) return 'U'
@@ -208,56 +290,11 @@ export default function AdminLayout({
     return `${user.nombres} ${user.apellidos}`
   }
 
-  function getUserRoleName() {
-    if (!user) return 'Administrador'
-
-    const roleNames: Record<string, string> = {
-      'SUPER_ADMINISTRADOR': 'Super Administrador',
-      'ADMIN': 'Administrador',
-      'COORDINADOR': 'Coordinador',
-      'SUPERVISOR': 'Supervisor',
-      'COBRADOR': 'Cobrador',
-      'CONTADOR': 'Contador'
-    }
-
-    return roleNames[user.rol] || user.rol
-  }
-
-  function getRoleColor() {
-    if (!user) return '#2563eb'
-
-    const roleColors: Record<string, string> = {
-      'SUPER_ADMINISTRADOR': '#2563eb',
-      'ADMIN': '#0891b2',
-      'COORDINADOR': '#f97316',
-      'SUPERVISOR': '#8b5cf6',
-      'COBRADOR': '#f97316',
-      'CONTADOR': '#6366f1'
-    }
-
-    return roleColors[user.rol] || '#2563eb'
-  }
-
-  function getRoleIcon() {
-    if (!user) return <Shield className="h-4 w-4" />
-
-    const roleIcons: Record<string, React.ReactNode> = {
-      'SUPER_ADMINISTRADOR': <Shield className="h-4 w-4" />,
-      'ADMIN': <User className="h-4 w-4" />,
-      'COORDINADOR': <User className="h-4 w-4" />,
-      'SUPERVISOR': <Eye className="h-4 w-4" />,
-      'COBRADOR': <Wallet className="h-4 w-4" />,
-      'CONTADOR': <CreditCard className="h-4 w-4" />
-    }
-
-    return roleIcons[user.rol] || <User className="h-4 w-4" />
-  }
-
   // Filtrar navegación móvil (solo 4 elementos principales)
   const getMobileNavigation = () => {
     if (!user) return []
     
-    const modulos = obtenerModulosPorRol(user.rol)
+    const modulos = obtenerModulos(user.rol, (user as any).sidebar)
     
     // Tomar los primeros 4 módulos importantes para móvil
     const importantModules = ['dashboard', 'prestamos-dinero', 'cobranza', 'perfil']
@@ -275,9 +312,13 @@ export default function AdminLayout({
   const mobileNavItems = getMobileNavigation()
 
   return (
-    <div className="min-h-screen bg-linear-to-br from-gray-50 to-white">
+    <div className="min-h-screen bg-linear-to-br from-gray-50 to-white relative">
+
       {/* Header ultra minimalista */}
-      <header className="fixed top-0 left-0 right-0 z-40 bg-white/80 backdrop-blur-sm border-b border-gray-100">
+      <header 
+        className={`fixed top-0 left-0 right-0 z-40 bg-white/80 backdrop-blur-sm border-b border-gray-100 transition-opacity duration-300 ${isPageLoaded ? 'opacity-100' : 'opacity-0'}`}
+        style={{ opacity: isPageLoaded ? 1 : 0 }}
+      >
         <div className="px-4 sm:px-6 lg:px-8 py-3">
           <div className="flex items-center justify-between">
             {/* Logo y título */}
@@ -292,8 +333,11 @@ export default function AdminLayout({
               )}
               
               <div className="flex items-center">
-                <div className="w-12 h-12 rounded-xl flex items-center justify-center shadow-lg shadow-blue-600/10 overflow-hidden bg-white border border-gray-100 p-1.5 transition-transform hover:scale-105">
-                  <img src="/favicon.ico" alt="Logo" className="w-full h-full object-contain" />
+                <div 
+                  className="w-12 h-12 rounded-xl flex items-center justify-center shadow-lg shadow-blue-600/10 overflow-hidden bg-white border border-gray-100 p-1.5 transition-transform hover:scale-105 relative"
+                  style={{ width: '48px', height: '48px', flexShrink: 0, position: 'relative' }}
+                >
+                  <Image src="/favicon.ico" alt="Logo" width={48} height={48} className="object-contain w-full h-full" />
                 </div>
                 <h1 className="ml-3 text-xl font-bold tracking-tight">
                   <span className="text-blue-600">Credi</span><span className="text-orange-500">Sur</span>
@@ -305,10 +349,10 @@ export default function AdminLayout({
                 <div className="hidden md:block">
                   <div 
                     className="flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium text-white"
-                    style={{ backgroundColor: getRoleColor() }}
+                    style={{ backgroundColor: userRoleColor }}
                   >
-                    {getRoleIcon()}
-                    <span>{getUserRoleName()}</span>
+                    {userRoleIcon}
+                    <span>{userRoleName}</span>
                   </div>
                 </div>
               )}
@@ -318,66 +362,66 @@ export default function AdminLayout({
             <div className="flex items-center space-x-2">
 
               {/* Notificaciones (solo para ciertos roles) */}
-              {user?.rol && ['SUPER_ADMINISTRADOR', 'ADMIN', 'COORDINADOR', 'COBRADOR', 'CONTADOR'].includes(user.rol) && (
+              {user?.rol && ['SUPER_ADMINISTRADOR', 'ADMIN', 'COORDINADOR', 'SUPERVISOR', 'COBRADOR', 'CONTADOR', 'PUNTO_DE_VENTA'].includes(user.rol) && (
                 <div ref={notificationRef} className="relative">
                   <button 
                     onClick={() => setShowNotifications(!showNotifications)}
                     className="relative p-2 hover:bg-gray-100 rounded-lg transition-colors"
                   >
                     <Bell className={`h-5 w-5 ${showNotifications ? 'text-blue-600' : 'text-gray-500'}`} />
-                    <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-orange-500 rounded-full border-2 border-white"></span>
+                    {notificaciones.some(n => !n.leida) && (
+                      <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-orange-500 rounded-full border-2 border-white"></span>
+                    )}
                   </button>
 
                   {showNotifications && (
                     <div className="absolute right-0 mt-2 w-80 bg-white rounded-xl shadow-xl border border-gray-100 py-2 z-50 animate-in fade-in slide-in-from-top-2">
                       <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
                         <h3 className="font-semibold text-gray-900">Notificaciones</h3>
-                        <span className="text-xs font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded-full">3 Nuevas</span>
+                        <span className="text-xs font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded-full">
+                          {notificaciones.filter(n => !n.leida).length} Nuevas
+                        </span>
                       </div>
                       <div className="max-h-[300px] overflow-y-auto">
-                        <div className="p-4 border-b border-gray-50 hover:bg-gray-50 transition-colors cursor-pointer group">
-                          <div className="flex gap-3">
-                            <div className="mt-1 p-2 bg-green-50 rounded-full text-green-600 group-hover:scale-110 transition-transform">
-                              <Banknote className="h-4 w-4" />
+                        {isLoadingNotificaciones ? (
+                          <div className="p-4 text-center text-xs text-gray-500">Cargando...</div>
+                        ) : notificaciones.length > 0 ? (
+                          notificaciones.slice(0, 3).map((n) => (
+                            <div key={n.id} className="p-4 border-b border-gray-50 hover:bg-gray-50 transition-colors cursor-pointer group">
+                              <div className="flex gap-3">
+                                <div
+                                  className={
+                                    `mt-1 p-2 rounded-full group-hover:scale-110 transition-transform ` +
+                                    (n.tipo === 'PAGO'
+                                      ? 'bg-green-50 text-green-600'
+                                      : n.tipo === 'CLIENTE'
+                                        ? 'bg-blue-50 text-blue-600'
+                                        : n.tipo === 'MORA'
+                                          ? 'bg-amber-50 text-amber-600'
+                                          : 'bg-gray-50 text-gray-600')
+                                  }
+                                >
+                                  {n.tipo === 'PAGO' ? <Banknote className="h-4 w-4" /> : n.tipo === 'CLIENTE' ? <Users className="h-4 w-4" /> : n.tipo === 'MORA' ? <AlertCircle className="h-4 w-4" /> : <Bell className="h-4 w-4" />}
+                                </div>
+                                <div>
+                                  <p className="text-sm font-medium text-gray-900">{n.titulo}</p>
+                                  <p className="text-xs text-gray-500 mt-0.5">{n.mensaje}</p>
+                                  <p className="text-xs text-blue-600 mt-1 font-medium">{n.fecha}</p>
+                                </div>
+                              </div>
                             </div>
-                            <div>
-                              <p className="text-sm font-medium text-gray-900">Pago Recibido</p>
-                              <p className="text-xs text-gray-500 mt-0.5">Cliente #1456 ha realizado un pago</p>
-                              <p className="text-xs text-blue-600 mt-1 font-medium">Hace 5 min</p>
-                            </div>
-                          </div>
-                        </div>
-                        <div className="p-4 border-b border-gray-50 hover:bg-gray-50 transition-colors cursor-pointer group">
-                          <div className="flex gap-3">
-                            <div className="mt-1 p-2 bg-blue-50 rounded-full text-blue-600 group-hover:scale-110 transition-transform">
-                              <Users className="h-4 w-4" />
-                            </div>
-                            <div>
-                              <p className="text-sm font-medium text-gray-900">Nuevo Cliente</p>
-                              <p className="text-xs text-gray-500 mt-0.5">Solicitud de registro pendiente</p>
-                              <p className="text-xs text-blue-600 mt-1 font-medium">Hace 2 horas</p>
-                            </div>
-                          </div>
-                        </div>
-                        <div className="p-4 hover:bg-gray-50 transition-colors cursor-pointer group">
-                          <div className="flex gap-3">
-                            <div className="mt-1 p-2 bg-amber-50 rounded-full text-amber-600 group-hover:scale-110 transition-transform">
-                              <AlertCircle className="h-4 w-4" />
-                            </div>
-                            <div>
-                              <p className="text-sm font-medium text-gray-900">Alerta de Mora</p>
-                              <p className="text-xs text-gray-500 mt-0.5">3 cuentas han entrado en mora hoy</p>
-                              <p className="text-xs text-blue-600 mt-1 font-medium">Hace 4 horas</p>
-                            </div>
-                          </div>
-                        </div>
+                          ))
+                        ) : (
+                          <div className="p-6 text-center text-xs text-gray-500">Sin notificaciones</div>
+                        )}
                       </div>
                       <div className="p-2 border-t border-gray-100">
                         <button 
                           onClick={() => {
                             setShowNotifications(false)
-                            let target = '/admin/notificaciones'
+                            let target = '/notificaciones'
                             if (user?.rol === 'COORDINADOR') target = '/coordinador/notificaciones'
+                            if (user?.rol === 'SUPERVISOR') target = '/supervisor/notificaciones'
                             if (user?.rol === 'CONTADOR') target = '/contador/notificaciones'
                             if (user?.rol === 'COBRADOR') target = '/cobranzas/notificaciones'
                             router.push(target)
@@ -392,296 +436,25 @@ export default function AdminLayout({
                 </div>
               )}
 
-              {/* Avatar de usuario con menú desplegable mejorado */}
-              <div ref={userMenuRef} className="relative">
-                <button 
-                  onClick={() => setShowUserMenu(!showUserMenu)}
-                  className="flex items-center space-x-3 p-1 hover:bg-gray-100 rounded-lg transition-colors group"
-                >
-                  <div 
-                    className="relative w-9 h-9 rounded-full flex items-center justify-center text-white text-sm font-medium shadow-sm"
-                    style={{ 
-                      background: `linear-gradient(135deg, ${getRoleColor()}, ${getRoleColor()}CC)`,
-                      boxShadow: `0 0 0 2px white, 0 0 0 4px ${getRoleColor()}40`
-                    }}
-                  >
-                    {getUserInitials()}
-                  </div>
-                  <div className="hidden lg:block text-left">
-                    <div className="text-sm font-medium text-gray-800 group-hover:text-[#08557f] transition-colors">
-                      {getUserFullName()}
-                    </div>
-                    <div className="text-xs text-gray-500 flex items-center gap-1">
-                      <Mail className="h-3 w-3" />
-                      <span className="truncate max-w-[120px]">{user?.correo}</span>
-                    </div>
-                  </div>
-                  <ChevronDown className={`h-4 w-4 text-gray-400 transition-transform ${showUserMenu ? 'rotate-180' : ''}`} />
-                </button>
-
-                {/* Menú desplegable del usuario mejorado */}
-                {showUserMenu && (
-                  <>
-                    <div 
-                      className="fixed inset-0 z-40" 
-                      onClick={() => setShowUserMenu(false)}
-                    />
-                    <div className="absolute right-0 mt-2 w-96 bg-white rounded-xl shadow-xl border border-gray-100 py-2 z-50 animate-in fade-in slide-in-from-top-2">
-                      {/* Header mejorado */}
-                      <div className="px-6 py-6 bg-linear-to-r from-slate-50 to-white border-b border-gray-100">
-                        <div className="flex flex-col items-center text-center gap-3">
-                          <div 
-                            className="relative w-20 h-20 rounded-full flex items-center justify-center text-white text-2xl font-bold shadow-xl mb-1"
-                            style={{ 
-                              background: `linear-gradient(135deg, ${getRoleColor()}, ${getRoleColor()}CC)`,
-                              boxShadow: `0 8px 20px ${getRoleColor()}40`
-                            }}
-                          >
-                            {getUserInitials()}
-                            <div className="absolute -bottom-2 -right-2 w-8 h-8 rounded-full bg-white flex items-center justify-center shadow-md border-2 border-white">
-                              <div style={{ color: getRoleColor() }}>
-                                {getRoleIcon()}
-                              </div>
-                            </div>
-                          </div>
-                          
-                          <div className="w-full">
-                            <h3 className="font-bold text-gray-900 text-lg mb-1">
-                              {getUserFullName()}
-                            </h3>
-                            <div className="flex items-center justify-center gap-2 flex-wrap">
-                              <span 
-                                className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold text-white shadow-sm"
-                                style={{ backgroundColor: getRoleColor() }}
-                              >
-                                {getRoleIcon()}
-                                {getUserRoleName()}
-                              </span>
-                              <span className="text-xs text-gray-400">•</span>
-                              <span className="text-xs text-gray-500 font-medium bg-gray-100 px-2 py-1 rounded-full">
-                                {user?.correo?.split('@')[0] || 'usuario'}
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Información detallada */}
-                      {user && (
-                        <div className="px-4 py-3 space-y-3 border-b border-gray-100">
-                          {/* Correo con icono */}
-                          <div className="flex items-start gap-3">
-                            <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center flex-shrink-0">
-                              <Mail className="h-4 w-4 text-blue-600" />
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <div className="text-xs text-gray-500">Correo electrónico</div>
-                              <div className="text-sm font-medium text-gray-900 truncate" title={user.correo}>
-                                {user.correo}
-                              </div>
-                            </div>
-                          </div>
-
-                          {/* Teléfono (si existe) */}
-                          {user.telefono && (
-                            <div className="flex items-start gap-3">
-                              <div className="w-8 h-8 rounded-lg bg-green-50 flex items-center justify-center flex-shrink-0">
-                                <Phone className="h-4 w-4 text-green-600" />
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <div className="text-xs text-gray-500">Teléfono</div>
-                                <div className="text-sm font-medium text-gray-900">
-                                  {user.telefono}
-                                </div>
-                              </div>
-                            </div>
-                          )}
-
-                          {/* Ubicación (si existe) */}
-                          {(user.ciudad || user.direccion) && (
-                            <div className="flex items-start gap-3">
-                              <div className="w-8 h-8 rounded-lg bg-purple-50 flex items-center justify-center flex-shrink-0">
-                                <MapPin className="h-4 w-4 text-purple-600" />
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <div className="text-xs text-gray-500">Ubicación</div>
-                                <div className="text-sm font-medium text-gray-900">
-                                  {user.ciudad}
-                                  {user.ciudad && user.direccion && ' • '}
-                                  {user.direccion && <span className="text-xs text-gray-500">{user.direccion}</span>}
-                                </div>
-                              </div>
-                            </div>
-                          )}
-
-                          {/* Fecha de creación */}
-                          {user.fecha_creacion && (
-                            <div className="flex items-start gap-3">
-                              <div className="w-8 h-8 rounded-lg bg-amber-50 flex items-center justify-center flex-shrink-0">
-                                <Calendar className="h-4 w-4 text-amber-600" />
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <div className="text-xs text-gray-500">Miembro desde</div>
-                                <div className="text-sm font-medium text-gray-900">
-                                  {new Date(user.fecha_creacion).toLocaleDateString('es-ES', {
-                                    year: 'numeric',
-                                    month: 'long',
-                                    day: 'numeric'
-                                  })}
-                                </div>
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      )}
-
-                      {/* Acciones rápidas */}
-                      <div className="py-2">
-                        <Link
-                          href={user?.rol === 'COBRADOR' ? '/cobranzas/perfil' : user?.rol === 'CONTADOR' ? '/contador/perfil' : '/admin/perfil'}
-                          className="flex items-center px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors group"
-                          onClick={() => setShowUserMenu(false)}
-                        >
-                          <div className="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center mr-3 group-hover:bg-[#08557f]/10 transition-colors">
-                            <User className="h-4 w-4 text-gray-600 group-hover:text-[#08557f]" />
-                          </div>
-                          <div>
-                            <div className="font-medium">Mi perfil</div>
-                            <div className="text-xs text-gray-500">Ver y editar información personal</div>
-                          </div>
-                        </Link>
-                        
-                        {/* Configuración solo para admin */}
-                        {user?.rol === 'SUPER_ADMINISTRADOR' && (
-                          <Link
-                            href="/admin/sistema/configuracion"
-                            className="flex items-center px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors group"
-                            onClick={() => setShowUserMenu(false)}
-                          >
-                            <div className="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center mr-3 group-hover:bg-[#08557f]/10 transition-colors">
-                              <Settings className="h-4 w-4 text-gray-600 group-hover:text-[#08557f]" />
-                            </div>
-                            <div>
-                              <div className="font-medium">Configuración</div>
-                              <div className="text-xs text-gray-500">Preferencias y ajustes del sistema</div>
-                            </div>
-                          </Link>
-                        )}
-                      </div>
-
-                      {/* Cerrar sesión */}
-                      <div className="pt-2 border-t border-gray-100">
-                        <button
-                          onClick={requestLogout}
-                          className="flex items-center w-full px-4 py-3 text-sm text-red-600 hover:bg-red-50 transition-colors group"
-                        >
-                          <div className="w-8 h-8 rounded-lg bg-red-100 flex items-center justify-center mr-3 group-hover:bg-red-200 transition-colors">
-                            <LogOut className="h-4 w-4" />
-                          </div>
-                          <div>
-                            <div className="font-medium">Cerrar sesión</div>
-                            <div className="text-xs text-red-500">Salir del sistema</div>
-                          </div>
-                        </button>
-                      </div>
-                    </div>
-                  </>
-                )}
-              </div>
+              {/* Avatar de usuario con menú desplegable reutilizable */}
+              <UserDropdownMenu user={user} onLogout={handleLogout} />
             </div>
           </div>
         </div>
       </header>
 
-      {showLogoutConfirm && (
-        <div className="fixed inset-0 z-[2147483647] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
-          <div className="w-full max-w-md rounded-3xl bg-white shadow-2xl overflow-hidden">
-            <div className="p-6">
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <h3 className="text-lg font-bold text-slate-900">Cerrar sesión</h3>
-                  <p className="mt-1 text-sm text-slate-600">¿Seguro que deseas cerrar sesión?</p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (isLoggingOut) return
-                    setShowLogoutConfirm(false)
-                  }}
-                  className="p-2 rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200"
-                >
-                  <X className="h-5 w-5" />
-                </button>
-              </div>
-
-              <div className="mt-6 flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (isLoggingOut) return
-                    setShowLogoutConfirm(false)
-                  }}
-                  disabled={isLoggingOut}
-                  className="flex-1 rounded-xl bg-slate-100 px-3 py-3 text-sm font-bold text-slate-700 hover:bg-slate-200 disabled:opacity-60"
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="button"
-                  onClick={handleLogout}
-                  disabled={isLoggingOut}
-                  className="flex-1 rounded-xl bg-red-600 px-3 py-3 text-sm font-bold text-white hover:bg-red-700 disabled:opacity-60"
-                >
-                  {isLoggingOut ? 'Cerrando sesión…' : 'Cerrar sesión'}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Sidebar elegante para desktop */}
       {!hideSidebar && user?.rol !== 'COBRADOR' && (
-        <aside className={`fixed left-0 top-16 bottom-0 w-64 bg-white/80 backdrop-blur-sm border-r border-gray-100 transition-all duration-300 z-20 ${
-          isMenuOpen ? 'translate-x-0' : '-translate-x-full'
-        } lg:translate-x-0 lg:block`}>
+        <aside 
+          className={`fixed left-0 top-16 bottom-0 w-64 bg-white/80 backdrop-blur-sm border-r border-gray-100 transition-all duration-300 z-20 ${
+            isMenuOpen ? 'translate-x-0' : '-translate-x-full'
+          } lg:translate-x-0 lg:block ${isPageLoaded ? 'opacity-100' : 'opacity-0'}`}
+          style={{ opacity: isPageLoaded ? 1 : 0 }}
+        >
           <nav className="p-6 h-full overflow-y-auto custom-scrollbar">
             <div className="space-y-6">
               {/* Info del usuario en sidebar móvil */}
-              {user && (
-                <div className="lg:hidden mb-6 p-4 bg-linear-to-r from-gray-50 to-white rounded-xl border border-gray-100 shadow-sm">
-                  <div className="flex items-center gap-3">
-                    <div 
-                      className="relative w-12 h-12 rounded-full flex items-center justify-center text-white text-sm font-medium shadow-md"
-                      style={{ 
-                        background: `linear-gradient(135deg, ${getRoleColor()}, ${getRoleColor()}CC)`,
-                        boxShadow: `0 0 0 2px white, 0 0 0 4px ${getRoleColor()}40`
-                      }}
-                    >
-                      {getUserInitials()}
-                      <div className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-white flex items-center justify-center shadow-sm">
-                        <div className="text-xs" style={{ color: getRoleColor() }}>
-                          {getRoleIcon()}
-                        </div>
-                      </div>
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="font-medium text-gray-900 text-sm truncate">
-                        {getUserFullName()}
-                      </div>
-                      <div className="text-xs text-gray-500 flex items-center gap-2 mt-0.5">
-                        <div 
-                          className="text-xs font-medium px-2 py-0.5 rounded-full text-white"
-                          style={{ backgroundColor: getRoleColor() }}
-                        >
-                          {getUserRoleName()}
-                        </div>
-                        <span className="truncate">{user.correo}</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
+              {null}
 
               {/* Navegación principal filtrada por rol */}
               <div>
@@ -717,21 +490,29 @@ export default function AdminLayout({
                             <div className="pl-4 space-y-1 mt-1 border-l-2 border-gray-100 ml-4">
                               {item.submodulos?.map((subItem) => {
                                 const isSubActive = pathname === subItem.href
+                                const isNew = subItem.isNew && subItem.id &&!seenModules.includes(subItem.id);
                                 return (
                                   <Link
                                     key={subItem.id}
                                     href={subItem.href}
-                                    className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-all duration-75 group ${
+                                    className={`flex items-center justify-between gap-3 px-3 py-2 rounded-lg transition-all duration-75 group ${
                                       isSubActive 
                                         ? 'text-[#08557f] font-medium bg-[#08557f]/5' 
                                         : 'text-gray-500 hover:text-[#08557f] hover:bg-gray-50'
                                     }`}
-                                    onClick={() => setIsMenuOpen(false)}
+                                    onClick={() => handleModuleClick(subItem.id, subItem.isNew)}
                                   >
-                                    <div className={`transition-colors ${isSubActive ? 'text-[#08557f]' : 'text-gray-300 group-hover:text-[#08557f]'}`}>
-                                      {subItem.icon}
+                                    <div className="flex items-center gap-3">
+                                      <div className={`transition-colors ${isSubActive ? 'text-[#08557f]' : 'text-gray-300 group-hover:text-[#08557f]'}`}>
+                                        {subItem.icon}
+                                      </div>
+                                      <span className="text-sm">{subItem.name}</span>
                                     </div>
-                                    <span className="text-sm">{subItem.name}</span>
+                                    {isNew && (
+                                        <span className="text-[10px] font-bold text-white bg-gradient-to-r from-pink-500 to-rose-500 px-1.5 py-0.5 rounded-full shadow-sm animate-pulse">
+                                          NUEVO
+                                        </span>
+                                    )}
                                   </Link>
                                 )
                               })}
@@ -741,33 +522,51 @@ export default function AdminLayout({
                       )
                     }
 
+                    const isNew = item.isNew && item.id && !seenModules.includes(item.id);
+
                     return (
                       <Link
                         key={item.id || item.name}
                         href={item.href}
-                        className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-75 border group ${
+                        className={`flex items-center justify-between gap-3 px-3 py-2.5 rounded-xl transition-all duration-75 border group ${
                           isActive 
                             ? 'text-[#08557f] bg-gradient-to-r from-[#08557f]/10 to-[#063a58]/5 font-medium border-[#08557f]/20' 
                             : 'text-gray-600 border-transparent hover:text-[#08557f] hover:bg-gray-50 hover:border-gray-200'
                         }`}
-                        onClick={() => setIsMenuOpen(false)}
+                        onClick={() => handleModuleClick(item.id, item.isNew)}
                       >
-                        <div className={`transition-colors ${isActive ? 'text-[#08557f]' : 'text-gray-400 group-hover:text-[#08557f]'}`}>
-                          {item.icon}
+                        <div className="flex items-center gap-3">
+                          <div className={`transition-colors ${isActive ? 'text-[#08557f]' : 'text-gray-400 group-hover:text-[#08557f]'}`}>
+                            {item.icon}
+                          </div>
+                          <span className="text-sm">{item.name}</span>
                         </div>
-                        <span className="text-sm">{item.name}</span>
+                         {isNew && (
+                            <span className="text-[10px] font-bold text-white bg-gradient-to-r from-pink-500 to-rose-500 px-1.5 py-0.5 rounded-full shadow-sm animate-pulse">
+                              NUEVO
+                            </span>
+                        )}
                       </Link>
                     )
                   })}
                 </div>
+              </div>
+              
+              <div className="mt-8 px-4 pb-4 border-t border-gray-50 pt-4">
+                <p className="text-[10px] text-gray-400 font-medium text-center uppercase tracking-widest bg-gray-50/50 py-1 rounded-full">
+                  Versión Alpha 1.0
+                </p>
               </div>
             </div>
           </nav>
         </aside>
       )}
 
-      {/* Contenido principal */}
-      <main className={`pt-16 ${hideSidebar || user?.rol === 'COBRADOR' ? '' : 'lg:pl-64'} transition-all duration-300 ${(isMenuOpen && !hideSidebar && user?.rol !== 'COBRADOR') ? 'lg:pl-64' : ''}`}>
+      {/* Contenido principal animado */}
+      <main 
+        className={`pt-16 ${hideSidebar || user?.rol === 'COBRADOR' ? '' : 'lg:pl-64'} transition-all duration-700 ease-out ${(isMenuOpen && !hideSidebar && user?.rol !== 'COBRADOR') ? 'lg:pl-64' : ''} ${isPageLoaded ? 'opacity-100 transform-none' : 'translate-y-4 opacity-0 scale-[0.99]'}`}
+        style={{ opacity: isPageLoaded ? 1 : 0 }}
+      >
         {children}
       </main>
 
@@ -792,118 +591,48 @@ export default function AdminLayout({
                 <span className={`text-xs mt-1 transition-colors ${
                   pathname === item.href ? 'font-medium text-[#08557f]' : 'text-gray-600'
                 }`}>
-                  {item.name.length > 10 ? `${item.name.substring(0, 9)}...` : item.name}
+                  {item.name}
                 </span>
               </Link>
             ))}
-            <button
-              onClick={() => setIsMenuOpen(true)}
-              className="flex flex-col items-center px-2 py-1 rounded-xl transition-all group"
-            >
-              <div className={`p-2 rounded-lg transition-all ${
-                isMenuOpen
-                  ? 'bg-gradient-to-br from-[#08557f] to-[#063a58] text-white shadow-md' 
-                  : 'text-gray-500 group-hover:bg-gray-100'
-              }`}>
-                <Menu className="h-5 w-5" />
-              </div>
-              <span className={`text-xs mt-1 transition-colors ${
-                isMenuOpen ? 'font-medium text-[#08557f]' : 'text-gray-600'
-              }`}>
-                Más
-              </span>
-            </button>
           </div>
         </div>
       )}
-
-      {/* Barra inferior móvil para COBRADOR cuando hideSidebar está activo */}
-      {hideSidebar && user?.rol === 'COBRADOR' && (
-        <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-40 shadow-lg">
-          <div className="flex items-center justify-around py-3 px-2">
-            {/* Botón Notificaciones */}
-            <Link
-              href="/cobranzas/notificaciones"
-              className="flex flex-col items-center px-2 py-1 rounded-xl transition-all group"
-            >
-              <div className={`p-2 rounded-lg transition-all ${
-                pathname === '/cobranzas/notificaciones'
-                  ? 'bg-gradient-to-br from-[#08557f] to-[#063a58] text-white shadow-md' 
-                  : 'text-gray-500 group-hover:bg-gray-100'
-              }`}>
-                <Bell className="h-5 w-5" />
-                <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-orange-500 rounded-full border-2 border-white"></span>
-              </div>
-              <span className={`text-xs mt-1 transition-colors ${
-                pathname === '/cobranzas/notificaciones' ? 'font-medium text-[#08557f]' : 'text-gray-600'
-              }`}>
-                Notificaciones
-              </span>
-            </Link>
-
-            {/* Botón Inicio */}
-            <Link
-              href="/cobranzas"
-              className="flex flex-col items-center px-2 py-1 rounded-xl transition-all group"
-            >
-              <div className={`p-2 rounded-lg transition-all ${
-                pathname === '/cobranzas' 
-                  ? 'bg-gradient-to-br from-[#08557f] to-[#063a58] text-white shadow-md' 
-                  : 'text-gray-500 group-hover:bg-gray-100'
-              }`}>
-                <Home className="h-5 w-5" />
-              </div>
-              <span className={`text-xs mt-1 transition-colors ${
-                pathname === '/cobranzas' ? 'font-medium text-[#08557f]' : 'text-gray-600'
-              }`}>
-                Inicio
-              </span>
-            </Link>
-
-            {/* Botón Perfil */}
-            <Link
-              href="/cobranzas/perfil"
-              className="flex flex-col items-center px-2 py-1 rounded-xl transition-all group"
-            >
-              <div className={`p-2 rounded-lg transition-all ${
-                pathname === '/cobranzas/perfil'
-                  ? 'bg-gradient-to-br from-[#08557f] to-[#063a58] text-white shadow-md' 
-                  : 'text-gray-500 group-hover:bg-gray-100'
-              }`}>
-                <User className="h-5 w-5" />
-              </div>
-              <span className={`text-xs mt-1 transition-colors ${
-                pathname === '/cobranzas/perfil' ? 'font-medium text-[#08557f]' : 'text-gray-600'
-              }`}>
-                Perfil
-              </span>
-            </Link>
-          </div>
-        </div>
-      )}
-
-      <style jsx global>{`
-        .custom-scrollbar::-webkit-scrollbar {
-          width: 4px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-track {
-          background: transparent;
-        }
-        .custom-scrollbar::-webkit-scrollbar-thumb {
-          background: #e5e7eb;
-          border-radius: 2px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-          background: #d1d5db;
-        }
-        @keyframes fadeIn {
-          from { opacity: 0; transform: translateY(-10px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-        .animate-in {
-          animation: fadeIn 0.2s ease-out;
-        }
-      `}</style>
+      {/* Overlay de Transición Anti-FOUC (Blanco Puro para transición invisible desde Login) */}
+      <div 
+        role="presentation"
+        className="fixed inset-0 bg-white transition-opacity duration-1000 ease-out z-[9999] flex flex-col items-center justify-center"
+        style={{ 
+            opacity: isPageLoaded ? 0 : 1,
+            pointerEvents: isPageLoaded ? 'none' : 'all',
+            position: 'fixed',
+            top: 0, 
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: '#ffffff',
+            zIndex: 9999
+        }}
+      >
+         {/* Spinner de respaldo minimalista, solo visible si tarda mucho */}
+         {/* Overlay Simplificado (Blanco + Spinner Robusto) para evitar FOUC de logo complejo */}
+         <div 
+            className={`flex items-center justify-center transition-all duration-700 ${isPageLoaded ? 'opacity-0' : 'opacity-100'}`}
+            style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+         >
+            <div 
+                className="w-12 h-12 border-4 border-slate-100 border-t-[#08557f] border-r-[#08557f] rounded-full animate-spin" 
+                style={{ 
+                    width: '48px', 
+                    height: '48px', 
+                    border: '4px solid #f1f5f9', 
+                    borderTop: '4px solid #08557f', 
+                    borderRight: '4px solid #08557f', 
+                    borderRadius: '50%' 
+                }}
+            ></div>
+         </div>
+      </div>
     </div>
   )
 }

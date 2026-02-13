@@ -1,9 +1,28 @@
 'use client';
 
-import { use } from 'react';
+import { use, useState, useEffect } from 'react';
 import { ChevronLeft, User, Phone, CreditCard, TrendingUp, DollarSign } from 'lucide-react';
 import Link from 'next/link';
 import { formatCurrency } from '@/lib/utils';
+import { clientesService } from '@/services/clientes-service';
+
+interface ClienteDetalle {
+  id: string;
+  nombre: string;
+  documento: string;
+  telefono: string;
+  direccion: string;
+  ciudad: string;
+  estrato: number;
+  score: number;
+  estado: string;
+  fechaRegistro: string;
+  prestamosActivos: number;
+  totalPrestado: number;
+  saldoActual: number;
+  rutasAsociadas: string[];
+  historial: Array<{ fecha: string; evento: string; monto: number }>;
+}
 
 export default function DetalleClienteCoordinadorPage({ 
   params 
@@ -11,29 +30,55 @@ export default function DetalleClienteCoordinadorPage({
   params: Promise<{ id: string }>
 }) {
   const { id } = use(params);
-  
-  // Mock data for a client
-  const cliente = {
-    id,
-    nombre: 'Carlos Andrés Rodríguez Pérez',
-    documento: '0912345678',
-    telefono: '310 123 4567',
-    direccion: 'Calle 123 # 45-67, Barrio El Rosario',
-    ciudad: 'Cúcuta',
-    estrato: 3,
-    score: 850,
-    estado: 'ACTIVO',
-    fechaRegistro: '15/01/2023',
-    prestamosActivos: 1,
-    totalPrestado: 5000000,
-    saldoActual: 1200000,
-    rutasAsociadas: ['Ruta Centro', 'Ruta Norte'],
-    historial: [
-      { fecha: '2023-12-15', evento: 'Pago realizado cuota #4', monto: 300000 },
-      { fecha: '2023-11-15', evento: 'Pago realizado cuota #3', monto: 300000 },
-      { fecha: '2023-10-15', evento: 'Crédito PR-2023-001 aprobado', monto: 1500000 },
-    ]
-  };
+  const [cliente, setCliente] = useState<ClienteDetalle | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchCliente = async () => {
+      setLoading(true);
+      try {
+        const data: any = await clientesService.obtenerPorId(id);
+        setCliente({
+          id: data.id || id,
+          nombre: `${data.nombres || ''} ${data.apellidos || ''}`.trim(),
+          documento: data.dni || data.documento || '',
+          telefono: data.telefono || '',
+          direccion: data.direccion || '',
+          ciudad: data.ciudad || '',
+          estrato: data.estrato || 0,
+          score: data.score || 0,
+          estado: data.estado || 'ACTIVO',
+          fechaRegistro: data.creadoEn || '',
+          prestamosActivos: data.prestamosActivos || 0,
+          totalPrestado: data.totalPrestado || 0,
+          saldoActual: data.saldoActual || 0,
+          rutasAsociadas: data.rutas?.map((r: any) => r.nombre) || [],
+          historial: data.historial || [],
+        });
+      } catch (err) {
+        console.error('Error cargando cliente:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchCliente();
+  }, [id]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
+
+  if (!cliente) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+        <p className="text-red-500">No se pudo cargar el cliente</p>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-slate-50 relative pb-12">

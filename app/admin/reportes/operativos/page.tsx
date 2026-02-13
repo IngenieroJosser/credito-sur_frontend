@@ -24,65 +24,100 @@
  */
 
 import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams, usePathname } from 'next/navigation'
 import { BarChart3, Calendar, TrendingUp, Users, FilePlus, DollarSign, MapPin, Eye } from 'lucide-react'
 import { formatCurrency, cn } from '@/lib/utils'
 import { ExportButton } from '@/components/ui/ExportButton'
 import FiltroRuta from '@/components/filtros/FiltroRuta'
+import { TimeFilter, TimeFilterPeriod } from '@/components/ui/TimeFilter'
+import type { RoutePerformance } from '@/services/reportes-coordinador-service'
+import { useReportesCoordinador } from '@/hooks/useReportesCoordinador'
 
 const ReportesOperativosPage = () => {
   const router = useRouter()
+  const pathname = usePathname()
+  const searchParams = useSearchParams()
+  const period = (searchParams.get('period') as TimeFilterPeriod) || 'today'
+
+
   
-  // Control de hidratación para evitar mismatch entre servidor y cliente
+  const {
+      loading,
+      error,
+      reportData,
+      fetchOperationalReport,
+      exportReport
+  } = useReportesCoordinador()
+
+  const handlePeriodChange = (newPeriod: TimeFilterPeriod) => {
+    const params = new URLSearchParams(searchParams.toString())
+    params.set('period', newPeriod)
+    router.replace(`${pathname}?${params.toString()}`, { scroll: false })
+  }
+  
+  // --- ESTADO & RUTAS ---
+  // Controlamos si el componente ya se montó en el cliente para evitar errores de hidratación
   const [mounted, setMounted] = useState(false)
   
   /**
-   * @state basePath
-   * @description Ruta base dinámica para navegación interna.
-   * Permite que este componente sea reutilizable por Admin y Coordinadores sin
-   * romper la navegación. Evita que un Coordinador sea enviado a /admin/.
-   * @default '/admin'
+   * Ruta base dinámica para navegación inteligente.
+   * Esto permite que este mismo reporte sirva para Admin, Coordinadores y Supervisores,
+   * redirigiendo a cada uno a su sección correcta sin "sacarlos" de su layout.
    */
-  const [basePath, setBasePath] = useState('/admin')
+  const [basePath, setBasePath] = useState('')
+  const [exporting, setExporting] = useState(false)
 
-  // Estado para el filtro de ruta
+  // Filtro específico para ver el rendimiento de una sola ruta
   const [filterRuta, setFilterRuta] = useState<string | null>(null);
 
-  const handleExportExcel = () => {
-    // TODO: Implementar lógica de exportación a Excel (usar librería xlsx)
-    console.log('Exporting Excel...')
+  const handleExportExcel = async () => {
+    setExporting(true)
+    try {
+      await exportReport({ period, routeId: filterRuta || undefined }, 'excel')
+      alert('Reporte exportado exitosamente')
+    } catch (error) {
+      console.error('Error exporting Excel:', error);
+      alert('Error al exportar reporte')
+    } finally {
+      setExporting(false)
+    }
   }
 
-  const handleExportPDF = () => {
-    // TODO: Implementar generación de PDF (usar librería jsPDF o html2pdf)
-    console.log('Exporting PDF...')
+  const handleExportPDF = async () => {
+    setExporting(true)
+    try {
+      await exportReport({ period, routeId: filterRuta || undefined }, 'pdf')
+      alert('Reporte exportado exitosamente')
+    } catch (error) {
+       console.error('Error exporting PDF:', error);
+       alert('Error al exportar reporte')
+    } finally {
+      setExporting(false)
+    }
   }
 
   /**
-   * @effect Inicialización de Contexto de Usuario
-   * Se ejecuta al montar el componente para determinar el rol del usuario
-   * y configurar las rutas de navegación apropiadas.
+   * Al cargar la página, verificamos quién es el usuario.
+   * Dependiendo de si es Coordinador, Supervisor o Admin, ajustamos los enlaces
+   * para que la navegación sea fluida y segura.
    */
   useEffect(() => {
     const timer = setTimeout(() => {
       setMounted(true)
       
-      // Lógica de detección de rol para routing dinámico
       const userData = localStorage.getItem('user')
       if (userData) {
         try {
           const user = JSON.parse(userData)
           
-          // REGLAS DE ENRUTAMIENTO:
-          // Si se agregan nuevos roles con vistas propias (ej: 'AUDITOR'), agregarlos aquí.
           if (user.rol === 'COORDINADOR') {
             setBasePath('/coordinador')
           } else if (user.rol === 'SUPERVISOR') {
             setBasePath('/supervisor')
           }
-          // Default: '/admin' (para ADMIN y SUPER_ADMINISTRADOR)
+          // Si es ADMIN, se queda con el default '/admin'
         } catch (e) {
-          console.error('Error parsing user data', e)
+          console.error('Ups, error al leer datos del usuario', e)
         }
       }
     }, 0)
@@ -90,31 +125,40 @@ const ReportesOperativosPage = () => {
     return () => clearTimeout(timer)
   }, [])
 
-  // --------------------------------------------------------------------------
-  // MOCK DATA: Simulación de datos del backend
-  // Reemplazar este bloque con un hook de datos real (ej: useSWR o useQuery)
-  // que consulte: GET /api/reportes/operativos
-  // --------------------------------------------------------------------------
-  const rendimientoRutas = [
-    { id: 'RT-001', ruta: 'Ruta Centro', cobrador: 'Carlos Pérez', meta: 1500000, recaudado: 1250000, eficiencia: 83, nuevosPrestamos: 2, nuevosClientes: 1 },
-    { id: 'RT-002', ruta: 'Ruta Norte', cobrador: 'María Rodríguez', meta: 1000000, recaudado: 820000, eficiencia: 82, nuevosPrestamos: 0, nuevosClientes: 0 },
-    { id: 'RT-003', ruta: 'Ruta Este', cobrador: 'Pedro Gómez', meta: 500000, recaudado: 300000, eficiencia: 60, nuevosPrestamos: 1, nuevosClientes: 2 },
-  ]
+  // Fetch Data Reintegration
+  useEffect(() => {
+    if (mounted) {
+      fetchOperationalReport({
+        period,
+        routeId: filterRuta || undefined
+      }).catch(err => console.error("Error loading report:", err));
+    }
+  }, [period, filterRuta, mounted, fetchOperationalReport]);
 
-  // FILTRADO DE DATOS
-  const rendimientoFiltrado = filterRuta 
-    ? rendimientoRutas.filter(r => r.id === filterRuta)
-    : rendimientoRutas;
-
-  // CÁLCULOS AUTOMÁTICOS KPIs (Basados en datos filtrados)
-  // Estos cálculos derivan métricas globales a partir de los datos individuales
-  const totalRecaudo = rendimientoFiltrado.reduce((acc, item) => acc + item.recaudado, 0)
-  const totalMeta = rendimientoFiltrado.reduce((acc, item) => acc + item.meta, 0)
-  const porcentajeGlobal = totalMeta > 0 ? Math.round((totalRecaudo / totalMeta) * 100) : 0
 
   if (!mounted) {
     return null
   }
+
+  // Usamos los datos reales del hook, o valores por defecto seguros si aún no cargan
+  const data = reportData || {
+    totalRecaudo: 0,
+    totalMeta: 0,
+    porcentajeGlobal: 0,
+    totalPrestamosNuevos: 0,
+    totalAfiliaciones: 0,
+    efectividadPromedio: 0,
+    rendimientoRutas: [],
+    periodo: period,
+    fechaInicio: '',
+    fechaFin: ''
+  };
+
+  const rendimientoFiltrado = data.rendimientoRutas;
+  const totalRecaudo = data.totalRecaudo;
+  const porcentajeGlobal = data.porcentajeGlobal;
+
+
 
   return (
     <div className="min-h-screen bg-slate-50 relative">
@@ -138,13 +182,8 @@ const ReportesOperativosPage = () => {
               Consolidado de operaciones del día: cobranza, colocación de créditos y captación de clientes.
             </p>
           </div>
-          <div className="flex items-center gap-3 items-end">
-
-
-            <div className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-600 shadow-sm font-bold h-[46px]"> {/* Altura fija para alinear */}
-              <Calendar className="h-4 w-4 text-slate-400" />
-              <span>Hoy, 19 Ene 2026</span>
-            </div>
+          <div className="flex items-center gap-3">
+            <TimeFilter activePeriod={period} onPeriodChange={handlePeriodChange} />
             <ExportButton 
               label="Exportar" 
               onExportExcel={handleExportExcel} 
@@ -168,7 +207,7 @@ const ReportesOperativosPage = () => {
             <div className="flex items-center gap-2">
               <span className="inline-flex items-center gap-1 text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-full border border-emerald-100">
                 <TrendingUp className="h-3 w-3" />
-                {porcentajeGlobal}% meta
+                {porcentajeGlobal}% objetivo
               </span>
               <span className="text-xs text-slate-400 font-medium">vs ayer</span>
             </div>
@@ -178,7 +217,7 @@ const ReportesOperativosPage = () => {
             <div className="flex justify-between items-start mb-4">
               <div>
                 <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Préstamos Nuevos</p>
-                <h3 className="text-2xl font-bold text-slate-900 mt-2">3</h3>
+                <h3 className="text-2xl font-bold text-slate-900 mt-2">{data.totalPrestamosNuevos}</h3>
               </div>
               <div className="p-3 bg-blue-50 rounded-xl group-hover:scale-110 transition-transform border border-blue-100">
                 <FilePlus className="h-5 w-5 text-blue-600" />
@@ -186,7 +225,7 @@ const ReportesOperativosPage = () => {
             </div>
             <div className="flex items-center gap-2">
               <span className="text-xs font-medium text-slate-500">
-                Total colocado: <span className="text-slate-900 font-bold">{formatCurrency(450000)}</span>
+                Total colocado: <span className="text-slate-900 font-bold">{formatCurrency(data.rendimientoRutas.reduce((acc: number, r: RoutePerformance) => acc + (r.meta - r.recaudado), 0))}</span>
               </span>
             </div>
           </div>
@@ -195,14 +234,14 @@ const ReportesOperativosPage = () => {
             <div className="flex justify-between items-start mb-4">
               <div>
                 <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Clientes Nuevos</p>
-                <h3 className="text-2xl font-bold text-slate-900 mt-2">3</h3>
+                <h3 className="text-2xl font-bold text-slate-900 mt-2">{data.totalAfiliaciones}</h3>
               </div>
               <div className="p-3 bg-purple-50 rounded-xl group-hover:scale-110 transition-transform border border-purple-100">
                 <Users className="h-5 w-5 text-purple-600" />
               </div>
             </div>
             <div className="flex items-center gap-2">
-              <span className="text-xs text-slate-500 font-medium">En 2 rutas diferentes</span>
+              <span className="text-xs text-slate-500 font-medium">En {data.rendimientoRutas.filter((r: RoutePerformance) => r.nuevosClientes > 0).length} rutas diferentes</span>
             </div>
           </div>
 
@@ -247,7 +286,7 @@ const ReportesOperativosPage = () => {
                 <tr>
                   <th className="px-6 py-4 tracking-wider">Ruta</th>
                   <th className="px-6 py-4 tracking-wider">Cobrador</th>
-                  <th className="px-6 py-4 tracking-wider text-right">Meta</th>
+                  <th className="px-6 py-4 tracking-wider text-right">Objetivo</th>
                   <th className="px-6 py-4 tracking-wider text-right">Recaudado</th>
                   <th className="px-6 py-4 tracking-wider text-center">Eficiencia</th>
                   <th className="px-6 py-4 tracking-wider text-center">Nuevos Prést.</th>
@@ -256,7 +295,7 @@ const ReportesOperativosPage = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {rendimientoFiltrado.map((item, idx) => (
+                {rendimientoFiltrado.map((item: RoutePerformance, idx: number) => (
                   <tr key={idx} className="hover:bg-slate-50/50 transition-colors bg-white/0">
                     <td className="px-6 py-4 font-bold text-slate-900">{item.ruta}</td>
                     <td className="px-6 py-4 text-slate-600 font-medium">{item.cobrador}</td>
@@ -310,9 +349,9 @@ const ReportesOperativosPage = () => {
         {/* Gráfico de Barras Simple (CSS) */}
         <section className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <div className="bg-white/80 backdrop-blur-sm p-6 rounded-2xl border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all">
-            <h3 className="font-bold text-slate-900 mb-6 text-lg">Comparativa de Recaudo vs Meta</h3>
+            <h3 className="font-bold text-slate-900 mb-6 text-lg">Comparativa de Recaudo vs Objetivo</h3>
             <div className="space-y-6">
-              {rendimientoFiltrado.map((item, idx) => (
+              {rendimientoFiltrado.map((item: RoutePerformance, idx: number) => (
                 <div key={idx} className="space-y-2">
                   <div className="flex justify-between text-sm">
                     <span className="font-bold text-slate-700">{item.ruta}</span>
@@ -335,31 +374,36 @@ const ReportesOperativosPage = () => {
 
           <div className="bg-white/80 backdrop-blur-sm p-6 rounded-2xl border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all flex flex-col justify-between relative overflow-hidden group">
             <div className="relative z-10">
-              <h3 className="font-bold text-xl mb-3 text-slate-900">Resumen</h3>
+              <h3 className="font-bold text-xl mb-3 text-slate-900">Resumen del Período</h3>
               <p className="text-slate-500 text-sm mb-8 leading-relaxed font-medium">
-                La operación de hoy muestra un rendimiento sólido en la Ruta Centro. Se recomienda revisar la Ruta Sur que está por debajo del 70% de cumplimiento.
+                Resumen operativo para el período seleccionado. Se muestra el rendimiento consolidado de todas las rutas activas.
               </p>
               
-              <div className="space-y-4">
-                <div className="flex items-center gap-4 bg-slate-50 p-3 rounded-xl border border-slate-100">
-                  <div className="w-10 h-10 rounded-full bg-emerald-50 flex items-center justify-center border border-emerald-100">
-                    <TrendingUp className="h-5 w-5 text-emerald-600" />
+              {data.rendimientoRutas.length > 0 && (
+                <div className="space-y-4">
+                  <div className="flex items-center gap-4 bg-slate-50 p-3 rounded-xl border border-slate-100">
+                    <div className="w-10 h-10 rounded-full bg-emerald-50 flex items-center justify-center border border-emerald-100">
+                      <TrendingUp className="h-5 w-5 text-emerald-600" />
+                    </div>
+                    <div>
+                      <p className="text-xs text-slate-500 uppercase tracking-wider font-bold">Mejor Ruta</p>
+                      <p className="font-bold text-slate-900">
+                       {data.rendimientoRutas.reduce((prev: RoutePerformance, current: RoutePerformance) => (prev.eficiencia > current.eficiencia) ? prev : current).ruta}
+                        {' '}({data.rendimientoRutas.reduce((prev: RoutePerformance, current: RoutePerformance) => (prev.eficiencia > current.eficiencia) ? prev : current).eficiencia}%)
+                      </p>
+                    </div>
                   </div>
-                  <div>
-                    <p className="text-xs text-slate-500 uppercase tracking-wider font-bold">Mejor Ruta</p>
-                    <p className="font-bold text-slate-900">Ruta Centro (83%)</p>
+                  <div className="flex items-center gap-4 bg-slate-50 p-3 rounded-xl border border-slate-100">
+                    <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center border border-slate-200">
+                      <Users className="h-5 w-5 text-slate-600" />
+                    </div>
+                    <div>
+                      <p className="text-xs text-slate-500 uppercase tracking-wider font-bold">Total Clientes Nuevos</p>
+                      <p className="font-bold text-slate-900">{data.totalAfiliaciones} afiliados</p>
+                    </div>
                   </div>
                 </div>
-                <div className="flex items-center gap-4 bg-slate-50 p-3 rounded-xl border border-slate-100">
-                  <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center border border-slate-200">
-                    <Users className="h-5 w-5 text-slate-600" />
-                  </div>
-                  <div>
-                    <p className="text-xs text-slate-500 uppercase tracking-wider font-bold">Clientes Atendidos</p>
-                    <p className="font-bold text-slate-900">95 visitas realizadas</p>
-                  </div>
-                </div>
-              </div>
+              )}
             </div>
           </div>
         </section>

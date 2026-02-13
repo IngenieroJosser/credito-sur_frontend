@@ -1,9 +1,10 @@
 'use client';
 
-import { use } from 'react';
+import { use, useState, useEffect } from 'react';
 import { ChevronLeft, Archive, Scale, FileText, User } from 'lucide-react';
 import Link from 'next/link';
 import { formatCurrency } from '@/lib/utils';
+import { vencidasService, CuentaVencida } from '@/services/vencidas-service';
 
 export default function DetalleCuentaVencidaPage({ 
   params 
@@ -11,29 +12,41 @@ export default function DetalleCuentaVencidaPage({
   params: Promise<{ id: string }>
 }) {
   const { id } = use(params);
-  
-  // Mock data for a vencida account detail
-  const cuenta = {
-    id,
-    numeroPrestamo: 'P-2023-500',
-    cliente: {
-      nombre: 'Luisa Fernanda Martínez',
-      documento: '1.050.555.555',
-      telefono: '300 999 8877',
-      direccion: 'Carrera 45 # 10-20',
-    },
-    fechaVencimiento: '2023-11-20',
-    diasVencidos: 68,
-    saldoPendiente: 5000000,
-    montoOriginal: 5000000,
-    ruta: 'Ruta Sur',
-    nivelRiesgo: 'LISTA_NEGRA' as const,
-    estadoJuridico: 'EN_PROCESO',
-    garantias: [
-      { tipo: 'PAGARE', id: 'PG-9922', estado: 'CUSTODIA' },
-      { tipo: 'CONTRA-PRESTACION', id: 'CP-001', estado: 'LIQUIDADO' },
-    ]
-  };
+  const [cuenta, setCuenta] = useState<CuentaVencida | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchCuenta = async () => {
+      setLoading(true);
+      try {
+        const res = await vencidasService.obtenerCuentasVencidas();
+        const found = res.cuentas.find((c: CuentaVencida) => c.id === id);
+        setCuenta(found || null);
+      } catch (err) {
+        console.error('Error cargando cuenta vencida:', err);
+        setCuenta(null);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchCuenta();
+  }, [id]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-slate-900"></div>
+      </div>
+    );
+  }
+
+  if (!cuenta) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+        <p className="text-red-500">No se encontró la cuenta vencida</p>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-slate-50 relative pb-12">
@@ -47,7 +60,7 @@ export default function DetalleCuentaVencidaPage({
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               <Link 
-                href="/admin/cuentas-vencidas" 
+                href="/cuentas-vencidas" 
                 className="p-2 rounded-lg hover:bg-slate-100 transition-colors text-slate-500 hover:text-slate-900"
               >
                 <ChevronLeft className="w-5 h-5" />
@@ -64,7 +77,7 @@ export default function DetalleCuentaVencidaPage({
             </div>
             <div className="flex items-center gap-4">
                 <div className="w-[1px] h-8 bg-slate-200 hidden md:block" />
-                <Link href={`/admin/creditos/${id}`} className="px-4 py-2 text-sm font-bold text-blue-600 hover:bg-blue-50 rounded-xl transition-all">
+                <Link href={`/creditos/${id}`} className="px-4 py-2 text-sm font-bold text-blue-600 hover:bg-blue-50 rounded-xl transition-all">
                     Ver Crédito
                  </Link>
             </div>

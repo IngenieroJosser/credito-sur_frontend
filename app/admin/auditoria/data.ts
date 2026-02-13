@@ -1,17 +1,20 @@
 import { formatCurrency } from '@/lib/utils';
 
+// Definición de tipos para los logs de auditoría
 export interface LogAuditoria {
   id: string
   usuario: string
   rol: string
   accion: string
   modulo: string
-  detalle: string
+  detalle: string // Descripción humana del evento
   fecha: string
   ip: string
-  nivel: 'INFO' | 'WARNING' | 'CRITICAL'
+  nivel: 'INFORMATIVO' | 'ADVERTENCIA' | 'CRITICO'
 }
 
+// --- DATA DE EJEMPLO (MOCK) ---
+// Simulamos eventos variados para demostrar la capacidad de filtrado y visualización.
 export const MOCK_LOGS: LogAuditoria[] = [
   {
     id: 'LOG-001',
@@ -22,7 +25,7 @@ export const MOCK_LOGS: LogAuditoria[] = [
     detalle: `Registró pago de cuota #5 para préstamo P-1024 (Monto: ${formatCurrency(50000)})`,
     fecha: '2024-01-24T10:30:00Z',
     ip: '192.168.1.10',
-    nivel: 'INFO'
+    nivel: 'INFORMATIVO'
   },
   {
     id: 'LOG-002',
@@ -33,7 +36,7 @@ export const MOCK_LOGS: LogAuditoria[] = [
     detalle: `Aprobó préstamo P-1025 por ${formatCurrency(500000)} para cliente C-203`,
     fecha: '2024-01-24T09:15:00Z',
     ip: '192.168.1.5',
-    nivel: 'CRITICAL'
+    nivel: 'CRITICO'
   },
   {
     id: 'LOG-003',
@@ -44,7 +47,7 @@ export const MOCK_LOGS: LogAuditoria[] = [
     detalle: 'Intento de acceso fallido usuario desconocido',
     fecha: '2024-01-24T08:00:00Z',
     ip: '201.12.34.56',
-    nivel: 'WARNING'
+    nivel: 'ADVERTENCIA'
   },
   {
     id: 'LOG-004',
@@ -55,7 +58,7 @@ export const MOCK_LOGS: LogAuditoria[] = [
     detalle: 'Creó nuevo cliente "Maria Rodriguez" en Ruta Norte',
     fecha: '2024-01-23T15:45:00Z',
     ip: '192.168.1.10',
-    nivel: 'INFO'
+    nivel: 'INFORMATIVO'
   },
   {
     id: 'LOG-005',
@@ -66,6 +69,6 @@ export const MOCK_LOGS: LogAuditoria[] = [
     detalle: 'Cambió tasa de interés global de 10% a 12%',
     fecha: '2024-01-22T11:20:00Z',
     ip: '192.168.1.5',
-    nivel: 'CRITICAL'
+    nivel: 'CRITICO'
   }
 ];

@@ -1,9 +1,10 @@
 'use client';
 
-import { use } from 'react';
+import { use, useState, useEffect } from 'react';
 import { ChevronLeft, Archive, FileText, User, Calculator } from 'lucide-react';
 import Link from 'next/link';
 import { formatCurrency } from '@/lib/utils';
+import { vencidasService, CuentaVencida } from '@/services/vencidas-service';
 
 export default function DetalleCuentaVencidaContadorPage({
     params
@@ -11,25 +12,40 @@ export default function DetalleCuentaVencidaContadorPage({
     params: Promise<{ id: string }>
 }) {
     const { id } = use(params);
+    const [cuenta, setCuenta] = useState<(CuentaVencida & { estadoJuridico?: string }) | null>(null);
+    const [loading, setLoading] = useState(true);
 
-    // Mock data for a vencida account detail (Contador Context)
-    const cuenta = {
-        id,
-        numeroPrestamo: 'P-2023-500',
-        cliente: {
-            nombre: 'Luisa Fernanda Martínez',
-            documento: '1.050.555.555',
-            telefono: '300 999 8877',
-            direccion: 'Carrera 45 # 10-20',
-        },
-        fechaVencimiento: '2023-11-20',
-        diasVencidos: 68,
-        saldoPendiente: 5000000,
-        montoOriginal: 5000000,
-        ruta: 'Ruta Sur',
-        nivelRiesgo: 'LISTA_NEGRA' as const,
-        estadoJuridico: 'EN_PROCESO',
-    };
+    useEffect(() => {
+        const fetchData = async () => {
+            setLoading(true);
+            try {
+                const res = await vencidasService.obtenerCuentasVencidas();
+                const found = res.cuentas.find((c: CuentaVencida) => c.id === id);
+                setCuenta(found ? { ...found, estadoJuridico: 'EN_PROCESO' } : null);
+            } catch (err) {
+                console.error('Error cargando cuenta vencida:', err);
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetchData();
+    }, [id]);
+
+    if (loading) {
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-slate-50">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-slate-900"></div>
+            </div>
+        );
+    }
+
+    if (!cuenta) {
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-slate-50">
+                <p className="text-red-500">No se encontró la cuenta vencida</p>
+            </div>
+        );
+    }
 
     return (
         <div className="min-h-screen bg-slate-50 relative pb-12">

@@ -17,8 +17,7 @@
 
 import { useState, FormEvent, useEffect } from 'react';
 import { Eye, EyeOff, Lock, User, ChevronRight } from 'lucide-react';
-import { iniciarSesion } from '@/services/autenticacion-service';
-import { LoginData, AuthResponse, UserProfile } from '@/lib/types/autenticacion-type';
+import { LoginData } from '@/lib/types/autenticacion-type';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 
@@ -34,35 +33,36 @@ interface ToastState {
   type: 'success' | 'error';
 }
 
-interface ApiError {
-  response?: {
-    status?: number;
-    data?: unknown;
-  };
-  message?: string;
-}
+
 
 const LoginPage = () => {
+  // Manejamos los datos del formulario aquí
   const [formData, setFormData] = useState<LoginFormData>({
     nombres: '',
     password: ''
   });
+  
+  // Estados para controlar la interfaz visual
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [isRedirecting, setIsRedirecting] = useState(false); // Para mostrar la pantalla blanca de carga al final
   const [error, setError] = useState('');
-  const [focusedField, setFocusedField] = useState<string | null>(null);
+  const [focusedField, setFocusedField] = useState<string | null>(null); // Para animar los inputs cuando los seleccionas
+  
+  // Sistema de notificaciones (Toasts)
   const [toast, setToast] = useState<ToastState>({
     show: false,
     message: '',
     userName: '',
     type: 'success'
   });
+  
   const router = useRouter();
 
-  // Obtener año actual dinámico
+  // Obtenemos el año actual para el footer
   const currentYear = new Date().getFullYear();
 
-  // Efecto para auto-ocultar el toast después de 3 segundos
+  // Este efecto oculta la notificación automáticamente después de 3 segundos
   useEffect(() => {
     if (toast.show) {
       const timer = setTimeout(() => {
@@ -72,7 +72,7 @@ const LoginPage = () => {
     }
   }, [toast]);
 
-  // Verificar si ya hay una sesión activa y redirigir a la ruta correspondiente
+  // Si el usuario ya tiene sesión iniciada, lo mandamos directo a su panel
   useEffect(() => {
     const token = localStorage.getItem('token');
     const userStr = localStorage.getItem('user');
@@ -80,30 +80,37 @@ const LoginPage = () => {
     if (token && userStr) {
       try {
         const user = JSON.parse(userStr);
+        // Mapa de redirección según el rol del usuario
         const roleRedirects: Record<string, string> = {
           'COBRADOR': '/cobranzas',
           'COORDINADOR': '/coordinador',
           'SUPER_ADMINISTRADOR': '/admin',
           'ADMINISTRADOR': '/admin',
           'SUPERVISOR': '/supervisor',
-          'CONTADOR': '/contador/contable'
+          'CONTADOR': '/contador/contable',
+          'PUNTO_DE_VENTA': '/punto-de-venta'
         };
+        
+        // Si el rol existe en el mapa, usamos esa ruta, si no, por defecto a admin
         const redirectPath = roleRedirects[user.rol] || '/admin';
         router.replace(redirectPath);
-      } catch (e) {
-        // Si hay error al parsear, limpiar sesión
+      } catch {
+        // Si los datos están corruptos, mejor limpiamos todo para que inicie de cero
         localStorage.removeItem('token');
         localStorage.removeItem('user');
       }
     }
   }, [router]);
 
+  // Actualiza el estado cuando el usuario escribe en los inputs
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
+    // Si había un error mostrado, lo quitamos apenas empiece a escribir
     if (error) setError('');
   };
 
+  // Convierte los roles técnicos (SUPER_ADMINISTRADOR) a texto legible (Super Administrador)
   const formatRol = (rol: string): string => {
     const roles: Record<string, string> = {
       'SUPER_ADMINISTRADOR': 'Super Administrador',
@@ -115,6 +122,7 @@ const LoginPage = () => {
     return roles[rol] || rol;
   };
 
+  // Utilidad para mostrar notificaciones flotantes
   const showToast = (message: string, userName: string = '', type: ToastState['type'] = 'success') => {
     setToast({
       show: true,
@@ -124,9 +132,11 @@ const LoginPage = () => {
     });
   };
 
+  // Lógica principal de inicio de sesión
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
 
+    // Validamos que no envíe campos vacíos
     if (!formData.nombres.trim() || !formData.password.trim()) {
       setError('Credenciales requeridas');
       showToast('Credenciales requeridas', '', 'error');
@@ -137,124 +147,67 @@ const LoginPage = () => {
     setError('');
 
     try {
+      // Cargamos la acción del servidor dinámicamente
+      const { loginAction } = await import('./actions');
+
       const payload: LoginData = {
         nombres: formData.nombres.trim(),
         contrasena: formData.password.trim(),
       };
 
-      // Depuración: Verificar qué se envía
-      console.log('Enviando payload:', payload);
+      console.log('Iniciando proceso de login...');
+      const result = await loginAction(payload);
+      console.log('Resultado del login:', result);
 
-      const response: AuthResponse = await iniciarSesion(payload);
-
-      // Depuración: Verificar la respuesta completa
-      console.log('Respuesta completa:', response);
-      console.log('Tipo de respuesta:', typeof response);
-
-      // Verificar si la respuesta es válida
-      if (!response || typeof response !== 'object') {
-        throw new Error('No se recibió respuesta del servidor');
+      if (!result.success) {
+        throw new Error(result.error || 'Error desconocido');
       }
 
-      // Verificar si la respuesta tiene la estructura AuthResponse esperada
-      if (!response.access_token) {
-        console.error('Respuesta no tiene access_token:', response);
-        throw new Error('Respuesta de autenticación inválida');
-      }
-
-      // Verificar si tiene la propiedad usuario
-      if (!response.usuario) {
-        console.error('Respuesta no tiene usuario:', response);
-
-        // Si no tiene usuario, crear un objeto básico con la información disponible
-        const userFullName = formData.nombres;
-        const userData: UserProfile & { nombreCompleto: string } = {
-          id: 'temp-' + Date.now(),
-          nombres: formData.nombres,
-          apellidos: '',
-          rol: 'SUPER_ADMINISTRADOR',
-          nombreCompleto: formData.nombres
-        };
-
-        // Guardar datos en localStorage
-        localStorage.setItem('token', response.access_token);
+      // Login Exitoso
+      
+      // Guardamos datos en localStorage para uso en el cliente
+      if (result.user) {
+        const userFullName = `${result.user.nombres || ''} ${result.user.apellidos || ''}`.trim() || formData.nombres;
+        const userData = { ...result.user, nombreCompleto: userFullName };
+        
         localStorage.setItem('user', JSON.stringify(userData));
-
-        showToast('Bienvenido', userFullName, 'success');
-
-        setTimeout(() => {
-          router.replace('/admin');
-        }, 2000);
-        return;
+        
+        // Guardamos el token también para las peticiones desde el cliente
+        if (result.token) {
+          localStorage.setItem('token', result.token);
+        }
       }
 
-      // Si tiene usuario, extraer los datos correctamente
-      const userName = response.usuario.nombres || formData.nombres;
-      const userFullName = `${response.usuario.nombres || ''} ${response.usuario.apellidos || ''}`.trim() || formData.nombres;
+      const userName = result.user?.nombres || formData.nombres;
+      const rol = result.user?.rol || 'Usuario';
+      
+      showToast('Bienvenido', `${userName} (${formatRol(rol)})`, 'success');
 
-      // Construir datos del usuario para localStorage
-      const userData: UserProfile & { nombreCompleto: string } = {
-        ...response.usuario,
-        nombreCompleto: userFullName
-      };
-
-      // Guardar token y datos del usuario en localStorage
-      localStorage.setItem('token', response.access_token);
-      localStorage.setItem('user', JSON.stringify(userData));
-
-      // Mostrar toast de éxito con información del rol
-      showToast('Bienvenido', `${userName} (${formatRol(response.usuario.rol)})`, 'success');
-
-      // Determinar redirección según rol
-      const roleRedirects: Record<string, string> = {
-        'COBRADOR': '/cobranzas',
-        'COORDINADOR': '/coordinador',
-        'SUPER_ADMINISTRADOR': '/admin',
-        'ADMINISTRADOR': '/admin',
-        'SUPERVISOR': '/supervisor', // O su ruta específica si existe
-        'CONTADOR': '/contador/contable'    // O su ruta específica si existe
-      };
-
-      const redirectPath = roleRedirects[response.usuario.rol] || '/admin';
-
-      // Siempre redirigir después de 2 segundos
+      // Animación de salida y redirección
       setTimeout(() => {
-        console.log(`Redirigiendo a ${redirectPath} para usuario:`, userFullName);
-        router.replace(redirectPath);
-      }, 2000);
+        setIsRedirecting(true); // 1. Mostramos la pantalla blanca de carga
+        
+        setTimeout(() => {
+          console.log(`Redirigiendo a ${result.redirectTo}`);
+          if (result.redirectTo) {
+            router.replace(result.redirectTo);
+            router.refresh(); // Refrescamos para asegurar que el estado global se actualice
+          }
+        }, 800); // 2. Navegamos cuando ya no se ve nada
+      }, 1200); // 3. Damos tiempo para ver el mensaje de éxito
 
     } catch (err: unknown) {
       console.error('Error en login:', err);
-
-      // Convertir error a tipo ApiError
-      const error = err as ApiError;
-
-      // Manejo de errores específicos
-      if (error.response?.status === 401) {
-        setError('Credenciales inválidas');
-        showToast('Credenciales incorrectas', '', 'error');
-      } else if (error.response?.status === 404) {
-        setError('Usuario no encontrado');
-        showToast('Usuario no encontrado', '', 'error');
-      } else if (error.message === 'Network Error') {
-        setError('Error de conexión');
-        showToast('Error de conexión al servidor', '', 'error');
-      } else if (error.message === 'No se recibió respuesta del servidor') {
-        setError('No se recibió respuesta del servidor');
-        showToast('Error del servidor', '', 'error');
-      } else if (error.message === 'Respuesta de autenticación inválida') {
-        setError('Error en la autenticación');
-        showToast('Error en la autenticación', '', 'error');
-      } else {
-        setError('Error al iniciar sesión');
-        showToast('Error al iniciar sesión', '', 'error');
-      }
+      // Manejamos el error de forma amigable
+      const msg = err instanceof Error ? err.message : 'Error al iniciar sesión';
+      setError(msg);
+      showToast(msg, '', 'error');
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Estilos ultra minimalistas
+  // Estilos ultra minimalistas para los toasts
   const toastStyles = {
     success: {
       base: 'bg-white border border-gray-200',
@@ -276,20 +229,20 @@ const LoginPage = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-white via-gray-50 to-gray-100 flex items-center justify-center p-4 relative">
-      {/* Toast Ultra Minimalista */}
+      
+      {/* --- NOTIFICACIONES FLOTANTES (TOASTS) --- */}
       <div className={`fixed top-6 right-6 z-50 transform transition-all duration-500 ease-out ${toast.show ? 'translate-x-0 opacity-100' : 'translate-x-full opacity-0'
         }`}>
         <div className="relative">
-          {/* Tarjeta minimalista */}
+          {/* Tarjeta con efecto glassmorphism */}
           <div className={`${styles.base} rounded-xl shadow-lg min-w-[280px] overflow-hidden backdrop-blur-sm bg-white/95`}>
-            {/* Línea superior sutil */}
+            {/* Línea superior de color (indicador de estado) */}
             <div className={`h-0.5 bg-gradient-to-r ${styles.accent}`}></div>
 
-            {/* Contenido */}
             <div className="p-4">
               <div className="flex items-start justify-between">
                 <div className="flex-1">
-                  {/* Mensaje principal */}
+                  {/* Título y Nombre de usuario */}
                   <div className="flex items-baseline gap-2">
                     <h3 className={`text-sm font-medium ${styles.text}`}>
                       {toast.message}
@@ -301,14 +254,14 @@ const LoginPage = () => {
                     )}
                   </div>
 
-                  {/* Detalle sutil */}
+                  {/* Mensaje descriptivo */}
                   <p className={`text-xs ${styles.detail} mt-1`}>
                     {toast.type === 'success' && toast.userName
                       ? 'Redirigiendo al panel de administración...'
                       : 'Verifica tus credenciales'}
                   </p>
 
-                  {/* Indicador de tiempo ultra sutil */}
+                  {/* Barra de progreso de tiempo (solo éxito) */}
                   {toast.type === 'success' && (
                     <div className="mt-3">
                       <div className="flex items-center justify-between text-xs text-gray-400 mb-1">
@@ -322,43 +275,48 @@ const LoginPage = () => {
                   )}
                 </div>
 
-                {/* Punto indicador de tiempo */}
+                {/* Indicador visual circular */}
                 <div className="flex-shrink-0 pl-3">
                   <div className={`w-1.5 h-1.5 rounded-full ${styles.time}`}></div>
                 </div>
               </div>
             </div>
 
-            {/* Efecto de luz sutil */}
+            {/* Efecto de brillo superior */}
             <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-white/50 to-transparent"></div>
           </div>
 
-          {/* Sombra ultra sutil */}
+          {/* Sombra difusa trasera */}
           <div className="absolute -inset-2 -z-10 bg-gradient-to-br from-gray-200/10 to-transparent blur-sm"></div>
         </div>
       </div>
 
-      {/* Fondo minimalista */}
+      {/* --- FONDO DECORATIVO --- */}
       <div className="absolute inset-0 overflow-hidden">
+        {/* Orbes de color difuminados */}
         <div className="absolute top-1/4 -left-24 w-96 h-96 bg-gradient-to-br from-[#08557f]/[0.02] to-transparent rounded-full blur-3xl"></div>
         <div className="absolute bottom-1/4 -right-24 w-96 h-96 bg-gradient-to-tr from-[#fb851b]/[0.02] to-transparent rounded-full blur-3xl"></div>
 
-        {/* Líneas decorativas sutiles */}
+        {/* Líneas sutiles */}
         <div className="absolute top-0 left-0 w-full h-px bg-gradient-to-r from-transparent via-[#08557f]/5 to-transparent"></div>
         <div className="absolute bottom-0 left-0 w-full h-px bg-gradient-to-r from-transparent via-[#08557f]/5 to-transparent"></div>
       </div>
 
-      {/* Contenedor principal */}
+      {/* --- TARJETA DE LOGIN PRINCIPAL --- */}
       <div className="w-full max-w-sm relative z-10">
-        {/* Encabezado ultra minimalista */}
+        
+        {/* Header con Logo */}
         <div className="text-center mb-16">
           <div className="flex items-center justify-center mb-6">
             <div className="relative">
-              <div className="w-20 h-20 bg-white border border-gray-200 rounded-2xl flex items-center justify-center p-3 shadow-xl shadow-blue-900/10 transition-transform hover:scale-105 hover:rotate-2 overflow-hidden">
-                <img
-                  src='/favicon.ico'
-                  alt='Logo Oficial - Credisur'
-                  className="w-full h-full object-contain"
+              <div className="w-20 h-20 bg-white border border-gray-200 rounded-2xl flex items-center justify-center p-3 shadow-xl shadow-blue-900/10 transition-transform hover:scale-105 hover:rotate-2 overflow-hidden relative">
+                <Image
+                  src="/favicon.ico"
+                  alt="Logo Oficial - Credisur"
+                  width={80}
+                  height={80}
+                  className="object-contain p-2 w-full h-full"
+                  priority
                 />
               </div>
             </div>
@@ -370,10 +328,11 @@ const LoginPage = () => {
           <p className="text-xs text-gray-400 uppercase tracking-wider mt-4">Plataforma Financiera</p>
         </div>
 
-        {/* Formulario de login */}
+        {/* Formulario */}
         <div className="mb-8">
           <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Campo Usuario */}
+            
+            {/* Input Usuario */}
             <div className="relative">
               <div className={`absolute left-0 top-1/2 -translate-y-1/2 transition-all duration-300 ${focusedField === 'usuario' || formData.nombres
                 ? 'opacity-100'
@@ -394,11 +353,12 @@ const LoginPage = () => {
                 autoComplete="username"
                 disabled={isLoading}
               />
+              {/* Línea animada inferior */}
               <div className={`h-px bg-gradient-to-r from-[#08557f] to-transparent absolute bottom-0 left-0 transition-all duration-500 ${focusedField === 'usuario' ? 'w-full' : 'w-0'
                 }`}></div>
             </div>
 
-            {/* Campo Contraseña */}
+            {/* Input Contraseña */}
             <div className="relative">
               <div className={`absolute left-0 top-1/2 -translate-y-1/2 transition-all duration-300 ${focusedField === 'password' || formData.password
                 ? 'opacity-100'
@@ -419,6 +379,7 @@ const LoginPage = () => {
                 autoComplete="current-password"
                 disabled={isLoading}
               />
+              {/* Toggle ver contraseña */}
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
@@ -435,7 +396,7 @@ const LoginPage = () => {
                 }`}></div>
             </div>
 
-            {/* Botón de acceso minimalista */}
+            {/* Botón de Ingreso */}
             <div className="pt-4">
               <button
                 type="submit"
@@ -454,7 +415,7 @@ const LoginPage = () => {
                   </div>
                 </div>
 
-                {/* Spinner minimalista */}
+                {/* Spinner de carga (visible solo isLoading) */}
                 {isLoading && (
                   <div className="absolute right-4 top-1/2 -translate-y-1/2">
                     <div className="w-4 h-4 border border-gray-300 border-t-[#08557f] rounded-full animate-spin"></div>
@@ -462,7 +423,7 @@ const LoginPage = () => {
                 )}
               </button>
 
-              {/* Mensaje de error elegante */}
+              {/* Mensaje de Error */}
               {error && (
                 <div className="mt-4 text-center">
                   <div className="inline-flex items-center space-x-2 px-3 py-2 bg-red-50/80 border border-red-100 rounded-lg">
@@ -475,14 +436,14 @@ const LoginPage = () => {
           </form>
         </div>
 
-        {/* Información de seguridad */}
+        {/* Footer / Copyright */}
         <div className="text-center space-y-4">
           <div className="relative">
             <div className="absolute inset-0 flex items-center">
               <div className="w-full border-t border-gray-200"></div>
             </div>
             <div className="relative flex justify-center">
-              <span className="px-3 bg-white text-xs text-gray-400">v1.0.0</span>
+              <span className="px-3 bg-white text-xs text-gray-400">Versión Alpha 1.0</span>
             </div>
           </div>
 
@@ -491,16 +452,92 @@ const LoginPage = () => {
               Acceso restringido
             </p>
             <p className="text-[9px] text-gray-300">
-              © {currentYear} CrediFinanzas
+              © {currentYear} CrediSur
             </p>
           </div>
         </div>
 
-        {/* Indicador de sistema activo */}
+        {/* Indicador de estado del sistema (Decorativo) */}
         <div className="fixed bottom-8 right-8 flex items-center space-x-2 opacity-40 hover:opacity-100 transition-opacity duration-300">
           <div className="w-1.5 h-1.5 bg-green-400 rounded-full"></div>
           <span className="text-xs text-gray-500">En línea</span>
         </div>
+      </div>
+
+      {/* CORTINA DE TRANSICIÓN PREMIUM CON ESTILOS INLINE (ANTI-FOUC) */}
+      <div 
+        className={`fixed inset-0 z-[9999] bg-white flex flex-col items-center justify-center transition-all duration-700 ease-in-out pointer-events-none ${isRedirecting ? 'opacity-100 visible' : 'opacity-0 invisible'}`}
+        style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            width: '100%',
+            height: '100%',
+            zIndex: 9999,
+            backgroundColor: '#ffffff',
+            opacity: isRedirecting ? 1 : 0,
+            visibility: isRedirecting ? 'visible' : 'hidden',
+            pointerEvents: 'none',
+            display: isRedirecting ? 'flex' : 'none',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center'
+        }}
+      >
+         <div 
+            className={`flex flex-col items-center transform transition-all duration-1000 ${isRedirecting ? 'scale-100 opacity-100' : 'scale-95 opacity-0'}`}
+            style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}
+         >
+            <div 
+                className="relative w-24 h-24 mb-8"
+                style={{ width: '96px', height: '96px', marginBottom: '32px', position: 'relative' }}
+            >
+                <div 
+                    className="relative w-full h-full bg-white shadow-2xl rounded-2xl flex items-center justify-center border border-gray-100 p-5 z-10"
+                    style={{
+                        width: '100%',
+                        height: '100%',
+                        backgroundColor: '#ffffff',
+                        borderRadius: '16px',
+                        boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
+                        border: '1px solid #f3f4f6',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        padding: '1.25rem',
+                        zIndex: 10
+                    }}
+                >
+                   {/* Usamos img tag simple para evitar dependencias de Next/Image si JS falla */}
+                   <img 
+                      src="/favicon.ico" 
+                      alt="CrediSur" 
+                      width="64" 
+                      height="64" 
+                      style={{ objectFit: 'contain', width: '64px', height: '64px' }}
+                   />
+                </div>
+            </div>
+
+            <h2 className="text-2xl font-bold text-slate-800 mb-2 tracking-tight" style={{ fontFamily: 'sans-serif' }}>
+                <span style={{ color: '#08557f' }}>Credi</span><span style={{ color: '#fb851b' }}>Sur</span>
+            </h2>
+            <p className="text-slate-400 font-medium text-sm mb-10 tracking-widest uppercase text-xs" style={{ fontFamily: 'sans-serif', color: '#94a3b8' }}>Accediendo al sistema seguro</p>
+
+            <div className="flex flex-col items-center gap-3">
+               <div 
+                   className="w-12 h-12 border-4 border-slate-100 border-t-[#08557f] border-r-[#08557f] rounded-full animate-spin"
+                   style={{ 
+                       width: '48px', 
+                       height: '48px', 
+                       border: '4px solid #f1f5f9', 
+                       borderTop: '4px solid #08557f', 
+                       borderRight: '4px solid #08557f', 
+                       borderRadius: '50%' 
+                   }}
+               ></div>
+            </div>
+         </div>
       </div>
 
       <style jsx>{`

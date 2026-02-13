@@ -14,6 +14,7 @@ import {
   AlertCircle
 } from 'lucide-react'
 import { formatCOPInputValue, formatCurrency, parseCOPInputToNumber } from '@/lib/utils'
+import SelectCategoria from '@/components/ui/SelectCategoria'
 
 // Types
 interface PrecioCuota {
@@ -30,6 +31,7 @@ export default function NuevoArticuloPage() {
     codigo: '',
     descripcion: '',
     categoria: '',
+    categoriaId: '',
     marca: '',
     modelo: '',
     costo: '',
@@ -44,6 +46,8 @@ export default function NuevoArticuloPage() {
     setLoading(true)
     const payload = {
       ...formData,
+      categoria: formData.categoria || 'General',
+      categoriaId: formData.categoriaId || undefined,
       costo: parseCOPInputToNumber(formData.costo),
       stock: Number(formData.stock || '0'),
       stockMinimo: Number(formData.stockMinimo || '0'),
@@ -52,7 +56,7 @@ export default function NuevoArticuloPage() {
     // Simular guardado
     await new Promise(resolve => setTimeout(resolve, 1000))
     setLoading(false)
-    router.push('/admin/articulos')
+    router.push('/articulos')
   }
 
   const addPrecioCuota = () => {
@@ -148,22 +152,13 @@ export default function NuevoArticuloPage() {
                     </div>
 
                     <div>
-                      <label className="block text-sm font-bold text-slate-700 mb-1">
-                        Categoría
-                      </label>
-                      <select
-                        required
-                        value={formData.categoria}
-                        onChange={e => setFormData({ ...formData, categoria: e.target.value })}
-                        className="w-full px-4 py-2.5 rounded-xl border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-blue-600/20 focus:border-blue-600 transition-all font-medium text-slate-900"
-                      >
-                        <option value="">Seleccionar...</option>
-                        <option value="Electrónica">Electrónica</option>
-                        <option value="Hogar">Hogar</option>
-                        <option value="Muebles">Muebles</option>
-                        <option value="Tecnología">Tecnología</option>
-                        <option value="Vehículos">Vehículos</option>
-                      </select>
+                      <SelectCategoria
+                        tipo="ARTICULO"
+                        label="Categoría"
+                        placeholder="Seleccionar..."
+                        value={formData.categoriaId}
+                        onChange={(val) => setFormData({ ...formData, categoriaId: val, categoria: '' })}
+                      />
                     </div>
 
                     <div>

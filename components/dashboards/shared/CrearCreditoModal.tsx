@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import {
   X,
   DollarSign,
@@ -12,8 +12,8 @@ import {
 } from 'lucide-react'
 import { formatCOPInputValue, formatCurrency, parseCOPInputToNumber } from '@/lib/utils'
 import { Portal, MODAL_Z_INDEX } from '@/components/dashboards/shared/CobradorElements'
-import { MOCK_CLIENTES } from '@/services/clientes-service'
-import { MOCK_ARTICULOS } from '@/services/articulos-service'
+import { clientesService, Cliente } from '@/services/clientes-service'
+import { articulosService, Articulo } from '@/services/articulos-service'
 
 interface CrearCreditoModalProps {
   isOpen: boolean
@@ -21,12 +21,24 @@ interface CrearCreditoModalProps {
   onConfirm: (data: {
     creditType: 'prestamo' | 'articulo'
     clienteCreditoId: string
-    [key: string]: unknown
+    montoPrestamo?: number
+    tipoInteres?: 'SIMPLE' | 'AMORTIZABLE'
+    tasaInteres?: number
+    cuotasPrestamo?: number
+    frecuenciaPago?: string
+    fechaInicio?: string
+    fechaPrimerCobro?: string
+    articuloId?: string
+    planArticuloIndex?: number | null
+    cuotaInicialArticulo?: number
   }) => void
+  defaultClienteId?: string
+  defaultCreditType?: 'prestamo' | 'articulo'
+  hideTypeSelector?: boolean
 }
 
-export default function CrearCreditoModal({ isOpen, onClose, onConfirm }: CrearCreditoModalProps) {
-  const [creditType, setCreditType] = useState<'prestamo' | 'articulo'>('prestamo')
+export default function CrearCreditoModal({ isOpen, onClose, onConfirm, defaultClienteId, defaultCreditType, hideTypeSelector }: CrearCreditoModalProps) {
+  const [creditType, setCreditType] = useState<'prestamo' | 'articulo'>(defaultCreditType || 'prestamo')
   const [clienteCreditoId, setClienteCreditoId] = useState('')
   const [montoPrestamoInput, setMontoPrestamoInput] = useState('')
   const [tipoInteres, setTipoInteres] = useState<'SIMPLE' | 'AMORTIZABLE'>('SIMPLE')
@@ -40,7 +52,24 @@ export default function CrearCreditoModal({ isOpen, onClose, onConfirm }: CrearC
   const [articuloSeleccionadoId, setArticuloSeleccionadoId] = useState<string>('')
   const [planArticuloIndex, setPlanArticuloIndex] = useState<number | null>(null)
   
-  const articuloSeleccionado = MOCK_ARTICULOS.find(a => a.id === articuloSeleccionadoId)
+  
+  const [clientes, setClientes] = useState<Cliente[]>([]);
+  const [articulos, setArticulos] = useState<Articulo[]>([]);
+
+  useEffect(() => {
+    if (isOpen) {
+        if (defaultClienteId) setClienteCreditoId(defaultClienteId)
+        Promise.all([
+          clientesService.obtenerTodos(),
+          articulosService.obtenerArticulos()
+        ]).then(([c, a]) => {
+          setClientes(c);
+          setArticulos(a);
+        }).catch(err => console.error(err));
+    }
+  }, [isOpen, defaultClienteId]);
+
+  const articuloSeleccionado = articulos.find(a => a.id === articuloSeleccionadoId)
 
   const planSeleccionado = useMemo(() => (articuloSeleccionado && planArticuloIndex !== null) 
     ? articuloSeleccionado.opcionesCuotas[planArticuloIndex] 
@@ -113,35 +142,44 @@ export default function CrearCreditoModal({ isOpen, onClose, onConfirm }: CrearC
               </button>
             </div>
 
-            <div className="mb-6">
-              <label className="block text-sm font-bold text-slate-700 mb-3">Tipo de Crédito</label>
-              <div className="grid grid-cols-2 gap-3">
-                <button
-                  type="button"
-                  onClick={() => setCreditType('prestamo')}
-                  className={`p-4 rounded-xl border-2 transition-all ${
-                    creditType === 'prestamo'
-                      ? 'border-blue-500 bg-blue-50 text-blue-700'
-                      : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'
-                  }`}
-                >
-                  <DollarSign className="h-6 w-6 mx-auto mb-2" />
-                  <div className="font-bold text-sm">Préstamo en Efectivo</div>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setCreditType('articulo')}
-                  className={`p-4 rounded-xl border-2 transition-all ${
-                    creditType === 'articulo'
-                      ? 'border-orange-500 bg-orange-50 text-orange-700'
-                      : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'
-                  }`}
-                >
+            {!hideTypeSelector ? (
+              <div className="mb-6">
+                <label className="block text-sm font-bold text-slate-700 mb-3">Tipo de Crédito</label>
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setCreditType('prestamo')}
+                    className={`p-4 rounded-xl border-2 transition-all ${
+                      creditType === 'prestamo'
+                        ? 'border-blue-500 bg-blue-50 text-blue-700'
+                        : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'
+                    }`}
+                  >
+                    <DollarSign className="h-6 w-6 mx-auto mb-2" />
+                    <div className="font-bold text-sm">Préstamo en Efectivo</div>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setCreditType('articulo')}
+                    className={`p-4 rounded-xl border-2 transition-all ${
+                      creditType === 'articulo'
+                        ? 'border-orange-500 bg-orange-50 text-orange-700'
+                        : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'
+                    }`}
+                  >
+                    <Package className="h-6 w-6 mx-auto mb-2" />
+                    <div className="font-bold text-sm">Crédito por Artículo</div>
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="mb-6 flex justify-center">
+                <div className="p-4 rounded-xl border-2 border-orange-500 bg-orange-50 text-orange-700 text-center w-56">
                   <Package className="h-6 w-6 mx-auto mb-2" />
                   <div className="font-bold text-sm">Crédito por Artículo</div>
-                </button>
+                </div>
               </div>
-            </div>
+            )}
 
             <div className="space-y-4">
               <div>
@@ -152,7 +190,7 @@ export default function CrearCreditoModal({ isOpen, onClose, onConfirm }: CrearC
                   className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-white text-sm font-bold text-slate-700"
                 >
                   <option value="">Selecciona un cliente</option>
-                  {MOCK_CLIENTES.map((c) => (
+                  {clientes.map((c) => (
                     <option key={c.id} value={c.id}>
                       {c.nombres} {c.apellidos}
                     </option>
@@ -259,7 +297,7 @@ export default function CrearCreditoModal({ isOpen, onClose, onConfirm }: CrearC
                         className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-[#08557f] focus:ring-0 font-bold text-slate-900"
                       >
                         <option value="">Seleccionar artículo...</option>
-                        {MOCK_ARTICULOS.map((articulo) => (
+                        {articulos.map((articulo) => (
                           <option key={articulo.id} value={articulo.id}>
                             {articulo.nombre}
                           </option>
@@ -408,7 +446,28 @@ export default function CrearCreditoModal({ isOpen, onClose, onConfirm }: CrearC
                 </button>
                 <button 
                   onClick={() => {
-                    onConfirm({ creditType, clienteCreditoId })
+                    const payload = creditType === 'prestamo' 
+                      ? {
+                          creditType,
+                          clienteCreditoId,
+                          montoPrestamo: parseCOPInputToNumber(montoPrestamoInput),
+                          tipoInteres,
+                          tasaInteres: Number(tasaInteresInput),
+                          cuotasPrestamo: Number(cuotasPrestamoInput),
+                          frecuenciaPago,
+                          fechaInicio: fechaCreditoInput,
+                          fechaPrimerCobro
+                        }
+                      : {
+                          creditType,
+                          clienteCreditoId,
+                          articuloId: articuloSeleccionadoId,
+                          planArticuloIndex,
+                          cuotaInicialArticulo: parseCOPInputToNumber(cuotaInicialArticuloInput),
+                          frecuenciaPago,
+                          fechaInicio: fechaCreditoInput
+                        }
+                    onConfirm(payload)
                     handleReset()
                   }}
                   disabled={!clienteCreditoId || (creditType === 'prestamo' ? !montoPrestamoInput : !calculoCreditoArticulo)}

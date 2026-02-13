@@ -1,38 +1,22 @@
 'use client';
 
-import Link from 'next/link';
-import React, { useState, useEffect } from 'react';
-import { 
-  TrendingUp, 
-  TrendingDown,
-  AlertCircle,
-  Users,
+import { useEffect, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { DashboardClient } from './dashboard-client';
+import { Rol } from '@/lib/permissions';
+import { TimeFilterPeriod } from '@/components/ui/TimeFilter';
+import {
   CreditCard,
-  Banknote,
-  PieChart,
   Target,
-  Calendar,
-  Eye,
+  AlertCircle,
+  Banknote,
+  Users,
   Wallet,
-  CheckCircle2,
-  Route,
-  Map,
-  Receipt,
-  FileText,
-  Percent,
-  Package,
-  Calculator,
-  Bell,
-  Filter,
-  BarChart3,
-  LayoutDashboard,
+  PieChart,
   Landmark
 } from 'lucide-react';
-import { formatCurrency } from '@/lib/utils';
-import { useRouter } from 'next/navigation';
-import { ExportButton } from '@/components/ui/ExportButton';
-import { Rol } from '@/lib/permissions';
-import { PremiumBarChart } from '@/components/ui/PremiumCharts';
+import { dashboardService } from '@/services/dashboard-coordinador-service';
+import { prestamosService } from '@/services/prestamos-service';
 
 interface UserData {
   id: string;
@@ -41,7 +25,6 @@ interface UserData {
   rol: Rol;
   correo?: string;
   telefono?: string;
-  nombreCompleto?: string;
 }
 
 interface MetricItem {
@@ -63,846 +46,284 @@ interface QuickAccessItem {
   href: string;
 }
 
-/**
- * ============================================================================
- * DASHBOARD PRINCIPAL DEL SISTEMA (ADMINISTRATIVO)
- * ============================================================================
- * 
- * @description
- * Panel de control central que adapta su contenido, métricas y accesos rápidos
- * dinámicamente según el ROL del usuario autenticado.
- * Es el punto de entrada principal después del login.
- * 
- * @roles_supported
- * - SUPER_ADMINISTRADOR: Vista completa financiera y operativa.
- * - ADMIN: Vista administrativa general (similar a SuperAdmin pero sin config de sistema).
- * - COORDINADOR: Vista enfocada en gestión de rutas y aprobaciones.
- * - SUPERVISOR: Vista de monitoreo y auditoría de campo.
- * - COBRADOR: Vista operativa personal (Mi Ruta, Mis Pagos).
- * - CONTADOR: Vista financiera y contable.
- * 
- * @architecture
- * Utiliza un patrón de configuración (`metricsConfig` y `quickAccessConfig`) para
- * definir qué ve cada rol sin necesidad de crear múltiples componentes de dashboard.
- */
+interface FrontendDashboardData {
+  mainMetrics: MetricItem[];
+  quickAccess: QuickAccessItem[];
+  recentLoans: Array<{
+    client: string;
+    amount: number;
+    term: string;
+    status: string;
+    date: string;
+  }>;
+  topCollectors: Array<{
+    name: string;
+    collected: number;
+    efficiency: number;
+    trend: 'up' | 'down';
+  }>;
+  chartData: Array<{
+    label: string;
+    value: number;
+    target?: number;
+    date?: string;
+    time?: string;
+  }>;
+  userFullName: string;
+  userRole: string;
+}
 
-const DashboardPage = () => {
-  // Estado para filtros de tiempo (Hoy, Semana, Mes) - Afecta a las gráficas (cuando se conecten a API)
-  const [timeFilter, setTimeFilter] = useState<'today' | 'week' | 'month' | 'quarter'>('month');
-  
-  const [currentDate, setCurrentDate] = useState<Date | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [userData, setUserData] = useState<UserData | null>(null);
-  
-  // Estado dinámico poblado según el rol
-  const [quickAccess, setQuickAccess] = useState<QuickAccessItem[]>([]);
-  const [mainMetrics, setMainMetrics] = useState<MetricItem[]>([]);
-  
+const TIME_FILTER_MAP: Record<TimeFilterPeriod, string> = {
+  today: 'today',
+  week: 'week',
+  month: 'month',
+  quarter: 'quarter',
+};
+
+const PERIOD_LABEL: Record<TimeFilterPeriod, string> = {
+  today: 'Hoy',
+  week: 'Semana',
+  month: 'Mes',
+  quarter: 'Trimestre',
+};
+
+export default function DashboardPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const period = (searchParams.get('period') as TimeFilterPeriod) || 'today';
   
-  const handleExportExcel = () => {
-    console.log('Exporting Excel...')
-  }
-
-  const handleExportPDF = () => {
-    console.log('Exporting PDF...')
-  }
-
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setCurrentDate(new Date());
-    }, 0);
-    return () => clearTimeout(timer);
-  }, []);
-  
-  /**
-   * Configura las Cards de métricas y los botones de Acceso Rápido según el rol.
-   * 
-   * @param rol - El rol del usuario actual (Tipado estricto `Rol`)
-   * @modifies mainMetrics - Estado con los 4 KPIs principales
-   * @modifies quickAccess - Estado con los 4 botones de acción rápida
-   * 
-   * @howto Agregar un nuevo ROL:
-   * 1. Asegúrese que el Rol exista en el tipo `Rol` (lib/permissions.tsx)
-   * 2. Agregue una nueva entrada en `metricsConfig` con sus 4 KPIs.
-   * 3. Agregue una nueva entrada en `quickAccessConfig`.
-   */
-  function configurarDashboardPorRol(rol: Rol) {
-    // ------------------------------------------------------------------------
-    // CONFIGURACIÓN DE MÉTRICAS (KPIs) POR ROL
-    // ------------------------------------------------------------------------
-    // Definir aquí los 4 indicadores clave que cada perfil debe monitorear.
-    const metricsConfig: Record<Rol, MetricItem[]> = {
-      SUPER_ADMINISTRADOR: [
-        {
-          title: 'Total Prestado (Mes)',
-          value: 125000000,
-          isCurrency: true,
-          change: 12.5,
-          icon: <CreditCard className="h-4 w-4" />,
-          color: '#3b82f6'
-        },
-        {
-          title: 'Recaudo Real vs Esperado',
-          value: '94.2%',
-          subValue: `${formatCurrency(12500000)} / ${formatCurrency(13200000)}`,
-          isCurrency: false,
-          change: 2.1,
-          icon: <Target className="h-4 w-4" />,
-          color: '#8b5cf6'
-        },
-        {
-          title: 'Cartera en Mora',
-          value: 45000000,
-          subValue: '8.5% del total',
-          isCurrency: true,
-          change: -3.4,
-          icon: <AlertCircle className="h-4 w-4" />,
-          color: '#f43f5e'
-        },
-        {
-          title: 'Capital Activo',
-          value: 2850000000,
-          isCurrency: true,
-          change: 5.8,
-          icon: <Banknote className="h-4 w-4" />,
-          color: '#f59e0b'
-        }
-      ],
-      ADMIN: [
-        {
-          title: 'Total Prestado (Mes)',
-          value: 125000000,
-          isCurrency: true,
-          change: 12.5,
-          icon: <CreditCard className="h-4 w-4" />,
-          color: '#3b82f6'
-        },
-        {
-          title: 'Recaudo Real vs Esperado',
-          value: '94.2%',
-          subValue: `${formatCurrency(12500000)} / ${formatCurrency(13200000)}`,
-          isCurrency: false,
-          change: 2.1,
-          icon: <Target className="h-4 w-4" />,
-          color: '#8b5cf6'
-        },
-        {
-          title: 'Cartera en Mora',
-          value: 45000000,
-          subValue: '8.5% del total',
-          isCurrency: true,
-          change: -3.4,
-          icon: <AlertCircle className="h-4 w-4" />,
-          color: '#f43f5e'
-        },
-        {
-          title: 'Capital Activo',
-          value: 2850000000,
-          isCurrency: true,
-          change: 5.8,
-          icon: <Banknote className="h-4 w-4" />,
-          color: '#f59e0b'
-        }
-      ],
-      COORDINADOR: [
-        {
-          title: 'Préstamos Pendientes',
-          value: 15,
-          isCurrency: false,
-          change: 8.2,
-          icon: <CreditCard className="h-4 w-4" />,
-          color: '#0f172a'
-        },
-        {
-          title: 'Revisiones',
-          value: 8,
-          isCurrency: false,
-          change: -2.1,
-          icon: <CheckCircle2 className="h-4 w-4" />,
-          color: '#10b981'
-        },
-        {
-          title: 'Cuentas en Mora',
-          value: 23,
-          isCurrency: false,
-          change: -3.4,
-          icon: <AlertCircle className="h-4 w-4" />,
-          color: '#f43f5e'
-        },
-        {
-          title: 'Rutas Activas',
-          value: 12,
-          isCurrency: false,
-          change: 1.8,
-          icon: <Route className="h-4 w-4" />,
-          color: '#f59e0b'
-        }
-      ],
-      SUPERVISOR: [
-        {
-          title: 'Clientes Atendidos',
-          value: 89,
-          isCurrency: false,
-          change: 5.2,
-          icon: <Users className="h-4 w-4" />,
-          color: '#0f172a'
-        },
-        {
-          title: 'Gastos Aprobados',
-          value: 2350000,
-          isCurrency: true,
-          change: -1.3,
-          icon: <Receipt className="h-4 w-4" />,
-          color: '#10b981'
-        },
-        {
-          title: 'Mora Crítica',
-          value: 12,
-          isCurrency: false,
-          change: -3.4,
-          icon: <AlertCircle className="h-4 w-4" />,
-          color: '#f43f5e'
-        },
-        {
-          title: 'Cobertura Ruta',
-          value: '89.7%',
-          isCurrency: false,
-          change: 2.1,
-          icon: <Map className="h-4 w-4" />,
-          color: '#f59e0b'
-        }
-      ],
-      COBRADOR: [
-        {
-          title: 'Clientes por Visitar',
-          value: 24,
-          isCurrency: false,
-          change: -2,
-          icon: <Users className="h-4 w-4" />,
-          color: '#0f172a'
-        },
-        {
-          title: 'Recaudo Hoy',
-          value: 1250000,
-          isCurrency: true,
-          change: 15.3,
-          icon: <Wallet className="h-4 w-4" />,
-          color: '#10b981'
-        },
-        {
-          title: 'Gastos de Ruta',
-          value: 45000,
-          isCurrency: true,
-          change: -5.2,
-          icon: <Receipt className="h-4 w-4" />,
-          color: '#f43f5e'
-        },
-        {
-          title: 'Eficiencia Personal',
-          value: '94.2%',
-          isCurrency: false,
-          change: 2.8,
-          icon: <Target className="h-4 w-4" />,
-          color: '#f59e0b'
-        }
-      ],
-      CONTADOR: [
-        {
-          title: 'Flujo de Caja',
-          value: 32500000,
-          isCurrency: true,
-          change: 12.5,
-          icon: <TrendingUp className="h-4 w-4" />,
-          color: '#0f172a'
-        },
-        {
-          title: 'Cuentas Incobrables',
-          value: 3,
-          isCurrency: false,
-          change: -1.2,
-          icon: <FileText className="h-4 w-4" />,
-          color: '#f43f5e'
-        },
-        {
-          title: 'Margen Utilidad',
-          value: '42.3%',
-          isCurrency: false,
-          change: 3.1,
-          icon: <Percent className="h-4 w-4" />,
-          color: '#10b981'
-        },
-        {
-          title: 'Inventario Activo',
-          value: 185000000,
-          isCurrency: true,
-          change: 8.7,
-          icon: <Package className="h-4 w-4" />,
-          color: '#f59e0b'
-        }
-      ]
-    };
-
-    // Configurar accesos rápidos según el rol
-    const quickAccessConfig: Record<Rol, QuickAccessItem[]> = {
-      SUPER_ADMINISTRADOR: [
-        {
-          title: 'Nuevo Crédito',
-          subtitle: 'Registro rápido',
-          icon: <CreditCard className="h-5 w-5" />,
-          color: '#0f172a',
-          badge: 3,
-          href: '/admin/creditos/nuevo'
-        },
-        {
-          title: 'Cobranza',
-          subtitle: 'Gestionar pagos',
-          icon: <Wallet className="h-5 w-5" />,
-          color: '#10b981',
-          badge: 12,
-          href: '/admin/pagos/registro'
-        },
-        {
-          title: 'Clientes',
-          subtitle: 'Base de datos',
-          icon: <Users className="h-5 w-5" />,
-          color: '#6366f1',
-          href: '/admin/clientes'
-        },
-        {
-          title: 'Análisis',
-          subtitle: 'Reportes avanzados',
-          icon: <PieChart className="h-5 w-5" />,
-          color: '#f59e0b',
-          href: '/admin/reportes/operativos'
-        },
-        {
-          title: 'Tesorería',
-          subtitle: 'Caja Fuerte / Bancos',
-          icon: <Landmark className="h-5 w-5" />,
-          color: '#08557f',
-          href: '/admin/tesoreria'
-        }
-      ],
-      ADMIN: [
-        {
-          title: 'Nuevo Crédito',
-          subtitle: 'Registro rápido',
-          icon: <CreditCard className="h-5 w-5" />,
-          color: '#0f172a',
-          badge: 3,
-          href: '/admin/creditos/nuevo'
-        },
-        {
-          title: 'Cobranza',
-          subtitle: 'Gestionar pagos',
-          icon: <Wallet className="h-5 w-5" />,
-          color: '#10b981',
-          badge: 12,
-          href: '/admin/pagos/registro'
-        },
-        {
-          title: 'Clientes',
-          subtitle: 'Base de datos',
-          icon: <Users className="h-5 w-5" />,
-          color: '#6366f1',
-          href: '/admin/clientes'
-        },
-        {
-          title: 'Análisis',
-          subtitle: 'Reportes avanzados',
-          icon: <PieChart className="h-5 w-5" />,
-          color: '#f59e0b',
-          href: '/admin/reportes/operativos'
-        }
-      ],
-      COORDINADOR: [
-        {
-          title: 'Centro de Control',
-          subtitle: 'Notificaciones y Revisiones',
-          icon: <Bell className="h-5 w-5" />,
-          color: '#0f172a',
-          badge: 8,
-          href: '/coordinador/notificaciones'
-        },
-        {
-          title: 'Nuevo Crédito',
-          subtitle: 'Crear préstamo',
-          icon: <CreditCard className="h-5 w-5" />,
-          color: '#10b981',
-          href: '/admin/creditos/nuevo'
-        },
-        {
-          title: 'Rutas',
-          subtitle: 'Gestión de cobradores',
-          icon: <Route className="h-5 w-5" />,
-          color: '#6366f1',
-          href: '/coordinador/rutas'
-        },
-        {
-          title: 'Reportes',
-          subtitle: 'Métricas diarias',
-          icon: <PieChart className="h-5 w-5" />,
-          color: '#f59e0b',
-          href: '/admin/reportes/operativos'
-        }
-      ],
-      SUPERVISOR: [
-        {
-          title: 'Monitoreo Cartera',
-          subtitle: 'Clientes atrasados',
-          icon: <Eye className="h-5 w-5" />,
-          color: '#0f172a',
-          href: '/admin/cuentas-mora'
-        },
-        {
-          title: 'Gastos Pendientes',
-          subtitle: 'Aprobar gastos de ruta',
-          icon: <Filter className="h-5 w-5" />,
-          color: '#10b981',
-          badge: 5,
-          href: '/admin/gastos-ruta'
-        },
-        {
-          title: 'Reportes',
-          subtitle: 'Métricas por ruta',
-          icon: <PieChart className="h-5 w-5" />,
-          color: '#6366f1',
-          href: '/admin/reportes/operativos'
-        },
-        {
-          title: 'Clientes',
-          subtitle: 'Consulta de cartera',
-          icon: <Users className="h-5 w-5" />,
-          color: '#f59e0b',
-          href: '/admin/clientes'
-        }
-      ],
-      COBRADOR: [
-        {
-          title: 'Mi Ruta',
-          subtitle: 'Clientes del día',
-          icon: <Map className="h-5 w-5" />,
-          color: '#0f172a',
-          badge: 24,
-          href: '/admin/ruta-diaria'
-        },
-        {
-          title: 'Registrar Pago',
-          subtitle: 'Cobranza inmediata',
-          icon: <Wallet className="h-5 w-5" />,
-          color: '#10b981',
-          href: '/admin/pagos/registro'
-        },
-        {
-          title: 'Nuevo Cliente',
-          subtitle: 'Registro rápido',
-          icon: <Users className="h-5 w-5" />,
-          color: '#6366f1',
-          href: '/admin/clientes/nuevo'
-        },
-        {
-          title: 'Base de Efectivo',
-          subtitle: 'Solicitar dinero',
-          icon: <Banknote className="h-5 w-5" />,
-          color: '#f59e0b',
-          href: '/admin/base-dinero'
-        }
-      ],
-      CONTADOR: [
-        {
-          title: 'Control de Cajas',
-          subtitle: 'Caja principal y ruta',
-          icon: <Calculator className="h-5 w-5" />,
-          color: '#08557f',
-          href: '/contador/contable'
-        },
-        {
-          title: 'Reportes Financieros',
-          subtitle: 'Análisis detallado',
-          icon: <BarChart3 className="h-5 w-5" />,
-          color: '#fb851b',
-          href: '/contador/reportes/financieros'
-        }
-      ]
-    };
-
-    setMainMetrics(metricsConfig[rol] || []);
-    setQuickAccess(quickAccessConfig[rol] || []);
-  }
-
-  // Verificar sesión
-  useEffect(() => {
-    const token = localStorage.getItem('token');
-    const user = localStorage.getItem('user');
-
-    if (!token || !user) {
-      router.replace('/');
-      return;
-    }
-
-    try {
-      const parsedUser = JSON.parse(user) as UserData;
-      queueMicrotask(() => {
-        setUserData(parsedUser);
-
-        // Configurar métricas y accesos rápidos según el rol
-        configurarDashboardPorRol(parsedUser.rol);
-
-        setIsLoading(false);
-      });
-    } catch (error) {
-      console.error('Error al parsear datos del usuario:', error);
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
-      router.replace('/');
-    }
-  }, [router]);
-
-  // Formatear fecha elegante
-  const formatDate = (date: Date) => {
-    const options: Intl.DateTimeFormatOptions = {
-      weekday: 'short',
-      day: 'numeric',
-      month: 'short',
-      year: 'numeric'
-    };
-    return date.toLocaleDateString('es-CO', options);
-  };
-
+  const [state, setState] = useState<{
+    isLoading: boolean;
+    userData: UserData | null;
+    dashboardData: FrontendDashboardData | null;
+    shouldRedirect: string | null;
+  }>({
+    isLoading: true,
+    userData: null,
+    dashboardData: null,
+    shouldRedirect: null
+  });
 
   useEffect(() => {
-    if (userData?.rol === 'COBRADOR') {
-      router.replace('/cobranzas');
-      return;
-    }
-    if (userData?.rol === 'COORDINADOR') {
-      router.replace('/coordinador');
-      return;
-    }
-    if (userData?.rol === 'SUPERVISOR') {
-      router.replace('/supervisor');
-      return;
-    }
-  }, [userData, router]);
+    let isMounted = true;
 
-  // Mostrar loading mientras se verifica la sesión
-  if (isLoading) {
+    const initializeDashboard = async () => {
+      const user = localStorage.getItem('user');
+
+      if (!user) {
+        router.replace('/');
+        return;
+      }
+
+      try {
+        const parsedUser = JSON.parse(user) as UserData;
+        
+        if (['COBRADOR', 'COORDINADOR', 'SUPERVISOR', 'CONTADOR', 'PUNTO_DE_VENTA'].includes(parsedUser.rol)) {
+          const routes: Record<string, string> = {
+            COBRADOR: '/cobranzas',
+            COORDINADOR: '/coordinador',
+            SUPERVISOR: '/supervisor',
+            CONTADOR: '/contador/contable',
+            PUNTO_DE_VENTA: '/punto-de-venta',
+          };
+          
+          if (isMounted) {
+            setState({
+              isLoading: false,
+              userData: parsedUser,
+              dashboardData: null,
+              shouldRedirect: routes[parsedUser.rol]
+            });
+          }
+          return;
+        }
+
+        // Fetch real data from backend in parallel
+        const [backendData, prestamosData] = await Promise.allSettled([
+          dashboardService.getDashboardData(TIME_FILTER_MAP[period]),
+          prestamosService.obtenerPrestamos({ limit: 5 }),
+        ]);
+
+        const dashboard = backendData.status === 'fulfilled' ? backendData.value : null;
+        const prestamos = prestamosData.status === 'fulfilled' ? prestamosData.value : null;
+        const stats = prestamos?.estadisticas;
+
+        // Build metrics from real backend data
+        const moraPercent = stats && stats.montoTotal > 0
+          ? ((stats.moraTotal / stats.montoTotal) * 100).toFixed(1)
+          : '0';
+
+        const mainMetrics: MetricItem[] = [
+          {
+            title: `Capital Prestado (${PERIOD_LABEL[period]})`,
+            value: stats?.montoTotal || 0,
+            isCurrency: true,
+            change: 0,
+            icon: <CreditCard className="h-4 w-4" />,
+            color: '#3b82f6'
+          },
+          {
+            title: 'Eficiencia de Cobro',
+            value: dashboard ? `${dashboard.metrics.efficiency}%` : '0%',
+            subValue: `${stats?.pagados || 0} pagados de ${stats?.total || 0}`,
+            isCurrency: false,
+            change: 0,
+            icon: <Target className="h-4 w-4" />,
+            color: '#8b5cf6'
+          },
+          {
+            title: 'Cartera en Mora',
+            value: stats?.moraTotal || 0,
+            subValue: `${moraPercent}% del total · ${stats?.morosos || 0} cuentas`,
+            isCurrency: true,
+            change: 0,
+            icon: <AlertCircle className="h-4 w-4" />,
+            color: '#f43f5e'
+          },
+          {
+            title: 'Saldo Pendiente',
+            value: stats?.montoPendiente || 0,
+            subValue: `${stats?.activos || 0} créditos activos`,
+            isCurrency: true,
+            change: 0,
+            icon: <Banknote className="h-4 w-4" />,
+            color: '#f59e0b'
+          }
+        ];
+
+        // Build quick access (static, no mock data needed)
+        const quickAccess: QuickAccessItem[] = [
+          {
+            title: 'Nuevo Crédito',
+            subtitle: 'Registro rápido',
+            icon: <CreditCard className="h-5 w-5" />,
+            color: '#0f172a',
+            badge: dashboard?.metrics.pendingApprovals || undefined,
+            href: '#'
+          },
+          {
+            title: 'Cobranza',
+            subtitle: 'Gestionar pagos',
+            icon: <Wallet className="h-5 w-5" />,
+            color: '#10b981',
+            badge: dashboard?.metrics.delinquentAccounts || undefined,
+            href: '/admin/pagos/registro'
+          },
+          {
+            title: 'Clientes',
+            subtitle: 'Base de datos',
+            icon: <Users className="h-5 w-5" />,
+            color: '#6366f1',
+            href: '/admin/clientes'
+          },
+          {
+            title: 'Análisis',
+            subtitle: 'Reportes avanzados',
+            icon: <PieChart className="h-5 w-5" />,
+            color: '#f59e0b',
+            href: '/admin/reportes/operativos'
+          },
+          {
+            title: 'Tesorería',
+            subtitle: 'Caja Fuerte / Bancos',
+            icon: <Landmark className="h-5 w-5" />,
+            color: '#08557f',
+            href: '/admin/tesoreria'
+          }
+        ];
+
+        // Build recent loans from real prestamos data
+        const recentLoans = (prestamos?.prestamos || []).slice(0, 5).map((p: any) => {
+          const clientName = p.cliente
+            ? `${p.cliente.nombres || ''} ${p.cliente.apellidos || ''}`.trim()
+            : 'Cliente';
+          const dateStr = p.creadoEn ? new Date(p.creadoEn).toLocaleDateString('es-CO', { day: '2-digit', month: 'short' }) : '';
+          return {
+            client: clientName,
+            amount: p.montoTotal || p.monto || 0,
+            term: p.frecuenciaPago || 'Mensual',
+            status: p.estado || 'PENDIENTE',
+            date: dateStr,
+          };
+        });
+
+        // Build chart data from backend trend
+        const chartData = (dashboard?.trend || []).map((t) => ({
+          label: t.label,
+          value: t.value,
+          target: t.target,
+        }));
+
+        // Build top collectors from recent activity (best approximation from available data)
+        const topCollectors = (dashboard?.recentActivity || []).slice(0, 5).map((a, idx) => ({
+          name: a.client,
+          collected: 0,
+          efficiency: 0,
+          trend: (a.status === 'approved' ? 'up' : 'down') as 'up' | 'down',
+        }));
+
+        if (isMounted) {
+          setState({
+            isLoading: false,
+            userData: parsedUser,
+            dashboardData: {
+              mainMetrics,
+              quickAccess,
+              recentLoans,
+              topCollectors,
+              chartData,
+              userFullName: `${parsedUser.nombres} ${parsedUser.apellidos}`,
+              userRole: parsedUser.rol?.replace('_', ' ') || 'Usuario'
+            },
+            shouldRedirect: null
+          });
+        }
+      } catch (error) {
+        console.error('Error cargando dashboard:', error);
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        router.replace('/');
+      }
+    };
+
+    initializeDashboard();
+
+    return () => {
+        isMounted = false;
+    };
+  }, [router, period]);
+
+  useEffect(() => {
+    if (state.shouldRedirect) {
+      router.replace(state.shouldRedirect);
+    }
+  }, [state.shouldRedirect, router]);
+
+  if (state.isLoading) {
     return (
       <div className="min-h-screen bg-white flex items-center justify-center">
         <div className="text-center">
           <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-600">Verificando sesión...</p>
+          <p className="text-gray-600">Preparando tu dashboard...</p>
         </div>
       </div>
     );
   }
 
-  // Si se está redirigiendo, no renderizar nada o un loader
-  if (userData?.rol === 'COBRADOR' || userData?.rol === 'COORDINADOR' || userData?.rol === 'SUPERVISOR') {
+  if (state.shouldRedirect) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-slate-50">
         <div className="flex flex-col items-center gap-4">
           <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
-          <p className="text-gray-600 font-medium">Redirigiendo a su panel...</p>
+          <p className="text-gray-600 font-medium">Te estamos redirigiendo...</p>
         </div>
       </div>
     );
   }
 
-  // Para otros roles, mostrar el dashboard normal
-  return (
-    <div className="min-h-screen bg-slate-50 relative">
-      {/* Fondo arquitectónico */}
-      <div className="fixed inset-0 pointer-events-none">
-        <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px]"></div>
-        <div className="absolute left-0 right-0 top-0 -z-10 m-auto h-[310px] w-[310px] rounded-full bg-primary opacity-20 blur-[100px]"></div>
-      </div>
+  if (!state.dashboardData) {
+    return null;
+  }
 
-      <div className="relative z-10 p-6 lg:p-12 space-y-12">
-        {/* Header Standard */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 animate-in fade-in slide-in-from-top-4 duration-500">
-          <div>
-            <div className="flex items-center gap-2 mb-2">
-              <div className="p-2 bg-blue-600 rounded-lg shadow-md shadow-blue-600/20">
-                <LayoutDashboard className="w-6 h-6 text-white" />
-              </div>
-              <h1 className="text-3xl font-bold tracking-tight">
-                <span className="text-blue-600">Panel</span> <span className="text-orange-500">Principal</span>
-              </h1>
-            </div>
-            <p className="text-slate-500 mt-1 font-medium text-sm flex items-center gap-2">
-              <Calendar className="h-3.5 w-3.5" />
-              {currentDate ? formatDate(currentDate) : ''}
-              <span className="w-1 h-1 rounded-full bg-slate-300"></span>
-              <span className="text-xs px-2 py-0.5 bg-slate-100 rounded text-slate-600 font-semibold border border-slate-200">
-                {userData?.rol?.replace('_', ' ') || 'Usuario'}
-              </span>
-            </p>
-          </div>
-          
-          <div className="flex items-center gap-4">
-            <div className="hidden md:flex bg-white rounded-xl p-1 shadow-sm border border-slate-100">
-              {['Hoy', 'Sem', 'Mes', 'Trim'].map((item, index) => {
-                const values = ['today', 'week', 'month', 'quarter'] as const;
-                return (
-                  <button
-                    key={item}
-                    onClick={() => setTimeFilter(values[index])}
-                    className={`px-5 py-2 text-sm rounded-lg transition-all font-medium ${
-                      timeFilter === values[index] 
-                        ? 'bg-primary text-white shadow-md shadow-primary/20' 
-                        : 'text-slate-500 hover:text-primary hover:bg-primary/5'
-                    }`}
-                  >
-                    {item}
-                  </button>
-                );
-              })}
-            </div>
-            
-            <ExportButton 
-              label="Exportar" 
-              onExportExcel={handleExportExcel} 
-              onExportPDF={handleExportPDF} 
-            />
-          </div>
-        </div>
-        
-        {/* Filtro móvil */}
-        <div className="md:hidden flex overflow-x-auto pb-2 gap-2 scrollbar-hide">
-          {['Hoy', 'Semana', 'Mes', 'Trimestre'].map((item, index) => {
-             const values = ['today', 'week', 'month', 'quarter'] as const;
-             return (
-               <button
-                 key={item}
-                 onClick={() => setTimeFilter(values[index])}
-                 className={`px-4 py-2 text-sm rounded-full whitespace-nowrap transition-all font-medium ${
-                   timeFilter === values[index] 
-                     ? 'bg-primary text-white' 
-                     : 'bg-white text-slate-600 border border-slate-200'
-                 }`}
-               >
-                 {item}
-               </button>
-             );
-           })}
-        </div>
-
-        {/* Métricas principales */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {mainMetrics.map((metric, index) => (
-            <div
-              key={index}
-              className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-slate-100 hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all duration-300 group hover:-translate-y-1"
-            >
-              <div className="flex items-start justify-between mb-4">
-                <div 
-                  className="p-3 rounded-xl transition-all duration-300"
-                  style={{ backgroundColor: `${metric.color}10`, color: metric.color }}
-                >
-                  {metric.icon}
-                </div>
-                <div className={`flex items-center space-x-1 text-xs font-bold px-2 py-1 rounded-full ${
-                  metric.change >= 0 
-                    ? 'text-emerald-700 bg-emerald-50' 
-                    : 'text-rose-700 bg-rose-50'
-                }`}>
-                  {metric.change >= 0 ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
-                  <span>{metric.change >= 0 ? '+' : ''}{metric.change}%</span>
-                </div>
-              </div>
-              
-              <div className="space-y-1">
-                <div className="text-2xl font-bold text-slate-800 tracking-tight truncate" title={metric.isCurrency ? formatCurrency(Number(metric.value)) : String(metric.value)}>
-                  {metric.isCurrency ? formatCurrency(Number(metric.value)) : metric.value}
-                </div>
-                {metric.subValue && (
-                  <div className="text-xs font-medium text-slate-500">{metric.subValue}</div>
-                )}
-                <div className="text-xs font-medium text-slate-400 uppercase tracking-wider">{metric.title}</div>
-              </div>
-            </div>
-          ))}
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Columna Principal (Izquierda) */}
-          <div className="lg:col-span-2 space-y-8">
-            
-            {/* Gráfico Principal: Tendencia de Cobros */}
-            <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
-              <div className="flex items-center justify-between mb-6">
-                <div>
-                  <h3 className="text-lg font-bold text-slate-800">Tendencia de Cobros</h3>
-                  <p className="text-slate-500 text-sm">Últimos 7 días vs Meta Diaria</p>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="flex items-center gap-1.5 text-xs font-medium text-slate-600">
-                    <div className="w-3 h-3 rounded-full bg-blue-500"></div>
-                    Real
-                  </div>
-                  <div className="flex items-center gap-1.5 text-xs font-medium text-slate-600">
-                    <div className="w-3 h-3 rounded-full border-2 border-dashed border-amber-500 bg-amber-50"></div>
-                    Meta
-                  </div>
-                </div>
-              </div>
-              
-              <PremiumBarChart 
-                showTarget
-                data={[
-                  { label: 'Lun', value: 2500000, target: 3000000 },
-                  { label: 'Mar', value: 2800000, target: 3000000 },
-                  { label: 'Mie', value: 1900000, target: 3000000 },
-                  { label: 'Jue', value: 3400000, target: 3000000 },
-                  { label: 'Vie', value: 2950000, target: 3000000 },
-                  { label: 'Sab', value: 3800000, target: 3000000 },
-                  { label: 'Dom', value: 1200000, target: 1500000 },
-                ]}
-              />
-            </div>
-
-            {/* Listado: Últimos Préstamos Aprobados */}
-            <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
-              <div className="flex items-center justify-between mb-6">
-                <h3 className="text-lg font-bold text-slate-800">Últimos Préstamos Aprobados</h3>
-                <Link href="/admin/prestamos" className="text-sm font-medium text-blue-600 hover:text-blue-700 hover:underline">
-                  Ver todos
-                </Link>
-              </div>
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm text-left">
-                  <thead className="text-xs text-slate-500 uppercase bg-slate-50/50">
-                    <tr>
-                      <th className="px-4 py-3 font-medium">Cliente</th>
-                      <th className="px-4 py-3 font-medium">Monto</th>
-                      <th className="px-4 py-3 font-medium">Cuotas</th>
-                      <th className="px-4 py-3 font-medium text-right">Estado</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {[
-                      { client: 'Ana María Polo', amount: 1500000, term: 'Mensual', status: 'APROBADO', date: 'Hace 2h' },
-                      { client: 'Carlos Vives', amount: 5000000, term: 'Quincenal', status: 'PENDIENTE', date: 'Hace 4h' },
-                      { client: 'Juanes', amount: 800000, term: 'Diario', status: 'APROBADO', date: 'Hace 5h' },
-                      { client: 'Shakira Mebarak', amount: 12000000, term: 'Mensual', status: 'APROBADO', date: 'Hace 1d' },
-                    ].map((loan, idx) => (
-                      <tr key={idx} className="hover:bg-slate-50/50 transition-colors">
-                        <td className="px-4 py-3">
-                          <div className="font-medium text-slate-900">{loan.client}</div>
-                          <div className="text-xs text-slate-500">{loan.date}</div>
-                        </td>
-                        <td className="px-4 py-3 font-medium text-slate-700">{formatCurrency(loan.amount)}</td>
-                        <td className="px-4 py-3 text-slate-600">{loan.term}</td>
-                        <td className="px-4 py-3 text-right">
-                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                            loan.status === 'APROBADO' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'
-                          }`}>
-                            {loan.status}
-                          </span>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-
-          </div>
-
-          {/* Columna Lateral (Derecha) */}
-          <div className="space-y-8">
-            
-            {/* Listado: Top 5 Cobradores */}
-            <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
-              <div className="flex items-center justify-between mb-6">
-                <h3 className="text-lg font-bold text-slate-800">Top 5 Cobradores</h3>
-                <span className="text-xs font-medium px-2 py-1 bg-blue-50 text-blue-700 rounded-full">Mes Actual</span>
-              </div>
-              <div className="space-y-5">
-                {[
-                  { name: 'Juan Pérez', collected: 15400000, efficiency: 98, trend: 'up' },
-                  { name: 'Maria Gonzalez', collected: 12800000, efficiency: 95, trend: 'up' },
-                  { name: 'Pedro Coral', collected: 11200000, efficiency: 92, trend: 'down' },
-                  { name: 'Betty Pinzon', collected: 9800000, efficiency: 89, trend: 'up' },
-                  { name: 'Armando Mendoza', collected: 8500000, efficiency: 85, trend: 'down' },
-                ].map((collector, idx) => (
-                  <div key={idx} className="flex items-center justify-between group">
-                    <div className="flex items-center gap-3">
-                      <div className="flex-shrink-0 w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-600 font-bold border border-slate-200">
-                        {idx + 1}
-                      </div>
-                      <div>
-                        <div className="font-medium text-slate-900 text-sm">{collector.name}</div>
-                        <div className="text-xs text-slate-500 flex items-center gap-1">
-                          Eficiencia: 
-                          <span className={collector.efficiency >= 95 ? 'text-emerald-600 font-semibold' : 'text-slate-600'}>
-                            {collector.efficiency}%
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <div className="font-bold text-slate-800 text-sm">{formatCurrency(collector.collected)}</div>
-                      {collector.trend === 'up' ? (
-                        <div className="text-[10px] text-emerald-600 flex items-center justify-end gap-0.5">
-                          <TrendingUp className="h-3 w-3" />
-                          <span>Excelente</span>
-                        </div>
-                      ) : (
-                        <div className="text-[10px] text-amber-600 flex items-center justify-end gap-0.5">
-                          <TrendingDown className="h-3 w-3" />
-                          <span>Regular</span>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-              <div className="mt-6 pt-4 border-t border-slate-100">
-                <Link href="/admin/reportes/operativos" className="block w-full text-center text-sm font-medium text-slate-600 hover:text-slate-900 transition-colors">
-                  Ver reporte completo
-                </Link>
-              </div>
-            </div>
-
-            {/* Accesos Rápidos (Reducido) */}
-            <div className="bg-slate-50 rounded-2xl p-6 border border-slate-200/60">
-              <h3 className="text-sm font-bold text-slate-500 uppercase tracking-wider mb-4">Accesos Rápidos</h3>
-              <div className="grid grid-cols-1 gap-3">
-                {quickAccess.slice(0, 3).map((item, index) => (
-                  <Link
-                    key={index}
-                    href={item.href}
-                    className="flex items-center gap-3 p-3 bg-white rounded-xl shadow-sm border border-slate-100 hover:shadow-md hover:border-blue-100 transition-all group"
-                  >
-                    <div className="p-2 rounded-lg bg-slate-50 text-slate-600 group-hover:bg-blue-50 group-hover:text-blue-600 transition-colors">
-                      {item.icon}
-                    </div>
-                    <div>
-                      <div className="font-medium text-slate-900 text-sm group-hover:text-blue-700">{item.title}</div>
-                      <div className="text-xs text-slate-500">{item.subtitle}</div>
-                    </div>
-                  </Link>
-                ))}
-              </div>
-            </div>
-
-          </div>
-        </div>
-
-
-
-        {/* Footer sutil */}
-        <div className="mt-8 text-center pb-6">
-          <p className="text-[10px] text-gray-400 uppercase tracking-widest">
-            CrediSur • Sistema de Gestión v1.0 • Sesión activa
-          </p>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-export default DashboardPage;
+  return <DashboardClient data={state.dashboardData} />;
+}

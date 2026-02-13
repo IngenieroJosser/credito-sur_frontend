@@ -1,12 +1,7 @@
 /**
- * ============================================================================
- * PÁGINA DE CREACIÓN DE CRÉDITOS UNIFICADA (ADMIN)
- * ============================================================================
- * 
- * @description
- * Wrapper de SEO y contenedor para el formulario de alta de créditos.
- * Renderiza el componente `CreacionUnificada` que permite elegir entre
- * Dinero y Artículos.
+ * Página principal para la creación de nuevos créditos.
+ * Funciona como un "envoltorio" simple que carga el formulario unificado.
+ * Aquí es donde los administradores inician el proceso de préstamo, ya sea de dinero o artículos.
  */
 import { Metadata } from 'next';
 import CreacionUnificada from '@/components/creditos/CreacionUnificada';
@@ -17,5 +12,6 @@ export const metadata: Metadata = {
 };
 
 export default function NuevoCreditoPage() {
+  // Renderizamos el componente "mágico" que maneja toda la lógica del formulario
   return <CreacionUnificada />;
 }

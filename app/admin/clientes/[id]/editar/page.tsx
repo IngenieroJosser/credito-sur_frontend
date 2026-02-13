@@ -3,7 +3,8 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter, useParams } from 'next/navigation';
-import { clientesService, CrearClienteDto, MOCK_CLIENTES } from '@/services/clientes-service';
+import { clientesService, ActualizarClienteDto, NivelRiesgo } from '@/services/clientes-service';
+import { rutasService } from '@/services/rutas-service';
 import { Save, User, Phone, Mail, MapPin, Briefcase, Shield, ChevronRight, ArrowLeft, Camera } from 'lucide-react';
 import { FileUploader } from '@/components/ui/FileUploader';
 
@@ -64,26 +65,31 @@ const EditarClientePage = () => {
 
   useEffect(() => {
     if (id) {
-      // Buscar en mocks para desarrollo frontend
-      const cliente = MOCK_CLIENTES.find(c => c.id === id);
-      if (cliente) {
-        setFormData({
-          nombres: cliente.nombres,
-          apellidos: cliente.apellidos,
-          dni: cliente.dni.replace(/\D/g, ''),
-          telefono: cliente.telefono.replace(/\D/g, ''),
-          correo: cliente.correo || '',
-          direccion: cliente.direccion || '',
-          referencia: cliente.referencia || '',
-          puntaje: cliente.puntaje,
-          nivelRiesgo: cliente.nivelRiesgo,
-          enListaNegra: cliente.enListaNegra,
-          razonListaNegra: '', 
-          rutaId: cliente.rutaId || '',
-          observaciones: '' 
-        });
-      }
+      clientesService.obtenerPorId(id).then(cliente => {
+        if (cliente) {
+          setFormData({
+            nombres: cliente.nombres,
+            apellidos: cliente.apellidos,
+            dni: cliente.dni.replace(/\D/g, ''),
+            telefono: cliente.telefono.replace(/\D/g, ''),
+            correo: cliente.correo || '',
+            direccion: cliente.direccion || '',
+            referencia: '', // No viene en DTO simple por ahora
+            puntaje: 85, // Mock o campo backend
+            nivelRiesgo: (cliente.nivelRiesgo as any) || 'VERDE',
+            enListaNegra: false, // Mock
+            razonListaNegra: '',
+            rutaId: '', // Se debería obtener del backend si cliente tiene ruta asignada
+            observaciones: ''
+          });
+        }
+      }).catch(console.error);
     }
+    
+    // Cargar rutas
+    rutasService.obtenerRutas().then(rutas => {
+        setRutasDisponibles(rutas.map(r => ({ id: r.id, nombre: r.nombre })));
+    }).catch(console.error);
   }, [id]);
 
   const sections = [
@@ -96,11 +102,7 @@ const EditarClientePage = () => {
 
   const [fotosCliente, setFotosCliente] = useState<File[]>([]);
 
-  const rutasDisponibles = [
-    { id: 'ruta-1', nombre: 'Ruta Centro - Carlos Pérez' },
-    { id: 'ruta-2', nombre: 'Ruta Norte - Ana Gómez' },
-    { id: 'ruta-3', nombre: 'Ruta Sur - Juan López' }
-  ];
+  const [rutasDisponibles, setRutasDisponibles] = useState<{id: string, nombre: string}[]>([]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target;
@@ -125,7 +127,7 @@ const EditarClientePage = () => {
     ;(async () => {
       setIsSaving(true)
       try {
-        const updateData: Partial<CrearClienteDto> = {
+        const updateData: ActualizarClienteDto = {
           nombres: formData.nombres,
           apellidos: formData.apellidos,
           dni: formData.dni,
@@ -133,7 +135,7 @@ const EditarClientePage = () => {
           direccion: formData.direccion,
           correo: formData.correo || undefined,
           referencia: formData.referencia || undefined,
-          nivelRiesgo: formData.nivelRiesgo,
+          nivelRiesgo: formData.nivelRiesgo as NivelRiesgo,
           puntaje: formData.puntaje,
           enListaNegra: formData.enListaNegra,
           rutaId: formData.rutaId || undefined,
@@ -141,11 +143,11 @@ const EditarClientePage = () => {
         }
         await clientesService.actualizarCliente(id, updateData)
         alert('Cliente actualizado exitosamente (Simulado)')
-        router.push('/admin/clientes')
+        router.push('/clientes')
       } catch (error) {
         console.error('Error al actualizar cliente:', error)
         alert('Cliente actualizado exitosamente (Simulado Frontend)')
-        router.push('/admin/clientes')
+        router.push('/clientes')
       } finally {
         setIsSaving(false)
       }
@@ -181,7 +183,7 @@ const EditarClientePage = () => {
 
       <div className="relative z-10 px-8 pt-8">
         <div className="mb-8 flex items-center justify-between">
-          <Link href="/admin/clientes" className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-slate-600 shadow-sm transition-colors hover:bg-slate-50 hover:text-slate-900">
+          <Link href="/clientes" className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-slate-600 shadow-sm transition-colors hover:bg-slate-50 hover:text-slate-900">
             <ArrowLeft className="w-5 h-5" />
             <span>Volver</span>
           </Link>

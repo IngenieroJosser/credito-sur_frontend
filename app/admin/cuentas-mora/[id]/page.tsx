@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { 
   ChevronLeft, 
@@ -18,47 +18,110 @@ import {
   CheckCircle2
 } from 'lucide-react'
 import { formatCurrency, cn } from '@/lib/utils'
+import { loansService_ } from '@/services/loans-service'
 
-// Mock Data para demostración
-const moraDetalleMock = {
-  id: '1',
-  numeroPrestamo: 'P-2024-001',
+interface MoraDetalle {
+  id: string
+  numeroPrestamo: string
   cliente: {
-    id: 'CLI-001',
-    nombre: 'Juan Pérez',
-    documento: 'V-12345678',
-    telefono: '310 123 4567',
-    direccion: 'Av. Bolívar, Casa 5',
-    estado: 'ACTIVO'
-  },
+    id: string
+    nombre: string
+    documento: string
+    telefono: string
+    direccion: string
+    estado: string
+  }
   prestamo: {
-    montoOriginal: 1500000,
-    saldoCapital: 800000,
-    cuotaPromedio: 150000,
-    frecuencia: 'quincenal',
-    proximoVencimiento: '2024-02-15'
-  },
+    montoOriginal: number
+    saldoCapital: number
+    cuotaPromedio: number
+    frecuencia: string
+    proximoVencimiento: string
+  }
   mora: {
-    diasAtraso: 45,
-    capitalVencido: 300000, // 2 cuotas de 150k
-    interesMora: 15000,
-    gastosCobranza: 0,
-    totalPagarYa: 315000,
-    fechaInicioMora: '2024-01-01',
-    nivelRiesgo: 'ROJO'
-  },
-  historialGestion: [
-    { fecha: '2024-01-15', usuario: 'Carlos Ruiz', tipo: 'VISITA', nota: 'Cliente no estaba, se dejó aviso.' },
-    { fecha: '2024-01-10', usuario: 'Admin', tipo: 'LLAMADA', nota: 'Promesa de pago incumplida.' }
-  ]
+    diasAtraso: number
+    capitalVencido: number
+    interesMora: number
+    gastosCobranza: number
+    totalPagarYa: number
+    fechaInicioMora: string
+    nivelRiesgo: string
+  }
+  historialGestion: Array<{
+    fecha: string
+    usuario: string
+    tipo: string
+    nota: string
+  }>
 }
 
 export default function DetalleCuentaMoraPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = React.use(params);
   
-  const data = moraDetalleMock; 
+  const [data, setData] = useState<MoraDetalle | null>(null);
+  const [loading, setLoading] = useState(true);
   const [nota, setNota] = useState('');
   const [activeTab, setActiveTab] = useState<'historial' | 'reprogramar' | 'supervisor'>('historial');
+
+  useEffect(() => {
+    const fetchData = async () => {
+      setLoading(true);
+      try {
+        const detalle: any = await loansService_.obtenerDetallePrestamo(id);
+        setData({
+          id,
+          numeroPrestamo: detalle.numeroPrestamo || id,
+          cliente: {
+            id: detalle.cliente?.id || '',
+            nombre: detalle.cliente?.nombre || `${detalle.cliente?.nombres || ''} ${detalle.cliente?.apellidos || ''}`.trim(),
+            documento: detalle.cliente?.documento || detalle.cliente?.dni || '',
+            telefono: detalle.cliente?.telefono || '',
+            direccion: detalle.cliente?.direccion || '',
+            estado: 'ACTIVO',
+          },
+          prestamo: {
+            montoOriginal: detalle.montoOriginal || detalle.monto || 0,
+            saldoCapital: detalle.saldoCapital || detalle.montoPendiente || 0,
+            cuotaPromedio: detalle.cuotaPromedio || detalle.valorCuota || 0,
+            frecuencia: detalle.frecuencia || detalle.frecuenciaPago || 'mensual',
+            proximoVencimiento: detalle.proximoVencimiento || '',
+          },
+          mora: {
+            diasAtraso: detalle.diasMora || detalle.mora?.diasAtraso || 0,
+            capitalVencido: detalle.capitalVencido || detalle.mora?.capitalVencido || 0,
+            interesMora: detalle.interesMora || detalle.mora?.interesMora || 0,
+            gastosCobranza: detalle.gastosCobranza || 0,
+            totalPagarYa: detalle.totalPagarYa || detalle.montoMora || 0,
+            fechaInicioMora: detalle.fechaInicioMora || '',
+            nivelRiesgo: detalle.nivelRiesgo || 'ROJO',
+          },
+          historialGestion: detalle.historialGestion || [],
+        });
+      } catch (err) {
+        console.error('Error cargando detalle de mora:', err);
+        setData(null);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchData();
+  }, [id]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-rose-600"></div>
+      </div>
+    );
+  }
+
+  if (!data) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+        <p className="text-red-500">No se pudo cargar el detalle de mora</p>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-slate-50 relative pb-8">
@@ -72,7 +135,7 @@ export default function DetalleCuentaMoraPage({ params }: { params: Promise<{ id
       <header className="sticky top-0 z-20 bg-white/80 backdrop-blur-sm border-b border-slate-200">
         <div className="px-6 py-3 w-full mx-auto flex items-center justify-between">
             <div className="flex items-center gap-4">
-                <Link href="/admin/cuentas-mora" className="p-2 rounded-lg hover:bg-slate-100 text-slate-500 transition-colors">
+                <Link href="/cuentas-mora" className="p-2 rounded-lg hover:bg-slate-100 text-slate-500 transition-colors">
                     <ChevronLeft className="w-5 h-5" />
                 </Link>
                 <div>
@@ -113,7 +176,7 @@ export default function DetalleCuentaMoraPage({ params }: { params: Promise<{ id
                     </div>
 
                     <div className="mt-6 flex gap-2">
-                         <Link href={`/admin/clientes/${data.cliente.id}`} className="flex-1 py-2 text-center text-sm font-bold text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors">
+                         <Link href={`/clientes/${data.cliente.id}`} className="flex-1 py-2 text-center text-sm font-bold text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors">
                             Ver Perfil
                         </Link>
                         {/* Botón Llamar eliminado a petición del usuario */}
@@ -152,7 +215,7 @@ export default function DetalleCuentaMoraPage({ params }: { params: Promise<{ id
                 </div>
 
                 <div className="mt-6 pt-4 border-t border-rose-100">
-                     <Link href={`/admin/pagos/registrar/${data.cliente.id}`} className="w-full sm:w-auto flex items-center justify-center gap-2 py-3 px-6 bg-white text-slate-900 border border-slate-200 font-bold rounded-xl hover:bg-slate-50 shadow-sm transition-all">
+                     <Link href={`/pagos/registrar/${data.cliente.id}`} className="w-full sm:w-auto flex items-center justify-center gap-2 py-3 px-6 bg-white text-slate-900 border border-slate-200 font-bold rounded-xl hover:bg-slate-50 shadow-sm transition-all">
                         <DollarSign className="w-5 h-5 text-emerald-600" />
                         Registrar Pago
                      </Link>

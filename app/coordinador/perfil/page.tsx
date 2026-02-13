@@ -7,7 +7,7 @@ export default function CoordinadorPerfilPage() {
   const router = useRouter();
   
   useEffect(() => {
-    router.replace('/admin/perfil');
+    router.replace('/perfil');
   }, [router]);
   
   return null;

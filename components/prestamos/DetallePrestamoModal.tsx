@@ -1,38 +1,10 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Modal } from '@/components/ui/Modal';
+import { createPortal } from 'react-dom';
+import { X, Loader2 } from 'lucide-react';
 import DetallePrestamo, { PrestamoDetalle } from '@/components/prestamos/DetallePrestamo';
-
-// Mock data generator for detail
-const getMockPrestamoDetalle = (id: string): PrestamoDetalle => ({
-  id,
-  clienteId: 'CLI-001',
-  clienteNombre: 'Carlos Andrés Rodríguez Pérez',
-  clienteDni: '0912345678',
-  clienteTelefono: '+57 321 654 9870',
-  clienteDireccion: 'Calle 123 # 45 - 67, Barrio El Centro',
-  montoPrestamo: 1500000,
-  montoTotal: 1800000,
-  saldoPendiente: 1200000,
-  tasaInteres: 20,
-  duracion: '6 Meses',
-  frecuencia: 'mensual',
-  fechaInicio: '15/01/2024',
-  fechaVencimiento: '15/07/2024',
-  estado: 'ACTIVO',
-  producto: 'Préstamo Personal',
-  garantia: 'Pagaré',
-  fotos: ['foto1'],
-  cuotas: [
-    { numero: 1, fecha: '15/02/2024', monto: 300000, estado: 'PAGADO', fechaPago: '14/02/2024' },
-    { numero: 2, fecha: '15/03/2024', monto: 300000, estado: 'PAGADO', fechaPago: '15/03/2024' },
-    { numero: 3, fecha: '15/04/2024', monto: 300000, estado: 'PENDIENTE' },
-    { numero: 4, fecha: '15/05/2024', monto: 300000, estado: 'PENDIENTE' },
-    { numero: 5, fecha: '15/06/2024', monto: 300000, estado: 'PENDIENTE' },
-    { numero: 6, fecha: '15/07/2024', monto: 300000, estado: 'PENDIENTE' },
-  ]
-});
+import { prestamosService } from '@/services/prestamos-service';
 
 interface DetallePrestamoModalProps {
   id: string;
@@ -42,39 +14,109 @@ interface DetallePrestamoModalProps {
 export default function DetallePrestamoModal({ id, onClose }: DetallePrestamoModalProps) {
   const [prestamo, setPrestamo] = useState<PrestamoDetalle | null>(null);
   const [loading, setLoading] = useState(true);
+  const [mounted, setMounted] = useState(false);
+  const [visible, setVisible] = useState(false);
 
   useEffect(() => {
-    // Reset loading state if ID changes (handled by component re-mount or here if prop changes)
-    // setLoading(true); // Removed to avoid lint error (already true on mount due to key prop)
-    const timer = setTimeout(() => {
-      setPrestamo(getMockPrestamoDetalle(id));
-      setLoading(false);
-    }, 500);
-    return () => clearTimeout(timer);
+    setMounted(true);
+    requestAnimationFrame(() => setVisible(true));
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = 'unset'; };
+  }, []);
+
+  const handleClose = () => {
+    setVisible(false);
+    setTimeout(onClose, 200);
+  };
+
+  useEffect(() => {
+    const fetchPrestamo = async () => {
+      setLoading(true);
+      try {
+        const data = await prestamosService.obtenerPrestamoPorId(id);
+        const cuotasData = await prestamosService.obtenerCuotas(id).catch(() => []);
+        
+        setPrestamo({
+          id: data.id || id,
+          clienteId: data.clienteId || data.cliente?.id || '',
+          clienteNombre: data.cliente ? `${data.cliente.nombres} ${data.cliente.apellidos}` : (data.clienteNombre || ''),
+          clienteDni: data.cliente?.dni || data.clienteDni || '',
+          clienteTelefono: data.cliente?.telefono || data.clienteTelefono || '',
+          clienteDireccion: data.cliente?.direccion || data.clienteDireccion || '',
+          montoPrestamo: data.monto || data.montoPrestamo || 0,
+          montoTotal: data.montoTotal || (Number(data.monto || 0) + Number(data.interesTotal || 0)),
+          saldoPendiente: data.saldoPendiente || data.montoPendiente || 0,
+          tasaInteres: data.tasaInteres || 0,
+          interesTotal: data.interesTotal != null ? Number(data.interesTotal) : undefined,
+          capitalPagado: data.capitalPagado != null ? Number(data.capitalPagado) : undefined,
+          interesPagado: data.interesPagado != null ? Number(data.interesPagado) : undefined,
+          duracion: data.plazoMeses ? `${data.plazoMeses} Meses` : (data.duracion || ''),
+          frecuencia: data.frecuenciaPago || data.frecuencia || 'mensual',
+          fechaInicio: data.fechaInicio || '',
+          fechaVencimiento: data.fechaFin || data.fechaVencimiento || '',
+          estado: data.estado || 'ACTIVO',
+          producto: data.tipoPrestamo || data.producto || 'Préstamo',
+          garantia: data.garantia || '',
+          fotos: data.fotos || [],
+          cuotas: cuotasData.map((c: any) => ({
+            numero: c.numeroCuota,
+            fecha: c.fechaVencimiento,
+            monto: c.monto,
+            montoCapital: c.montoCapital != null ? Number(c.montoCapital) : undefined,
+            montoInteres: c.montoInteres != null ? Number(c.montoInteres) : undefined,
+            estado: c.estado,
+            fechaPago: c.fechaPago || undefined,
+          })),
+        });
+      } catch (err) {
+        console.error('Error cargando detalle del préstamo:', err);
+        setPrestamo(null);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchPrestamo();
   }, [id]);
 
-  // Modal handles isOpen (assumed true if this component is rendered, or we pass true)
-  // ListadoPrestamos conditionally renders this component, so isOpen is always true when mounted.
+  if (!mounted) return null;
 
-  return (
-    <Modal
-      isOpen={true}
-      onClose={onClose}
-      title={`Detalle de Préstamo - ${id}`}
-      size="xl"
-    >
-      <div className="min-h-[400px]">
-        {loading ? (
-           <div className="flex items-center justify-center h-64">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-           </div>
-        ) : prestamo ? (
-           <DetallePrestamo prestamo={prestamo} />
-        ) : (
-           <div className="p-10 text-center text-slate-500">No se encontró información.</div>
-        )}
+  return createPortal(
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={handleClose}>
+      {/* Backdrop */}
+      <div className={`fixed inset-0 bg-slate-900/50 backdrop-blur-sm transition-opacity duration-200 ${visible ? 'opacity-100' : 'opacity-0'}`} />
+
+      {/* Centered modal panel */}
+      <div
+        className={`relative w-full max-w-5xl max-h-[92vh] bg-white rounded-2xl shadow-2xl flex flex-col transition-all duration-200 ease-out ${visible ? 'opacity-100 scale-100' : 'opacity-0 scale-95'}`}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Close button */}
+        <button
+          onClick={handleClose}
+          className="absolute top-4 right-4 z-20 p-2 bg-white/80 backdrop-blur-sm rounded-full shadow-sm border border-slate-200 text-slate-400 hover:text-slate-900 hover:bg-white transition-all"
+        >
+          <X className="w-5 h-5" />
+        </button>
+
+        {/* Scrollable content */}
+        <div className="flex-1 overflow-y-auto rounded-2xl">
+          {loading ? (
+            <div className="flex flex-col items-center justify-center min-h-[50vh] gap-3">
+              <Loader2 className="w-10 h-10 text-blue-600 animate-spin" />
+              <p className="text-sm font-medium text-slate-500">Cargando detalle del crédito...</p>
+            </div>
+          ) : prestamo ? (
+            <DetallePrestamo prestamo={prestamo} />
+          ) : (
+            <div className="flex items-center justify-center min-h-[50vh]">
+              <p className="text-slate-500 font-medium">No se encontró información del crédito.</p>
+            </div>
+          )}
+        </div>
       </div>
-    </Modal>
+    </div>,
+    document.body
   );
 }
 

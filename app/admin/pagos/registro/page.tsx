@@ -32,6 +32,7 @@ import {
   Smartphone
 } from 'lucide-react'
 import { formatCOPInputValue, formatCurrency, parseCOPInputToNumber, cn } from '@/lib/utils'
+import { pagosService } from '@/services/pagos-service'
 
 // Enums alineados con Prisma (asumiendo convención UPPERCASE)
 type MetodoPago = 'EFECTIVO' | 'TRANSFERENCIA' | 'PAGO_MOVIL' | 'OTRO'
@@ -58,7 +59,9 @@ interface PrestamoMock {
 }
 
 const RegistroPagoPage = () => {
-  // Estado simulado que vendría de props o contexto/API
+  // --- DATOS SIMULADOS (MOCK) ---
+  // En el futuro, estos datos vendrán de una API o de la selección previa del cliente.
+  // Por ahora, usamos datos estáticos para visualizar la funcionalidad.
   const [cliente] = useState<ClienteMock>({
     id: 'c1',
     nombre: 'Carlos Rodríguez',
@@ -72,13 +75,18 @@ const RegistroPagoPage = () => {
     riesgo: 'MEDIO'
   })
 
+  // --- ESTADO DEL FORMULARIO ---
+  // Método de pago seleccionado (Efectivo es el rey por ahora)
   const [metodoPago, setMetodoPago] = useState<MetodoPago>('EFECTIVO')
   const [monto, setMonto] = useState('')
   const [comentarios, setComentarios] = useState('')
   const [esAbonoParcial, setEsAbonoParcial] = useState(false)
+  
+  // Estado de la petición de red (idle -> enviando -> exito/error)
   const [estadoEnvio, setEstadoEnvio] = useState<'idle' | 'enviando' | 'exito' | 'error'>('idle')
   const [mensajeEstado, setMensajeEstado] = useState('')
 
+  // Simulación de cómo se aplicaría este pago a las diferentes deudas
   const resumenCuota: ResumenCuota = {
     capital: 120000,
     interes: 30000,
@@ -86,7 +94,7 @@ const RegistroPagoPage = () => {
     total: 160000
   }
 
-  // Utilidad para formateo de fecha
+  // Helper para mostrar fechas en formato local (DD/MM/AAAA)
   const formatDate = (dateStr: string) => {
     return new Date(dateStr).toLocaleDateString('es-CO', {
       day: '2-digit',
@@ -95,26 +103,35 @@ const RegistroPagoPage = () => {
     })
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  // --- MANEJO DEL ENVÍO (SUBMIT) ---
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
+    // Validaciones básicas antes de enviar
     if (!monto.trim() || !comentarios.trim()) {
       setEstadoEnvio('error')
-      setMensajeEstado('Monto y comentario son obligatorios')
+      setMensajeEstado('Monto y comentario son obligatorios. ¡No olvides anotar los detalles!')
       return
     }
 
     setEstadoEnvio('enviando')
     setMensajeEstado('')
 
-    // Simulación de envío a API / Store offline
-    setTimeout(() => {
+    try {
+      await pagosService.registrarPago({
+        prestamoId: prestamo.id,
+        monto: parseCOPInputToNumber(monto),
+        metodoPago: metodoPago,
+        observaciones: comentarios,
+        esAbonoParcial: esAbonoParcial,
+      } as any)
       setEstadoEnvio('exito')
-      setMensajeEstado('Pago registrado en cola de sincronización')
-      // Reset form opcional
-      // setMonto('')
-      // setComentarios('')
-    }, 800)
+      setMensajeEstado('¡Listo! El pago ha sido registrado correctamente.')
+    } catch (err) {
+      console.error('Error registrando pago:', err)
+      setEstadoEnvio('error')
+      setMensajeEstado('Error al registrar el pago. Intente nuevamente.')
+    }
   }
 
   return (

@@ -1,9 +1,25 @@
 'use client';
 
-import { use } from 'react';
+import { use, useState, useEffect } from 'react';
 import { ChevronLeft, AlertCircle, Calendar, Phone, MapPin, User, ArrowRight, DollarSign } from 'lucide-react';
 import Link from 'next/link';
 import { formatCurrency, cn } from '@/lib/utils';
+import { loansService_ } from '@/services/loans-service';
+
+interface CuentaMora {
+  id: string;
+  numeroPrestamo: string;
+  cliente: { nombre: string; documento: string; telefono: string; direccion: string; referencia: string };
+  diasMora: number;
+  montoMora: number;
+  montoTotalDeuda: number;
+  cuotasVencidas: number;
+  ruta: string;
+  cobrador: string;
+  nivelRiesgo: string;
+  ultimoPago: string;
+  historialMora: Array<{ fecha: string; motivo: string; tipo: string }>;
+}
 
 export default function DetalleCuentaMoraPage({ 
   params 
@@ -11,32 +27,58 @@ export default function DetalleCuentaMoraPage({
   params: Promise<{ id: string }>
 }) {
   const { id } = use(params);
-  
-  // Mock data for a mora account detail
-  const cuenta = {
-    id,
-    numeroPrestamo: 'P-2024-001',
-    cliente: {
-      nombre: 'Juan Pérez',
-      documento: 'V-12345678',
-      telefono: '310 123 4567',
-      direccion: 'Av. Bolívar, Casa 5',
-      referencia: 'Frente al parque principal'
-    },
-    diasMora: 45,
-    montoMora: 150000,
-    montoTotalDeuda: 450000,
-    cuotasVencidas: 3,
-    ruta: 'Ruta Centro',
-    cobrador: 'Carlos Ruiz',
-    nivelRiesgo: 'ROJO' as const,
-    ultimoPago: '2023-12-15',
-    historialMora: [
-      { fecha: '2024-01-15', motivo: 'Promesa de pago incumplida', tipo: 'LLAMADA' },
-      { fecha: '2024-01-10', motivo: 'Cliente no se encontraba en domicilio', tipo: 'VISITA' },
-      { fecha: '2024-01-05', motivo: 'Promesa de pago para el 10', tipo: 'LLAMADA' },
-    ]
-  };
+  const [cuenta, setCuenta] = useState<CuentaMora | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      setLoading(true);
+      try {
+        const data: any = await loansService_.obtenerDetallePrestamo(id);
+        setCuenta({
+          id,
+          numeroPrestamo: data.numeroPrestamo || id,
+          cliente: {
+            nombre: data.cliente ? `${data.cliente.nombres || ''} ${data.cliente.apellidos || ''}`.trim() : '',
+            documento: data.cliente?.dni || '',
+            telefono: data.cliente?.telefono || '',
+            direccion: data.cliente?.direccion || '',
+            referencia: data.cliente?.referencia || '',
+          },
+          diasMora: data.diasMora || 0,
+          montoMora: data.montoMora || data.moraAcumulada || 0,
+          montoTotalDeuda: data.saldoPendiente || data.montoPendiente || 0,
+          cuotasVencidas: data.cuotasVencidas || 0,
+          ruta: data.ruta?.nombre || '',
+          cobrador: data.cobrador ? `${data.cobrador.nombres || ''} ${data.cobrador.apellidos || ''}`.trim() : '',
+          nivelRiesgo: data.nivelRiesgo || 'ROJO',
+          ultimoPago: data.ultimoPago || '',
+          historialMora: data.historialMora || [],
+        });
+      } catch (err) {
+        console.error('Error cargando cuenta mora:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchData();
+  }, [id]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-rose-600"></div>
+      </div>
+    );
+  }
+
+  if (!cuenta) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+        <p className="text-red-500">No se pudo cargar la cuenta en mora</p>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-slate-50 relative pb-12">
@@ -50,7 +92,7 @@ export default function DetalleCuentaMoraPage({
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               <Link 
-                href="/coordinador/cuentas-mora" 
+                href="/cuentas-mora" 
                 className="p-2 rounded-lg hover:bg-slate-100 transition-colors text-slate-500 hover:text-slate-900"
               >
                 <ChevronLeft className="w-5 h-5" />

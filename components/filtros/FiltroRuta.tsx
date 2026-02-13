@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { cn } from '@/lib/utils'
+import { routesService } from '@/services/routes-service'
 
 interface RutaOption {
   id: string
@@ -31,21 +32,23 @@ export default function FiltroRuta({
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    // Simular carga de rutas desde API
     const fetchRutas = async () => {
       setLoading(true)
-      // TODO: Reemplazar con llamada real a la API
-      await new Promise(resolve => setTimeout(resolve, 500))
-      
-      const mockRutas: RutaOption[] = [
-        { id: 'RT-001', nombre: 'Ruta Centro', codigo: 'CENTRO-01', cobrador: 'Carlos Pérez' },
-        { id: 'RT-002', nombre: 'Ruta Norte', codigo: 'NORTE-01', cobrador: 'María Rodríguez' },
-        { id: 'RT-003', nombre: 'Ruta Este', codigo: 'ESTE-01', cobrador: 'Pedro Gómez' },
-        { id: 'RT-004', nombre: 'Ruta Sur - Expansión', codigo: 'SUR-EXP-01', cobrador: 'Juanito Alimaña' },
-      ]
-      
-      setRutas(mockRutas)
-      setLoading(false)
+      try {
+        const response = await routesService.getAll({ limit: 100 })
+        const rutasData: RutaOption[] = (response?.data || []).map((r) => ({
+          id: r.id,
+          nombre: r.nombre,
+          codigo: r.codigo,
+          cobrador: r.cobrador || (r.cobrador_ ? `${r.cobrador_.nombres} ${r.cobrador_.apellidos}` : undefined),
+        }))
+        setRutas(rutasData)
+      } catch (err) {
+        console.error('Error cargando rutas:', err)
+        setRutas([])
+      } finally {
+        setLoading(false)
+      }
     }
 
     fetchRutas()
@@ -58,7 +61,7 @@ export default function FiltroRuta({
       )}
       
       <div className={cn(
-        "flex items-center gap-2",
+        "flex items-center gap-1.5",
         layout === 'scroll' ? "flex-row overflow-x-auto pb-2 scrollbar-hide flex-nowrap min-w-0" : "flex-row flex-wrap"
       )}>
         {showAllOption && (
@@ -66,11 +69,11 @@ export default function FiltroRuta({
             onClick={() => onRutaChange(null)}
             disabled={loading}
             className={cn(
-              "whitespace-nowrap px-4 py-2 rounded-xl text-[10px] font-black transition-all border shadow-sm active:scale-95 uppercase tracking-tight",
+              "px-3 py-1.5 text-[11px] font-bold rounded-xl transition-all whitespace-nowrap",
               layout === 'scroll' && "shrink-0",
               selectedRutaId === null 
-                ? "bg-blue-600 text-white border-blue-600 shadow-blue-200 shadow-lg" 
-                : "bg-white text-slate-500 border-slate-200 hover:border-blue-300 hover:text-blue-600"
+                ? "bg-primary text-white shadow-md shadow-primary/20" 
+                : "bg-slate-100/50 text-slate-600 hover:bg-slate-200/70 border border-slate-200"
             )}
           >
             Todas
@@ -80,7 +83,7 @@ export default function FiltroRuta({
         {loading ? (
           <div className="flex gap-2 shrink-0">
             {[1, 2, 3].map(i => (
-              <div key={i} className="h-9 w-24 bg-slate-100 rounded-xl animate-pulse border border-slate-50" />
+              <div key={i} className="h-7 w-24 bg-slate-100 rounded-xl animate-pulse border border-slate-50" />
             ))}
           </div>
         ) : (
@@ -89,11 +92,11 @@ export default function FiltroRuta({
               key={ruta.id}
               onClick={() => onRutaChange(ruta.id)}
               className={cn(
-                "whitespace-nowrap px-4 py-2 rounded-xl text-[10px] font-black transition-all border shadow-sm active:scale-95 uppercase tracking-tight",
+                "px-3 py-1.5 text-[11px] font-bold rounded-xl transition-all whitespace-nowrap",
                 layout === 'scroll' && "shrink-0",
                 selectedRutaId === ruta.id 
-                  ? "bg-blue-600 text-white border-blue-600 shadow-blue-200 shadow-lg" 
-                  : "bg-white text-slate-500 border-slate-200 hover:border-blue-300 hover:text-blue-600"
+                  ? "bg-primary text-white shadow-md shadow-primary/20" 
+                  : "bg-slate-100/50 text-slate-600 hover:bg-slate-200/70 border border-slate-200"
               )}
             >
               {ruta.nombre}

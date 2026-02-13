@@ -1,3 +1,18 @@
-import PerfilUsuarioPage from '../../admin/perfil/page'
+'use client'
 
-export default PerfilUsuarioPage
+/**
+ * @deprecated Ruta legacy. Redirige a la ruta unificada /perfil
+ * @migration Permission-Based Routing
+ */
+import { useEffect } from 'react'
+import { useRouter } from 'next/navigation'
+
+export default function CobranzasPerfilRedirect() {
+  const router = useRouter()
+
+  useEffect(() => {
+    router.replace('/perfil')
+  }, [router])
+
+  return null
+}

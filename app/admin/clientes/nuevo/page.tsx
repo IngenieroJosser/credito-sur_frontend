@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
 
 import { clientesService, CrearClienteDto } from '@/services/clientes-service';
+import { NivelRiesgo } from '@/types/enums';
 import { Save, User, Phone, Mail, MapPin, Briefcase, Shield, AlertCircle, ChevronRight, ArrowLeft, Camera } from 'lucide-react';
 import { FileUploader } from '@/components/ui/FileUploader';
 
@@ -117,20 +118,16 @@ const ClienteFormPage = () => {
             direccion: formData.direccion,
             correo: formData.correo || undefined,
             referencia: formData.referencia || undefined,
-            nivelRiesgo: formData.nivelRiesgo,
+            nivelRiesgo: formData.nivelRiesgo as unknown as NivelRiesgo,
             puntaje: formData.puntaje,
-            enListaNegra: formData.enListaNegra,
-            rutaId: formData.rutaId || undefined,
-            observaciones: formData.observaciones || undefined,
           }
-          await clientesService.crearCliente(nuevoCliente)
+          await clientesService.crear(nuevoCliente)
           alert('Cliente creado exitosamente')
 
-          const destino = pathname?.startsWith('/supervisor')
-            ? '/supervisor/clientes'
-            : pathname?.startsWith('/cobranzas')
-              ? '/cobranzas'
-              : '/admin/clientes'
+          const rolUsuario = (() => {
+            try { return JSON.parse(localStorage.getItem('user') || '{}').rol } catch { return null }
+          })()
+          const destino = rolUsuario === 'COBRADOR' ? '/cobranzas' : '/clientes'
 
           router.push(destino)
         } catch (error) {
@@ -463,7 +460,7 @@ const ClienteFormPage = () => {
 
               <div className="px-6 py-4 bg-slate-50/50 border-t border-slate-200 flex justify-end space-x-3">
                 <Link
-                  href={pathname?.startsWith('/supervisor') ? '/supervisor/clientes' : '/admin/clientes'}
+                  href="/clientes"
                   className="px-4 py-2 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors text-sm font-medium"
                 >
                   Cancelar

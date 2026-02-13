@@ -187,7 +187,6 @@ export default function PagoModal({ visita, tipo, onClose, onConfirm }: PagoModa
 
                     {comprobanteTransferenciaPreviewUrl && (
                       <div className="mt-3 overflow-hidden rounded-xl border border-slate-200 bg-white">
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img
                           src={comprobanteTransferenciaPreviewUrl}
                           alt="Comprobante"

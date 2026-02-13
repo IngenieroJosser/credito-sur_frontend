@@ -1,8 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { rutasService } from '@/services/rutas-service';
 import {
   MapPin,
   Save,
@@ -37,17 +38,30 @@ const NuevaRutaPage = () => {
     descripcion: ''
   });
 
-  // Mock data for selects
-  const cobradores = [
-    { id: 'CB-001', nombre: 'Carlos Pérez' },
-    { id: 'CB-002', nombre: 'María Rodríguez' },
-    { id: 'CB-003', nombre: 'Pedro Gómez' }
-  ];
+  const [cobradores, setCobradores] = useState<Array<{id: string; nombre: string}>>([]);
+  const [supervisores, setSupervisores] = useState<Array<{id: string; nombre: string}>>([]);
 
-  const supervisores = [
-    { id: 'SP-001', nombre: 'Ana López' },
-    { id: 'SP-002', nombre: 'Luis Fernández' }
-  ];
+  useEffect(() => {
+    const loadSelects = async () => {
+      try {
+        const [cobRes, supRes] = await Promise.all([
+          rutasService.obtenerCobradores().catch(() => []),
+          rutasService.obtenerSupervisores().catch(() => []),
+        ]);
+        setCobradores((cobRes as any[]).map((c: any) => ({
+          id: c.id,
+          nombre: c.nombre || `${c.nombres || ''} ${c.apellidos || ''}`.trim(),
+        })));
+        setSupervisores((supRes as any[]).map((s: any) => ({
+          id: s.id,
+          nombre: s.nombre || `${s.nombres || ''} ${s.apellidos || ''}`.trim(),
+        })));
+      } catch (err) {
+        console.error('Error cargando selects:', err);
+      }
+    };
+    loadSelects();
+  }, []);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -57,15 +71,23 @@ const NuevaRutaPage = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-
-    // Simular petición API
-    await new Promise(resolve => setTimeout(resolve, 1000));
-
-    // Aquí iría la lógica real de guardado
-    console.log('Guardando ruta:', formData);
-
-    setLoading(false);
-    router.push('/coordinador/rutas');
+    try {
+      await rutasService.crearRuta({
+        nombre: formData.nombre,
+        codigo: formData.codigo,
+        cobradorId: formData.cobradorId || undefined,
+        supervisorId: formData.supervisorId || undefined,
+        frecuenciaVisita: formData.frecuenciaVisita,
+        estado: formData.estado,
+        descripcion: formData.descripcion,
+      } as any);
+      router.push('/coordinador/rutas');
+    } catch (err) {
+      console.error('Error creando ruta:', err);
+      alert('Error al crear la ruta');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (

@@ -1,30 +1,40 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { ChevronLeft, BarChart3, Smartphone, DollarSign, Loader2 } from 'lucide-react';
 import ClienteDetalleElegante, { Cliente, Prestamo, Pago, Comentario } from '@/components/cliente/DetalleCliente';
 import Link from 'next/link';
-import { MOCK_CLIENTES } from '@/services/clientes-service';
+import { clientesService } from '@/services/clientes-service';
 
 export default function ClienteDetallePage() {
   const params = useParams();
-  // Asegurar que el ID sea un string limpio
   const rawId = params?.id;
   const id = Array.isArray(rawId) ? rawId[0] : rawId as string;
   
-  // MODO FRONTEND: Buscar directamente en los mocks sin llamadas asíncronas fallidas
-  const clienteEncontrado = MOCK_CLIENTES.find(c => c.id === id) || MOCK_CLIENTES[0];
-  
-  // Construir el objeto de datos completo simulado
-  const clienteData = {
-    ...clienteEncontrado,
-    prestamos: [],
-    pagos: []
-  };
+  const [clienteData, setClienteData] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const isLoading = false;
-  const error = null;
+  useEffect(() => {
+    const cargarCliente = async () => {
+      try {
+        const cliente = await clientesService.obtenerPorId(id);
+        setClienteData({
+          ...cliente,
+          prestamos: [],
+          pagos: []
+        });
+      } catch (err) {
+        console.error('Error cargando cliente:', err);
+        setError('No se pudo cargar el cliente');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    if (id) cargarCliente();
+  }, [id]);
 
   if (isLoading) {
     return (
@@ -46,7 +56,7 @@ export default function ClienteDetallePage() {
           </div>
           <h2 className="text-xl font-bold text-slate-900 mb-2">Error al cargar</h2>
           <p className="text-slate-500 mb-6">No se pudo obtener la información del cliente. Verifique su conexión o intente nuevamente.</p>
-          <Link href="/admin/clientes" className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-slate-600 shadow-sm transition-colors hover:bg-slate-50 hover:text-slate-900">
+          <Link href="/clientes" className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-slate-600 shadow-sm transition-colors hover:bg-slate-50 hover:text-slate-900">
             <ChevronLeft className="w-4 h-4" />
             <span>Volver al listado</span>
           </Link>
@@ -90,7 +100,7 @@ export default function ClienteDetallePage() {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               <Link 
-                href="/admin/clientes" 
+                href="/clientes" 
                 className="inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-slate-600 shadow-sm transition-colors hover:bg-slate-50 hover:text-slate-900"
               >
                 <ChevronLeft className="w-5 h-5" />
@@ -121,7 +131,6 @@ export default function ClienteDetallePage() {
           prestamos={prestamos}
           pagos={pagos}
           comentarios={comentarios}
-          rolUsuario="administrador"
         />
       </main>
     </div>

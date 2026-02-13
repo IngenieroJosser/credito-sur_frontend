@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { useState, type ReactNode } from 'react'
+import { useState, type ReactNode, useMemo } from 'react'
 
 import {
   AlertCircle,
@@ -23,7 +23,7 @@ import {
 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { ExportButton } from '@/components/ui/ExportButton'
-import { MOCK_CLIENTES } from '@/services/clientes-service'
+import { TimeFilter } from '@/components/ui/TimeFilter'
 import { formatCurrency } from '@/lib/utils'
 import NuevoClienteModal from '@/components/clientes/NuevoClienteModal'
 import { Sparkline, PremiumBarChart } from '@/components/ui/PremiumCharts'
@@ -31,6 +31,7 @@ import { Sparkline, PremiumBarChart } from '@/components/ui/PremiumCharts'
 import PagoModal from '@/components/dashboards/shared/PagoModal'
 import CrearCreditoModal from '@/components/dashboards/shared/CrearCreditoModal'
 import DetalleMoraModal from '@/components/cobranza/DetalleMoraModal'
+import FloatingActionMenu, { FabAction } from '@/components/dashboards/shared/FloatingActionMenu'
 
 
 interface MetricCard {
@@ -105,12 +106,16 @@ const VistaSupervisor = () => {
   }
 
 
+  // TODO: Exportar resumen de supervisión
+  // Qué exportar: Rutas supervisadas, Eficiencia por cobrador, Alertas, Resumen de recaudo
+  // Backend: Reutilizar GET /reports/operational/export filtrado por supervisor
+  // Frontend: Usar exportService.exportOperationalReport(format, { period })
   const handleExportExcel = () => {
-    console.log('Exporting Excel...')
+    console.log('TODO: Exportar resumen supervisor en Excel')
   }
 
   const handleExportPDF = () => {
-    console.log('Exporting PDF...')
+    console.log('TODO: Exportar resumen supervisor en PDF')
   }
 
   const formatDate = (date: Date) => {
@@ -130,35 +135,38 @@ const VistaSupervisor = () => {
     return '#10b981'
   }
 
-  const mainMetrics: MetricCard[] = [
-    {
-      title: 'Mora Crítica',
-      value: '12',
-      subValue: 'Clientes con alto riesgo',
-      change: -3.4,
-      icon: <AlertCircle className="h-4 w-4" />,
-      color: '#ef4444',
-      trendData: [15, 14, 16, 14, 13, 12, 12]
-    },
-    {
-      title: 'Gestiones Hoy',
-      value: '18',
-      subValue: 'Visitas / llamadas',
-      change: 5.2,
-      icon: <Calendar className="h-4 w-4" />,
-      color: '#08557f',
-      trendData: [10, 12, 11, 15, 14, 16, 18]
-    },
-    {
-      title: 'Cobertura de Ruta',
-      value: '89.7%',
-      subValue: 'Cumplimiento de visitas',
-      change: 2.1,
-      icon: <Map className="h-4 w-4" />,
-      color: '#10b981',
-      trendData: [85, 86, 84, 88, 87, 89, 89.7]
-    },
-  ]
+  const mainMetrics: MetricCard[] = useMemo(() => {
+    const factor = timeFilter === 'today' ? 0.1 : timeFilter === 'week' ? 0.25 : timeFilter === 'month' ? 1 : 3
+    return [
+      {
+        title: 'Mora Crítica',
+        value: '12',
+        subValue: 'Clientes con alto riesgo',
+        change: -3.4,
+        icon: <AlertCircle className="h-4 w-4" />,
+        color: '#ef4444',
+        trendData: [15, 14, 16, 14, 13, 12, 12]
+      },
+      {
+        title: 'Gestiones',
+        value: String(Math.round(18 * factor)),
+        subValue: timeFilter === 'today' ? 'Visitas / llamadas (día)' : timeFilter === 'week' ? 'Visitas / llamadas (semana)' : timeFilter === 'month' ? 'Visitas / llamadas (mes)' : 'Visitas / llamadas (trimestre)',
+        change: 5.2,
+        icon: <Calendar className="h-4 w-4" />,
+        color: '#08557f',
+        trendData: [10, 12, 11, 15, 14, 16, 18]
+      },
+      {
+        title: 'Cobertura de Ruta',
+        value: '89.7%',
+        subValue: 'Cumplimiento de visitas',
+        change: 2.1,
+        icon: <Map className="h-4 w-4" />,
+        color: '#10b981',
+        trendData: [85, 86, 84, 88, 87, 89, 89.7]
+      },
+    ]
+  }, [timeFilter])
 
   const delinquentClients: DelinquentClient[] = [
     {
@@ -253,23 +261,8 @@ const VistaSupervisor = () => {
             </div>
           </div>
 
-          <div className="mt-4 flex items-center space-x-1 bg-gray-100 rounded-lg p-1 w-fit">
-            {['Hoy', 'Sem', 'Mes', 'Trim'].map((item, index) => {
-              const values = ['today', 'week', 'month', 'quarter'] as const
-              return (
-                <button
-                  key={item}
-                  onClick={() => setTimeFilter(values[index])}
-                  className={`px-3 py-1 text-xs rounded-md transition-all ${
-                    timeFilter === values[index]
-                      ? 'bg-white text-gray-800 shadow-sm'
-                      : 'text-gray-500 hover:text-gray-700'
-                  }`}
-                >
-                  {item}
-                </button>
-              )
-            })}
+          <div className="mt-4">
+            <TimeFilter activePeriod={timeFilter} onPeriodChange={setTimeFilter} />
           </div>
         </div>
 
@@ -509,102 +502,19 @@ const VistaSupervisor = () => {
         <NuevoClienteModal 
             onClose={() => setShowNewClientModal(false)}
             onClienteCreado={(nuevo) => {
-                MOCK_CLIENTES.unshift(nuevo);
                 setShowNewClientModal(false);
+                // Todo: recargar datos
             }}
         />
       )}
 
-      <div className="fixed right-6 z-50 flex flex-col items-end gap-3 bottom-[calc(1.5rem+env(safe-area-inset-bottom))] pointer-events-none">
-        {/* Backdrop for FAB */}
-        {isFabOpen && (
-          <div 
-            className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm pointer-events-auto transition-all animate-in fade-in duration-300"
-            onClick={() => setIsFabOpen(false)}
-          />
-        )}
-
-        <div
-          className={`relative z-10 flex flex-col gap-3 transition-all duration-300 origin-bottom-right ${
-            isFabOpen ? 'scale-100 opacity-100 translate-y-0' : 'scale-95 opacity-0 translate-y-2 pointer-events-none'
-          }`}
-        >
-          <button
-            onClick={() => {
-              setIsFabOpen(false)
-              setShowCreditoTipoModal(true)
-            }}
-            className={`flex items-center justify-between w-56 gap-3 ${isFabOpen ? 'pointer-events-auto' : 'pointer-events-none'}`}
-          >
-            <span className="bg-[#08557f] text-white text-xs font-bold px-3 py-1 rounded-full shadow-lg shadow-[#08557f]/20">Crear Crédito</span>
-            <div className="h-11 w-11 flex items-center justify-center rounded-full bg-white text-[#08557f] border border-[#08557f]/20 shadow-lg shadow-[#08557f]/10 hover:bg-[#f1f6fb] transition-all">
-              <CreditCard className="h-5 w-5" />
-            </div>
-          </button>
-
-          <button
-            onClick={() => {
-              setIsFabOpen(false)
-              setShowNewClientModal(true)
-            }}
-            className={`flex items-center justify-between w-56 gap-3 ${isFabOpen ? 'pointer-events-auto' : 'pointer-events-none'}`}
-          >
-            <span className="bg-[#08557f] text-white text-xs font-bold px-3 py-1 rounded-full shadow-lg shadow-[#08557f]/20">Nuevo Cliente</span>
-            <div className="h-11 w-11 flex items-center justify-center rounded-full bg-white text-[#08557f] border border-[#08557f]/20 shadow-lg shadow-[#08557f]/10 hover:bg-[#f1f6fb] transition-all">
-              <UserPlus className="h-5 w-5" />
-            </div>
-          </button>
-
-          <button
-            onClick={() => {
-              setIsFabOpen(false)
-              setPagoInitialIsAbono(true)
-              setShowPagoModal(true)
-            }}
-            className={`flex items-center justify-between w-56 gap-3 ${isFabOpen ? 'pointer-events-auto' : 'pointer-events-none'}`}
-          >
-            <span className="bg-orange-600 text-white text-xs font-bold px-3 py-1 rounded-full shadow-lg shadow-orange-600/20">Registrar abono</span>
-            <div className="h-11 w-11 flex items-center justify-center rounded-full bg-white text-orange-600 border border-orange-200 shadow-lg shadow-orange-600/10 hover:bg-orange-50 transition-all">
-              <RefreshCw className="h-5 w-5" />
-            </div>
-          </button>
-
-          <button
-            onClick={() => {
-              setIsFabOpen(false)
-              setPagoInitialIsAbono(false)
-              setShowPagoModal(true)
-            }}
-            className={`flex items-center justify-between w-56 gap-3 ${isFabOpen ? 'pointer-events-auto' : 'pointer-events-none'}`}
-          >
-            <span className="bg-[#08557f] text-white text-xs font-bold px-3 py-1 rounded-full shadow-lg shadow-[#08557f]/20">Registrar pago</span>
-            <div className="h-11 w-11 flex items-center justify-center rounded-full bg-white text-[#08557f] border border-[#08557f]/20 shadow-lg shadow-[#08557f]/10 hover:bg-[#f1f6fb] transition-all">
-              <DollarSign className="h-5 w-5" />
-            </div>
-          </button>
-
-          <button
-            onClick={() => {
-              router.push('/cobranzas/solicitudes')
-              setIsFabOpen(false)
-            }}
-            className={`flex items-center justify-between w-56 gap-3 ${isFabOpen ? 'pointer-events-auto' : 'pointer-events-none'}`}
-          >
-            <span className="bg-[#08557f] text-white text-xs font-bold px-3 py-1 rounded-full shadow-lg shadow-[#08557f]/20">Solicitudes</span>
-            <div className="h-11 w-11 flex items-center justify-center rounded-full bg-white text-[#08557f] border border-[#08557f]/20 shadow-lg shadow-[#08557f]/10 hover:bg-[#f1f6fb] transition-all">
-              <ClipboardList className="h-5 w-5" />
-            </div>
-          </button>
-        </div>
-
-        <button
-          onClick={() => setIsFabOpen((v) => !v)}
-          className="relative z-10 pointer-events-auto h-14 w-14 rounded-full bg-[#08557f] text-white shadow-xl shadow-[#08557f]/25 flex items-center justify-center border border-white/30 transition-all duration-300 hover:scale-105 active:scale-95"
-          aria-label={isFabOpen ? 'Cerrar acciones' : 'Abrir acciones'}
-        >
-          {isFabOpen ? <X className="h-6 w-6 rotate-90 transition-all duration-300" /> : <Plus className="h-6 w-6 transition-all duration-300" />}
-        </button>
-      </div>
+      <FloatingActionMenu actions={[
+        { label: 'Crear Crédito', icon: <CreditCard className="h-5 w-5" />, onClick: () => setShowCreditoTipoModal(true) },
+        { label: 'Nuevo Cliente', icon: <UserPlus className="h-5 w-5" />, onClick: () => setShowNewClientModal(true) },
+        { label: 'Registrar abono', icon: <RefreshCw className="h-5 w-5" />, color: 'orange', onClick: () => { setPagoInitialIsAbono(true); setShowPagoModal(true); } },
+        { label: 'Registrar pago', icon: <DollarSign className="h-5 w-5" />, onClick: () => { setPagoInitialIsAbono(false); setShowPagoModal(true); } },
+        { label: 'Solicitudes', icon: <ClipboardList className="h-5 w-5" />, onClick: () => router.push('/cobranzas/solicitudes') },
+      ] as FabAction[]} />
     </div>
   )
 }

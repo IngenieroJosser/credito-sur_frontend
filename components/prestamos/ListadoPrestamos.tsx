@@ -27,9 +27,14 @@ import {
 import { formatCurrency, cn } from '@/lib/utils';
 import FiltroRuta from '@/components/filtros/FiltroRuta';
 import EditarPrestamoModal from '@/components/prestamos/EditarPrestamoModal';
+import DetallePrestamoModal from '@/components/prestamos/DetallePrestamoModal';
+import CrearCreditoModal from '@/components/dashboards/shared/CrearCreditoModal';
 import { useNotification } from '@/components/providers/NotificationProvider';
 import { loansService, Loan, LoansFilters } from '@/services/loans-service';
 import { formatErrorForComponent } from '@/lib/api/api';
+import { usePermission } from '@/hooks/usePermission';
+import { ExportButton } from '@/components/ui/ExportButton';
+import { exportService } from '@/services/export-service';
 
 interface Filtros {
   estado: string;
@@ -45,9 +50,13 @@ const ListadoPrestamosElegante = () => {
   const { showNotification } = useNotification();
   const router = useRouter();
   const pathname = usePathname();
+  const { can, canForPath } = usePermission();
   
   const isCoordinador = pathname?.includes('/coordinador');
-  const baseRoute = isCoordinador ? '/coordinador/creditos' : '/admin/creditos';
+  const isSupervisor = pathname?.includes('/supervisor');
+  const baseRoute = isCoordinador ? '/coordinador/creditos' : isSupervisor ? '/supervisor/creditos' : '/creditos';
+  const permitido = can('CREDITOS_VIEW') || can('LOANS_VIEW') || canForPath(baseRoute);
+  const puedeCrear = can('CREDITOS_CREATE') || can('LOANS_CREATE') || canForPath(baseRoute);
   
   const [prestamos, setPrestamos] = useState<Loan[]>([]);
   const [estadisticas, setEstadisticas] = useState({
@@ -76,6 +85,7 @@ const ListadoPrestamosElegante = () => {
   const [mounted, setMounted] = useState(false);
   const [idPrestamoAEditar, setIdPrestamoAEditar] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [showCrearCreditoModal, setShowCrearCreditoModal] = useState(false);
   const [totalPrestamos, setTotalPrestamos] = useState(0);
   const [error, setError] = useState<string | null>(null);
 
@@ -98,15 +108,17 @@ const ListadoPrestamosElegante = () => {
       setTotalPrestamos(response.paginacion.total);
       
     } catch (err) {
-      const errorMessage = formatErrorForComponent(err);
-      setError(errorMessage);
-      console.error('Error loading loans:', err);
+      console.error('Error cargando préstamos:', err);
+      setError(formatErrorForComponent(err));
+      setPrestamos([]);
+      setTotalPrestamos(0);
     } finally {
       setCargando(false);
       setRefreshing(false);
     }
   }, [filtros, paginaActual, prestamosPorPagina, refreshing]);
 
+  // Initial mount - solo se ejecuta una vez al cargar el componente
   useEffect(() => {
     const timer = setTimeout(() => {
       setMounted(true);
@@ -123,13 +135,13 @@ const ListadoPrestamosElegante = () => {
   }, [filtros, paginaActual, loadPrestamos, mounted]);
 
   const handleEliminarPrestamo = async (id: string) => {
-    if (confirm('¿Está seguro de que desea marcar este préstamo como pérdida?\n\nEsta acción no se puede deshacer.')) {
+    if (confirm('¿Está seguro de que desea archivar este préstamo?\n\nEl préstamo será archivado y podrá ser restaurado desde la sección de Archivados.')) {
       try {
         const userStr = localStorage.getItem('user');
         const user = userStr ? JSON.parse(userStr) : null;
         
         await loansService.deleteLoan(id, user?.id || '');
-        showNotification('success', 'El préstamo ha sido marcado como pérdida', 'Préstamo Actualizado');
+        showNotification('success', 'El préstamo ha sido archivado exitosamente', 'Préstamo Archivado');
         await loadPrestamos();
       } catch (err) {
         const errorMessage = formatErrorForComponent(err);
@@ -143,15 +155,43 @@ const ListadoPrestamosElegante = () => {
     loadPrestamos();
   };
 
+  const handleExportExcel = async () => {
+    try {
+      showNotification('info', 'Generando archivo Excel...', 'Exportando');
+      await exportService.exportLoans('excel', {
+        estado: filtros.estado !== 'todos' ? filtros.estado : undefined,
+        ruta: filtros.ruta !== 'todas' ? filtros.ruta : undefined,
+        search: filtros.busqueda || undefined,
+      });
+      showNotification('success', 'Archivo descargado correctamente', 'Exportación Exitosa');
+    } catch (err) {
+      showNotification('error', 'Error al exportar. Intente de nuevo.', 'Error');
+    }
+  };
+
+  const handleExportPDF = async () => {
+    try {
+      showNotification('info', 'Generando archivo PDF...', 'Exportando');
+      await exportService.exportLoans('pdf', {
+        estado: filtros.estado !== 'todos' ? filtros.estado : undefined,
+        ruta: filtros.ruta !== 'todas' ? filtros.ruta : undefined,
+        search: filtros.busqueda || undefined,
+      });
+      showNotification('success', 'Archivo descargado correctamente', 'Exportación Exitosa');
+    } catch (err) {
+      showNotification('error', 'Error al exportar. Intente de nuevo.', 'Error');
+    }
+  };
+
+  // Client-side filters for fields not handled by backend
   const prestamosFiltrados = prestamos.filter(prestamo => {
     if (filtros.riesgo !== 'todos' && prestamo.riesgo !== filtros.riesgo) return false;
     if (filtros.cliente !== 'todos' && prestamo.clienteId !== filtros.cliente) return false;
     return true;
   });
 
-  const indiceUltimo = paginaActual * prestamosPorPagina;
-  const indicePrimero = indiceUltimo - prestamosPorPagina;
-  const prestamosPaginados = prestamosFiltrados.slice(indicePrimero, indiceUltimo);
+  // Backend already paginates — don't slice again
+  const prestamosPaginados = prestamosFiltrados;
   const totalPaginas = Math.ceil(totalPrestamos / prestamosPorPagina);
 
   const cambiarPagina = (pagina: number) => {
@@ -191,11 +231,27 @@ const ListadoPrestamosElegante = () => {
     }
   };
 
+  const [idPrestamoDetalle, setIdPrestamoDetalle] = useState<string | null>(null);
+
   const irADetallePrestamo = (id: string) => {
-    router.push(`${baseRoute}/${id}`);
+    setIdPrestamoDetalle(id);
   };
 
   if (!mounted) return null;
+
+  if (!permitido) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-8 text-center">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-slate-100 text-xs text-slate-600 font-bold border border-slate-200">
+            <CreditCard className="h-3.5 w-3.5" />
+            <span>Acceso no autorizado</span>
+          </div>
+          <p className="mt-4 text-slate-500 font-medium">No tienes permisos para ver Créditos.</p>
+        </div>
+      </div>
+    )
+  }
 
   // Estado de error
   if (error && !prestamos.length && cargando) {
@@ -244,6 +300,12 @@ const ListadoPrestamosElegante = () => {
             </p>
           </div>
           <div className="flex items-center gap-3">
+            <ExportButton
+              onExportExcel={handleExportExcel}
+              onExportPDF={handleExportPDF}
+              label="Exportar"
+              className="!px-4 !py-2 text-sm"
+            />
             <button
               onClick={handleRefresh}
               disabled={refreshing}
@@ -252,13 +314,15 @@ const ListadoPrestamosElegante = () => {
             >
               <RefreshCw className={`h-4 w-4 text-slate-600 ${refreshing ? 'animate-spin' : ''}`} />
             </button>
-            <Link 
-              href={`${baseRoute}/nuevo`}
-              className="inline-flex items-center gap-2 px-6 py-2.5 bg-white border border-slate-300 text-slate-700 rounded-xl hover:border-slate-400 hover:bg-slate-50 transition-all duration-200 shadow-sm font-bold text-sm group"
-            >
-              <Plus className="w-4 h-4 text-slate-500 group-hover:text-slate-900 transition-colors" />
-              Nuevo Crédito
-            </Link>
+            {puedeCrear && (
+              <button
+                onClick={() => setShowCrearCreditoModal(true)}
+                className="inline-flex items-center gap-2 px-6 py-2.5 bg-white border border-slate-300 text-slate-700 rounded-xl hover:border-slate-400 hover:bg-slate-50 transition-all duration-200 shadow-sm font-bold text-sm group"
+              >
+                <Plus className="w-4 h-4 text-slate-500 group-hover:text-slate-900 transition-colors" />
+                Nuevo Crédito
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -320,7 +384,7 @@ const ListadoPrestamosElegante = () => {
             <input
               type="text"
               placeholder="Buscar por cliente, ID o producto..."
-              className="w-full pl-11 pr-4 py-2.5 rounded-xl border-slate-200 bg-slate-50/50 text-sm font-medium text-slate-900 focus:ring-2 focus:ring-slate-900/10 focus:border-slate-900/20 transition-all placeholder:text-slate-400"
+              className="w-full pl-11 pr-4 py-2.5 rounded-xl border border-slate-200 bg-white text-sm font-medium text-slate-900 focus:ring-2 focus:ring-slate-900/10 focus:border-slate-900/20 transition-all placeholder:text-slate-400"
               value={filtros.busqueda}
               onChange={(e) => {
                 setFiltros(prev => ({ ...prev, busqueda: e.target.value }));
@@ -330,37 +394,44 @@ const ListadoPrestamosElegante = () => {
             />
           </div>
           
-          <div className="flex gap-3 w-full md:w-auto items-end">
-              <div className="bg-slate-50 p-1 rounded-xl border border-slate-200">
-                 <FiltroRuta 
-                    onRutaChange={(r) => {
-                      setFiltros(prev => ({ ...prev, ruta: r || 'todas' }));
+          <div className="flex gap-3 w-full md:w-auto items-end flex-wrap">
+              <FiltroRuta 
+                onRutaChange={(r) => {
+                  setFiltros(prev => ({ ...prev, ruta: r || 'todas' }));
+                  setPaginaActual(1);
+                }}
+                selectedRutaId={filtros.ruta === 'todas' ? null : filtros.ruta}
+                className="w-full md:w-auto"
+                showAllOption={true}
+                layout="wrap"
+                hideLabel={true}
+              />
+
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <Filter className="h-3.5 w-3.5 text-slate-400 shrink-0 mr-1" />
+                
+                {[
+                  { id: 'todos', label: 'Todos' },
+                  { id: 'ACTIVO', label: 'Activos' },
+                  { id: 'EN_MORA', label: 'En Mora' },
+                  { id: 'PAGADO', label: 'Pagados' }
+                ].map((filtro) => (
+                  <button
+                    key={filtro.id}
+                    onClick={() => {
+                      setFiltros(prev => ({ ...prev, estado: filtro.id }));
                       setPaginaActual(1);
                     }}
-                    selectedRutaId={filtros.ruta === 'todas' ? null : filtros.ruta}
-                    className="w-48"
-                    showAllOption={true}
-                 />
-              </div>
-
-              <div className="relative min-w-[180px]">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Filter className="h-4 w-4 text-slate-400" />
-                </div>
-                <select
-                  value={filtros.estado}
-                  onChange={(e) => {
-                    setFiltros(prev => ({ ...prev, estado: e.target.value }));
-                    setPaginaActual(1);
-                  }}
-                  disabled={cargando}
-                  className="w-full pl-10 pr-8 py-2.5 rounded-xl border-slate-200 bg-white text-sm font-medium text-slate-700 focus:ring-2 focus:ring-slate-900/10 focus:border-slate-900/20 appearance-none cursor-pointer hover:bg-slate-50 transition-colors disabled:opacity-50"
-                >
-                  <option value="todos">Todos los estados</option>
-                  <option value="ACTIVO">Activos</option>
-                  <option value="EN_MORA">En Mora</option>
-                  <option value="PAGADO">Pagados</option>
-                </select>
+                    disabled={cargando}
+                    className={`px-3 py-1.5 text-[11px] font-bold rounded-xl transition-all whitespace-nowrap ${
+                      filtros.estado === filtro.id 
+                        ? 'bg-primary text-white shadow-md shadow-primary/20' 
+                        : 'bg-slate-100/50 text-slate-600 hover:bg-slate-200/70 border border-slate-200'
+                    }`}
+                  >
+                    {filtro.label}
+                  </button>
+                ))}
               </div>
           </div>
         </div>
@@ -462,20 +533,24 @@ const ListadoPrestamosElegante = () => {
                           >
                             <Eye className="h-4 w-4" />
                           </button>
-                          <button 
-                            onClick={() => setIdPrestamoAEditar(prestamo.id)}
-                            className="p-2 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-all"
-                            title="Editar préstamo"
-                          >
-                            <Edit2 className="h-4 w-4" />
-                          </button>
-                          <button 
-                            onClick={() => handleEliminarPrestamo(prestamo.id)}
-                            className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all"
-                            title="Marcar como pérdida"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </button>
+                          {can('CREDITOS_EDIT') || can('LOANS_EDIT') || canForPath(baseRoute) ? (
+                            <button 
+                              onClick={() => setIdPrestamoAEditar(prestamo.id)}
+                              className="p-2 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-all"
+                              title="Editar préstamo"
+                            >
+                              <Edit2 className="h-4 w-4" />
+                            </button>
+                          ) : null}
+                          {can('CREDITOS_DELETE') || can('LOANS_DELETE') || canForPath(baseRoute) ? (
+                            <button 
+                              onClick={() => handleEliminarPrestamo(prestamo.id)}
+                              className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all"
+                              title="Marcar como pérdida"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          ) : null}
                         </div>
                       </td>
                     </tr>
@@ -531,6 +606,24 @@ const ListadoPrestamosElegante = () => {
           }}
         />
       )}
+
+      {idPrestamoDetalle && (
+        <DetallePrestamoModal
+          id={idPrestamoDetalle}
+          onClose={() => setIdPrestamoDetalle(null)}
+        />
+      )}
+
+      {/* Modal de Crear Crédito */}
+      <CrearCreditoModal
+        isOpen={showCrearCreditoModal}
+        onClose={() => setShowCrearCreditoModal(false)}
+        onConfirm={(data) => {
+          console.log('Crédito creado:', data);
+          setShowCrearCreditoModal(false);
+          handleRefresh();
+        }}
+      />
     </div>
   );
 };

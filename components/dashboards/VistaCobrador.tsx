@@ -67,6 +67,8 @@ import { useRouter } from 'next/navigation'
 import { RolUsuario } from '@/lib/types/autenticacion-type'
 import { obtenerPerfil } from '@/services/autenticacion-service'
 import { formatCurrency } from '@/lib/utils'
+import { rutasService } from '@/services/rutas-service'
+import { prestamosService } from '@/services/prestamos-service'
 import { ExportButton } from '@/components/ui/ExportButton'
 import NuevoClienteModal from '@/components/clientes/NuevoClienteModal'
 import { VisitaRuta, EstadoVisita, PeriodoRuta, HistorialDia } from '@/lib/types/cobranza'
@@ -78,6 +80,7 @@ import ReprogramarModal from '@/components/cobranza/ReprogramarModal'
 import GastoModal from '@/components/dashboards/shared/GastoModal'
 import BaseModal from '@/components/dashboards/shared/BaseModal'
 import DetalleMoraModal from '@/components/cobranza/DetalleMoraModal'
+import FloatingActionMenu, { FabAction } from '@/components/dashboards/shared/FloatingActionMenu'
 
 interface OperacionCaja {
   id: string
@@ -152,98 +155,12 @@ const VistaCobrador = () => {
 
   const router = useRouter();
 
-  // Datos base
-  const [visitasBase, setVisitasBase] = useState<VisitaRuta[]>(() => [
-    {
-      id: 'V-001',
-      cliente: 'Carlos Rodríguez',
-      direccion: 'Av. Principal #123',
-      telefono: '3001234567',
-      horaSugerida: '09:30',
-      montoCuota: 125000,
-      saldoTotal: 500000,
-      estado: 'pendiente',
-      proximaVisita: 'Hoy',
-      ordenVisita: 1,
-      prioridad: 'alta',
-      nivelRiesgo: 'moderado',
-      cobradorId: 'CB-001',
-      periodoRuta: 'DIA'
-    },
-    {
-      id: 'V-002',
-      cliente: 'Ana Martínez',
-      direccion: 'Calle 45, Urbanización Norte',
-      telefono: '3109876543',
-      horaSugerida: '10:15',
-      montoCuota: 80000,
-      saldoTotal: 320000,
-      estado: 'en_mora',
-      proximaVisita: 'Hoy',
-      ordenVisita: 2,
-      prioridad: 'alta',
-      nivelRiesgo: 'critico',
-      cobradorId: 'CB-001',
-      periodoRuta: 'DIA'
-    },
-    {
-      id: 'V-003',
-      cliente: 'Luis Fernández',
-      direccion: 'Conjunto Residencial Vista Azul',
-      telefono: '3205551234',
-      horaSugerida: '11:00',
-      montoCuota: 95750,
-      saldoTotal: 382000,
-      estado: 'pendiente',
-      proximaVisita: 'Hoy',
-      ordenVisita: 3,
-      prioridad: 'media',
-      nivelRiesgo: 'leve',
-      cobradorId: 'CB-001',
-      periodoRuta: 'SEMANA'
-    },
-    {
-      id: 'V-004',
-      cliente: 'María González',
-      direccion: 'Diagonal 56 #78-90',
-      telefono: '3157778888',
-      horaSugerida: '13:45',
-      montoCuota: 110000,
-      saldoTotal: 440000,
-      estado: 'pagado',
-      proximaVisita: '15/01',
-      ordenVisita: 4,
-      prioridad: 'baja',
-      nivelRiesgo: 'bajo',
-      cobradorId: 'CB-001',
-      periodoRuta: 'SEMANA'
-    },
-    {
-      id: 'V-005',
-      cliente: 'José Pérez',
-      direccion: 'Avenida 7 #23-45',
-      telefono: '3004445555',
-      horaSugerida: '14:30',
-      montoCuota: 95000,
-      saldoTotal: 380000,
-      estado: 'ausente',
-      proximaVisita: 'Mañana',
-      ordenVisita: 5,
-      prioridad: 'media',
-      nivelRiesgo: 'moderado',
-      cobradorId: 'CB-001',
-      periodoRuta: 'MES'
-    }
-  ])
+  // Datos base - se cargan desde el backend
+  const [visitasBase, setVisitasBase] = useState<VisitaRuta[]>([])
 
-  const [visitasOrden, setVisitasOrden] = useState<string[]>(() => visitasBase.map(v => v.id))
+  const [visitasOrden, setVisitasOrden] = useState<string[]>([])
 
-  const operacionesCaja: OperacionCaja[] = useMemo(() => [
-    { id: 'OP-001', tipo: 'pago', descripcion: 'Pago Carlos Rodríguez', monto: 125000, hora: '09:42', estado: 'completado', cobradorId: 'CB-001' },
-    { id: 'OP-002', tipo: 'gasto', descripcion: 'Combustible', monto: 35000, hora: '08:15', estado: 'completado', cobradorId: 'CB-001' },
-    { id: 'OP-003', tipo: 'base', descripcion: 'Base solicitada', monto: 50000, hora: '10:30', estado: 'pendiente', cobradorId: 'CB-001' },
-    { id: 'OP-004', tipo: 'pago', descripcion: 'Pago María González', monto: 110000, hora: '13:50', estado: 'completado', cobradorId: 'CB-001' },
-  ], [])
+  const [operacionesCaja, setOperacionesCaja] = useState<OperacionCaja[]>([])
 
   const historialRutas = useMemo(() => ({
     '2024-01-05': {
@@ -296,7 +213,7 @@ const VistaCobrador = () => {
               COORDINADOR: '/coordinador',
               SUPERVISOR: '/supervisor',
               COBRADOR: '/cobranzas',
-              CONTADOR: '/contabilidad',
+              CONTADOR: '/contador/contable',
             };
             
             const redirectPath = ROLE_REDIRECT_MAP[user.rol as RolUsuario] ?? '/';
@@ -325,10 +242,58 @@ const VistaCobrador = () => {
     cargarUsuario();
   }, [router]);
 
+  // Cargar visitas reales desde el backend cuando el usuario está disponible
+  useEffect(() => {
+    if (!userSession?.id) return;
+
+    const cargarVisitas = async () => {
+      try {
+        // Obtener rutas asignadas al cobrador
+        const rutas = await rutasService.obtenerRutas({ cobradorId: userSession.id, limit: 10 });
+        const ruta = rutas[0]; // Ruta principal del cobrador
+        if (!ruta || !ruta.asignaciones) {
+          setVisitasBase([]);
+          setVisitasOrden([]);
+          return;
+        }
+
+        // Construir visitas desde las asignaciones de la ruta
+        const visitas: VisitaRuta[] = ruta.asignaciones.map((asig: any, idx: number) => {
+          const cliente = asig.cliente || {};
+          const prestamo = asig.prestamo || {};
+          return {
+            id: asig.id || `V-${idx}`,
+            cliente: `${cliente.nombres || ''} ${cliente.apellidos || ''}`.trim() || 'Sin nombre',
+            direccion: cliente.direccion || 'Sin dirección',
+            telefono: cliente.telefono || '',
+            horaSugerida: '',
+            montoCuota: prestamo.valorCuota || prestamo.montoPendiente || 0,
+            saldoTotal: prestamo.saldoPendiente || prestamo.montoTotal || 0,
+            estado: (prestamo.diasMora > 0 ? 'en_mora' : prestamo.estado === 'PAGADO' ? 'pagado' : 'pendiente') as EstadoVisita,
+            proximaVisita: 'Hoy',
+            ordenVisita: idx + 1,
+            prioridad: prestamo.diasMora > 15 ? 'alta' : prestamo.diasMora > 0 ? 'media' : 'baja',
+            nivelRiesgo: prestamo.riesgo === 'ROJO' ? 'critico' : prestamo.riesgo === 'AMARILLO' ? 'moderado' : 'bajo',
+            cobradorId: userSession.id,
+            periodoRuta: (asig.frecuencia || 'DIA') as PeriodoRuta,
+          };
+        });
+
+        setVisitasBase(visitas);
+        setVisitasOrden(visitas.map(v => v.id));
+      } catch (err) {
+        console.error('Error cargando visitas de ruta:', err);
+        setVisitasBase([]);
+        setVisitasOrden([]);
+      }
+    };
+
+    cargarVisitas();
+  }, [userSession?.id]);
 
   // Filtrar y ordenar visitas
   const visitasCobrador = useMemo(() => {
-    const filtradas = visitasBase.filter(v => v.cobradorId === 'CB-001') // Temporal
+    const filtradas = visitasBase.filter(v => !userSession?.id || v.cobradorId === userSession.id)
     
     // Aplicar búsqueda
     const buscadas = filtradas.filter(v => 
@@ -694,7 +659,7 @@ const VistaCobrador = () => {
                 ${cajaRuta.recaudoTotal.toLocaleString('es-CO')}
               </div>
               <div className="text-[10px] font-bold text-slate-400 mt-1">
-                Meta: ${cajaRuta.recaudoEsperado.toLocaleString('es-CO')}
+                Objetivo: ${cajaRuta.recaudoEsperado.toLocaleString('es-CO')}
               </div>
               <div className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] leading-none pt-1">
                 Mi Recaudo
@@ -786,14 +751,14 @@ const VistaCobrador = () => {
             {/* Buscador y filtros */}
             <div className="bg-white/80 backdrop-blur-sm rounded-2xl border border-slate-200 p-4 shadow-[0_8px_30px_rgb(0,0,0,0.04)]">
               <div className="flex flex-col md:flex-row gap-4">
-                <div className="relative flex-1">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                <div className="flex-1 buscador-3d">
+                  <Search className="icon h-4 w-4" />
                   <input
                     type="text"
                     placeholder="Buscar cliente, dirección..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full pl-10 pr-4 py-3 rounded-xl bg-white border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#08557f]/20 focus:border-[#08557f] shadow-sm text-slate-900 placeholder:text-slate-400"
+                    className="buscador-3d-input"
                   />
                 </div>
               </div>
@@ -1260,128 +1225,15 @@ const VistaCobrador = () => {
         </div>
 
         {/* Floating Action Buttons */}
-          {isFabOpen && (
-            <div 
-              className="fixed top-0 left-0 w-screen h-screen z-40 bg-slate-900/10 backdrop-blur-[1px] cursor-default" 
-              onClick={() => setIsFabOpen(false)}
-            />
-          )}
-          <div className="fixed right-6 z-50 flex flex-col items-end gap-3 bottom-[calc(1.5rem+env(safe-area-inset-bottom))] pointer-events-none">
-            {/* Actions Menu */}
-          <div
-            className={`flex flex-col gap-3 transition-all duration-200 origin-bottom-right ${
-              isFabOpen ? 'scale-100 opacity-100 translate-y-0' : 'scale-95 opacity-0 translate-y-2 pointer-events-none'
-            }`}
-          >
-            <button
-              onClick={() => {
-                setShowCreditModal(true)
-                setIsFabOpen(false)
-              }}
-              className={`flex items-center justify-between w-56 gap-3 ${isFabOpen ? 'pointer-events-auto' : 'pointer-events-none'}`}
-            >
-              <span className="bg-[#08557f] text-white text-xs font-bold px-3 py-1 rounded-full shadow-lg shadow-[#08557f]/20">Crear Crédito</span>
-              <div className="h-11 w-11 flex items-center justify-center rounded-full bg-white text-[#08557f] border border-[#08557f]/20 shadow-lg shadow-[#08557f]/10 hover:bg-[#f1f6fb] transition-all">
-                <CreditCard className="h-5 w-5" />
-              </div>
-            </button>
-            <button
-              onClick={() => {
-                setShowNewClientModal(true)
-                setIsFabOpen(false)
-              }}
-              className={`flex items-center justify-between w-56 gap-3 ${isFabOpen ? 'pointer-events-auto' : 'pointer-events-none'}`}
-            >
-              <span className="bg-[#08557f] text-white text-xs font-bold px-3 py-1 rounded-full shadow-lg shadow-[#08557f]/20">Nuevo Cliente</span>
-              <div className="h-11 w-11 flex items-center justify-center rounded-full bg-white text-[#08557f] border border-[#08557f]/20 shadow-lg shadow-[#08557f]/10 hover:bg-[#f1f6fb] transition-all">
-                <UserPlus className="h-5 w-5" />
-              </div>
-            </button>
-
-            {/* Registrar Abono Button (Added for consistency) */}
-            <button 
-              onClick={() => {
-                setIsFabOpen(false)
-                setVisitaPagoSeleccionadaId(null)
-                setPagoInitialIsAbono(true)
-                setShowPaymentModal(true)
-              }}
-              className={`flex items-center justify-between w-56 gap-3 ${isFabOpen ? 'pointer-events-auto' : 'pointer-events-none'}`}
-            >
-              <span className="bg-orange-600 text-white text-xs font-bold px-3 py-1 rounded-full shadow-lg shadow-orange-600/20">Registrar abono</span>
-              <div className="h-11 w-11 flex items-center justify-center rounded-full bg-white text-orange-600 border border-orange-200 shadow-lg shadow-orange-600/10 hover:bg-orange-50 transition-all">
-                <RefreshCw className="h-5 w-5" />
-              </div>
-            </button>
-
-            {/* Registrar Pago Button (Added for consistency) */}
-            <button 
-              onClick={() => {
-                setIsFabOpen(false)
-                setVisitaPagoSeleccionadaId(null)
-                setPagoInitialIsAbono(false)
-                setShowPaymentModal(true)
-              }}
-              className={`flex items-center justify-between w-56 gap-3 ${isFabOpen ? 'pointer-events-auto' : 'pointer-events-none'}`}
-            >
-              <span className="bg-[#08557f] text-white text-xs font-bold px-3 py-1 rounded-full shadow-lg shadow-[#08557f]/20">Registrar pago</span>
-              <div className="h-11 w-11 flex items-center justify-center rounded-full bg-white text-[#08557f] border border-[#08557f]/20 shadow-lg shadow-[#08557f]/10 hover:bg-[#f1f6fb] transition-all">
-                <DollarSign className="h-5 w-5" />
-              </div>
-            </button>
-
-            <button
-              onClick={() => {
-                router.push('/cobranzas/solicitudes')
-                setIsFabOpen(false)
-              }}
-              className={`flex items-center justify-between w-56 gap-3 ${isFabOpen ? 'pointer-events-auto' : 'pointer-events-none'}`}
-            >
-              <span className="bg-[#08557f] text-white text-xs font-bold px-3 py-1 rounded-full shadow-lg shadow-[#08557f]/20">Solicitudes</span>
-              <div className="h-11 w-11 flex items-center justify-center rounded-full bg-white text-[#08557f] border border-[#08557f]/20 shadow-lg shadow-[#08557f]/10 hover:bg-[#f1f6fb] transition-all">
-                <ClipboardList className="h-5 w-5" />
-              </div>
-            </button>
-
-            <button
-              onClick={() => {
-                setShowBaseModal(true)
-                setIsFabOpen(false)
-              }}
-              className={`flex items-center justify-between w-56 gap-3 ${isFabOpen ? 'pointer-events-auto' : 'pointer-events-none'}`}
-            >
-              <span className="bg-emerald-600 text-white text-xs font-bold px-3 py-1 rounded-full shadow-lg shadow-emerald-600/20">Pedir Base</span>
-              <div className="h-11 w-11 flex items-center justify-center rounded-full bg-white text-emerald-600 border border-emerald-200 shadow-lg shadow-emerald-600/10 hover:bg-emerald-50 transition-all">
-                <Wallet className="h-5 w-5" />
-              </div>
-            </button>
-
-            <button
-              onClick={() => {
-                setShowGastoModal(true)
-                setIsFabOpen(false)
-              }}
-              className={`flex items-center justify-between w-56 gap-3 ${isFabOpen ? 'pointer-events-auto' : 'pointer-events-none'}`}
-            >
-              <span className="bg-rose-600 text-white text-xs font-bold px-3 py-1 rounded-full shadow-lg shadow-rose-600/20">Gastos</span>
-              <div className="h-11 w-11 flex items-center justify-center rounded-full bg-white text-rose-600 border border-rose-200 shadow-lg shadow-rose-600/10 hover:bg-rose-50 transition-all">
-                <ReceiptText className="h-5 w-5" />
-              </div>
-            </button>
-          </div>
-
-          {/* Main Toggle Button */}
-          <button
-            onClick={() => setIsFabOpen(!isFabOpen)}
-            className={`pointer-events-auto p-4 rounded-full shadow-xl transition-all duration-300 ${
-              isFabOpen 
-                ? 'bg-[#063a58] text-white rotate-45' 
-                : 'bg-[#08557f] text-white hover:bg-[#063a58] hover:scale-105'
-            }`}
-          >
-            <Plus className="h-6 w-6" />
-          </button>
-        </div>
+        <FloatingActionMenu actions={[
+          { label: 'Crear Crédito', icon: <CreditCard className="h-5 w-5" />, onClick: () => setShowCreditModal(true) },
+          { label: 'Nuevo Cliente', icon: <UserPlus className="h-5 w-5" />, onClick: () => setShowNewClientModal(true) },
+          { label: 'Registrar abono', icon: <RefreshCw className="h-5 w-5" />, color: 'orange', onClick: () => { setVisitaPagoSeleccionadaId(null); setPagoInitialIsAbono(true); setShowPaymentModal(true); } },
+          { label: 'Registrar pago', icon: <DollarSign className="h-5 w-5" />, onClick: () => { setVisitaPagoSeleccionadaId(null); setPagoInitialIsAbono(false); setShowPaymentModal(true); } },
+          { label: 'Solicitudes', icon: <ClipboardList className="h-5 w-5" />, onClick: () => router.push('/cobranzas/solicitudes') },
+          { label: 'Pedir Base', icon: <Wallet className="h-5 w-5" />, color: 'emerald', onClick: () => setShowBaseModal(true) },
+          { label: 'Gastos', icon: <ReceiptText className="h-5 w-5" />, color: 'rose', onClick: () => setShowGastoModal(true) },
+        ] as FabAction[]} />
 
 
         {showClienteInfoModal && (

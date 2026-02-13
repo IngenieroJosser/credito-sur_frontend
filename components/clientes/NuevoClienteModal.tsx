@@ -1,10 +1,13 @@
 'use client';
 
-import { useState } from 'react';
-import { X } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { X, Loader2 } from 'lucide-react';
 import { useNotification } from '@/components/providers/NotificationProvider';
 import Portal, { MODAL_Z_INDEX } from '@/components/ui/Portal';
-import { Cliente } from '@/services/clientes-service';
+import { clientesService, CrearClienteDto, Cliente } from '@/services/clientes-service';
+import MediaUpload from '@/components/ui/MediaUpload';
+
+import { UploadResponse } from '@/services/upload-service';
 
 interface NuevoClienteModalProps {
   onClose: () => void;
@@ -13,8 +16,12 @@ interface NuevoClienteModalProps {
   esEdicion?: boolean;
 }
 
+import { useAuth } from '@/hooks/useAuth';
+
 export default function NuevoClienteModal({ onClose, onClienteCreado, cliente = null, esEdicion = false }: NuevoClienteModalProps) {
   const { showNotification } = useNotification();
+  const { user: currentUser } = useAuth();
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [formulario, setFormulario] = useState({
     dni: cliente?.dni || '',
     nombres: cliente?.nombres || '',
@@ -23,44 +30,128 @@ export default function NuevoClienteModal({ onClose, onClienteCreado, cliente = 
     correo: cliente?.correo || '',
     direccion: cliente?.direccion || '',
     referencia: cliente?.referencia || '',
+
   });
 
-  const [fotos, setFotos] = useState({
-    fotoPerfil: null as File | null,
-    documentoFrente: null as File | null,
-    documentoReverso: null as File | null,
-    comprobanteDomicilio: null as File | null,
+  const [archivosCargados, setArchivosCargados] = useState<{
+    fotoPerfil: UploadResponse | null;
+    documentoFrente: UploadResponse | null;
+    documentoReverso: UploadResponse | null;
+    comprobanteDomicilio: UploadResponse | null;
+  }>({
+    fotoPerfil: null,
+    documentoFrente: null,
+    documentoReverso: null,
+    comprobanteDomicilio: null,
   });
 
-  // Keep for future implementation of photo uploads
-  if (false && fotos) setFotos(fotos);
+  /* State for existing files in edit mode */
+  const [existingFiles, setExistingFiles] = useState<{
+    fotoPerfil: string | null;
+    documentoFrente: string | null;
+    documentoReverso: string | null;
+    comprobanteDomicilio: string | null;
+  }>({
+    fotoPerfil: null,
+    documentoFrente: null,
+    documentoReverso: null,
+    comprobanteDomicilio: null,
+  });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  useEffect(() => {
+    if (esEdicion && cliente?.id) {
+      // Fetch full client details to get archives
+      clientesService.obtenerPorId(cliente.id).then((fullClient: any) => {
+        if (fullClient.archivos) {
+          const newExisting = { ...existingFiles };
+          fullClient.archivos.forEach((file: any) => {
+             const url = file.url || file.path || file.ruta; // Fallback
+             // Ensure url has full path if needed
+             const fullUrl = url.startsWith('http') ? url : `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}${url}`;
+             
+             if (file.tipoContenido === 'FOTO_PERFIL') newExisting.fotoPerfil = fullUrl;
+             if (file.tipoContenido === 'DOCUMENTO_IDENTIDAD_FRENTE') newExisting.documentoFrente = fullUrl;
+             if (file.tipoContenido === 'DOCUMENTO_IDENTIDAD_REVERSO') newExisting.documentoReverso = fullUrl;
+             if (file.tipoContenido === 'COMPROBANTE_DOMICILIO') newExisting.comprobanteDomicilio = fullUrl;
+          });
+          setExistingFiles(newExisting);
+
+        }
+      });
+    }
+  }, [esEdicion, cliente]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Simulation of creation
-    const nuevoCliente: Cliente = {
-      ...(cliente || {}),
-      id: cliente?.id || `NEW-${Date.now()}`,
-      nombres: formulario.nombres,
-      apellidos: formulario.apellidos,
-      dni: formulario.dni,
-      telefono: formulario.telefono,
-      correo: formulario.correo || null,
-      direccion: formulario.direccion || null,
-      referencia: formulario.referencia || null,
-      codigo: cliente?.codigo || `CL-${Math.floor(Math.random() * 1000)}`,
-      nivelRiesgo: cliente?.nivelRiesgo || 'VERDE', 
-      puntaje: cliente?.puntaje || 100,
-      enListaNegra: cliente?.enListaNegra || false,
-      estadoAprobacion: cliente?.estadoAprobacion || 'APROBADO'
-    };
-    
-    // Simulate API delay
-    setTimeout(() => {
-        showNotification('success', esEdicion ? 'El cliente ha sido actualizado exitosamente' : 'El cliente ha sido registrado exitosamente', esEdicion ? 'Cliente Actualizado' : 'Cliente Registrado');
-        onClienteCreado(nuevoCliente);
-        onClose();
-    }, 500);
+    setIsSubmitting(true);
+
+    try {
+      // Preparar arreglo de archivos
+      const archivos = [];
+      const mapeoArchivos = [
+        { key: 'fotoPerfil', tipo: 'FOTO_PERFIL' },
+        { key: 'documentoFrente', tipo: 'DOCUMENTO_IDENTIDAD_FRENTE' },
+        { key: 'documentoReverso', tipo: 'DOCUMENTO_IDENTIDAD_REVERSO' },
+        { key: 'comprobanteDomicilio', tipo: 'COMPROBANTE_DOMICILIO' },
+      ];
+
+      for (const map of mapeoArchivos) {
+        const upload = archivosCargados[map.key as keyof typeof archivosCargados];
+        if (upload) {
+          archivos.push({
+            tipoContenido: map.tipo,
+            tipoArchivo: upload.mimetype,
+            nombreOriginal: upload.filename, // Ajuste temporal
+            nombreAlmacenamiento: upload.filename,
+            ruta: upload.path,
+            tamanoBytes: upload.size,
+          });
+        }
+      }
+
+      const payload: CrearClienteDto = {
+        dni: formulario.dni,
+        nombres: formulario.nombres,
+        apellidos: formulario.apellidos,
+        telefono: formulario.telefono,
+        correo: formulario.correo || undefined,
+        direccion: formulario.direccion || undefined,
+        referencia: formulario.referencia || undefined,
+
+        creadoPorId: currentUser?.id || undefined, 
+        archivos: archivos.length > 0 ? archivos : undefined,
+      };
+
+      let resultado: Cliente;
+      
+      if (esEdicion && cliente?.id) {
+        if (archivos.length > 0) {
+           showNotification('warning', 'La actualización de archivos no está soportada aún. Solo se actualizarán los datos de texto.', 'Advertencia');
+        }
+        resultado = await clientesService.actualizar(cliente.id, payload as any);
+      } else {
+        resultado = await clientesService.crear(payload);
+      }
+
+      showNotification(
+        'success', 
+        esEdicion ? 'El cliente ha sido actualizado exitosamente' : 'Solicitud de cliente enviada correctamente', 
+        esEdicion ? 'Cliente Actualizado' : 'Solicitud Enviada'
+      );
+      
+      onClienteCreado({
+        ...formulario,
+        ...resultado,
+      } as any);
+      onClose();
+
+    } catch (error: any) {
+      console.error(error);
+      const message = error?.message || 'Error al guardar el cliente';
+      showNotification('error', message, 'Error');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -94,20 +185,30 @@ export default function NuevoClienteModal({ onClose, onClienteCreado, cliente = 
                 <div>
                   <label className="block text-sm font-bold text-slate-700 mb-2">CC o Documento</label>
                   <input
+                    type="text"
+                    inputMode="numeric"
                     value={formulario.dni}
-                    onChange={(e) => setFormulario(prev => ({ ...prev, dni: e.target.value }))}
+                    onChange={(e) => {
+                      const val = e.target.value.replace(/\D/g, '');
+                      setFormulario(prev => ({ ...prev, dni: val }));
+                    }}
                     className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-[#08557f] focus:ring-0 font-medium text-slate-900"
-                    placeholder="1234567890"
+                    placeholder="Solo números"
                     required
                   />
                 </div>
                 <div>
                   <label className="block text-sm font-bold text-slate-700 mb-2">Teléfono</label>
                   <input
+                    type="text"
+                    inputMode="numeric"
                     value={formulario.telefono}
-                    onChange={(e) => setFormulario(prev => ({ ...prev, telefono: e.target.value }))}
+                    onChange={(e) => {
+                      const val = e.target.value.replace(/\D/g, '');
+                      setFormulario(prev => ({ ...prev, telefono: val }));
+                    }}
                     className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-[#08557f] focus:ring-0 font-medium text-slate-900"
-                    placeholder="300 123 4567"
+                    placeholder="Solo números"
                     required
                   />
                 </div>
@@ -170,52 +271,40 @@ export default function NuevoClienteModal({ onClose, onClienteCreado, cliente = 
 
               {/* Sección de Fotos */}
               <div className="space-y-4 border-t border-slate-200 pt-6">
-                <h4 className="text-sm font-bold text-slate-700 uppercase tracking-wide">Documentos y Fotos (Obligatorias)</h4>
+                <h4 className="text-sm font-bold text-slate-700 uppercase tracking-wide">Documentos y Fotos (Opcionales)</h4>
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-xs font-bold text-slate-600 mb-2">Foto de Perfil</label>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      required
-                      onChange={(e) => setFotos(prev => ({ ...prev, fotoPerfil: e.target.files?.[0] || null }))}
-                      className="w-full text-xs text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 cursor-pointer"
-                    />
-                  </div>
+                  <MediaUpload
+                    label="Foto de Perfil"
+                    accept="image/*"
+                    maxSize={2}
+                    existingUrl={existingFiles.fotoPerfil || undefined}
+                    onUploadComplete={(data) => setArchivosCargados(prev => ({ ...prev, fotoPerfil: data }))}
+                  />
 
-                  <div>
-                    <label className="block text-xs font-bold text-slate-600 mb-2">Documento Frente</label>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      required
-                      onChange={(e) => setFotos(prev => ({ ...prev, documentoFrente: e.target.files?.[0] || null }))}
-                      className="w-full text-xs text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 cursor-pointer"
-                    />
-                  </div>
+                  <MediaUpload
+                    label="Documento Frente"
+                    accept="image/*"
+                    maxSize={5}
+                    existingUrl={existingFiles.documentoFrente || undefined}
+                    onUploadComplete={(data) => setArchivosCargados(prev => ({ ...prev, documentoFrente: data }))}
+                  />
 
-                  <div>
-                    <label className="block text-xs font-bold text-slate-600 mb-2">Documento Reverso</label>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      required
-                      onChange={(e) => setFotos(prev => ({ ...prev, documentoReverso: e.target.files?.[0] || null }))}
-                      className="w-full text-xs text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 cursor-pointer"
-                    />
-                  </div>
+                  <MediaUpload
+                    label="Documento Reverso"
+                    accept="image/*"
+                    maxSize={5}
+                    existingUrl={existingFiles.documentoReverso || undefined}
+                    onUploadComplete={(data) => setArchivosCargados(prev => ({ ...prev, documentoReverso: data }))}
+                  />
 
-                  <div>
-                    <label className="block text-xs font-bold text-slate-600 mb-2">Comprobante Domicilio</label>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      required
-                      onChange={(e) => setFotos(prev => ({ ...prev, comprobanteDomicilio: e.target.files?.[0] || null }))}
-                      className="w-full text-xs text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 cursor-pointer"
-                    />
-                  </div>
+                  <MediaUpload
+                    label="Comprobante Domicilio"
+                    accept="image/*,video/mp4,video/webm"
+                    maxSize={50}
+                    existingUrl={existingFiles.comprobanteDomicilio || undefined}
+                    onUploadComplete={(data) => setArchivosCargados(prev => ({ ...prev, comprobanteDomicilio: data }))}
+                  />
                 </div>
               </div>
 
@@ -223,15 +312,24 @@ export default function NuevoClienteModal({ onClose, onClienteCreado, cliente = 
                 <button
                   type="button"
                   onClick={onClose}
-                  className="flex-1 bg-white border border-slate-200 text-slate-700 font-bold py-3.5 rounded-xl hover:bg-slate-50 transition-all"
+                  disabled={isSubmitting}
+                  className="flex-1 bg-white border border-slate-200 text-slate-700 font-bold py-3.5 rounded-xl hover:bg-slate-50 transition-all disabled:opacity-50"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 bg-[#08557f] text-white font-bold py-3.5 rounded-xl shadow-xl shadow-[#08557f]/20 hover:bg-[#063a58] active:scale-[0.98] transition-all"
+                  disabled={isSubmitting}
+                  className="flex-1 bg-[#08557f] text-white font-bold py-3.5 rounded-xl shadow-xl shadow-[#08557f]/20 hover:bg-[#063a58] active:scale-[0.98] transition-all disabled:opacity-50 flex items-center justify-center gap-2"
                 >
-                  {esEdicion ? 'Guardar Cambios' : 'Registrar Cliente'}
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                      Procesando...
+                    </>
+                  ) : (
+                    esEdicion ? 'Guardar Cambios' : 'Registrar Cliente'
+                  )}
                 </button>
               </div>
             </form>

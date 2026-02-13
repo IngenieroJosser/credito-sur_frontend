@@ -4,47 +4,56 @@ import { Archive, Search, Filter, RefreshCw, RotateCcw } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { cn } from '@/lib/utils'
+import { auditoriaService } from '@/services/auditoria-service'
 
-// Mock data para elementos archivados
-const ARCHIVADOS_MOCK = [
-  {
-    id: 1,
-    tipo: 'cliente',
-    nombre: 'Juan Pérez',
-    fechaEliminacion: '2024-01-20T10:30:00',
-    motivo: 'Duplicado',
-    usuarioEliminador: 'Admin'
-  },
-  {
-    id: 2,
-    tipo: 'prestamo',
-    nombre: 'Préstamo #1234 - María Gómez',
-    fechaEliminacion: '2024-01-19T15:45:00',
-    motivo: 'Error en registro',
-    usuarioEliminador: 'Coordinador'
-  },
-  {
-    id: 3,
-    tipo: 'usuario',
-    nombre: 'Carlos Vendedor',
-    fechaEliminacion: '2024-01-15T09:00:00',
-    motivo: 'Baja de personal',
-    usuarioEliminador: 'Super Admin'
-  }
-]
+interface ArchivedItem {
+  id: string
+  tipo: string
+  nombre: string
+  fechaEliminacion: string
+  motivo: string
+  usuarioEliminador: string
+}
 
 export default function ArchivadosPage() {
   const [searchTerm, setSearchTerm] = useState('')
   const [tipoFiltro, setTipoFiltro] = useState('todos')
   const [isRestoreModalOpen, setIsRestoreModalOpen] = useState(false)
-  const [selectedItem, setSelectedItem] = useState<typeof ARCHIVADOS_MOCK[0] | null>(null)
+  const [selectedItem, setSelectedItem] = useState<ArchivedItem | null>(null)
   const [mounted, setMounted] = useState(false)
+  const [items, setItems] = useState<ArchivedItem[]>([])
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     setMounted(true)
+    const loadArchivados = async () => {
+      setLoading(true)
+      try {
+        const registros = await auditoriaService.obtenerRegistros()
+        const eliminaciones = registros
+          .filter((r: any) => (r.accion || '').toUpperCase().includes('ELIMINAR') || (r.accion || '').toUpperCase().includes('DELETE'))
+          .map((r: any) => ({
+            id: r.id,
+            tipo: (r.entidad || 'desconocido').toLowerCase(),
+            nombre: r.valoresAnteriores?.nombres
+              ? `${r.valoresAnteriores.nombres} ${r.valoresAnteriores.apellidos || ''}`
+              : r.valoresAnteriores?.nombre || `${r.entidad} #${r.entidadId?.slice(0, 8)}`,
+            fechaEliminacion: r.creadoEn,
+            motivo: r.cambios?.motivo || r.endpoint || 'Eliminación',
+            usuarioEliminador: r.usuario ? `${r.usuario.nombres} ${r.usuario.apellidos}` : 'Sistema',
+          }))
+        setItems(eliminaciones)
+      } catch (err) {
+        console.error('Error cargando archivados:', err)
+        setItems([])
+      } finally {
+        setLoading(false)
+      }
+    }
+    loadArchivados()
   }, [])
 
-  const filteredItems = ARCHIVADOS_MOCK.filter(item => {
+  const filteredItems = items.filter(item => {
     const matchesSearch = item.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          item.motivo.toLowerCase().includes(searchTerm.toLowerCase())
     const matchesType = tipoFiltro === 'todos' || item.tipo === tipoFiltro
@@ -85,14 +94,14 @@ export default function ArchivadosPage() {
 
         {/* Filters & Search */}
         <div className="bg-white/80 backdrop-blur-sm p-4 rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-slate-200 flex flex-col md:flex-row gap-4 items-center justify-between animate-in fade-in slide-in-from-bottom-4 duration-700 delay-200">
-          <div className="relative w-full md:w-96">
-            <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
+          <div className="w-full md:w-96 buscador-3d">
+            <Search className="icon h-4 w-4" />
             <input
               type="text"
               placeholder="Buscar por nombre o motivo..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-11 pr-4 py-2.5 w-full bg-slate-50/50 focus:bg-white border-slate-200 rounded-xl text-sm text-slate-900 focus:ring-2 focus:ring-slate-900/10 focus:border-slate-400 transition-all shadow-sm placeholder:text-slate-400 font-medium"
+              className="buscador-3d-input"
             />
           </div>
           <div className="w-full md:w-64">

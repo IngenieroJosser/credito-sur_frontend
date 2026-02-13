@@ -118,7 +118,10 @@ const NotFoundPage = () => {
             
             {/* Imagen superpuesta sutilmente */}
             <div className="absolute inset-0 flex items-center justify-center">
-              <div className="relative w-48 h-48 opacity-10">
+              <div 
+                className="relative w-48 h-48 opacity-10"
+                style={{ width: '12rem', height: '12rem', position: 'relative', opacity: 0.1 }}
+              >
                 <Image
                   src="/android-chrome-512x512.png"
                   alt="CrediSur"

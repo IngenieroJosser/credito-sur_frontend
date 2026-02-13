@@ -29,6 +29,23 @@ export default function RootLayout({
         <NotificationProvider>
           {children}
         </NotificationProvider>
+
+        {/* Script para limpiar Service Workers antiguos que causan errores en desarrollo */}
+        {process.env.NODE_ENV === 'development' && (
+          <script
+            dangerouslySetInnerHTML={{
+              __html: `
+                if ('serviceWorker' in navigator) {
+                  navigator.serviceWorker.getRegistrations().then((registrations) => {
+                    for (let registration of registrations) {
+                      registration.unregister();
+                    }
+                  });
+                }
+              `,
+            }}
+          />
+        )}
       </body>
     </html>
   );
