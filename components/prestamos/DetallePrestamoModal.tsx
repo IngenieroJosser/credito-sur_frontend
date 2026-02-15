@@ -5,6 +5,7 @@ import { createPortal } from 'react-dom';
 import { X, Loader2 } from 'lucide-react';
 import DetallePrestamo, { PrestamoDetalle } from '@/components/prestamos/DetallePrestamo';
 import { prestamosService } from '@/services/prestamos-service';
+import { offlineStore } from '@/lib/offline/offlineDb';
 
 interface DetallePrestamoModalProps {
   id: string;
@@ -70,7 +71,49 @@ export default function DetallePrestamoModal({ id, onClose }: DetallePrestamoMod
         });
       } catch (err) {
         console.error('Error cargando detalle del préstamo:', err);
-        setPrestamo(null);
+        // Fallback offline
+        try {
+          const offP = await offlineStore.getById<any>('prestamos', id);
+          if (offP) {
+            const offCuotas = await offlineStore.getByIndex<any>('cuotas', 'by-prestamoId', id).catch(() => []);
+            setPrestamo({
+              id: offP.id,
+              clienteId: offP.clienteId || '',
+              clienteNombre: offP.clienteNombre || '',
+              clienteDni: '',
+              clienteTelefono: '',
+              clienteDireccion: '',
+              montoPrestamo: offP.monto || offP.montoPrestamo || 0,
+              montoTotal: offP.montoTotal || 0,
+              saldoPendiente: offP.saldoPendiente || 0,
+              tasaInteres: offP.tasaInteres || 0,
+              interesTotal: offP.interesTotal,
+              capitalPagado: offP.capitalPagado,
+              interesPagado: offP.interesPagado,
+              duracion: offP.plazoMeses ? `${offP.plazoMeses} Meses` : '',
+              frecuencia: offP.frecuenciaPago || 'mensual',
+              fechaInicio: offP.fechaInicio || '',
+              fechaVencimiento: offP.fechaFin || '',
+              estado: offP.estado || 'ACTIVO',
+              producto: offP.tipoPrestamo || 'Préstamo',
+              garantia: '',
+              fotos: [],
+              cuotas: offCuotas.map((c: any) => ({
+                numero: c.numeroCuota,
+                fecha: c.fechaVencimiento,
+                monto: c.monto,
+                montoCapital: c.montoCapital,
+                montoInteres: c.montoInteres,
+                estado: c.estado,
+                fechaPago: c.fechaPago || undefined,
+              })),
+            });
+          } else {
+            setPrestamo(null);
+          }
+        } catch {
+          setPrestamo(null);
+        }
       } finally {
         setLoading(false);
       }

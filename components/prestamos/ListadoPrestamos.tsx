@@ -35,6 +35,8 @@ import { formatErrorForComponent } from '@/lib/api/api';
 import { usePermission } from '@/hooks/usePermission';
 import { ExportButton } from '@/components/ui/ExportButton';
 import { exportService } from '@/services/export-service';
+import { offlineStore } from '@/lib/offline/offlineDb';
+import { WifiOff } from 'lucide-react';
 
 interface Filtros {
   estado: string;
@@ -88,6 +90,7 @@ const ListadoPrestamosElegante = () => {
   const [showCrearCreditoModal, setShowCrearCreditoModal] = useState(false);
   const [totalPrestamos, setTotalPrestamos] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  const [dataSource, setDataSource] = useState<'online' | 'offline'>('online');
 
   const loadPrestamos = useCallback(async () => {
     try {
@@ -106,9 +109,23 @@ const ListadoPrestamosElegante = () => {
       setPrestamos(response.prestamos);
       setEstadisticas(response.estadisticas);
       setTotalPrestamos(response.paginacion.total);
+      setDataSource('online');
+      // Cache para offline
+      offlineStore.saveMany('prestamos', response.prestamos).catch(() => {});
       
     } catch (err) {
       console.error('Error cargando préstamos:', err);
+      // Fallback offline
+      try {
+        const offData = await offlineStore.getAll<Loan>('prestamos');
+        if (offData.length > 0) {
+          setPrestamos(offData);
+          setTotalPrestamos(offData.length);
+          setDataSource('offline');
+          setError(null);
+          return;
+        }
+      } catch { /* ignore */ }
       setError(formatErrorForComponent(err));
       setPrestamos([]);
       setTotalPrestamos(0);
@@ -335,6 +352,14 @@ const ListadoPrestamosElegante = () => {
               <Loader2 className="h-4 w-4 text-[#08557f] animate-spin" />
               <span className="text-xs font-bold text-slate-600">Actualizando datos...</span>
             </div>
+          </div>
+        )}
+
+        {/* Banner offline */}
+        {dataSource === 'offline' && (
+          <div className="flex items-center gap-2 px-4 py-2.5 bg-amber-50 border border-amber-200 rounded-xl text-xs font-bold text-amber-700">
+            <WifiOff className="h-3.5 w-3.5" />
+            Mostrando datos guardados localmente. Algunos datos pueden no estar actualizados.
           </div>
         )}
 

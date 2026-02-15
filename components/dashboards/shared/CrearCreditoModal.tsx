@@ -14,6 +14,7 @@ import { formatCOPInputValue, formatCurrency, parseCOPInputToNumber } from '@/li
 import { Portal, MODAL_Z_INDEX } from '@/components/dashboards/shared/CobradorElements'
 import { clientesService, Cliente } from '@/services/clientes-service'
 import { articulosService, Articulo } from '@/services/articulos-service'
+import { offlineStore } from '@/lib/offline/offlineDb'
 
 interface CrearCreditoModalProps {
   isOpen: boolean
@@ -65,7 +66,14 @@ export default function CrearCreditoModal({ isOpen, onClose, onConfirm, defaultC
         ]).then(([c, a]) => {
           setClientes(c);
           setArticulos(a);
-        }).catch(err => console.error(err));
+          offlineStore.saveMany('clientes', c).catch(() => {});
+        }).catch(async () => {
+          // Fallback offline
+          try {
+            const offClientes = await offlineStore.getAll<Cliente>('clientes');
+            setClientes(offClientes);
+          } catch { /* ignore */ }
+        });
     }
   }, [isOpen, defaultClienteId]);
 

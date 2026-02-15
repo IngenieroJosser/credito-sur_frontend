@@ -30,6 +30,7 @@ import { useAuth } from '@/hooks/useAuth'
 import { routesService } from '@/services/routes-service';
 import { useNotification } from '@/components/providers/NotificationProvider';
 import { usePermission } from '@/hooks/usePermission';
+import { offlineStore } from '@/lib/offline/offlineDb';
 
 interface Ruta {
   id: string;
@@ -132,6 +133,26 @@ export const RutasPageView = ({
         }
       } catch (error) {
         console.error('Error fetching data:', error);
+        // Fallback offline: cargar rutas de IndexedDB
+        try {
+          const offRutas = await offlineStore.getAll<any>('rutas');
+          if (offRutas.length > 0 && rutasList.length === 0) {
+            setRutasList(offRutas.map((r: any) => ({
+              id: r.id,
+              nombre: r.nombre,
+              codigo: r.codigo,
+              zona: r.zona || '',
+              estado: r.activa ? 'ACTIVA' : 'INACTIVA',
+              cobrador: '',
+              cobradorId: r.cobradorId || '',
+              supervisorId: r.supervisorId || '',
+              clientesAsignados: 0,
+              clientesNuevos: 0,
+              cobranzaDelDia: 0,
+              metaDelDia: 0,
+            } as Ruta)));
+          }
+        } catch { /* ignore */ }
       }
     };
 

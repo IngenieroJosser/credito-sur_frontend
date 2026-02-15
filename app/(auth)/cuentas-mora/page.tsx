@@ -55,6 +55,7 @@ import { usePermission } from '@/hooks/usePermission'
 import { apiRequest } from '@/lib/api/api'
 import { exportService } from '@/services/export-service'
 import { toast } from 'sonner'
+import { offlineStore } from '@/lib/offline/offlineDb'
 
 // Enums alineados con Prisma
 type NivelRiesgo = 'VERDE' | 'AMARILLO' | 'ROJO' | 'LISTA_NEGRA';
@@ -168,6 +169,39 @@ function CuentasMoraContent() {
       setCuentas(items)
     } catch (error) {
       console.error('Error al cargar cuentas en mora:', error)
+      // Fallback offline: construir desde préstamos en IndexedDB
+      try {
+        const offPrestamos = await offlineStore.getAll<any>('prestamos');
+        const offClientes = await offlineStore.getAll<any>('clientes');
+        const moraItems: CuentaMora[] = offPrestamos
+          .filter((p: any) => p.estado === 'EN_MORA' || p.estado === 'INCUMPLIDO' || (p.diasMora && p.diasMora > 0))
+          .map((p: any) => {
+            const cli = offClientes.find((c: any) => c.id === p.clienteId);
+            return {
+              id: p.id,
+              numeroPrestamo: p.numeroPrestamo || p.id,
+              cliente: {
+                id: cli?.id || p.clienteId || '',
+                nombre: cli ? `${cli.nombres} ${cli.apellidos}` : '',
+                documento: cli?.dni || '',
+                telefono: cli?.telefono || '',
+                direccion: cli?.direccion || '',
+              },
+              diasMora: p.diasMora || 0,
+              montoMora: p.montoMora || 0,
+              montoTotalDeuda: p.saldoPendiente || p.montoTotal || 0,
+              cuotasVencidas: 0,
+              ruta: '',
+              cobrador: '',
+              nivelRiesgo: (p.diasMora > 30 ? 'ROJO' : p.diasMora > 15 ? 'AMARILLO' : 'VERDE') as NivelRiesgo,
+              estado: (p.estado || 'EN_MORA') as EstadoPrestamo,
+            };
+          });
+        if (moraItems.length > 0) {
+          setCuentas(moraItems);
+          return;
+        }
+      } catch { /* ignore */ }
       toast.error('Error al cargar la lista de cuentas en mora')
     } finally {
       setIsDataLoading(false)

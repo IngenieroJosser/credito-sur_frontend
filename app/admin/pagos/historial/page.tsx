@@ -19,6 +19,7 @@ import { formatCurrency, cn } from '@/lib/utils'
 import { ExportButton } from '@/components/ui/ExportButton'
 import { pagosService } from '@/services/pagos-service'
 import { exportService } from '@/services/export-service'
+import { getOfflineDb } from '@/lib/offline/offlineDb'
 import { toast } from 'sonner'
 import { useRouter, useSearchParams, usePathname } from 'next/navigation'
 import { TimeFilter, TimeFilterPeriod } from '@/components/ui/TimeFilter'
@@ -93,7 +94,24 @@ const HistorialPagosPage = () => {
         setPagos(mapped)
       } catch (err) {
         console.error('Error cargando historial de pagos:', err)
-        setPagos([])
+        // Fallback offline: construir desde cola offline completada
+        try {
+          const db = await getOfflineDb();
+          const offQueue = await db.getAll('offline-queue');
+          const pagosOffline: Pago[] = offQueue
+            .filter((q: any) => q.type === 'pago')
+            .map((q: any) => ({
+              id: q.id,
+              fecha: q.createdAt || new Date().toISOString(),
+              cliente: q.description || '',
+              cobrador: '',
+              ruta: '',
+              monto: q.data?.montoTotal || 0,
+              metodo: 'Efectivo',
+              estado: (q.status === 'completed' ? 'completado' : 'pendiente') as EstadoPago,
+            }));
+          if (pagosOffline.length > 0) setPagos(pagosOffline);
+        } catch { /* ignore */ }
       } finally {
         setIsLoading(false)
       }

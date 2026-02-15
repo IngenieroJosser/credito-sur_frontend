@@ -7,6 +7,7 @@ import { useNotification } from '@/components/providers/NotificationProvider';
 import { formatCurrency } from '@/lib/utils';
 import { prestamosService } from '@/services/prestamos-service';
 import { formatErrorForComponent } from '@/lib/api/api';
+import { offlineStore } from '@/lib/offline/offlineDb';
 
 interface EditarPrestamoModalProps {
   id: string;
@@ -81,7 +82,26 @@ export default function EditarPrestamoModal({ id, onClose, onSuccess }: EditarPr
         originalRef.current = { monto: m, tasa: t, cuotas: p, frecuencia: f, estado: e };
       } catch (err) {
         console.error('Error cargando préstamo para editar:', err);
-        showNotification('error', 'No se pudo cargar el préstamo', 'Error');
+        // Fallback offline
+        try {
+          const offP = await offlineStore.getById<any>('prestamos', id);
+          if (offP) {
+            const m = Number(offP.monto) || 0;
+            const t = Number(offP.tasaInteres) || 0;
+            const p = Number(offP.plazoMeses) || 0;
+            const f = offP.frecuenciaPago || 'MENSUAL';
+            const e = offP.estado || 'ACTIVO';
+            setMonto(m); setTasaStr(String(t)); setCuotasStr(String(p));
+            setFrecuencia(f); setEstado(e);
+            setNumeroPrestamo(offP.numeroPrestamo || id);
+            setClienteNombre(offP.clienteNombre || '');
+            originalRef.current = { monto: m, tasa: t, cuotas: p, frecuencia: f, estado: e };
+          } else {
+            showNotification('error', 'No se pudo cargar el préstamo', 'Error');
+          }
+        } catch {
+          showNotification('error', 'No se pudo cargar el préstamo', 'Error');
+        }
       } finally {
         setFetching(false);
       }
