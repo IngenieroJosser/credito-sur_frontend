@@ -1,4 +1,7 @@
+"use client";
+
 import type { Metadata } from "next";
+import { useEffect } from "react";
 import { Sora } from "next/font/google";
 import "./globals.css";
 
@@ -15,7 +18,7 @@ export const metadata: Metadata = {
   description: "Sistema profesional para gestión de créditos, préstamos y cobranzas",
 
   applicationName: "Créditos del Sur",
-  manifest: "/site.webmanifest",
+  manifest: "/manifest.json", // PWA manifest
 
   icons: {
     icon: [
@@ -26,7 +29,7 @@ export const metadata: Metadata = {
     apple: "/apple-touch-icon.png",
   },
 
-  themeColor: "#0f172a", // ajusta a tu branding
+  themeColor: "#08557f", // color principal Credisur
 
   openGraph: {
     title: "Créditos del Sur",
@@ -38,32 +41,37 @@ export const metadata: Metadata = {
   viewport: "width=device-width, initial-scale=1",
 };
 
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
+
+  // Registrar Service Worker en producción
+  useEffect(() => {
+    if ("serviceWorker" in navigator && process.env.NODE_ENV === "production") {
+      navigator.serviceWorker.register("/sw.js")
+        .then(reg => console.log("Service Worker registrado:", reg))
+        .catch(err => console.error("SW error:", err));
+    }
+  }, []);
+
+  // Eliminar SW antiguos en desarrollo
+  useEffect(() => {
+    if (process.env.NODE_ENV === "development" && "serviceWorker" in navigator) {
+      navigator.serviceWorker.getRegistrations().then(registrations => {
+        registrations.forEach(r => r.unregister());
+      });
+    }
+  }, []);
+
   return (
     <html lang="es">
+      <head>
+        {/* Manifest PWA */}
+        <link rel="manifest" href="/manifest.json" />
+        <meta name="theme-color" content="#08557f" />
+      </head>
       <body className={`${sora.variable} antialiased`}>
         <NotificationProvider>
           {children}
         </NotificationProvider>
-
-        {/* Solo para desarrollo — evita bugs con SW antiguos */}
-        {process.env.NODE_ENV === "development" && (
-          <script
-            dangerouslySetInnerHTML={{
-              __html: `
-                if ('serviceWorker' in navigator) {
-                  navigator.serviceWorker.getRegistrations().then(registrations => {
-                    registrations.forEach(r => r.unregister());
-                  });
-                }
-              `,
-            }}
-          />
-        )}
       </body>
     </html>
   );
