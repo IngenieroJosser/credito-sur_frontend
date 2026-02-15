@@ -25,7 +25,7 @@ import {
 import { Rol } from '@/lib/permissions';
 import { formatCurrency } from '@/lib/utils';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+const API_URL = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3001';
 
 interface MetricItem {
   title: string;

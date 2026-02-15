@@ -598,7 +598,7 @@ const ClienteDetalleElegante: React.FC<ClienteDetalleProps> = ({
               {(cliente.fotos && cliente.fotos.length > 0) ? (
                 cliente.fotos.map((foto, idx) => {
                    const isVideo = foto.match(/\.(mp4|webm|ogg|mov)$/i);
-                   const src = foto.startsWith('http') ? foto : `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}${foto}`;
+                   const src = foto.startsWith('http') ? foto : `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3001'}${foto}`;
                    
                    return (
                   <div key={idx} className="group relative aspect-square rounded-2xl overflow-hidden border border-slate-200 bg-slate-100 transition-all hover:shadow-xl">

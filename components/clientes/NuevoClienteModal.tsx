@@ -67,7 +67,7 @@ export default function NuevoClienteModal({ onClose, onClienteCreado, cliente = 
           fullClient.archivos.forEach((file: any) => {
              const url = file.url || file.path || file.ruta; // Fallback
              // Ensure url has full path if needed
-             const fullUrl = url.startsWith('http') ? url : `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}${url}`;
+             const fullUrl = url.startsWith('http') ? url : `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3001'}${url}`;
              
              if (file.tipoContenido === 'FOTO_PERFIL') newExisting.fotoPerfil = fullUrl;
              if (file.tipoContenido === 'DOCUMENTO_IDENTIDAD_FRENTE') newExisting.documentoFrente = fullUrl;
