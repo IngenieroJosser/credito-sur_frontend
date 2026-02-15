@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useState } from 'react';
-import { Calendar, User, FileText, TrendingUp, Package, Image as ImageIcon, ChevronRight, ChevronLeft, Clock } from 'lucide-react';
+import React, { useState, useMemo } from 'react';
+import { Calendar, User, FileText, TrendingUp, Package, Image as ImageIcon, ChevronRight, ChevronLeft, Clock, BarChart3 } from 'lucide-react';
 import { formatCurrency, cn } from '@/lib/utils';
 import ClientePortalModal from '@/components/cliente/ClientePortalModal';
 
@@ -78,7 +78,28 @@ export default function DetallePrestamo({ prestamo }: DetallePrestamoProps) {
   };
 
   const montoAbonado = prestamo.montoTotal - prestamo.saldoPendiente;
-  const progresoPorcentaje = Math.round((montoAbonado / prestamo.montoTotal) * 100);
+  const progresoPorcentaje = prestamo.montoTotal > 0 ? Math.round((montoAbonado / prestamo.montoTotal) * 100) : 0;
+
+  // Calcular saldo restante acumulado por cuota y detectar cuota actual
+  const cuotasConSaldo = useMemo(() => {
+    let saldo = prestamo.montoPrestamo;
+    return prestamo.cuotas.map((c) => {
+      const capital = c.montoCapital ?? 0;
+      if (c.estado === 'PAGADO') {
+        saldo = Math.max(0, saldo - capital);
+      }
+      return { ...c, saldoRestante: Math.round(saldo * 100) / 100 };
+    });
+  }, [prestamo.cuotas, prestamo.montoPrestamo]);
+
+  const cuotaActual = useMemo(() => {
+    const pendiente = cuotasConSaldo.find((c) => c.estado === 'PENDIENTE' || c.estado === 'PARCIAL' || c.estado === 'VENCIDO');
+    return pendiente || cuotasConSaldo[cuotasConSaldo.length - 1];
+  }, [cuotasConSaldo]);
+
+  const cuotasPagadas = prestamo.cuotas.filter((c) => c.estado === 'PAGADO').length;
+  const totalCuotas = prestamo.cuotas.length;
+  const progresoCuotas = totalCuotas > 0 ? Math.round((cuotasPagadas / totalCuotas) * 100) : 0;
 
   return (
     <div className="w-full p-6 md:p-8 space-y-8">
@@ -258,25 +279,103 @@ export default function DetallePrestamo({ prestamo }: DetallePrestamoProps) {
       {/* Contenido de Tabs */}
       <div className="min-h-[300px]">
         {activeTab === 'cuotas' && (
-          <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+          <div className="space-y-4">
+            {/* Tarjeta de Amortización - Cuota Actual */}
+            {cuotaActual && (
+              <div className="bg-gradient-to-br from-slate-900 to-slate-800 rounded-2xl p-5 text-white relative overflow-hidden">
+                <div className="absolute top-0 right-0 opacity-5 pointer-events-none">
+                  <BarChart3 className="w-40 h-40 -mt-4 -mr-4" />
+                </div>
+                <div className="relative z-10">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-2">
+                      <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center">
+                        <BarChart3 className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <h4 className="text-xs font-bold text-white/60 uppercase tracking-widest">Amortización</h4>
+                        <p className="text-sm font-bold">Cuota #{cuotaActual.numero} de {totalCuotas}</p>
+                      </div>
+                    </div>
+                    <span className={cn(
+                      "px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wide",
+                      cuotaActual.estado === 'VENCIDO' ? 'bg-rose-500/20 text-rose-300' :
+                      cuotaActual.estado === 'PARCIAL' ? 'bg-amber-500/20 text-amber-300' :
+                      cuotaActual.estado === 'PAGADO' ? 'bg-emerald-500/20 text-emerald-300' :
+                      'bg-blue-500/20 text-blue-300'
+                    )}>
+                      {cuotaActual.estado === 'PAGADO' ? 'Completado' : cuotaActual.estado === 'VENCIDO' ? 'Vencida' : 'Próxima cuota'}
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+                    <div className="bg-white/5 rounded-xl p-3">
+                      <span className="text-[10px] font-bold text-white/50 uppercase tracking-wider block">Cuota</span>
+                      <span className="text-lg font-bold">{formatCurrency(cuotaActual.monto)}</span>
+                    </div>
+                    <div className="bg-white/5 rounded-xl p-3">
+                      <span className="text-[10px] font-bold text-blue-300/70 uppercase tracking-wider block">Capital</span>
+                      <span className="text-lg font-bold text-blue-300">{cuotaActual.montoCapital != null ? formatCurrency(cuotaActual.montoCapital) : '-'}</span>
+                    </div>
+                    <div className="bg-white/5 rounded-xl p-3">
+                      <span className="text-[10px] font-bold text-violet-300/70 uppercase tracking-wider block">Interés</span>
+                      <span className="text-lg font-bold text-violet-300">{cuotaActual.montoInteres != null ? formatCurrency(cuotaActual.montoInteres) : '-'}</span>
+                    </div>
+                    <div className="bg-white/5 rounded-xl p-3">
+                      <span className="text-[10px] font-bold text-emerald-300/70 uppercase tracking-wider block">Saldo Capital</span>
+                      <span className="text-lg font-bold text-emerald-300">{formatCurrency(cuotaActual.saldoRestante)}</span>
+                    </div>
+                  </div>
+
+                  <div>
+                    <div className="flex items-center justify-between mb-1.5">
+                      <span className="text-[10px] font-bold text-white/50 uppercase tracking-wider">Progreso</span>
+                      <span className="text-xs font-bold text-white/80">{cuotasPagadas}/{totalCuotas} cuotas — {progresoCuotas}%</span>
+                    </div>
+                    <div className="w-full h-2 bg-white/10 rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-gradient-to-r from-blue-400 to-emerald-400 rounded-full transition-all duration-500"
+                        style={{ width: `${progresoCuotas}%` }}
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Tabla de Amortización */}
+            <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
             <table className="min-w-full divide-y divide-slate-200">
               <thead className="bg-slate-50/50">
                 <tr>
-                  <th scope="col" className="px-6 py-4 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">#</th>
-                  <th scope="col" className="px-6 py-4 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">Vencimiento</th>
-                  <th scope="col" className="px-6 py-4 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">Monto</th>
-                  <th scope="col" className="px-6 py-4 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">Capital</th>
-                  <th scope="col" className="px-6 py-4 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">Interés</th>
-                  <th scope="col" className="px-6 py-4 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">Estado</th>
-                  <th scope="col" className="px-6 py-4 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">Fecha Pago</th>
+                  <th scope="col" className="px-4 py-4 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">#</th>
+                  <th scope="col" className="px-4 py-4 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">Vencimiento</th>
+                  <th scope="col" className="px-4 py-4 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">Cuota</th>
+                  <th scope="col" className="px-4 py-4 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">Capital</th>
+                  <th scope="col" className="px-4 py-4 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">Interés</th>
+                  <th scope="col" className="px-4 py-4 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">Saldo</th>
+                  <th scope="col" className="px-4 py-4 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">Estado</th>
+                  <th scope="col" className="px-4 py-4 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">Fecha Pago</th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-slate-100">
-                {prestamo.cuotas
+                {cuotasConSaldo
                   .slice((cuotaPage - 1) * CUOTAS_PER_PAGE, cuotaPage * CUOTAS_PER_PAGE)
-                  .map((cuota) => (
-                  <tr key={cuota.numero} className="hover:bg-slate-50 transition-colors group">
-                    <td className="px-4 py-3 whitespace-nowrap text-sm font-bold text-slate-500">{cuota.numero}</td>
+                  .map((cuota) => {
+                    const esCuotaActual = cuotaActual && cuota.numero === cuotaActual.numero;
+                    return (
+                  <tr key={cuota.numero} className={cn(
+                    "transition-colors group",
+                    esCuotaActual ? "bg-blue-50/60 ring-1 ring-inset ring-blue-200" : "hover:bg-slate-50"
+                  )}>
+                    <td className="px-4 py-3 whitespace-nowrap text-sm font-bold text-slate-500">
+                      {esCuotaActual ? (
+                        <span className="inline-flex items-center gap-1">
+                          <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
+                          {cuota.numero}
+                        </span>
+                      ) : cuota.numero}
+                    </td>
                     <td className="px-4 py-3 whitespace-nowrap text-sm text-slate-700 font-medium">{formatDate(cuota.fecha)}</td>
                     <td className="px-4 py-3 whitespace-nowrap text-sm font-bold text-slate-900">
                       {formatCurrency(cuota.monto)}
@@ -287,6 +386,9 @@ export default function DetallePrestamo({ prestamo }: DetallePrestamoProps) {
                     <td className="px-4 py-3 whitespace-nowrap text-sm text-violet-700 font-medium">
                       {cuota.montoInteres != null ? formatCurrency(cuota.montoInteres) : '-'}
                     </td>
+                    <td className="px-4 py-3 whitespace-nowrap text-sm font-bold text-slate-600">
+                      {formatCurrency(cuota.saldoRestante)}
+                    </td>
                     <td className="px-4 py-3 whitespace-nowrap">
                       <span className={cn("px-2.5 py-1 rounded-full text-[10px] font-black tracking-wide uppercase border", getCuotaEstadoColor(cuota.estado))}>
                         {cuota.estado}
@@ -296,15 +398,16 @@ export default function DetallePrestamo({ prestamo }: DetallePrestamoProps) {
                       {cuota.fechaPago ? formatDate(cuota.fechaPago) : '—'}
                     </td>
                   </tr>
-                ))}
+                    );
+                  })}
               </tbody>
             </table>
 
             {/* Paginador de cuotas */}
-            {prestamo.cuotas.length > CUOTAS_PER_PAGE && (
+            {cuotasConSaldo.length > CUOTAS_PER_PAGE && (
               <div className="px-4 py-3 border-t border-slate-100 bg-slate-50/50 flex items-center justify-between">
                 <span className="text-xs font-medium text-slate-500">
-                  {(cuotaPage - 1) * CUOTAS_PER_PAGE + 1}–{Math.min(cuotaPage * CUOTAS_PER_PAGE, prestamo.cuotas.length)} de {prestamo.cuotas.length} cuotas
+                  {(cuotaPage - 1) * CUOTAS_PER_PAGE + 1}–{Math.min(cuotaPage * CUOTAS_PER_PAGE, cuotasConSaldo.length)} de {cuotasConSaldo.length} cuotas
                 </span>
                 <div className="flex items-center gap-1">
                   <button
@@ -330,7 +433,7 @@ export default function DetallePrestamo({ prestamo }: DetallePrestamoProps) {
                   ))}
                   <button
                     onClick={() => setCuotaPage(p => Math.min(Math.ceil(prestamo.cuotas.length / CUOTAS_PER_PAGE), p + 1))}
-                    disabled={cuotaPage === Math.ceil(prestamo.cuotas.length / CUOTAS_PER_PAGE)}
+                    disabled={cuotaPage === Math.ceil(cuotasConSaldo.length / CUOTAS_PER_PAGE)}
                     className="p-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                   >
                     <ChevronRight className="w-4 h-4 text-slate-600" />
@@ -338,6 +441,7 @@ export default function DetallePrestamo({ prestamo }: DetallePrestamoProps) {
                 </div>
               </div>
             )}
+            </div>
           </div>
         )}
 
