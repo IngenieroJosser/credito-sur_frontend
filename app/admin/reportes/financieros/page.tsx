@@ -490,13 +490,13 @@ const ReportesFinancierosPage = () => {
         {/* Charts Section */}
         <div className="grid grid-cols-1 gap-8">
           {/* Main Chart: Monthly Trends */}
-          <div className="bg-white/80 backdrop-blur-sm rounded-2xl border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-8">
-            <div className="flex items-center justify-between mb-8">
+          <div className="bg-white/80 backdrop-blur-sm rounded-2xl border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-4 md:p-8">
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6 md:mb-8">
               <div>
-                <h3 className="text-lg font-bold text-slate-900">Evolución Financiera</h3>
-                <p className="text-sm text-slate-400 font-medium">Comportamiento por periodo seleccionado de ingresos y egresos</p>
+                <h3 className="text-base md:text-lg font-bold text-slate-900">Evolución Financiera</h3>
+                <p className="text-xs md:text-sm text-slate-400 font-medium">Comportamiento por periodo seleccionado de ingresos y egresos</p>
               </div>
-              <div className="flex items-center gap-4 text-xs font-bold">
+              <div className="flex items-center gap-3 md:gap-4 text-xs font-bold">
                 <div className="flex items-center gap-2">
                   <div className="w-3 h-3 rounded-full bg-blue-600"></div>
                   <span className="text-slate-600">Ingresos</span>
@@ -543,10 +543,10 @@ const ReportesFinancierosPage = () => {
 
         {/* Detailed Table */}
         <div className="bg-white/80 backdrop-blur-sm rounded-2xl border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden">
-          <div className="px-8 py-6 border-b border-slate-200 flex justify-between items-center bg-white/50">
+          <div className="px-4 md:px-8 py-4 md:py-6 border-b border-slate-200 flex justify-between items-center bg-white/50">
             <div>
-              <h3 className="text-lg font-bold text-slate-900">Detalle Financiero</h3>
-              <p className="text-sm text-slate-400 font-medium">Desglose por periodo contable</p>
+              <h3 className="text-base md:text-lg font-bold text-slate-900">Detalle Financiero</h3>
+              <p className="text-xs md:text-sm text-slate-400 font-medium">Desglose por periodo contable</p>
             </div>
           </div>
           <div className="overflow-x-auto">
