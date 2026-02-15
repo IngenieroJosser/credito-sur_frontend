@@ -17,6 +17,8 @@ import { formatCOPInputValue, formatCurrency, formatMilesCOP, parseCOPInputToNum
 import { clientesService } from '@/services/cliente-service'
 import { prestamosService } from '@/services/prestamos-service'
 import { pagosService, type DescomposicionPago } from '@/services/pagos-service'
+import { offlineStore } from '@/lib/offline/offlineDb'
+import { enqueuePago } from '@/lib/offline/offlineQueue'
 
 type TipoProducto = 'PRESTAMO_EFECTIVO' | 'CREDITO_ARTICULO'
 
@@ -84,6 +86,32 @@ const RegistrarPagoClientePage = () => {
         }
       } catch (err) {
         console.error('Error cargando datos del cliente:', err)
+        // Fallback offline: cargar de IndexedDB
+        try {
+          const offCliente = await offlineStore.getById<any>('clientes', clienteId)
+          if (offCliente) {
+            setCliente({
+              id: offCliente.id,
+              nombre: `${offCliente.nombres || ''} ${offCliente.apellidos || ''}`.trim(),
+              dni: offCliente.dni || '',
+              direccion: offCliente.direccion || ''
+            })
+          }
+          const offPrestamos = await offlineStore.getByIndex<any>('prestamos', 'by-clienteId', clienteId)
+          const offPrestamo = offPrestamos[0]
+          if (offPrestamo) {
+            setProducto({
+              id: offPrestamo.id,
+              tipo: 'PRESTAMO_EFECTIVO',
+              codigo: offPrestamo.numeroPrestamo || offPrestamo.id,
+              descripcion: offPrestamo.frecuenciaPago || 'Préstamo',
+              saldoPendiente: offPrestamo.saldoPendiente || 0,
+              proximaCuota: offPrestamo.fechaFin || '',
+              valorCuota: offPrestamo.saldoPendiente ? Math.round(offPrestamo.saldoPendiente / (offPrestamo.cantidadCuotas || 1)) : 0,
+              diasMora: 0,
+            })
+          }
+        } catch { /* ignore */ }
       } finally {
         setLoading(false)
       }
@@ -97,10 +125,10 @@ const RegistrarPagoClientePage = () => {
     if (parseCOPInputToNumber(monto) <= 0 || !producto || !cliente) return
 
     setEstadoEnvio('enviando')
-    try {
-      const userStr = localStorage.getItem('user')
-      const user = userStr ? JSON.parse(userStr) : null
+    const userStr = localStorage.getItem('user')
+    const user = userStr ? JSON.parse(userStr) : null
 
+    try {
       const resultado = await pagosService.registrarPago({
         clienteId: cliente.id,
         prestamoId: producto.id,
@@ -113,6 +141,30 @@ const RegistrarPagoClientePage = () => {
       setEstadoEnvio('exito')
     } catch (err) {
       console.error('Error registrando pago:', err)
+      // Fallback offline: encolar pago
+      if (!navigator.onLine) {
+        try {
+          await enqueuePago({
+            clienteId: cliente.id,
+            prestamoId: producto.id,
+            cobradorId: user?.id || '',
+            montoTotal: parseCOPInputToNumber(monto),
+            notas: comentarios || undefined,
+            clienteNombre: cliente.nombre,
+          })
+          setEstadoEnvio('exito')
+          setDescomposicion({
+            montoTotal: parseCOPInputToNumber(monto),
+            capitalRecuperado: 0,
+            interesRecuperado: 0,
+            saldoAnterior: producto.saldoPendiente,
+            saldoNuevo: producto.saldoPendiente - parseCOPInputToNumber(monto),
+            cuotasAfectadas: 0,
+            prestamoQuedaPagado: false,
+          })
+          return
+        } catch { /* ignore */ }
+      }
       setEstadoEnvio('error')
     }
   }

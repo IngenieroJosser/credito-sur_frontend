@@ -6,6 +6,7 @@ import { useNotification } from '@/components/providers/NotificationProvider';
 import Portal, { MODAL_Z_INDEX } from '@/components/ui/Portal';
 import { clientesService, CrearClienteDto, Cliente } from '@/services/clientes-service';
 import MediaUpload from '@/components/ui/MediaUpload';
+import { enqueueClienteUpdate } from '@/lib/offline/offlineQueue';
 
 import { UploadResponse } from '@/services/upload-service';
 
@@ -85,43 +86,42 @@ export default function NuevoClienteModal({ onClose, onClienteCreado, cliente = 
     e.preventDefault();
     setIsSubmitting(true);
 
-    try {
-      // Preparar arreglo de archivos
-      const archivos = [];
-      const mapeoArchivos = [
-        { key: 'fotoPerfil', tipo: 'FOTO_PERFIL' },
-        { key: 'documentoFrente', tipo: 'DOCUMENTO_IDENTIDAD_FRENTE' },
-        { key: 'documentoReverso', tipo: 'DOCUMENTO_IDENTIDAD_REVERSO' },
-        { key: 'comprobanteDomicilio', tipo: 'COMPROBANTE_DOMICILIO' },
-      ];
+    // Preparar arreglo de archivos
+    const archivos: any[] = [];
+    const mapeoArchivos = [
+      { key: 'fotoPerfil', tipo: 'FOTO_PERFIL' },
+      { key: 'documentoFrente', tipo: 'DOCUMENTO_IDENTIDAD_FRENTE' },
+      { key: 'documentoReverso', tipo: 'DOCUMENTO_IDENTIDAD_REVERSO' },
+      { key: 'comprobanteDomicilio', tipo: 'COMPROBANTE_DOMICILIO' },
+    ];
 
-      for (const map of mapeoArchivos) {
-        const upload = archivosCargados[map.key as keyof typeof archivosCargados];
-        if (upload) {
-          archivos.push({
-            tipoContenido: map.tipo,
-            tipoArchivo: upload.mimetype,
-            nombreOriginal: upload.filename, // Ajuste temporal
-            nombreAlmacenamiento: upload.filename,
-            ruta: upload.path,
-            tamanoBytes: upload.size,
-          });
-        }
+    for (const map of mapeoArchivos) {
+      const upload = archivosCargados[map.key as keyof typeof archivosCargados];
+      if (upload) {
+        archivos.push({
+          tipoContenido: map.tipo,
+          tipoArchivo: upload.mimetype,
+          nombreOriginal: upload.filename,
+          nombreAlmacenamiento: upload.filename,
+          ruta: upload.path,
+          tamanoBytes: upload.size,
+        });
       }
+    }
 
-      const payload: CrearClienteDto = {
-        dni: formulario.dni,
-        nombres: formulario.nombres,
-        apellidos: formulario.apellidos,
-        telefono: formulario.telefono,
-        correo: formulario.correo || undefined,
-        direccion: formulario.direccion || undefined,
-        referencia: formulario.referencia || undefined,
+    const payload: CrearClienteDto = {
+      dni: formulario.dni,
+      nombres: formulario.nombres,
+      apellidos: formulario.apellidos,
+      telefono: formulario.telefono,
+      correo: formulario.correo || undefined,
+      direccion: formulario.direccion || undefined,
+      referencia: formulario.referencia || undefined,
+      creadoPorId: currentUser?.id || undefined, 
+      archivos: archivos.length > 0 ? archivos : undefined,
+    };
 
-        creadoPorId: currentUser?.id || undefined, 
-        archivos: archivos.length > 0 ? archivos : undefined,
-      };
-
+    try {
       let resultado: Cliente;
       
       if (esEdicion && cliente?.id) {
@@ -147,6 +147,27 @@ export default function NuevoClienteModal({ onClose, onClienteCreado, cliente = 
 
     } catch (error: any) {
       console.error(error);
+      // Si estamos offline, encolar la operación
+      if (!navigator.onLine) {
+        try {
+          if (esEdicion && cliente?.id) {
+            await enqueueClienteUpdate(cliente.id, payload as unknown as Record<string, unknown>, `${formulario.nombres} ${formulario.apellidos}`);
+          } else {
+            const { enqueueClienteUpdate: enqueue } = await import('@/lib/offline/offlineQueue');
+            await enqueue('new', payload as any, `${formulario.nombres} ${formulario.apellidos}`);
+          }
+          showNotification('warning', 'Sin conexión. La operación se guardó en cola y se enviará cuando vuelva la conexión.', 'Guardado Offline');
+          onClienteCreado({
+            ...formulario,
+            id: `offline-${Date.now()}`,
+            codigo: 'PENDIENTE',
+          } as any);
+          onClose();
+          return;
+        } catch {
+          // Si falla el encolado, mostrar error normal
+        }
+      }
       const message = error?.message || 'Error al guardar el cliente';
       showNotification('error', message, 'Error');
     } finally {

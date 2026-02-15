@@ -81,6 +81,8 @@ import GastoModal from '@/components/dashboards/shared/GastoModal'
 import BaseModal from '@/components/dashboards/shared/BaseModal'
 import DetalleMoraModal from '@/components/cobranza/DetalleMoraModal'
 import FloatingActionMenu, { FabAction } from '@/components/dashboards/shared/FloatingActionMenu'
+import { offlineStore } from '@/lib/offline/offlineDb'
+import { enqueuePago } from '@/lib/offline/offlineQueue'
 
 interface OperacionCaja {
   id: string
@@ -283,6 +285,37 @@ const VistaCobrador = () => {
         setVisitasOrden(visitas.map(v => v.id));
       } catch (err) {
         console.error('Error cargando visitas de ruta:', err);
+        // Fallback offline: cargar clientes y préstamos de IndexedDB
+        try {
+          const [offlineClientes, offlinePrestamos] = await Promise.all([
+            offlineStore.getAll<any>('clientes'),
+            offlineStore.getAll<any>('prestamos'),
+          ]);
+          if (offlineClientes.length > 0) {
+            const visitasOffline: VisitaRuta[] = offlineClientes.slice(0, 30).map((c: any, idx: number) => {
+              const prestamo = offlinePrestamos.find((p: any) => p.clienteId === c.id);
+              return {
+                id: c.id,
+                cliente: `${c.nombres || ''} ${c.apellidos || ''}`.trim() || 'Sin nombre',
+                direccion: c.direccion || 'Sin dirección',
+                telefono: c.telefono || '',
+                horaSugerida: '',
+                montoCuota: prestamo?.saldoPendiente ? Math.round(prestamo.saldoPendiente / (prestamo.cantidadCuotas || 1)) : 0,
+                saldoTotal: prestamo?.saldoPendiente || 0,
+                estado: 'pendiente' as EstadoVisita,
+                proximaVisita: 'Hoy',
+                ordenVisita: idx + 1,
+                prioridad: 'media' as const,
+                nivelRiesgo: 'moderado' as const,
+                cobradorId: userSession.id,
+                periodoRuta: 'DIA' as PeriodoRuta,
+              };
+            });
+            setVisitasBase(visitasOffline);
+            setVisitasOrden(visitasOffline.map(v => v.id));
+            return;
+          }
+        } catch { /* ignore */ }
         setVisitasBase([]);
         setVisitasOrden([]);
       }

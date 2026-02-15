@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNotification } from '@/components/providers/NotificationProvider';
 import { clientesService, Cliente } from '@/services/clientes-service';
 import { ClienteAdmin } from '@/lib/clientes-data';
@@ -33,6 +33,8 @@ import { Modal } from '@/components/ui/Modal';
 import FiltroRuta from '@/components/filtros/FiltroRuta';
 import NuevoClienteModal from '@/components/clientes/NuevoClienteModal';
 import ClientePortalModal from '@/components/cliente/ClientePortalModal';
+import { offlineStore } from '@/lib/offline/offlineDb';
+import { WifiOff } from 'lucide-react';
 
 // Tipos locales
 type NivelRiesgo = 'VERDE' | 'AMARILLO' | 'ROJO' | 'LISTA_NEGRA';
@@ -59,6 +61,22 @@ export default function ClientesFeature({ initialClientes, basePath = '/admin/cl
   
   // Estado local de clientes, inicializado con lo que recibimos del servidor (SSR)
   const [clientes, setClientes] = useState<ClienteAdmin[]>(initialClientes);
+  const [dataSource, setDataSource] = useState<'online' | 'offline'>('online');
+
+  // Fallback offline: si SSR no trajo datos, intentar cargar de IndexedDB
+  useEffect(() => {
+    if (initialClientes.length === 0) {
+      offlineStore.getAll<ClienteAdmin>('clientes').then((offlineData) => {
+        if (offlineData.length > 0) {
+          setClientes(offlineData);
+          setDataSource('offline');
+        }
+      }).catch(() => {});
+    } else {
+      // Guardar en IndexedDB para uso offline futuro
+      offlineStore.saveMany('clientes', initialClientes).catch(() => {});
+    }
+  }, [initialClientes]);
 
   // --- CONTROLES DE INTERFAZ & FILTROS ---
   // Buscador textual: busca por nombre, cédula o correo
@@ -236,6 +254,14 @@ export default function ClientesFeature({ initialClientes, basePath = '/admin/cl
             </button>
           )}
         </div>
+
+        {/* Banner offline */}
+        {dataSource === 'offline' && (
+          <div className="flex items-center gap-2 px-4 py-2.5 bg-amber-50 border border-amber-200 rounded-xl text-xs font-bold text-amber-700">
+            <WifiOff className="h-3.5 w-3.5" />
+            Mostrando datos guardados localmente. Algunos datos pueden no estar actualizados.
+          </div>
+        )}
 
         {/* Estadísticas Elegantes */}
         <div className="grid grid-cols-2 md:grid-cols-5 gap-6">

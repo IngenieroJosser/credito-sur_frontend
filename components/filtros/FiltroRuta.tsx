@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { cn } from '@/lib/utils'
 import { routesService } from '@/services/routes-service'
+import { offlineStore } from '@/lib/offline/offlineDb'
 
 interface RutaOption {
   id: string
@@ -36,16 +37,24 @@ export default function FiltroRuta({
       setLoading(true)
       try {
         const response = await routesService.getAll({ limit: 100 })
-        const rutasData: RutaOption[] = (response?.data || []).map((r) => ({
+        const rutasData: RutaOption[] = (response?.data || []).map((r: any) => ({
           id: r.id,
           nombre: r.nombre,
           codigo: r.codigo,
           cobrador: r.cobrador || (r.cobrador_ ? `${r.cobrador_.nombres} ${r.cobrador_.apellidos}` : undefined),
         }))
         setRutas(rutasData)
+        // Guardar en IndexedDB para uso offline
+        offlineStore.saveMany('rutas', rutasData.map(r => ({ ...r, zona: '', activa: true, cobradorId: '', supervisorId: null }))).catch(() => {})
       } catch (err) {
         console.error('Error cargando rutas:', err)
-        setRutas([])
+        // Fallback offline: cargar de IndexedDB
+        try {
+          const offlineRutas = await offlineStore.getAll<any>('rutas')
+          setRutas(offlineRutas.map((r: any) => ({ id: r.id, nombre: r.nombre, codigo: r.codigo })))
+        } catch {
+          setRutas([])
+        }
       } finally {
         setLoading(false)
       }
