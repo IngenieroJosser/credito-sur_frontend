@@ -1,39 +1,101 @@
-type CacheEntry<T = unknown> = {
+import { openDB, DBSchema, IDBPDatabase } from 'idb';
+
+interface CacheEntry<T = unknown> {
   data: T;
   expiresAt: number;
+}
+
+interface MyDB extends DBSchema {
+  'api-cache': {
+    key: string;
+    value: CacheEntry;
+    indexes: { 'by-expiresAt': number };
+  };
+}
+
+const DB_NAME = 'creditsur-api-cache';
+const STORE_NAME = 'api-cache';
+const DEFAULT_TTL = 30_000; // 30 segundos (igual que antes)
+
+let dbPromise: Promise<IDBPDatabase<MyDB>> | null = null;
+
+const getDb = async () => {
+  if (!dbPromise) {
+    dbPromise = openDB<MyDB>(DB_NAME, 1, {
+      upgrade(db) {
+        const store = db.createObjectStore(STORE_NAME);
+        store.createIndex('by-expiresAt', 'expiresAt');
+      },
+    });
+  }
+  return dbPromise;
 };
-
-const memoryCache = new Map<string, CacheEntry>();
-
-const DEFAULT_TTL = 30_000; // 30 segundos
 
 export const getCacheKey = (method: string, url: string) =>
   `${method.toUpperCase()}:${url}`;
 
-export const getCached = <T>(key: string): T | null => {
-  const entry = memoryCache.get(key);
+export const getCached = async <T>(key: string): Promise<T | null> => {
+  try {
+    const db = await getDb();
+    const entry = await db.get(STORE_NAME, key);
+    if (!entry) return null;
 
-  if (!entry) return null;
+    if (Date.now() > entry.expiresAt) {
+      // Eliminar entrada expirada
+      await db.delete(STORE_NAME, key);
+      return null;
+    }
 
-  if (Date.now() > entry.expiresAt) {
-    memoryCache.delete(key);
+    return entry.data as T;
+  } catch (error) {
+    console.error('Error reading from IndexedDB:', error);
     return null;
   }
-
-  return entry.data as T;
 };
 
-export const setCache = <T>(
+export const setCache = async <T>(
   key: string,
   data: T,
   ttl: number = DEFAULT_TTL
 ) => {
-  memoryCache.set(key, {
-    data,
-    expiresAt: Date.now() + ttl,
-  });
+  try {
+    const db = await getDb();
+    const entry: CacheEntry<T> = {
+      data,
+      expiresAt: Date.now() + ttl,
+    };
+    await db.put(STORE_NAME, entry, key);
+  } catch (error) {
+    console.error('Error writing to IndexedDB:', error);
+  }
 };
 
-export const invalidateCache = () => {
-  memoryCache.clear();
+// Invalida toda la caché (útil después de mutaciones)
+export const invalidateCache = async () => {
+  try {
+    const db = await getDb();
+    await db.clear(STORE_NAME);
+  } catch (error) {
+    console.error('Error clearing cache:', error);
+  }
+};
+
+// Opcional: limpiar entradas expiradas manualmente (puedes llamarla periódicamente)
+export const cleanExpired = async () => {
+  try {
+    const db = await getDb();
+    const tx = db.transaction(STORE_NAME, 'readwrite');
+    const index = tx.store.index('by-expiresAt');
+    let cursor = await index.openCursor();
+    const now = Date.now();
+    while (cursor) {
+      if (cursor.value.expiresAt <= now) {
+        cursor.delete();
+      }
+      cursor = await cursor.continue();
+    }
+    await tx.done;
+  } catch (error) {
+    console.error('Error cleaning expired cache:', error);
+  }
 };

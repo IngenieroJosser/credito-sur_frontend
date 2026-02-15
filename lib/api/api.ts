@@ -1,3 +1,4 @@
+// app/lib/api/api.ts
 import { AxiosRequestConfig, Method, AxiosError } from "axios";
 import { apiClient } from "./apiClient";
 import {
@@ -33,9 +34,9 @@ export const apiRequest = async <T>(
   const isGET = method.toUpperCase() === "GET";
   const cacheKey = getCacheKey(method, url);
 
-  // 1. CACHE HIT
+  // 1. CACHE HIT (ahora asíncrono)
   if (isGET) {
-    const cached = getCached<T>(cacheKey);
+    const cached = await getCached<T>(cacheKey);
     if (cached) return cached;
   }
 
@@ -58,11 +59,11 @@ export const apiRequest = async <T>(
       ...axiosConfig,
     });
 
-    // 2. CACHE STORE / INVALIDATE
+    // 2. CACHE STORE / INVALIDATE (ahora asíncrono)
     if (isGET) {
-      setCache(cacheKey, response.data, cacheTTL);
+      await setCache(cacheKey, response.data, cacheTTL);
     } else {
-      invalidateCache();
+      await invalidateCache();
     }
 
     return response.data;
