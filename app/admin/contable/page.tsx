@@ -583,7 +583,7 @@ const ModuloContableContent = () => {
         <div className="absolute left-0 right-0 top-0 -z-10 m-auto h-[310px] w-[310px] rounded-full bg-primary opacity-20 blur-[100px]"></div>
       </div>
 
-      <div className="relative z-10 w-full p-8 space-y-8">
+      <div className="relative z-10 w-full p-4 md:p-8 space-y-6 md:space-y-8">
         {/* Header Ultra Clean */}
         <header className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between mb-8">
             <div className="space-y-2">
