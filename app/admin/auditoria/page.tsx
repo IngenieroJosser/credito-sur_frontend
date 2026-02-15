@@ -275,7 +275,8 @@ const AuditoriaSistemaPage = () => {
             </div>
           </div>
 
-          <div className="overflow-x-auto">
+          {/* Tabla - Desktop */}
+          <div className="hidden md:block overflow-x-auto">
             <table className="w-full text-sm text-left">
               <thead className="text-xs text-slate-500 uppercase bg-slate-50/50 border-b border-slate-100">
                 <tr>
@@ -337,17 +338,74 @@ const AuditoriaSistemaPage = () => {
                 ))}
               </tbody>
             </table>
-            
-            {logsFiltrados.length === 0 && (
-              <div className="py-16 text-center">
-                <div className="inline-flex p-4 rounded-full bg-slate-50 mb-4 border border-slate-100">
-                  <Search className="h-8 w-8 text-slate-300" />
-                </div>
-                <h3 className="text-lg font-bold text-slate-900">No se encontraron registros</h3>
-                <p className="text-slate-500 mt-1 font-medium">Intenta ajustar los términos de búsqueda o filtros.</p>
-              </div>
-            )}
           </div>
+
+          {/* Vista de Cards - Móvil */}
+          <div className="md:hidden space-y-4 p-4">
+            {logsFiltrados.map((log) => (
+              <div
+                key={log.id}
+                className="bg-white rounded-2xl border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-4"
+              >
+                {/* Fecha y Usuario */}
+                <div className="flex items-start justify-between mb-3 pb-3 border-b border-slate-100">
+                  <div className="flex items-center gap-3 flex-1 min-w-0">
+                    <div className="h-10 w-10 rounded-xl bg-slate-100 flex items-center justify-center text-xs font-bold text-slate-600 uppercase border border-slate-200 flex-shrink-0">
+                      {log.usuario.charAt(0)}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="font-bold text-slate-900 truncate">{log.usuario}</div>
+                      <div className="text-xs text-slate-500 font-medium">{log.rol}</div>
+                    </div>
+                  </div>
+                  <span className={cn(
+                    "inline-flex px-2 py-0.5 rounded-full text-[10px] font-bold tracking-wide uppercase border flex-shrink-0 ml-2",
+                    getNivelBadge(log.nivel)
+                  )}>
+                    {log.nivel}
+                  </span>
+                </div>
+
+                {/* Módulo/Acción */}
+                <div className="mb-3 pb-3 border-b border-slate-100">
+                  <div className="text-xs text-slate-500 font-bold uppercase tracking-wider mb-1">Módulo / Acción</div>
+                  <div className="font-bold text-slate-900">{log.accion.replace(/_/g, ' ')}</div>
+                  <div className="text-xs text-slate-400 font-medium mt-0.5">{log.modulo}{log.rutaNombre ? ` · ${log.rutaNombre}` : ''}</div>
+                </div>
+
+                {/* Detalle */}
+                <div className="mb-3 pb-3 border-b border-slate-100">
+                  <div className="text-xs text-slate-500 font-bold uppercase tracking-wider mb-1">Detalle</div>
+                  <div className="text-sm text-slate-600 font-medium break-words">{log.detalle}</div>
+                </div>
+
+                {/* Fecha y Acción */}
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-xs text-slate-500 font-mono">
+                    <Calendar className="h-3.5 w-3.5 text-slate-400" />
+                    {formatDate(log.fecha)}
+                  </div>
+                  <button 
+                    onClick={() => setSelectedLog(log)}
+                    className="inline-flex items-center gap-2 px-3 py-1.5 text-xs font-bold text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors"
+                  >
+                    <Eye className="h-3.5 w-3.5" />
+                    Ver
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+            
+          {logsFiltrados.length === 0 && (
+            <div className="py-16 text-center">
+              <div className="inline-flex p-4 rounded-full bg-slate-50 mb-4 border border-slate-100">
+                <Search className="h-8 w-8 text-slate-300" />
+              </div>
+              <h3 className="text-lg font-bold text-slate-900">No se encontraron registros</h3>
+              <p className="text-slate-500 mt-1 font-medium">Intenta ajustar los términos de búsqueda o filtros.</p>
+            </div>
+          )}
           
           <div className="p-4 border-t border-slate-100 bg-slate-50/30 flex justify-between items-center text-xs text-slate-500 font-medium">
             <span>Mostrando {logsFiltrados.length} de {logs.length} eventos</span>
