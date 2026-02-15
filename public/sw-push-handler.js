@@ -10,8 +10,8 @@ const NOTIFICATION_CONFIGS = {
     badge: '/android-chrome-192x192.png',
     vibrate: [200, 100, 200],
     actions: [
-      { action: 'view', title: '👁️ Ver Detalles', icon: '/android-chrome-192x192.png' },
-      { action: 'dismiss', title: '✓ Entendido', icon: '/android-chrome-192x192.png' }
+      { action: 'view', title: 'Ver Detalles', icon: '/android-chrome-192x192.png' },
+      { action: 'dismiss', title: 'Entendido', icon: '/android-chrome-192x192.png' }
     ],
     requireInteraction: true,
   },
@@ -20,7 +20,7 @@ const NOTIFICATION_CONFIGS = {
     badge: '/android-chrome-192x192.png',
     vibrate: [300, 100, 300, 100, 300],
     actions: [
-      { action: 'view', title: '⚠️ Ver Cliente', icon: '/android-chrome-192x192.png' },
+      { action: 'view', title: 'Ver Cliente', icon: '/android-chrome-192x192.png' },
       { action: 'dismiss', title: 'Cerrar', icon: '/android-chrome-192x192.png' }
     ],
     requireInteraction: true,
@@ -30,7 +30,7 @@ const NOTIFICATION_CONFIGS = {
     badge: '/android-chrome-192x192.png',
     vibrate: [200, 100, 200],
     actions: [
-      { action: 'view', title: '👤 Ver Perfil', icon: '/android-chrome-192x192.png' },
+      { action: 'view', title: 'Ver Perfil', icon: '/android-chrome-192x192.png' },
       { action: 'dismiss', title: 'Cerrar', icon: '/android-chrome-192x192.png' }
     ],
     requireInteraction: false,
@@ -40,7 +40,7 @@ const NOTIFICATION_CONFIGS = {
     badge: '/android-chrome-192x192.png',
     vibrate: [200, 100, 200],
     actions: [
-      { action: 'view', title: '💰 Ver Préstamo', icon: '/android-chrome-192x192.png' },
+      { action: 'view', title: 'Ver Préstamo', icon: '/android-chrome-192x192.png' },
       { action: 'dismiss', title: 'Cerrar', icon: '/android-chrome-192x192.png' }
     ],
     requireInteraction: false,
@@ -60,8 +60,8 @@ const NOTIFICATION_CONFIGS = {
     badge: '/android-chrome-192x192.png',
     vibrate: [200, 100, 200, 100, 200],
     actions: [
-      { action: 'approve', title: '✓ Aprobar', icon: '/android-chrome-192x192.png' },
-      { action: 'view', title: '👁️ Revisar', icon: '/android-chrome-192x192.png' },
+      { action: 'approve', title: 'Aprobar', icon: '/android-chrome-192x192.png' },
+      { action: 'view', title: 'Revisar', icon: '/android-chrome-192x192.png' },
       { action: 'dismiss', title: 'Después', icon: '/android-chrome-192x192.png' }
     ],
     requireInteraction: true,
@@ -70,10 +70,10 @@ const NOTIFICATION_CONFIGS = {
 
 // Manejar evento push
 self.addEventListener('push', function(event) {
-  console.log('[SW] 🔔 Push recibido:', event);
+  console.log('[SW] Push recibido:', event);
 
   let notificationData = {
-    title: '💳 Credisur',
+    title: 'Credisur',
     body: 'Nueva notificación',
     icon: '/android-chrome-192x192.png',
     badge: '/android-chrome-192x192.png',
@@ -90,21 +90,8 @@ self.addEventListener('push', function(event) {
       const tipo = data.tipo || data.type || 'SISTEMA';
       const config = NOTIFICATION_CONFIGS[tipo] || NOTIFICATION_CONFIGS.SISTEMA;
 
-      // Emojis por tipo
-      const emojiMap = {
-        PAGO: '💰',
-        MORA: '⚠️',
-        CLIENTE: '👤',
-        PRESTAMO: '💳',
-        SISTEMA: '🔔',
-        SOLICITUD: '📋',
-        GASTO: '💸',
-      };
-
-      const emoji = emojiMap[tipo] || '🔔';
-
       notificationData = {
-        title: `${emoji} ${data.title || data.titulo || 'Credisur'}`,
+        title: data.title || data.titulo || 'Credisur',
         body: data.body || data.message || data.mensaje || notificationData.body,
         icon: data.icon || config.icon,
         badge: data.badge || config.badge,
@@ -130,7 +117,7 @@ self.addEventListener('push', function(event) {
         renotify: data.renotify || false,
       };
     } catch (e) {
-      console.error('[SW] ❌ Error parseando push data:', e);
+      console.error('[SW] Error parseando push data:', e);
       notificationData.body = event.data.text();
     }
   }
@@ -158,8 +145,8 @@ self.addEventListener('push', function(event) {
 
 // Manejar click en notificación (incluyendo acciones)
 self.addEventListener('notificationclick', function(event) {
-  console.log('[SW] 🖱️ Notificación clickeada:', event);
-  console.log('[SW] 📋 Acción:', event.action);
+  console.log('[SW] Notificación clickeada:', event);
+  console.log('[SW] Acción:', event.action);
 
   event.notification.close();
 
@@ -171,19 +158,19 @@ self.addEventListener('notificationclick', function(event) {
   if (event.action === 'approve') {
     // Acción de aprobar - ir a la página de aprobaciones
     urlToOpen = notifData.approveUrl || '/notificaciones';
-    console.log('[SW] ✅ Acción: Aprobar');
+    console.log('[SW] Acción: Aprobar');
   } else if (event.action === 'view') {
     // Acción de ver - ir a la URL específica
     urlToOpen = notifData.url || notifData.link || '/';
-    console.log('[SW] 👁️ Acción: Ver detalles');
+    console.log('[SW] Acción: Ver detalles');
   } else if (event.action === 'dismiss') {
     // Acción de cerrar - solo cerrar la notificación
-    console.log('[SW] ❌ Acción: Cerrar');
+    console.log('[SW] Acción: Cerrar');
     return;
   } else {
     // Click en el cuerpo de la notificación
     urlToOpen = notifData.url || notifData.link || '/';
-    console.log('[SW] 🔗 Click en notificación, navegando a:', urlToOpen);
+    console.log('[SW] Click en notificación, navegando a:', urlToOpen);
   }
 
   // Abrir o enfocar ventana
@@ -193,7 +180,7 @@ self.addEventListener('notificationclick', function(event) {
       for (let i = 0; i < clientList.length; i++) {
         const client = clientList[i];
         if (client.url.includes(self.location.origin) && 'focus' in client) {
-          console.log('[SW] 🪟 Ventana encontrada, enfocando y navegando...');
+          console.log('[SW] Ventana encontrada, enfocando y navegando...');
           return client.focus().then(function(focusedClient) {
             if (urlToOpen !== '/' && 'navigate' in focusedClient) {
               return focusedClient.navigate(urlToOpen);
@@ -204,7 +191,7 @@ self.addEventListener('notificationclick', function(event) {
       }
       
       // Si no hay ventana abierta, abrir una nueva
-      console.log('[SW] 🆕 Abriendo nueva ventana...');
+      console.log('[SW] Abriendo nueva ventana...');
       if (clients.openWindow) {
         return clients.openWindow(urlToOpen);
       }
