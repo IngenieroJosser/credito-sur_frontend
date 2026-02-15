@@ -126,27 +126,27 @@ export function DashboardClient({ data }: DashboardClientProps) {
 
       <div className="relative z-10 p-6 lg:p-16 space-y-20 max-w-[1600px] mx-auto">
         {/* Encabezado Principal */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 animate-in fade-in slide-in-from-top-4 duration-500">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 md:gap-6 animate-in fade-in slide-in-from-top-4 duration-500">
           <div>
             <div className="flex items-center gap-2 mb-2">
               <div className="p-2 bg-blue-600 rounded-lg shadow-md shadow-blue-600/20">
-                <LayoutDashboard className="w-6 h-6 text-white" />
+                <LayoutDashboard className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
               </div>
-              <h1 className="text-3xl font-bold tracking-tight">
+              <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">
                 <span className="text-blue-600">Panel</span> <span className="text-orange-500">Principal</span>
               </h1>
             </div>
-            <p className="text-slate-500 mt-1 font-medium text-sm flex items-center gap-2">
+            <p className="text-slate-500 mt-1 font-medium text-xs sm:text-sm flex items-center gap-2 flex-wrap">
               <Calendar className="h-3.5 w-3.5" />
-              {formatDate(currentDate)}
-              <span className="w-1 h-1 rounded-full bg-slate-300"></span>
+              <span className="whitespace-nowrap">{formatDate(currentDate)}</span>
+              <span className="w-1 h-1 rounded-full bg-slate-300 hidden sm:inline"></span>
               <span className="text-xs px-2 py-0.5 bg-slate-100 rounded text-slate-600 font-semibold border border-slate-200">
                 {data.userRole}
               </span>
             </p>
           </div>
           
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2 sm:gap-4 flex-wrap sm:flex-nowrap">
             {/* Selector de periodo (Mes, Semana, Día) */}
             <TimeFilter 
               activePeriod={activePeriod} 
