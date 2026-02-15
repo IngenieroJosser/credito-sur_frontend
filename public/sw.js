@@ -9,8 +9,8 @@ self.addEventListener("install", event => {
         "/offline",
         "/favicon.ico",
         "/manifest.json",
-        "/icons/icon-192.png",
-        "/icons/icon-512.png"
+        "/android-chrome-192x192.png",
+        "/android-chrome-512x512.png"
       ])
     )
   );
