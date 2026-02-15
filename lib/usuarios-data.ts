@@ -5,7 +5,7 @@ export async function getUsuariosByRol(rol: RolUsuario): Promise<Usuario[]> {
   try {
     const cookieStore = await cookies();
     const token = cookieStore.get('token')?.value;
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+    const apiUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3001';
 
     const res = await fetch(`${apiUrl}/usuarios`, {
        headers: { 

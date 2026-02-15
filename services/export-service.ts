@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api-credisur';
+const API_BASE = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3001';
 
 /**
  * Generic export service that downloads files from backend endpoints.

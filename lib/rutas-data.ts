@@ -36,7 +36,7 @@ export async function getRutaDetalle(id: string): Promise<RutaDetalleMock | null
     if (!token) {
       return null;
     }
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:3001';
+    const apiUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3001';
 
     const res = await fetch(`${apiUrl}/routes/${id}`, {
       headers: {
@@ -90,7 +90,7 @@ export async function getRutasList(): Promise<Ruta[]> {
       return [];
     }
 
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:3001';
+    const apiUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3001';
 
     // Fetch routes with a safer limit to avoid timeouts
     const res = await fetch(`${apiUrl}/routes?limit=20`, { 
