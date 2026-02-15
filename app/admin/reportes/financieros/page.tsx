@@ -541,8 +541,8 @@ const ReportesFinancierosPage = () => {
           </div>
         </div>
 
-        {/* Detailed Table */}
-        <div className="bg-white/80 backdrop-blur-sm rounded-2xl border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden">
+        {/* Tabla Detalle Financiero - Desktop */}
+        <div className="hidden md:block bg-white/80 backdrop-blur-sm rounded-2xl border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden">
           <div className="px-4 md:px-8 py-4 md:py-6 border-b border-slate-200 flex justify-between items-center bg-white/50">
             <div>
               <h3 className="text-base md:text-lg font-bold text-slate-900">Detalle Financiero</h3>
@@ -603,6 +603,81 @@ const ReportesFinancierosPage = () => {
               </tbody>
             </table>
           </div>
+        </div>
+
+        {/* Vista de Cards - Móvil */}
+        <div className="md:hidden space-y-4">
+          <div className="bg-white/80 backdrop-blur-sm rounded-2xl border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-4">
+            <h3 className="text-base font-bold text-slate-900 mb-1">Detalle Financiero</h3>
+            <p className="text-xs text-slate-400 font-medium mb-4">Desglose por periodo contable</p>
+          </div>
+
+          {monthlyData.map((row) => (
+            <div
+              key={row.mes}
+              className="bg-white/80 backdrop-blur-sm rounded-2xl border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-4"
+            >
+              {/* Periodo y Estado */}
+              <div className="flex items-start justify-between mb-3 pb-3 border-b border-slate-100">
+                <div>
+                  <div className="text-xs text-slate-500 font-bold uppercase tracking-wider mb-1">Periodo</div>
+                  <div className="font-bold text-slate-900">
+                    {row.fecha 
+                      ? new Date(row.fecha).toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' })
+                      : `${row.mes} ${yearLabel}`}
+                  </div>
+                </div>
+                <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-700 border border-emerald-200">
+                  Cerrado
+                </span>
+              </div>
+
+              {/* Ingresos y Egresos */}
+              <div className="grid grid-cols-2 gap-3 mb-3 pb-3 border-b border-slate-100">
+                <div>
+                  <div className="text-xs text-slate-500 font-bold uppercase tracking-wider mb-1">Ingresos</div>
+                  <div className="text-sm font-bold text-emerald-600">{formatCurrency(row.ingresos)}</div>
+                </div>
+                <div>
+                  <div className="text-xs text-slate-500 font-bold uppercase tracking-wider mb-1">Gastos</div>
+                  <div className="text-sm font-bold text-rose-500">-{formatCurrency(row.egresos)}</div>
+                </div>
+              </div>
+
+              {/* Utilidad y Margen */}
+              <div className="grid grid-cols-2 gap-3 mb-3">
+                <div>
+                  <div className="text-xs text-slate-500 font-bold uppercase tracking-wider mb-1">Utilidad Bruta</div>
+                  <div className="text-lg font-bold text-slate-900">{formatCurrency(row.utilidad)}</div>
+                </div>
+                <div>
+                  <div className="text-xs text-slate-500 font-bold uppercase tracking-wider mb-1">Margen</div>
+                  <div className="text-lg font-bold text-blue-600">
+                    {row.ingresos > 0 ? ((row.utilidad / row.ingresos) * 100).toFixed(1) : '0.0'}%
+                  </div>
+                </div>
+              </div>
+
+              {/* Acción */}
+              <div className="flex justify-end pt-3 border-t border-slate-100">
+                <button 
+                  onClick={() => {
+                    if (row.fecha && periodo === 'DIARIO') {
+                      setReporteId(`DIARIO:${row.fecha}`)
+                    } else if (row.yearMonth) {
+                      setReporteId(`MES:${row.yearMonth}`)
+                    } else {
+                      setReporteId(`${row.mes}-${yearLabel}`)
+                    }
+                  }}
+                  className="inline-flex items-center gap-2 px-4 py-2 text-xs font-bold text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors"
+                >
+                  <Eye className="h-4 w-4" />
+                  Ver Detalles
+                </button>
+              </div>
+            </div>
+          ))}
         </div>
       </div>
       
