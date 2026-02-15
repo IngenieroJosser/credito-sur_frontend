@@ -531,16 +531,26 @@ const UserManagementPage = () => {
     }
 
     setSelectedUser(user);
-    
-    // Obtener los módulos correspondientes al rol del usuario desde la configuración central
-    // Si el usuario ya tiene permisos personalizados, usarlos. Si no, cargar los defaults del rol.
-    // Para este caso, asumiremos que si permisos array está vacío, cargamos todos los default modules ids.
-    
-    // NOTA: En una implementación real más robusta, deberíamos mergear los permisos guardados.
-    // Aquí simplificaremos mostrando los módulos disponibles para ese rol.
-    
-    // Por ahora, simulamos que 'permisos' en el objeto user son los IDs de los módulos activos.
-    setSelectedPermissions(user.permisos);
+
+    const flattenPermissionIds = (modules: any[]): string[] => {
+      const ids: string[] = [];
+      modules.forEach((m) => {
+        if (m?.submodulos?.length) {
+          m.submodulos.forEach((s: any) => {
+            if (s?.id) ids.push(s.id);
+          });
+        } else if (m?.id) {
+          ids.push(m.id);
+        }
+      });
+      return ids;
+    };
+
+    const permisosGuardados = Array.isArray((user as any).permisos) ? (user as any).permisos : [];
+    const permisosDefaultRol = flattenPermissionIds(permisosPorRol[user.rol as any] || []);
+    const permisosIniciales = permisosGuardados.length > 0 ? permisosGuardados : permisosDefaultRol;
+
+    setSelectedPermissions(permisosIniciales);
     setIsPermissionsModalOpen(true);
   };
 
@@ -652,11 +662,9 @@ const UserManagementPage = () => {
   */
 
   const handleTogglePermission = (permissionId: string) => {
-    if (selectedPermissions.includes(permissionId)) {
-      setSelectedPermissions(selectedPermissions.filter(p => p !== permissionId));
-    } else {
-      setSelectedPermissions([...selectedPermissions, permissionId]);
-    }
+    setSelectedPermissions((prev) =>
+      prev.includes(permissionId) ? prev.filter((p) => p !== permissionId) : [...prev, permissionId],
+    );
   };
 
   const getStatusColor = (estado: User['estado']) => {
