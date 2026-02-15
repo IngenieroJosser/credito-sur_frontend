@@ -93,7 +93,8 @@ const BackupsSistemaPage = () => {
           </div>
         </div>
 
-        <section className="bg-white rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-slate-100 overflow-hidden">
+        {/* Tabla Historial - Desktop */}
+        <section className="hidden md:block bg-white rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-slate-100 overflow-hidden">
           <div className="p-6 border-b border-slate-100">
              <h3 className="text-base font-bold text-slate-900">Historial de Operaciones</h3>
              <p className="text-sm text-slate-500 font-medium">Registro de las últimas actividades de respaldo.</p>
@@ -129,6 +130,74 @@ const BackupsSistemaPage = () => {
                 </tr>
               </tbody>
             </table>
+          </div>
+        </section>
+
+        {/* Vista de Cards - Móvil */}
+        <section className="md:hidden space-y-4">
+          <div className="bg-white rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-slate-100 p-4">
+            <h3 className="text-base font-bold text-slate-900 mb-1">Historial de Operaciones</h3>
+            <p className="text-xs text-slate-500 font-medium">Registro de las últimas actividades de respaldo.</p>
+          </div>
+
+          <div className="bg-white rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-slate-100 p-4">
+            <div className="flex items-start justify-between mb-3 pb-3 border-b border-slate-100">
+              <div>
+                <div className="text-xs text-slate-500 font-bold uppercase tracking-wider mb-1">Fecha</div>
+                <div className="font-bold text-slate-900">19/01/2026 14:30</div>
+              </div>
+              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-100">Exitoso</span>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <div className="text-xs text-slate-500 font-bold uppercase tracking-wider mb-1">Tipo</div>
+                <div className="text-sm font-medium text-slate-600">Automático</div>
+              </div>
+              <div>
+                <div className="text-xs text-slate-500 font-bold uppercase tracking-wider mb-1">Destino</div>
+                <div className="text-sm font-medium text-slate-600">Local + Nube</div>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-slate-100 p-4">
+            <div className="flex items-start justify-between mb-3 pb-3 border-b border-slate-100">
+              <div>
+                <div className="text-xs text-slate-500 font-bold uppercase tracking-wider mb-1">Fecha</div>
+                <div className="font-bold text-slate-900">19/01/2026 08:00</div>
+              </div>
+              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-100">Exitoso</span>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <div className="text-xs text-slate-500 font-bold uppercase tracking-wider mb-1">Tipo</div>
+                <div className="text-sm font-medium text-slate-600">Programado</div>
+              </div>
+              <div>
+                <div className="text-xs text-slate-500 font-bold uppercase tracking-wider mb-1">Destino</div>
+                <div className="text-sm font-medium text-slate-600">Local + Nube</div>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-slate-100 p-4">
+            <div className="flex items-start justify-between mb-3 pb-3 border-b border-slate-100">
+              <div>
+                <div className="text-xs text-slate-500 font-bold uppercase tracking-wider mb-1">Fecha</div>
+                <div className="font-bold text-slate-900">18/01/2026 20:00</div>
+              </div>
+              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-100">Exitoso</span>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <div className="text-xs text-slate-500 font-bold uppercase tracking-wider mb-1">Tipo</div>
+                <div className="text-sm font-medium text-slate-600">Cierre diario</div>
+              </div>
+              <div>
+                <div className="text-xs text-slate-500 font-bold uppercase tracking-wider mb-1">Destino</div>
+                <div className="text-sm font-medium text-slate-600">Local</div>
+              </div>
+            </div>
           </div>
         </section>
       </div>
