@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
+import { cleanExpired } from '@/lib/api/apiCache';
 
 export default function ServiceWorkerRegister() {
   useEffect(() => {
@@ -17,6 +18,12 @@ export default function ServiceWorkerRegister() {
         registrations.forEach(r => r.unregister());
       });
     }
+
+    // Limpiar entradas expiradas de IndexedDB cada 5 minutos
+    cleanExpired();
+    const cleanupInterval = setInterval(cleanExpired, 5 * 60 * 1000);
+
+    return () => clearInterval(cleanupInterval);
   }, []);
 
   return null; // No renderiza nada
