@@ -37,6 +37,25 @@ export default function ServiceWorkerRegister() {
           console.log('[Offline] Cola procesada:', result);
         }
       }).catch(() => {});
+
+      // Auto-suscribir a push notifications si están soportadas y no está suscrito
+      import('@/lib/push/pushNotifications').then(({ isPushSupported, isPushSubscribed, subscribeToPush }) => {
+        if (isPushSupported()) {
+          isPushSubscribed().then((isSubscribed) => {
+            if (!isSubscribed) {
+              subscribeToPush().then((subscription) => {
+                if (subscription) {
+                  import('@/lib/push/pushService').then(({ savePushSubscription }) => {
+                    savePushSubscription(subscription).then(() => {
+                      console.log('[Push] Auto-suscripción exitosa');
+                    }).catch(() => {});
+                  });
+                }
+              }).catch(() => {});
+            }
+          });
+        }
+      });
     }
 
     // Auto-sync cuando vuelve la conexión
