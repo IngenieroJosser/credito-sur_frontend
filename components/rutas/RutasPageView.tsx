@@ -692,7 +692,9 @@ export const RutasPageView = ({
               )}
             </div>
           ) : (
-            <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-slate-200 overflow-hidden animate-in fade-in slide-in-from-bottom-2 duration-500">
+            <>
+            {/* Tabla - Desktop */}
+            <div className="hidden md:block bg-white/80 backdrop-blur-sm rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-slate-200 overflow-hidden animate-in fade-in slide-in-from-bottom-2 duration-500">
               <div className="overflow-x-auto">
                 <table className="w-full text-sm text-left">
                   <thead className="text-xs text-slate-500 uppercase bg-slate-50/50 border-b border-slate-200">
@@ -826,6 +828,124 @@ export const RutasPageView = ({
                 </table>
               </div>
             </div>
+
+            {/* Vista de Cards - Móvil */}
+            <div className="md:hidden space-y-4">
+              {currentRutas.map((ruta) => (
+                <div
+                  key={ruta.id}
+                  className="bg-white rounded-2xl border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-4 hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all"
+                  onClick={() => router.push(`${rutasBasePath}/${ruta.id}`)}
+                >
+                  {/* Header */}
+                  <div className="flex items-start justify-between mb-3 pb-3 border-b border-slate-100">
+                    <div className="flex items-center gap-3 flex-1 min-w-0">
+                      <div className="w-10 h-10 rounded-xl bg-blue-50 text-primary flex items-center justify-center border border-blue-100 flex-shrink-0">
+                        <Route className="w-5 h-5" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="font-bold text-slate-900 truncate">{ruta.nombre}</div>
+                        <div className="text-xs text-slate-500">{ruta.codigo}</div>
+                      </div>
+                    </div>
+                    <span
+                      className={cn(
+                        'inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold border flex-shrink-0 ml-2',
+                        ruta.estado === 'ACTIVA'
+                          ? 'bg-emerald-50 text-emerald-700 border-emerald-100'
+                          : 'bg-slate-50 text-slate-600 border-slate-100',
+                      )}
+                    >
+                      {ruta.estado}
+                    </span>
+                  </div>
+
+                  {/* Cobrador */}
+                  <div className="mb-3">
+                    <div className="text-xs text-slate-500 font-bold uppercase tracking-wider mb-1">Cobrador</div>
+                    <div className="flex items-center gap-2">
+                      <div className="w-6 h-6 rounded-full bg-slate-100 flex items-center justify-center text-xs font-bold text-slate-600 border border-slate-200">
+                        {ruta.cobrador.charAt(0)}
+                      </div>
+                      <span className="text-slate-700 font-medium">{ruta.cobrador}</span>
+                    </div>
+                  </div>
+
+                  {/* Clientes */}
+                  <div className="mb-3">
+                    <div className="text-xs text-slate-500 font-bold uppercase tracking-wider mb-1">Clientes Asignados</div>
+                    <div className="flex items-center gap-1.5 text-slate-700 font-bold">
+                      <Users className="w-4 h-4 text-slate-400" />
+                      <span>{ruta.clientesAsignados}</span>
+                    </div>
+                  </div>
+
+                  {/* Avance Diario */}
+                  {ruta.estado === 'ACTIVA' && (
+                    <div className="mb-3 pb-3 border-b border-slate-100">
+                      <div className="text-xs text-slate-500 font-bold uppercase tracking-wider mb-2">Avance Diario</div>
+                      <div className="space-y-2">
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm font-bold text-slate-900">{formatCurrency(ruta.cobranzaDelDia)}</span>
+                          <span className="text-sm font-bold text-primary">{((ruta.cobranzaDelDia / ruta.metaDelDia) * 100).toFixed(0)}%</span>
+                        </div>
+                        <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden border border-slate-200">
+                          <div
+                            className="bg-slate-900 h-2 rounded-full"
+                            style={{ width: `${Math.min((ruta.cobranzaDelDia / ruta.metaDelDia) * 100, 100)}%` }}
+                          ></div>
+                        </div>
+                        <div className="text-xs text-slate-500">Objetivo: {formatCurrency(ruta.metaDelDia)}</div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Acciones */}
+                  <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100" onClick={(e) => e.stopPropagation()}>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        router.push(`${rutasBasePath}/${ruta.id}`)
+                      }}
+                      className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                      title="Ver detalle"
+                    >
+                      <Eye className="w-4 h-4" />
+                    </button>
+                    {!readOnly && puedeEditar && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          handleEditClick(ruta)
+                        }}
+                        className="p-2 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
+                        title="Editar"
+                      >
+                        <Pencil className="w-4 h-4" />
+                      </button>
+                    )}
+                    {!readOnly && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          handleToggleEstado(ruta.id)
+                        }}
+                        className={cn(
+                          "p-2 rounded-lg transition-all",
+                          ruta.estado === 'ACTIVA' 
+                            ? "text-slate-400 hover:text-rose-600 hover:bg-rose-50" 
+                            : "text-slate-400 hover:text-emerald-600 hover:bg-emerald-50"
+                        )}
+                        title={ruta.estado === 'ACTIVA' ? "Desactivar" : "Activar"}
+                      >
+                        {ruta.estado === 'ACTIVA' ? <Trash2 className="w-4 h-4" /> : <CheckCircle2 className="w-4 h-4" />}
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+            </>
           )}
 
           {/* Paginación Elegante Estandarizada */}
