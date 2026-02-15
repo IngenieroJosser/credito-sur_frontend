@@ -197,7 +197,6 @@ export const permisosPorRol: Record<Rol, ModuloPermiso[]> = {
       roles: ['SUPERVISOR'],
       submodulos: [
         { id: 'clientes', nombre: 'Clientes', icono: 'Users', path: '/supervisor/clientes', roles: ['SUPERVISOR'] },
-        { id: 'creditos-articulos', nombre: 'Créditos Artículos', icono: 'ShoppingBag', path: '/creditos-articulos', roles: ['SUPERVISOR'] },
         { id: 'rutas', nombre: 'Rutas', icono: 'Route', path: '/supervisor/rutas', roles: ['SUPERVISOR'] },
       ]
     },
@@ -427,7 +426,8 @@ export const buildSidebarFromApi = (sidebarData: SidebarModulo[]): ModuloPermiso
   if (!sidebarData || sidebarData.length === 0) return [];
 
   // El dropdown de Cobranza NO debe existir en el aside
-  const EXCLUDED_SIDEBAR_ROUTES = new Set<string>(['/cobranzas/notificaciones', '/cobranzas/solicitudes']);
+  // Créditos de Artículos tampoco debe aparecer porque el modal de créditos ya permite elegir el tipo
+  const EXCLUDED_SIDEBAR_ROUTES = new Set<string>(['/cobranzas/notificaciones', '/cobranzas/solicitudes', '/creditos-articulos']);
   const EXCLUDED_SIDEBAR_ROUTE_PREFIXES = ['/cobranzas'];
 
   const isGranularActionId = (rawId: string) => {
