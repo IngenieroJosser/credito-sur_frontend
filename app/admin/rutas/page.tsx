@@ -2,6 +2,7 @@ import { getRutasList } from '@/lib/rutas-data';
 import { getUsuariosByRol } from '@/lib/usuarios-data';
 import { RutasPageView } from '@/components/rutas/RutasPageView';
 import { RolUsuario } from '@/types/enums';
+export const dynamic = 'force-dynamic';
 
 // Componente de servidor (RSC) para la página de gestión de rutas.
 // Se encarga de obtener los datos iniciales (rutas, cobradores, coordinadores) 
