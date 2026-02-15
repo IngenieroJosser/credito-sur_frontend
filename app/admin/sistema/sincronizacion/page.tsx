@@ -123,7 +123,7 @@ const SyncStatusPage = () => {
             </p>
           </div>
           
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
             <div className="px-4 py-2 bg-white/80 backdrop-blur-sm rounded-xl border border-slate-200 shadow-sm flex items-center gap-3">
               <Clock className="w-4 h-4 text-slate-400" />
               <span className="text-sm font-bold text-slate-700" suppressHydrationWarning>{clientTime}</span>
@@ -132,9 +132,11 @@ const SyncStatusPage = () => {
               onClick={handleDownload}
               disabled={isSyncing || !isOnline}
               className="inline-flex items-center gap-2 px-5 py-2.5 bg-white border border-slate-200 text-slate-700 rounded-xl hover:bg-slate-50 disabled:opacity-50 transition-all font-bold text-sm shadow-sm active:scale-95"
+              title="Descargar datos del servidor para trabajar offline"
             >
               <Download className="w-4 h-4" />
-              Descargar
+              <span className="hidden sm:inline">Descargar Datos</span>
+              <span className="sm:hidden">Descargar</span>
             </button>
             <button 
               onClick={handleSyncNow}
@@ -181,11 +183,11 @@ const SyncStatusPage = () => {
 
               <div className="grid grid-cols-2 gap-3">
                 <div className="p-3 rounded-xl bg-amber-50 border border-amber-100 text-center">
-                  <p className="text-2xl font-black text-amber-700">{pendingOps}</p>
+                  <p className="text-xl md:text-2xl font-black text-amber-700">{pendingOps}</p>
                   <p className="text-[10px] font-bold text-amber-600 uppercase tracking-wider">Pendientes</p>
                 </div>
                 <div className="p-3 rounded-xl bg-rose-50 border border-rose-100 text-center">
-                  <p className="text-2xl font-black text-rose-700">{failedOps}</p>
+                  <p className="text-xl md:text-2xl font-black text-rose-700">{failedOps}</p>
                   <p className="text-[10px] font-bold text-rose-600 uppercase tracking-wider">Fallidos</p>
                 </div>
               </div>
@@ -214,13 +216,13 @@ const SyncStatusPage = () => {
 
           <div className="lg:col-span-2 space-y-8">
             <div className="bg-white rounded-2xl border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden">
-              <div className="p-6 border-b border-slate-100 flex items-center justify-between">
-                <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+              <div className="p-4 md:p-6 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <h2 className="text-base md:text-lg font-bold text-slate-900 flex items-center gap-2">
                   <DownloadCloud className="w-5 h-5 text-slate-400" />
                   Cola de Sincronización
                 </h2>
-                <div className="flex items-center gap-3">
-                  <div className="flex items-center gap-4 text-xs">
+                <div className="flex flex-wrap items-center gap-3">
+                  <div className="flex items-center gap-3 md:gap-4 text-xs">
                     <div className="flex items-center gap-1.5">
                       <div className="w-2 h-2 rounded-full bg-amber-500" />
                       <span className="font-bold text-slate-500 uppercase tracking-wider">Pendiente</span>
