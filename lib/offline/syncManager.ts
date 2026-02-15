@@ -1,6 +1,7 @@
 import { apiClient } from '@/lib/api/apiClient';
 import { offlineQueue } from './offlineQueue';
 import { offlineStore, OfflineCliente, OfflinePrestamo, OfflineCuota, OfflineRuta } from './offlineDb';
+import { trackOfflineEvent } from './offlineAnalytics';
 
 const MAX_RETRIES = 3;
 
@@ -16,6 +17,7 @@ export interface SyncResult {
 export const syncManager = {
   // Procesar todas las operaciones pendientes
   async processQueue(): Promise<SyncResult> {
+    const startTime = Date.now();
     const result: SyncResult = { processed: 0, succeeded: 0, failed: 0, errors: [] };
 
     if (!navigator.onLine) return result;
@@ -61,8 +63,17 @@ export const syncManager = {
 
         result.failed++;
         result.errors.push({ id: item.id, description: item.description, error: errorMsg });
+        await trackOfflineEvent('error', { errorMessage: errorMsg });
       }
     }
+
+    // Track sync completion
+    const duration = Date.now() - startTime;
+    await trackOfflineEvent('sync', {
+      duration,
+      recordCount: result.processed,
+      success: result.failed === 0,
+    });
 
     return result;
   },
@@ -97,6 +108,7 @@ export const syncManager = {
       }));
 
       await offlineStore.saveMany('clientes', clientes);
+      await trackOfflineEvent('download', { storeName: 'clientes', recordCount: clientes.length });
       return clientes.length;
     } catch (err) {
       console.error('[Offline Sync] Error descargando clientes:', err);
@@ -134,6 +146,7 @@ export const syncManager = {
       }));
 
       await offlineStore.saveMany('prestamos', prestamos);
+      await trackOfflineEvent('download', { storeName: 'prestamos', recordCount: prestamos.length });
 
       // Guardar cuotas de cada préstamo
       const allCuotas: OfflineCuota[] = [];
@@ -159,6 +172,7 @@ export const syncManager = {
 
       if (allCuotas.length > 0) {
         await offlineStore.saveMany('cuotas', allCuotas);
+        await trackOfflineEvent('download', { storeName: 'cuotas', recordCount: allCuotas.length });
       }
 
       return prestamos.length;
@@ -191,6 +205,7 @@ export const syncManager = {
       }));
 
       await offlineStore.saveMany('rutas', rutas);
+      await trackOfflineEvent('download', { storeName: 'rutas', recordCount: rutas.length });
       return rutas.length;
     } catch (err) {
       console.error('[Offline Sync] Error descargando rutas:', err);

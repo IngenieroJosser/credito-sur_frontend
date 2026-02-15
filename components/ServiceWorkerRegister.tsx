@@ -3,6 +3,7 @@
 import { useEffect } from 'react';
 import { cleanExpired } from '@/lib/api/apiCache';
 import { syncManager } from '@/lib/offline/syncManager';
+import { startOfflineTimer, stopOfflineTimer } from '@/lib/offline/offlineAnalytics';
 
 export default function ServiceWorkerRegister() {
   useEffect(() => {
@@ -61,6 +62,7 @@ export default function ServiceWorkerRegister() {
     // Auto-sync cuando vuelve la conexión
     const handleOnline = () => {
       console.log('[Offline] Conexión restaurada, sincronizando...');
+      stopOfflineTimer();
       syncManager.processQueue().then((result) => {
         if (result.processed > 0) {
           console.log('[Offline] Sync completado:', result);
@@ -68,11 +70,19 @@ export default function ServiceWorkerRegister() {
       }).catch(() => {});
     };
 
+    // Track tiempo offline
+    const handleOffline = () => {
+      console.log('[Offline] Conexión perdida');
+      startOfflineTimer();
+    };
+
     window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
 
     return () => {
       clearInterval(cleanupInterval);
       window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
     };
   }, []);
 
