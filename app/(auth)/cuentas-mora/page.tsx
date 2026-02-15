@@ -155,7 +155,7 @@ function CuentasMoraContent() {
       }
       
       if (busqueda) params.busqueda = busqueda
-      if (filtroRiesgo !== 'TODOS') params.riesgo = filtroRiesgo
+      if (filtroRiesgo !== 'TODOS') params.nivelRiesgo = filtroRiesgo
       if (filtroRuta) params.rutaId = filtroRuta
 
       const response = await apiRequest<PaginatedResponse<CuentaMora>>(
@@ -252,7 +252,7 @@ function CuentasMoraContent() {
       toast.info('Generando reporte Excel...')
       await exportService.exportMora('excel', {
         busqueda,
-        riesgo: filtroRiesgo !== 'TODOS' ? filtroRiesgo : undefined,
+        nivelRiesgo: filtroRiesgo !== 'TODOS' ? filtroRiesgo : undefined,
         rutaId: filtroRuta || undefined,
       })
       toast.success('Archivo descargado exitosamente')
@@ -266,7 +266,7 @@ function CuentasMoraContent() {
       toast.info('Generando reporte PDF...')
       await exportService.exportMora('pdf', {
         busqueda,
-        riesgo: filtroRiesgo !== 'TODOS' ? filtroRiesgo : undefined,
+        nivelRiesgo: filtroRiesgo !== 'TODOS' ? filtroRiesgo : undefined,
         rutaId: filtroRuta || undefined,
       })
       toast.success('Archivo descargado exitosamente')
