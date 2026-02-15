@@ -375,14 +375,14 @@ export default function AdminLayout({
                   </button>
 
                   {showNotifications && (
-                    <div className="absolute right-0 mt-2 w-80 bg-white rounded-xl shadow-xl border border-gray-100 py-2 z-50 animate-in fade-in slide-in-from-top-2">
+                    <div className="fixed sm:absolute right-0 sm:right-0 left-0 sm:left-auto top-16 sm:top-auto sm:mt-2 w-full sm:w-80 bg-white rounded-none sm:rounded-xl shadow-xl border-t sm:border border-gray-100 py-2 z-50 animate-in fade-in slide-in-from-top-2">
                       <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
-                        <h3 className="font-semibold text-gray-900">Notificaciones</h3>
+                        <h3 className="font-semibold text-gray-900 text-sm sm:text-base">Notificaciones</h3>
                         <span className="text-xs font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded-full">
                           {notificaciones.filter(n => !n.leida).length} Nuevas
                         </span>
                       </div>
-                      <div className="max-h-[300px] overflow-y-auto">
+                      <div className="max-h-[300px] sm:max-h-[300px] overflow-y-auto">
                         {isLoadingNotificaciones ? (
                           <div className="p-4 text-center text-xs text-gray-500">Cargando...</div>
                         ) : notificaciones.length > 0 ? (

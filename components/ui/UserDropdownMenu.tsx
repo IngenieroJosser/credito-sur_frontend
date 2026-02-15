@@ -180,7 +180,7 @@ export default function UserDropdownMenu({ user, onLogout }: UserDropdownMenuPro
         {showMenu && (
           <>
             <div className="fixed inset-0 z-40" onClick={() => setShowMenu(false)} />
-            <div className="absolute right-0 mt-2 w-96 bg-white rounded-xl shadow-xl border border-gray-100 py-2 z-50 animate-in fade-in slide-in-from-top-2">
+            <div className="fixed sm:absolute right-0 sm:right-0 left-0 sm:left-auto top-16 sm:top-auto sm:mt-2 w-full sm:w-96 max-w-full sm:max-w-96 bg-white rounded-none sm:rounded-xl shadow-xl border-t sm:border border-gray-100 py-2 z-50 animate-in fade-in slide-in-from-top-2 max-h-[calc(100vh-4rem)] sm:max-h-[600px] overflow-y-auto">
               {/* Header */}
               <div className="px-6 py-6 bg-gradient-to-r from-slate-50 to-white border-b border-gray-100">
                 <div className="flex flex-col items-center text-center gap-3">
