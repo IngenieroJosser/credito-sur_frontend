@@ -207,10 +207,6 @@ export default function UserDropdownMenu({ user, onLogout }: UserDropdownMenuPro
                         {icon}
                         {roleName}
                       </span>
-                      <span className="text-xs text-gray-400">•</span>
-                      <span className="text-xs text-gray-500 font-medium bg-gray-100 px-2 py-1 rounded-full">
-                        {user.correo?.split('@')[0] || 'usuario'}
-                      </span>
                     </div>
                   </div>
                 </div>
