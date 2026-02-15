@@ -461,8 +461,8 @@ const ListadoPrestamosElegante = () => {
           </div>
         </div>
 
-        {/* Tabla */}
-        <div className="bg-white rounded-2xl border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden">
+        {/* Tabla - Desktop */}
+        <div className="hidden md:block bg-white rounded-2xl border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-sm text-left">
               <thead className="text-xs text-slate-500 uppercase bg-slate-50/50 border-b border-slate-100">
@@ -615,6 +615,153 @@ const ListadoPrestamosElegante = () => {
               >
                 Siguiente <ChevronRightIcon className="h-3 w-3" />
               </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Vista de Cards - Móvil */}
+        <div className="md:hidden space-y-4">
+          {cargando ? (
+            Array.from({ length: 3 }).map((_, i) => (
+              <div key={i} className="bg-white rounded-2xl border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-4 animate-pulse">
+                <div className="h-6 bg-slate-100 rounded w-3/4 mb-3"></div>
+                <div className="h-4 bg-slate-100 rounded w-1/2 mb-2"></div>
+                <div className="h-4 bg-slate-100 rounded w-2/3"></div>
+              </div>
+            ))
+          ) : prestamosPaginados.length > 0 ? (
+            prestamosPaginados.map((prestamo) => (
+              <div
+                key={prestamo.id}
+                className="bg-white rounded-2xl border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-4 hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all"
+                onClick={() => irADetallePrestamo(prestamo.id)}
+              >
+                {/* Header del Card */}
+                <div className="flex items-start justify-between mb-3 pb-3 border-b border-slate-100">
+                  <div className="flex-1 min-w-0">
+                    <div className="font-bold text-slate-900 truncate">{prestamo.numeroPrestamo}</div>
+                    <div className="text-xs text-slate-500 font-medium mt-0.5">{prestamo.cliente}</div>
+                  </div>
+                  <span className={cn(
+                    "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold tracking-wide uppercase border flex-shrink-0 ml-2",
+                    getEstadoColor(prestamo.estado)
+                  )}>
+                    {getEstadoIcono(prestamo.estado)}
+                    {prestamo.estado.replace(/_/g, ' ')}
+                  </span>
+                </div>
+
+                {/* Producto */}
+                <div className="mb-3">
+                  <div className="text-xs text-slate-500 font-bold uppercase tracking-wider mb-1">Producto</div>
+                  <div className="flex items-center gap-2 text-slate-700 font-medium">
+                    {getProductoIcono(prestamo.tipoProducto)}
+                    <span>{prestamo.producto}</span>
+                  </div>
+                </div>
+
+                {/* Montos */}
+                <div className="grid grid-cols-2 gap-3 mb-3 pb-3 border-b border-slate-100">
+                  <div>
+                    <div className="text-xs text-slate-500 font-bold uppercase tracking-wider mb-1">Monto Total</div>
+                    <div className="text-lg font-bold text-slate-900">{formatCurrency(prestamo.montoTotal)}</div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-slate-500 font-bold uppercase tracking-wider mb-1">Pendiente</div>
+                    <div className={cn(
+                      "text-lg font-bold",
+                      prestamo.montoPendiente > 0 ? "text-slate-700" : "text-emerald-600"
+                    )}>
+                      {formatCurrency(prestamo.montoPendiente)}
+                    </div>
+                    {prestamo.moraAcumulada && prestamo.moraAcumulada > 0 && (
+                      <div className="text-[10px] text-rose-500 font-bold mt-0.5">
+                        + {formatCurrency(prestamo.moraAcumulada)} mora
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Progreso */}
+                <div className="mb-3">
+                  <div className="text-xs text-slate-500 font-bold uppercase tracking-wider mb-2">Progreso</div>
+                  <div className="flex flex-col gap-1">
+                    <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
+                      <div 
+                        className="h-full bg-slate-900 rounded-full transition-all duration-500"
+                        style={{ width: `${prestamo.progreso}%` }}
+                      />
+                    </div>
+                    <span className="text-xs text-slate-500 font-bold">
+                      {prestamo.cuotasPagadas}/{prestamo.cuotasTotales} cuotas ({prestamo.progreso}%)
+                    </span>
+                  </div>
+                </div>
+
+                {/* Acciones */}
+                <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100" onClick={(e) => e.stopPropagation()}>
+                  <button 
+                    onClick={() => irADetallePrestamo(prestamo.id)}
+                    className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
+                    title="Ver detalle"
+                  >
+                    <Eye className="h-4 w-4" />
+                  </button>
+                  {can('CREDITOS_EDIT') || can('LOANS_EDIT') || canForPath(baseRoute) ? (
+                    <button 
+                      onClick={() => setIdPrestamoAEditar(prestamo.id)}
+                      className="p-2 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-all"
+                      title="Editar préstamo"
+                    >
+                      <Edit2 className="h-4 w-4" />
+                    </button>
+                  ) : null}
+                  {can('CREDITOS_DELETE') || can('LOANS_DELETE') || canForPath(baseRoute) ? (
+                    <button 
+                      onClick={() => handleEliminarPrestamo(prestamo.id)}
+                      className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all"
+                      title="Marcar como pérdida"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  ) : null}
+                </div>
+              </div>
+            ))
+          ) : (
+            <div className="bg-white rounded-2xl border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-8">
+              <div className="flex flex-col items-center gap-3 text-center">
+                <div className="inline-flex p-4 rounded-full bg-slate-50">
+                  <Search className="h-8 w-8 text-slate-300" />
+                </div>
+                <h3 className="text-lg font-bold text-slate-900">No se encontraron préstamos</h3>
+                <p className="text-slate-500 font-medium">Intenta ajustar los filtros de búsqueda.</p>
+              </div>
+            </div>
+          )}
+
+          {/* Paginación Móvil */}
+          <div className="bg-white rounded-2xl border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-4">
+            <div className="flex flex-col sm:flex-row justify-between items-center gap-3 text-xs text-slate-500 font-medium">
+              <span className="text-center">
+                Mostrando {Math.min(prestamosPaginados.length, prestamosPorPagina)} de {totalPrestamos} resultados
+              </span>
+              <div className="flex gap-2 w-full sm:w-auto">
+                <button 
+                  onClick={() => cambiarPagina(paginaActual - 1)}
+                  disabled={paginaActual === 1 || cargando}
+                  className="flex-1 sm:flex-none px-4 py-2 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed font-bold flex items-center justify-center gap-1 transition-colors text-slate-700"
+                >
+                  <ChevronLeft className="h-3 w-3" /> Anterior
+                </button>
+                <button 
+                  onClick={() => cambiarPagina(paginaActual + 1)}
+                  disabled={paginaActual === totalPaginas || totalPaginas === 0 || cargando}
+                  className="flex-1 sm:flex-none px-4 py-2 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed font-bold flex items-center justify-center gap-1 transition-colors text-slate-700"
+                >
+                  Siguiente <ChevronRightIcon className="h-3 w-3" />
+                </button>
+              </div>
             </div>
           </div>
         </div>
