@@ -4,6 +4,7 @@ import { useEffect } from 'react';
 import { cleanExpired } from '@/lib/api/apiCache';
 import { syncManager } from '@/lib/offline/syncManager';
 import { startOfflineTimer, stopOfflineTimer } from '@/lib/offline/offlineAnalytics';
+import { renewOfflineSession, hasValidOfflineSession, shouldShowExpirationWarning, getOfflineSessionDaysRemaining } from '@/lib/auth/offlineAuth';
 
 export default function ServiceWorkerRegister() {
   useEffect(() => {
@@ -59,10 +60,34 @@ export default function ServiceWorkerRegister() {
       });
     }
 
+    // Verificar y notificar si la sesión offline está por expirar
+    if (hasValidOfflineSession() && shouldShowExpirationWarning()) {
+      const daysRemaining = getOfflineSessionDaysRemaining();
+      console.warn(`[Offline Auth] Sesión offline expira en ${daysRemaining} días. Conéctate para renovarla.`);
+      
+      // Mostrar notificación al usuario
+      if ('Notification' in window && Notification.permission === 'granted') {
+        new Notification('Sesión Offline por Expirar', {
+          body: `Tu sesión offline expira en ${daysRemaining} días. Conéctate a Internet para renovarla.`,
+          icon: '/android-chrome-192x192.png',
+          tag: 'offline-session-expiring',
+        });
+      }
+    }
+
     // Auto-sync cuando vuelve la conexión
     const handleOnline = () => {
       console.log('[Offline] Conexión restaurada, sincronizando...');
       stopOfflineTimer();
+      
+      // Renovar sesión offline automáticamente al reconectar
+      if (hasValidOfflineSession()) {
+        const renewed = renewOfflineSession();
+        if (renewed) {
+          console.log('[Offline Auth] Sesión offline renovada automáticamente');
+        }
+      }
+      
       syncManager.processQueue().then((result) => {
         if (result.processed > 0) {
           console.log('[Offline] Sync completado:', result);

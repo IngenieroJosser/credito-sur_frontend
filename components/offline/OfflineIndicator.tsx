@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   WifiOff,
   Wifi,
@@ -12,18 +12,37 @@ import {
   ChevronUp,
   ChevronDown,
   Download,
+  Clock,
 } from 'lucide-react';
 import { useOffline } from '@/hooks/useOffline';
 import { offlineQueue } from '@/lib/offline/offlineQueue';
 import { OfflineQueueItem } from '@/lib/offline/offlineDb';
+import { hasValidOfflineSession, getOfflineSessionDaysRemaining, isSessionExpiringSoon } from '@/lib/auth/offlineAuth';
 
 export default function OfflineIndicator() {
   const { isOnline, pendingOps, failedOps, isSyncing, syncNow, downloadForOffline, lastSyncResult } = useOffline();
   const [expanded, setExpanded] = useState(false);
   const [queueItems, setQueueItems] = useState<OfflineQueueItem[]>([]);
   const [showResult, setShowResult] = useState(false);
+  const [hasOfflineSession, setHasOfflineSession] = useState(false);
+  const [daysRemaining, setDaysRemaining] = useState(0);
+  const [isExpiringSoon, setIsExpiringSoon] = useState(false);
 
   const totalOps = pendingOps + failedOps;
+
+  // Verificar sesión offline periódicamente
+  useEffect(() => {
+    const checkSession = () => {
+      setHasOfflineSession(hasValidOfflineSession());
+      setDaysRemaining(getOfflineSessionDaysRemaining());
+      setIsExpiringSoon(isSessionExpiringSoon());
+    };
+
+    checkSession();
+    const interval = setInterval(checkSession, 60000); // Cada minuto
+
+    return () => clearInterval(interval);
+  }, []);
 
   const handleExpand = async () => {
     if (!expanded) {
@@ -79,6 +98,26 @@ export default function OfflineIndicator() {
       {/* Panel expandido */}
       {expanded && (
         <div className="mb-2 bg-white rounded-xl border border-slate-200 shadow-xl overflow-hidden animate-in fade-in slide-in-from-bottom-2 duration-300">
+          {/* Información de sesión offline */}
+          {hasOfflineSession && (
+            <div className={`p-3 border-b ${isExpiringSoon ? 'bg-amber-50 border-amber-100' : 'border-slate-100'}`}>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Clock className={`h-3.5 w-3.5 ${isExpiringSoon ? 'text-amber-600' : 'text-slate-500'}`} />
+                  <span className="text-xs font-bold text-slate-700">Sesión Offline</span>
+                </div>
+                <span className={`text-xs font-bold ${isExpiringSoon ? 'text-amber-600' : 'text-slate-600'}`}>
+                  {daysRemaining} días restantes
+                </span>
+              </div>
+              {isExpiringSoon && (
+                <p className="text-[10px] text-amber-700 mt-1.5">
+                  Conéctate a Internet pronto para renovar tu sesión offline
+                </p>
+              )}
+            </div>
+          )}
+
           <div className="p-4 border-b border-slate-100">
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-sm font-bold text-slate-800">Cola de Sincronización</h3>

@@ -163,3 +163,67 @@ export function getOfflineSessionDaysRemaining(): number {
 
   return Math.max(0, diffDays);
 }
+
+/**
+ * Verificar si la sesión offline está por expirar (menos de 3 días)
+ */
+export function isSessionExpiringSoon(): boolean {
+  const daysRemaining = getOfflineSessionDaysRemaining();
+  return daysRemaining > 0 && daysRemaining <= 3;
+}
+
+/**
+ * Renovar sesión offline (actualizar fecha de expiración)
+ */
+export function renewOfflineSession(): boolean {
+  try {
+    const cached = getCachedSession();
+    if (!cached) return false;
+
+    // Actualizar fecha de expiración
+    const now = new Date();
+    const expiresAt = new Date(now.getTime() + SESSION_VALIDITY_DAYS * 24 * 60 * 60 * 1000);
+
+    const renewed: CachedSession = {
+      ...cached,
+      cachedAt: now.toISOString(),
+      expiresAt: expiresAt.toISOString(),
+    };
+
+    localStorage.setItem(SESSION_CACHE_KEY, JSON.stringify(renewed));
+    console.log('[Offline Auth] Sesión offline renovada');
+    return true;
+  } catch (error) {
+    console.error('[Offline Auth] Error renovando sesión:', error);
+    return false;
+  }
+}
+
+/**
+ * Verificar si se debe mostrar notificación de expiración
+ */
+export function shouldShowExpirationWarning(): boolean {
+  const warningShownKey = 'offline_expiration_warning_shown';
+  const lastWarning = localStorage.getItem(warningShownKey);
+  
+  if (!isSessionExpiringSoon()) {
+    // Limpiar flag si ya no está por expirar
+    localStorage.removeItem(warningShownKey);
+    return false;
+  }
+
+  // Mostrar warning una vez por día
+  if (lastWarning) {
+    const lastWarningDate = new Date(lastWarning);
+    const now = new Date();
+    const hoursSinceLastWarning = (now.getTime() - lastWarningDate.getTime()) / (1000 * 60 * 60);
+    
+    if (hoursSinceLastWarning < 24) {
+      return false; // Ya se mostró en las últimas 24 horas
+    }
+  }
+
+  // Marcar que se mostró el warning
+  localStorage.setItem(warningShownKey, new Date().toISOString());
+  return true;
+}
