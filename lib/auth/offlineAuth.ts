@@ -1,0 +1,165 @@
+/**
+ * Sistema de Autenticación Offline
+ * Permite continuar usando el sistema PWA sin conexión después de haber iniciado sesión previamente
+ */
+
+interface CachedSession {
+  token: string;
+  user: any;
+  cachedAt: string;
+  expiresAt: string;
+}
+
+const SESSION_CACHE_KEY = 'offline_session_cache';
+const SESSION_VALIDITY_DAYS = 30; // Sesión offline válida por 30 días
+
+/**
+ * Guardar sesión en caché para uso offline
+ */
+export function cacheSession(token: string, user: any): void {
+  try {
+    // Calcular fecha de expiración (30 días desde ahora)
+    const now = new Date();
+    const expiresAt = new Date(now.getTime() + SESSION_VALIDITY_DAYS * 24 * 60 * 60 * 1000);
+
+    const cachedSession: CachedSession = {
+      token,
+      user,
+      cachedAt: now.toISOString(),
+      expiresAt: expiresAt.toISOString(),
+    };
+
+    localStorage.setItem(SESSION_CACHE_KEY, JSON.stringify(cachedSession));
+    console.log('[Offline Auth] Sesión cacheada para uso offline');
+  } catch (error) {
+    console.error('[Offline Auth] Error cacheando sesión:', error);
+  }
+}
+
+/**
+ * Obtener sesión cacheada si es válida
+ */
+export function getCachedSession(): CachedSession | null {
+  try {
+    const cached = localStorage.getItem(SESSION_CACHE_KEY);
+    if (!cached) return null;
+
+    const session: CachedSession = JSON.parse(cached);
+
+    // Verificar si la sesión ha expirado
+    const now = new Date();
+    const expiresAt = new Date(session.expiresAt);
+
+    if (now > expiresAt) {
+      console.log('[Offline Auth] Sesión offline expirada');
+      clearCachedSession();
+      return null;
+    }
+
+    return session;
+  } catch (error) {
+    console.error('[Offline Auth] Error obteniendo sesión cacheada:', error);
+    return null;
+  }
+}
+
+/**
+ * Verificar si hay una sesión offline válida
+ */
+export function hasValidOfflineSession(): boolean {
+  const cached = getCachedSession();
+  return cached !== null;
+}
+
+/**
+ * Limpiar sesión cacheada
+ */
+export function clearCachedSession(): void {
+  try {
+    localStorage.removeItem(SESSION_CACHE_KEY);
+    console.log('[Offline Auth] Sesión offline limpiada');
+  } catch (error) {
+    console.error('[Offline Auth] Error limpiando sesión:', error);
+  }
+}
+
+/**
+ * Restaurar sesión desde caché (para uso offline)
+ */
+export function restoreOfflineSession(): { token: string; user: any } | null {
+  const cached = getCachedSession();
+  if (!cached) return null;
+
+  // Restaurar en localStorage para que el sistema funcione normalmente
+  localStorage.setItem('token', cached.token);
+  localStorage.setItem('user', JSON.stringify(cached.user));
+
+  console.log('[Offline Auth] Sesión restaurada desde caché offline');
+  return { token: cached.token, user: cached.user };
+}
+
+/**
+ * Verificar si el token JWT ha expirado (sin validar firma)
+ * Nota: Esta es una validación básica, no verifica la firma del token
+ */
+export function isTokenExpired(token: string): boolean {
+  try {
+    // Decodificar el payload del JWT (segunda parte)
+    const parts = token.split('.');
+    if (parts.length !== 3) return true;
+
+    const payload = JSON.parse(atob(parts[1]));
+    
+    // Verificar si tiene campo 'exp' (expiration)
+    if (!payload.exp) return false; // Si no tiene exp, asumimos que no expira
+
+    // Comparar con tiempo actual (exp está en segundos, Date.now() en milisegundos)
+    const now = Math.floor(Date.now() / 1000);
+    return payload.exp < now;
+  } catch (error) {
+    console.error('[Offline Auth] Error verificando expiración de token:', error);
+    return true; // Si hay error, asumimos que está expirado
+  }
+}
+
+/**
+ * Obtener información del token sin validar (solo lectura)
+ */
+export function decodeToken(token: string): any {
+  try {
+    const parts = token.split('.');
+    if (parts.length !== 3) return null;
+
+    return JSON.parse(atob(parts[1]));
+  } catch (error) {
+    console.error('[Offline Auth] Error decodificando token:', error);
+    return null;
+  }
+}
+
+/**
+ * Verificar si el sistema puede funcionar offline
+ */
+export function canWorkOffline(): boolean {
+  // Verificar si hay datos en IndexedDB
+  const hasToken = !!localStorage.getItem('token');
+  const hasUser = !!localStorage.getItem('user');
+  const hasOfflineCache = hasValidOfflineSession();
+
+  return (hasToken && hasUser) || hasOfflineCache;
+}
+
+/**
+ * Obtener días restantes de sesión offline
+ */
+export function getOfflineSessionDaysRemaining(): number {
+  const cached = getCachedSession();
+  if (!cached) return 0;
+
+  const now = new Date();
+  const expiresAt = new Date(cached.expiresAt);
+  const diffMs = expiresAt.getTime() - now.getTime();
+  const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+
+  return Math.max(0, diffDays);
+}
