@@ -104,23 +104,27 @@ export default function ArchivadosPage() {
               className="buscador-3d-input"
             />
           </div>
-          <div className="w-full md:w-64">
-            <div className="relative">
-              <Filter className="absolute left-4 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
-              <select
-                value={tipoFiltro}
-                onChange={(e) => setTipoFiltro(e.target.value)}
-                className="pl-11 pr-10 py-2.5 w-full bg-slate-50/50 focus:bg-white border-slate-200 rounded-xl text-sm text-slate-900 focus:ring-2 focus:ring-slate-900/10 focus:border-slate-400 transition-all shadow-sm font-medium appearance-none cursor-pointer"
+          <div className="flex items-center gap-1.5 flex-wrap bg-white p-2 rounded-xl border border-slate-200 shadow-sm">
+            <Filter className="h-3.5 w-3.5 text-slate-400 shrink-0 mr-1" />
+            
+            {[
+              { id: 'todos', label: 'Todos' },
+              { id: 'cliente', label: 'Clientes' },
+              { id: 'prestamo', label: 'Préstamos' },
+              { id: 'usuario', label: 'Usuarios' }
+            ].map((filtro) => (
+              <button
+                key={filtro.id}
+                onClick={() => setTipoFiltro(filtro.id)}
+                className={`px-3 py-1.5 text-[11px] font-bold rounded-xl transition-all whitespace-nowrap ${
+                  tipoFiltro === filtro.id 
+                    ? 'bg-primary text-white shadow-md shadow-primary/20' 
+                    : 'bg-slate-100/50 text-slate-600 hover:bg-slate-200/70 border border-slate-200'
+                }`}
               >
-                <option value="todos">Todos los tipos</option>
-                <option value="cliente">Clientes</option>
-                <option value="prestamo">Préstamos</option>
-                <option value="usuario">Usuarios</option>
-              </select>
-              <div className="absolute right-4 top-1/2 transform -translate-y-1/2 pointer-events-none">
-                <svg className="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
-              </div>
-            </div>
+                {filtro.label}
+              </button>
+            ))}
           </div>
         </div>
 
