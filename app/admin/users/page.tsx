@@ -799,7 +799,7 @@ const UserManagementPage = () => {
               ))}
             </div>
 
-            <div className="flex bg-slate-50/50 p-1 rounded-2xl border border-slate-200 shrink-0">
+            <div className="hidden md:flex bg-slate-50/50 p-1 rounded-2xl border border-slate-200 shrink-0">
               <button
                 onClick={() => setViewMode('grid')}
                 className={cn(
@@ -827,9 +827,9 @@ const UserManagementPage = () => {
         </div>
 
 
-        {/* Vista Lista (Tabla) */}
+        {/* Vista Lista (Tabla) - Solo Desktop */}
         {viewMode === 'list' ? (
-        <div className="bg-white/80 backdrop-blur-sm rounded-2xl border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-500">
+        <div className="hidden md:block bg-white/80 backdrop-blur-sm rounded-2xl border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-500">
           <div className="overflow-x-auto">
             <table className="w-full text-sm text-left">
               <thead className="text-xs text-slate-500 uppercase bg-slate-50/50 border-b border-slate-200">
@@ -942,9 +942,14 @@ const UserManagementPage = () => {
             </table>
           </div>
         </div>
-        ) : (
-          /* Vista Grid (Tarjetas) */
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+        ) : null}
+
+        {/* Vista Grid (Tarjetas) - Siempre visible en móviles, condicional en desktop */}
+        {(viewMode === 'grid' || true) && (
+          <div className={cn(
+            "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 animate-in fade-in slide-in-from-bottom-4 duration-500",
+            viewMode === 'list' && "md:hidden"
+          )}>
             {currentUsers.map((user) => {
               const role = roles.find(r => r.id === user.rol);
               return (
