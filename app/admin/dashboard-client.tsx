@@ -227,10 +227,10 @@ export function DashboardClient({ data }: DashboardClientProps) {
               />
             </div>
 
-            {/* Listado: Últimos Préstamos Aprobados */}
+            {/* Listado: Últimos Creditos Aprobados */}
             <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
               <div className="flex items-center justify-between mb-6">
-                <h3 className="text-lg font-bold text-slate-800">Últimos Préstamos Aprobados</h3>
+                <h3 className="text-lg font-bold text-slate-800">Últimos Creditos Aprobados</h3>
                 <Link href="/prestamos" className="text-sm font-medium text-blue-600 hover:text-blue-700 hover:underline">
                   Ver todos
                 </Link>
