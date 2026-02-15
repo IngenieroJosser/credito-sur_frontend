@@ -1,8 +1,9 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Sora } from "next/font/google";
 import "./globals.css";
 
 import { NotificationProvider } from "@/components/providers/NotificationProvider";
+import ServiceWorkerRegister from "@/components/ServiceWorkerRegister";
 
 const sora = Sora({
   variable: "--font-setting",
@@ -13,10 +14,8 @@ const sora = Sora({
 export const metadata: Metadata = {
   title: "Créditos del Sur | Sistema de Gestión",
   description: "Sistema profesional para gestión de créditos, préstamos y cobranzas",
-
   applicationName: "Créditos del Sur",
-  manifest: "/site.webmanifest",
-
+  manifest: "/manifest.json",
   icons: {
     icon: [
       { url: "/favicon.ico" },
@@ -25,45 +24,38 @@ export const metadata: Metadata = {
     ],
     apple: "/apple-touch-icon.png",
   },
-
-  themeColor: "#0f172a", // ajusta a tu branding
-
   openGraph: {
     title: "Créditos del Sur",
     description: "Sistema profesional para gestión de créditos, préstamos y cobranzas",
     type: "website",
     locale: "es_CO",
   },
-
-  viewport: "width=device-width, initial-scale=1",
 };
 
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+// ✅ Nueva exportación de viewport
+export const viewport: Viewport = {
+  themeColor: "#08557f",
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  // colorScheme: "light", // opcional
+};
+
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="es">
+      <head>
+        <link rel="manifest" href="/manifest.json" />
+        {/* Las siguientes líneas YA NO son necesarias, Next.js las inyecta:
+        <meta name="theme-color" content="#08557f" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" /> 
+        */}
+      </head>
       <body className={`${sora.variable} antialiased`}>
         <NotificationProvider>
           {children}
         </NotificationProvider>
-
-        {/* Solo para desarrollo — evita bugs con SW antiguos */}
-        {process.env.NODE_ENV === "development" && (
-          <script
-            dangerouslySetInnerHTML={{
-              __html: `
-                if ('serviceWorker' in navigator) {
-                  navigator.serviceWorker.getRegistrations().then(registrations => {
-                    registrations.forEach(r => r.unregister());
-                  });
-                }
-              `,
-            }}
-          />
-        )}
+        <ServiceWorkerRegister />
       </body>
     </html>
   );
