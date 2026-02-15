@@ -18,6 +18,8 @@ const SESSION_VALIDITY_DAYS = 30; // Sesión offline válida por 30 días
  */
 export function cacheSession(token: string, user: any): void {
   try {
+    if (typeof window === 'undefined') return;
+    
     // Calcular fecha de expiración (30 días desde ahora)
     const now = new Date();
     const expiresAt = new Date(now.getTime() + SESSION_VALIDITY_DAYS * 24 * 60 * 60 * 1000);
@@ -41,6 +43,8 @@ export function cacheSession(token: string, user: any): void {
  */
 export function getCachedSession(): CachedSession | null {
   try {
+    if (typeof window === 'undefined') return null;
+    
     const cached = localStorage.getItem(SESSION_CACHE_KEY);
     if (!cached) return null;
 
@@ -76,6 +80,8 @@ export function hasValidOfflineSession(): boolean {
  */
 export function clearCachedSession(): void {
   try {
+    if (typeof window === 'undefined') return;
+    
     localStorage.removeItem(SESSION_CACHE_KEY);
     console.log('[Offline Auth] Sesión offline limpiada');
   } catch (error) {
@@ -87,6 +93,8 @@ export function clearCachedSession(): void {
  * Restaurar sesión desde caché (para uso offline)
  */
 export function restoreOfflineSession(): { token: string; user: any } | null {
+  if (typeof window === 'undefined') return null;
+  
   const cached = getCachedSession();
   if (!cached) return null;
 
@@ -177,6 +185,8 @@ export function isSessionExpiringSoon(): boolean {
  */
 export function renewOfflineSession(): boolean {
   try {
+    if (typeof window === 'undefined') return false;
+    
     const cached = getCachedSession();
     if (!cached) return false;
 
@@ -203,6 +213,8 @@ export function renewOfflineSession(): boolean {
  * Verificar si se debe mostrar notificación de expiración
  */
 export function shouldShowExpirationWarning(): boolean {
+  if (typeof window === 'undefined') return false;
+  
   const warningShownKey = 'offline_expiration_warning_shown';
   const lastWarning = localStorage.getItem(warningShownKey);
   
