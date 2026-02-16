@@ -293,11 +293,14 @@ export default function NuevoClienteModal({ onClose, onClienteCreado, cliente = 
               {/* Sección de Fotos */}
               <div className="space-y-4 border-t border-slate-200 pt-6">
                 <h4 className="text-sm font-bold text-slate-700 uppercase tracking-wide">Documentos y Fotos (Opcionales)</h4>
+                <p className="text-xs text-slate-500 font-medium">
+                  Formatos soportados: JPG, JPEG, PNG, WEBP. (Comprobante: también MP4, WEBM)
+                </p>
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <MediaUpload
                     label="Foto de Perfil"
-                    accept="image/*"
+                    accept="image/jpeg,image/png,image/webp"
                     maxSize={2}
                     existingUrl={existingFiles.fotoPerfil || undefined}
                     onUploadComplete={(data) => setArchivosCargados(prev => ({ ...prev, fotoPerfil: data }))}
@@ -305,7 +308,7 @@ export default function NuevoClienteModal({ onClose, onClienteCreado, cliente = 
 
                   <MediaUpload
                     label="Documento Frente"
-                    accept="image/*"
+                    accept="image/jpeg,image/png,image/webp"
                     maxSize={5}
                     existingUrl={existingFiles.documentoFrente || undefined}
                     onUploadComplete={(data) => setArchivosCargados(prev => ({ ...prev, documentoFrente: data }))}
@@ -313,7 +316,7 @@ export default function NuevoClienteModal({ onClose, onClienteCreado, cliente = 
 
                   <MediaUpload
                     label="Documento Reverso"
-                    accept="image/*"
+                    accept="image/jpeg,image/png,image/webp"
                     maxSize={5}
                     existingUrl={existingFiles.documentoReverso || undefined}
                     onUploadComplete={(data) => setArchivosCargados(prev => ({ ...prev, documentoReverso: data }))}
@@ -321,7 +324,7 @@ export default function NuevoClienteModal({ onClose, onClienteCreado, cliente = 
 
                   <MediaUpload
                     label="Comprobante Domicilio"
-                    accept="image/*,video/mp4,video/webm"
+                    accept="image/jpeg,image/png,image/webp,video/mp4,video/webm"
                     maxSize={50}
                     existingUrl={existingFiles.comprobanteDomicilio || undefined}
                     onUploadComplete={(data) => setArchivosCargados(prev => ({ ...prev, comprobanteDomicilio: data }))}
