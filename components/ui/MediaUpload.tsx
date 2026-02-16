@@ -302,6 +302,7 @@ export default function MediaUpload({
             {/* Botón de eliminar */}
             {!disabled && (
               <button
+                type="button"
                 onClick={handleRemove}
                 className="absolute top-2 left-2 w-8 h-8 bg-rose-500 text-white rounded-full flex items-center justify-center hover:bg-rose-600 transition-all shadow-lg hover:scale-110 active:scale-95 z-20"
               >
