@@ -92,6 +92,13 @@ export const prestamosService = {
   },
 
   /**
+   * Archivar préstamo como pérdida y agregar cliente a blacklist
+   */
+  async archivarPrestamo(prestamoId: string, data: { motivo: string; notas?: string }) {
+    return apiRequest('POST', `/loans/${prestamoId}/archive`, data);
+  },
+
+  /**
    * Crear un nuevo préstamo
    */
   async crearPrestamo(data: CrearPrestamoDto): Promise<any> {
