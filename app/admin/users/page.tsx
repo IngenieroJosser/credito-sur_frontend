@@ -608,17 +608,21 @@ const UserManagementPage = () => {
     if (!selectedUser) return;
     
     try {
-      const { password, ...userData } = formData;
-      
+      // Actualizar datos básicos
       await usuariosService.actualizar(selectedUser.id, {
         nombres: formData.nombres,
         apellidos: formData.apellidos,
         correo: formData.correo,
         telefono: formData.telefono,
         rol: formData.rol,
-        // No enviamos estado aquí si no se modificó en form, pero el form lo tiene.
-        // Lo ideal es enviar solo lo cambiado. Enviamos todo el form por ahora.
       });
+
+      // Si se proporcionó nueva contraseña, cambiarla con endpoint dedicado
+      if (formData.password && formData.password.trim() !== '') {
+        await usuariosService.cambiarContrasena(selectedUser.id, {
+          contrasenaNueva: formData.password.trim(),
+        } as any);
+      }
 
       showNotification('success', 'Los datos del usuario han sido actualizados', 'Usuario Actualizado');
       setIsEditModalOpen(false);
