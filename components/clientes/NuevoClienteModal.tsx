@@ -303,6 +303,12 @@ export default function NuevoClienteModal({ onClose, onClienteCreado, cliente = 
                     accept="image/jpeg,image/png,image/webp"
                     maxSize={2}
                     existingUrl={existingFiles.fotoPerfil || undefined}
+                    onChange={(file) => {
+                      if (!file) {
+                        setExistingFiles(prev => ({ ...prev, fotoPerfil: null }));
+                        setArchivosCargados(prev => ({ ...prev, fotoPerfil: null }));
+                      }
+                    }}
                     onUploadComplete={(data) => setArchivosCargados(prev => ({ ...prev, fotoPerfil: data }))}
                   />
 
@@ -311,6 +317,12 @@ export default function NuevoClienteModal({ onClose, onClienteCreado, cliente = 
                     accept="image/jpeg,image/png,image/webp"
                     maxSize={5}
                     existingUrl={existingFiles.documentoFrente || undefined}
+                    onChange={(file) => {
+                      if (!file) {
+                        setExistingFiles(prev => ({ ...prev, documentoFrente: null }));
+                        setArchivosCargados(prev => ({ ...prev, documentoFrente: null }));
+                      }
+                    }}
                     onUploadComplete={(data) => setArchivosCargados(prev => ({ ...prev, documentoFrente: data }))}
                   />
 
@@ -319,6 +331,12 @@ export default function NuevoClienteModal({ onClose, onClienteCreado, cliente = 
                     accept="image/jpeg,image/png,image/webp"
                     maxSize={5}
                     existingUrl={existingFiles.documentoReverso || undefined}
+                    onChange={(file) => {
+                      if (!file) {
+                        setExistingFiles(prev => ({ ...prev, documentoReverso: null }));
+                        setArchivosCargados(prev => ({ ...prev, documentoReverso: null }));
+                      }
+                    }}
                     onUploadComplete={(data) => setArchivosCargados(prev => ({ ...prev, documentoReverso: data }))}
                   />
 
@@ -327,6 +345,12 @@ export default function NuevoClienteModal({ onClose, onClienteCreado, cliente = 
                     accept="image/jpeg,image/png,image/webp,video/mp4,video/webm"
                     maxSize={50}
                     existingUrl={existingFiles.comprobanteDomicilio || undefined}
+                    onChange={(file) => {
+                      if (!file) {
+                        setExistingFiles(prev => ({ ...prev, comprobanteDomicilio: null }));
+                        setArchivosCargados(prev => ({ ...prev, comprobanteDomicilio: null }));
+                      }
+                    }}
                     onUploadComplete={(data) => setArchivosCargados(prev => ({ ...prev, comprobanteDomicilio: data }))}
                   />
                 </div>
