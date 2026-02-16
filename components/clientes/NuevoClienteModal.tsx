@@ -59,24 +59,55 @@ export default function NuevoClienteModal({ onClose, onClienteCreado, cliente = 
     comprobanteDomicilio: null,
   });
 
+  // Guardar archivos originales que NO se pierden al limpiar estado
+  const [archivosOriginales, setArchivosOriginales] = useState<{
+    fotoPerfil: any | null;
+    documentoFrente: any | null;
+    documentoReverso: any | null;
+    comprobanteDomicilio: any | null;
+  }>({
+    fotoPerfil: null,
+    documentoFrente: null,
+    documentoReverso: null,
+    comprobanteDomicilio: null,
+  });
+
   useEffect(() => {
     if (esEdicion && cliente?.id) {
       // Fetch full client details to get archives
       clientesService.obtenerPorId(cliente.id).then((fullClient: any) => {
         if (fullClient.archivos) {
           const newExisting = { ...existingFiles };
+          const newOriginales: any = {
+            fotoPerfil: null,
+            documentoFrente: null,
+            documentoReverso: null,
+            comprobanteDomicilio: null,
+          };
+
           fullClient.archivos.forEach((file: any) => {
-             const url = file.url || file.path || file.ruta; // Fallback
-             // Ensure url has full path if needed
+             const url = file.url || file.path || file.ruta;
              const fullUrl = url.startsWith('http') ? url : `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3001'}${url}`;
              
-             if (file.tipoContenido === 'FOTO_PERFIL') newExisting.fotoPerfil = fullUrl;
-             if (file.tipoContenido === 'DOCUMENTO_IDENTIDAD_FRENTE') newExisting.documentoFrente = fullUrl;
-             if (file.tipoContenido === 'DOCUMENTO_IDENTIDAD_REVERSO') newExisting.documentoReverso = fullUrl;
-             if (file.tipoContenido === 'COMPROBANTE_DOMICILIO') newExisting.comprobanteDomicilio = fullUrl;
+             if (file.tipoContenido === 'FOTO_PERFIL') {
+               newExisting.fotoPerfil = fullUrl;
+               newOriginales.fotoPerfil = file;
+             }
+             if (file.tipoContenido === 'DOCUMENTO_IDENTIDAD_FRENTE') {
+               newExisting.documentoFrente = fullUrl;
+               newOriginales.documentoFrente = file;
+             }
+             if (file.tipoContenido === 'DOCUMENTO_IDENTIDAD_REVERSO') {
+               newExisting.documentoReverso = fullUrl;
+               newOriginales.documentoReverso = file;
+             }
+             if (file.tipoContenido === 'COMPROBANTE_DOMICILIO') {
+               newExisting.comprobanteDomicilio = fullUrl;
+               newOriginales.comprobanteDomicilio = file;
+             }
           });
           setExistingFiles(newExisting);
-
+          setArchivosOriginales(newOriginales);
         }
       });
     }
@@ -96,16 +127,33 @@ export default function NuevoClienteModal({ onClose, onClienteCreado, cliente = 
     ];
 
     for (const map of mapeoArchivos) {
+      // Primero verificar si hay un archivo nuevo cargado
       const upload = archivosCargados[map.key as keyof typeof archivosCargados];
       if (upload) {
+        // Archivo NUEVO subido
         archivos.push({
           tipoContenido: map.tipo,
           tipoArchivo: upload.mimetype,
           nombreOriginal: upload.filename,
           nombreAlmacenamiento: upload.filename,
           ruta: upload.path,
+          url: upload.path,
           tamanoBytes: upload.size,
         });
+      } else if (esEdicion && archivosOriginales[map.key as keyof typeof archivosOriginales]) {
+        // Archivo EXISTENTE que NO se cambió (usar archivosOriginales que no se limpian)
+        const archivoOriginal = archivosOriginales[map.key as keyof typeof archivosOriginales];
+        if (archivoOriginal) {
+          archivos.push({
+            tipoContenido: archivoOriginal.tipoContenido,
+            tipoArchivo: archivoOriginal.tipoArchivo,
+            nombreOriginal: archivoOriginal.nombreOriginal,
+            nombreAlmacenamiento: archivoOriginal.nombreAlmacenamiento,
+            ruta: archivoOriginal.ruta,
+            url: archivoOriginal.url,
+            tamanoBytes: archivoOriginal.tamanoBytes,
+          });
+        }
       }
     }
 
@@ -125,9 +173,7 @@ export default function NuevoClienteModal({ onClose, onClienteCreado, cliente = 
       let resultado: Cliente;
       
       if (esEdicion && cliente?.id) {
-        if (archivos.length > 0) {
-           showNotification('warning', 'La actualización de archivos no está soportada aún. Solo se actualizarán los datos de texto.', 'Advertencia');
-        }
+        // Enviar archivos junto con los datos al actualizar
         resultado = await clientesService.actualizar(cliente.id, payload as any);
       } else {
         resultado = await clientesService.crear(payload);
@@ -307,6 +353,7 @@ export default function NuevoClienteModal({ onClose, onClienteCreado, cliente = 
                       if (!file) {
                         setExistingFiles(prev => ({ ...prev, fotoPerfil: null }));
                         setArchivosCargados(prev => ({ ...prev, fotoPerfil: null }));
+                        setArchivosOriginales(prev => ({ ...prev, fotoPerfil: null }));
                       }
                     }}
                     onUploadComplete={(data) => setArchivosCargados(prev => ({ ...prev, fotoPerfil: data }))}
@@ -321,6 +368,7 @@ export default function NuevoClienteModal({ onClose, onClienteCreado, cliente = 
                       if (!file) {
                         setExistingFiles(prev => ({ ...prev, documentoFrente: null }));
                         setArchivosCargados(prev => ({ ...prev, documentoFrente: null }));
+                        setArchivosOriginales(prev => ({ ...prev, documentoFrente: null }));
                       }
                     }}
                     onUploadComplete={(data) => setArchivosCargados(prev => ({ ...prev, documentoFrente: data }))}
@@ -335,6 +383,7 @@ export default function NuevoClienteModal({ onClose, onClienteCreado, cliente = 
                       if (!file) {
                         setExistingFiles(prev => ({ ...prev, documentoReverso: null }));
                         setArchivosCargados(prev => ({ ...prev, documentoReverso: null }));
+                        setArchivosOriginales(prev => ({ ...prev, documentoReverso: null }));
                       }
                     }}
                     onUploadComplete={(data) => setArchivosCargados(prev => ({ ...prev, documentoReverso: data }))}
@@ -349,6 +398,7 @@ export default function NuevoClienteModal({ onClose, onClienteCreado, cliente = 
                       if (!file) {
                         setExistingFiles(prev => ({ ...prev, comprobanteDomicilio: null }));
                         setArchivosCargados(prev => ({ ...prev, comprobanteDomicilio: null }));
+                        setArchivosOriginales(prev => ({ ...prev, comprobanteDomicilio: null }));
                       }
                     }}
                     onUploadComplete={(data) => setArchivosCargados(prev => ({ ...prev, comprobanteDomicilio: data }))}
