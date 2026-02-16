@@ -31,6 +31,7 @@ import { routesService } from '@/services/routes-service';
 import { useNotification } from '@/components/providers/NotificationProvider';
 import { usePermission } from '@/hooks/usePermission';
 import { offlineStore } from '@/lib/offline/offlineDb';
+import CrearCreditoModal from '@/components/dashboards/shared/CrearCreditoModal';
 
 interface Ruta {
   id: string;
@@ -85,6 +86,7 @@ export const RutasPageView = ({
   const { showNotification } = useNotification();
   const [showModal, setShowModal] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
+  const [showCrearCreditoModal, setShowCrearCreditoModal] = useState(false)
   const permitido = can('RUTAS_VIEW') || canForPath(rutasBasePath || '/admin/rutas')
 
   const [formData, setFormData] = useState({
@@ -370,6 +372,15 @@ export const RutasPageView = ({
               >
                 <Plus className="w-4 h-4 text-slate-500 group-hover:text-slate-900 transition-colors" />
                 <span>Nueva Ruta</span>
+              </button>
+            )}
+            {!readOnly && currentUser?.role !== 'COBRADOR' && (
+              <button
+                onClick={() => setShowCrearCreditoModal(true)}
+                className="inline-flex items-center gap-2 px-6 py-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-all duration-200 shadow-sm font-bold text-sm group"
+              >
+                <Plus className="w-4 h-4" />
+                <span>Crear Crédito</span>
               </button>
             )}
           </div>
@@ -1327,6 +1338,17 @@ export const RutasPageView = ({
           </div>
         </div>
       )}
+      
+      {/* Modal de Crear Crédito */}
+      <CrearCreditoModal
+        isOpen={showCrearCreditoModal}
+        onClose={() => setShowCrearCreditoModal(false)}
+        onConfirm={(data) => {
+          setShowCrearCreditoModal(false);
+          showNotification('success', 'Crédito creado exitosamente', 'Operación completada');
+          console.log('Crédito creado:', data);
+        }}
+      />
     </div>
   )
 }

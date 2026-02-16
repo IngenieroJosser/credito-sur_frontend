@@ -274,7 +274,7 @@ export default function CrearCreditoModal({ isOpen, onClose, onConfirm, defaultC
                       </select>
                     </div>
                     <div>
-                      <label className="block text-sm font-bold text-slate-700 mb-2">Fecha Inicio</label>
+                      <label className="block text-sm font-bold text-slate-700 mb-2">Fecha Crédito</label>
                        <input 
                           type="date"
                           value={fechaCreditoInput}
@@ -365,7 +365,7 @@ export default function CrearCreditoModal({ isOpen, onClose, onConfirm, defaultC
                   </div>
 
                   <div>
-                    <label className="block text-sm font-bold text-slate-700 mb-2">Fecha Inicio</label>
+                    <label className="block text-sm font-bold text-slate-700 mb-2">Fecha Crédito</label>
                     <input 
                        type="date"
                        value={fechaCreditoInput}
