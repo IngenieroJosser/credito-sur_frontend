@@ -108,6 +108,13 @@ export const rutasService = {
   },
 
   /**
+   * Obtener todas las rutas
+   */
+  async getAll(): Promise<Ruta[]> {
+    return this.obtenerRutas();
+  },
+
+  /**
    * Crear una nueva ruta
    */
   async crearRuta(data: CrearRutaDto): Promise<Ruta> {
@@ -161,5 +168,20 @@ export const rutasService = {
       fromRutaId,
       toRutaId
     });
-  }
+  },
+
+  /**
+   * Obtener visitas del día para una ruta (agenda de cobro)
+   */
+  async obtenerVisitasDelDia(rutaId: string, fecha?: string): Promise<any> {
+    const params = fecha ? `?fecha=${fecha}` : '';
+    return apiRequest('GET', `/routes/${rutaId}/daily-visits${params}`);
+  },
+
+  /**
+   * Actualizar orden de clientes en una ruta (drag & drop)
+   */
+  async actualizarOrdenClientes(rutaId: string, orden: Array<{ clienteId: string; orden: number }>): Promise<any> {
+    return apiRequest('PATCH', `/routes/${rutaId}/reorder`, { orden });
+  },
 };

@@ -15,10 +15,12 @@ import {
   CalendarDays,
   Send,
   MessageSquare,
-  CheckCircle2
+  CheckCircle2,
+  Archive
 } from 'lucide-react'
 import { formatCurrency, cn } from '@/lib/utils'
 import { loansService_ } from '@/services/loans-service'
+import ArchivarCuentaModal from '@/components/prestamos/ArchivarCuentaModal'
 
 interface MoraDetalle {
   id: string
@@ -62,6 +64,7 @@ export default function DetalleCuentaMoraPage({ params }: { params: Promise<{ id
   const [loading, setLoading] = useState(true);
   const [nota, setNota] = useState('');
   const [activeTab, setActiveTab] = useState<'historial' | 'reprogramar' | 'supervisor'>('historial');
+  const [showArchivarModal, setShowArchivarModal] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -146,8 +149,29 @@ export default function DetalleCuentaMoraPage({ params }: { params: Promise<{ id
                     <p className="text-xs font-medium text-slate-500">Préstamo {data.numeroPrestamo}</p>
                 </div>
             </div>
+            <button
+              onClick={() => setShowArchivarModal(true)}
+              className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium text-sm"
+            >
+              <Archive className="w-4 h-4" />
+              Archivar Cuenta
+            </button>
         </div>
       </header>
+
+      {/* Modal de Archivar */}
+      {showArchivarModal && (
+        <ArchivarCuentaModal
+          prestamoId={id}
+          numeroPrestamo={data.numeroPrestamo}
+          clienteNombre={data.cliente.nombre}
+          saldoPendiente={data.mora.totalPagarYa}
+          onClose={() => setShowArchivarModal(false)}
+          onSuccess={() => {
+            window.location.href = '/cuentas-mora';
+          }}
+        />
+      )}
 
       <main className="px-6 py-6 w-full mx-auto space-y-4">
         

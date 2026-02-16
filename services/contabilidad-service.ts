@@ -68,6 +68,17 @@ export interface Gasto {
   estado: string;
 }
 
+export interface SaldoDisponibleRuta {
+  rutaId: string;
+  cajaId?: string;
+  fecha: string;
+  saldoDisponible: number;
+  recaudoDelDia: number;
+  gastosDelDia: number;
+  saldoCaja?: number;
+  mensaje?: string;
+}
+
 interface PaginatedResponse<T> {
   data: T[];
   meta: {
@@ -281,4 +292,9 @@ export async function registrarArqueo(cajaId: string, data: {
     console.error('Error registrando arqueo:', error);
     throw error;
   }
+}
+
+export async function obtenerSaldoDisponibleRuta(rutaId: string, fecha?: string): Promise<SaldoDisponibleRuta> {
+  const params = fecha ? `?fecha=${fecha}` : '';
+  return apiRequest<SaldoDisponibleRuta>('GET', `/accounting/rutas/${rutaId}/saldo-disponible${params}`);
 }

@@ -253,31 +253,44 @@ const VistaCobrador = () => {
         // Obtener rutas asignadas al cobrador
         const rutas = await rutasService.obtenerRutas({ cobradorId: userSession.id, limit: 10 });
         const ruta = rutas[0]; // Ruta principal del cobrador
-        if (!ruta || !ruta.asignaciones) {
+        if (!ruta) {
           setVisitasBase([]);
           setVisitasOrden([]);
           return;
         }
 
-        // Construir visitas desde las asignaciones de la ruta
-        const visitas: VisitaRuta[] = ruta.asignaciones.map((asig: any, idx: number) => {
-          const cliente = asig.cliente || {};
-          const prestamo = asig.prestamo || {};
+        // NUEVA FUNCIONALIDAD: Obtener solo visitas del día según frecuencia de pago
+        const visitasDelDia = await rutasService.obtenerVisitasDelDia(ruta.id);
+        
+        if (!visitasDelDia?.visitas || visitasDelDia.visitas.length === 0) {
+          setVisitasBase([]);
+          setVisitasOrden([]);
+          return;
+        }
+
+        // Construir visitas desde la respuesta del backend
+        const visitas: VisitaRuta[] = visitasDelDia.visitas.map((visita: any) => {
+          const cliente = visita.cliente || {};
+          const prestamo = visita.prestamos?.[0] || {};
+          const proximaCuota = prestamo.proximaCuota || {};
+          
           return {
-            id: asig.id || `V-${idx}`,
+            id: visita.asignacionId || `V-${cliente.id}`,
             cliente: `${cliente.nombres || ''} ${cliente.apellidos || ''}`.trim() || 'Sin nombre',
             direccion: cliente.direccion || 'Sin dirección',
             telefono: cliente.telefono || '',
             horaSugerida: '',
-            montoCuota: prestamo.valorCuota || prestamo.montoPendiente || 0,
-            saldoTotal: prestamo.saldoPendiente || prestamo.montoTotal || 0,
-            estado: (prestamo.diasMora > 0 ? 'en_mora' : prestamo.estado === 'PAGADO' ? 'pagado' : 'pendiente') as EstadoVisita,
+            montoCuota: proximaCuota.monto || 0,
+            saldoTotal: prestamo.saldoPendiente || 0,
+            estado: (proximaCuota.estado === 'VENCIDA' ? 'en_mora' : proximaCuota.estado === 'PAGADA' ? 'pagado' : 'pendiente') as EstadoVisita,
             proximaVisita: 'Hoy',
-            ordenVisita: idx + 1,
-            prioridad: prestamo.diasMora > 15 ? 'alta' : prestamo.diasMora > 0 ? 'media' : 'baja',
-            nivelRiesgo: prestamo.riesgo === 'ROJO' ? 'critico' : prestamo.riesgo === 'AMARILLO' ? 'moderado' : 'bajo',
+            ordenVisita: visita.ordenVisita || 0,
+            prioridad: proximaCuota.estado === 'VENCIDA' ? 'alta' : 'media',
+            nivelRiesgo: cliente.nivelRiesgo === 'ROJO' ? 'critico' : cliente.nivelRiesgo === 'AMARILLO' ? 'moderado' : 'bajo',
             cobradorId: userSession.id,
-            periodoRuta: (asig.frecuencia || 'DIA') as PeriodoRuta,
+            periodoRuta: (prestamo.frecuenciaPago || 'DIARIO') as PeriodoRuta,
+            clienteId: cliente.id,
+            prestamoId: prestamo.id,
           };
         });
 
@@ -543,19 +556,35 @@ const VistaCobrador = () => {
     setVisitaReprogramar(null)
   }, [visitaReprogramar])
 
-  const handleDragEnd = useCallback((event: DragEndEvent) => {
+  const handleDragEnd = useCallback(async (event: DragEndEvent) => {
     const { active, over } = event
-
-    if (over && active.id !== over.id) {
-      setVisitasOrden((items) => {
-        const oldIndex = items.indexOf(active.id as string)
-        const newIndex = items.indexOf(over.id as string)
-        return arrayMove(items, oldIndex, newIndex)
-      })
-    }
-
     setActiveId(null)
-  }, [])
+
+    if (!over || active.id === over.id) return
+
+    const newOrder = arrayMove(visitasOrden, visitasOrden.indexOf(active.id as string), visitasOrden.indexOf(over.id as string))
+    setVisitasOrden(newOrder)
+
+    // NUEVA FUNCIONALIDAD: Guardar orden en backend
+    try {
+      const rutas = await rutasService.obtenerRutas({ cobradorId: userSession?.id, limit: 1 });
+      if (rutas[0]) {
+        const ordenData = newOrder.map((id, index) => {
+          const visita = visitasBase.find(v => v.id === id);
+          // Extraer clienteId del id de asignación o usar el id de la visita
+          const clienteId = (visita as any)?.clienteId || visita?.id.split('-')[1] || '';
+          return {
+            clienteId,
+            orden: index + 1,
+          };
+        }).filter(item => item.clienteId);
+
+        await rutasService.actualizarOrdenClientes(rutas[0].id, ordenData);
+      }
+    } catch (error) {
+      console.error('Error al guardar orden:', error);
+    }
+  }, [visitasOrden, visitasBase, userSession?.id])
 
   const handleDragCancel = useCallback(() => {
     setActiveId(null)
