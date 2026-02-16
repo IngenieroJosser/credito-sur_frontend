@@ -1,27 +1,64 @@
 'use client'
 
-import { useState } from 'react'
-import { X, Receipt, Save, Banknote, Camera } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { X, Receipt, Save, Banknote, Camera, AlertCircle } from 'lucide-react'
 import { formatCOPInputValue } from '@/lib/utils'
 import SelectCategoria from '@/components/ui/SelectCategoria'
 import { Portal, MODAL_Z_INDEX } from '@/components/dashboards/shared/CobradorElements'
+import { obtenerSaldoDisponibleRuta } from '@/services/contabilidad-service'
+import { rutasService } from '@/services/rutas-service'
 
 interface GastoModalProps {
   isOpen: boolean
   onClose: () => void
   onConfirm: (data: { descripcion: string; valor: number; comprobante: File | null }) => void
+  cobradorId?: string
 }
 
-export default function GastoModal({ isOpen, onClose, onConfirm }: GastoModalProps) {
+export default function GastoModal({ isOpen, onClose, onConfirm, cobradorId }: GastoModalProps) {
   const [descripcion, setDescripcion] = useState('')
   const [valorInput, setValorInput] = useState('')
   const [comprobante, setComprobante] = useState<File | null>(null)
+  const [saldoDisponible, setSaldoDisponible] = useState<number | null>(null)
+  const [loadingSaldo, setLoadingSaldo] = useState(false)
+  const [errorSaldo, setErrorSaldo] = useState('')
+
+  // Cargar saldo disponible al abrir el modal
+  useEffect(() => {
+    if (!isOpen || !cobradorId) return
+
+    const cargarSaldo = async () => {
+      setLoadingSaldo(true)
+      setErrorSaldo('')
+      try {
+        const rutas = await rutasService.obtenerRutas({ cobradorId, limit: 1 })
+        if (rutas[0]) {
+          const saldo = await obtenerSaldoDisponibleRuta(rutas[0].id)
+          setSaldoDisponible(saldo.saldoDisponible)
+        }
+      } catch (error) {
+        console.error('Error al cargar saldo:', error)
+        setErrorSaldo('No se pudo verificar el saldo disponible')
+      } finally {
+        setLoadingSaldo(false)
+      }
+    }
+
+    cargarSaldo()
+  }, [isOpen, cobradorId])
 
   if (!isOpen) return null
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     const valor = parseInt(valorInput.replace(/\D/g, '')) || 0
+    
+    // NUEVA VALIDACIÓN: Verificar que no exceda el saldo disponible
+    if (saldoDisponible !== null && valor > saldoDisponible) {
+      setErrorSaldo(`El gasto excede el saldo disponible ($${saldoDisponible.toLocaleString('es-CO')})`)
+      return
+    }
+    
     onConfirm({ descripcion, valor, comprobante })
     handleReset()
   }
@@ -60,6 +97,30 @@ export default function GastoModal({ isOpen, onClose, onConfirm }: GastoModalPro
           </div>
 
           <form onSubmit={handleSubmit} className="p-6 space-y-4">
+            {/* Saldo disponible */}
+            {loadingSaldo ? (
+              <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 text-sm text-blue-800">
+                Verificando saldo disponible...
+              </div>
+            ) : saldoDisponible !== null ? (
+              <div className="bg-green-50 border border-green-200 rounded-xl p-3">
+                <div className="flex items-center gap-2 text-sm">
+                  <Banknote className="w-4 h-4 text-green-600" />
+                  <span className="font-medium text-green-900">Saldo disponible:</span>
+                  <span className="font-bold text-green-700">${saldoDisponible.toLocaleString('es-CO')}</span>
+                </div>
+                <p className="text-xs text-green-700 mt-1">Recaudo del día - Gastos registrados</p>
+              </div>
+            ) : null}
+
+            {/* Error de saldo */}
+            {errorSaldo && (
+              <div className="bg-red-50 border border-red-200 rounded-xl p-3 flex items-start gap-2">
+                <AlertCircle className="w-4 h-4 text-red-600 flex-shrink-0 mt-0.5" />
+                <p className="text-sm text-red-800">{errorSaldo}</p>
+              </div>
+            )}
+
 
 
             <div className="space-y-2">
