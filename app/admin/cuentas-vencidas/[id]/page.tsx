@@ -5,6 +5,7 @@ import { ChevronLeft, Archive, Scale, FileText, User } from 'lucide-react';
 import Link from 'next/link';
 import { formatCurrency } from '@/lib/utils';
 import { vencidasService, CuentaVencida } from '@/services/vencidas-service';
+import ArchivarCuentaModal from '@/components/prestamos/ArchivarCuentaModal';
 
 export default function DetalleCuentaVencidaPage({ 
   params 
@@ -14,6 +15,7 @@ export default function DetalleCuentaVencidaPage({
   const { id } = use(params);
   const [cuenta, setCuenta] = useState<CuentaVencida | null>(null);
   const [loading, setLoading] = useState(true);
+  const [showArchivarModal, setShowArchivarModal] = useState(false);
 
   useEffect(() => {
     const fetchCuenta = async () => {
@@ -76,6 +78,13 @@ export default function DetalleCuentaVencidaPage({
               </div>
             </div>
             <div className="flex items-center gap-4">
+                <button
+                  onClick={() => setShowArchivarModal(true)}
+                  className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium text-sm"
+                >
+                  <Archive className="w-4 h-4" />
+                  Archivar Cuenta
+                </button>
                 <div className="w-[1px] h-8 bg-slate-200 hidden md:block" />
                 <Link href={`/creditos/${id}`} className="px-4 py-2 text-sm font-bold text-blue-600 hover:bg-blue-50 rounded-xl transition-all">
                     Ver Crédito
@@ -84,6 +93,20 @@ export default function DetalleCuentaVencidaPage({
           </div>
         </div>
       </header>
+
+      {/* Modal de Archivar */}
+      {showArchivarModal && (
+        <ArchivarCuentaModal
+          prestamoId={id}
+          numeroPrestamo={cuenta.numeroPrestamo}
+          clienteNombre={typeof cuenta.cliente === 'string' ? cuenta.cliente : cuenta.cliente.nombre}
+          saldoPendiente={(cuenta as any).montoVencido || (cuenta as any).saldoTotal || 0}
+          onClose={() => setShowArchivarModal(false)}
+          onSuccess={() => {
+            window.location.href = '/cuentas-vencidas';
+          }}
+        />
+      )}
 
       <main className="relative z-10 px-6 lg:px-8 py-8 max-w-7xl mx-auto space-y-8">
         <div className="bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-sm flex flex-col md:flex-row">
