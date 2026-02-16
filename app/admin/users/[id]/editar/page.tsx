@@ -39,7 +39,8 @@ export default function EditarUsuarioPage({ params }: { params: Promise<{ id: st
   }, [id])
 
   const roles = [
-    { id: 'SUPER_ADMINISTRADOR', label: 'Administrador' },
+    { id: 'SUPER_ADMINISTRADOR', label: 'SuperAdministrador' },
+    { id: 'ADMIN', label: 'Administrador' },
     { id: 'COORDINADOR', label: 'Coordinador' },
     { id: 'SUPERVISOR', label: 'Supervisor' },
     { id: 'COBRADOR', label: 'Cobrador' },

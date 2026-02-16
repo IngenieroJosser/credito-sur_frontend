@@ -280,8 +280,8 @@ const UserManagementPage = () => {
   });
 
   const roles: Role[] = [
-    { id: RolUsuario.SUPER_ADMINISTRADOR, nombre: 'Administrador', label: 'Administrador', descripcion: 'Acceso total al sistema', color: 'text-violet-600', bgColor: 'bg-violet-50', icon: <Shield className="h-3.5 w-3.5" /> },
-    { id: RolUsuario.ADMIN, nombre: 'Admin General', label: 'Admin General', descripcion: 'Gestión operativa y financiera', color: 'text-blue-600', bgColor: 'bg-blue-50', icon: <Briefcase className="h-3.5 w-3.5" /> },
+    { id: RolUsuario.SUPER_ADMINISTRADOR, nombre: 'SuperAdministrador', label: 'SuperAdministrador', descripcion: 'Acceso total al sistema', color: 'text-violet-600', bgColor: 'bg-violet-50', icon: <Shield className="h-3.5 w-3.5" /> },
+    { id: RolUsuario.ADMIN, nombre: 'Administrador', label: 'Administrador', descripcion: 'Gestión operativa y financiera', color: 'text-blue-600', bgColor: 'bg-blue-50', icon: <Briefcase className="h-3.5 w-3.5" /> },
     { id: RolUsuario.COORDINADOR, nombre: 'Coordinador', label: 'Coordinador', descripcion: 'Gestión operativa', color: 'text-sky-600', bgColor: 'bg-sky-50', icon: <Users className="h-3.5 w-3.5" /> },
     { id: RolUsuario.SUPERVISOR, nombre: 'Supervisor', label: 'Supervisor', descripcion: 'Supervisión y control', color: 'text-violet-600', bgColor: 'bg-violet-50', icon: <Eye className="h-3.5 w-3.5" /> },
     { id: RolUsuario.COBRADOR, nombre: 'Cobrador', label: 'Cobrador', descripcion: 'Gestión de cobranza', color: 'text-emerald-600', bgColor: 'bg-emerald-50', icon: <Briefcase className="h-3.5 w-3.5" /> },
