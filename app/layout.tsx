@@ -4,6 +4,7 @@ import "./globals.css";
 
 import { NotificationProvider } from "@/components/providers/NotificationProvider";
 import ServiceWorkerRegister from "@/components/ServiceWorkerRegister";
+import OfflineIndicatorWrapper from "../components/offline/OfflineIndicatorWrapper";
 
 const sora = Sora({
   variable: "--font-setting",
@@ -56,6 +57,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           {children}
         </NotificationProvider>
         <ServiceWorkerRegister />
+        <OfflineIndicatorWrapper />
       </body>
     </html>
   );

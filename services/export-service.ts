@@ -122,7 +122,7 @@ export const exportService = {
    */
   async exportMora(
     format: 'excel' | 'pdf',
-    filters: { busqueda?: string; riesgo?: string; rutaId?: string } = {},
+    filters: { busqueda?: string; nivelRiesgo?: string; rutaId?: string } = {},
   ): Promise<void> {
     const ext = format === 'excel' ? 'xlsm' : 'pdf';
     await this.downloadFilePost('reports/exportar-mora', {

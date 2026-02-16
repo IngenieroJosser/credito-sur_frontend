@@ -220,8 +220,8 @@ export default function CreditosArticulosPage() {
         </div>
 
         {/* Filters & Search */}
-        <div className="flex flex-col md:flex-row gap-4 items-center justify-between mb-8 animate-in fade-in slide-in-from-bottom-4 duration-700 delay-200">
-          <div className="flex-1 buscador-3d">
+        <div className="bg-white/80 backdrop-blur-sm p-4 rounded-2xl border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] flex flex-col md:flex-row gap-4 items-center justify-between animate-in fade-in slide-in-from-bottom-4 duration-700 delay-200">
+          <div className="w-full md:w-96 buscador-3d">
             <Search className="icon h-4 w-4" />
             <input
               type="text"
@@ -232,43 +232,57 @@ export default function CreditosArticulosPage() {
             />
           </div>
           
-          <div className="flex flex-col sm:flex-row gap-3">
-            <div className="relative min-w-[180px]">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <Filter className="h-4 w-4 text-slate-400" />
-              </div>
-              <select
-                value={estadoFiltro}
-                onChange={(e) => setEstadoFiltro(e.target.value)}
-                className="w-full pl-10 pr-8 py-2.5 rounded-xl border-slate-200 bg-white text-sm font-medium text-slate-700 focus:ring-2 focus:ring-primary/10 focus:border-primary/20 appearance-none cursor-pointer hover:bg-slate-50 transition-colors"
-              >
-                <option value="todos">Todos los estados</option>
-                <option value="ACTIVO">Activos</option>
-                <option value="EN_MORA">En Mora</option>
-                <option value="PAGADO">Pagados</option>
-              </select>
+          <div className="flex flex-wrap gap-3 w-full md:w-auto">
+            {/* Filtro de Estado */}
+            <div className="flex items-center gap-1.5 flex-wrap bg-white p-2 rounded-xl border border-slate-200 shadow-sm">
+              <Filter className="h-3.5 w-3.5 text-slate-400 shrink-0 mr-1" />
+              {[
+                { id: 'todos', label: 'Todos' },
+                { id: 'ACTIVO', label: 'Activos' },
+                { id: 'EN_MORA', label: 'En Mora' },
+                { id: 'PAGADO', label: 'Pagados' }
+              ].map((filtro) => (
+                <button
+                  key={filtro.id}
+                  onClick={() => setEstadoFiltro(filtro.id)}
+                  className={`px-3 py-1.5 text-[11px] font-bold rounded-xl transition-all whitespace-nowrap ${
+                    estadoFiltro === filtro.id 
+                      ? 'bg-primary text-white shadow-md shadow-primary/20' 
+                      : 'bg-slate-100/50 text-slate-600 hover:bg-slate-200/70 border border-slate-200'
+                  }`}
+                >
+                  {filtro.label}
+                </button>
+              ))}
             </div>
-            
-            <div className="relative min-w-[180px]">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <AlertCircle className="h-4 w-4 text-slate-400" />
-              </div>
-              <select
-                value={riesgoFiltro}
-                onChange={(e) => setRiesgoFiltro(e.target.value)}
-                className="w-full pl-10 pr-8 py-2.5 rounded-xl border-slate-200 bg-white text-sm font-medium text-slate-700 focus:ring-2 focus:ring-primary/10 focus:border-primary/20 appearance-none cursor-pointer hover:bg-slate-50 transition-colors"
-              >
-                <option value="todos">Cualquier riesgo</option>
-                <option value="VERDE">Riesgo Bajo</option>
-                <option value="AMARILLO">Riesgo Medio</option>
-                <option value="ROJO">Riesgo Alto</option>
-              </select>
+
+            {/* Filtro de Riesgo */}
+            <div className="flex items-center gap-1.5 flex-wrap bg-white p-2 rounded-xl border border-slate-200 shadow-sm">
+              <AlertCircle className="h-3.5 w-3.5 text-slate-400 shrink-0 mr-1" />
+              {[
+                { id: 'todos', label: 'Todos' },
+                { id: 'VERDE', label: 'Bajo' },
+                { id: 'AMARILLO', label: 'Medio' },
+                { id: 'ROJO', label: 'Alto' }
+              ].map((filtro) => (
+                <button
+                  key={filtro.id}
+                  onClick={() => setRiesgoFiltro(filtro.id)}
+                  className={`px-3 py-1.5 text-[11px] font-bold rounded-xl transition-all whitespace-nowrap ${
+                    riesgoFiltro === filtro.id 
+                      ? 'bg-primary text-white shadow-md shadow-primary/20' 
+                      : 'bg-slate-100/50 text-slate-600 hover:bg-slate-200/70 border border-slate-200'
+                  }`}
+                >
+                  {filtro.label}
+                </button>
+              ))}
             </div>
           </div>
         </div>
 
-        {/* Table */}
-        <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-slate-200 overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-700 delay-300">
+        {/* Tabla - Desktop */}
+        <div className="hidden md:block bg-white/80 backdrop-blur-sm rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-slate-200 overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-700 delay-300">
           <div className="overflow-x-auto">
             <table className="w-full text-sm text-left">
               <thead className="text-xs text-slate-500 uppercase bg-slate-50/50 border-b border-slate-200">
@@ -423,6 +437,131 @@ export default function CreditosArticulosPage() {
                 >
                   <ChevronRight className="w-4 h-4 text-slate-500" />
                 </button>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Vista de Cards - Móvil */}
+        <div className="md:hidden space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-700 delay-300">
+          {isLoading ? (
+            Array.from({ length: 3 }).map((_, i) => (
+              <div key={i} className="bg-white rounded-2xl border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-4 animate-pulse">
+                <div className="h-6 bg-slate-100 rounded w-3/4 mb-3"></div>
+                <div className="h-4 bg-slate-100 rounded w-1/2 mb-2"></div>
+                <div className="h-4 bg-slate-100 rounded w-2/3"></div>
+              </div>
+            ))
+          ) : creditosPaginados.length > 0 ? (
+            creditosPaginados.map((credito) => (
+              <Link
+                key={credito.id}
+                href={`/creditos-articulos/${credito.id}`}
+                className="block bg-white rounded-2xl border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-4 hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all"
+              >
+                {/* Header */}
+                <div className="flex items-start justify-between mb-3 pb-3 border-b border-slate-100">
+                  <div className="flex items-center gap-3 flex-1 min-w-0">
+                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all shadow-sm border flex-shrink-0 ${
+                      credito.riesgo === 'ROJO' ? 'bg-rose-50 text-rose-500 border-rose-100' : 
+                      credito.riesgo === 'AMARILLO' ? 'bg-amber-50 text-amber-500 border-amber-100' : 
+                      'bg-slate-50 text-slate-500 border-slate-200'
+                    }`}>
+                      {getProductIcon(credito.producto, credito.tipoProducto || '')}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="font-bold text-slate-900 truncate">{credito.producto}</div>
+                      <div className="text-xs text-slate-500 mt-0.5">{credito.cliente}</div>
+                    </div>
+                  </div>
+                  <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold border flex-shrink-0 ml-2 ${getEstadoColor(credito.estado)}`}>
+                    {credito.estado.replace('_', ' ')}
+                  </span>
+                </div>
+
+                {/* Riesgo */}
+                <div className="mb-3">
+                  <div className="text-xs text-slate-500 font-bold uppercase tracking-wider mb-1">Nivel de Riesgo</div>
+                  <span className={`inline-flex items-center text-xs px-2 py-1 rounded font-bold ${getRiesgoColor(credito.riesgo)}`}>
+                    {credito.riesgo}
+                  </span>
+                </div>
+
+                {/* Próximo Pago */}
+                <div className="mb-3">
+                  <div className="text-xs text-slate-500 font-bold uppercase tracking-wider mb-1">Próximo Pago</div>
+                  <div className="flex items-center gap-2 text-slate-700">
+                    <Calendar className="w-4 h-4 text-slate-400" />
+                    <span className="text-sm font-bold">{credito.proximoPago}</span>
+                  </div>
+                </div>
+
+                {/* Progreso */}
+                <div className="mb-3 pb-3 border-b border-slate-100">
+                  <div className="text-xs text-slate-500 font-bold uppercase tracking-wider mb-2">Progreso de Pago</div>
+                  <div className="space-y-2">
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs text-slate-500 font-medium">{credito.cuotasPagadas}/{credito.cuotasTotales} cuotas</span>
+                      <span className="text-sm font-bold text-slate-900">
+                        {Math.round((credito.cuotasPagadas / credito.cuotasTotales) * 100)}%
+                      </span>
+                    </div>
+                    <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
+                      <div 
+                        className={`h-full rounded-full transition-all duration-500 ${
+                          credito.riesgo === 'ROJO' ? 'bg-rose-500' :
+                          credito.riesgo === 'AMARILLO' ? 'bg-amber-500' :
+                          'bg-primary'
+                        }`}
+                        style={{ width: `${(credito.cuotasPagadas / credito.cuotasTotales) * 100}%` }}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Deuda */}
+                <div>
+                  <div className="text-xs text-slate-500 font-bold uppercase tracking-wider mb-1">Deuda Pendiente</div>
+                  <div className="font-bold text-lg text-slate-900">{formatCurrency(credito.montoPendiente)}</div>
+                  <div className="text-xs text-slate-500 mt-0.5">Total: {formatCurrency(credito.montoTotal)}</div>
+                </div>
+              </Link>
+            ))
+          ) : (
+            <div className="bg-white rounded-2xl border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-8">
+              <div className="flex flex-col items-center gap-3 text-center">
+                <div className="inline-flex p-4 rounded-full bg-slate-50">
+                  <Package className="h-8 w-8 text-slate-300" />
+                </div>
+                <h3 className="text-lg font-bold text-slate-900">No se encontraron artículos</h3>
+                <p className="text-slate-500 font-medium">No hay créditos que coincidan con los filtros seleccionados.</p>
+              </div>
+            </div>
+          )}
+
+          {/* Paginación Móvil */}
+          {!isLoading && filteredCreditos.length > 0 && (
+            <div className="bg-white rounded-2xl border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-4">
+              <div className="flex flex-col sm:flex-row justify-between items-center gap-3 text-xs text-slate-500 font-medium">
+                <span className="text-center">
+                  Mostrando {indicePrimero + 1} a {Math.min(indiceUltimo, filteredCreditos.length)} de {filteredCreditos.length}
+                </span>
+                <div className="flex gap-2 w-full sm:w-auto">
+                  <button 
+                    onClick={() => cambiarPagina(paginaActual - 1)}
+                    disabled={paginaActual === 1}
+                    className="flex-1 sm:flex-none px-4 py-2 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed font-bold flex items-center justify-center gap-1 transition-colors text-slate-700"
+                  >
+                    <ChevronLeft className="h-3 w-3" /> Anterior
+                  </button>
+                  <button 
+                    onClick={() => cambiarPagina(paginaActual + 1)}
+                    disabled={paginaActual === totalPaginas}
+                    className="flex-1 sm:flex-none px-4 py-2 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed font-bold flex items-center justify-center gap-1 transition-colors text-slate-700"
+                  >
+                    Siguiente <ChevronRight className="h-3 w-3" />
+                  </button>
+                </div>
               </div>
             </div>
           )}

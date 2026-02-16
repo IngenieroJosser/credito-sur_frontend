@@ -29,6 +29,7 @@ import { Sparkline } from '@/components/ui/PremiumCharts';
 import { TransactionalHighDetailChart } from '@/components/ui/TransactionalHighDetailChart';
 import { dashboardService, DashboardData } from '@/services/dashboard-coordinador-service';
 import { formatErrorForComponent } from '@/lib/api/api';
+import { offlineStore } from '@/lib/offline/offlineDb';
 import { TimeFilter, TimeFilterPeriod } from '@/components/ui/TimeFilter';
 import CrearCreditoModal from '@/components/dashboards/shared/CrearCreditoModal';
 
@@ -125,9 +126,37 @@ const VistaCoordinador = () => {
       const data = await dashboardService.getDashboardData(timeFilter)
       setDashboardData(data)
     } catch (err) {
-      const errorMessage = formatErrorForComponent(err)
-      setError(errorMessage)
       console.error('Error loading dashboard data:', err)
+      // Fallback offline: construir datos básicos desde IndexedDB
+      try {
+        const [offClientes, offPrestamos] = await Promise.all([
+          offlineStore.getAll<any>('clientes'),
+          offlineStore.getAll<any>('prestamos'),
+        ]);
+        if (offClientes.length > 0 || offPrestamos.length > 0) {
+          const activos = offPrestamos.filter((p: any) => p.estado === 'ACTIVO');
+          const enMora = offPrestamos.filter((p: any) => p.estado === 'EN_MORA' || (p.diasMora && p.diasMora > 0));
+          setDashboardData({
+            totalClientes: offClientes.length,
+            totalPrestamos: offPrestamos.length,
+            prestamosActivos: activos.length,
+            prestamosEnMora: enMora.length,
+            montoCartera: offPrestamos.reduce((s: number, p: any) => s + (p.montoTotal || 0), 0),
+            montoPendiente: offPrestamos.reduce((s: number, p: any) => s + (p.saldoPendiente || 0), 0),
+            montoMora: enMora.reduce((s: number, p: any) => s + (p.saldoPendiente || 0), 0),
+            recaudoHoy: 0,
+            metaHoy: 0,
+            eficiencia: 0,
+            pendientesAprobacion: [],
+            chartData: [],
+          } as any);
+          setError(null);
+        } else {
+          setError(formatErrorForComponent(err));
+        }
+      } catch {
+        setError(formatErrorForComponent(err));
+      }
     } finally {
       setLoading(false)
       setRefreshing(false)

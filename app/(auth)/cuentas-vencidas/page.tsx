@@ -56,6 +56,7 @@ import {
 } from '@/services/vencidas-service'
 import { exportService } from '@/services/export-service'
 import { toast } from 'sonner'
+import { offlineStore } from '@/lib/offline/offlineDb'
 
 type ViewMode = 'list' | 'grid';
 
@@ -98,9 +99,38 @@ function CuentasVencidasContent() {
         diasPromedioVencimiento: response.totales.diasPromedioVencimiento
       })
     } catch (err) {
+      console.error('Error fetching cuentas vencidas:', err)
+      // Fallback offline
+      try {
+        const offPrestamos = await offlineStore.getAll<any>('prestamos');
+        const offClientes = await offlineStore.getAll<any>('clientes');
+        const vencidas: CuentaVencida[] = offPrestamos
+          .filter((p: any) => p.estado === 'VENCIDO' || p.estado === 'PERDIDA' || p.estado === 'CASTIGADO')
+          .map((p: any) => {
+            const cli = offClientes.find((c: any) => c.id === p.clienteId);
+            return {
+              id: p.id,
+              numeroPrestamo: p.numeroPrestamo || p.id,
+              clienteId: cli?.id || p.clienteId || '',
+              clienteNombre: cli ? `${cli.nombres} ${cli.apellidos}` : '',
+              clienteDni: cli?.dni || '',
+              montoOriginal: p.montoTotal || p.monto || 0,
+              saldoPendiente: p.saldoPendiente || 0,
+              diasVencido: p.diasMora || 0,
+              fechaVencimiento: p.fechaFin || '',
+              nivelRiesgo: (p.diasMora > 60 ? 'ROJO' : 'AMARILLO') as NivelRiesgo,
+              estado: p.estado || 'VENCIDO',
+              ruta: '',
+            } as any;
+          });
+        if (vencidas.length > 0) {
+          setCuentas(vencidas);
+          setError(null);
+          return;
+        }
+      } catch { /* ignore */ }
       setError('Error al cargar las cuentas vencidas')
       toast.error('No se pudieron cargar las cuentas vencidas')
-      console.error('Error fetching cuentas vencidas:', err)
     } finally {
       setLoading(false)
     }

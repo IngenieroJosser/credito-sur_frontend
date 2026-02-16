@@ -13,13 +13,15 @@
  * - Redirección inteligente basada en Rol (Cobrador -> /cobranzas, Admin -> /admin).
  * - Persistencia de sesión (localStorage).
  * - UI Minimalista con feedback visual avanzado (Toasts, Spinners).
+ * - Soporte para modo offline: verificar sesión cacheada y permitir acceso sin conexión.
  */
 
 import { useState, FormEvent, useEffect } from 'react';
-import { Eye, EyeOff, Lock, User, ChevronRight } from 'lucide-react';
+import { Eye, EyeOff, Lock, User, ChevronRight, WifiOff } from 'lucide-react';
 import { LoginData } from '@/lib/types/autenticacion-type';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
+import { restoreOfflineSession, hasValidOfflineSession, getOfflineSessionDaysRemaining } from '@/lib/auth/offlineAuth';
 
 interface LoginFormData {
   nombres: string;
@@ -130,6 +132,44 @@ const LoginPage = () => {
       userName,
       type
     });
+  };
+
+  // Acceso offline con sesión cacheada
+  const handleOfflineAccess = () => {
+    if (!hasValidOfflineSession()) {
+      showToast('No hay sesión offline disponible', '', 'error');
+      return;
+    }
+
+    const restored = restoreOfflineSession();
+    if (!restored) {
+      showToast('Error al restaurar sesión offline', '', 'error');
+      return;
+    }
+
+    const user = restored.user;
+    const roleRedirects: Record<string, string> = {
+      'COBRADOR': '/cobranzas',
+      'COORDINADOR': '/coordinador',
+      'SUPER_ADMINISTRADOR': '/admin',
+      'ADMINISTRADOR': '/admin',
+      'SUPERVISOR': '/supervisor',
+      'CONTADOR': '/contador/contable',
+      'PUNTO_DE_VENTA': '/punto-de-venta'
+    };
+
+    const redirectPath = roleRedirects[user.rol] || '/admin';
+    const userName = user.nombres || 'Usuario';
+    
+    showToast('Modo Offline', `${userName} (${formatRol(user.rol)})`, 'success');
+    
+    setTimeout(() => {
+      setIsRedirecting(true);
+      setTimeout(() => {
+        router.replace(redirectPath);
+        router.refresh();
+      }, 800);
+    }, 1200);
   };
 
   // Lógica principal de inicio de sesión
@@ -430,6 +470,26 @@ const LoginPage = () => {
                     <div className="w-1.5 h-1.5 bg-red-400 rounded-full animate-pulse"></div>
                     <span className="text-xs text-red-600">{error}</span>
                   </div>
+                </div>
+              )}
+
+              {/* Botón de Acceso Offline */}
+              {!navigator.onLine && hasValidOfflineSession() && (
+                <div className="mt-4">
+                  <button
+                    type="button"
+                    onClick={handleOfflineAccess}
+                    className="w-full group relative overflow-hidden"
+                  >
+                    <div className="absolute inset-0 bg-slate-50 border border-slate-200 rounded-lg transition-all duration-300 group-hover:border-slate-300"></div>
+
+                    <div className="relative py-3 px-4 flex items-center justify-center gap-2">
+                      <WifiOff className="h-4 w-4 text-slate-500" />
+                      <span className="text-sm font-medium text-slate-600">
+                        Continuar Offline ({getOfflineSessionDaysRemaining()}d restantes)
+                      </span>
+                    </div>
+                  </button>
                 </div>
               )}
             </div>

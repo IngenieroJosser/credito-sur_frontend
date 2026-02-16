@@ -14,6 +14,7 @@ import Image from 'next/image'
 import { formatCOPInputValue, formatMilesCOP, parseCOPInputToNumber } from '@/lib/utils'
 import { Portal, MODAL_Z_INDEX } from '@/components/dashboards/shared/CobradorElements'
 import { clientesService, Cliente } from '@/services/clientes-service'
+import { offlineStore } from '@/lib/offline/offlineDb'
 
 interface Visita {
   id: string
@@ -75,7 +76,14 @@ export default function PagoModal({
   
   useEffect(() => {
     if (isOpen && (!availableVisitas || availableVisitas.length === 0)) {
-        clientesService.obtenerTodos().then(setTodosLosClientes).catch(console.error);
+        clientesService.obtenerTodos()
+          .then((data) => {
+            setTodosLosClientes(data);
+            offlineStore.saveMany('clientes', data).catch(() => {});
+          })
+          .catch(() => {
+            offlineStore.getAll<Cliente>('clientes').then(setTodosLosClientes).catch(() => {});
+          });
     }
   }, [isOpen, availableVisitas]);
 

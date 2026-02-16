@@ -168,21 +168,21 @@ const ReportesOperativosPage = () => {
         <div className="absolute left-0 right-0 top-0 -z-10 m-auto h-[310px] w-[310px] rounded-full bg-slate-400 opacity-20 blur-[100px]"></div>
       </div>
 
-      <div className="relative z-10 w-full space-y-8 p-8">
+      <div className="relative z-10 w-full space-y-6 md:space-y-8 p-4 md:p-8">
       <header className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between animate-in fade-in slide-in-from-bottom-4 duration-700">
-        <div className="space-y-4">
+        <div className="space-y-3 md:space-y-4">
           <div className="inline-flex items-center gap-2 self-start px-3 py-1 rounded-full bg-slate-100 text-xs text-slate-600 tracking-wide font-bold border border-slate-200">
             <BarChart3 className="h-3.5 w-3.5" />
             <span>Reportes Operativos</span>
           </div>
-            <h1 className="text-4xl md:text-5xl font-bold tracking-tight">
+            <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold tracking-tight">
               <span className="text-blue-600">Rendimiento </span><span className="text-orange-500">Diario</span>
             </h1>
-            <p className="text-lg text-slate-500 mt-2 max-w-2xl font-medium leading-relaxed">
+            <p className="text-sm md:text-base lg:text-lg text-slate-500 mt-2 max-w-2xl font-medium leading-relaxed">
               Consolidado de operaciones del día: cobranza, colocación de créditos y captación de clientes.
             </p>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
             <TimeFilter activePeriod={period} onPeriodChange={handlePeriodChange} />
             <ExportButton 
               label="Exportar" 
@@ -261,8 +261,8 @@ const ReportesOperativosPage = () => {
           </div>
         </div>
 
-        {/* Desglose por Ruta */}
-        <section className="bg-white/80 backdrop-blur-sm rounded-2xl border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden mb-8">
+        {/* Tabla Desglose por Ruta - Desktop */}
+        <section className="hidden md:block bg-white/80 backdrop-blur-sm rounded-2xl border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden mb-8">
           <div className="px-6 py-5 border-b border-slate-200 flex justify-between items-center bg-white/50">
             <h3 className="font-bold text-slate-900 flex items-center gap-2">
               <div className="p-1.5 bg-white rounded-lg shadow-sm border border-slate-200">
@@ -344,6 +344,90 @@ const ReportesOperativosPage = () => {
               </tbody>
             </table>
           </div>
+        </section>
+
+        {/* Vista de Cards - Móvil */}
+        <section className="md:hidden space-y-4 mb-8">
+          <div className="bg-white/80 backdrop-blur-sm rounded-2xl border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-4">
+            <h3 className="font-bold text-slate-900 flex items-center gap-2 mb-1">
+              <div className="p-1.5 bg-white rounded-lg shadow-sm border border-slate-200">
+                <MapPin className="h-4 w-4 text-slate-500" />
+              </div>
+              Desglose por Ruta
+            </h3>
+          </div>
+
+          {rendimientoFiltrado.map((item: RoutePerformance, idx: number) => (
+            <div
+              key={idx}
+              className="bg-white/80 backdrop-blur-sm rounded-2xl border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-4"
+            >
+              {/* Ruta y Cobrador */}
+              <div className="mb-3 pb-3 border-b border-slate-100">
+                <div className="font-bold text-slate-900 text-base mb-1">{item.ruta}</div>
+                <div className="text-sm text-slate-600 font-medium">{item.cobrador}</div>
+              </div>
+
+              {/* Objetivo y Recaudado */}
+              <div className="grid grid-cols-2 gap-3 mb-3 pb-3 border-b border-slate-100">
+                <div>
+                  <div className="text-xs text-slate-500 font-bold uppercase tracking-wider mb-1">Objetivo</div>
+                  <div className="text-sm font-bold text-slate-600">{formatCurrency(item.meta)}</div>
+                </div>
+                <div>
+                  <div className="text-xs text-slate-500 font-bold uppercase tracking-wider mb-1">Recaudado</div>
+                  <div className="text-lg font-bold text-slate-900">{formatCurrency(item.recaudado)}</div>
+                </div>
+              </div>
+
+              {/* Eficiencia */}
+              <div className="mb-3 pb-3 border-b border-slate-100">
+                <div className="text-xs text-slate-500 font-bold uppercase tracking-wider mb-2">Eficiencia</div>
+                <div className="flex items-center gap-3">
+                  <span className={cn(
+                    "text-sm font-bold px-3 py-1 rounded-full border",
+                    item.eficiencia >= 80 ? 'text-emerald-700 bg-emerald-50 border-emerald-100' : 
+                    item.eficiencia >= 60 ? 'text-yellow-700 bg-yellow-50 border-yellow-100' : 'text-red-700 bg-red-50 border-red-100'
+                  )}>
+                    {item.eficiencia}%
+                  </span>
+                  <div className="flex-1 h-2 bg-slate-100 rounded-full overflow-hidden">
+                    <div 
+                      className={cn(
+                        "h-full rounded-full transition-all duration-500",
+                        item.eficiencia >= 80 ? 'bg-emerald-500' : 
+                        item.eficiencia >= 60 ? 'bg-yellow-500' : 'bg-red-500'
+                      )}
+                      style={{ width: `${item.eficiencia}%` }}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Nuevos Préstamos y Clientes */}
+              <div className="grid grid-cols-2 gap-3 mb-3">
+                <div>
+                  <div className="text-xs text-slate-500 font-bold uppercase tracking-wider mb-1">Nuevos Prést.</div>
+                  <div className="text-lg font-bold text-blue-600">{item.nuevosPrestamos}</div>
+                </div>
+                <div>
+                  <div className="text-xs text-slate-500 font-bold uppercase tracking-wider mb-1">Nuevos Clientes</div>
+                  <div className="text-lg font-bold text-purple-600">{item.nuevosClientes}</div>
+                </div>
+              </div>
+
+              {/* Acción */}
+              <div className="flex justify-end pt-3 border-t border-slate-100">
+                <button 
+                  onClick={() => router.push(`${basePath}/rutas/${item.id}`)}
+                  className="inline-flex items-center gap-2 px-4 py-2 text-xs font-bold text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors"
+                >
+                  <Eye className="h-4 w-4" />
+                  Ver Detalles
+                </button>
+              </div>
+            </div>
+          ))}
         </section>
 
         {/* Gráfico de Barras Simple (CSS) */}

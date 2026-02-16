@@ -460,8 +460,8 @@ export default function ArticulosContent() {
           </div>
         </div>
 
-        {/* Table */}
-        <div className="bg-white rounded-2xl border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-500 delay-300">
+        {/* Tabla - Desktop */}
+        <div className="hidden md:block bg-white rounded-2xl border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-500 delay-300">
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead className="bg-slate-50/50 border-b border-slate-100">
@@ -601,6 +601,130 @@ export default function ArticulosContent() {
               <button className="px-3 py-1 text-sm border border-slate-200 rounded-lg hover:bg-slate-50 text-slate-600">
                 Siguiente
               </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Vista de Cards - Móvil */}
+        <div className="md:hidden space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-500 delay-300">
+          {articulosFiltrados.map((articulo) => (
+            <div
+              key={articulo.id}
+              className="bg-white rounded-2xl border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-4 hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all"
+            >
+              {/* Header */}
+              <div className="flex items-start gap-3 mb-3 pb-3 border-b border-slate-100">
+                <div className="w-12 h-12 rounded-lg bg-slate-100 flex items-center justify-center text-slate-500 flex-shrink-0">
+                  <Package className="w-6 h-6" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="font-bold text-slate-900 truncate">{articulo.nombre}</div>
+                  <div className="text-xs text-slate-500 mt-0.5">{esReadOnly ? articulo.codigo : `SKU: ${articulo.codigo}`}</div>
+                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-700 mt-2">
+                    {articulo.categoria}
+                  </span>
+                </div>
+              </div>
+
+              {/* Precios */}
+              <div className="grid grid-cols-2 gap-3 mb-3 pb-3 border-b border-slate-100">
+                {!esReadOnly && (
+                  <div>
+                    <div className="text-xs text-slate-500 font-bold uppercase tracking-wider mb-1">Costo</div>
+                    <div className="text-sm font-medium text-slate-600">{formatCurrency(articulo.costo)}</div>
+                  </div>
+                )}
+                <div className={!esReadOnly ? '' : 'col-span-2'}>
+                  <div className="text-xs text-slate-500 font-bold uppercase tracking-wider mb-1">
+                    {esReadOnly ? 'Precio Contado' : 'Venta'}
+                  </div>
+                  <div className="text-lg font-bold text-blue-600">{formatCurrency(articulo.precioContado || 0)}</div>
+                  {!esReadOnly && articulo.precios.length > 0 && (
+                    <div className="text-xs text-slate-500 mt-0.5">{articulo.precios.length} opciones crédito</div>
+                  )}
+                </div>
+              </div>
+
+              {/* Valor Inventario y Stock */}
+              <div className="grid grid-cols-2 gap-3 mb-3">
+                <div>
+                  <div className="text-xs text-slate-500 font-bold uppercase tracking-wider mb-1">
+                    {esReadOnly ? 'Venta Crédito' : 'Valor Inventario'}
+                  </div>
+                  {esReadOnly ? (
+                    <div className="text-sm font-bold text-slate-900">
+                      {articulo.precios.length > 0 ? formatCurrency(articulo.precios[0].precio) : 'N/A'}
+                    </div>
+                  ) : (
+                    <div className="text-sm font-bold text-slate-900">
+                      {formatCurrency(((articulo.precioContado !== undefined ? Number(articulo.precioContado) : Number(articulo.costo)) * Number(articulo.stock)) || 0)}
+                    </div>
+                  )}
+                </div>
+                <div>
+                  <div className="text-xs text-slate-500 font-bold uppercase tracking-wider mb-1">Stock</div>
+                  <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${
+                    articulo.stock <= articulo.stockMinimo
+                      ? 'bg-rose-50 text-rose-700 border border-rose-100'
+                      : 'bg-emerald-50 text-emerald-700 border border-emerald-100'
+                  }`}>
+                    {articulo.stock} un.
+                  </span>
+                </div>
+              </div>
+
+              {/* Acciones */}
+              <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
+                <button 
+                  type="button"
+                  onClick={() => openDetalle(articulo)}
+                  className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                  title="Ver detalle"
+                >
+                  <Eye className="w-4 h-4" />
+                </button>
+                {puedeEditar && (
+                  <button 
+                    type="button"
+                    onClick={() => openEditar(articulo)}
+                    className="p-2 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
+                    title="Editar"
+                  >
+                    <Pencil className="w-4 h-4" />
+                  </button>
+                )}
+                {puedeEliminar && (
+                  <button 
+                    onClick={() => handleEliminar(articulo)}
+                    className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
+                    title="Archivar"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
+            </div>
+          ))}
+
+          {/* Paginación Móvil */}
+          <div className="bg-white rounded-2xl border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-4">
+            <div className="flex flex-col sm:flex-row justify-between items-center gap-3 text-xs text-slate-500 font-medium">
+              <span className="text-center">
+                Mostrando 1 a {articulosFiltrados.length} de {articulos.length}
+              </span>
+              <div className="flex gap-2 w-full sm:w-auto">
+                <button 
+                  disabled
+                  className="flex-1 sm:flex-none px-4 py-2 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed font-bold text-slate-700"
+                >
+                  Anterior
+                </button>
+                <button 
+                  className="flex-1 sm:flex-none px-4 py-2 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 font-bold text-slate-700"
+                >
+                  Siguiente
+                </button>
+              </div>
             </div>
           </div>
         </div>

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNotification } from '@/components/providers/NotificationProvider';
 import { clientesService, Cliente } from '@/services/clientes-service';
 import { ClienteAdmin } from '@/lib/clientes-data';
@@ -33,6 +33,8 @@ import { Modal } from '@/components/ui/Modal';
 import FiltroRuta from '@/components/filtros/FiltroRuta';
 import NuevoClienteModal from '@/components/clientes/NuevoClienteModal';
 import ClientePortalModal from '@/components/cliente/ClientePortalModal';
+import { offlineStore } from '@/lib/offline/offlineDb';
+import { WifiOff } from 'lucide-react';
 
 // Tipos locales
 type NivelRiesgo = 'VERDE' | 'AMARILLO' | 'ROJO' | 'LISTA_NEGRA';
@@ -59,6 +61,22 @@ export default function ClientesFeature({ initialClientes, basePath = '/admin/cl
   
   // Estado local de clientes, inicializado con lo que recibimos del servidor (SSR)
   const [clientes, setClientes] = useState<ClienteAdmin[]>(initialClientes);
+  const [dataSource, setDataSource] = useState<'online' | 'offline'>('online');
+
+  // Fallback offline: si SSR no trajo datos, intentar cargar de IndexedDB
+  useEffect(() => {
+    if (initialClientes.length === 0) {
+      offlineStore.getAll<ClienteAdmin>('clientes').then((offlineData) => {
+        if (offlineData.length > 0) {
+          setClientes(offlineData);
+          setDataSource('offline');
+        }
+      }).catch(() => {});
+    } else {
+      // Guardar en IndexedDB para uso offline futuro
+      offlineStore.saveMany('clientes', initialClientes).catch(() => {});
+    }
+  }, [initialClientes]);
 
   // --- CONTROLES DE INTERFAZ & FILTROS ---
   // Buscador textual: busca por nombre, cédula o correo
@@ -220,7 +238,7 @@ export default function ClientesFeature({ initialClientes, basePath = '/admin/cl
           <div>
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 text-xs text-primary tracking-wide font-bold border border-primary/20 mb-2">
               <User className="h-3.5 w-3.5" />
-              <span>Gestión de Cartera</span>
+              <span>Gestión de Clientes</span>
             </div>
             <h1 className="text-4xl md:text-5xl font-bold tracking-tight">
               <span className="text-blue-600">Listado de </span><span className="text-orange-500">Clientes</span>
@@ -236,6 +254,14 @@ export default function ClientesFeature({ initialClientes, basePath = '/admin/cl
             </button>
           )}
         </div>
+
+        {/* Banner offline */}
+        {dataSource === 'offline' && (
+          <div className="flex items-center gap-2 px-4 py-2.5 bg-amber-50 border border-amber-200 rounded-xl text-xs font-bold text-amber-700">
+            <WifiOff className="h-3.5 w-3.5" />
+            Mostrando datos guardados localmente. Algunos datos pueden no estar actualizados.
+          </div>
+        )}
 
         {/* Estadísticas Elegantes */}
         <div className="grid grid-cols-2 md:grid-cols-5 gap-6">
@@ -342,8 +368,8 @@ export default function ClientesFeature({ initialClientes, basePath = '/admin/cl
           </div>
         </div>
 
-        {/* Tabla Elegante */}
-        <div className="bg-white/80 backdrop-blur-sm border border-slate-200 rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden">
+        {/* Tabla Elegante - Desktop */}
+        <div className="hidden md:block bg-white/80 backdrop-blur-sm border border-slate-200 rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
@@ -565,6 +591,191 @@ export default function ClientesFeature({ initialClientes, basePath = '/admin/cl
                  Siguiente <ChevronRight className="h-3 w-3" />
                </button>
              </div>
+          </div>
+        </div>
+
+        {/* Vista de Cards - Móvil */}
+        <div className="md:hidden space-y-4">
+          {currentItems.length > 0 ? (
+            currentItems.map((cliente, index) => (
+              <div
+                key={cliente.id || `client-${index}`}
+                className="bg-white/80 backdrop-blur-sm border border-slate-200 rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-4 hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all"
+                onClick={() => {
+                  setSelectedClientId(cliente.id);
+                  setIsDetailsModalOpen(true);
+                }}
+              >
+                {/* Header del Card */}
+                <div className="flex items-start justify-between mb-3">
+                  <div className="flex items-center gap-3 flex-1 min-w-0">
+                    <div
+                      className={`w-12 h-12 rounded-xl flex items-center justify-center text-sm font-bold shadow-sm flex-shrink-0 ${
+                        cliente.nivelRiesgo === 'VERDE'
+                          ? 'bg-emerald-100 text-emerald-700'
+                          : cliente.nivelRiesgo === 'AMARILLO'
+                            ? 'bg-amber-100 text-amber-700'
+                            : cliente.nivelRiesgo === 'ROJO'
+                              ? 'bg-rose-100 text-rose-700'
+                              : 'bg-slate-100 text-slate-600'
+                      }`}
+                    >
+                      {cliente.nombres?.charAt(0) || '?'}
+                      {cliente.apellidos?.charAt(0) || ''}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="font-bold text-slate-900 truncate">
+                        {(cliente.nombres || cliente.apellidos) ? `${cliente.nombres} ${cliente.apellidos}` : 'Cliente sin nombre'}
+                      </div>
+                      <div className="text-xs text-slate-500 font-mono font-medium">
+                        {cliente.dni}
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {/* Estado Badge */}
+                  <div
+                    className={`inline-flex items-center px-2 py-1 rounded-lg text-xs font-bold ring-1 ring-inset flex-shrink-0 ${getRiesgoColor(
+                      cliente.nivelRiesgo || 'VERDE' as any
+                    )}`}
+                  >
+                    <span className="mr-1">{getRiesgoIcon(cliente.nivelRiesgo || 'VERDE' as any)}</span>
+                    <span className="hidden sm:inline">{(cliente.nivelRiesgo || 'VERDE').replace('_', ' ')}</span>
+                  </div>
+                </div>
+
+                {/* Score y Finanzas */}
+                <div className="grid grid-cols-2 gap-3 mb-3 pb-3 border-b border-slate-100">
+                  <div>
+                    <div className="text-xs text-slate-500 font-bold uppercase tracking-wider mb-1">Score</div>
+                    {cliente.score && (
+                      <div className="flex items-center gap-2">
+                        <span className={`text-xl font-bold ${getScoreColor(cliente.score)}`}>{cliente.score}</span>
+                        <div className="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                          <div className={`h-full ${cliente.score >= 70 ? 'bg-emerald-500' : 'bg-rose-500'}`} style={{ width: `${cliente.score}%` }} />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                  <div>
+                    <div className="text-xs text-slate-500 font-bold uppercase tracking-wider mb-1">Finanzas</div>
+                    <div className="text-sm font-bold text-slate-900">
+                      {formatCurrency(cliente.montoTotal ?? 0)}
+                    </div>
+                    {(cliente.montoMora ?? 0) > 0 && (
+                      <div className="text-xs text-rose-600 font-bold">
+                        Mora: {formatCurrency(cliente.montoMora ?? 0)}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Contacto */}
+                <div className="space-y-2 mb-3">
+                  <div className="flex items-center text-sm font-medium text-slate-600">
+                    <Phone className="h-3.5 w-3.5 mr-2 text-slate-400 flex-shrink-0" />
+                    <span className="truncate">{cliente.telefono}</span>
+                  </div>
+                  {cliente.correo && (
+                    <div className="flex items-center text-xs font-medium text-slate-500">
+                      <Mail className="h-3.5 w-3.5 mr-2 text-slate-400 flex-shrink-0" />
+                      <span className="truncate">{cliente.correo}</span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Tendencia y Acciones */}
+                <div className="flex items-center justify-between pt-3 border-t border-slate-100">
+                  {cliente.tendencia && (
+                    <div className="flex items-center gap-2 font-bold text-xs">
+                      <RenderTendencia t={cliente.tendencia} />
+                      <span className="text-slate-600">{cliente.tendencia}</span>
+                    </div>
+                  )}
+                  
+                  <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                    <button
+                      onClick={() => {
+                        setSelectedClientId(cliente.id);
+                        setIsDetailsModalOpen(true);
+                      }}
+                      className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                      title="Ver Expediente"
+                    >
+                      <Eye className="h-4 w-4" />
+                    </button>
+                    {puedeEditar && (
+                      <button
+                        onClick={() => {
+                          setClientToEdit(cliente);
+                          setIsEditModalOpen(true);
+                        }}
+                        className="p-2 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
+                        title="Editar cliente"
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </button>
+                    )}
+                    {puedeEliminar && (
+                      <button
+                        onClick={() => handleDeleteClick(cliente)}
+                        className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
+                        title="Archivar cliente"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ))
+          ) : (
+            <div className="bg-white/80 backdrop-blur-sm border border-slate-200 rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-8">
+              <div className="flex flex-col items-center gap-3">
+                <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center border border-slate-100 shadow-inner">
+                  <Users className="h-8 w-8 text-slate-200" />
+                </div>
+                <div className="space-y-1 text-center">
+                  <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest">Sin Clientes Disponibles</h3>
+                  <p className="text-xs text-slate-500 font-medium">No se encontraron registros que coincidan con los filtros aplicados.</p>
+                </div>
+                <button 
+                  onClick={() => {
+                    setSearchTerm('');
+                    setFilterRiesgo('all');
+                    setFilterRuta(null);
+                  }}
+                  className="mt-2 text-xs font-black text-blue-600 border-b border-blue-600 pb-0.5 hover:text-blue-800 hover:border-blue-800 transition-all uppercase tracking-widest"
+                >
+                  Limpiar Filtros
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Paginación Móvil */}
+          <div className="bg-white/80 backdrop-blur-sm border border-slate-200 rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-4">
+            <div className="flex flex-col sm:flex-row justify-between items-center gap-3 text-xs text-slate-500 font-medium">
+              <span className="text-center">
+                Mostrando {currentItems.length} de {filteredClientes.length} resultados
+              </span>
+              <div className="flex gap-2 w-full sm:w-auto">
+                <button 
+                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                  disabled={currentPage === 1}
+                  className="flex-1 sm:flex-none px-4 py-2 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed font-bold flex items-center justify-center gap-1 transition-colors text-slate-700"
+                >
+                  <ChevronLeft className="h-3 w-3" /> Anterior
+                </button>
+                <button 
+                  onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                  disabled={currentPage === totalPages || totalPages === 0}
+                  className="flex-1 sm:flex-none px-4 py-2 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed font-bold flex items-center justify-center gap-1 transition-colors text-slate-700"
+                >
+                  Siguiente <ChevronRight className="h-3 w-3" />
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       </div>

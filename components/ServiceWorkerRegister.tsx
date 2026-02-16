@@ -1,6 +1,10 @@
 'use client';
 
 import { useEffect } from 'react';
+import { cleanExpired } from '@/lib/api/apiCache';
+import { syncManager } from '@/lib/offline/syncManager';
+import { startOfflineTimer, stopOfflineTimer } from '@/lib/offline/offlineAnalytics';
+import { renewOfflineSession, hasValidOfflineSession, shouldShowExpirationWarning, getOfflineSessionDaysRemaining } from '@/lib/auth/offlineAuth';
 
 export default function ServiceWorkerRegister() {
   useEffect(() => {
@@ -17,6 +21,94 @@ export default function ServiceWorkerRegister() {
         registrations.forEach(r => r.unregister());
       });
     }
+
+    // Limpiar entradas expiradas de IndexedDB cada 5 minutos
+    cleanExpired();
+    const cleanupInterval = setInterval(cleanExpired, 5 * 60 * 1000);
+
+    // Descargar datos para offline si hay sesión activa
+    const token = localStorage.getItem('token');
+    if (token && navigator.onLine) {
+      syncManager.downloadAll().then((result) => {
+        console.log('[Offline] Datos descargados:', result);
+      }).catch(() => {});
+
+      // Procesar cola pendiente al cargar
+      syncManager.processQueue().then((result) => {
+        if (result.processed > 0) {
+          console.log('[Offline] Cola procesada:', result);
+        }
+      }).catch(() => {});
+
+      // Auto-suscribir a push notifications si están soportadas y no está suscrito
+      import('@/lib/push/pushNotifications').then(({ isPushSupported, isPushSubscribed, subscribeToPush }) => {
+        if (isPushSupported()) {
+          isPushSubscribed().then((isSubscribed) => {
+            if (!isSubscribed) {
+              subscribeToPush().then((subscription) => {
+                if (subscription) {
+                  import('@/lib/push/pushService').then(({ savePushSubscription }) => {
+                    savePushSubscription(subscription).then(() => {
+                      console.log('[Push] Auto-suscripción exitosa');
+                    }).catch(() => {});
+                  });
+                }
+              }).catch(() => {});
+            }
+          });
+        }
+      });
+    }
+
+    // Verificar y notificar si la sesión offline está por expirar
+    if (hasValidOfflineSession() && shouldShowExpirationWarning()) {
+      const daysRemaining = getOfflineSessionDaysRemaining();
+      console.warn(`[Offline Auth] Sesión offline expira en ${daysRemaining} días. Conéctate para renovarla.`);
+      
+      // Mostrar notificación al usuario
+      if ('Notification' in window && Notification.permission === 'granted') {
+        new Notification('Sesión Offline por Expirar', {
+          body: `Tu sesión offline expira en ${daysRemaining} días. Conéctate a Internet para renovarla.`,
+          icon: '/android-chrome-192x192.png',
+          tag: 'offline-session-expiring',
+        });
+      }
+    }
+
+    // Auto-sync cuando vuelve la conexión
+    const handleOnline = () => {
+      console.log('[Offline] Conexión restaurada, sincronizando...');
+      stopOfflineTimer();
+      
+      // Renovar sesión offline automáticamente al reconectar
+      if (hasValidOfflineSession()) {
+        const renewed = renewOfflineSession();
+        if (renewed) {
+          console.log('[Offline Auth] Sesión offline renovada automáticamente');
+        }
+      }
+      
+      syncManager.processQueue().then((result) => {
+        if (result.processed > 0) {
+          console.log('[Offline] Sync completado:', result);
+        }
+      }).catch(() => {});
+    };
+
+    // Track tiempo offline
+    const handleOffline = () => {
+      console.log('[Offline] Conexión perdida');
+      startOfflineTimer();
+    };
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    return () => {
+      clearInterval(cleanupInterval);
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
   }, []);
 
   return null; // No renderiza nada

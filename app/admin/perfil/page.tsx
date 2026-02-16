@@ -7,6 +7,7 @@ import { useRouter } from 'next/navigation'
 import { usuariosService, type Usuario } from '@/services/usuarios-service'
 import { obtenerPerfil } from '@/services/autenticacion-service'
 import { formatRoleName, getRoleColor, getRoleIcon } from '@/components/ui/UserDropdownMenu'
+import PushNotificationManager from '@/components/push/PushNotificationManager'
 
 const VOLVER_RUTAS: Record<string, string> = {
   'SUPER_ADMINISTRADOR': '/admin',
@@ -345,6 +346,15 @@ const PerfilUsuarioPage = () => {
                       </div>
                     </div>
                   </div>
+                </section>
+
+                {/* Notificaciones Push */}
+                <section className="rounded-2xl border border-slate-200 bg-white/80 backdrop-blur-sm p-8 shadow-sm">
+                  <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2 mb-6">
+                    <FileText className="h-5 w-5 text-slate-400" />
+                    Notificaciones Push
+                  </h3>
+                  <PushNotificationManager />
                 </section>
               </div>
             </div>

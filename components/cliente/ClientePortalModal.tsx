@@ -6,6 +6,7 @@ import ClienteDetalleElegante, { Cliente as ClienteUI, Prestamo, Pago, Comentari
 import { clientesService } from '@/services/clientes-service';
 import { Smartphone, DollarSign } from 'lucide-react';
 import { createPortal } from 'react-dom';
+import { offlineStore } from '@/lib/offline/offlineDb';
 
 interface ClientePortalModalProps {
   clientId: string;
@@ -97,6 +98,52 @@ export default function ClientePortalModal({ clientId, onClose, rolUsuario = 'co
             }
         } catch (error) {
             console.error("Error cargando cliente full", error);
+            // Fallback offline: cargar de IndexedDB
+            try {
+              const offCliente = await offlineStore.getById<any>('clientes', clientId);
+              if (offCliente) {
+                setClienteData({
+                  id: offCliente.id,
+                  codigo: offCliente.codigo || 'S/C',
+                  dni: offCliente.dni,
+                  nombres: offCliente.nombres,
+                  apellidos: offCliente.apellidos,
+                  correo: offCliente.correo,
+                  telefono: offCliente.telefono,
+                  direccion: offCliente.direccion || null,
+                  referencia: offCliente.referencia || null,
+                  nivelRiesgo: offCliente.nivelRiesgo || 'VERDE',
+                  puntaje: offCliente.puntaje || 0,
+                  enListaNegra: offCliente.enListaNegra || false,
+                  estadoAprobacion: offCliente.estadoAprobacion || 'APROBADO',
+                  fechaRegistro: offCliente.creadoEn || new Date().toISOString(),
+                  ocupacion: 'No especificada',
+                  avatarColor: 'bg-blue-600',
+                  ruta: offCliente.rutaId ? `Ruta ${offCliente.rutaId}` : 'Sin Ruta',
+                  fotos: [],
+                });
+                // Cargar préstamos offline
+                const offPrestamos = await offlineStore.getByIndex<any>('prestamos', 'by-clienteId', clientId);
+                setPrestamos(offPrestamos.map((p: any) => ({
+                  id: p.id,
+                  producto: 'Préstamo',
+                  montoTotal: Number(p.montoTotal || p.monto || 0),
+                  montoPagado: 0,
+                  montoPendiente: Number(p.saldoPendiente || p.monto || 0),
+                  cuotasTotales: p.cantidadCuotas || 0,
+                  cuotasPagadas: 0,
+                  cuotasPendientes: p.cantidadCuotas || 0,
+                  fechaInicio: p.fechaInicio || '',
+                  fechaVencimiento: p.fechaFin || '',
+                  proximoPago: '',
+                  estado: p.estado || 'ACTIVO',
+                  tasaInteres: p.tasaInteres || 0,
+                  frecuencia: p.frecuenciaPago || 'DIARIO',
+                  icono: <Smartphone className="w-5 h-5" />,
+                  categoria: 'Personal',
+                })));
+              }
+            } catch { /* ignore */ }
         } finally {
             setLoading(false);
         }

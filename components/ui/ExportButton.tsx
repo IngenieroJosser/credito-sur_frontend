@@ -55,10 +55,24 @@ export const ExportButton = ({
   useEffect(() => {
       if(isOpen && dropdownRef.current) {
           const rect = dropdownRef.current.getBoundingClientRect();
-          // Use fixed positioning relative to viewport, so NO scroll addition needed
+          const dropdownWidth = 192; // w-48 = 12rem = 192px
+          
+          // Calcular posición left para evitar que se salga de la pantalla
+          let leftPosition = rect.left;
+          
+          // Si el dropdown se sale por la derecha, ajustarlo
+          if (leftPosition + dropdownWidth > window.innerWidth) {
+              leftPosition = window.innerWidth - dropdownWidth - 16; // 16px de margen
+          }
+          
+          // Si se sale por la izquierda, ajustarlo
+          if (leftPosition < 16) {
+              leftPosition = 16;
+          }
+          
           setCoords({
               top: rect.bottom + 8, 
-              left: rect.left
+              left: leftPosition
           });
       }
   }, [isOpen])
@@ -75,13 +89,13 @@ export const ExportButton = ({
       <button 
         onClick={() => setIsOpen(!isOpen)}
         className={cn(
-          "flex items-center space-x-2 px-6 py-3 bg-white hover:bg-slate-50 text-slate-700 rounded-xl shadow-sm border border-slate-200 hover:border-[#08557f]/30 transition-all font-medium group",
+          "flex items-center space-x-1 sm:space-x-2 px-3 sm:px-6 py-2.5 sm:py-3 bg-white hover:bg-slate-50 text-slate-700 rounded-xl shadow-sm border border-slate-200 hover:border-[#08557f]/30 transition-all font-medium group",
           isOpen && "border-[#08557f]/30 bg-slate-50",
           className
         )}
       >
         <Download className="h-4 w-4 text-slate-400 group-hover:text-[#08557f] transition-colors" />
-        <span>{label}</span>
+        <span className="hidden sm:inline">{label}</span>
         <ChevronDown className={cn(
           "h-3.5 w-3.5 text-slate-400 transition-transform duration-200",
           isOpen && "transform rotate-180"

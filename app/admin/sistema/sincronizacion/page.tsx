@@ -1,217 +1,113 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { 
   RefreshCw, 
   Clock, AlertTriangle, CheckCircle, 
-  UploadCloud, DownloadCloud,
-  ChevronDown, ChevronUp, 
-  Eye, Shield, Cpu, Database,
-  Cloud, CloudOff, Router
+  DownloadCloud,
+  Database, Download,
+  Cloud, CloudOff, Trash2
 } from 'lucide-react'
 import { formatCurrency } from '@/lib/utils'
-
-type SyncStatus = 'online' | 'offline' | 'lan'
-type TransactionStatus = 'pending' | 'syncing' | 'completed' | 'failed' | 'conflict'
-type ConflictResolution = 'pending' | 'resolved' | 'ignored'
-
-interface Transaction {
-  id: string
-  type: 'credit' | 'payment' | 'client' | 'adjustment'
-  description: string
-  amount: number
-  timestamp: string
-  status: TransactionStatus
-  retries: number
-  priority: 'high' | 'normal' | 'low'
-}
-
-interface Conflict {
-  id: string
-  transactionId: string
-  localVersion: string
-  serverVersion: string
-  description: string
-  resolved: ConflictResolution
-}
+import { useOffline } from '@/hooks/useOffline'
+import { offlineQueue } from '@/lib/offline/offlineQueue'
+import { offlineStore } from '@/lib/offline/offlineDb'
+import { syncManager } from '@/lib/offline/syncManager'
+import type { OfflineQueueItem, SyncMeta } from '@/lib/offline/offlineDb'
 
 const SyncStatusPage = () => {
-  const [syncStatus, setSyncStatus] = useState<SyncStatus>('online')
+  const { isOnline, pendingOps, failedOps, isSyncing, syncNow, downloadForOffline } = useOffline()
   const [clientTime, setClientTime] = useState<string>('')
-  
-  const [transactions, setTransactions] = useState<Transaction[]>([
-    {
-      id: 'TRX-001',
-      type: 'payment',
-      description: 'Pago mensual - Cliente #1456',
-      amount: 1250750, // Updated to COP values
-      timestamp: '2026-01-18T10:00:00.000Z',
-      status: 'pending',
-      retries: 0,
-      priority: 'high'
-    },
-    {
-      id: 'TRX-002',
-      type: 'credit',
-      description: 'Aprobación crédito rápido',
-      amount: 5000000, // Updated to COP values
-      timestamp: '2026-01-18T09:55:00.000Z',
-      status: 'syncing',
-      retries: 1,
-      priority: 'normal'
-    },
-    {
-      id: 'TRX-003',
-      type: 'client',
-      description: 'Actualización datos cliente',
-      amount: 0,
-      timestamp: '2026-01-18T09:50:00.000Z',
-      status: 'completed',
-      retries: 0,
-      priority: 'low'
-    },
-    {
-      id: 'TRX-004',
-      type: 'adjustment',
-      description: 'Ajuste tasa interés',
-      amount: -150250, // Updated to COP values
-      timestamp: '2026-01-18T09:45:00.000Z',
-      status: 'failed',
-      retries: 2,
-      priority: 'high'
-    },
-    {
-      id: 'TRX-005',
-      type: 'payment',
-      description: 'Pago anticipado - Cliente #0892',
-      amount: 3200000, // Updated to COP values
-      timestamp: '2026-01-18T09:40:00.000Z',
-      status: 'conflict',
-      retries: 1,
-      priority: 'high'
-    }
-  ])
+  const [queueItems, setQueueItems] = useState<OfflineQueueItem[]>([])
+  const [syncMeta, setSyncMeta] = useState<Record<string, SyncMeta | undefined>>({})
+  const [recordCounts, setRecordCounts] = useState<Record<string, number>>({})
+  const [lastSyncResult, setLastSyncResult] = useState<string | null>(null)
 
-  const [conflicts, setConflicts] = useState<Conflict[]>([
-    {
-      id: 'CFL-001',
-      transactionId: 'TRX-005',
-      localVersion: 'v1.2',
-      serverVersion: 'v1.3',
-      description: 'Diferencia en monto registrado',
-      resolved: 'pending'
-    }
-  ])
+  const loadData = useCallback(async () => {
+    const [items, cMeta, pMeta, rMeta, cCount, pCount, cuCount, rCount] = await Promise.all([
+      offlineQueue.getAll(),
+      offlineStore.getSyncMeta('clientes'),
+      offlineStore.getSyncMeta('prestamos'),
+      offlineStore.getSyncMeta('rutas'),
+      offlineStore.count('clientes'),
+      offlineStore.count('prestamos'),
+      offlineStore.count('cuotas'),
+      offlineStore.count('rutas'),
+    ])
+    setQueueItems(items)
+    setSyncMeta({ clientes: cMeta, prestamos: pMeta, rutas: rMeta })
+    setRecordCounts({ clientes: cCount, prestamos: pCount, cuotas: cuCount, rutas: rCount })
+  }, [])
 
-  const [expandedSection, setExpandedSection] = useState<'status' | 'queue' | 'conflicts'>('status')
-  const [isSyncing, setIsSyncing] = useState(false)
-  const [bandwidth, setBandwidth] = useState({ upload: 1.2, download: 0.8 })
-
-  // UseEffect para el reloj
   useEffect(() => {
-    // Inicializar reloj después del montaje para evitar errores de hidratación
     const updateTime = () => {
       setClientTime(new Date().toLocaleTimeString('es-CO', { hour12: true }))
     }
     updateTime()
-    
     const timeInterval = setInterval(updateTime, 1000)
-
     return () => clearInterval(timeInterval)
   }, [])
 
-  // UseEffect para simulación de estados y ancho de banda
   useEffect(() => {
-    const statusInterval = setInterval(() => {
-      const statuses: SyncStatus[] = ['online', 'offline', 'lan']
-      const randomStatus = statuses[Math.floor(Math.random() * statuses.length)]
-      if (Math.random() > 0.95) {
-        setSyncStatus(randomStatus)
-      }
-    }, 15000)
+    loadData()
+    const interval = setInterval(loadData, 10_000)
+    return () => clearInterval(interval)
+  }, [loadData, pendingOps, failedOps])
 
-    const bandwidthInterval = setInterval(() => {
-      if (syncStatus === 'online' && isSyncing) {
-        setBandwidth({
-          upload: Math.max(0.5, Math.random() * 2.5),
-          download: Math.max(0.3, Math.random() * 2)
-        })
-      }
-    }, 3000)
-
-    return () => {
-      clearInterval(statusInterval)
-      clearInterval(bandwidthInterval)
+  const handleSyncNow = async () => {
+    const result = await syncNow()
+    if (result) {
+      setLastSyncResult(`Procesados: ${result.processed} | OK: ${result.succeeded} | Fallidos: ${result.failed}`)
+      setTimeout(() => setLastSyncResult(null), 8000)
     }
-  }, [syncStatus, isSyncing])
-
-  const handleSyncNow = () => {
-    setIsSyncing(true)
-    
-    setTimeout(() => {
-      setIsSyncing(false)
-      setTransactions(prev => prev.map(tx => 
-        tx.status === 'pending' ? { ...tx, status: 'syncing' } : tx
-      ))
-    }, 2000)
+    await loadData()
   }
 
-  const handleRetryTransaction = (id: string) => {
-    setTransactions(prev => prev.map(tx =>
-      tx.id === id 
-        ? { ...tx, status: 'syncing', retries: tx.retries + 1 }
-        : tx
-      ))
+  const handleDownload = async () => {
+    const result = await downloadForOffline()
+    if (result) {
+      setLastSyncResult(`Descargados: ${result.clientes} clientes, ${result.prestamos} préstamos, ${result.rutas} rutas`)
+      setTimeout(() => setLastSyncResult(null), 8000)
+    }
+    await loadData()
   }
 
-  const handleResolveConflict = (id: string, resolution: ConflictResolution) => {
-    setConflicts(prev => prev.map(c =>
-      c.id === id ? { ...c, resolved: resolution } : c
-    ))
-    
-    if (resolution === 'resolved') {
-      setTransactions(prev => prev.map(tx =>
-        tx.id === conflicts.find(c => c.id === id)?.transactionId
-          ? { ...tx, status: 'pending' }
-          : tx
-      ))
-    }
+  const handleClearCompleted = async () => {
+    await offlineQueue.clearCompleted()
+    await loadData()
   }
 
-  const getStatusIcon = (status: SyncStatus) => {
-    switch (status) {
-      case 'online': return <Cloud className="w-4 h-4" />
-      case 'offline': return <CloudOff className="w-4 h-4" />
-      case 'lan': return <Router className="w-4 h-4" />
-    }
+  const handleRetry = async (id: string) => {
+    await offlineQueue.updateStatus(id, 'pending')
+    await loadData()
   }
 
-  const getStatusColor = (status: SyncStatus) => {
-    switch (status) {
-      case 'online': return 'text-emerald-600'
-      case 'offline': return 'text-slate-500'
-      case 'lan': return 'text-sky-600'
-    }
+  const handleRemove = async (id: string) => {
+    await offlineQueue.remove(id)
+    await loadData()
   }
 
-  const getStatusBgColor = (status: SyncStatus) => {
-    switch (status) {
-      case 'online': return 'bg-emerald-50'
-      case 'offline': return 'bg-slate-100'
-      case 'lan': return 'bg-sky-50'
-    }
+  const formatSyncTime = (iso?: string) => {
+    if (!iso) return 'Nunca'
+    const d = new Date(iso)
+    const now = new Date()
+    const diffMs = now.getTime() - d.getTime()
+    const diffMin = Math.floor(diffMs / 60000)
+    if (diffMin < 1) return 'Hace un momento'
+    if (diffMin < 60) return `Hace ${diffMin} min`
+    const diffHrs = Math.floor(diffMin / 60)
+    if (diffHrs < 24) return `Hace ${diffHrs}h`
+    return d.toLocaleDateString('es-CO', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })
   }
 
   return (
     <div className="min-h-screen bg-slate-50 relative">
-      {/* Fondo arquitectónico standard */}
       <div className="fixed inset-0 pointer-events-none">
         <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px]"></div>
         <div className="absolute left-0 right-0 top-0 -z-10 m-auto h-[310px] w-[310px] rounded-full bg-slate-400 opacity-20 blur-[100px]"></div>
       </div>
 
       <div className="relative z-10 p-6 md:p-8 space-y-8 max-w-[1600px] mx-auto">
-        {/* Header Integrado */}
         <header className="flex flex-col md:flex-row md:items-center justify-between gap-4 animate-in fade-in slide-in-from-bottom-4 duration-700">
           <div>
             <div className="flex items-center gap-2 mb-2">
@@ -223,259 +119,217 @@ const SyncStatusPage = () => {
               </h1>
             </div>
             <p className="text-sm font-medium text-slate-500 max-w-xl">
-              Monitoreo en tiempo real de la conectividad LAN/Nube y gestión de la cola de transacciones pendientes.
+              Monitoreo en tiempo real de la conectividad y gestión de la cola de operaciones offline.
             </p>
           </div>
           
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
             <div className="px-4 py-2 bg-white/80 backdrop-blur-sm rounded-xl border border-slate-200 shadow-sm flex items-center gap-3">
               <Clock className="w-4 h-4 text-slate-400" />
-              <span className="text-sm font-bold text-slate-700">{clientTime}</span>
+              <span className="text-sm font-bold text-slate-700" suppressHydrationWarning>{clientTime}</span>
             </div>
             <button 
+              onClick={handleDownload}
+              disabled={isSyncing || !isOnline}
+              className="inline-flex items-center gap-2 px-5 py-2.5 bg-white border border-slate-200 text-slate-700 rounded-xl hover:bg-slate-50 disabled:opacity-50 transition-all font-bold text-sm shadow-sm active:scale-95"
+              title="Descargar datos del servidor para trabajar offline"
+            >
+              <Download className="w-4 h-4" />
+              <span className="hidden sm:inline">Descargar Datos</span>
+              <span className="sm:hidden">Descargar</span>
+            </button>
+            <button 
               onClick={handleSyncNow}
-              disabled={isSyncing}
-              className="inline-flex items-center gap-2 px-6 py-2.5 bg-white border border-slate-200 text-slate-700 rounded-xl hover:bg-slate-50 disabled:opacity-50 transition-all font-bold text-sm shadow-sm active:scale-95"
+              disabled={isSyncing || !isOnline}
+              className="inline-flex items-center gap-2 px-5 py-2.5 bg-blue-600 border border-blue-500 text-white rounded-xl hover:bg-blue-700 disabled:opacity-50 transition-all font-bold text-sm shadow-sm active:scale-95"
             >
               <RefreshCw className={`w-4 h-4 ${isSyncing ? 'animate-spin' : ''}`} />
-              {isSyncing ? 'Sincronizando...' : 'Sincronizar Ahora'}
+              {isSyncing ? 'Sincronizando...' : 'Sincronizar'}
             </button>
           </div>
         </header>
 
+        {lastSyncResult && (
+          <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 flex items-center gap-3 animate-in fade-in duration-300">
+            <CheckCircle className="w-5 h-5 text-emerald-600 flex-shrink-0" />
+            <span className="text-sm font-bold text-emerald-800">{lastSyncResult}</span>
+          </div>
+        )}
+
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Columna Izquierda: Estado de Red */}
           <div className="lg:col-span-1 space-y-6">
             <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-[0_8px_30px_rgb(0,0,0,0.04)]">
               <h2 className="text-lg font-bold text-slate-900 mb-6 flex items-center gap-2">
-                <Eye className="w-5 h-5 text-slate-400" />
-                Estado de Conectividad
+                {isOnline ? <Cloud className="w-5 h-5 text-emerald-500" /> : <CloudOff className="w-5 h-5 text-slate-400" />}
+                Estado de Conexión
               </h2>
               
-              <div className="space-y-4">
-                <div className={`p-4 rounded-xl border flex items-center justify-between ${
-                  syncStatus === 'online' ? 'bg-emerald-50 border-emerald-100' : 
-                  syncStatus === 'lan' ? 'bg-sky-50 border-sky-100' : 'bg-slate-50 border-slate-200'
-                }`}>
-                  <div className="flex items-center gap-3">
-                    <div className={`p-2 rounded-lg bg-white shadow-sm ${getStatusColor(syncStatus)}`}>
-                      {getStatusIcon(syncStatus)}
-                    </div>
-                    <div>
-                      <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Servidor Nube (VPS)</p>
-                      <p className={`text-sm font-bold ${getStatusColor(syncStatus)}`}>
-                        {syncStatus === 'online' ? 'Conectado (Cloud Sync OK)' : 'Desconectado'}
-                      </p>
-                    </div>
+              <div className={`p-4 rounded-xl border flex items-center justify-between mb-4 ${
+                isOnline ? 'bg-emerald-50 border-emerald-100' : 'bg-slate-50 border-slate-200'
+              }`}>
+                <div className="flex items-center gap-3">
+                  <div className={`p-2 rounded-lg bg-white shadow-sm ${isOnline ? 'text-emerald-600' : 'text-slate-400'}`}>
+                    {isOnline ? <Cloud className="w-4 h-4" /> : <CloudOff className="w-4 h-4" />}
                   </div>
-                  {syncStatus === 'online' && <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />}
-                </div>
-
-                <div className="p-4 rounded-xl border border-sky-100 bg-sky-50 flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 rounded-lg bg-white shadow-sm text-sky-600">
-                      <Router className="w-4 h-4" />
-                    </div>
-                    <div>
-                      <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Red Local (LAN)</p>
-                      <p className="text-sm font-bold text-sky-600">Conectado (Local Server OK)</p>
-                    </div>
+                  <div>
+                    <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Servidor</p>
+                    <p className={`text-sm font-bold ${isOnline ? 'text-emerald-600' : 'text-slate-500'}`}>
+                      {isOnline ? 'Conectado' : 'Sin conexión'}
+                    </p>
                   </div>
-                  <div className="w-2 h-2 rounded-full bg-sky-500" />
                 </div>
+                {isOnline && <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />}
               </div>
 
-              <div className="mt-8 pt-8 border-t border-slate-100">
-                <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4">Tráfico de Datos</h3>
-                <div className="space-y-6">
-                  <div>
-                    <div className="flex justify-between mb-2">
-                      <span className="text-sm font-bold text-slate-600 flex items-center gap-1">
-                        <UploadCloud className="w-3.5 h-3.5" /> Subida
-                      </span>
-                      <span className="text-sm font-bold text-slate-900">{bandwidth.upload.toFixed(1)} Mbps</span>
-                    </div>
-                    <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
-                      <div 
-                        className="h-full bg-slate-900 transition-all duration-1000" 
-                        style={{ width: `${(bandwidth.upload / 2.5) * 100}%` }}
-                      />
-                    </div>
-                  </div>
-                  <div>
-                    <div className="flex justify-between mb-2">
-                      <span className="text-sm font-bold text-slate-600 flex items-center gap-1">
-                        <DownloadCloud className="w-3.5 h-3.5" /> Descarga
-                      </span>
-                      <span className="text-sm font-bold text-slate-900">{bandwidth.download.toFixed(1)} Mbps</span>
-                    </div>
-                    <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
-                      <div 
-                        className="h-full bg-slate-400 transition-all duration-1000" 
-                        style={{ width: `${(bandwidth.download / 2) * 100}%` }}
-                      />
-                    </div>
-                  </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="p-3 rounded-xl bg-amber-50 border border-amber-100 text-center">
+                  <p className="text-xl md:text-2xl font-black text-amber-700">{pendingOps}</p>
+                  <p className="text-[10px] font-bold text-amber-600 uppercase tracking-wider">Pendientes</p>
+                </div>
+                <div className="p-3 rounded-xl bg-rose-50 border border-rose-100 text-center">
+                  <p className="text-xl md:text-2xl font-black text-rose-700">{failedOps}</p>
+                  <p className="text-[10px] font-bold text-rose-600 uppercase tracking-wider">Fallidos</p>
                 </div>
               </div>
             </div>
 
             <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-[0_8px_30px_rgb(0,0,0,0.04)]">
               <h2 className="text-lg font-bold text-slate-900 mb-6 flex items-center gap-2">
-                <Shield className="w-5 h-5 text-slate-400" />
-                Seguridad de Datos
+                <Database className="w-5 h-5 text-slate-400" />
+                Datos Offline
               </h2>
               <div className="space-y-4">
-                <div className="flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-100">
-                  <span className="text-sm font-medium text-slate-600">Encriptación de tránsito</span>
-                  <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-lg">AES-256</span>
-                </div>
-                <div className="flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-100">
-                  <span className="text-sm font-medium text-slate-600">Última validación</span>
-                  <span className="text-xs font-bold text-slate-900">Hace 5 min</span>
-                </div>
+                {(['clientes', 'prestamos', 'cuotas', 'rutas'] as const).map((store) => (
+                  <div key={store} className="flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-100">
+                    <div>
+                      <span className="text-sm font-bold text-slate-700 capitalize">{store}</span>
+                      <p className="text-[10px] text-slate-400">{formatSyncTime(syncMeta[store]?.lastSyncAt)}</p>
+                    </div>
+                    <span className="text-sm font-black text-slate-900 bg-white px-3 py-1 rounded-lg border border-slate-200">
+                      {recordCounts[store] || 0}
+                    </span>
+                  </div>
+                ))}
               </div>
             </div>
           </div>
 
-          {/* Columna Derecha: Cola de Transacciones y Conflictos */}
           <div className="lg:col-span-2 space-y-8">
-            {/* Conflictos - Solo si existen */}
-            {conflicts.some(c => c.resolved === 'pending') && (
-              <div className="bg-white rounded-2xl border border-amber-200 p-6 shadow-[0_8px_30px_rgb(251,191,36,0.05)]">
-                <div className="flex items-center justify-between mb-6">
-                  <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
-                    <AlertTriangle className="w-5 h-5 text-amber-500" />
-                    Conflictos Detectados
-                  </h2>
-                  <span className="px-3 py-1 bg-amber-100 text-amber-700 text-xs font-bold rounded-full">
-                    {conflicts.filter(c => c.resolved === 'pending').length} Pendientes
-                  </span>
-                </div>
-
-                <div className="space-y-4">
-                  {conflicts.filter(c => c.resolved === 'pending').map(conflict => (
-                    <div key={conflict.id} className="group p-5 bg-amber-50/30 rounded-2xl border border-amber-100 hover:border-amber-200 transition-all">
-                      <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
-                        <div className="space-y-3">
-                          <div className="flex items-center gap-2">
-                            <Shield className="w-4 h-4 text-amber-500" />
-                            <h3 className="text-sm font-bold text-slate-900">
-                              Conflicto en {conflict.transactionId}
-                            </h3>
-                          </div>
-                          <p className="text-sm text-slate-600 font-medium">
-                            {conflict.description}
-                          </p>
-                          <div className="flex items-center gap-4 text-xs">
-                            <div className="px-3 py-1.5 bg-white rounded-lg border border-amber-100 text-slate-600 font-medium shadow-sm">
-                              <span className="font-bold text-slate-900">Local:</span> {conflict.localVersion}
-                            </div>
-                            <div className="px-3 py-1.5 bg-white rounded-lg border border-amber-100 text-slate-600 font-medium shadow-sm">
-                              <span className="font-bold text-slate-900">Servidor:</span> {conflict.serverVersion}
-                            </div>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <button
-                            onClick={() => handleResolveConflict(conflict.id, 'resolved')}
-                            className="px-6 py-2.5 text-xs font-bold text-white bg-amber-500 hover:bg-amber-600 rounded-xl transition-all shadow-sm shadow-amber-500/20"
-                          >
-                            Resolver Conflicto
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Cola de Transacciones */}
             <div className="bg-white rounded-2xl border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden">
-              <div className="p-6 border-b border-slate-100 flex items-center justify-between">
-                <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
-                  <Database className="w-5 h-5 text-slate-400" />
+              <div className="p-4 md:p-6 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <h2 className="text-base md:text-lg font-bold text-slate-900 flex items-center gap-2">
+                  <DownloadCloud className="w-5 h-5 text-slate-400" />
                   Cola de Sincronización
                 </h2>
-                <div className="flex items-center gap-4">
-                  <div className="flex items-center gap-2">
-                    <div className="w-2 h-2 rounded-full bg-amber-500" />
-                    <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Pendientes</span>
+                <div className="flex flex-wrap items-center gap-3">
+                  <div className="flex items-center gap-3 md:gap-4 text-xs">
+                    <div className="flex items-center gap-1.5">
+                      <div className="w-2 h-2 rounded-full bg-amber-500" />
+                      <span className="font-bold text-slate-500 uppercase tracking-wider">Pendiente</span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <div className="w-2 h-2 rounded-full bg-rose-500" />
+                      <span className="font-bold text-slate-500 uppercase tracking-wider">Fallido</span>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <div className="w-2 h-2 rounded-full bg-emerald-500" />
-                    <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Completados</span>
-                  </div>
+                  {queueItems.length > 0 && (
+                    <button
+                      onClick={handleClearCompleted}
+                      className="text-xs font-bold text-slate-500 hover:text-slate-700 px-3 py-1.5 rounded-lg hover:bg-slate-50 transition-colors"
+                    >
+                      Limpiar
+                    </button>
+                  )}
                 </div>
               </div>
 
-              <div className="overflow-x-auto">
-                <table className="w-full text-left">
-                  <thead>
-                    <tr className="bg-slate-50/50">
-                      <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-wider">ID / Fecha</th>
-                      <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-wider">Transacción</th>
-                      <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-wider text-right">Monto</th>
-                      <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-wider">Estado</th>
-                      <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-wider text-center">Acciones</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {transactions.map((tx) => (
-                      <tr key={tx.id} className="hover:bg-slate-50/50 transition-colors group">
-                        <td className="px-6 py-4">
-                          <div className="flex flex-col">
-                            <span className="text-sm font-bold text-slate-900">{tx.id}</span>
-                            <span className="text-xs font-medium text-slate-400">
-                              {new Date(tx.timestamp).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })}
-                            </span>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4">
-                          <div className="flex flex-col">
-                            <span className="text-sm font-bold text-slate-700">{tx.description}</span>
-                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{tx.type}</span>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 text-right">
-                          <span className={`text-sm font-bold ${tx.amount < 0 ? 'text-rose-600' : 'text-slate-900'}`}>
-                            {tx.amount === 0 ? '-' : formatCurrency(tx.amount)}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4">
-                          <div className="flex items-center gap-2">
-                            {tx.status === 'completed' && <CheckCircle className="w-4 h-4 text-emerald-500" />}
-                            {tx.status === 'pending' && <Clock className="w-4 h-4 text-amber-500" />}
-                            {tx.status === 'syncing' && <RefreshCw className="w-4 h-4 text-sky-500 animate-spin" />}
-                            {tx.status === 'failed' && <AlertTriangle className="w-4 h-4 text-rose-500" />}
-                            {tx.status === 'conflict' && <AlertTriangle className="w-4 h-4 text-amber-500" />}
-                            <span className={`text-xs font-bold uppercase tracking-wider ${
-                              tx.status === 'completed' ? 'text-emerald-600' :
-                              tx.status === 'pending' ? 'text-amber-600' :
-                              tx.status === 'syncing' ? 'text-blue-600' :
-                              'text-rose-600'
-                            }`}>
-                              {tx.status}
-                            </span>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 text-center">
-                          {tx.status === 'failed' && (
-                            <button 
-                              onClick={() => handleRetryTransaction(tx.id)}
-                              className="p-2 hover:bg-rose-50 text-rose-600 rounded-lg transition-colors"
-                              title="Reintentar"
-                            >
-                              <RefreshCw className="w-4 h-4" />
-                            </button>
-                          )}
-                        </td>
+              {queueItems.length === 0 ? (
+                <div className="p-12 text-center">
+                  <div className="p-4 rounded-3xl bg-emerald-50 border border-emerald-100 inline-block mb-4">
+                    <CheckCircle className="h-8 w-8 text-emerald-500" />
+                  </div>
+                  <h3 className="text-sm font-bold text-slate-700 mb-1">¡Todo sincronizado!</h3>
+                  <p className="text-xs text-slate-500">No hay operaciones pendientes en la cola.</p>
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left">
+                    <thead>
+                      <tr className="bg-slate-50/50">
+                        <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-wider">ID / Fecha</th>
+                        <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-wider">Operación</th>
+                        <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-wider text-right">Monto</th>
+                        <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-wider">Estado</th>
+                        <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-wider text-center">Acciones</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {queueItems.map((item) => (
+                        <tr key={item.id} className="hover:bg-slate-50/50 transition-colors">
+                          <td className="px-6 py-4">
+                            <div className="flex flex-col">
+                              <span className="text-sm font-bold text-slate-900">{item.id.slice(0, 16)}</span>
+                              <span className="text-xs font-medium text-slate-400">
+                                {new Date(item.createdAt).toLocaleString('es-CO', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: 'short' })}
+                              </span>
+                            </div>
+                          </td>
+                          <td className="px-6 py-4">
+                            <div className="flex flex-col">
+                              <span className="text-sm font-bold text-slate-700">{item.description}</span>
+                              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{item.type}</span>
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 text-right">
+                            <span className="text-sm font-bold text-slate-900">
+                              {item.amount ? formatCurrency(item.amount) : '-'}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4">
+                            <div className="flex items-center gap-2">
+                              {item.status === 'pending' && <Clock className="w-4 h-4 text-amber-500" />}
+                              {item.status === 'syncing' && <RefreshCw className="w-4 h-4 text-sky-500 animate-spin" />}
+                              {item.status === 'failed' && <AlertTriangle className="w-4 h-4 text-rose-500" />}
+                              <div>
+                                <span className={`text-xs font-bold uppercase tracking-wider ${
+                                  item.status === 'pending' ? 'text-amber-600' :
+                                  item.status === 'syncing' ? 'text-blue-600' :
+                                  'text-rose-600'
+                                }`}>
+                                  {item.status === 'pending' ? 'Pendiente' : item.status === 'syncing' ? 'Enviando' : 'Fallido'}
+                                </span>
+                                {item.lastError && (
+                                  <p className="text-[10px] text-rose-500 truncate max-w-[200px]">{item.lastError}</p>
+                                )}
+                              </div>
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 text-center">
+                            <div className="flex items-center justify-center gap-1">
+                              {item.status === 'failed' && (
+                                <button 
+                                  onClick={() => handleRetry(item.id)}
+                                  className="p-2 hover:bg-blue-50 text-blue-600 rounded-lg transition-colors"
+                                  title="Reintentar"
+                                >
+                                  <RefreshCw className="w-4 h-4" />
+                                </button>
+                              )}
+                              <button 
+                                onClick={() => handleRemove(item.id)}
+                                className="p-2 hover:bg-rose-50 text-rose-400 hover:text-rose-600 rounded-lg transition-colors"
+                                title="Eliminar"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </div>
           </div>
         </div>

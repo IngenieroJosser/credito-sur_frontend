@@ -55,6 +55,7 @@ import { usePermission } from '@/hooks/usePermission'
 import { apiRequest } from '@/lib/api/api'
 import { exportService } from '@/services/export-service'
 import { toast } from 'sonner'
+import { offlineStore } from '@/lib/offline/offlineDb'
 
 // Enums alineados con Prisma
 type NivelRiesgo = 'VERDE' | 'AMARILLO' | 'ROJO' | 'LISTA_NEGRA';
@@ -154,7 +155,7 @@ function CuentasMoraContent() {
       }
       
       if (busqueda) params.busqueda = busqueda
-      if (filtroRiesgo !== 'TODOS') params.riesgo = filtroRiesgo
+      if (filtroRiesgo !== 'TODOS') params.nivelRiesgo = filtroRiesgo
       if (filtroRuta) params.rutaId = filtroRuta
 
       const response = await apiRequest<PaginatedResponse<CuentaMora>>(
@@ -168,6 +169,39 @@ function CuentasMoraContent() {
       setCuentas(items)
     } catch (error) {
       console.error('Error al cargar cuentas en mora:', error)
+      // Fallback offline: construir desde préstamos en IndexedDB
+      try {
+        const offPrestamos = await offlineStore.getAll<any>('prestamos');
+        const offClientes = await offlineStore.getAll<any>('clientes');
+        const moraItems: CuentaMora[] = offPrestamos
+          .filter((p: any) => p.estado === 'EN_MORA' || p.estado === 'INCUMPLIDO' || (p.diasMora && p.diasMora > 0))
+          .map((p: any) => {
+            const cli = offClientes.find((c: any) => c.id === p.clienteId);
+            return {
+              id: p.id,
+              numeroPrestamo: p.numeroPrestamo || p.id,
+              cliente: {
+                id: cli?.id || p.clienteId || '',
+                nombre: cli ? `${cli.nombres} ${cli.apellidos}` : '',
+                documento: cli?.dni || '',
+                telefono: cli?.telefono || '',
+                direccion: cli?.direccion || '',
+              },
+              diasMora: p.diasMora || 0,
+              montoMora: p.montoMora || 0,
+              montoTotalDeuda: p.saldoPendiente || p.montoTotal || 0,
+              cuotasVencidas: 0,
+              ruta: '',
+              cobrador: '',
+              nivelRiesgo: (p.diasMora > 30 ? 'ROJO' : p.diasMora > 15 ? 'AMARILLO' : 'VERDE') as NivelRiesgo,
+              estado: (p.estado || 'EN_MORA') as EstadoPrestamo,
+            };
+          });
+        if (moraItems.length > 0) {
+          setCuentas(moraItems);
+          return;
+        }
+      } catch { /* ignore */ }
       toast.error('Error al cargar la lista de cuentas en mora')
     } finally {
       setIsDataLoading(false)
@@ -218,7 +252,7 @@ function CuentasMoraContent() {
       toast.info('Generando reporte Excel...')
       await exportService.exportMora('excel', {
         busqueda,
-        riesgo: filtroRiesgo !== 'TODOS' ? filtroRiesgo : undefined,
+        nivelRiesgo: filtroRiesgo !== 'TODOS' ? filtroRiesgo : undefined,
         rutaId: filtroRuta || undefined,
       })
       toast.success('Archivo descargado exitosamente')
@@ -232,7 +266,7 @@ function CuentasMoraContent() {
       toast.info('Generando reporte PDF...')
       await exportService.exportMora('pdf', {
         busqueda,
-        riesgo: filtroRiesgo !== 'TODOS' ? filtroRiesgo : undefined,
+        nivelRiesgo: filtroRiesgo !== 'TODOS' ? filtroRiesgo : undefined,
         rutaId: filtroRuta || undefined,
       })
       toast.success('Archivo descargado exitosamente')
@@ -403,18 +437,27 @@ function CuentasMoraContent() {
           </div>
           
           <div className="flex items-center gap-3 w-full md:w-auto">
-            <div className="relative w-full md:w-auto">
-              <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
-              <select
-                className="w-full md:w-auto pl-10 pr-8 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary bg-white shadow-sm appearance-none cursor-pointer font-medium text-slate-600"
-                value={filtroRiesgo}
-                onChange={(e) => setFiltroRiesgo(e.target.value as NivelRiesgo | 'TODOS')}
-              >
-                <option value="TODOS">Todos los riesgos</option>
-                <option value="AMARILLO">Riesgo Moderado (Amarillo)</option>
-                <option value="ROJO">Alto Riesgo (Rojo)</option>
-                <option value="LISTA_NEGRA">Lista Negra</option>
-              </select>
+            <div className="flex items-center gap-1.5 flex-wrap bg-white p-2 rounded-xl border border-slate-200 shadow-sm">
+              <Filter className="h-3.5 w-3.5 text-slate-400 shrink-0 mr-1" />
+              
+              {[
+                { id: 'TODOS', label: 'Todos' },
+                { id: 'AMARILLO', label: 'Riesgo' },
+                { id: 'ROJO', label: 'Mora' },
+                { id: 'LISTA_NEGRA', label: 'Lista Negra' }
+              ].map((filtro) => (
+                <button
+                  key={filtro.id}
+                  onClick={() => setFiltroRiesgo(filtro.id as NivelRiesgo | 'TODOS')}
+                  className={`px-3 py-1.5 text-[11px] font-bold rounded-xl transition-all whitespace-nowrap ${
+                    filtroRiesgo === filtro.id 
+                      ? 'bg-primary text-white shadow-md shadow-primary/20' 
+                      : 'bg-slate-100/50 text-slate-600 hover:bg-slate-200/70 border border-slate-200'
+                  }`}
+                >
+                  {filtro.label}
+                </button>
+              ))}
             </div>
 
             {/* View Toggle */}
