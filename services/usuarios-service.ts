@@ -5,6 +5,7 @@ export type { RolUsuario, EstadoUsuario };
 
 export interface Usuario {
   id: string;
+  nombreUsuario: string;
   correo: string;
   nombres: string;
   apellidos: string;

@@ -38,6 +38,7 @@ import {
   CheckCircle2,
   Wallet,
   ShoppingBag,
+  AtSign,
 } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
@@ -51,6 +52,7 @@ import { permisosPorRol } from '@/lib/permissions';
 
 interface User {
   id: string;
+  nombreUsuario: string;
   nombres: string;
   apellidos: string;
   correo: string;
@@ -98,6 +100,7 @@ const UserManagementPage = () => {
       const data = await usuariosService.obtenerTodos();
       const mappedUsers: User[] = data.map(u => ({
         id: u.id,
+        nombreUsuario: u.nombreUsuario || '',
         nombres: u.nombres,
         apellidos: u.apellidos,
         correo: u.correo,
@@ -137,6 +140,8 @@ const UserManagementPage = () => {
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const [actividadPage, setActividadPage] = useState(1);
+  const actividadPerPage = 3;
 
   const [detalle, setDetalle] = useState<{
     dineroCaja: number;
@@ -350,7 +355,7 @@ const UserManagementPage = () => {
 
     setSelectedUser(user);
     setFormData({
-      nombreUsuario: (user as any).nombreUsuario || '',
+      nombreUsuario: user.nombreUsuario || '',
       nombres: user.nombres,
       apellidos: user.apellidos,
       correo: user.correo,
@@ -1528,6 +1533,15 @@ const UserManagementPage = () => {
                     <div className="space-y-3 w-full text-left px-2">
                         <div className="flex items-center gap-3 group">
                              <div className="p-2 bg-white rounded-lg border border-slate-200 text-slate-400 group-hover:border-blue-200 group-hover:text-blue-500 transition-colors shadow-sm">
+                                <AtSign className="w-4 h-4" />
+                             </div>
+                             <div className="overflow-hidden">
+                                 <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wide">Nombre de Usuario</div>
+                                 <div className="text-sm font-bold text-slate-700 truncate" title={selectedUser.nombreUsuario || 'No asignado'}>{selectedUser.nombreUsuario || 'No asignado'}</div>
+                             </div>
+                         </div>
+                        <div className="flex items-center gap-3 group">
+                             <div className="p-2 bg-white rounded-lg border border-slate-200 text-slate-400 group-hover:border-blue-200 group-hover:text-blue-500 transition-colors shadow-sm">
                                 <Mail className="w-4 h-4" />
                              </div>
                              <div className="overflow-hidden">
@@ -1720,7 +1734,9 @@ const UserManagementPage = () => {
                                 </div>
                             </div>
                             <div className="bg-white p-0">
-                                {detalle.actividadReciente.map((item, idx) => (
+                                {detalle.actividadReciente
+                                  .slice((actividadPage - 1) * actividadPerPage, actividadPage * actividadPerPage)
+                                  .map((item, idx) => (
                                     <div key={idx} className="flex items-center gap-4 p-3 border-b border-slate-50 last:border-0 hover:bg-slate-50 transition-colors">
                                         <div className="w-20 text-[10px] font-bold text-slate-500 text-right leading-tight">{item.time}</div>
                                         <div className={cn(
@@ -1739,6 +1755,29 @@ const UserManagementPage = () => {
                                     </div>
                                 ))}
                             </div>
+                            {detalle.actividadReciente.length > actividadPerPage && (
+                              <div className="bg-slate-50 px-4 py-3 border-t border-slate-200 flex justify-between items-center">
+                                <span className="text-xs text-slate-500 font-medium">
+                                  Mostrando {Math.min((actividadPage - 1) * actividadPerPage + 1, detalle.actividadReciente.length)} - {Math.min(actividadPage * actividadPerPage, detalle.actividadReciente.length)} de {detalle.actividadReciente.length}
+                                </span>
+                                <div className="flex gap-2">
+                                  <button
+                                    onClick={() => setActividadPage(p => Math.max(1, p - 1))}
+                                    disabled={actividadPage === 1}
+                                    className="px-3 py-1 text-xs font-bold rounded-lg border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-slate-700"
+                                  >
+                                    <ChevronLeft className="h-3 w-3" />
+                                  </button>
+                                  <button
+                                    onClick={() => setActividadPage(p => Math.min(Math.ceil(detalle.actividadReciente.length / actividadPerPage), p + 1))}
+                                    disabled={actividadPage >= Math.ceil(detalle.actividadReciente.length / actividadPerPage)}
+                                    className="px-3 py-1 text-xs font-bold rounded-lg border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-slate-700"
+                                  >
+                                    <ChevronRight className="h-3 w-3" />
+                                  </button>
+                                </div>
+                              </div>
+                            )}
                         </div>
 
                      </div>
