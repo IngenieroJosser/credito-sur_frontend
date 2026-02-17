@@ -25,6 +25,7 @@ import {
 import FiltroRuta from '@/components/filtros/FiltroRuta'
 import { notificacionesService, type Notificacion } from '@/services/notificaciones-service'
 import ConfirmModal from '@/components/ui/ConfirmModal'
+import DetallePrestamoModal from '@/components/prestamos/DetallePrestamoModal'
 
 // MOCKS ELIMINADOS - La aplicación solo funciona con datos reales del backend
 // (Comentario original: MOCK_NOTIFICACIONES_ADMIN)
@@ -113,6 +114,8 @@ export default function NotificacionesPage() {
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false)
   const [confirmAction, setConfirmAction] = useState<'APPROVE' | 'REJECT' | null>(null)
   const [showMarkAllReadConfirm, setShowMarkAllReadConfirm] = useState(false)
+  const [prestamoModalOpen, setPrestamoModalOpen] = useState(false)
+  const [selectedPrestamoId, setSelectedPrestamoId] = useState<string | null>(null)
 
   // --- LÓGICA DE FILTRADO ---
   const notificaciones = notificacionesState
@@ -216,10 +219,17 @@ export default function NotificacionesPage() {
   }
 
   const handleOpenDetail = (notif: Notificacion) => {
-    setSelectedNotif(notif)
-    setEditedDetails(notif.detalles || {})
-    setIsEditingMode(false)
-    setIsDetailModalOpen(true)
+    // Si es una notificación de préstamo, abrir el modal de detalles de préstamo
+    if (notif.tipo === 'PRESTAMO' && notif.entidadId) {
+      setSelectedPrestamoId(notif.entidadId)
+      setPrestamoModalOpen(true)
+    } else {
+      // Para otros tipos, usar el modal genérico
+      setSelectedNotif(notif)
+      setEditedDetails(notif.detalles || {})
+      setIsEditingMode(false)
+      setIsDetailModalOpen(true)
+    }
   }
 
   return (
@@ -959,6 +969,17 @@ export default function NotificacionesPage() {
         cancelText="Cancelar"
         variant="info"
       />
+
+      {/* Modal de Detalle de Préstamo */}
+      {prestamoModalOpen && selectedPrestamoId && (
+        <DetallePrestamoModal
+          id={selectedPrestamoId}
+          onClose={() => {
+            setPrestamoModalOpen(false)
+            setSelectedPrestamoId(null)
+          }}
+        />
+      )}
     </div>
   )
 }

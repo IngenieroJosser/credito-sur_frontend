@@ -9,6 +9,7 @@ export interface Notificacion {
   leida: boolean;
   link?: string;
   rutaId?: string;
+  entidadId?: string;
   estado?: 'PENDIENTE' | 'APROBADA' | 'RECHAZADA';
   detalles?: {
     monto?: number;
