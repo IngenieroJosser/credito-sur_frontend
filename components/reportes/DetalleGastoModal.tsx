@@ -43,7 +43,6 @@
         setGastos(filtrados)
         setPagina(1)
        } catch (e: any) {
-         console.error('Error al cargar gastos:', e)
         setError('No se pudieron cargar los detalles del gasto')
        } finally {
          setLoading(false)

@@ -108,11 +108,7 @@ const ListadoPrestamosElegante = () => {
         limit: prestamosPorPagina,
       };
 
-      console.log('[DEBUG] Cargando préstamos con filtros:', filters);
       const response = await loansService.getLoans(filters);
-      console.log('[DEBUG] Respuesta del backend:', response);
-      console.log('[DEBUG] Total de préstamos:', response.paginacion.total);
-      console.log('[DEBUG] Préstamos recibidos:', response.prestamos.length);
       setPrestamos(response.prestamos);
       setEstadisticas(response.estadisticas);
       setTotalPrestamos(response.paginacion.total);
@@ -121,7 +117,6 @@ const ListadoPrestamosElegante = () => {
       offlineStore.saveMany('prestamos', response.prestamos).catch(() => {});
       
     } catch (err) {
-      console.error('Error cargando préstamos:', err);
       // Fallback offline
       try {
         const offData = await offlineStore.getAll<Loan>('prestamos');
@@ -171,7 +166,6 @@ const ListadoPrestamosElegante = () => {
       setPrestamoAEliminar(null);
       handleRefresh();
     } catch (error: any) {
-      console.error('Error archivando préstamo:', error);
       const msg = error?.response?.data?.message || error?.message || 'No se pudo archivar el préstamo';
       showNotification('error', Array.isArray(msg) ? msg.join(', ') : msg, 'Error al Archivar');
     }
@@ -864,7 +858,6 @@ const ListadoPrestamosElegante = () => {
               setPaginaActual(1);
             }
           } catch (error: any) {
-            console.error('Error creando crédito:', error);
             const msg = error?.response?.data?.message || error?.message || 'No se pudo crear el crédito';
             showNotification('error', Array.isArray(msg) ? msg.join(', ') : msg, 'Error al Crear Crédito');
           }

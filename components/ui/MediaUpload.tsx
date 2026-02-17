@@ -80,7 +80,6 @@ export default function MediaUpload({
       setTimeout(() => setShowSuccess(false), 2000);
 
     } catch (error) {
-      console.error('Upload failed:', error);
       setStatus('error');
       setErrorMessage('Error al subir el archivo. Intente nuevamente.');
       setShowErrorModal(true);

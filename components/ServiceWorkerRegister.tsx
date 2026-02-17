@@ -12,8 +12,7 @@ export default function ServiceWorkerRegister() {
 
     if ("serviceWorker" in navigator && process.env.NODE_ENV === "production") {
       navigator.serviceWorker.register("/sw.js")
-        .then(reg => console.log("Service Worker registrado:", reg))
-        .catch(err => console.error("SW error:", err));
+        .catch(err => {/* SW registration error */});
     }
 
     if (process.env.NODE_ENV === "development" && "serviceWorker" in navigator) {
@@ -29,16 +28,10 @@ export default function ServiceWorkerRegister() {
     // Descargar datos para offline si hay sesión activa
     const token = localStorage.getItem('token');
     if (token && navigator.onLine) {
-      syncManager.downloadAll().then((result) => {
-        console.log('[Offline] Datos descargados:', result);
-      }).catch(() => {});
+      syncManager.downloadAll().catch(() => {});
 
       // Procesar cola pendiente al cargar
-      syncManager.processQueue().then((result) => {
-        if (result.processed > 0) {
-          console.log('[Offline] Cola procesada:', result);
-        }
-      }).catch(() => {});
+      syncManager.processQueue().catch(() => {});
 
       // Auto-suscribir a push notifications si están soportadas y no está suscrito
       import('@/lib/push/pushNotifications').then(({ isPushSupported, isPushSubscribed, subscribeToPush }) => {
@@ -48,9 +41,7 @@ export default function ServiceWorkerRegister() {
               subscribeToPush().then((subscription) => {
                 if (subscription) {
                   import('@/lib/push/pushService').then(({ savePushSubscription }) => {
-                    savePushSubscription(subscription).then(() => {
-                      console.log('[Push] Auto-suscripción exitosa');
-                    }).catch(() => {});
+                    savePushSubscription(subscription).catch(() => {});
                   });
                 }
               }).catch(() => {});
@@ -63,7 +54,7 @@ export default function ServiceWorkerRegister() {
     // Verificar y notificar si la sesión offline está por expirar
     if (hasValidOfflineSession() && shouldShowExpirationWarning()) {
       const daysRemaining = getOfflineSessionDaysRemaining();
-      console.warn(`[Offline Auth] Sesión offline expira en ${daysRemaining} días. Conéctate para renovarla.`);
+      // Sesión offline expira en ${daysRemaining} días. Conéctate para renovarla.
       
       // Mostrar notificación al usuario
       if ('Notification' in window && Notification.permission === 'granted') {
@@ -77,27 +68,21 @@ export default function ServiceWorkerRegister() {
 
     // Auto-sync cuando vuelve la conexión
     const handleOnline = () => {
-      console.log('[Offline] Conexión restaurada, sincronizando...');
       stopOfflineTimer();
       
       // Renovar sesión offline automáticamente al reconectar
       if (hasValidOfflineSession()) {
         const renewed = renewOfflineSession();
         if (renewed) {
-          console.log('[Offline Auth] Sesión offline renovada automáticamente');
+          // Sesión offline renovada automáticamente
         }
       }
       
-      syncManager.processQueue().then((result) => {
-        if (result.processed > 0) {
-          console.log('[Offline] Sync completado:', result);
-        }
-      }).catch(() => {});
+      syncManager.processQueue().catch(() => {});
     };
 
     // Track tiempo offline
     const handleOffline = () => {
-      console.log('[Offline] Conexión perdida');
       startOfflineTimer();
     };
 

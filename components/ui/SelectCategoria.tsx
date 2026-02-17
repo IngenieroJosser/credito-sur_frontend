@@ -45,7 +45,6 @@ export default function SelectCategoria({
         }
       }
     } catch (err) {
-      console.error(err);
     } finally {
       setLoading(false);
     }
@@ -72,7 +71,6 @@ export default function SelectCategoria({
       setShowCreate(false);
       showNotification('success', 'Categoría creada', 'Éxito');
     } catch (error) {
-      console.error(error);
       showNotification('error', 'Error al crear categoría', 'Error');
     } finally {
       setCreating(false);

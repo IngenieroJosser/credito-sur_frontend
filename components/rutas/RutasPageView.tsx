@@ -134,7 +134,6 @@ export const RutasPageView = ({
            setRutasList(response.data as unknown as Ruta[]);
         }
       } catch (error) {
-        console.error('Error fetching data:', error);
         // Fallback offline: cargar rutas de IndexedDB
         try {
           const offRutas = await offlineStore.getAll<any>('rutas');
@@ -237,12 +236,10 @@ export const RutasPageView = ({
       try {
         const response = await routesService.getAll({ limit: 100 });
         setRutasList(response.data as unknown as Ruta[]);
-      } catch (e) { console.error('Error refreshing routes:', e); }
+      } catch (e) { /* Error refreshing routes */ }
 
       router.refresh(); // Recargar datos del servidor (como backup)
     } catch (error: any) {
-      console.error('Error saving route:', error);
-      console.error('Error details:', error.response?.data || error.message);
       const errorMessage = error.response?.data?.message || 'No se pudo guardar la ruta';
       showNotification('error', Array.isArray(errorMessage) ? errorMessage.join(', ') : errorMessage, 'Error');
     }
@@ -256,17 +253,16 @@ export const RutasPageView = ({
       try {
          const response = await routesService.getAll({ limit: 100 });
          setRutasList(response.data as unknown as Ruta[]);
-      } catch (e) { console.error(e); }
+      } catch (e) { /* Error loading routes */ }
 
       showNotification('success', 'Estado de la ruta actualizado', 'Éxito');
       router.refresh();
     } catch (error) {
-      console.error('Error toggling route status:', error);
       showNotification('error', 'No se pudo cambiar el estado', 'Error');
     }
   }
-  const handleMoveCliente = (id: string) => { console.log('Mover', id) }
-  const confirmAddCliente = (cliente: ClienteSelection) => { console.log('Add', cliente) }
+  const handleMoveCliente = (id: string) => { /* Mover cliente */ }
+  const confirmAddCliente = (cliente: ClienteSelection) => { /* Agregar cliente */ }
   const [activeTab, setActiveTab] = useState<'info' | 'clientes'>('info')
 
   // PAGINACIÓN
@@ -1346,7 +1342,7 @@ export const RutasPageView = ({
         onConfirm={(data) => {
           setShowCrearCreditoModal(false);
           showNotification('success', 'Crédito creado exitosamente', 'Operación completada');
-          console.log('Crédito creado:', data);
+          // Crédito creado exitosamente
         }}
       />
     </div>
