@@ -1,4 +1,5 @@
 import { apiRequest } from '@/lib/api/api';
+import { syncService } from '@/lib/offline/syncService';
 import { MetodoPago } from '@/types/enums';
 
 export type { MetodoPago };
@@ -94,10 +95,58 @@ export const pagosService = {
   },
 
   /**
-   * Registrar un nuevo pago
+   * Registrar un nuevo pago (con soporte Offline)
    * Retorna el pago creado + descomposición capital/interés
    */
   async registrarPago(data: CrearPagoDto): Promise<ResultadoPago> {
-    return apiRequest<ResultadoPago>('POST', '/payments', data);
+    try {
+       return await apiRequest<ResultadoPago>('POST', '/payments', data);
+    } catch (error: any) {
+       if (
+        (typeof navigator !== 'undefined' && !navigator.onLine) ||
+        error?.statusCode === 0 || 
+        error?.message?.includes('network') ||
+        error?.code === 'ERR_NETWORK'
+      ) {
+         console.log('🌐 [Offline Mode] Guardando pago en cola...');
+         const tempId = `temp-pay-${Date.now()}`;
+         
+         await syncService.enqueueOperation(
+           'pago',
+           '/payments',
+           'POST',
+           data,
+           `Pago Offline $${data.montoTotal}`
+         );
+
+         // Retornar objeto temporal con estimaciones
+         return {
+            pago: {
+                id: tempId,
+                numeroPago: 'OFFLINE',
+                clienteId: data.clienteId,
+                prestamoId: data.prestamoId,
+                cobradorId: data.cobradorId,
+                fechaPago: new Date().toISOString(),
+                montoTotal: data.montoTotal,
+                metodoPago: data.metodoPago || MetodoPago.EFECTIVO,
+                numeroReferencia: data.numeroReferencia || null,
+                notas: data.notas || 'Pago registrado offline',
+                creadoEn: new Date().toISOString(),
+                actualizadoEn: new Date().toISOString(),
+            } as any,
+            descomposicion: {
+                montoTotal: data.montoTotal,
+                capitalRecuperado: 0, // No se puede calcular offline
+                interesRecuperado: 0,
+                saldoAnterior: 0,
+                saldoNuevo: 0,
+                cuotasAfectadas: 0,
+                prestamoQuedaPagado: false
+            }
+         };
+      }
+      throw error;
+    }
   },
 };

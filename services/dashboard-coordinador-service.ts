@@ -45,12 +45,20 @@ export interface RecentActivity {
   status: 'approved' | 'alert' | 'pending';
 }
 
+export interface TopCollector {
+  name: string;
+  collected: number;
+  efficiency: number;
+  trend: 'up' | 'down';
+}
+
 export interface DashboardData {
   metrics: DashboardMetrics;
   trend: TrendData[];
   pendingApprovals: ApprovalItem[];
   delinquentAccounts: DelinquentAccount[];
   recentActivity: RecentActivity[];
+  topCollectors?: TopCollector[];
 }
 
 export const dashboardService = {

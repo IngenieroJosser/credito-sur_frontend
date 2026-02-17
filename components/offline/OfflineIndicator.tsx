@@ -15,12 +15,17 @@ import {
   Clock,
 } from 'lucide-react';
 import { useOffline } from '@/hooks/useOffline';
+import { useAutoSync } from '@/hooks/use-auto-sync';
 import { offlineQueue } from '@/lib/offline/offlineQueue';
 import { OfflineQueueItem } from '@/lib/offline/offlineDb';
 import { hasValidOfflineSession, getOfflineSessionDaysRemaining, isSessionExpiringSoon } from '@/lib/auth/offlineAuth';
 
 export default function OfflineIndicator() {
   const { isOnline, pendingOps, failedOps, isSyncing, syncNow, downloadForOffline, lastSyncResult } = useOffline();
+  
+  // Activar sincronización automática y polling cada 5 minutos
+  useAutoSync(300000); 
+
   const [expanded, setExpanded] = useState(false);
   const [queueItems, setQueueItems] = useState<OfflineQueueItem[]>([]);
   const [showResult, setShowResult] = useState(false);
