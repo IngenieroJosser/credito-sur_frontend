@@ -33,6 +33,7 @@ export interface PrestamoDetalle {
   fechaInicio: string;
   fechaVencimiento: string;
   estado: 'ACTIVO' | 'PAGADO' | 'EN_MORA' | 'PENDIENTE';
+  tipoAmortizacion?: 'FRANCESA' | 'INTERES_SIMPLE';
   producto?: string;
   garantia?: string;
   fotos?: string[];
@@ -282,59 +283,65 @@ export default function DetallePrestamo({ prestamo }: DetallePrestamoProps) {
           <div className="space-y-4">
             {/* Tarjeta de Amortización - Cuota Actual */}
             {cuotaActual && (
-              <div className="bg-gradient-to-br from-slate-900 to-slate-800 rounded-2xl p-5 text-white relative overflow-hidden">
-                <div className="absolute top-0 right-0 opacity-5 pointer-events-none">
-                  <BarChart3 className="w-40 h-40 -mt-4 -mr-4" />
+              <div className="bg-white border-2 border-blue-100 rounded-2xl p-5 relative overflow-hidden shadow-sm">
+                <div className="absolute top-0 right-0 opacity-[0.03] pointer-events-none">
+                  <BarChart3 className="w-40 h-40 -mt-4 -mr-4 text-blue-600" />
                 </div>
                 <div className="relative z-10">
                   <div className="flex items-center justify-between mb-4">
                     <div className="flex items-center gap-2">
-                      <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center">
-                        <BarChart3 className="w-4 h-4" />
+                      <div className="w-8 h-8 rounded-full bg-blue-50 flex items-center justify-center">
+                        <BarChart3 className="w-4 h-4 text-blue-600" />
                       </div>
                       <div>
-                        <h4 className="text-xs font-bold text-white/60 uppercase tracking-widest">Amortización</h4>
-                        <p className="text-sm font-bold">Cuota #{cuotaActual.numero} de {totalCuotas}</p>
+                        <h4 className="text-xs font-bold text-slate-500 uppercase tracking-widest">
+                          {prestamo.tipoAmortizacion === 'FRANCESA' ? 'Amortización' : 'Plan de Pagos'}
+                        </h4>
+                        <p className="text-sm font-bold text-slate-900">Cuota #{cuotaActual.numero} de {totalCuotas}</p>
                       </div>
                     </div>
                     <span className={cn(
                       "px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wide",
-                      cuotaActual.estado === 'VENCIDO' ? 'bg-rose-500/20 text-rose-300' :
-                      cuotaActual.estado === 'PARCIAL' ? 'bg-amber-500/20 text-amber-300' :
-                      cuotaActual.estado === 'PAGADO' ? 'bg-emerald-500/20 text-emerald-300' :
-                      'bg-blue-500/20 text-blue-300'
+                      cuotaActual.estado === 'VENCIDO' ? 'bg-rose-100 text-rose-700 border border-rose-200' :
+                      cuotaActual.estado === 'PARCIAL' ? 'bg-amber-100 text-amber-700 border border-amber-200' :
+                      cuotaActual.estado === 'PAGADO' ? 'bg-emerald-100 text-emerald-700 border border-emerald-200' :
+                      'bg-blue-100 text-blue-700 border border-blue-200'
                     )}>
                       {cuotaActual.estado === 'PAGADO' ? 'Completado' : cuotaActual.estado === 'VENCIDO' ? 'Vencida' : 'Próxima cuota'}
                     </span>
                   </div>
 
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
-                    <div className="bg-white/5 rounded-xl p-3">
-                      <span className="text-[10px] font-bold text-white/50 uppercase tracking-wider block">Cuota</span>
-                      <span className="text-lg font-bold">{formatCurrency(cuotaActual.monto)}</span>
+                  <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-4">
+                    <div className="bg-slate-50 rounded-xl p-3 border border-slate-100">
+                      <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Próxima Cuota</span>
+                      <span className="text-sm font-bold text-slate-900">{formatDate(cuotaActual.fecha)}</span>
                     </div>
-                    <div className="bg-white/5 rounded-xl p-3">
-                      <span className="text-[10px] font-bold text-blue-300/70 uppercase tracking-wider block">Capital</span>
-                      <span className="text-lg font-bold text-blue-300">{cuotaActual.montoCapital != null ? formatCurrency(cuotaActual.montoCapital) : '-'}</span>
+                    <div className="bg-slate-50 rounded-xl p-3 border border-slate-100">
+                      <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Cuota</span>
+                      <span className="text-lg font-bold text-slate-900">{formatCurrency(cuotaActual.monto)}</span>
                     </div>
-                    <div className="bg-white/5 rounded-xl p-3">
-                      <span className="text-[10px] font-bold text-violet-300/70 uppercase tracking-wider block">Interés</span>
-                      <span className="text-lg font-bold text-violet-300">{cuotaActual.montoInteres != null ? formatCurrency(cuotaActual.montoInteres) : '-'}</span>
+                    <div className="bg-blue-50 rounded-xl p-3 border border-blue-100">
+                      <span className="text-[10px] font-bold text-blue-600 uppercase tracking-wider block">Capital</span>
+                      <span className="text-lg font-bold text-blue-700">{cuotaActual.montoCapital != null ? formatCurrency(cuotaActual.montoCapital) : '-'}</span>
                     </div>
-                    <div className="bg-white/5 rounded-xl p-3">
-                      <span className="text-[10px] font-bold text-emerald-300/70 uppercase tracking-wider block">Saldo Capital</span>
-                      <span className="text-lg font-bold text-emerald-300">{formatCurrency(cuotaActual.saldoRestante)}</span>
+                    <div className="bg-violet-50 rounded-xl p-3 border border-violet-100">
+                      <span className="text-[10px] font-bold text-violet-600 uppercase tracking-wider block">Interés</span>
+                      <span className="text-lg font-bold text-violet-700">{cuotaActual.montoInteres != null ? formatCurrency(cuotaActual.montoInteres) : '-'}</span>
+                    </div>
+                    <div className="bg-emerald-50 rounded-xl p-3 border border-emerald-100">
+                      <span className="text-[10px] font-bold text-emerald-600 uppercase tracking-wider block">Saldo Capital</span>
+                      <span className="text-lg font-bold text-emerald-700">{formatCurrency(cuotaActual.saldoRestante)}</span>
                     </div>
                   </div>
 
                   <div>
                     <div className="flex items-center justify-between mb-1.5">
-                      <span className="text-[10px] font-bold text-white/50 uppercase tracking-wider">Progreso</span>
-                      <span className="text-xs font-bold text-white/80">{cuotasPagadas}/{totalCuotas} cuotas — {progresoCuotas}%</span>
+                      <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Progreso</span>
+                      <span className="text-xs font-bold text-slate-700">{cuotasPagadas}/{totalCuotas} cuotas — {progresoCuotas}%</span>
                     </div>
-                    <div className="w-full h-2 bg-white/10 rounded-full overflow-hidden">
+                    <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden border border-slate-200">
                       <div
-                        className="h-full bg-gradient-to-r from-blue-400 to-emerald-400 rounded-full transition-all duration-500"
+                        className="h-full bg-gradient-to-r from-blue-500 to-emerald-500 rounded-full transition-all duration-500"
                         style={{ width: `${progresoCuotas}%` }}
                       />
                     </div>
