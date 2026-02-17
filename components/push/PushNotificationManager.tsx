@@ -62,7 +62,6 @@ export default function PushNotificationManager() {
       // Mantener animación por 2 segundos
       setTimeout(() => setShowAnimation(false), 2000);
     } catch (error) {
-      console.error('Error al suscribirse:', error);
       setMessage({ type: 'error', text: 'Error al activar notificaciones' });
       setShowAnimation(false);
     } finally {
@@ -88,7 +87,6 @@ export default function PushNotificationManager() {
       setIsSubscribed(false);
       setMessage({ type: 'success', text: 'Notificaciones desactivadas' });
     } catch (error) {
-      console.error('Error al desuscribirse:', error);
       setMessage({ type: 'error', text: 'Error al desactivar notificaciones' });
     } finally {
       setLoading(false);
@@ -103,7 +101,6 @@ export default function PushNotificationManager() {
       await sendTestNotification();
       setMessage({ type: 'success', text: 'Notificación de prueba enviada' });
     } catch (error) {
-      console.error('Error al enviar notificación de prueba:', error);
       setMessage({ type: 'error', text: 'Error al enviar notificación de prueba' });
     } finally {
       setLoading(false);

@@ -132,26 +132,39 @@ export default function ReprogramarCuotaModal({
     setLoading(true);
 
     try {
-      // TODO: Implement API call
-      await new Promise(resolve => setTimeout(resolve, 1000)); // Simulación
-      
+      const userStr = localStorage.getItem('user');
+      if (!userStr) {
+        throw new Error('Usuario no autenticado');
+      }
+      const user = JSON.parse(userStr);
+
       const montoFinal = esCuotaParcial ? parseCOPInputToNumber(montoParcial) : montoCuota;
       
-      console.log('Reprogramando cuota:', {
-        prestamoId,
-        cuotaNumero,
-        fechaOriginal,
-        nuevaFecha,
-        motivo,
-        esCuotaParcial,
-        monto: montoFinal
+      const response = await fetch(`/api-credisur/loans/${prestamoId}/cuotas/${cuotaNumero}/reprogramar`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+        },
+        body: JSON.stringify({
+          motivo,
+          nuevaFecha,
+          montoParcial: esCuotaParcial ? montoFinal : undefined,
+          reprogramadoPorId: user.id,
+        }),
       });
 
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Error al reprogramar la cuota');
+      }
+
+      const result = await response.json();
+      
       alert('Cuota reprogramada exitosamente');
       onSuccess();
-    } catch (err) {
-      setError('Error al reprogramar la cuota. Intente nuevamente.');
-      console.error('Error:', err);
+    } catch (err: any) {
+      setError(err.message || 'Error al reprogramar la cuota. Intente nuevamente.');
     } finally {
       setLoading(false);
     }

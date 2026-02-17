@@ -389,7 +389,7 @@ const LoginPage = () => {
                 onFocus={() => setFocusedField('usuario')}
                 onBlur={() => setFocusedField(null)}
                 className="w-full pl-8 pr-4 py-3 bg-transparent border-0 border-b border-gray-200 focus:border-[#08557f] focus:outline-none transition-all duration-300 text-gray-700 placeholder-gray-400 text-sm"
-                placeholder="Usuario"
+                placeholder="Usuario o Correo"
                 autoComplete="username"
                 disabled={isLoading}
               />

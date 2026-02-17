@@ -5,6 +5,7 @@ export type { RolUsuario, EstadoUsuario };
 
 export interface Usuario {
   id: string;
+  nombreUsuario: string;
   correo: string;
   nombres: string;
   apellidos: string;
@@ -35,6 +36,7 @@ export interface UpdateUsuarioDto {
   correo?: string;
   nombres?: string;
   apellidos?: string;
+  nombreUsuario?: string;
   telefono?: string;
   rol?: RolUsuario;
   estado?: EstadoUsuario;

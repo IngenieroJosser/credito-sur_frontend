@@ -38,6 +38,7 @@ import {
   CheckCircle2,
   Wallet,
   ShoppingBag,
+  AtSign,
 } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
@@ -51,6 +52,7 @@ import { permisosPorRol } from '@/lib/permissions';
 
 interface User {
   id: string;
+  nombreUsuario: string;
   nombres: string;
   apellidos: string;
   correo: string;
@@ -98,6 +100,7 @@ const UserManagementPage = () => {
       const data = await usuariosService.obtenerTodos();
       const mappedUsers: User[] = data.map(u => ({
         id: u.id,
+        nombreUsuario: u.nombreUsuario || '',
         nombres: u.nombres,
         apellidos: u.apellidos,
         correo: u.correo,
@@ -137,6 +140,8 @@ const UserManagementPage = () => {
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const [actividadPage, setActividadPage] = useState(1);
+  const actividadPerPage = 3;
 
   const [detalle, setDetalle] = useState<{
     dineroCaja: number;
@@ -260,6 +265,7 @@ const UserManagementPage = () => {
   }, [isCreateModalOpen, isEditModalOpen, isPermissionsModalOpen, isDeleteModalOpen]);
 
   interface UserFormData {
+    nombreUsuario: string;
     nombres: string;
     apellidos: string;
     correo: string;
@@ -270,6 +276,7 @@ const UserManagementPage = () => {
   }
 
   const [formData, setFormData] = useState<UserFormData>({
+    nombreUsuario: '',
     nombres: '',
     apellidos: '',
     correo: '',
@@ -278,6 +285,8 @@ const UserManagementPage = () => {
     rol: RolUsuario.COBRADOR,
     estado: EstadoUsuario.ACTIVO
   });
+
+  const [showPassword, setShowPassword] = useState(false);
 
   const roles: Role[] = [
     { id: RolUsuario.SUPER_ADMINISTRADOR, nombre: 'SuperAdministrador', label: 'SuperAdministrador', descripcion: 'Acceso total al sistema', color: 'text-violet-600', bgColor: 'bg-violet-50', icon: <Shield className="h-3.5 w-3.5" /> },
@@ -326,6 +335,7 @@ const UserManagementPage = () => {
 
   const handleOpenCreateModal = () => {
     setFormData({
+      nombreUsuario: '',
       nombres: '',
       apellidos: '',
       correo: '',
@@ -345,6 +355,7 @@ const UserManagementPage = () => {
 
     setSelectedUser(user);
     setFormData({
+      nombreUsuario: user.nombreUsuario || '',
       nombres: user.nombres,
       apellidos: user.apellidos,
       correo: user.correo,
@@ -567,8 +578,13 @@ const UserManagementPage = () => {
     try {
       const { password, ...userData } = formData;
       // Validar campos mínimos
-      if (!formData.nombres || !formData.apellidos || !formData.correo || !formData.password) {
+      if (!formData.nombreUsuario || !formData.nombres || !formData.apellidos || !formData.correo || !formData.password) {
         showNotification('error', 'Por favor complete todos los campos obligatorios', 'Campos Faltantes');
+        return;
+      }
+
+      if (formData.nombreUsuario.length < 3) {
+        showNotification('error', 'El nombre de usuario debe tener al menos 3 caracteres', 'Validación');
         return;
       }
 
@@ -610,6 +626,7 @@ const UserManagementPage = () => {
     try {
       // Actualizar datos básicos
       await usuariosService.actualizar(selectedUser.id, {
+        nombreUsuario: formData.nombreUsuario,
         nombres: formData.nombres,
         apellidos: formData.apellidos,
         correo: formData.correo,
@@ -1099,6 +1116,19 @@ const UserManagementPage = () => {
               </div>
             </div>
             <div className="space-y-5">
+              <div>
+                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Nombre de Usuario</label>
+                <input
+                  type="text"
+                  value={formData.nombreUsuario}
+                  onChange={(e) => setFormData({...formData, nombreUsuario: e.target.value.toLowerCase().replace(/[^a-z0-9]/g, '')})}
+                  className="w-full px-4 py-3 border border-slate-200 rounded-2xl bg-slate-50 focus:bg-white focus:border-blue-600 focus:ring-2 focus:ring-blue-600/20 transition-all text-sm font-medium text-slate-900 placeholder:text-slate-400"
+                  placeholder="Ej. jperez (solo letras y números, sin espacios)"
+                  maxLength={50}
+                />
+                <p className="text-xs text-slate-500 mt-1">Se usará para iniciar sesión. Solo letras minúsculas y números.</p>
+              </div>
+              
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Nombres</label>
@@ -1214,6 +1244,18 @@ const UserManagementPage = () => {
               </div>
             </div>
             <div className="space-y-5">
+              <div>
+                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Nombre de Usuario</label>
+                <input
+                  type="text"
+                  value={formData.nombreUsuario}
+                  onChange={(e) => setFormData({...formData, nombreUsuario: e.target.value.toLowerCase().replace(/[^a-z0-9]/g, '')})}
+                  className="w-full px-4 py-3 border border-slate-200 rounded-2xl bg-slate-50 focus:bg-white focus:border-blue-600 focus:ring-2 focus:ring-blue-600/20 transition-all text-sm font-medium text-slate-900 placeholder:text-slate-400"
+                  maxLength={50}
+                />
+                <p className="text-xs text-slate-500 mt-1">Se usará para iniciar sesión. Solo letras minúsculas y números.</p>
+              </div>
+              
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Nombres</label>
@@ -1257,13 +1299,22 @@ const UserManagementPage = () => {
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Contraseña</label>
-                  <input
-                    type="password"
-                    value={formData.password}
-                    onChange={(e) => setFormData({...formData, password: e.target.value})}
-                    className="w-full px-4 py-3 border border-slate-200 rounded-2xl bg-slate-50 focus:bg-white focus:border-blue-600 focus:ring-2 focus:ring-blue-600/20 transition-all text-sm font-medium text-slate-900 placeholder:text-slate-400"
-                    placeholder="Dejar vacío para no cambiar"
-                  />
+                  <div className="relative">
+                    <input
+                      type={showPassword ? "text" : "password"}
+                      value={formData.password}
+                      onChange={(e) => setFormData({...formData, password: e.target.value})}
+                      className="w-full px-4 py-3 pr-12 border border-slate-200 rounded-2xl bg-slate-50 focus:bg-white focus:border-blue-600 focus:ring-2 focus:ring-blue-600/20 transition-all text-sm font-medium text-slate-900 placeholder:text-slate-400"
+                      placeholder="Dejar vacío para no cambiar"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-600 transition-colors"
+                    >
+                      {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                    </button>
+                  </div>
                 </div>
               </div>
 
@@ -1482,11 +1533,20 @@ const UserManagementPage = () => {
                     <div className="space-y-3 w-full text-left px-2">
                         <div className="flex items-center gap-3 group">
                              <div className="p-2 bg-white rounded-lg border border-slate-200 text-slate-400 group-hover:border-blue-200 group-hover:text-blue-500 transition-colors shadow-sm">
-                                <Mail className="w-4 h-4" />
+                                <AtSign className="w-4 h-4" />
                              </div>
                              <div className="overflow-hidden">
+                                 <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wide">Nombre de Usuario</div>
+                                 <div className="text-sm font-bold text-slate-700 truncate" title={selectedUser.nombreUsuario || 'No asignado'}>{selectedUser.nombreUsuario || 'No asignado'}</div>
+                             </div>
+                         </div>
+                        <div className="flex items-center gap-3 group">
+                             <div className="p-2 bg-white rounded-lg border border-slate-200 text-slate-400 group-hover:border-blue-200 group-hover:text-blue-500 transition-colors shadow-sm">
+                                <Mail className="w-4 h-4" />
+                             </div>
+                             <div className="flex-1 min-w-0">
                                  <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wide">Correo Electrónico</div>
-                                 <div className="text-sm font-bold text-slate-700 truncate" title={selectedUser.correo}>{selectedUser.correo}</div>
+                                 <div className="text-sm font-bold text-slate-700 break-words">{selectedUser.correo}</div>
                              </div>
                          </div>
                          <div className="flex items-center gap-3 group">
@@ -1630,13 +1690,13 @@ const UserManagementPage = () => {
                                 <div className="flex items-center gap-2">
                                   <input
                                     type="date"
-                                    className="text-[10px] px-2 py-1 border border-slate-200 rounded-md"
+                                    className="text-[10px] px-2 py-1 border border-slate-200 rounded-md bg-white text-slate-700 font-medium"
                                     value={filtroFechaInicio}
                                     onChange={(e) => setFiltroFechaInicio(e.target.value)}
                                   />
                                   <input
                                     type="date"
-                                    className="text-[10px] px-2 py-1 border border-slate-200 rounded-md"
+                                    className="text-[10px] px-2 py-1 border border-slate-200 rounded-md bg-white text-slate-700 font-medium"
                                     value={filtroFechaFin}
                                     onChange={(e) => setFiltroFechaFin(e.target.value)}
                                   />
@@ -1674,7 +1734,9 @@ const UserManagementPage = () => {
                                 </div>
                             </div>
                             <div className="bg-white p-0">
-                                {detalle.actividadReciente.map((item, idx) => (
+                                {detalle.actividadReciente
+                                  .slice((actividadPage - 1) * actividadPerPage, actividadPage * actividadPerPage)
+                                  .map((item, idx) => (
                                     <div key={idx} className="flex items-center gap-4 p-3 border-b border-slate-50 last:border-0 hover:bg-slate-50 transition-colors">
                                         <div className="w-20 text-[10px] font-bold text-slate-500 text-right leading-tight">{item.time}</div>
                                         <div className={cn(
@@ -1693,6 +1755,29 @@ const UserManagementPage = () => {
                                     </div>
                                 ))}
                             </div>
+                            {detalle.actividadReciente.length >= actividadPerPage && (
+                              <div className="bg-slate-50 px-4 py-3 border-t border-slate-200 flex justify-between items-center">
+                                <span className="text-xs text-slate-500 font-medium">
+                                  Mostrando {Math.min((actividadPage - 1) * actividadPerPage + 1, detalle.actividadReciente.length)} - {Math.min(actividadPage * actividadPerPage, detalle.actividadReciente.length)} de {detalle.actividadReciente.length}
+                                </span>
+                                <div className="flex gap-2">
+                                  <button
+                                    onClick={() => setActividadPage(p => Math.max(1, p - 1))}
+                                    disabled={actividadPage === 1}
+                                    className="px-3 py-1 text-xs font-bold rounded-lg border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-slate-700"
+                                  >
+                                    <ChevronLeft className="h-3 w-3" />
+                                  </button>
+                                  <button
+                                    onClick={() => setActividadPage(p => Math.min(Math.ceil(detalle.actividadReciente.length / actividadPerPage), p + 1))}
+                                    disabled={actividadPage >= Math.ceil(detalle.actividadReciente.length / actividadPerPage)}
+                                    className="px-3 py-1 text-xs font-bold rounded-lg border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-slate-700"
+                                  >
+                                    <ChevronRight className="h-3 w-3" />
+                                  </button>
+                                </div>
+                              </div>
+                            )}
                         </div>
 
                      </div>
@@ -1864,7 +1949,9 @@ const UserManagementPage = () => {
                             </h4>
                           </div>
                           <div className="bg-white p-0">
-                            {detalle.actividadReciente.slice(0, timelineCount).map((item, idx) => (
+                            {detalle.actividadReciente
+                              .slice((actividadPage - 1) * actividadPerPage, actividadPage * actividadPerPage)
+                              .map((item, idx) => (
                               <div key={idx} className="flex items-center gap-4 p-3 border-b border-slate-50 last:border-0 hover:bg-slate-50 transition-colors">
                                 <div className="w-20 text-[10px] font-bold text-slate-500 text-right leading-tight">{item.time}</div>
                                 <div className={cn(
@@ -1901,40 +1988,30 @@ const UserManagementPage = () => {
                                 )}
                               </div>
                             ))}
-                            {detalle.actividadReciente.length > timelineCount && (
-                              <div className="flex justify-center p-3 border-t border-slate-100">
+                          </div>
+                          {detalle.actividadReciente.length >= actividadPerPage && (
+                            <div className="bg-slate-50 px-4 py-3 border-t border-slate-200 flex justify-between items-center">
+                              <span className="text-xs text-slate-500 font-medium">
+                                Mostrando {Math.min((actividadPage - 1) * actividadPerPage + 1, detalle.actividadReciente.length)} - {Math.min(actividadPage * actividadPerPage, detalle.actividadReciente.length)} de {detalle.actividadReciente.length}
+                              </span>
+                              <div className="flex gap-2">
                                 <button
-                                  className="text-xs font-bold text-blue-700 bg-blue-50 px-3 py-1 rounded-md border border-blue-200 hover:bg-blue-100"
-                                  onClick={async () => {
-                                    if (timelineLoading) return;
-                                    setTimelineLoading(true);
-                                    try {
-                                      const nextPage = timelinePage + 1;
-                                      const params = new URLSearchParams();
-                                      params.set('page', `${nextPage}`);
-                                      params.set('limit', `${timelineLimit}`);
-                                      if (filtroFechaInicio) params.set('startDate', new Date(filtroFechaInicio).toISOString());
-                                      if (filtroFechaFin) params.set('endDate', new Date(filtroFechaFin).toISOString());
-                                      const audit = await apiRequest<any[]>('GET', `/audit/user/${selectedUser?.id}?${params.toString()}`);
-                                      const more = (audit || []).map((a: any) => ({
-                                        time: new Date(a.creadoEn).toLocaleString('es-CO', { dateStyle: 'short', timeStyle: 'short' }),
-                                        action: a.accion,
-                                        detail: `${a.entidad} ${a.entidadId || ''}`.trim(),
-                                        type: 'neutral' as const,
-                                      }));
-                                      setDetalle((d) => ({ ...d, actividadReciente: [...d.actividadReciente, ...more] }));
-                                      setTimelinePage(nextPage);
-                                      setTimelineCount(timelineCount + timelineLimit);
-                                    } finally {
-                                      setTimelineLoading(false);
-                                    }
-                                  }}
+                                  onClick={() => setActividadPage(p => Math.max(1, p - 1))}
+                                  disabled={actividadPage === 1}
+                                  className="px-3 py-1 text-xs font-bold rounded-lg border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-slate-700"
                                 >
-                                  Ver más
+                                  <ChevronLeft className="h-3 w-3" />
+                                </button>
+                                <button
+                                  onClick={() => setActividadPage(p => Math.min(Math.ceil(detalle.actividadReciente.length / actividadPerPage), p + 1))}
+                                  disabled={actividadPage >= Math.ceil(detalle.actividadReciente.length / actividadPerPage)}
+                                  className="px-3 py-1 text-xs font-bold rounded-lg border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-slate-700"
+                                >
+                                  <ChevronRight className="h-3 w-3" />
                                 </button>
                               </div>
-                            )}
-                          </div>
+                            </div>
+                          )}
                         </div>
                       </div>
                     )}

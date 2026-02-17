@@ -36,7 +36,9 @@ import { usePermission } from '@/hooks/usePermission';
 import { ExportButton } from '@/components/ui/ExportButton';
 import { exportService } from '@/services/export-service';
 import { offlineStore } from '@/lib/offline/offlineDb';
+import { prestamosService } from '@/services/prestamos-service';
 import { WifiOff } from 'lucide-react';
+import ConfirmModal from '@/components/ui/ConfirmModal';
 
 interface Filtros {
   estado: string;
@@ -91,6 +93,7 @@ const ListadoPrestamosElegante = () => {
   const [totalPrestamos, setTotalPrestamos] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [dataSource, setDataSource] = useState<'online' | 'offline'>('online');
+  const [prestamoAEliminar, setPrestamoAEliminar] = useState<string | null>(null);
 
   const loadPrestamos = useCallback(async () => {
     try {
@@ -114,7 +117,6 @@ const ListadoPrestamosElegante = () => {
       offlineStore.saveMany('prestamos', response.prestamos).catch(() => {});
       
     } catch (err) {
-      console.error('Error cargando préstamos:', err);
       // Fallback offline
       try {
         const offData = await offlineStore.getAll<Loan>('prestamos');
@@ -151,19 +153,21 @@ const ListadoPrestamosElegante = () => {
     }
   }, [filtros, paginaActual, loadPrestamos, mounted]);
 
-  const handleEliminarPrestamo = async (id: string) => {
-    if (confirm('¿Está seguro de que desea archivar este préstamo?\n\nEl préstamo será archivado y podrá ser restaurado desde la sección de Archivados.')) {
-      try {
-        const userStr = localStorage.getItem('user');
-        const user = userStr ? JSON.parse(userStr) : null;
-        
-        await loansService.deleteLoan(id, user?.id || '');
-        showNotification('success', 'El préstamo ha sido archivado exitosamente', 'Préstamo Archivado');
-        await loadPrestamos();
-      } catch (err) {
-        const errorMessage = formatErrorForComponent(err);
-        showNotification('error', errorMessage, 'Error');
-      }
+  const handleEliminarPrestamo = async () => {
+    if (!prestamoAEliminar) return;
+    
+    try {
+      const userStr = localStorage.getItem('user');
+      if (!userStr) return;
+      const user = JSON.parse(userStr);
+      
+      await loansService.deleteLoan(prestamoAEliminar, user.id);
+      showNotification('success', 'El préstamo ha sido archivado exitosamente', 'Préstamo Archivado');
+      setPrestamoAEliminar(null);
+      handleRefresh();
+    } catch (error: any) {
+      const msg = error?.response?.data?.message || error?.message || 'No se pudo archivar el préstamo';
+      showNotification('error', Array.isArray(msg) ? msg.join(', ') : msg, 'Error al Archivar');
     }
   };
 
@@ -569,7 +573,7 @@ const ListadoPrestamosElegante = () => {
                           ) : null}
                           {can('CREDITOS_DELETE') || can('LOANS_DELETE') || canForPath(baseRoute) ? (
                             <button 
-                              onClick={() => handleEliminarPrestamo(prestamo.id)}
+                              onClick={() => setPrestamoAEliminar(prestamo.id)}
                               className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all"
                               title="Marcar como pérdida"
                             >
@@ -718,7 +722,7 @@ const ListadoPrestamosElegante = () => {
                   ) : null}
                   {can('CREDITOS_DELETE') || can('LOANS_DELETE') || canForPath(baseRoute) ? (
                     <button 
-                      onClick={() => handleEliminarPrestamo(prestamo.id)}
+                      onClick={() => setPrestamoAEliminar(prestamo.id)}
                       className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all"
                       title="Marcar como pérdida"
                     >
@@ -790,11 +794,86 @@ const ListadoPrestamosElegante = () => {
       <CrearCreditoModal
         isOpen={showCrearCreditoModal}
         onClose={() => setShowCrearCreditoModal(false)}
-        onConfirm={(data) => {
-          console.log('Crédito creado:', data);
-          setShowCrearCreditoModal(false);
-          handleRefresh();
+        onConfirm={async (data) => {
+          try {
+            // Obtener userId del token
+            const token = localStorage.getItem('token');
+            let userId = '';
+            if (token) {
+              try {
+                const payload = JSON.parse(atob(token.split('.')[1]));
+                userId = payload.sub || payload.id || '';
+              } catch { /* ignore */ }
+            }
+
+            const frecuenciaMap: Record<string, string> = {
+              'Diaria': 'DIARIO',
+              'Semanal': 'SEMANAL',
+              'Quincenal': 'QUINCENAL',
+              'Mensual': 'MENSUAL',
+            };
+
+            const numCuotas = data.cuotasPrestamo || 1;
+            const freq = data.frecuenciaPago ? frecuenciaMap[data.frecuenciaPago] || 'DIARIO' : 'DIARIO';
+
+            // Calcular plazoMeses a partir de las cuotas y frecuencia
+            let plazoMeses = 1;
+            switch (freq) {
+              case 'DIARIO': plazoMeses = Math.ceil(numCuotas / 30); break;
+              case 'SEMANAL': plazoMeses = Math.ceil(numCuotas / 4); break;
+              case 'QUINCENAL': plazoMeses = Math.ceil(numCuotas / 2); break;
+              case 'MENSUAL': plazoMeses = numCuotas; break;
+            }
+
+            const backendData: any = {
+              clienteId: data.clienteCreditoId,
+              tipoPrestamo: data.creditType || 'prestamo',
+              monto: data.montoPrestamo || 0,
+              tasaInteres: data.tasaInteres || 0,
+              tasaInteresMora: 0,
+              plazoMeses,
+              cantidadCuotas: numCuotas,
+              frecuenciaPago: freq,
+              fechaInicio: data.fechaInicio || new Date().toISOString().split('T')[0],
+              creadoPorId: userId,
+              tipoAmortizacion: data.tipoInteres === 'AMORTIZABLE' ? 'FRANCESA' : 'INTERES_SIMPLE',
+            };
+
+            if (data.fechaPrimerCobro) {
+              backendData.fechaPrimerCobro = data.fechaPrimerCobro;
+            }
+            if (data.articuloId) {
+              backendData.productoId = data.articuloId;
+            }
+            if (data.cuotaInicialArticulo) {
+              backendData.cuotaInicial = data.cuotaInicialArticulo;
+            }
+
+            await prestamosService.crearPrestamo(backendData);
+            showNotification('success', 'El crédito ha sido creado exitosamente', 'Crédito Creado');
+            setShowCrearCreditoModal(false);
+            if (paginaActual === 1) {
+              handleRefresh();
+            } else {
+              setPaginaActual(1);
+            }
+          } catch (error: any) {
+            const msg = error?.response?.data?.message || error?.message || 'No se pudo crear el crédito';
+            showNotification('error', Array.isArray(msg) ? msg.join(', ') : msg, 'Error al Crear Crédito');
+          }
         }}
+      />
+
+      {/* Modal de Confirmación de Eliminación */}
+      <ConfirmModal
+        isOpen={!!prestamoAEliminar}
+        onClose={() => setPrestamoAEliminar(null)}
+        onConfirm={handleEliminarPrestamo}
+        title="Archivar Préstamo"
+        message="¿Está seguro de que desea archivar este préstamo? El préstamo será archivado y podrá ser restaurado desde la sección de Archivados."
+        confirmText="Archivar"
+        cancelText="Cancelar"
+        variant="warning"
       />
     </div>
   );

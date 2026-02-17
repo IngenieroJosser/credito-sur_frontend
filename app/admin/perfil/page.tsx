@@ -71,6 +71,7 @@ const PerfilUsuarioPage = () => {
           correo: perfil.correo || '',
           nombres: perfil.nombres,
           apellidos: perfil.apellidos,
+          nombreUsuario: perfil.nombreUsuario || `${perfil.nombres?.toLowerCase().replace(/\s+/g, '')}${perfil.id?.slice(-4)}`,
           telefono: perfil.telefono || null,
           rol: perfil.rol as any,
           estado: (perfil.estado || 'ACTIVO') as any,

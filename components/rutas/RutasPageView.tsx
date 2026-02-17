@@ -31,6 +31,7 @@ import { routesService } from '@/services/routes-service';
 import { useNotification } from '@/components/providers/NotificationProvider';
 import { usePermission } from '@/hooks/usePermission';
 import { offlineStore } from '@/lib/offline/offlineDb';
+import CrearCreditoModal from '@/components/dashboards/shared/CrearCreditoModal';
 
 interface Ruta {
   id: string;
@@ -85,6 +86,7 @@ export const RutasPageView = ({
   const { showNotification } = useNotification();
   const [showModal, setShowModal] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
+  const [showCrearCreditoModal, setShowCrearCreditoModal] = useState(false)
   const permitido = can('RUTAS_VIEW') || canForPath(rutasBasePath || '/admin/rutas')
 
   const [formData, setFormData] = useState({
@@ -132,7 +134,6 @@ export const RutasPageView = ({
            setRutasList(response.data as unknown as Ruta[]);
         }
       } catch (error) {
-        console.error('Error fetching data:', error);
         // Fallback offline: cargar rutas de IndexedDB
         try {
           const offRutas = await offlineStore.getAll<any>('rutas');
@@ -235,12 +236,10 @@ export const RutasPageView = ({
       try {
         const response = await routesService.getAll({ limit: 100 });
         setRutasList(response.data as unknown as Ruta[]);
-      } catch (e) { console.error('Error refreshing routes:', e); }
+      } catch (e) { /* Error refreshing routes */ }
 
       router.refresh(); // Recargar datos del servidor (como backup)
     } catch (error: any) {
-      console.error('Error saving route:', error);
-      console.error('Error details:', error.response?.data || error.message);
       const errorMessage = error.response?.data?.message || 'No se pudo guardar la ruta';
       showNotification('error', Array.isArray(errorMessage) ? errorMessage.join(', ') : errorMessage, 'Error');
     }
@@ -254,17 +253,16 @@ export const RutasPageView = ({
       try {
          const response = await routesService.getAll({ limit: 100 });
          setRutasList(response.data as unknown as Ruta[]);
-      } catch (e) { console.error(e); }
+      } catch (e) { /* Error loading routes */ }
 
       showNotification('success', 'Estado de la ruta actualizado', 'Éxito');
       router.refresh();
     } catch (error) {
-      console.error('Error toggling route status:', error);
       showNotification('error', 'No se pudo cambiar el estado', 'Error');
     }
   }
-  const handleMoveCliente = (id: string) => { console.log('Mover', id) }
-  const confirmAddCliente = (cliente: ClienteSelection) => { console.log('Add', cliente) }
+  const handleMoveCliente = (id: string) => { /* Mover cliente */ }
+  const confirmAddCliente = (cliente: ClienteSelection) => { /* Agregar cliente */ }
   const [activeTab, setActiveTab] = useState<'info' | 'clientes'>('info')
 
   // PAGINACIÓN
@@ -370,6 +368,15 @@ export const RutasPageView = ({
               >
                 <Plus className="w-4 h-4 text-slate-500 group-hover:text-slate-900 transition-colors" />
                 <span>Nueva Ruta</span>
+              </button>
+            )}
+            {!readOnly && currentUser?.role !== 'COBRADOR' && (
+              <button
+                onClick={() => setShowCrearCreditoModal(true)}
+                className="inline-flex items-center gap-2 px-6 py-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-all duration-200 shadow-sm font-bold text-sm group"
+              >
+                <Plus className="w-4 h-4" />
+                <span>Crear Crédito</span>
               </button>
             )}
           </div>
@@ -765,13 +772,13 @@ export const RutasPageView = ({
                           {ruta.estado === 'ACTIVA' ? (
                             <div className="w-32 space-y-1">
                               <div className="flex justify-between text-xs">
-                                <span className="font-bold text-primary">{((ruta.cobranzaDelDia / ruta.metaDelDia) * 100).toFixed(0)}%</span>
+                                <span className="font-bold text-primary">{ruta.metaDelDia > 0 ? ((ruta.cobranzaDelDia / ruta.metaDelDia) * 100).toFixed(0) : 0}%</span>
                                 <span className="text-slate-500 font-medium">{formatCurrency(ruta.cobranzaDelDia)}</span>
                               </div>
                               <div className="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden border border-slate-200">
                                 <div
                                   className="bg-slate-900 h-1.5 rounded-full"
-                                  style={{ width: `${Math.min((ruta.cobranzaDelDia / ruta.metaDelDia) * 100, 100)}%` }}
+                                  style={{ width: `${ruta.metaDelDia > 0 ? Math.min((ruta.cobranzaDelDia / ruta.metaDelDia) * 100, 100) : 0}%` }}
                                 ></div>
                               </div>
                             </div>
@@ -887,12 +894,12 @@ export const RutasPageView = ({
                       <div className="space-y-2">
                         <div className="flex justify-between items-center">
                           <span className="text-sm font-bold text-slate-900">{formatCurrency(ruta.cobranzaDelDia)}</span>
-                          <span className="text-sm font-bold text-primary">{((ruta.cobranzaDelDia / ruta.metaDelDia) * 100).toFixed(0)}%</span>
+                          <span className="text-sm font-bold text-primary">{ruta.metaDelDia > 0 ? ((ruta.cobranzaDelDia / ruta.metaDelDia) * 100).toFixed(0) : 0}%</span>
                         </div>
                         <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden border border-slate-200">
                           <div
                             className="bg-slate-900 h-2 rounded-full"
-                            style={{ width: `${Math.min((ruta.cobranzaDelDia / ruta.metaDelDia) * 100, 100)}%` }}
+                            style={{ width: `${ruta.metaDelDia > 0 ? Math.min((ruta.cobranzaDelDia / ruta.metaDelDia) * 100, 100) : 0}%` }}
                           ></div>
                         </div>
                         <div className="text-xs text-slate-500">Objetivo: {formatCurrency(ruta.metaDelDia)}</div>
@@ -1327,6 +1334,17 @@ export const RutasPageView = ({
           </div>
         </div>
       )}
+      
+      {/* Modal de Crear Crédito */}
+      <CrearCreditoModal
+        isOpen={showCrearCreditoModal}
+        onClose={() => setShowCrearCreditoModal(false)}
+        onConfirm={(data) => {
+          setShowCrearCreditoModal(false);
+          showNotification('success', 'Crédito creado exitosamente', 'Operación completada');
+          // Crédito creado exitosamente
+        }}
+      />
     </div>
   )
 }
