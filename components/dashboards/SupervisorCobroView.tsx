@@ -184,7 +184,9 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
                     prioridad: 'media',
                     nivelRiesgo: (a.cliente.nivelRiesgo?.toLowerCase() as any) || 'bajo',
                     cobradorId: ruta.cobradorId,
-                    periodoRuta: 'DIA'
+                    periodoRuta: 'DIA',
+                    clienteId: a.cliente.id,
+                    prestamoId: a.cliente.prestamos?.[0]?.id || ''
                  }));
                  setVisitasBase(visitas);
                  setVisitasOrden(visitas.map(v => v.id));
