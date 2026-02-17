@@ -1544,9 +1544,9 @@ const UserManagementPage = () => {
                              <div className="p-2 bg-white rounded-lg border border-slate-200 text-slate-400 group-hover:border-blue-200 group-hover:text-blue-500 transition-colors shadow-sm">
                                 <Mail className="w-4 h-4" />
                              </div>
-                             <div className="overflow-hidden">
+                             <div className="flex-1 min-w-0">
                                  <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wide">Correo Electrónico</div>
-                                 <div className="text-sm font-bold text-slate-700 truncate" title={selectedUser.correo}>{selectedUser.correo}</div>
+                                 <div className="text-sm font-bold text-slate-700 break-words">{selectedUser.correo}</div>
                              </div>
                          </div>
                          <div className="flex items-center gap-3 group">
@@ -1690,13 +1690,13 @@ const UserManagementPage = () => {
                                 <div className="flex items-center gap-2">
                                   <input
                                     type="date"
-                                    className="text-[10px] px-2 py-1 border border-slate-200 rounded-md"
+                                    className="text-[10px] px-2 py-1 border border-slate-200 rounded-md bg-white text-slate-700 font-medium"
                                     value={filtroFechaInicio}
                                     onChange={(e) => setFiltroFechaInicio(e.target.value)}
                                   />
                                   <input
                                     type="date"
-                                    className="text-[10px] px-2 py-1 border border-slate-200 rounded-md"
+                                    className="text-[10px] px-2 py-1 border border-slate-200 rounded-md bg-white text-slate-700 font-medium"
                                     value={filtroFechaFin}
                                     onChange={(e) => setFiltroFechaFin(e.target.value)}
                                   />
@@ -1949,7 +1949,9 @@ const UserManagementPage = () => {
                             </h4>
                           </div>
                           <div className="bg-white p-0">
-                            {detalle.actividadReciente.slice(0, timelineCount).map((item, idx) => (
+                            {detalle.actividadReciente
+                              .slice((actividadPage - 1) * actividadPerPage, actividadPage * actividadPerPage)
+                              .map((item, idx) => (
                               <div key={idx} className="flex items-center gap-4 p-3 border-b border-slate-50 last:border-0 hover:bg-slate-50 transition-colors">
                                 <div className="w-20 text-[10px] font-bold text-slate-500 text-right leading-tight">{item.time}</div>
                                 <div className={cn(
@@ -1986,40 +1988,30 @@ const UserManagementPage = () => {
                                 )}
                               </div>
                             ))}
-                            {detalle.actividadReciente.length > timelineCount && (
-                              <div className="flex justify-center p-3 border-t border-slate-100">
+                          </div>
+                          {detalle.actividadReciente.length >= actividadPerPage && (
+                            <div className="bg-slate-50 px-4 py-3 border-t border-slate-200 flex justify-between items-center">
+                              <span className="text-xs text-slate-500 font-medium">
+                                Mostrando {Math.min((actividadPage - 1) * actividadPerPage + 1, detalle.actividadReciente.length)} - {Math.min(actividadPage * actividadPerPage, detalle.actividadReciente.length)} de {detalle.actividadReciente.length}
+                              </span>
+                              <div className="flex gap-2">
                                 <button
-                                  className="text-xs font-bold text-blue-700 bg-blue-50 px-3 py-1 rounded-md border border-blue-200 hover:bg-blue-100"
-                                  onClick={async () => {
-                                    if (timelineLoading) return;
-                                    setTimelineLoading(true);
-                                    try {
-                                      const nextPage = timelinePage + 1;
-                                      const params = new URLSearchParams();
-                                      params.set('page', `${nextPage}`);
-                                      params.set('limit', `${timelineLimit}`);
-                                      if (filtroFechaInicio) params.set('startDate', new Date(filtroFechaInicio).toISOString());
-                                      if (filtroFechaFin) params.set('endDate', new Date(filtroFechaFin).toISOString());
-                                      const audit = await apiRequest<any[]>('GET', `/audit/user/${selectedUser?.id}?${params.toString()}`);
-                                      const more = (audit || []).map((a: any) => ({
-                                        time: new Date(a.creadoEn).toLocaleString('es-CO', { dateStyle: 'short', timeStyle: 'short' }),
-                                        action: a.accion,
-                                        detail: `${a.entidad} ${a.entidadId || ''}`.trim(),
-                                        type: 'neutral' as const,
-                                      }));
-                                      setDetalle((d) => ({ ...d, actividadReciente: [...d.actividadReciente, ...more] }));
-                                      setTimelinePage(nextPage);
-                                      setTimelineCount(timelineCount + timelineLimit);
-                                    } finally {
-                                      setTimelineLoading(false);
-                                    }
-                                  }}
+                                  onClick={() => setActividadPage(p => Math.max(1, p - 1))}
+                                  disabled={actividadPage === 1}
+                                  className="px-3 py-1 text-xs font-bold rounded-lg border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-slate-700"
                                 >
-                                  Ver más
+                                  <ChevronLeft className="h-3 w-3" />
+                                </button>
+                                <button
+                                  onClick={() => setActividadPage(p => Math.min(Math.ceil(detalle.actividadReciente.length / actividadPerPage), p + 1))}
+                                  disabled={actividadPage >= Math.ceil(detalle.actividadReciente.length / actividadPerPage)}
+                                  className="px-3 py-1 text-xs font-bold rounded-lg border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-slate-700"
+                                >
+                                  <ChevronRight className="h-3 w-3" />
                                 </button>
                               </div>
-                            )}
-                          </div>
+                            </div>
+                          )}
                         </div>
                       </div>
                     )}
