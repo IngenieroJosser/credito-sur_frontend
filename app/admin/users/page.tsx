@@ -279,6 +279,8 @@ const UserManagementPage = () => {
     estado: EstadoUsuario.ACTIVO
   });
 
+  const [showPassword, setShowPassword] = useState(false);
+
   const roles: Role[] = [
     { id: RolUsuario.SUPER_ADMINISTRADOR, nombre: 'SuperAdministrador', label: 'SuperAdministrador', descripcion: 'Acceso total al sistema', color: 'text-violet-600', bgColor: 'bg-violet-50', icon: <Shield className="h-3.5 w-3.5" /> },
     { id: RolUsuario.ADMIN, nombre: 'Administrador', label: 'Administrador', descripcion: 'Gestión operativa y financiera', color: 'text-blue-600', bgColor: 'bg-blue-50', icon: <Briefcase className="h-3.5 w-3.5" /> },
@@ -1257,13 +1259,22 @@ const UserManagementPage = () => {
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Contraseña</label>
-                  <input
-                    type="password"
-                    value={formData.password}
-                    onChange={(e) => setFormData({...formData, password: e.target.value})}
-                    className="w-full px-4 py-3 border border-slate-200 rounded-2xl bg-slate-50 focus:bg-white focus:border-blue-600 focus:ring-2 focus:ring-blue-600/20 transition-all text-sm font-medium text-slate-900 placeholder:text-slate-400"
-                    placeholder="Dejar vacío para no cambiar"
-                  />
+                  <div className="relative">
+                    <input
+                      type={showPassword ? "text" : "password"}
+                      value={formData.password}
+                      onChange={(e) => setFormData({...formData, password: e.target.value})}
+                      className="w-full px-4 py-3 pr-12 border border-slate-200 rounded-2xl bg-slate-50 focus:bg-white focus:border-blue-600 focus:ring-2 focus:ring-blue-600/20 transition-all text-sm font-medium text-slate-900 placeholder:text-slate-400"
+                      placeholder="Dejar vacío para no cambiar"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-600 transition-colors"
+                    >
+                      {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                    </button>
+                  </div>
                 </div>
               </div>
 

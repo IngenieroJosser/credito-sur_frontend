@@ -776,13 +776,13 @@ export const RutasPageView = ({
                           {ruta.estado === 'ACTIVA' ? (
                             <div className="w-32 space-y-1">
                               <div className="flex justify-between text-xs">
-                                <span className="font-bold text-primary">{((ruta.cobranzaDelDia / ruta.metaDelDia) * 100).toFixed(0)}%</span>
+                                <span className="font-bold text-primary">{ruta.metaDelDia > 0 ? ((ruta.cobranzaDelDia / ruta.metaDelDia) * 100).toFixed(0) : 0}%</span>
                                 <span className="text-slate-500 font-medium">{formatCurrency(ruta.cobranzaDelDia)}</span>
                               </div>
                               <div className="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden border border-slate-200">
                                 <div
                                   className="bg-slate-900 h-1.5 rounded-full"
-                                  style={{ width: `${Math.min((ruta.cobranzaDelDia / ruta.metaDelDia) * 100, 100)}%` }}
+                                  style={{ width: `${ruta.metaDelDia > 0 ? Math.min((ruta.cobranzaDelDia / ruta.metaDelDia) * 100, 100) : 0}%` }}
                                 ></div>
                               </div>
                             </div>
@@ -898,12 +898,12 @@ export const RutasPageView = ({
                       <div className="space-y-2">
                         <div className="flex justify-between items-center">
                           <span className="text-sm font-bold text-slate-900">{formatCurrency(ruta.cobranzaDelDia)}</span>
-                          <span className="text-sm font-bold text-primary">{((ruta.cobranzaDelDia / ruta.metaDelDia) * 100).toFixed(0)}%</span>
+                          <span className="text-sm font-bold text-primary">{ruta.metaDelDia > 0 ? ((ruta.cobranzaDelDia / ruta.metaDelDia) * 100).toFixed(0) : 0}%</span>
                         </div>
                         <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden border border-slate-200">
                           <div
                             className="bg-slate-900 h-2 rounded-full"
-                            style={{ width: `${Math.min((ruta.cobranzaDelDia / ruta.metaDelDia) * 100, 100)}%` }}
+                            style={{ width: `${ruta.metaDelDia > 0 ? Math.min((ruta.cobranzaDelDia / ruta.metaDelDia) * 100, 100) : 0}%` }}
                           ></div>
                         </div>
                         <div className="text-xs text-slate-500">Objetivo: {formatCurrency(ruta.metaDelDia)}</div>
