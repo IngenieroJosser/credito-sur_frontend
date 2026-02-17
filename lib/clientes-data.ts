@@ -12,34 +12,47 @@ export async function getClientesData(): Promise<ClienteAdmin[]> {
     const cookieStore = await cookies();
     const token = cookieStore.get('token')?.value;
 
+    // Si no hay token en SSR, retornar vacío (el cliente cargará con el hook)
+    if (!token) {
+      console.log('[SSR] No token found in cookies, returning empty array');
+      return [];
+    }
+
     const apiUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3001';
     
-    // Server-side fetch needs absolute URL
-    const res = await fetch(`${apiUrl}/clients`, {
+    console.log(`[SSR] Fetching clients from: ${apiUrl}/api-credisur/clients`);
+    
+    // Server-side fetch needs absolute URL with the API prefix
+    const res = await fetch(`${apiUrl}/api-credisur/clients`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token || ''}`,
+        'Authorization': `Bearer ${token}`,
       },
       cache: 'no-store', // Always fetch fresh data for admin panel
-      // next: { tags: ['clientes'] } // Optional: for revalidation
     });
+
+    console.log(`[SSR] Response status: ${res.status} ${res.statusText}`);
 
     if (!res.ok) {
       if (res.status === 401) {
-        throw new Error('No autorizado');
+        console.error('[SSR] Unauthorized - token may be invalid');
+        return [];
       }
-      throw new Error(`Error al obtener clientes: ${res.statusText}`);
+      const errorText = await res.text();
+      console.error(`[SSR] API Error: ${res.status} ${res.statusText}`, errorText);
+      return [];
     }
 
     const data = await res.json();
     const clientes = Array.isArray(data) ? data : (data.clientes || []);
+    console.log(`[SSR] Successfully fetched ${clientes.length} clients`);
     return clientes;
     
   } catch (error) {
-    console.error('Error fetching clients:', error);
-    // En caso de error, retornamos array vacío para no romper la UI, 
-    // pero el componente debería manejar el estado vacío.
+    console.error('[SSR] Error fetching clients:', error);
+    console.error('[SSR] Error stack:', error instanceof Error ? error.stack : 'No stack trace');
+    // En caso de error, retornamos array vacío para no romper la UI
     return [];
   }
 }

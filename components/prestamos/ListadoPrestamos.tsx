@@ -849,9 +849,15 @@ const ListadoPrestamosElegante = () => {
               backendData.cuotaInicial = data.cuotaInicialArticulo;
             }
 
-            await prestamosService.crearPrestamo(backendData);
+            const response = await prestamosService.crearPrestamo(backendData);
+            console.log('[CREDITO_CREADO] Respuesta del backend:', response);
+            
             showNotification('success', 'El crédito ha sido creado exitosamente', 'Crédito Creado');
             setShowCrearCreditoModal(false);
+            
+            // Esperar un momento para que la BD se actualice antes de refrescar
+            await new Promise(resolve => setTimeout(resolve, 300));
+            
             if (paginaActual === 1) {
               handleRefresh();
             } else {

@@ -165,9 +165,20 @@ export default function ClientesFeature({ initialClientes, basePath = '/admin/cl
       setIsDeleteModalOpen(false);
       setClientToDelete(null);
       showNotification('success', 'El cliente ha sido archivado exitosamente', 'Cliente Archivado');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Ups, falló la eliminación:', error);
-      showNotification('error', 'No se pudo archivar el cliente. Por favor intente de nuevo.', 'Error');
+      
+      // Si el error es 404 o 500, puede ser un cliente solo offline
+      // En ese caso, eliminarlo del estado local de todos modos
+      if (error?.statusCode === 404 || error?.statusCode === 500) {
+        console.warn('[OFFLINE] Cliente no encontrado en servidor - eliminando solo del cache local');
+        setClientes((prev) => prev.filter((c) => c.id !== clientToDelete.id));
+        setIsDeleteModalOpen(false);
+        setClientToDelete(null);
+        showNotification('warning', 'Cliente eliminado del cache local (no existía en el servidor)', 'Cliente Offline Eliminado');
+      } else {
+        showNotification('error', 'No se pudo archivar el cliente. Por favor intente de nuevo.', 'Error');
+      }
     } finally {
       setIsDeleting(false);
     }

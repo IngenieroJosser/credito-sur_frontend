@@ -634,7 +634,32 @@ const UserManagementPage = () => {
     console.log('[UPDATE] SearchTerm antes de actualizar:', searchTerm);
     
     try {
-      // Actualizar datos básicos
+      console.log('[UPDATE] INICIANDO PROCESO ROBUSTO DE ACTUALIZACIÓN...');
+      
+      // 1. Cambiar contraseña PRIMERO (si se proporcionó)
+      if (formData.password && formData.password.trim() !== '') {
+        const passwordToSet = formData.password.trim();
+        if (passwordToSet.length < 6) {
+           showNotification('error', 'La contraseña debe tener al menos 6 caracteres', 'Error Validación');
+           return;
+        }
+
+        console.log('[UPDATE] Intentando cambiar contraseña...');
+        try {
+            await usuariosService.cambiarContrasena(selectedUser.id, {
+                contrasenaNueva: passwordToSet,
+            });
+            console.log('[UPDATE] Contraseña cambiada exitosamente.');
+            showNotification('success', 'Contraseña actualizada correctamente', 'Seguridad');
+        } catch (e) {
+            console.error('[UPDATE] Error al cambiar contraseña:', e);
+            showNotification('error', 'Falló el cambio de contraseña', 'Error Crítico');
+            throw e; // Detener todo si falla la contraseña
+        }
+      }
+
+      // 2. Actualizar datos personales
+      console.log('[UPDATE] Actualizando datos personales...');
       await usuariosService.actualizar(selectedUser.id, {
         nombreUsuario: formData.nombreUsuario,
         nombres: formData.nombres,
@@ -642,34 +667,20 @@ const UserManagementPage = () => {
         correo: formData.correo,
         telefono: formData.telefono,
         rol: formData.rol,
+        estado: formData.estado, // Agregamos estado explícitamente
       });
 
-      // Si se proporcionó nueva contraseña, cambiarla con endpoint dedicado
-      let passwordUpdated = false;
-      if (formData.password && formData.password.trim() !== '') {
-        console.log('[UPDATE] Actualizando contraseña...');
-        await usuariosService.cambiarContrasena(selectedUser.id, {
-          contrasenaNueva: formData.password.trim(),
-        } as any);
-        passwordUpdated = true;
-        console.log('[UPDATE] Contraseña actualizada correctamente');
-      }
-
-      // Mensaje específico según lo que se actualizó
-      if (passwordUpdated) {
-        showNotification('success', 'Datos del usuario y contraseña actualizados correctamente', 'Usuario Actualizado');
-      } else {
-        showNotification('success', 'Los datos del usuario han sido actualizados', 'Usuario Actualizado');
-      }
+      console.log('[UPDATE] Datos personales actualizados.');
+      showNotification('success', 'Información de usuario actualizada', 'Éxito');
       
-      console.log('[UPDATE] SearchTerm después de actualizar:', searchTerm);
       setIsEditModalOpen(false);
-      console.log('[UPDATE] Modal cerrado, llamando a fetchUsers...');
       fetchUsers();
-      console.log('[UPDATE] SearchTerm después de fetchUsers:', searchTerm);
     } catch (error) {
-      console.error('Error updating user:', error);
-      showNotification('error', 'No se pudo actualizar el usuario', 'Error');
+      console.error('[UPDATE] Error global:', error);
+      // Evitar doble notificación si ya se mostró error de contraseña
+      if (!formData.password || formData.password.trim() === '') {
+         showNotification('error', 'No se pudo actualizar el usuario', 'Error');
+      }
     }
   };
 
@@ -1350,14 +1361,17 @@ const UserManagementPage = () => {
                   />
                 </div>
                 <div>
+                  <div>
                   <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Contraseña</label>
                   <div className="relative">
                     <input
                       type={showPassword ? "text" : "password"}
+                      autoComplete="new-password"
+                      name={`password_field_${Math.random()}`} // Hack para evitar autocompletado agresivo de Chrome
                       value={formData.password}
                       onChange={(e) => setFormData({...formData, password: e.target.value})}
                       className="w-full px-4 py-3 pr-12 border border-slate-200 rounded-2xl bg-slate-50 focus:bg-white focus:border-blue-600 focus:ring-2 focus:ring-blue-600/20 transition-all text-sm font-medium text-slate-900 placeholder:text-slate-400"
-                      placeholder="Ingrese nueva contraseña (opcional)"
+                      placeholder="•••••••• (Dejar vacío para mantener la actual)"
                     />
                     <button
                       type="button"
@@ -1366,6 +1380,10 @@ const UserManagementPage = () => {
                     >
                       {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
                     </button>
+                  </div>
+                  <p className="text-[10px] text-slate-400 mt-1 pl-1">
+                    * Por seguridad, la contraseña actual no se muestra. Escriba una nueva solo si desea cambiarla.
+                  </p>
                   </div>
                                   </div>
               </div>
