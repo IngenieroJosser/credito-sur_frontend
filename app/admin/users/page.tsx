@@ -128,7 +128,8 @@ const UserManagementPage = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterRole, setFilterRole] = useState('all');
   const [filterStatus] = useState('all');
-  // Alternar entre vista de tabla (list) o tarjetas (grid)
+
+    // Alternar entre vista de tabla (list) o tarjetas (grid)
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('list');
   
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
@@ -349,6 +350,9 @@ const UserManagementPage = () => {
   };
 
   const handleOpenEditModal = (user: User) => {
+    console.log('[EDIT_MODAL] Abriendo modal para usuario:', user.id);
+    console.log('[EDIT_MODAL] SearchTerm actual:', searchTerm);
+    
     if (user.rol === RolUsuario.SUPER_ADMINISTRADOR && currentUserRole !== RolUsuario.SUPER_ADMINISTRADOR) {
       return;
     }
@@ -366,6 +370,8 @@ const UserManagementPage = () => {
     });
     setSelectedPermissions(user.permisos);
     setIsEditModalOpen(true);
+    
+    console.log('[EDIT_MODAL] Modal abierto, SearchTerm después:', searchTerm);
   };
 
   const handleOpenDetailModal = (user: User) => {
@@ -623,8 +629,37 @@ const UserManagementPage = () => {
   const handleUpdateUser = async () => {
     if (!selectedUser) return;
     
+    console.log('[UPDATE] Iniciando actualización de usuario:', selectedUser.id);
+    console.log('[UPDATE] FormData antes de actualizar:', JSON.stringify(formData));
+    console.log('[UPDATE] SearchTerm antes de actualizar:', searchTerm);
+    
     try {
-      // Actualizar datos básicos
+      console.log('[UPDATE] INICIANDO PROCESO ROBUSTO DE ACTUALIZACIÓN...');
+      
+      // 1. Cambiar contraseña PRIMERO (si se proporcionó)
+      if (formData.password && formData.password.trim() !== '') {
+        const passwordToSet = formData.password.trim();
+        if (passwordToSet.length < 6) {
+           showNotification('error', 'La contraseña debe tener al menos 6 caracteres', 'Error Validación');
+           return;
+        }
+
+        console.log('[UPDATE] Intentando cambiar contraseña...');
+        try {
+            await usuariosService.cambiarContrasena(selectedUser.id, {
+                contrasenaNueva: passwordToSet,
+            });
+            console.log('[UPDATE] Contraseña cambiada exitosamente.');
+            showNotification('success', 'Contraseña actualizada correctamente', 'Seguridad');
+        } catch (e) {
+            console.error('[UPDATE] Error al cambiar contraseña:', e);
+            showNotification('error', 'Falló el cambio de contraseña', 'Error Crítico');
+            throw e; // Detener todo si falla la contraseña
+        }
+      }
+
+      // 2. Actualizar datos personales
+      console.log('[UPDATE] Actualizando datos personales...');
       await usuariosService.actualizar(selectedUser.id, {
         nombreUsuario: formData.nombreUsuario,
         nombres: formData.nombres,
@@ -632,21 +667,20 @@ const UserManagementPage = () => {
         correo: formData.correo,
         telefono: formData.telefono,
         rol: formData.rol,
+        estado: formData.estado, // Agregamos estado explícitamente
       });
 
-      // Si se proporcionó nueva contraseña, cambiarla con endpoint dedicado
-      if (formData.password && formData.password.trim() !== '') {
-        await usuariosService.cambiarContrasena(selectedUser.id, {
-          contrasenaNueva: formData.password.trim(),
-        } as any);
-      }
-
-      showNotification('success', 'Los datos del usuario han sido actualizados', 'Usuario Actualizado');
+      console.log('[UPDATE] Datos personales actualizados.');
+      showNotification('success', 'Información de usuario actualizada', 'Éxito');
+      
       setIsEditModalOpen(false);
       fetchUsers();
     } catch (error) {
-      console.error('Error updating user:', error);
-      showNotification('error', 'No se pudo actualizar el usuario', 'Error');
+      console.error('[UPDATE] Error global:', error);
+      // Evitar doble notificación si ya se mostró error de contraseña
+      if (!formData.password || formData.password.trim() === '') {
+         showNotification('error', 'No se pudo actualizar el usuario', 'Error');
+      }
     }
   };
 
@@ -792,9 +826,26 @@ const UserManagementPage = () => {
               placeholder="Buscar usuarios..."
               value={searchTerm}
               onChange={(e) => {
-                setSearchTerm(e.target.value);
+                const value = e.target.value;
+                console.log('[SEARCH] Input onChange - valor:', value);
+                console.log('[SEARCH] Input onChange - evento:', e.nativeEvent);
+                console.log('[SEARCH] Input onChange - inputType:', (e.nativeEvent as any)?.inputType);
+                
+                // Prevenir escritura automática de "superadmin"
+                if (value.toLowerCase() === 'superadmin' && (e.nativeEvent as any)?.inputType === undefined) {
+                  console.log('[SEARCH] ⚠️ Escritura automática detectada - bloqueando "superadmin"');
+                  setSearchTerm('');
+                  setCurrentPage(1);
+                  return;
+                }
+                
+                setSearchTerm(value);
                 setCurrentPage(1);
               }}
+              autoComplete="off"
+              autoCorrect="off"
+              autoCapitalize="off"
+              spellCheck="false"
               className="pl-11 pr-4 py-2.5 w-full bg-slate-50/50 focus:bg-white border-slate-200 rounded-2xl text-sm text-slate-900 focus:ring-2 focus:ring-slate-900/10 focus:border-slate-400 transition-all shadow-sm placeholder:text-slate-400 font-medium"
             />
           </div>
@@ -908,7 +959,10 @@ const UserManagementPage = () => {
                       <td className="px-8 py-5 text-right">
                         <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
                           <button
-                            onClick={() => handleOpenDetailModal(user)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleOpenDetailModal(user);
+                            }}
                             className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
                             title="Ver detalle"
                             disabled={user.rol === 'SUPER_ADMINISTRADOR' && currentUserRole !== 'SUPER_ADMINISTRADOR'}
@@ -918,7 +972,10 @@ const UserManagementPage = () => {
                           </button>
                           {puedeEditar && (
                             <button
-                              onClick={() => handleOpenEditModal(user)}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleOpenEditModal(user);
+                              }}
                               className="p-2 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
                               title="Editar"
                               disabled={user.rol === 'SUPER_ADMINISTRADOR' && currentUserRole !== 'SUPER_ADMINISTRADOR'}
@@ -1018,7 +1075,10 @@ const UserManagementPage = () => {
 
                   <div className="flex items-center justify-end gap-2 pt-4 border-t border-slate-100 mt-auto">
                     <button
-                      onClick={() => handleOpenDetailModal(user)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleOpenDetailModal(user);
+                      }}
                       className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
                       title="Ver detalle"
                       disabled={user.rol === 'SUPER_ADMINISTRADOR' && currentUserRole !== 'SUPER_ADMINISTRADOR'}
@@ -1027,7 +1087,10 @@ const UserManagementPage = () => {
                       <Eye className="h-4 w-4" />
                     </button>
                     <button
-                      onClick={() => handleOpenEditModal(user)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleOpenEditModal(user);
+                      }}
                       className="p-2 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
                       title="Editar"
                       disabled={user.rol === 'SUPER_ADMINISTRADOR' && currentUserRole !== 'SUPER_ADMINISTRADOR'}
@@ -1298,14 +1361,17 @@ const UserManagementPage = () => {
                   />
                 </div>
                 <div>
+                  <div>
                   <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Contraseña</label>
                   <div className="relative">
                     <input
                       type={showPassword ? "text" : "password"}
+                      autoComplete="new-password"
+                      name={`password_field_${Math.random()}`} // Hack para evitar autocompletado agresivo de Chrome
                       value={formData.password}
                       onChange={(e) => setFormData({...formData, password: e.target.value})}
                       className="w-full px-4 py-3 pr-12 border border-slate-200 rounded-2xl bg-slate-50 focus:bg-white focus:border-blue-600 focus:ring-2 focus:ring-blue-600/20 transition-all text-sm font-medium text-slate-900 placeholder:text-slate-400"
-                      placeholder="Dejar vacío para no cambiar"
+                      placeholder="•••••••• (Dejar vacío para mantener la actual)"
                     />
                     <button
                       type="button"
@@ -1315,7 +1381,11 @@ const UserManagementPage = () => {
                       {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
                     </button>
                   </div>
-                </div>
+                  <p className="text-[10px] text-slate-400 mt-1 pl-1">
+                    * Por seguridad, la contraseña actual no se muestra. Escriba una nueva solo si desea cambiarla.
+                  </p>
+                  </div>
+                                  </div>
               </div>
 
               <div>

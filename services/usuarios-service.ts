@@ -44,7 +44,7 @@ export interface UpdateUsuarioDto {
 }
 
 export interface ChangePasswordDto {
-  contrasenaActual: string;
+  contrasenaActual?: string;
   contrasenaNueva: string;
 }
 

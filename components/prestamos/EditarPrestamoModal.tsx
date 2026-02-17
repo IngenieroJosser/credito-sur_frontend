@@ -34,6 +34,7 @@ export default function EditarPrestamoModal({ id, onClose, onSuccess }: EditarPr
   const [monto, setMonto] = useState(0);
   const [tasaStr, setTasaStr] = useState('');
   const [cuotasStr, setCuotasStr] = useState('');
+  const [plazoMeses, setPlazoMeses] = useState(0);  // AGREGADO: para calcular interés correcto
   const [frecuencia, setFrecuencia] = useState('MENSUAL');
   const [estado, setEstado] = useState('ACTIVO');
 
@@ -50,10 +51,10 @@ export default function EditarPrestamoModal({ id, onClose, onSuccess }: EditarPr
   const cuotas = Number(cuotasStr) || 0;
   const hasChanges = monto !== originalRef.current.monto || tasa !== originalRef.current.tasa || cuotas !== originalRef.current.cuotas || frecuencia !== originalRef.current.frecuencia || estado !== originalRef.current.estado;
 
-  // Computed preview
-  const totalRecaudar = monto * (1 + tasa / 100);
+  // Computed preview - CORREGIDO: multiplicar por plazoMeses
+  const interesTotal = (monto * tasa * plazoMeses) / 100;
+  const totalRecaudar = monto + interesTotal;
   const cobroPorCuota = cuotas > 0 ? totalRecaudar / cuotas : 0;
-  const interesTotal = totalRecaudar - monto;
 
   useEffect(() => {
     setMounted(true);
@@ -70,16 +71,17 @@ export default function EditarPrestamoModal({ id, onClose, onSuccess }: EditarPr
         const data = await prestamosService.obtenerPrestamoPorId(id);
         const m = Number(data.monto) || 0;
         const t = Number(data.tasaInteres) || 0;
-        const p = Number(data.plazoMeses) || 0;
+        const c = Number(data.cantidadCuotas) || 0;  // CORREGIDO: Leer cantidadCuotas, no plazoMeses
+        const p = Number(data.plazoMeses) || 0;  // Guardamos plazoMeses para usar en el cálculo
         const f = data.frecuenciaPago || 'MENSUAL';
         const e = data.estado || 'ACTIVO';
-        setMonto(m); setTasaStr(String(t)); setCuotasStr(String(p));
+        setMonto(m); setTasaStr(String(t)); setCuotasStr(String(c)); setPlazoMeses(p);  // CORREGIDO: Guardar ambos valores
         setFrecuencia(f); setEstado(e);
         setNumeroPrestamo(data.numeroPrestamo || id);
         setClienteNombre(data.cliente ? `${data.cliente.nombres || ''} ${data.cliente.apellidos || ''}`.trim() : '');
         setClienteDni(data.cliente?.dni || '');
         setClienteTelefono(data.cliente?.telefono || '');
-        originalRef.current = { monto: m, tasa: t, cuotas: p, frecuencia: f, estado: e };
+        originalRef.current = { monto: m, tasa: t, cuotas: c, frecuencia: f, estado: e };
       } catch (err) {
         console.error('Error cargando préstamo para editar:', err);
         // Fallback offline
@@ -88,14 +90,14 @@ export default function EditarPrestamoModal({ id, onClose, onSuccess }: EditarPr
           if (offP) {
             const m = Number(offP.monto) || 0;
             const t = Number(offP.tasaInteres) || 0;
-            const p = Number(offP.plazoMeses) || 0;
+            const c = Number(offP.cantidadCuotas) || 0;  // CORREGIDO: Leer cantidadCuotas
             const f = offP.frecuenciaPago || 'MENSUAL';
             const e = offP.estado || 'ACTIVO';
-            setMonto(m); setTasaStr(String(t)); setCuotasStr(String(p));
+            setMonto(m); setTasaStr(String(t)); setCuotasStr(String(c));  // CORREGIDO: Usar c
             setFrecuencia(f); setEstado(e);
             setNumeroPrestamo(offP.numeroPrestamo || id);
             setClienteNombre(offP.clienteNombre || '');
-            originalRef.current = { monto: m, tasa: t, cuotas: p, frecuencia: f, estado: e };
+            originalRef.current = { monto: m, tasa: t, cuotas: c, frecuencia: f, estado: e };
           } else {
             showNotification('error', 'No se pudo cargar el préstamo', 'Error');
           }
@@ -292,7 +294,7 @@ export default function EditarPrestamoModal({ id, onClose, onSuccess }: EditarPr
                           className="w-full bg-white border border-blue-200 text-slate-900 rounded-md px-2 py-1.5 text-sm font-black outline-none focus:ring-1 focus:ring-blue-400"
                         />
                       ) : (
-                        <p className="text-base font-black text-slate-900 leading-none">{cuotas} <span className="text-[9px] font-black text-slate-500">MESES</span></p>
+                        <p className="text-base font-black text-slate-900 leading-none">{cuotas} <span className="text-[9px] font-black text-slate-500">CUOTAS</span></p>
                       )}
                     </div>
                     <div>

@@ -38,7 +38,7 @@ export async function getRutaDetalle(id: string): Promise<RutaDetalleMock | null
     }
     const apiUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3001';
 
-    const res = await fetch(`${apiUrl}/routes/${id}`, {
+    const res = await fetch(`${apiUrl}/api-credisur/routes/${id}`, {
       headers: {
         'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json',
@@ -93,7 +93,7 @@ export async function getRutasList(): Promise<Ruta[]> {
     const apiUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3001';
 
     // Fetch routes with a safer limit to avoid timeouts
-    const res = await fetch(`${apiUrl}/routes?limit=20`, { 
+    const res = await fetch(`${apiUrl}/api-credisur/routes?limit=20`, { 
       headers: {
         'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json',
