@@ -1755,7 +1755,7 @@ const UserManagementPage = () => {
                                     </div>
                                 ))}
                             </div>
-                            {detalle.actividadReciente.length > actividadPerPage && (
+                            {detalle.actividadReciente.length >= actividadPerPage && (
                               <div className="bg-slate-50 px-4 py-3 border-t border-slate-200 flex justify-between items-center">
                                 <span className="text-xs text-slate-500 font-medium">
                                   Mostrando {Math.min((actividadPage - 1) * actividadPerPage + 1, detalle.actividadReciente.length)} - {Math.min(actividadPage * actividadPerPage, detalle.actividadReciente.length)} de {detalle.actividadReciente.length}
