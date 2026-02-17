@@ -260,6 +260,7 @@ const UserManagementPage = () => {
   }, [isCreateModalOpen, isEditModalOpen, isPermissionsModalOpen, isDeleteModalOpen]);
 
   interface UserFormData {
+    nombreUsuario: string;
     nombres: string;
     apellidos: string;
     correo: string;
@@ -270,6 +271,7 @@ const UserManagementPage = () => {
   }
 
   const [formData, setFormData] = useState<UserFormData>({
+    nombreUsuario: '',
     nombres: '',
     apellidos: '',
     correo: '',
@@ -328,6 +330,7 @@ const UserManagementPage = () => {
 
   const handleOpenCreateModal = () => {
     setFormData({
+      nombreUsuario: '',
       nombres: '',
       apellidos: '',
       correo: '',
@@ -347,6 +350,7 @@ const UserManagementPage = () => {
 
     setSelectedUser(user);
     setFormData({
+      nombreUsuario: (user as any).nombreUsuario || '',
       nombres: user.nombres,
       apellidos: user.apellidos,
       correo: user.correo,
@@ -569,8 +573,13 @@ const UserManagementPage = () => {
     try {
       const { password, ...userData } = formData;
       // Validar campos mínimos
-      if (!formData.nombres || !formData.apellidos || !formData.correo || !formData.password) {
+      if (!formData.nombreUsuario || !formData.nombres || !formData.apellidos || !formData.correo || !formData.password) {
         showNotification('error', 'Por favor complete todos los campos obligatorios', 'Campos Faltantes');
+        return;
+      }
+
+      if (formData.nombreUsuario.length < 3) {
+        showNotification('error', 'El nombre de usuario debe tener al menos 3 caracteres', 'Validación');
         return;
       }
 
@@ -612,6 +621,7 @@ const UserManagementPage = () => {
     try {
       // Actualizar datos básicos
       await usuariosService.actualizar(selectedUser.id, {
+        nombreUsuario: formData.nombreUsuario,
         nombres: formData.nombres,
         apellidos: formData.apellidos,
         correo: formData.correo,
@@ -1101,6 +1111,19 @@ const UserManagementPage = () => {
               </div>
             </div>
             <div className="space-y-5">
+              <div>
+                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Nombre de Usuario</label>
+                <input
+                  type="text"
+                  value={formData.nombreUsuario}
+                  onChange={(e) => setFormData({...formData, nombreUsuario: e.target.value.toLowerCase().replace(/[^a-z0-9]/g, '')})}
+                  className="w-full px-4 py-3 border border-slate-200 rounded-2xl bg-slate-50 focus:bg-white focus:border-blue-600 focus:ring-2 focus:ring-blue-600/20 transition-all text-sm font-medium text-slate-900 placeholder:text-slate-400"
+                  placeholder="Ej. jperez (solo letras y números, sin espacios)"
+                  maxLength={50}
+                />
+                <p className="text-xs text-slate-500 mt-1">Se usará para iniciar sesión. Solo letras minúsculas y números.</p>
+              </div>
+              
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Nombres</label>
@@ -1216,6 +1239,18 @@ const UserManagementPage = () => {
               </div>
             </div>
             <div className="space-y-5">
+              <div>
+                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Nombre de Usuario</label>
+                <input
+                  type="text"
+                  value={formData.nombreUsuario}
+                  onChange={(e) => setFormData({...formData, nombreUsuario: e.target.value.toLowerCase().replace(/[^a-z0-9]/g, '')})}
+                  className="w-full px-4 py-3 border border-slate-200 rounded-2xl bg-slate-50 focus:bg-white focus:border-blue-600 focus:ring-2 focus:ring-blue-600/20 transition-all text-sm font-medium text-slate-900 placeholder:text-slate-400"
+                  maxLength={50}
+                />
+                <p className="text-xs text-slate-500 mt-1">Se usará para iniciar sesión. Solo letras minúsculas y números.</p>
+              </div>
+              
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Nombres</label>
