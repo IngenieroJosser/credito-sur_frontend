@@ -55,9 +55,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className={`${sora.variable} antialiased`}>
         <NotificationProvider>
           {children}
+          <OfflineIndicatorWrapper />
         </NotificationProvider>
         <ServiceWorkerRegister />
-        <OfflineIndicatorWrapper />
       </body>
     </html>
   );
