@@ -102,7 +102,7 @@ export const clientesService = {
     const query = params.toString();
     const endpoint = query ? `/clients?${query}` : '/clients';
     
-    const response = await apiRequest<any>('GET', endpoint);
+    const response = await apiRequest<any>('GET', endpoint, undefined, { cacheTTL: 0 });
     return Array.isArray(response) ? response : (response.clientes || []);
   },
 

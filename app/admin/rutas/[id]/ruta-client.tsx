@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useMemo, useEffect } from 'react'
 import {
   CheckCircle2,
   XCircle,
@@ -16,7 +16,16 @@ import {
   Sparkles,
   MapPin,
   AlertCircle,
-  UserPlus
+  UserPlus,
+  Plus,
+  User,
+  Phone,
+  CreditCard,
+  Fingerprint,
+  CalendarDays,
+  Star,
+  History,
+  Loader2
 } from 'lucide-react'
 
 import { formatCurrency } from '@/lib/utils'
@@ -24,6 +33,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { RutaDetalleMock } from '@/lib/rutas-data'
 import { routesService } from '@/services/routes-service'
+import { clientesService } from '@/services/clientes-service'
 import { useNotification } from '@/components/providers/NotificationProvider'
 
 import PagoModal from '@/components/cobranza/PagoModal'
@@ -68,28 +78,69 @@ const RutaClient = ({ initialRuta }: RutaClientProps) => {
   const [showCrearCreditoModal, setShowCrearCreditoModal] = useState(false)
   const [defaultClienteId, setDefaultClienteId] = useState<string | null>(null)
 
-  // Map asignaciones from backend to visits UI model
+  // Map ALL asignaciones from backend to visits UI model
   const [visitasCobrador, setVisitasCobrador] = useState<VisitaRuta[]>(() => {
       const asignaciones = initialRuta?.asignaciones || initialRuta?.asignacionesRuta;
       if (!asignaciones || !Array.isArray(asignaciones)) return [];
       
-      return (asignaciones as any[]).map((asig: any, index: number) => ({
-          id: asig.id || `temp-${index}`,
-          cliente: `${asig.cliente?.nombres || ''} ${asig.cliente?.apellidos || ''}`.trim() || 'Cliente Desconocido',
-          direccion: asig.cliente?.direccion || 'Sin dirección registrada',
-          telefono: asig.cliente?.telefono || '',
-          horaSugerida: asig.horaSugerida || '08:00 AM',
-          montoCuota: asig.cliente?.prestamos?.[0]?.cuota || 0,
-          saldoTotal: asig.cliente?.prestamos?.[0]?.saldoPendiente || 0,
-          estado: asig.estado?.toLowerCase() || 'pendiente',
-          proximaVisita: new Date().toISOString().split('T')[0],
-          ordenVisita: asig.ordenVisita || index + 1,
-          prioridad: (asig.prioridad?.toLowerCase() as any) || 'media',
-          cobradorId: initialRuta.cobradorId || '',
-          periodoRuta: (initialRuta.frecuenciaVisita === 'DIARIO' ? 'DIA' : 'SEMANA') as any,
-          nivelRiesgo: (asig.cliente?.nivelRiesgo?.toLowerCase() as any) || 'leve'
-      }));
+      return (asignaciones as any[]).map((asig: any, index: number) => {
+          const prestamo = asig.cliente?.prestamos?.[0];
+          const proximaCuota = prestamo?.cuotas?.[0];
+
+          return {
+            id: asig.id || `temp-${index}`,
+            cliente: `${asig.cliente?.nombres || ''} ${asig.cliente?.apellidos || ''}`.trim() || 'Cliente Desconocido',
+            direccion: asig.cliente?.direccion || 'Sin dirección registrada',
+            telefono: asig.cliente?.telefono || '',
+            horaSugerida: asig.horaSugerida || '08:00 AM',
+            montoCuota: Number(proximaCuota?.monto || 0),
+            saldoTotal: Number(prestamo?.saldoPendiente || 0),
+            estado: asig.estado?.toLowerCase() || 'pendiente',
+            proximaVisita: proximaCuota?.fechaVencimiento || new Date().toISOString().split('T')[0],
+            ordenVisita: asig.ordenVisita || index + 1,
+            prioridad: (asig.prioridad?.toLowerCase() as any) || 'media',
+            cobradorId: initialRuta.cobradorId || '',
+            periodoRuta: (() => {
+              const f = prestamo?.frecuenciaPago || 'DIARIO';
+              if (f === 'DIARIO') return 'DIA';
+              if (f === 'SEMANAL') return 'SEMANA';
+              if (f === 'QUINCENAL') return 'QUINCENA';
+              if (f === 'MENSUAL') return 'MES';
+              return 'DIA';
+            })() as any,
+            nivelRiesgo: (() => {
+              const r = asig.cliente?.nivelRiesgo || 'VERDE';
+              if (r === 'VERDE') return 'bajo';
+              if (r === 'AMARILLO') return 'leve';
+              if (r === 'ROJO') return 'moderado';
+              if (r === 'LISTA_NEGRA') return 'critico';
+              return 'bajo';
+            })() as any,
+            clienteId: asig.cliente?.id || '',
+            prestamoId: prestamo?.id || ''
+          };
+      });
   })
+
+  // Agrupar visitas por frecuencia de pago
+  const { visitasAgrupadas, totalMostradas } = useMemo(() => {
+    const hoy = new Date();
+    hoy.setHours(0, 0, 0, 0);
+
+    let filtradas = visitasCobrador.filter(v => 
+      v.cliente.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      v.direccion.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+
+    const agrupar = {
+      MES: filtradas.filter(v => v.periodoRuta === 'MES'),
+      QUINCENA: filtradas.filter(v => v.periodoRuta === 'QUINCENA'),
+      SEMANA: filtradas.filter(v => v.periodoRuta === 'SEMANA'),
+      DIA: filtradas.filter(v => v.periodoRuta === 'DIA'),
+    }
+
+    return { visitasAgrupadas: agrupar, totalMostradas: filtradas.length };
+  }, [visitasCobrador, searchQuery]);
 
   const [visitaSeleccionada, setVisitaSeleccionada] = useState<string | null>(null)
   const [accionPendiente, setAccionPendiente] = useState<'PAGO' | 'ABONO' | 'REPROGRAMAR' | 'ESTADO_CUENTA' | null>(null)
@@ -231,19 +282,11 @@ const RutaClient = ({ initialRuta }: RutaClientProps) => {
                   />
                 </div>
                 <div className="flex gap-2">
-                  <button
-                    onClick={() => setShowFilters((v) => !v)}
-                    className="px-4 py-2 border rounded-xl flex items-center gap-2 font-medium bg-white text-slate-600 border-slate-200 hover:bg-slate-50"
-                  >
-                    <Filter className="h-4 w-4" />
-                    <span>Filtros</span>
-                  </button>
-                 
                   {!rutaCompletada && (
                     <button 
                       type="button"
                       onClick={handleActivarRuta}
-                      className="px-4 py-2 border rounded-xl flex items-center gap-2 font-bold shadow-sm bg-white text-slate-700 border-slate-200 hover:bg-slate-50 transition-colors"
+                      className="px-4 py-3 border rounded-xl flex items-center gap-2 font-bold shadow-sm bg-white text-slate-700 border-slate-200 hover:bg-slate-50 transition-colors"
                     >
                       <CheckCircle2 className="h-4 w-4" />
                       <span className="hidden md:inline">Activar Ruta</span>
@@ -251,38 +294,8 @@ const RutaClient = ({ initialRuta }: RutaClientProps) => {
                   )}
                 </div>
               </div>
-
-              {/* ACTION BUTTONS - Standardized */}
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 pt-2 border-t border-slate-100">
-                <button
-                   onClick={() => { setAccionPendiente('PAGO'); setShowClienteSelector(true); }}
-                   className="px-4 py-3 rounded-xl text-sm font-bold shadow-sm bg-[#08557f] text-white hover:bg-[#063a58] flex items-center justify-center gap-2 active:scale-[0.98] transition-all"
-                >
-                  <DollarSign className="h-4 w-4" />
-                  Registrar Pago
-                </button>
-                <button
-                   onClick={() => { setAccionPendiente('ABONO'); setShowClienteSelector(true); }}
-                   className="px-4 py-3 rounded-xl text-sm font-bold shadow-sm bg-emerald-600 text-white hover:bg-emerald-700 flex items-center justify-center gap-2 active:scale-[0.98] transition-all"
-                >
-                  <Wallet className="h-4 w-4" />
-                  Registrar Abono
-                </button>
-                <button
-                   onClick={() => { setAccionPendiente('ESTADO_CUENTA'); setShowClienteSelector(true); }} 
-                   className="px-4 py-3 rounded-xl text-sm font-bold shadow-sm bg-white text-slate-700 border border-slate-200 hover:bg-slate-50 flex items-center justify-center gap-2 active:scale-[0.98] transition-all"
-                >
-                  <FileTextIcon className="h-4 w-4 text-slate-400" />
-                  Estado de Cuenta
-                </button>
-                <button
-                   onClick={() => { setAccionPendiente('REPROGRAMAR'); setShowClienteSelector(true); }}
-                   className="px-4 py-3 rounded-xl text-sm font-bold shadow-sm bg-white text-slate-700 border border-slate-200 hover:bg-slate-50 flex items-center justify-center gap-2 active:scale-[0.98] transition-all"
-                >
-                  <Calendar className="h-4 w-4 text-slate-400" />
-                  Reprogramar
-                </button>
-                {(currentUser?.rol === 'SUPER_ADMINISTRADOR' || currentUser?.rol === 'ADMIN') && (
+              {(currentUser?.rol === 'SUPER_ADMINISTRADOR' || currentUser?.rol === 'ADMIN') && (
+                <div className="flex flex-col md:flex-row items-center gap-3 pt-2 border-t border-slate-100">
                   <button
                     onClick={() => setShowNewClientModal(true)}
                     className="px-4 py-3 rounded-xl text-sm font-bold shadow-sm bg-white text-slate-700 border border-slate-200 hover:bg-slate-50 flex items-center justify-center gap-2 active:scale-[0.98] transition-all"
@@ -290,63 +303,126 @@ const RutaClient = ({ initialRuta }: RutaClientProps) => {
                     <UserPlus className="h-4 w-4 text-slate-400" />
                     Crear Cliente
                   </button>
-                )}
-                {(currentUser?.rol === 'SUPER_ADMINISTRADOR' || currentUser?.rol === 'ADMIN') && (
-                  <span className="text-[11px] font-bold text-slate-500 self-center">
+                  <span className="text-[11px] font-bold text-slate-500">
                     Si creas un crédito, se asignará a esta ruta
                   </span>
-                )}
-            </div>
+                </div>
+              )}
         </div>
         
          {/* Lista de visitas ESTÁTICA */}
-         <div>
-              <div className="flex flex-col gap-4 mb-4">
-                <div className="flex items-center justify-between">
-                  <h3 className="font-bold text-slate-900 text-lg">Visitas del Día</h3>
+         <div className="space-y-6">
+              <div className="flex flex-col gap-6">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 pb-4">
+                    <div className="flex items-center gap-3">
+                        <h3 className="font-bold text-slate-900 text-xl flex items-center gap-3">
+                            Visitas de la Ruta
+                            <span className="bg-blue-600 text-white text-xs px-2.5 py-1 rounded-full shadow-sm">{totalMostradas}</span>
+                        </h3>
+                    </div>
                 </div>
-                 {/* Leyenda de Riesgos Actualizada Semánticamente */}
-                 <div className="flex flex-wrap gap-3 text-xs font-bold text-slate-600 bg-white p-3 rounded-xl border border-slate-200 shadow-sm">
-                    <div className="flex items-center gap-2 px-2 py-1 bg-emerald-50 rounded-lg border border-emerald-500">
-                        <div className="w-2.5 h-2.5 rounded-full bg-emerald-500"></div> 
-                        <span>Peligro Mínimo</span>
+
+                {/* Leyenda de Riesgos Simplificada */}
+                <div className="flex flex-wrap gap-2 text-[10px] font-black text-slate-600 bg-white p-3 rounded-xl border border-slate-200 shadow-sm uppercase tracking-tighter">
+                    <div className="flex items-center gap-1.5 px-2 py-1 bg-emerald-50 rounded-lg border border-emerald-500/20">
+                        <div className="w-2 h-2 rounded-full bg-emerald-500"></div> 
+                        <span>Mínimo</span>
                     </div>
-                    <div className="flex items-center gap-2 px-2 py-1 bg-blue-50 rounded-lg border border-blue-500">
-                        <div className="w-2.5 h-2.5 rounded-full bg-blue-500"></div> 
-                        <span>Leve Retraso</span>
+                    <div className="flex items-center gap-1.5 px-2 py-1 bg-blue-50 rounded-lg border border-blue-500/20">
+                        <div className="w-2 h-2 rounded-full bg-blue-500"></div> 
+                        <span>Leve</span>
                     </div>
-                    <div className="flex items-center gap-2 px-2 py-1 bg-yellow-50 rounded-lg border border-yellow-500">
-                        <div className="w-2.5 h-2.5 rounded-full bg-yellow-500"></div> 
+                    <div className="flex items-center gap-1.5 px-2 py-1 bg-yellow-50 rounded-lg border border-yellow-500/20">
+                        <div className="w-2 h-2 rounded-full bg-yellow-500"></div> 
                         <span>Precaución</span>
                     </div>
-                    <div className="flex items-center gap-2 px-2 py-1 bg-amber-50 rounded-lg border border-amber-500">
-                        <div className="w-2.5 h-2.5 rounded-full bg-amber-500"></div> 
-                        <span>Riesgo Moderado</span>
+                    <div className="flex items-center gap-1.5 px-2 py-1 bg-amber-50 rounded-lg border border-amber-500/20">
+                        <div className="w-2 h-2 rounded-full bg-amber-500"></div> 
+                        <span>Moderado</span>
                     </div>
-                    <div className="flex items-center gap-2 px-2 py-1 bg-rose-50 rounded-lg border border-rose-500">
-                        <div className="w-2.5 h-2.5 rounded-full bg-rose-500"></div> 
-                        <span>Alto Riesgo</span>
+                    <div className="flex items-center gap-1.5 px-2 py-1 bg-rose-50 rounded-lg border border-rose-500/20">
+                        <div className="w-2 h-2 rounded-full bg-rose-500"></div> 
+                        <span>Crítico</span>
                     </div>
-                 </div>
+                </div>
               </div>
 
-              <div className="space-y-6">
-                 <div className="space-y-3">
-                      {visitasCobrador.map((visita) => (
-                        <StaticVisitaItem
-                          key={visita.id}
-                          visita={visita}
-                          allowClick={false}
-                          isSelected={visitaSeleccionada === visita.id}
-                          onSelect={(id: string) => setVisitaSeleccionada(id === visitaSeleccionada ? null : id)}
-                          onVerCliente={handleAbrirClienteInfo}
-                          getEstadoClasses={getEstadoClasses}
-                          getPrioridadColor={getPrioridadColor}
-                        />
-                      ))}
-                 </div>
+              {/* LISTA DE VISITAS AGRUPADA POR FRECUENCIA */}
+              <div className="space-y-10">
+                {Object.entries({
+                    MES: 'Mensual',
+                    QUINCENA: 'Quincenal',
+                    SEMANA: 'Semanal',
+                    DIA: 'Diario'
+                }).map(([key, label]) => {
+                    const visitas = visitasAgrupadas[key as keyof typeof visitasAgrupadas];
+                    if (visitas.length === 0) return null;
+                    
+                    return (
+                        <div key={key} className="space-y-4">
+                            <div className="flex items-center gap-4">
+                                <div className="h-px flex-1 bg-slate-200"></div>
+                                <span className="text-[11px] font-black text-[#08557f] uppercase tracking-[0.25em] bg-blue-50/50 px-4 py-1.5 rounded-full border border-blue-100 shadow-sm">
+                                    {label}
+                                </span>
+                                <div className="h-px flex-1 bg-slate-200"></div>
+                            </div>
+
+                            <div className="space-y-4">
+                                {visitas.map((visita) => (
+                                    <StaticVisitaItem
+                                        key={visita.id}
+                                        visita={visita}
+                                        allowClick={false}
+                                        onVerCliente={handleAbrirClienteInfo}
+                                        getEstadoClasses={getEstadoClasses}
+                                        getPrioridadColor={getPrioridadColor}
+                                    >
+                                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1">
+                                            <button
+                                                onClick={(e) => { e.stopPropagation(); handleAbrirPago(visita); }}
+                                                className="flex flex-col items-center justify-center p-2 rounded-xl bg-blue-600 text-white hover:bg-blue-700 transition-all shadow-sm active:scale-95"
+                                            >
+                                                <DollarSign className="h-4 w-4 mb-1" />
+                                                <span className="text-[9px] font-bold uppercase">Pago</span>
+                                            </button>
+                                            <button
+                                                onClick={(e) => { e.stopPropagation(); handleAbrirAbono(visita); }}
+                                                className="flex flex-col items-center justify-center p-2 rounded-xl bg-emerald-600 text-white hover:bg-emerald-700 transition-all shadow-sm active:scale-95"
+                                            >
+                                                <Wallet className="h-4 w-4 mb-1" />
+                                                <span className="text-[9px] font-bold uppercase">Abono</span>
+                                            </button>
+                                            <button
+                                                onClick={(e) => { e.stopPropagation(); handleAbrirEstadoCuenta(visita); }}
+                                                className="flex flex-col items-center justify-center p-2 rounded-xl bg-white text-slate-700 border border-slate-200 hover:bg-slate-50 transition-all shadow-sm active:scale-95"
+                                            >
+                                                <FileTextIcon className="h-4 w-4 mb-1 text-slate-400" />
+                                                <span className="text-[9px] font-bold uppercase">Estado</span>
+                                            </button>
+                                            <button
+                                                onClick={(e) => { e.stopPropagation(); setVisitaReprogramar(visita); }}
+                                                className="flex flex-col items-center justify-center p-2 rounded-xl bg-white text-slate-700 border border-slate-200 hover:bg-slate-50 transition-all shadow-sm active:scale-95"
+                                            >
+                                                <Calendar className="h-4 w-4 mb-1 text-slate-400" />
+                                                <span className="text-[9px] font-bold uppercase">Repro.</span>
+                                            </button>
+                                        </div>
+                                    </StaticVisitaItem>
+                                ))}
+                            </div>
+                        </div>
+                    )
+                })}
+
+                {totalMostradas === 0 && (
+                    <div className="text-center py-20 bg-slate-50 rounded-[2rem] border-2 border-dashed border-slate-200 text-slate-400">
+                        <Search className="h-10 w-10 mx-auto mb-3 opacity-20" />
+                        <p className="font-medium">No se encontraron visitas para mostrar en este modo</p>
+                    </div>
+                )}
               </div>
-         </div>
+          </div>
       </div>
 
       {/* Modales (Gasto, Pago, etc...) */}
@@ -471,14 +547,14 @@ const RutaClient = ({ initialRuta }: RutaClientProps) => {
                 if (initialRuta?.id && initialRuta?.cobradorId) {
                   await routesService.assignClient(initialRuta.id, data.clienteCreditoId, initialRuta.cobradorId)
                 }
-                showNotification('success', 'Cr\u00e9dito creado y cliente asignado a la ruta', '\u00c9xito')
+                showNotification('success', 'Crédito creado y cliente asignado a la ruta', 'Éxito')
                 setShowCrearCreditoModal(false)
               } else {
-                showNotification('warning', 'Selecciona "Pr\u00e9stamo" y un cliente v\u00e1lido', 'Aviso')
+                showNotification('warning', 'Selecciona "Préstamo" y un cliente válido', 'Aviso')
               }
             } catch (e) {
-              console.error('Error creando cr\u00e9dito/asignando ruta', e)
-              showNotification('error', 'Ocurri\u00f3 un error al crear el cr\u00e9dito', 'Error')
+              console.error('Error creando crédito/asignando ruta', e)
+              showNotification('error', 'Ocurrió un error al crear el crédito', 'Error')
             }
           }}
         />
@@ -487,61 +563,177 @@ const RutaClient = ({ initialRuta }: RutaClientProps) => {
   )
 }
 
+/**
+ * Formatea una fecha UTC para evitar saltos de día por zona horaria
+ */
+function formatDateUTC(dateStr: string) {
+  if (!dateStr) return '---'
+  const date = new Date(dateStr)
+  const day = date.getUTCDate()
+  const monthNames = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"]
+  const month = monthNames[date.getUTCMonth()]
+  const year = date.getUTCFullYear()
+  return `${day} de ${month} de ${year}`
+}
+
 function ClienteDetalleModal({ visita, onClose }: { visita: VisitaRuta; onClose: () => void }) {
+  const [loading, setLoading] = useState(true)
+  const [clienteCompleto, setClienteCompleto] = useState<any>(null)
+
+  useEffect(() => {
+    async function loadInfo() {
+      try {
+        setLoading(true)
+        if (visita.clienteId) {
+          const res = await clientesService.obtenerPorId(visita.clienteId)
+          setClienteCompleto(res)
+        }
+      } catch (e) {
+        console.error("Error al cargar detalle del cliente", e)
+      } finally {
+        setLoading(false)
+      }
+    }
+    loadInfo()
+  }, [visita.clienteId])
+
+  const r = visita.nivelRiesgo;
+  const riesgoColor = 
+    r === 'bajo' ? 'text-emerald-600 bg-emerald-50' :
+    r === 'leve' ? 'text-blue-600 bg-blue-50' :
+    r === 'moderado' ? 'text-orange-600 bg-orange-50' :
+    r === 'critico' ? 'text-red-600 bg-red-50' : 'text-slate-400 bg-slate-50';
+
+  const riesgoLabel = 
+    r === 'bajo' ? 'Peligro Mínimo' :
+    r === 'leve' ? 'Leve Retraso' :
+    r === 'moderado' ? 'Riesgo Moderado' :
+    r === 'critico' ? 'Alto Riesgo' : 'Riesgo Desconocido';
+
+  // Contar préstamos activos (no pagados ni cancelados)
+  const prestamosActivosCount = useMemo(() => {
+    if (!clienteCompleto?.prestamos) return 0;
+    return clienteCompleto.prestamos.filter((p: any) => 
+      p.estado !== 'PAGADO' && p.estado !== 'CANCELADO' && p.estado !== 'RECHAZADO'
+    ).length;
+  }, [clienteCompleto]);
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-sm overflow-hidden animate-in zoom-in-95 duration-200 border border-slate-100">
+    <div 
+      className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md animate-in fade-in duration-300"
+      onClick={onClose}
+    >
+      <div 
+        className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-sm overflow-hidden animate-in zoom-in-95 duration-300 border border-slate-100 flex flex-col max-h-[90vh]"
+        onClick={(e) => e.stopPropagation()}
+      >
         
-        <div className="px-6 pt-6 flex justify-between items-center bg-white">
-          <h3 className="font-extrabold text-2xl text-slate-900">Cliente</h3>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 transition-colors p-2 hover:bg-slate-50 rounded-full">
-            <XCircle className="h-6 w-6" />
+        {/* Header Compacto */}
+        <div className="px-8 pt-8 pb-4 flex justify-between items-center">
+          <div>
+            <h3 className="font-black text-2xl text-slate-900 tracking-tight">Expediente</h3>
+            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em]">Detalle Administrativo</p>
+          </div>
+          <button onClick={onClose} className="p-2 bg-slate-50 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-full transition-all group">
+            <XCircle className="h-7 w-7 group-active:scale-90" />
           </button>
         </div>
         
-        <div className="p-6 space-y-6 max-h-[80vh] overflow-y-auto">
-           {/* Perfil Card */}
-           <div className="bg-white p-4 rounded-3xl border border-slate-100 shadow-sm flex items-center gap-4 relative overflow-hidden">
-             <div className="absolute top-0 right-0 w-24 h-24 bg-slate-50 rounded-bl-[4rem] -mr-4 -mt-4 z-0"></div>
-             <div className="w-16 h-16 bg-white rounded-2xl border-2 border-slate-100 flex items-center justify-center text-slate-300 z-10 shadow-sm">
-                <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                </svg>
+        <div className="px-8 pb-8 space-y-6 overflow-y-auto custom-scrollbar">
+           {loading ? (
+             <div className="py-20 flex flex-col items-center justify-center gap-4">
+                <Loader2 className="w-10 h-10 text-[#08557f] animate-spin" />
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Sincronizando...</p>
              </div>
-             <div className="z-10">
-               <h4 className="text-xl font-bold text-slate-900 leading-tight">{visita.cliente}</h4>
-               <div className="flex items-center gap-2 mt-1">
-                 <span className="bg-[#08557f] text-white text-[10px] font-black px-2 py-0.5 rounded-full uppercase">ACTIVO</span>
+           ) : (
+             <>
+               {/* Perfil Header */}
+               <div className="text-center space-y-3">
+                 <div className="w-20 h-20 bg-slate-50 rounded-3xl mx-auto flex items-center justify-center text-slate-200 border border-slate-100">
+                   <User className="w-10 h-10" />
+                 </div>
+                 <div>
+                    <h4 className="text-xl font-black text-slate-900">{visita.cliente}</h4>
+                    <div className="flex justify-center gap-2 mt-1">
+                       <span className={`${riesgoColor} text-[9px] font-black px-3 py-1 rounded-full uppercase border border-current/10`}>
+                         {riesgoLabel}
+                       </span>
+                    </div>
+                 </div>
                </div>
-             </div>
-          </div>
-          {/* Información de Contacto */}
-          <div>
-            <h5 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">Información de Contacto</h5>
-            <div className="space-y-3">
-               <div className="p-4 rounded-2xl border border-slate-100 bg-white shadow-sm">
-                 <p className="text-[10px] font-bold text-slate-400 uppercase mb-1">Dirección Exacta</p>
-                 <p className="text-sm font-bold text-slate-900">{visita.direccion}</p>
+
+               {/* Información DINÁMICA */}
+               <div className="grid grid-cols-2 gap-3">
+                  <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100">
+                     <div className="flex items-center gap-1.5 mb-1 text-slate-400">
+                        <Fingerprint className="w-3 h-3" />
+                        <span className="text-[9px] font-black uppercase">Cédula / DNI</span>
+                     </div>
+                     <p className="text-sm font-black text-slate-900">{clienteCompleto?.dni || '---'}</p>
+                  </div>
+                  <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100">
+                     <div className="flex items-center gap-1.5 mb-1 text-slate-400">
+                        <Star className="w-3 h-3" />
+                        <span className="text-[9px] font-black uppercase">Puntaje</span>
+                     </div>
+                     <p className="text-sm font-black text-emerald-600">{clienteCompleto?.puntaje || 0} pts</p>
+                  </div>
+                  <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100">
+                     <div className="flex items-center gap-1.5 mb-1 text-slate-400">
+                        <CalendarDays className="w-3 h-3" />
+                        <span className="text-[9px] font-black uppercase">Miembro Desde</span>
+                     </div>
+                     <p className="text-sm font-black text-slate-900 uppercase">
+                       {clienteCompleto?.creadoEn ? formatDateUTC(clienteCompleto.creadoEn) : '---'}
+                     </p>
+                  </div>
+                  <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100">
+                     <div className="flex items-center gap-1.5 mb-1 text-slate-400">
+                        <History className="w-3 h-3" />
+                        <span className="text-[9px] font-black uppercase">Préstamos</span>
+                     </div>
+                     <p className="text-sm font-black text-[#08557f]">{prestamosActivosCount} Activos</p>
+                  </div>
                </div>
-            </div>
-          </div>
-          {/* Resumen Financiero */}
-          <div>
-             <h5 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">Resumen Financiero</h5>
-             <div className="p-4 rounded-2xl bg-[#fff7ed] border border-orange-100 flex flex-col justify-center mb-3">
-                 <p className="text-[10px] font-bold text-orange-500 uppercase mb-1">Saldo Total</p>
-                 <p className="text-xl font-black text-[#7c2d12]">${visita.saldoTotal.toLocaleString('es-CO')}</p>
-             </div>
-          </div>
-           {/* Botón Cerrar */}
-           <div className="pt-2">
-              <button 
-                onClick={onClose} 
-                className="w-full py-4 bg-[#08557f] hover:bg-[#063a58] text-white font-black rounded-2xl shadow-lg shadow-blue-900/20 transition-all active:scale-[0.98] uppercase tracking-wider text-sm"
-              >
-                 Cerrar Detalles
-              </button>
-           </div>
+
+               {/* Contacto Alternativo */}
+               <div className="p-5 rounded-3xl bg-blue-50 border border-blue-100">
+                  <h5 className="text-[10px] font-black text-[#08557f] uppercase tracking-widest mb-3">Referencias / Contacto</h5>
+                  <div className="space-y-4">
+                     <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 bg-white rounded-xl flex items-center justify-center text-[#08557f] shadow-sm">
+                          <Phone className="w-4 h-4" />
+                        </div>
+                        <div>
+                          <p className="text-[9px] font-bold text-blue-400 uppercase">WhatsApp / Tel</p>
+                          <p className="text-sm font-black text-slate-900">{clienteCompleto?.telefono || visita.telefono}</p>
+                        </div>
+                     </div>
+                     <div className="flex items-start gap-3">
+                        <div className="w-8 h-8 bg-white rounded-xl flex items-center justify-center text-[#08557f] shadow-sm">
+                          <MapPin className="w-4 h-4" />
+                        </div>
+                        <div>
+                          <p className="text-[9px] font-bold text-blue-400 uppercase">Referencia de Ubicación</p>
+                          <p className="text-xs font-bold text-slate-700 leading-tight">
+                            {clienteCompleto?.referencia || "Sin referencias adicionales registradas."}
+                          </p>
+                        </div>
+                     </div>
+                  </div>
+               </div>
+
+               {/* Botón Cerrar */}
+               <div className="pt-2">
+                  <button 
+                    onClick={onClose} 
+                    className="w-full py-5 bg-[#08557f] hover:bg-[#063a58] text-white font-black rounded-2xl shadow-xl shadow-blue-900/20 transition-all active:scale-[0.97] uppercase tracking-[0.15em] text-xs"
+                  >
+                     Cerrar Expediente
+                  </button>
+               </div>
+             </>
+           )}
         </div>
       </div>
     </div>

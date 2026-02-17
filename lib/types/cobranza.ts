@@ -16,6 +16,8 @@ export interface VisitaRuta {
   nivelRiesgo?: 'bajo' | 'leve' | 'moderado' | 'critico'
   cobradorId: string
   periodoRuta: PeriodoRuta
+  clienteId: string
+  prestamoId?: string
 }
 
 export interface HistorialDia {

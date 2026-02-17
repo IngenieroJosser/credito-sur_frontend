@@ -208,7 +208,7 @@ export default function PagoModal({ visita, tipo, onClose, onConfirm }: PagoModa
                         type="file"
                         accept="image/*,application/pdf"
                         onChange={handleFileChange}
-                        className="w-full text-sm"
+                        className="w-full text-sm text-slate-600 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-black file:bg-blue-50 file:text-[#08557f] hover:file:bg-blue-100 transition-all cursor-pointer"
                         required
                       />
                     </div>
