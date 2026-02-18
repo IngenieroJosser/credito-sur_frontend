@@ -143,7 +143,9 @@ const DetalleRutaPage = () => {
                     prioridad: 'media' as const,
                     nivelRiesgo: (a.cliente.nivelRiesgo?.toLowerCase() as any) || 'bajo',
                     cobradorId: ruta.cobradorId,
-                    periodoRuta: 'DIA' as const
+                    periodoRuta: 'DIA' as const,
+                    clienteId: a.cliente.id,
+                    prestamoId: a.cliente.prestamos?.[0]?.id || ''
                 }));
                 // Filtrar por ID de cobrador si fuera necesario, aqui mostramos todos los de la ruta
                 setVisitasCobrador(visitas);

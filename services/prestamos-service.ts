@@ -1,4 +1,5 @@
 import { apiRequest } from '@/lib/api/api';
+import { syncService } from '@/lib/offline/syncService';
 import { EstadoPrestamo, FrecuenciaPago, EstadoCuota } from '@/types/enums';
 
 export type { EstadoPrestamo, FrecuenciaPago, EstadoCuota };
@@ -101,8 +102,45 @@ export const prestamosService = {
   /**
    * Crear un nuevo préstamo
    */
+  /**
+   * Crear un nuevo préstamo (con soporte Offline)
+   */
   async crearPrestamo(data: CrearPrestamoDto): Promise<any> {
-    return apiRequest('POST', '/loans', data);
+    try {
+      return await apiRequest('POST', '/loans', data);
+    } catch (error: any) {
+      if (
+        (typeof navigator !== 'undefined' && !navigator.onLine) ||
+        error?.statusCode === 0 || 
+        error?.message?.includes('network') ||
+        error?.code === 'ERR_NETWORK'
+      ) {
+         console.log('🌐 [Offline Mode] Guardando creación de préstamo en cola...');
+         const tempId = `temp-loan-${Date.now()}`;
+         
+         await syncService.enqueueOperation(
+           'prestamo_create',
+           '/loans',
+           'POST',
+           data,
+           `Nuevo Préstamo (Offline): $${data.monto}`
+         );
+
+         // Retornar objeto temporal
+         return {
+           id: tempId,
+           numeroPrestamo: 'OFFLINE',
+           clienteId: data.clienteId,
+           monto: data.monto,
+           tasaInteres: data.tasaInteres,
+           plazoMeses: data.plazoMeses,
+           fechaInicio: data.fechaInicio,
+           estado: 'PENDIENTE', // Siempre inicia en PENDIENTE o EN_REVISION
+           esOffline: true
+         };
+      }
+      throw error;
+    }
   },
 
   /**

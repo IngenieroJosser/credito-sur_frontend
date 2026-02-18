@@ -1,4 +1,5 @@
 import { apiRequest } from "@/lib/api/api";
+import { syncService } from '@/lib/offline/syncService';
 import { NivelRiesgo, EstadoAprobacion } from '@/types/enums';
 
 export type { NivelRiesgo, EstadoAprobacion };
@@ -101,7 +102,7 @@ export const clientesService = {
     const query = params.toString();
     const endpoint = query ? `/clients?${query}` : '/clients';
     
-    const response = await apiRequest<any>('GET', endpoint);
+    const response = await apiRequest<any>('GET', endpoint, undefined, { cacheTTL: 0 });
     return Array.isArray(response) ? response : (response.clientes || []);
   },
 
@@ -113,24 +114,102 @@ export const clientesService = {
   },
 
   /**
-   * Crear un nuevo cliente
+   * Crear un nuevo cliente (con soporte Offline)
    */
   async crear(data: CrearClienteDto): Promise<Cliente> {
-    return apiRequest<Cliente>('POST', '/clients', data);
+    try {
+      return await apiRequest<Cliente>('POST', '/clients', data);
+    } catch (error: any) {
+      if (
+        (typeof navigator !== 'undefined' && !navigator.onLine) ||
+        error?.statusCode === 0 || 
+        error?.message?.includes('network') ||
+        error?.code === 'ERR_NETWORK'
+      ) {
+         console.log('🌐 [Offline Mode] Guardando creación de cliente en cola...');
+         // Usar un ID temporal
+         const tempId = `temp-${Date.now()}`;
+         
+         await syncService.enqueueOperation(
+           'cliente_create',
+           '/clients',
+           'POST',
+           data,
+           `Crear cliente: ${data.nombres} ${data.apellidos}`
+         );
+
+         // Retornar objeto temporal para UI optimista
+         return {
+           id: tempId,
+           codigo: 'OFFLINE',
+           dni: data.dni,
+           nombres: data.nombres,
+           apellidos: data.apellidos,
+           telefono: data.telefono,
+           direccion: data.direccion || null,
+           referencia: data.referencia || null,
+           correo: data.correo || null,
+           nivelRiesgo: data.nivelRiesgo || NivelRiesgo.VERDE,
+           puntaje: data.puntaje || 0,
+           enListaNegra: false,
+           estadoAprobacion: EstadoAprobacion.PENDIENTE,
+           creadoEn: new Date().toISOString(),
+           actualizadoEn: new Date().toISOString(),
+         } as any;
+      }
+      throw error;
+    }
   },
 
   /**
-   * Actualizar un cliente existente
+   * Actualizar un cliente existente (con soporte Offline)
    */
   async actualizar(id: string, data: ActualizarClienteDto): Promise<Cliente> {
-    return apiRequest<Cliente>('PUT', `/clients/${id}`, data);
+    try {
+      return await apiRequest<Cliente>('PUT', `/clients/${id}`, data);
+    } catch (error: any) {
+      if (
+        (typeof navigator !== 'undefined' && !navigator.onLine) ||
+        error?.statusCode === 0 || 
+        error?.message?.includes('network')
+      ) {
+         console.log('🌐 [Offline Mode] Guardando actualización de cliente en cola...');
+         await syncService.enqueueOperation(
+           'cliente_update',
+           `/clients/${id}`,
+           'PUT',
+           data,
+           `Actualizar cliente: ${id}`
+         );
+         return { id, ...data } as any;
+      }
+      throw error;
+    }
   },
 
   /**
-   * Eliminar un cliente (soft delete)
+   * Eliminar un cliente (con soporte Offline)
    */
   async eliminar(id: string): Promise<void> {
-    return apiRequest<void>('DELETE', `/clients/${id}`);
+    try {
+      return await apiRequest<void>('DELETE', `/clients/${id}`);
+    } catch (error: any) {
+      if (
+        (typeof navigator !== 'undefined' && !navigator.onLine) ||
+        error?.statusCode === 0
+      ) {
+         console.log('🌐 [Offline Mode] Guardando eliminación de cliente en cola...');
+         await syncService.enqueueOperation(
+           'cliente_delete',
+           `/clients/${id}`,
+           'DELETE',
+           {},
+           `Eliminar cliente: ${id}`
+         );
+         return;
+      }
+      throw error;
+    }
   },
 
   /**

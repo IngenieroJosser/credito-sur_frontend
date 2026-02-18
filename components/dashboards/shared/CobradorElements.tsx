@@ -2,7 +2,7 @@
 
 import React, { ReactNode } from 'react'
 import { createPortal } from 'react-dom'
-import { MapPin, Eye, Phone, GripVertical, Clock, XCircle, ChevronDown } from 'lucide-react'
+import { MapPin, Eye, Phone, GripVertical, Clock, XCircle, ChevronDown, Calendar } from 'lucide-react'
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { VisitaRuta, EstadoVisita } from '@/lib/types/cobranza'
@@ -81,7 +81,7 @@ export function StaticVisitaItem({
   children,
 }: {
   visita: VisitaRuta
-  onSelect: (id: string) => void
+  onSelect?: (id: string) => void
   onVerCliente: (visita: VisitaRuta) => void
   getEstadoClasses: (estado: EstadoVisita) => string
   getPrioridadColor?: (prioridad: 'alta' | 'media' | 'baja') => string
@@ -91,17 +91,17 @@ export function StaticVisitaItem({
 }) {
   return (
     <div
-      onClick={() => allowClick && onSelect(visita.id)}
+      onClick={() => allowClick && onSelect && onSelect(visita.id)}
       className={`relative z-10 w-full rounded-2xl px-4 py-3 transition-all bg-white ${
         allowClick ? 'cursor-pointer hover:shadow-lg' : 'cursor-default'
-      } ${
+      } border-[3px] ${
         isSelected 
-          ? 'ring-2 ring-[#08557f] shadow-md bg-slate-50' 
-          : visita.nivelRiesgo === 'bajo' ? 'border-[3px] border-blue-600 shadow-sm' :
-            visita.nivelRiesgo === 'leve' ? 'border-[3px] border-emerald-600 shadow-sm' :
-            visita.nivelRiesgo === 'moderado' ? 'border-[3px] border-orange-600 shadow-md' :
-            visita.nivelRiesgo === 'critico' ? 'border-[3px] border-red-700 shadow-lg' :
-            'border-[3px] border-slate-200'
+          ? 'ring-2 ring-[#08557f] shadow-md bg-slate-50 border-[#08557f]' 
+          : visita.nivelRiesgo === 'bajo' ? 'border-emerald-600 shadow-sm' :
+            visita.nivelRiesgo === 'leve' ? 'border-blue-600 shadow-sm' :
+            visita.nivelRiesgo === 'moderado' ? 'border-orange-600 shadow-md' :
+            visita.nivelRiesgo === 'critico' ? 'border-red-700 shadow-lg' :
+            'border-slate-200'
       }`}
     >
       <div className="flex items-start gap-3">
@@ -116,18 +116,19 @@ export function StaticVisitaItem({
                     <div className="text-xs font-semibold text-slate-500 mt-1 flex items-center flex-wrap gap-1">
                         <span className="bg-slate-100 px-1.5 py-0.5 rounded text-slate-600 border border-slate-200">#{visita.ordenVisita}</span>
                         <span>•</span>
-                        <span className="flex items-center gap-1 bg-blue-50/50 px-1.5 py-0.5 rounded text-blue-700 border border-blue-100/50">
-                            <Clock className="w-3 h-3" />
-                            {visita.horaSugerida || 'En ruta'}
-                        </span>
-                        <span>•</span>
-                        <span>{visita.periodoRuta === 'DIA' ? 'Diario' : visita.periodoRuta}</span>
-                         {getPrioridadColor && (
-                           <div className="flex items-center gap-1 ml-2">
-                             <div className="h-2 w-2 rounded-full" style={{ backgroundColor: getPrioridadColor(visita.prioridad) }}></div>
-                             <span className="text-[10px] uppercase font-bold" style={{ color: getPrioridadColor(visita.prioridad) }}>{visita.prioridad}</span>
-                           </div>
-                         )}
+                        <div className="flex items-center gap-1 bg-[#08557f]/5 px-2 py-0.5 rounded-md text-[#08557f] font-bold border border-[#08557f]/10 uppercase text-[10px]">
+                            <span>
+                                {visita.periodoRuta === 'DIA' ? 'Diario' : 
+                                 visita.periodoRuta === 'SEMANA' ? 'Semanal' :
+                                 visita.periodoRuta === 'QUINCENA' ? 'Quincenal' :
+                                 visita.periodoRuta === 'MES' ? 'Mensual' : visita.periodoRuta}
+                            </span>
+                            <span>•</span>
+                            <span className="flex items-center gap-1">
+                                <Calendar className="w-2.5 h-2.5" />
+                                {new Date(visita.proximaVisita).toLocaleDateString('es-CO', { day: '2-digit', month: 'short' })}
+                            </span>
+                        </div>
                     </div>
                 </div>
                 <button 
@@ -168,8 +169,8 @@ export function StaticVisitaItem({
                         {visita.estado.replace('_', ' ')}
                     </span>
                     <span className={`text-[9px] font-black uppercase tracking-tighter px-1.5 py-0.5 rounded w-fit ${
-                        visita.nivelRiesgo === 'bajo' ? 'text-blue-600 bg-blue-50 border border-blue-100' :
-                        visita.nivelRiesgo === 'leve' ? 'text-emerald-600 bg-emerald-50 border border-emerald-100' :
+                        visita.nivelRiesgo === 'bajo' ? 'text-emerald-600 bg-emerald-50 border border-emerald-100' :
+                        visita.nivelRiesgo === 'leve' ? 'text-blue-600 bg-blue-50 border border-blue-100' :
                         visita.nivelRiesgo === 'moderado' ? 'text-orange-600 bg-orange-50 border border-orange-100' :
                         visita.nivelRiesgo === 'critico' ? 'text-red-600 bg-red-50 border border-red-100' :
                         'text-slate-400 bg-slate-50'
@@ -186,9 +187,10 @@ export function StaticVisitaItem({
                      {visita.telefono}
                  </div>
             </div>
-            
-            {isSelected && children && (
-              <div className="pt-2 mt-2 border-t border-slate-100 animate-in slide-in-from-top-2">
+
+            {/* Extra Actions Prop */}
+            {children && (
+              <div className="pt-3 mt-3 border-t border-slate-100">
                 {children}
               </div>
             )}
@@ -234,15 +236,14 @@ export function SortableItem({
     <div
       ref={setNodeRef}
       style={style}
-      onClick={() => onSelect(visita.id)}
-      className={`relative z-10 w-full rounded-2xl px-4 py-3 transition-all cursor-pointer hover:shadow-lg bg-white ${
+      className={`relative z-10 w-full rounded-2xl px-4 py-3 transition-all bg-white border-[3px] ${
         isSelected 
           ? 'ring-2 ring-[#08557f] shadow-md bg-slate-50' 
-          : visita.nivelRiesgo === 'bajo' ? 'border-[3px] border-blue-600 shadow-sm' :
-            visita.nivelRiesgo === 'leve' ? 'border-[3px] border-emerald-600 shadow-sm' :
-            visita.nivelRiesgo === 'moderado' ? 'border-[3px] border-orange-600 shadow-md' :
-            visita.nivelRiesgo === 'critico' ? 'border-[3px] border-red-700 shadow-lg' :
-            'border-[3px] border-slate-200'
+          : visita.nivelRiesgo === 'bajo' ? 'border-blue-600 shadow-sm' :
+            visita.nivelRiesgo === 'leve' ? 'border-emerald-600 shadow-sm' :
+            visita.nivelRiesgo === 'moderado' ? 'border-orange-600 shadow-md' :
+            visita.nivelRiesgo === 'critico' ? 'border-red-700 shadow-lg' :
+            'border-slate-200'
       }`}
     >
       <div className="flex items-start gap-3">
@@ -267,18 +268,19 @@ export function SortableItem({
                     <div className="text-xs font-semibold text-slate-500 mt-1 flex items-center flex-wrap gap-1">
                         <span className="bg-slate-100 px-1.5 py-0.5 rounded text-slate-600 border border-slate-200">#{visita.ordenVisita}</span>
                         <span>•</span>
-                        <span className="flex items-center gap-1 bg-blue-50/50 px-1.5 py-0.5 rounded text-blue-700 border border-blue-100/50">
-                            <Clock className="w-3 h-3" />
-                            {visita.horaSugerida || 'En ruta'}
-                        </span>
-                        <span>•</span>
-                        <span>{visita.periodoRuta === 'DIA' ? 'Diario' : visita.periodoRuta}</span>
-                        {getPrioridadColor && (
-                           <div className="flex items-center gap-1 ml-2">
-                             <div className="h-2 w-2 rounded-full" style={{ backgroundColor: getPrioridadColor(visita.prioridad) }}></div>
-                             <span className="text-[10px] uppercase font-bold" style={{ color: getPrioridadColor(visita.prioridad) }}>{visita.prioridad}</span>
-                           </div>
-                         )}
+                        <div className="flex items-center gap-1 bg-[#08557f]/5 px-2 py-0.5 rounded-md text-[#08557f] font-bold border border-[#08557f]/10 uppercase text-[10px]">
+                            <span>
+                                {visita.periodoRuta === 'DIA' ? 'Diario' : 
+                                 visita.periodoRuta === 'SEMANA' ? 'Semanal' :
+                                 visita.periodoRuta === 'QUINCENA' ? 'Quincenal' :
+                                 visita.periodoRuta === 'MES' ? 'Mensual' : visita.periodoRuta}
+                            </span>
+                            <span>•</span>
+                            <span className="flex items-center gap-1">
+                                <Calendar className="w-2.5 h-2.5" />
+                                {new Date(visita.proximaVisita).toLocaleDateString('es-CO', { day: '2-digit', month: 'short' })}
+                            </span>
+                        </div>
                     </div>
                 </div>
                 <button 
@@ -338,8 +340,8 @@ export function SortableItem({
                  </div>
             </div>
             
-            {isSelected && children && (
-              <div className="pt-2 mt-2 border-t border-slate-100 animate-in slide-in-from-top-2">
+            {children && (
+              <div className="pt-3 mt-3 border-t border-slate-100 animate-in slide-in-from-top-2">
                 {children}
               </div>
             )}

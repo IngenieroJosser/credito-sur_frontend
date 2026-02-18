@@ -28,6 +28,7 @@ import {
 import { formatCurrency, cn } from '@/lib/utils'
 import { useAuth } from '@/hooks/useAuth'
 import { routesService } from '@/services/routes-service';
+import { clientesService, Cliente } from '@/services/clientes-service';
 import { useNotification } from '@/components/providers/NotificationProvider';
 import { usePermission } from '@/hooks/usePermission';
 import { offlineStore } from '@/lib/offline/offlineDb';
@@ -104,8 +105,9 @@ export const RutasPageView = ({
   // const [cobradores]... removed
   // const [supervisores]... removed
   
-  const [clientesRuta] = useState<ClienteSelection[]>([]) // Typed array
-  const [clientesDisponibles] = useState<ClienteSelection[]>([]) 
+  const [clientesRuta, setClientesRuta] = useState<ClienteSelection[]>([]) // Typed array
+  const [clientesDisponibles, setClientesDisponibles] = useState<ClienteSelection[]>([]) 
+  const [loadingClientes, setLoadingClientes] = useState(false)
   const [isAddingCliente, setIsAddingCliente] = useState(false)
   
   // Use state for routes to allow client-side updates
@@ -162,9 +164,40 @@ export const RutasPageView = ({
 
 
   const [clienteSearch, setClienteSearch] = useState('')
-  // const [clientesDisponibles] ... moved up
   const [clienteAMover, setClienteAMover] = useState<string | null>(null)
   const [rutaDestinoId, setRutaDestinoId] = useState('')
+
+  // Efecto para buscar clientes disponibles
+  useEffect(() => {
+    if (!isAddingCliente) {
+      setClientesDisponibles([]);
+      return;
+    }
+
+    const searchTimer = setTimeout(async () => {
+      setLoadingClientes(true);
+      try {
+        // Si no hay búsqueda, traemos los más recientes (omitiendo el filtro search)
+        const results = await clientesService.obtenerTodos({ 
+          search: clienteSearch.length >= 1 ? clienteSearch : undefined 
+        });
+        
+        setClientesDisponibles(results.map(c => ({
+          id: c.id,
+          nombre: `${c.nombres} ${c.apellidos}`,
+          codigo: c.dni,
+          direccion: c.direccion || '',
+          deuda: c.montoTotal || 0
+        })));
+      } catch (error) {
+        console.error('Error buscando clientes:', error);
+      } finally {
+        setLoadingClientes(false);
+      }
+    }, 300); // Un poco más rápido
+
+    return () => clearTimeout(searchTimer);
+  }, [clienteSearch, isAddingCliente]);
 
   const handleCreateClick = () => {
     if (!puedeCrear) return
@@ -182,7 +215,7 @@ export const RutasPageView = ({
     setShowModal(true)
   }
 
-  const handleEditClick = (ruta: Ruta) => {
+  const handleEditClick = async (ruta: Ruta) => {
     if (!puedeEditar) return
     setEditingId(ruta.id)
     setFormData({
@@ -195,6 +228,24 @@ export const RutasPageView = ({
       supervisorId: ruta.supervisorId || '',
       descripcion: ruta.descripcion || ''
     })
+    
+    // Cargar clientes de la ruta
+    try {
+      const rutaDetalle = await routesService.getById(ruta.id);
+      if (rutaDetalle.asignaciones) {
+        setClientesRuta(rutaDetalle.asignaciones.map(a => ({
+          id: a.cliente.id,
+          nombre: `${a.cliente.nombres} ${a.cliente.apellidos}`,
+          codigo: a.cliente.dni,
+          direccion: a.cliente.telefono, // O dirección si estuviera disponible
+          deuda: 0 // Esto podría calcularse si el backend lo devuelve
+        })));
+      }
+    } catch (error) {
+      console.error('Error cargando clientes de la ruta:', error);
+      setClientesRuta([]);
+    }
+    
     setShowModal(true)
   }
 
@@ -261,8 +312,45 @@ export const RutasPageView = ({
       showNotification('error', 'No se pudo cambiar el estado', 'Error');
     }
   }
-  const handleMoveCliente = (id: string) => { /* Mover cliente */ }
-  const confirmAddCliente = (cliente: ClienteSelection) => { /* Agregar cliente */ }
+  const handleMoveCliente = async (clienteId: string) => {
+    if (!editingId || !rutaDestinoId) return;
+    
+    try {
+      await routesService.moveClient(clienteId, editingId, rutaDestinoId);
+      showNotification('success', 'Cliente movido exitosamente', 'Éxito');
+      
+      // Actualizar lista local
+      setClientesRuta(prev => prev.filter(c => c.id !== clienteId));
+      setClienteAMover(null);
+      setRutaDestinoId('');
+      
+      // Opcional: refrescar estadísticas
+      router.refresh();
+    } catch (error) {
+      showNotification('error', 'No se pudo mover el cliente', 'Error');
+    }
+  }
+
+  const confirmAddCliente = async (cliente: ClienteSelection) => {
+    if (!editingId || !formData.cobradorId) {
+      showNotification('warning', 'Seleccione un cobrador para la ruta primero', 'Atención');
+      return;
+    }
+
+    try {
+      await routesService.assignClient(editingId, cliente.id, formData.cobradorId);
+      showNotification('success', `Cliente ${cliente.nombre} asignado a la ruta`, 'Éxito');
+      
+      // Actualizar lista local
+      setClientesRuta(prev => [...prev, cliente]);
+      setIsAddingCliente(false);
+      setClienteSearch('');
+      
+      router.refresh();
+    } catch (error) {
+      showNotification('error', 'No se pudo asignar el cliente', 'Error');
+    }
+  }
   const [activeTab, setActiveTab] = useState<'info' | 'clientes'>('info')
 
   // PAGINACIÓN
@@ -1232,33 +1320,45 @@ export const RutasPageView = ({
                           </div>
 
                           {/* Dropdown Results */}
-                          {clienteSearch.length > 0 && (
-                            <div className="absolute top-full mt-2 left-0 w-full bg-white rounded-xl shadow-xl border border-slate-100 max-h-60 overflow-y-auto z-50 animate-in fade-in slide-in-from-top-2">
+                          {isAddingCliente && (clientesDisponibles.length > 0 || loadingClientes) && (
+                            <div className="absolute top-full mt-2 left-0 w-full bg-white rounded-xl shadow-xl border border-slate-100 max-h-64 overflow-y-auto z-50 animate-in fade-in slide-in-from-top-2">
+                              {loadingClientes && (
+                                <div className="sticky top-0 z-10 bg-blue-50/90 backdrop-blur-sm px-4 py-2 border-b border-blue-100">
+                                  <p className="text-[10px] text-blue-600 font-bold uppercase tracking-widest animate-pulse">Actualizando lista...</p>
+                                </div>
+                              )}
+                              
                               {clientesDisponibles.filter(c =>
                                 !clientesRuta.some(existing => existing.id === c.id) &&
-                                String(c.nombre || '').toLowerCase().includes(clienteSearch.toLowerCase())
+                                (clienteSearch === '' || String(c.nombre || '').toLowerCase().includes(clienteSearch.toLowerCase()))
                               ).length > 0 ? (
-                                clientesDisponibles
-                                  .filter(c =>
-                                    !clientesRuta.some(existing => existing.id === c.id) &&
-                                    String(c.nombre || '').toLowerCase().includes(clienteSearch.toLowerCase())
-                                  )
-                                  .map(cliente => (
-                                    <button
-                                      key={cliente.id}
-                                      onClick={() => confirmAddCliente(cliente)}
-                                      className="w-full text-left px-4 py-3 hover:bg-blue-50 transition-colors border-b border-slate-50 last:border-0 group"
-                                    >
-                                      <p className="font-bold text-sm text-slate-900 group-hover:text-blue-700">{String(cliente.nombre || 'Sin nombre')}</p>
-                                      <div className="flex items-center gap-2 text-xs text-slate-500 mt-0.5">
-                                        <MapPin className="h-3 w-3" />
-                                        <span>{String(cliente.direccion || '')}</span>
-                                      </div>
-                                    </button>
-                                  ))
-                              ) : (
-                                <div className="p-4 text-center">
-                                  <p className="text-xs text-slate-500 font-medium">No se encontraron clientes</p>
+                                <div className="divide-y divide-slate-50">
+                                  {clientesDisponibles
+                                    .filter(c =>
+                                      !clientesRuta.some(existing => existing.id === c.id) &&
+                                      (clienteSearch === '' || String(c.nombre || '').toLowerCase().includes(clienteSearch.toLowerCase()))
+                                    )
+                                    .map(cliente => (
+                                      <button
+                                        key={cliente.id}
+                                        onClick={() => confirmAddCliente(cliente)}
+                                        className="w-full text-left px-4 py-3 hover:bg-blue-50 transition-colors group flex items-center justify-between"
+                                      >
+                                        <div className="flex-1 min-w-0">
+                                          <p className="font-bold text-sm text-slate-900 group-hover:text-blue-700 truncate">{String(cliente.nombre || 'Sin nombre')}</p>
+                                          <div className="flex items-center gap-2 text-[10px] text-slate-500 mt-0.5">
+                                            <span className="font-bold bg-slate-100 px-1.5 py-0.5 rounded uppercase">{String(cliente.codigo || 'S/D')}</span>
+                                            <span className="truncate">{String(cliente.direccion || 'Sin dirección')}</span>
+                                          </div>
+                                        </div>
+                                        <Plus className="h-4 w-4 text-slate-300 group-hover:text-blue-500 flex-shrink-0 ml-2" />
+                                      </button>
+                                    ))}
+                                </div>
+                              ) : !loadingClientes && (
+                                <div className="p-8 text-center bg-slate-50">
+                                  <Search className="h-8 w-8 text-slate-200 mx-auto mb-2" />
+                                  <p className="text-xs text-slate-500 font-medium">No se encontraron clientes disponibles</p>
                                 </div>
                               )}
                             </div>

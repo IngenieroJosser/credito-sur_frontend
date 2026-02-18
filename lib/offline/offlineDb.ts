@@ -63,10 +63,12 @@ export interface OfflineRuta {
 
 export interface OfflineQueueItem {
   id: string;
-  type: 'pago' | 'cliente_update' | 'prestamo_update';
+  type: 'pago' | 'cliente_update' | 'prestamo_update' | 'cliente_create' | 'prestamo_create' | 'cliente_delete';
   endpoint: string;
   method: 'POST' | 'PUT' | 'PATCH' | 'DELETE';
   data: unknown;
+  file?: Blob;
+  fileName?: string;
   description: string;
   amount?: number;
   createdAt: string;

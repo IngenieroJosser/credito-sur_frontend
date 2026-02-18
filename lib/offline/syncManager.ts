@@ -35,17 +35,34 @@ export const syncManager = {
 
       try {
         const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+        let requestData: any = item.data;
+        const headers: Record<string, string> = {
+          Accept: 'application/json',
+          ...(token && { Authorization: `Bearer ${token}` }),
+        };
+
+        // Soporte para archivos (Multimedia)
+        if (item.file) {
+          const formData = new FormData();
+          formData.append('file', item.file, item.fileName || 'upload');
+          
+          if (item.data && typeof item.data === 'object') {
+            Object.entries(item.data as Record<string, any>).forEach(([key, value]) => {
+              formData.append(key, typeof value === 'object' ? JSON.stringify(value) : String(value));
+            });
+          }
+          requestData = formData;
+          // El navegador pondrá el Content-Type adecuado para FormData
+        } else {
+          headers['Content-Type'] = 'application/json';
+        }
 
         await apiClient.request({
           method: item.method,
           url: item.endpoint,
-          data: item.data,
-          headers: {
-            Accept: 'application/json',
-            'Content-Type': 'application/json',
-            ...(token && { Authorization: `Bearer ${token}` }),
-          },
-          timeout: 15000,
+          data: requestData,
+          headers,
+          timeout: 30000,
         });
 
         // Éxito: eliminar de la cola

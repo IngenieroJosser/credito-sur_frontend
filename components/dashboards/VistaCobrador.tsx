@@ -286,7 +286,14 @@ const VistaCobrador = () => {
             proximaVisita: 'Hoy',
             ordenVisita: visita.ordenVisita || 0,
             prioridad: proximaCuota.estado === 'VENCIDA' ? 'alta' : 'media',
-            nivelRiesgo: cliente.nivelRiesgo === 'ROJO' ? 'critico' : cliente.nivelRiesgo === 'AMARILLO' ? 'moderado' : 'bajo',
+            nivelRiesgo: (() => {
+              const r = cliente.nivelRiesgo || 'VERDE';
+              if (r === 'VERDE') return 'bajo';
+              if (r === 'AMARILLO') return 'leve';
+              if (r === 'ROJO') return 'moderado';
+              if (r === 'LISTA_NEGRA') return 'critico';
+              return 'bajo';
+            })(),
             cobradorId: userSession.id,
             periodoRuta: (prestamo.frecuenciaPago || 'DIARIO') as PeriodoRuta,
             clienteId: cliente.id,
@@ -322,6 +329,7 @@ const VistaCobrador = () => {
                 nivelRiesgo: 'moderado' as const,
                 cobradorId: userSession.id,
                 periodoRuta: 'DIA' as PeriodoRuta,
+                clienteId: c.id,
               };
             });
             setVisitasBase(visitasOffline);

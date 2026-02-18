@@ -254,12 +254,12 @@ export default function DashboardPage() {
           target: t.target,
         }));
 
-        // Build top collectors from recent activity (best approximation from available data)
-        const topCollectors = (dashboard?.recentActivity || []).slice(0, 5).map((a, idx) => ({
-          name: a.client,
-          collected: 0,
-          efficiency: 0,
-          trend: (a.status === 'approved' ? 'up' : 'down') as 'up' | 'down',
+        // Build top collectors from real backend data
+        const topCollectors = (dashboard?.topCollectors || []).map(c => ({
+          name: c.name,
+          collected: c.collected,
+          efficiency: c.efficiency,
+          trend: c.trend
         }));
 
         if (isMounted) {
