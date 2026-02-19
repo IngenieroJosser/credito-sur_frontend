@@ -6,6 +6,7 @@ import { formatCOPInputValue } from '@/lib/utils'
 import SelectCategoria from '@/components/ui/SelectCategoria'
 import { Portal, MODAL_Z_INDEX } from '@/components/dashboards/shared/CobradorElements'
 import { obtenerSaldoDisponibleRuta } from '@/services/contabilidad-service'
+import type { SaldoDisponibleRuta } from '@/services/contabilidad-service'
 import { rutasService } from '@/services/rutas-service'
 
 interface GastoModalProps {
@@ -13,28 +14,57 @@ interface GastoModalProps {
   onClose: () => void
   onConfirm: (data: { descripcion: string; valor: number; comprobante: File | null }) => void
   cobradorId?: string
+  rutaId?: string
+  recaudoDia?: number
+  gastosDia?: number
 }
 
-export default function GastoModal({ isOpen, onClose, onConfirm, cobradorId }: GastoModalProps) {
+export default function GastoModal({ isOpen, onClose, onConfirm, cobradorId, rutaId, recaudoDia, gastosDia }: GastoModalProps) {
   const [descripcion, setDescripcion] = useState('')
   const [valorInput, setValorInput] = useState('')
   const [comprobante, setComprobante] = useState<File | null>(null)
-  const [saldoDisponible, setSaldoDisponible] = useState<number | null>(null)
+  const [saldoInfo, setSaldoInfo] = useState<SaldoDisponibleRuta | null>(null)
   const [loadingSaldo, setLoadingSaldo] = useState(false)
   const [errorSaldo, setErrorSaldo] = useState('')
 
   // Cargar saldo disponible al abrir el modal
   useEffect(() => {
-    if (!isOpen || !cobradorId) return
+    if (!isOpen) return
 
     const cargarSaldo = async () => {
       setLoadingSaldo(true)
       setErrorSaldo('')
       try {
-        const rutas = await rutasService.obtenerRutas({ cobradorId, limit: 1 })
-        if (rutas[0]) {
-          const saldo = await obtenerSaldoDisponibleRuta(rutas[0].id)
-          setSaldoDisponible(saldo.saldoDisponible)
+        const now = new Date()
+        const localIso = new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString()
+        const hoyClave = localIso.split('T')[0]
+        if (rutaId) {
+          const saldo = await obtenerSaldoDisponibleRuta(rutaId, hoyClave)
+          setSaldoInfo(saldo)
+          if (
+            Number(saldo.saldoDisponible || 0) === 0 &&
+            Number(saldo.recaudoDelDia || 0) === 0 &&
+            Number(saldo.gastosDelDia || 0) === 0
+          ) {
+            const s2 = await obtenerSaldoDisponibleRuta(rutaId)
+            setSaldoInfo(s2)
+          }
+        } else if (cobradorId) {
+          const rutas = await rutasService.obtenerRutas({ cobradorId, limit: 1 })
+          if (rutas[0]) {
+            const saldo = await obtenerSaldoDisponibleRuta(rutas[0].id, hoyClave)
+            setSaldoInfo(saldo)
+            if (
+              Number(saldo.saldoDisponible || 0) === 0 &&
+              Number(saldo.recaudoDelDia || 0) === 0 &&
+              Number(saldo.gastosDelDia || 0) === 0
+            ) {
+              const s2 = await obtenerSaldoDisponibleRuta(rutas[0].id)
+              setSaldoInfo(s2)
+            }
+          }
+        } else {
+          setErrorSaldo('No se pudo verificar el saldo disponible')
         }
       } catch (error) {
         console.error('Error al cargar saldo:', error)
@@ -45,7 +75,7 @@ export default function GastoModal({ isOpen, onClose, onConfirm, cobradorId }: G
     }
 
     cargarSaldo()
-  }, [isOpen, cobradorId])
+  }, [isOpen, cobradorId, rutaId])
 
   if (!isOpen) return null
 
@@ -53,9 +83,17 @@ export default function GastoModal({ isOpen, onClose, onConfirm, cobradorId }: G
     e.preventDefault()
     const valor = parseInt(valorInput.replace(/\D/g, '')) || 0
     
-    // NUEVA VALIDACIÓN: Verificar que no exceda el saldo disponible
-    if (saldoDisponible !== null && valor > saldoDisponible) {
-      setErrorSaldo(`El gasto excede el saldo disponible ($${saldoDisponible.toLocaleString('es-CO')})`)
+    const rec = typeof saldoInfo?.recaudoDelDia === 'number' && saldoInfo.recaudoDelDia > 0
+      ? saldoInfo.recaudoDelDia
+      : (recaudoDia ?? 0)
+    const gas = typeof saldoInfo?.gastosDelDia === 'number' && saldoInfo.gastosDelDia >= 0
+      ? saldoInfo.gastosDelDia
+      : (gastosDia ?? 0)
+    const maxDisponible = typeof saldoInfo?.saldoDisponible === 'number' && saldoInfo.saldoDisponible !== 0
+      ? saldoInfo.saldoDisponible
+      : (rec - gas)
+    if (typeof maxDisponible === 'number' && valor > maxDisponible) {
+      setErrorSaldo(`El gasto excede el saldo disponible ($${maxDisponible.toLocaleString('es-CO')})`)
       return
     }
     
@@ -102,14 +140,31 @@ export default function GastoModal({ isOpen, onClose, onConfirm, cobradorId }: G
               <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 text-sm text-blue-800">
                 Verificando saldo disponible...
               </div>
-            ) : saldoDisponible !== null ? (
+            ) : saldoInfo !== null || typeof recaudoDia === 'number' || typeof gastosDia === 'number' ? (
               <div className="bg-green-50 border border-green-200 rounded-xl p-3">
+                {(() => {
+                  const rec = typeof saldoInfo?.recaudoDelDia === 'number' && saldoInfo.recaudoDelDia > 0
+                    ? saldoInfo.recaudoDelDia
+                    : (recaudoDia ?? 0)
+                  const gas = typeof saldoInfo?.gastosDelDia === 'number' && saldoInfo.gastosDelDia >= 0
+                    ? saldoInfo.gastosDelDia
+                    : (gastosDia ?? 0)
+                  const saldo = typeof saldoInfo?.saldoDisponible === 'number' && saldoInfo.saldoDisponible !== 0
+                    ? saldoInfo.saldoDisponible
+                    : (rec - gas)
+                  return (
+                    <>
                 <div className="flex items-center gap-2 text-sm">
                   <Banknote className="w-4 h-4 text-green-600" />
                   <span className="font-medium text-green-900">Saldo disponible:</span>
-                  <span className="font-bold text-green-700">${saldoDisponible.toLocaleString('es-CO')}</span>
+                  <span className="font-bold text-green-700">${Number(saldo || 0).toLocaleString('es-CO')}</span>
                 </div>
-                <p className="text-xs text-green-700 mt-1">Recaudo del día - Gastos registrados</p>
+                <p className="text-xs text-green-700 mt-1">
+                  Recaudo del día: ${Number(rec || 0).toLocaleString('es-CO')} · Gastos: ${Number(gas || 0).toLocaleString('es-CO')}
+                </p>
+                    </>
+                  )
+                })()}
               </div>
             ) : null}
 

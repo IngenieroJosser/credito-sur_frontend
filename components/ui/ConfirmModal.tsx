@@ -1,7 +1,7 @@
 'use client'
 
 import { ReactNode } from 'react'
-import { AlertTriangle, Info, XCircle } from 'lucide-react'
+import { AlertTriangle, Info, XCircle, CheckCircle2 } from 'lucide-react'
 
 interface ConfirmModalProps {
   isOpen: boolean
@@ -10,8 +10,8 @@ interface ConfirmModalProps {
   title: string
   message: string
   confirmText?: string
-  cancelText?: string
-  variant?: 'danger' | 'warning' | 'info'
+  cancelText?: string | null
+  variant?: 'danger' | 'warning' | 'info' | 'success'
   icon?: ReactNode
 }
 
@@ -49,6 +49,13 @@ export default function ConfirmModal({
       iconColor: 'text-blue-600',
       buttonBg: 'bg-blue-600 hover:bg-blue-700',
       defaultIcon: <Info className="h-6 w-6" />
+    },
+    success: {
+      bg: 'bg-emerald-50',
+      border: 'border-emerald-200',
+      iconColor: 'text-emerald-600',
+      buttonBg: 'bg-emerald-600 hover:bg-emerald-700',
+      defaultIcon: <CheckCircle2 className="h-6 w-6" />
     }
   }
 
@@ -76,16 +83,17 @@ export default function ConfirmModal({
 
         {/* Actions */}
         <div className="p-6 bg-slate-50/50 flex justify-end gap-3">
-          <button
-            onClick={onClose}
-            className="px-5 py-2.5 rounded-xl border border-slate-200 bg-white text-sm font-bold text-slate-700 hover:bg-slate-50 transition-colors"
-          >
-            {cancelText}
-          </button>
+          {cancelText && (
+            <button
+              onClick={onClose}
+              className="px-5 py-2.5 rounded-xl border border-slate-200 bg-white text-sm font-bold text-slate-700 hover:bg-slate-50 transition-colors"
+            >
+              {cancelText}
+            </button>
+          )}
           <button
             onClick={async () => {
               await onConfirm()
-              onClose()
             }}
             className={`px-6 py-2.5 rounded-xl text-white text-sm font-bold transition-all shadow-lg ${currentVariant.buttonBg}`}
           >

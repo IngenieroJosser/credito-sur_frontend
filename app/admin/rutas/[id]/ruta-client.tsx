@@ -78,6 +78,13 @@ const RutaClient = ({ initialRuta }: RutaClientProps) => {
   const [showCrearCreditoModal, setShowCrearCreditoModal] = useState(false)
   const [defaultClienteId, setDefaultClienteId] = useState<string | null>(null)
 
+  // Estados para filtros y historial (Portados de VistaCobrador)
+  const [periodoRutaFiltro, setPeriodoRutaFiltro] = useState<'TODOS' | 'DIA' | 'SEMANA' | 'QUINCENA' | 'MES'>('TODOS')
+  const [showHistory, setShowHistory] = useState(false)
+  const [historialRutas, setHistorialRutas] = useState<any>(null)
+  const [historyViewMode, setHistoryViewMode] = useState<'DAYS' | 'MONTHS'>('DAYS')
+  const [selectedHistoryDate, setSelectedHistoryDate] = useState<string | null>(null)
+
   // Map ALL asignaciones from backend to visits UI model
   const [visitasCobrador, setVisitasCobrador] = useState<VisitaRuta[]>(() => {
       const asignaciones = initialRuta?.asignaciones || initialRuta?.asignacionesRuta;
@@ -132,6 +139,11 @@ const RutaClient = ({ initialRuta }: RutaClientProps) => {
       v.direccion.toLowerCase().includes(searchQuery.toLowerCase())
     );
 
+    // Aplicar filtro de periodo
+    if (periodoRutaFiltro !== 'TODOS') {
+        filtradas = filtradas.filter(v => v.periodoRuta === periodoRutaFiltro);
+    }
+
     const agrupar = {
       MES: filtradas.filter(v => v.periodoRuta === 'MES'),
       QUINCENA: filtradas.filter(v => v.periodoRuta === 'QUINCENA'),
@@ -140,7 +152,7 @@ const RutaClient = ({ initialRuta }: RutaClientProps) => {
     }
 
     return { visitasAgrupadas: agrupar, totalMostradas: filtradas.length };
-  }, [visitasCobrador, searchQuery]);
+  }, [visitasCobrador, searchQuery, periodoRutaFiltro]);
 
   const [visitaSeleccionada, setVisitaSeleccionada] = useState<string | null>(null)
   const [accionPendiente, setAccionPendiente] = useState<'PAGO' | 'ABONO' | 'REPROGRAMAR' | 'ESTADO_CUENTA' | null>(null)
@@ -269,8 +281,8 @@ const RutaClient = ({ initialRuta }: RutaClientProps) => {
         </header>
 
         {/* Action Bar & Filtros */}
-        <div className="bg-white/80 backdrop-blur-sm rounded-2xl border border-slate-200 p-4 shadow-[0_8px_30px_rgb(0,0,0,0.04)] space-y-4">
-              <div className="flex flex-col md:flex-row gap-4">
+        <div className="bg-white/80 backdrop-blur-sm rounded-2xl border border-slate-200 p-4 shadow-[0_8px_30px_rgb(0,0,0,0.04)]">
+              <div className="flex flex-col md:flex-row gap-4 mb-4">
                 <div className="relative flex-1">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                   <input
@@ -281,148 +293,233 @@ const RutaClient = ({ initialRuta }: RutaClientProps) => {
                     className="w-full pl-10 pr-4 py-3 rounded-xl bg-white border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#08557f]/20 focus:border-[#08557f] shadow-sm text-slate-900 placeholder:text-slate-400"
                   />
                 </div>
-                <div className="flex gap-2">
-                  {!rutaCompletada && (
+              </div>
+
+              {/* Botones de Acción y Navegación (Estilo Cobrador) */}
+              <div className="mt-4 border-t border-slate-100 pt-4 flex flex-wrap items-center gap-2 overflow-x-auto pb-1">
+                  <button 
+                    onClick={() => setShowHistory(false)}
+                    className={`px-4 py-2 border rounded-xl flex items-center gap-2 font-medium shadow-sm transition-colors ${
+                      !showHistory 
+                        ? 'bg-[#08557f] text-white border-[#08557f]' 
+                        : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+                    }`}
+                  >
+                    <MapPin className="h-4 w-4" />
+                    <span className="hidden md:inline">Ver Ruta Actual</span>
+                  </button>
+
+                  <button 
+                    onClick={() => setShowHistory(true)}
+                    className={`px-4 py-2 border rounded-xl flex items-center gap-2 font-medium shadow-sm transition-colors ${
+                      showHistory 
+                        ? 'bg-[#08557f] text-white border-[#08557f]' 
+                        : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+                    }`}
+                  >
+                    <History className="h-4 w-4" />
+                    <span className="hidden md:inline">Historial</span>
+                  </button>
+
+                  {!rutaCompletada && !showHistory && (
                     <button 
                       type="button"
                       onClick={handleActivarRuta}
-                      className="px-4 py-3 border rounded-xl flex items-center gap-2 font-bold shadow-sm bg-white text-slate-700 border-slate-200 hover:bg-slate-50 transition-colors"
+                      className="px-4 py-2 border rounded-xl flex items-center gap-2 font-bold shadow-sm bg-white text-slate-700 border-slate-200 hover:bg-slate-50 transition-colors"
                     >
                       <CheckCircle2 className="h-4 w-4" />
                       <span className="hidden md:inline">Activar Ruta</span>
                     </button>
                   )}
-                </div>
+
+                  {(currentUser?.rol === 'SUPER_ADMINISTRADOR' || currentUser?.rol === 'ADMIN') && !showHistory && (
+                    <button
+                      onClick={() => setShowNewClientModal(true)}
+                      className="px-4 py-2 border rounded-xl flex items-center gap-2 font-bold shadow-sm bg-white text-slate-700 border-slate-200 hover:bg-slate-50 transition-colors"
+                    >
+                      <UserPlus className="h-4 w-4 text-slate-400" />
+                      <span className="hidden md:inline">Crear Cliente</span>
+                    </button>
+                  )}
               </div>
-              {(currentUser?.rol === 'SUPER_ADMINISTRADOR' || currentUser?.rol === 'ADMIN') && (
-                <div className="flex flex-col md:flex-row items-center gap-3 pt-2 border-t border-slate-100">
-                  <button
-                    onClick={() => setShowNewClientModal(true)}
-                    className="px-4 py-3 rounded-xl text-sm font-bold shadow-sm bg-white text-slate-700 border border-slate-200 hover:bg-slate-50 flex items-center justify-center gap-2 active:scale-[0.98] transition-all"
-                  >
-                    <UserPlus className="h-4 w-4 text-slate-400" />
-                    Crear Cliente
-                  </button>
-                  <span className="text-[11px] font-bold text-slate-500">
-                    Si creas un crédito, se asignará a esta ruta
-                  </span>
+
+              {/* Filtros de Periodo (Estilo Cobrador Exacto) */}
+              {!showHistory && (
+                <div className="mt-4 pt-4 border-t border-slate-200">
+                  <div className="flex flex-col md:flex-row gap-3 md:items-center md:justify-between">
+                    <div className="text-xs font-bold text-slate-500 uppercase tracking-wider">Período de ruta</div>
+                    <div className="flex gap-2 overflow-x-auto pb-1">
+                      {(
+                        [
+                          { key: 'TODOS' as const, label: 'Todo' },
+                          { key: 'DIA' as const, label: 'Día' },
+                          { key: 'SEMANA' as const, label: 'Semanal' },
+                          { key: 'QUINCENA' as const, label: 'Quincenal' },
+                          { key: 'MES' as const, label: 'Mensual' },
+                        ]
+                      ).map((item) => (
+                        <button
+                          key={item.key}
+                          onClick={() => setPeriodoRutaFiltro(item.key)}
+                          className={`px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all border ${
+                            periodoRutaFiltro === item.key
+                              ? 'bg-[#08557f] text-white border-[#08557f] shadow-lg shadow-[#08557f]/20'
+                              : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+                          }`}
+                        >
+                          {item.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
                 </div>
               )}
         </div>
         
-         {/* Lista de visitas ESTÁTICA */}
+         {/* Contenido Principal: Lista o Historial */}
          <div className="space-y-6">
-              <div className="flex flex-col gap-6">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 pb-4">
-                    <div className="flex items-center gap-3">
-                        <h3 className="font-bold text-slate-900 text-xl flex items-center gap-3">
-                            Visitas de la Ruta
-                            <span className="bg-blue-600 text-white text-xs px-2.5 py-1 rounded-full shadow-sm">{totalMostradas}</span>
-                        </h3>
-                    </div>
-                </div>
+            
+            {showHistory ? (
+              // ========================= VISTA HISTORIAL =========================
+              <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-300">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 pb-4">
+                      <div className="flex items-center gap-3">
+                          <History className="h-6 w-6 text-[#08557f]" />
+                          <h3 className="font-bold text-slate-900 text-xl">
+                              Historial de la Ruta
+                          </h3>
+                      </div>
+                  </div>
 
-                {/* Leyenda de Riesgos Simplificada */}
-                <div className="flex flex-wrap gap-2 text-[10px] font-black text-slate-600 bg-white p-3 rounded-xl border border-slate-200 shadow-sm uppercase tracking-tighter">
-                    <div className="flex items-center gap-1.5 px-2 py-1 bg-emerald-50 rounded-lg border border-emerald-500/20">
-                        <div className="w-2 h-2 rounded-full bg-emerald-500"></div> 
-                        <span>Mínimo</span>
-                    </div>
-                    <div className="flex items-center gap-1.5 px-2 py-1 bg-blue-50 rounded-lg border border-blue-500/20">
-                        <div className="w-2 h-2 rounded-full bg-blue-500"></div> 
-                        <span>Leve</span>
-                    </div>
-                    <div className="flex items-center gap-1.5 px-2 py-1 bg-yellow-50 rounded-lg border border-yellow-500/20">
-                        <div className="w-2 h-2 rounded-full bg-yellow-500"></div> 
-                        <span>Precaución</span>
-                    </div>
-                    <div className="flex items-center gap-1.5 px-2 py-1 bg-amber-50 rounded-lg border border-amber-500/20">
-                        <div className="w-2 h-2 rounded-full bg-amber-500"></div> 
-                        <span>Moderado</span>
-                    </div>
-                    <div className="flex items-center gap-1.5 px-2 py-1 bg-rose-50 rounded-lg border border-rose-500/20">
-                        <div className="w-2 h-2 rounded-full bg-rose-500"></div> 
-                        <span>Crítico</span>
-                    </div>
-                </div>
+                  {(!historialRutas || Object.keys(historialRutas).length === 0) ? (
+                      <div className="flex flex-col items-center justify-center py-20 bg-white rounded-3xl border-2 border-dashed border-slate-200 text-slate-400">
+                         <History className="h-16 w-16 mb-4 opacity-20" />
+                         <p className="font-black text-lg text-slate-500">Sin historial disponible</p>
+                         <p className="text-sm font-medium opacity-70 mt-1">Las rutas completadas o cerradas aparecerán aquí.</p>
+                      </div>
+                  ) : (
+                      // TODO: Implementar lista de historial real cuando haya datos
+                      <div className="p-8 text-center bg-white rounded-2xl border border-slate-200">
+                          <p className="font-bold text-slate-600">Historial cargado ({Object.keys(historialRutas).length} registros)</p>
+                      </div>
+                  )}
               </div>
-
-              {/* LISTA DE VISITAS AGRUPADA POR FRECUENCIA */}
-              <div className="space-y-10">
-                {Object.entries({
-                    MES: 'Mensual',
-                    QUINCENA: 'Quincenal',
-                    SEMANA: 'Semanal',
-                    DIA: 'Diario'
-                }).map(([key, label]) => {
-                    const visitas = visitasAgrupadas[key as keyof typeof visitasAgrupadas];
-                    if (visitas.length === 0) return null;
-                    
-                    return (
-                        <div key={key} className="space-y-4">
-                            <div className="flex items-center gap-4">
-                                <div className="h-px flex-1 bg-slate-200"></div>
-                                <span className="text-[11px] font-black text-[#08557f] uppercase tracking-[0.25em] bg-blue-50/50 px-4 py-1.5 rounded-full border border-blue-100 shadow-sm">
-                                    {label}
-                                </span>
-                                <div className="h-px flex-1 bg-slate-200"></div>
-                            </div>
-
-                            <div className="space-y-4">
-                                {visitas.map((visita) => (
-                                    <StaticVisitaItem
-                                        key={visita.id}
-                                        visita={visita}
-                                        allowClick={false}
-                                        onVerCliente={handleAbrirClienteInfo}
-                                        getEstadoClasses={getEstadoClasses}
-                                        getPrioridadColor={getPrioridadColor}
-                                    >
-                                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1">
-                                            <button
-                                                onClick={(e) => { e.stopPropagation(); handleAbrirPago(visita); }}
-                                                className="flex flex-col items-center justify-center p-2 rounded-xl bg-blue-600 text-white hover:bg-blue-700 transition-all shadow-sm active:scale-95"
-                                            >
-                                                <DollarSign className="h-4 w-4 mb-1" />
-                                                <span className="text-[9px] font-bold uppercase">Pago</span>
-                                            </button>
-                                            <button
-                                                onClick={(e) => { e.stopPropagation(); handleAbrirAbono(visita); }}
-                                                className="flex flex-col items-center justify-center p-2 rounded-xl bg-emerald-600 text-white hover:bg-emerald-700 transition-all shadow-sm active:scale-95"
-                                            >
-                                                <Wallet className="h-4 w-4 mb-1" />
-                                                <span className="text-[9px] font-bold uppercase">Abono</span>
-                                            </button>
-                                            <button
-                                                onClick={(e) => { e.stopPropagation(); handleAbrirEstadoCuenta(visita); }}
-                                                className="flex flex-col items-center justify-center p-2 rounded-xl bg-white text-slate-700 border border-slate-200 hover:bg-slate-50 transition-all shadow-sm active:scale-95"
-                                            >
-                                                <FileTextIcon className="h-4 w-4 mb-1 text-slate-400" />
-                                                <span className="text-[9px] font-bold uppercase">Estado</span>
-                                            </button>
-                                            <button
-                                                onClick={(e) => { e.stopPropagation(); setVisitaReprogramar(visita); }}
-                                                className="flex flex-col items-center justify-center p-2 rounded-xl bg-white text-slate-700 border border-slate-200 hover:bg-slate-50 transition-all shadow-sm active:scale-95"
-                                            >
-                                                <Calendar className="h-4 w-4 mb-1 text-slate-400" />
-                                                <span className="text-[9px] font-bold uppercase">Repro.</span>
-                                            </button>
-                                        </div>
-                                    </StaticVisitaItem>
-                                ))}
-                            </div>
+            ) : (
+              // ========================= VISTA VISITAS ACTUALES =========================
+              <>
+                  <div className="flex flex-col gap-6 animate-in fade-in duration-300">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 pb-4">
+                        <div className="flex items-center gap-3">
+                            <h3 className="font-bold text-slate-900 text-xl flex items-center gap-3">
+                                Visitas de la Ruta
+                                <span className="bg-blue-600 text-white text-xs px-2.5 py-1 rounded-full shadow-sm">{totalMostradas}</span>
+                            </h3>
                         </div>
-                    )
-                })}
-
-                {totalMostradas === 0 && (
-                    <div className="text-center py-20 bg-slate-50 rounded-[2rem] border-2 border-dashed border-slate-200 text-slate-400">
-                        <Search className="h-10 w-10 mx-auto mb-3 opacity-20" />
-                        <p className="font-medium">No se encontraron visitas para mostrar en este modo</p>
                     </div>
-                )}
-              </div>
-          </div>
+
+                    {/* Leyenda de Riesgos Simplificada */}
+                    <div className="flex flex-wrap gap-2 text-[10px] font-black text-slate-600 bg-white p-3 rounded-xl border border-slate-200 shadow-sm uppercase tracking-tighter">
+                        <div className="flex items-center gap-1.5 px-2 py-1 bg-emerald-50 rounded-lg border border-emerald-500/20">
+                            <div className="w-2 h-2 rounded-full bg-emerald-500"></div> 
+                            <span>Mínimo</span>
+                        </div>
+                        <div className="flex items-center gap-1.5 px-2 py-1 bg-blue-50 rounded-lg border border-blue-500/20">
+                            <div className="w-2 h-2 rounded-full bg-blue-500"></div> 
+                            <span>Leve</span>
+                        </div>
+                        <div className="flex items-center gap-1.5 px-2 py-1 bg-yellow-50 rounded-lg border border-yellow-500/20">
+                            <div className="w-2 h-2 rounded-full bg-yellow-500"></div> 
+                            <span>Precaución</span>
+                        </div>
+                        <div className="flex items-center gap-1.5 px-2 py-1 bg-amber-50 rounded-lg border border-amber-500/20">
+                            <div className="w-2 h-2 rounded-full bg-amber-500"></div> 
+                            <span>Moderado</span>
+                        </div>
+                        <div className="flex items-center gap-1.5 px-2 py-1 bg-rose-50 rounded-lg border border-rose-500/20">
+                            <div className="w-2 h-2 rounded-full bg-rose-500"></div> 
+                            <span>Crítico</span>
+                        </div>
+                    </div>
+                  </div>
+
+                  {/* LISTA DE VISITAS AGRUPADA POR FRECUENCIA */}
+                  <div className="space-y-10">
+                    {Object.entries({
+                        MES: 'Mensual',
+                        QUINCENA: 'Quincenal',
+                        SEMANA: 'Semanal',
+                        DIA: 'Diario'
+                    }).map(([key, label]) => {
+                        const visitas = visitasAgrupadas[key as keyof typeof visitasAgrupadas];
+                        if (visitas.length === 0) return null;
+                        
+                        return (
+                            <div key={key} className="space-y-4">
+                                <div className="flex items-center gap-4">
+                                    <div className="h-px flex-1 bg-slate-200"></div>
+                                    <span className="text-[11px] font-black text-[#08557f] uppercase tracking-[0.25em] bg-blue-50/50 px-4 py-1.5 rounded-full border border-blue-100 shadow-sm">
+                                        {label}
+                                    </span>
+                                    <div className="h-px flex-1 bg-slate-200"></div>
+                                </div>
+
+                                <div className="space-y-4">
+                                    {visitas.map((visita) => (
+                                        <StaticVisitaItem
+                                            key={visita.id}
+                                            visita={visita}
+                                            allowClick={false}
+                                            onVerCliente={handleAbrirClienteInfo}
+                                            getEstadoClasses={getEstadoClasses}
+                                            getPrioridadColor={getPrioridadColor}
+                                        >
+                                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1">
+                                                <button
+                                                    onClick={(e) => { e.stopPropagation(); handleAbrirPago(visita); }}
+                                                    className="flex flex-col items-center justify-center p-2 rounded-xl bg-blue-600 text-white hover:bg-blue-700 transition-all shadow-sm active:scale-95"
+                                                >
+                                                    <DollarSign className="h-4 w-4 mb-1" />
+                                                    <span className="text-[9px] font-bold uppercase">Pago</span>
+                                                </button>
+                                                <button
+                                                    onClick={(e) => { e.stopPropagation(); handleAbrirAbono(visita); }}
+                                                    className="flex flex-col items-center justify-center p-2 rounded-xl bg-emerald-600 text-white hover:bg-emerald-700 transition-all shadow-sm active:scale-95"
+                                                >
+                                                    <Wallet className="h-4 w-4 mb-1" />
+                                                    <span className="text-[9px] font-bold uppercase">Abono</span>
+                                                </button>
+                                                <button
+                                                    onClick={(e) => { e.stopPropagation(); handleAbrirEstadoCuenta(visita); }}
+                                                    className="flex flex-col items-center justify-center p-2 rounded-xl bg-white text-slate-700 border border-slate-200 hover:bg-slate-50 transition-all shadow-sm active:scale-95"
+                                                >
+                                                    <FileTextIcon className="h-4 w-4 mb-1 text-slate-400" />
+                                                    <span className="text-[9px] font-bold uppercase">Estado</span>
+                                                </button>
+                                                <button
+                                                    onClick={(e) => { e.stopPropagation(); setVisitaReprogramar(visita); }}
+                                                    className="flex flex-col items-center justify-center p-2 rounded-xl bg-white text-slate-700 border border-slate-200 hover:bg-slate-50 transition-all shadow-sm active:scale-95"
+                                                >
+                                                    <Calendar className="h-4 w-4 mb-1 text-slate-400" />
+                                                    <span className="text-[9px] font-bold uppercase">Repro.</span>
+                                                </button>
+                                            </div>
+                                        </StaticVisitaItem>
+                                    ))}
+                                </div>
+                            </div>
+                        )
+                    })}
+
+                    {totalMostradas === 0 && (
+                        <div className="text-center py-20 bg-slate-50 rounded-[2rem] border-2 border-dashed border-slate-200 text-slate-400">
+                            <Search className="h-10 w-10 mx-auto mb-3 opacity-20" />
+                            <p className="font-medium">No se encontraron visitas para mostrar en este modo</p>
+                        </div>
+                    )}
+                  </div>
+              </>
+            )}
+         </div>
       </div>
 
       {/* Modales (Gasto, Pago, etc...) */}

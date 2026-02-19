@@ -175,6 +175,45 @@ export const prestamosService = {
   },
 
   /**
+   * Registrar un pago o abono
+   */
+  async registrarPago(data: {
+    prestamoId: string;
+    clienteId?: string;
+    monto: number;
+    metodoPago: 'EFECTIVO' | 'TRANSFERENCIA';
+    comprobante?: File | null;
+    esAbono?: boolean;
+    cobradorId?: string;
+    fecha?: string;
+  }): Promise<any> {
+    const formData = new FormData();
+    formData.append('prestamoId', data.prestamoId);
+    if (data.clienteId) formData.append('clienteId', data.clienteId);
+    formData.append('montoTotal', data.monto.toString());
+    formData.append('metodoPago', data.metodoPago);
+    
+    if (data.esAbono) formData.append('tipo', 'ABONO');
+    else formData.append('tipo', 'PAGO');
+
+    if (data.cobradorId) formData.append('cobradorId', data.cobradorId);
+    if (data.fecha) formData.append('fechaPago', data.fecha);
+    
+    if (data.comprobante) {
+      formData.append('comprobante', data.comprobante);
+    }
+    
+    return apiRequest('POST', '/payments', formData);
+  },
+
+  /**
+   * Reprogramar la próxima cuota de un préstamo
+   */
+  async reprogramarPrestamo(prestamoId: string, data: { fecha: string; motivo: string; cobradorId: string }): Promise<any> {
+    return apiRequest('POST', `/loans/${prestamoId}/reschedule`, data);
+  },
+  
+  /**
    * Actualizar un préstamo existente
    */
   async actualizarPrestamo(id: string, data: {
@@ -188,3 +227,4 @@ export const prestamosService = {
     return apiRequest('PATCH', `/loans/${id}`, data);
   }
 };
+

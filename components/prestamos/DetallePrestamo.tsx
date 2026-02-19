@@ -83,14 +83,13 @@ export default function DetallePrestamo({ prestamo }: DetallePrestamoProps) {
 
   // Calcular saldo restante acumulado por cuota y detectar cuota actual
   const cuotasConSaldo = useMemo(() => {
-    let saldo = prestamo.montoPrestamo;
-    return prestamo.cuotas.map((c) => {
+    return prestamo.cuotas.reduce((acc: any[], c) => {
+      const prevSaldo: number = acc.length === 0 ? prestamo.montoPrestamo : acc[acc.length - 1].saldoRestante;
       const capital = c.montoCapital ?? 0;
-      if (c.estado === 'PAGADO') {
-        saldo = Math.max(0, saldo - capital);
-      }
-      return { ...c, saldoRestante: Math.round(saldo * 100) / 100 };
-    });
+      const newSaldo = c.estado === 'PAGADO' ? Math.max(0, prevSaldo - capital) : prevSaldo;
+      acc.push({ ...c, saldoRestante: Math.round(newSaldo * 100) / 100 });
+      return acc;
+    }, []);
   }, [prestamo.cuotas, prestamo.montoPrestamo]);
 
   const cuotaActual = useMemo(() => {

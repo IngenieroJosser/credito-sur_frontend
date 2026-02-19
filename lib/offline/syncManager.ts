@@ -1,4 +1,6 @@
 import { apiClient } from '@/lib/api/apiClient';
+import { apiRequest } from '@/lib/api/api';
+import { restoreOfflineSession } from '@/lib/auth/offlineAuth';
 import { offlineQueue } from './offlineQueue';
 import { offlineStore, OfflineCliente, OfflinePrestamo, OfflineCuota, OfflineRuta } from './offlineDb';
 import { trackOfflineEvent } from './offlineAnalytics';
@@ -101,13 +103,15 @@ export const syncManager = {
     if (!navigator.onLine) return 0;
 
     try {
-      const token = localStorage.getItem('token');
-      const response = await apiClient.get('/clients', {
-        headers: { Authorization: `Bearer ${token}` },
-        timeout: 30000,
-      });
+      let token = localStorage.getItem('token');
+      if (!token) {
+        const restored = restoreOfflineSession();
+        token = restored?.token || null as any;
+        if (!token) return 0;
+      }
 
-      const data = response.data;
+      const data = await apiRequest<any>('GET', '/clients', undefined, { timeout: 30000, cacheTTL: 0 });
+
       const clientes: OfflineCliente[] = (Array.isArray(data) ? data : data.clientes || []).map((c: any) => ({
         id: c.id,
         codigo: c.codigo || '',
@@ -137,13 +141,15 @@ export const syncManager = {
     if (!navigator.onLine) return 0;
 
     try {
-      const token = localStorage.getItem('token');
-      const response = await apiClient.get('/loans?limit=500', {
-        headers: { Authorization: `Bearer ${token}` },
-        timeout: 30000,
-      });
+      let token = localStorage.getItem('token');
+      if (!token) {
+        const restored = restoreOfflineSession();
+        token = restored?.token || null as any;
+        if (!token) return 0;
+      }
 
-      const data = response.data;
+      const data = await apiRequest<any>('GET', '/loans?limit=500', undefined, { timeout: 30000, cacheTTL: 0 });
+
       const prestamosRaw = data.prestamos || [];
       const prestamos: OfflinePrestamo[] = prestamosRaw.map((p: any) => ({
         id: p.id,
@@ -203,13 +209,15 @@ export const syncManager = {
     if (!navigator.onLine) return 0;
 
     try {
-      const token = localStorage.getItem('token');
-      const response = await apiClient.get('/routes', {
-        headers: { Authorization: `Bearer ${token}` },
-        timeout: 30000,
-      });
+      let token = localStorage.getItem('token');
+      if (!token) {
+        const restored = restoreOfflineSession();
+        token = restored?.token || null as any;
+        if (!token) return 0;
+      }
 
-      const data = response.data;
+      const data = await apiRequest<any>('GET', '/routes', undefined, { timeout: 30000, cacheTTL: 0 });
+
       const rutasRaw = Array.isArray(data) ? data : data.data || [];
       const rutas: OfflineRuta[] = rutasRaw.map((r: any) => ({
         id: r.id,
