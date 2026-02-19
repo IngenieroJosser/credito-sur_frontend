@@ -9,6 +9,7 @@ export interface VisitaRuta {
   horaSugerida: string
   montoCuota: number
   saldoTotal: number
+  recaudadoDelDia?: number
   estado: EstadoVisita
   proximaVisita: string
   ordenVisita: number

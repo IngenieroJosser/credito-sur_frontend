@@ -298,3 +298,29 @@ export async function obtenerSaldoDisponibleRuta(rutaId: string, fecha?: string)
   const params = fecha ? `?fecha=${fecha}` : '';
   return apiRequest<SaldoDisponibleRuta>('GET', `/accounting/rutas/${rutaId}/saldo-disponible${params}`);
 }
+
+export async function registrarGasto(data: {
+  descripcion: string
+  valor: number
+  comprobante?: File | null
+  rutaId: string
+  cobradorId: string
+}): Promise<any> {
+  const payload: any = {
+    descripcion: data.descripcion,
+    valor: data.valor,
+    rutaId: data.rutaId,
+    cobradorId: data.cobradorId
+  };
+
+  return apiRequest('POST', '/accounting/gastos', payload);
+}
+
+export async function solicitarBase(data: { 
+  monto: number
+  descripcion: string
+  cobradorId: string 
+  rutaId: string 
+}): Promise<any> {
+   return apiRequest('POST', '/accounting/base-requests', data);
+}

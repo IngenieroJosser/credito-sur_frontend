@@ -66,6 +66,8 @@ import GastoModal from '@/components/dashboards/shared/GastoModal'
 import BaseModal from '@/components/dashboards/shared/BaseModal'
 import DetalleMoraModal from '@/components/cobranza/DetalleMoraModal'
 import FloatingActionMenu, { FabAction } from '@/components/dashboards/shared/FloatingActionMenu'
+import { loansService_ } from '@/services/loans-service'
+import { prestamosService } from '@/services/prestamos-service'
 
 interface OperacionCaja {
   id: string
@@ -104,6 +106,18 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
   
   const [showMoraModal, setShowMoraModal] = useState(false)
   const [visitaMoraSeleccionada, setVisitaMoraSeleccionada] = useState<VisitaRuta | null>(null)
+  const [moraCuenta, setMoraCuenta] = useState<{
+    id: string
+    numeroPrestamo: string
+    cliente: { nombre: string; documento: string; telefono: string; direccion: string }
+    diasMora: number
+    montoMora: number
+    montoTotalDeuda: number
+    cuotasVencidas: number
+    ruta: string
+    cobrador: string
+    nivelRiesgo: string
+  } | null>(null)
   const [showNewClientModal, setShowNewClientModal] = useState(false)
   const [showReprogramModal, setShowReprogramModal] = useState(false)
   const [visitaReprogramar, setVisitaReprogramar] = useState<VisitaRuta | null>(null)
@@ -429,6 +443,98 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
     setActiveId(null)
   }, [])
 
+  // Cargar detalle de mora al abrir el modal
+  useEffect(() => {
+    const cargarDetalleMora = async () => {
+      if (!showMoraModal || !visitaMoraSeleccionada) {
+        setMoraCuenta(null)
+        return
+      }
+      const prestamoId = visitaMoraSeleccionada.prestamoId || visitaMoraSeleccionada.id
+      try {
+        let detalle: any = null
+        try {
+          detalle = await loansService_.obtenerDetallePrestamo(prestamoId)
+        } catch {
+          detalle = null
+        }
+        if (detalle) {
+          setMoraCuenta({
+            id: visitaMoraSeleccionada.id,
+            numeroPrestamo: detalle.numeroPrestamo || detalle.id || prestamoId,
+            cliente: {
+              nombre: detalle.cliente?.nombre || visitaMoraSeleccionada.cliente,
+              documento: detalle.cliente?.documento || 'N/A',
+              telefono: detalle.cliente?.telefono || visitaMoraSeleccionada.telefono,
+              direccion: detalle.cliente?.direccion || visitaMoraSeleccionada.direccion
+            },
+            diasMora: Number(detalle.diasMora || 0),
+            montoMora: Number(detalle.montoMora ?? (visitaMoraSeleccionada.saldoTotal - visitaMoraSeleccionada.montoCuota)),
+            montoTotalDeuda: Number(detalle.montoTotalDeuda ?? visitaMoraSeleccionada.saldoTotal),
+            cuotasVencidas: Number(detalle.cuotasVencidas || 0),
+            ruta: userSession?.rutaAsignada || 'Ruta Asignada',
+            cobrador: userSession?.nombres || 'Cobrador',
+            nivelRiesgo: visitaMoraSeleccionada.nivelRiesgo === 'critico' ? 'ROJO' :
+                         visitaMoraSeleccionada.nivelRiesgo === 'moderado' ? 'AMARILLO' : 'VERDE'
+          })
+          return
+        }
+        const info = await prestamosService.obtenerPrestamoPorId(prestamoId)
+        const cuotas = await prestamosService.obtenerCuotas(prestamoId).catch(() => [])
+        const vencidas = (cuotas || []).filter((c: any) => c.estado === 'VENCIDA')
+        const cuotasVencidas = vencidas.length
+        let diasMora = 0
+        if (vencidas.length > 0) {
+          const oldest = vencidas.reduce((min: any, c: any) => (
+            new Date(c.fechaVencimiento).getTime() < new Date(min.fechaVencimiento).getTime() ? c : min
+          ), vencidas[0])
+          const diff = Math.floor((Date.now() - new Date(oldest.fechaVencimiento).getTime()) / (1000 * 60 * 60 * 24))
+          diasMora = diff > 0 ? diff : 0
+        }
+        const numeroPrestamo = info.numeroPrestamo || info.id || prestamoId
+        const montoTotalDeuda = Number(info.saldoPendiente ?? visitaMoraSeleccionada.saldoTotal)
+        const montoMora = Number(info.moraAcumulada ?? Math.max(0, visitaMoraSeleccionada.saldoTotal - visitaMoraSeleccionada.montoCuota))
+        setMoraCuenta({
+          id: visitaMoraSeleccionada.id,
+          numeroPrestamo,
+          cliente: {
+            nombre: visitaMoraSeleccionada.cliente,
+            documento: info.cliente?.dni || 'N/A',
+            telefono: visitaMoraSeleccionada.telefono,
+            direccion: visitaMoraSeleccionada.direccion
+          },
+          diasMora,
+          montoMora,
+          montoTotalDeuda,
+          cuotasVencidas,
+          ruta: userSession?.rutaAsignada || 'Ruta Asignada',
+          cobrador: userSession?.nombres || 'Cobrador',
+          nivelRiesgo: visitaMoraSeleccionada.nivelRiesgo === 'critico' ? 'ROJO' :
+                       visitaMoraSeleccionada.nivelRiesgo === 'moderado' ? 'AMARILLO' : 'VERDE'
+        })
+      } catch {
+        setMoraCuenta({
+          id: visitaMoraSeleccionada.id,
+          numeroPrestamo: prestamoId,
+          cliente: {
+            nombre: visitaMoraSeleccionada.cliente,
+            documento: 'N/A',
+            telefono: visitaMoraSeleccionada.telefono,
+            direccion: visitaMoraSeleccionada.direccion
+          },
+          diasMora: 0,
+          montoMora: Math.max(0, visitaMoraSeleccionada.saldoTotal - visitaMoraSeleccionada.montoCuota),
+          montoTotalDeuda: visitaMoraSeleccionada.saldoTotal,
+          cuotasVencidas: 0,
+          ruta: userSession?.rutaAsignada || 'Ruta Asignada',
+          cobrador: userSession?.nombres || 'Cobrador',
+          nivelRiesgo: visitaMoraSeleccionada.nivelRiesgo === 'critico' ? 'ROJO' :
+                       visitaMoraSeleccionada.nivelRiesgo === 'moderado' ? 'AMARILLO' : 'VERDE'
+        })
+      }
+    }
+    cargarDetalleMora()
+  }, [showMoraModal, visitaMoraSeleccionada, userSession])
   const handleDragCancel = useCallback(() => {
     setActiveId(null)
   }, [])
@@ -1213,29 +1319,13 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
 
 
 
-        {showMoraModal && visitaMoraSeleccionada && (
+        {showMoraModal && visitaMoraSeleccionada && moraCuenta && (
           <DetalleMoraModal
-            cuenta={{
-              id: visitaMoraSeleccionada.id,
-              numeroPrestamo: visitaMoraSeleccionada.id, // Mock
-              cliente: {
-                nombre: visitaMoraSeleccionada.cliente,
-                documento: 'N/A', // Not in VisitaRuta
-                telefono: visitaMoraSeleccionada.telefono,
-                direccion: visitaMoraSeleccionada.direccion
-              },
-              diasMora: 15, // Mock default for view
-              montoMora: visitaMoraSeleccionada.saldoTotal - visitaMoraSeleccionada.montoCuota, // Estimate
-              montoTotalDeuda: visitaMoraSeleccionada.saldoTotal,
-              cuotasVencidas: 1, // Mock
-              ruta: userSession?.rutaAsignada || 'Ruta Asignada',
-              cobrador: userSession?.nombres || 'Cobrador',
-              nivelRiesgo: visitaMoraSeleccionada.nivelRiesgo === 'critico' ? 'ROJO' : 
-                           visitaMoraSeleccionada.nivelRiesgo === 'moderado' ? 'AMARILLO' : 'VERDE'
-            }}
+            cuenta={moraCuenta}
             onClose={() => {
               setShowMoraModal(false)
               setVisitaMoraSeleccionada(null)
+              setMoraCuenta(null)
             }}
           />
         )}

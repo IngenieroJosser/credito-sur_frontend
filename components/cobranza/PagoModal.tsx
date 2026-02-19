@@ -124,21 +124,7 @@ export default function PagoModal({ visita, tipo, onClose, onConfirm }: PagoModa
                 </div>
               </div>
 
-              <div className="grid grid-cols-3 gap-2">
-                {[10000, 20000, 50000, 100000].map(amount => (
-                  <button 
-                    key={amount}
-                    type="button"
-                    onClick={() => {
-                      const nuevo = parseCOPInputToNumber(montoPagoInput) + amount
-                      setMontoPagoInput(nuevo === 0 ? '' : formatMilesCOP(nuevo))
-                    }}
-                    className="py-2 px-1 rounded-lg bg-slate-50 border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-100 hover:border-slate-300"
-                  >
-                    +${(amount/1000).toFixed(0)}k
-                  </button>
-                ))}
-              </div>
+
 
               <button 
                 type="button"

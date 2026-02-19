@@ -123,11 +123,6 @@ export function StaticVisitaItem({
                                  visita.periodoRuta === 'QUINCENA' ? 'Quincenal' :
                                  visita.periodoRuta === 'MES' ? 'Mensual' : visita.periodoRuta}
                             </span>
-                            <span>•</span>
-                            <span className="flex items-center gap-1">
-                                <Calendar className="w-2.5 h-2.5" />
-                                {new Date(visita.proximaVisita).toLocaleDateString('es-CO', { day: '2-digit', month: 'short' })}
-                            </span>
                         </div>
                     </div>
                 </div>
@@ -154,7 +149,7 @@ export function StaticVisitaItem({
                  </div>
                  <div className="bg-white/60 p-2 rounded-lg border border-slate-100/50 shadow-sm text-center">
                      <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-0.5 whitespace-nowrap">Recaudado</div>
-                     <div className="text-sm font-bold text-emerald-600">$0</div>
+                     <div className="text-sm font-bold text-emerald-600">${(visita.recaudadoDelDia ?? 0).toLocaleString('es-CO')}</div>
                  </div>
                  <div className="bg-white/60 p-2 rounded-lg border border-slate-100/50 shadow-sm text-right">
                      <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-0.5 whitespace-nowrap">Por Entregar</div>
@@ -238,9 +233,9 @@ export function SortableItem({
       style={style}
       className={`relative z-10 w-full rounded-2xl px-4 py-3 transition-all bg-white border-[3px] ${
         isSelected 
-          ? 'ring-2 ring-[#08557f] shadow-md bg-slate-50' 
-          : visita.nivelRiesgo === 'bajo' ? 'border-blue-600 shadow-sm' :
-            visita.nivelRiesgo === 'leve' ? 'border-emerald-600 shadow-sm' :
+          ? 'ring-2 ring-[#08557f] shadow-md bg-slate-50 border-[#08557f]' 
+          : visita.nivelRiesgo === 'bajo' ? 'border-emerald-600 shadow-sm' :
+            visita.nivelRiesgo === 'leve' ? 'border-blue-600 shadow-sm' :
             visita.nivelRiesgo === 'moderado' ? 'border-orange-600 shadow-md' :
             visita.nivelRiesgo === 'critico' ? 'border-red-700 shadow-lg' :
             'border-slate-200'
@@ -275,11 +270,6 @@ export function SortableItem({
                                  visita.periodoRuta === 'QUINCENA' ? 'Quincenal' :
                                  visita.periodoRuta === 'MES' ? 'Mensual' : visita.periodoRuta}
                             </span>
-                            <span>•</span>
-                            <span className="flex items-center gap-1">
-                                <Calendar className="w-2.5 h-2.5" />
-                                {new Date(visita.proximaVisita).toLocaleDateString('es-CO', { day: '2-digit', month: 'short' })}
-                            </span>
                         </div>
                     </div>
                 </div>
@@ -306,7 +296,7 @@ export function SortableItem({
                  </div>
                  <div className="bg-white/60 p-2 rounded-lg border border-slate-100/50 shadow-sm text-center">
                      <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-0.5 whitespace-nowrap">Recaudado</div>
-                     <div className="text-sm font-bold text-emerald-600">$0</div>
+                     <div className="text-sm font-bold text-emerald-600">${(visita.recaudadoDelDia ?? 0).toLocaleString('es-CO')}</div>
                  </div>
                  <div className="bg-white/60 p-2 rounded-lg border border-slate-100/50 shadow-sm text-right">
                      <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-0.5 whitespace-nowrap">Por Entregar</div>
@@ -321,8 +311,8 @@ export function SortableItem({
                         {visita.estado.replace('_', ' ')}
                     </span>
                     <span className={`text-[9px] font-black uppercase tracking-tighter px-1.5 py-0.5 rounded w-fit ${
-                        visita.nivelRiesgo === 'bajo' ? 'text-blue-600 bg-blue-50 border border-blue-100' :
-                        visita.nivelRiesgo === 'leve' ? 'text-emerald-600 bg-emerald-50 border border-emerald-100' :
+                        visita.nivelRiesgo === 'bajo' ? 'text-emerald-600 bg-emerald-50 border border-emerald-100' :
+                        visita.nivelRiesgo === 'leve' ? 'text-blue-600 bg-blue-50 border border-blue-100' :
                         visita.nivelRiesgo === 'moderado' ? 'text-orange-600 bg-orange-50 border border-orange-100' :
                         visita.nivelRiesgo === 'critico' ? 'text-red-600 bg-red-50 border border-red-100' :
                         'text-slate-400 bg-slate-50'

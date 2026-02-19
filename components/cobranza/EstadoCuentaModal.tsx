@@ -106,6 +106,7 @@ export default function EstadoCuentaModal({ visita, onClose }: EstadoCuentaModal
       fechaInicio: formatDateUTC(loanData.fechaInicio),
       fechaVencimiento: formatDateUTC(loanData.fechaFin || (cuotas.length > 0 ? cuotas[cuotas.length - 1].fechaVencimiento : null)),
       nextPaymentDate: proxima ? formatDateUTC(proxima.fechaVencimiento) : '---',
+      nextPaymentAmount: proxima ? Number(proxima.monto || 0) : 0,
       totalPaid: pagadoD,
       totalValue: totalD,
       installmentsPaid: pagadas.length,
@@ -199,7 +200,7 @@ export default function EstadoCuentaModal({ visita, onClose }: EstadoCuentaModal
                             </div>
                             <div className="text-right">
                                 <span className="text-[10px] font-bold text-orange-600 uppercase tracking-widest">Valor Cuota</span>
-                                <div className="text-lg font-black text-slate-900">${formatMilesCOP(visita.montoCuota)}</div>
+                                <div className="text-lg font-black text-slate-900">${formatMilesCOP(info.nextPaymentAmount)}</div>
                             </div>
                         </div>
                     </div>

@@ -42,9 +42,12 @@ export const apiRequest = async <T>(
 
   const headers: Record<string, string> = {
     Accept: "application/json",
-    "Content-Type": "application/json",
     ...(token && { Authorization: `Bearer ${token}` }),
   };
+
+  if (!(data instanceof FormData)) {
+    headers["Content-Type"] = "application/json";
+  }
 
   // Separar cacheTTL del config y manejar timeout
   const { cacheTTL, timeout = 10000, ...axiosConfig } = config || {};
@@ -108,7 +111,7 @@ export const apiRequest = async <T>(
         window.location.href = "/login";
       }
     } else if (status === 404) {
-      errorMessage = "Recurso no encontrado";
+      errorMessage = err.response.data?.message || "Recurso no encontrado";
     } else if (status === 500) {
       errorMessage = "Error interno del servidor";
     }
