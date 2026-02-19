@@ -20,12 +20,13 @@ export async function loginAction(data: LoginData): Promise<LoginResult> {
   const cookieStore = await cookies();
 
   try {
-    // URL del backend: en producción usar Render, en desarrollo usar localhost
-    const backendUrl = process.env.NEXT_PUBLIC_BASE_URL 
-      || (process.env.NODE_ENV === 'production' 
-        ? 'https://credito-sur-backend.onrender.com' 
-        : 'http://localhost:3001');
-    const loginUrl = `${backendUrl}/api-credisur/auth/login`;
+    const defaultBaseUrl =
+      process.env.NODE_ENV === 'production'
+        ? 'https://credito-sur-backend.onrender.com'
+        : 'http://localhost:3001/api-credisur';
+
+    const backendUrl = (process.env.NEXT_PUBLIC_BASE_URL || defaultBaseUrl).replace(/\/$/, '');
+    const loginUrl = `${backendUrl}/auth/login`;
     
     console.log(`[Server Action] Login => ${loginUrl}`);
 
