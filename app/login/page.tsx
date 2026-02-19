@@ -282,7 +282,7 @@ const LoginPage = () => {
             <div className="p-4">
               <div className="flex items-start justify-between">
                 <div className="flex-1">
-                  {/* Título y Nombre de usuario */}
+                  {/* Título y Nombre */}
                   <div className="flex items-baseline gap-2">
                     <h3 className={`text-sm font-medium ${styles.text}`}>
                       {toast.message}
@@ -389,7 +389,7 @@ const LoginPage = () => {
                 onFocus={() => setFocusedField('usuario')}
                 onBlur={() => setFocusedField(null)}
                 className="w-full pl-8 pr-4 py-3 bg-transparent border-0 border-b border-gray-200 focus:border-[#08557f] focus:outline-none transition-all duration-300 text-gray-700 placeholder-gray-400 text-sm"
-                placeholder="Usuario o Correo"
+                placeholder="Nombre"
                 autoComplete="username"
                 disabled={isLoading}
               />

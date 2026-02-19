@@ -35,7 +35,6 @@ export interface UserProfile {
   id: string;
   nombres: string;
   apellidos: string;
-  nombreUsuario?: string;
   rol: RolUsuario;
   correo?: string;
   telefono?: string;
