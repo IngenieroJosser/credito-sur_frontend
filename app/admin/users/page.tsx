@@ -52,7 +52,6 @@ import { permisosPorRol } from '@/lib/permissions';
 
 interface User {
   id: string;
-  nombreUsuario: string;
   nombres: string;
   apellidos: string;
   correo: string;
@@ -100,7 +99,6 @@ const UserManagementPage = () => {
       const data = await usuariosService.obtenerTodos();
       const mappedUsers: User[] = data.map(u => ({
         id: u.id,
-        nombreUsuario: u.nombreUsuario || '',
         nombres: u.nombres,
         apellidos: u.apellidos,
         correo: u.correo,
@@ -266,7 +264,6 @@ const UserManagementPage = () => {
   }, [isCreateModalOpen, isEditModalOpen, isPermissionsModalOpen, isDeleteModalOpen]);
 
   interface UserFormData {
-    nombreUsuario: string;
     nombres: string;
     apellidos: string;
     correo: string;
@@ -277,7 +274,6 @@ const UserManagementPage = () => {
   }
 
   const [formData, setFormData] = useState<UserFormData>({
-    nombreUsuario: '',
     nombres: '',
     apellidos: '',
     correo: '',
@@ -336,7 +332,6 @@ const UserManagementPage = () => {
 
   const handleOpenCreateModal = () => {
     setFormData({
-      nombreUsuario: '',
       nombres: '',
       apellidos: '',
       correo: '',
@@ -359,7 +354,6 @@ const UserManagementPage = () => {
 
     setSelectedUser(user);
     setFormData({
-      nombreUsuario: user.nombreUsuario || '',
       nombres: user.nombres,
       apellidos: user.apellidos,
       correo: user.correo,
@@ -584,13 +578,8 @@ const UserManagementPage = () => {
     try {
       const { password, ...userData } = formData;
       // Validar campos mínimos
-      if (!formData.nombreUsuario || !formData.nombres || !formData.apellidos || !formData.correo || !formData.password) {
+      if (!formData.nombres || !formData.apellidos || !formData.correo || !formData.password) {
         showNotification('error', 'Por favor complete todos los campos obligatorios', 'Campos Faltantes');
-        return;
-      }
-
-      if (formData.nombreUsuario.length < 3) {
-        showNotification('error', 'El nombre de usuario debe tener al menos 3 caracteres', 'Validación');
         return;
       }
 
@@ -661,7 +650,6 @@ const UserManagementPage = () => {
       // 2. Actualizar datos personales
       console.log('[UPDATE] Actualizando datos personales...');
       await usuariosService.actualizar(selectedUser.id, {
-        nombreUsuario: formData.nombreUsuario,
         nombres: formData.nombres,
         apellidos: formData.apellidos,
         correo: formData.correo,
@@ -1179,18 +1167,7 @@ const UserManagementPage = () => {
               </div>
             </div>
             <div className="space-y-5">
-              <div>
-                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Nombre de Usuario</label>
-                <input
-                  type="text"
-                  value={formData.nombreUsuario}
-                  onChange={(e) => setFormData({...formData, nombreUsuario: e.target.value.toLowerCase().replace(/[^a-z0-9]/g, '')})}
-                  className="w-full px-4 py-3 border border-slate-200 rounded-2xl bg-slate-50 focus:bg-white focus:border-blue-600 focus:ring-2 focus:ring-blue-600/20 transition-all text-sm font-medium text-slate-900 placeholder:text-slate-400"
-                  placeholder="Ej. jperez (solo letras y números, sin espacios)"
-                  maxLength={50}
-                />
-                <p className="text-xs text-slate-500 mt-1">Se usará para iniciar sesión. Solo letras minúsculas y números.</p>
-              </div>
+
               
               <div className="grid grid-cols-2 gap-4">
                 <div>
@@ -1219,6 +1196,7 @@ const UserManagementPage = () => {
                 <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Correo Electrónico</label>
                 <input
                   type="email"
+                  autoComplete="off"
                   value={formData.correo}
                   onChange={(e) => setFormData({...formData, correo: e.target.value})}
                   className="w-full px-4 py-3 border border-slate-200 rounded-2xl bg-slate-50 focus:bg-white focus:border-blue-600 focus:ring-2 focus:ring-blue-600/20 transition-all text-sm font-medium text-slate-900 placeholder:text-slate-400"
@@ -1239,13 +1217,24 @@ const UserManagementPage = () => {
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Contraseña</label>
-                  <input
-                    type="password"
-                    value={formData.password}
-                    onChange={(e) => setFormData({...formData, password: e.target.value})}
-                    className="w-full px-4 py-3 border border-slate-200 rounded-2xl bg-slate-50 focus:bg-white focus:border-blue-600 focus:ring-2 focus:ring-blue-600/20 transition-all text-sm font-medium text-slate-900 placeholder:text-slate-400"
-                    placeholder="••••••••"
-                  />
+                  <div className="relative">
+                    <input
+                      type={showPassword ? "text" : "password"}
+                      autoComplete="new-password"
+                      name={`new_pw_${Date.now()}`}
+                      value={formData.password}
+                      onChange={(e) => setFormData({...formData, password: e.target.value})}
+                      className="w-full px-4 py-3 pr-12 border border-slate-200 rounded-2xl bg-slate-50 focus:bg-white focus:border-blue-600 focus:ring-2 focus:ring-blue-600/20 transition-all text-sm font-medium text-slate-900 placeholder:text-slate-400"
+                      placeholder="••••••••"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
+                    >
+                      {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  </div>
                 </div>
               </div>
 
@@ -1307,17 +1296,7 @@ const UserManagementPage = () => {
               </div>
             </div>
             <div className="space-y-5">
-              <div>
-                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Nombre de Usuario</label>
-                <input
-                  type="text"
-                  value={formData.nombreUsuario}
-                  onChange={(e) => setFormData({...formData, nombreUsuario: e.target.value.toLowerCase().replace(/[^a-z0-9]/g, '')})}
-                  className="w-full px-4 py-3 border border-slate-200 rounded-2xl bg-slate-50 focus:bg-white focus:border-blue-600 focus:ring-2 focus:ring-blue-600/20 transition-all text-sm font-medium text-slate-900 placeholder:text-slate-400"
-                  maxLength={50}
-                />
-                <p className="text-xs text-slate-500 mt-1">Se usará para iniciar sesión. Solo letras minúsculas y números.</p>
-              </div>
+
               
               <div className="grid grid-cols-2 gap-4">
                 <div>
@@ -1344,6 +1323,7 @@ const UserManagementPage = () => {
                 <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Correo Electrónico</label>
                 <input
                   type="email"
+                  autoComplete="off"
                   value={formData.correo}
                   onChange={(e) => setFormData({...formData, correo: e.target.value})}
                   className="w-full px-4 py-3 border border-slate-200 rounded-2xl bg-slate-50 focus:bg-white focus:border-blue-600 focus:ring-2 focus:ring-blue-600/20 transition-all text-sm font-medium text-slate-900 placeholder:text-slate-400"
@@ -1601,15 +1581,6 @@ const UserManagementPage = () => {
                     <div className="w-full h-px bg-slate-200/80 my-4"></div>
 
                     <div className="space-y-3 w-full text-left px-2">
-                        <div className="flex items-center gap-3 group">
-                             <div className="p-2 bg-white rounded-lg border border-slate-200 text-slate-400 group-hover:border-blue-200 group-hover:text-blue-500 transition-colors shadow-sm">
-                                <AtSign className="w-4 h-4" />
-                             </div>
-                             <div className="overflow-hidden">
-                                 <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wide">Nombre de Usuario</div>
-                                 <div className="text-sm font-bold text-slate-700 truncate" title={selectedUser.nombreUsuario || 'No asignado'}>{selectedUser.nombreUsuario || 'No asignado'}</div>
-                             </div>
-                         </div>
                         <div className="flex items-center gap-3 group">
                              <div className="p-2 bg-white rounded-lg border border-slate-200 text-slate-400 group-hover:border-blue-200 group-hover:text-blue-500 transition-colors shadow-sm">
                                 <Mail className="w-4 h-4" />

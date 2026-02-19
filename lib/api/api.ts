@@ -30,7 +30,7 @@ export const apiRequest = async <T>(
       ? localStorage.getItem("token")
       : null;
 
-  const url = endpoint.startsWith("/") ? endpoint : `/${endpoint}`;
+  const url = endpoint.startsWith("/") ? endpoint.substring(1) : endpoint;
   const isGET = method.toUpperCase() === "GET";
   const cacheKey = getCacheKey(method, url);
 
