@@ -25,7 +25,8 @@ import {
   CalendarDays,
   Star,
   History,
-  Loader2
+  Loader2,
+  ChevronDown
 } from 'lucide-react'
 
 import { formatCurrency } from '@/lib/utils'
@@ -33,6 +34,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { RutaDetalleMock } from '@/lib/rutas-data'
 import { routesService } from '@/services/routes-service'
+import { rutasService } from '@/services/rutas-service'
 import { clientesService } from '@/services/clientes-service'
 import { useNotification } from '@/components/providers/NotificationProvider'
 
@@ -45,7 +47,10 @@ import NuevoClienteModal from '@/components/clientes/NuevoClienteModal'
 import { useAuth } from '@/hooks/useAuth'
 import CrearCreditoModal from '@/components/dashboards/shared/CrearCreditoModal'
 import { prestamosService } from '@/services/prestamos-service'
+import { pagosService } from '@/services/pagos-service'
 import { FrecuenciaPago } from '@/types/enums'
+import { obtenerSaldoDisponibleRuta } from '@/services/contabilidad-service'
+import { HistorialDia } from '@/lib/types/cobranza'
 
 interface GastoRuta {
   id: string
@@ -85,6 +90,167 @@ const RutaClient = ({ initialRuta }: RutaClientProps) => {
   const [historyViewMode, setHistoryViewMode] = useState<'DAYS' | 'MONTHS'>('DAYS')
   const [selectedHistoryDate, setSelectedHistoryDate] = useState<string | null>(null)
 
+  const historyDates = useMemo(() => {
+    if (!historialRutas) return [];
+    return Object.keys(historialRutas).sort((a, b) => b.localeCompare(a));
+  }, [historialRutas]);
+
+  // Prefill historial keys for últimos 30 días (lazy fetch per día al expandir)
+  useEffect(() => {
+    if (!showHistory || !initialRuta?.id) return;
+    if (historialRutas && Object.keys(historialRutas).length > 0) return;
+    const hoy = new Date();
+    const prefill: Record<string, HistorialDia> = {};
+    for (let i = 0; i < 30; i++) {
+        const d = new Date(hoy);
+        d.setDate(hoy.getDate() - i);
+        const yyyy = d.getFullYear();
+        const mm = String(d.getMonth() + 1).padStart(2, '0');
+        const dd = String(d.getDate()).padStart(2, '0');
+        const key = `${yyyy}-${mm}-${dd}`;
+        prefill[key] = {
+            resumen: { recaudo: 0, gastos: 0, efectividad: 0, visitados: 0, total: 0 },
+            visitas: [],
+            loaded: false
+        };
+    }
+    setHistorialRutas(prefill);
+  }, [showHistory, initialRuta?.id]);
+
+  const cargarHistorialFecha = useCallback(async (fechaClave: string) => {
+    if (!initialRuta?.id) return;
+    try {
+      const visitasResp = await rutasService.obtenerVisitasDelDia(initialRuta.id, fechaClave);
+      const saldo = await obtenerSaldoDisponibleRuta(initialRuta.id, fechaClave);
+      const pagosResp = await pagosService.obtenerPagos({ limit: 1000 });
+      const pagosData = (pagosResp as any)?.pagos || pagosResp || [];
+      
+      const pagosDelDia = (Array.isArray(pagosData) ? pagosData : []).filter((p: any) => {
+        const raw = p.fechaPago || p.creadoEn;
+        if (!raw) return false;
+        const d = new Date(raw);
+        const yyyy = d.getFullYear();
+        const mm = String(d.getMonth() + 1).padStart(2, '0');
+        const dd = String(d.getDate()).padStart(2, '0');
+        const key = `${yyyy}-${mm}-${dd}`;
+        return key === fechaClave && (p.ruta === initialRuta.nombre);
+      });
+
+      const recaudadoPorCliente: Record<string, number> = {};
+      for (const p of pagosDelDia) {
+        const cid = p.clienteId || (p.cliente?.id);
+        if (!cid) continue;
+        recaudadoPorCliente[cid] = (recaudadoPorCliente[cid] || 0) + Number(p.montoTotal || 0);
+      }
+
+      const existentes = new Set();
+      const visitas: VisitaRuta[] = (visitasResp?.visitas || []).map((item: any, index: number) => {
+        const cliente = item.cliente || {};
+        const prestamos = item.prestamos || [];
+        const prestamoActivo = prestamos.find((p: any) => p.estado === 'ACTIVO' || p.estado === 'EN_MORA' || p.estado === 'PAGADO') || prestamos[0] || {};
+        const proximaCuota = prestamoActivo?.proximaCuota || {};
+        const saldoTotalToken = Number(prestamoActivo?.saldoPendiente || 0);
+        
+        const recDia = cliente.id ? (recaudadoPorCliente[cliente.id] || 0) : 0;
+        const montoCuota = Number(proximaCuota?.monto || 0);
+        
+        if (cliente.id) existentes.add(cliente.id);
+
+        let estado: EstadoVisita = 'pendiente';
+        if (proximaCuota?.estado === 'PAGADA' || (recDia > 0 && recDia >= (montoCuota - 1)) || saldoTotalToken <= 0) {
+            estado = 'pagado';
+        } else if (proximaCuota?.estado === 'VENCIDA') {
+            estado = 'en_mora';
+        }
+
+        return {
+          id: item.asignacionId || `hist-${fechaClave}-${index}`,
+          cliente: `${cliente.nombres || ''} ${cliente.apellidos || ''}`.trim() || 'Cliente Sin Nombre',
+          direccion: cliente.direccion || 'Sin dirección registrada',
+          telefono: cliente.telefono || '',
+          horaSugerida: '08:00 AM',
+          montoCuota,
+          saldoTotal: saldoTotalToken,
+          estado,
+          proximaVisita: proximaCuota?.fechaVencimiento || fechaClave,
+          ordenVisita: item.ordenVisita || index + 1,
+          prioridad: (cliente.nivelRiesgo === 'ROJO' ? 'alta' : 'media'),
+          nivelRiesgo: (() => {
+            const r = cliente.nivelRiesgo || 'VERDE';
+            if (r === 'VERDE') return 'bajo';
+            if (r === 'AMARILLO') return 'leve';
+            if (r === 'ROJO') return 'moderado';
+            if (r === 'LISTA_NEGRA') return 'critico';
+            return 'bajo';
+          })(),
+          cobradorId: '',
+          periodoRuta: (() => {
+            const f = prestamoActivo?.frecuenciaPago || 'DIARIO';
+            if (f === 'DIARIO') return 'DIA';
+            if (f === 'SEMANAL') return 'SEMANA';
+            if (f === 'QUINCENAL') return 'QUINCENA';
+            if (f === 'MENSUAL') return 'MES';
+            return 'DIA';
+          })() as any,
+          clienteId: cliente.id,
+          recaudadoDelDia: recDia,
+          recaudadoTotalClient: recDia
+        };
+      });
+
+      const sinteticos: VisitaRuta[] = (pagosDelDia || []).flatMap((p: any, i: number) => {
+        const cid = p.clienteId || (p.cliente?.id);
+        if (!cid || existentes.has(cid)) return [];
+        return [{
+            id: `pago-${p.id || i}-${fechaClave}`,
+            cliente: p.cliente ? `${p.cliente.nombres || ''} ${p.cliente.apellidos || ''}`.trim() : 'Cliente fuera de ruta',
+            direccion: p.cliente?.direccion || 'Sin dirección',
+            telefono: p.cliente?.telefono || '',
+            horaSugerida: '08:00 AM',
+            montoCuota: 0,
+            saldoTotal: 0,
+            estado: 'pagado',
+            proximaVisita: fechaClave,
+            ordenVisita: visitas.length + i + 1,
+            prioridad: 'media',
+            cobradorId: '',
+            periodoRuta: 'DIA',
+            clienteId: cid,
+            recaudadoDelDia: Number(p.montoTotal || 0),
+            recaudadoTotalClient: Number(p.montoTotal || 0)
+        }];
+      });
+
+      const todasVisitas = [...visitas, ...sinteticos];
+      const esperado = todasVisitas.reduce((sum, v) => sum + (v.montoCuota || 0), 0);
+      const recaudoDia = Number(saldo?.recaudoDelDia ?? 0) > 0 ? Number(saldo?.recaudoDelDia ?? 0) : pagosDelDia.reduce((s: number, p: any) => s + Number(p.montoTotal || 0), 0);
+      
+      const resumen = {
+        recaudo: recaudoDia,
+        gastos: Number(saldo?.gastosDelDia ?? 0),
+        efectividad: esperado > 0 ? Math.round((recaudoDia / esperado) * 100) : (recaudoDia > 0 ? 100 : 0),
+        visitados: todasVisitas.filter(v => (v.recaudadoDelDia || 0) > 0 || v.estado === 'pagado').length,
+        total: todasVisitas.length
+      };
+
+      setHistorialRutas((prev: any) => ({
+        ...(prev || {}),
+        [fechaClave]: { resumen, visitas: todasVisitas, loaded: true }
+      }));
+    } catch (e) {
+      console.error("Error cargando historial de fecha (Admin):", e);
+    }
+  }, [initialRuta?.id, initialRuta?.nombre]);
+
+  useEffect(() => {
+    if (!showHistory || !initialRuta?.id) return;
+    const hoy = new Date().toISOString().split('T')[0];
+    const existing = (historialRutas || {})[hoy];
+    if (!existing || (!existing.loaded)) {
+      cargarHistorialFecha(hoy);
+    }
+  }, [showHistory, initialRuta?.id, historialRutas, cargarHistorialFecha]);
+
   // Map ALL asignaciones from backend to visits UI model
   const [visitasCobrador, setVisitasCobrador] = useState<VisitaRuta[]>(() => {
       const asignaciones = initialRuta?.asignaciones || initialRuta?.asignacionesRuta;
@@ -118,7 +284,7 @@ const RutaClient = ({ initialRuta }: RutaClientProps) => {
             nivelRiesgo: (() => {
               const r = asig.cliente?.nivelRiesgo || 'VERDE';
               if (r === 'VERDE') return 'bajo';
-              if (r === 'AMARILLO') return 'leve';
+              if (r === 'AMARILLO') return 'precaucion' as any;
               if (r === 'ROJO') return 'moderado';
               if (r === 'LISTA_NEGRA') return 'critico';
               return 'bajo';
@@ -129,14 +295,79 @@ const RutaClient = ({ initialRuta }: RutaClientProps) => {
       });
   })
 
+  // Cargar historial de pagos para enriquecer las visitas
+  useEffect(() => {
+    if (visitasCobrador.length === 0) return;
+    
+    // Verificamos si ya fueron enriquecidas (usando recaudadoTotalClient como flag)
+    if (visitasCobrador.some(v => v.recaudadoTotalClient !== undefined)) return;
+
+    const enriquecerConPagos = async () => {
+      const hoyStr = new Date().toDateString();
+      const actualizadas = await Promise.all(visitasCobrador.map(async (v: any) => {
+        if (!v.clienteId) return { ...v, recaudadoDelDia: 0, recaudadoTotalClient: 0 };
+        try {
+          // 1. Obtener Recaudos
+          const pagosResp = await pagosService.obtenerPagos({ clienteId: v.clienteId, limit: 100 });
+          const pagosCalc = (pagosResp?.pagos || []);
+          
+          const totalHoy = pagosCalc.reduce((sum: number, p: any) => {
+            const f = new Date(p.fechaPago).toDateString();
+            return f === hoyStr ? sum + Number(p.montoTotal || 0) : sum;
+          }, 0);
+          
+          const totalHistorico = pagosCalc.reduce((sum: number, p: any) => sum + Number(p.montoTotal || 0), 0);
+          
+          // 2. Obtener Cuotas para actualizar fecha y monto real
+          let montoCuotaReal = v.montoCuota;
+          let fechaReal = v.proximaVisita;
+          
+          if (v.prestamoId) {
+            const cuotas = await prestamosService.obtenerCuotas(v.prestamoId);
+            const pendiente = cuotas.find(c => c.estado !== 'PAGADA');
+            if (pendiente) {
+               montoCuotaReal = Number(pendiente.monto || (pendiente.montoCapital + pendiente.montoInteres) || 0);
+               fechaReal = pendiente.fechaVencimiento || v.proximaVisita;
+            }
+          }
+
+          // 3. Determinar Estado Final
+          let nuevoEstado = v.estado;
+          const cuotaComparar = montoCuotaReal > 0 ? montoCuotaReal : v.montoCuota;
+          const cobroSuficiente = totalHoy >= (cuotaComparar - 1);
+          
+          if (Number(v.saldoTotal || 0) <= 0 || (cobroSuficiente && totalHoy > 0)) {
+            nuevoEstado = 'pagado';
+          }
+
+          return { 
+            ...v, 
+            recaudadoDelDia: totalHoy, 
+            recaudadoTotalClient: totalHistorico, 
+            montoCuota: cuotaComparar,
+            proximaVisita: fechaReal,
+            estado: nuevoEstado 
+          };
+        } catch (error) {
+          console.error("Error en enriquecerConPagos (Admin):", error);
+          return { ...v, recaudadoDelDia: 0, recaudadoTotalClient: 0 };
+        }
+      }));
+      setVisitasCobrador(actualizadas);
+    };
+
+    enriquecerConPagos();
+  }, [visitasCobrador]);
+
   // Agrupar visitas por frecuencia de pago
   const { visitasAgrupadas, totalMostradas } = useMemo(() => {
     const hoy = new Date();
     hoy.setHours(0, 0, 0, 0);
 
     let filtradas = visitasCobrador.filter(v => 
-      v.cliente.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      v.direccion.toLowerCase().includes(searchQuery.toLowerCase())
+      (v.cliente.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      v.direccion.toLowerCase().includes(searchQuery.toLowerCase())) &&
+      v.estado !== 'pagado'
     );
 
     // Aplicar filtro de periodo
@@ -144,11 +375,22 @@ const RutaClient = ({ initialRuta }: RutaClientProps) => {
         filtradas = filtradas.filter(v => v.periodoRuta === periodoRutaFiltro);
     }
 
+    const isTodayOrMora = (dateStr: string) => {
+      if (!dateStr) return true;
+      const d = new Date(dateStr);
+      const hoy = new Date();
+      hoy.setHours(0, 0, 0, 0);
+      d.setHours(0, 0, 0, 0);
+      return d.getTime() <= hoy.getTime();
+    };
+
+    const filterByDate = (v: any) => searchQuery || isTodayOrMora(v.proximaVisita);
+
     const agrupar = {
-      MES: filtradas.filter(v => v.periodoRuta === 'MES'),
-      QUINCENA: filtradas.filter(v => v.periodoRuta === 'QUINCENA'),
-      SEMANA: filtradas.filter(v => v.periodoRuta === 'SEMANA'),
-      DIA: filtradas.filter(v => v.periodoRuta === 'DIA'),
+      MES: filtradas.filter(v => v.periodoRuta === 'MES' && filterByDate(v)),
+      QUINCENA: filtradas.filter(v => v.periodoRuta === 'QUINCENA' && filterByDate(v)),
+      SEMANA: filtradas.filter(v => v.periodoRuta === 'SEMANA' && filterByDate(v)),
+      DIA: filtradas.filter(v => v.periodoRuta === 'DIA' && filterByDate(v)),
     }
 
     return { visitasAgrupadas: agrupar, totalMostradas: filtradas.length };
@@ -164,11 +406,12 @@ const RutaClient = ({ initialRuta }: RutaClientProps) => {
 
   const getEstadoClasses = useCallback((estado: EstadoVisita) => {
     switch (estado) {
-      case 'pagado': return 'bg-emerald-50 text-emerald-700 border-emerald-100'
-      case 'en_mora': return 'bg-rose-50 text-rose-700 border-rose-100'
-      case 'ausente': return 'bg-amber-50 text-amber-700 border-amber-100'
-      case 'reprogramado': return 'bg-blue-50 text-blue-700 border-blue-100'
-      default: return 'bg-slate-50 text-slate-700 border-slate-100'
+      case 'pagado': return 'bg-emerald-50 text-emerald-700 border-emerald-500/30'
+      case 'pendiente': return 'bg-orange-50 text-orange-700 border-orange-500/30'
+      case 'en_mora': return 'bg-rose-50 text-rose-700 border-rose-500/30'
+      case 'ausente': return 'bg-slate-50 text-slate-600 border-slate-300'
+      case 'reprogramado': return 'bg-blue-50 text-blue-700 border-blue-500/30'
+      default: return 'bg-slate-50 text-slate-700 border-slate-300'
     }
   }, [])
 
@@ -391,18 +634,124 @@ const RutaClient = ({ initialRuta }: RutaClientProps) => {
                       </div>
                   </div>
 
-                  {(!historialRutas || Object.keys(historialRutas).length === 0) ? (
-                      <div className="flex flex-col items-center justify-center py-20 bg-white rounded-3xl border-2 border-dashed border-slate-200 text-slate-400">
-                         <History className="h-16 w-16 mb-4 opacity-20" />
-                         <p className="font-black text-lg text-slate-500">Sin historial disponible</p>
-                         <p className="text-sm font-medium opacity-70 mt-1">Las rutas completadas o cerradas aparecerán aquí.</p>
+                <div className="space-y-4 animate-in fade-in">
+                   <div className="flex items-center justify-between px-1">
+                     <h3 className="font-bold text-slate-900 text-lg">Historial de Rutas</h3>
+                     <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest bg-slate-100 px-3 py-1 rounded-full">Últimos 30 días</div>
+                   </div>
+
+                   {historyDates.length > 0 ? (
+                      <div className="space-y-3">
+                         {historyDates.map(date => {
+                            const data = (historialRutas as Record<string, HistorialDia>)[date];
+                            const isExpanded = selectedHistoryDate === date;
+                            const [y, m, d] = date.split('-');
+                            const dateObj = new Date(parseInt(y), parseInt(m)-1, parseInt(d));
+                            const dayName = dateObj.toLocaleDateString('es-CO', { weekday: 'long', day: 'numeric', month: 'long' });
+                            
+                            const isCompleted = data.visitas.length > 0 && (data.resumen.efectividad >= 95 || data.visitas.every((v: any) => v.estado === 'pagado'));
+
+                            return (
+                              <div key={date} 
+                                   className={`rounded-2xl border transition-all overflow-hidden bg-white border-slate-200
+                                     ${isExpanded ? 'ring-1 ring-slate-300 shadow-md' : 'shadow-sm'}
+                                   `}
+                              >
+                                {/* Header (Clickable) */}
+                                <div 
+                                   className="p-4 flex items-center justify-between cursor-pointer hover:bg-slate-50 transition-colors"
+                                  onClick={async () => {
+                                    if (!isExpanded && (!data.loaded)) {
+                                      await cargarHistorialFecha(date);
+                                    }
+                                    setSelectedHistoryDate(isExpanded ? null : date);
+                                  }}
+                                >
+                                  <div className="flex items-center gap-3">
+                                     <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-xs shadow-sm
+                                         ${isExpanded ? 'bg-[#08557f] text-white' : 'bg-slate-100 text-slate-600'}
+                                     `}>
+                                        {d}
+                                     </div>
+                                     
+                                     <div>
+                                        <div className="font-bold text-slate-900 capitalize flex items-center gap-2">
+                                           {dayName}
+                                           {isCompleted && <span className="text-[10px] bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full font-bold uppercase border border-emerald-200">Completada</span>}
+                                        </div>
+                                        <div className="text-xs text-slate-500">
+                                           Recaudo: <b>${data.resumen.recaudo.toLocaleString('es-CO')}</b>
+                                        </div>
+                                     </div>
+                                  </div>
+                                  <div className="flex items-center gap-3">
+                                     <div className={`px-2 py-1 rounded-lg text-[10px] font-bold ${data.resumen.efectividad >= 90 ? 'bg-emerald-50 text-emerald-700' : 'bg-orange-50 text-orange-700'}`}>
+                                       {data.resumen.efectividad}%
+                                     </div>
+                                     <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+                                  </div>
+                                </div>
+
+                                {/* Body (Expanded) */}
+                                {isExpanded && (
+                                   <div className="border-t border-slate-100 bg-white p-4 space-y-4 animate-in slide-in-from-top-2 duration-200">
+                                      {/* Mini Resumen */}
+                                      <div className="grid grid-cols-3 gap-2">
+                                         <div className="bg-slate-50 p-2 rounded-xl border border-slate-100 text-center">
+                                             <div className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter">Recaudo</div>
+                                             <div className="text-xs font-black text-slate-700">${data.resumen.recaudo.toLocaleString('es-CO')}</div>
+                                         </div>
+                                         <div className="bg-slate-50 p-2 rounded-xl border border-slate-100 text-center">
+                                             <div className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter">Gastos</div>
+                                             <div className="text-xs font-black text-rose-600">${data.resumen.gastos.toLocaleString('es-CO')}</div>
+                                         </div>
+                                         <div className="bg-slate-50 p-2 rounded-xl border border-slate-100 text-center">
+                                             <div className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter">Visitados</div>
+                                             <div className="text-xs font-black text-blue-600">{data.resumen.visitados}/{data.resumen.total}</div>
+                                         </div>
+                                      </div>
+
+                                      <div className="space-y-3">
+                                         <div className="flex justify-between text-[10px] font-bold text-slate-500 uppercase px-1">
+                                            <span>Clientes Gestionados hoy</span>
+                                            <span>Estado</span>
+                                         </div>
+                                         {!data.loaded ? (
+                                           <div className="flex flex-col items-center justify-center py-8 text-slate-400">
+                                             <Loader2 className="w-6 h-6 animate-spin mb-2 opacity-20" />
+                                             <span className="text-xs font-medium">Cargando detalles...</span>
+                                           </div>
+                                         ) : data.visitas.length === 0 ? (
+                                           <div className="flex flex-col items-center justify-center py-10 bg-slate-50 rounded-2xl border border-dashed border-slate-200">
+                                              <History className="w-8 h-8 text-slate-300 mb-2 opacity-30" />
+                                              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest text-center px-4">No se registraron visitas ni pagos para este día</span>
+                                           </div>
+                                         ) : (
+                                           data.visitas.map((v: any) => (
+                                             <StaticVisitaItem
+                                                 key={v.id}
+                                                 visita={v}
+                                                 allowClick={false}
+                                                 onVerCliente={handleAbrirClienteInfo}
+                                                 getEstadoClasses={getEstadoClasses}
+                                                 getPrioridadColor={getPrioridadColor}
+                                             />
+                                           ))
+                                         )}
+                                      </div>
+                                   </div>
+                                )}
+                              </div>
+                            )
+                         })}
                       </div>
-                  ) : (
-                      // TODO: Implementar lista de historial real cuando haya datos
-                      <div className="p-8 text-center bg-white rounded-2xl border border-slate-200">
-                          <p className="font-bold text-slate-600">Historial cargado ({Object.keys(historialRutas).length} registros)</p>
-                      </div>
-                  )}
+                   ) : (
+                     <div className="bg-white rounded-2xl border border-slate-200 p-12 text-center">
+                         <History className="w-12 h-12 text-slate-200 mx-auto mb-4" />
+                         <p className="font-bold text-slate-400">No hay información de historial disponible.</p>
+                     </div>
+                   )}
+                </div>
               </div>
             ) : (
               // ========================= VISTA VISITAS ACTUALES =========================

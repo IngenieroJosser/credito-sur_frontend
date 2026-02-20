@@ -99,6 +99,7 @@ export function StaticVisitaItem({
           ? 'ring-2 ring-[#08557f] shadow-md bg-slate-50 border-[#08557f]' 
           : visita.nivelRiesgo === 'bajo' ? 'border-emerald-600 shadow-sm' :
             visita.nivelRiesgo === 'leve' ? 'border-blue-600 shadow-sm' :
+            (visita.nivelRiesgo as string) === 'precaucion' ? 'border-yellow-500 shadow-md' :
             visita.nivelRiesgo === 'moderado' ? 'border-orange-600 shadow-md' :
             visita.nivelRiesgo === 'critico' ? 'border-red-700 shadow-lg' :
             'border-slate-200'
@@ -149,7 +150,7 @@ export function StaticVisitaItem({
                  </div>
                  <div className="bg-white/60 p-2 rounded-lg border border-slate-100/50 shadow-sm text-center">
                      <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-0.5 whitespace-nowrap">Recaudado</div>
-                     <div className="text-sm font-bold text-emerald-600">${(visita.recaudadoDelDia ?? 0).toLocaleString('es-CO')}</div>
+                     <div className="text-sm font-bold text-emerald-600">${(visita.recaudadoTotalClient ?? 0).toLocaleString('es-CO')}</div>
                  </div>
                  <div className="bg-white/60 p-2 rounded-lg border border-slate-100/50 shadow-sm text-right">
                      <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-0.5 whitespace-nowrap">Por Entregar</div>
@@ -166,21 +167,25 @@ export function StaticVisitaItem({
                     <span className={`text-[9px] font-black uppercase tracking-tighter px-1.5 py-0.5 rounded w-fit ${
                         visita.nivelRiesgo === 'bajo' ? 'text-emerald-600 bg-emerald-50 border border-emerald-100' :
                         visita.nivelRiesgo === 'leve' ? 'text-blue-600 bg-blue-50 border border-blue-100' :
+                        visita.nivelRiesgo === 'precaucion' as any ? 'text-yellow-600 bg-yellow-50 border border-yellow-100' :
                         visita.nivelRiesgo === 'moderado' ? 'text-orange-600 bg-orange-50 border border-orange-100' :
                         visita.nivelRiesgo === 'critico' ? 'text-red-600 bg-red-50 border border-red-100' :
                         'text-slate-400 bg-slate-50'
                     }`}>
                         {visita.nivelRiesgo === 'bajo' ? 'Peligro Mínimo' :
                          visita.nivelRiesgo === 'leve' ? 'Leve Retraso' :
+                         visita.nivelRiesgo === 'precaucion' as any ? 'Precaución' :
                          visita.nivelRiesgo === 'moderado' ? 'Riesgo Moderado' :
                          visita.nivelRiesgo === 'critico' ? 'Alto Riesgo' :
                         'Riesgo Desconocido'}
                     </span>
                  </div>
-                 <div className="flex items-center gap-1.5 text-sm font-black text-slate-900 bg-slate-100 px-3 py-1 rounded-full border border-slate-200">
-                     <Phone className="w-3.5 h-3.5 text-[#08557f]" />
-                     {visita.telefono}
-                 </div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <div className="flex items-center gap-1.5 text-xs font-black text-slate-900 bg-slate-100 px-3 py-1.5 rounded-full border border-slate-200">
+                        <Phone className="w-3.5 h-3.5 text-[#08557f]" />
+                        {visita.telefono}
+                    </div>
+                  </div>
             </div>
 
             {/* Extra Actions Prop */}
@@ -236,6 +241,7 @@ export function SortableItem({
           ? 'ring-2 ring-[#08557f] shadow-md bg-slate-50 border-[#08557f]' 
           : visita.nivelRiesgo === 'bajo' ? 'border-emerald-600 shadow-sm' :
             visita.nivelRiesgo === 'leve' ? 'border-blue-600 shadow-sm' :
+            (visita.nivelRiesgo as string) === 'precaucion' ? 'border-yellow-500 shadow-md' :
             visita.nivelRiesgo === 'moderado' ? 'border-orange-600 shadow-md' :
             visita.nivelRiesgo === 'critico' ? 'border-red-700 shadow-lg' :
             'border-slate-200'
@@ -296,7 +302,7 @@ export function SortableItem({
                  </div>
                  <div className="bg-white/60 p-2 rounded-lg border border-slate-100/50 shadow-sm text-center">
                      <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-0.5 whitespace-nowrap">Recaudado</div>
-                     <div className="text-sm font-bold text-emerald-600">${(visita.recaudadoDelDia ?? 0).toLocaleString('es-CO')}</div>
+                     <div className="text-sm font-bold text-emerald-600">${(visita.recaudadoTotalClient ?? 0).toLocaleString('es-CO')}</div>
                  </div>
                  <div className="bg-white/60 p-2 rounded-lg border border-slate-100/50 shadow-sm text-right">
                      <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-0.5 whitespace-nowrap">Por Entregar</div>
@@ -313,21 +319,25 @@ export function SortableItem({
                     <span className={`text-[9px] font-black uppercase tracking-tighter px-1.5 py-0.5 rounded w-fit ${
                         visita.nivelRiesgo === 'bajo' ? 'text-emerald-600 bg-emerald-50 border border-emerald-100' :
                         visita.nivelRiesgo === 'leve' ? 'text-blue-600 bg-blue-50 border border-blue-100' :
+                        visita.nivelRiesgo === 'precaucion' as any ? 'text-yellow-600 bg-yellow-50 border border-yellow-100' :
                         visita.nivelRiesgo === 'moderado' ? 'text-orange-600 bg-orange-50 border border-orange-100' :
                         visita.nivelRiesgo === 'critico' ? 'text-red-600 bg-red-50 border border-red-100' :
                         'text-slate-400 bg-slate-50'
                     }`}>
                         {visita.nivelRiesgo === 'bajo' ? 'Peligro Mínimo' :
                          visita.nivelRiesgo === 'leve' ? 'Leve Retraso' :
+                         visita.nivelRiesgo === 'precaucion' as any ? 'Precaución' :
                          visita.nivelRiesgo === 'moderado' ? 'Riesgo Moderado' :
                          visita.nivelRiesgo === 'critico' ? 'Alto Riesgo' :
                         'Riesgo Desconocido'}
                     </span>
                  </div>
-                 <div className="flex items-center gap-1.5 text-sm font-black text-slate-900 bg-slate-100 px-3 py-1 rounded-full border border-slate-200">
-                     <Phone className="w-3.5 h-3.5 text-[#08557f]" />
-                     {visita.telefono}
-                 </div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <div className="flex items-center gap-1.5 text-xs font-black text-slate-900 bg-slate-100 px-3 py-1.5 rounded-full border border-slate-200">
+                        <Phone className="w-3.5 h-3.5 text-[#08557f]" />
+                        {visita.telefono}
+                    </div>
+                  </div>
             </div>
             
             {children && (

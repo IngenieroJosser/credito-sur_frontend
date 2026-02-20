@@ -144,8 +144,8 @@ export const apiRequest = async <T>(
       error: err.response.data
     };
 
-    if (status === 403) {
-      console.warn(`API Permission Denied: ${method} ${url} | Status: 403`);
+    if (status === 403 || status === 401) {
+      console.warn(`API ${status === 401 ? 'Unauthorized' : 'Permission Denied'}: ${method} ${url} | Status: ${status}`);
     } else {
       console.error(`API Request Failed: ${method} ${url} | Status: ${apiError.statusCode}`);
       console.error('Full Error Object:', err);

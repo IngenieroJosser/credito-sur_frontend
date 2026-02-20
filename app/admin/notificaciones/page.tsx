@@ -151,6 +151,11 @@ export default function NotificacionesPage() {
             approvalType = inferirApprovalTypePorTitulo(n.titulo)
           }
 
+          // Prevenir que las notificaciones puramente informativas traten de verse como si necesitaran acción
+          if ((n.tipo as string) === 'EXITO' || (n.tipo as string) === 'ALERTA') {
+            approvalType = undefined;
+          }
+
           // Mapear estado real de la aprobación del backend
           const estadoAprobacionMap: Record<string, string> = {
             PENDIENTE: 'PENDIENTE',
@@ -160,7 +165,12 @@ export default function NotificacionesPage() {
           const estadoReal = metadata.estadoAprobacion
             ? estadoAprobacionMap[metadata.estadoAprobacion] || metadata.estadoAprobacion
             : undefined
-          const estado = estadoReal || n.estado || (approvalType ? 'PENDIENTE' : undefined)
+          
+          let estado = estadoReal || n.estado || (approvalType ? 'PENDIENTE' : undefined)
+          
+          if ((n.tipo as string) === 'EXITO' || (n.tipo as string) === 'ALERTA') {
+            estado = n.estado || 'LEIDA';
+          }
 
           let detalles = n.detalles || (metadata.detalles as any) || {}
 
@@ -797,7 +807,7 @@ export default function NotificacionesPage() {
                         <div className="pt-1">
                            <p className="text-[9px] font-black text-slate-500 uppercase mb-1">Descripción del Gasto (solicitante)</p>
                            <p className="text-[11px] text-slate-700 font-medium leading-normal italic border-l-2 border-blue-400 pl-2">
-                             {editedDetails?.descripcion || (selectedNotif as any).metadata?.descSolicitud || selectedNotif.mensaje}
+                             {editedDetails?.descripcion || selectedNotif.detalles?.descripcion || (selectedNotif as any).metadata?.descSolicitud || (selectedNotif as any).metadata?.descripcion || selectedNotif.mensaje}
                            </p>
                         </div>
                         {(selectedNotif.estado === 'APROBADA' || selectedNotif.estado === 'RECHAZADA') && (selectedNotif as any).revisadoPor && (

@@ -10,6 +10,7 @@ export interface VisitaRuta {
   montoCuota: number
   saldoTotal: number
   recaudadoDelDia?: number
+  recaudadoTotalClient?: number
   estado: EstadoVisita
   proximaVisita: string
   targetVencimiento?: string
@@ -31,4 +32,5 @@ export interface HistorialDia {
     gastos: number;
   };
   visitas: VisitaRuta[];
+  loaded?: boolean;
 }

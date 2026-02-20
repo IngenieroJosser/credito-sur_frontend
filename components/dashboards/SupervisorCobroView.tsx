@@ -158,7 +158,36 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
 
   const operacionesCaja: OperacionCaja[] = []
 
-  const historialRutas = useMemo(() => ({}), [])
+  const [historialRutas, setHistorialRutas] = useState<any>({});
+
+  useEffect(() => {
+    const cargarHistorial = async () => {
+      if (!rutaId) return;
+      try {
+        const resp = await rutasService.obtenerVisitasDelDia(rutaId as string);
+        const hoy = new Date();
+        const fecha = hoy.toISOString().split('T')[0];
+        
+        const visitasMap: any[] = (resp?.visitas || []).map((v: any, index: number) => ({
+             id: v.asignacionId || `hist-${index}`,
+             cliente: `${v.cliente?.nombres || ''} ${v.cliente?.apellidos || ''}`,
+             estado: v.prestamos?.[0]?.proximaCuota?.estado === 'PAGADA' ? 'pagado' : 'pendiente',
+             telefono: v.cliente?.telefono,
+             montoCuota: Number(v.prestamos?.[0]?.proximaCuota?.monto || 0),
+             saldoTotal: Number(v.prestamos?.[0]?.saldoPendiente || 0),
+             periodoRuta: 'DIA'
+        }));
+
+        setHistorialRutas({
+            [fecha]: {
+                resumen: { visitados: visitasMap.length, total: visitasMap.length },
+                visitas: visitasMap
+            }
+        });
+      } catch (e) {}
+    };
+    cargarHistorial();
+  }, [rutaId]);
 
   // Cargar datos del usuario y ruta
   useEffect(() => {
@@ -196,7 +225,14 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
                     proximaVisita: 'Hoy',
                     ordenVisita: index + 1,
                     prioridad: 'media',
-                    nivelRiesgo: (a.cliente.nivelRiesgo?.toLowerCase() as any) || 'bajo',
+                    nivelRiesgo: (() => {
+                        const r = a.cliente.nivelRiesgo || 'VERDE';
+                        if (r === 'VERDE') return 'bajo';
+                        if (r === 'AMARILLO') return 'precaucion' as any;
+                        if (r === 'ROJO') return 'moderado';
+                        if (r === 'LISTA_NEGRA') return 'critico';
+                        return 'bajo';
+                    })() as any,
                     cobradorId: ruta.cobradorId,
                     periodoRuta: 'DIA',
                     clienteId: a.cliente.id,
