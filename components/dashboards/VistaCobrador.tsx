@@ -77,7 +77,7 @@ import { prestamosService } from '@/services/prestamos-service'
 import { loansService_ } from '@/services/loans-service'
 import { reportesCoordinadorService } from '@/services/reportes-coordinador-service'
 import type { RouteDetailResponse } from '@/services/reportes-coordinador-service'
-import { clientesService } from '@/services/clientes-service'
+import { clientesService, Cliente } from '@/services/clientes-service'
 import { ExportButton } from '@/components/ui/ExportButton'
 import NuevoClienteModal from '@/components/clientes/NuevoClienteModal'
 import { VisitaRuta, EstadoVisita, PeriodoRuta, HistorialDia } from '@/lib/types/cobranza'
@@ -219,6 +219,7 @@ const VistaCobrador = () => {
 
   // Datos base - se cargan desde el backend
   const [visitasBase, setVisitasBase] = useState<VisitaRuta[]>([])
+  const [visitasSelectorFallback, setVisitasSelectorFallback] = useState<VisitaRuta[]>([])
 
   const [visitasOrden, setVisitasOrden] = useState<string[]>([])
 
@@ -581,6 +582,104 @@ const VistaCobrador = () => {
   }, [rutaActual?.id, userSession?.id]);
 
   useEffect(() => {
+    const cargarClientesSelector = async () => {
+      if (!showClientSelector) return;
+      if (visitasBase.length > 0) {
+        setVisitasSelectorFallback([]);
+        return;
+      }
+      try {
+        const filtros: { ruta?: string } = {};
+        if (rutaActual?.id) {
+          filtros.ruta = rutaActual.id;
+        }
+        const clientes: Cliente[] = await clientesService.obtenerTodos(filtros);
+        const clientesConPrestamo = clientes.filter(
+          (c) => (c.prestamosActivos ?? 0) > 0
+        );
+        const fuente = clientesConPrestamo.length > 0 ? clientesConPrestamo : clientes;
+        const visitas: VisitaRuta[] = fuente.map((c, index) => {
+          const nombre = `${c.nombres || ''} ${c.apellidos || ''}`.trim() || 'Cliente';
+          const riesgoBackend = c.nivelRiesgo;
+          const riesgo =
+            riesgoBackend === 'VERDE'
+              ? 'bajo'
+              : riesgoBackend === 'AMARILLO'
+              ? 'leve'
+              : riesgoBackend === 'ROJO'
+              ? 'moderado'
+              : riesgoBackend === 'LISTA_NEGRA'
+              ? 'critico'
+              : 'bajo';
+          return {
+            id: c.id,
+            cliente: nombre,
+            direccion: c.direccion || 'Sin dirección registrada',
+            telefono: c.telefono || '',
+            horaSugerida: '08:00 AM',
+            montoCuota: 0,
+            saldoTotal: 0,
+            estado: 'pendiente',
+            proximaVisita: new Date().toISOString(),
+            ordenVisita: index + 1,
+            prioridad: 'media',
+            nivelRiesgo: riesgo,
+            cobradorId: userSession?.id || '',
+            periodoRuta: 'DIA',
+            clienteId: c.id,
+            prestamoId: undefined,
+          };
+        });
+        setVisitasSelectorFallback(visitas);
+      } catch {
+        try {
+          const offlineClientes = await offlineStore.getAll<Cliente>('clientes');
+          const clientesConPrestamo = offlineClientes.filter(
+            (c: any) => (c.prestamosActivos ?? 0) > 0
+          );
+          const fuente = clientesConPrestamo.length > 0 ? clientesConPrestamo : offlineClientes;
+          const visitas: VisitaRuta[] = fuente.map((c, index) => {
+            const nombre = `${c.nombres || ''} ${c.apellidos || ''}`.trim() || 'Cliente';
+            const riesgoBackend = c.nivelRiesgo;
+            const riesgo =
+              riesgoBackend === 'VERDE'
+                ? 'bajo'
+                : riesgoBackend === 'AMARILLO'
+                ? 'leve'
+                : riesgoBackend === 'ROJO'
+                ? 'moderado'
+                : riesgoBackend === 'LISTA_NEGRA'
+                ? 'critico'
+                : 'bajo';
+            return {
+              id: c.id,
+              cliente: nombre,
+              direccion: c.direccion || 'Sin dirección registrada',
+              telefono: c.telefono || '',
+              horaSugerida: '08:00 AM',
+              montoCuota: 0,
+              saldoTotal: 0,
+              estado: 'pendiente',
+              proximaVisita: new Date().toISOString(),
+              ordenVisita: index + 1,
+              prioridad: 'media',
+              nivelRiesgo: riesgo,
+              cobradorId: userSession?.id || '',
+              periodoRuta: 'DIA',
+              clienteId: c.id,
+              prestamoId: undefined,
+            };
+          });
+          setVisitasSelectorFallback(visitas);
+        } catch {
+          setVisitasSelectorFallback([]);
+        }
+      }
+    };
+    cargarClientesSelector();
+  }, [showClientSelector, visitasBase.length, rutaActual?.id, userSession?.id]);
+
+  useEffect(() => {
     const cargarResumenMensual = async () => {
       if (!showHistory || historyViewMode !== 'MONTHS' || !rutaActual?.id) return;
       try {
@@ -810,7 +909,9 @@ const VistaCobrador = () => {
           if (v.prestamoId) return v;
           try {
             const searchHint = v.cliente || v.clienteId;
-            const lista = await prestamosService.obtenerPrestamos({ search: String(searchHint), limit: 5 }).catch(() => null);
+            const lista = await prestamosService
+              .obtenerPrestamos({ search: String(searchHint), limit: 5, estado: 'ACTIVO' })
+              .catch(() => null);
             const found = (lista?.prestamos || []).find((p: any) => p.clienteId === v.clienteId) || (lista?.prestamos || [])[0];
             if (!found?.id) return v;
             const detalle = await prestamosService.obtenerPrestamoPorId(found.id);
@@ -904,6 +1005,8 @@ const VistaCobrador = () => {
 
     return sorted;
   }, [visitasBase, searchQuery])
+
+  const visitasSelector = visitasCobrador.length > 0 ? visitasCobrador : visitasSelectorFallback
 
   const exportarRutaDiariaCSV = useCallback(() => {
     const filas = visitasCobrador
@@ -1461,7 +1564,11 @@ const VistaCobrador = () => {
         }
         if (!detalle) {
           try {
-            const resp = await prestamosService.obtenerPrestamos({ search: visitaClienteSeleccionada.cliente, limit: 5 });
+            const resp = await prestamosService.obtenerPrestamos({
+              search: visitaClienteSeleccionada.cliente,
+              limit: 5,
+              estado: 'ACTIVO',
+            });
             const loan = resp?.prestamos?.find((p: any) => p.clienteId === visitaClienteSeleccionada.clienteId) || resp?.prestamos?.[0];
             if (loan?.id) detalle = await prestamosService.obtenerPrestamoPorId(loan.id);
           } catch {
@@ -2396,7 +2503,7 @@ const VistaCobrador = () => {
           <SeleccionClienteModal
             titulo={accionPendiente === 'PAGO' ? 'Seleccionar Cliente' : accionPendiente === 'ABONO' ? 'Seleccionar para Abono' : 'Seleccionar Cliente'}
             subtitulo={accionPendiente === 'PAGO' ? '¿Quién realiza el pago?' : 'Busque el cliente en la lista'}
-            visitas={visitasCobrador}
+            visitas={visitasSelector}
           onSelect={(visita) => {
             setShowClientSelector(false)
             if (accionPendiente === 'PAGO') {
