@@ -37,6 +37,18 @@ export default function DetallePrestamoModal({ id, onClose }: DetallePrestamoMod
         const data = await prestamosService.obtenerPrestamoPorId(id);
         const cuotasData = await prestamosService.obtenerCuotas(id).catch(() => []);
         
+        const principal = Number(data.monto || 0);
+        const tasa = Number(data.tasaInteres || 0);
+        const meses = Number(data.plazoMeses || 0);
+        let interesTotal = Number(data.interesTotal || 0);
+
+        if (interesTotal === 0 && tasa > 0 && meses > 0) {
+          interesTotal = (principal * tasa * meses) / 100;
+        }
+
+        const montoTotal = principal + interesTotal;
+        const saldoPendiente = Number(data.saldoPendiente || 0);
+
         setPrestamo({
           id: data.id || id,
           clienteId: data.clienteId || data.cliente?.id || '',
@@ -44,15 +56,15 @@ export default function DetallePrestamoModal({ id, onClose }: DetallePrestamoMod
           clienteDni: data.cliente?.dni || data.clienteDni || '',
           clienteTelefono: data.cliente?.telefono || data.clienteTelefono || '',
           clienteDireccion: data.cliente?.direccion || data.clienteDireccion || '',
-          montoPrestamo: data.monto || data.montoPrestamo || 0,
-          montoTotal: data.montoTotal || (Number(data.monto || 0) + Number(data.interesTotal || 0)),
-          saldoPendiente: data.saldoPendiente || data.montoPendiente || 0,
-          tasaInteres: data.tasaInteres || 0,
-          interesTotal: data.interesTotal != null ? Number(data.interesTotal) : undefined,
+          montoPrestamo: principal,
+          montoTotal: montoTotal,
+          saldoPendiente: (saldoPendiente === principal && interesTotal > 0) ? montoTotal : saldoPendiente,
+          tasaInteres: tasa,
+          interesTotal: interesTotal,
           capitalPagado: data.capitalPagado != null ? Number(data.capitalPagado) : undefined,
           interesPagado: data.interesPagado != null ? Number(data.interesPagado) : undefined,
-          duracion: data.plazoMeses ? `${data.plazoMeses} Meses` : (data.duracion || ''),
-          frecuencia: data.frecuenciaPago || data.frecuencia || 'mensual',
+          duracion: meses ? `${meses} Meses` : (data.duracion || ''),
+          frecuencia: data.frecuenciaPago || data.frecuencia || 'SEMANAL',
           fechaInicio: data.fechaInicio || '',
           fechaVencimiento: data.fechaFin || data.fechaVencimiento || '',
           estado: data.estado || 'ACTIVO',

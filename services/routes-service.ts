@@ -32,12 +32,13 @@ export interface Route {
   };
   asignaciones?: Array<{
     id: string;
+    clienteId: string; // Added clienteId based on the instruction's implied structure
     cliente: {
       id: string;
       nombres: string;
       apellidos: string;
       dni: string;
-      telefono: string;
+      telefono?: string;
     };
   }>;
   
@@ -133,7 +134,7 @@ export const routesService = {
     const queryString = params.toString();
     const endpoint = queryString ? `/routes?${queryString}` : '/routes';
     
-    return apiRequest<PaginatedRoutes>('GET', endpoint, undefined, { cacheTTL: 60000 });
+    return apiRequest<PaginatedRoutes>('GET', endpoint, undefined, { cacheTTL: 5000 }); // Reducir a 5 segundos para que los totales se vean frescos
   },
 
   // Obtener una ruta por ID

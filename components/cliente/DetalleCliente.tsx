@@ -261,7 +261,7 @@ const ClienteDetalleElegante: React.FC<ClienteDetalleProps> = ({
             <div className="flex items-center justify-between mb-4">
               <div>
                 <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Saldo Pendiente</p>
-                <p className="text-3xl font-bold text-slate-900 mt-2">${totales.totalPendiente.toLocaleString()}</p>
+                <p className="text-3xl font-bold text-slate-900 mt-2">{formatCurrency(totales.totalPendiente)}</p>
               </div>
               <div className="p-3 rounded-xl bg-amber-50 border border-amber-100">
                 <FileText className="w-6 h-6 text-amber-600" />
@@ -313,7 +313,7 @@ const ClienteDetalleElegante: React.FC<ClienteDetalleProps> = ({
             <div className="flex items-center justify-between mb-4">
               <div>
                 <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Mora Acumulada</p>
-                <p className="text-3xl font-bold text-red-600 mt-2">${totales.totalMora.toLocaleString()}</p>
+                <p className="text-3xl font-bold text-red-600 mt-2">{formatCurrency(totales.totalMora)}</p>
               </div>
               <div className="p-3 rounded-xl bg-red-50 border border-red-100">
                 <AlertCircle className="w-6 h-6 text-red-600" />
@@ -440,7 +440,7 @@ const ClienteDetalleElegante: React.FC<ClienteDetalleProps> = ({
                           </div>
                           <div>
                             <p className="text-slate-400 text-xs font-bold uppercase tracking-wider">Monto Pendiente</p>
-                            <p className="font-bold text-slate-900 mt-1">${prestamo.montoPendiente}</p>
+                            <p className="font-bold text-slate-900 mt-1">{formatCurrency(prestamo.montoPendiente)}</p>
                           </div>
                           {prestamo.diasMora ? (
                              <div>
@@ -519,7 +519,7 @@ const ClienteDetalleElegante: React.FC<ClienteDetalleProps> = ({
                     
                     <div className="flex items-center gap-6">
                       <div className="text-right">
-                        <p className="text-xl font-bold text-slate-900">${pago.monto}</p>
+                        <p className="text-xl font-bold text-slate-900">{formatCurrency(pago.monto)}</p>
                         <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Monto</p>
                       </div>
                       <button className="p-2 text-slate-400 hover:text-slate-900 transition-colors">
