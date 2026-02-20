@@ -22,9 +22,9 @@ export async function loginAction(data: LoginData): Promise<LoginResult> {
   try {
     const defaultBaseUrl =
       process.env.NODE_ENV === 'production'
-        ? 'https://credito-sur-backend.onrender.com'
+        ? 'https://credito-sur-backend.onrender.com/api-credisur'
         : 'http://localhost:3001/api-credisur';
-
+    
     const backendUrl = (process.env.NEXT_PUBLIC_BASE_URL || defaultBaseUrl).replace(/\/$/, '');
     const loginUrl = `${backendUrl}/auth/login`;
     
