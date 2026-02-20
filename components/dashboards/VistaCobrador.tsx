@@ -186,6 +186,38 @@ const VistaCobrador = () => {
     if (esHoy && cobrado) return 'pagado';
     return v.estado;
   }
+
+  const getDatesByPeriod = (period: 'HOY' | 'SEM' | 'MES' | 'AÑO') => {
+    const hoy = new Date();
+    let inicio = new Date(hoy);
+    let fin = new Date(hoy);
+
+    switch (period) {
+      case 'HOY':
+        inicio.setHours(0, 0, 0, 0);
+        fin.setHours(23, 59, 59, 999);
+        break;
+      case 'SEM':
+        // Inicio de la semana (Lunes)
+        const day = hoy.getDay();
+        const diff = hoy.getDate() - day + (day === 0 ? -6 : 1);
+        inicio.setDate(diff);
+        inicio.setHours(0, 0, 0, 0);
+        fin.setHours(23, 59, 59, 999);
+        break;
+      case 'MES':
+        inicio.setDate(1);
+        inicio.setHours(0, 0, 0, 0);
+        fin.setHours(23, 59, 59, 999);
+        break;
+      case 'AÑO':
+        inicio.setMonth(0, 1);
+        inicio.setHours(0, 0, 0, 0);
+        fin.setHours(23, 59, 59, 999);
+        break;
+    }
+    return { inicio: inicio.toISOString(), fin: fin.toISOString() };
+  };
   const [showCreditModal, setShowCreditModal] = useState(false)
   const [isFabOpen, setIsFabOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
@@ -287,6 +319,30 @@ const VistaCobrador = () => {
     cargarUsuario();
   }, [router]);
 
+  // Cargar estadísticas de la ruta según el periodo seleccionado
+  const cargarEstadisticasRuta = useCallback(async (rutaId: string) => {
+    try {
+      const { inicio, fin } = getDatesByPeriod(periodoCards);
+      const saldo = await obtenerSaldoDisponibleRuta(rutaId, undefined, inicio, fin);
+      
+      setRutaStats(prev => ({
+        ...prev,
+        recaudo: Number(saldo?.recaudoDelDia ?? 0),
+        gastos: Number(saldo?.gastosDelDia ?? 0),
+        eficiencia: prev.meta > 0 ? Math.round((Number(saldo?.recaudoDelDia ?? 0) / prev.meta) * 100) : prev.eficiencia
+      }));
+    } catch (error) {
+      console.error("Error al cargar estadísticas por periodo:", error);
+    }
+  }, [periodoCards]);
+
+  // Recargar estadísticas cuando cambie el periodo o la ruta
+  useEffect(() => {
+    if (rutaActual?.id) {
+      cargarEstadisticasRuta(rutaActual.id);
+    }
+  }, [periodoCards, rutaActual?.id, cargarEstadisticasRuta]);
+
   // Cargar visitas reales desde el backend cuando el usuario está disponible
   useEffect(() => {
     if (!userSession?.id) return;
@@ -314,14 +370,15 @@ const VistaCobrador = () => {
         // 3. Actualizar estadísticas con datos reales del backend
         {
           const est = (rutaCompleta as any).estadisticas || {};
+          const { inicio, fin } = getDatesByPeriod(periodoCards);
           try {
-            const saldo = await obtenerSaldoDisponibleRuta(rutaResumen.id);
+            const saldo = await obtenerSaldoDisponibleRuta(rutaCompleta.id, undefined, inicio, fin);
             setRutaStats({
-              recaudo: Number(saldo?.recaudoDelDia ?? est.cobranzaDelDia ?? 0),
+              recaudo: Number(saldo?.cobranzaDelDia ?? saldo?.recaudoDelDia ?? est.cobranzaDelDia ?? 0),
               meta: Number(est.metaDelDia ?? 0),
-              eficiencia: Number(est.avanceDiario ?? 0),
+              eficiencia: (est.metaDelDia > 0) ? Math.round((Number(saldo?.cobranzaDelDia ?? saldo?.recaudoDelDia ?? 0) / est.metaDelDia) * 100) : Number(est.avanceDiario ?? 0),
               gastos: Number(saldo?.gastosDelDia ?? 0),
-              base: 0
+              base: Number(saldo?.baseEfectivo ?? 0)
             });
           } catch {
             setRutaStats({
@@ -333,6 +390,8 @@ const VistaCobrador = () => {
             });
           }
         }
+
+
 
         // 4. Mapear asignaciones a Visitas
         // Usamos las asignaciones directas de la ruta para tener la lista completa de clientes
@@ -363,7 +422,8 @@ const VistaCobrador = () => {
             montoCuota: Number(proximaCuota.monto || 0),
             saldoTotal: Number(saldoTotal),
             estado: estado,
-            proximaVisita: proximaCuota.fechaVencimiento || new Date().toISOString(),
+            proximaVisita: proximaCuota.fechaVencimiento || '9999-12-31T00:00:00.000Z', // Far future if no payment
+            targetVencimiento: proximaCuota.fechaVencimiento || undefined,
             ordenVisita: asig.ordenVisita || index + 1,
             prioridad: (asig.prioridad?.toLowerCase()) || (estado === 'en_mora' ? 'alta' : 'media'),
             nivelRiesgo: (() => {
@@ -561,6 +621,7 @@ const VistaCobrador = () => {
         });
         const resumen = {
           recaudo: Number(saldo?.recaudoDelDia ?? 0),
+          gastos: Number(saldo?.gastosDelDia ?? 0),
           efectividad: (() => {
             const esperado = visitas.filter(v => v.periodoRuta === 'DIA').reduce((sum, v) => sum + (v.montoCuota || 0), 0);
             return esperado > 0 ? Math.round(((Number(saldo?.recaudoDelDia ?? 0)) / esperado) * 100) : 0;
@@ -753,7 +814,7 @@ const VistaCobrador = () => {
       const dd = String(d.getDate()).padStart(2, '0');
       const key = `${yyyy}-${mm}-${dd}`;
       prefill[key] = {
-        resumen: { recaudo: 0, efectividad: 0, visitados: 0, total: 0 },
+        resumen: { recaudo: 0, gastos: 0, efectividad: 0, visitados: 0, total: 0 },
         visitas: []
       };
     }
@@ -947,6 +1008,7 @@ const VistaCobrador = () => {
       const recaudoDia = Number(saldo?.recaudoDelDia ?? 0) > 0 ? Number(saldo?.recaudoDelDia ?? 0) : fallbackRecaudo;
       const resumen = {
         recaudo: recaudoDia,
+        gastos: Number(saldo?.gastosDelDia ?? 0),
         efectividad: esperado > 0 ? Math.round((recaudoDia / esperado) * 100) : (recaudoDia > 0 ? 100 : 0),
         visitados: Math.max(
           todasVisitas.filter(v => Number(v.recaudadoDelDia || 0) > 0 || v.estado === 'pagado').length,
@@ -982,11 +1044,21 @@ const VistaCobrador = () => {
       .filter(v => {
         if (v.estado === 'pagado') return false;
         if (v.estado === 'en_mora') return true;
+        
         const hoy = new Date();
+        hoy.setHours(23, 59, 59, 999); // Final del día de hoy
+        
         const d = new Date(v.proximaVisita);
-        if (isNaN(d.getTime())) return true;
-        const sameDay = d.toDateString() === hoy.toDateString();
-        return d <= hoy || sameDay;
+        if (isNaN(d.getTime())) return false; // Hide invalid dates
+        
+        const dLocal = new Date(d);
+        dLocal.setHours(0, 0, 0, 0);
+        
+        const hoyLocal = new Date();
+        hoyLocal.setHours(0, 0, 0, 0);
+        
+        // Mostrar si es hoy o antes
+        return dLocal <= hoyLocal;
       })
     
     // Aplicar búsqueda
@@ -1781,7 +1853,9 @@ const VistaCobrador = () => {
           <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all group">
             <div className="flex justify-between items-start mb-4">
               <div>
-                <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Recaudo Hoy</p>
+                <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+                  Recaudo {periodoCards === 'HOY' ? 'Hoy' : periodoCards === 'SEM' ? 'Semana' : periodoCards === 'MES' ? 'Mes' : 'Año'}
+                </p>
                 <div className="flex items-baseline gap-2 mt-2">
                    <h3 className="text-2xl font-bold text-slate-900">{formatCurrency(rutaStats.recaudo)}</h3>
                    <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">
@@ -1822,7 +1896,9 @@ const VistaCobrador = () => {
           <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all group">
             <div className="flex justify-between items-start mb-4">
               <div>
-                <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Gastos Ruta</p>
+                <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+                  Gastos {periodoCards === 'HOY' ? 'Hoy' : periodoCards === 'SEM' ? 'Semana' : periodoCards === 'MES' ? 'Mes' : 'Año'}
+                </p>
                 <div className="flex items-baseline gap-2 mt-2">
                    <h3 className="text-2xl font-bold text-slate-900">{formatCurrency(rutaStats.gastos)}</h3>
                 </div>
@@ -1831,7 +1907,7 @@ const VistaCobrador = () => {
                 <Receipt className="h-5 w-5 text-rose-600" />
               </div>
             </div>
-             <p className="text-xs text-slate-400 font-medium">Registrados hoy</p>
+             <p className="text-xs text-slate-400 font-medium">Registrados {periodoCards === 'HOY' ? 'hoy' : periodoCards === 'SEM' ? 'esta semana' : periodoCards === 'MES' ? 'este mes' : 'este año'}</p>
           </div>
 
           {/* Tarjeta 4: Base */}

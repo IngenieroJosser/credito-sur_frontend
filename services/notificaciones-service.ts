@@ -4,7 +4,7 @@ export interface Notificacion {
   id: string;
   titulo: string;
   mensaje: string;
-  tipo: 'PAGO' | 'CLIENTE' | 'MORA' | 'SISTEMA' | 'PRESTAMO' | 'GASTO' | 'SOLICITUD_DINERO' | 'SOLICITUD';
+  tipo: 'PAGO' | 'CLIENTE' | 'MORA' | 'SISTEMA' | 'PRESTAMO' | 'GASTO' | 'SOLICITUD_DINERO' | 'SOLICITUD' | 'APROBACION';
   fecha: string;
   leida: boolean;
   link?: string;
@@ -25,10 +25,15 @@ export interface Notificacion {
     cuotaInicial?: number;
     beneficiario?: string;
     categoria?: string;
+    descripcion?: string;
     frecuenciaPago?: 'DIARIO' | 'SEMANAL' | 'QUINCENAL' | 'MENSUAL';
     motivo?: string;
   };
   motivoRechazo?: string;
+  // Campos adicionales para aprobaciones y trazabilidad
+  solicitante?: string;
+  creadoEn?: string;
+  metadata?: Record<string, any>;
 }
 
 export const notificacionesService = {

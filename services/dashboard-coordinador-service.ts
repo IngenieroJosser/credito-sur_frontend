@@ -6,6 +6,8 @@ export interface DashboardMetrics {
   delinquentAccounts: number;
   requestedBase: number;
   efficiency: number;
+  capitalPrestado?: number;
+  recaudo?: number;
 }
 
 export interface TrendData {

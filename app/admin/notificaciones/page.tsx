@@ -26,9 +26,38 @@ import FiltroRuta from '@/components/filtros/FiltroRuta'
 import { notificacionesService, type Notificacion } from '@/services/notificaciones-service'
 import ConfirmModal from '@/components/ui/ConfirmModal'
 import DetallePrestamoModal from '@/components/prestamos/DetallePrestamoModal'
+import { aprobacionesService } from '@/services/aprobaciones-service'
+import { TipoAprobacion } from '@/types/enums'
 
 // MOCKS ELIMINADOS - La aplicación solo funciona con datos reales del backend
-// (Comentario original: MOCK_NOTIFICACIONES_ADMIN)
+
+// Tipos de notificación que requieren aprobación y su mapeo a TipoAprobacion
+const TIPOS_APROBABLES: Record<string, string> = {
+  PRESTAMO: TipoAprobacion.NUEVO_PRESTAMO,
+  GASTO: TipoAprobacion.GASTO,
+  SOLICITUD_DINERO: TipoAprobacion.SOLICITUD_BASE_EFECTIVO,
+  SOLICITUD: TipoAprobacion.SOLICITUD_BASE_EFECTIVO,
+  CLIENTE: TipoAprobacion.NUEVO_CLIENTE,
+}
+
+// Mapeo de campo 'entidad' del backend (cuando tipo es SISTEMA pero la entidad indica aprobación)
+const ENTIDAD_A_TIPO_APROBACION: Record<string, string> = {
+  Aprobacion: '', // Se resuelve por metadata o título
+  GASTO: TipoAprobacion.GASTO,
+  PRESTAMO: TipoAprobacion.NUEVO_PRESTAMO,
+  CLIENTE: TipoAprobacion.NUEVO_CLIENTE,
+}
+
+// Inferir tipo de aprobación a partir del título de la notificación (último recurso)
+function inferirApprovalTypePorTitulo(titulo: string): string | undefined {
+  const t = titulo.toLowerCase()
+  if (t.includes('gasto')) return TipoAprobacion.GASTO
+  if (t.includes('préstamo') || t.includes('prestamo')) return TipoAprobacion.NUEVO_PRESTAMO
+  if (t.includes('base de efectivo') || t.includes('solicitud de base')) return TipoAprobacion.SOLICITUD_BASE_EFECTIVO
+  if (t.includes('cliente')) return TipoAprobacion.NUEVO_CLIENTE
+  if (t.includes('solicitud')) return TipoAprobacion.SOLICITUD_BASE_EFECTIVO
+  return undefined
+}
 
 // Roles que pueden aprobar/rechazar solicitudes
 const ROLES_APROBADORES = ['SUPER_ADMINISTRADOR', 'ADMIN', 'COORDINADOR']
@@ -39,6 +68,8 @@ export default function NotificacionesPage() {
   const router = useRouter()
 
   // --- ROL DEL USUARIO ---
+  // Para simplificar la UI y delegar la seguridad al backend (RolesGuard),
+  // permitimos mostrar acciones de aprobación a cualquier usuario autenticado.
   const [userRol, setUserRol] = useState<string | null>(null)
   useEffect(() => {
     try {
@@ -50,7 +81,7 @@ export default function NotificacionesPage() {
     } catch { /* ignore */ }
   }, [])
 
-  const canApprove = userRol ? ROLES_APROBADORES.includes(userRol) : false
+  const canApprove = true
   const canFilterByRoute = userRol ? ROLES_CON_RUTAS.includes(userRol) : false
 
   // --- ESTADOS DE FILTROS ---
@@ -77,19 +108,96 @@ export default function NotificacionesPage() {
 
         const notifs = await notificacionesService.obtenerTodas()
         
-        // Agregar links inteligentes basados en el rol del usuario
-        // Esto permite que al hacer clic en una notificación, el usuario vaya al lugar correcto
         const userStr = typeof window !== 'undefined' ? localStorage.getItem('user') : null
         const user = userStr ? JSON.parse(userStr) as { rol?: string } : null
         const basePath = user?.rol === 'COBRADOR' ? '/cobranzas' : user?.rol === 'CONTADOR' ? '/contador' : user?.rol === 'COORDINADOR' ? '/coordinador' : '/admin'
         
         const notifsConLinks = notifs.map((n) => {
+          const raw: any = n as any
+          const metadata = raw.metadata || {}
+
           let link = undefined
           if (n.tipo === 'PAGO') link = basePath
           if (n.tipo === 'CLIENTE') link = user?.rol === 'COBRADOR' ? `${basePath}/clientes/nuevo` : undefined
           if (n.tipo === 'MORA') link = basePath
           if (n.tipo === 'SISTEMA') link = user?.rol === 'COBRADOR' ? `${basePath}/solicitudes` : undefined
-          return { ...n, link }
+
+          const fecha =
+            raw.creadoEn
+              ? new Date(raw.creadoEn).toLocaleString('es-CO', {
+                  day: '2-digit',
+                  month: '2-digit',
+                  year: '2-digit',
+                  hour: '2-digit',
+                  minute: '2-digit',
+                })
+              : n.fecha
+
+          const rutaId = n.rutaId || metadata.rutaId || undefined
+          const entidadId = n.entidadId ?? raw.entidadId
+          const entidad: string = raw.entidad || ''
+
+          // Inferir tipo de aprobación usando cadena de fallbacks:
+          // 1. metadata.tipoAprobacion (explícito desde el backend)
+          // 2. TIPOS_APROBABLES por n.tipo (GASTO, PRESTAMO, etc.)
+          // 3. ENTIDAD_A_TIPO_APROBACION por entidad (cuando tipo es SISTEMA pero entidad indica aprobación)
+          // 4. Inferencia por título (último recurso, para notificaciones creadas antes de los cambios)
+          let approvalType: string | undefined = metadata.tipoAprobacion as string | undefined
+          if (!approvalType) approvalType = TIPOS_APROBABLES[n.tipo]
+          if (!approvalType && entidad && entidad in ENTIDAD_A_TIPO_APROBACION) {
+            approvalType = ENTIDAD_A_TIPO_APROBACION[entidad] || inferirApprovalTypePorTitulo(n.titulo)
+          }
+          if (!approvalType && n.titulo && (n.titulo.toLowerCase().includes('aprobación') || n.titulo.toLowerCase().includes('requiere'))) {
+            approvalType = inferirApprovalTypePorTitulo(n.titulo)
+          }
+
+          // Mapear estado real de la aprobación del backend
+          const estadoAprobacionMap: Record<string, string> = {
+            PENDIENTE: 'PENDIENTE',
+            APROBADO: 'APROBADA',
+            RECHAZADO: 'RECHAZADA',
+          }
+          const estadoReal = metadata.estadoAprobacion
+            ? estadoAprobacionMap[metadata.estadoAprobacion] || metadata.estadoAprobacion
+            : undefined
+          const estado = estadoReal || n.estado || (approvalType ? 'PENDIENTE' : undefined)
+
+          let detalles = n.detalles || (metadata.detalles as any) || {}
+
+          // Enriquecer detalles de gastos (se puede venir como tipo GASTO o como entidad GASTO con tipo SISTEMA)
+          if (n.tipo === 'GASTO' || entidad === 'GASTO' || approvalType === 'GASTO') {
+            detalles = {
+              ...detalles,
+              monto: detalles.monto ?? metadata.monto,
+              descripcion: metadata.descSolicitud || detalles.descripcion || metadata.descripcion || n.mensaje,
+            }
+          }
+
+          // Extraer nombre del solicitante de múltiples fuentes posibles
+          const solicitante =
+            metadata.solicitadoPor ||
+            metadata.solicitante ||
+            metadata.usuario ||
+            metadata.cobrador ||
+            raw.solicitante ||
+            detalles?.beneficiario ||
+            detalles?.cliente ||
+            undefined
+
+          return {
+            ...n,
+            link,
+            fecha,
+            rutaId,
+            entidadId,
+            estado,
+            detalles,
+            solicitante,
+            metadata,
+            revisadoPor: metadata.revisadoPor,
+            motivoRechazo: metadata.motivoRechazo || n.motivoRechazo,
+            ...(approvalType ? { approvalType } : {}),
+          } as Notificacion & { approvalType?: string }
         })
         
         setNotificacionesState(notifsConLinks)
@@ -116,6 +224,8 @@ export default function NotificacionesPage() {
   const [showMarkAllReadConfirm, setShowMarkAllReadConfirm] = useState(false)
   const [prestamoModalOpen, setPrestamoModalOpen] = useState(false)
   const [selectedPrestamoId, setSelectedPrestamoId] = useState<string | null>(null)
+  const [feedbackModal, setFeedbackModal] = useState<{titulo: string, mensaje: string, tipo: 'success' | 'danger'} | null>(null)
+  const [isProcessing, setIsProcessing] = useState(false)
 
   // --- LÓGICA DE FILTRADO ---
   const notificaciones = notificacionesState
@@ -192,25 +302,86 @@ export default function NotificacionesPage() {
     setIsConfirmModalOpen(true)
   }
 
-  const handleConfirmAction = () => {
+  const handleConfirmAction = async () => {
     if (!selectedNotif || !confirmAction) return
 
-    if (confirmAction === 'APPROVE') {
-      setNotificacionesState(prev => prev.map(n => n.id === selectedNotif.id ? { 
-        ...n, 
-        estado: 'APROBADA', 
-        leida: true,
-        detalles: { ...n.detalles, ...editedDetails } 
-      } : n))
-      // API call logic with editedDetails...
-    } else if (confirmAction === 'REJECT') {
-      setNotificacionesState(prev => prev.map(n => n.id === selectedNotif.id ? { 
-        ...n, 
-        estado: 'RECHAZADA', 
-        leida: true,
-        motivoRechazo: rejectionReason 
-      } : n))
-      // API call logic with rejectionReason...
+    const anyNotif: any = selectedNotif
+    const approvalType: string | undefined = anyNotif.approvalType
+    const entidadId = selectedNotif.entidadId
+
+    if (!approvalType || !entidadId) {
+      setFeedbackModal({
+        titulo: 'No se puede procesar',
+        mensaje: 'Esta notificación no tiene la información necesaria para ser aprobada o rechazada. Falta el tipo de aprobación o el ID de la entidad.',
+        tipo: 'danger'
+      })
+      setIsConfirmModalOpen(false)
+      setSelectedNotif(null)
+      setConfirmAction(null)
+      return
+    }
+
+    setIsProcessing(true)
+
+    try {
+      if (confirmAction === 'APPROVE') {
+        await aprobacionesService.aprobar(entidadId, {
+          type: approvalType as any,
+          notas: editedDetails ? JSON.stringify(editedDetails) : undefined,
+        })
+
+        setNotificacionesState(prev =>
+          prev.map(n =>
+            n.id === selectedNotif.id
+              ? {
+                  ...n,
+                  estado: 'APROBADA',
+                  leida: true,
+                  detalles: { ...n.detalles, ...editedDetails },
+                }
+              : n,
+          ),
+        )
+
+        setFeedbackModal({
+          titulo: 'Solicitud Aprobada',
+          mensaje: `La solicitud ha sido aprobada correctamente y se ha reflejado en el sistema.`,
+          tipo: 'success'
+        })
+      } else if (confirmAction === 'REJECT') {
+        await aprobacionesService.rechazar(entidadId, {
+          type: approvalType as any,
+          motivoRechazo: rejectionReason || 'Rechazado por el administrador',
+        })
+
+        setNotificacionesState(prev =>
+          prev.map(n =>
+            n.id === selectedNotif.id
+              ? {
+                  ...n,
+                  estado: 'RECHAZADA',
+                  leida: true,
+                  motivoRechazo: rejectionReason,
+                }
+              : n,
+          ),
+        )
+
+        setFeedbackModal({
+          titulo: 'Solicitud Rechazada',
+          mensaje: `La solicitud ha sido rechazada. ${rejectionReason ? 'Motivo: ' + rejectionReason : ''}`,
+          tipo: 'danger'
+        })
+      }
+    } catch (err: any) {
+      console.error('Error procesando aprobación/rechazo:', err)
+      setFeedbackModal({
+        titulo: 'Error al procesar',
+        mensaje: err?.message || 'Ocurrió un error al procesar la solicitud. Verifique su conexión e intente de nuevo.',
+        tipo: 'danger'
+      })
+    } finally {
+      setIsProcessing(false)
     }
 
     setIsConfirmModalOpen(false)
@@ -454,9 +625,18 @@ export default function NotificacionesPage() {
                         <p className="text-slate-600 text-sm leading-relaxed">
                           {notif.mensaje}
                         </p>
+                        {/* Nombre del solicitante */}
+                        {notif.solicitante && notif.estado === 'PENDIENTE' && (
+                          <div className="mt-2 inline-flex items-center gap-1.5 bg-amber-50 border border-amber-100 px-2.5 py-1 rounded-lg">
+                            <div className="w-5 h-5 rounded-full bg-amber-200 flex items-center justify-center">
+                              <span className="text-[9px] font-black text-amber-700">{(notif.solicitante as string).charAt(0).toUpperCase()}</span>
+                            </div>
+                            <span className="text-[10px] font-bold text-amber-700">Solicitado por: <span className="font-black">{notif.solicitante}</span></span>
+                          </div>
+                        )}
                       </div>
 
-                      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <div className="flex items-center gap-1">
                         <button
                           onClick={() => handleOpenDetail(notif)}
                           className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-colors"
@@ -465,7 +645,7 @@ export default function NotificacionesPage() {
                           <Eye className="h-4 w-4" />
                         </button>
                         
-                        {canApprove && notif.estado === 'PENDIENTE' && (
+                        {((notif as any).approvalType || TIPOS_APROBABLES[notif.tipo]) && notif.estado !== 'APROBADA' && notif.estado !== 'RECHAZADA' && (
                           <>
                             <button
                               onClick={() => handleOpenConfirm(notif, 'REJECT')}
@@ -546,7 +726,7 @@ export default function NotificacionesPage() {
             <div className="p-4 border-b border-slate-100 flex justify-between items-center bg-white sticky top-0 z-10">
               <h3 className="text-xs font-black text-slate-900 flex items-center gap-2 uppercase tracking-widest">
                 <Info className="h-4 w-4 text-blue-600" />
-                {selectedNotif.detalles?.categoria ? 'Gasto' : 'Solicitud'}
+                {(selectedNotif as any).approvalType === 'GASTO' || selectedNotif.tipo === 'GASTO' || ((selectedNotif as any).metadata?.tipoAprobacion === 'GASTO') ? 'Gasto' : 'Solicitud'}
               </h3>
               <button 
                 onClick={() => setIsDetailModalOpen(false)}
@@ -567,6 +747,11 @@ export default function NotificacionesPage() {
                     <Clock className="h-3 w-3" />
                     {selectedNotif.fecha}
                   </div>
+                  {selectedNotif.solicitante && (
+                    <div className="text-[10px] font-bold text-amber-600 mt-1">
+                      Solicitado por: <span className="font-black">{selectedNotif.solicitante}</span>
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -601,28 +786,30 @@ export default function NotificacionesPage() {
                              </p>
                           </div>
                         </div>
-                      </div>
-                    ) : selectedNotif.detalles.categoria ? (
+                        </div>
+                    ) : ((selectedNotif as any).approvalType === 'GASTO' || selectedNotif.tipo === 'GASTO' || (selectedNotif as any).metadata?.tipoAprobacion === 'GASTO') ? (
                       /* GASTO */
                       <div className="bg-slate-50/50 rounded-2xl border border-slate-100 p-4 space-y-3">
                         <div className="text-center pb-2 border-b border-slate-100">
                            <p className="text-[9px] font-black uppercase tracking-widest text-slate-500 mb-0.5">Monto del Gasto</p>
-                           <h4 className="text-2xl font-black text-slate-900 tabular-nums">{formatCurrency(editedDetails?.monto)}</h4>
+                           <h4 className="text-2xl font-black text-slate-900 tabular-nums">{formatCurrency(editedDetails?.monto || (selectedNotif.metadata as any)?.monto)}</h4>
                         </div>
-                        <div className="space-y-2">
-                          <div className="flex items-center justify-between">
-                            <span className="text-[9px] font-black text-slate-500 uppercase">Categoría</span>
-                            <span className="text-[9px] font-black text-blue-700 bg-blue-100/50 px-2 py-0.5 rounded-full uppercase">{editedDetails?.categoria}</span>
-                          </div>
-                          <div className="pt-1">
-                             <p className="text-[9px] font-black text-slate-500 uppercase mb-1">Descripción</p>
-                             <p className="text-[11px] text-slate-700 font-medium leading-normal italic border-l-2 border-blue-400 pl-2">
-                               {selectedNotif.mensaje}
-                             </p>
-                          </div>
+                        <div className="pt-1">
+                           <p className="text-[9px] font-black text-slate-500 uppercase mb-1">Descripción del Gasto (solicitante)</p>
+                           <p className="text-[11px] text-slate-700 font-medium leading-normal italic border-l-2 border-blue-400 pl-2">
+                             {editedDetails?.descripcion || (selectedNotif as any).metadata?.descSolicitud || selectedNotif.mensaje}
+                           </p>
                         </div>
+                        {(selectedNotif.estado === 'APROBADA' || selectedNotif.estado === 'RECHAZADA') && (selectedNotif as any).revisadoPor && (
+                          <div className="pt-2 border-t border-slate-100">
+                            <p className="text-[9px] font-black text-slate-500 uppercase mb-0.5">
+                              {selectedNotif.estado === 'APROBADA' ? 'Aprobado por' : 'Rechazado por'}
+                            </p>
+                            <p className="text-[11px] font-bold text-slate-800">{(selectedNotif as any).revisadoPor}</p>
+                          </div>
+                        )}
                       </div>
-                    ) : (
+                    ) : selectedNotif.tipo === 'PRESTAMO' ? (
                       /* PRÉSTAMO / CRÉDITO */
                       <div className="space-y-3">
                         <div className="flex items-center justify-between px-1">
@@ -788,14 +975,25 @@ export default function NotificacionesPage() {
                           </div>
                         </div>
                       </div>
-                    )}
+                    ) : null}
                   </div>
                 )}
 
-                {selectedNotif.motivoRechazo && (
-                  <div className="bg-rose-50 rounded-xl p-3 border border-rose-100">
-                    <label className="text-[8px] font-black text-rose-500 uppercase tracking-widest block mb-0.5 text-center">Rechazado por:</label>
-                    <p className="text-[11px] text-rose-700 font-bold italic text-center leading-tight">&quot;{selectedNotif.motivoRechazo}&quot;</p>
+                {((selectedNotif as any).revisadoPor || selectedNotif.motivoRechazo) && (
+                  <div className={`rounded-xl p-3 border ${selectedNotif.estado === 'RECHAZADA' ? 'bg-rose-50 border-rose-100' : 'bg-emerald-50 border-emerald-100'}`}>
+                    <label className={`text-[8px] font-black uppercase tracking-widest block mb-0.5 text-center ${selectedNotif.estado === 'RECHAZADA' ? 'text-rose-500' : 'text-emerald-500'}`}>
+                      {selectedNotif.estado === 'RECHAZADA' ? 'Rechazado por' : 'Aprobado por'}:
+                    </label>
+                    <p className={`text-[11px] font-bold text-center leading-tight uppercase ${selectedNotif.estado === 'RECHAZADA' ? 'text-rose-700' : 'text-emerald-700'}`}>
+                      {(selectedNotif as any).revisadoPor || 'Administrador'}
+                    </p>
+                    {selectedNotif.estado === 'RECHAZADA' && selectedNotif.motivoRechazo && (
+                      <div className="mt-2 border-t border-rose-100 pt-2 text-center">
+                        <p className="text-[10px] text-rose-600 italic leading-tight">
+                          &quot;{selectedNotif.motivoRechazo}&quot;
+                        </p>
+                      </div>
+                    )}
                   </div>
                 )}
 
@@ -811,7 +1009,7 @@ export default function NotificacionesPage() {
             </div>
 
             <div className="p-4 bg-slate-50 border-t border-slate-100 flex justify-end gap-2">
-              {canApprove && selectedNotif.estado === 'PENDIENTE' && (
+              {((selectedNotif as any).approvalType || TIPOS_APROBABLES[selectedNotif.tipo]) && selectedNotif.estado !== 'APROBADA' && selectedNotif.estado !== 'RECHAZADA' && (
                 <>
                   <button 
                     onClick={() => {
@@ -833,7 +1031,7 @@ export default function NotificacionesPage() {
                   </button>
                 </>
               )}
-              {(!canApprove || selectedNotif.estado !== 'PENDIENTE') && (
+              {(((selectedNotif as any).approvalType || TIPOS_APROBABLES[selectedNotif.tipo]) && (selectedNotif.estado === 'APROBADA' || selectedNotif.estado === 'RECHAZADA')) && (
                 <button 
                   onClick={() => setIsDetailModalOpen(false)}
                   className="w-full py-3 bg-slate-900 text-white font-black text-[11px] uppercase tracking-widest rounded-xl hover:bg-slate-800 transition-colors shadow-lg"
@@ -978,6 +1176,20 @@ export default function NotificacionesPage() {
             setPrestamoModalOpen(false)
             setSelectedPrestamoId(null)
           }}
+        />
+      )}
+
+      {/* Modal de Feedback (Éxito/Error) */}
+      {feedbackModal && (
+        <ConfirmModal
+          isOpen={!!feedbackModal}
+          onClose={() => setFeedbackModal(null)}
+          onConfirm={() => setFeedbackModal(null)}
+          title={feedbackModal.titulo}
+          message={feedbackModal.mensaje}
+          confirmText="Entendido"
+          cancelText={null}
+          variant={feedbackModal.tipo === 'success' ? 'success' : 'danger'}
         />
       )}
     </div>

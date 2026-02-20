@@ -63,7 +63,9 @@ import {
   type Caja as ApiCaja,
   type Transaccion as ApiTransaccion,
   type ResumenFinanciero as ApiResumen,
-  getHistorialCierres
+  getHistorialCierres,
+  obtenerSaldoDisponibleRuta,
+  type SaldoDisponibleRuta
 } from '@/services/contabilidad-service'
 import { toast } from 'sonner'
 import { usuariosService, type Usuario as ApiUsuario } from '@/services/usuarios-service'
@@ -124,8 +126,8 @@ interface ResumenFinanciero {
   utilidadNeta: number
   capitalEnCalle: number // Dinero prestado que aún no ha regresado
   cajaActual: number // Dinero disponible ya mismo
-  porcentajeIngresosVsAyer: number
-  porcentajeEgresosVsAyer: number
+  porcentajeIngresosVsAyer: number | null
+  porcentajeEgresosVsAyer: number | null
   esIngresoPositivo: boolean
   esEgresoPositivo: boolean
   rutasTotales: number
@@ -177,6 +179,7 @@ const ModuloContableContent = () => {
   const [showVerMovimientoModal, setShowVerMovimientoModal] = useState(false)
   const [showVerCajaModal, setShowVerCajaModal] = useState(false)
   const [cajaSeleccionada, setCajaSeleccionada] = useState<Caja | null>(null)
+  const [saldoRutaSeleccionada, setSaldoRutaSeleccionada] = useState<SaldoDisponibleRuta | null>(null)
   const [movimientoSeleccionado, setMovimientoSeleccionado] = useState<MovimientoContable | null>(null)
 
   const [showDetalleModal, setShowDetalleModal] = useState(false)
@@ -224,6 +227,39 @@ const ModuloContableContent = () => {
   const [fechaInicioModal, setFechaInicioModal] = useState<string>('')
   const [fechaFinModal, setFechaFinModal] = useState<string>('')
 
+  const loadMovimientosDetalle = async () => {
+    if (!cajaSeleccionada) {
+      setMovimientosDetalle([])
+      return
+    }
+    try {
+      const params: any = { cajaId: cajaSeleccionada.id, limit: 500 }
+      if (fechaInicioModal) params.fechaInicio = fechaInicioModal
+      if (fechaFinModal) params.fechaFin = fechaFinModal
+      const resp = await getTransacciones(params)
+      if (resp && Array.isArray(resp.data)) {
+        setMovimientosDetalle(resp.data.map(t => ({
+          id: t.id,
+          numero: t.numero,
+          fecha: t.fecha,
+          concepto: t.descripcion,
+          tipo: t.tipo,
+          monto: t.monto,
+          categoria: t.categoria || 'GENERAL',
+          responsable: t.responsable,
+          origen: (t as any).origen || 'EMPRESA',
+          estado: (t.estado as any) || 'APROBADO',
+          cajaId: (t as any).cajaId,
+          cajaOrigenId: (t as any).cajaOrigenId
+        })))
+      } else {
+        setMovimientosDetalle([])
+      }
+    } catch {
+      setMovimientosDetalle([])
+    }
+  }
+
   const handleExportExcel = async () => {
     try {
       await exportService.exportAccounting('excel')
@@ -249,8 +285,8 @@ const ModuloContableContent = () => {
     utilidadNeta: 0,
     capitalEnCalle: 0,
     cajaActual: 0,
-    porcentajeIngresosVsAyer: 0,
-    porcentajeEgresosVsAyer: 0,
+    porcentajeIngresosVsAyer: null,
+    porcentajeEgresosVsAyer: null,
     esIngresoPositivo: true,
     esEgresoPositivo: true,
     rutasTotales: 0,
@@ -261,6 +297,7 @@ const ModuloContableContent = () => {
   })
 
   const [movimientos, setMovimientos] = useState<MovimientoContable[]>([])
+  const [movimientosDetalle, setMovimientosDetalle] = useState<MovimientoContable[]>([])
 
   // --- CARGA DE DATOS (REUSABLE) ---
   const fetchData = async () => {
@@ -307,8 +344,8 @@ const ModuloContableContent = () => {
           utilidadNeta: resumen.gananciaNeta,
           capitalEnCalle: resumen.capitalEnCalle,
           cajaActual: resumen.saldoCajas,
-          porcentajeIngresosVsAyer: resumen.porcentajeIngresosVsAyer || 0,
-          porcentajeEgresosVsAyer: resumen.porcentajeEgresosVsAyer || 0,
+          porcentajeIngresosVsAyer: resumen.porcentajeIngresosVsAyer ?? null,
+          porcentajeEgresosVsAyer: resumen.porcentajeEgresosVsAyer ?? null,
           esIngresoPositivo: resumen.esIngresoPositivo ?? true,
           esEgresoPositivo: resumen.esEgresoPositivo ?? true,
           rutasTotales: resumen.rutasTotales || 0,
@@ -677,22 +714,27 @@ const ModuloContableContent = () => {
           >
             <div className="flex items-center justify-between mb-4">
               <div className="text-xs font-bold uppercase tracking-wider text-slate-500">
-                Ingresos Hoy
+                Ingresos
               </div>
               <div className="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-50 text-emerald-600 border border-emerald-100">
                 <TrendingUp className="h-4 w-4" />
               </div>
             </div>
             <div className="text-2xl font-bold text-slate-900 tracking-tight">
-              {formatCurrency(resumenData.ingresosHoy)}
+              {(() => {
+                const valor = resumenData.ingresosHoy > 0 ? resumenData.ingresosHoy : resumenData.cajaActual;
+                return formatCurrency(valor);
+              })()}
             </div>
-            <div className={cn(
-                "mt-2 flex items-center text-xs font-bold w-fit px-2 py-1 rounded-full",
-                resumenData.esIngresoPositivo ? "text-emerald-600 bg-emerald-50" : "text-rose-600 bg-rose-50"
-            )}>
-              {resumenData.esIngresoPositivo ? <ArrowUpRight className="mr-1 h-3 w-3" /> : <TrendingDown className="mr-1 h-3 w-3" />}
-              {resumenData.porcentajeIngresosVsAyer > 0 ? '+' : ''}{resumenData.porcentajeIngresosVsAyer}% vs Ayer
-            </div>
+            {resumenData.porcentajeIngresosVsAyer != null && (
+              <div className={cn(
+                  "mt-2 flex items-center text-xs font-bold w-fit px-2 py-1 rounded-full",
+                  resumenData.esIngresoPositivo ? "text-emerald-600 bg-emerald-50" : "text-rose-600 bg-rose-50"
+              )}>
+                {resumenData.esIngresoPositivo ? <ArrowUpRight className="mr-1 h-3 w-3" /> : <TrendingDown className="mr-1 h-3 w-3" />}
+                {resumenData.porcentajeIngresosVsAyer > 0 ? '+' : ''}{resumenData.porcentajeIngresosVsAyer}% vs Ayer
+              </div>
+            )}
           </div>
 
           {/* Egresos */}
@@ -702,7 +744,7 @@ const ModuloContableContent = () => {
           >
             <div className="flex items-center justify-between mb-4">
               <div className="text-xs font-bold uppercase tracking-wider text-slate-500">
-                Egresos Hoy
+                Gastos
               </div>
               <div className="flex h-8 w-8 items-center justify-center rounded-full bg-rose-50 text-rose-600 border border-rose-100">
                 <TrendingDown className="h-4 w-4" />
@@ -711,13 +753,15 @@ const ModuloContableContent = () => {
             <div className="text-2xl font-bold text-slate-900 tracking-tight">
               {formatCurrency(resumenData.egresosHoy)}
             </div>
-            <div className={cn(
-                "mt-2 text-xs font-bold w-fit px-2 py-1 rounded-full flex items-center",
-                resumenData.esEgresoPositivo ? "text-emerald-600 bg-emerald-50" : "text-rose-600 bg-rose-50"
-            )}>
-              {resumenData.esEgresoPositivo ? <ArrowDownLeft className="mr-1 h-3 w-3" /> : <ArrowUpRight className="mr-1 h-3 w-3" />}
-              {resumenData.porcentajeEgresosVsAyer > 0 ? '+' : ''}{resumenData.porcentajeEgresosVsAyer}% vs Ayer
-            </div>
+            {resumenData.porcentajeEgresosVsAyer != null && (
+              <div className={cn(
+                  "mt-2 text-xs font-bold w-fit px-2 py-1 rounded-full flex items-center",
+                  resumenData.esEgresoPositivo ? "text-emerald-600 bg-emerald-50" : "text-rose-600 bg-rose-50"
+              )}>
+                {resumenData.esEgresoPositivo ? <ArrowDownLeft className="mr-1 h-3 w-3" /> : <ArrowUpRight className="mr-1 h-3 w-3" />}
+                {resumenData.porcentajeEgresosVsAyer > 0 ? '+' : ''}{resumenData.porcentajeEgresosVsAyer}% vs Ayer
+              </div>
+            )}
           </div>
 
           {/* Ganancia */}
@@ -999,8 +1043,21 @@ const ModuloContableContent = () => {
                       <div className="flex gap-2">
 
                         <button 
-                          onClick={() => {
+                          onClick={async () => {
                             setCajaSeleccionada(c)
+                            if (c.tipo === 'RUTA' && c.rutaId) {
+                              try {
+                                const now = new Date()
+                                const localIso = new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString()
+                                const hoyClave = localIso.split('T')[0]
+                                const saldo = await obtenerSaldoDisponibleRuta(c.rutaId, hoyClave)
+                                setSaldoRutaSeleccionada(saldo)
+                              } catch {
+                                setSaldoRutaSeleccionada(null)
+                              }
+                            } else {
+                              setSaldoRutaSeleccionada(null)
+                            }
                             setShowVerCajaModal(true)
                           }}
                           className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-100 text-slate-600 text-xs font-bold hover:bg-slate-200 transition-colors"
@@ -1811,8 +1868,9 @@ const ModuloContableContent = () => {
                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       {/* Recaudado */}
                       <div 
-                        onClick={() => {
+                        onClick={async () => {
                             setDetalleTipo('INGRESOS');
+                            await loadMovimientosDetalle();
                             setShowDetalleModal(true);
                         }}
                         className="bg-emerald-50 p-4 rounded-2xl border border-emerald-100 cursor-pointer hover:bg-emerald-100/80 transition-colors group"
@@ -1826,42 +1884,30 @@ const ModuloContableContent = () => {
                          </div>
                          <div className="font-extrabold text-emerald-800 text-lg">
                              {(() => {
-                                // Cálculo REAL basado en movimientos
+                                if (cajaSeleccionada?.tipo === 'RUTA') {
+                                  if (saldoRutaSeleccionada) {
+                                    const valor = saldoRutaSeleccionada.recaudoDelDia || 0;
+                                    return formatCurrency(valor);
+                                  }
+                                  if (cajaSeleccionada.saldo) {
+                                    return formatCurrency(0);
+                                  }
+                                }
                                 const ingresos = movimientos
-                                    .filter(m => (m.tipo === 'INGRESO' || m.tipo === 'TRANSFERENCIA'))
-                                    .filter(m => {
-                                        // Es ingreso si es para esta caja, pero debemos excluir las salidas (TRANSFERENCIAS OUT)
-                                        // Como no tenemos un campo explícito 'dirección', usamos la lógica de coincidencia de ID
-                                        // Si m.cajaId === cajaSeleccionada.id, es una entrada para esta caja
-                                        // (El backend guarda cajaId = destino para IN y cajaId = origen para OUT)
-                                        // PERO OJO: Si es una TRANSFERENCIA, hay que ver si es entrada o salida.
-                                        
-                                        // Revisando el backend:
-                                        // OUT: cajaId = cajaOrigen (quien paga)
-                                        // IN: cajaId = cajaDestino (quien recibe)
-                                        
-                                        // Entonces:
-                                        // Si m.cajaId === cajaSeleccionada.id y es TRANSFERENCIA...
-                                        // ¿Cómo sabemos si es IN o OUT solo con el ID?
-                                        // Si el backend asigna 'cajaId' a la caja afectada en ambos casos, 
-                                        // entonces necesitamos distinguir por el concepto o numeroTransaccion.
-                                        
-                                        // Solución Robusta: Usar descripcion/concepto
-                                        // TRX-OUT = Salida (Egreso) -> "enviada a", "Salida", "Egreso"
-                                        // TRX-IN = Entrada (Ingreso) -> "recibida de", "Entrada", "Ingreso"
-                                        
-                                        if (m.cajaId !== cajaSeleccionada.id) return false;
-                                        
-                                        if (m.tipo === 'TRANSFERENCIA') {
-                                            const concepto = m.concepto.toUpperCase();
-                                            const esSalida = concepto.includes('SALIDA') || 
-                                                           concepto.includes('ENVIADA A') || 
-                                                           concepto.includes('EGRESO');
-                                            return !esSalida;
-                                        }
-                                        return true; // Es INGRESO normal
-                                    })
-                                    .reduce((acc, m) => acc + m.monto, 0);
+                                  .filter(m => (m.tipo === 'INGRESO' || m.tipo === 'TRANSFERENCIA'))
+                                  .filter(m => {
+                                    if (m.cajaId !== cajaSeleccionada?.id) return false;
+                                    if (m.categoria === 'APERTURA_CAJA') return false;
+                                    if (m.tipo === 'TRANSFERENCIA') {
+                                      const concepto = m.concepto.toUpperCase();
+                                      const esSalida = concepto.includes('SALIDA') || 
+                                                     concepto.includes('ENVIADA A') || 
+                                                     concepto.includes('EGRESO');
+                                      return !esSalida;
+                                    }
+                                    return true;
+                                  })
+                                  .reduce((acc, m) => acc + m.monto, 0);
                                 return formatCurrency(ingresos);
                              })()}
                          </div>
@@ -1869,8 +1915,9 @@ const ModuloContableContent = () => {
 
                       {/* Gastado/Invertido */}
                       <div 
-                        onClick={() => {
+                        onClick={async () => {
                             setDetalleTipo('EGRESOS');
+                            await loadMovimientosDetalle();
                             setShowDetalleModal(true);
                         }}
                         className="bg-rose-50 p-4 rounded-2xl border border-rose-100 cursor-pointer hover:bg-rose-100/80 transition-colors group"
@@ -1884,20 +1931,23 @@ const ModuloContableContent = () => {
                          </div>
                          <div className="font-extrabold text-rose-800 text-lg">
                              {(() => {
-                                // Cálculo REAL basado en movimientos
+                                if (cajaSeleccionada?.tipo === 'RUTA' && saldoRutaSeleccionada) {
+                                  // Los egresos de una ruta incluyen gastos operativos y desembolsos
+                                  return formatCurrency(saldoRutaSeleccionada.gastosDelDia + (saldoRutaSeleccionada.desembolsos || 0));
+                                }
                                 const egresos = movimientos
-                                    .filter(m => (m.tipo === 'EGRESO' || m.tipo === 'TRANSFERENCIA'))
-                                    .filter(m => {
-                                        if (m.cajaId !== cajaSeleccionada.id) return false;
-                                        if (m.tipo === 'TRANSFERENCIA') {
-                                            const concepto = m.concepto.toUpperCase();
-                                            return concepto.includes('SALIDA') || 
-                                                   concepto.includes('ENVIADA A') || 
-                                                   concepto.includes('EGRESO');
-                                        }
-                                        return true;
-                                    })
-                                    .reduce((acc, m) => acc + m.monto, 0);
+                                  .filter(m => (m.tipo === 'EGRESO' || m.tipo === 'TRANSFERENCIA'))
+                                  .filter(m => {
+                                    if (m.cajaId !== cajaSeleccionada?.id) return false;
+                                    if (m.tipo === 'TRANSFERENCIA') {
+                                      const concepto = m.concepto.toUpperCase();
+                                      return concepto.includes('SALIDA') || 
+                                             concepto.includes('ENVIADA A') || 
+                                             concepto.includes('EGRESO');
+                                    }
+                                    return true;
+                                  })
+                                  .reduce((acc, m) => acc + m.monto, 0);
                                 return formatCurrency(egresos);
                              })()}
                          </div>
@@ -1911,33 +1961,40 @@ const ModuloContableContent = () => {
                       </div>
                       <div className="text-2xl font-black text-slate-900">
                           {(() => {
-                            // Ingresos reales (filtrados correctamente)
+                                if (cajaSeleccionada?.tipo === 'RUTA' && saldoRutaSeleccionada) {
+                                  // La utilidad diaria operativa: lo recaudado menos los gastos
+                                  const valor = saldoRutaSeleccionada.recaudoDelDia - saldoRutaSeleccionada.gastosDelDia;
+                                  return formatCurrency(valor);
+                                }
+                              if (cajaSeleccionada?.saldo) {
+                                return formatCurrency(cajaSeleccionada.saldo);
+                              }
                             const ingresos = movimientos
-                                .filter(m => (m.tipo === 'INGRESO' || m.tipo === 'TRANSFERENCIA'))
-                                .filter(m => {
-                                    if (m.cajaId !== cajaSeleccionada.id) return false;
-                                    if (m.tipo === 'TRANSFERENCIA') {
-                                        const concepto = m.concepto.toUpperCase();
-                                        const esSalida = concepto.includes('SALIDA') || 
-                                                       concepto.includes('ENVIADA A') || 
-                                                       concepto.includes('EGRESO');
-                                        return !esSalida;
-                                    }
-                                    return true;
-                                })
-                                .reduce((acc, m) => acc + m.monto, 0);
-                            
-                            // Egresos reales (filtrados correctamente)
+                              .filter(m => (m.tipo === 'INGRESO' || m.tipo === 'TRANSFERENCIA'))
+                              .filter(m => {
+                                if (m.cajaId !== cajaSeleccionada?.id) return false;
+                                if (m.categoria === 'APERTURA_CAJA') return false;
+                                if (m.tipo === 'TRANSFERENCIA') {
+                                  const concepto = m.concepto.toUpperCase();
+                                  const esSalida = concepto.includes('SALIDA') || 
+                                                 concepto.includes('ENVIADA A') || 
+                                                 concepto.includes('EGRESO');
+                                  return !esSalida;
+                                }
+                                return true;
+                              })
+                              .reduce((acc, m) => acc + m.monto, 0);
+
                             const egresos = movimientos
-                                .filter(m => (m.tipo === 'EGRESO' || m.tipo === 'TRANSFERENCIA'))
-                                .filter(m => {
-                                    if (m.cajaId !== cajaSeleccionada.id) return false;
-                                    if (m.tipo === 'TRANSFERENCIA') {
-                                        return (m.id && m.id.includes('TRX-OUT')) || (m.concepto && m.concepto.includes('Salida') && !m.concepto.startsWith('Entrada'));
-                                    }
-                                    return true;
-                                })
-                                .reduce((acc, m) => acc + m.monto, 0);
+                              .filter(m => (m.tipo === 'EGRESO' || m.tipo === 'TRANSFERENCIA'))
+                              .filter(m => {
+                                if (m.cajaId !== cajaSeleccionada?.id) return false;
+                                if (m.tipo === 'TRANSFERENCIA') {
+                                  return (m.id && (m.id as any).includes('TRX-OUT')) || (m.concepto && m.concepto.includes('Salida') && !m.concepto.startsWith('Entrada'));
+                                }
+                                return true;
+                              })
+                              .reduce((acc, m) => acc + m.monto, 0);
 
                             return formatCurrency(ingresos - egresos);
                           })()}
@@ -1947,7 +2004,10 @@ const ModuloContableContent = () => {
 
               <div className="p-6 border-t border-slate-100 bg-slate-50/50 flex justify-end">
                 <button
-                  onClick={() => setShowVerCajaModal(false)}
+                  onClick={() => {
+                    setShowVerCajaModal(false)
+                    setSaldoRutaSeleccionada(null)
+                  }}
                   className="px-6 py-2 rounded-2xl bg-blue-600 text-white font-bold hover:bg-blue-700 shadow-lg shadow-blue-600/20 transition-all"
                 >
                   Cerrar
@@ -1959,7 +2019,7 @@ const ModuloContableContent = () => {
         
         {/* Modal de Detalle */}
         {showDetalleModal && renderInPortal(
-          <div className="fixed inset-0 z-[2147483647] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm" onClick={() => setShowDetalleModal(false)}>
+          <div className="fixed inset-0 z-[2147483647] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm" onClick={() => { setShowDetalleModal(false); setMovimientosDetalle([]); }}>
             <div className="w-full max-w-2xl rounded-2xl bg-white border border-slate-200 shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200 flex flex-col max-h-[90vh]" onClick={(e) => e.stopPropagation()}>
               {/* Modal Header */}
               <div className="p-6 border-b border-slate-100 flex items-center justify-between shrink-0">
@@ -1973,7 +2033,7 @@ const ModuloContableContent = () => {
                     </p>
                 </div>
                 <button
-                  onClick={() => setShowDetalleModal(false)}
+                  onClick={() => { setShowDetalleModal(false); setMovimientosDetalle([]); }}
                   className="p-2 rounded-2xl hover:bg-slate-100 text-slate-500 transition-colors"
                 >
                   <XCircle className="h-6 w-6" />
@@ -2009,36 +2069,31 @@ const ModuloContableContent = () => {
                                </span>
                                <span className={cn("text-3xl font-black tracking-tight", detalleTipo === 'INGRESOS' ? "text-emerald-800" : "text-red-800")}>
                                  {(() => {
-                                    // Cálculo consistente: Suma de movimientos visibles
-                                    const filtered = movimientos
+                                    const source = movimientosDetalle.length ? movimientosDetalle : movimientos
+                                    const filtered = source
                                         .filter(m => {
                                             if (!cajaSeleccionada && m.categoria === 'CONSOLIDACION') return false;
                                             if (detalleTipo === 'INGRESOS') {
-                                                if (m.tipo === 'INGRESO') return true;
+                                                if (m.tipo === 'INGRESO') {
+                                                    if (m.categoria === 'SOLICITUD_BASE' || m.categoria === 'SOLICITUD_BASE_EFECTIVO') return false;
+                                                    return true;
+                                                }
                                                 if (m.tipo === 'EGRESO') return false;
                                                 if (m.tipo === 'TRANSFERENCIA') {
-                                                    // Lógica basada en texto (Concepto) como en el detalle de cajas
                                                     const concepto = m.concepto.toUpperCase();
-                                                    
-                                                    // Detectar si es Salida por palabras clave
                                                     const esSalida = concepto.includes('SALIDA') || 
                                                                    concepto.includes('ENVIADA A') || 
                                                                    concepto.includes('EGRESO');
-                                                                   
                                                     return !esSalida;
                                                 }
                                             } else {
                                                 if (m.tipo === 'EGRESO') return true;
                                                 if (m.tipo === 'INGRESO') return false;
                                                 if (m.tipo === 'TRANSFERENCIA') {
-                                                    // Lógica basada en texto (Concepto) como en el detalle de cajas
                                                     const concepto = m.concepto.toUpperCase();
-                                                    
-                                                    // Detectar si es Salida por palabras clave
                                                     const esSalida = concepto.includes('SALIDA') || 
                                                                    concepto.includes('ENVIADA A') || 
                                                                    concepto.includes('EGRESO');
-                                                                   
                                                     return esSalida;
                                                 }
                                             }
@@ -2046,19 +2101,29 @@ const ModuloContableContent = () => {
                                         })
                                         .filter(m => {
                                             if (!cajaSeleccionada) return true;
-                                        return m.cajaId === cajaSeleccionada.id;
-                                    })
-                                    .filter(m => {
-                                        // Si hay filtros de fecha manuales, usarlos
-                                        if (fechaInicioModal || fechaFinModal) {
-                                            const fechaM = new Date(m.fecha).toISOString().split('T')[0];
-                                            if (fechaInicioModal && fechaM < fechaInicioModal) return false;
-                                            if (fechaFinModal && fechaM > fechaFinModal) return false;
+                                            return m.cajaId === cajaSeleccionada.id;
+                                        })
+                                        .filter(m => {
+                                            if (fechaInicioModal || fechaFinModal) {
+                                                const fechaM = new Date(m.fecha).toISOString().split('T')[0];
+                                                if (fechaInicioModal && fechaM < fechaInicioModal) return false;
+                                                if (fechaFinModal && fechaM > fechaFinModal) return false;
+                                                return true;
+                                            }
                                             return true;
-                                        }
-                                        return true;
-                                    });
+                                        });
                                     const total = filtered.reduce((acc, m) => acc + m.monto, 0);
+
+                                    if (cajaSeleccionada?.tipo === 'RUTA' && saldoRutaSeleccionada && total === 0) {
+                                      if (detalleTipo === 'INGRESOS') {
+                                        const valor = saldoRutaSeleccionada.recaudoDelDia || 0;
+                                        if (valor > 0) return formatCurrency(valor);
+                                      } else {
+                                        const valor = saldoRutaSeleccionada.gastosDelDia;
+                                        if (valor > 0) return formatCurrency(valor);
+                                      }
+                                    }
+
                                     return formatCurrency(total);
                                  })()}
                                </span>
@@ -2104,54 +2169,52 @@ const ModuloContableContent = () => {
                            <span className="text-xs font-medium text-slate-400">
                               {detalleTipo === 'CIERRES' 
                                  ? historialCierres.length 
-                                 : movimientos
-                                    .filter(m => {
-                                        if (!cajaSeleccionada && m.categoria === 'CONSOLIDACION') return false;
-                                        if (detalleTipo === 'INGRESOS') {
-                                            if (m.tipo === 'INGRESO') return true;
+                                 : (() => {
+                                      const base = movimientosDetalle.length ? movimientosDetalle : movimientos;
+                                      const filtrados = base
+                                        .filter(m => {
+                                          if (!cajaSeleccionada && m.categoria === 'CONSOLIDACION') return false;
+                                          if (detalleTipo === 'INGRESOS') {
+                                            if (m.tipo === 'INGRESO') {
+                                              if (m.categoria === 'SOLICITUD_BASE' || m.categoria === 'SOLICITUD_BASE_EFECTIVO') return false;
+                                              return true;
+                                            }
                                             if (m.tipo === 'EGRESO') return false;
                                             if (m.tipo === 'TRANSFERENCIA') {
-                                                // Lógica basada en texto (Concepto) como en el detalle de cajas
-                                                const concepto = m.concepto.toUpperCase();
-                                                
-                                                // Detectar si es Salida por palabras clave
-                                                const esSalida = concepto.includes('SALIDA') || 
+                                              const concepto = m.concepto.toUpperCase();
+                                              const esSalida = concepto.includes('SALIDA') || 
                                                                concepto.includes('ENVIADA A') || 
                                                                concepto.includes('EGRESO');
-                                                               
-                                                return !esSalida;
+                                              return !esSalida;
                                             }
-                                        } else {
+                                          } else {
                                             if (m.tipo === 'EGRESO') return true;
                                             if (m.tipo === 'INGRESO') return false;
                                             if (m.tipo === 'TRANSFERENCIA') {
-                                                // Lógica basada en texto (Concepto) como en el detalle de cajas
-                                                const concepto = m.concepto.toUpperCase();
-                                                
-                                                // Detectar si es Salida por palabras clave
-                                                const esSalida = concepto.includes('SALIDA') || 
+                                              const concepto = m.concepto.toUpperCase();
+                                              const esSalida = concepto.includes('SALIDA') || 
                                                                concepto.includes('ENVIADA A') || 
                                                                concepto.includes('EGRESO');
-                                                               
-                                                return esSalida;
+                                              return esSalida;
                                             }
-                                        }
-                                        return false;
-                                    })
-                                    .filter(m => {
-                                        if (!cajaSeleccionada) return true;
-                                        return m.cajaId === cajaSeleccionada.id;
-                                    })
-                                    .filter(m => {
-                                        // Si hay filtros de fecha manuales, usarlos
-                                        if (fechaInicioModal || fechaFinModal) {
+                                          }
+                                          return false;
+                                        })
+                                        .filter(m => {
+                                          if (!cajaSeleccionada) return true;
+                                          return m.cajaId === cajaSeleccionada.id;
+                                        })
+                                        .filter(m => {
+                                          if (fechaInicioModal || fechaFinModal) {
                                             const fechaM = new Date(m.fecha).toISOString().split('T')[0];
                                             if (fechaInicioModal && fechaM < fechaInicioModal) return false;
                                             if (fechaFinModal && fechaM > fechaFinModal) return false;
                                             return true;
-                                        }
-                                        return true;
-                                    }).length} {detalleTipo === 'CIERRES' ? 'consolidaciones' : 'registros'}
+                                          }
+                                          return true;
+                                        });
+                                      return filtrados.length;
+                                    })()} {detalleTipo === 'CIERRES' ? 'consolidaciones' : 'registros'}
                            </span>
                        </div>
                        
@@ -2195,193 +2258,137 @@ const ModuloContableContent = () => {
                            </div>
                        ) : (
                          <>
-                          {movimientos
-                        .filter(m => {
-                            if (!cajaSeleccionada && m.categoria === 'CONSOLIDACION') return false;
-                            
-                             // Mismo filtro estricto para el listado
-                             const categoriaUpper = m.categoria.toUpperCase();
-                             let isIngreso = false;
+                          {(movimientosDetalle.length ? movimientosDetalle : movimientos)
+                            .filter(m => {
+                              if (!cajaSeleccionada && m.categoria === 'CONSOLIDACION') return false;
+                              let isIngreso = false;
 
-                             if (m.tipo === 'INGRESO') {
-                                 isIngreso = true;
-                             } else if (m.tipo === 'EGRESO') {
-                                 isIngreso = false;
-                             } else if (m.tipo === 'TRANSFERENCIA') {
-                                 // Lógica basada en texto (Concepto) como en el detalle de cajas
-                                 const concepto = m.concepto.toUpperCase();
-                                 
-                                 // Detectar si es Salida por palabras clave
-                                 const esSalida = concepto.includes('SALIDA') || 
-                                                concepto.includes('ENVIADA A') || 
-                                                concepto.includes('EGRESO');
-                                                
-                                 isIngreso = !esSalida;
-                             }
-                             
-                             if (detalleTipo === 'INGRESOS') return isIngreso;
-                             return !isIngreso;
-                        })
-                        .filter(m => {
-                            if (cajaSeleccionada) {
+                              if (m.tipo === 'INGRESO') {
+                                if (m.categoria === 'SOLICITUD_BASE' || m.categoria === 'SOLICITUD_BASE_EFECTIVO') return false;
+                                isIngreso = true;
+                              } else if (m.tipo === 'EGRESO') {
+                                isIngreso = false;
+                              } else if (m.tipo === 'TRANSFERENCIA') {
+                                const concepto = m.concepto.toUpperCase();
+                                const esSalida = concepto.includes('SALIDA') || 
+                                                 concepto.includes('ENVIADA A') || 
+                                                 concepto.includes('EGRESO');
+                                isIngreso = !esSalida;
+                              }
+                              
+                              if (detalleTipo === 'INGRESOS') return isIngreso;
+                              return !isIngreso;
+                            })
+                            .filter(m => {
+                              if (cajaSeleccionada) {
                                 return m.cajaId === cajaSeleccionada.id;
-                            }
-                            
-                            // Si hay filtros de fecha manuales, usarlos
-                            if (fechaInicioModal || fechaFinModal) {
+                              }
+                              
+                              if (fechaInicioModal || fechaFinModal) {
                                 const fechaM = new Date(m.fecha).toISOString().split('T')[0];
                                 if (fechaInicioModal && fechaM < fechaInicioModal) return false;
                                 if (fechaFinModal && fechaM > fechaFinModal) return false;
                                 return true;
-                            }
-                            
-                            // Si NO hay filtros, mostrar TODO el histórico (sin restricción de 'hoy')
-                            return true;
-                        })
-                        .map((m) => {
-                            // Construir concepto más limpio y descriptivo
-                            let conceptoMostrar = m.concepto
+                              }
+                              
+                              return true;
+                            })
+                            .map((m) => {
+                              let conceptoMostrar = m.concepto
                                 .replace(/^Entrada desde .*?: |^Salida hacia .*?: |^Consolidación .*?: /i, '')
                                 .replace(/^Transferencia enviada a .*?: |^Transferencia recibida de .*?: /i, '')
                                 .replace(/\(Entrada\)|\(Salida\)/gi, '')
                                 .trim();
-                                
-                            // Si es una transferencia/consolidación, mejorar el texto
-                            if (m.tipo === 'TRANSFERENCIA' || m.categoria === 'CONSOLIDACION') {
+                              
+                              if (m.tipo === 'TRANSFERENCIA' || m.categoria === 'CONSOLIDACION') {
                                 if (detalleTipo === 'INGRESOS') {
-                                     conceptoMostrar = `Ingreso de: ${m.concepto.match(/desde (.*?)[:\(]/i)?.[1] || m.concepto.match(/de (.*?)($|[:\(])/i)?.[1] || 'Caja Origen'}`;
+                                  conceptoMostrar = `Ingreso de: ${m.concepto.match(/desde (.*?)[:\(]/i)?.[1] || m.concepto.match(/de (.*?)($|[:\(])/i)?.[1] || 'Caja Origen'}`;
                                 } else {
-                                     conceptoMostrar = `Egreso a: ${m.concepto.match(/hacia (.*?)[:\(]/i)?.[1] || m.concepto.match(/a (.*?)($|[:\(])/i)?.[1] || 'Caja Destino'}`;
+                                  conceptoMostrar = `Egreso a: ${m.concepto.match(/hacia (.*?)[:\(]/i)?.[1] || m.concepto.match(/a (.*?)($|[:\(])/i)?.[1] || 'Caja Destino'}`;
                                 }
-                                // Limpiar caracteres residuales
                                 conceptoMostrar = conceptoMostrar.replace('Caja Caja', 'Caja'); 
-                            }
-                            
-                            // Si no pudimos extraer nada útil, usar el concepto limpio original
-                            if (conceptoMostrar.includes('undefined') || conceptoMostrar.length < 5) {
+                              }
+                              
+                              if (conceptoMostrar.includes('undefined') || conceptoMostrar.length < 5) {
                                 conceptoMostrar = m.concepto
-                                    .replace(/^Entrada desde .*?: |^Salida hacia .*?: |^Consolidación .*?: /i, '')
-                                    .replace(/^Transferencia enviada a .*?: |^Transferencia recibida de .*?: /i, '')
-                                    .trim();
-                            }
-                            
-                            return (
-                          <div key={m.id} className="group p-4 border border-slate-200 bg-white rounded-xl hover:bg-slate-50 hover:border-slate-300 transition-all shadow-sm">
-                             <div className="flex justify-between items-start mb-3">
-                                <div className="flex items-start gap-3">
-                                   <div className={cn(
-                                       "mt-1.5 w-2.5 h-2.5 rounded-full ring-2 ring-offset-2",
-                                       detalleTipo === 'INGRESOS' ? "bg-emerald-500 ring-emerald-100" : "bg-rose-500 ring-rose-100"
-                                   )} />
-                                   <div>
-                                       <div className="font-bold text-slate-900 text-base leading-snug">
+                                  .replace(/^Entrada desde .*?: |^Salida hacia .*?: |^Consolidación .*?: /i, '')
+                                  .replace(/^Transferencia enviada a .*?: |^Transferencia recibida de .*?: /i, '')
+                                  .trim();
+                              }
+                              
+                              return (
+                                <div key={m.id} className="group p-4 border border-slate-200 bg-white rounded-xl hover:bg-slate-50 hover:border-slate-300 transition-all shadow-sm">
+                                  <div className="flex justify-between items-start mb-3">
+                                    <div className="flex items-start gap-3">
+                                      <div className={cn(
+                                        "mt-1.5 w-2.5 h-2.5 rounded-full ring-2 ring-offset-2",
+                                        detalleTipo === 'INGRESOS' ? "bg-emerald-500 ring-emerald-100" : "bg-rose-500 ring-rose-100"
+                                      )} />
+                                      <div>
+                                        <div className="font-bold text-slate-900 text-base leading-snug">
                                           {conceptoMostrar}
-                                       </div>
-                                       {/* Ocultamos el ID interno técnico que no aporta valor al usuario */}
-                                   </div>
-                                </div>
-                                <div className={cn(
-                                   "font-black text-lg tabular-nums tracking-tight whitespace-nowrap",
-                                   detalleTipo === 'INGRESOS' ? "text-emerald-700" : "text-rose-700"
-                                )}>
-                                   {detalleTipo === 'INGRESOS' ? '+' : '-'}{formatCurrency(m.monto)}
-                                </div>
-                             </div>
-                             
-                             <div className="grid grid-cols-2 sm:grid-cols-4 gap-y-3 gap-x-2 pt-3 border-t border-slate-100 mt-3">
-                                 <div>
+                                        </div>
+                                      </div>
+                                    </div>
+                                    <div className={cn(
+                                      "font-black text-lg tabular-nums tracking-tight whitespace-nowrap",
+                                      detalleTipo === 'INGRESOS' ? "text-emerald-700" : "text-rose-700"
+                                    )}>
+                                      {detalleTipo === 'INGRESOS' ? '+' : '-'}{formatCurrency(m.monto)}
+                                    </div>
+                                  </div>
+                                  
+                                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-y-3 gap-x-2 pt-3 border-t border-slate-100 mt-3">
+                                    <div>
                                       <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block mb-0.5">Fecha y Hora</span>
                                       <div className="flex flex-col">
-                                          <span className="text-[11px] font-black text-slate-900 uppercase leading-tight">
-                                             {new Date(m.fecha).toLocaleDateString('es-CO', { weekday: 'long', day: '2-digit', month: 'short', year: 'numeric' })}
+                                        <span className="text-[11px] font-black text-slate-900 uppercase leading-tight">
+                                          {new Date(m.fecha).toLocaleDateString('es-CO', { weekday: 'long', day: '2-digit', month: 'short', year: 'numeric' })}
+                                        </span>
+                                        <div className="flex items-center gap-1 mt-0.5 text-blue-600 font-bold">
+                                          <Clock className="w-2.5 h-2.5" />
+                                          <span className="text-[10px] uppercase">
+                                            {new Date(m.fecha).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: true })}
                                           </span>
-                                          <div className="flex items-center gap-1 mt-0.5 text-blue-600 font-bold">
-                                             <Clock className="w-2.5 h-2.5" />
-                                             <span className="text-[10px] uppercase">
-                                                 {new Date(m.fecha).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: true })}
-                                             </span>
-                                          </div>
+                                        </div>
                                       </div>
-                                 </div>
-                                
-                                <div>
-                                     <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block mb-0.5">Categoría</span>
-                                    <span className="inline-block truncate max-w-full text-xs font-semibold text-slate-600 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
-                                       {m.categoria.replace(/_/g, ' ')}
-                                    </span>
-                                </div>
+                                    </div>
+                                    
+                                    <div>
+                                      <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block mb-0.5">Categoría</span>
+                                      <span className="inline-block truncate max-w-full text-xs font-semibold text-slate-600 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
+                                        {m.categoria.replace(/_/g, ' ')}
+                                      </span>
+                                    </div>
 
-                                <div>
-                                     <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block mb-0.5">Responsable</span>
-                                     <div className="flex items-center gap-1.5">
+                                    <div>
+                                      <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block mb-0.5">Responsable</span>
+                                      <div className="flex items-center gap-1.5">
                                         <div className="w-5 h-5 rounded-full bg-indigo-50 flex items-center justify-center text-[9px] font-bold text-indigo-700 border border-indigo-100 shrink-0">
-                                            {(cajaSeleccionada ? cajaSeleccionada.responsable : (m.responsable || 'A')).charAt(0)}
+                                          {(cajaSeleccionada ? cajaSeleccionada.responsable : (m.responsable || 'A')).charAt(0)}
                                         </div>
                                         <span className="text-xs font-medium text-slate-700 truncate">
-                                            {cajaSeleccionada ? cajaSeleccionada.responsable : (m.responsable || 'Admin')}
+                                          {cajaSeleccionada ? cajaSeleccionada.responsable : (m.responsable || 'Admin')}
                                         </span>
-                                     </div>
-                                </div>
+                                      </div>
+                                    </div>
 
-                                <div>
-                                     <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block mb-0.5">Origen</span>
+                                    <div>
+                                      <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block mb-0.5">Origen</span>
                                       <span className={cn(
-                                         "inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold uppercase border w-fit",
-                                         m.origen === 'COBRADOR' ? "bg-orange-50 text-orange-700 border-orange-100" : "bg-blue-50 text-blue-700 border-blue-100"
+                                        "inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold uppercase border w-fit",
+                                        m.origen === 'COBRADOR' ? "bg-orange-50 text-orange-700 border-orange-100" : "bg-blue-50 text-blue-700 border-blue-100"
                                       )}>
                                         <Briefcase className="w-2.5 h-2.5" />
                                         {m.origen}
                                       </span>
+                                    </div>
+                                  </div>
                                 </div>
-                             </div>
-                          </div>
-                        )})}
-                      
-                      {movimientos
-                        .filter(m => {
-                             // Mismo filtro estricto para el listado
-                             const categoriaUpper = m.categoria.toUpperCase();
-                             let isIngreso = false;
-
-                             if (m.tipo === 'INGRESO') {
-                                 isIngreso = true;
-                             } else if (m.tipo === 'EGRESO') {
-                                 isIngreso = false;
-                             } else if (m.tipo === 'TRANSFERENCIA') {
-                                 // Lógica basada en texto (Concepto) como en el detalle de cajas
-                                 const concepto = m.concepto.toUpperCase();
-                                 
-                                 // Detectar si es Salida por palabras clave
-                                 const esSalida = concepto.includes('SALIDA') || 
-                                                concepto.includes('ENVIADA A') || 
-                                                concepto.includes('EGRESO');
-                                                
-                                 isIngreso = !esSalida;
-                             }
-                             
-                             if (detalleTipo === 'INGRESOS') return isIngreso;
-                             return !isIngreso;
-                         })
-                        .filter(m => {
-                            if (cajaSeleccionada) {
-                                return m.cajaId === cajaSeleccionada.id;
-                            }
-                            
-                            // Si NO hay filtros, mostrar TODO el histórico (sin restricción de 'hoy')
-                            return true;
-                        }).length === 0 && (
-                          <div className="flex flex-col items-center justify-center py-16 text-slate-400 bg-slate-50/50 rounded-2xl border border-dashed border-slate-200">
-                              <div className="p-4 bg-white rounded-full shadow-sm mb-3">
-                                <History className="h-8 w-8 text-slate-300" />
-                              </div>
-                              <p className="font-bold text-sm text-slate-500">No hay movimientos en este rango</p>
-                              <p className="text-xs text-slate-400 max-w-[200px] text-center mt-1">
-                                  No se encontraron transacciones en las fechas seleccionadas.
-                              </p>
-                          </div>
-                      )}
-                      </>
-                    )}
+                              );
+                            })}
+                         </>
+                       )}
                     </div>
                   </div>
               </div>

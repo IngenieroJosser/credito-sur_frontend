@@ -86,12 +86,34 @@ export const apiRequest = async <T>(
 
     // Manejo específico de error de red
     if (!err.response) {
+      // Detectar diferentes tipos de errores de red
+      let errorMessage = "Error de conexión con el servidor. Verifique su conexión a internet.";
+      
+      if (err.code === 'ERR_NETWORK' || err.message?.includes('Network Error')) {
+        errorMessage = "No se pudo conectar con el servidor. Verifique que el backend esté corriendo y accesible.";
+      } else if (err.code === 'ECONNREFUSED') {
+        errorMessage = "El servidor rechazó la conexión. Verifique que el backend esté corriendo en el puerto correcto.";
+      } else if (err.code === 'ETIMEDOUT') {
+        errorMessage = "La conexión con el servidor está tardando demasiado. Verifique su conexión a internet.";
+      }
+      
       const networkError: ApiError = {
         statusCode: 0,
-        message: "Error de conexión con el servidor. Verifique su conexión a internet.",
-        error: err.message
+        message: errorMessage,
+        error: err.message || err.code || 'Network Error'
       };
-      console.error('Network error:', networkError);
+      
+      console.error('[API] Error de red completo:', {
+        code: err.code,
+        message: err.message,
+        config: {
+          url: err.config?.url,
+          baseURL: err.config?.baseURL,
+          method: err.config?.method,
+        },
+        error: networkError
+      });
+      
       throw networkError;
     }
 
