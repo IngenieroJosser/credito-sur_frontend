@@ -25,7 +25,7 @@ import {
 import FiltroRuta from '@/components/filtros/FiltroRuta'
 import { notificacionesService, type Notificacion } from '@/services/notificaciones-service'
 import ConfirmModal from '@/components/ui/ConfirmModal'
-import DetallePrestamoModal from '@/components/prestamos/DetallePrestamoModal'
+import EditarPrestamoModal from '@/components/prestamos/EditarPrestamoModal'
 import { aprobacionesService } from '@/services/aprobaciones-service'
 import { TipoAprobacion } from '@/types/enums'
 
@@ -1178,11 +1178,15 @@ export default function NotificacionesPage() {
         variant="info"
       />
 
-      {/* Modal de Detalle de Préstamo */}
+      {/* Modal de Edición/Detalle de Préstamo */}
       {prestamoModalOpen && selectedPrestamoId && (
-        <DetallePrestamoModal
+        <EditarPrestamoModal
           id={selectedPrestamoId}
           onClose={() => {
+            setPrestamoModalOpen(false)
+            setSelectedPrestamoId(null)
+          }}
+          onSuccess={() => {
             setPrestamoModalOpen(false)
             setSelectedPrestamoId(null)
           }}

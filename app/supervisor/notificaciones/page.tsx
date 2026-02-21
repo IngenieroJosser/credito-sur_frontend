@@ -20,6 +20,7 @@ import {
 import FiltroRuta from '@/components/filtros/FiltroRuta'
 import SolicitudDetalleModal, { SolicitudData } from '@/components/dashboards/shared/SolicitudDetalleModal'
 import { notificacionesService, type Notificacion as NotificacionBase } from '@/services/notificaciones-service'
+import EditarPrestamoModal from '@/components/prestamos/EditarPrestamoModal'
 
 // Extender la interfaz base para supervisor
 interface Notificacion extends NotificacionBase {
@@ -38,6 +39,7 @@ export default function NotificacionesSupervisorPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [selectedSolicitud, setSelectedSolicitud] = useState<SolicitudData | null>(null)
+  const [selectedPrestamoId, setSelectedPrestamoId] = useState<string | null>(null)
 
   useEffect(() => {
     const cargarNotificaciones = async () => {
@@ -110,6 +112,11 @@ export default function NotificacionesSupervisorPage() {
    * If it's a real Solicitud, it uses the details. Otherwise, creates a view-only representation.
    */
   const handleActionClick = (notif: Notificacion) => {
+     if (notif.tipo === 'PRESTAMO' && notif.entidadId) {
+       setSelectedPrestamoId(notif.entidadId);
+       return;
+     }
+
      let dataToView: SolicitudData;
 
      if (notif.solicitudDetails) {
@@ -368,6 +375,15 @@ export default function NotificacionesSupervisorPage() {
         onResolve={() => {}} // No-op, because readOnly hides actions
         readOnly={true}
       />
+
+      {/* Modal de Préstamo */}
+      {selectedPrestamoId && (
+        <EditarPrestamoModal
+          id={selectedPrestamoId}
+          onClose={() => setSelectedPrestamoId(null)}
+          onSuccess={() => setSelectedPrestamoId(null)}
+        />
+      )}
     </div>
   )
 }
