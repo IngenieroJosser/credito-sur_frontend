@@ -54,45 +54,60 @@ export default function ClientePortalModal({ clientId, onClose, rolUsuario = 'co
                     puntaje: data.puntaje || 0,
                     enListaNegra: data.enListaNegra || false,
                     estadoAprobacion: data.estadoAprobacion || 'APROBADO',
-                    fechaRegistro: (data as any).fechaRegistro || (data as any).creadoEn ? new Date((data as any).fechaRegistro || (data as any).creadoEn).toISOString() : new Date().toISOString(),
+                    fechaRegistro: data.creadoEn || new Date().toISOString(),
                     ocupacion: 'No especificada',
                     avatarColor: 'bg-blue-600',
-                    ruta: data.rutaId ? `Ruta ${data.rutaId}` : 'Sin Ruta',
+                    ruta: (data as any).asignacionesRuta?.[0]?.ruta?.nombre || 'Sin Ruta',
                     fotos: fotos
                 });
                 
-                // Si el backend devolviera prestamos y pagos (actualmente obtenerPorId retorna Cliente con include?)
-                // Por ahora inicializamos vacios o mocked si no vienen
                 const prestamosBackend: any[] = (data as any).prestamos || [];
-                setPrestamos(prestamosBackend.map(p => ({
-                    id: p.id,
-                    producto: 'Préstamo Personal', // Default
-                    montoTotal: Number(p.monto || 0),
-                    montoPagado: 0, // Mock
-                    montoPendiente: Number(p.monto || 0),
-                    cuotasTotales: 10, // Mock
-                    cuotasPagadas: 0,
-                    cuotasPendientes: 10,
-                    fechaInicio: p.fechaInicio ? new Date(p.fechaInicio).toLocaleDateString() : new Date().toLocaleDateString(),
-                    fechaVencimiento: new Date(Date.now() + 30*24*60*60*1000).toLocaleDateString(),
-                    proximoPago: new Date(Date.now() + 24*60*60*1000).toLocaleDateString(),
-                    estado: p.estado || 'ACTIVO',
-                    tasaInteres: 20,
-                    frecuencia: 'DIARIO',
-                    icono: <Smartphone className="w-5 h-5" />,
-                    categoria: 'Personal'
-                })));
+                setPrestamos(prestamosBackend.map(p => {
+                    const cuotas = p.cuotas || [];
+                    const cuotasPagadas = cuotas.filter((c: any) => c.estado === 'PAGADO' || c.estado === 'PAGADA').length;
+                    const totalCuotas = p.cantidadCuotas || cuotas.length || 0;
+                    
+                    const principal = Number(p.monto || 0);
+                    const tasa = Number(p.tasaInteres || 0);
+                    const meses = Number(p.plazoMeses || 1);
+                    let interesTotal = Number(p.interesTotal || 0);
+                    
+                    if (interesTotal === 0 && tasa > 0 && meses > 0) {
+                      interesTotal = (principal * tasa * meses) / 100;
+                    }
+                
+                    const montoTotal = principal + interesTotal;
+                    const saldoPendiente = Number(p.saldoPendiente || 0);
+
+                    return {
+                        id: p.id,
+                        producto: p.tipoPrestamo === 'ARTICULO' ? (p.producto?.nombre || 'Artículo') : 'Préstamo Efectivo',
+                        montoTotal: montoTotal,
+                        montoPagado: Number(p.totalPagado || 0),
+                        montoPendiente: (saldoPendiente === principal && interesTotal > 0) ? montoTotal : saldoPendiente,
+                        cuotasTotales: totalCuotas,
+                        cuotasPagadas: cuotasPagadas,
+                        cuotasPendientes: Math.max(0, totalCuotas - cuotasPagadas),
+                        fechaInicio: p.fechaInicio,
+                        fechaVencimiento: p.fechaFin,
+                        proximoPago: cuotas.find((c: any) => c.estado === 'PENDIENTE' || c.estado === 'PARCIAL' || c.estado === 'VENCIDA' || c.estado === 'VENCIDO')?.fechaVencimiento || p.fechaFin,
+                        estado: p.estado || 'ACTIVO',
+                        tasaInteres: tasa,
+                        frecuencia: p.frecuenciaPago || 'SEMANAL',
+                        icono: <Smartphone className="w-5 h-5" />,
+                        categoria: p.tipoPrestamo || 'General'
+                    };
+                }));
                 
                 const pagosBackend: any[] = (data as any).pagos || [];
                 setPagos(pagosBackend.map(p => ({
                     id: String(p.id),
-                    fecha: p.fecha ? new Date(p.fecha).toLocaleDateString() : new Date().toLocaleDateString(),
-                    monto: Number(p.monto || 0),
-                    cuota: 1, // Default
-                    referencia: `Pago ${p.id}`,
-                    metodo: 'EFECTIVO',
+                    fecha: p.fechaPago,
+                    monto: Number(p.montoTotal || 0),
+                    cuota: p.detalles?.[0]?.cuota?.numeroCuota || 1,
+                    referencia: p.numeroPago,
+                    metodo: p.metodoPago || 'EFECTIVO',
                     estado: 'confirmado',
-                    comprobante: undefined,
                     icono: <DollarSign className="w-5 h-5" />
                 })));
             }
@@ -119,17 +134,17 @@ export default function ClientePortalModal({ clientId, onClose, rolUsuario = 'co
                   fechaRegistro: offCliente.creadoEn || new Date().toISOString(),
                   ocupacion: 'No especificada',
                   avatarColor: 'bg-blue-600',
-                  ruta: offCliente.rutaId ? `Ruta ${offCliente.rutaId}` : 'Sin Ruta',
+                  ruta: offCliente.rutaNombre || 'Sin Ruta',
                   fotos: [],
                 });
                 // Cargar préstamos offline
                 const offPrestamos = await offlineStore.getByIndex<any>('prestamos', 'by-clienteId', clientId);
                 setPrestamos(offPrestamos.map((p: any) => ({
                   id: p.id,
-                  producto: 'Préstamo',
+                  producto: p.tipoPrestamo === 'ARTICULO' ? 'Artículo' : 'Préstamo Efectivo',
                   montoTotal: Number(p.montoTotal || p.monto || 0),
-                  montoPagado: 0,
-                  montoPendiente: Number(p.saldoPendiente || p.monto || 0),
+                  montoPagado: Number(p.totalPagado || 0),
+                  montoPendiente: Number(p.saldoPendiente || 0),
                   cuotasTotales: p.cantidadCuotas || 0,
                   cuotasPagadas: 0,
                   cuotasPendientes: p.cantidadCuotas || 0,
@@ -138,9 +153,9 @@ export default function ClientePortalModal({ clientId, onClose, rolUsuario = 'co
                   proximoPago: '',
                   estado: p.estado || 'ACTIVO',
                   tasaInteres: p.tasaInteres || 0,
-                  frecuencia: p.frecuenciaPago || 'DIARIO',
+                  frecuencia: p.frecuenciaPago || 'SEMANAL',
                   icono: <Smartphone className="w-5 h-5" />,
-                  categoria: 'Personal',
+                  categoria: p.tipoPrestamo || 'General',
                 })));
               }
             } catch { /* ignore */ }

@@ -8,13 +8,23 @@ import {
   ArrowLeft,
   Save,
   Search,
-  FileText as FileTextIcon
+  FileText as FileTextIcon,
+  History,
+  Loader2,
+  User,
+  Fingerprint,
+  Star,
+  CalendarDays,
+  Phone,
+  MapPin,
+  Calendar,
+  ChevronDown
 } from 'lucide-react'
 
 import { formatCOPInputValue, formatCurrency } from '@/lib/utils'
 import Link from 'next/link'
 import { useParams } from 'next/navigation'
-import { useCallback, useEffect } from 'react'
+import { useCallback, useEffect, useMemo } from 'react'
 import { Cliente, clientesService } from '@/services/clientes-service'
 import { rutasService } from '@/services/rutas-service'
 import PagoModal from '@/components/cobranza/PagoModal'
@@ -23,6 +33,10 @@ import ReprogramarModal from '@/components/cobranza/ReprogramarModal'
 import { VisitaRuta, EstadoVisita } from '@/lib/types/cobranza'
 import { StaticVisitaItem, SeleccionClienteModal } from '@/components/dashboards/shared/CobradorElements'
 import AnimacionCarga from '@/components/ui/AnimacionCarga'
+import { prestamosService } from '@/services/prestamos-service'
+import { pagosService } from '@/services/pagos-service'
+import { obtenerSaldoDisponibleRuta } from '@/services/contabilidad-service'
+import { HistorialDia } from '@/lib/types/cobranza'
 
 // Interfaces de datos
 interface ClienteRuta {
@@ -57,27 +71,45 @@ const DetalleRutaPage = () => {
   const [isGastoModalOpen, setIsGastoModalOpen] = useState(false)
   const [nuevoGasto, setNuevoGasto] = useState({ tipo: 'OPERATIVO', descripcion: '', valor: '' })
   const [searchQuery, setSearchQuery] = useState('')
+  const [periodoRutaFiltro, setPeriodoRutaFiltro] = useState<'TODOS' | 'DIA' | 'SEMANA' | 'QUINCENA' | 'MES'>('TODOS')
 
-  const [rutaCompletada, setRutaCompletada] = useState(false)
+  const [rutaActual, setRutaActual] = useState<{ 
+    nombre: string | null; 
+    activa: boolean;
+    codigo?: string;
+    cobrador?: string;
+    nivelRiesgo?: string;
+    estadisticas?: any;
+  } | null>(null)
 
   const [visitasCobrador, setVisitasCobrador] = useState<VisitaRuta[]>([])
+  const totalRecaudadoHoy = visitasCobrador.reduce((acc, current) => acc + (current.recaudadoDelDia || 0), 0)
   
   const [estadoCuentaVisita, setEstadoCuentaVisita] = useState<VisitaRuta | null>(null)
   const [pagoVisita, setPagoVisita] = useState<{visita: VisitaRuta, tipo: 'PAGO' | 'ABONO'} | null>(null)
   const [visitaReprogramar, setVisitaReprogramar] = useState<VisitaRuta | null>(null)
-  const [clienteDetalle, setClienteDetalle] = useState<Cliente | null>(null)
+  const [clienteDetalle, setClienteDetalle] = useState<VisitaRuta | null>(null)
   const [showClienteSelector, setShowClienteSelector] = useState(false)
+
+  const [showHistory, setShowHistory] = useState(false)
+  const [historialRutas, setHistorialRutas] = useState<Record<string, HistorialDia> | null>(null)
+  const [selectedHistoryDate, setSelectedHistoryDate] = useState<string | null>(null)
+
+  const historyDates = useMemo(() => {
+    if (!historialRutas) return [];
+    return Object.keys(historialRutas).sort((a, b) => b.localeCompare(a));
+  }, [historialRutas]);
 
   const getEstadoClasses = useCallback((estado: EstadoVisita) => {
     switch (estado) {
       case 'pagado':
-        return 'bg-blue-50 text-blue-700 border-blue-500 ring-1 ring-blue-500' 
+        return 'bg-emerald-50 text-emerald-700 border-emerald-500/30' 
       case 'pendiente':
-        return 'bg-emerald-50 text-emerald-700 border-emerald-500 ring-1 ring-emerald-500' 
+        return 'bg-orange-50 text-orange-700 border-orange-500/30' 
       case 'ausente':
-        return 'bg-orange-50 text-orange-700 border-orange-500 ring-1 ring-orange-500' 
+        return 'bg-slate-50 text-slate-600 border-slate-300' 
       case 'en_mora':
-        return 'bg-red-50 text-red-700 border-red-500 ring-1 ring-red-500' 
+        return 'bg-rose-50 text-rose-700 border-rose-500/30' 
       default:
         return 'bg-slate-50 text-slate-700 border-slate-300'
     }
@@ -94,33 +126,26 @@ const DetalleRutaPage = () => {
     }
   }, [])
 
-
-  const handleAbrirClienteInfo = async (visita: VisitaRuta) => {
-    try {
-        // Intentar obtener cliente completo por ID
-        // Como ID de visita es ID de cliente en nuestro mapeo actual:
-        const clienteReal = await clientesService.obtenerPorId(visita.id);
-        setClienteDetalle(clienteReal);
-    } catch (e) {
-        console.error('Error cargando detalle cliente', e);
-        // Fallback básico con datos de la visita
-        setClienteDetalle({
-            id: visita.id,
-            nombres: visita.cliente,
-            apellidos: '',
-            dni: '',
-            telefono: visita.telefono,
-            direccion: visita.direccion,
-            correo: '',
-            fechaRegistro: new Date().toISOString(),
-            nivelRiesgo: visita.nivelRiesgo as any || 'VERDE',
-            rutaId: rutaId,
-            prestamos: [],
-            pagos: [], 
-            ruta: undefined
-        } as unknown as Cliente);
+  const getRiesgoBadgeClasses = (riesgo: string) => {
+    switch (riesgo) {
+        case 'PELIGRO_MINIMO': return 'bg-emerald-100 text-emerald-800 border-emerald-200';
+        case 'LEVE_RETRASO': return 'bg-blue-100 text-blue-800 border-blue-200';
+        case 'PRECAUCION': return 'bg-yellow-100 text-yellow-800 border-yellow-200';
+        case 'RIESGO_MODERADO': return 'bg-amber-100 text-amber-800 border-amber-200';
+        case 'ALTO_RIESGO': return 'bg-rose-100 text-rose-800 border-rose-200';
+        default: return 'bg-slate-100 text-slate-800 border-slate-200';
     }
   }
+
+  const getRiesgoLabel = (riesgo: string) => {
+      if (!riesgo) return 'Desconocido'
+      return riesgo.replace('_', ' ');
+  }
+
+
+  const handleAbrirClienteInfo = useCallback((visita: VisitaRuta) => {
+    setClienteDetalle(visita);
+  }, [setClienteDetalle]);
 
   // Cargar datos reales
   useEffect(() => {
@@ -129,27 +154,149 @@ const DetalleRutaPage = () => {
         try {
             const ruta = await rutasService.obtenerRutaPorId(rutaId);
             if (ruta && ruta.asignaciones) {
-                const visitas = ruta.asignaciones.map((a: any, index: number) => ({
-                    id: a.cliente.id, 
-                    cliente: `${a.cliente.nombres} ${a.cliente.apellidos}`,
-                    direccion: a.cliente.direccion || 'Sin dirección',
-                    telefono: a.cliente.telefono || '',
-                    horaSugerida: '09:00',
-                    montoCuota: 0,
-                    saldoTotal: 0,
-                    estado: 'pendiente' as EstadoVisita,
-                    proximaVisita: 'Hoy',
-                    ordenVisita: index + 1,
-                    prioridad: 'media' as const,
-                    nivelRiesgo: (a.cliente.nivelRiesgo?.toLowerCase() as any) || 'bajo',
+                const visitas = ruta.asignaciones.map((asig: any, index: number) => {
+                   const cliente = asig.cliente || {};
+                   const prestamos = cliente.prestamos || [];
+                   const prestamoActivo = prestamos.find((p: any) => p.estado === 'ACTIVO' || p.estado === 'EN_MORA') || prestamos[0] || {};
+                   
+                   const proximaCuota = prestamoActivo.proximaCuota || {}; 
+                   const saldoTotal = prestamoActivo.saldoPendiente || 0;
+
+                   let estado: EstadoVisita = 'pendiente';
+                   if (proximaCuota.estado === 'VENCIDA') estado = 'en_mora';
+                   else if (proximaCuota.estado === 'PAGADA') estado = 'pagado';
+                   else if (!prestamoActivo.id) estado = 'pendiente';
+
+                   return {
+                    id: asig.id || `asig-${index}`,
+                    cliente: `${cliente.nombres || ''} ${cliente.apellidos || ''}`.trim() || 'Cliente Sin Nombre',
+                    direccion: cliente.direccion || 'Sin dirección registrada',
+                    telefono: cliente.telefono || '',
+                    horaSugerida: asig.horaSugerida || '08:00 AM',
+                    montoCuota: Number(proximaCuota.monto || 0),
+                    saldoTotal: Number(saldoTotal),
+                    estado: estado,
+                    proximaVisita: proximaCuota.fechaVencimiento || '9999-12-31T00:00:00.000Z',
+                    targetVencimiento: proximaCuota.fechaVencimiento || undefined,
+                    ordenVisita: asig.ordenVisita || index + 1,
+                    prioridad: (asig.prioridad?.toLowerCase()) || (estado === 'en_mora' ? 'alta' : 'media'),
+                    nivelRiesgo: (() => {
+                       const r = cliente.nivelRiesgo || 'VERDE';
+                       if (r === 'VERDE') return 'bajo';
+                       if (r === 'AMARILLO') return 'precaucion' as any;
+                       if (r === 'ROJO') return 'moderado';
+                       if (r === 'LISTA_NEGRA') return 'critico';
+                       return 'bajo';
+                    })(),
                     cobradorId: ruta.cobradorId,
-                    periodoRuta: 'DIA' as const,
-                    clienteId: a.cliente.id,
-                    prestamoId: a.cliente.prestamos?.[0]?.id || ''
+                    periodoRuta: (() => {
+                       const f = prestamoActivo.frecuenciaPago || 'DIARIO';
+                       if (f === 'DIARIO') return 'DIA';
+                       if (f === 'SEMANAL') return 'SEMANA';
+                       if (f === 'QUINCENAL') return 'QUINCENA';
+                       if (f === 'MENSUAL') return 'MES';
+                       return 'DIA';
+                    })(),
+                    clienteId: cliente.id,
+                    prestamoId: prestamoActivo.id
+                   };
+                });
+                
+                // Enriquecer con cuotas
+                const visitasEnriquecidas = await Promise.all(visitas.map(async (v: any) => {
+                    if (!v.prestamoId) return v;
+                    try {
+                       const cuotas = await prestamosService.obtenerCuotas(v.prestamoId);
+                       const pendiente = cuotas.find(c => c.estado !== 'PAGADA');
+                       
+                       if (pendiente) {
+                           const montoReal = Number(pendiente.monto || (pendiente.montoCapital + pendiente.montoInteres) || 0);
+                           // Actualizamos monto Y fecha para que el filtro de ruta funcione
+                           return { 
+                             ...v, 
+                             montoCuota: montoReal > 0 ? montoReal : v.montoCuota,
+                             proximaVisita: pendiente.fechaVencimiento || v.proximaVisita 
+                           };
+                       }
+                       
+                       const p = await prestamosService.obtenerPrestamoPorId(v.prestamoId);
+                       const proxima = p.proximaCuota || {};
+                       const montoP = Number(proxima.monto || p.montoCuota || p.valorCuota || 0);
+                       
+                       return { 
+                         ...v, 
+                         montoCuota: montoP > 0 ? montoP : v.montoCuota,
+                         proximaVisita: proxima.fechaVencimiento || v.proximaVisita
+                       };
+                    } catch (e) {
+                       return v;
+                    }
                 }));
-                // Filtrar por ID de cobrador si fuera necesario, aqui mostramos todos los de la ruta
-                setVisitasCobrador(visitas);
-                setClientes(visitas.map((v: any) => ({
+
+                // Enriquecer recaudo
+                const hoyStr = new Date().toDateString();
+                const withRecaudo = await Promise.all(visitasEnriquecidas.map(async (v: any) => {
+                  if (!v.clienteId) return { ...v, recaudadoDelDia: 0, recaudadoTotalClient: 0 };
+                  try {
+                    const pagosResp = await pagosService.obtenerPagos({ clienteId: v.clienteId, limit: 100 });
+                    const pagosCalc = (pagosResp?.pagos || []);
+                    
+                    const totalHoy = pagosCalc.reduce((sum: number, p: any) => {
+                      const f = new Date(p.fechaPago).toDateString();
+                      return f === hoyStr ? sum + Number(p.montoTotal || 0) : sum;
+                    }, 0);
+                    
+                    const totalHistorico = pagosCalc.reduce((sum: number, p: any) => {
+                      return sum + Number(p.montoTotal || 0);
+                    }, 0);
+
+                    return { ...v, recaudadoDelDia: totalHoy, recaudadoTotalClient: totalHistorico };
+                  } catch {
+                    return { ...v, recaudadoDelDia: 0, recaudadoTotalClient: 0 };
+                  }
+                }));
+
+                withRecaudo.sort((a, b) => a.ordenVisita - b.ordenVisita);
+
+                const ajustarEstadoConPago = (v: any): EstadoVisita => {
+                  if (Number(v.saldoTotal || 0) <= 0) return 'pagado';
+                  
+                  // CRÍTICO: Si hoy ya pagó la cuota, es PAGADO sin importar la fecha de proximaVisita
+                  const saldoHoy = Number(v.recaudadoDelDia || 0);
+                  const cuota = Number(v.montoCuota || 0);
+                  
+                  if (saldoHoy >= (cuota - 1) && saldoHoy > 0) return 'pagado';
+
+                  const hoy = new Date().toDateString();
+                  const proxima = new Date(v.proximaVisita).toDateString();
+                  
+                  if (proxima === hoy && saldoHoy >= (cuota - 1)) return 'pagado';
+                  
+                  return v.estado;
+                }
+
+                const finales = withRecaudo.map(v => ({ ...v, estado: ajustarEstadoConPago(v) }));
+
+                const cobranzaDia = finales.reduce((acc: number, curr: any) => acc + (curr.recaudadoDelDia || 0), 0)
+                const metaDia = finales.reduce((acc: number, curr: any) => acc + (curr.montoCuota || 0), 0)
+                const progresoAvance = metaDia > 0 ? (cobranzaDia / metaDia) * 100 : 0
+
+                const rExtra = ruta as any;
+                setRutaActual({ 
+                  nombre: ruta.nombre, 
+                  activa: ruta.activa,
+                  codigo: rExtra.codigo,
+                  cobrador: rExtra.cobrador?.nombres ? `${rExtra.cobrador.nombres} ${rExtra.cobrador.apellidos || ''}` : rExtra.cobrador || 'Desconocido',
+                  nivelRiesgo: rExtra.nivelRiesgo || 'VERDE',
+                  estadisticas: rExtra.estadisticas || {
+                    cobranzaDelDia: cobranzaDia,
+                    metaDelDia: metaDia,
+                    avanceDiario: progresoAvance > 100 ? 100 : progresoAvance,
+                  }
+                });
+
+                setVisitasCobrador(finales);
+                setClientes(finales.map((v: any) => ({
                     id: v.id,
                     nombre: v.cliente,
                     direccion: v.direccion,
@@ -169,9 +316,220 @@ const DetalleRutaPage = () => {
     cargarRuta();
   }, [rutaId]);
 
+  // Prefill historial keys for últimos 30 días (lazy fetch per día al expandir)
+  useEffect(() => {
+    if (!showHistory || !rutaActual?.nombre) return;
+    if (historialRutas && Object.keys(historialRutas).length > 0) return;
+    const hoy = new Date();
+    const prefill: Record<string, HistorialDia> = {};
+    for (let i = 0; i < 30; i++) {
+        const d = new Date(hoy);
+        d.setDate(hoy.getDate() - i);
+      const yyyy = d.getFullYear();
+      const mm = String(d.getMonth() + 1).padStart(2, '0');
+      const dd = String(d.getDate()).padStart(2, '0');
+      const key = `${yyyy}-${mm}-${dd}`;
+      prefill[key] = {
+          resumen: { recaudo: 0, gastos: 0, efectividad: 0, visitados: 0, total: 0 },
+          visitas: [],
+          loaded: false
+      };
+    }
+    setHistorialRutas(prefill);
+  }, [showHistory, rutaActual?.nombre, rutaId]);
+
+  const getLocalIsoKey = (date: Date | string) => {
+    try {
+      if (!date) return '';
+      const d = typeof date === 'string' ? new Date(date) : date;
+      if (isNaN(d.getTime())) return '';
+      const yyyy = d.getFullYear();
+      const mm = String(d.getMonth() + 1).padStart(2, '0');
+      const dd = String(d.getDate()).padStart(2, '0');
+      return `${yyyy}-${mm}-${dd}`;
+    } catch (e) { return ''; }
+  };
+
+  const cargarHistorialFecha = useCallback(async (fechaClave: string) => {
+    if (!rutaId || rutaId === 'Desconocida') return;
+    try {
+      const visitasResp = await rutasService.obtenerVisitasDelDia(rutaId, fechaClave);
+      const saldo = await obtenerSaldoDisponibleRuta(rutaId, fechaClave);
+      const pagosResp = await pagosService.obtenerPagos({ limit: 1000 });
+      const pagosData = (pagosResp as any)?.pagos || pagosResp || [];
+      
+      const normalize = (s: string) => (s || '').toLowerCase().replace(/^ruta\s+/i, '').trim();
+      const rutaNombreNorm = normalize(rutaActual?.nombre || '');
+
+      const pagosDelDia = (Array.isArray(pagosData) ? pagosData : []).filter((p: any) => {
+        const raw = p.fechaPago || p.creadoEn;
+        if (!raw) return false;
+        
+        const key = getLocalIsoKey(raw);
+        const matchRuta = p.rutaId === rutaId || 
+                          normalize(p.ruta) === rutaNombreNorm || 
+                          (p.ruta && normalize(p.ruta).includes(rutaNombreNorm)) ||
+                          (rutaNombreNorm && normalize(p.ruta).includes(rutaNombreNorm));
+        
+        return key === fechaClave && (matchRuta || !p.ruta); // Fallback if no route specified
+      });
+
+      const recaudadoPorCliente: Record<string, number> = {};
+      for (const p of pagosDelDia) {
+        const cid = p.clienteId || (p.cliente?.id);
+        if (!cid) continue;
+        recaudadoPorCliente[cid] = (recaudadoPorCliente[cid] || 0) + Number(p.montoTotal || 0);
+      }
+
+      const existentes = new Set();
+      const visitas: VisitaRuta[] = (visitasResp?.visitas || []).map((item: any, index: number) => {
+        const cliente = item.cliente || {};
+        const prestamos = item.prestamos || [];
+        const prestamoActivo = prestamos.find((p: any) => p.estado === 'ACTIVO' || p.estado === 'EN_MORA' || p.estado === 'PAGADO') || prestamos[0] || {};
+        const proximaCuota = prestamoActivo?.proximaCuota || {};
+        const saldoTotal = Number(prestamoActivo?.saldoPendiente || 0);
+        
+        const recDia = cliente.id ? (recaudadoPorCliente[cliente.id] || 0) : 0;
+        const montoCuota = Number(proximaCuota?.monto || 0);
+        
+        if (cliente.id) existentes.add(cliente.id);
+
+        let estado: EstadoVisita = 'pendiente';
+        if (proximaCuota?.estado === 'PAGADA' || (recDia > 0 && recDia >= (montoCuota - 1)) || saldoTotal <= 0) {
+            estado = 'pagado';
+        } else if (proximaCuota?.estado === 'VENCIDA') {
+            estado = 'en_mora';
+        }
+
+        return {
+          id: item.asignacionId || `hist-${fechaClave}-${index}`,
+          cliente: `${cliente.nombres || ''} ${cliente.apellidos || ''}`.trim() || 'Cliente Sin Nombre',
+          direccion: cliente.direccion || 'Sin dirección registrada',
+          telefono: cliente.telefono || '',
+          horaSugerida: '08:00 AM',
+          montoCuota,
+          saldoTotal,
+          estado,
+          proximaVisita: proximaCuota?.fechaVencimiento || fechaClave,
+          ordenVisita: item.ordenVisita || index + 1,
+          prioridad: (cliente.nivelRiesgo === 'ROJO' ? 'alta' : 'media'),
+          nivelRiesgo: (() => {
+            const r = cliente.nivelRiesgo || 'VERDE';
+            if (r === 'VERDE') return 'bajo';
+            if (r === 'AMARILLO') return 'leve';
+            if (r === 'ROJO') return 'moderado';
+            if (r === 'LISTA_NEGRA') return 'critico';
+            return 'bajo';
+          })(),
+          cobradorId: '',
+          periodoRuta: (() => {
+            const f = prestamoActivo?.frecuenciaPago || 'DIARIO';
+            if (f === 'DIARIO') return 'DIA';
+            if (f === 'SEMANAL') return 'SEMANA';
+            if (f === 'QUINCENAL') return 'QUINCENA';
+            if (f === 'MENSUAL') return 'MES';
+            return 'DIA';
+          })() as any,
+          clienteId: cliente.id,
+          recaudadoDelDia: recDia,
+          recaudadoTotalClient: recDia
+        };
+      });
+
+      // Agregar gestiones fuera de ruta (Sintéticas)
+      const sinteticos: VisitaRuta[] = (pagosDelDia || []).flatMap((p: any, i: number) => {
+        const cid = p.clienteId || (p.cliente?.id);
+        if (!cid || existentes.has(cid)) return [];
+        const nombre = p.cliente ? `${p.cliente.nombres || ''} ${p.cliente.apellidos || ''}`.trim() : 'Cliente';
+        return [{
+            id: `pago-${p.id || i}-${fechaClave}`,
+            cliente: nombre || 'Cliente fuera de ruta',
+            direccion: p.cliente?.direccion || 'Sin dirección',
+            telefono: p.cliente?.telefono || '',
+            horaSugerida: '08:00 AM',
+            montoCuota: 0,
+            saldoTotal: 0,
+            estado: 'pagado',
+            proximaVisita: fechaClave,
+            ordenVisita: visitas.length + i + 1,
+            prioridad: 'media',
+            cobradorId: '',
+            periodoRuta: 'DIA',
+            clienteId: cid,
+            recaudadoDelDia: Number(p.montoTotal || 0),
+            recaudadoTotalClient: Number(p.montoTotal || 0)
+        }];
+      });
+
+      const todasVisitas = [...visitas, ...sinteticos];
+      const esperado = todasVisitas.reduce((sum, v) => sum + (v.montoCuota || 0), 0);
+      const recaudoDia = Number(saldo?.recaudoDelDia ?? 0) > 0 ? Number(saldo?.recaudoDelDia ?? 0) : pagosDelDia.reduce((s: number, p: any) => s + Number(p.montoTotal || 0), 0);
+      
+      const resumen = {
+        recaudo: recaudoDia,
+        gastos: Number(saldo?.gastosDelDia ?? 0),
+        efectividad: esperado > 0 ? Math.round((recaudoDia / esperado) * 100) : (recaudoDia > 0 ? 100 : 0),
+        visitados: todasVisitas.filter(v => (v.recaudadoDelDia || 0) > 0 || v.estado === 'pagado').length,
+        total: todasVisitas.length
+      };
+
+      setHistorialRutas((prev) => ({
+        ...(prev || {}),
+        [fechaClave]: { resumen, visitas: todasVisitas, loaded: true }
+      }));
+    } catch (e) {
+      console.error("Error cargando historial de fecha:", e);
+    }
+  }, [rutaId, rutaActual?.nombre]);
+
+  useEffect(() => {
+    if (!showHistory || !rutaId) return;
+    const hoy = new Date().toISOString().split('T')[0];
+    const existing = (historialRutas || {})[hoy];
+    if (!existing || (!existing.loaded)) {
+      cargarHistorialFecha(hoy);
+    }
+  }, [showHistory, rutaId, historialRutas, cargarHistorialFecha]);
+
   const handleAbrirEstadoCuenta = useCallback((visita: VisitaRuta) => {
     setEstadoCuentaVisita(visita)
   }, [setEstadoCuentaVisita])
+
+  // Agrupar visitas por frecuencia de pago
+  const { visitasAgrupadas, totalMostradas } = useMemo(() => {
+    let filtradas = visitasCobrador.filter(v => 
+      (v.cliente.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      v.direccion.toLowerCase().includes(searchQuery.toLowerCase()))
+    );
+
+    // FILTRO CRÍTICO: Si ya pagó, no debe aparecer en la lista de gestión pendiente
+    filtradas = filtradas.filter(v => v.estado !== 'pagado');
+
+    // Aplicar filtro de periodo
+    if (periodoRutaFiltro !== 'TODOS') {
+        filtradas = filtradas.filter(v => v.periodoRuta === periodoRutaFiltro);
+    }
+
+    const isTodayOrMora = (dateStr: string) => {
+      if (!dateStr) return true;
+      const d = new Date(dateStr);
+      const hoy = new Date();
+      hoy.setHours(0, 0, 0, 0);
+      d.setHours(0, 0, 0, 0);
+      return d.getTime() <= hoy.getTime();
+    };
+
+    const filterByDate = (v: any) => searchQuery || isTodayOrMora(v.proximaVisita);
+
+    const agrupar = {
+      MES: filtradas.filter(v => v.periodoRuta === 'MES' && filterByDate(v)),
+      QUINCENA: filtradas.filter(v => v.periodoRuta === 'QUINCENA' && filterByDate(v)),
+      SEMANA: filtradas.filter(v => v.periodoRuta === 'SEMANA' && filterByDate(v)),
+      DIA: filtradas.filter(v => v.periodoRuta === 'DIA' && filterByDate(v)),
+    }
+
+    return { visitasAgrupadas: agrupar, totalMostradas: filtradas.length };
+  }, [visitasCobrador, searchQuery, periodoRutaFiltro]);
 
   const handleGuardarGasto = (e: React.FormEvent) => {
     e.preventDefault()
@@ -179,11 +537,6 @@ const DetalleRutaPage = () => {
     console.log('Guardando gasto:', { ...nuevoGasto, hora: horaActual })
     setIsGastoModalOpen(false)
     setNuevoGasto({ tipo: 'OPERATIVO', descripcion: '', valor: '' })
-  }
-  
-  const handleActivarRuta = () => {
-    setRutaCompletada(!rutaCompletada)
-    alert(rutaCompletada ? 'Ruta desactivada' : 'Ruta activada correctamente')
   }
 
   if (isLoading) {
@@ -204,11 +557,17 @@ const DetalleRutaPage = () => {
                   <ArrowLeft className="h-5 w-5 text-slate-600" />
                </Link>
                <div>
-                 <h1 className="text-3xl font-bold tracking-tight">
-                   <span className="text-blue-600">Ruta </span><span className="text-orange-500">Diaria</span>
-                 </h1>
+                 <div className="flex items-center gap-3">
+                    <h1 className="text-3xl font-bold tracking-tight">
+                        <span className="text-blue-600">Ruta </span>
+                        <span className="text-orange-500">{(rutaActual?.nombre || 'Diaria').replace(/^Ruta\s+/i, '')}</span>
+                    </h1>
+                    <span className={`px-3 py-1 rounded-full text-xs font-bold border ${getRiesgoBadgeClasses(rutaActual?.nivelRiesgo || '')}`}>
+                        {getRiesgoLabel(rutaActual?.nivelRiesgo || '')}
+                    </span>
+                 </div>
                  <p className="text-slate-500 font-medium text-sm">
-                   {new Date().toLocaleDateString('es-CO', { weekday: 'long', day: 'numeric', month: 'long' })} • ID: {rutaId}
+                   {new Date().toLocaleDateString('es-CO', { weekday: 'long', day: 'numeric', month: 'long' })} • {rutaActual?.codigo || rutaId} • {rutaActual?.cobrador || 'Sin Cobrador'}
                  </p>
               </div>
             </div>
@@ -219,11 +578,12 @@ const DetalleRutaPage = () => {
                <div className="flex justify-between items-end mb-4">
                 <div>
                   <p className="text-slate-500 text-xs font-bold uppercase tracking-wider mb-1">Recaudado Hoy</p>
-                  <div className="text-3xl font-bold text-slate-900">{formatCurrency(progreso.recaudado)}</div>
+                  <div className="text-3xl font-bold text-slate-900">{formatCurrency(rutaActual?.estadisticas?.cobranzaDelDia || 0)}</div>
+                  <p className="text-xs text-slate-400 mt-1">Meta: {formatCurrency(rutaActual?.estadisticas?.metaDelDia || 0)}</p>
                 </div>
               </div>
               <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
-                <div className="h-full bg-blue-600 rounded-full" style={{ width: `${porcentajeProgreso}%` }} />
+                <div className="h-full bg-blue-600 rounded-full transition-all duration-500" style={{ width: `${rutaActual?.estadisticas?.avanceDiario || 0}%` }} />
               </div>
             </div>
           </div>
@@ -241,21 +601,39 @@ const DetalleRutaPage = () => {
                     className="buscador-3d-input"
                   />
                 </div>
-                <div className="flex gap-2">
-                  <button 
-                    type="button"
-                    onClick={handleActivarRuta}
-                    className={`px-4 py-2 border rounded-xl flex items-center gap-2 font-bold shadow-sm transition-colors ${
-                      rutaCompletada
-                        ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                        : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
-                    }`}
-                  >
-                    <CheckCircle2 className="h-4 w-4" />
-                    <span className="hidden md:inline">{rutaCompletada ? 'Ruta Activa' : 'Activar Ruta'}</span>
-                  </button>
-                </div>
               </div>
+
+              {/* Filtros de Periodo (Estilo Admin/Cobrador) */}
+              {!showHistory && (
+                <div className="mt-4 pt-4 border-t border-slate-200">
+                  <div className="flex flex-col md:flex-row gap-3 md:items-center md:justify-between">
+                    <div className="text-xs font-bold text-slate-500 uppercase tracking-wider">Período de ruta</div>
+                    <div className="flex gap-2 overflow-x-auto pb-1">
+                      {(
+                        [
+                          { key: 'TODOS' as const, label: 'Todo' },
+                          { key: 'DIA' as const, label: 'Día' },
+                          { key: 'SEMANA' as const, label: 'Semanal' },
+                          { key: 'QUINCENA' as const, label: 'Quincenal' },
+                          { key: 'MES' as const, label: 'Mensual' },
+                        ]
+                      ).map((item) => (
+                        <button
+                          key={item.key}
+                          onClick={() => setPeriodoRutaFiltro(item.key)}
+                          className={`px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all border ${
+                            periodoRutaFiltro === item.key
+                              ? 'bg-[#08557f] text-white border-[#08557f] shadow-lg shadow-[#08557f]/20'
+                              : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+                          }`}
+                        >
+                          {item.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
         </div>
 
         <div className="flex gap-2">
@@ -266,7 +644,137 @@ const DetalleRutaPage = () => {
               <FileTextIcon className="h-4 w-4 text-slate-400" />
               Ver Estado de Cuenta
             </button>
+            <button 
+              onClick={() => setShowHistory(!showHistory)} 
+              className={`flex-1 md:flex-none px-6 py-3 rounded-2xl text-sm font-bold transition-all shadow-sm flex items-center justify-center gap-2 active:scale-95 ${
+                showHistory ? 'bg-slate-900 text-white shadow-slate-900/20' : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-50'
+              }`}
+            >
+              <History className="h-4 w-4" />
+              Historial
+            </button>
         </div>
+
+        {showHistory ? (
+           <div className="space-y-4 animate-in fade-in">
+              <div className="flex items-center justify-between px-1">
+                <h3 className="font-bold text-slate-900 text-lg">Historial de Rutas</h3>
+                <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest bg-slate-100 px-3 py-1 rounded-full">Últimos 30 días</div>
+              </div>
+
+              {historyDates.length > 0 ? (
+                 <div className="space-y-3">
+                    {historyDates.map(date => {
+                       const data = historialRutas![date];
+                       const isExpanded = selectedHistoryDate === date;
+                       const [y, m, d] = date.split('-');
+                       const dateObj = new Date(parseInt(y), parseInt(m)-1, parseInt(d));
+                       const dayName = dateObj.toLocaleDateString('es-CO', { weekday: 'long', day: 'numeric', month: 'long' });
+                       
+                       const isCompleted = data.visitas.length > 0 && (data.resumen.efectividad >= 95 || data.visitas.every((v: any) => v.estado === 'pagado'));
+
+                       return (
+                         <div key={date} 
+                              className={`rounded-2xl border transition-all overflow-hidden bg-white border-slate-200
+                                ${isExpanded ? 'ring-1 ring-slate-300 shadow-md' : 'shadow-sm'}
+                              `}
+                         >
+                           {/* Header (Clickable) */}
+                           <div 
+                              className="p-4 flex items-center justify-between cursor-pointer hover:bg-slate-50 transition-colors"
+                             onClick={async () => {
+                               if (!isExpanded && (!data.visitas || data.visitas.length === 0)) {
+                                 await cargarHistorialFecha(date);
+                               }
+                               setSelectedHistoryDate(isExpanded ? null : date);
+                             }}
+                           >
+                             <div className="flex items-center gap-3">
+                                <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-xs shadow-sm
+                                    ${isExpanded ? 'bg-[#08557f] text-white' : 'bg-slate-100 text-slate-600'}
+                                `}>
+                                   {d}
+                                </div>
+                                
+                                <div>
+                                   <div className="font-bold text-slate-900 capitalize flex items-center gap-2">
+                                      {dayName}
+                                      {isCompleted && <span className="text-[10px] bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full font-bold uppercase border border-emerald-200">Completada</span>}
+                                   </div>
+                                   <div className="text-xs text-slate-500">
+                                      Recaudo: <b>${data.resumen.recaudo.toLocaleString('es-CO')}</b>
+                                   </div>
+                                </div>
+                             </div>
+                             <div className="flex items-center gap-3">
+                                <div className={`px-2 py-1 rounded-lg text-[10px] font-bold ${data.resumen.efectividad >= 90 ? 'bg-emerald-50 text-emerald-700' : 'bg-orange-50 text-orange-700'}`}>
+                                  {data.resumen.efectividad}%
+                                </div>
+                                <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+                             </div>
+                           </div>
+
+                           {/* Body (Expanded) */}
+                           {isExpanded && (
+                              <div className="border-t border-slate-100 bg-white p-4 space-y-4 animate-in slide-in-from-top-2 duration-200">
+                                 {/* Mini Resumen */}
+                                 <div className="grid grid-cols-3 gap-2">
+                                    <div className="bg-slate-50 p-2 rounded-xl border border-slate-100 text-center">
+                                        <div className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter">Recaudo</div>
+                                        <div className="text-xs font-black text-slate-700">${data.resumen.recaudo.toLocaleString('es-CO')}</div>
+                                    </div>
+                                    <div className="bg-slate-50 p-2 rounded-xl border border-slate-100 text-center">
+                                        <div className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter">Gastos</div>
+                                        <div className="text-xs font-black text-rose-600">${data.resumen.gastos.toLocaleString('es-CO')}</div>
+                                    </div>
+                                    <div className="bg-slate-50 p-2 rounded-xl border border-slate-100 text-center">
+                                        <div className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter">Visitados</div>
+                                        <div className="text-xs font-black text-blue-600">{data.resumen.visitados}/{data.resumen.total}</div>
+                                    </div>
+                                 </div>
+
+                                 <div className="space-y-3">
+                                    <div className="flex justify-between text-[10px] font-bold text-slate-500 uppercase px-1">
+                                       <span>Clientes Gestionados hoy</span>
+                                       <span>Estado</span>
+                                    </div>
+                                    {!data.loaded ? (
+                                      <div className="flex flex-col items-center justify-center py-8 text-slate-400">
+                                        <Loader2 className="w-6 h-6 animate-spin mb-2 opacity-20" />
+                                        <span className="text-xs font-medium">Cargando detalles...</span>
+                                      </div>
+                                    ) : data.visitas.length === 0 ? (
+                                      <div className="flex flex-col items-center justify-center py-10 bg-slate-50 rounded-2xl border border-dashed border-slate-200">
+                                         <History className="w-8 h-8 text-slate-300 mb-2 opacity-30" />
+                                         <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest text-center px-4">No se registraron visitas ni pagos programados para este día</span>
+                                      </div>
+                                    ) : (
+                                      data.visitas.map((v: any) => (
+                                        <StaticVisitaItem
+                                            key={v.id}
+                                            visita={v}
+                                            allowClick={false}
+                                            onVerCliente={handleAbrirClienteInfo}
+                                            getEstadoClasses={getEstadoClasses}
+                                            getPrioridadColor={getPrioridadColor}
+                                        />
+                                      ))
+                                    )}
+                                 </div>
+                              </div>
+                           )}
+                         </div>
+                       )
+                    })}
+                 </div>
+              ) : (
+                <div className="bg-white rounded-2xl border border-slate-200 p-12 text-center">
+                    <History className="w-12 h-12 text-slate-200 mx-auto mb-4" />
+                    <p className="font-bold text-slate-400">No hay información de historial disponible.</p>
+                </div>
+              )}
+           </div>
+        ) : (
 
          <div>
               <div className="flex flex-col gap-4 mb-4">
@@ -275,41 +783,84 @@ const DetalleRutaPage = () => {
                 </div>
                 
                  <div className="flex flex-wrap gap-3 text-xs font-bold text-slate-600 bg-white p-3 rounded-xl border border-slate-200 shadow-sm">
-                    <div className="flex items-center gap-2 px-2 py-1 bg-blue-50 rounded-lg border border-blue-500">
-                        <div className="w-2.5 h-2.5 rounded-full bg-blue-500"></div> 
-                        <span>Peligro Mínimo</span>
+                    <div className="flex items-center gap-2 px-2 py-1 bg-emerald-50 rounded-lg border border-emerald-500/20 text-emerald-700">
+                        <div className="w-2h-2 rounded-full bg-emerald-500"></div> 
+                        <span>Mínimo</span>
                     </div>
-                    <div className="flex items-center gap-2 px-2 py-1 bg-emerald-50 rounded-lg border border-emerald-500">
-                        <div className="w-2.5 h-2.5 rounded-full bg-emerald-500"></div> 
-                        <span>Leve Retraso</span>
+                    <div className="flex items-center gap-2 px-2 py-1 bg-blue-50 rounded-lg border border-blue-500/20 text-blue-700">
+                        <div className="w-2 h-2 rounded-full bg-blue-500"></div> 
+                        <span>Leve</span>
                     </div>
-                    <div className="flex items-center gap-2 px-2 py-1 bg-orange-50 rounded-lg border border-orange-500">
-                        <div className="w-2.5 h-2.5 rounded-full bg-orange-500"></div> 
-                        <span>Riesgo Moderado</span>
+                    <div className="flex items-center gap-2 px-2 py-1 bg-yellow-50 rounded-lg border border-yellow-500/20 text-yellow-700">
+                        <div className="w-2 h-2 rounded-full bg-yellow-500"></div> 
+                        <span>Precaución</span>
                     </div>
-                    <div className="flex items-center gap-2 px-2 py-1 bg-red-50 rounded-lg border border-red-500">
-                        <div className="w-2.5 h-2.5 rounded-full bg-red-500"></div> 
-                        <span>Alto Riesgo</span>
+                    <div className="flex items-center gap-2 px-2 py-1 bg-orange-50 rounded-lg border border-orange-500/20 text-orange-700">
+                        <div className="w-2 h-2 rounded-full bg-orange-500"></div> 
+                        <span>Moderado</span>
+                    </div>
+                    <div className="flex items-center gap-2 px-2 py-1 bg-red-50 rounded-lg border border-red-500/20 text-red-700">
+                        <div className="w-2 h-2 rounded-full bg-red-500"></div> 
+                        <span>Crítico</span>
                     </div>
                  </div>
               </div>
 
-              <div className="space-y-6">
-                 <div className="space-y-3">
-                      {visitasCobrador.map((visita) => (
-                        <StaticVisitaItem
-                          key={visita.id}
-                          visita={visita}
-                          allowClick={false}
-                          onSelect={() => {}}
-                          onVerCliente={handleAbrirClienteInfo}
-                          getEstadoClasses={getEstadoClasses}
-                          getPrioridadColor={getPrioridadColor}
-                        />
-                      ))}
-                 </div>
+              <div className="space-y-10">
+                {Object.entries({
+                    MES: 'Mensual',
+                    QUINCENA: 'Quincenal',
+                    SEMANA: 'Semanal',
+                    DIA: 'Diario'
+                }).map(([key, label]) => {
+                    const visitas = visitasAgrupadas[key as keyof typeof visitasAgrupadas];
+                    if (visitas.length === 0) return null;
+                    
+                    return (
+                        <div key={key} className="space-y-4">
+                            <div className="flex items-center gap-4">
+                                <div className="h-px flex-1 bg-slate-200"></div>
+                                <span className="text-[11px] font-black text-[#08557f] uppercase tracking-[0.25em] bg-blue-50/50 px-4 py-1.5 rounded-full border border-blue-100 shadow-sm">
+                                    {label}
+                                </span>
+                                <div className="h-px flex-1 bg-slate-200"></div>
+                            </div>
+
+                            <div className="space-y-4">
+                                {visitas.map((visita) => (
+                                    <StaticVisitaItem
+                                        key={visita.id}
+                                        visita={visita}
+                                        allowClick={false}
+                                        onVerCliente={handleAbrirClienteInfo}
+                                        getEstadoClasses={getEstadoClasses}
+                                        getPrioridadColor={getPrioridadColor}
+                                    >
+                                        <div className="pt-2">
+                                            <button
+                                                onClick={(e) => { e.stopPropagation(); handleAbrirEstadoCuenta(visita); }}
+                                                className="w-full flex items-center justify-center gap-2 p-2.5 rounded-xl bg-white text-[#08557f] border border-[#08557f]/20 hover:bg-blue-50 transition-all shadow-sm active:scale-95"
+                                            >
+                                                <FileTextIcon className="h-4 w-4" />
+                                                <span className="text-[10px] font-black uppercase tracking-widest">Estado de Cuenta</span>
+                                            </button>
+                                        </div>
+                                    </StaticVisitaItem>
+                                ))}
+                            </div>
+                        </div>
+                    )
+                })}
+
+                {totalMostradas === 0 && (
+                    <div className="text-center py-20 bg-slate-50 rounded-[2rem] border-2 border-dashed border-slate-200 text-slate-400">
+                        <Search className="h-10 w-10 mx-auto mb-3 opacity-20" />
+                        <p className="font-medium">No se encontraron visitas para mostrar en este modo</p>
+                    </div>
+                )}
               </div>
          </div>
+        )}
       </div>
 
       {isGastoModalOpen && (
@@ -431,7 +982,7 @@ const DetalleRutaPage = () => {
       
       {clienteDetalle && (
         <ClienteDetalleModal
-          cliente={clienteDetalle as Cliente}
+          visita={clienteDetalle}
           onClose={() => setClienteDetalle(null)}
         />
       )}
@@ -439,50 +990,174 @@ const DetalleRutaPage = () => {
   )
 }
 
-function ClienteDetalleModal({ cliente, onClose }: { cliente: Cliente; onClose: () => void }) {
+/**
+ * Formatea una fecha UTC para evitar saltos de día por zona horaria
+ */
+function formatDateUTC(dateStr: string) {
+  if (!dateStr) return '---'
+  const date = new Date(dateStr)
+  const day = date.getUTCDate()
+  const monthNames = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"]
+  const month = monthNames[date.getUTCMonth()]
+  const year = date.getUTCFullYear()
+  return `${day} de ${month} de ${year}`
+}
+
+function ClienteDetalleModal({ visita, onClose }: { visita: VisitaRuta; onClose: () => void }) {
+  const [loading, setLoading] = useState(true)
+  const [clienteCompleto, setClienteCompleto] = useState<any>(null)
+
+  useEffect(() => {
+    async function loadInfo() {
+      try {
+        setLoading(true)
+        if (visita.clienteId) {
+          const res = await clientesService.obtenerPorId(visita.clienteId)
+          setClienteCompleto(res)
+        }
+      } catch (e) {
+        console.error("Error al cargar detalle del cliente", e)
+      } finally {
+        setLoading(false)
+      }
+    }
+    loadInfo()
+  }, [visita.clienteId])
+
+  const r = visita.nivelRiesgo;
+  const riesgoColor = 
+    r === 'bajo' ? 'text-emerald-600 bg-emerald-50' :
+    r === 'leve' ? 'text-blue-600 bg-blue-50' :
+    r === 'moderado' ? 'text-orange-600 bg-orange-50' :
+    r === 'critico' ? 'text-red-600 bg-red-50' : 'text-slate-400 bg-slate-50';
+
+  const riesgoLabel = 
+    r === 'bajo' ? 'Peligro Mínimo' :
+    r === 'leve' ? 'Leve Retraso' :
+    r === 'moderado' ? 'Riesgo Moderado' :
+    r === 'critico' ? 'Alto Riesgo' : 'Riesgo Desconocido';
+
+  // Contar préstamos activos (no pagados ni cancelados)
+  const prestamosActivosCount = useMemo(() => {
+    if (!clienteCompleto?.prestamos) return 0;
+    return clienteCompleto.prestamos.filter((p: any) => 
+      p.estado !== 'PAGADO' && p.estado !== 'CANCELADO' && p.estado !== 'RECHAZADO'
+    ).length;
+  }, [clienteCompleto]);
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-200" onClick={onClose}>
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden animate-in zoom-in-95 duration-200" onClick={(e) => e.stopPropagation()}>
-        <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
-          <h3 className="font-bold text-lg text-slate-900">
-            <span className="text-blue-600">Detalles del</span> <span className="text-orange-500">Cliente</span>
-          </h3>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 transition-colors p-1 hover:bg-slate-100 rounded-lg">
-            <XCircle className="h-6 w-6" />
+    <div 
+      className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md animate-in fade-in duration-300"
+      onClick={onClose}
+    >
+      <div 
+        className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-sm overflow-hidden animate-in zoom-in-95 duration-300 border border-slate-100 flex flex-col max-h-[90vh]"
+        onClick={(e) => e.stopPropagation()}
+      >
+        
+        {/* Header Compacto */}
+        <div className="px-8 pt-8 pb-4 flex justify-between items-center">
+          <div>
+            <h3 className="font-black text-2xl text-slate-900 tracking-tight">Expediente</h3>
+            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em]">Detalle Administrativo</p>
+          </div>
+          <button onClick={onClose} className="p-2 bg-slate-50 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-full transition-all group">
+            <XCircle className="h-7 w-7 group-active:scale-90" />
           </button>
         </div>
         
-        <div className="p-6 space-y-6">
-          <div className="flex items-center gap-4 p-4 bg-blue-50 rounded-xl border border-blue-100">
-            <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center text-2xl font-bold text-blue-600 shadow-sm border border-blue-100">
-              {cliente.nombres?.charAt(0)}{cliente.apellidos?.charAt(0)}
-            </div>
-            <div>
-              <h4 className="text-xl font-bold text-slate-900">{cliente.nombres} {cliente.apellidos}</h4>
-              <p className="text-sm text-slate-500 font-medium">ID: {cliente.id} • CC: {cliente.dni}</p>
-            </div>
-          </div>
+        <div className="px-8 pb-8 space-y-6 overflow-y-auto custom-scrollbar">
+           {loading ? (
+             <div className="py-20 flex flex-col items-center justify-center gap-4">
+                <Loader2 className="w-10 h-10 text-[#08557f] animate-spin" />
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Sincronizando...</p>
+             </div>
+           ) : (
+             <>
+               {/* Perfil Header */}
+               <div className="text-center space-y-3">
+                 <div className="w-20 h-20 bg-slate-50 rounded-3xl mx-auto flex items-center justify-center text-slate-200 border border-slate-100">
+                   <User className="w-10 h-10" />
+                 </div>
+                 <div>
+                    <h4 className="text-xl font-black text-slate-900">{visita.cliente}</h4>
+                    <div className="flex justify-center gap-2 mt-1">
+                       <span className={`${riesgoColor} text-[9px] font-black px-3 py-1 rounded-full uppercase border border-current/10`}>
+                         {riesgoLabel}
+                       </span>
+                    </div>
+                 </div>
+               </div>
 
-          <div className="grid grid-cols-2 gap-4">
-             <div className="space-y-1">
-               <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Teléfono</label>
-               <p className="text-sm font-bold text-slate-700">{cliente.telefono}</p>
-             </div>
-             <div className="space-y-1">
-               <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Código</label>
-               <p className="text-sm font-bold text-slate-700">{cliente.codigo || 'No registrado'}</p>
-             </div>
-             <div className="space-y-1 col-span-2">
-               <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Dirección</label>
-               <p className="text-sm font-bold text-slate-700">{cliente.direccion || 'No registrada'}</p>
-             </div>
-          </div>
+               {/* Información DINÁMICA */}
+               <div className="grid grid-cols-2 gap-3">
+                  <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100">
+                     <div className="flex items-center gap-1.5 mb-1 text-slate-400">
+                        <Fingerprint className="w-3 h-3" />
+                        <span className="text-[9px] font-black uppercase">Cédula / DNI</span>
+                     </div>
+                     <p className="text-sm font-black text-slate-900">{clienteCompleto?.dni || '---'}</p>
+                  </div>
+                  <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100">
+                     <div className="flex items-center gap-1.5 mb-1 text-slate-400">
+                        <Star className="w-3 h-3" />
+                        <span className="text-[9px] font-black uppercase">Puntaje</span>
+                     </div>
+                     <p className="text-sm font-black text-emerald-600">{clienteCompleto?.puntaje || 0} pts</p>
+                  </div>
+                  <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100">
+                     <div className="flex items-center gap-1.5 mb-1 text-slate-400">
+                        <CalendarDays className="w-3 h-3" />
+                        <span className="text-[9px] font-black uppercase">Miembro Desde</span>
+                     </div>
+                     <p className="text-sm font-black text-slate-900 uppercase">
+                       {clienteCompleto?.creadoEn ? formatDateUTC(clienteCompleto.creadoEn) : '---'}
+                     </p>
+                  </div>
+                  <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100">
+                     <div className="flex items-center gap-1.5 mb-1 text-slate-400">
+                        <History className="w-3 h-3" />
+                        <span className="text-[9px] font-black uppercase">Préstamos</span>
+                     </div>
+                     <p className="text-sm font-black text-[#08557f]">{prestamosActivosCount} Activos</p>
+                  </div>
+               </div>
 
-          <div className="pt-4 border-t border-slate-100 flex justify-end">
-             <button onClick={onClose} className="px-6 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl transition-colors">
-                Cerrar
-             </button>
-          </div>
+               {/* Contacto Alternativo */}
+               <div className="p-5 rounded-3xl bg-blue-50 border border-blue-100">
+                  <h5 className="text-[10px] font-black text-[#08557f] uppercase tracking-widest mb-3">Referencias / Contacto</h5>
+                  <div className="space-y-4">
+                     <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 bg-white rounded-xl flex items-center justify-center text-[#08557f] shadow-sm">
+                          <Phone className="w-4 h-4" />
+                        </div>
+                        <div>
+                          <p className="text-[9px] font-bold text-blue-400 uppercase">WhatsApp / Tel</p>
+                          <p className="text-sm font-black text-slate-900">{clienteCompleto?.telefono || visita.telefono}</p>
+                        </div>
+                     </div>
+                     <div className="flex items-start gap-3">
+                        <div className="w-8 h-8 bg-white rounded-xl flex items-center justify-center text-[#08557f] shadow-sm">
+                          <MapPin className="w-4 h-4" />
+                        </div>
+                        <div>
+                          <p className="text-[9px] font-bold text-blue-400 uppercase">Referencia de Ubicación</p>
+                          <p className="text-xs font-bold text-slate-700 leading-tight">
+                            {clienteCompleto?.referencia || "Sin referencias adicionales registradas."}
+                          </p>
+                        </div>
+                     </div>
+                  </div>
+               </div>
+
+               <button 
+                 onClick={onClose} 
+                 className="w-full rounded-2xl bg-[#08557f] py-4 text-sm font-black text-white hover:bg-[#063a58] shadow-xl shadow-[#08557f]/20 transition-all uppercase tracking-widest mt-6"
+               >
+                 Cerrar Expediente
+               </button>
+             </>
+           )}
         </div>
       </div>
     </div>

@@ -194,8 +194,7 @@ export function DashboardClient({ data }: DashboardClientProps) {
               
               <div className="space-y-2 relative z-10">
                 <div className="text-3xl font-black text-slate-900 tracking-tight truncate leading-tight" title={metric.isCurrency ? formatCurrency(Number(metric.value)) : String(metric.value)}>
-                  {metric.isCurrency ? formatCurrency(Number(metric.value)).split(',')[0] : metric.value}
-                  {metric.isCurrency && <span className="text-sm font-bold text-slate-400 opacity-60 ml-1">,{formatCurrency(Number(metric.value)).split(',')[1]}</span>}
+                  {metric.isCurrency ? formatCurrency(Number(metric.value)) : metric.value}
                 </div>
                 {metric.subValue && (
                   <div className="text-[11px] font-bold text-slate-500/80 uppercase tracking-wide flex items-center gap-1.5">
@@ -218,7 +217,7 @@ export function DashboardClient({ data }: DashboardClientProps) {
               <div className="flex items-center justify-between mb-6">
                 <div>
                   <h3 className="text-lg font-bold text-slate-800">Tendencia de Cobros</h3>
-                  <p className="text-slate-500 text-sm">Últimos 7 días vs Objetivo Diario</p>
+                  <p className="text-slate-500 text-sm">Período seleccionado vs Objetivo</p>
                 </div>
               </div>
               

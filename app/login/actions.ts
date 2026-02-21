@@ -2,6 +2,7 @@
 
 import { cookies } from 'next/headers';
 import { LoginData } from '@/lib/types/autenticacion-type';
+import { apiClient } from '@/lib/api/apiClient';
 
 export interface LoginResult {
   success: boolean;
@@ -20,34 +21,8 @@ export async function loginAction(data: LoginData): Promise<LoginResult> {
   const cookieStore = await cookies();
 
   try {
-    const defaultBaseUrl =
-      process.env.NODE_ENV === 'production'
-        ? 'https://credito-sur-backend.onrender.com/api-credisur'
-        : 'http://localhost:3001/api-credisur';
-    
-    const backendUrl = (process.env.NEXT_PUBLIC_BASE_URL || defaultBaseUrl).replace(/\/$/, '');
-    const loginUrl = `${backendUrl}/auth/login`;
-    
-    console.log(`[Server Action] Login => ${loginUrl}`);
-
-    // Petición directa con fetch nativo (funciona en Node/Vercel sin problemas)
-    const res = await fetch(loginUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data),
-    });
-
-    if (!res.ok) {
-      const errorBody = await res.json().catch(() => ({}));
-      console.log(`[Server Action] Error ${res.status}:`, JSON.stringify(errorBody));
-      
-      if (res.status === 401) {
-        return { success: false, error: 'Credenciales incorrectas' };
-      }
-      return { success: false, error: errorBody?.message || `Error del servidor (${res.status})` };
-    }
-
-    const response = await res.json();
+    const res = await apiClient.post('/auth/login', data);
+    const response = res.data as any;
 
     if (!response || !response.access_token) {
       return { success: false, error: 'Respuesta inválida del servidor' };
@@ -92,10 +67,13 @@ export async function loginAction(data: LoginData): Promise<LoginResult> {
     };
 
   } catch (error: any) {
-    console.error('[Server Action] Login error:', error?.message || error);
-    
-    let msg = error?.message || 'Error al iniciar sesión';
-    if (error?.code === 'ECONNREFUSED' || msg.includes('fetch')) {
+    const status = error?.response?.status;
+    const messageFromBody = error?.response?.data?.message;
+    let msg = messageFromBody || error?.message || 'Error al iniciar sesión';
+
+    if (status === 401) {
+      msg = 'Credenciales incorrectas';
+    } else if (error?.code === 'ECONNREFUSED') {
       msg = 'No se pudo conectar con el servidor';
     }
 

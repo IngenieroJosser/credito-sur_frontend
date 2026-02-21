@@ -20,11 +20,7 @@ export default function ClienteDetallePage() {
     const cargarCliente = async () => {
       try {
         const cliente = await clientesService.obtenerPorId(id);
-        setClienteData({
-          ...cliente,
-          prestamos: [],
-          pagos: []
-        });
+        setClienteData(cliente);
       } catch (err) {
         console.error('Error cargando cliente:', err);
         setError('No se pudo cargar el cliente');
@@ -68,27 +64,65 @@ export default function ClienteDetallePage() {
   // Mapeo de datos del backend a la interfaz de UI
   const cliente: Cliente = {
     ...clienteData,
-    fechaRegistro: clienteData.fechaRegistro || 'No disponible',
+    fechaRegistro: clienteData.creadoEn || 'No disponible',
+    ruta: clienteData.asignacionesRuta?.[0]?.ruta?.nombre || 'Sin Ruta',
     avatarColor: 'bg-blue-600'
   };
 
   // Mapeo de préstamos (si vienen del backend)
-  const prestamos: Prestamo[] = (clienteData.prestamos || []).map((p: unknown) => {
+  const prestamos: Prestamo[] = (clienteData.prestamos || []).map((p: any) => {
+    const cuotas = p.cuotas || [];
+    const cuotasPagadas = cuotas.filter((c: any) => c.estado === 'PAGADO' || c.estado === 'PAGADA').length;
+    const totalCuotas = p.cantidadCuotas || cuotas.length || 0;
+    
+    // El backend devuelve Decimal como string/objeto, aseguramos conversión a número
+    const principal = Number(p.monto || 0);
+    const tasa = Number(p.tasaInteres || 0);
+    const meses = Number(p.plazoMeses || 0);
+    let interesTotal = Number(p.interesTotal || 0);
+    
+    // Si el interés viene en 0 pero hay tasa y plazo, intentamos calcularlo localmente
+    // para corregir visualmente préstamos antiguos mal calculados.
+    if (interesTotal === 0 && tasa > 0 && meses > 0) {
+      interesTotal = (principal * tasa * meses) / 100;
+    }
+
+    const montoTotal = principal + interesTotal;
+    const saldoPendiente = Number(p.saldoPendiente || 0);
+    
     return {
-      ...(p as Partial<Prestamo>),
+      id: p.id,
+      producto: p.tipoPrestamo === 'ARTICULO' ? (p.producto?.nombre || 'Artículo') : 'Préstamo Efectivo',
+      montoTotal: montoTotal,
+      montoPagado: Number(p.totalPagado || 0),
+      montoPendiente: (saldoPendiente === principal && interesTotal > 0) ? montoTotal : saldoPendiente,
+      cuotasTotales: totalCuotas,
+      cuotasPagadas: cuotasPagadas,
+      cuotasPendientes: Math.max(0, totalCuotas - cuotasPagadas),
+      fechaInicio: p.fechaInicio,
+      fechaVencimiento: p.fechaFin,
+      proximoPago: cuotas.find((c: any) => c.estado === 'PENDIENTE' || c.estado === 'PARCIAL' || c.estado === 'VENCIDA' || c.estado === 'VENCIDO')?.fechaVencimiento || p.fechaFin,
+      estado: p.estado,
+      tasaInteres: tasa,
+      moraAcumulada: Number(p.interesMoraPagado || 0),
       icono: <Smartphone className="w-5 h-5" />,
-      categoria: 'General',
-    } as Prestamo
-  })
+      categoria: p.tipoPrestamo || 'General',
+    } as Prestamo;
+  });
 
   // Mapeo de pagos
-  const pagos: Pago[] = (clienteData.pagos || []).map((p: unknown) => {
+  const pagos: Pago[] = (clienteData.pagos || []).map((p: any) => {
     return {
-      ...(p as Partial<Pago>),
-      icono: <DollarSign className="w-5 h-5" />,
+      id: p.id,
+      fecha: p.fechaPago,
+      monto: Number(p.montoTotal || 0),
+      cuota: p.detalles?.[0]?.cuota?.numeroCuota || 1, // Ajuste basado en estructura de pagos.service
+      metodo: p.metodoPago,
       estado: 'confirmado',
-    } as Pago
-  })
+      referencia: p.numeroPago,
+      icono: <DollarSign className="w-5 h-5" />,
+    } as Pago;
+  });
 
   const comentarios: Comentario[] = []; // Por ahora vacío hasta implementar backend
 

@@ -20,7 +20,9 @@ import {
 import ClienteDetalleElegante, { Cliente, Prestamo, Pago, Comentario } from '@/components/cliente/DetalleCliente'
 import Link from 'next/link'
 import { clientesService } from '@/services/clientes-service'
-import { formatCOPInputValue, formatMilesCOP, parseCOPInputToNumber } from '@/lib/utils'
+import { prestamosService } from '@/services/prestamos-service'
+import { useNotification } from '@/components/providers/NotificationProvider'
+import { formatCurrency, formatCOPInputValue, formatMilesCOP, parseCOPInputToNumber } from '@/lib/utils'
 
 const MODAL_Z_INDEX = 2147483647
 
@@ -39,6 +41,8 @@ export default function ClienteDetalleSupervisorPage() {
   const [showPagoModal, setShowPagoModal] = useState(false)
   const [showCreditoModal, setShowCreditoModal] = useState(false)
   const [showNewClientModal, setShowNewClientModal] = useState(false)
+  const [isSaving, setIsSaving] = useState(false)
+  const { showNotification } = useNotification()
 
   const [metodoPago, setMetodoPago] = useState<'EFECTIVO' | 'TRANSFERENCIA'>('EFECTIVO')
   const [montoPagoInput, setMontoPagoInput] = useState('')
@@ -128,23 +132,58 @@ export default function ClienteDetalleSupervisorPage() {
 
   const cliente: Cliente = {
     ...clienteData,
-    fechaRegistro: clienteData.fechaRegistro || 'No disponible',
+    fechaRegistro: clienteData.creadoEn || 'No disponible',
+    ruta: clienteData.asignacionesRuta?.[0]?.ruta?.nombre || 'Sin Ruta',
     avatarColor: 'bg-blue-600',
   }
 
-  const prestamos: Prestamo[] = (clienteData.prestamos || []).map((p: unknown) => {
+  const prestamos: Prestamo[] = (clienteData.prestamos || []).map((p: any) => {
+    const cuotas = p.cuotas || []
+    const cuotasPagadas = cuotas.filter((c: any) => c.estado === 'PAGADO' || c.estado === 'PAGADA').length
+    const totalCuotas = p.cantidadCuotas || cuotas.length || 0
+
+    const principal = Number(p.monto || 0)
+    const tasa = Number(p.tasaInteres || 0)
+    const meses = Number(p.plazoMeses || 1)
+    let interesTotal = Number(p.interesTotal || 0)
+
+    if (interesTotal === 0 && tasa > 0 && meses > 0) {
+      interesTotal = (principal * tasa * meses) / 100
+    }
+
+    const montoTotal = principal + interesTotal
+    const saldoPendiente = Number(p.saldoPendiente || 0)
+
     return {
-      ...(p as Partial<Prestamo>),
+      id: p.id,
+      producto: p.tipoPrestamo === 'ARTICULO' ? (p.producto?.nombre || 'Artículo') : 'Préstamo Efectivo',
+      montoTotal: montoTotal,
+      montoPagado: Number(p.totalPagado || 0),
+      montoPendiente: (saldoPendiente === principal && interesTotal > 0) ? montoTotal : saldoPendiente,
+      cuotasTotales: totalCuotas,
+      cuotasPagadas: cuotasPagadas,
+      cuotasPendientes: Math.max(0, totalCuotas - cuotasPagadas),
+      fechaInicio: p.fechaInicio,
+      fechaVencimiento: p.fechaFin,
+      proximoPago: cuotas.find((c: any) => c.estado === 'PENDIENTE' || c.estado === 'PARCIAL' || c.estado === 'VENCIDA' || c.estado === 'VENCIDO')?.fechaVencimiento || p.fechaFin,
+      estado: p.estado,
+      tasaInteres: tasa,
+      moraAcumulada: Number(p.interesMoraPagado || 0),
       icono: <Smartphone className="w-5 h-5" />,
-      categoria: 'General',
+      categoria: p.tipoPrestamo || 'General',
     } as Prestamo
   })
 
-  const pagos: Pago[] = (clienteData.pagos || []).map((p: unknown) => {
+  const pagos: Pago[] = (clienteData.pagos || []).map((p: any) => {
     return {
-      ...(p as Partial<Pago>),
-      icono: <DollarSign className="w-5 h-5" />,
+      id: p.id,
+      fecha: p.fechaPago,
+      monto: Number(p.montoTotal || 0),
+      cuota: p.detalles?.[0]?.cuota?.numeroCuota || 1,
+      metodo: p.metodoPago,
       estado: 'confirmado',
+      referencia: p.numeroPago,
+      icono: <DollarSign className="w-5 h-5" />,
     } as Pago
   })
 
@@ -415,23 +454,45 @@ export default function ClienteDetalleSupervisorPage() {
 
                   <button
                     type="button"
-                    onClick={() => {
-                      console.log('Registrar pago:', {
-                        clienteId: id,
-                        monto: parseCOPInputToNumber(montoPagoInput),
-                        metodoPago,
-                        comprobanteTransferencia,
-                      })
-                      resetPagoModal()
+                    onClick={async () => {
+                      if (isSaving) return;
+                      setIsSaving(true);
+                      try {
+                        const prestamoActivo = prestamos.find(p => p.estado === 'ACTIVO' || p.estado === 'EN_MORA');
+                        if (!prestamoActivo) {
+                          showNotification('error', 'El cliente no tiene préstamos activos para recibir pagos.');
+                          return;
+                        }
+
+                        await prestamosService.registrarPago({
+                          prestamoId: prestamoActivo.id,
+                          clienteId: id,
+                          monto: parseCOPInputToNumber(montoPagoInput),
+                          metodoPago,
+                          comprobante: comprobanteTransferencia
+                        });
+
+                        showNotification('success', 'Pago registrado exitosamente');
+                        // Recargar datos
+                        const data = await clientesService.obtenerPorId(id);
+                        setClienteData(data);
+                        resetPagoModal();
+                      } catch (err: any) {
+                        console.error('Error al registrar pago:', err);
+                        showNotification('error', err.message || 'No se pudo registrar el pago');
+                      } finally {
+                        setIsSaving(false);
+                      }
                     }}
                     disabled={
+                      isSaving ||
                       parseCOPInputToNumber(montoPagoInput) <= 0 ||
                       (metodoPago === 'TRANSFERENCIA' && !comprobanteTransferencia)
                     }
                     className="w-full bg-[#08557f] text-white font-bold py-4 rounded-xl shadow-lg shadow-[#08557f]/20 hover:bg-[#063a58] active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed disabled:active:scale-100"
                   >
-                    <CheckCircle className="h-5 w-5" />
-                    Confirmar Pago
+                    {isSaving ? <Loader2 className="h-5 w-5 animate-spin" /> : <CheckCircle className="h-5 w-5" />}
+                    {isSaving ? 'Registrando...' : 'Confirmar Pago'}
                   </button>
                 </div>
               </div>
@@ -610,20 +671,42 @@ export default function ClienteDetalleSupervisorPage() {
                     </button>
                     <button
                       type="button"
-                      onClick={() => {
-                        console.log('Crear crédito:', {
-                          clienteId: id,
-                          tipo: creditType,
-                          montoPrestamo: parseCOPInputToNumber(montoPrestamoInput),
-                          tasaInteres: tasaInteresInput,
-                          cuotas: cuotasPrestamoInput,
-                          cuotaInicial: parseCOPInputToNumber(cuotaInicialArticuloInput),
-                        })
-                        resetCreditoModal()
+                      disabled={isSaving}
+                      onClick={async () => {
+                        if (isSaving) return;
+                        setIsSaving(true);
+                        try {
+                          const userStr = localStorage.getItem('user');
+                          const userData = userStr ? JSON.parse(userStr) : null;
+                          
+                          await prestamosService.crearPrestamo({
+                            clienteId: id,
+                            tipoPrestamo: creditType === 'prestamo' ? 'EFECTIVO' : 'ARTICULO',
+                            monto: parseCOPInputToNumber(montoPrestamoInput),
+                            tasaInteres: Number(tasaInteresInput),
+                            tasaInteresMora: 5, // Default
+                            plazoMeses: Math.ceil(Number(cuotasPrestamoInput || 12) / 4), // Estimado si es semanal
+                            frecuenciaPago: 'SEMANAL' as any,
+                            fechaInicio: new Date().toISOString(),
+                            creadoPorId: userData?.id || ''
+                          });
+
+                          showNotification('success', 'Crédito creado exitosamente');
+                          // Recargar datos
+                          const data = await clientesService.obtenerPorId(id);
+                          setClienteData(data);
+                          resetCreditoModal();
+                        } catch (err: any) {
+                          console.error('Error al crear crédito:', err);
+                          showNotification('error', err.message || 'No se pudo crear el crédito');
+                        } finally {
+                          setIsSaving(false);
+                        }
                       }}
-                      className="flex-1 bg-[#08557f] text-white font-bold py-3.5 rounded-xl shadow-lg shadow-[#08557f]/20 hover:bg-[#063a58] active:scale-[0.98] transition-all"
+                      className="flex-1 bg-[#08557f] text-white font-bold py-3.5 rounded-xl shadow-lg shadow-[#08557f]/20 hover:bg-[#063a58] active:scale-[0.98] transition-all flex items-center justify-center gap-2"
                     >
-                      Crear Crédito
+                      {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                      {isSaving ? 'Creando...' : 'Crear Crédito'}
                     </button>
                   </div>
                 </div>

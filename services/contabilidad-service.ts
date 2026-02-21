@@ -74,9 +74,15 @@ export interface SaldoDisponibleRuta {
   fecha: string;
   saldoDisponible: number;
   recaudoDelDia: number;
+  cobranzaDelDia: number;
   gastosDelDia: number;
+  baseEfectivo: number;
+  desembolsos: number;
+  netoPeriodo: number;
   saldoCaja?: number;
   mensaje?: string;
+  fechaInicio?: string;
+  fechaFin?: string;
 }
 
 interface PaginatedResponse<T> {
@@ -294,9 +300,19 @@ export async function registrarArqueo(cajaId: string, data: {
   }
 }
 
-export async function obtenerSaldoDisponibleRuta(rutaId: string, fecha?: string): Promise<SaldoDisponibleRuta> {
-  const params = fecha ? `?fecha=${fecha}` : '';
-  return apiRequest<SaldoDisponibleRuta>('GET', `/accounting/rutas/${rutaId}/saldo-disponible${params}`);
+export async function obtenerSaldoDisponibleRuta(
+  rutaId: string, 
+  fecha?: string,
+  fechaInicio?: string,
+  fechaFin?: string
+): Promise<SaldoDisponibleRuta> {
+  const params = new URLSearchParams();
+  if (fecha) params.append('fecha', fecha);
+  if (fechaInicio) params.append('fechaInicio', fechaInicio);
+  if (fechaFin) params.append('fechaFin', fechaFin);
+  
+  const qs = params.toString();
+  return apiRequest<SaldoDisponibleRuta>('GET', `/accounting/rutas/${rutaId}/saldo-disponible${qs ? `?${qs}` : ''}`);
 }
 
 export async function registrarGasto(data: {

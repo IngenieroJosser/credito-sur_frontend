@@ -251,11 +251,11 @@ export default function CoordinadorPage() {
           target: t.target,
         }));
 
-        const topCollectors = (dashboard?.recentActivity || []).slice(0, 5).map((a) => ({
-          name: a.client,
-          collected: 0,
-          efficiency: 0,
-          trend: (a.status === 'approved' ? 'up' : 'down') as 'up' | 'down',
+        const topCollectors = (dashboard?.topCollectors || []).slice(0, 5).map((c: any) => ({
+          name: c.name,
+          collected: c.collected || 0,
+          efficiency: c.efficiency || 0,
+          trend: (c.trend || 'up') as 'up' | 'down',
         }));
 
         if (isMounted) {

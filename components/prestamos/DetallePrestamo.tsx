@@ -43,7 +43,7 @@ export interface PrestamoDetalle {
     monto: number;
     montoCapital?: number;
     montoInteres?: number;
-    estado: 'PAGADO' | 'PENDIENTE' | 'PARCIAL' | 'VENCIDO';
+    estado: string; // Permitir cualquier string para manejar variaciones de enum
     fechaPago?: string;
   }[];
 }
@@ -61,7 +61,7 @@ export default function DetallePrestamo({ prestamo }: DetallePrestamoProps) {
   const getEstadoColor = (estado: string) => {
     switch (estado) {
       case 'ACTIVO': return 'text-emerald-700 bg-emerald-50 border border-emerald-100';
-      case 'PAGADO': return 'text-blue-700 bg-blue-50 border border-blue-100';
+      case 'PAGADO': case 'PAGADA': return 'text-blue-700 bg-blue-50 border border-blue-100';
       case 'EN_MORA': return 'text-rose-700 bg-rose-50 border border-rose-100';
       case 'PENDIENTE': return 'text-amber-700 bg-amber-50 border border-amber-100';
       default: return 'text-slate-600 bg-slate-50 border border-slate-100';
@@ -70,10 +70,10 @@ export default function DetallePrestamo({ prestamo }: DetallePrestamoProps) {
 
   const getCuotaEstadoColor = (estado: string) => {
     switch (estado) {
-      case 'PAGADO': return 'text-emerald-700 bg-emerald-50 border border-emerald-100';
+      case 'PAGADO': case 'PAGADA': return 'text-emerald-700 bg-emerald-50 border border-emerald-100';
       case 'PENDIENTE': return 'text-slate-600 bg-slate-50 border border-slate-100';
       case 'PARCIAL': return 'text-amber-700 bg-amber-50 border border-amber-100';
-      case 'VENCIDO': return 'text-rose-700 bg-rose-50 border border-rose-100';
+      case 'VENCIDO': case 'VENCIDA': return 'text-rose-700 bg-rose-50 border border-rose-100';
       default: return 'text-slate-600 bg-slate-50 border border-slate-100';
     }
   };
@@ -86,18 +86,22 @@ export default function DetallePrestamo({ prestamo }: DetallePrestamoProps) {
     return prestamo.cuotas.reduce((acc: any[], c) => {
       const prevSaldo: number = acc.length === 0 ? prestamo.montoPrestamo : acc[acc.length - 1].saldoRestante;
       const capital = c.montoCapital ?? 0;
-      const newSaldo = c.estado === 'PAGADO' ? Math.max(0, prevSaldo - capital) : prevSaldo;
+      const esPagada = c.estado === 'PAGADO' || c.estado === 'PAGADA';
+      const newSaldo = esPagada ? Math.max(0, prevSaldo - capital) : prevSaldo;
       acc.push({ ...c, saldoRestante: Math.round(newSaldo * 100) / 100 });
       return acc;
     }, []);
   }, [prestamo.cuotas, prestamo.montoPrestamo]);
 
   const cuotaActual = useMemo(() => {
-    const pendiente = cuotasConSaldo.find((c) => c.estado === 'PENDIENTE' || c.estado === 'PARCIAL' || c.estado === 'VENCIDO');
+    const pendiente = cuotasConSaldo.find((c) => {
+      const s = c.estado;
+      return s === 'PENDIENTE' || s === 'PARCIAL' || s === 'VENCIDO' || s === 'VENCIDA';
+    });
     return pendiente || cuotasConSaldo[cuotasConSaldo.length - 1];
   }, [cuotasConSaldo]);
 
-  const cuotasPagadas = prestamo.cuotas.filter((c) => c.estado === 'PAGADO').length;
+  const cuotasPagadas = prestamo.cuotas.filter((c) => c.estado === 'PAGADO' || c.estado === 'PAGADA').length;
   const totalCuotas = prestamo.cuotas.length;
   const progresoCuotas = totalCuotas > 0 ? Math.round((cuotasPagadas / totalCuotas) * 100) : 0;
 
@@ -301,12 +305,12 @@ export default function DetallePrestamo({ prestamo }: DetallePrestamoProps) {
                     </div>
                     <span className={cn(
                       "px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wide",
-                      cuotaActual.estado === 'VENCIDO' ? 'bg-rose-100 text-rose-700 border border-rose-200' :
+                      (cuotaActual.estado === 'VENCIDO' || cuotaActual.estado === 'VENCIDA') ? 'bg-rose-100 text-rose-700 border border-rose-200' :
                       cuotaActual.estado === 'PARCIAL' ? 'bg-amber-100 text-amber-700 border border-amber-200' :
-                      cuotaActual.estado === 'PAGADO' ? 'bg-emerald-100 text-emerald-700 border border-emerald-200' :
+                      (cuotaActual.estado === 'PAGADO' || cuotaActual.estado === 'PAGADA') ? 'bg-emerald-100 text-emerald-700 border border-emerald-200' :
                       'bg-blue-100 text-blue-700 border border-blue-200'
                     )}>
-                      {cuotaActual.estado === 'PAGADO' ? 'Completado' : cuotaActual.estado === 'VENCIDO' ? 'Vencida' : 'Próxima cuota'}
+                      {(cuotaActual.estado === 'PAGADO' || cuotaActual.estado === 'PAGADA') ? 'Completado' : (cuotaActual.estado === 'VENCIDO' || cuotaActual.estado === 'VENCIDA') ? 'Vencida' : 'Próxima cuota'}
                     </span>
                   </div>
 

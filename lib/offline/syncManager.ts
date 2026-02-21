@@ -100,16 +100,23 @@ export const syncManager = {
   // ─── Descargar datos para uso offline ────────────────────────
 
   async downloadClientes(): Promise<number> {
-    if (!navigator.onLine) return 0;
+    if (!navigator.onLine) {
+      console.warn('[Offline Sync] Sin conexión a internet, omitiendo descarga de clientes');
+      return 0;
+    }
 
     try {
       let token = localStorage.getItem('token');
       if (!token) {
         const restored = restoreOfflineSession();
         token = restored?.token || null as any;
-        if (!token) return 0;
+        if (!token) {
+          console.warn('[Offline Sync] No hay token de autenticación disponible');
+          return 0;
+        }
       }
 
+      console.log('[Offline Sync] Iniciando descarga de clientes...');
       const data = await apiRequest<any>('GET', '/clients', undefined, { timeout: 30000, cacheTTL: 0 });
 
       const clientes: OfflineCliente[] = (Array.isArray(data) ? data : data.clientes || []).map((c: any) => ({
@@ -130,9 +137,24 @@ export const syncManager = {
 
       await offlineStore.saveMany('clientes', clientes);
       await trackOfflineEvent('download', { storeName: 'clientes', recordCount: clientes.length });
+      console.log(`[Offline Sync] Descarga de clientes completada: ${clientes.length} registros`);
       return clientes.length;
-    } catch (err) {
-      console.error('[Offline Sync] Error descargando clientes:', err);
+    } catch (err: any) {
+      const errorMessage = err?.message || err?.error?.message || 'Error desconocido';
+      const statusCode = err?.statusCode || err?.response?.status || 'N/A';
+      
+      console.error('[Offline Sync] Error descargando clientes:', {
+        message: errorMessage,
+        statusCode,
+        error: err,
+        stack: err?.stack,
+      });
+      
+      // Si es un error de red, no lanzar excepción para evitar que detenga otras descargas
+      if (statusCode === 0 || err?.code === 'ERR_NETWORK' || err?.message?.includes('Network Error')) {
+        console.warn('[Offline Sync] Error de red al descargar clientes. El servidor puede no estar disponible.');
+      }
+      
       return 0;
     }
   },

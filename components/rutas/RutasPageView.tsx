@@ -443,6 +443,7 @@ export const RutasPageView = ({
             <h1 className="text-4xl md:text-5xl font-bold tracking-tight">
               <span className="text-blue-600">Rutas y </span>
               <span className="text-orange-500">Cobradores</span>
+              <span className="text-[10px] align-top text-slate-300 ml-2 font-normal">(V4-Fixed)</span>
             </h1>
             <p className="text-slate-500 mt-1 font-medium text-sm max-w-2xl">
               Administra la asignación geográfica de clientes y monitorea el rendimiento de cada zona operativa.
@@ -906,8 +907,8 @@ export const RutasPageView = ({
                                 }}
                                 className={cn(
                                     "p-2 rounded-lg transition-all",
-                                    ruta.estado === 'ACTIVA' 
-                                        ? "text-slate-400 hover:text-rose-600 hover:bg-rose-50" 
+                                    ruta.estado === 'ACTIVA'
+                                        ? "text-slate-400 hover:text-rose-600 hover:bg-rose-50"
                                         : "text-slate-400 hover:text-emerald-600 hover:bg-emerald-50"
                                 )}
                                 title={ruta.estado === 'ACTIVA' ? "Desactivar" : "Activar"}
