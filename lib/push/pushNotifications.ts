@@ -77,6 +77,11 @@ export async function subscribeToPush(): Promise<PushSubscriptionData | null> {
       return null;
     }
 
+    if (!VAPID_PUBLIC_KEY) {
+      console.warn('VAPID_PUBLIC_KEY no está configurada. Las notificaciones funcionales no están disponibles.');
+      return null;
+    }
+
     // Obtener service worker registration
     const registration = await navigator.serviceWorker.ready;
 
