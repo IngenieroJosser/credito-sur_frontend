@@ -2,7 +2,6 @@
 
 import { cookies } from 'next/headers';
 import { LoginData } from '@/lib/types/autenticacion-type';
-import { apiClient } from '@/lib/api/apiClient';
 
 export interface LoginResult {
   success: boolean;
@@ -21,15 +20,49 @@ export async function loginAction(data: LoginData): Promise<LoginResult> {
   const cookieStore = await cookies();
 
   try {
-    const res = await apiClient.post('/auth/login', data);
-    const response = res.data as any;
+    const rawBaseUrl =
+      process.env.NEXT_PUBLIC_BASE_URL ||
+      (process.env.NODE_ENV === "production"
+        ? "https://credito-sur-backend.onrender.com"
+        : "http://localhost:3001");
 
-    if (!response || !response.access_token) {
+    const normalizedBase = rawBaseUrl.replace(/\/$/, "");
+    const apiBase = normalizedBase.endsWith("/api-credisur")
+      ? normalizedBase
+      : `${normalizedBase}/api-credisur`;
+
+    // Controller para forzar timeout de 55 segundos
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 55000);
+
+    const res = await fetch(`${apiBase}/auth/login`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(data),
+      cache: 'no-store', // Evitar caché agresivo de Next
+      signal: controller.signal
+    });
+
+    clearTimeout(timeoutId);
+
+    const responseData = await res.json().catch(() => null);
+
+    if (!res.ok) {
+        let msg = responseData?.message || 'Error al iniciar sesión';
+        if (res.status === 401) {
+            msg = 'Credenciales incorrectas';
+        }
+        return { success: false, error: msg };
+    }
+
+    if (!responseData || !responseData.access_token) {
       return { success: false, error: 'Respuesta inválida del servidor' };
     }
 
     // Guardamos el token en una cookie segura HttpOnly.
-    cookieStore.set('token', response.access_token, {
+    cookieStore.set('token', responseData.access_token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       maxAge: 60 * 60 * 24 * 7, // 1 semana
@@ -37,8 +70,8 @@ export async function loginAction(data: LoginData): Promise<LoginResult> {
     });
     
     // Cookie pública con el rol para lógica de UI
-    if (response.usuario?.rol) {
-      cookieStore.set('user_role', response.usuario.rol, {
+    if (responseData.usuario?.rol) {
+      cookieStore.set('user_role', responseData.usuario.rol, {
         httpOnly: false,
         path: '/',
       });
@@ -55,27 +88,21 @@ export async function loginAction(data: LoginData): Promise<LoginResult> {
       'PUNTO_DE_VENTA': '/punto-de-venta'
     };
 
-    const redirectPath = response.usuario?.rutaDefault 
-      || (response.usuario?.rol && fallbackRedirects[response.usuario.rol]) 
+    const redirectPath = responseData.usuario?.rutaDefault 
+      || (responseData.usuario?.rol && fallbackRedirects[responseData.usuario.rol]) 
       || '/admin';
 
     return {
       success: true,
       redirectTo: redirectPath,
-      user: response.usuario,
-      token: response.access_token
+      user: responseData.usuario,
+      token: responseData.access_token
     };
 
   } catch (error: any) {
-    const status = error?.response?.status;
-    const messageFromBody = error?.response?.data?.message;
-    let msg = messageFromBody || error?.message || 'Error al iniciar sesión';
+    let msg = 'Error al iniciar sesión';
 
-    if (status === 401) {
-      msg = 'Credenciales incorrectas';
-    } else if (error?.code === 'ECONNREFUSED') {
-      msg = 'No se pudo conectar con el servidor';
-    } else if (error?.code === 'ECONNABORTED' || msg.includes('timeout')) {
+    if (error?.name === 'AbortError' || error?.message?.includes('timeout') || error?.message?.includes('fetch failed')) {
       msg = 'El servidor está iniciando (Cold Start). Por favor, intenta de nuevo en unos segundos.';
     }
 

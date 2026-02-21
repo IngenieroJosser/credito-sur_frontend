@@ -75,7 +75,14 @@ const LoginPage = () => {
     }
   }, [toast]);
 
-  // Si el usuario ya tiene sesión iniciada, lo mandamos directo a su panel
+  // Ping the backend directly from the browser on mount to wake up Render instances 
+  // bypassing Vercel's 10-second timeout limits.
+  useEffect(() => {
+    fetch('https://credito-sur-backend.onrender.com/api-credisur/auth', { method: 'GET' })
+      .catch((e) => console.log('Ping para despertar el backend enviado.'));
+  }, []);
+
+  // Función para redirigir si el token ya está
   useEffect(() => {
     const token = localStorage.getItem('token');
     const userStr = localStorage.getItem('user');
