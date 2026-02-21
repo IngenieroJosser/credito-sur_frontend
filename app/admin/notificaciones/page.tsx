@@ -400,9 +400,12 @@ export default function NotificacionesPage() {
   }
 
   const handleOpenDetail = (notif: Notificacion) => {
-    // Si es una notificación de préstamo, abrir el modal de detalles de préstamo
-    if (notif.tipo === 'PRESTAMO' && notif.entidadId) {
-      setSelectedPrestamoId(notif.entidadId)
+    // Si es una notificación de préstamo (ya sea tipo PRESTAMO directo o tipo APROBACION de un NUEVO_PRESTAMO)
+    const isPrestamo = notif.tipo === 'PRESTAMO' || (notif as any).metadata?.tipoAprobacion === 'NUEVO_PRESTAMO' || (notif as any).approvalType === 'NUEVO_PRESTAMO'
+    const prestamoId = (notif.tipo === 'PRESTAMO' ? notif.entidadId : (notif as any).metadata?.prestamoId) || notif.entidadId
+
+    if (isPrestamo && prestamoId) {
+      setSelectedPrestamoId(prestamoId)
       setPrestamoModalOpen(true)
     } else {
       // Para otros tipos, usar el modal genérico

@@ -112,8 +112,11 @@ export default function NotificacionesSupervisorPage() {
    * If it's a real Solicitud, it uses the details. Otherwise, creates a view-only representation.
    */
   const handleActionClick = (notif: Notificacion) => {
-     if (notif.tipo === 'PRESTAMO' && notif.entidadId) {
-       setSelectedPrestamoId(notif.entidadId);
+     const isPrestamo = notif.tipo === 'PRESTAMO' || (notif as any).metadata?.tipoAprobacion === 'NUEVO_PRESTAMO' || (notif as any).approvalType === 'NUEVO_PRESTAMO';
+     const prestamoId = (notif.tipo === 'PRESTAMO' ? notif.entidadId : (notif as any).metadata?.prestamoId) || notif.entidadId;
+
+     if (isPrestamo && prestamoId) {
+       setSelectedPrestamoId(prestamoId);
        return;
      }
 
