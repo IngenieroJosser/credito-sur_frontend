@@ -9,6 +9,8 @@ interface NotificacionesContextProps {
   socket: Socket | null;
   notificaciones: Notificacion[];
   unreadCount: number;
+  showDropdown: boolean;
+  setShowDropdown: (val: boolean) => void;
   marcarComoLeida: (id: string) => void;
   marcarTodasComoLeidas: () => void;
   refreshNotificaciones: () => void;
@@ -18,6 +20,8 @@ const NotificacionesContext = createContext<NotificacionesContextProps>({
   socket: null,
   notificaciones: [],
   unreadCount: 0,
+  showDropdown: false,
+  setShowDropdown: () => {},
   marcarComoLeida: () => {},
   marcarTodasComoLeidas: () => {},
   refreshNotificaciones: () => {},
@@ -28,6 +32,7 @@ export const useNotificaciones = () => useContext(NotificacionesContext)
 export function NotificacionesProvider({ children }: { children: React.ReactNode }) {
   const [socket, setSocket] = useState<Socket | null>(null)
   const [notificaciones, setNotificaciones] = useState<Notificacion[]>([])
+  const [showDropdown, setShowDropdown] = useState(false)
   
   const fetchNotificaciones = async () => {
     try {
@@ -87,19 +92,27 @@ export function NotificacionesProvider({ children }: { children: React.ReactNode
       console.warn('[Socket] Desconectado:', reason);
     })
 
+    const formatFecha = (fechaRaw?: any) => {
+      if (!fechaRaw) return 'Fecha desconocida';
+      return new Date(fechaRaw).toLocaleString('es-CO', {
+        day: '2-digit',
+        month: '2-digit',
+        year: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+      });
+    };
+
     // Escuchar nuevas notificaciones directas
     newSocket.on('nueva_notificacion', (notificacion: Notificacion) => {
-      setNotificaciones(prev => [notificacion, ...prev])
+      const formattedNotif = {
+        ...notificacion,
+        fecha: formatFecha((notificacion as any).creadoEn || notificacion.fecha)
+      };
+      setNotificaciones(prev => [formattedNotif, ...prev])
       
-      // Mostrar toast nativo
-      toast(notificacion.titulo, {
-        description: notificacion.mensaje,
-        duration: 5000,
-        action: notificacion.link ? {
-          label: 'Ver Detalles',
-          onClick: () => window.location.href = notificacion.link!
-        } : undefined
-      })
+      // En lugar de toast, abrimos el dropdown
+      setShowDropdown(true)
     })
 
     // Escuchar cambios de estado (ej. se marcaron como leídas en otra pestaña)
@@ -109,8 +122,12 @@ export function NotificacionesProvider({ children }: { children: React.ReactNode
 
     // Escuchar notificaciones globales (para todos los usuarios)
     newSocket.on('nueva_notificacion_global', (notificacion: Notificacion) => {
-      setNotificaciones(prev => [notificacion, ...prev])
-      toast.info(notificacion.titulo, { description: notificacion.mensaje })
+      const formattedNotif = {
+        ...notificacion,
+        fecha: formatFecha((notificacion as any).creadoEn || notificacion.fecha)
+      };
+      setNotificaciones(prev => [formattedNotif, ...prev])
+      setShowDropdown(true)
     })
 
     setSocket(newSocket)
@@ -133,11 +150,15 @@ export function NotificacionesProvider({ children }: { children: React.ReactNode
 
   const marcarTodasComoLeidas = async () => {
     try {
-      // Optimizacion simple, no hay endpoint bulk todavía pero actualizamos local
       const unreadList = notificaciones.filter(n => !n.leida)
-      await Promise.all(unreadList.map(n => notificacionesService.marcarComoLeida(n.id)))
+      if (unreadList.length === 0) {
+        setShowDropdown(false)
+        return
+      }
       
+      await Promise.all(unreadList.map(n => notificacionesService.marcarComoLeida(n.id)))
       setNotificaciones(prev => prev.map(n => ({...n, leida: true})))
+      setShowDropdown(false)
     } catch(e) {
       console.error(e)
     }
@@ -150,6 +171,8 @@ export function NotificacionesProvider({ children }: { children: React.ReactNode
       socket,
       notificaciones,
       unreadCount,
+      showDropdown,
+      setShowDropdown,
       marcarComoLeida,
       marcarTodasComoLeidas,
       refreshNotificaciones

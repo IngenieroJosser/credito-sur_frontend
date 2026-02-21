@@ -21,6 +21,7 @@ import React, { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import Image from 'next/image'
+import { createPortal } from 'react-dom'
 import { 
   Shield,
   Bell,
@@ -83,15 +84,23 @@ export default function AdminLayout({
   const [user, setUser] = useState<Usuario | null>(null)
   const [authChecked, setAuthChecked] = useState(false)
   
-  // Menús desplegables del header
-  const [showNotifications, setShowNotifications] = useState(false)
+  // Proveedor global WebSocket
+  const { notificaciones, unreadCount, showDropdown: showNotifications, setShowDropdown: setShowNotifications, marcarTodasComoLeidas, marcarComoLeida } = useNotificaciones();
+  
   const [isLoadingNotificaciones, setIsLoadingNotificaciones] = useState(false)
   
-  // Proveedor global WebSocket
-  const { notificaciones, unreadCount } = useNotificaciones();
+  // Paginación de notificaciones en el dropdown
+  const [notifPage, setNotifPage] = useState(1)
+  const notifPerPage = 5
+  const totalNotifPages = Math.ceil(notificaciones.length / notifPerPage)
+  const currentNotificaciones = notificaciones.slice((notifPage - 1) * notifPerPage, notifPage * notifPerPage)
+
+  // Estado para modal de confirmación de "Marcar todas como leídas"
+  const [showMarkAllConfirm, setShowMarkAllConfirm] = useState(false)
   
   // Construcción dinámica del menú lateral
   const [navigation, setNavigation] = useState<NavigationItem[]>([])
+  
   const [openMenus, setOpenMenus] = useState<Record<string, boolean>>({}) // Controla qué submenús están expandidos
   const [seenModules, setSeenModules] = useState<string[]>([]) // Rastrea qué módulos "Nuevos" ya vio el usuario
 
@@ -361,35 +370,85 @@ export default function AdminLayout({
                       </div>
                       <div className="max-h-96 overflow-y-auto">
                         {notificaciones.length > 0 ? (
-                          notificaciones.map((n) => (
-                            <div key={n.id} className="p-4 border-b border-gray-100 hover:bg-gray-50 transition-colors cursor-pointer group">
-                              <div className="flex items-start gap-3">
-                                <div 
-                                  className={`p-2 rounded-lg transition-colors ${
-                                    n.tipo === 'PAGO' 
-                                      ? 'bg-emerald-50 text-emerald-600' 
-                                      : n.tipo === 'CLIENTE'
-                                        ? 'bg-blue-50 text-blue-600'
-                                        : n.tipo === 'MORA'
-                                          ? 'bg-amber-50 text-amber-600'
-                                          : 'bg-gray-50 text-gray-600'
-                                  }`}
-                                >
-                                  {n.tipo === 'PAGO' ? <Banknote className="h-4 w-4" /> : n.tipo === 'CLIENTE' ? <Users className="h-4 w-4" /> : n.tipo === 'MORA' ? <AlertCircle className="h-4 w-4" /> : <Bell className="h-4 w-4" />}
-                                </div>
-                                <div>
-                                  <p className="text-sm font-medium text-gray-900">{n.titulo}</p>
-                                  <p className="text-xs text-gray-500 mt-0.5">{n.mensaje}</p>
-                                  <p className="text-xs text-blue-600 mt-1 font-medium">{n.fecha}</p>
+                          <div className="divide-y divide-gray-50">
+                            {currentNotificaciones.map((n) => (
+                              <div 
+                                key={n.id} 
+                                onClick={() => {
+                                  if (!n.leida) marcarComoLeida(n.id);
+                                  if (n.link) router.push(n.link);
+                                }}
+                                className={`p-4 hover:bg-gray-50 transition-colors cursor-pointer group relative ${!n.leida ? 'bg-blue-50/40 border-l-4 border-blue-500' : 'border-l-4 border-transparent'}`}
+                              >
+                                <div className="flex items-start gap-3">
+                                  <div 
+                                    className={`p-2 rounded-lg transition-colors ${
+                                      n.tipo === 'PAGO' 
+                                        ? 'bg-emerald-50 text-emerald-600' 
+                                        : n.tipo === 'CLIENTE'
+                                          ? 'bg-blue-50 text-blue-600'
+                                          : n.tipo === 'MORA'
+                                            ? 'bg-amber-50 text-amber-600'
+                                            : 'bg-gray-50 text-gray-600'
+                                    }`}
+                                  >
+                                    {n.tipo === 'PAGO' ? <Banknote className="h-4 w-4" /> : n.tipo === 'CLIENTE' ? <Users className="h-4 w-4" /> : n.tipo === 'MORA' ? <AlertCircle className="h-4 w-4" /> : <Bell className="h-4 w-4" />}
+                                  </div>
+                                  <div className="flex-1 pr-4">
+                                    <p className={`text-sm ${!n.leida ? 'font-bold text-gray-900' : 'font-medium text-gray-700'}`}>{n.titulo}</p>
+                                    <p className="text-xs text-gray-500 mt-0.5 line-clamp-2">{n.mensaje}</p>
+                                    <div className="flex items-center justify-between mt-2">
+                                      <p className="text-[10px] text-gray-400 flex items-center gap-1">
+                                       
+                                      </p>
+                                      {!n.leida && (
+                                        <span className="flex h-2 w-2 rounded-full bg-blue-600 shadow-[0_0_8px_rgba(37,99,235,0.6)] animate-pulse"></span>
+                                      )}
+                                    </div>
+                                  </div>
                                 </div>
                               </div>
-                            </div>
-                          ))
+                            ))}
+                          </div>
                         ) : (
                           <div className="p-6 text-center text-xs text-gray-500">Sin notificaciones</div>
                         )}
                       </div>
-                      <div className="p-2 border-t border-gray-100">
+                      {/* Paginador simple */}
+                      {totalNotifPages > 1 && (
+                        <div className="p-3 border-t border-gray-100 flex items-center justify-between bg-white">
+                          <button 
+                            disabled={notifPage === 1}
+                            onClick={(e) => { e.stopPropagation(); setNotifPage(p => Math.max(1, p - 1))}}
+                            className="px-3 py-1 text-xs font-medium text-gray-500 hover:text-blue-600 disabled:opacity-30 disabled:hover:text-gray-500"
+                          >
+                            Anterior
+                          </button>
+                          <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+                            Página {notifPage} de {totalNotifPages}
+                          </span>
+                          <button 
+                            disabled={notifPage === totalNotifPages}
+                            onClick={(e) => { e.stopPropagation(); setNotifPage(p => Math.min(totalNotifPages, p + 1))}}
+                            className="px-3 py-1 text-xs font-medium text-gray-500 hover:text-blue-600 disabled:opacity-30 disabled:hover:text-gray-500"
+                          >
+                            Siguiente
+                          </button>
+                        </div>
+                      )}
+
+                      <div className="p-3 border-t border-gray-100 bg-gray-50/50 flex flex-col gap-2">
+                        {unreadCount > 0 && (
+                          <button 
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setShowMarkAllConfirm(true);
+                            }}
+                            className="w-full py-2.5 text-xs font-bold text-blue-600 bg-blue-50/50 hover:bg-blue-600 hover:text-white rounded-xl transition-all border border-blue-100 hover:border-blue-600 shadow-sm"
+                          >
+                            Marcar todas como leídas
+                          </button>
+                        )}
                         <button 
                           onClick={() => {
                             setShowNotifications(false)
@@ -401,9 +460,9 @@ export default function AdminLayout({
                             if (user?.rol === 'PUNTO_DE_VENTA') target = '/punto-de-venta/notificaciones'
                             router.push(target)
                           }}
-                          className="w-full py-2 text-sm font-medium text-gray-600 hover:text-blue-600 hover:bg-gray-50 rounded-lg transition-colors"
+                          className="w-full py-2 text-xs font-medium text-gray-400 hover:text-blue-600 transition-colors"
                         >
-                          Ver todas las notificaciones
+                          Ver historial de notificaciones
                         </button>
                       </div>
                     </div>
@@ -606,6 +665,43 @@ export default function AdminLayout({
             ></div>
          </div>
       </div>
+      {/* Modal Confirmación Marcar Todas */}
+      {showMarkAllConfirm && typeof document !== 'undefined' && createPortal(
+        <div className="fixed inset-0 z-[2147483647] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="w-full max-w-sm rounded-[2rem] bg-white shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
+            <div className="p-8 text-center">
+              <div className="w-16 h-16 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center mx-auto mb-6">
+                <Bell className="h-8 w-8" />
+              </div>
+              <h3 className="text-xl font-black text-slate-900 mb-2">Marcar todas como leídas</h3>
+              <p className="text-sm text-slate-500 leading-relaxed">
+                ¿Estás seguro de que deseas marcar todas las notificaciones como leídas? Esta acción no se puede deshacer.
+              </p>
+              
+              <div className="mt-8 flex flex-col gap-2">
+                <button
+                  type="button"
+                  onClick={async () => {
+                    await marcarTodasComoLeidas();
+                    setShowMarkAllConfirm(false);
+                  }}
+                  className="w-full rounded-2xl bg-blue-600 py-4 text-sm font-bold text-white hover:bg-blue-700 shadow-xl shadow-blue-600/20 transition-all active:scale-[0.98]"
+                >
+                  Sí, marcar todas
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowMarkAllConfirm(false)}
+                  className="w-full rounded-2xl bg-slate-50 py-4 text-sm font-bold text-slate-500 hover:bg-slate-100 transition-all"
+                >
+                  Cancelar
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
     </div>
   )
 }

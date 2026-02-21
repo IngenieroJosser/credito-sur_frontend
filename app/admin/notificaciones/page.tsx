@@ -241,6 +241,10 @@ export default function NotificacionesPage() {
   const [selectedPrestamoId, setSelectedPrestamoId] = useState<string | null>(null)
   const [feedbackModal, setFeedbackModal] = useState<{titulo: string, mensaje: string, tipo: 'success' | 'danger'} | null>(null)
   const [isProcessing, setIsProcessing] = useState(false)
+  
+  // Paginación
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 5;
 
   // --- LÓGICA DE FILTRADO ---
   const notificaciones = notificacionesState
@@ -263,6 +267,18 @@ export default function NotificacionesPage() {
         n.id.toLowerCase().includes(q)
       )
     })
+
+  // Aplicar paginación después de filtrar
+  const totalPages = Math.ceil(notificaciones.length / itemsPerPage);
+  const paginatedNotificaciones = notificaciones.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
+
+  // Resetear página cuando cambian los filtros
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filter, tipoFilter, filterRuta, search]);
 
   const formatCurrency = (amount: number | undefined) => {
     if (amount === undefined) return '---'
@@ -610,8 +626,8 @@ export default function NotificacionesPage() {
                     Reintentar
                   </button>
                 </div>
-              ) : notificaciones.length > 0 ? (
-                notificaciones.map((notif) => (
+              ) : paginatedNotificaciones.length > 0 ? (
+                paginatedNotificaciones.map((notif) => (
                   <div 
                     key={notif.id} 
                     className={`p-6 hover:bg-slate-50/80 transition-colors group ${!notif.leida ? 'bg-blue-50/30' : ''}`}
@@ -717,14 +733,25 @@ export default function NotificacionesPage() {
             
             {/* Footer Paginación */}
             <div className="p-4 border-t border-slate-100 bg-slate-50/30 flex justify-between items-center text-xs text-slate-500 font-medium">
-              <span>Mostrando {notificaciones.length} notificaciones</span>
-              <div className="flex gap-2">
-                <button disabled className="px-4 py-2 rounded-lg border border-slate-200 bg-white opacity-50 cursor-not-allowed font-bold flex items-center gap-1">
-                  <ChevronLeft className="h-3 w-3" /> Anterior
-                </button>
-                <button className="px-4 py-2 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 font-bold transition-colors flex items-center gap-1 shadow-sm">
-                  Siguiente <ChevronRight className="h-3 w-3" />
-                </button>
+              <span>Mostrando {paginatedNotificaciones.length} de {notificaciones.length} notificaciones</span>
+              <div className="flex items-center gap-3">
+                <span className="text-slate-400 font-bold uppercase tracking-widest text-[10px]">Página {currentPage} de {totalPages || 1}</span>
+                <div className="flex gap-2">
+                  <button 
+                    disabled={currentPage === 1}
+                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                    className="px-4 py-2 rounded-lg border border-slate-200 bg-white disabled:opacity-50 disabled:cursor-not-allowed font-bold flex items-center gap-1 hover:bg-slate-50 transition-colors shadow-sm"
+                  >
+                    <ChevronLeft className="h-3 w-3" /> Anterior
+                  </button>
+                  <button 
+                    disabled={currentPage >= totalPages}
+                    onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                    className="px-4 py-2 rounded-lg border border-slate-200 bg-white disabled:opacity-50 disabled:cursor-not-allowed font-bold flex items-center gap-1 hover:bg-slate-50 transition-colors shadow-sm"
+                  >
+                    Siguiente <ChevronRight className="h-3 w-3" />
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -1175,6 +1202,7 @@ export default function NotificacionesPage() {
           try {
             await notificacionesService.marcarTodasComoLeidas()
             setNotificacionesState((prev) => prev.map((n) => ({ ...n, leida: true })))
+            setShowMarkAllReadConfirm(false)
           } catch (error) {
             console.error('Error marcando notificaciones:', error)
           }
