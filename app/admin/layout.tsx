@@ -310,6 +310,7 @@ export default function AdminLayout({
   }
 
   const mobileNavItems = getMobileNavigation()
+  const showSidebar = !hideSidebar && user?.rol !== 'COBRADOR' && (user?.rol !== 'PUNTO_DE_VENTA' || navigation.length > 1);
 
   return (
     <div className="min-h-screen bg-linear-to-br from-gray-50 to-white relative">
@@ -323,7 +324,7 @@ export default function AdminLayout({
           <div className="flex items-center justify-between">
             {/* Logo y título */}
             <div className="flex items-center space-x-3">
-              {user?.rol !== 'COBRADOR' && (
+              {showSidebar && (
                 <button 
                   onClick={() => setIsMenuOpen(!isMenuOpen)}
                   className="p-2 hover:bg-gray-100 rounded-lg transition-colors lg:hidden"
@@ -347,59 +348,50 @@ export default function AdminLayout({
               {/* Indicador de rol sutil */}
               {user && (
                 <div className="hidden md:block">
-                  <div 
-                    className="flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium text-white"
-                    style={{ backgroundColor: userRoleColor }}
-                  >
-                    {userRoleIcon}
-                    <span>{userRoleName}</span>
-                  </div>
+                  <span className="ml-3 px-2.5 py-1 text-[10px] font-bold bg-slate-50 text-slate-500 border border-slate-100 rounded-lg uppercase tracking-wider">
+                    {user.rol.replace(/_/g, ' ')}
+                  </span>
                 </div>
               )}
             </div>
 
-            {/* Controles de la derecha */}
-            <div className="flex items-center space-x-2">
-
-              {/* Notificaciones (solo para ciertos roles) */}
-              {user?.rol && ['SUPER_ADMINISTRADOR', 'ADMIN', 'COORDINADOR', 'SUPERVISOR', 'COBRADOR', 'CONTADOR', 'PUNTO_DE_VENTA'].includes(user.rol) && (
-                <div ref={notificationRef} className="relative">
+            {/* Acciones del header */}
+            <div className="flex items-center space-x-2 sm:space-x-4">
+              {/* Notificaciones */}
+              {user && (
+                <div className="relative">
                   <button 
                     onClick={() => setShowNotifications(!showNotifications)}
-                    className="relative p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                    className="p-2.5 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all relative group"
                   >
-                    <Bell className={`h-5 w-5 ${showNotifications ? 'text-blue-600' : 'text-gray-500'}`} />
+                    <Bell className="h-5 w-5" />
                     {notificaciones.some(n => !n.leida) && (
-                      <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-orange-500 rounded-full border-2 border-white"></span>
+                      <span className="absolute top-2 right-2 w-2.5 h-2.5 bg-orange-500 border-2 border-white rounded-full animate-pulse" />
                     )}
                   </button>
 
+                  {/* Panel de notificaciones */}
                   {showNotifications && (
-                    <div className="fixed sm:absolute right-0 sm:right-0 left-0 sm:left-auto top-16 sm:top-auto sm:mt-2 w-full sm:w-80 bg-white rounded-none sm:rounded-xl shadow-xl border-t sm:border border-gray-100 py-2 z-50 animate-in fade-in slide-in-from-top-2">
-                      <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
-                        <h3 className="font-semibold text-gray-900 text-sm sm:text-base">Notificaciones</h3>
-                        <span className="text-xs font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded-full">
-                          {notificaciones.filter(n => !n.leida).length} Nuevas
-                        </span>
+                    <div className="absolute right-0 mt-3 w-80 bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden animate-in fade-in zoom-in-95 duration-200 z-[60]">
+                      <div className="p-4 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
+                        <h3 className="font-bold text-gray-900">Notificaciones</h3>
+                        <span className="px-2 py-0.5 bg-blue-100 text-blue-600 text-[10px] font-bold rounded-full">{notificaciones.filter(n => !n.leida).length} NUEVAS</span>
                       </div>
-                      <div className="max-h-[300px] sm:max-h-[300px] overflow-y-auto">
-                        {isLoadingNotificaciones ? (
-                          <div className="p-4 text-center text-xs text-gray-500">Cargando...</div>
-                        ) : notificaciones.length > 0 ? (
-                          notificaciones.slice(0, 3).map((n) => (
-                            <div key={n.id} className="p-4 border-b border-gray-50 hover:bg-gray-50 transition-colors cursor-pointer group">
-                              <div className="flex gap-3">
-                                <div
-                                  className={
-                                    `mt-1 p-2 rounded-full group-hover:scale-110 transition-transform ` +
-                                    (n.tipo === 'PAGO'
-                                      ? 'bg-green-50 text-green-600'
+                      <div className="max-h-96 overflow-y-auto">
+                        {notificaciones.length > 0 ? (
+                          notificaciones.map((n) => (
+                            <div key={n.id} className="p-4 border-b border-gray-100 hover:bg-gray-50 transition-colors cursor-pointer group">
+                              <div className="flex items-start gap-3">
+                                <div 
+                                  className={`p-2 rounded-lg transition-colors ${
+                                    n.tipo === 'PAGO' 
+                                      ? 'bg-emerald-50 text-emerald-600' 
                                       : n.tipo === 'CLIENTE'
                                         ? 'bg-blue-50 text-blue-600'
                                         : n.tipo === 'MORA'
                                           ? 'bg-amber-50 text-amber-600'
-                                          : 'bg-gray-50 text-gray-600')
-                                  }
+                                          : 'bg-gray-50 text-gray-600'
+                                  }`}
                                 >
                                   {n.tipo === 'PAGO' ? <Banknote className="h-4 w-4" /> : n.tipo === 'CLIENTE' ? <Users className="h-4 w-4" /> : n.tipo === 'MORA' ? <AlertCircle className="h-4 w-4" /> : <Bell className="h-4 w-4" />}
                                 </div>
@@ -444,7 +436,7 @@ export default function AdminLayout({
       </header>
 
       {/* Sidebar elegante para desktop */}
-      {!hideSidebar && user?.rol !== 'COBRADOR' && (
+      {showSidebar && (
         <aside 
           className={`fixed left-0 top-16 bottom-0 w-64 bg-white/80 backdrop-blur-sm border-r border-gray-100 transition-all duration-300 z-20 ${
             isMenuOpen ? 'translate-x-0' : '-translate-x-full'
@@ -497,8 +489,8 @@ export default function AdminLayout({
                                     href={subItem.href}
                                     className={`flex items-center justify-between gap-3 px-3 py-2 rounded-lg transition-all duration-75 group ${
                                       isSubActive 
-                                        ? 'text-[#08557f] font-medium bg-[#08557f]/5' 
-                                        : 'text-gray-500 hover:text-[#08557f] hover:bg-gray-50'
+                                        ? 'text-[#08557f] bg-blue-50 font-medium' 
+                                        : 'text-gray-500 hover:text-blue-600 hover:bg-gray-50'
                                     }`}
                                     onClick={() => handleModuleClick(subItem.id, subItem.isNew)}
                                   >
@@ -509,9 +501,9 @@ export default function AdminLayout({
                                       <span className="text-sm">{subItem.name}</span>
                                     </div>
                                     {isNew && (
-                                        <span className="text-[10px] font-bold text-white bg-gradient-to-r from-pink-500 to-rose-500 px-1.5 py-0.5 rounded-full shadow-sm animate-pulse">
-                                          NUEVO
-                                        </span>
+                                      <span className="px-1.5 py-0.5 rounded-md bg-orange-100 text-[8px] font-black text-orange-600 uppercase border border-orange-200">
+                                        NUEVO
+                                      </span>
                                     )}
                                   </Link>
                                 )
@@ -530,18 +522,16 @@ export default function AdminLayout({
                         href={item.href}
                         className={`flex items-center justify-between gap-3 px-3 py-2.5 rounded-xl transition-all duration-75 border group ${
                           isActive 
-                            ? 'text-[#08557f] bg-gradient-to-r from-[#08557f]/10 to-[#063a58]/5 font-medium border-[#08557f]/20' 
+                            ? 'text-[#08557f] bg-gray-50/50 font-bold border-gray-200 shadow-sm' 
                             : 'text-gray-600 border-transparent hover:text-[#08557f] hover:bg-gray-50 hover:border-gray-200'
                         }`}
                         onClick={() => handleModuleClick(item.id, item.isNew)}
                       >
-                        <div className="flex items-center gap-3">
-                          <div className={`transition-colors ${isActive ? 'text-[#08557f]' : 'text-gray-400 group-hover:text-[#08557f]'}`}>
-                            {item.icon}
-                          </div>
-                          <span className="text-sm">{item.name}</span>
+                        <div className={`transition-colors ${isActive ? 'text-[#08557f]' : 'text-gray-400 group-hover:text-[#08557f]'}`}>
+                          {item.icon}
                         </div>
-                         {isNew && (
+                        <span className="text-sm">{item.name}</span>
+                        {isNew && (
                             <span className="text-[10px] font-bold text-white bg-gradient-to-r from-pink-500 to-rose-500 px-1.5 py-0.5 rounded-full shadow-sm animate-pulse">
                               NUEVO
                             </span>
@@ -564,14 +554,14 @@ export default function AdminLayout({
 
       {/* Contenido principal animado */}
       <main 
-        className={`pt-16 ${hideSidebar || user?.rol === 'COBRADOR' ? '' : 'lg:pl-64'} transition-all duration-700 ease-out ${(isMenuOpen && !hideSidebar && user?.rol !== 'COBRADOR') ? 'lg:pl-64' : ''} ${isPageLoaded ? 'opacity-100 transform-none' : 'translate-y-4 opacity-0 scale-[0.99]'}`}
+        className={`pt-16 ${showSidebar ? 'lg:pl-64' : ''} transition-all duration-700 ease-out ${(isMenuOpen && showSidebar) ? 'lg:pl-64' : ''} ${isPageLoaded ? 'opacity-100 transform-none' : 'translate-y-4 opacity-0 scale-[0.99]'}`}
         style={{ opacity: isPageLoaded ? 1 : 0 }}
       >
         {children}
       </main>
 
       {/* Sidebar móvil */}
-      {!hideSidebar && (
+      {!hideSidebar && showSidebar && (
         <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-40 shadow-lg">
           <div className="flex items-center justify-around py-3 px-2">
             {mobileNavItems.map((item) => (

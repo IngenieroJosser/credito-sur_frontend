@@ -3,11 +3,11 @@
 import React, { useState, useMemo } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import {
-  ArrowLeft, Package, CheckCircle, Search,
+  ArrowLeft, Package, CheckCircle2, Search,
   Plus, Trash2, Calendar, DollarSign, ShoppingBag
 } from 'lucide-react';
 import { useNotification } from '@/components/providers/NotificationProvider';
-import { formatCOPInputValue, formatCurrency, parseCOPInputToNumber } from '@/lib/utils';
+import { formatCOPInputValue, formatCurrency, parseCOPInputToNumber, cn } from '@/lib/utils';
 
 import { clientesService, Cliente } from '@/services/clientes-service';
 import NuevoClienteModal from '@/components/clientes/NuevoClienteModal';
@@ -22,7 +22,17 @@ interface ArticuloSeleccionado extends Articulo {
     precioUnitarioCredito: number;
 }
 
-export default function CreacionCreditoArticulo() {
+interface CreacionCreditoArticuloProps {
+  isModal?: boolean;
+  onClose?: () => void;
+  onSuccess?: (data?: any) => void;
+}
+
+export default function CreacionCreditoArticulo({ 
+  isModal = false, 
+  onClose, 
+  onSuccess 
+}: CreacionCreditoArticuloProps) {
   const { showNotification } = useNotification();
   const router = useRouter();
   const pathname = usePathname();
@@ -210,10 +220,18 @@ export default function CreacionCreditoArticulo() {
   };
 
   const confirmarCredito = () => {
-    showNotification('success', 'El crédito de artículos ha sido creado exitosamente', 'Crédito Creado');
-    let destino = '/admin/prestamos';
-    if (pathname?.startsWith('/supervisor')) destino = '/supervisor';
-    if (pathname?.startsWith('/coordinador')) destino = '/coordinador/creditos';
+    showNotification('success', 'Crédito creado exitosamente (Simulación)', 'Solicitud Enviada');
+    
+    if (onSuccess) {
+      onSuccess({
+        clienteId,
+        articulos: articulosSeleccionados,
+        total: resumenFinanciero.totalFinanciadoBruto
+      });
+      return;
+    }
+
+    const destino = '/creditos-articulos'
     router.push(destino);
   };
 
@@ -231,8 +249,18 @@ export default function CreacionCreditoArticulo() {
 
   return (
     <div className="bg-slate-50 relative pb-12">
-      <div className="relative z-10 pt-4 px-0">
-        <div className="mb-6 flex items-center justify-between">
+      <div className={cn("relative z-10", isModal ? "pt-0" : "px-8 pt-8")}>
+        {/* Header */}
+        <div className={cn("mb-8 flex items-center justify-between", isModal && "hidden")}>
+          <button
+            onClick={() => onClose ? onClose() : router.back()}
+            className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-slate-600 shadow-sm transition-colors hover:bg-slate-50 hover:text-slate-900"
+          >
+            <ArrowLeft className="w-5 h-5" />
+            <span>Volver</span>
+          </button>
+
+          {/* Stepper */}
           <div className="flex items-center gap-6">
             <div className="hidden md:flex items-center gap-4">
               {[1, 2, 3, 4].map((num) => (
@@ -254,7 +282,22 @@ export default function CreacionCreditoArticulo() {
           </div>
         </div>
 
-        <div className="w-full">
+        {!isModal && (
+          <div className="mb-8">
+            <div className="flex items-center gap-3 mb-1">
+              <div className="w-8 h-8 rounded-lg bg-orange-500 flex items-center justify-center shadow-lg shadow-orange-500/30">
+                <Package className="w-4 h-4 text-white" />
+              </div>
+              <h1 className="text-2xl md:text-3xl font-bold tracking-tight">
+                <span className="text-blue-600">Nuevo</span> <span className="text-orange-500">Crédito Artículo</span>
+              </h1>
+            </div>
+            <p className="text-slate-500 text-sm pl-11 font-medium">Gestión de financiamiento para electrodomésticos y muebles</p>
+          </div>
+        )}
+      </div>
+
+      <div className={cn("w-full", !isModal && "px-8")}>
           <div className={`transition-opacity duration-300 ${animating ? 'opacity-70' : 'opacity-100'}`}>
             
             {step === 1 && (
@@ -315,7 +358,7 @@ export default function CreacionCreditoArticulo() {
                               <div className={`inline-flex items-center justify-center w-6 h-6 rounded-full transition-all ${
                                 String(clienteId) === String(cliente.id) ? 'bg-blue-600 text-white scale-100' : 'border-2 border-slate-200 text-transparent scale-90'
                               }`}>
-                                <CheckCircle className="w-4 h-4" />
+                                <CheckCircle2 className="w-4 h-4" />
                               </div>
                             </td>
                           </tr>
@@ -558,7 +601,7 @@ export default function CreacionCreditoArticulo() {
                 <div className="bg-white rounded-2xl border border-slate-200 shadow-xl overflow-hidden">
                   <div className="p-8 border-b border-slate-100 text-center bg-slate-50/50">
                     <div className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-4">
-                      <CheckCircle className="w-8 h-8" />
+                      <CheckCircle2 className="w-8 h-8" />
                     </div>
                     <h2 className="text-2xl font-bold text-slate-900 mb-2">Confirmar Crédito</h2>
                   </div>
@@ -653,13 +696,12 @@ export default function CreacionCreditoArticulo() {
                 }`}
               >
                 {step < 4 ? 'Siguiente' : 'Confirmar y Crear'}
-                {step < 4 ? <ArrowLeft className="w-4 h-4 rotate-180" /> : <CheckCircle className="w-4 h-4" />}
+                {step < 4 ? <ArrowLeft className="w-4 h-4 rotate-180" /> : <CheckCircle2 className="w-4 h-4" />}
               </button>
             </div>
    
           </div>
         </div>
-      </div>
 
       {showNuevoClienteModal && (
         <NuevoClienteModal 

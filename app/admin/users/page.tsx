@@ -995,7 +995,7 @@ const UserManagementPage = () => {
                               {user.estado === 'ACTIVO' ? (
                                 <Trash2 className="h-4 w-4" />
                               ) : (
-                                <Eye className="h-4 w-4" />
+                                <CheckCircle2 className="h-4 w-4" />
                               )}
                             </button>
                           )}
@@ -1106,7 +1106,7 @@ const UserManagementPage = () => {
                       {user.estado === 'ACTIVO' ? (
                         <Trash2 className="h-4 w-4" />
                       ) : (
-                        <Eye className="h-4 w-4" />
+                        <CheckCircle2 className="h-4 w-4" />
                       )}
                     </button>
                   </div>
@@ -1506,7 +1506,7 @@ const UserManagementPage = () => {
                 "w-12 h-12 rounded-full flex items-center justify-center mb-4",
                 selectedUser.estado === 'ACTIVO' ? 'bg-rose-50 text-rose-600' : 'bg-emerald-50 text-emerald-600'
               )}>
-                {selectedUser.estado === 'ACTIVO' ? <Trash2 className="h-6 w-6" /> : <Check className="h-6 w-6" />}
+                {selectedUser.estado === 'ACTIVO' ? <Trash2 className="h-6 w-6" /> : <CheckCircle2 className="h-6 w-6" />}
               </div>
               <h3 className="text-lg font-bold text-slate-900 mb-2">
                 {selectedUser.estado === 'ACTIVO' ? '¿Desactivar usuario?' : '¿Activar usuario?'}
