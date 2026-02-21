@@ -46,6 +46,7 @@ import { Rol, obtenerModulos, getIconComponent, tieneAcceso } from '@/lib/permis
 import NotFoundPage from '../not-found'
 import { notificacionesService, type Notificacion } from '@/services/notificaciones-service'
 import UserDropdownMenu, { formatRoleName, getRoleColor, getRoleIcon } from '@/components/ui/UserDropdownMenu'
+import { useNotificaciones } from '@/components/providers/NotificacionesProvider';
 
 interface NavigationItem {
   name: string;
@@ -84,8 +85,10 @@ export default function AdminLayout({
   
   // Menús desplegables del header
   const [showNotifications, setShowNotifications] = useState(false)
-  const [notificaciones, setNotificaciones] = useState<Notificacion[]>([])
   const [isLoadingNotificaciones, setIsLoadingNotificaciones] = useState(false)
+  
+  // Proveedor global WebSocket
+  const { notificaciones, unreadCount } = useNotificaciones();
   
   // Construcción dinámica del menú lateral
   const [navigation, setNavigation] = useState<NavigationItem[]>([])
@@ -234,27 +237,6 @@ export default function AdminLayout({
       router.replace(roleRedirects[user.rol])
     }
   }, [authChecked, navigation, pathname, router, user?.rol])
-
-  useEffect(() => {
-    const cargarNotificaciones = async () => {
-      try {
-        setIsLoadingNotificaciones(true)
-        const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null
-        if (!token || !user?.id) {
-          setNotificaciones([])
-          return
-        }
-        const notifs = await notificacionesService.obtenerTodas()
-        setNotificaciones(notifs)
-      } catch (error) {
-        setNotificaciones([])
-      } finally {
-        setIsLoadingNotificaciones(false)
-      }
-    }
-    if (authChecked && user?.id) cargarNotificaciones()
-  }, [authChecked, user?.id])
-
   // Mientras verificamos la sesión, no mostramos nada para evitar parpadeos
   if (!authChecked) return null
 
@@ -360,22 +342,22 @@ export default function AdminLayout({
               {/* Notificaciones */}
               {user && (
                 <div className="relative">
-                  <button 
+                   <button 
                     onClick={() => setShowNotifications(!showNotifications)}
                     className="p-2.5 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all relative group"
                   >
                     <Bell className="h-5 w-5" />
-                    {notificaciones.some(n => !n.leida) && (
+                    {unreadCount > 0 && (
                       <span className="absolute top-2 right-2 w-2.5 h-2.5 bg-orange-500 border-2 border-white rounded-full animate-pulse" />
                     )}
                   </button>
 
                   {/* Panel de notificaciones */}
                   {showNotifications && (
-                    <div className="absolute right-0 mt-3 w-80 bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden animate-in fade-in zoom-in-95 duration-200 z-[60]">
+                    <div className="absolute right-0 mt-3 w-80 bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden animate-in fade-in zoom-in-95 duration-200 z-[60]" ref={notificationRef}>
                       <div className="p-4 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
                         <h3 className="font-bold text-gray-900">Notificaciones</h3>
-                        <span className="px-2 py-0.5 bg-blue-100 text-blue-600 text-[10px] font-bold rounded-full">{notificaciones.filter(n => !n.leida).length} NUEVAS</span>
+                        <span className="px-2 py-0.5 bg-blue-100 text-blue-600 text-[10px] font-bold rounded-full">{unreadCount} NUEVAS</span>
                       </div>
                       <div className="max-h-96 overflow-y-auto">
                         {notificaciones.length > 0 ? (
@@ -416,6 +398,7 @@ export default function AdminLayout({
                             if (user?.rol === 'SUPERVISOR') target = '/supervisor/notificaciones'
                             if (user?.rol === 'CONTADOR') target = '/contador/notificaciones'
                             if (user?.rol === 'COBRADOR') target = '/cobranzas/notificaciones'
+                            if (user?.rol === 'PUNTO_DE_VENTA') target = '/punto-de-venta/notificaciones'
                             router.push(target)
                           }}
                           className="w-full py-2 text-sm font-medium text-gray-600 hover:text-blue-600 hover:bg-gray-50 rounded-lg transition-colors"

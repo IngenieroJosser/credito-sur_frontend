@@ -4,7 +4,7 @@ const rawBaseUrl =
   process.env.NEXT_PUBLIC_BASE_URL ||
   (process.env.NODE_ENV === "production"
     ? "https://credito-sur-backend.onrender.com"
-    : "http://localhost:3001");
+    : "http://127.0.0.1:3001");
 
 const normalizedBase = rawBaseUrl.replace(/\/$/, "");
 const apiBase = normalizedBase.endsWith("/api-credisur")

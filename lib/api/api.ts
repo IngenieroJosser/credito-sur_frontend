@@ -129,8 +129,11 @@ export const apiRequest = async <T>(
     } else if (status === 401) {
       errorMessage = "No autorizado. Por favor, inicie sesión.";
       if (typeof window !== "undefined") {
+        const isLoginPage = window.location.pathname === "/login";
         localStorage.removeItem("token");
-        window.location.href = "/login";
+        if (!isLoginPage) {
+          window.location.href = "/login";
+        }
       }
     } else if (status === 404) {
       errorMessage = err.response.data?.message || "Recurso no encontrado";

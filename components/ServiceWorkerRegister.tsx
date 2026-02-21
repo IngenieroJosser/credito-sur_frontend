@@ -10,15 +10,26 @@ export default function ServiceWorkerRegister() {
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
-    if ("serviceWorker" in navigator && process.env.NODE_ENV === "production") {
-      navigator.serviceWorker.register("/sw.js")
-        .catch(err => {/* SW registration error */});
-    }
-
-    if (process.env.NODE_ENV === "development" && "serviceWorker" in navigator) {
-      navigator.serviceWorker.getRegistrations().then(registrations => {
-        registrations.forEach(r => r.unregister());
-      });
+    // Registro de Service Worker para PWA y Push Notifications
+    if ("serviceWorker" in navigator) {
+      if (process.env.NODE_ENV === "development") {
+        // En desarrollo, nos aseguramos de que NO haya un service worker activo
+        // para evitar errores de bad-precaching-response
+        navigator.serviceWorker.getRegistrations().then(registrations => {
+          for (const registration of registrations) {
+            registration.unregister();
+            console.log('Service Worker desregistrado en desarrollo.');
+          }
+        });
+      } else {
+        navigator.serviceWorker.register("/sw.js")
+          .then(reg => {
+            console.log('Service Worker registrado con éxito:', reg.scope);
+          })
+          .catch(err => {
+            console.error('Error al registrar Service Worker:', err);
+          });
+      }
     }
 
     // Limpiar entradas expiradas de IndexedDB cada 5 minutos

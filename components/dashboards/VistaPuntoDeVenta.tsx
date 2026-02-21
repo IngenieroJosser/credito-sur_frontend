@@ -61,14 +61,20 @@ const CLIENTES_PER_PAGE = 5
 
 // ─── Helpers ───
 const formatDateShort = (dateStr: string) => {
+  if (!dateStr) return 'N/A'
   try {
-    return new Date(dateStr).toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' })
-  } catch { return dateStr }
+    const d = new Date(dateStr)
+    if (isNaN(d.getTime())) return 'N/A'
+    return d.toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' })
+  } catch { return 'N/A' }
 }
 
 const formatTime = (dateStr: string) => {
+  if (!dateStr) return ''
   try {
-    return new Date(dateStr).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: true })
+    const d = new Date(dateStr)
+    if (isNaN(d.getTime())) return ''
+    return d.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: true })
   } catch { return '' }
 }
 
@@ -161,23 +167,24 @@ export default function VistaPuntoDeVenta() {
       const creditosData = await prestamosService.obtenerPrestamos({ tipo: 'ARTICULO', limit: 20 } as any)
       const ventas: VentaReciente[] = (creditosData?.prestamos || []).slice(0, 20).map((c: any) => ({
         id: c.id,
-        cliente: c.cliente?.nombres ? `${c.cliente.nombres} ${c.cliente.apellidos || ''}` : 'Cliente',
-        clienteId: c.clienteId || c.cliente?.id || undefined,
-        articulo: c.descripcion || c.articulo?.nombre || 'Artículo',
-        monto: c.montoTotal || c.monto || 0,
+        cliente: c.cliente || 'Cliente',
+        clienteId: c.clienteId,
+        clienteDni: c.clienteDni,
+        clienteTelefono: c.clienteTelefono,
+        articulo: c.producto || 'Artículo',
+        monto: c.montoTotal || 0,
         cuotaInicial: c.cuotaInicial || 0,
-        cuotas: c.numeroCuotas || c.cuotas || 0,
+        cuotas: c.cuotasTotales || 0,
         cuotasPagadas: c.cuotasPagadas || 0,
         valorCuota: c.valorCuota || 0,
         frecuencia: c.frecuenciaPago || 'Quincenal',
         tasaInteres: c.tasaInteres || 0,
-        saldoPendiente: c.saldoPendiente || c.montoTotal || c.monto || 0,
-        tipo: (c.metodoPago === 'CONTADO' ? 'CONTADO' : 'CREDITO') as 'CREDITO' | 'CONTADO',
-        estado: (c.estado === 'COMPLETADO' ? 'COMPLETADO' : c.estado === 'PENDIENTE' ? 'PENDIENTE' : 'ACTIVO') as VentaReciente['estado'],
-        fecha: c.creadoEn || c.fechaCreacion || '',
-        fechaPrimerCobro: c.fechaPrimerCobro || c.fechaInicio || '',
-        fechaUltimoPago: c.fechaUltimoPago || undefined,
-        vendedor: c.vendedor || c.creadoPor?.nombres || 'Sin asignar',
+        saldoPendiente: c.montoPendiente || 0,
+        tipo: 'CREDITO',
+        estado: c.estado as VentaReciente['estado'],
+        fecha: c.creadoEn || '',
+        fechaPrimerCobro: c.fechaInicio || '',
+        vendedor: c.vendedor || 'Sin asignar',
         observaciones: c.observaciones || undefined,
       }))
       setVentasRecientes(ventas)

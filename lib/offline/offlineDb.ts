@@ -175,9 +175,18 @@ export const getOfflineDb = async (): Promise<IDBPDatabase<OfflineDB>> => {
 type StoreName = 'clientes' | 'prestamos' | 'cuotas' | 'rutas';
 
 export const offlineStore = {
-  // Guardar múltiples registros (bulk upsert)
-  async saveMany<T extends { id: string }>(store: StoreName, items: T[]): Promise<void> {
+  // Guardar múltiples registros (bulk upsert o overwrite completo)
+  async saveMany<T extends { id: string }>(store: StoreName, items: T[], overwrite = false): Promise<void> {
     const db = await getOfflineDb();
+    
+    if (overwrite) {
+      await db.clear(store);
+      // Si borramos préstamos, también borramos cuontas para reincronizar
+      if (store === 'prestamos') {
+        await db.clear('cuotas');
+      }
+    }
+
     const tx = db.transaction(store, 'readwrite');
     for (const item of items) {
       await tx.store.put(item as any);
@@ -223,6 +232,18 @@ export const offlineStore = {
   async clear(store: StoreName): Promise<void> {
     const db = await getOfflineDb();
     await db.clear(store);
+  },
+
+  // Limpiar todos los datos locales (excepto la cola de operaciones)
+  async clearAll(): Promise<void> {
+    const db = await getOfflineDb();
+    await Promise.all([
+      db.clear('clientes'),
+      db.clear('prestamos'),
+      db.clear('cuotas'),
+      db.clear('rutas'),
+      db.clear('sync-meta'),
+    ]);
   },
 
   // Contar registros

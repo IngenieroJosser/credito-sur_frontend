@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react'
 
 import { useRouter } from 'next/navigation'
+import { useNotificaciones } from '@/components/providers/NotificacionesProvider';
 import { 
   Bell, 
   Search, 
@@ -95,6 +96,8 @@ export default function NotificacionesPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
+  const { notificaciones: globalNotifs } = useNotificaciones()
+
   useEffect(() => {
     const cargarNotificaciones = async () => {
       try {
@@ -106,13 +109,13 @@ export default function NotificacionesPage() {
           return
         }
 
-        const notifs = await notificacionesService.obtenerTodas()
+        const notifs = globalNotifs
         
         const userStr = typeof window !== 'undefined' ? localStorage.getItem('user') : null
         const user = userStr ? JSON.parse(userStr) as { rol?: string } : null
         const basePath = user?.rol === 'COBRADOR' ? '/cobranzas' : user?.rol === 'CONTADOR' ? '/contador' : user?.rol === 'COORDINADOR' ? '/coordinador' : '/admin'
         
-        const notifsConLinks = notifs.map((n) => {
+        const notifsConLinks = notifs.map((n: Notificacion) => {
           const raw: any = n as any
           const metadata = raw.metadata || {}
 
@@ -220,8 +223,10 @@ export default function NotificacionesPage() {
       }
     }
     
+    // We only load map logic if globalNotifs has data, and we don't spam if it's empty during init.
+    // If it's validly empty, we show empty state.
     cargarNotificaciones()
-  }, [])
+  }, [globalNotifs])
 
   // Estados para modales y acciones
   const [selectedNotif, setSelectedNotif] = useState<Notificacion | null>(null)

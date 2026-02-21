@@ -3,8 +3,10 @@ import { Sora } from "next/font/google";
 import "./globals.css";
 
 import { NotificationProvider } from "@/components/providers/NotificationProvider";
+import { NotificacionesProvider } from "@/components/providers/NotificacionesProvider";
 import ServiceWorkerRegister from "@/components/ServiceWorkerRegister";
 import OfflineIndicatorWrapper from "../components/offline/OfflineIndicatorWrapper";
+import { Toaster } from "sonner";
 
 const sora = Sora({
   variable: "--font-setting",
@@ -54,8 +56,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body className={`${sora.variable} antialiased`}>
         <NotificationProvider>
-          {children}
-          <OfflineIndicatorWrapper />
+          <NotificacionesProvider>
+            {children}
+            <OfflineIndicatorWrapper />
+            <Toaster position="top-right" richColors closeButton />
+          </NotificacionesProvider>
         </NotificationProvider>
         <ServiceWorkerRegister />
       </body>
