@@ -22,7 +22,8 @@ import { LoginData } from '@/lib/types/autenticacion-type';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { restoreOfflineSession, hasValidOfflineSession, getOfflineSessionDaysRemaining } from '@/lib/auth/offlineAuth';
-import { loginAction } from './actions';
+import { setAuthCookiesAction } from './actions';
+import { apiClient } from '@/lib/api/apiClient';
 
 interface LoginFormData {
   nombres: string;
@@ -199,41 +200,65 @@ const LoginPage = () => {
         contrasena: formData.password.trim(),
       };
 
-      console.log('Iniciando proceso de login...');
-      const result = await loginAction(payload);
-      console.log('Resultado del login:', result);
+      console.log('Iniciando proceso de login directo al backend...');
+      
+      // 1. Enviamos petición directa a Render (el browser espera tranquilamente 60s)
+      const res = await apiClient.post('/auth/login', payload, { timeout: 65000 });
+      const result = res.data;
 
-      if (!result.success) {
-        throw new Error(result.error || 'Error desconocido');
+      if (!result || !result.access_token) {
+        throw new Error('Respuesta inválida del servidor');
+      }
+
+      // 2. Usamos Server Action muy rápida solo para inyectar Cookies seguras
+      const cookieRes = await setAuthCookiesAction(result.access_token, result.usuario?.rol);
+      if (!cookieRes.success) {
+        throw new Error(cookieRes.error || 'Error seteando sesión');
       }
 
       // Login Exitoso
       
       // Guardamos datos en localStorage para uso en el cliente
-      if (result.user) {
-        const userFullName = `${result.user.nombres || ''} ${result.user.apellidos || ''}`.trim() || formData.nombres;
-        const userData = { ...result.user, nombreCompleto: userFullName };
+      if (result.usuario) {
+        const userFullName = `${result.usuario.nombres || ''} ${result.usuario.apellidos || ''}`.trim() || formData.nombres;
+        const userData = { ...result.usuario, nombreCompleto: userFullName };
         
         localStorage.setItem('user', JSON.stringify(userData));
         
         // Guardamos el token también para las peticiones desde el cliente
-        if (result.token) {
-          localStorage.setItem('token', result.token);
+        if (result.access_token) {
+          localStorage.setItem('token', result.access_token);
         }
       }
 
-      const userName = result.user?.nombres || formData.nombres;
-      const rol = result.user?.rol || 'Usuario';
+      const userName = result.usuario?.nombres || formData.nombres;
+      const rol = result.usuario?.rol || 'Usuario';
       
       showToast('Bienvenido', `${userName} (${formatRol(rol)})`, 'success');
+
+      // Determinar ruta de redirección
+      const fallbackRedirects: Record<string, string> = {
+        'COBRADOR': '/cobranzas',
+        'COORDINADOR': '/coordinador',
+        'SUPER_ADMINISTRADOR': '/admin',
+        'ADMINISTRADOR': '/admin',
+        'SUPERVISOR': '/supervisor',
+        'CONTADOR': '/contable',
+        'PUNTO_DE_VENTA': '/punto-de-venta'
+      };
+
+      const redirectPath = result.usuario?.rutaDefault 
+        || (result.usuario?.rol && fallbackRedirects[result.usuario.rol]) 
+        || '/admin';
+
 
       // Forzamos la redirección usando el navegador (hard redirect) para evadir bugs
       // y bucles de re-renderizado infinitos que ocurren con router.replace de Next.js
       setTimeout(() => {
         setIsRedirecting(true); 
         setTimeout(() => {
-          if (result.redirectTo) {
-            window.location.href = result.redirectTo;
+          if (redirectPath) {
+            window.location.href = redirectPath;
           }
         }, 400); 
       }, 600); 
@@ -241,10 +266,18 @@ const LoginPage = () => {
       // NO seteamos isLoading a false porque queremos que la pantalla parezca bloqueada 
       // mientras cambiamos de página, previniendo doble click y saltos visuales.
 
-    } catch (err: unknown) {
+    } catch (err: any) {
       console.error('Error en login:', err);
-      // Manejamos el error de forma amigable
-      const msg = err instanceof Error ? err.message : 'Error al iniciar sesión';
+      // Manejamos el error de forma amigable (axios data vs generic error)
+      const axiosMsg = err?.response?.data?.message;
+      let msg = axiosMsg || (err instanceof Error ? err.message : 'Error al iniciar sesión');
+      
+      if (err?.response?.status === 401) {
+        msg = 'Credenciales incorrectas';
+      } else if (err?.code === 'ECONNABORTED' || msg.includes('timeout')) {
+        msg = 'El servidor está iniciando (Cold Start). Sigue intentando un momento más.';
+      }
+
       setError(msg);
       showToast(msg, '', 'error');
       setIsLoading(false);
