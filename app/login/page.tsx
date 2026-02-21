@@ -22,6 +22,7 @@ import { LoginData } from '@/lib/types/autenticacion-type';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { restoreOfflineSession, hasValidOfflineSession, getOfflineSessionDaysRemaining } from '@/lib/auth/offlineAuth';
+import { loginAction } from './actions';
 
 interface LoginFormData {
   nombres: string;
@@ -102,7 +103,7 @@ const LoginPage = () => {
         localStorage.removeItem('user');
       }
     }
-  }, [router]);
+  }, []);
 
   // Actualiza el estado cuando el usuario escribe en los inputs
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -166,10 +167,9 @@ const LoginPage = () => {
     setTimeout(() => {
       setIsRedirecting(true);
       setTimeout(() => {
-        router.replace(redirectPath);
-        router.refresh();
-      }, 800);
-    }, 1200);
+        window.location.href = redirectPath;
+      }, 500);
+    }, 800);
   };
 
   // Lógica principal de inicio de sesión
@@ -187,9 +187,6 @@ const LoginPage = () => {
     setError('');
 
     try {
-      // Cargamos la acción del servidor dinámicamente
-      const { loginAction } = await import('./actions');
-
       const payload: LoginData = {
         nombres: formData.nombres.trim(),
         contrasena: formData.password.trim(),
@@ -223,18 +220,19 @@ const LoginPage = () => {
       
       showToast('Bienvenido', `${userName} (${formatRol(rol)})`, 'success');
 
-      // Animación de salida y redirección
+      // Forzamos la redirección usando el navegador (hard redirect) para evadir bugs
+      // y bucles de re-renderizado infinitos que ocurren con router.replace de Next.js
       setTimeout(() => {
-        setIsRedirecting(true); // 1. Mostramos la pantalla blanca de carga
-        
+        setIsRedirecting(true); 
         setTimeout(() => {
-          console.log(`Redirigiendo a ${result.redirectTo}`);
           if (result.redirectTo) {
-            router.replace(result.redirectTo);
-            router.refresh(); // Refrescamos para asegurar que el estado global se actualice
+            window.location.href = result.redirectTo;
           }
-        }, 800); // 2. Navegamos cuando ya no se ve nada
-      }, 1200); // 3. Damos tiempo para ver el mensaje de éxito
+        }, 400); 
+      }, 600); 
+
+      // NO seteamos isLoading a false porque queremos que la pantalla parezca bloqueada 
+      // mientras cambiamos de página, previniendo doble click y saltos visuales.
 
     } catch (err: unknown) {
       console.error('Error en login:', err);
@@ -242,7 +240,6 @@ const LoginPage = () => {
       const msg = err instanceof Error ? err.message : 'Error al iniciar sesión';
       setError(msg);
       showToast(msg, '', 'error');
-    } finally {
       setIsLoading(false);
     }
   };
