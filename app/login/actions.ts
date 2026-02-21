@@ -75,6 +75,8 @@ export async function loginAction(data: LoginData): Promise<LoginResult> {
       msg = 'Credenciales incorrectas';
     } else if (error?.code === 'ECONNREFUSED') {
       msg = 'No se pudo conectar con el servidor';
+    } else if (error?.code === 'ECONNABORTED' || msg.includes('timeout')) {
+      msg = 'El servidor está iniciando (Cold Start). Por favor, intenta de nuevo en unos segundos.';
     }
 
     return { success: false, error: msg };
