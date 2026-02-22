@@ -30,7 +30,9 @@ import {
   User,
   Target,
   ReceiptText,
+  AlertTriangle,
 } from 'lucide-react'
+import ConfirmModal from '@/components/ui/ConfirmModal'
 import { Sparkline } from '@/components/ui/PremiumCharts'
 import {
   DndContext,
@@ -58,6 +60,7 @@ import NuevoClienteModal from '@/components/clientes/NuevoClienteModal'
 import { VisitaRuta, EstadoVisita, PeriodoRuta, HistorialDia } from '@/lib/types/cobranza'
 import { StaticVisitaItem, SortableVisita, Portal, MODAL_Z_INDEX, SeleccionClienteModal } from '@/components/dashboards/shared/CobradorElements'
 import { rutasService } from '@/services/rutas-service'
+import { TipoAmortizacion } from '@/types/enums'
 import EstadoCuentaModal from '@/components/cobranza/EstadoCuentaModal'
 import PagoModal from '@/components/dashboards/shared/PagoModal'
 import CrearCreditoModal from '@/components/dashboards/shared/CrearCreditoModal'
@@ -135,11 +138,12 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
 
   // Selector de cliente para acciones globales
   const [showClientSelector, setShowClientSelector] = useState(false)
-  const [pendingAction, setPendingAction] = useState<'CUENTA' | 'AGENDAR' | null>(null)
+  const [pendingAction, setPendingAction] = useState<'CUENTA' | 'AGENDAR' | 'PAGO' | 'ABONO' | null>(null)
 
   const [rutaCompletada, setRutaCompletada] = useState(false)
   const [coordinadorToast, setCoordinadorToast] = useState<string | null>(null)
 
+  const [modalAlerta, setModalAlerta] = useState<{titulo: string, mensaje: string, tipo: 'exito' | 'error' | 'info'} | null>(null)
   const [isLoading, setIsLoading] = useState(true)
 
   // Determine if this is the supervisor's personal route
@@ -593,6 +597,51 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
     console.log(`Registra pago de ${montoPagado} para visita ${visitaId} (${metodo})`, comprobante)
     setShowPaymentModal(false)
   }, [])
+
+  const handleCrearCredito = useCallback(async (data: any) => {
+    try {
+      setIsLoading(true)
+      
+      const payload: any = {
+        clienteId: data.clienteCreditoId,
+        tipoPrestamo: data.creditType === 'prestamo' ? 'EFECTIVO' : 'ARTICULO',
+        monto: data.montoPrestamo || (data.creditType === 'articulo' ? (data.monto || 0) : 0),
+        tasaInteres: data.tasaInteres || 0,
+        tasaInteresMora: 2, 
+        plazoMeses: Math.ceil((data.cuotasPrestamo || 0) / (data.frecuenciaPago === 'Diaria' ? 30 : data.frecuenciaPago === 'Semanal' ? 4 : data.frecuenciaPago === 'Quincenal' ? 2 : 1)),
+        frecuenciaPago: data.frecuenciaPago === 'Diaria' ? 'DIARIO' : data.frecuenciaPago === 'Semanal' ? 'SEMANAL' : data.frecuenciaPago === 'Quincenal' ? 'QUINCENAL' : 'MENSUAL',
+        fechaInicio: data.fechaInicio || new Date().toISOString(),
+        creadoPorId: userSession?.id,
+        cuotaInicial: data.cuotaInicialArticulo || 0,
+        notas: data.notas || '',
+        tipoAmortizacion: data.tipoInteres || TipoAmortizacion.INTERES_SIMPLE
+      }
+
+      if (data.creditType === 'articulo') {
+        payload.productoId = data.articuloId
+        payload.precioProductoId = data.precioProductoId
+      }
+
+      await prestamosService.crearPrestamo(payload)
+      
+      setModalAlerta({
+        titulo: 'Crédito Creado',
+        mensaje: 'El crédito ha sido registrado exitosamente y está listo para gestión.',
+        tipo: 'exito'
+      })
+      setShowCreditModal(false)
+      
+    } catch (error: any) {
+      console.error('Error al crear crédito:', error)
+      setModalAlerta({
+        titulo: 'Error',
+        mensaje: error.message || 'No se pudo crear el crédito. Inténtelo de nuevo.',
+        tipo: 'error'
+      })
+    } finally {
+      setIsLoading(false)
+    }
+  }, [userSession?.id])
 
   const handleCompletarRuta = useCallback(() => {
     setRutaCompletada(true)
@@ -1275,10 +1324,7 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
         <CrearCreditoModal
           isOpen={showCreditModal}
           onClose={() => setShowCreditModal(false)}
-          onConfirm={(data) => {
-            console.log('Crédito creado:', data)
-            setShowCreditModal(false)
-          }}
+          onConfirm={handleCrearCredito}
         />
 
         {showNewClientModal && (
@@ -1332,9 +1378,19 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
 
         {showClientSelector && (
           <SeleccionClienteModal
-            titulo={pendingAction === 'CUENTA' ? 'Ver Estado de Cuenta' : 'Agendar Visita'}
-            subtitulo={pendingAction === 'CUENTA' ? 'Consultar Cliente' : 'Programar Cliente'}
-            visitas={visitasCobrador}
+            titulo={
+              pendingAction === 'CUENTA' ? 'Ver Estado de Cuenta' : 
+              pendingAction === 'PAGO' ? 'Registrar Pago' :
+              pendingAction === 'ABONO' ? 'Registrar Abono' :
+              'Agendar Visita'
+            }
+            subtitulo={
+              pendingAction === 'CUENTA' ? 'Consultar Cliente' : 
+              pendingAction === 'PAGO' ? 'Busque el cliente que paga' :
+              pendingAction === 'ABONO' ? 'Busque el cliente para abono' :
+              'Programar Cliente'
+            }
+            visitas={visitasBase}
             onSelect={(visita) => {
               setShowClientSelector(false)
               if (pendingAction === 'CUENTA') {
@@ -1343,6 +1399,14 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
               } else if (pendingAction === 'AGENDAR') {
                 setVisitaReprogramar(visita)
                 setShowReprogramModal(true)
+              } else if (pendingAction === 'PAGO') {
+                setVisitaPagoSeleccionadaId(visita.id)
+                setPagoInitialIsAbono(false)
+                setShowPaymentModal(true)
+              } else if (pendingAction === 'ABONO') {
+                setVisitaPagoSeleccionadaId(visita.id)
+                setPagoInitialIsAbono(true)
+                setShowPaymentModal(true)
               }
               setPendingAction(null)
             }}
@@ -1370,10 +1434,24 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
         <FloatingActionMenu actions={[
           { label: 'Crear Crédito', icon: <CreditCard className="h-5 w-5" />, onClick: () => setShowCreditModal(true) },
           { label: 'Nuevo Cliente', icon: <UserPlus className="h-5 w-5" />, onClick: () => setShowNewClientModal(true) },
-          { label: 'Registrar abono', icon: <RefreshCw className="h-5 w-5" />, color: 'orange', onClick: () => { setVisitaPagoSeleccionadaId(null); setPagoInitialIsAbono(true); setShowPaymentModal(true); } },
-          { label: 'Registrar pago', icon: <DollarSign className="h-5 w-5" />, onClick: () => { setVisitaPagoSeleccionadaId(null); setPagoInitialIsAbono(false); setShowPaymentModal(true); } },
+          { label: 'Registrar abono', icon: <RefreshCw className="h-5 w-5" />, color: 'orange', onClick: () => { setPendingAction('ABONO'); setShowClientSelector(true); } },
+          { label: 'Registrar pago', icon: <DollarSign className="h-5 w-5" />, onClick: () => { setPendingAction('PAGO'); setShowClientSelector(true); } },
           { label: 'Gastos', icon: <ReceiptText className="h-5 w-5" />, color: 'rose', onClick: () => setShowGastoModal(true) },
         ] as FabAction[]} />
+
+        {/* Modal de Alerta */}
+        {modalAlerta && (
+          <ConfirmModal
+            isOpen={!!modalAlerta}
+            onClose={() => setModalAlerta(null)}
+            onConfirm={() => setModalAlerta(null)}
+            title={modalAlerta.titulo}
+            message={modalAlerta.mensaje}
+            confirmText="Entendido"
+            cancelText={null}
+            variant={modalAlerta.tipo === 'error' ? 'danger' : modalAlerta.tipo === 'info' ? 'info' : 'success'}
+          />
+        )}
       </div>
     </div>
   )

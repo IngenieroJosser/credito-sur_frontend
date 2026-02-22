@@ -12,11 +12,9 @@ import { formatCurrency } from '@/lib/utils';
 import { useNotification } from '@/components/providers/NotificationProvider';
 import NuevoClienteModal from '@/components/clientes/NuevoClienteModal';
 import { clientesService, Cliente } from '@/services/clientes-service';
-
-// Enums alineados con Prisma
-type FrecuenciaPago = 'DIARIO' | 'SEMANAL' | 'QUINCENAL' | 'MENSUAL';
-type NivelRiesgo = 'VERDE' | 'AMARILLO' | 'ROJO' | 'LISTA_NEGRA';
-type TipoInteres = 'SIMPLE' | 'AMORTIZABLE';
+import { obtenerPerfil } from '@/services/autenticacion-service';
+import { prestamosService } from '@/services/prestamos-service';
+import { FrecuenciaPago, NivelRiesgo, TipoAmortizacion } from '@/types/enums';
 
 // Interfaces alineadas con Prisma (Simuladas para Frontend)
 
@@ -27,7 +25,7 @@ interface FormularioPrestamo {
   tasaInteres: number; // tasaInteres
   duracionMeses: number; // duracionMeses
   frecuenciaPago: FrecuenciaPago; // frecuenciaPago
-  tipoInteres: TipoInteres;
+  tipoInteres: TipoAmortizacion;
   fechaInicio: string; // fechaInicio
   tasaInteresMora: number; // tasaInteresMora
 
@@ -85,7 +83,7 @@ const calcularCuotasYResumen = (form: FormularioPrestamo) => {
   let cuotaFija = 0;
   let totalInteres = 0;
 
-  if (form.tipoInteres === 'SIMPLE') {
+  if (form.tipoInteres === TipoAmortizacion.INTERES_SIMPLE) {
     const interesTotalCalculado = montoFinanciado * tasaMensual * form.duracionMeses;
     const totalPagarCalculado = montoFinanciado + interesTotalCalculado;
     cuotaFija = totalPagarCalculado / cuotasTotales;
@@ -103,7 +101,7 @@ const calcularCuotasYResumen = (form: FormularioPrestamo) => {
     let capital = 0;
     let interes = 0;
 
-    if (form.tipoInteres === 'SIMPLE') {
+    if (form.tipoInteres === TipoAmortizacion.INTERES_SIMPLE) {
        interes = (montoFinanciado * tasaMensual * form.duracionMeses) / cuotasTotales;
        capital = cuotaFija - interes;
     } else {
@@ -208,8 +206,8 @@ const CreacionPrestamoElegante = () => {
     proposito: 'PERSONAL',
     tasaInteres: 5.0,
     duracionMeses: 0,
-    frecuenciaPago: 'QUINCENAL',
-    tipoInteres: 'AMORTIZABLE',
+    frecuenciaPago: FrecuenciaPago.QUINCENAL,
+    tipoInteres: TipoAmortizacion.FRANCESA,
     fechaInicio: new Date().toISOString().split('T')[0],
     tasaInteresMora: 2.0,
     cuotaInicial: 0,
@@ -258,41 +256,47 @@ const CreacionPrestamoElegante = () => {
     setCreandoPrestamo(true);
 
     try {
-      const datosPrestamo = {
+      // Intentar obtener el perfil del usuario actual para el creadorId
+      let creadorId = '';
+      try {
+        const userData = localStorage.getItem('user');
+        if (userData) {
+          creadorId = JSON.parse(userData).id;
+        } else {
+          const perfil = await obtenerPerfil();
+          creadorId = perfil.id;
+        }
+      } catch (err) {
+        console.error('Error al obtener usuario creador:', err);
+      }
+
+      const payload = {
         clienteId: form.clienteId,
-        montoTotal: form.montoTotal,
-        proposito: form.proposito,
+        tipoPrestamo: 'EFECTIVO',
+        monto: form.montoTotal,
         tasaInteres: form.tasaInteres,
         tasaInteresMora: form.tasaInteresMora,
-        tipoInteres: form.tipoInteres,
-        duracionMeses: form.duracionMeses,
+        plazoMeses: form.duracionMeses,
         frecuenciaPago: form.frecuenciaPago,
         fechaInicio: form.fechaInicio,
+        creadoPorId: creadorId,
         cuotaInicial: form.cuotaInicial,
-        gastosAdministrativos: form.gastosAdministrativos,
-        comision: form.comision,
-        observaciones: form.observaciones,
+        notas: form.observaciones,
+        tipoAmortizacion: form.tipoInteres
       };
 
-      console.log('Enviando datos del préstamo:', datosPrestamo);
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      await prestamosService.crearPrestamo(payload as any);
 
-      const resultado = {
-        id: 'PR-' + Date.now().toString().slice(-6),
-        numeroPrestamo: 'PR-' + Math.floor(100000 + Math.random() * 900000),
-        fechaCreacion: new Date().toISOString()
-      };
-
-      showNotification('success', `El préstamo ha sido creado exitosamente con el número ${resultado.numeroPrestamo}`, 'Préstamo Creado');
+      showNotification('success', `El préstamo ha sido creado exitosamente y está pendiente de aprobación si aplica.`, 'Préstamo Creado');
 
       let destino = '/admin/prestamos';
       if (pathname?.startsWith('/supervisor')) destino = '/supervisor';
       if (pathname?.startsWith('/coordinador')) destino = '/coordinador/creditos';
       router.push(destino);
 
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error al crear el préstamo:', error);
-      showNotification('error', 'Ocurrió un error al intentar crear el préstamo', 'Error');
+      showNotification('error', error.message || 'Ocurrió un error al intentar crear el préstamo', 'Error');
     } finally {
       setCreandoPrestamo(false);
     }

@@ -93,6 +93,7 @@ import FloatingActionMenu, { FabAction } from '@/components/dashboards/shared/Fl
 import { offlineStore } from '@/lib/offline/offlineDb'
 import { enqueuePago } from '@/lib/offline/offlineQueue'
 import { pagosService } from '@/services/pagos-service'
+import { TipoAmortizacion } from '@/types/enums'
 import { useNotificaciones } from '@/components/providers/NotificacionesProvider'
 import { Bell } from 'lucide-react'
 
@@ -515,6 +516,7 @@ const VistaCobrador = () => {
           withRecaudo.sort((a, b) => a.ordenVisita - b.ordenVisita);
           const finales = withRecaudo.map(v => ({ ...v, estado: ajustarEstadoConPago(v) }));
           setVisitasBase(finales);
+          setVisitasSelectorFallback(finales);
           setVisitasOrden(finales.map(v => v.id));
 
           // Fallback KPIs si backend vino en cero
@@ -590,6 +592,7 @@ const VistaCobrador = () => {
              });
 
              setVisitasBase(visitasOffline);
+             setVisitasSelectorFallback(visitasOffline);
              setVisitasOrden(visitasOffline.map(v => v.id));
              
              // KPIs Offline básicos
@@ -1399,6 +1402,56 @@ const VistaCobrador = () => {
       console.error('Error al guardar orden:', error);
     }
   }, [visitasOrden, visitasBase, userSession?.id])
+
+  const handleCrearCredito = useCallback(async (data: any) => {
+    try {
+      setIsLoadingAction(true)
+      
+      const payload: any = {
+        clienteId: data.clienteCreditoId,
+        tipoPrestamo: data.creditType === 'prestamo' ? 'EFECTIVO' : 'ARTICULO',
+        monto: data.montoPrestamo || 0,
+        tasaInteres: data.tasaInteres || 0,
+        tasaInteresMora: 2, // Default mora interest
+        plazoMeses: Math.ceil((data.cuotasPrestamo || 0) / (data.frecuenciaPago === 'Diaria' ? 30 : data.frecuenciaPago === 'Semanal' ? 4 : data.frecuenciaPago === 'Quincenal' ? 2 : 1)),
+        frecuenciaPago: data.frecuenciaPago === 'Diaria' ? 'DIARIO' : data.frecuenciaPago === 'Semanal' ? 'SEMANAL' : data.frecuenciaPago === 'Quincenal' ? 'QUINCENAL' : 'MENSUAL',
+        fechaInicio: data.fechaInicio || new Date().toISOString(),
+        creadoPorId: userSession?.id,
+        cuotaInicial: data.cuotaInicialArticulo || 0,
+        notas: data.notas || '',
+        tipoAmortizacion: data.tipoInteres || TipoAmortizacion.INTERES_SIMPLE
+      }
+
+      if (data.creditType === 'articulo') {
+        payload.productoId = data.articuloId
+        payload.precioProductoId = data.precioProductoId
+        payload.monto = data.monto || 0;
+      }
+
+      await prestamosService.crearPrestamo(payload)
+      
+      setModalAlerta({
+        titulo: 'Crédito Creado',
+        mensaje: 'El crédito ha sido registrado exitosamente. Si requiere aprobación, se ha enviado la notificación correspondiente.',
+        tipo: 'exito'
+      })
+      setShowCreditModal(false)
+      
+      // Refrescar datos
+      if (rutaActual?.id) {
+         cargarEstadisticasRuta(rutaActual.id);
+      }
+    } catch (error: any) {
+      console.error('Error al crear crédito:', error)
+      setModalAlerta({
+        titulo: 'Error',
+        mensaje: error.message || 'No se pudo crear el crédito. Por favor verifique los datos e intente de nuevo.',
+        tipo: 'error'
+      })
+    } finally {
+      setIsLoadingAction(false)
+    }
+  }, [userSession?.id, rutaActual?.id, cargarEstadisticasRuta])
 
   const handleDragCancel = useCallback(() => {
     setActiveId(null)
@@ -2610,10 +2663,7 @@ const VistaCobrador = () => {
         <CrearCreditoModal
           isOpen={showCreditModal}
           onClose={() => setShowCreditModal(false)}
-          onConfirm={(data) => {
-            console.log('Crédito creado:', data)
-            setShowCreditModal(false)
-          }}
+          onConfirm={handleCrearCredito}
         />
 
         {showNewClientModal && (
@@ -2652,7 +2702,7 @@ const VistaCobrador = () => {
           <SeleccionClienteModal
             titulo={accionPendiente === 'PAGO' ? 'Seleccionar Cliente' : accionPendiente === 'ABONO' ? 'Seleccionar para Abono' : 'Seleccionar Cliente'}
             subtitulo={accionPendiente === 'PAGO' ? '¿Quién realiza el pago?' : 'Busque el cliente en la lista'}
-            visitas={visitasSelector}
+            visitas={visitasBase}
           onSelect={(visita) => {
             setShowClientSelector(false)
             if (accionPendiente === 'PAGO') {
@@ -2780,7 +2830,11 @@ const VistaCobrador = () => {
         />
 
         {showConfirmCompleteModal && (
-          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <Portal>
+            <div 
+              className="fixed inset-0 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200"
+              style={{ zIndex: MODAL_Z_INDEX }}
+            >
              <div className="bg-white rounded-3xl p-6 shadow-2xl w-full max-w-sm border border-slate-100 animate-in zoom-in-95 duration-200">
                 <div className="flex flex-col items-center text-center gap-4">
                    <div className="w-16 h-16 bg-orange-50 rounded-full flex items-center justify-center text-orange-500 mb-2 border border-orange-100">
@@ -2809,7 +2863,8 @@ const VistaCobrador = () => {
                 </div>
              </div>
           </div>
-        )}
+        </Portal>
+      )}
 
         {/* Modal de Alerta usando ConfirmModal */}
         {modalAlerta && (

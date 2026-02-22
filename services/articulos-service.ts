@@ -1,6 +1,7 @@
 import { apiRequest } from '@/lib/api/api';
 
 export interface OpcionCuotas {
+  id?: string
   numeroCuotas: number
   precioTotal: number // Precio total con interés incluido
   valorCuota: number
@@ -46,15 +47,31 @@ class ArticulosService {
         const inventoryItems: any[] = await apiRequest('GET', '/inventory');
         if (!Array.isArray(inventoryItems)) return [];
         
-        return inventoryItems.map(item => ({
-            id: String(item.id),
-            nombre: item.name || item.nombre,
-            descripcion: item.description || item.descripcion || '',
-            precioBase: Number(item.price || item.precio),
-            categoria: item.category || item.categoria || 'General',
-            stock: Number(item.quantity || item.stock || 0),
-            opcionesCuotas: this.generarOpcionesCuotas(Number(item.price || item.precio))
-        }));
+        return inventoryItems.map(item => {
+            const precioBase = Number(item.price || item.precio || 0);
+            const preciosRaw = item.precios || [];
+            
+            // Map real prices from backend if available
+            const opcionesCuotas: OpcionCuotas[] = preciosRaw
+              .filter((p: any) => p.meses > 0) // Only credit plans 
+              .map((p: any) => ({
+                id: p.id,
+                numeroCuotas: p.meses * 2, // Backend stores months, frontend expects installments (usually 2 per month for quincenal)
+                precioTotal: Number(p.precio),
+                valorCuota: Math.ceil(Number(p.precio) / (p.meses * 2)),
+                frecuenciaPago: 'QUINCENAL'
+              }));
+
+            return {
+                id: String(item.id),
+                nombre: item.name || item.nombre,
+                descripcion: item.description || item.descripcion || '',
+                precioBase: precioBase,
+                categoria: item.category || item.categoria || 'General',
+                stock: Number(item.quantity || item.stock || 0),
+                opcionesCuotas: opcionesCuotas.length > 0 ? opcionesCuotas : this.generarOpcionesCuotas(precioBase)
+            };
+        });
     } catch (error) {
         console.error("Error fetching articles", error);
         return [];
@@ -65,14 +82,27 @@ class ArticulosService {
     try {
         const item: any = await apiRequest('GET', `/inventory/${id}`);
         if (!item) return null;
+        const precioBase = Number(item.price || item.precio || 0);
+        const preciosRaw = item.precios || [];
+        
+        const opcionesCuotas: OpcionCuotas[] = preciosRaw
+          .filter((p: any) => p.meses > 0)
+          .map((p: any) => ({
+            id: p.id,
+            numeroCuotas: p.meses * 2,
+            precioTotal: Number(p.precio),
+            valorCuota: Math.ceil(Number(p.precio) / (p.meses * 2)),
+            frecuenciaPago: 'QUINCENAL'
+          }));
+
         return {
             id: String(item.id),
             nombre: item.name || item.nombre,
             descripcion: item.description || item.descripcion || '',
-            precioBase: Number(item.price || item.precio),
+            precioBase: precioBase,
             categoria: item.category || item.categoria || 'General',
             stock: Number(item.quantity || item.stock || 0),
-            opcionesCuotas: this.generarOpcionesCuotas(Number(item.price || item.precio))
+            opcionesCuotas: opcionesCuotas.length > 0 ? opcionesCuotas : this.generarOpcionesCuotas(precioBase)
         }
     } catch (error) {
         return null;

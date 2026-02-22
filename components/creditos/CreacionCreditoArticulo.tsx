@@ -14,6 +14,9 @@ import NuevoClienteModal from '@/components/clientes/NuevoClienteModal';
 
 // --- Tipos y Servicios ---
 import { articulosService, Articulo } from '@/services/articulos-service';
+import { prestamosService } from '@/services/prestamos-service';
+import { obtenerPerfil } from '@/services/autenticacion-service';
+import { TipoAmortizacion } from '@/types/enums';
 
 type FrecuenciaPago = 'DIARIO' | 'SEMANAL' | 'QUINCENAL' | 'MENSUAL';
 
@@ -219,20 +222,65 @@ export default function CreacionCreditoArticulo({
     }
   };
 
-  const confirmarCredito = () => {
-    showNotification('success', 'Crédito creado exitosamente (Simulación)', 'Solicitud Enviada');
-    
-    if (onSuccess) {
-      onSuccess({
-        clienteId,
-        articulos: articulosSeleccionados,
-        total: resumenFinanciero.totalFinanciadoBruto
-      });
-      return;
-    }
+  const confirmarCredito = async () => {
+    if (!clienteSeleccionado) return alert('Seleccione un cliente');
+    if (articulosSeleccionados.length === 0) return alert('Seleccione al menos un artículo');
 
-    const destino = '/creditos-articulos'
-    router.push(destino);
+    try {
+      setLoadingDatos(true);
+      
+      // Intentar obtener el perfil del usuario actual
+      let creadorId = '';
+      try {
+        const userData = localStorage.getItem('user');
+        if (userData) {
+          creadorId = JSON.parse(userData).id;
+        } else {
+          const perfil = await obtenerPerfil();
+          creadorId = perfil.id;
+        }
+      } catch (err) {
+        console.error('Error al obtener usuario creador:', err);
+      }
+
+      // El backend actual soporta un producto por préstamo. 
+      // Tomamos el primero de la lista para la creación formal.
+      const articulo = articulosSeleccionados[0];
+      const opcionPlan = articulo.opcionesCuotas.find(o => o.numeroCuotas === numeroCuotas && o.frecuenciaPago === frecuenciaPago);
+      
+      const payload = {
+        clienteId: clienteId,
+        tipoPrestamo: 'ARTICULO',
+        productoId: articulo.id,
+        precioProductoId: opcionPlan?.id,
+        monto: resumenFinanciero.totalFinanciadoBruto,
+        tasaInteres: 0, // El interés ya viene en el precio del plan
+        tasaInteresMora: 2.0,
+        plazoMeses: Math.ceil(numeroCuotas / (frecuenciaPago === 'DIARIO' ? 30 : frecuenciaPago === 'SEMANAL' ? 4 : frecuenciaPago === 'QUINCENAL' ? 2 : 1)),
+        frecuenciaPago: frecuenciaPago,
+        fechaInicio: fechaInicio,
+        creadoPorId: creadorId,
+        cuotaInicial: cuotaInicial,
+        notas: `Crédito de artículo: ${articulosSeleccionados.map(a => `${a.nombre} (x${a.cantidad})`).join(', ')}`,
+        tipoAmortizacion: TipoAmortizacion.INTERES_SIMPLE
+      };
+
+      await prestamosService.crearPrestamo(payload as any);
+
+      showNotification('success', 'El crédito de artículo ha sido registrado exitosamente.', 'Solicitud Exitosa');
+      
+      if (onSuccess) {
+        onSuccess(payload);
+        return;
+      }
+
+      router.push('/admin/prestamos');
+    } catch (error: any) {
+      console.error('Error al crear crédito de artículo:', error);
+      showNotification('error', error.message || 'No se pudo crear el crédito. Verifique los datos.');
+    } finally {
+      setLoadingDatos(false);
+    }
   };
 
   const handleClienteCreado = (nuevoCliente: Cliente) => {

@@ -2,6 +2,7 @@
 
 import { ReactNode } from 'react'
 import { AlertTriangle, Info, XCircle, CheckCircle2 } from 'lucide-react'
+import Portal, { ALERT_Z_INDEX } from '@/components/ui/Portal'
 
 interface ConfirmModalProps {
   isOpen: boolean
@@ -62,45 +63,48 @@ export default function ConfirmModal({
   const currentVariant = variants[variant]
 
   return (
-    <div 
-      className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-200"
-      onClick={onClose}
-    >
+    <Portal>
       <div 
-        className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200"
-        onClick={(e) => e.stopPropagation()}
+        className="fixed inset-0 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-200"
+        style={{ zIndex: ALERT_Z_INDEX }}
+        onClick={onClose}
       >
-        {/* Header con icono */}
-        <div className={`p-6 ${currentVariant.bg} ${currentVariant.border} border-b flex items-start gap-4`}>
-          <div className={`p-2 rounded-xl bg-white shadow-sm ${currentVariant.iconColor}`}>
-            {icon || currentVariant.defaultIcon}
+        <div 
+          className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200"
+          onClick={(e) => e.stopPropagation()}
+        >
+          {/* Header con icono */}
+          <div className={`p-6 ${currentVariant.bg} ${currentVariant.border} border-b flex items-start gap-4`}>
+            <div className={`p-2 rounded-xl bg-white shadow-sm ${currentVariant.iconColor}`}>
+              {icon || currentVariant.defaultIcon}
+            </div>
+            <div className="flex-1">
+              <h3 className="text-lg font-bold text-slate-900">{title}</h3>
+              <p className="text-sm text-slate-600 mt-1">{message}</p>
+            </div>
           </div>
-          <div className="flex-1">
-            <h3 className="text-lg font-bold text-slate-900">{title}</h3>
-            <p className="text-sm text-slate-600 mt-1">{message}</p>
-          </div>
-        </div>
 
-        {/* Actions */}
-        <div className="p-6 bg-slate-50/50 flex justify-end gap-3">
-          {cancelText && (
+          {/* Actions */}
+          <div className="p-6 bg-slate-50/50 flex justify-end gap-3">
+            {cancelText && (
+              <button
+                onClick={onClose}
+                className="px-5 py-2.5 rounded-xl border border-slate-200 bg-white text-sm font-bold text-slate-700 hover:bg-slate-50 transition-colors"
+              >
+                {cancelText}
+              </button>
+            )}
             <button
-              onClick={onClose}
-              className="px-5 py-2.5 rounded-xl border border-slate-200 bg-white text-sm font-bold text-slate-700 hover:bg-slate-50 transition-colors"
+              onClick={async () => {
+                await onConfirm()
+              }}
+              className={`px-6 py-2.5 rounded-xl text-white text-sm font-bold transition-all shadow-lg ${currentVariant.buttonBg}`}
             >
-              {cancelText}
+              {confirmText}
             </button>
-          )}
-          <button
-            onClick={async () => {
-              await onConfirm()
-            }}
-            className={`px-6 py-2.5 rounded-xl text-white text-sm font-bold transition-all shadow-lg ${currentVariant.buttonBg}`}
-          >
-            {confirmText}
-          </button>
+          </div>
         </div>
       </div>
-    </div>
+    </Portal>
   )
 }

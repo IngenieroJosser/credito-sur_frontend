@@ -328,7 +328,7 @@ export default function UserDropdownMenu({ user, onLogout }: UserDropdownMenuPro
 
       {/* Logout Confirmation Modal — portaled to body to escape header stacking context */}
       {showLogoutConfirm && typeof document !== 'undefined' && createPortal(
-        <div className="fixed inset-0 z-[2147483647] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
+        <div className="fixed inset-0 z-[2147483600] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
           <div className="w-full max-w-md rounded-3xl bg-white shadow-2xl overflow-hidden">
             <div className="p-6">
               <div className="flex items-start justify-between gap-3">

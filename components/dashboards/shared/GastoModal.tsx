@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { X, Receipt, Save, Banknote, Camera, AlertCircle } from 'lucide-react'
+import { X, Receipt, Save, Banknote, Camera, AlertCircle, Loader2 } from 'lucide-react'
 import { formatCOPInputValue } from '@/lib/utils'
 import SelectCategoria from '@/components/ui/SelectCategoria'
 import { Portal, MODAL_Z_INDEX } from '@/components/dashboards/shared/CobradorElements'
@@ -12,7 +12,7 @@ import { rutasService } from '@/services/rutas-service'
 interface GastoModalProps {
   isOpen: boolean
   onClose: () => void
-  onConfirm: (data: { descripcion: string; valor: number; comprobante: File | null }) => void
+  onConfirm: (data: { descripcion: string; valor: number; comprobante: File | null }) => void | Promise<void>
   cobradorId?: string
   rutaId?: string
   recaudoDia?: number
@@ -26,6 +26,7 @@ export default function GastoModal({ isOpen, onClose, onConfirm, cobradorId, rut
   const [saldoInfo, setSaldoInfo] = useState<SaldoDisponibleRuta | null>(null)
   const [loadingSaldo, setLoadingSaldo] = useState(false)
   const [errorSaldo, setErrorSaldo] = useState('')
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
   // Cargar saldo disponible al abrir el modal
   useEffect(() => {
@@ -79,8 +80,10 @@ export default function GastoModal({ isOpen, onClose, onConfirm, cobradorId, rut
 
   if (!isOpen) return null
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (isSubmitting) return;
+
     const valor = parseInt(valorInput.replace(/\D/g, '')) || 0
     
     const rec = typeof saldoInfo?.recaudoDelDia === 'number' && saldoInfo.recaudoDelDia > 0
@@ -97,8 +100,15 @@ export default function GastoModal({ isOpen, onClose, onConfirm, cobradorId, rut
       return
     }
     
-    onConfirm({ descripcion, valor, comprobante })
-    handleReset()
+    setIsSubmitting(true)
+    try {
+      await onConfirm({ descripcion, valor, comprobante })
+      handleReset()
+    } catch (error) {
+      console.error('Error al registrar gasto:', error)
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   const handleReset = () => {
@@ -246,10 +256,15 @@ export default function GastoModal({ isOpen, onClose, onConfirm, cobradorId, rut
               </button>
               <button
                 type="submit"
-                className="flex-1 px-4 py-3 bg-rose-600 text-white font-bold rounded-2xl hover:bg-rose-700 shadow-lg shadow-rose-600/20 transition-all flex items-center justify-center gap-2 text-xs uppercase tracking-widest"
+                disabled={isSubmitting}
+                className="flex-1 px-4 py-3 bg-rose-600 text-white font-bold rounded-2xl hover:bg-rose-700 shadow-lg shadow-rose-600/20 transition-all flex items-center justify-center gap-2 text-xs uppercase tracking-widest disabled:opacity-50"
               >
-                <Save className="h-4 w-4" />
-                Guardar
+                {isSubmitting ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Save className="h-4 w-4" />
+                )}
+                {isSubmitting ? 'Guardando...' : 'Guardar'}
               </button>
             </div>
           </form>

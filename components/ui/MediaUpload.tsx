@@ -6,6 +6,7 @@ import Image from 'next/image';
 import { Upload, X, Check, Loader2, Image as ImageIcon, Video, AlertCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { uploadService, UploadResponse } from '@/services/upload-service';
+import { ALERT_Z_INDEX } from '@/components/ui/Portal';
 
 export type UploadStatus = 'idle' | 'uploading' | 'success' | 'error';
 
@@ -372,7 +373,7 @@ export default function MediaUpload({
       {showErrorModal && typeof document !== 'undefined' && createPortal(
         <div 
           className="fixed inset-0 flex items-center justify-center p-4"
-          style={{ zIndex: 2147483647 }}
+          style={{ zIndex: ALERT_Z_INDEX }}
           onClick={() => setShowErrorModal(false)}
         >
           {/* Backdrop */}
