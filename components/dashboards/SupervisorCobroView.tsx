@@ -173,8 +173,8 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
              cliente: `${v.cliente?.nombres || ''} ${v.cliente?.apellidos || ''}`,
              estado: v.prestamos?.[0]?.proximaCuota?.estado === 'PAGADA' ? 'pagado' : 'pendiente',
              telefono: v.cliente?.telefono,
-             montoCuota: Number(v.prestamos?.[0]?.proximaCuota?.monto || 0),
-             saldoTotal: Number(v.prestamos?.[0]?.saldoPendiente || 0),
+              montoCuota: Number(v.prestamos?.find((p: any) => p.estado === 'ACTIVO' || p.estado === 'EN_MORA' || p.estado === 'PAGADO')?.proximaCuota?.monto || 0),
+              saldoTotal: v.prestamos?.reduce((sum: number, p: any) => sum + Number(p.saldoPendiente || 0), 0) || 0,
              periodoRuta: 'DIA'
         }));
 
@@ -219,8 +219,8 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
                     direccion: a.cliente.direccion || 'Sin dirección',
                     telefono: a.cliente.telefono || '',
                     horaSugerida: '09:00',
-                    montoCuota: 0,
-                    saldoTotal: 0,
+                    montoCuota: Number(a.cliente.prestamos?.find((p: any) => p.estado === 'ACTIVO' || p.estado === 'EN_MORA')?.proximaCuota?.monto || 0),
+                    saldoTotal: a.cliente.prestamos?.reduce((sum: number, p: any) => sum + Number(p.saldoPendiente || 0), 0) || 0,
                     estado: 'pendiente',
                     proximaVisita: 'Hoy',
                     ordenVisita: index + 1,

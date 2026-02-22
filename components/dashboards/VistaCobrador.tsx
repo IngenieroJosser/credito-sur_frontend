@@ -413,7 +413,7 @@ const VistaCobrador = () => {
            
            // Calcular proxima cuota o saldo
            const proximaCuota = prestamoActivo.proximaCuota || {}; 
-           const saldoTotal = prestamoActivo.saldoPendiente || 0;
+           const saldoTotal = cliente.prestamos?.reduce((sum: number, p: any) => sum + Number(p.saldoPendiente || 0), 0) || 0;
 
            // Determinar estado basado en prestamo
            let estado: EstadoVisita = 'pendiente';
@@ -635,7 +635,7 @@ const VistaCobrador = () => {
           const prestamos = item.prestamos || [];
           const prestamoActivo = prestamos.find((p: any) => p.estado === 'ACTIVO' || p.estado === 'EN_MORA') || prestamos[0] || {};
           const proximaCuota = prestamoActivo?.proximaCuota || {};
-          const saldoTotal = Number(prestamoActivo?.saldoPendiente || 0);
+          const saldoTotal = (item.prestamos || []).reduce((sum: number, p: any) => sum + Number(p.saldoPendiente || 0), 0) || 0;
           let estado: EstadoVisita = 'pendiente';
           if (proximaCuota?.estado === 'VENCIDA') estado = 'en_mora';
           else if (proximaCuota?.estado === 'PAGADA') estado = 'pagado';
@@ -732,8 +732,8 @@ const VistaCobrador = () => {
             direccion: c.direccion || 'Sin dirección registrada',
             telefono: c.telefono || '',
             horaSugerida: '08:00 AM',
-            montoCuota: 0,
-            saldoTotal: 0,
+            montoCuota: Number(c.montoMora || 0),
+            saldoTotal: Number(c.montoTotal || 0),
             estado: 'pendiente',
             proximaVisita: new Date().toISOString(),
             ordenVisita: index + 1,

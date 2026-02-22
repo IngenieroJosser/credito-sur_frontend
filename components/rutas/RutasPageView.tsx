@@ -233,12 +233,12 @@ export const RutasPageView = ({
     try {
       const rutaDetalle = await routesService.getById(ruta.id);
       if (rutaDetalle.asignaciones) {
-        setClientesRuta(rutaDetalle.asignaciones.map(a => ({
+        setClientesRuta(rutaDetalle.asignaciones.map((a: any) => ({
           id: a.cliente.id,
           nombre: `${a.cliente.nombres} ${a.cliente.apellidos}`,
           codigo: a.cliente.dni,
-          direccion: a.cliente.telefono, // O dirección si estuviera disponible
-          deuda: 0 // Esto podría calcularse si el backend lo devuelve
+          direccion: a.cliente.telefono, 
+          deuda: a.cliente.prestamos?.reduce((sum: number, p: any) => sum + Number(p.saldoPendiente || 0), 0) || 0
         })));
       }
     } catch (error) {

@@ -160,7 +160,7 @@ const DetalleRutaPage = () => {
                    const prestamoActivo = prestamos.find((p: any) => p.estado === 'ACTIVO' || p.estado === 'EN_MORA') || prestamos[0] || {};
                    
                    const proximaCuota = prestamoActivo.proximaCuota || {}; 
-                   const saldoTotal = prestamoActivo.saldoPendiente || 0;
+                   const saldoTotal = asig.cliente?.prestamos?.reduce((sum: number, p: any) => sum + Number(p.saldoPendiente || 0), 0) || 0;
 
                    let estado: EstadoVisita = 'pendiente';
                    if (proximaCuota.estado === 'VENCIDA') estado = 'en_mora';
