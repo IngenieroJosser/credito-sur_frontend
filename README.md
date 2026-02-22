@@ -21,6 +21,9 @@ El frontend ha sido actualizado para cumplir con los más altos estándares de d
 - **Arquitectura Limpia:** Separación estricta entre componentes de servidor (data fetching) y componentes de cliente (interactividad), eliminando deuda técnica y facilitando el mantenimiento.
 - **Normalización de UI:** Estandarización de componentes visuales, modales y acciones para mantener consistencia y usabilidad en todos los módulos del sistema.
 - **Sistema Offline Completo:** Operación total sin conexión mediante IndexedDB, permitiendo consultas, registros y sincronización automática al reconectar.
+- **Failover Automático (LAN/VPS):** Conmutación inteligente entre el servidor en la nube y el servidor físico local. Si el Internet falla, el sistema reconecta automáticamente a la red interna en < 1 segundo.
+- **Notificaciones Refinadas:** Centro de notificaciones con paginación, filtros avanzados y acciones de aprobación directa desde el dropdown.
+- **Visualización de Fechas Realtime:** Integración de marcas de tiempo formateadas y calendarios visuales en alertas y registros históricos.
 - **Notificaciones Push:** Sistema de alertas en tiempo real para pagos, mora, clientes y eventos críticos del sistema, con soporte para acciones interactivas.
 
 ---
