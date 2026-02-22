@@ -1882,27 +1882,9 @@ const VistaCobrador = () => {
                 <div className="flex items-center gap-2 text-sm text-slate-500">
                   <span className="font-medium text-slate-700">Cobrador</span>
                   <span>•</span>
-                  <span>{userSession.rutaAsignada || 'Ruta Norte'}</span>
+                  <span>{rutaActual?.nombre || userSession.rutaAsignada || 'Cargando ruta...'}</span>
                 </div>
               </div>
-            </div>
-
-            {/* Acciones Rápidas del Header */}
-            <div className="flex items-center gap-3">
-              <button 
-                onClick={() => router.push('/cobranzas/notificaciones')}
-                className="relative p-3 bg-white border border-slate-200 rounded-2xl text-slate-600 hover:text-blue-600 hover:bg-blue-50 transition-all shadow-sm group"
-              >
-                <Bell className="h-6 w-6" />
-                {unreadCount > 0 && (
-                  <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center">
-                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-orange-400 opacity-75"></span>
-                    <span className="relative inline-flex h-5 w-5 items-center justify-center rounded-full bg-orange-500 text-[10px] font-bold text-white">
-                      {unreadCount}
-                    </span>
-                  </span>
-                )}
-              </button>
             </div>
           </div>
         </header>
