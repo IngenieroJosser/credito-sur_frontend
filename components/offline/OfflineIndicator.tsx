@@ -13,7 +13,9 @@ import {
   ChevronDown,
   Download,
   Clock,
+  Trash2,
 } from 'lucide-react';
+import { syncManager } from '@/lib/offline/syncManager';
 import { useOffline } from '@/hooks/useOffline';
 import { useAutoSync } from '@/hooks/use-auto-sync';
 import { offlineQueue } from '@/lib/offline/offlineQueue';
@@ -73,6 +75,14 @@ export default function OfflineIndicator() {
     if (result) {
       setShowResult(true);
       setTimeout(() => setShowResult(false), 5000);
+    }
+  };
+
+  const handleClear = async () => {
+    if (confirm('¿Estás seguro de que deseas limpiar TODOS los datos locales? Esto eliminará el cache de clientes, préstamos y rutas, pero conservará las operaciones pendientes de envío.')) {
+      await syncManager.clearLocalData();
+      alert('Datos locales limpiados con éxito. Se recomienda recargar la página.');
+      window.location.reload();
     }
   };
 
@@ -142,6 +152,13 @@ export default function OfflineIndicator() {
                   title="Sincronizar ahora"
                 >
                   <CloudUpload className={`h-3.5 w-3.5 ${isSyncing ? 'animate-pulse' : ''}`} />
+                </button>
+                <button
+                  onClick={handleClear}
+                  className="p-1.5 rounded-lg bg-rose-50 text-rose-600 hover:bg-rose-100 transition-colors"
+                  title="Limpiar cache local (Emergencia)"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
                 </button>
               </div>
             </div>

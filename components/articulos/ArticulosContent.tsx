@@ -37,15 +37,18 @@ import {
   DollarSign,
   Eye,
   Pencil,
-  XCircle
+  XCircle,
+  Bell
 } from 'lucide-react'
 import { formatCOPInputValue, formatCurrency, parseCOPInputToNumber } from '@/lib/utils'
 import { inventarioService, Producto as BackendProducto, EstadisticasInventario } from '@/services/inventario-service'
 import { useNotification } from '@/components/providers/NotificationProvider'
+import { useNotificaciones } from '@/components/providers/NotificacionesProvider'
 import { categoriasService, Categoria } from '@/services/categorias-service'
 import SelectCategoria from '@/components/ui/SelectCategoria'
 import AnimacionCarga from '@/components/ui/AnimacionCarga'
 import { usePermission } from '@/hooks/usePermission'
+import { useRouter } from 'next/navigation'
 
 // Interfaces
 interface PrecioCuota {
@@ -96,6 +99,8 @@ export default function ArticulosContent() {
   const [categorias, setCategorias] = useState<Categoria[]>([])
   const [statsBase, setStatsBase] = useState<EstadisticasInventario | null>(null)
   const { showNotification } = useNotification()
+  const { unreadCount } = useNotificaciones()
+  const router = useRouter()
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {

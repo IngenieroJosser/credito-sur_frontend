@@ -39,6 +39,7 @@ export interface FiltrosPrestamos {
   estado?: string;
   ruta?: string;
   search?: string;
+  tipo?: string;
   page?: number;
   limit?: number;
 }
@@ -76,6 +77,7 @@ export const prestamosService = {
     if (filtros?.estado) params.append('estado', filtros.estado);
     if (filtros?.ruta) params.append('ruta', filtros.ruta);
     if (filtros?.search) params.append('search', filtros.search);
+    if (filtros?.tipo) params.append('tipo', filtros.tipo);
     if (filtros?.page) params.append('page', filtros.page.toString());
     if (filtros?.limit) params.append('limit', filtros.limit.toString());
     
@@ -227,4 +229,3 @@ export const prestamosService = {
     return apiRequest('PATCH', `/loans/${id}`, data);
   }
 };
-

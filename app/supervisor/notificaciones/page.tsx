@@ -20,6 +20,8 @@ import {
 import FiltroRuta from '@/components/filtros/FiltroRuta'
 import SolicitudDetalleModal, { SolicitudData } from '@/components/dashboards/shared/SolicitudDetalleModal'
 import { notificacionesService, type Notificacion as NotificacionBase } from '@/services/notificaciones-service'
+import EditarPrestamoModal from '@/components/prestamos/EditarPrestamoModal'
+import { useNotificaciones } from '@/components/providers/NotificacionesProvider'
 
 // Extender la interfaz base para supervisor
 interface Notificacion extends NotificacionBase {
@@ -34,39 +36,19 @@ export default function NotificacionesSupervisorPage() {
   const [tipoFilter, setTipoFilter] = useState<'TODOS' | Notificacion['tipo']>('TODOS')
   const [filterRuta, setFilterRuta] = useState<string | null>(null)
   const [search, setSearch] = useState('')
-  const [notificacionesState, setNotificacionesState] = useState<Notificacion[]>([])
-  const [isLoading, setIsLoading] = useState(true)
+  const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [selectedSolicitud, setSelectedSolicitud] = useState<SolicitudData | null>(null)
+  const [selectedPrestamoId, setSelectedPrestamoId] = useState<string | null>(null)
 
-  useEffect(() => {
-    const cargarNotificaciones = async () => {
-      try {
-        const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null
-        if (!token) {
-          setError('No hay sesión activa. Por favor, inicia sesión.')
-          setIsLoading(false)
-          return
-        }
+  const { 
+    notificaciones: globalNotifs,
+    marcarTodasComoLeidas,
+    marcarComoLeida
+  } = useNotificaciones()
 
-        const notifs = await notificacionesService.obtenerTodas()
-        setNotificacionesState(notifs as Notificacion[])
-        setError(null)
-      } catch (err) {
-        console.error('Error cargando notificaciones:', err)
-        setError('No se pudieron cargar las notificaciones. Verifica tu conexión.')
-      } finally {
-        setIsLoading(false)
-      }
-    }
-    
-    cargarNotificaciones()
-  }, [])
-
-  // Reset state on mount can be handled by standard initialization or simpler logic.
-  // Removing useEffect to fix lint error causing build block.
-
-  const notificaciones = notificacionesState
+  // --- LÓGICA DE FILTRADO ---
+  const notificaciones = (globalNotifs as Notificacion[])
     .filter((n) => {
       if (filter === 'TODAS') return true;
       if (filter === 'NO_LEIDAS') return !n.leida;
@@ -110,6 +92,14 @@ export default function NotificacionesSupervisorPage() {
    * If it's a real Solicitud, it uses the details. Otherwise, creates a view-only representation.
    */
   const handleActionClick = (notif: Notificacion) => {
+     const isPrestamo = notif.tipo === 'PRESTAMO' || (notif as any).metadata?.tipoAprobacion === 'NUEVO_PRESTAMO' || (notif as any).approvalType === 'NUEVO_PRESTAMO';
+     const prestamoId = (notif.tipo === 'PRESTAMO' ? notif.entidadId : (notif as any).metadata?.prestamoId) || notif.entidadId;
+
+     if (isPrestamo && prestamoId) {
+       setSelectedPrestamoId(prestamoId);
+       return;
+     }
+
      let dataToView: SolicitudData;
 
      if (notif.solicitudDetails) {
@@ -170,7 +160,7 @@ export default function NotificacionesSupervisorPage() {
             
             <div className="flex gap-3">
                <button
-                 onClick={() => setNotificacionesState((prev) => prev.map((n) => ({ ...n, leida: true })))}
+                 onClick={() => marcarTodasComoLeidas()}
                  className="px-4 py-2 bg-white border border-slate-200 rounded-xl text-slate-600 font-bold hover:bg-slate-50 hover:text-blue-600 transition-colors shadow-sm flex items-center gap-2"
                >
                  <CheckCircle2 className="h-4 w-4" />
@@ -318,11 +308,7 @@ export default function NotificacionesSupervisorPage() {
                         </button>
                         
                         <button
-                          onClick={() =>
-                            setNotificacionesState((prev) =>
-                              prev.map((n) => (n.id === notif.id ? { ...n, leida: true } : n))
-                            )
-                          }
+                          onClick={() => marcarComoLeida(notif.id)}
                           className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-colors"
                           title="Marcar como leída"
                           type="button"
@@ -368,6 +354,15 @@ export default function NotificacionesSupervisorPage() {
         onResolve={() => {}} // No-op, because readOnly hides actions
         readOnly={true}
       />
+
+      {/* Modal de Préstamo */}
+      {selectedPrestamoId && (
+        <EditarPrestamoModal
+          id={selectedPrestamoId}
+          onClose={() => setSelectedPrestamoId(null)}
+          onSuccess={() => setSelectedPrestamoId(null)}
+        />
+      )}
     </div>
   )
 }

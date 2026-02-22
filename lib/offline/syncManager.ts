@@ -135,7 +135,7 @@ export const syncManager = {
         montoMora: c.montoMora || 0,
       }));
 
-      await offlineStore.saveMany('clientes', clientes);
+      await offlineStore.saveMany('clientes', clientes, true);
       await trackOfflineEvent('download', { storeName: 'clientes', recordCount: clientes.length });
       console.log(`[Offline Sync] Descarga de clientes completada: ${clientes.length} registros`);
       return clientes.length;
@@ -190,7 +190,15 @@ export const syncManager = {
         fechaFin: p.fechaFin || '',
       }));
 
-      await offlineStore.saveMany('prestamos', prestamos);
+      // Filtrar para guardar solo préstamos activos o en mora (excluir FINALIZADO, ARCHIVADO, RECHAZADO, etc.)
+      const prestamosFiltrados = prestamos.filter(p => 
+        p.estado === 'ACTIVO' || 
+        p.estado === 'VENCIDO' || 
+        p.estado === 'EN_MORA' || 
+        p.estado === 'PENDIENTE'
+      );
+
+      await offlineStore.saveMany('prestamos', prestamosFiltrados, true);
       await trackOfflineEvent('download', { storeName: 'prestamos', recordCount: prestamos.length });
 
       // Guardar cuotas de cada préstamo
@@ -251,7 +259,7 @@ export const syncManager = {
         supervisorId: r.supervisorId || null,
       }));
 
-      await offlineStore.saveMany('rutas', rutas);
+      await offlineStore.saveMany('rutas', rutas, true);
       await trackOfflineEvent('download', { storeName: 'rutas', recordCount: rutas.length });
       return rutas.length;
     } catch (err) {
@@ -260,14 +268,25 @@ export const syncManager = {
     }
   },
 
+  // Limpiar todos los datos locales para forzar una resincronización limpia
+  async clearLocalData(): Promise<void> {
+    await offlineStore.clearAll();
+    console.log('[Offline Sync] Datos locales limpiados');
+  },
+
   // Descargar todos los datos para uso offline
   async downloadAll(): Promise<{ clientes: number; prestamos: number; rutas: number }> {
-    const [clientes, prestamos, rutas] = await Promise.all([
-      this.downloadClientes(),
-      this.downloadPrestamos(),
-      this.downloadRutas(),
-    ]);
-    return { clientes, prestamos, rutas };
+    try {
+      const [clientes, prestamos, rutas] = await Promise.all([
+        this.downloadClientes(),
+        this.downloadPrestamos(),
+        this.downloadRutas(),
+      ]);
+      return { clientes, prestamos, rutas };
+    } catch (err) {
+      console.error('[Offline Sync] Error crítico en downloadAll:', err);
+      return { clientes: 0, prestamos: 0, rutas: 0 };
+    }
   },
 
   // Obtener estado de sincronización

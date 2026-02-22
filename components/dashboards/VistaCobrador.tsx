@@ -93,6 +93,8 @@ import FloatingActionMenu, { FabAction } from '@/components/dashboards/shared/Fl
 import { offlineStore } from '@/lib/offline/offlineDb'
 import { enqueuePago } from '@/lib/offline/offlineQueue'
 import { pagosService } from '@/services/pagos-service'
+import { useNotificaciones } from '@/components/providers/NotificacionesProvider'
+import { Bell } from 'lucide-react'
 
 interface OperacionCaja {
   id: string
@@ -120,6 +122,7 @@ interface UserSession {
 
 
 const VistaCobrador = () => {
+  const { unreadCount } = useNotificaciones()
   const [userSession, setUserSession] = useState<UserSession | null>(null)
   const [visitaSeleccionada, setVisitaSeleccionada] = useState<string | null>(null)
   const [showPaymentModal, setShowPaymentModal] = useState(false)
@@ -539,41 +542,73 @@ const VistaCobrador = () => {
       } catch (err) {
         console.error('Error cargando datos completos de ruta:', err);
         
-        // Fallback offline: intentar cargar de IndexedDB si falla la red
+        // Fallback offline: intentar reconstruir la ruta desde IndexedDB si falla la red
         try {
-          const [offlineClientes, offlinePrestamos] = await Promise.all([
+          const [offlineRutas, offlineClientes, offlinePrestamos, offlineCuotas] = await Promise.all([
+            offlineStore.getAll<any>('rutas'),
             offlineStore.getAll<any>('clientes'),
             offlineStore.getAll<any>('prestamos'),
+            offlineStore.getAll<any>('cuotas'),
           ]);
-          if (offlineClientes.length > 0) {
-             // ... lógica offline existente ...
-             // (Simplificada para no extender demasiado el bloque)
-             const visitasOffline = offlineClientes.slice(0, 30).map((c: any, idx: number) => ({
-                 id: c.id,
-                 cliente: c.nombres + ' ' + c.apellidos,
-                 direccion: c.direccion,
-                 telefono: c.telefono,
-                 estado: 'pendiente',
-                 ordenVisita: idx + 1,
-                 cobradorId: userSession.id,
-                 periodoRuta: 'DIA',
-                 clienteId: c.id,
-                 nivelRiesgo: 'bajo',
-                 montoCuota: 0,
-                 saldoTotal: 0,
-                 horaSugerida: '09:00 AM',
-                 proximaVisita: 'Offline',
-                 prioridad: 'media'
-             } as VisitaRuta));
+
+          // Buscar la ruta del cobrador actual
+          const miRuta = offlineRutas.find(r => r.cobradorId === userSession.id);
+          
+          if (miRuta) {
+             setRutaActual(miRuta);
+             
+             // Filtrar clientes de esta ruta
+             const dataParaMapear = offlineClientes.filter(c => c.rutaId === miRuta.id);
+             
+             const visitasOffline: VisitaRuta[] = dataParaMapear.map((c: any, idx: number) => {
+                 // Buscar préstamo activo para el cliente (solo estados operativos)
+                 const p = offlinePrestamos.find(lp => 
+                   lp.clienteId === c.id && 
+                   (lp.estado === 'ACTIVO' || lp.estado === 'VENCIDO' || lp.estado === 'EN_MORA' || lp.estado === 'PENDIENTE')
+                 );
+                 
+                 const proximaCuota = p ? offlineCuotas.find(cq => cq.prestamoId === p.id && cq.estado !== 'PAGADA') : null;
+                 
+                 return {
+                     id: `offline-${c.id}`,
+                     cliente: `${c.nombres || ''} ${c.apellidos || ''}`.trim(),
+                     direccion: c.direccion || 'Sin dirección (Offline)',
+                     telefono: c.telefono || '',
+                     horaSugerida: '08:00 AM',
+                     montoCuota: Number(proximaCuota?.monto || p?.montoCuota || 0),
+                     saldoTotal: Number(p?.saldoPendiente || 0),
+                     estado: proximaCuota?.estado === 'VENCIDA' ? 'en_mora' : 'pendiente',
+                     proximaVisita: proximaCuota?.fechaVencimiento || 'Offline',
+                     ordenVisita: idx + 1,
+                     prioridad: 'media',
+                     nivelRiesgo: (c.nivelRiesgo || 'BAJO').toLowerCase() as any,
+                     cobradorId: userSession.id,
+                     periodoRuta: (p?.frecuenciaPago || 'DIARIO') as PeriodoRuta,
+                     clienteId: c.id,
+                     prestamoId: p?.id
+                 };
+             });
+
              setVisitasBase(visitasOffline);
              setVisitasOrden(visitasOffline.map(v => v.id));
+             
+             // KPIs Offline básicos
+             const totalMora = visitasOffline.filter(v => v.estado === 'en_mora').length;
+             setRutaStats({
+               recaudo: 0,
+               meta: visitasOffline.reduce((sum, v) => sum + v.montoCuota, 0),
+               eficiencia: 0,
+               gastos: 0,
+               base: 0
+             });
           } else {
              setVisitasBase([]);
              setVisitasOrden([]);
           }
-        } catch { 
-           setVisitasBase([]);
-           setVisitasOrden([]); 
+        } catch (offlineErr) {
+          console.error('Error crítico en el fallback offline:', offlineErr);
+          setVisitasBase([]);
+          setVisitasOrden([]); 
         }
       } finally {
         setIsLoading(false);
@@ -1850,6 +1885,24 @@ const VistaCobrador = () => {
                   <span>{userSession.rutaAsignada || 'Ruta Norte'}</span>
                 </div>
               </div>
+            </div>
+
+            {/* Acciones Rápidas del Header */}
+            <div className="flex items-center gap-3">
+              <button 
+                onClick={() => router.push('/cobranzas/notificaciones')}
+                className="relative p-3 bg-white border border-slate-200 rounded-2xl text-slate-600 hover:text-blue-600 hover:bg-blue-50 transition-all shadow-sm group"
+              >
+                <Bell className="h-6 w-6" />
+                {unreadCount > 0 && (
+                  <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center">
+                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-orange-400 opacity-75"></span>
+                    <span className="relative inline-flex h-5 w-5 items-center justify-center rounded-full bg-orange-500 text-[10px] font-bold text-white">
+                      {unreadCount}
+                    </span>
+                  </span>
+                )}
+              </button>
             </div>
           </div>
         </header>
