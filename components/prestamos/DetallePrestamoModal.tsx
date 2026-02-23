@@ -40,13 +40,15 @@ export default function DetallePrestamoModal({ id, onClose }: DetallePrestamoMod
         const principal = Number(data.monto || 0);
         const tasa = Number(data.tasaInteres || 0);
         const meses = Number(data.plazoMeses || 0);
+        const cuotaInicial = Number(data.cuotaInicial || 0);
         let interesTotal = Number(data.interesTotal || 0);
 
         if (interesTotal === 0 && tasa > 0 && meses > 0) {
           interesTotal = (principal * tasa * meses) / 100;
         }
 
-        const montoTotal = principal + interesTotal;
+        const isArticle = (data.tipoPrestamo || '').toUpperCase() === 'ARTICULO';
+        const montoTotal = isArticle ? (principal + cuotaInicial) : (principal + interesTotal);
         const saldoPendiente = Number(data.saldoPendiente || 0);
 
         setPrestamo({
@@ -58,7 +60,7 @@ export default function DetallePrestamoModal({ id, onClose }: DetallePrestamoMod
           clienteDireccion: data.cliente?.direccion || data.clienteDireccion || '',
           montoPrestamo: principal,
           montoTotal: montoTotal,
-          saldoPendiente: (saldoPendiente === principal && interesTotal > 0) ? montoTotal : saldoPendiente,
+          saldoPendiente: (saldoPendiente === principal && interesTotal > 0 && !isArticle) ? montoTotal : saldoPendiente,
           tasaInteres: tasa,
           interesTotal: interesTotal,
           capitalPagado: data.capitalPagado != null ? Number(data.capitalPagado) : undefined,
@@ -69,7 +71,15 @@ export default function DetallePrestamoModal({ id, onClose }: DetallePrestamoMod
           fechaVencimiento: data.fechaFin || data.fechaVencimiento || '',
           estado: data.estado || 'ACTIVO',
           tipoAmortizacion: data.tipoAmortizacion || 'INTERES_SIMPLE',
-          producto: data.tipoPrestamo || data.producto || 'Préstamo',
+          tipoPrestamo: (data.tipoPrestamo || '').toUpperCase(),
+          cuotaInicial: cuotaInicial,
+          producto: data.producto?.nombre || data.tipoPrestamo || 'Préstamo',
+          productoInfo: data.producto ? {
+            marca: data.producto.marca,
+            modelo: data.producto.modelo,
+            serie: data.producto.serie,
+            categoria: data.producto.categoria
+          } : undefined,
           garantia: data.garantia || '',
           fotos: data.fotos || [],
           cuotas: cuotasData.map((c: any) => ({

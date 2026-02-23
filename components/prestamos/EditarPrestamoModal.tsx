@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { X, Save, Clock, Edit3, Lock, User, Loader2 } from 'lucide-react';
+import { X, Save, Clock, Edit3, Lock, User, Loader2, Package } from 'lucide-react';
 import { createPortal } from 'react-dom';
 import { useNotification } from '@/components/providers/NotificationProvider';
 import { formatCurrency } from '@/lib/utils';
@@ -34,26 +34,53 @@ export default function EditarPrestamoModal({ id, onClose, onSuccess }: EditarPr
   const [monto, setMonto] = useState(0);
   const [tasaStr, setTasaStr] = useState('');
   const [cuotasStr, setCuotasStr] = useState('');
-  const [plazoMeses, setPlazoMeses] = useState(0);  // AGREGADO: para calcular interés correcto
+  const [plazoMeses, setPlazoMeses] = useState(0);  
   const [frecuencia, setFrecuencia] = useState('MENSUAL');
   const [estado, setEstado] = useState('ACTIVO');
+  const [tipoAmortizacion, setTipoAmortizacion] = useState('INTERES_SIMPLE');
 
   // Client info from backend
   const [clienteNombre, setClienteNombre] = useState('');
   const [clienteDni, setClienteDni] = useState('');
   const [clienteTelefono, setClienteTelefono] = useState('');
   const [numeroPrestamo, setNumeroPrestamo] = useState('');
+  const [tipoPrestamo, setTipoPrestamo] = useState('EFECTIVO');
+  const [productoNombre, setProductoNombre] = useState('');
+  
+  // New editable fields
+  const [cuotaInicial, setCuotaInicial] = useState(0);
+  const [fechaInicio, setFechaInicio] = useState('');
+  const [notas, setNotas] = useState('');
+  const [garantia, setGarantia] = useState('');
 
-  // Original values for comparison (set after fetch)
-  const originalRef = useRef({ monto: 0, tasa: 0, cuotas: 0, frecuencia: 'MENSUAL', estado: 'ACTIVO' });
+  // Original values for comparison
+  const originalRef = useRef<any>({ 
+    monto: 0, tasa: 0, cuotas: 0, frecuencia: 'MENSUAL', estado: 'ACTIVO',
+    cuotaInicial: 0, fechaInicio: '', notas: '', garantia: '', 
+    tipoAmortizacion: 'INTERES_SIMPLE', plazoMeses: 0
+  });
 
   const tasa = Number(tasaStr) || 0;
   const cuotas = Number(cuotasStr) || 0;
-  const hasChanges = monto !== originalRef.current.monto || tasa !== originalRef.current.tasa || cuotas !== originalRef.current.cuotas || frecuencia !== originalRef.current.frecuencia || estado !== originalRef.current.estado;
 
-  // Computed preview - CORREGIDO: multiplicar por plazoMeses
-  const interesTotal = (monto * tasa * plazoMeses) / 100;
-  const totalRecaudar = monto + interesTotal;
+  const hasChanges = monto !== originalRef.current.monto 
+    || tasa !== originalRef.current.tasa 
+    || cuotas !== originalRef.current.cuotas 
+    || frecuencia !== originalRef.current.frecuencia 
+    || estado !== originalRef.current.estado
+    || cuotaInicial !== originalRef.current.cuotaInicial
+    || fechaInicio !== originalRef.current.fechaInicio
+    || notas !== originalRef.current.notas
+    || garantia !== originalRef.current.garantia
+    || tipoAmortizacion !== originalRef.current.tipoAmortizacion
+    || plazoMeses !== originalRef.current.plazoMeses;
+
+  const isArticle = tipoPrestamo?.toUpperCase() === 'ARTICULO';
+  const themeColor = isArticle ? 'orange' : 'blue';
+
+  // Computed preview
+  const interesTotal = isArticle ? 0 : (monto * tasa * (plazoMeses || 1)) / 100;
+  const totalRecaudar = isArticle ? monto : monto + interesTotal;
   const cobroPorCuota = cuotas > 0 ? totalRecaudar / cuotas : 0;
 
   useEffect(() => {
@@ -71,39 +98,35 @@ export default function EditarPrestamoModal({ id, onClose, onSuccess }: EditarPr
         const data = await prestamosService.obtenerPrestamoPorId(id);
         const m = Number(data.monto) || 0;
         const t = Number(data.tasaInteres) || 0;
-        const c = Number(data.cantidadCuotas) || 0;  // CORREGIDO: Leer cantidadCuotas, no plazoMeses
-        const p = Number(data.plazoMeses) || 0;  // Guardamos plazoMeses para usar en el cálculo
+        const c = Number(data.cantidadCuotas) || 0;
+        const p = Number(data.plazoMeses) || 0;
         const f = data.frecuenciaPago || 'MENSUAL';
         const e = data.estado || 'ACTIVO';
-        setMonto(m); setTasaStr(String(t)); setCuotasStr(String(c)); setPlazoMeses(p);  // CORREGIDO: Guardar ambos valores
-        setFrecuencia(f); setEstado(e);
+        const tm = String(data.tasaInteresMora || 2);
+        const ci = Number(data.cuotaInicial || 0);
+        const fi = data.fechaInicio ? new Date(data.fechaInicio).toISOString().split('T')[0] : '';
+        const n = data.notas || '';
+        const g = data.garantia || '';
+        const ta = data.tipoAmortizacion || 'INTERES_SIMPLE';
+
+        setMonto(m); setTasaStr(String(t)); setCuotasStr(String(c)); setPlazoMeses(p);
+        setFrecuencia(f); setEstado(e); setTipoAmortizacion(ta);
+        setCuotaInicial(ci); setFechaInicio(fi); setNotas(n); setGarantia(g);
+        setTipoPrestamo(data.tipoPrestamo || 'EFECTIVO');
+        setProductoNombre(data.producto?.nombre || '');
         setNumeroPrestamo(data.numeroPrestamo || id);
         setClienteNombre(data.cliente ? `${data.cliente.nombres || ''} ${data.cliente.apellidos || ''}`.trim() : '');
         setClienteDni(data.cliente?.dni || '');
         setClienteTelefono(data.cliente?.telefono || '');
-        originalRef.current = { monto: m, tasa: t, cuotas: c, frecuencia: f, estado: e };
+        
+        originalRef.current = { 
+          monto: m, tasa: t, cuotas: c, frecuencia: f, estado: e,
+          cuotaInicial: ci, fechaInicio: fi, notas: n, garantia: g,
+          tipoAmortizacion: ta, plazoMeses: p
+        };
       } catch (err) {
         console.error('Error cargando préstamo para editar:', err);
-        // Fallback offline
-        try {
-          const offP = await offlineStore.getById<any>('prestamos', id);
-          if (offP) {
-            const m = Number(offP.monto) || 0;
-            const t = Number(offP.tasaInteres) || 0;
-            const c = Number(offP.cantidadCuotas) || 0;  // CORREGIDO: Leer cantidadCuotas
-            const f = offP.frecuenciaPago || 'MENSUAL';
-            const e = offP.estado || 'ACTIVO';
-            setMonto(m); setTasaStr(String(t)); setCuotasStr(String(c));  // CORREGIDO: Usar c
-            setFrecuencia(f); setEstado(e);
-            setNumeroPrestamo(offP.numeroPrestamo || id);
-            setClienteNombre(offP.clienteNombre || '');
-            originalRef.current = { monto: m, tasa: t, cuotas: c, frecuencia: f, estado: e };
-          } else {
-            showNotification('error', 'No se pudo cargar el préstamo', 'Error');
-          }
-        } catch {
-          showNotification('error', 'No se pudo cargar el préstamo', 'Error');
-        }
+        showNotification('error', 'No se pudo cargar el préstamo', 'Error');
       } finally {
         setFetching(false);
       }
@@ -122,11 +145,17 @@ export default function EditarPrestamoModal({ id, onClose, onSuccess }: EditarPr
       await prestamosService.actualizarPrestamo(id, {
         monto,
         tasaInteres: tasa,
-        plazoMeses: cuotas,
+        cantidadCuotas: cuotas,
         frecuenciaPago: frecuencia,
         estado,
-      });
-      showNotification('success', 'El préstamo ha sido actualizado correctamente', 'Préstamo Actualizado');
+        cuotaInicial: cuotaInicial,
+        fechaInicio: fechaInicio,
+        notas: notas,
+        garantia: garantia,
+        tipoAmortizacion: tipoAmortizacion as any,
+        plazoMeses: plazoMeses
+      } as any);
+      showNotification('success', 'El crédito ha sido actualizado correctamente', 'Éxito');
       if (onSuccess) onSuccess();
       handleClose();
     } catch (err) {
@@ -140,7 +169,9 @@ export default function EditarPrestamoModal({ id, onClose, onSuccess }: EditarPr
   const getEstadoColor = (e: string) => {
     switch (e) {
       case 'ACTIVO': return 'bg-emerald-100/50 text-emerald-700 border-emerald-200';
-      case 'PENDIENTE': return 'bg-amber-100/50 text-amber-700 border-amber-200';
+      case 'PENDIENTE':
+      case 'PENDIENTE_APROBACION':
+        return 'bg-amber-100 text-amber-900 border-amber-400 shadow-[0_0_15px_rgba(251,191,36,0.3)] ring-2 ring-amber-200 animate-pulse';
       case 'PAGADO': return 'bg-blue-100/50 text-blue-700 border-blue-200';
       case 'EN_MORA': return 'bg-rose-100/50 text-rose-700 border-rose-200';
       default: return 'bg-slate-100 text-slate-700 border-slate-200';
@@ -152,176 +183,243 @@ export default function EditarPrestamoModal({ id, onClose, onSuccess }: EditarPr
   return createPortal(
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm" onClick={handleClose}>
       <div
-        className={`bg-white rounded-[2rem] shadow-2xl w-full max-w-2xl overflow-hidden border border-slate-100 transition-all duration-200 ${visible ? 'opacity-100 scale-100' : 'opacity-0 scale-95'}`}
+        className={`bg-white rounded-[2rem] shadow-2xl w-full max-w-2xl overflow-hidden border border-slate-100 transition-all duration-300 ${visible ? 'opacity-100 scale-100' : 'opacity-0 scale-95'}`}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-white">
+        <div className={`px-6 py-4 border-b flex justify-between items-center transition-colors duration-500 ${isArticle ? 'bg-orange-50/50 border-orange-100' : 'bg-blue-50/50 border-blue-100'}`}>
           <div className="flex items-center gap-3">
-            <h3 className="text-xs font-black text-slate-900 flex items-center gap-2 uppercase tracking-widest">
-              <Edit3 className="h-4 w-4 text-blue-600" />
-              Editar Crédito
-            </h3>
-            <span className="text-[10px] font-bold text-slate-400 bg-slate-50 px-2 py-0.5 rounded-full border border-slate-100">{numeroPrestamo || id}</span>
+            <div className={`w-8 h-8 rounded-xl flex items-center justify-center shadow-sm ${isArticle ? 'bg-orange-500 text-white' : 'bg-blue-600 text-white'}`}>
+              {isArticle ? <Package className="h-4 w-4" /> : <Edit3 className="h-4 w-4" />}
+            </div>
+            <div>
+              <h3 className="text-[10px] font-black text-slate-900 uppercase tracking-[0.2em] leading-none mb-1">
+                {isArticle ? 'Editar Crédito de Artículo' : 'Editar Préstamo de Dinero'}
+              </h3>
+              <span className="text-[10px] font-bold text-slate-400">{numeroPrestamo || id}</span>
+            </div>
           </div>
           <div className="flex items-center gap-2">
             <button
               onClick={() => setIsEditing(!isEditing)}
-              className={`px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${
+              className={`px-3 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${
                 isEditing
-                  ? 'bg-orange-500 text-white shadow-sm'
-                  : 'bg-blue-600 text-white shadow-sm hover:bg-blue-700'
+                  ? 'bg-slate-900 text-white shadow-lg'
+                  : `bg-white border text-${themeColor}-600 border-${themeColor}-200 hover:bg-${themeColor}-50`
               }`}
             >
               {isEditing ? (
-                <span className="flex items-center gap-1"><Lock className="h-3 w-3" /> Bloquear</span>
+                <span className="flex items-center gap-1.5"><Lock className="h-3 w-3" /> Bloquear</span>
               ) : (
-                <span className="flex items-center gap-1"><Edit3 className="h-3 w-3" /> Editar</span>
+                <span className="flex items-center gap-1.5"><Edit3 className="h-3 w-3" /> Habilitar Edición</span>
               )}
             </button>
-            <button onClick={handleClose} className="p-1.5 hover:bg-slate-100 rounded-full transition-colors text-slate-400">
+            <button onClick={handleClose} className="p-2 hover:bg-white rounded-full transition-colors text-slate-400">
               <X className="h-4 w-4" />
             </button>
           </div>
         </div>
 
-        {/* Content - 2 column layout */}
-        <div className="max-h-[75vh] overflow-y-auto">
+        {/* Content */}
+        <div className="max-h-[75vh] overflow-y-auto bg-white/50">
           {fetching ? (
             <div className="flex flex-col items-center justify-center py-16 gap-3">
-              <Loader2 className="w-8 h-8 text-blue-600 animate-spin" />
-              <p className="text-sm font-medium text-slate-500">Cargando datos del crédito...</p>
+              <Loader2 className={`w-8 h-8 text-${themeColor}-600 animate-spin`} />
+              <p className="text-sm font-bold text-slate-400 uppercase tracking-widest">Sincronizando datos...</p>
             </div>
           ) : (
-          <div className="p-5 grid grid-cols-2 gap-4">
-            {/* LEFT COLUMN: Cliente + Estado */}
-            <div className="space-y-4">
+          <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* LEFT COLUMN: Cliente + Estado + Resumen */}
+            <div className="space-y-6">
               {/* Bloque Cliente */}
-              <div className="p-4 rounded-2xl border bg-slate-50/50 border-slate-100">
-                <p className="text-[8px] font-black uppercase tracking-widest text-slate-500 mb-3 block border-b border-slate-200/50 pb-1">Información del Cliente</p>
-                <div className="flex items-start gap-3">
-                  <div className="p-2 rounded-xl bg-purple-50 border border-purple-100 text-purple-600">
-                    <User className="h-5 w-5" />
+              <div className="p-5 rounded-3xl border bg-white border-slate-100 shadow-sm relative overflow-hidden group">
+                <div className={`absolute top-0 right-0 w-24 h-24 -mr-8 -mt-8 rounded-full opacity-[0.03] transition-transform duration-700 group-hover:scale-150 ${isArticle ? 'bg-orange-500' : 'bg-blue-500'}`}></div>
+                <p className="text-[9px] font-black uppercase tracking-[0.15em] text-slate-400 mb-4 flex items-center gap-2">
+                  <User className={`w-3 h-3 ${isArticle ? 'text-orange-500' : 'text-blue-500'}`} />
+                  Titular del Crédito
+                </p>
+                <div className="space-y-4">
+                  <div>
+                    <label className="text-[8px] text-slate-400 uppercase font-black tracking-widest block mb-1">Nombre Completo</label>
+                    <p className="text-sm font-black text-slate-900 leading-none">{clienteNombre || '—'}</p>
                   </div>
-                  <div className="flex-1 space-y-2">
+                  <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <label className="text-[8px] text-slate-500 uppercase font-bold block mb-0.5">Nombre</label>
-                      <p className="text-[13px] font-black text-slate-900 leading-none">{clienteNombre || '—'}</p>
+                      <label className="text-[8px] text-slate-400 uppercase font-black tracking-widest block mb-1">Cédula</label>
+                      <p className="text-[11px] font-bold text-slate-700">{clienteDni || '—'}</p>
                     </div>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <label className="text-[8px] text-slate-500 uppercase font-bold block mb-0.5">Cédula</label>
-                        <p className="text-[11px] font-black text-slate-800">{clienteDni || '—'}</p>
-                      </div>
-                      <div>
-                        <label className="text-[8px] text-slate-500 uppercase font-bold block mb-0.5">Teléfono</label>
-                        <p className="text-[11px] font-black text-slate-800">{clienteTelefono || '—'}</p>
-                      </div>
+                    <div>
+                      <label className="text-[8px] text-slate-400 uppercase font-black tracking-widest block mb-1">Contacto</label>
+                      <p className="text-[11px] font-bold text-slate-700">{clienteTelefono || '—'}</p>
                     </div>
                   </div>
                 </div>
               </div>
 
               {/* Estado Block */}
-              <div className={`p-4 rounded-2xl border transition-all duration-300 ${isEditing ? 'bg-white border-orange-200 shadow-lg' : 'bg-slate-50/50 border-slate-100'}`}>
-                <p className="text-[8px] font-black uppercase tracking-widest text-slate-500 mb-3 block border-b border-slate-200/50 pb-1">Estado del Crédito</p>
+              <div className={`p-5 rounded-3xl border transition-all duration-300 ${isEditing ? 'bg-white border-orange-200 shadow-xl' : 'bg-white border-slate-100 shadow-sm'}`}>
+                <p className="text-[9px] font-black uppercase tracking-[0.15em] text-slate-400 mb-4 flex items-center gap-2">
+                  <Clock className={`w-3 h-3 ${isArticle ? 'text-orange-500' : 'text-blue-500'}`} />
+                  Estado del Crédito
+                </p>
                 {isEditing ? (
                   <div className="grid grid-cols-2 gap-2">
-                    {['ACTIVO', 'PENDIENTE', 'PAGADO', 'EN_MORA'].map((e) => (
+                    {['ACTIVO', 'PENDIENTE_APROBACION'].map((e) => (
                       <button
                         key={e}
                         onClick={() => setEstado(e)}
-                        className={`py-2 px-3 rounded-xl text-[10px] font-black uppercase tracking-widest border transition-all ${
-                          estado === e
-                            ? `${getEstadoColor(e)} ring-2 ring-offset-1 ring-blue-400`
-                            : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50'
+                        className={`py-2 px-3 rounded-2xl text-[9px] font-black uppercase tracking-widest border transition-all ${
+                          estado === e || (estado === 'PENDIENTE' && e === 'PENDIENTE_APROBACION')
+                            ? `${getEstadoColor(e)} shadow-md ring-2 ring-slate-100`
+                            : 'bg-slate-50 border-slate-100 text-slate-400 hover:bg-white hover:border-slate-200'
                         }`}
                       >
-                        {e.replace('_', ' ')}
+                        {e === 'PENDIENTE_APROBACION' ? 'PENDIENTE' : e}
                       </button>
                     ))}
                   </div>
                 ) : (
                   <div className="flex items-center gap-2">
-                    <span className={`px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest border ${getEstadoColor(estado)}`}>
-                      {estado.replace('_', ' ')}
+                    <span className={`px-4 py-2 rounded-2xl text-[10px] font-black uppercase tracking-widest border ${getEstadoColor(estado)}`}>
+                      {estado === 'PENDIENTE_APROBACION' ? 'Pendiente de Aprobación' : estado.replace(/_/g, ' ')}
                     </span>
                   </div>
                 )}
               </div>
 
+               {/* Resumen Proyectado (Nueva Ubicación) */}
+               <div className={`p-5 rounded-[2rem] border-2 border-dashed shadow-inner ${isArticle ? 'bg-orange-50/50 border-orange-100' : 'bg-emerald-50/50 border-emerald-100'}`}>
+                <div className="flex flex-col gap-4">
+                  <div className="flex justify-between items-start border-b border-black/5 pb-3">
+                    <div className="space-y-1 min-w-0 flex-1">
+                      <label className={`text-[8px] font-black uppercase tracking-[0.2em] ${isArticle ? 'text-orange-400' : 'text-emerald-500'}`}>Cuota Proyectada</label>
+                      <p className={`text-xl font-black tabular-nums leading-none truncate ${isArticle ? 'text-orange-900' : 'text-emerald-900'}`}>{formatCurrency(cobroPorCuota)}</p>
+                      <p className={`text-[8px] font-bold uppercase tracking-widest mt-1 ${isArticle ? 'text-orange-600' : 'text-emerald-600'}`}>
+                        Frecuencia {frecuencia.toLowerCase()}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="space-y-1 min-w-0 flex-1">
+                    <label className={`text-[8px] font-black uppercase tracking-[0.2em] ${isArticle ? 'text-orange-400' : 'text-emerald-500'}`}>{isArticle ? 'Total a Financiar' : 'Total al Finalizar'}</label>
+                    <p className={`text-xl font-black tabular-nums leading-none truncate ${isArticle ? 'text-orange-900' : 'text-emerald-900'}`}>{formatCurrency(isArticle ? (totalRecaudar - cuotaInicial) : totalRecaudar)}</p>
+                    <div className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full mt-1.5 ${isArticle ? 'bg-orange-100 text-orange-700' : 'bg-emerald-100 text-emerald-700'}`}>
+                      <div className="w-1 h-1 rounded-full bg-current animate-pulse"></div>
+                      <span className="text-[9px] font-black uppercase whitespace-nowrap">{isArticle ? `Financiando con ${formatCurrency(cuotaInicial)} inicial` : `Gana +${formatCurrency(interesTotal)}`}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
               {/* Changes indicator */}
               {hasChanges && (
-                <div className="p-3 bg-amber-50 rounded-xl border border-amber-200 border-dashed">
-                  <p className="text-[9px] font-black text-amber-700 uppercase tracking-widest text-center">
-                    ⚡ Cambios detectados
+                <div className={`p-4 rounded-2xl border-2 border-dashed flex items-center justify-center gap-3 animate-pulse ${isArticle ? 'bg-orange-50 border-orange-200' : 'bg-blue-50 border-blue-200'}`}>
+                  <div className={`w-2 h-2 rounded-full ${isArticle ? 'bg-orange-500' : 'bg-blue-600'}`}></div>
+                  <p className={`text-[10px] font-black uppercase tracking-widest ${isArticle ? 'text-orange-700' : 'text-blue-700'}`}>
+                    Cambios Pendientes
                   </p>
                 </div>
               )}
             </div>
 
             {/* RIGHT COLUMN: Financial Block */}
-            <div className="space-y-4">
-              <div className={`p-4 rounded-2xl border transition-all duration-300 ${isEditing ? 'bg-white border-blue-200 shadow-lg' : 'bg-blue-50/70 border-blue-100'}`}>
-                <p className="text-[8px] font-black uppercase tracking-widest text-blue-700/70 mb-3 block border-b border-blue-200 pb-1">Condiciones Financieras</p>
-                <div className="space-y-3">
-                  {/* Capital */}
-                  <div>
-                    <label className="text-[8px] text-blue-700 uppercase font-bold block mb-0.5">Capital</label>
+            <div className="space-y-6">
+              <div className={`p-5 rounded-3xl border transition-all duration-300 ${isEditing ? 'bg-white border-blue-200 shadow-xl' : 'bg-white border-slate-100 shadow-sm'}`}>
+                <p className="text-[9px] font-black uppercase tracking-[0.15em] text-slate-400 mb-4 flex items-center gap-2">
+                  <span className={`w-3 h-3 rounded-full flex items-center justify-center text-[8px] text-white ${isArticle ? 'bg-orange-500' : 'bg-blue-600'}`}>$</span>
+                  Parámetros del Crédito
+                </p>
+                <div className="space-y-4">
+                  <div className="space-y-1">
+                    <label className={`text-[8px] font-black uppercase tracking-widest block ${isArticle ? 'text-orange-500' : 'text-blue-600'}`}>Capital</label>
                     {isEditing ? (
-                      <input
-                        type="text"
-                        value={formatCOPInput(monto)}
-                        onChange={(e) => setMonto(parseCOP(e.target.value))}
-                        className="w-full bg-white border border-blue-200 text-slate-900 rounded-md px-2 py-1.5 text-sm font-black outline-none focus:ring-1 focus:ring-blue-400"
-                      />
+                      <div className="relative">
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold">$</span>
+                        <input
+                          type="text"
+                          value={formatCOPInput(monto)}
+                          onChange={(e) => setMonto(parseCOP(e.target.value))}
+                          className="w-full bg-slate-50 border border-slate-100 text-slate-900 rounded-2xl pl-7 pr-4 py-3 text-lg font-black outline-none focus:ring-2 focus:ring-blue-500/10 focus:bg-white transition-all shadow-inner"
+                        />
+                      </div>
                     ) : (
-                      <p className="text-2xl font-black text-slate-900 tabular-nums tracking-tighter leading-none">{formatCurrency(monto)}</p>
+                      <p className="text-3xl font-black text-slate-900 tabular-nums tracking-tighter leading-none">{formatCurrency(monto)}</p>
                     )}
                   </div>
 
-                  {/* Cuotas + Interés */}
-                  <div className="grid grid-cols-2 gap-3 pt-2 border-t border-blue-200/50">
-                    <div>
-                      <label className="text-[8px] text-blue-700 uppercase font-bold block mb-0.5">Cuotas</label>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1">
+                      <label className="text-[8px] text-slate-400 font-black uppercase tracking-widest block">N° de Cuotas</label>
                       {isEditing ? (
                         <input
                           type="text"
                           inputMode="numeric"
                           value={cuotasStr}
                           onChange={(e) => setCuotasStr(e.target.value.replace(/[^0-9]/g, ''))}
-                          placeholder="0"
-                          className="w-full bg-white border border-blue-200 text-slate-900 rounded-md px-2 py-1.5 text-sm font-black outline-none focus:ring-1 focus:ring-blue-400"
+                          className="w-full bg-slate-50 border border-slate-100 text-slate-900 rounded-2xl px-4 py-2.5 text-base font-black outline-none focus:ring-2 focus:ring-blue-500/10 focus:bg-white"
                         />
                       ) : (
-                        <p className="text-base font-black text-slate-900 leading-none">{cuotas} <span className="text-[9px] font-black text-slate-500">CUOTAS</span></p>
+                        <p className="text-lg font-black text-slate-900">{cuotas} <span className="text-[10px] text-slate-400 font-bold">CUOTAS</span></p>
                       )}
                     </div>
-                    <div>
-                      <label className="text-[8px] text-blue-700 uppercase font-bold block mb-0.5">Interés (%)</label>
-                      {isEditing ? (
-                        <input
-                          type="text"
-                          inputMode="decimal"
-                          value={tasaStr}
-                          onChange={(e) => setTasaStr(e.target.value.replace(/[^0-9.]/g, ''))}
-                          placeholder="0"
-                          className="w-full bg-white border border-blue-200 text-slate-900 rounded-md px-2 py-1.5 text-sm font-black outline-none focus:ring-1 focus:ring-blue-400"
-                        />
-                      ) : (
-                        <p className="text-base font-black text-slate-900 leading-none">{tasa}%</p>
-                      )}
-                    </div>
+                    {!isArticle && (
+                      <div className="space-y-1">
+                        <label className="text-[8px] text-slate-400 font-black uppercase tracking-widest block">Tasa Interés (%)</label>
+                        {isEditing ? (
+                          <div className="relative">
+                            <input
+                              type="text"
+                              inputMode="decimal"
+                              value={tasaStr}
+                              onChange={(e) => setTasaStr(e.target.value.replace(/[^0-9.]/g, ''))}
+                              className="w-full bg-slate-50 border border-slate-100 text-slate-900 rounded-2xl px-4 py-2.5 text-base font-black outline-none focus:ring-2 focus:ring-blue-500/10 focus:bg-white"
+                            />
+                            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold">%</span>
+                          </div>
+                        ) : (
+                          <p className="text-lg font-black text-slate-900">{tasa}%</p>
+                        )}
+                      </div>
+                    )}
                   </div>
 
-                  {/* Frecuencia */}
-                  <div>
-                    <label className="text-[8px] text-blue-700 uppercase font-bold block mb-0.5">Frecuencia de Pago</label>
+                  <div className="space-y-1">
+                    <label className="text-[8px] text-slate-400 font-black uppercase tracking-widest block">Plazo Total (Meses)</label>
+                    {isEditing ? (
+                      <input
+                        type="number"
+                        min="1"
+                        value={plazoMeses}
+                        onChange={(e) => setPlazoMeses(Math.max(1, parseInt(e.target.value) || 0))}
+                        className="w-full bg-slate-50 border border-slate-100 text-slate-900 rounded-2xl px-4 py-2.5 text-base font-black outline-none focus:ring-2 focus:ring-blue-500/10 focus:bg-white"
+                      />
+                    ) : (
+                      <p className="text-lg font-black text-slate-900">{plazoMeses} <span className="text-[10px] text-slate-400 font-bold">MESES</span></p>
+                    )}
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-[8px] text-slate-400 font-black uppercase tracking-widest block">Sistema Amortización</label>
+                    {isEditing ? (
+                      <select
+                        value={tipoAmortizacion}
+                        onChange={(e) => setTipoAmortizacion(e.target.value)}
+                        className="w-full bg-slate-50 border border-slate-100 text-slate-900 rounded-2xl px-4 py-2.5 text-xs font-black outline-none focus:ring-2 focus:ring-blue-500/10 focus:bg-white"
+                      >
+                        <option value="INTERES_SIMPLE">INTERÉS SIMPLE</option>
+                        <option value="FRANCESA">SISTEMA FRANCÉS</option>
+                      </select>
+                    ) : (
+                      <p className="text-[11px] font-black text-slate-700 uppercase">{tipoAmortizacion === 'FRANCESA' ? 'Sistema Francés' : 'Interés Simple'}</p>
+                    )}
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-[8px] text-slate-400 font-black uppercase tracking-widest block">Frecuencia de Pago</label>
                     {isEditing ? (
                       <select
                         value={frecuencia}
                         onChange={(e) => setFrecuencia(e.target.value)}
-                        className="w-full bg-white border border-blue-200 text-slate-900 rounded-md px-2 py-1.5 text-sm font-black outline-none focus:ring-1 focus:ring-blue-400"
+                        className="w-full bg-slate-50 border border-slate-100 text-slate-900 rounded-2xl px-4 py-2.5 text-xs font-black outline-none focus:ring-2 focus:ring-blue-500/10 focus:bg-white"
                       >
                         <option value="DIARIO">DIARIO</option>
                         <option value="SEMANAL">SEMANAL</option>
@@ -329,34 +427,63 @@ export default function EditarPrestamoModal({ id, onClose, onSuccess }: EditarPr
                         <option value="MENSUAL">MENSUAL</option>
                       </select>
                     ) : (
-                      <p className="text-sm font-black text-blue-800 uppercase italic">{frecuencia}</p>
+                      <p className="text-xs font-black text-blue-600 uppercase tracking-wider">{frecuencia}</p>
                     )}
                   </div>
-                </div>
-              </div>
 
-              {/* Plan de Pago Proyectado */}
-              <div className="p-4 bg-emerald-50 rounded-2xl border border-emerald-100 border-dashed">
-                <p className="text-[8px] font-black text-emerald-600 uppercase mb-3 tracking-widest">Plan de Pago Proyectado</p>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="text-[7px] text-emerald-500 uppercase font-bold block">Cobro / Cuota</label>
-                    <p className="text-lg font-black text-emerald-900">{formatCurrency(cobroPorCuota)}</p>
-                    <p className="text-[8px] font-bold text-emerald-600 uppercase mt-0.5">
-                      {frecuencia === 'DIARIO' ? 'Pago diario' : frecuencia === 'SEMANAL' ? 'Pago semanal' : frecuencia === 'QUINCENAL' ? 'Pago quincenal' : 'Pago mensual'}
-                    </p>
+                  {isArticle && (
+                    <div className="p-4 bg-orange-50/50 rounded-2xl border border-orange-100 space-y-3">
+                      <div className="flex items-center gap-2 mb-1">
+                         <Package className="w-3 h-3 text-orange-500" />
+                         <span className="text-[9px] font-black text-orange-600 uppercase">Detalles de Venta</span>
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="text-[7px] text-orange-400 uppercase font-black block">Cuota Inicial</label>
+                          {isEditing ? (
+                            <input
+                              type="text"
+                              value={formatCOPInput(cuotaInicial)}
+                              onChange={(e) => setCuotaInicial(parseCOP(e.target.value))}
+                              className="w-full bg-white border border-orange-200 text-slate-900 rounded-xl px-3 py-1.5 text-xs font-black outline-none focus:ring-1 focus:ring-orange-400"
+                            />
+                          ) : (
+                            <p className="text-[13px] font-black text-slate-900">{formatCurrency(cuotaInicial)}</p>
+                          )}
+                        </div>
+                        <div>
+                          <label className="text-[7px] text-orange-400 uppercase font-black block">Artículo / Combo</label>
+                          <p className="text-[11px] font-bold text-orange-700 uppercase leading-tight mt-1">{productoNombre || 'ARTÍCULO SIN NOMBRE'}</p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="pt-4 border-t border-slate-100">
+                    <div className="space-y-1">
+                      <label className="text-[8px] text-slate-400 font-black uppercase tracking-widest block">Fecha Inicio</label>
+                      <input
+                        type="date"
+                        value={fechaInicio}
+                        readOnly
+                        className="w-full bg-slate-100 border border-slate-200 text-slate-500 rounded-2xl px-3 py-2 text-xs font-black outline-none cursor-not-allowed"
+                      />
+                    </div>
                   </div>
-                  <div>
-                    <label className="text-[7px] text-emerald-500 uppercase font-bold block">Total a Recaudar</label>
-                    <p className="text-lg font-black text-emerald-900">{formatCurrency(totalRecaudar)}</p>
-                  </div>
-                  <div>
-                    <label className="text-[7px] text-emerald-500 uppercase font-bold block">Interés Total</label>
-                    <p className="text-sm font-black text-emerald-900">{formatCurrency(interesTotal)}</p>
-                  </div>
-                  <div>
-                    <label className="text-[7px] text-emerald-500 uppercase font-bold block">Plazo Total</label>
-                    <p className="text-sm font-black text-emerald-900">{cuotas} cuotas <span className="text-emerald-600">×</span> {frecuencia === 'DIARIO' ? 'día' : frecuencia === 'SEMANAL' ? 'semana' : frecuencia === 'QUINCENAL' ? 'quincena' : 'mes'}</p>
+
+                  <div className="space-y-1">
+                    <label className="text-[8px] text-slate-400 font-black uppercase tracking-widest block">Notas / Observaciones</label>
+                    {isEditing ? (
+                      <textarea
+                        value={notas}
+                        onChange={(e) => setNotas(e.target.value)}
+                        rows={2}
+                        className="w-full bg-slate-50 border border-slate-100 text-slate-900 rounded-2xl p-4 text-xs font-medium outline-none focus:ring-2 focus:ring-blue-500/10 focus:bg-white resize-none"
+                        placeholder="Sin notas registradas..."
+                      />
+                    ) : (
+                      <p className="text-[10px] text-slate-500 font-medium italic bg-slate-50 p-3 rounded-2xl">{notas || 'Sin notas.'}</p>
+                    )}
                   </div>
                 </div>
               </div>
@@ -366,10 +493,10 @@ export default function EditarPrestamoModal({ id, onClose, onSuccess }: EditarPr
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex gap-3">
+        <div className="px-8 py-5 bg-white border-t border-slate-100 flex gap-4">
           <button
             onClick={handleClose}
-            className="flex-1 py-2.5 bg-white border border-slate-200 text-slate-600 font-black text-[11px] uppercase tracking-widest rounded-xl hover:bg-slate-50 transition-colors shadow-sm"
+            className="flex-1 py-3.5 bg-slate-50 text-slate-500 font-black text-[10px] uppercase tracking-widest rounded-2xl hover:bg-slate-100 transition-all border border-slate-100 active:scale-95"
             disabled={loading}
           >
             Cancelar
@@ -377,14 +504,18 @@ export default function EditarPrestamoModal({ id, onClose, onSuccess }: EditarPr
           <button
             onClick={handleSubmit}
             disabled={loading || !hasChanges}
-            className="flex-1 py-2.5 bg-blue-600 text-white font-black text-[11px] uppercase tracking-widest rounded-xl hover:bg-blue-700 shadow-lg shadow-blue-500/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+            className={`flex-[2] py-3.5 text-white font-black text-[10px] uppercase tracking-widest rounded-2xl transition-all shadow-xl flex items-center justify-center gap-2 active:scale-95 disabled:opacity-30 disabled:grayscale disabled:scale-100 ${
+              isArticle 
+                ? 'bg-gradient-to-r from-orange-500 to-orange-600 shadow-orange-500/20' 
+                : 'bg-gradient-to-r from-blue-600 to-indigo-700 shadow-blue-500/20'
+            }`}
           >
             {loading ? (
               <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
             ) : (
               <Save className="w-4 h-4" />
             )}
-            {loading ? 'Guardando...' : 'Guardar Cambios'}
+            {loading ? 'Actualizando...' : 'Guardar Cambios'}
           </button>
         </div>
       </div>

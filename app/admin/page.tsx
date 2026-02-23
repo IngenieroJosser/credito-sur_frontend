@@ -154,6 +154,7 @@ export default function DashboardPage() {
   
   // Ref para almacenar el período activo actual (se actualiza en cada render)
   const activePeriodRef = useRef<TimeFilterPeriod>(period);
+  activePeriodRef.current = period; // Actualizar en cada render para tener siempre el valor más reciente
   
   // Contador de peticiones para identificar la más reciente
   const requestCounterRef = useRef(0);
@@ -177,8 +178,6 @@ export default function DashboardPage() {
     // Generar un ID único para esta petición
     const requestId = ++requestCounterRef.current;
     const requestedPeriod = period;
-    // Actualizar el período activo dentro del efecto
-    activePeriodRef.current = requestedPeriod;
     
     // Registrar este requestId con su período
     requestPeriodMapRef.current.set(requestId, requestedPeriod);

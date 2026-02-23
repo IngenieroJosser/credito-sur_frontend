@@ -806,37 +806,34 @@ const ListadoPrestamosElegante = () => {
               } catch { /* ignore */ }
             }
 
-            const frecuenciaMap: Record<string, string> = {
-              'Diaria': 'DIARIO',
-              'Semanal': 'SEMANAL',
-              'Quincenal': 'QUINCENAL',
-              'Mensual': 'MENSUAL',
-            };
+            const isArticulo = data.creditType === 'articulo';
+            const freq = data.frecuenciaPago || 'DIARIO';
 
-            const numCuotas = data.cuotasPrestamo || 1;
-            const freq = data.frecuenciaPago ? frecuenciaMap[data.frecuenciaPago] || 'DIARIO' : 'DIARIO';
-
-            // Calcular plazoMeses a partir de las cuotas y frecuencia
-            let plazoMeses = 1;
-            switch (freq) {
-              case 'DIARIO': plazoMeses = Math.ceil(numCuotas / 30); break;
-              case 'SEMANAL': plazoMeses = Math.ceil(numCuotas / 4); break;
-              case 'QUINCENAL': plazoMeses = Math.ceil(numCuotas / 2); break;
-              case 'MENSUAL': plazoMeses = numCuotas; break;
+            // Si es artículo, usamos lo que ya calculó el modal
+            // Si es préstamo, calculamos plazoMeses
+            let plazoMeses = data.plazoMeses || 1;
+            if (!isArticulo) {
+              const numCuotas = data.cuotasTotales || 1;
+              switch (freq) {
+                case 'DIARIO': plazoMeses = Math.ceil(numCuotas / 30); break;
+                case 'SEMANAL': plazoMeses = Math.ceil(numCuotas / 4); break;
+                case 'QUINCENAL': plazoMeses = Math.ceil(numCuotas / 2); break;
+                case 'MENSUAL': plazoMeses = numCuotas; break;
+              }
             }
 
             const backendData: any = {
               clienteId: data.clienteCreditoId,
-              tipoPrestamo: data.creditType || 'prestamo',
-              monto: data.montoPrestamo || 0,
+              tipoPrestamo: isArticulo ? 'ARTICULO' : 'EFECTIVO',
+              monto: data.monto || 0,
               tasaInteres: data.tasaInteres || 0,
-              tasaInteresMora: 0,
+              tasaInteresMora: 2.0,
               plazoMeses,
-              cantidadCuotas: numCuotas,
+              cantidadCuotas: isArticulo ? data.numCuotas : data.cuotasTotales,
               frecuenciaPago: freq,
               fechaInicio: data.fechaInicio || new Date().toISOString().split('T')[0],
               creadoPorId: userId,
-              tipoAmortizacion: data.tipoInteres === 'AMORTIZABLE' ? 'FRANCESA' : 'INTERES_SIMPLE',
+              tipoAmortizacion: isArticulo ? 'INTERES_SIMPLE' : (data.tipoInteres || 'INTERES_SIMPLE'),
             };
 
             if (data.fechaPrimerCobro) {
@@ -844,6 +841,9 @@ const ListadoPrestamosElegante = () => {
             }
             if (data.articuloId) {
               backendData.productoId = data.articuloId;
+            }
+            if (data.precioProductoId) {
+              backendData.precioProductoId = data.precioProductoId;
             }
             if (data.cuotaInicialArticulo) {
               backendData.cuotaInicial = data.cuotaInicialArticulo;

@@ -24,15 +24,17 @@ interface CrearCreditoModalProps {
   onConfirm: (data: {
     creditType: 'prestamo' | 'articulo'
     clienteCreditoId: string
-    montoPrestamo?: number
+    monto: number
     tipoInteres?: TipoAmortizacion
     tasaInteres?: number
-    cuotasPrestamo?: number
+    cuotasTotales?: number
     frecuenciaPago?: string
     fechaInicio?: string
     fechaPrimerCobro?: string
     articuloId?: string
-    planArticuloIndex?: number | null
+    precioProductoId?: string
+    plazoMeses?: number
+    numCuotas?: number
     cuotaInicialArticulo?: number
   }) => void | Promise<void>
   defaultClienteId?: string
@@ -89,7 +91,7 @@ export default function CrearCreditoModal({ isOpen, onClose, onConfirm, defaultC
   const mesesPlan = useMemo(() => {
     if (!planSeleccionado) return 0;
     const n = Number(planSeleccionado.numeroCuotas);
-    return isNaN(n) ? 0 : n / 2;
+    return isNaN(n) ? 0 : n; // Meses reales de la DB
   }, [planSeleccionado]);
   
   const calculoCreditoArticulo = useMemo(() => {
@@ -100,10 +102,10 @@ export default function CrearCreditoModal({ isOpen, onClose, onConfirm, defaultC
      const aFinanciar = Math.max(0, precioTotal - inicial);
      
      let numCuotas = 0;
-     if (frecuenciaPago === 'Diaria') numCuotas = Math.ceil(mesesPlan * 30);
-     else if (frecuenciaPago === 'Semanal') numCuotas = Math.ceil(mesesPlan * 4);
-     else if (frecuenciaPago === 'Quincenal') numCuotas = Math.ceil(mesesPlan * 2); 
-     else if (frecuenciaPago === 'Mensuales') numCuotas = Math.ceil(mesesPlan * 1);
+     if (frecuenciaPago === 'DIARIO') numCuotas = Math.ceil(mesesPlan * 30);
+     else if (frecuenciaPago === 'SEMANAL') numCuotas = Math.ceil(mesesPlan * 4);
+     else if (frecuenciaPago === 'QUINCENAL') numCuotas = Math.ceil(mesesPlan * 2); 
+     else if (frecuenciaPago === 'MENSUAL') numCuotas = Math.ceil(mesesPlan * 1);
      
      const valorCuota = numCuotas > 0 ? Math.ceil(aFinanciar / numCuotas) : 0;
      
@@ -266,7 +268,7 @@ export default function CrearCreditoModal({ isOpen, onClose, onConfirm, defaultC
                       />
                     </div>
                   </div>
-                  <div className="grid grid-cols-2 gap-4">
+                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <label className="block text-sm font-bold text-slate-700 mb-2">Frecuencia de Pago</label>
                       <select 
@@ -274,10 +276,10 @@ export default function CrearCreditoModal({ isOpen, onClose, onConfirm, defaultC
                          onChange={(e) => setFrecuenciaPago(e.target.value)}
                          className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-[#08557f] focus:ring-0 font-medium text-slate-900"
                       >
-                        <option value="Diaria">Diario</option>
-                        <option value="Semanal">Semanal</option>
-                        <option value="Quincenal">Quincenal</option>
-                        <option value="Mensuales">Mensual</option>
+                        <option value="DIARIO">Diario</option>
+                        <option value="SEMANAL">Semanal</option>
+                        <option value="QUINCENAL">Quincenal</option>
+                        <option value="MENSUAL">Mensual</option>
                       </select>
                     </div>
                     <div>
@@ -333,11 +335,11 @@ export default function CrearCreditoModal({ isOpen, onClose, onConfirm, defaultC
                         >
                             <option value="">Seleccionar plazo...</option>
                             {articuloSeleccionado?.opcionesCuotas.map((op, idx) => {
-                                const meses = Number(op.numeroCuotas) / 2;
+                                const meses = Number(op.numeroCuotas);
                                 if (isNaN(meses)) return null;
                                 return (
                                   <option key={idx} value={idx}>
-                                    {meses} Meses - Total: {formatCurrency(op.precioTotal)}
+                                    {meses} {meses === 1 ? 'Mes' : 'Meses'} - Total: {formatCurrency(op.precioTotal)}
                                   </option>
                                 );
                             })}
@@ -353,10 +355,10 @@ export default function CrearCreditoModal({ isOpen, onClose, onConfirm, defaultC
                          onChange={(e) => setFrecuenciaPago(e.target.value)}
                          className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-[#08557f] focus:ring-0 font-bold text-slate-900"
                       >
-                        <option value="Diaria">Diaria</option>
-                        <option value="Semanal">Semanal</option>
-                        <option value="Quincenal">Quincenal</option>
-                        <option value="Mensuales">Mensual</option>
+                         <option value="DIARIO">Diaria</option>
+                        <option value="SEMANAL">Semanal</option>
+                        <option value="QUINCENAL">Quincenal</option>
+                        <option value="MENSUAL">Mensual</option>
                       </select>
                     </div>
                     <div>
@@ -446,7 +448,7 @@ export default function CrearCreditoModal({ isOpen, onClose, onConfirm, defaultC
                   <div className="flex justify-between">
                     <span className="text-slate-600 font-medium">Tipo:</span>
                     <span className="font-bold text-slate-900">
-                      {creditType === 'prestamo' ? 'Préstamo en Efectivo' : 'Crédito por Artículo'}
+                      {creditType === 'prestamo' ? 'Préstamo en Efectivo' : 'Crédito de un Artículo'}
                     </span>
                   </div>
                   <div className="flex justify-between">
@@ -468,14 +470,14 @@ export default function CrearCreditoModal({ isOpen, onClose, onConfirm, defaultC
                     if (isSubmitting) return;
                     setIsSubmitting(true);
                     try {
-                      const payload = creditType === 'prestamo' 
+                       const payload = creditType === 'prestamo' 
                         ? {
                             creditType,
                             clienteCreditoId,
-                            montoPrestamo: parseCOPInputToNumber(montoPrestamoInput),
+                            monto: parseCOPInputToNumber(montoPrestamoInput),
                             tipoInteres,
                             tasaInteres: Number(tasaInteresInput),
-                            cuotasPrestamo: Number(cuotasPrestamoInput),
+                            cuotasTotales: Number(cuotasPrestamoInput),
                             frecuenciaPago,
                             fechaInicio: fechaCreditoInput,
                             fechaPrimerCobro
@@ -485,11 +487,12 @@ export default function CrearCreditoModal({ isOpen, onClose, onConfirm, defaultC
                             clienteCreditoId,
                             articuloId: articuloSeleccionadoId,
                             precioProductoId: (planArticuloIndex !== null && articuloSeleccionado) ? articuloSeleccionado.opcionesCuotas[planArticuloIndex]?.id : undefined,
-                            planArticuloIndex,
-                            monto: articuloSeleccionado?.opcionesCuotas[planArticuloIndex || 0]?.precioTotal || 0,
+                            monto: calculoCreditoArticulo?.precioTotal || 0,
                             cuotaInicialArticulo: parseCOPInputToNumber(cuotaInicialArticuloInput),
                             frecuenciaPago,
-                            fechaInicio: fechaCreditoInput
+                            fechaInicio: fechaCreditoInput,
+                            plazoMeses: mesesPlan,
+                            numCuotas: calculoCreditoArticulo?.numCuotas || 0
                           }
                       await onConfirm(payload as any)
                       handleReset()

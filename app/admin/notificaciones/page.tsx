@@ -29,6 +29,7 @@ import ConfirmModal from '@/components/ui/ConfirmModal'
 import EditarPrestamoModal from '@/components/prestamos/EditarPrestamoModal'
 import { aprobacionesService } from '@/services/aprobaciones-service'
 import { TipoAprobacion } from '@/types/enums'
+import NotificacionDetalleModal from '@/components/dashboards/shared/NotificacionDetalleModal'
 
 // MOCKS ELIMINADOS - La aplicación solo funciona con datos reales del backend
 
@@ -89,6 +90,7 @@ export default function NotificacionesPage() {
   const [filter, setFilter] = useState<'TODAS' | 'NO_LEIDAS' | 'LEIDAS' | 'APROBADAS' | 'RECHAZADAS'>('TODAS')
   const [tipoFilter, setTipoFilter] = useState<'TODOS' | Notificacion['tipo']>('TODOS')
   const [filterRuta, setFilterRuta] = useState<string | null>(null)
+  const [sortBy, setSortBy] = useState<'RECENT' | 'OLD' | 'CATEGORY' | 'STATUS'>('RECENT')
   
   // --- ESTADOS DE DATOS Y UI ---
   const [search, setSearch] = useState('')
@@ -193,8 +195,6 @@ export default function NotificacionesPage() {
             metadata.usuario ||
             metadata.cobrador ||
             raw.solicitante ||
-            detalles?.beneficiario ||
-            detalles?.cliente ||
             undefined
 
           return {
@@ -246,7 +246,7 @@ export default function NotificacionesPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 5;
 
-  // --- LÓGICA DE FILTRADO ---
+  // --- LÓGICA DE FILTRADO Y ORDENAMIENTO ---
   const notificaciones = notificacionesState
     .filter((n) => {
       if (filter === 'TODAS') return true
@@ -267,6 +267,13 @@ export default function NotificacionesPage() {
         n.id.toLowerCase().includes(q)
       )
     })
+    .sort((a, b) => {
+      if (sortBy === 'RECENT') return new Date(b.creadoEn || 0).getTime() - new Date(a.creadoEn || 0).getTime()
+      if (sortBy === 'OLD') return new Date(a.creadoEn || 0).getTime() - new Date(b.creadoEn || 0).getTime()
+      if (sortBy === 'CATEGORY') return a.tipo.localeCompare(b.tipo)
+      if (sortBy === 'STATUS') return (a.estado || '').localeCompare(b.estado || '')
+      return 0
+    })
 
   // Aplicar paginación después de filtrar
   const totalPages = Math.ceil(notificaciones.length / itemsPerPage);
@@ -275,10 +282,10 @@ export default function NotificacionesPage() {
     currentPage * itemsPerPage
   );
 
-  // Resetear página cuando cambian los filtros
+  // Resetear página cuando cambian los filtros o el orden
   useEffect(() => {
     setCurrentPage(1);
-  }, [filter, tipoFilter, filterRuta, search]);
+  }, [filter, tipoFilter, filterRuta, search, sortBy]);
 
   const formatCurrency = (amount: number | undefined) => {
     if (amount === undefined) return '---'
@@ -421,19 +428,70 @@ export default function NotificacionesPage() {
   }
 
   const handleOpenDetail = (notif: Notificacion) => {
-    // Si es una notificación de préstamo (ya sea tipo PRESTAMO directo o tipo APROBACION de un NUEVO_PRESTAMO)
-    const isPrestamo = notif.tipo === 'PRESTAMO' || (notif as any).metadata?.tipoAprobacion === 'NUEVO_PRESTAMO' || (notif as any).approvalType === 'NUEVO_PRESTAMO'
-    const prestamoId = (notif.tipo === 'PRESTAMO' ? notif.entidadId : (notif as any).metadata?.prestamoId) || notif.entidadId
+    setSelectedNotif(notif)
+    setEditedDetails(notif.detalles || {})
+    setIsDetailModalOpen(true)
+  }
 
-    if (isPrestamo && prestamoId) {
-      setSelectedPrestamoId(prestamoId)
-      setPrestamoModalOpen(true)
-    } else {
-      // Para otros tipos, usar el modal genérico
-      setSelectedNotif(notif)
-      setEditedDetails(notif.detalles || {})
-      setIsEditingMode(false)
-      setIsDetailModalOpen(true)
+  const handleApproveFromModal = async (entityId: string, type: string, details: any) => {
+    try {
+      await aprobacionesService.aprobar(entityId, {
+        type: type as any,
+        notas: details ? JSON.stringify(details) : undefined,
+      })
+
+      setNotificacionesState(prev =>
+        prev.map(n =>
+          n.entidadId === entityId
+            ? {
+                ...n,
+                estado: 'APROBADA',
+                leida: true,
+                detalles: { ...n.detalles, ...details },
+              }
+            : n,
+        ),
+      )
+
+      setFeedbackModal({
+        titulo: 'Solicitud Aprobada',
+        mensaje: `La solicitud ha sido aprobada correctamente.`,
+        tipo: 'success'
+      })
+    } catch (err: any) {
+      console.error('Error in handleApproveFromModal:', err)
+      throw err
+    }
+  }
+
+  const handleRejectFromModal = async (entityId: string, type: string, reason: string) => {
+    try {
+      await aprobacionesService.rechazar(entityId, {
+        type: type as any,
+        motivoRechazo: reason || 'Rechazado por el administrador',
+      })
+
+      setNotificacionesState(prev =>
+        prev.map(n =>
+          n.entidadId === entityId
+            ? {
+                ...n,
+                estado: 'RECHAZADA',
+                leida: true,
+                motivoRechazo: reason,
+              }
+            : n,
+        ),
+      )
+
+      setFeedbackModal({
+        titulo: 'Solicitud Rechazada',
+        mensaje: `La solicitud ha sido rechazada correctamente.`,
+        tipo: 'danger'
+      })
+    } catch (err: any) {
+      console.error('Error in handleRejectFromModal:', err)
+      throw err
     }
   }
 
@@ -580,30 +638,45 @@ export default function NotificacionesPage() {
                 </div>
 
                 {/* Filtro de Ruta + Búsqueda */}
-                <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-6">
-                  {canFilterByRoute && (
-                    <div className="flex-1 min-w-0">
-                      <FiltroRuta 
-                          onRutaChange={setFilterRuta} 
-                          selectedRutaId={filterRuta}
-                          layout="wrap"
-                          showAllOption={true}
-                          hideLabel={true}
+                  <div className={`flex flex-col lg:flex-row lg:items-end justify-between gap-6`}>
+                    <div className="flex flex-col md:flex-row gap-4 flex-1">
+                      {canFilterByRoute && (
+                        <div className="flex-1 min-w-0">
+                          <FiltroRuta 
+                              onRutaChange={setFilterRuta} 
+                              selectedRutaId={filterRuta}
+                              layout="wrap"
+                              showAllOption={true}
+                              hideLabel={true}
+                          />
+                        </div>
+                      )}
+                      
+                      <div className="md:w-48">
+                        <select 
+                          value={sortBy}
+                          onChange={(e) => setSortBy(e.target.value as any)}
+                          className="w-full h-[42px] px-4 rounded-xl border border-slate-200 bg-white text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-600/10 focus:border-blue-600 transition-all cursor-pointer"
+                        >
+                          <option value="RECENT">Más recientes</option>
+                          <option value="OLD">Más antiguos</option>
+                          <option value="CATEGORY">Por Categoría</option>
+                          <option value="STATUS">Por Estado</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div className={`relative w-full ${canFilterByRoute ? 'lg:w-80' : ''}`}>
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                      <input
+                        type="text"
+                        value={search}
+                        onChange={(e) => setSearch(e.target.value)}
+                        placeholder="Buscar notificación..."
+                        className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-slate-200 bg-slate-50/50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-600/10 focus:border-blue-600 text-sm text-slate-900 placeholder:text-slate-400 transition-all font-medium"
                       />
                     </div>
-                  )}
-
-                  <div className={`relative w-full ${canFilterByRoute ? 'lg:w-80' : ''}`}>
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-                    <input
-                      type="text"
-                      value={search}
-                      onChange={(e) => setSearch(e.target.value)}
-                      placeholder="Buscar notificación..."
-                      className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-slate-200 bg-slate-50/50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-600/10 focus:border-blue-600 text-sm text-slate-900 placeholder:text-slate-400 transition-all font-medium"
-                    />
                   </div>
-                </div>
               </div>
             </div>
 
@@ -758,336 +831,15 @@ export default function NotificacionesPage() {
         </div>
       </div>
 
-      {/* Modal de Detalle */}
-      {isDetailModalOpen && selectedNotif && (
-        <div 
-          onClick={() => setIsDetailModalOpen(false)}
-          className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-200"
-        >
-          <div 
-            onClick={(e) => e.stopPropagation()}
-            className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-sm overflow-hidden animate-in zoom-in-95 duration-200 border border-slate-100"
-          >
-            <div className="p-4 border-b border-slate-100 flex justify-between items-center bg-white sticky top-0 z-10">
-              <h3 className="text-xs font-black text-slate-900 flex items-center gap-2 uppercase tracking-widest">
-                <Info className="h-4 w-4 text-blue-600" />
-                {(selectedNotif as any).approvalType === 'GASTO' || selectedNotif.tipo === 'GASTO' || ((selectedNotif as any).metadata?.tipoAprobacion === 'GASTO') ? 'Gasto' : 'Solicitud'}
-              </h3>
-              <button 
-                onClick={() => setIsDetailModalOpen(false)}
-                className="p-1.5 hover:bg-slate-100 rounded-full transition-colors text-slate-400"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-            
-            <div className="p-5 space-y-4 max-h-[85vh] overflow-y-auto custom-scrollbar">
-              <div className="flex items-center gap-3 p-3 bg-slate-50/50 rounded-2xl border border-slate-100">
-                <div className={`p-2 rounded-xl border ${getColor(selectedNotif.tipo)} shadow-sm`}>
-                  {getIcon(selectedNotif.tipo)}
-                </div>
-                <div className="min-w-0">
-                  <div className="font-black text-slate-900 text-[13px] uppercase tracking-tight leading-tight truncate">{selectedNotif.titulo}</div>
-                  <div className="text-[10px] font-bold text-slate-400 flex items-center gap-1 mt-0.5">
-                    <Clock className="h-3 w-3" />
-                    {selectedNotif.fecha}
-                  </div>
-                  {selectedNotif.solicitante && (
-                    <div className="text-[10px] font-bold text-amber-600 mt-1">
-                      Solicitado por: <span className="font-black">{selectedNotif.solicitante}</span>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              <div className="space-y-4">
-                {(!selectedNotif.detalles || !selectedNotif.detalles.categoria) && (
-                  <div>
-                    <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1 block pl-1">Mensaje en la Alerta</label>
-                    <p className="text-slate-600 text-xs font-medium bg-white p-3 rounded-xl border border-slate-100 italic leading-relaxed">
-                      &quot;{selectedNotif.mensaje}&quot;
-                    </p>
-                  </div>
-                )}
-
-                {selectedNotif.detalles && (
-                  <div className="space-y-4">
-                    {selectedNotif.detalles.motivo ? (
-                      /* SOLICITUD DE BASE */
-                      <div className="bg-slate-50/50 rounded-2xl border border-slate-100 p-4 space-y-3">
-                        <div className="text-center pb-2 border-b border-slate-100">
-                           <p className="text-[9px] font-black uppercase tracking-widest text-slate-500 mb-0.5">Monto de la Base</p>
-                           <h4 className="text-2xl font-black text-slate-900 tabular-nums">{formatCurrency(editedDetails?.monto)}</h4>
-                        </div>
-                        <div className="space-y-2">
-                          <div className="flex items-center justify-between">
-                            <span className="text-[9px] font-black text-slate-500 uppercase">Solicitud</span>
-                            <span className="text-[9px] font-black text-emerald-700 bg-emerald-100/50 px-2 py-0.5 rounded-full uppercase">Fondo de Ruta</span>
-                          </div>
-                          <div className="pt-1">
-                             <p className="text-[9px] font-black text-slate-500 uppercase mb-1">Motivo</p>
-                             <p className="text-[11px] text-slate-700 font-medium leading-normal italic border-l-2 border-emerald-400 pl-2">
-                               {editedDetails?.motivo || selectedNotif.mensaje}
-                             </p>
-                          </div>
-                        </div>
-                        </div>
-                    ) : ((selectedNotif as any).approvalType === 'GASTO' || selectedNotif.tipo === 'GASTO' || (selectedNotif as any).metadata?.tipoAprobacion === 'GASTO') ? (
-                      /* GASTO */
-                      <div className="bg-slate-50/50 rounded-2xl border border-slate-100 p-4 space-y-3">
-                        <div className="text-center pb-2 border-b border-slate-100">
-                           <p className="text-[9px] font-black uppercase tracking-widest text-slate-500 mb-0.5">Monto del Gasto</p>
-                           <h4 className="text-2xl font-black text-slate-900 tabular-nums">{formatCurrency(editedDetails?.monto || (selectedNotif.metadata as any)?.monto)}</h4>
-                        </div>
-                        <div className="pt-1">
-                           <p className="text-[9px] font-black text-slate-500 uppercase mb-1">Descripción del Gasto (solicitante)</p>
-                           <p className="text-[11px] text-slate-700 font-medium leading-normal italic border-l-2 border-blue-400 pl-2">
-                             {editedDetails?.descripcion || selectedNotif.detalles?.descripcion || (selectedNotif as any).metadata?.descSolicitud || (selectedNotif as any).metadata?.descripcion || selectedNotif.mensaje}
-                           </p>
-                        </div>
-                        {(selectedNotif.estado === 'APROBADA' || selectedNotif.estado === 'RECHAZADA') && (selectedNotif as any).revisadoPor && (
-                          <div className="pt-2 border-t border-slate-100">
-                            <p className="text-[9px] font-black text-slate-500 uppercase mb-0.5">
-                              {selectedNotif.estado === 'APROBADA' ? 'Aprobado por' : 'Rechazado por'}
-                            </p>
-                            <p className="text-[11px] font-bold text-slate-800">{(selectedNotif as any).revisadoPor}</p>
-                          </div>
-                        )}
-                      </div>
-                    ) : selectedNotif.tipo === 'PRESTAMO' ? (
-                      /* PRÉSTAMO / CRÉDITO */
-                      <div className="space-y-3">
-                        <div className="flex items-center justify-between px-1">
-                           <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest leading-none">Análisis de Cartera</p>
-                           {canApprove && (
-                             <button 
-                               onClick={() => setIsEditingMode(!isEditingMode)}
-                               className={`px-2 py-1 rounded-md text-[9px] font-black uppercase tracking-widest transition-all ${
-                                 isEditingMode 
-                                   ? 'bg-orange-500 text-white shadow-sm' 
-                                   : 'bg-blue-600 text-white shadow-sm hover:bg-blue-700'
-                               }`}
-                             >
-                               {isEditingMode ? 'Bloquear' : 'Editar'}
-                             </button>
-                           )}
-                        </div>
-
-                        <div className="space-y-3">
-                          {/* Bloque Cliente */}
-                          <div className={`p-4 rounded-2xl border transition-all duration-300 ${isEditingMode ? 'bg-white border-orange-200 shadow-lg' : 'bg-slate-50/50 border-slate-100'}`}>
-                            <p className="text-[8px] font-black uppercase tracking-widest text-slate-500 mb-3 block border-b border-slate-200/50 pb-1">Información Cliente</p>
-                            <div className="grid grid-cols-2 gap-x-4 gap-y-3">
-                               <div className="col-span-2">
-                                 <label className="text-[8px] text-slate-500 uppercase font-bold block mb-0.5">Nombre</label>
-                                 {isEditingMode ? (
-                                   <input 
-                                     value={editedDetails?.cliente || ''}
-                                     onChange={(e) => setEditedDetails({...(editedDetails || {}), cliente: e.target.value})}
-                                     className="w-full bg-white border border-slate-200 rounded-md px-2 py-1 text-xs font-bold text-slate-900 outline-none"
-                                   />
-                                 ) : (
-                                   <p className="text-[13px] font-black text-slate-900 leading-none">{editedDetails?.cliente}</p>
-                                 )}
-                               </div>
-                               <div>
-                                 <label className="text-[8px] text-slate-500 uppercase font-bold block mb-0.5">Cédula</label>
-                                 {isEditingMode ? (
-                                   <input 
-                                     value={editedDetails?.cedula || ''}
-                                     onChange={(e) => setEditedDetails({...(editedDetails || {}), cedula: e.target.value})}
-                                     className="w-full bg-white border border-slate-200 rounded-md px-2 py-1 text-[10px] font-bold text-slate-900 outline-none"
-                                   />
-                                 ) : (
-                                   <p className="text-[11px] font-black text-slate-800">{editedDetails?.cedula}</p>
-                                 )}
-                               </div>
-                               <div>
-                                 <label className="text-[8px] text-slate-500 uppercase font-bold block mb-0.5">Teléfono</label>
-                                 {isEditingMode ? (
-                                   <input 
-                                     value={editedDetails?.telefono || ''}
-                                     onChange={(e) => setEditedDetails({...(editedDetails || {}), telefono: e.target.value})}
-                                     className="w-full bg-white border border-slate-200 rounded-md px-2 py-1 text-[10px] font-bold text-slate-900 outline-none"
-                                   />
-                                 ) : (
-                                   <p className="text-[11px] font-black text-slate-800">{editedDetails?.telefono}</p>
-                                 )}
-                               </div>
-                            </div>
-                          </div>
-
-                          {/* Bloque Financiero */}
-                          <div className={`p-4 rounded-2xl border transition-all duration-300 ${isEditingMode ? 'bg-white border-blue-200 shadow-lg' : 'bg-blue-50/70 border-blue-100'}`}>
-                            <p className="text-[8px] font-black uppercase tracking-widest text-blue-700/70 mb-3 block border-b border-blue-200 pb-1">Condiciones Financieras</p>
-                            <div className="space-y-3">
-                               {editedDetails?.articulo && (
-                                 <div>
-                                   <label className="text-[8px] text-blue-700 uppercase font-bold block mb-0.5">Artículo</label>
-                                   <p className="text-[11px] font-black text-blue-900 italic leading-none">{editedDetails?.articulo}</p>
-                                 </div>
-                               )}
-                               <div className="flex items-center justify-between">
-                                 <div>
-                                   <label className="text-[8px] text-blue-700 uppercase font-bold block mb-0.5">{editedDetails?.articulo ? 'Valor Art.' : 'Capital'}</label>
-                                   {isEditingMode ? (
-                                     <input 
-                                       type="text"
-                                       value={formatCOPInput(editedDetails?.articulo ? editedDetails.valorArticulo : editedDetails?.monto)}
-                                       onChange={(e) => {
-                                         const val = parseCOPInput(e.target.value)
-                                         setEditedDetails({
-                                           ...(editedDetails || {}), 
-                                           [editedDetails?.articulo ? 'valorArticulo' : 'monto']: val
-                                         })
-                                       }}
-                                       className="w-full bg-white border border-blue-200 text-slate-900 rounded-md px-2 py-1 text-xs font-black outline-none"
-                                     />
-                                   ) : (
-                                     <p className="text-2xl font-black text-slate-900 tabular-nums tracking-tighter leading-none">{formatCurrency(editedDetails?.articulo ? (editedDetails?.valorArticulo || 0) : (editedDetails?.monto || 0))}</p>
-                                   )}
-                                 </div>
-                               </div>
-                               
-                               <div className="grid grid-cols-2 gap-4 pt-2 border-t border-blue-200/50">
-                                 <div>
-                                   <label className="text-[8px] text-blue-700 uppercase font-bold block mb-0.5">Cuotas</label>
-                                   {isEditingMode ? (
-                                      <input 
-                                        type="number"
-                                        value={editedDetails?.cuotas || ''}
-                                        onChange={(e) => setEditedDetails({...(editedDetails || {}), cuotas: Number(e.target.value)})}
-                                        className="w-full bg-white border border-blue-200 text-slate-900 rounded-md px-2 py-1 text-xs font-black outline-none"
-                                      />
-                                   ) : (
-                                      <p className="text-base font-black text-slate-900 leading-none">{editedDetails?.cuotas} <span className="text-[9px] font-black text-slate-500">MESES</span></p>
-                                   )}
-                                 </div>
-                                 <div>
-                                   <label className="text-[8px] text-blue-700 uppercase font-bold block mb-0.5">Interés (%)</label>
-                                   {isEditingMode ? (
-                                      <input 
-                                        type="number"
-                                        value={editedDetails?.porcentaje || ''}
-                                        onChange={(e) => setEditedDetails({...(editedDetails || {}), porcentaje: Number(e.target.value)})}
-                                        className="w-full bg-white border border-blue-200 text-slate-900 rounded-md px-2 py-1 text-xs font-black outline-none"
-                                      />
-                                   ) : (
-                                      <p className="text-base font-black text-slate-900 leading-none">{editedDetails?.porcentaje}%</p>
-                                   )}
-                                 </div>
-                                 <div className="col-span-2">
-                                   <label className="text-[8px] text-blue-700 uppercase font-bold block mb-0.5">Frecuencia de Pago</label>
-                                   {isEditingMode ? (
-                                      <select 
-                                        value={editedDetails?.frecuenciaPago || 'DIARIO'}
-                                        onChange={(e) => setEditedDetails({...(editedDetails || {}), frecuenciaPago: e.target.value as 'DIARIO' | 'SEMANAL' | 'QUINCENAL' | 'MENSUAL'})}
-                                        className="w-full bg-white border border-blue-200 text-slate-900 rounded-md px-2 py-1 text-xs font-black outline-none"
-                                      >
-                                        <option value="DIARIO">DIARIO</option>
-                                        <option value="SEMANAL">SEMANAL</option>
-                                        <option value="QUINCENAL">QUINCENAL</option>
-                                        <option value="MENSUAL">MENSUAL</option>
-                                      </select>
-                                   ) : (
-                                      <p className="text-sm font-black text-blue-800 uppercase italic">{editedDetails?.frecuenciaPago || 'DIARIO'}</p>
-                                   )}
-                                 </div>
-                               </div>
-
-                               <div className="mt-4 p-3 bg-emerald-50 rounded-xl border border-emerald-100 border-dashed">
-                                  <p className="text-[8px] font-black text-emerald-600 uppercase mb-2 tracking-widest">Plan de Pago Proyectado</p>
-                                  <div className="grid grid-cols-2 gap-4">
-                                     <div>
-                                        <label className="text-[7px] text-emerald-500 uppercase font-bold block">Cobro por Cuota</label>
-                                        <p className="text-sm font-black text-emerald-900">
-                                          {formatCurrency(
-                                            ((editedDetails?.articulo ? (editedDetails?.valorArticulo || 0) : (editedDetails?.monto || 0)) * (1 + (editedDetails?.porcentaje || 0) / 100)) / (editedDetails?.cuotas || 1)
-                                          )}
-                                        </p>
-                                     </div>
-                                     <div>
-                                        <label className="text-[7px] text-emerald-500 uppercase font-bold block">Total a Recaudar</label>
-                                        <p className="text-sm font-black text-emerald-900">
-                                          {formatCurrency(
-                                            (editedDetails?.articulo ? (editedDetails?.valorArticulo || 0) : (editedDetails?.monto || 0)) * (1 + (editedDetails?.porcentaje || 0) / 100)
-                                          )}
-                                        </p>
-                                     </div>
-                                  </div>
-                               </div>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    ) : null}
-                  </div>
-                )}
-
-                {((selectedNotif as any).revisadoPor || selectedNotif.motivoRechazo) && (
-                  <div className={`rounded-xl p-3 border ${selectedNotif.estado === 'RECHAZADA' ? 'bg-rose-50 border-rose-100' : 'bg-emerald-50 border-emerald-100'}`}>
-                    <label className={`text-[8px] font-black uppercase tracking-widest block mb-0.5 text-center ${selectedNotif.estado === 'RECHAZADA' ? 'text-rose-500' : 'text-emerald-500'}`}>
-                      {selectedNotif.estado === 'RECHAZADA' ? 'Rechazado por' : 'Aprobado por'}:
-                    </label>
-                    <p className={`text-[11px] font-bold text-center leading-tight uppercase ${selectedNotif.estado === 'RECHAZADA' ? 'text-rose-700' : 'text-emerald-700'}`}>
-                      {(selectedNotif as any).revisadoPor || 'Administrador'}
-                    </p>
-                    {selectedNotif.estado === 'RECHAZADA' && selectedNotif.motivoRechazo && (
-                      <div className="mt-2 border-t border-rose-100 pt-2 text-center">
-                        <p className="text-[10px] text-rose-600 italic leading-tight">
-                          &quot;{selectedNotif.motivoRechazo}&quot;
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {selectedNotif.rutaId && (
-                  <div className="flex items-center justify-center pt-2">
-                    <div className="inline-flex items-center gap-2 bg-blue-600 text-white px-4 py-1.5 rounded-full shadow-lg shadow-blue-500/30 font-black text-[10px] uppercase tracking-[0.2em]">
-                      <div className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
-                      RUTA: {selectedNotif.rutaId}
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            <div className="p-4 bg-slate-50 border-t border-slate-100 flex justify-end gap-2">
-              {((selectedNotif as any).approvalType || TIPOS_APROBABLES[selectedNotif.tipo]) && selectedNotif.estado !== 'APROBADA' && selectedNotif.estado !== 'RECHAZADA' && (
-                <>
-                  <button 
-                    onClick={() => {
-                      setIsDetailModalOpen(false)
-                      handleOpenConfirm(selectedNotif, 'REJECT')
-                    }}
-                    className="flex-1 py-3 bg-white border border-rose-200 text-rose-600 font-black text-[11px] uppercase tracking-widest rounded-xl hover:bg-rose-50 transition-colors shadow-sm"
-                  >
-                    Rechazar
-                  </button>
-                  <button 
-                    onClick={() => {
-                      setIsDetailModalOpen(false)
-                      handleOpenConfirm(selectedNotif, 'APPROVE')
-                    }}
-                    className="flex-1 py-3 bg-emerald-600 text-white font-black text-[11px] uppercase tracking-widest rounded-xl hover:bg-emerald-700 shadow-lg shadow-emerald-500/20 transition-colors"
-                  >
-                    Aprobar
-                  </button>
-                </>
-              )}
-              {(((selectedNotif as any).approvalType || TIPOS_APROBABLES[selectedNotif.tipo]) && (selectedNotif.estado === 'APROBADA' || selectedNotif.estado === 'RECHAZADA')) && (
-                <button 
-                  onClick={() => setIsDetailModalOpen(false)}
-                  className="w-full py-3 bg-slate-900 text-white font-black text-[11px] uppercase tracking-widest rounded-xl hover:bg-slate-800 transition-colors shadow-lg"
-                >
-                  Cerrar
-                </button>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Modal de Detalle Robusto */}
+      <NotificacionDetalleModal
+        isOpen={isDetailModalOpen}
+        onClose={() => setIsDetailModalOpen(false)}
+        notificacion={selectedNotif}
+        onApprove={handleApproveFromModal}
+        onReject={handleRejectFromModal}
+        canApprove={canApprove}
+      />
 
       {/* Modal de Confirmación */}
       {isConfirmModalOpen && selectedNotif && confirmAction && (

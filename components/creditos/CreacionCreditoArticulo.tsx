@@ -132,7 +132,7 @@ export default function CreacionCreditoArticulo({
         comunes = comunes.filter(c => opcionesArticulo.includes(c));
     }
     return comunes
-      .filter(c => typeof c === 'number' && !isNaN(c))
+      .filter(c => typeof c === 'number' && !isNaN(c) && c >= 1) // Filtramos meses >= 1
       .sort((a, b) => a - b);
   }, [articulosSeleccionados]);
 
@@ -255,7 +255,8 @@ export default function CreacionCreditoArticulo({
       // El backend actual soporta un producto por préstamo. 
       // Tomamos el primero de la lista para la creación formal.
       const articulo = articulosSeleccionados[0];
-      const opcionPlan = articulo.opcionesCuotas.find(o => o.numeroCuotas === numeroCuotas && o.frecuenciaPago === frecuenciaPago);
+      // FIX: El PrecioProducto en DB no tiene frecuenciaPago, solo meses
+      const opcionPlan = articulo.opcionesCuotas.find(o => o.numeroCuotas === numeroCuotas);
       
       const payload = {
         clienteId: clienteId,
@@ -265,7 +266,8 @@ export default function CreacionCreditoArticulo({
         monto: resumenFinanciero.totalFinanciadoBruto,
         tasaInteres: 0, // El interés ya viene en el precio del plan
         tasaInteresMora: 2.0,
-        plazoMeses: Math.ceil(numeroCuotas / (frecuenciaPago === 'DIARIO' ? 30 : frecuenciaPago === 'SEMANAL' ? 4 : frecuenciaPago === 'QUINCENAL' ? 2 : 1)),
+        plazoMeses: numeroCuotas, // FIX: El plazo en meses es directamente numeroCuotas
+        cantidadCuotas: resumenFinanciero.numeroCuotas, // Enviamos las cuotas calculadas
         frecuenciaPago: frecuenciaPago,
         fechaInicio: fechaInicio,
         creadoPorId: creadorId,
