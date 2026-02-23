@@ -19,6 +19,7 @@ import {
 import { Portal } from '@/components/dashboards/shared/CobradorElements'
 import { formatCurrency, formatCOPInputValue, parseCOPInputToNumber } from '@/lib/utils'
 import { aprobacionesService } from '@/services/aprobaciones-service'
+import { articulosService } from '@/services/articulos-service'
 
 export interface NotificacionDetalleModalProps {
   isOpen: boolean
@@ -39,11 +40,15 @@ export default function NotificacionDetalleModal({
 }: NotificacionDetalleModalProps) {
   const [isEditingMode, setIsEditingMode] = useState(false)
   const [editedDetails, setEditedDetails] = useState<any>(notificacion?.detalles || {})
-  const [rejectionReason, setRejectionReason] = useState('')
+  const [actionComment, setActionComment] = useState('')
   const [confirmAction, setConfirmAction] = useState<'APPROVE' | 'REJECT' | null>(null)
   const [isProcessing, setIsProcessing] = useState(false)
   const [history, setHistory] = useState<any[]>([])
   const [isLoadingHistory, setIsLoadingHistory] = useState(false)
+  const [articuloData, setArticuloData] = React.useState<any>(null)
+  const [planIndex, setPlanIndex] = React.useState<number | null>(null)
+  const [autoCuotas, setAutoCuotas] = useState(true)
+  const [esContado, setEsContado] = useState(false)
 
   React.useEffect(() => {
     if (notificacion) {
@@ -117,7 +122,40 @@ export default function NotificacionDetalleModal({
         cedula: String(combined.cedula || combined.dni || cedulaFromMsg || ''),
         telefono: String(combined.telefono || combined.phone || ''),
       }
-      setEditedDetails(initialVal)
+      
+      const isPrestamoEff = (notificacion?.tipo === 'PRESTAMO' || (notificacion as any)?.approvalType === 'NUEVO_PRESTAMO')
+      const tituloEff = (notificacion?.titulo || '').toLowerCase()
+      const mensajeEff = (notificacion?.mensaje || '').toLowerCase()
+      const isArticleEff = isPrestamoEff && (
+        combined.tipo === 'ARTICULO' ||
+        combined.tipoPrestamo === 'ARTICULO' ||
+        tituloEff.includes('artículo') ||
+        tituloEff.includes('articulo') ||
+        mensajeEff.includes('artículo') ||
+        mensajeEff.includes('articulo')
+      )
+
+      let initialEsContado = false
+      if (isArticleEff) {
+        const cuotasRaw = Number(combined.cuotas || combined.numCuotas || combined.cantidadCuotas || 0)
+        const mesesRaw = Number(combined.plazoMeses || combined.plajeMeses || 0)
+        const porcentajeRaw = Number(combined.porcentaje ?? 0)
+        const notasRaw = String((combined.notas || combined.garantia || '') ?? '').toLowerCase()
+        const ventaFlag = (combined as any).ventaContado || (combined as any).esContado
+        if (ventaFlag) {
+          initialEsContado = true
+        } else if (notasRaw.includes('venta de contado') || notasRaw.includes('venta de artículo de contado') || notasRaw.includes('venta de articulo de contado')) {
+          initialEsContado = true
+        } else if (!isNaN(cuotasRaw) && !isNaN(mesesRaw) && cuotasRaw === 1 && mesesRaw <= 1 && porcentajeRaw === 0) {
+          initialEsContado = true
+        }
+      }
+
+      setEditedDetails({
+        ...initialVal,
+        esContado: initialEsContado ? true : undefined,
+      })
+      setEsContado(initialEsContado)
     }
   }, [notificacion])
 
@@ -144,6 +182,76 @@ export default function NotificacionDetalleModal({
     }
   }, [isOpen, notificacion?.entidadId, notificacion?.tipo])
 
+  React.useEffect(() => {
+    if (!isOpen) return
+    const meta = typeof notificacion?.metadata === 'string'
+      ? JSON.parse(notificacion!.metadata as any)
+      : (notificacion?.metadata || {})
+    const dets = typeof notificacion?.detalles === 'string'
+      ? JSON.parse(notificacion!.detalles as any)
+      : (notificacion?.detalles || {})
+    const isPrestamoEff = (notificacion?.tipo === 'PRESTAMO' || (notificacion as any)?.approvalType === 'NUEVO_PRESTAMO')
+    const tituloEff = (notificacion?.titulo || '').toLowerCase()
+    const mensajeEff = (notificacion?.mensaje || '').toLowerCase()
+    const isArticleEff = isPrestamoEff && (
+      dets?.tipo === 'ARTICULO' ||
+      meta?.tipo === 'ARTICULO' ||
+      tituloEff.includes('artículo') ||
+      tituloEff.includes('articulo') ||
+      mensajeEff.includes('artículo') ||
+      mensajeEff.includes('articulo')
+    )
+    if (!isArticleEff) return
+    const nombre = dets?.articulo || meta?.articulo || ''
+    if (!nombre) return
+    ;(async () => {
+      try {
+        const lista = await articulosService.obtenerArticulos()
+        const match = lista.find(a => (a.nombre || '').toLowerCase() === nombre.toLowerCase())
+        setArticuloData(match || null)
+        if (match) {
+          const idx = match.opcionesCuotas.findIndex(op => Number(op.numeroCuotas) === Number(dets?.plazoMeses || meta?.plazoMeses || 0))
+          setPlanIndex(idx >= 0 ? idx : null)
+        }
+      } catch {}
+    })()
+  }, [isOpen, notificacion, editedDetails?.plazoMeses])
+
+  React.useEffect(() => {
+    const meta = typeof notificacion?.metadata === 'string'
+      ? JSON.parse(notificacion!.metadata as any)
+      : (notificacion?.metadata || {})
+    const dets = typeof notificacion?.detalles === 'string'
+      ? JSON.parse(notificacion!.detalles as any)
+      : (notificacion?.detalles || {})
+    const isPrestamoEff = (notificacion?.tipo === 'PRESTAMO' || (notificacion as any)?.approvalType === 'NUEVO_PRESTAMO')
+    const tituloEff = (notificacion?.titulo || '').toLowerCase()
+    const mensajeEff = (notificacion?.mensaje || '').toLowerCase()
+    const isArticleEff = isPrestamoEff && (
+      dets?.tipo === 'ARTICULO' ||
+      meta?.tipo === 'ARTICULO' ||
+      tituloEff.includes('artículo') ||
+      tituloEff.includes('articulo') ||
+      mensajeEff.includes('artículo') ||
+      mensajeEff.includes('articulo')
+    )
+    if (!isArticleEff) return
+    const meses = Number(editedDetails?.plazoMeses || dets?.plazoMeses || meta?.plazoMeses || 0)
+    const freq = editedDetails?.frecuenciaPago || dets?.frecuenciaPago || meta?.frecuenciaPago || 'DIARIO'
+    let c = 0
+    if (meses > 0) {
+      if (freq === 'DIARIO') c = meses * 30
+      else if (freq === 'SEMANAL') c = meses * 4
+      else if (freq === 'QUINCENAL') c = meses * 2
+      else if (freq === 'MENSUAL') c = meses
+      else c = meses * 4
+    }
+    const current = Number(editedDetails?.cuotas || editedDetails?.numCuotas || dets?.cuotas || meta?.cuotas || 0)
+    if (c > 0 && c !== current && autoCuotas) {
+      setEditedDetails({ ...editedDetails, cuotas: c })
+    }
+  }, [editedDetails?.plazoMeses, editedDetails?.frecuenciaPago, notificacion, autoCuotas])
+
   if (!isOpen || !notificacion) return null
 
   const { tipo, titulo, mensaje, fecha, solicitante, estado, approvalType } = notificacion
@@ -156,12 +264,12 @@ export default function NotificacionDetalleModal({
   const isPrestamo = tipo === 'PRESTAMO' || approvalType === 'NUEVO_PRESTAMO'
   const isGasto = tipo === 'GASTO' || approvalType === 'GASTO'
   const isSolicitudBase = tipo === 'SOLICITUD_DINERO' || approvalType === 'SOLICITUD_BASE_EFECTIVO'
-  const isArticle = isPrestamo && (editedDetails?.tipo === 'ARTICULO' || safeMeta?.tipo === 'ARTICULO' || titulo.toLowerCase().includes('artículo') || mensaje.toLowerCase().includes('artículo'))
+  const isArticle = isPrestamo && (editedDetails?.tipo === 'ARTICULO' || safeMeta?.tipo === 'ARTICULO' || titulo.toLowerCase().includes('artículo') || titulo.toLowerCase().includes('articulo') || mensaje.toLowerCase().includes('artículo') || mensaje.toLowerCase().includes('articulo'))
 
   const handleClose = () => {
     setIsEditingMode(false)
     setConfirmAction(null)
-    setRejectionReason('')
+    setActionComment('')
     onClose()
   }
 
@@ -170,9 +278,33 @@ export default function NotificacionDetalleModal({
     setIsProcessing(true)
     try {
       if (confirmAction === 'APPROVE') {
-        await onApprove(notificacion.entidadId, approvalType, editedDetails)
+        let finalDetails = editedDetails
+        if (isPrestamo && isArticle && esContado) {
+          const precioContado = (() => {
+            if (articuloData) {
+              return Number(articuloData.precioContado || articuloData.precioBase || editedDetails?.valorArticulo || editedDetails?.monto || 0)
+            }
+            return Number(editedDetails?.valorArticulo || editedDetails?.monto || 0)
+          })()
+          const inicial = Number(editedDetails?.cuotaInicial || 0)
+          const montoFinanciar = Math.max(0, precioContado - inicial)
+          finalDetails = {
+            ...editedDetails,
+            monto: montoFinanciar,
+            valorArticulo: precioContado,
+            porcentaje: 0,
+            cuotas: 1,
+            numCuotas: 1,
+            cantidadCuotas: 1,
+            plazoMeses: 1,
+            frecuenciaPago: 'MENSUAL',
+            ventaContado: true,
+          }
+        }
+        finalDetails = { ...finalDetails, comentarios: actionComment.trim() }
+        await onApprove(notificacion.entidadId, approvalType, finalDetails)
       } else if (confirmAction === 'REJECT') {
-        await onReject(notificacion.entidadId, approvalType, rejectionReason)
+        await onReject(notificacion.entidadId, approvalType, actionComment.trim())
       }
       handleClose()
     } catch (error) {
@@ -213,6 +345,388 @@ export default function NotificacionDetalleModal({
     }
   }
 
+  const renderPrestamo = () => (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between px-1">
+        <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Análisis de Cartera</p>
+        {canApprove && estado === 'PENDIENTE' && (
+          <button 
+            onClick={() => setIsEditingMode(!isEditingMode)}
+            className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
+              isEditingMode 
+                ? 'bg-orange-500 text-white shadow-lg shadow-orange-500/30' 
+                : 'bg-blue-600 text-white shadow-lg shadow-blue-500/30 hover:bg-blue-700'
+            }`}
+          >
+            {isEditingMode ? 'Bloquear Cambios' : 'Editar Condiciones'}
+          </button>
+        )}
+      </div>
+
+      <div className="space-y-4">
+        <div className={`p-5 rounded-2xl border transition-all duration-300 ${isEditingMode ? 'bg-white border-orange-200 shadow-xl' : 'bg-slate-50 border-slate-100'}`}>
+          <div className="flex items-center gap-2 mb-4 border-b border-slate-200/50 pb-2">
+            <User className="h-4 w-4 text-slate-400" />
+            <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Información del Cliente</p>
+          </div>
+          <div className="grid grid-cols-2 gap-x-4 gap-y-4">
+            <div className="col-span-2">
+              <label className="text-[10px] text-slate-400 uppercase font-black block mb-1">Nombre Completo</label>
+              {isEditingMode ? (
+                <input 
+                  value={editedDetails?.cliente || safeMeta?.cliente || ''}
+                  onChange={(e) => setEditedDetails({...editedDetails, cliente: e.target.value})}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-sm font-black text-slate-900 outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500"
+                />
+              ) : (
+                <p className="text-base font-black text-slate-900">
+                  {editedDetails?.cliente || 
+                   safeMeta?.cliente || 
+                   (mensaje?.includes('para ') ? mensaje.split('para ')[1].split(' por')[0] : 'N/A')}
+                </p>
+              )}
+            </div>
+            <div>
+              <label className="text-[10px] text-slate-400 uppercase font-black block mb-1">Cédula</label>
+              {isEditingMode ? (
+                <input 
+                  value={editedDetails?.cedula || safeMeta?.cedula || ''}
+                  onChange={(e) => setEditedDetails({...editedDetails, cedula: e.target.value})}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-sm font-black text-slate-900 outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500"
+                />
+              ) : (
+                <p className="text-sm font-black text-slate-800">{editedDetails?.cedula || safeMeta?.cedula || editedDetails?.dni || safeMeta?.dni || 'N/A'}</p>
+              )}
+            </div>
+            <div>
+              <label className="text-[10px] text-slate-400 uppercase font-black block mb-1">Teléfono</label>
+              {isEditingMode ? (
+                <input 
+                  value={editedDetails?.telefono || safeMeta?.telefono || ''}
+                  onChange={(e) => setEditedDetails({...editedDetails, telefono: e.target.value})}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-sm font-black text-slate-900 outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500"
+                />
+              ) : (
+                <p className="text-sm font-black text-slate-800">{editedDetails?.telefono || safeMeta?.telefono || editedDetails?.phone || safeMeta?.phone || 'N/A'}</p>
+              )}
+            </div>
+          </div>
+        </div>
+
+        <div className={`p-5 rounded-2xl border transition-all duration-300 ${isEditingMode ? 'bg-white border-blue-200 shadow-xl' : 'bg-blue-50/50 border-blue-100'}`}>
+          <div className="flex items-center gap-2 mb-4 border-b border-blue-200/50 pb-2">
+            <CreditCard className="h-4 w-4 text-blue-400" />
+            <p className="text-[10px] font-black uppercase tracking-widest text-blue-600">
+              Condiciones Financieras {isArticle && esContado ? '(Venta de Contado)' : ''}
+            </p>
+          </div>
+          <div className="space-y-4">
+            {(editedDetails?.articulo || safeMeta?.articulo) && (
+              <div className="bg-white/50 p-3 rounded-xl border border-blue-100">
+                <label className="text-[9px] text-blue-600 uppercase font-black block mb-1">Artículo a Financiar</label>
+                <p className="text-sm font-black text-blue-900 italic">{editedDetails?.articulo || safeMeta?.articulo}</p>
+              </div>
+            )}
+            
+            <div className="space-y-4">
+              {isArticle && isEditingMode && (
+                <div className="flex items-center justify-between">
+                  <span className="text-[9px] text-blue-500 font-black uppercase tracking-widest">Modo de Venta</span>
+                  <div className="inline-flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setEsContado(false)}
+                      className={`px-3 py-1.5 rounded-xl border text-[10px] font-black uppercase tracking-widest transition-all ${
+                        !esContado
+                          ? 'border-blue-500 bg-blue-50 text-blue-700'
+                          : 'border-slate-200 bg-white text-slate-500 hover:border-slate-300'
+                      }`}
+                    >
+                      Crédito
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEsContado(true)
+                        if (articuloData) {
+                          const precioContado = Number(articuloData.precioContado || articuloData.precioBase || editedDetails?.valorArticulo || editedDetails?.monto || 0)
+                          const inicial = Number(editedDetails?.cuotaInicial || 0)
+                          const montoFinanciar = Math.max(0, precioContado - inicial)
+                          setEditedDetails({
+                            ...editedDetails,
+                            monto: montoFinanciar,
+                            valorArticulo: precioContado,
+                            porcentaje: 0,
+                            cuotas: 1,
+                            numCuotas: 1,
+                            plazoMeses: 1,
+                            frecuenciaPago: 'MENSUAL',
+                          })
+                          setAutoCuotas(true)
+                        }
+                      }}
+                      className={`px-3 py-1.5 rounded-xl border text-[10px] font-black uppercase tracking-widest transition-all ${
+                        esContado
+                          ? 'border-emerald-500 bg-emerald-50 text-emerald-700'
+                          : 'border-slate-200 bg-white text-slate-500 hover:border-slate-300'
+                      }`}
+                    >
+                      Contado
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="col-span-2">
+                  <label className="text-[10px] text-blue-600 uppercase font-black block mb-1">{isArticle ? 'Capital' : 'Capital Solicitado'}</label>
+                  {isEditingMode ? (
+                    <input 
+                      type="text"
+                      value={formatCOPInputValue(String(editedDetails?.valorArticulo || safeMeta?.valorArticulo || editedDetails?.monto || safeMeta?.monto || ''))}
+                      onChange={(e) => {
+                        const val = parseCOPInputToNumber(e.target.value)
+                        setEditedDetails({
+                          ...editedDetails, 
+                          [(editedDetails?.articulo || safeMeta?.articulo) ? 'valorArticulo' : 'monto']: val,
+                          monto: val
+                        })
+                      }}
+                      className="w-full bg-white border border-blue-200 text-slate-900 rounded-xl px-4 py-2 text-base font-black outline-none focus:ring-2 focus:ring-blue-500/20"
+                    />
+                  ) : (
+                    <p className="text-3xl font-black text-slate-900 tabular-nums tracking-tight">
+                      {(() => {
+                        const val = Number(editedDetails?.valorArticulo || safeMeta?.valorArticulo || editedDetails?.monto || safeMeta?.monto || 0);
+                        return formatCurrency(isNaN(val) ? 0 : val);
+                      })()}
+                    </p>
+                  )}
+                </div>
+
+                {!isArticle || !esContado ? (
+                  <div>
+                    <label className="text-[10px] text-blue-600 uppercase font-black block mb-1">N° de Cuotas</label>
+                    {isEditingMode ? (
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        value={editedDetails?.cuotas === undefined || editedDetails?.cuotas === null ? '' : String(editedDetails?.cuotas)}
+                        onChange={(e) => {
+                          const v = e.target.value.replace(/[^0-9]/g, '')
+                          setAutoCuotas(false)
+                          setEditedDetails({ ...editedDetails, cuotas: v === '' ? undefined : Number(v) })
+                        }}
+                        className="w-full bg-white border border-blue-200 text-slate-900 rounded-xl px-4 py-2 text-sm font-black outline-none focus:ring-2 focus:ring-blue-500/20"
+                      />
+                    ) : (
+                      <p className="text-base font-black text-slate-900">
+                        {editedDetails?.cuotas ?? safeMeta?.cuotas ?? editedDetails?.numCuotas ?? safeMeta?.numCuotas ?? 0} <span className="text-[10px] text-slate-400">CUOTAS</span>
+                      </p>
+                    )}
+                  </div>
+                ) : null}
+
+                {!isArticle || !esContado ? (
+                  <div>
+                    <label className="text-[10px] text-blue-600 uppercase font-black block mb-1">Plazo Total (Meses)</label>
+                    {isEditingMode ? (
+                      isArticle && articuloData?.opcionesCuotas?.length ? (
+                        <select
+                          value={planIndex !== null ? planIndex : ''}
+                          onChange={(e) => {
+                            const idx = e.target.value ? parseInt(e.target.value) : null
+                            setPlanIndex(idx)
+                            if (idx !== null && articuloData) {
+                              const op = articuloData.opcionesCuotas[idx]
+                              const meses = Number(op.numeroCuotas)
+                              const precioTotal = Number(op.precioTotal)
+                              const inicial = Number(editedDetails?.cuotaInicial || 0)
+                              const aFinanciar = Math.max(0, precioTotal - inicial)
+                              setEditedDetails({
+                                ...editedDetails,
+                                plazoMeses: meses,
+                                valorArticulo: precioTotal,
+                                monto: aFinanciar,
+                              })
+                              setAutoCuotas(true)
+                            }
+                          }}
+                          className="w-full bg-white border border-blue-200 text-slate-900 rounded-xl px-4 py-2 text-sm font-black outline-none focus:ring-2 focus:ring-blue-500/20"
+                        >
+                          <option value="">Seleccionar plazo...</option>
+                          {articuloData.opcionesCuotas.map((op: any, i: number) => {
+                            const meses = Number(op.numeroCuotas)
+                            if (isNaN(meses)) return null
+                            return (
+                              <option key={i} value={i}>
+                                {meses} {meses === 1 ? 'Mes' : 'Meses'} - Total: {formatCurrency(op.precioTotal)}
+                              </option>
+                            )
+                          })}
+                        </select>
+                      ) : (
+                        <input 
+                          type="number"
+                          value={editedDetails?.plazoMeses || ''}
+                          onChange={(e) => setEditedDetails({...editedDetails, plazoMeses: Number(e.target.value)})}
+                          className="w-full bg-white border border-blue-200 text-slate-900 rounded-xl px-4 py-2 text-sm font-black outline-none focus:ring-2 focus:ring-blue-500/20"
+                        />
+                      )
+                    ) : (
+                      <p className="text-base font-black text-slate-900">{editedDetails?.plazoMeses || 1} MESES</p>
+                    )}
+                  </div>
+                ) : null}
+
+                {!isArticle || !esContado ? (
+                  <div>
+                    <label className="text-[10px] text-blue-600 uppercase font-black block mb-1">Frecuencia de Pago</label>
+                    {isEditingMode ? (
+                      <select 
+                        value={editedDetails?.frecuenciaPago || safeMeta?.frecuenciaPago || editedDetails?.frecuencia || safeMeta?.frecuencia || 'DIARIO'}
+                        onChange={(e) => { 
+                          setEditedDetails({...editedDetails, frecuenciaPago: e.target.value})
+                          setAutoCuotas(true)
+                        }}
+                        className="w-full bg-white border border-blue-200 text-slate-900 rounded-xl px-4 py-2 text-sm font-black outline-none focus:ring-2 focus:ring-blue-500/20"
+                      >
+                        <option value="DIARIO">DIARIO</option>
+                        <option value="SEMANAL">SEMANAL</option>
+                        <option value="QUINCENAL">QUINCENAL</option>
+                        <option value="MENSUAL">MENSUAL</option>
+                      </select>
+                    ) : (
+                      <div className="inline-flex items-center gap-2 bg-blue-100 text-blue-700 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest">
+                        {editedDetails?.frecuenciaPago || safeMeta?.frecuenciaPago || editedDetails?.frecuencia || safeMeta?.frecuencia || 'DIARIO'}
+                      </div>
+                    )}
+                  </div>
+                ) : null}
+
+                <div className="col-span-2 p-4 bg-white/50 rounded-2xl border border-blue-100 space-y-4">
+                  <p className="text-[9px] font-black text-blue-500 uppercase tracking-widest mb-1">Detalles de Venta</p>
+                  <div className="grid grid-cols-2 gap-4">
+                    {isArticle && esContado ? (
+                      <div className="col-span-2">
+                        <label className="text-[9px] text-blue-500 uppercase font-black block mb-0.5">Total de Contado</label>
+                        <p className="text-lg font-black text-blue-900">
+                          {(() => {
+                            const val = Number(editedDetails?.valorArticulo || safeMeta?.valorArticulo || editedDetails?.monto || safeMeta?.monto || 0)
+                            return formatCurrency(isNaN(val) ? 0 : val)
+                          })()}
+                        </p>
+                      </div>
+                    ) : (
+                      <>
+                        <div>
+                          <label className="text-[9px] text-blue-500 uppercase font-black block mb-0.5">Cuota Inicial</label>
+                          {isEditingMode ? (
+                            <input 
+                              type="text"
+                              value={formatCOPInput(Number(editedDetails?.cuotaInicial ?? safeMeta?.cuotaInicial ?? 0))}
+                              onChange={(e) => {
+                                const val = parseCOPInput(e.target.value)
+                                setEditedDetails({
+                                  ...editedDetails, 
+                                  cuotaInicial: val,
+                                })
+                              }}
+                              className="w-full bg-white border border-blue-200 text-slate-900 rounded-xl px-4 py-2 text-sm font-black outline-none focus:ring-2 focus:ring-blue-500/20"
+                            />
+                          ) : (
+                            <p className="text-lg font-black text-blue-900">{formatCurrency(Number(editedDetails?.cuotaInicial ?? safeMeta?.cuotaInicial ?? 0))}</p>
+                          )}
+                        </div>
+                        <div>
+                          <label className="text-[9px] text-blue-500 uppercase font-black block mb-0.5">Capital a Financiar</label>
+                          <p className="text-lg font-black text-blue-900">
+                            {(() => {
+                              const val = Number(editedDetails?.valorArticulo || safeMeta?.valorArticulo || editedDetails?.monto || safeMeta?.monto || 0)
+                              const inicial = Number(editedDetails?.cuotaInicial || safeMeta?.cuotaInicial || 0)
+                              return formatCurrency(Math.max(0, val - inicial))
+                            })()}
+                          </p>
+                        </div>
+                      </>
+                    )}
+                    {!isArticle && (
+                      <div>
+                        <label className="text-[9px] text-blue-500 uppercase font-black block mb-0.5">Interés (%)</label>
+                        {isEditingMode ? (
+                          <input 
+                            type="number"
+                            value={editedDetails?.porcentaje || safeMeta?.porcentaje || ''}
+                            onChange={(e) => setEditedDetails({...editedDetails, porcentaje: Number(e.target.value)})}
+                            className="w-full bg-white border border-blue-200 text-slate-900 rounded-xl px-4 py-2 text-sm font-black outline-none focus:ring-2 focus:ring-blue-500/20"
+                          />
+                        ) : (
+                          <p className="text-base font-black text-slate-900">{editedDetails?.porcentaje || safeMeta?.porcentaje || 0}%</p>
+                        )}
+                      </div>
+                    )}
+                    <div>
+                      <label className="text-[10px] text-blue-600 uppercase font-black block mb-1">Fecha Inicio</label>
+                      <p className="text-base font-black text-slate-900">{editedDetails?.fechaInicio ? new Date(editedDetails.fechaInicio).toLocaleDateString() : 'N/A'}</p>
+                    </div>
+                    <div className="col-span-2">
+                      <label className="text-[10px] text-blue-600 uppercase font-black block mb-1">Notas / Observaciones</label>
+                      {isEditingMode ? (
+                        <textarea 
+                          value={editedDetails?.garantia || safeMeta?.garantia || editedDetails?.notas || safeMeta?.notas || ''}
+                          onChange={(e) => setEditedDetails({...editedDetails, garantia: e.target.value})}
+                          className="w-full bg-white border border-blue-200 text-slate-900 rounded-xl px-4 py-2 text-xs font-medium outline-none focus:ring-2 focus:ring-blue-500/20 min-h-[60px]"
+                          placeholder="Notas adicionales..."
+                        />
+                      ) : (
+                        <p className="text-xs text-slate-600 italic">
+                          {editedDetails?.garantia || safeMeta?.garantia || editedDetails?.notas || safeMeta?.notas || 'Sin notas registradas.'}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="mt-4 p-4 bg-emerald-50 rounded-2xl border border-emerald-100 border-dashed">
+                    <div className="flex items-center gap-2 mb-3">
+                      <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                      <p className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">Proyección de Recaudo</p>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="text-[9px] text-emerald-500 uppercase font-black block mb-0.5">Valor Cuota (Est.)</label>
+                        <p className="text-lg font-black text-emerald-900">
+                          {(() => {
+                            const m = Number(editedDetails?.monto || safeMeta?.monto || 0);
+                            const cBase = Number(editedDetails?.cuotas || safeMeta?.cuotas || editedDetails?.numCuotas || safeMeta?.numCuotas || 1);
+                            const c = Math.max(1, isArticle && esContado ? 1 : cBase);
+                            const p = Number(editedDetails?.porcentaje || safeMeta?.porcentaje || 0);
+                            const val = isArticle ? m / c : (m * (1 + p / 100)) / c;
+                            return formatCurrency(isNaN(val) ? 0 : val);
+                          })()}
+                        </p>
+                      </div>
+                      <div>
+                        <label className="text-[9px] text-emerald-500 uppercase font-black block mb-0.5">Total a Cobrar</label>
+                        <p className="text-lg font-black text-emerald-900">
+                          {(() => {
+                            const m = Number(editedDetails?.monto || safeMeta?.monto || 0);
+                            const p = Number(editedDetails?.porcentaje || safeMeta?.porcentaje || 0);
+                            const val = isArticle ? m : (m * (1 + p / 100));
+                            return formatCurrency(isNaN(val) ? 0 : val);
+                          })()}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+
   return (
     <Portal>
       <div 
@@ -231,7 +745,7 @@ export default function NotificacionDetalleModal({
               </div>
               <div className="min-w-0">
                 <h3 className="text-sm font-black text-slate-900 uppercase tracking-tight leading-tight truncate">
-                  {isArticle ? 'Crédito de un Artículo' : titulo}
+                  {isArticle ? (esContado ? 'Venta de Artículo de Contado' : 'Crédito de un Artículo') : titulo}
                 </h3>
                 <div className="text-[10px] font-bold text-slate-400 flex items-center gap-1 mt-0.5">
                   <Clock className="h-3 w-3" />
@@ -301,296 +815,7 @@ export default function NotificacionDetalleModal({
                 </div>
               )}
 
-              {isPrestamo && (
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between px-1">
-                    <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Análisis de Cartera</p>
-                    {canApprove && estado === 'PENDIENTE' && (
-                      <button 
-                        onClick={() => setIsEditingMode(!isEditingMode)}
-                        className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
-                          isEditingMode 
-                            ? 'bg-orange-500 text-white shadow-lg shadow-orange-500/30' 
-                            : 'bg-blue-600 text-white shadow-lg shadow-blue-500/30 hover:bg-blue-700'
-                        }`}
-                      >
-                        {isEditingMode ? 'Bloquear Cambios' : 'Editar Condiciones'}
-                      </button>
-                    )}
-                  </div>
-
-                  <div className="space-y-4">
-                    {/* Información Cliente */}
-                    <div className={`p-5 rounded-2xl border transition-all duration-300 ${isEditingMode ? 'bg-white border-orange-200 shadow-xl' : 'bg-slate-50 border-slate-100'}`}>
-                      <div className="flex items-center gap-2 mb-4 border-b border-slate-200/50 pb-2">
-                        <User className="h-4 w-4 text-slate-400" />
-                        <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Información del Cliente</p>
-                      </div>
-                      <div className="grid grid-cols-2 gap-x-4 gap-y-4">
-                        <div className="col-span-2">
-                          <label className="text-[10px] text-slate-400 uppercase font-black block mb-1">Nombre Completo</label>
-                          {isEditingMode ? (
-                            <input 
-                              value={editedDetails?.cliente || safeMeta?.cliente || ''}
-                              onChange={(e) => setEditedDetails({...editedDetails, cliente: e.target.value})}
-                              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-sm font-black text-slate-900 outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500"
-                            />
-                          ) : (
-                            <p className="text-base font-black text-slate-900">
-                              {editedDetails?.cliente || 
-                               safeMeta?.cliente || 
-                               (mensaje?.includes('para ') ? mensaje.split('para ')[1].split(' por')[0] : 'N/A')}
-                            </p>
-                          )}
-                        </div>
-                        <div>
-                          <label className="text-[10px] text-slate-400 uppercase font-black block mb-1">Cédula</label>
-                          {isEditingMode ? (
-                            <input 
-                              value={editedDetails?.cedula || safeMeta?.cedula || ''}
-                              onChange={(e) => setEditedDetails({...editedDetails, cedula: e.target.value})}
-                              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-sm font-black text-slate-900 outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500"
-                            />
-                          ) : (
-                            <p className="text-sm font-black text-slate-800">{editedDetails?.cedula || safeMeta?.cedula || editedDetails?.dni || safeMeta?.dni || 'N/A'}</p>
-                          )}
-                        </div>
-                        <div>
-                          <label className="text-[10px] text-slate-400 uppercase font-black block mb-1">Teléfono</label>
-                          {isEditingMode ? (
-                            <input 
-                              value={editedDetails?.telefono || safeMeta?.telefono || ''}
-                              onChange={(e) => setEditedDetails({...editedDetails, telefono: e.target.value})}
-                              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-sm font-black text-slate-900 outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500"
-                            />
-                          ) : (
-                            <p className="text-sm font-black text-slate-800">{editedDetails?.telefono || safeMeta?.telefono || editedDetails?.phone || safeMeta?.phone || 'N/A'}</p>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Condiciones Financieras */}
-                    <div className={`p-5 rounded-2xl border transition-all duration-300 ${isEditingMode ? 'bg-white border-blue-200 shadow-xl' : 'bg-blue-50/50 border-blue-100'}`}>
-                      <div className="flex items-center gap-2 mb-4 border-b border-blue-200/50 pb-2">
-                        <CreditCard className="h-4 w-4 text-blue-400" />
-                        <p className="text-[10px] font-black uppercase tracking-widest text-blue-600">Condiciones Financieras</p>
-                      </div>
-                      <div className="space-y-4">
-                        {(editedDetails?.articulo || safeMeta?.articulo) && (
-                          <div className="bg-white/50 p-3 rounded-xl border border-blue-100">
-                            <label className="text-[9px] text-blue-600 uppercase font-black block mb-1">Artículo a Financiar</label>
-                            <p className="text-sm font-black text-blue-900 italic">{editedDetails?.articulo || safeMeta?.articulo}</p>
-                          </div>
-                        )}
-                        
-                        <div className="grid grid-cols-2 gap-4">
-                          <div className="col-span-2">
-                            <label className="text-[10px] text-blue-600 uppercase font-black block mb-1">{isArticle ? 'Capital' : 'Capital Solicitado'}</label>
-                            {isEditingMode ? (
-                              <input 
-                                type="text"
-                                value={formatCOPInputValue(String(editedDetails?.valorArticulo || safeMeta?.valorArticulo || editedDetails?.monto || safeMeta?.monto || ''))}
-                                onChange={(e) => {
-                                  const val = parseCOPInputToNumber(e.target.value)
-                                  setEditedDetails({
-                                    ...editedDetails, 
-                                    [(editedDetails?.articulo || safeMeta?.articulo) ? 'valorArticulo' : 'monto']: val,
-                                    monto: val // Sync both for calculations
-                                  })
-                                }}
-                                className="w-full bg-white border border-blue-200 text-slate-900 rounded-xl px-4 py-2 text-base font-black outline-none focus:ring-2 focus:ring-blue-500/20"
-                              />
-                            ) : (
-                              <p className="text-3xl font-black text-slate-900 tabular-nums tracking-tight">
-                                {(() => {
-                                  const val = Number(editedDetails?.valorArticulo || safeMeta?.valorArticulo || editedDetails?.monto || safeMeta?.monto || 0);
-                                  return formatCurrency(isNaN(val) ? 0 : val);
-                                })()}
-                              </p>
-                            )}
-                          </div>
-
-                          <div>
-                             <label className="text-[10px] text-blue-600 uppercase font-black block mb-1">N° de Cuotas</label>
-                             {isEditingMode ? (
-                               <input 
-                                 type="number"
-                                 value={editedDetails?.cuotas || safeMeta?.cuotas || editedDetails?.numCuotas || safeMeta?.numCuotas || ''}
-                                 onChange={(e) => setEditedDetails({...editedDetails, cuotas: Number(e.target.value)})}
-                                 className="w-full bg-white border border-blue-200 text-slate-900 rounded-xl px-4 py-2 text-sm font-black outline-none focus:ring-2 focus:ring-blue-500/20"
-                               />
-                             ) : (
-                               <p className="text-base font-black text-slate-900">
-                                 {editedDetails?.cuotas ?? safeMeta?.cuotas ?? editedDetails?.numCuotas ?? safeMeta?.numCuotas ?? 0} <span className="text-[10px] text-slate-400">CUOTAS</span>
-                               </p>
-                             )}
-                          </div>
-
-                          <div>
-                             <label className="text-[10px] text-blue-600 uppercase font-black block mb-1">Plazo Total (Meses)</label>
-                             {isEditingMode ? (
-                               <input 
-                                 type="number"
-                                 value={editedDetails?.plazoMeses || ''}
-                                 onChange={(e) => setEditedDetails({...editedDetails, plazoMeses: Number(e.target.value)})}
-                                 className="w-full bg-white border border-blue-200 text-slate-900 rounded-xl px-4 py-2 text-sm font-black outline-none focus:ring-2 focus:ring-blue-500/20"
-                               />
-                             ) : (
-                               <p className="text-base font-black text-slate-900">{editedDetails?.plazoMeses || 1} MESES</p>
-                             )}
-                          </div>
-
-                          <div>
-                            <label className="text-[10px] text-blue-600 uppercase font-black block mb-1">Sistema Amortización</label>
-                            {isEditingMode ? (
-                              <select 
-                                value={editedDetails?.tipoAmortizacion || 'INTERES_SIMPLE'}
-                                onChange={(e) => setEditedDetails({...editedDetails, tipoAmortizacion: e.target.value})}
-                                className="w-full bg-white border border-blue-200 text-slate-900 rounded-xl px-4 py-2 text-sm font-black outline-none focus:ring-2 focus:ring-blue-500/20"
-                              >
-                                <option value="INTERES_SIMPLE">INTERÉS SIMPLE</option>
-                                <option value="CUOTAS_FIJAS">CUOTAS FIJAS</option>
-                              </select>
-                            ) : (
-                              <p className="text-base font-black text-slate-900">{editedDetails?.tipoAmortizacion?.replace('_', ' ') || 'INTERÉS SIMPLE'}</p>
-                            )}
-                          </div>
-
-                          <div>
-                             <label className="text-[10px] text-blue-600 uppercase font-black block mb-1">Frecuencia de Pago</label>
-                             {isEditingMode ? (
-                                <select 
-                                  value={editedDetails?.frecuenciaPago || safeMeta?.frecuenciaPago || editedDetails?.frecuencia || safeMeta?.frecuencia || 'DIARIO'}
-                                  onChange={(e) => setEditedDetails({...editedDetails, frecuenciaPago: e.target.value})}
-                                  className="w-full bg-white border border-blue-200 text-slate-900 rounded-xl px-4 py-2 text-sm font-black outline-none focus:ring-2 focus:ring-blue-500/20"
-                                >
-                                  <option value="DIARIO">DIARIO</option>
-                                  <option value="SEMANAL">SEMANAL</option>
-                                  <option value="QUINCENAL">QUINCENAL</option>
-                                  <option value="MENSUAL">MENSUAL</option>
-                                </select>
-                             ) : (
-                                <div className="inline-flex items-center gap-2 bg-blue-100 text-blue-700 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest">
-                                  {editedDetails?.frecuenciaPago || safeMeta?.frecuenciaPago || editedDetails?.frecuencia || safeMeta?.frecuencia || 'DIARIO'}
-                                </div>
-                             )}
-                          </div>
-
-                          <div className="col-span-2 p-4 bg-white/50 rounded-2xl border border-blue-100 space-y-4">
-                            <p className="text-[9px] font-black text-blue-500 uppercase tracking-widest mb-1">Detalles de Venta</p>
-                            <div className="grid grid-cols-2 gap-4">
-                              <div>
-                                <label className="text-[10px] text-blue-600 uppercase font-black block mb-1">Cuota Inicial</label>
-                                {isEditingMode ? (
-                                  <input 
-                                    type="text"
-                                    value={formatCOPInputValue(String(editedDetails?.cuotaInicial || safeMeta?.cuotaInicial || ''))}
-                                    onChange={(e) => {
-                                      const val = parseCOPInputToNumber(e.target.value)
-                                      setEditedDetails({ ...editedDetails, cuotaInicial: val })
-                                    }}
-                                    className="w-full bg-white border border-blue-200 text-slate-900 rounded-xl px-4 py-2 text-sm font-black outline-none focus:ring-2 focus:ring-blue-500/20"
-                                  />
-                                ) : (
-                                  <p className="text-xl font-bold text-orange-600 tabular-nums">
-                                    {formatCurrency(editedDetails?.cuotaInicial || safeMeta?.cuotaInicial || 0)}
-                                  </p>
-                                )}
-                              </div>
-                                <div>
-                                  <label className="text-[10px] text-blue-600 uppercase font-black block mb-1">Nombre del Artículo</label>
-                                  {isEditingMode ? (
-                                    <input 
-                                      value={editedDetails?.articulo || safeMeta?.articulo || ''}
-                                      onChange={(e) => setEditedDetails({...editedDetails, articulo: e.target.value})}
-                                      className="w-full bg-white border border-blue-200 text-slate-900 rounded-xl px-4 py-2 text-sm font-black outline-none focus:ring-2 focus:ring-blue-500/20"
-                                      placeholder="Nombre del artículo..."
-                                    />
-                                  ) : (
-                                    <p className="text-sm font-black text-blue-900 italic">
-                                      {editedDetails?.articulo && editedDetails.articulo !== 'Artículo' ? editedDetails.articulo : (safeMeta?.articulo && safeMeta.articulo !== 'Artículo' ? safeMeta.articulo : 'Sin nombre definido')}
-                                    </p>
-                                  )}
-                                </div>
-                            </div>
-                          </div>
-
-                          {!isArticle && (
-                            <div>
-                              <label className="text-[10px] text-blue-600 uppercase font-black block mb-1">Interés (%)</label>
-                              {isEditingMode ? (
-                                <input 
-                                  type="number"
-                                  value={editedDetails?.porcentaje || safeMeta?.porcentaje || ''}
-                                  onChange={(e) => setEditedDetails({...editedDetails, porcentaje: Number(e.target.value)})}
-                                  className="w-full bg-white border border-blue-200 text-slate-900 rounded-xl px-4 py-2 text-sm font-black outline-none focus:ring-2 focus:ring-blue-500/20"
-                                />
-                              ) : (
-                                <p className="text-base font-black text-slate-900">{editedDetails?.porcentaje || safeMeta?.porcentaje || 0}%</p>
-                              )}
-                            </div>
-                          )}
-
-                          <div>
-                             <label className="text-[10px] text-blue-600 uppercase font-black block mb-1">Fecha Inicio</label>
-                             <p className="text-base font-black text-slate-900">{editedDetails?.fechaInicio ? new Date(editedDetails.fechaInicio).toLocaleDateString() : 'N/A'}</p>
-                          </div>
-
-                          <div className="col-span-2">
-                             <label className="text-[10px] text-blue-600 uppercase font-black block mb-1">Notas / Observaciones</label>
-                             {isEditingMode ? (
-                               <textarea 
-                                 value={editedDetails?.garantia || safeMeta?.garantia || editedDetails?.notas || safeMeta?.notas || ''}
-                                 onChange={(e) => setEditedDetails({...editedDetails, garantia: e.target.value})}
-                                 className="w-full bg-white border border-blue-200 text-slate-900 rounded-xl px-4 py-2 text-xs font-medium outline-none focus:ring-2 focus:ring-blue-500/20 min-h-[60px]"
-                                 placeholder="Notas adicionales..."
-                               />
-                             ) : (
-                               <p className="text-xs text-slate-600 italic">
-                                 {editedDetails?.garantia || safeMeta?.garantia || editedDetails?.notas || safeMeta?.notas || 'Sin notas registradas.'}
-                               </p>
-                             )}
-                          </div>
-                        </div>
-
-                        {/* Proyección */}
-                        <div className="mt-4 p-4 bg-emerald-50 rounded-2xl border border-emerald-100 border-dashed">
-                           <div className="flex items-center gap-2 mb-3">
-                             <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                             <p className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">Proyección de Recaudo</p>
-                           </div>
-                           <div className="grid grid-cols-2 gap-4">
-                              <div>
-                                 <label className="text-[9px] text-emerald-500 uppercase font-black block mb-0.5">Valor Cuota (Est.)</label>
-                                 <p className="text-lg font-black text-emerald-900">
-                                   {(() => {
-                                     const m = Number(editedDetails?.monto || safeMeta?.monto || 0);
-                                     const c = Math.max(1, Number(editedDetails?.cuotas || safeMeta?.cuotas || editedDetails?.numCuotas || safeMeta?.numCuotas || 1));
-                                     const p = Number(editedDetails?.porcentaje || safeMeta?.porcentaje || 0);
-                                     const val = isArticle ? m / c : (m * (1 + p / 100)) / c;
-                                     return formatCurrency(isNaN(val) ? 0 : val);
-                                   })()}
-                                 </p>
-                              </div>
-                              <div>
-                                 <label className="text-[9px] text-emerald-500 uppercase font-black block mb-0.5">Total a Cobrar</label>
-                                 <p className="text-lg font-black text-emerald-900">
-                                   {(() => {
-                                     const m = Number(editedDetails?.monto || safeMeta?.monto || 0);
-                                     const p = Number(editedDetails?.porcentaje || safeMeta?.porcentaje || 0);
-                                     const val = isArticle ? m : (m * (1 + p / 100));
-                                     return formatCurrency(isNaN(val) ? 0 : val);
-                                   })()}
-                                 </p>
-                              </div>
-                           </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
+              {isPrestamo ? renderPrestamo() : null}
             </div>
 
             {/* Historial de Aprobación */}
@@ -697,52 +922,50 @@ export default function NotificacionDetalleModal({
 
           {/* Confirmation Overlays */}
           {confirmAction && (
-            <div className="absolute inset-0 bg-white/95 backdrop-blur-md z-[110] flex flex-col items-center justify-center p-8 text-center animate-in fade-in duration-300">
-              <div className={`w-24 h-24 rounded-full flex items-center justify-center mb-6 shadow-2xl ${
-                confirmAction === 'APPROVE' ? "bg-emerald-100 text-emerald-600 shadow-emerald-500/20" : "bg-rose-100 text-rose-600 shadow-rose-500/20"
-              }`}>
-                {confirmAction === 'APPROVE' ? <CheckCircle2 className="h-12 w-12" /> : <AlertTriangle className="h-12 w-12" />}
-              </div>
-              
-              <div className="space-y-6 w-full max-w-sm">
-                <div>
-                  <h3 className="text-2xl font-black text-slate-900 tracking-tight">
-                    {confirmAction === 'APPROVE' ? '¿Confirmar Aprobación?' : '¿Confirmar Rechazo?'}
-                  </h3>
-                  <p className="text-slate-500 text-sm mt-2 font-medium">
-                    {confirmAction === 'APPROVE' 
-                      ? 'Se generarán los movimientos correspondientes y se notificará al solicitante.' 
-                      : 'Esta acción detendrá el proceso y se informará al solicitante el motivo.'}
-                  </p>
+            <div className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm z-[110] flex items-center justify-center p-4 animate-in fade-in duration-300">
+              <div className="bg-white rounded-2xl shadow-2xl border border-slate-100 w-full max-w-md p-6 text-center">
+                <div className={`w-20 h-20 rounded-full mx-auto flex items-center justify-center mb-5 shadow-xl ${
+                  confirmAction === 'APPROVE' ? "bg-emerald-100 text-emerald-600 shadow-emerald-500/20" : "bg-rose-100 text-rose-600 shadow-rose-500/20"
+                }`}>
+                  {confirmAction === 'APPROVE' ? <CheckCircle2 className="h-10 w-10" /> : <AlertTriangle className="h-10 w-10" />}
+                </div>
+                
+                <h3 className="text-2xl font-black text-slate-900 tracking-tight">
+                  {confirmAction === 'APPROVE' ? '¿Confirmar Aprobación?' : '¿Confirmar Rechazo?'}
+                </h3>
+                <p className="text-slate-500 text-sm mt-2 font-medium">
+                  {confirmAction === 'APPROVE' 
+                    ? 'Se generarán los movimientos correspondientes y se notificará al solicitante.' 
+                    : 'Esta acción detendrá el proceso y se informará al solicitante el motivo.'}
+                </p>
+
+                <div className="text-left space-y-2 mt-5">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
+                    {confirmAction === 'APPROVE' ? 'Comentario de Aprobación' : 'Motivo del Rechazo'}
+                  </label>
+                  <textarea 
+                    value={actionComment}
+                    onChange={(e) => setActionComment(e.target.value)}
+                    placeholder={confirmAction === 'APPROVE' ? 'Ej: Condiciones revisadas, cliente calificado, etc...' : 'Ej: Información insuficiente, monto excedido, etc...'}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-[1.5rem] p-4 text-sm font-medium text-slate-800 h-28 outline-none focus:ring-4 focus:ring-slate-500/5 focus:border-slate-500 resize-none transition-all shadow-inner"
+                  />
                 </div>
 
-                {confirmAction === 'REJECT' && (
-                  <div className="text-left space-y-2">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Motivo del Rechazo</label>
-                    <textarea 
-                      value={rejectionReason}
-                      onChange={(e) => setRejectionReason(e.target.value)}
-                      placeholder="Ej: Información insuficiente, monto excedido, etc..."
-                      className="w-full bg-slate-50 border border-slate-200 rounded-[1.5rem] p-4 text-sm font-medium text-slate-800 h-32 outline-none focus:ring-4 focus:ring-rose-500/5 focus:border-rose-500 resize-none transition-all shadow-inner"
-                    />
-                  </div>
-                )}
-
-                <div className="flex gap-4 pt-4">
+                <div className="flex gap-4 pt-5">
                   <button 
                     disabled={isProcessing}
                     onClick={() => {
                       setConfirmAction(null)
-                      setRejectionReason('')
+                      setActionComment('')
                     }}
-                    className="flex-1 py-4 bg-slate-100 text-slate-600 font-black text-[11px] uppercase tracking-widest rounded-2xl hover:bg-slate-200 transition-all disabled:opacity-50"
+                    className="flex-1 py-3 bg-slate-100 text-slate-600 font-black text-[11px] uppercase tracking-widest rounded-2xl hover:bg-slate-200 transition-all disabled:opacity-50"
                   >
                     Volver
                   </button>
                   <button 
-                    disabled={isProcessing || (confirmAction === 'REJECT' && !rejectionReason.trim())}
+                    disabled={isProcessing}
                     onClick={handleConfirmAction}
-                    className={`flex-1 py-4 font-black text-[11px] uppercase tracking-widest rounded-2xl shadow-xl transition-all text-white disabled:opacity-50 ${
+                    className={`flex-1 py-3 font-black text-[11px] uppercase tracking-widest rounded-2xl shadow-xl transition-all text-white disabled:opacity-50 ${
                       confirmAction === 'APPROVE' 
                         ? "bg-emerald-600 hover:bg-emerald-700 shadow-emerald-500/30" 
                         : "bg-rose-600 hover:bg-rose-700 shadow-rose-500/30"

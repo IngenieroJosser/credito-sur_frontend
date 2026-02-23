@@ -8,6 +8,7 @@ import { formatCurrency } from '@/lib/utils';
 import { prestamosService } from '@/services/prestamos-service';
 import { formatErrorForComponent } from '@/lib/api/api';
 import { offlineStore } from '@/lib/offline/offlineDb';
+import { articulosService } from '@/services/articulos-service';
 
 interface EditarPrestamoModalProps {
   id: string;
@@ -62,6 +63,10 @@ export default function EditarPrestamoModal({ id, onClose, onSuccess }: EditarPr
 
   const tasa = Number(tasaStr) || 0;
   const cuotas = Number(cuotasStr) || 0;
+  const [productoId, setProductoId] = useState('');
+  const [opcionesCuotas, setOpcionesCuotas] = useState<any[]>([]);
+  const [planIndex, setPlanIndex] = useState<number | null>(null);
+  const [autoCuotas, setAutoCuotas] = useState(true);
 
   const hasChanges = monto !== originalRef.current.monto 
     || tasa !== originalRef.current.tasa 
@@ -114,10 +119,20 @@ export default function EditarPrestamoModal({ id, onClose, onSuccess }: EditarPr
         setCuotaInicial(ci); setFechaInicio(fi); setNotas(n); setGarantia(g);
         setTipoPrestamo(data.tipoPrestamo || 'EFECTIVO');
         setProductoNombre(data.producto?.nombre || '');
+        setProductoId(String(data.producto?.id || ''));
         setNumeroPrestamo(data.numeroPrestamo || id);
         setClienteNombre(data.cliente ? `${data.cliente.nombres || ''} ${data.cliente.apellidos || ''}`.trim() : '');
         setClienteDni(data.cliente?.dni || '');
         setClienteTelefono(data.cliente?.telefono || '');
+        const isArticleNext = (data.tipoPrestamo || '').toUpperCase() === 'ARTICULO';
+        setAutoCuotas(isArticleNext);
+        if (data.producto?.id) {
+          const art = await articulosService.obtenerArticuloPorId(String(data.producto.id));
+          const ops = art?.opcionesCuotas || [];
+          setOpcionesCuotas(ops);
+          const idx = ops.findIndex((op: any) => Number(op.numeroCuotas) === Number(p));
+          setPlanIndex(idx >= 0 ? idx : null);
+        }
         
         originalRef.current = { 
           monto: m, tasa: t, cuotas: c, frecuencia: f, estado: e,
@@ -133,6 +148,21 @@ export default function EditarPrestamoModal({ id, onClose, onSuccess }: EditarPr
     };
     fetchLoan();
   }, [id]);
+
+  useEffect(() => {
+    if (!isArticle) return;
+    const meses = Number(plazoMeses || 0);
+    const f = frecuencia;
+    let c = 0;
+    if (meses > 0) {
+      if (f === 'DIARIO') c = meses * 30;
+      else if (f === 'SEMANAL') c = meses * 4;
+      else if (f === 'QUINCENAL') c = meses * 2;
+      else if (f === 'MENSUAL') c = meses;
+      else c = meses * 4;
+    }
+    if (c > 0 && autoCuotas && c !== cuotas) setCuotasStr(String(c));
+  }, [plazoMeses, frecuencia, isArticle, autoCuotas, cuotas]);
 
   const handleClose = () => {
     setVisible(false);
@@ -354,7 +384,10 @@ export default function EditarPrestamoModal({ id, onClose, onSuccess }: EditarPr
                           type="text"
                           inputMode="numeric"
                           value={cuotasStr}
-                          onChange={(e) => setCuotasStr(e.target.value.replace(/[^0-9]/g, ''))}
+                          onChange={(e) => {
+                            setCuotasStr(e.target.value.replace(/[^0-9]/g, ''));
+                            setAutoCuotas(false);
+                          }}
                           className="w-full bg-slate-50 border border-slate-100 text-slate-900 rounded-2xl px-4 py-2.5 text-base font-black outline-none focus:ring-2 focus:ring-blue-500/10 focus:bg-white"
                         />
                       ) : (
@@ -385,40 +418,56 @@ export default function EditarPrestamoModal({ id, onClose, onSuccess }: EditarPr
                   <div className="space-y-1">
                     <label className="text-[8px] text-slate-400 font-black uppercase tracking-widest block">Plazo Total (Meses)</label>
                     {isEditing ? (
-                      <input
-                        type="number"
-                        min="1"
-                        value={plazoMeses}
-                        onChange={(e) => setPlazoMeses(Math.max(1, parseInt(e.target.value) || 0))}
-                        className="w-full bg-slate-50 border border-slate-100 text-slate-900 rounded-2xl px-4 py-2.5 text-base font-black outline-none focus:ring-2 focus:ring-blue-500/10 focus:bg-white"
-                      />
+                      isArticle && opcionesCuotas.length > 0 ? (
+                        <select
+                          value={planIndex !== null ? planIndex : ''}
+                          onChange={(e) => {
+                            const idx = e.target.value ? parseInt(e.target.value) : null;
+                            setPlanIndex(idx);
+                            if (idx !== null) {
+                              const op = opcionesCuotas[idx];
+                              const meses = Number(op.numeroCuotas);
+                              const precioTotal = Number(op.precioTotal);
+                              setPlazoMeses(meses);
+                              setMonto(Math.max(0, precioTotal - cuotaInicial));
+                              setAutoCuotas(true);
+                            }
+                          }}
+                          className="w-full bg-slate-50 border border-slate-100 text-slate-900 rounded-2xl px-4 py-2.5 text-base font-black outline-none focus:ring-2 focus:ring-blue-500/10 focus:bg-white"
+                        >
+                          <option value="">Seleccionar plazo...</option>
+                          {opcionesCuotas.map((op: any, i: number) => {
+                            const meses = Number(op.numeroCuotas);
+                            if (isNaN(meses)) return null;
+                            return (
+                              <option key={i} value={i}>
+                                {meses} {meses === 1 ? 'Mes' : 'Meses'} - Total: {formatCurrency(op.precioTotal)}
+                              </option>
+                            );
+                          })}
+                        </select>
+                      ) : (
+                        <input
+                          type="number"
+                          min="1"
+                          value={plazoMeses}
+                          onChange={(e) => setPlazoMeses(Math.max(1, parseInt(e.target.value) || 0))}
+                          className="w-full bg-slate-50 border border-slate-100 text-slate-900 rounded-2xl px-4 py-2.5 text-base font-black outline-none focus:ring-2 focus:ring-blue-500/10 focus:bg-white"
+                        />
+                      )
                     ) : (
                       <p className="text-lg font-black text-slate-900">{plazoMeses} <span className="text-[10px] text-slate-400 font-bold">MESES</span></p>
                     )}
                   </div>
 
-                  <div className="space-y-1">
-                    <label className="text-[8px] text-slate-400 font-black uppercase tracking-widest block">Sistema Amortización</label>
-                    {isEditing ? (
-                      <select
-                        value={tipoAmortizacion}
-                        onChange={(e) => setTipoAmortizacion(e.target.value)}
-                        className="w-full bg-slate-50 border border-slate-100 text-slate-900 rounded-2xl px-4 py-2.5 text-xs font-black outline-none focus:ring-2 focus:ring-blue-500/10 focus:bg-white"
-                      >
-                        <option value="INTERES_SIMPLE">INTERÉS SIMPLE</option>
-                        <option value="FRANCESA">SISTEMA FRANCÉS</option>
-                      </select>
-                    ) : (
-                      <p className="text-[11px] font-black text-slate-700 uppercase">{tipoAmortizacion === 'FRANCESA' ? 'Sistema Francés' : 'Interés Simple'}</p>
-                    )}
-                  </div>
+                  {/* Sistema Amortización removido por requerimiento */}
 
                   <div className="space-y-1">
                     <label className="text-[8px] text-slate-400 font-black uppercase tracking-widest block">Frecuencia de Pago</label>
                     {isEditing ? (
                       <select
                         value={frecuencia}
-                        onChange={(e) => setFrecuencia(e.target.value)}
+                        onChange={(e) => { setFrecuencia(e.target.value); setAutoCuotas(true); }}
                         className="w-full bg-slate-50 border border-slate-100 text-slate-900 rounded-2xl px-4 py-2.5 text-xs font-black outline-none focus:ring-2 focus:ring-blue-500/10 focus:bg-white"
                       >
                         <option value="DIARIO">DIARIO</option>

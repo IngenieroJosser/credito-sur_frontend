@@ -83,40 +83,43 @@ export default function CrearCreditoModal({ isOpen, onClose, onConfirm, defaultC
   }, [isOpen, defaultClienteId]);
 
   const articuloSeleccionado = articulos.find(a => a.id === articuloSeleccionadoId)
+  const [esContado, setEsContado] = useState(false)
 
-  const planSeleccionado = useMemo(() => (articuloSeleccionado && planArticuloIndex !== null) 
-    ? articuloSeleccionado.opcionesCuotas[planArticuloIndex] 
-    : null, [articuloSeleccionado, planArticuloIndex]);
+  const planSeleccionado = useMemo(() => {
+    if (!articuloSeleccionado) return null
+    if (esContado) return null
+    if (planArticuloIndex === null) return null
+    return articuloSeleccionado.opcionesCuotas[planArticuloIndex] || null
+  }, [articuloSeleccionado, planArticuloIndex, esContado])
 
   const mesesPlan = useMemo(() => {
-    if (!planSeleccionado) return 0;
-    const n = Number(planSeleccionado.numeroCuotas);
-    return isNaN(n) ? 0 : n; // Meses reales de la DB
-  }, [planSeleccionado]);
+    if (esContado) return 0
+    if (!planSeleccionado) return 0
+    const n = Number(planSeleccionado.numeroCuotas)
+    return isNaN(n) ? 0 : n
+  }, [planSeleccionado, esContado])
   
   const calculoCreditoArticulo = useMemo(() => {
-     if(!planSeleccionado || !mesesPlan) return null;
-     
-     const precioTotal = planSeleccionado.precioTotal;
-     const inicial = parseCOPInputToNumber(cuotaInicialArticuloInput);
-     const aFinanciar = Math.max(0, precioTotal - inicial);
-     
-     let numCuotas = 0;
-     if (frecuenciaPago === 'DIARIO') numCuotas = Math.ceil(mesesPlan * 30);
-     else if (frecuenciaPago === 'SEMANAL') numCuotas = Math.ceil(mesesPlan * 4);
-     else if (frecuenciaPago === 'QUINCENAL') numCuotas = Math.ceil(mesesPlan * 2); 
-     else if (frecuenciaPago === 'MENSUAL') numCuotas = Math.ceil(mesesPlan * 1);
-     
-     const valorCuota = numCuotas > 0 ? Math.ceil(aFinanciar / numCuotas) : 0;
-     
-     return {
-        meses: mesesPlan,
-        precioTotal,
-        aFinanciar,
-        numCuotas,
-        valorCuota
-     };
-  }, [planSeleccionado, mesesPlan, frecuenciaPago, cuotaInicialArticuloInput]);
+     if (!articuloSeleccionado) return null
+     const inicial = parseCOPInputToNumber(cuotaInicialArticuloInput)
+     if (esContado) {
+       const precioTotal = Number(articuloSeleccionado.precioContado || articuloSeleccionado.precioBase || 0)
+       const aFinanciar = precioTotal
+       const numCuotas = 1
+       const valorCuota = precioTotal
+       return { meses: 0, precioTotal, aFinanciar, numCuotas, valorCuota }
+     }
+     if (!planSeleccionado || !mesesPlan) return null
+     const precioTotal = planSeleccionado.precioTotal
+     const aFinanciar = Math.max(0, precioTotal - inicial)
+     let numCuotas = 0
+     if (frecuenciaPago === 'DIARIO') numCuotas = Math.ceil(mesesPlan * 30)
+     else if (frecuenciaPago === 'SEMANAL') numCuotas = Math.ceil(mesesPlan * 4)
+     else if (frecuenciaPago === 'QUINCENAL') numCuotas = Math.ceil(mesesPlan * 2)
+     else if (frecuenciaPago === 'MENSUAL') numCuotas = Math.ceil(mesesPlan * 1)
+     const valorCuota = numCuotas > 0 ? Math.ceil(aFinanciar / numCuotas) : 0
+     return { meses: mesesPlan, precioTotal, aFinanciar, numCuotas, valorCuota }
+  }, [planSeleccionado, mesesPlan, frecuenciaPago, cuotaInicialArticuloInput, articuloSeleccionado, esContado])
 
   if (!isOpen) return null
 
@@ -298,8 +301,32 @@ export default function CrearCreditoModal({ isOpen, onClose, onConfirm, defaultC
                   <div className="bg-blue-50/50 border border-blue-100 rounded-2xl p-4 flex gap-3 items-start">
                     <Calculator className="w-5 h-5 text-blue-600 mt-0.5" />
                     <p className="text-xs font-medium text-blue-900 leading-relaxed">
-                      <strong>Venta de Artículos:</strong> Los plazos y precios totales están predefinidos. La frecuencia de pago ajustará automáticamente el valor de cada cuota.
+                      <strong>Venta de Artículos:</strong> Elige crédito por meses o marca <strong>Compra de Contado</strong>. En contado no se generan cuotas ni plan de pagos.
                     </p>
+                  </div>
+                  
+                  <div className="mt-3">
+                    <label className="block text-sm font-bold text-slate-700 mb-2">Modo de Venta</label>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => { setEsContado(false) }}
+                        className={`px-4 py-2 rounded-xl border-2 text-sm font-bold transition-all ${
+                          !esContado ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'
+                        }`}
+                      >
+                        Crédito
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => { setEsContado(true); setPlanArticuloIndex(null); setFrecuenciaPago('MENSUAL') }}
+                        className={`px-4 py-2 rounded-xl border-2 text-sm font-bold transition-all ${
+                          esContado ? 'border-emerald-500 bg-emerald-50 text-emerald-700' : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'
+                        }`}
+                      >
+                        Contado
+                      </button>
+                    </div>
                   </div>
                   
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -310,6 +337,7 @@ export default function CrearCreditoModal({ isOpen, onClose, onConfirm, defaultC
                         onChange={(e) => {
                           setArticuloSeleccionadoId(e.target.value)
                           setPlanArticuloIndex(null)
+                          setEsContado(false)
                         }}
                         className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-[#08557f] focus:ring-0 font-bold text-slate-900"
                       >
@@ -323,59 +351,65 @@ export default function CrearCreditoModal({ isOpen, onClose, onConfirm, defaultC
                     </div>
                     
                     <div>
-                        <label className="block text-sm font-bold text-slate-700 mb-2">Plazo (Meses)</label>
-                        <select 
-                          value={planArticuloIndex !== null ? planArticuloIndex : ''}
-                          onChange={(e) => {
-                            const idx = e.target.value ? parseInt(e.target.value) : null
-                            setPlanArticuloIndex(idx)
-                          }}
-                          className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-[#08557f] focus:ring-0 font-bold text-slate-900"
-                          disabled={!articuloSeleccionadoId}
-                        >
-                            <option value="">Seleccionar plazo...</option>
-                            {articuloSeleccionado?.opcionesCuotas.map((op, idx) => {
-                                const meses = Number(op.numeroCuotas);
-                                if (isNaN(meses)) return null;
-                                return (
-                                  <option key={idx} value={idx}>
-                                    {meses} {meses === 1 ? 'Mes' : 'Meses'} - Total: {formatCurrency(op.precioTotal)}
-                                  </option>
-                                );
-                            })}
-                        </select>
+                        {!esContado && (
+                          <>
+                            <label className="block text-sm font-bold text-slate-700 mt-3 mb-2">Plazo (Meses)</label>
+                            <select 
+                              value={planArticuloIndex !== null ? planArticuloIndex : ''}
+                              onChange={(e) => {
+                                const idx = e.target.value ? parseInt(e.target.value) : null
+                                setPlanArticuloIndex(idx)
+                              }}
+                              className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-[#08557f] focus:ring-0 font-bold text-slate-900"
+                              disabled={!articuloSeleccionadoId}
+                            >
+                                <option value="">Seleccionar plazo...</option>
+                                {articuloSeleccionado?.opcionesCuotas.map((op, idx) => {
+                                    const meses = Number(op.numeroCuotas);
+                                    if (isNaN(meses)) return null;
+                                    return (
+                                      <option key={idx} value={idx}>
+                                        {meses} {meses === 1 ? 'Mes' : 'Meses'} - Total: {formatCurrency(op.precioTotal)}
+                                      </option>
+                                    );
+                                })}
+                            </select>
+                          </>
+                        )}
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-bold text-slate-700 mb-2">Frecuencia de Pago</label>
-                      <select 
-                         value={frecuenciaPago}
-                         onChange={(e) => setFrecuenciaPago(e.target.value)}
-                         className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-[#08557f] focus:ring-0 font-bold text-slate-900"
-                      >
-                         <option value="DIARIO">Diaria</option>
-                        <option value="SEMANAL">Semanal</option>
-                        <option value="QUINCENAL">Quincenal</option>
-                        <option value="MENSUAL">Mensual</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-bold text-slate-700 mb-2">Cuota Inicial</label>
-                      <div className="relative">
-                        <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
-                        <input 
-                          type="text"
-                          inputMode="numeric"
-                          value={cuotaInicialArticuloInput}
-                          onChange={(e) => setCuotaInicialArticuloInput(formatCOPInputValue(e.target.value))}
-                          className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-[#08557f] focus:ring-0 font-bold text-slate-900"
-                          placeholder="0"
-                        />
+                  {!esContado && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-bold text-slate-700 mb-2">Frecuencia de Pago</label>
+                        <select 
+                           value={frecuenciaPago}
+                           onChange={(e) => setFrecuenciaPago(e.target.value)}
+                           className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-[#08557f] focus:ring-0 font-bold text-slate-900"
+                        >
+                           <option value="DIARIO">Diaria</option>
+                          <option value="SEMANAL">Semanal</option>
+                          <option value="QUINCENAL">Quincenal</option>
+                          <option value="MENSUAL">Mensual</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-bold text-slate-700 mb-2">Cuota Inicial</label>
+                        <div className="relative">
+                          <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
+                          <input 
+                            type="text"
+                            inputMode="numeric"
+                            value={cuotaInicialArticuloInput}
+                            onChange={(e) => setCuotaInicialArticuloInput(formatCOPInputValue(e.target.value))}
+                            className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-[#08557f] focus:ring-0 font-bold text-slate-900"
+                            placeholder="0"
+                          />
+                        </div>
                       </div>
                     </div>
-                  </div>
+                  )}
 
                   <div>
                     <label className="block text-sm font-bold text-slate-700 mb-2">Fecha Crédito</label>
@@ -394,9 +428,9 @@ export default function CrearCreditoModal({ isOpen, onClose, onConfirm, defaultC
                               <div className="p-1.5 bg-emerald-500 rounded-lg text-white">
                                  <CheckCircle2 className="w-3.5 h-3.5" />
                               </div>
-                              <span className="text-[10px] font-black text-emerald-800 uppercase tracking-widest">A Financiar</span>
+                              <span className="text-[10px] font-black text-emerald-800 uppercase tracking-widest">{esContado ? 'Precio Contado' : 'A Financiar'}</span>
                            </div>
-                           <span className="font-black text-emerald-900 text-xl">{formatCurrency(calculoCreditoArticulo.aFinanciar)}</span>
+                           <span className="font-black text-emerald-900 text-xl">{formatCurrency(esContado ? calculoCreditoArticulo.precioTotal : calculoCreditoArticulo.aFinanciar)}</span>
                         </div>
                         <div className="grid grid-cols-2 gap-4">
                            <div className="bg-white/50 p-3 rounded-xl border border-emerald-100">
@@ -405,7 +439,7 @@ export default function CrearCreditoModal({ isOpen, onClose, onConfirm, defaultC
                                  Cuotas
                               </div>
                               <div className="font-black text-emerald-900 text-lg">
-                                 {calculoCreditoArticulo.numCuotas} <span className="text-[10px] font-bold text-emerald-600 uppercase tracking-tighter">x {frecuenciaPago}</span>
+                                 {calculoCreditoArticulo.numCuotas} <span className="text-[10px] font-bold text-emerald-600 uppercase tracking-tighter">{esContado ? '' : `x ${frecuenciaPago}`}</span>
                               </div>
                            </div>
                            <div className="bg-white/50 p-3 rounded-xl border border-emerald-100">
@@ -414,7 +448,7 @@ export default function CrearCreditoModal({ isOpen, onClose, onConfirm, defaultC
                                  Valor Cuota
                               </div>
                               <div className="font-black text-emerald-900 text-lg">
-                                 {formatCurrency(calculoCreditoArticulo.valorCuota)}
+                                 {formatCurrency(esContado ? calculoCreditoArticulo.precioTotal : calculoCreditoArticulo.valorCuota)}
                               </div>
                            </div>
                         </div>
@@ -423,15 +457,17 @@ export default function CrearCreditoModal({ isOpen, onClose, onConfirm, defaultC
                 </>
               )}
 
-              <div>
-                <label className="block text-sm font-bold text-slate-700 mb-2">Fecha Primer Cobro</label>
-                <input 
-                  type="date"
-                  value={fechaPrimerCobro}
-                  onChange={(e) => setFechaPrimerCobro(e.target.value)}
-                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-[#08557f] focus:ring-0 font-medium text-slate-900"
-                />
-              </div>
+              {!(creditType === 'articulo' && esContado) && (
+                <div>
+                  <label className="block text-sm font-bold text-slate-700 mb-2">Fecha Primer Cobro</label>
+                  <input 
+                    type="date"
+                    value={fechaPrimerCobro}
+                    onChange={(e) => setFechaPrimerCobro(e.target.value)}
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-[#08557f] focus:ring-0 font-medium text-slate-900"
+                  />
+                </div>
+              )}
 
               <div>
                 <label className="block text-sm font-bold text-slate-700 mb-2">Notas (Opcional)</label>
@@ -486,13 +522,22 @@ export default function CrearCreditoModal({ isOpen, onClose, onConfirm, defaultC
                             creditType,
                             clienteCreditoId,
                             articuloId: articuloSeleccionadoId,
-                            precioProductoId: (planArticuloIndex !== null && articuloSeleccionado) ? articuloSeleccionado.opcionesCuotas[planArticuloIndex]?.id : undefined,
+                            precioProductoId: articuloSeleccionado
+                              ? (
+                                  esContado
+                                    ? articuloSeleccionado.precioContadoId
+                                    : (planArticuloIndex !== null
+                                      ? articuloSeleccionado.opcionesCuotas[planArticuloIndex]?.id
+                                      : undefined)
+                                )
+                              : undefined,
                             monto: calculoCreditoArticulo?.precioTotal || 0,
                             cuotaInicialArticulo: parseCOPInputToNumber(cuotaInicialArticuloInput),
-                            frecuenciaPago,
+                            frecuenciaPago: esContado ? 'MENSUAL' : frecuenciaPago,
                             fechaInicio: fechaCreditoInput,
-                            plazoMeses: mesesPlan,
-                            numCuotas: calculoCreditoArticulo?.numCuotas || 0
+                            plazoMeses: esContado ? 1 : mesesPlan,
+                            numCuotas: esContado ? 1 : (calculoCreditoArticulo?.numCuotas || 0),
+                            ventaContado: esContado ? true : undefined
                           }
                       await onConfirm(payload as any)
                       handleReset()

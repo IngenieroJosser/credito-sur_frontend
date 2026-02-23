@@ -218,7 +218,6 @@ export const offlineStore = {
   // Obtener registros por índice
   async getByIndex<T>(store: StoreName, indexName: string, value: string): Promise<T[]> {
     const db = await getOfflineDb();
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     return (db as any).getAllFromIndex(store, indexName, value) as Promise<T[]>;
   },
 

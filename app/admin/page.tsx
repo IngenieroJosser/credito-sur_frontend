@@ -152,9 +152,11 @@ export default function DashboardPage() {
   const searchParams = useSearchParams();
   const period = (searchParams.get('period') as TimeFilterPeriod) || 'today';
   
-  // Ref para almacenar el período activo actual (se actualiza en cada render)
+  // Ref para almacenar el período activo actual
   const activePeriodRef = useRef<TimeFilterPeriod>(period);
-  activePeriodRef.current = period; // Actualizar en cada render para tener siempre el valor más reciente
+  useEffect(() => {
+    activePeriodRef.current = period;
+  }, [period]);
   
   // Contador de peticiones para identificar la más reciente
   const requestCounterRef = useRef(0);

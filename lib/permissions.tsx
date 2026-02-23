@@ -321,7 +321,6 @@ export const iconosMap: Record<string, React.ReactNode> = {
 export const getIconComponent = (iconName: string): React.ReactNode => {
   const icon = iconosMap[iconName];
   if (!icon && process.env.NODE_ENV !== 'production') {
-    // eslint-disable-next-line no-console
     console.warn('[sidebar] missing icon component for iconName:', iconName);
   }
   return icon || <Eye className="h-4 w-4" />;
@@ -416,7 +415,6 @@ const inferIconName = (id: string, iconFromApi?: string | null) => {
   const base = key.split('-')[0] || '';
   const inferred = ACTION_ICON_MAP[key] || (base ? ACTION_ICON_MAP[base] : undefined) || ACTION_ICON_MAP[id];
   if (!inferred && process.env.NODE_ENV !== 'production') {
-    // eslint-disable-next-line no-console
     console.warn('[sidebar] icon fallback Eye for action id:', id);
   }
   return inferred || 'Eye';

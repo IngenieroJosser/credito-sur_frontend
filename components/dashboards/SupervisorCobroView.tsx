@@ -602,24 +602,29 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
     try {
       setIsLoading(true)
       
+      const esContado = Boolean((data as any).ventaContado)
       const payload: any = {
         clienteId: data.clienteCreditoId,
         tipoPrestamo: data.creditType === 'prestamo' ? 'EFECTIVO' : 'ARTICULO',
         monto: data.montoPrestamo || (data.creditType === 'articulo' ? (data.monto || 0) : 0),
-        tasaInteres: data.tasaInteres || 0,
+        tasaInteres: esContado ? 0 : (data.tasaInteres || 0),
         tasaInteresMora: 2, 
-        plazoMeses: Math.ceil((data.cuotasPrestamo || 0) / (data.frecuenciaPago === 'Diaria' ? 30 : data.frecuenciaPago === 'Semanal' ? 4 : data.frecuenciaPago === 'Quincenal' ? 2 : 1)),
-        frecuenciaPago: data.frecuenciaPago === 'Diaria' ? 'DIARIO' : data.frecuenciaPago === 'Semanal' ? 'SEMANAL' : data.frecuenciaPago === 'Quincenal' ? 'QUINCENAL' : 'MENSUAL',
+        plazoMeses: data.creditType === 'prestamo'
+          ? Math.ceil((data.cuotasPrestamo || 0) / (data.frecuenciaPago === 'Diaria' ? 30 : data.frecuenciaPago === 'Semanal' ? 4 : data.frecuenciaPago === 'Quincenal' ? 2 : 1))
+          : (esContado ? 1 : (data.plazoMeses || 1)),
+        frecuenciaPago: esContado
+          ? 'MENSUAL'
+          : (data.frecuenciaPago === 'Diaria' ? 'DIARIO' : data.frecuenciaPago === 'Semanal' ? 'SEMANAL' : data.frecuenciaPago === 'Quincenal' ? 'QUINCENAL' : 'MENSUAL'),
         fechaInicio: data.fechaInicio || new Date().toISOString(),
         creadoPorId: userSession?.id,
         cuotaInicial: data.cuotaInicialArticulo || 0,
-        notas: data.notas || '',
+        notas: esContado ? 'Venta de artículo de contado' : (data.notas || ''),
         tipoAmortizacion: data.tipoInteres || TipoAmortizacion.INTERES_SIMPLE
       }
 
       if (data.creditType === 'articulo') {
         payload.productoId = data.articuloId
-        payload.precioProductoId = data.precioProductoId
+        payload.precioProductoId = esContado ? undefined : data.precioProductoId
       }
 
       await prestamosService.crearPrestamo(payload)
