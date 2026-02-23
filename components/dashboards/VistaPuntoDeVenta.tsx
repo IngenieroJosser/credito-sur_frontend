@@ -165,7 +165,14 @@ export default function VistaPuntoDeVenta() {
     setVentasFechaHasta('')
     try {
       const creditosData = await prestamosService.obtenerPrestamos({ tipo: 'ARTICULO', limit: 20 } as any)
-      const ventas: VentaReciente[] = (creditosData?.prestamos || []).slice(0, 20).map((c: any) => ({
+      const soloArticulos = (creditosData?.prestamos || []).filter((c: any) => {
+        const tipoPrestamo = String(c.tipoPrestamo || c.tipo || '').toUpperCase()
+        const tipoProducto = String(c.tipoProducto || '').toLowerCase()
+        if (tipoPrestamo === 'ARTICULO') return true
+        if (tipoProducto && tipoProducto !== 'efectivo') return true
+        return false
+      })
+      const ventas: VentaReciente[] = soloArticulos.slice(0, 20).map((c: any) => ({
         id: c.id,
         cliente: c.cliente || 'Cliente',
         clienteId: c.clienteId,
