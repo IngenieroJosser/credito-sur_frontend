@@ -86,7 +86,11 @@ export default function CrearCreditoModal({ isOpen, onClose, onConfirm, defaultC
     ? articuloSeleccionado.opcionesCuotas[planArticuloIndex] 
     : null, [articuloSeleccionado, planArticuloIndex]);
 
-  const mesesPlan = useMemo(() => planSeleccionado ? planSeleccionado.numeroCuotas / 2 : 0, [planSeleccionado]);
+  const mesesPlan = useMemo(() => {
+    if (!planSeleccionado) return 0;
+    const n = Number(planSeleccionado.numeroCuotas);
+    return isNaN(n) ? 0 : n / 2;
+  }, [planSeleccionado]);
   
   const calculoCreditoArticulo = useMemo(() => {
      if(!planSeleccionado || !mesesPlan) return null;
@@ -328,11 +332,15 @@ export default function CrearCreditoModal({ isOpen, onClose, onConfirm, defaultC
                           disabled={!articuloSeleccionadoId}
                         >
                             <option value="">Seleccionar plazo...</option>
-                            {articuloSeleccionado?.opcionesCuotas.map((op, idx) => (
-                                <option key={idx} value={idx}>
-                                  {op.numeroCuotas / 2} Meses - Total: {formatCurrency(op.precioTotal)}
-                                </option>
-                            ))}
+                            {articuloSeleccionado?.opcionesCuotas.map((op, idx) => {
+                                const meses = Number(op.numeroCuotas) / 2;
+                                if (isNaN(meses)) return null;
+                                return (
+                                  <option key={idx} value={idx}>
+                                    {meses} Meses - Total: {formatCurrency(op.precioTotal)}
+                                  </option>
+                                );
+                            })}
                         </select>
                     </div>
                   </div>
