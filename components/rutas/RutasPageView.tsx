@@ -130,13 +130,16 @@ export const RutasPageView = ({
           const fetchedSupervisores = await routesService.getSupervisores();
           setSupervisoresList(fetchedSupervisores);
         }
-        // Fetch routes if empty (fallback)
-        if (rutasList.length === 0) {
-           const response = await routesService.getAll({ limit: 100 });
-           setRutasList(response.data as unknown as Ruta[]);
+
+        try {
+          const response = await routesService.getAll({ limit: 100 });
+          const data = (response as any)?.data || (response as any) || [];
+          if (Array.isArray(data) && data.length > 0) {
+            setRutasList(data as unknown as Ruta[]);
+          }
+        } catch (e) {
         }
       } catch (error) {
-        // Fallback offline: cargar rutas de IndexedDB
         try {
           const offRutas = await offlineStore.getAll<any>('rutas');
           if (offRutas.length > 0 && rutasList.length === 0) {
@@ -155,12 +158,12 @@ export const RutasPageView = ({
               metaDelDia: 0,
             } as Ruta)));
           }
-        } catch { /* ignore */ }
+        } catch {}
       }
     };
 
     fetchLists();
-  }, []); // Run once on mount
+  }, []);
 
 
   const [clienteSearch, setClienteSearch] = useState('')
