@@ -148,6 +148,7 @@ const ReportesOperativosPage = () => {
     totalPrestamosNuevos: 0,
     totalAfiliaciones: 0,
     efectividadPromedio: 0,
+    totalMontoPrestamosNuevos: 0,
     rendimientoRutas: [],
     periodo: period,
     fechaInicio: '',
@@ -176,7 +177,7 @@ const ReportesOperativosPage = () => {
             <span>Reportes Operativos</span>
           </div>
             <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold tracking-tight">
-              <span className="text-blue-600">Rendimiento </span><span className="text-orange-500">Diario</span>
+              <span className="text-blue-600">Rendimiento</span>
             </h1>
             <p className="text-sm md:text-base lg:text-lg text-slate-500 mt-2 max-w-2xl font-medium leading-relaxed">
               Consolidado de operaciones del día: cobranza, colocación de créditos y captación de clientes.
@@ -225,7 +226,7 @@ const ReportesOperativosPage = () => {
             </div>
             <div className="flex items-center gap-2">
               <span className="text-xs font-medium text-slate-500">
-                Total colocado: <span className="text-slate-900 font-bold">{formatCurrency(data.rendimientoRutas.reduce((acc: number, r: RoutePerformance) => acc + (r.meta - r.recaudado), 0))}</span>
+                Total colocado: <span className="text-slate-900 font-bold">{formatCurrency(data.totalMontoPrestamosNuevos)}</span>
               </span>
             </div>
           </div>
@@ -249,7 +250,7 @@ const ReportesOperativosPage = () => {
             <div className="flex justify-between items-start mb-4">
               <div>
                 <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Efectividad Global</p>
-                <h3 className="text-2xl font-bold text-slate-900 mt-2">{porcentajeGlobal}%</h3>
+                <h3 className="text-2xl font-bold text-slate-900 mt-2">{data.efectividadPromedio}%</h3>
               </div>
               <div className="p-3 bg-amber-50 rounded-xl group-hover:scale-110 transition-transform border border-amber-100">
                 <TrendingUp className="h-5 w-5 text-amber-600" />
@@ -303,20 +304,12 @@ const ReportesOperativosPage = () => {
                     <td className="px-6 py-4 text-right font-bold text-slate-900">{formatCurrency(item.recaudado)}</td>
                     <td className="px-6 py-4 text-center">
                       <div className="flex flex-col items-center gap-1.5">
-                        <span className={cn(
-                          "text-xs font-bold px-2 py-0.5 rounded-full border",
-                          item.eficiencia >= 80 ? 'text-emerald-700 bg-emerald-50 border-emerald-100' : 
-                          item.eficiencia >= 60 ? 'text-yellow-700 bg-yellow-50 border-yellow-100' : 'text-red-700 bg-red-50 border-red-100'
-                        )}>
+                        <span className="text-xs font-bold px-2 py-0.5 rounded-full border text-emerald-700 bg-emerald-50 border-emerald-100">
                           {item.eficiencia}%
                         </span>
                         <div className="w-20 h-1.5 bg-slate-100 rounded-full overflow-hidden">
                           <div 
-                            className={cn(
-                              "h-full rounded-full transition-all duration-500",
-                              item.eficiencia >= 80 ? 'bg-emerald-500' : 
-                              item.eficiencia >= 60 ? 'bg-yellow-500' : 'bg-red-500'
-                            )}
+                            className="h-full rounded-full transition-all duration-500 bg-emerald-500"
                             style={{ width: `${item.eficiencia}%` }}
                           />
                         </div>
@@ -384,20 +377,12 @@ const ReportesOperativosPage = () => {
               <div className="mb-3 pb-3 border-b border-slate-100">
                 <div className="text-xs text-slate-500 font-bold uppercase tracking-wider mb-2">Eficiencia</div>
                 <div className="flex items-center gap-3">
-                  <span className={cn(
-                    "text-sm font-bold px-3 py-1 rounded-full border",
-                    item.eficiencia >= 80 ? 'text-emerald-700 bg-emerald-50 border-emerald-100' : 
-                    item.eficiencia >= 60 ? 'text-yellow-700 bg-yellow-50 border-yellow-100' : 'text-red-700 bg-red-50 border-red-100'
-                  )}>
+                  <span className="text-sm font-bold px-3 py-1 rounded-full border text-emerald-700 bg-emerald-50 border-emerald-100">
                     {item.eficiencia}%
                   </span>
                   <div className="flex-1 h-2 bg-slate-100 rounded-full overflow-hidden">
                     <div 
-                      className={cn(
-                        "h-full rounded-full transition-all duration-500",
-                        item.eficiencia >= 80 ? 'bg-emerald-500' : 
-                        item.eficiencia >= 60 ? 'bg-yellow-500' : 'bg-red-500'
-                      )}
+                      className="h-full rounded-full transition-all duration-500 bg-emerald-500"
                       style={{ width: `${item.eficiencia}%` }}
                     />
                   </div>
@@ -430,67 +415,7 @@ const ReportesOperativosPage = () => {
           ))}
         </section>
 
-        {/* Gráfico de Barras Simple (CSS) */}
-        <section className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <div className="bg-white/80 backdrop-blur-sm p-6 rounded-2xl border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all">
-            <h3 className="font-bold text-slate-900 mb-6 text-lg">Comparativa de Recaudo vs Objetivo</h3>
-            <div className="space-y-6">
-              {rendimientoFiltrado.map((item: RoutePerformance, idx: number) => (
-                <div key={idx} className="space-y-2">
-                  <div className="flex justify-between text-sm">
-                    <span className="font-bold text-slate-700">{item.ruta}</span>
-                    <span className="text-slate-500 font-medium">
-                      <span className="text-slate-900 font-bold">{formatCurrency(item.recaudado)}</span> 
-                      <span className="mx-1 text-slate-300">/</span> 
-                      {formatCurrency(item.meta)}
-                    </span>
-                  </div>
-                  <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
-                    <div 
-                      className="bg-slate-900 h-2 rounded-full transition-all duration-1000 ease-out" 
-                      style={{ width: `${(item.recaudado / item.meta) * 100}%` }}
-                    ></div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
 
-          <div className="bg-white/80 backdrop-blur-sm p-6 rounded-2xl border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all flex flex-col justify-between relative overflow-hidden group">
-            <div className="relative z-10">
-              <h3 className="font-bold text-xl mb-3 text-slate-900">Resumen del Período</h3>
-              <p className="text-slate-500 text-sm mb-8 leading-relaxed font-medium">
-                Resumen operativo para el período seleccionado. Se muestra el rendimiento consolidado de todas las rutas activas.
-              </p>
-              
-              {data.rendimientoRutas.length > 0 && (
-                <div className="space-y-4">
-                  <div className="flex items-center gap-4 bg-slate-50 p-3 rounded-xl border border-slate-100">
-                    <div className="w-10 h-10 rounded-full bg-emerald-50 flex items-center justify-center border border-emerald-100">
-                      <TrendingUp className="h-5 w-5 text-emerald-600" />
-                    </div>
-                    <div>
-                      <p className="text-xs text-slate-500 uppercase tracking-wider font-bold">Mejor Ruta</p>
-                      <p className="font-bold text-slate-900">
-                       {data.rendimientoRutas.reduce((prev: RoutePerformance, current: RoutePerformance) => (prev.eficiencia > current.eficiencia) ? prev : current).ruta}
-                        {' '}({data.rendimientoRutas.reduce((prev: RoutePerformance, current: RoutePerformance) => (prev.eficiencia > current.eficiencia) ? prev : current).eficiencia}%)
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-4 bg-slate-50 p-3 rounded-xl border border-slate-100">
-                    <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center border border-slate-200">
-                      <Users className="h-5 w-5 text-slate-600" />
-                    </div>
-                    <div>
-                      <p className="text-xs text-slate-500 uppercase tracking-wider font-bold">Total Clientes Nuevos</p>
-                      <p className="font-bold text-slate-900">{data.totalAfiliaciones} afiliados</p>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        </section>
       </div>
     </div>
   )

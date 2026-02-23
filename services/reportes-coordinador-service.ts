@@ -18,6 +18,7 @@ export interface RoutePerformance {
   eficiencia: number;
   nuevosPrestamos: number;
   nuevosClientes: number;
+  montoNuevosPrestamos: number;
 }
 
 export interface OperationalReportResponse {
@@ -27,6 +28,7 @@ export interface OperationalReportResponse {
   totalPrestamosNuevos: number;
   totalAfiliaciones: number;
   efectividadPromedio: number;
+  totalMontoPrestamosNuevos: number;
   rendimientoRutas: RoutePerformance[];
   periodo: string;
   fechaInicio: string;
