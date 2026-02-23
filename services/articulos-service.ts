@@ -1,6 +1,7 @@
 import { apiRequest } from '@/lib/api/api';
 
 export interface OpcionCuotas {
+  id?: string
   numeroCuotas: number
   precioTotal: number // Precio total con interés incluido
   valorCuota: number
@@ -20,23 +21,23 @@ export interface Articulo {
 }
 
 class ArticulosService {
+  /**
+   * Genera opciones de cuotas por defecto solo si el producto no tiene planes configurados.
+   * IMPORTANTE: El backend guarda 'meses'. El frontend debe calcular el valor de la cuota
+   * según la frecuencia elegida (Diario, Semanal, Quincenal, Mensual).
+   */
   private generarOpcionesCuotas(precioBase: number): OpcionCuotas[] {
-    // Generar opciones estándar basadas en el precio base
-    const configuraciones = [
-      { cuotas: 3, interes: 0.05 },
-      { cuotas: 6, interes: 0.10 },
-      { cuotas: 12, interes: 0.20 },
-      { cuotas: 18, interes: 0.30 },
-      { cuotas: 24, interes: 0.40 },
-    ];
+    // Estas son opciones de respaldo si NO hay data en la DB.
+    // Usamos el precioBase (contado) como referencia sin intereses automáticos aquí,
+    // ya que el usuario prefiere que se tome lo que dice la DB.
+    const mesesEstandar = [1, 2, 3, 4, 6, 12];
 
-    return configuraciones.map(conf => {
-        const precioTotal = precioBase * (1 + conf.interes);
+    return mesesEstandar.map(m => {
         return {
-            numeroCuotas: conf.cuotas,
-            precioTotal: precioTotal,
-            valorCuota: precioTotal / conf.cuotas, // Asumiendo pago por cuota (sea quincena o mes, aqui simplificamos)
-            frecuenciaPago: 'QUINCENAL' // Por defecto
+            numeroCuotas: m, // Aquí guardamos Meses para que el componente calcule el resto
+            precioTotal: precioBase,
+            valorCuota: precioBase / m, 
+            frecuenciaPago: 'MENSUAL' 
         };
     });
   }
@@ -46,15 +47,36 @@ class ArticulosService {
         const inventoryItems: any[] = await apiRequest('GET', '/inventory');
         if (!Array.isArray(inventoryItems)) return [];
         
-        return inventoryItems.map(item => ({
-            id: String(item.id),
-            nombre: item.name || item.nombre,
-            descripcion: item.description || item.descripcion || '',
-            precioBase: Number(item.price || item.precio),
-            categoria: item.category || item.categoria || 'General',
-            stock: Number(item.quantity || item.stock || 0),
-            opcionesCuotas: this.generarOpcionesCuotas(Number(item.price || item.precio))
-        }));
+        return inventoryItems.map(item => {
+            // Ajuste: El backend usa 'costo' como campo principal para el valor del producto
+            const precioBase = Number(item.costo || item.price || item.precio || 0);
+            const preciosRaw = item.precios || [];
+            
+            // Mapear planes de crédito reales desde el backend
+            const opcionesCuotas: OpcionCuotas[] = preciosRaw
+              .filter((p: any) => p && Number(p.meses) > 0)
+              .map((p: any) => {
+                const meses = Number(p.meses);
+                const precio = Number(p.precio);
+                return {
+                  id: p.id,
+                  numeroCuotas: meses, // Guardamos la cantidad de MESES de la DB
+                  precioTotal: precio, // El precio ya incluye el interés puesto en la creación
+                  valorCuota: precio / meses, // Base mensual, el UI dividirá según frecuencia
+                  frecuenciaPago: 'MENSUAL'
+                };
+              });
+
+            return {
+                id: String(item.id),
+                nombre: item.name || item.nombre,
+                descripcion: item.description || item.descripcion || '',
+                precioBase: precioBase,
+                categoria: item.category || item.categoria || 'General',
+                stock: Number(item.quantity || item.stock || 0),
+                opcionesCuotas: opcionesCuotas.length > 0 ? opcionesCuotas : this.generarOpcionesCuotas(precioBase)
+            };
+        });
     } catch (error) {
         console.error("Error fetching articles", error);
         return [];
@@ -65,14 +87,31 @@ class ArticulosService {
     try {
         const item: any = await apiRequest('GET', `/inventory/${id}`);
         if (!item) return null;
+        const precioBase = Number(item.costo || item.price || item.precio || 0);
+        const preciosRaw = item.precios || [];
+        
+        const opcionesCuotas: OpcionCuotas[] = preciosRaw
+          .filter((p: any) => p && Number(p.meses) > 0)
+          .map((p: any) => {
+            const meses = Number(p.meses);
+            const precio = Number(p.precio);
+            return {
+              id: p.id,
+              numeroCuotas: meses,
+              precioTotal: precio,
+              valorCuota: precio / meses,
+              frecuenciaPago: 'MENSUAL'
+            };
+          });
+
         return {
             id: String(item.id),
             nombre: item.name || item.nombre,
             descripcion: item.description || item.descripcion || '',
-            precioBase: Number(item.price || item.precio),
+            precioBase: precioBase,
             categoria: item.category || item.categoria || 'General',
             stock: Number(item.quantity || item.stock || 0),
-            opcionesCuotas: this.generarOpcionesCuotas(Number(item.price || item.precio))
+            opcionesCuotas: opcionesCuotas.length > 0 ? opcionesCuotas : this.generarOpcionesCuotas(precioBase)
         }
     } catch (error) {
         return null;

@@ -9,12 +9,14 @@ import {
   Calendar,
   CheckCircle2,
   Package,
+  Loader2
 } from 'lucide-react'
 import { formatCOPInputValue, formatCurrency, parseCOPInputToNumber } from '@/lib/utils'
 import { Portal, MODAL_Z_INDEX } from '@/components/dashboards/shared/CobradorElements'
 import { clientesService, Cliente } from '@/services/clientes-service'
 import { articulosService, Articulo } from '@/services/articulos-service'
 import { offlineStore } from '@/lib/offline/offlineDb'
+import { TipoAmortizacion } from '@/types/enums'
 
 interface CrearCreditoModalProps {
   isOpen: boolean
@@ -23,7 +25,7 @@ interface CrearCreditoModalProps {
     creditType: 'prestamo' | 'articulo'
     clienteCreditoId: string
     montoPrestamo?: number
-    tipoInteres?: 'SIMPLE' | 'AMORTIZABLE'
+    tipoInteres?: TipoAmortizacion
     tasaInteres?: number
     cuotasPrestamo?: number
     frecuenciaPago?: string
@@ -32,7 +34,7 @@ interface CrearCreditoModalProps {
     articuloId?: string
     planArticuloIndex?: number | null
     cuotaInicialArticulo?: number
-  }) => void
+  }) => void | Promise<void>
   defaultClienteId?: string
   defaultCreditType?: 'prestamo' | 'articulo'
   hideTypeSelector?: boolean
@@ -42,13 +44,14 @@ export default function CrearCreditoModal({ isOpen, onClose, onConfirm, defaultC
   const [creditType, setCreditType] = useState<'prestamo' | 'articulo'>(defaultCreditType || 'prestamo')
   const [clienteCreditoId, setClienteCreditoId] = useState('')
   const [montoPrestamoInput, setMontoPrestamoInput] = useState('')
-  const [tipoInteres, setTipoInteres] = useState<'SIMPLE' | 'AMORTIZABLE'>('SIMPLE')
+  const [tipoInteres, setTipoInteres] = useState<TipoAmortizacion>(TipoAmortizacion.INTERES_SIMPLE)
   const [tasaInteresInput, setTasaInteresInput] = useState('10')
   const [cuotasPrestamoInput, setCuotasPrestamoInput] = useState('12')
   const [cuotaInicialArticuloInput, setCuotaInicialArticuloInput] = useState('')
   const [fechaCreditoInput, setFechaCreditoInput] = useState(new Date().toISOString().split('T')[0])
   const [frecuenciaPago, setFrecuenciaPago] = useState('Diaria')
   const [fechaPrimerCobro, setFechaPrimerCobro] = useState('')
+  const [isSubmitting, setIsSubmitting] = useState(false)
   
   const [articuloSeleccionadoId, setArticuloSeleccionadoId] = useState<string>('')
   const [planArticuloIndex, setPlanArticuloIndex] = useState<number | null>(null)
@@ -83,7 +86,11 @@ export default function CrearCreditoModal({ isOpen, onClose, onConfirm, defaultC
     ? articuloSeleccionado.opcionesCuotas[planArticuloIndex] 
     : null, [articuloSeleccionado, planArticuloIndex]);
 
-  const mesesPlan = useMemo(() => planSeleccionado ? planSeleccionado.numeroCuotas / 2 : 0, [planSeleccionado]);
+  const mesesPlan = useMemo(() => {
+    if (!planSeleccionado) return 0;
+    const n = Number(planSeleccionado.numeroCuotas);
+    return isNaN(n) ? 0 : n / 2;
+  }, [planSeleccionado]);
   
   const calculoCreditoArticulo = useMemo(() => {
      if(!planSeleccionado || !mesesPlan) return null;
@@ -115,7 +122,7 @@ export default function CrearCreditoModal({ isOpen, onClose, onConfirm, defaultC
     setClienteCreditoId('')
     setCreditType('prestamo')
     setMontoPrestamoInput('')
-    setTipoInteres('SIMPLE')
+    setTipoInteres(TipoAmortizacion.INTERES_SIMPLE)
     setTasaInteresInput('10')
     setCuotasPrestamoInput('12')
     setCuotaInicialArticuloInput('')
@@ -227,11 +234,11 @@ export default function CrearCreditoModal({ isOpen, onClose, onConfirm, defaultC
                       <label className="block text-sm font-bold text-slate-700 mb-2">Tipo de Interés</label>
                       <select
                         value={tipoInteres}
-                        onChange={(e) => setTipoInteres(e.target.value as 'SIMPLE' | 'AMORTIZABLE')}
+                        onChange={(e) => setTipoInteres(e.target.value as TipoAmortizacion)}
                         className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-[#08557f] focus:ring-0 font-medium text-slate-900"
                       >
-                        <option value="SIMPLE">Interés Simple</option>
-                        <option value="AMORTIZABLE">Amortizable</option>
+                        <option value={TipoAmortizacion.INTERES_SIMPLE}>Interés Simple</option>
+                        <option value={TipoAmortizacion.FRANCESA}>Francés (Amortizable)</option>
                       </select>
                     </div>
                   </div>
@@ -325,11 +332,15 @@ export default function CrearCreditoModal({ isOpen, onClose, onConfirm, defaultC
                           disabled={!articuloSeleccionadoId}
                         >
                             <option value="">Seleccionar plazo...</option>
-                            {articuloSeleccionado?.opcionesCuotas.map((op, idx) => (
-                                <option key={idx} value={idx}>
-                                  {op.numeroCuotas / 2} Meses - Total: {formatCurrency(op.precioTotal)}
-                                </option>
-                            ))}
+                            {articuloSeleccionado?.opcionesCuotas.map((op, idx) => {
+                                const meses = Number(op.numeroCuotas) / 2;
+                                if (isNaN(meses)) return null;
+                                return (
+                                  <option key={idx} value={idx}>
+                                    {meses} Meses - Total: {formatCurrency(op.precioTotal)}
+                                  </option>
+                                );
+                            })}
                         </select>
                     </div>
                   </div>
@@ -453,36 +464,50 @@ export default function CrearCreditoModal({ isOpen, onClose, onConfirm, defaultC
                   Cancelar
                 </button>
                 <button 
-                  onClick={() => {
-                    const payload = creditType === 'prestamo' 
-                      ? {
-                          creditType,
-                          clienteCreditoId,
-                          montoPrestamo: parseCOPInputToNumber(montoPrestamoInput),
-                          tipoInteres,
-                          tasaInteres: Number(tasaInteresInput),
-                          cuotasPrestamo: Number(cuotasPrestamoInput),
-                          frecuenciaPago,
-                          fechaInicio: fechaCreditoInput,
-                          fechaPrimerCobro
-                        }
-                      : {
-                          creditType,
-                          clienteCreditoId,
-                          articuloId: articuloSeleccionadoId,
-                          planArticuloIndex,
-                          cuotaInicialArticulo: parseCOPInputToNumber(cuotaInicialArticuloInput),
-                          frecuenciaPago,
-                          fechaInicio: fechaCreditoInput
-                        }
-                    onConfirm(payload)
-                    handleReset()
+                  onClick={async () => {
+                    if (isSubmitting) return;
+                    setIsSubmitting(true);
+                    try {
+                      const payload = creditType === 'prestamo' 
+                        ? {
+                            creditType,
+                            clienteCreditoId,
+                            montoPrestamo: parseCOPInputToNumber(montoPrestamoInput),
+                            tipoInteres,
+                            tasaInteres: Number(tasaInteresInput),
+                            cuotasPrestamo: Number(cuotasPrestamoInput),
+                            frecuenciaPago,
+                            fechaInicio: fechaCreditoInput,
+                            fechaPrimerCobro
+                          }
+                        : {
+                            creditType,
+                            clienteCreditoId,
+                            articuloId: articuloSeleccionadoId,
+                            precioProductoId: (planArticuloIndex !== null && articuloSeleccionado) ? articuloSeleccionado.opcionesCuotas[planArticuloIndex]?.id : undefined,
+                            planArticuloIndex,
+                            monto: articuloSeleccionado?.opcionesCuotas[planArticuloIndex || 0]?.precioTotal || 0,
+                            cuotaInicialArticulo: parseCOPInputToNumber(cuotaInicialArticuloInput),
+                            frecuenciaPago,
+                            fechaInicio: fechaCreditoInput
+                          }
+                      await onConfirm(payload as any)
+                      handleReset()
+                    } catch (error) {
+                      console.error('Error al crear crédito:', error)
+                    } finally {
+                      setIsSubmitting(false)
+                    }
                   }}
-                  disabled={!clienteCreditoId || (creditType === 'prestamo' ? !montoPrestamoInput : !calculoCreditoArticulo)}
+                  disabled={isSubmitting || !clienteCreditoId || (creditType === 'prestamo' ? !montoPrestamoInput : !calculoCreditoArticulo)}
                   className="flex-1 bg-slate-900 text-white font-bold py-4 rounded-2xl shadow-xl shadow-slate-200 hover:bg-slate-800 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed uppercase tracking-widest text-xs"
                 >
-                  <Plus className="w-4 h-4" />
-                  Crear Crédito
+                  {isSubmitting ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Plus className="w-4 h-4" />
+                  )}
+                  {isSubmitting ? 'Procesando...' : 'Crear Crédito'}
                 </button>
               </div>
             </div>

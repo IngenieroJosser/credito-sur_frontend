@@ -14,6 +14,9 @@ import NuevoClienteModal from '@/components/clientes/NuevoClienteModal';
 
 // --- Tipos y Servicios ---
 import { articulosService, Articulo } from '@/services/articulos-service';
+import { prestamosService } from '@/services/prestamos-service';
+import { obtenerPerfil } from '@/services/autenticacion-service';
+import { TipoAmortizacion } from '@/types/enums';
 
 type FrecuenciaPago = 'DIARIO' | 'SEMANAL' | 'QUINCENAL' | 'MENSUAL';
 
@@ -120,48 +123,57 @@ export default function CreacionCreditoArticulo({
     return filtrados;
   }, [busquedaProducto, filtroCategoria, ordenPrecio, listaArticulos]);
 
-  // Plazos disponibles (Intersección de todos los artículos)
-  const opcionesCuotasDisponibles = useMemo(() => {
+  // Opciones de plazos (meses) disponibles
+  const opcionesMesesDisponibles = useMemo(() => {
     if (articulosSeleccionados.length === 0) return [];
     let comunes = articulosSeleccionados[0].opcionesCuotas.map(o => o.numeroCuotas);
     for (let i = 1; i < articulosSeleccionados.length; i++) {
         const opcionesArticulo = articulosSeleccionados[i].opcionesCuotas.map(o => o.numeroCuotas);
         comunes = comunes.filter(c => opcionesArticulo.includes(c));
     }
-    return comunes.sort((a, b) => a - b);
+    return comunes
+      .filter(c => typeof c === 'number' && !isNaN(c))
+      .sort((a, b) => a - b);
   }, [articulosSeleccionados]);
 
-  // Efecto para ajustar cuotas cuando cambian las opciones disponibles
+  // Efecto para ajustar meses cuando cambian las opciones disponibles
   React.useEffect(() => {
-    if (opcionesCuotasDisponibles.length > 0) {
-      if (!opcionesCuotasDisponibles.includes(numeroCuotas)) {
-        setNumeroCuotas(opcionesCuotasDisponibles[0]);
+    if (opcionesMesesDisponibles.length > 0) {
+      if (!opcionesMesesDisponibles.includes(numeroCuotas)) {
+        setNumeroCuotas(opcionesMesesDisponibles[0]);
       }
     }
-  }, [opcionesCuotasDisponibles, numeroCuotas]);
+  }, [opcionesMesesDisponibles, numeroCuotas]);
 
   const resumenFinanciero = useMemo(() => {
     const totalBase = articulosSeleccionados.reduce((sum, item) => sum + (item.precioBase * item.cantidad), 0);
     
+    // totalFinanciadoBruto se basa en el precioTotal guardado en DB para ese número de MESES
     const totalFinanciadoBruto = articulosSeleccionados.reduce((sum, item) => {
-      const opcion = item.opcionesCuotas.find(o => o.numeroCuotas === numeroCuotas && o.frecuenciaPago === frecuenciaPago);
+      // El backend guarda 'meses' en numeroCuotas
+      const opcion = item.opcionesCuotas.find(o => o.numeroCuotas === numeroCuotas);
       const precioItemTotal = opcion ? opcion.precioTotal : (item.opcionesCuotas[0]?.precioTotal || item.precioBase); 
       return sum + (precioItemTotal * item.cantidad);
     }, 0);
 
     const saldoAFinanciar = totalFinanciadoBruto - cuotaInicial;
     
-    const valorCuotaTotal = articulosSeleccionados.reduce((sum, item) => {
-         const opcion = item.opcionesCuotas.find(o => o.numeroCuotas === numeroCuotas && o.frecuenciaPago === frecuenciaPago);
-         return sum + ((opcion ? opcion.valorCuota : 0) * item.cantidad);
-    }, 0);
+    // El número de cuotas reales depende de la frecuencia elegida
+    let factorFrecuencia = 1; // Mensual por defecto
+    if (frecuenciaPago === 'DIARIO') factorFrecuencia = 30;
+    else if (frecuenciaPago === 'SEMANAL') factorFrecuencia = 4;
+    else if (frecuenciaPago === 'QUINCENAL') factorFrecuencia = 2;
+
+    const cuotasTotales = Math.ceil(numeroCuotas * factorFrecuencia);
+    const valorCuotaTotal = cuotasTotales > 0 ? Math.ceil(saldoAFinanciar / cuotasTotales) : 0;
 
     return {
       totalBase,
       totalFinanciadoBruto,
       saldoAFinanciar,
       valorCuota: valorCuotaTotal,
-      numeroCuotas: numeroCuotas
+      numeroCuotas: cuotasTotales, // Cuotas reales
+      meses: numeroCuotas // Meses de la DB
     };
   }, [articulosSeleccionados, numeroCuotas, cuotaInicial, frecuenciaPago]);
 
@@ -219,20 +231,65 @@ export default function CreacionCreditoArticulo({
     }
   };
 
-  const confirmarCredito = () => {
-    showNotification('success', 'Crédito creado exitosamente (Simulación)', 'Solicitud Enviada');
-    
-    if (onSuccess) {
-      onSuccess({
-        clienteId,
-        articulos: articulosSeleccionados,
-        total: resumenFinanciero.totalFinanciadoBruto
-      });
-      return;
-    }
+  const confirmarCredito = async () => {
+    if (!clienteSeleccionado) return alert('Seleccione un cliente');
+    if (articulosSeleccionados.length === 0) return alert('Seleccione al menos un artículo');
 
-    const destino = '/creditos-articulos'
-    router.push(destino);
+    try {
+      setLoadingDatos(true);
+      
+      // Intentar obtener el perfil del usuario actual
+      let creadorId = '';
+      try {
+        const userData = localStorage.getItem('user');
+        if (userData) {
+          creadorId = JSON.parse(userData).id;
+        } else {
+          const perfil = await obtenerPerfil();
+          creadorId = perfil.id;
+        }
+      } catch (err) {
+        console.error('Error al obtener usuario creador:', err);
+      }
+
+      // El backend actual soporta un producto por préstamo. 
+      // Tomamos el primero de la lista para la creación formal.
+      const articulo = articulosSeleccionados[0];
+      const opcionPlan = articulo.opcionesCuotas.find(o => o.numeroCuotas === numeroCuotas && o.frecuenciaPago === frecuenciaPago);
+      
+      const payload = {
+        clienteId: clienteId,
+        tipoPrestamo: 'ARTICULO',
+        productoId: articulo.id,
+        precioProductoId: opcionPlan?.id,
+        monto: resumenFinanciero.totalFinanciadoBruto,
+        tasaInteres: 0, // El interés ya viene en el precio del plan
+        tasaInteresMora: 2.0,
+        plazoMeses: Math.ceil(numeroCuotas / (frecuenciaPago === 'DIARIO' ? 30 : frecuenciaPago === 'SEMANAL' ? 4 : frecuenciaPago === 'QUINCENAL' ? 2 : 1)),
+        frecuenciaPago: frecuenciaPago,
+        fechaInicio: fechaInicio,
+        creadoPorId: creadorId,
+        cuotaInicial: cuotaInicial,
+        notas: `Crédito de artículo: ${articulosSeleccionados.map(a => `${a.nombre} (x${a.cantidad})`).join(', ')}`,
+        tipoAmortizacion: TipoAmortizacion.INTERES_SIMPLE
+      };
+
+      await prestamosService.crearPrestamo(payload as any);
+
+      showNotification('success', 'El crédito de artículo ha sido registrado exitosamente.', 'Solicitud Exitosa');
+      
+      if (onSuccess) {
+        onSuccess(payload);
+        return;
+      }
+
+      router.push('/admin/prestamos');
+    } catch (error: any) {
+      console.error('Error al crear crédito de artículo:', error);
+      showNotification('error', error.message || 'No se pudo crear el crédito. Verifique los datos.');
+    } finally {
+      setLoadingDatos(false);
+    }
   };
 
   const handleClienteCreado = (nuevoCliente: Cliente) => {
@@ -498,16 +555,16 @@ export default function CreacionCreditoArticulo({
                       
                       <div className="space-y-4">
                         <div className="space-y-2">
-                          <label className="text-xs font-bold text-slate-700 uppercase">Plazo / Cuotas</label>
+                          <label className="text-xs font-bold text-slate-700 uppercase">Plazo (Meses)</label>
                           <select
                             value={numeroCuotas}
                             onChange={(e) => setNumeroCuotas(Number(e.target.value))}
                             className="w-full px-4 py-2.5 rounded-xl border-slate-200 bg-slate-50 font-medium text-slate-900 focus:ring-2 focus:ring-blue-500/20"
                           >
-                            {opcionesCuotasDisponibles.length > 0 ? (
-                                opcionesCuotasDisponibles.map(num => (
-                                    <option key={num} value={num}>
-                                        {num} {frecuenciaPago === 'QUINCENAL' ? 'Quincenas' : 'Cuotas'} ({Math.round(num / (frecuenciaPago === 'QUINCENAL' ? 2 : 1))} Meses)
+                            {opcionesMesesDisponibles.length > 0 ? (
+                                opcionesMesesDisponibles.map(m => (
+                                    <option key={m} value={m}>
+                                        {m} {m === 1 ? 'Mes' : 'Meses'}
                                     </option>
                                 ))
                             ) : (
@@ -523,6 +580,8 @@ export default function CreacionCreditoArticulo({
                             onChange={(e) => setFrecuenciaPago(e.target.value as FrecuenciaPago)}
                             className="w-full px-4 py-2.5 rounded-xl border-slate-200 bg-slate-50 font-medium text-slate-900 focus:ring-2 focus:ring-blue-500/20"
                           >
+                            <option value="DIARIO">Diario</option>
+                            <option value="SEMANAL">Semanal</option>
                             <option value="QUINCENAL">Quincenal</option>
                             <option value="MENSUAL">Mensual</option>
                           </select>
@@ -566,7 +625,7 @@ export default function CreacionCreditoArticulo({
                            <span className="font-medium text-slate-900">{formatCurrency(resumenFinanciero.totalBase)}</span>
                          </div>
                          <div className="flex justify-between items-center text-sm text-emerald-600 bg-emerald-50 px-3 py-1.5 rounded-lg border border-emerald-100">
-                           <span className="font-medium">Intereses por Cuotas ({numeroCuotas} pagos)</span>
+                           <span className="font-medium">Intereses por Cuotas ({resumenFinanciero.numeroCuotas} pagos)</span>
                            <span className="font-bold">+{formatCurrency(resumenFinanciero.totalFinanciadoBruto - resumenFinanciero.totalBase)}</span>
                          </div>
                          <div className="flex justify-between items-center text-lg font-bold border-t border-slate-100 pt-3 text-slate-900">

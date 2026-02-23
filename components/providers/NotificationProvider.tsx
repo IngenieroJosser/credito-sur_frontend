@@ -3,6 +3,7 @@
 import React, { createContext, useContext, useState, useCallback, ReactNode } from 'react'
 import { Toast, Notification, NotificationType } from '@/components/ui/Toast'
 import { createPortal } from 'react-dom'
+import { ALERT_Z_INDEX } from '@/components/ui/Portal'
 
 interface NotificationContextType {
   showNotification: (type: NotificationType, message: string, title?: string, duration?: number) => void
@@ -45,7 +46,7 @@ export const NotificationProvider = ({ children }: NotificationProviderProps) =>
       {children}
       {/* Portal para renderizar notificaciones fuera del flujo normal */}
       {mounted && createPortal(
-        <div className="fixed top-4 right-4 flex w-full max-w-sm flex-col gap-2 pointer-events-none p-4 md:p-0" style={{ zIndex: 2147483647 }}>
+        <div className="fixed top-4 right-4 flex w-full max-w-sm flex-col gap-2 pointer-events-none p-4 md:p-0" style={{ zIndex: ALERT_Z_INDEX }}>
           {notifications.map((notification) => (
             <Toast
               key={notification.id}

@@ -1,27 +1,37 @@
 'use client'
 
 import { useState } from 'react'
-import { X, Wallet, Save, AlertCircle } from 'lucide-react'
+import { X, Wallet, Save, AlertCircle, Loader2 } from 'lucide-react'
 import { formatCOPInputValue } from '@/lib/utils'
 import { Portal, MODAL_Z_INDEX } from '@/components/dashboards/shared/CobradorElements'
 
 interface BaseModalProps {
   isOpen: boolean
   onClose: () => void
-  onConfirm: (data: { monto: number; descripcion: string }) => void
+  onConfirm: (data: { monto: number; descripcion: string }) => void | Promise<void>
 }
 
 export default function BaseModal({ isOpen, onClose, onConfirm }: BaseModalProps) {
   const [montoInput, setMontoInput] = useState('')
   const [descripcion, setDescripcion] = useState('')
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
   if (!isOpen) return null
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (isSubmitting) return;
+
     const monto = parseInt(montoInput.replace(/\D/g, '')) || 0
-    onConfirm({ monto, descripcion })
-    handleReset()
+    setIsSubmitting(true)
+    try {
+      await onConfirm({ monto, descripcion })
+      handleReset()
+    } catch (error) {
+      console.error('Error al solicitar base:', error)
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   const handleReset = () => {
@@ -103,10 +113,15 @@ export default function BaseModal({ isOpen, onClose, onConfirm }: BaseModalProps
               </button>
               <button
                 type="submit"
-                className="flex-1 px-4 py-4 bg-emerald-600 text-white font-bold rounded-2xl hover:bg-emerald-700 shadow-xl shadow-emerald-600/20 transition-all flex items-center justify-center gap-2 text-xs uppercase tracking-widest"
+                disabled={isSubmitting}
+                className="flex-1 px-4 py-4 bg-emerald-600 text-white font-bold rounded-2xl hover:bg-emerald-700 shadow-xl shadow-emerald-600/20 transition-all flex items-center justify-center gap-2 text-xs uppercase tracking-widest disabled:opacity-50"
               >
-                <Save className="h-4 w-4" />
-                Solicitar
+                {isSubmitting ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Save className="h-4 w-4" />
+                )}
+                {isSubmitting ? 'Solicitando...' : 'Solicitar'}
               </button>
             </div>
           </form>

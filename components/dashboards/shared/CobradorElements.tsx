@@ -7,7 +7,7 @@ import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { VisitaRuta, EstadoVisita } from '@/lib/types/cobranza'
 
-export const MODAL_Z_INDEX = 2147483647
+export const MODAL_Z_INDEX = 2147483600
 
 export function Portal({ children }: { children: ReactNode }) {
   if (typeof document === 'undefined') return null
@@ -29,7 +29,7 @@ export function SeleccionClienteModal({
 }) {
   return (
     <Portal>
-    <div className="fixed inset-0 z-[2147483647] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-200">
+    <div className="fixed inset-0 z-[2147483600] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-200">
        <div className="bg-white rounded-[2rem] w-full max-w-sm shadow-2xl animate-in zoom-in-95 duration-200 overflow-hidden">
           <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50 text-center">
              <h3 className="font-bold text-lg text-slate-900 flex-1">{titulo}</h3>
@@ -50,9 +50,11 @@ export function SeleccionClienteModal({
                           if (visita) onSelect(visita);
                        }}
                     >
-                       <option value="" disabled>Seleccionar de la lista...</option>
+                       <option value="" disabled className="text-slate-400 bg-white">Seleccionar de la lista...</option>
                        {visitas.map(v => (
-                          <option key={v.id} value={v.id}>{v.cliente} - {v.direccion}</option>
+                          <option key={v.id} value={v.id} className="text-slate-900 bg-white">
+                            {v.cliente} - {v.direccion}
+                          </option>
                        ))}
                     </select>
                     <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">

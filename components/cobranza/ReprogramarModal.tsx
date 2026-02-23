@@ -1,22 +1,30 @@
 'use client'
 
 import { useState } from 'react'
-import { X } from 'lucide-react'
+import { X, Loader2, Save } from 'lucide-react'
 import { VisitaRuta } from '@/lib/types/cobranza'
 import Portal, { MODAL_Z_INDEX } from '@/components/ui/Portal'
 
 interface ReprogramarModalProps {
   visita: VisitaRuta
   onClose: () => void
-  onConfirm: (fecha: string, motivo: string) => void
+  onConfirm: (fecha: string, motivo: string) => void | Promise<void>
 }
 
 export default function ReprogramarModal({ visita, onClose, onConfirm }: ReprogramarModalProps) {
   const [reprogramFecha, setReprogramFecha] = useState('')
   const [reprogramMotivo, setReprogramMotivo] = useState('')
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
-  const handleGuardar = () => {
-    onConfirm(reprogramFecha, reprogramMotivo)
+  const handleGuardar = async () => {
+    if (isSubmitting) return;
+    setIsSubmitting(true)
+    try {
+      await onConfirm(reprogramFecha, reprogramMotivo)
+    } catch (error) {
+      console.error('Error al reprogramar visita:', error)
+      setIsSubmitting(false)
+    }
   }
 
   return (
@@ -68,9 +76,15 @@ export default function ReprogramarModal({ visita, onClose, onConfirm }: Reprogr
               <button
                 type="button"
                 onClick={handleGuardar}
-                className="w-full bg-orange-500 text-white font-bold py-3.5 rounded-xl shadow-lg shadow-orange-500/20 hover:bg-orange-600 active:scale-[0.98] transition-all"
+                disabled={isSubmitting || !reprogramFecha || !reprogramMotivo}
+                className="w-full bg-orange-500 text-white font-bold py-3.5 rounded-xl shadow-lg shadow-orange-500/20 hover:bg-orange-600 active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-50"
               >
-                Guardar reprogramación
+                {isSubmitting ? (
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                ) : (
+                  <Save className="h-5 w-5" />
+                )}
+                {isSubmitting ? 'Guardando...' : 'Guardar reprogramación'}
               </button>
             </div>
           </div>

@@ -42,7 +42,7 @@ interface DetalleMoraModalProps {
   onVerCliente?: (id: string) => void
 }
 
-const MODAL_Z_INDEX = 2147483647
+const MODAL_Z_INDEX = 2147483600
 
 function Portal({ children }: { children: React.ReactNode }) {
   if (typeof document === 'undefined') return null

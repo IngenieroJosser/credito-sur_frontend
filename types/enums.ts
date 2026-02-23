@@ -53,6 +53,11 @@ export enum MetodoPago {
   TRANSFERENCIA = 'TRANSFERENCIA'
 }
 
+export enum TipoAmortizacion {
+  INTERES_SIMPLE = 'INTERES_SIMPLE',
+  FRANCESA = 'FRANCESA'
+}
+
 export enum EstadoAprobacion {
   PENDIENTE = 'PENDIENTE',
   APROBADO = 'APROBADO',

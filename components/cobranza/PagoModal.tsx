@@ -4,7 +4,8 @@ import { useState, useEffect } from 'react'
 import {
   X,
   DollarSign,
-  CheckCircle2
+  CheckCircle2,
+  Loader2
 } from 'lucide-react'
 import { VisitaRuta } from '@/lib/types/cobranza'
 import { formatCOPInputValue, parseCOPInputToNumber, formatMilesCOP } from '@/lib/utils'
@@ -14,7 +15,7 @@ interface PagoModalProps {
   visita: VisitaRuta
   tipo: 'PAGO' | 'ABONO'
   onClose: () => void
-  onConfirm: (monto: number, metodo: 'EFECTIVO' | 'TRANSFERENCIA', comprobante: File | null) => void
+  onConfirm: (monto: number, metodo: 'EFECTIVO' | 'TRANSFERENCIA', comprobante: File | null) => void | Promise<void>
 }
 
 export default function PagoModal({ visita, tipo, onClose, onConfirm }: PagoModalProps) {
@@ -24,6 +25,7 @@ export default function PagoModal({ visita, tipo, onClose, onConfirm }: PagoModa
   )
   const [comprobanteTransferencia, setComprobanteTransferencia] = useState<File | null>(null)
   const [comprobanteTransferenciaPreviewUrl, setComprobanteTransferenciaPreviewUrl] = useState<string | null>(null)
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
   // Cleanup preview URL on unmount or change
   useEffect(() => {
@@ -45,8 +47,15 @@ export default function PagoModal({ visita, tipo, onClose, onConfirm }: PagoModa
     }
   }
 
-  const handleConfirmClick = () => {
-    onConfirm(parseCOPInputToNumber(montoPagoInput), metodoPago, comprobanteTransferencia)
+  const handleConfirmClick = async () => {
+    if (isSubmitting) return
+    setIsSubmitting(true)
+    try {
+      await onConfirm(parseCOPInputToNumber(montoPagoInput), metodoPago, comprobanteTransferencia)
+    } catch (error) {
+      console.error('Error al confirmar pago:', error)
+      setIsSubmitting(false)
+    }
   }
 
   return (
@@ -130,13 +139,18 @@ export default function PagoModal({ visita, tipo, onClose, onConfirm }: PagoModa
                 type="button"
                 onClick={handleConfirmClick}
                 disabled={
+                  isSubmitting ||
                   parseCOPInputToNumber(montoPagoInput) <= 0 ||
                   (metodoPago === 'TRANSFERENCIA' && !comprobanteTransferencia)
                 }
                 className="w-full bg-[#08557f] text-white font-bold py-4 rounded-xl shadow-lg shadow-[#08557f]/20 hover:bg-[#063a58] active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed disabled:active:scale-100"
               >
-                <CheckCircle2 className="h-5 w-5" />
-                {tipo === 'ABONO' ? 'Confirmar Abono' : 'Confirmar Pago'}
+                {isSubmitting ? (
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                ) : (
+                  <CheckCircle2 className="h-5 w-5" />
+                )}
+                {isSubmitting ? 'Procesando...' : (tipo === 'ABONO' ? 'Confirmar Abono' : 'Confirmar Pago')}
               </button>
 
               {metodoPago === 'TRANSFERENCIA' && (

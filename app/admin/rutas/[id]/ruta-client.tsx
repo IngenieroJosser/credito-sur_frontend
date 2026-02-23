@@ -267,7 +267,7 @@ const RutaClient = ({ initialRuta }: RutaClientProps) => {
             telefono: asig.cliente?.telefono || '',
             horaSugerida: asig.horaSugerida || '08:00 AM',
             montoCuota: Number(proximaCuota?.monto || 0),
-            saldoTotal: Number(prestamo?.saldoPendiente || 0),
+            saldoTotal: asig.cliente?.prestamos?.reduce((sum: number, p: any) => sum + Number(p.saldoPendiente || 0), 0) || 0,
             estado: asig.estado?.toLowerCase() || 'pendiente',
             proximaVisita: proximaCuota?.fechaVencimiento || new Date().toISOString().split('T')[0],
             ordenVisita: asig.ordenVisita || index + 1,

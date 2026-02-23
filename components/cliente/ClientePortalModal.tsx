@@ -14,7 +14,7 @@ interface ClientePortalModalProps {
   rolUsuario?: string;
 }
 
-const MODAL_Z_INDEX = 2147483647;
+const MODAL_Z_INDEX = 2147483600;
 
 function Portal({ children }: { children: React.ReactNode }) {
   if (typeof document === 'undefined') return null;
@@ -171,7 +171,7 @@ export default function ClientePortalModal({ clientId, onClose, rolUsuario = 'co
   if (!clienteData) {
     return (
       <Portal>
-        <div className="fixed inset-0 z-[2147483647] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm">
+        <div className="fixed inset-0 z-[2147483600] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm">
            <div className="bg-white p-8 rounded-2xl flex flex-col items-center gap-4">
               <BarChart3 className="w-10 h-10 text-red-500" />
               <p className="font-bold text-slate-800">Cliente no encontrado</p>
