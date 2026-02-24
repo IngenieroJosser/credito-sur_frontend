@@ -59,12 +59,24 @@ export default function PushNotificationPrompt() {
     setLoading(true);
     try {
       const subscription = await subscribeToPush();
-      if (subscription) {
-        await savePushSubscription(subscription);
-        setIsVisible(false);
+      
+      // Si el usuario ya dio permiso (granted) o lo denegó (denied),
+      // ya no necesitamos mostrar el prompt, independientemente de si la 
+      // suscripción al backend falló o no en este intento.
+      if (Notification.permission !== 'default') {
+        if (subscription) {
+          await savePushSubscription(subscription);
+        }
+        
+        // Pequeño retardo para que el usuario vea que algo pasó
+        setTimeout(() => {
+          setIsVisible(false);
+        }, 500);
       }
     } catch (error) {
       console.error('Error suscribiendo desde prompt:', error);
+      // Cerramos de todos modos para no estorbar
+      setIsVisible(false);
     } finally {
       setLoading(false);
     }
