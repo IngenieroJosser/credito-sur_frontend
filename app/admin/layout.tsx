@@ -339,7 +339,7 @@ export default function AdminLayout({
                   className="w-12 h-12 rounded-xl flex items-center justify-center shadow-lg shadow-blue-600/10 overflow-hidden bg-white border border-gray-100 p-1.5 transition-transform hover:scale-105 relative"
                   style={{ width: '48px', height: '48px', flexShrink: 0, position: 'relative' }}
                 >
-                  <Image src="/favicon.ico" alt="Logo" width={48} height={48} className="object-contain w-full h-full" />
+                  <Image src="/favicon.ico" alt="Logo" width={48} height={48} className="object-contain w-full h-full" priority />
                 </div>
                 <h1 className="ml-3 text-xl font-bold tracking-tight">
                   <span className="text-blue-600">Credi</span><span className="text-orange-500">Sur</span>
