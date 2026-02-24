@@ -69,6 +69,7 @@ import { loansService_ } from '@/services/loans-service'
 import { prestamosService } from '@/services/prestamos-service'
 import { pagosService } from '@/services/pagos-service'
 import { obtenerSaldoDisponibleRuta } from '@/services/contabilidad-service'
+import { useNotificaciones } from '@/components/providers/NotificacionesProvider'
 
 interface UserSession {
   id: string
@@ -84,6 +85,7 @@ interface UserSession {
 }
 
 const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
+  const { socket } = useNotificaciones()
   const [userSession, setUserSession] = useState<UserSession | null>(null)
   const [visitaSeleccionada, setVisitaSeleccionada] = useState<string | null>(null)
   const [showPaymentModal, setShowPaymentModal] = useState(false)
@@ -251,6 +253,32 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
     };
     cargarHistorial();
   }, [rutaId]);
+
+  useEffect(() => {
+    if (!socket) return;
+
+    const handlerPagos = () => {
+      cargarEstadisticasRuta();
+    };
+
+    const handlerPrestamos = () => {
+      cargarEstadisticasRuta();
+    };
+
+    const handlerDash = () => {
+      cargarEstadisticasRuta();
+    };
+
+    socket.on('pagos_actualizados', handlerPagos);
+    socket.on('prestamos_actualizados', handlerPrestamos);
+    socket.on('dashboards_actualizados', handlerDash);
+
+    return () => {
+      socket.off('pagos_actualizados', handlerPagos);
+      socket.off('prestamos_actualizados', handlerPrestamos);
+      socket.off('dashboards_actualizados', handlerDash);
+    };
+  }, [socket, cargarEstadisticasRuta]);
 
   // Cargar datos del usuario y ruta
   useEffect(() => {

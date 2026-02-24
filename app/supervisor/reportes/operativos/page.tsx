@@ -7,6 +7,7 @@ import { cn, formatCurrency } from '@/lib/utils'
 import { ExportButton } from '@/components/ui/ExportButton'
 import { TimeFilter, TimeFilterPeriod } from '@/components/ui/TimeFilter'
 import { reportesCoordinadorService, type RoutePerformance } from '@/services/reportes-coordinador-service'
+import { useNotificaciones } from '@/components/providers/NotificacionesProvider'
 
 const ReportesOperativosSupervisorPage = () => {
   const router = useRouter()
@@ -25,6 +26,8 @@ const ReportesOperativosSupervisorPage = () => {
   const [totalRecaudo, setTotalRecaudo] = useState(0)
   const [totalObjetivo, setTotalObjetivo] = useState(0)
   const [porcentajeGlobal, setPorcentajeGlobal] = useState(0)
+
+  const { socket } = useNotificaciones()
 
   const handleExportExcel = () => {
     reportesCoordinadorService.exportReport({ period }, 'excel').catch(console.error)
@@ -53,6 +56,31 @@ const ReportesOperativosSupervisorPage = () => {
     }
     fetchData()
   }, [period])
+
+  useEffect(() => {
+    if (!socket) return;
+
+    const handler = () => {
+      const fetchData = async () => {
+        try {
+          const data = await reportesCoordinadorService.getOperationalReport({ period })
+          setRendimientoRutas(data.rendimientoRutas || [])
+          setTotalRecaudo(data.totalRecaudo || 0)
+          setTotalObjetivo(data.totalMeta || 0)
+          setPorcentajeGlobal(data.porcentajeGlobal || 0)
+        } catch (err) {
+          console.error('Error cargando reportes operativos (rt):', err)
+        }
+      }
+      fetchData()
+    };
+
+    socket.on('dashboards_actualizados', handler);
+
+    return () => {
+      socket.off('dashboards_actualizados', handler);
+    };
+  }, [socket, period])
 
   if (!mounted) return null
 

@@ -123,7 +123,7 @@ interface UserSession {
 
 
 const VistaCobrador = () => {
-  const { unreadCount } = useNotificaciones()
+  const { socket } = useNotificaciones()
   const [userSession, setUserSession] = useState<UserSession | null>(null)
   const [visitaSeleccionada, setVisitaSeleccionada] = useState<string | null>(null)
   const [showPaymentModal, setShowPaymentModal] = useState(false)
@@ -351,6 +351,26 @@ const VistaCobrador = () => {
       cargarEstadisticasRuta(rutaActual.id);
     }
   }, [periodoCards, rutaActual?.id, cargarEstadisticasRuta]);
+
+  useEffect(() => {
+    if (!socket) return;
+
+    const handler = () => {
+      if (rutaActual?.id) {
+        cargarEstadisticasRuta(rutaActual.id);
+      }
+    };
+
+    socket.on('pagos_actualizados', handler);
+    socket.on('prestamos_actualizados', handler);
+    socket.on('dashboards_actualizados', handler);
+
+    return () => {
+      socket.off('pagos_actualizados', handler);
+      socket.off('prestamos_actualizados', handler);
+      socket.off('dashboards_actualizados', handler);
+    };
+  }, [socket, rutaActual?.id, cargarEstadisticasRuta]);
 
   // Cargar visitas reales desde el backend cuando el usuario está disponible
   useEffect(() => {

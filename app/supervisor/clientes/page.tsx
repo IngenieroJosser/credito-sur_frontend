@@ -33,6 +33,7 @@ import PagoModal from '@/components/dashboards/shared/PagoModal'
 import CrearCreditoModal from '@/components/dashboards/shared/CrearCreditoModal'
 import GastoModal from '@/components/dashboards/shared/GastoModal'
 import BaseModal from '@/components/dashboards/shared/BaseModal'
+import { useNotificaciones } from '@/components/providers/NotificacionesProvider'
 
 type NivelRiesgo = 'VERDE' | 'AMARILLO' | 'ROJO' | 'LISTA_NEGRA'
 
@@ -43,6 +44,7 @@ const ClientesSupervisorPage = () => {
   const router = useRouter()
   const [clientes, setClientes] = useState<Cliente[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const { socket } = useNotificaciones()
 
   useEffect(() => {
     let mounted = true
@@ -64,6 +66,27 @@ const ClientesSupervisorPage = () => {
       mounted = false
     }
   }, [])
+
+  useEffect(() => {
+    if (!socket) return;
+
+    const handler = async () => {
+      try {
+        const data = await clientesService.obtenerClientes()
+        if (Array.isArray(data)) {
+          setClientes(data)
+        }
+      } catch (error) {
+        console.error('Error refrescando clientes (supervisor):', error)
+      }
+    };
+
+    socket.on('clientes_actualizados', handler);
+
+    return () => {
+      socket.off('clientes_actualizados', handler);
+    };
+  }, [socket])
 
   const clientesArray = clientes
 
