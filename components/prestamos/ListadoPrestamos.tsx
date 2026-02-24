@@ -155,6 +155,11 @@ const ListadoPrestamosElegante = () => {
     }
   }, [filtros, paginaActual, loadPrestamos, mounted]);
 
+  const handleRefresh = () => {
+    setRefreshing(true);
+    loadPrestamos();
+  };
+
   useEffect(() => {
     if (!socket) return;
 
@@ -185,11 +190,6 @@ const ListadoPrestamosElegante = () => {
       const msg = error?.response?.data?.message || error?.message || 'No se pudo archivar el préstamo';
       showNotification('error', Array.isArray(msg) ? msg.join(', ') : msg, 'Error al Archivar');
     }
-  };
-
-  const handleRefresh = () => {
-    setRefreshing(true);
-    loadPrestamos();
   };
 
   const handleExportExcel = async () => {

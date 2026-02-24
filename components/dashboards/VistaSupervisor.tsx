@@ -48,7 +48,7 @@ interface MetricCard {
 }
 
 interface DelinquentClient {
-  id: number
+  id: string
   client: string
   route: string
   collector: string
