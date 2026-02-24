@@ -9,9 +9,11 @@ El frontend ya está completamente implementado y listo para recibir notificacio
 ## 1. Endpoints Requeridos
 
 ### **POST /api-credisur/push/subscribe**
+
 Guardar una nueva suscripción push del usuario.
 
 **Request Body:**
+
 ```json
 {
   "endpoint": "https://fcm.googleapis.com/fcm/send/...",
@@ -23,6 +25,7 @@ Guardar una nueva suscripción push del usuario.
 ```
 
 **Response:**
+
 ```json
 {
   "id": "uuid",
@@ -33,6 +36,7 @@ Guardar una nueva suscripción push del usuario.
 ```
 
 **Lógica:**
+
 - Obtener el usuario autenticado del token JWT
 - Verificar si ya existe una suscripción con ese endpoint
 - Si existe, actualizar; si no, crear nueva
@@ -41,9 +45,11 @@ Guardar una nueva suscripción push del usuario.
 ---
 
 ### **DELETE /api-credisur/push/unsubscribe**
+
 Eliminar una suscripción push.
 
 **Request Body:**
+
 ```json
 {
   "endpoint": "https://fcm.googleapis.com/fcm/send/..."
@@ -51,6 +57,7 @@ Eliminar una suscripción push.
 ```
 
 **Response:**
+
 ```json
 {
   "message": "Suscripción eliminada correctamente"
@@ -58,6 +65,7 @@ Eliminar una suscripción push.
 ```
 
 **Lógica:**
+
 - Buscar la suscripción por endpoint
 - Verificar que pertenezca al usuario autenticado
 - Eliminar de la base de datos
@@ -65,9 +73,11 @@ Eliminar una suscripción push.
 ---
 
 ### **GET /api-credisur/push/subscriptions**
+
 Obtener todas las suscripciones activas del usuario.
 
 **Response:**
+
 ```json
 [
   {
@@ -82,9 +92,11 @@ Obtener todas las suscripciones activas del usuario.
 ---
 
 ### **POST /api-credisur/push/test**
+
 Enviar una notificación de prueba al usuario autenticado.
 
 **Response:**
+
 ```json
 {
   "message": "Notificación de prueba enviada",
@@ -93,6 +105,7 @@ Enviar una notificación de prueba al usuario autenticado.
 ```
 
 **Lógica:**
+
 - Obtener todas las suscripciones del usuario
 - Enviar notificación de prueba a cada una
 - Retornar cantidad de notificaciones enviadas
@@ -112,13 +125,14 @@ CREATE TABLE push_subscriptions (
   auth TEXT NOT NULL,
   created_at TIMESTAMP DEFAULT NOW(),
   updated_at TIMESTAMP DEFAULT NOW(),
-  
+
   INDEX idx_user_id (user_id),
   INDEX idx_endpoint (endpoint)
 );
 ```
 
 **Prisma Schema:**
+
 ```prisma
 model PushSubscription {
   id        String   @id @default(uuid())
@@ -152,6 +166,7 @@ npx web-push generate-vapid-keys
 ```
 
 **Output:**
+
 ```
 Public Key: BKxN...
 Private Key: 5I2T...
@@ -163,7 +178,7 @@ Private Key: 5I2T...
 # Push Notifications
 VAPID_PUBLIC_KEY=BKxN...
 VAPID_PRIVATE_KEY=5I2T...
-VAPID_SUBJECT=mailto:admin@creditosur.com
+VAPID_SUBJECT=mailto:erickmanuel238@gmail.com
 ```
 
 ### **Frontend (.env.local):**
@@ -177,6 +192,7 @@ NEXT_PUBLIC_VAPID_PUBLIC_KEY=BKxN...
 ## 4. Servicio de Envío de Notificaciones
 
 ### **Instalación:**
+
 ```bash
 npm install web-push
 ```
@@ -184,9 +200,9 @@ npm install web-push
 ### **Servicio NestJS (push.service.ts):**
 
 ```typescript
-import { Injectable } from '@nestjs/common';
-import * as webpush from 'web-push';
-import { PrismaService } from '../prisma/prisma.service';
+import { Injectable } from "@nestjs/common";
+import * as webpush from "web-push";
+import { PrismaService } from "../prisma/prisma.service";
 
 @Injectable()
 export class PushService {
@@ -270,17 +286,19 @@ export class PushService {
     );
 
     return {
-      sent: results.filter((r) => r.status === 'fulfilled' && r.value.success).length,
-      failed: results.filter((r) => r.status === 'rejected' || !r.value.success).length,
+      sent: results.filter((r) => r.status === "fulfilled" && r.value.success)
+        .length,
+      failed: results.filter((r) => r.status === "rejected" || !r.value.success)
+        .length,
     };
   }
 
   async sendTestNotification(userId: string) {
     return this.sendNotification(userId, {
-      tipo: 'SISTEMA',
-      title: 'Notificación de Prueba',
-      body: 'Esta es una notificación de prueba desde Credisur',
-      url: '/',
+      tipo: "SISTEMA",
+      title: "Notificación de Prueba",
+      body: "Esta es una notificación de prueba desde Credisur",
+      url: "/",
     });
   }
 }
@@ -291,31 +309,39 @@ export class PushService {
 ## 5. Controlador NestJS (push.controller.ts)
 
 ```typescript
-import { Controller, Post, Delete, Get, Body, UseGuards, Req } from '@nestjs/common';
-import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-import { PushService } from './push.service';
+import {
+  Controller,
+  Post,
+  Delete,
+  Get,
+  Body,
+  UseGuards,
+  Req,
+} from "@nestjs/common";
+import { JwtAuthGuard } from "../auth/jwt-auth.guard";
+import { PushService } from "./push.service";
 
-@Controller('push')
+@Controller("push")
 @UseGuards(JwtAuthGuard)
 export class PushController {
   constructor(private pushService: PushService) {}
 
-  @Post('subscribe')
+  @Post("subscribe")
   async subscribe(@Req() req, @Body() subscription: any) {
     return this.pushService.subscribe(req.user.id, subscription);
   }
 
-  @Delete('unsubscribe')
-  async unsubscribe(@Body('endpoint') endpoint: string) {
+  @Delete("unsubscribe")
+  async unsubscribe(@Body("endpoint") endpoint: string) {
     return this.pushService.unsubscribe(endpoint);
   }
 
-  @Get('subscriptions')
+  @Get("subscriptions")
   async getSubscriptions(@Req() req) {
     return this.pushService.getUserSubscriptions(req.user.id);
   }
 
-  @Post('test')
+  @Post("test")
   async sendTest(@Req() req) {
     return this.pushService.sendTestNotification(req.user.id);
   }
@@ -377,14 +403,14 @@ async notifyMoraAccounts() {
 
 El frontend está configurado para manejar los siguientes tipos:
 
-| Tipo | Descripción | Vibración | Requiere Interacción |
-|---|---|---|---|
-| **PAGO** | Pagos recibidos | [200, 100, 200] | Sí |
-| **MORA** | Cuentas en mora | [300, 100, 300, 100, 300] | Sí |
-| **CLIENTE** | Eventos de clientes | [200, 100, 200] | No |
-| **PRESTAMO** | Eventos de préstamos | [200, 100, 200] | No |
-| **SOLICITUD** | Solicitudes pendientes | [200, 100, 200, 100, 200] | Sí |
-| **SISTEMA** | Notificaciones del sistema | [100] | No |
+| Tipo          | Descripción                | Vibración                 | Requiere Interacción |
+| ------------- | -------------------------- | ------------------------- | -------------------- |
+| **PAGO**      | Pagos recibidos            | [200, 100, 200]           | Sí                   |
+| **MORA**      | Cuentas en mora            | [300, 100, 300, 100, 300] | Sí                   |
+| **CLIENTE**   | Eventos de clientes        | [200, 100, 200]           | No                   |
+| **PRESTAMO**  | Eventos de préstamos       | [200, 100, 200]           | No                   |
+| **SOLICITUD** | Solicitudes pendientes     | [200, 100, 200, 100, 200] | Sí                   |
+| **SISTEMA**   | Notificaciones del sistema | [100]                     | No                   |
 
 ---
 
@@ -440,6 +466,7 @@ npx prisma migrate deploy
 ## 10. Testing
 
 ### **Test de suscripción:**
+
 ```bash
 curl -X POST http://localhost:3001/api-credisur/push/subscribe \
   -H "Authorization: Bearer YOUR_JWT_TOKEN" \
@@ -454,6 +481,7 @@ curl -X POST http://localhost:3001/api-credisur/push/subscribe \
 ```
 
 ### **Test de notificación:**
+
 ```bash
 curl -X POST http://localhost:3001/api-credisur/push/test \
   -H "Authorization: Bearer YOUR_JWT_TOKEN"
@@ -477,11 +505,11 @@ curl -X POST http://localhost:3001/api-credisur/push/test \
 // Agregar logs para monitorear
 async sendNotification(userId: string, payload: any) {
   this.logger.log(`Enviando notificación tipo ${payload.tipo} a usuario ${userId}`);
-  
+
   const result = await this.sendNotificationInternal(userId, payload);
-  
+
   this.logger.log(`Notificación enviada: ${result.sent} exitosas, ${result.failed} fallidas`);
-  
+
   return result;
 }
 ```
@@ -492,6 +520,7 @@ async sendNotification(userId: string, payload: any) {
 
 ✅ **Frontend:** Completamente implementado y listo
 ⏳ **Backend:** Requiere implementación de:
+
 1. Endpoints de suscripción
 2. Modelo de base de datos
 3. Servicio de envío con web-push
