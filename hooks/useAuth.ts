@@ -33,6 +33,10 @@ export const useAuth = () => {
     }
 
     checkAuth()
+
+    const handleUserUpdate = () => checkAuth();
+    window.addEventListener('userUpdated', handleUserUpdate);
+    return () => window.removeEventListener('userUpdated', handleUserUpdate);
   }, [router])
 
   const logout = () => {

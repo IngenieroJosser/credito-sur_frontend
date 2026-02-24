@@ -44,22 +44,9 @@ export default function ServiceWorkerRegister() {
       // Procesar cola pendiente al cargar
       syncManager.processQueue().catch(() => {});
 
-      // Auto-suscribir a push notifications si están soportadas y no está suscrito
-      import('@/lib/push/pushNotifications').then(({ isPushSupported, isPushSubscribed, subscribeToPush }) => {
-        if (isPushSupported()) {
-          isPushSubscribed().then((isSubscribed) => {
-            if (!isSubscribed) {
-              subscribeToPush().then((subscription) => {
-                if (subscription) {
-                  import('@/lib/push/pushService').then(({ savePushSubscription }) => {
-                    savePushSubscription(subscription).catch(() => {});
-                  });
-                }
-              }).catch(() => {});
-            }
-          });
-        }
-      });
+      // La auto-suscripción silenciosa se ha movido a PushNotificationPrompt 
+      // para asegurar que sea iniciada por el usuario o mostrada mediante UI,
+      // evitando bloqueos de permisos por parte del navegador.
     }
 
     // Verificar y notificar si la sesión offline está por expirar

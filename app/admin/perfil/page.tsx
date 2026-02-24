@@ -83,6 +83,28 @@ const PerfilUsuarioPage = () => {
           eliminadoEn: null,
           permisos: perfil.permisos,
         })
+
+        // Sincronizar localStorage con los datos frescos del servidor para el navbar/layout
+        const cachedUser = localStorage.getItem('user')
+        if (cachedUser && (fullUser || perfil)) {
+          try {
+            const parsed = JSON.parse(cachedUser)
+            const updated = {
+              ...parsed,
+              nombres: fullUser?.nombres || perfil.nombres,
+              apellidos: fullUser?.apellidos || perfil.apellidos,
+              correo: fullUser?.correo || perfil.correo || parsed.correo,
+              telefono: fullUser?.telefono || perfil.telefono || parsed.telefono,
+              rol: fullUser?.rol || perfil.rol || parsed.rol,
+            }
+            localStorage.setItem('user', JSON.stringify(updated))
+            // Disparar evento para que AdminLayout y useAuth se actualicen
+            window.dispatchEvent(new Event('userUpdated'))
+          } catch (e) {
+            console.error('Error sincronizando profile sync:', e)
+          }
+        }
+
         setError(null)
       } catch (err) {
         console.error('Error cargando perfil:', err)

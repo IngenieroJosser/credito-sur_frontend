@@ -48,6 +48,7 @@ import NotFoundPage from '../not-found'
 import { notificacionesService, type Notificacion } from '@/services/notificaciones-service'
 import UserDropdownMenu, { formatRoleName, getRoleColor, getRoleIcon } from '@/components/ui/UserDropdownMenu'
 import { useNotificaciones } from '@/components/providers/NotificacionesProvider';
+import PushNotificationPrompt from '@/components/push/PushNotificationPrompt';
 
 interface NavigationItem {
   name: string;
@@ -211,6 +212,15 @@ export default function AdminLayout({
     }
 
     loadUserData()
+
+    // Escuchar actualizaciones de perfil en tiempo real (mismo tab)
+    const handleUserUpdate = () => {
+      console.log('Sincronizando datos de usuario en layout...');
+      loadUserData();
+    };
+
+    window.addEventListener('userUpdated', handleUserUpdate);
+    return () => window.removeEventListener('userUpdated', handleUserUpdate);
   }, [router])
 
   // Seguridad Proactiva: Redirección automática si estás en el lugar equivocado
@@ -702,6 +712,8 @@ export default function AdminLayout({
         </div>,
         document.body
       )}
+      {/* Aviso de suscripción a notificaciones push */}
+      <PushNotificationPrompt />
     </div>
   )
 }
