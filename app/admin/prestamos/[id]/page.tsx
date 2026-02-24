@@ -40,7 +40,15 @@ export default function PrestamoDetallePage() {
           fechaInicio: data.fechaInicio || '',
           fechaVencimiento: data.fechaFin || '',
           estado: data.estado || 'ACTIVO',
-          producto: data.tipoPrestamo || 'Préstamo Personal',
+          tipoPrestamo: data.tipoPrestamo,
+          cuotaInicial: Number(data.cuotaInicial || 0),
+          producto: data.producto?.nombre || data.tipoPrestamo || 'Préstamo Personal',
+          productoInfo: data.producto ? {
+            marca: data.producto.marca,
+            modelo: data.producto.modelo,
+            serie: data.producto.serie,
+            categoria: data.producto.categoria
+          } : undefined,
           garantia: data.garantia || '',
           fotos: data.fotos || [],
           cuotas: cuotasData.map((c: any) => ({

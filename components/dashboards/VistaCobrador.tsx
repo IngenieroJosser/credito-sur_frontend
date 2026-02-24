@@ -1407,25 +1407,28 @@ const VistaCobrador = () => {
     try {
       setIsLoadingAction(true)
       
+      const isArticulo = data.creditType === 'articulo';
+      const freq = data.frecuenciaPago || 'DIARIO';
+
       const payload: any = {
         clienteId: data.clienteCreditoId,
-        tipoPrestamo: data.creditType === 'prestamo' ? 'EFECTIVO' : 'ARTICULO',
-        monto: data.montoPrestamo || 0,
+        tipoPrestamo: isArticulo ? 'ARTICULO' : 'EFECTIVO',
+        monto: data.monto || 0,
         tasaInteres: data.tasaInteres || 0,
-        tasaInteresMora: 2, // Default mora interest
-        plazoMeses: Math.ceil((data.cuotasPrestamo || 0) / (data.frecuenciaPago === 'Diaria' ? 30 : data.frecuenciaPago === 'Semanal' ? 4 : data.frecuenciaPago === 'Quincenal' ? 2 : 1)),
-        frecuenciaPago: data.frecuenciaPago === 'Diaria' ? 'DIARIO' : data.frecuenciaPago === 'Semanal' ? 'SEMANAL' : data.frecuenciaPago === 'Quincenal' ? 'QUINCENAL' : 'MENSUAL',
+        tasaInteresMora: 2, 
+        plazoMeses: data.plazoMeses || 1,
+        cantidadCuotas: isArticulo ? data.numCuotas : data.cuotasTotales,
+        frecuenciaPago: freq,
         fechaInicio: data.fechaInicio || new Date().toISOString(),
         creadoPorId: userSession?.id,
         cuotaInicial: data.cuotaInicialArticulo || 0,
         notas: data.notas || '',
-        tipoAmortizacion: data.tipoInteres || TipoAmortizacion.INTERES_SIMPLE
+        tipoAmortizacion: isArticulo ? 'INTERES_SIMPLE' : (data.tipoInteres || 'INTERES_SIMPLE')
       }
 
-      if (data.creditType === 'articulo') {
-        payload.productoId = data.articuloId
-        payload.precioProductoId = data.precioProductoId
-        payload.monto = data.monto || 0;
+      if (isArticulo) {
+        payload.productoId = data.articuloId;
+        payload.precioProductoId = data.precioProductoId;
       }
 
       await prestamosService.crearPrestamo(payload)

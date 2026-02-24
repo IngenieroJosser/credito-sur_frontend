@@ -721,10 +721,7 @@ const ModuloContableContent = () => {
               </div>
             </div>
             <div className="text-2xl font-bold text-slate-900 tracking-tight">
-              {(() => {
-                const valor = resumenData.ingresosHoy > 0 ? resumenData.ingresosHoy : resumenData.cajaActual;
-                return formatCurrency(valor);
-              })()}
+              {formatCurrency(resumenData.ingresosHoy)}
             </div>
             {resumenData.porcentajeIngresosVsAyer != null && (
               <div className={cn(
@@ -1886,18 +1883,20 @@ const ModuloContableContent = () => {
                              {(() => {
                                 if (cajaSeleccionada?.tipo === 'RUTA') {
                                   if (saldoRutaSeleccionada) {
-                                    const valor = saldoRutaSeleccionada.recaudoDelDia || 0;
+                                    const valor =
+                                      saldoRutaSeleccionada.recaudoDelDia ||
+                                      saldoRutaSeleccionada.saldoCaja ||
+                                      cajaSeleccionada.saldo;
                                     return formatCurrency(valor);
                                   }
                                   if (cajaSeleccionada.saldo) {
-                                    return formatCurrency(0);
+                                    return formatCurrency(cajaSeleccionada.saldo);
                                   }
                                 }
                                 const ingresos = movimientos
                                   .filter(m => (m.tipo === 'INGRESO' || m.tipo === 'TRANSFERENCIA'))
                                   .filter(m => {
                                     if (m.cajaId !== cajaSeleccionada?.id) return false;
-                                    if (m.categoria === 'APERTURA_CAJA') return false;
                                     if (m.tipo === 'TRANSFERENCIA') {
                                       const concepto = m.concepto.toUpperCase();
                                       const esSalida = concepto.includes('SALIDA') || 
@@ -1973,7 +1972,6 @@ const ModuloContableContent = () => {
                               .filter(m => (m.tipo === 'INGRESO' || m.tipo === 'TRANSFERENCIA'))
                               .filter(m => {
                                 if (m.cajaId !== cajaSeleccionada?.id) return false;
-                                if (m.categoria === 'APERTURA_CAJA') return false;
                                 if (m.tipo === 'TRANSFERENCIA') {
                                   const concepto = m.concepto.toUpperCase();
                                   const esSalida = concepto.includes('SALIDA') || 
@@ -2074,10 +2072,7 @@ const ModuloContableContent = () => {
                                         .filter(m => {
                                             if (!cajaSeleccionada && m.categoria === 'CONSOLIDACION') return false;
                                             if (detalleTipo === 'INGRESOS') {
-                                                if (m.tipo === 'INGRESO') {
-                                                    if (m.categoria === 'SOLICITUD_BASE' || m.categoria === 'SOLICITUD_BASE_EFECTIVO') return false;
-                                                    return true;
-                                                }
+                                                if (m.tipo === 'INGRESO') return true;
                                                 if (m.tipo === 'EGRESO') return false;
                                                 if (m.tipo === 'TRANSFERENCIA') {
                                                     const concepto = m.concepto.toUpperCase();
@@ -2116,7 +2111,9 @@ const ModuloContableContent = () => {
 
                                     if (cajaSeleccionada?.tipo === 'RUTA' && saldoRutaSeleccionada && total === 0) {
                                       if (detalleTipo === 'INGRESOS') {
-                                        const valor = saldoRutaSeleccionada.recaudoDelDia || 0;
+                                        const valor = saldoRutaSeleccionada.recaudoDelDia ||
+                                                      saldoRutaSeleccionada.saldoCaja ||
+                                                      cajaSeleccionada.saldo;
                                         if (valor > 0) return formatCurrency(valor);
                                       } else {
                                         const valor = saldoRutaSeleccionada.gastosDelDia;

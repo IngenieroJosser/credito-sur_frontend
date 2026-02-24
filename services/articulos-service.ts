@@ -12,11 +12,12 @@ export interface Articulo {
   id: string
   nombre: string
   descripcion: string
-  precioBase: number // Precio sin financiamiento
+  precioBase: number
+  precioContado?: number
+  precioContadoId?: string
   categoria: string
   stock: number
   imagen?: string
-  // Opciones de cuotas asignadas dinámicamente
   opcionesCuotas: OpcionCuotas[]
 }
 
@@ -48,11 +49,22 @@ class ArticulosService {
         if (!Array.isArray(inventoryItems)) return [];
         
         return inventoryItems.map(item => {
-            // Ajuste: El backend usa 'costo' como campo principal para el valor del producto
-            const precioBase = Number(item.costo || item.price || item.precio || 0);
             const preciosRaw = item.precios || [];
+
+            const contadoItem = preciosRaw.find((p: any) => Number(p?.meses) === 0);
+            const precioContado = contadoItem
+              ? Number(contadoItem.precio)
+              : Number(
+                  item.precioContado ||
+                  item.precio_contado ||
+                  item.price ||
+                  item.precio ||
+                  0
+                );
+
+            const precioBase = precioContado || Number(item.costo || 0);
             
-            // Mapear planes de crédito reales desde el backend
+            // Mapear planes de crédito reales desde el backend (solo meses > 0)
             const opcionesCuotas: OpcionCuotas[] = preciosRaw
               .filter((p: any) => p && Number(p.meses) > 0)
               .map((p: any) => {
@@ -60,9 +72,9 @@ class ArticulosService {
                 const precio = Number(p.precio);
                 return {
                   id: p.id,
-                  numeroCuotas: meses, // Guardamos la cantidad de MESES de la DB
-                  precioTotal: precio, // El precio ya incluye el interés puesto en la creación
-                  valorCuota: precio / meses, // Base mensual, el UI dividirá según frecuencia
+                  numeroCuotas: meses,
+                  precioTotal: precio,
+                  valorCuota: precio / meses,
                   frecuenciaPago: 'MENSUAL'
                 };
               });
@@ -71,7 +83,9 @@ class ArticulosService {
                 id: String(item.id),
                 nombre: item.name || item.nombre,
                 descripcion: item.description || item.descripcion || '',
-                precioBase: precioBase,
+                precioBase,
+                precioContado,
+                precioContadoId: contadoItem?.id,
                 categoria: item.category || item.categoria || 'General',
                 stock: Number(item.quantity || item.stock || 0),
                 opcionesCuotas: opcionesCuotas.length > 0 ? opcionesCuotas : this.generarOpcionesCuotas(precioBase)
@@ -87,8 +101,20 @@ class ArticulosService {
     try {
         const item: any = await apiRequest('GET', `/inventory/${id}`);
         if (!item) return null;
-        const precioBase = Number(item.costo || item.price || item.precio || 0);
+
         const preciosRaw = item.precios || [];
+        const contadoItem = preciosRaw.find((p: any) => Number(p?.meses) === 0);
+        const precioContado = contadoItem
+          ? Number(contadoItem.precio)
+          : Number(
+              item.precioContado ||
+              item.precio_contado ||
+              item.price ||
+              item.precio ||
+              0
+            );
+
+        const precioBase = precioContado || Number(item.costo || 0);
         
         const opcionesCuotas: OpcionCuotas[] = preciosRaw
           .filter((p: any) => p && Number(p.meses) > 0)
@@ -108,7 +134,9 @@ class ArticulosService {
             id: String(item.id),
             nombre: item.name || item.nombre,
             descripcion: item.description || item.descripcion || '',
-            precioBase: precioBase,
+            precioBase,
+            precioContado,
+            precioContadoId: contadoItem?.id,
             categoria: item.category || item.categoria || 'General',
             stock: Number(item.quantity || item.stock || 0),
             opcionesCuotas: opcionesCuotas.length > 0 ? opcionesCuotas : this.generarOpcionesCuotas(precioBase)

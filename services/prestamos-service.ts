@@ -222,9 +222,14 @@ export const prestamosService = {
     monto?: number;
     tasaInteres?: number;
     plazoMeses?: number;
+    cantidadCuotas?: number;
     frecuenciaPago?: string;
     estado?: string;
     notas?: string;
+    tasaInteresMora?: number;
+    cuotaInicial?: number;
+    fechaInicio?: string;
+    garantia?: string;
   }): Promise<any> {
     return apiRequest('PATCH', `/loans/${id}`, data);
   }

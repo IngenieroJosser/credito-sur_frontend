@@ -152,7 +152,20 @@ export const apiRequest = async <T>(
     } else {
       console.error(`API Request Failed: ${method} ${url} | Status: ${apiError.statusCode}`);
       console.error('Full Error Object:', err);
-      console.error('Response Data:', err.response?.data);
+      try {
+        const dataStr = JSON.stringify(err.response?.data);
+        console.error('Response Data JSON:', dataStr);
+      } catch {
+        console.error('Response Data:', err.response?.data);
+      }
+      if (url === '/loans' && method === 'POST') {
+        try {
+          const payloadStr = String((err as any).config?.data ?? '');
+          console.error('Payload usado en POST /loans (raw):', payloadStr);
+        } catch {
+          console.error('No se pudo serializar el payload de POST /loans');
+        }
+      }
     }
 
     throw apiError;

@@ -32,9 +32,17 @@ export interface PrestamoDetalle {
   frecuencia: string;
   fechaInicio: string;
   fechaVencimiento: string;
-  estado: 'ACTIVO' | 'PAGADO' | 'EN_MORA' | 'PENDIENTE';
+  estado: 'ACTIVO' | 'PAGADO' | 'EN_MORA' | 'PENDIENTE' | 'PENDIENTE_APROBACION' | string;
   tipoAmortizacion?: 'FRANCESA' | 'INTERES_SIMPLE';
+  tipoPrestamo?: 'EFECTIVO' | 'ARTICULO' | string;
+  cuotaInicial?: number;
   producto?: string;
+  productoInfo?: {
+    marca?: string;
+    modelo?: string;
+    serie?: string;
+    categoria?: string;
+  };
   garantia?: string;
   fotos?: string[];
   cuotas: {
@@ -58,12 +66,16 @@ export default function DetallePrestamo({ prestamo }: DetallePrestamoProps) {
   const [cuotaPage, setCuotaPage] = useState(1);
   const CUOTAS_PER_PAGE = 5;
 
+  const isArticle = prestamo.tipoPrestamo?.toUpperCase() === 'ARTICULO';
+
   const getEstadoColor = (estado: string) => {
     switch (estado) {
       case 'ACTIVO': return 'text-emerald-700 bg-emerald-50 border border-emerald-100';
       case 'PAGADO': case 'PAGADA': return 'text-blue-700 bg-blue-50 border border-blue-100';
       case 'EN_MORA': return 'text-rose-700 bg-rose-50 border border-rose-100';
-      case 'PENDIENTE': return 'text-amber-700 bg-amber-50 border border-amber-100';
+      case 'PENDIENTE': 
+      case 'PENDIENTE_APROBACION':
+        return 'text-amber-900 bg-amber-100 border-amber-400 shadow-[0_0_10px_rgba(251,191,36,0.2)] animate-pulse';
       default: return 'text-slate-600 bg-slate-50 border border-slate-100';
     }
   };
@@ -114,17 +126,27 @@ export default function DetallePrestamo({ prestamo }: DetallePrestamoProps) {
         </div>
         <div className="relative z-10">
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
-             <div>
-                <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-1">Cliente Titular</h3>
-                <button onClick={() => setShowClienteModal(true)} className="group flex items-center gap-2 text-left">
-                  <h2 className="text-2xl md:text-3xl font-black text-slate-900 group-hover:text-blue-600 transition-colors">
-                    {prestamo.clienteNombre}
-                  </h2>
-                  <ChevronRight className="w-5 h-5 text-slate-300 group-hover:text-blue-600 transition-colors" />
-                </button>
+             <div className="flex items-center gap-4">
+                <div className={cn(
+                  "p-3 rounded-2xl shadow-sm border",
+                  isArticle ? "bg-orange-50 border-orange-100 text-orange-600" : "bg-blue-50 border-blue-100 text-blue-600"
+                )}>
+                  {isArticle ? <Package className="w-6 h-6" /> : <TrendingUp className="w-6 h-6" />}
+                </div>
+                <div>
+                   <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-1">
+                     {isArticle ? 'Crédito de Artículo' : 'Préstamo de Efectivo'}
+                   </h3>
+                   <button onClick={() => setShowClienteModal(true)} className="group flex items-center gap-2 text-left">
+                     <h2 className="text-2xl md:text-3xl font-black text-slate-900 group-hover:text-blue-600 transition-colors">
+                       {prestamo.clienteNombre}
+                     </h2>
+                     <ChevronRight className="w-5 h-5 text-slate-300 group-hover:text-blue-600 transition-colors" />
+                   </button>
+                </div>
              </div>
              <span className={cn("px-4 py-1.5 rounded-full text-xs font-black tracking-widest uppercase border", getEstadoColor(prestamo.estado))}>
-                {prestamo.estado}
+                {prestamo.estado === 'PENDIENTE_APROBACION' ? 'Pendiente de Aprobación' : (prestamo.estado || '').replace(/_/g, ' ')}
              </span>
           </div>
 
@@ -152,9 +174,8 @@ export default function DetallePrestamo({ prestamo }: DetallePrestamoProps) {
           Resumen de la Cuenta
         </h3>
         <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
-          {/* Monto Prestado */}
           <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm flex flex-col justify-between h-28">
-             <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Monto Prestado</span>
+             <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{isArticle ? 'Monto Financiado' : 'Monto Prestado'}</span>
              <p className="text-2xl font-bold text-slate-900 tracking-tight">{formatCurrency(prestamo.montoPrestamo)}</p>
           </div>
 
@@ -174,28 +195,22 @@ export default function DetallePrestamo({ prestamo }: DetallePrestamoProps) {
           </div>
 
           {/* Interés Total */}
-          {prestamo.interesTotal != null && (
           <div className="bg-amber-50/50 p-5 rounded-2xl border border-amber-100 shadow-sm flex flex-col justify-between h-28">
              <span className="text-[10px] font-black text-amber-600/70 uppercase tracking-widest">Interés Total</span>
-             <p className="text-2xl font-bold text-amber-700 tracking-tight">{formatCurrency(prestamo.interesTotal)}</p>
+             <p className="text-2xl font-bold text-amber-700 tracking-tight">{formatCurrency(isArticle ? 0 : (prestamo.interesTotal || 0))}</p>
           </div>
-          )}
 
           {/* Capital Pagado */}
-          {prestamo.capitalPagado != null && (
           <div className="bg-blue-50/50 p-5 rounded-2xl border border-blue-100 shadow-sm flex flex-col justify-between h-28">
              <span className="text-[10px] font-black text-blue-600/70 uppercase tracking-widest">Capital Pagado</span>
-             <p className="text-2xl font-bold text-blue-700 tracking-tight">{formatCurrency(prestamo.capitalPagado)}</p>
+             <p className="text-2xl font-bold text-blue-700 tracking-tight">{formatCurrency(prestamo.capitalPagado || 0)}</p>
           </div>
-          )}
 
           {/* Interés Pagado */}
-          {prestamo.interesPagado != null && (
           <div className="bg-violet-50/50 p-5 rounded-2xl border border-violet-100 shadow-sm flex flex-col justify-between h-28">
              <span className="text-[10px] font-black text-violet-600/70 uppercase tracking-widest">Interés Pagado</span>
-             <p className="text-2xl font-bold text-violet-700 tracking-tight">{formatCurrency(prestamo.interesPagado)}</p>
+             <p className="text-2xl font-bold text-violet-700 tracking-tight">{formatCurrency(isArticle ? 0 : (prestamo.interesPagado || 0))}</p>
           </div>
-          )}
 
           {/* Frecuencia (now Row 2) */}
           <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm flex flex-col justify-center gap-1 h-24">
@@ -235,6 +250,14 @@ export default function DetallePrestamo({ prestamo }: DetallePrestamoProps) {
                 </div>
              </div>
           </div>
+
+          {/* Cuota Inicial (Only for Articles) */}
+          {isArticle && (
+          <div className="bg-orange-50/70 p-5 rounded-2xl border border-orange-200 shadow-sm flex flex-col justify-between h-24">
+             <span className="text-[10px] font-black text-orange-600 uppercase tracking-widest">Cuota Inicial</span>
+             <p className="text-lg font-bold text-orange-700 tracking-tight">{formatCurrency(prestamo.cuotaInicial || 0)}</p>
+          </div>
+          )}
         </div>
       </div>
 
@@ -464,9 +487,29 @@ export default function DetallePrestamo({ prestamo }: DetallePrestamoProps) {
               </h3>
               <dl className="space-y-4">
                 <div className="flex justify-between border-b border-slate-50 pb-2">
-                  <dt className="text-xs font-bold text-slate-400">Descripción</dt>
+                  <dt className="text-xs font-bold text-slate-400">Producto / Artículo</dt>
                   <dd className="text-sm font-bold text-slate-700">{prestamo.producto || 'N/A'}</dd>
                 </div>
+                {prestamo.productoInfo && (
+                  <>
+                    <div className="flex justify-between border-b border-slate-50 pb-2">
+                      <dt className="text-xs font-bold text-slate-400">Marca</dt>
+                      <dd className="text-sm font-bold text-slate-700">{prestamo.productoInfo.marca || '—'}</dd>
+                    </div>
+                    <div className="flex justify-between border-b border-slate-50 pb-2">
+                      <dt className="text-xs font-bold text-slate-400">Modelo</dt>
+                      <dd className="text-sm font-bold text-slate-700">{prestamo.productoInfo.modelo || '—'}</dd>
+                    </div>
+                    <div className="flex justify-between border-b border-slate-50 pb-2">
+                      <dt className="text-xs font-bold text-slate-400">Serie / IMEI</dt>
+                      <dd className="text-sm font-bold text-slate-700">{prestamo.productoInfo.serie || '—'}</dd>
+                    </div>
+                    <div className="flex justify-between border-b border-slate-50 pb-2">
+                      <dt className="text-xs font-bold text-slate-400">Categoría</dt>
+                      <dd className="text-sm font-bold text-slate-700">{prestamo.productoInfo.categoria || '—'}</dd>
+                    </div>
+                  </>
+                )}
               </dl>
             </div>
 
@@ -476,12 +519,14 @@ export default function DetallePrestamo({ prestamo }: DetallePrestamoProps) {
                 Indicadores
               </h3>
               <dl className="space-y-4">
+                {!isArticle && (
+                  <div className="flex justify-between border-b border-slate-50 pb-2">
+                    <dt className="text-xs font-bold text-slate-400">Tasa de Interés</dt>
+                    <dd className="text-sm font-bold text-slate-700">{prestamo.tasaInteres}%</dd>
+                  </div>
+                )}
                 <div className="flex justify-between border-b border-slate-50 pb-2">
-                  <dt className="text-xs font-bold text-slate-400">Tasa de Interés</dt>
-                  <dd className="text-sm font-bold text-slate-700">{prestamo.tasaInteres}%</dd>
-                </div>
-                <div className="flex justify-between border-b border-slate-50 pb-2">
-                  <dt className="text-xs font-bold text-slate-400">Monto Total a Pagar</dt>
+                  <dt className="text-xs font-bold text-slate-400">{isArticle ? 'Precio de Venta' : 'Monto Total a Pagar'}</dt>
                   <dd className="text-sm font-bold text-slate-700">{formatCurrency(prestamo.montoTotal)}</dd>
                 </div>
               </dl>

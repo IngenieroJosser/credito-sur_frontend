@@ -240,7 +240,7 @@ const RutaClient = ({ initialRuta }: RutaClientProps) => {
     } catch (e) {
       console.error("Error cargando historial de fecha (Admin):", e);
     }
-  }, [initialRuta?.id, initialRuta?.nombre]);
+  }, [initialRuta]);
 
   useEffect(() => {
     if (!showHistory || !initialRuta?.id) return;
@@ -977,12 +977,12 @@ const RutaClient = ({ initialRuta }: RutaClientProps) => {
                     default: return 1
                   }
                 }
-                const cuotas = Number(data.cuotasPrestamo || 0)
+                const cuotas = Number(data.cuotasTotales || 0)
                 const meses = Math.max(1, Math.ceil(cuotas / pagosPorMes(data.frecuenciaPago || 'Mensuales')))
                 await prestamosService.crearPrestamo({
                   clienteId: data.clienteCreditoId,
                   tipoPrestamo: 'EFECTIVO',
-                  monto: Number(data.montoPrestamo || 0),
+                  monto: Number(data.monto || 0),
                   tasaInteres: Number(data.tasaInteres || 0),
                   tasaInteresMora: 0,
                   plazoMeses: meses,

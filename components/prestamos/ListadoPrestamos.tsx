@@ -380,7 +380,7 @@ const ListadoPrestamosElegante = () => {
           </div>
           
           <div className="p-5 rounded-2xl border border-slate-100 bg-white shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all">
-            <p className="text-xs font-bold text-amber-600 uppercase tracking-wider mb-2">En Mora</p>
+            <p className="text-xs font-bold text-rose-600 uppercase tracking-wider mb-2">En Mora</p>
             <p className="text-2xl font-bold text-slate-900 tracking-tight">{estadisticas.atrasados}</p>
           </div>
           
@@ -399,7 +399,7 @@ const ListadoPrestamosElegante = () => {
           </div>
           
           <div className="p-5 rounded-2xl border border-slate-100 bg-white shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all">
-            <p className="text-xs font-bold text-rose-600 uppercase tracking-wider mb-2">Mora Total</p>
+            <p className="text-xs font-bold text-slate-600 uppercase tracking-wider mb-2">Cuentas Vencidas</p>
             <p className="text-lg font-bold text-slate-900 tracking-tight truncate" title={formatCurrency(estadisticas.moraTotal)}>
               {formatCurrency(estadisticas.moraTotal)}
             </p>
@@ -806,49 +806,61 @@ const ListadoPrestamosElegante = () => {
               } catch { /* ignore */ }
             }
 
-            const frecuenciaMap: Record<string, string> = {
-              'Diaria': 'DIARIO',
-              'Semanal': 'SEMANAL',
-              'Quincenal': 'QUINCENAL',
-              'Mensual': 'MENSUAL',
-            };
+            const isArticulo = String(data.creditType || '').toLowerCase() === 'articulo';
+            const esContado = isArticulo && (
+              (data.numCuotas !== undefined && data.numCuotas === 1) ||
+              (data.plazoMeses !== undefined && data.plazoMeses === 1)
+            );
+            const freq = esContado ? 'MENSUAL' : (data.frecuenciaPago || 'DIARIO');
 
-            const numCuotas = data.cuotasPrestamo || 1;
-            const freq = data.frecuenciaPago ? frecuenciaMap[data.frecuenciaPago] || 'DIARIO' : 'DIARIO';
-
-            // Calcular plazoMeses a partir de las cuotas y frecuencia
-            let plazoMeses = 1;
-            switch (freq) {
-              case 'DIARIO': plazoMeses = Math.ceil(numCuotas / 30); break;
-              case 'SEMANAL': plazoMeses = Math.ceil(numCuotas / 4); break;
-              case 'QUINCENAL': plazoMeses = Math.ceil(numCuotas / 2); break;
-              case 'MENSUAL': plazoMeses = numCuotas; break;
+            // Si es artículo, usamos lo que ya calculó el modal
+            // Si es préstamo, calculamos plazoMeses
+            let plazoMeses = data.plazoMeses || 1;
+            if (!isArticulo) {
+              const numCuotas = data.cuotasTotales || 1;
+              switch (freq) {
+                case 'DIARIO': plazoMeses = Math.ceil(numCuotas / 30); break;
+                case 'SEMANAL': plazoMeses = Math.ceil(numCuotas / 4); break;
+                case 'QUINCENAL': plazoMeses = Math.ceil(numCuotas / 2); break;
+                case 'MENSUAL': plazoMeses = numCuotas; break;
+              }
+            } else if (esContado) {
+              plazoMeses = 1;
             }
 
             const backendData: any = {
               clienteId: data.clienteCreditoId,
-              tipoPrestamo: data.creditType || 'prestamo',
-              monto: data.montoPrestamo || 0,
-              tasaInteres: data.tasaInteres || 0,
-              tasaInteresMora: 0,
+              tipoPrestamo: isArticulo ? 'ARTICULO' : 'EFECTIVO',
+              monto: data.monto || 0,
+              tasaInteres: esContado ? 0 : (data.tasaInteres || 0),
+              tasaInteresMora: 2.0,
               plazoMeses,
-              cantidadCuotas: numCuotas,
               frecuenciaPago: freq,
               fechaInicio: data.fechaInicio || new Date().toISOString().split('T')[0],
               creadoPorId: userId,
-              tipoAmortizacion: data.tipoInteres === 'AMORTIZABLE' ? 'FRANCESA' : 'INTERES_SIMPLE',
             };
 
-            if (data.fechaPrimerCobro) {
-              backendData.fechaPrimerCobro = data.fechaPrimerCobro;
-            }
             if (data.articuloId) {
               backendData.productoId = data.articuloId;
-            }
-            if (data.cuotaInicialArticulo) {
-              backendData.cuotaInicial = data.cuotaInicialArticulo;
+              if (data.precioProductoId) {
+                backendData.precioProductoId = data.precioProductoId;
+              }
             }
 
+            if (!esContado) {
+              if (data.cuotaInicialArticulo) {
+                backendData.cuotaInicial = data.cuotaInicialArticulo;
+              }
+              if (data.fechaPrimerCobro) {
+                backendData.fechaPrimerCobro = data.fechaPrimerCobro;
+              }
+            }
+
+            if (esContado) {
+              backendData.notas = 'Venta de artículo de contado';
+            }
+
+            console.log('[CREAR_PRESTAMO_PAYLOAD]', backendData);
             const response = await prestamosService.crearPrestamo(backendData);
             console.log('[CREDITO_CREADO] Respuesta del backend:', response);
             

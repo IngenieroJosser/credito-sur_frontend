@@ -42,7 +42,9 @@ export default function CreditoDetallePage() {
           fechaInicio: data.fechaInicio || '',
           fechaVencimiento: data.fechaFin || '',
           estado: data.estado || 'ACTIVO',
-          producto: data.tipoPrestamo || data.producto?.nombre || 'Crédito Artículo',
+          tipoPrestamo: data.tipoPrestamo || 'ARTICULO',
+          cuotaInicial: Number(data.cuotaInicial || 0),
+          producto: data.producto?.nombre || data.tipoPrestamo || 'Crédito Artículo',
           garantia: data.garantia || 'Prenda sobre artículo',
           fotos: data.fotos || [],
           cuotas: cuotasData.map((c: any) => ({

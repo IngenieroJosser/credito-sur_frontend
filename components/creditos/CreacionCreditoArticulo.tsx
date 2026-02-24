@@ -62,6 +62,7 @@ export default function CreacionCreditoArticulo({
   const [listaClientes, setListaClientes] = useState<Cliente[]>([]);
   const [listaArticulos, setListaArticulos] = useState<Articulo[]>([]);
   const [loadingDatos, setLoadingDatos] = useState(true);
+  const [esContado, setEsContado] = useState(false);
 
   // Cargar datos iniciales
   React.useEffect(() => {
@@ -125,6 +126,7 @@ export default function CreacionCreditoArticulo({
 
   // Opciones de plazos (meses) disponibles
   const opcionesMesesDisponibles = useMemo(() => {
+    if (esContado) return [];
     if (articulosSeleccionados.length === 0) return [];
     let comunes = articulosSeleccionados[0].opcionesCuotas.map(o => o.numeroCuotas);
     for (let i = 1; i < articulosSeleccionados.length; i++) {
@@ -132,25 +134,39 @@ export default function CreacionCreditoArticulo({
         comunes = comunes.filter(c => opcionesArticulo.includes(c));
     }
     return comunes
-      .filter(c => typeof c === 'number' && !isNaN(c))
+      .filter(c => typeof c === 'number' && !isNaN(c) && c >= 1)
       .sort((a, b) => a - b);
-  }, [articulosSeleccionados]);
+  }, [articulosSeleccionados, esContado]);
 
   // Efecto para ajustar meses cuando cambian las opciones disponibles
   React.useEffect(() => {
+    if (esContado) return;
     if (opcionesMesesDisponibles.length > 0) {
       if (!opcionesMesesDisponibles.includes(numeroCuotas)) {
         setNumeroCuotas(opcionesMesesDisponibles[0]);
       }
     }
-  }, [opcionesMesesDisponibles, numeroCuotas]);
+  }, [opcionesMesesDisponibles, numeroCuotas, esContado]);
 
   const resumenFinanciero = useMemo(() => {
     const totalBase = articulosSeleccionados.reduce((sum, item) => sum + (item.precioBase * item.cantidad), 0);
     
-    // totalFinanciadoBruto se basa en el precioTotal guardado en DB para ese número de MESES
+    if (esContado) {
+      const totalContado = articulosSeleccionados.reduce((sum, item) => {
+        const precio = Number(item.precioContado || item.precioBase || 0);
+        return sum + (precio * item.cantidad);
+      }, 0);
+      return {
+        totalBase,
+        totalFinanciadoBruto: totalContado,
+        saldoAFinanciar: Math.max(0, totalContado - cuotaInicial),
+        valorCuota: Math.max(0, totalContado - cuotaInicial),
+        numeroCuotas: 1,
+        meses: 0
+      };
+    }
+
     const totalFinanciadoBruto = articulosSeleccionados.reduce((sum, item) => {
-      // El backend guarda 'meses' en numeroCuotas
       const opcion = item.opcionesCuotas.find(o => o.numeroCuotas === numeroCuotas);
       const precioItemTotal = opcion ? opcion.precioTotal : (item.opcionesCuotas[0]?.precioTotal || item.precioBase); 
       return sum + (precioItemTotal * item.cantidad);
@@ -158,8 +174,7 @@ export default function CreacionCreditoArticulo({
 
     const saldoAFinanciar = totalFinanciadoBruto - cuotaInicial;
     
-    // El número de cuotas reales depende de la frecuencia elegida
-    let factorFrecuencia = 1; // Mensual por defecto
+    let factorFrecuencia = 1;
     if (frecuenciaPago === 'DIARIO') factorFrecuencia = 30;
     else if (frecuenciaPago === 'SEMANAL') factorFrecuencia = 4;
     else if (frecuenciaPago === 'QUINCENAL') factorFrecuencia = 2;
@@ -172,10 +187,10 @@ export default function CreacionCreditoArticulo({
       totalFinanciadoBruto,
       saldoAFinanciar,
       valorCuota: valorCuotaTotal,
-      numeroCuotas: cuotasTotales, // Cuotas reales
-      meses: numeroCuotas // Meses de la DB
+      numeroCuotas: cuotasTotales,
+      meses: numeroCuotas
     };
-  }, [articulosSeleccionados, numeroCuotas, cuotaInicial, frecuenciaPago]);
+  }, [articulosSeleccionados, numeroCuotas, cuotaInicial, frecuenciaPago, esContado]);
 
   // --- Handlers ---
 
@@ -255,7 +270,7 @@ export default function CreacionCreditoArticulo({
       // El backend actual soporta un producto por préstamo. 
       // Tomamos el primero de la lista para la creación formal.
       const articulo = articulosSeleccionados[0];
-      const opcionPlan = articulo.opcionesCuotas.find(o => o.numeroCuotas === numeroCuotas && o.frecuenciaPago === frecuenciaPago);
+      const opcionPlan = esContado ? null : articulo.opcionesCuotas.find(o => o.numeroCuotas === numeroCuotas);
       
       const payload = {
         clienteId: clienteId,
@@ -263,14 +278,15 @@ export default function CreacionCreditoArticulo({
         productoId: articulo.id,
         precioProductoId: opcionPlan?.id,
         monto: resumenFinanciero.totalFinanciadoBruto,
-        tasaInteres: 0, // El interés ya viene en el precio del plan
+        tasaInteres: esContado ? 0 : 0,
         tasaInteresMora: 2.0,
-        plazoMeses: Math.ceil(numeroCuotas / (frecuenciaPago === 'DIARIO' ? 30 : frecuenciaPago === 'SEMANAL' ? 4 : frecuenciaPago === 'QUINCENAL' ? 2 : 1)),
-        frecuenciaPago: frecuenciaPago,
+        plazoMeses: esContado ? 1 : numeroCuotas,
+        cantidadCuotas: esContado ? 1 : resumenFinanciero.numeroCuotas,
+        frecuenciaPago: esContado ? 'MENSUAL' : frecuenciaPago,
         fechaInicio: fechaInicio,
         creadoPorId: creadorId,
         cuotaInicial: cuotaInicial,
-        notas: `Crédito de artículo: ${articulosSeleccionados.map(a => `${a.nombre} (x${a.cantidad})`).join(', ')}`,
+        notas: `${esContado ? 'Venta de contado' : 'Crédito de artículo'}: ${articulosSeleccionados.map(a => `${a.nombre} (x${a.cantidad})`).join(', ')}`,
         tipoAmortizacion: TipoAmortizacion.INTERES_SIMPLE
       };
 

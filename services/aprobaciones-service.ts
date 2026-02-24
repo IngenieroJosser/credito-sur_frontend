@@ -40,5 +40,12 @@ export const aprobacionesService = {
    */
   async rechazar(id: string, data: RechazarDto): Promise<Aprobacion> {
     return apiRequest<Aprobacion>('POST', `/approvals/${id}/reject`, data);
+  },
+
+  /**
+   * Obtener historial de aprobaciones de una entidad
+   */
+  async getHistorial(entidadId: string, tabla: string): Promise<Aprobacion[]> {
+    return apiRequest<Aprobacion[]>('POST', '/approvals/history', { entidadId, tabla });
   }
 };
