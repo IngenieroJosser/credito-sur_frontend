@@ -12,20 +12,40 @@ export interface PushSubscriptionResponse {
   createdAt: string;
 }
 
+function getCurrentUserId(): string | null {
+  if (typeof window === 'undefined') return null;
+  const token = localStorage.getItem('token');
+  if (!token) return null;
+  try {
+    const payload = JSON.parse(atob(token.split('.')[1]));
+    return payload.sub || payload.id || null;
+  } catch {
+    return null;
+  }
+}
+
 /**
  * Envía la suscripción push al backend
  */
 export async function savePushSubscription(
   subscription: PushSubscriptionData
 ): Promise<PushSubscriptionResponse> {
-  return apiRequest<PushSubscriptionResponse>('POST', '/push/subscribe', subscription);
+  const userId = getCurrentUserId();
+  if (!userId) {
+    throw new Error('No se pudo obtener el usuario actual para registrar la suscripción push');
+  }
+  return apiRequest<PushSubscriptionResponse>('POST', '/push/subscribe', {
+    userId,
+    subscription,
+  });
 }
 
 /**
  * Elimina la suscripción push del backend
  */
 export async function deletePushSubscription(endpoint: string): Promise<void> {
-  return apiRequest<void>('DELETE', '/push/unsubscribe', { endpoint });
+  const encoded = encodeURIComponent(endpoint);
+  return apiRequest<void>('DELETE', `/push/unsubscribe/${encoded}`);
 }
 
 /**
@@ -39,5 +59,13 @@ export async function getUserSubscriptions(): Promise<PushSubscriptionResponse[]
  * Envía una notificación de prueba
  */
 export async function sendTestNotification(): Promise<void> {
-  return apiRequest<void>('POST', '/push/test');
+  const userId = getCurrentUserId();
+  return apiRequest<void>('POST', '/push/send', {
+    userId: userId || undefined,
+    title: 'Notificación de prueba',
+    body: 'Tus notificaciones push están funcionando correctamente',
+    data: {
+      tipo: 'TEST',
+    },
+  });
 }

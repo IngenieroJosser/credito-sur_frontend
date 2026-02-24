@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 
 import { useNotification } from "@/components/providers/NotificationProvider";
+import { useNotificaciones } from "@/components/providers/NotificacionesProvider";
 import { usuariosService } from "@/services/usuarios-service";
 import { RolUsuario, EstadoUsuario } from "@/types/enums";
 import { apiRequest } from "@/lib/api/api";
@@ -80,6 +81,8 @@ const UserManagementPage = () => {
   const { user: currentUser, loading: authLoading } = useAuth();
   const currentUserRole: RolUsuario = currentUser?.rol as RolUsuario;
 
+  const { socket } = useNotificaciones();
+
   const { can, canForPath } = usePermission();
   const permitido = can("USUARIOS_VIEW") || canForPath("/users");
   const puedeCrear = can("USUARIOS_CREATE") || canForPath("/users");
@@ -132,6 +135,20 @@ const UserManagementPage = () => {
       fetchUsers();
     }
   }, [authLoading, currentUser]);
+
+  useEffect(() => {
+    if (!socket) return;
+
+    const handler = () => {
+      fetchUsers();
+    };
+
+    socket.on("usuarios_actualizados", handler);
+
+    return () => {
+      socket.off("usuarios_actualizados", handler);
+    };
+  }, [socket]);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterRole, setFilterRole] = useState("all");
   const [filterStatus] = useState("all");

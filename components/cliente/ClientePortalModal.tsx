@@ -187,6 +187,7 @@ export default function ClientePortalModal({ clientId, onClose, rolUsuario = 'co
       <div 
         className="fixed inset-0 flex items-center justify-center p-0 md:p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200"
         style={{ zIndex: MODAL_Z_INDEX }}
+        onClick={onClose}
       >
         <div 
           className="w-full h-full md:h-[95vh] max-w-6xl bg-white md:rounded-3xl shadow-2xl relative flex flex-col overflow-hidden animate-in zoom-in-95 duration-200"
@@ -210,11 +211,26 @@ export default function ClientePortalModal({ clientId, onClose, rolUsuario = 'co
               pagos={pagos}
               comentarios={comentarios}
               onSaveNote={(note) => {
+                const rol = (rolUsuario || '').toLowerCase();
+                const autorNombre =
+                  rol === 'admin' ? 'Administrador' :
+                  rol === 'superadmin' ? 'Super Administrador' :
+                  rol === 'supervisor' ? 'Supervisor' :
+                  rol === 'coordinador' ? 'Coordinador' :
+                  'Usuario';
+
+                const rolEtiqueta =
+                  rol === 'admin' ? 'Admin' :
+                  rol === 'superadmin' ? 'SuperAdmin' :
+                  rol === 'supervisor' ? 'Supervisor' :
+                  rol === 'coordinador' ? 'Coordinador' :
+                  'Usuario';
+
                 const newComment: Comentario = {
                   id: Math.random().toString(36).substr(2, 9),
                   fecha: new Date().toLocaleDateString(),
-                  autor: 'Administrador', // TODO: Get from useAuth
-                  rolAutor: 'Admin',
+                  autor: autorNombre,
+                  rolAutor: rolEtiqueta,
                   contenido: note,
                   tipo: 'observacion',
                   avatarColor: 'bg-indigo-600'

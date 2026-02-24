@@ -39,6 +39,7 @@ import { offlineStore } from '@/lib/offline/offlineDb';
 import { prestamosService } from '@/services/prestamos-service';
 import { WifiOff } from 'lucide-react';
 import ConfirmModal from '@/components/ui/ConfirmModal';
+import { useNotificaciones } from '@/components/providers/NotificacionesProvider';
 
 interface Filtros {
   estado: string;
@@ -94,6 +95,7 @@ const ListadoPrestamosElegante = () => {
   const [error, setError] = useState<string | null>(null);
   const [dataSource, setDataSource] = useState<'online' | 'offline'>('online');
   const [prestamoAEliminar, setPrestamoAEliminar] = useState<string | null>(null);
+  const { socket } = useNotificaciones();
 
   const loadPrestamos = useCallback(async () => {
     try {
@@ -153,6 +155,25 @@ const ListadoPrestamosElegante = () => {
     }
   }, [filtros, paginaActual, loadPrestamos, mounted]);
 
+  const handleRefresh = () => {
+    setRefreshing(true);
+    loadPrestamos();
+  };
+
+  useEffect(() => {
+    if (!socket) return;
+
+    const handler = () => {
+      handleRefresh();
+    };
+
+    socket.on('prestamos_actualizados', handler);
+
+    return () => {
+      socket.off('prestamos_actualizados', handler);
+    };
+  }, [socket, handleRefresh]);
+
   const handleEliminarPrestamo = async () => {
     if (!prestamoAEliminar) return;
     
@@ -169,11 +190,6 @@ const ListadoPrestamosElegante = () => {
       const msg = error?.response?.data?.message || error?.message || 'No se pudo archivar el préstamo';
       showNotification('error', Array.isArray(msg) ? msg.join(', ') : msg, 'Error al Archivar');
     }
-  };
-
-  const handleRefresh = () => {
-    setRefreshing(true);
-    loadPrestamos();
   };
 
   const handleExportExcel = async () => {

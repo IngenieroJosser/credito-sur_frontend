@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { X, Save, Clock, Edit3, Lock, User, Loader2, Package } from 'lucide-react';
 import { createPortal } from 'react-dom';
 import { useNotification } from '@/components/providers/NotificationProvider';
+import { useNotificaciones } from '@/components/providers/NotificacionesProvider';
 import { formatCurrency } from '@/lib/utils';
 import { prestamosService } from '@/services/prestamos-service';
 import { formatErrorForComponent } from '@/lib/api/api';
@@ -25,6 +26,7 @@ const parseCOP = (val: string) => Number(val.replace(/\D/g, ''));
 
 export default function EditarPrestamoModal({ id, onClose, onSuccess }: EditarPrestamoModalProps) {
   const { showNotification } = useNotification();
+  const { refreshNotificaciones } = useNotificaciones();
   const [mounted, setMounted] = useState(false);
   const [visible, setVisible] = useState(false);
   const [isEditing, setIsEditing] = useState(true);
@@ -172,20 +174,25 @@ export default function EditarPrestamoModal({ id, onClose, onSuccess }: EditarPr
   const handleSubmit = async () => {
     setLoading(true);
     try {
-      await prestamosService.actualizarPrestamo(id, {
-        monto,
-        tasaInteres: tasa,
-        cantidadCuotas: cuotas,
-        frecuenciaPago: frecuencia,
-        estado,
-        cuotaInicial: cuotaInicial,
-        fechaInicio: fechaInicio,
-        notas: notas,
-        garantia: garantia,
-        tipoAmortizacion: tipoAmortizacion as any,
-        plazoMeses: plazoMeses
-      } as any);
+      const payload: any = {};
+
+      if (monto !== originalRef.current.monto) payload.monto = monto;
+      if (tasa !== originalRef.current.tasa) payload.tasaInteres = tasa;
+      if (cuotas !== originalRef.current.cuotas) payload.cantidadCuotas = cuotas;
+      if (frecuencia !== originalRef.current.frecuencia) payload.frecuenciaPago = frecuencia;
+      if (estado !== originalRef.current.estado) payload.estado = estado;
+      if (cuotaInicial !== originalRef.current.cuotaInicial) payload.cuotaInicial = cuotaInicial;
+      if (fechaInicio !== originalRef.current.fechaInicio) payload.fechaInicio = fechaInicio;
+      if (notas !== originalRef.current.notas) payload.notas = notas;
+      if (garantia !== originalRef.current.garantia) payload.garantia = garantia;
+      if (tipoAmortizacion !== originalRef.current.tipoAmortizacion) payload.tipoAmortizacion = tipoAmortizacion;
+      if (plazoMeses !== originalRef.current.plazoMeses) payload.plazoMeses = plazoMeses;
+
+      await prestamosService.actualizarPrestamo(id, payload as any);
       showNotification('success', 'El crédito ha sido actualizado correctamente', 'Éxito');
+      try {
+        refreshNotificaciones();
+      } catch {}
       if (onSuccess) onSuccess();
       handleClose();
     } catch (err) {

@@ -32,6 +32,7 @@ import FiltroRuta from '@/components/filtros/FiltroRuta'
 import { TimeFilter, TimeFilterPeriod } from '@/components/ui/TimeFilter'
 import type { RoutePerformance } from '@/services/reportes-coordinador-service'
 import { useReportesCoordinador } from '@/hooks/useReportesCoordinador'
+import { useNotificaciones } from '@/components/providers/NotificacionesProvider'
 
 const ReportesOperativosPage = () => {
   const router = useRouter()
@@ -48,6 +49,8 @@ const ReportesOperativosPage = () => {
       fetchOperationalReport,
       exportReport
   } = useReportesCoordinador()
+
+  const { socket } = useNotificaciones()
 
   const handlePeriodChange = (newPeriod: TimeFilterPeriod) => {
     const params = new URLSearchParams(searchParams.toString())
@@ -134,6 +137,24 @@ const ReportesOperativosPage = () => {
       }).catch(err => console.error("Error loading report:", err));
     }
   }, [period, filterRuta, mounted, fetchOperationalReport]);
+
+  useEffect(() => {
+    if (!socket) return;
+
+    const handler = () => {
+      if (!mounted) return;
+      fetchOperationalReport({
+        period,
+        routeId: filterRuta || undefined
+      }).catch(err => console.error("Error loading report (rt):", err));
+    };
+
+    socket.on('dashboards_actualizados', handler);
+
+    return () => {
+      socket.off('dashboards_actualizados', handler);
+    };
+  }, [socket, period, filterRuta, mounted, fetchOperationalReport]);
 
 
   if (!mounted) {

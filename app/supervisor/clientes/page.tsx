@@ -2,7 +2,6 @@
 'use client'
 
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
-import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
 import { clientesService, Cliente } from '@/services/clientes-service'
 import {
@@ -29,28 +28,23 @@ import {
 import { formatCurrency } from '@/lib/utils'
 import FiltroRuta from '@/components/filtros/FiltroRuta'
 import NuevoClienteModal from '@/components/clientes/NuevoClienteModal'
-import ClienteDetalleElegante from '@/components/cliente/DetalleCliente'
+import ClientePortalModal from '@/components/cliente/ClientePortalModal'
 import PagoModal from '@/components/dashboards/shared/PagoModal'
 import CrearCreditoModal from '@/components/dashboards/shared/CrearCreditoModal'
 import GastoModal from '@/components/dashboards/shared/GastoModal'
 import BaseModal from '@/components/dashboards/shared/BaseModal'
+import { useNotificaciones } from '@/components/providers/NotificacionesProvider'
 
 type NivelRiesgo = 'VERDE' | 'AMARILLO' | 'ROJO' | 'LISTA_NEGRA'
 
 type FiltroEstadoCuenta = 'GENERAL' | 'MORA' | 'VENCIDAS'
 type RutaFilterType = 'TODAS' | string
 
-const MODAL_Z_INDEX = 2147483647
-
-function Portal({ children }: { children: ReactNode }) {
-  if (typeof document === 'undefined') return null
-  return createPortal(children, document.body)
-}
-
 const ClientesSupervisorPage = () => {
   const router = useRouter()
   const [clientes, setClientes] = useState<Cliente[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const { socket } = useNotificaciones()
 
   useEffect(() => {
     let mounted = true
@@ -72,6 +66,27 @@ const ClientesSupervisorPage = () => {
       mounted = false
     }
   }, [])
+
+  useEffect(() => {
+    if (!socket) return;
+
+    const handler = async () => {
+      try {
+        const data = await clientesService.obtenerClientes()
+        if (Array.isArray(data)) {
+          setClientes(data)
+        }
+      } catch (error) {
+        console.error('Error refrescando clientes (supervisor):', error)
+      }
+    };
+
+    socket.on('clientes_actualizados', handler);
+
+    return () => {
+      socket.off('clientes_actualizados', handler);
+    };
+  }, [socket])
 
   const clientesArray = clientes
 
@@ -166,7 +181,15 @@ const ClientesSupervisorPage = () => {
 
   const getRiesgoColor = (riesgo: NivelRiesgo) => {
     switch (riesgo) {
-        default:
+      case 'VERDE':
+        return 'text-emerald-600 bg-emerald-50 ring-emerald-600/20'
+      case 'AMARILLO':
+        return 'text-amber-600 bg-amber-50 ring-amber-600/20'
+      case 'ROJO':
+        return 'text-rose-600 bg-rose-50 ring-rose-600/20'
+      case 'LISTA_NEGRA':
+        return 'text-slate-800 bg-slate-200 ring-slate-600/20'
+      default:
         return 'text-slate-600 bg-slate-50 ring-slate-600/20'
     }
   }
@@ -547,53 +570,14 @@ const ClientesSupervisorPage = () => {
       )}
 
       {showClienteDetalleModal && clienteDetalleSeleccionado && (
-        <Portal>
-          <div
-            className="fixed inset-0 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-200"
-            style={{ zIndex: MODAL_Z_INDEX }}
-            onClick={() => {
-              setShowClienteDetalleModal(false)
-              setClienteDetalleSeleccionado(null)
-            }}
-          >
-            <div
-              className="w-full max-w-5xl bg-slate-50 rounded-3xl shadow-2xl animate-in zoom-in-95 duration-200 h-[90vh] flex flex-col overflow-hidden"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="p-6 bg-white border-b border-slate-200 flex items-center justify-between sticky top-0 z-10">
-                <div>
-                  <h3 className="text-xl font-bold text-slate-900 flex items-center gap-2">
-                    <User className="h-5 w-5 text-blue-600" />
-                    Expediente del Cliente
-                  </h3>
-                  <p className="text-sm text-slate-500 font-medium">Historial y estado de cuenta</p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowClienteDetalleModal(false)
-                    setClienteDetalleSeleccionado(null)
-                  }}
-                  className="p-2 bg-slate-100 rounded-full text-slate-500 hover:bg-slate-200 transition-colors"
-                >
-                  <X className="h-5 w-5" />
-                </button>
-              </div>
-              <div className="flex-1 overflow-y-auto">
-                <ClienteDetalleElegante
-                  cliente={{
-                    ...clienteDetalleSeleccionado,
-                    fechaRegistro: clienteDetalleSeleccionado.creadoEn || 'No disponible',
-                    avatarColor: 'bg-blue-600'
-                  }}
-                  prestamos={[]}
-                  pagos={[]}
-                  comentarios={[]}
-                />
-              </div>
-            </div>
-          </div>
-        </Portal>
+        <ClientePortalModal
+          clientId={clienteDetalleSeleccionado.id}
+          onClose={() => {
+            setShowClienteDetalleModal(false)
+            setClienteDetalleSeleccionado(null)
+          }}
+          rolUsuario="supervisor"
+        />
       )}
 
       <div className="fixed right-6 z-50 flex flex-col items-end gap-3 bottom-[calc(1.5rem+env(safe-area-inset-bottom))] pointer-events-none">

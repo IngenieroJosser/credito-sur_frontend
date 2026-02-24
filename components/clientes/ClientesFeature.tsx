@@ -35,6 +35,7 @@ import NuevoClienteModal from '@/components/clientes/NuevoClienteModal';
 import ClientePortalModal from '@/components/cliente/ClientePortalModal';
 import { offlineStore } from '@/lib/offline/offlineDb';
 import { WifiOff } from 'lucide-react';
+import { useNotificaciones } from '@/components/providers/NotificacionesProvider';
 
 // Tipos locales
 type NivelRiesgo = 'VERDE' | 'AMARILLO' | 'ROJO' | 'LISTA_NEGRA';
@@ -58,6 +59,7 @@ export default function ClientesFeature({ initialClientes, basePath = '/admin/cl
   
   // Hook de notificaciones para dar feedback visual al usuario (ej: "Cliente eliminado")
   const { showNotification } = useNotification();
+  const { socket } = useNotificaciones();
   
   // Estado local de clientes, inicializado con lo que recibimos del servidor (SSR)
   const [clientes, setClientes] = useState<ClienteAdmin[]>(initialClientes);
@@ -77,6 +79,40 @@ export default function ClientesFeature({ initialClientes, basePath = '/admin/cl
       offlineStore.saveMany('clientes', initialClientes).catch(() => {});
     }
   }, [initialClientes]);
+
+  useEffect(() => {
+    if (!socket) return;
+
+    const handler = async () => {
+      try {
+        const fresh = await clientesService.obtenerTodos();
+        if (Array.isArray(fresh) && fresh.length > 0) {
+          setClientes(fresh as ClienteAdmin[]);
+          offlineStore.saveMany('clientes', fresh as ClienteAdmin[]).catch(() => {});
+          setDataSource('online');
+        } else {
+          const cached = await offlineStore.getAll<ClienteAdmin>('clientes');
+          if (cached.length > 0) {
+            setClientes(cached);
+            setDataSource('offline');
+          }
+        }
+      } catch {
+        offlineStore.getAll<ClienteAdmin>('clientes').then((cached) => {
+          if (cached.length > 0) {
+            setClientes(cached);
+            setDataSource('offline');
+          }
+        }).catch(() => {});
+      }
+    };
+
+    socket.on('clientes_actualizados', handler);
+
+    return () => {
+      socket.off('clientes_actualizados', handler);
+    };
+  }, [socket]);
 
   // --- CONTROLES DE INTERFAZ & FILTROS ---
   // Buscador textual: busca por nombre, cédula o correo

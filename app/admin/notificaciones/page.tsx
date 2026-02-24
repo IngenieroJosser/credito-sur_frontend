@@ -33,23 +33,8 @@ import NotificacionDetalleModal from '@/components/dashboards/shared/Notificacio
 
 // MOCKS ELIMINADOS - La aplicación solo funciona con datos reales del backend
 
-// Tipos de notificación que requieren aprobación y su mapeo a TipoAprobacion
-const TIPOS_APROBABLES: Record<string, string> = {
-  PRESTAMO: TipoAprobacion.NUEVO_PRESTAMO,
-  GASTO: TipoAprobacion.GASTO,
-  SOLICITUD_DINERO: TipoAprobacion.SOLICITUD_BASE_EFECTIVO,
-  SOLICITUD: TipoAprobacion.SOLICITUD_BASE_EFECTIVO,
-  CLIENTE: TipoAprobacion.NUEVO_CLIENTE,
-}
-
-// Mapeo de campo 'entidad' del backend (cuando tipo es SISTEMA pero la entidad indica aprobación)
-const ENTIDAD_A_TIPO_APROBACION: Record<string, string> = {
-  Aprobacion: '', // Se resuelve por metadata o título
-  GASTO: TipoAprobacion.GASTO,
-  PRESTAMO: TipoAprobacion.NUEVO_PRESTAMO,
-  CLIENTE: TipoAprobacion.NUEVO_CLIENTE,
-}
-
+// Las notificaciones que requieren aprobación se identifican por metadata.tipoAprobacion
+// o porque el backend las marcó explícitamente como de tipo APROBACION.
 // Inferir tipo de aprobación a partir del título de la notificación (último recurso)
 function inferirApprovalTypePorTitulo(titulo: string): string | undefined {
   const t = titulo.toLowerCase()
@@ -142,18 +127,12 @@ export default function NotificacionesPage() {
           const entidadId = n.entidadId ?? raw.entidadId
           const entidad: string = raw.entidad || ''
 
-          // Inferir tipo de aprobación usando cadena de fallbacks:
-          // 1. metadata.tipoAprobacion (explícito desde el backend)
-          // 2. TIPOS_APROBABLES por n.tipo (GASTO, PRESTAMO, etc.)
-          // 3. ENTIDAD_A_TIPO_APROBACION por entidad (cuando tipo es SISTEMA pero entidad indica aprobación)
-          // 4. Inferencia por título (último recurso, para notificaciones creadas antes de los cambios)
           let approvalType: string | undefined = metadata.tipoAprobacion as string | undefined
-          if (!approvalType) approvalType = TIPOS_APROBABLES[n.tipo]
-          if (!approvalType && entidad && entidad in ENTIDAD_A_TIPO_APROBACION) {
-            approvalType = ENTIDAD_A_TIPO_APROBACION[entidad] || inferirApprovalTypePorTitulo(n.titulo)
-          }
-          if (!approvalType && n.titulo && (n.titulo.toLowerCase().includes('aprobación') || n.titulo.toLowerCase().includes('requiere'))) {
-            approvalType = inferirApprovalTypePorTitulo(n.titulo)
+
+          if (!approvalType && (n.tipo === 'APROBACION' || entidad === 'Aprobacion')) {
+            if (n.titulo && (n.titulo.toLowerCase().includes('aprobación') || n.titulo.toLowerCase().includes('requiere'))) {
+              approvalType = inferirApprovalTypePorTitulo(n.titulo)
+            }
           }
 
           // Prevenir que las notificaciones puramente informativas traten de verse como si necesitaran acción
@@ -752,7 +731,7 @@ export default function NotificacionesPage() {
                           <Eye className="h-4 w-4" />
                         </button>
                         
-                        {((notif as any).approvalType || TIPOS_APROBABLES[notif.tipo]) && notif.estado !== 'APROBADA' && notif.estado !== 'RECHAZADA' && (
+                        {(notif as any).approvalType && notif.estado !== 'APROBADA' && notif.estado !== 'RECHAZADA' && (
                           <>
                             <button
                               onClick={() => handleOpenConfirm(notif, 'REJECT')}
