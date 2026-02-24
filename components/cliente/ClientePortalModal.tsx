@@ -210,11 +210,26 @@ export default function ClientePortalModal({ clientId, onClose, rolUsuario = 'co
               pagos={pagos}
               comentarios={comentarios}
               onSaveNote={(note) => {
+                const rol = (rolUsuario || '').toLowerCase();
+                const autorNombre =
+                  rol === 'admin' ? 'Administrador' :
+                  rol === 'superadmin' ? 'Super Administrador' :
+                  rol === 'supervisor' ? 'Supervisor' :
+                  rol === 'coordinador' ? 'Coordinador' :
+                  'Usuario';
+
+                const rolEtiqueta =
+                  rol === 'admin' ? 'Admin' :
+                  rol === 'superadmin' ? 'SuperAdmin' :
+                  rol === 'supervisor' ? 'Supervisor' :
+                  rol === 'coordinador' ? 'Coordinador' :
+                  'Usuario';
+
                 const newComment: Comentario = {
                   id: Math.random().toString(36).substr(2, 9),
                   fecha: new Date().toLocaleDateString(),
-                  autor: 'Administrador', // TODO: Get from useAuth
-                  rolAutor: 'Admin',
+                  autor: autorNombre,
+                  rolAutor: rolEtiqueta,
                   contenido: note,
                   tipo: 'observacion',
                   avatarColor: 'bg-indigo-600'
