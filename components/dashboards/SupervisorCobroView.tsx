@@ -11,7 +11,6 @@ import { useState, useEffect, useMemo, useCallback } from 'react'
 import {
   MapPin,
   RefreshCw,
-
   CheckCircle2,
   History,
   UserPlus,
@@ -20,20 +19,17 @@ import {
   ChevronDown,
   X,
   CreditCard,
-  Plus,
-
   GripVertical,
   Calendar,
   Search,
   FileText as FileTextIcon,
-
   User,
   Target,
   ReceiptText,
   AlertTriangle,
+  Wallet,
 } from 'lucide-react'
 import ConfirmModal from '@/components/ui/ConfirmModal'
-import { Sparkline } from '@/components/ui/PremiumCharts'
 import {
   DndContext,
   closestCenter,
@@ -71,16 +67,8 @@ import DetalleMoraModal from '@/components/cobranza/DetalleMoraModal'
 import FloatingActionMenu, { FabAction } from '@/components/dashboards/shared/FloatingActionMenu'
 import { loansService_ } from '@/services/loans-service'
 import { prestamosService } from '@/services/prestamos-service'
-
-interface OperacionCaja {
-  id: string
-  tipo: 'pago' | 'gasto' | 'base'
-  descripcion: string
-  monto: number
-  hora: string
-  estado: 'completado' | 'pendiente'
-  cobradorId: string
-}
+import { pagosService } from '@/services/pagos-service'
+import { obtenerSaldoDisponibleRuta } from '@/services/contabilidad-service'
 
 interface UserSession {
   id: string
@@ -146,13 +134,16 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
   const [modalAlerta, setModalAlerta] = useState<{titulo: string, mensaje: string, tipo: 'exito' | 'error' | 'info'} | null>(null)
   const [isLoading, setIsLoading] = useState(true)
 
-  // Determine if this is the supervisor's personal route
-  // In a real app, this would check against the user's assigned route ID or a permission flag
-  const isPersonal = rutaId === 'RT-SUP' || rutaId === 'SUP-001' || !rutaId // Default to personal if no ID for dev
-
-
-
-
+  const isPersonal = rutaId === 'RT-SUP' || rutaId === 'SUP-001' || !rutaId
+  const isReadOnly = !isPersonal
+  const [periodoCards, setPeriodoCards] = useState<'HOY' | 'SEM' | 'MES' | 'AÑO'>('HOY')
+  const [rutaStats, setRutaStats] = useState<{
+    recaudo: number
+    meta: number
+    eficiencia: number
+    gastos: number
+    base: number
+  }>({ recaudo: 0, meta: 0, eficiencia: 0, gastos: 0, base: 0 })
   const router = useRouter();
 
   // Datos base
@@ -160,9 +151,64 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
 
   const [visitasOrden, setVisitasOrden] = useState<string[]>([])
 
-  const operacionesCaja: OperacionCaja[] = []
-
   const [historialRutas, setHistorialRutas] = useState<any>({});
+
+  const getDatesByPeriod = (period: 'HOY' | 'SEM' | 'MES' | 'AÑO') => {
+    const hoy = new Date();
+    let inicio = new Date(hoy);
+    let fin = new Date(hoy);
+
+    switch (period) {
+      case 'HOY':
+        inicio.setHours(0, 0, 0, 0);
+        fin.setHours(23, 59, 59, 999);
+        break;
+      case 'SEM':
+        const day = hoy.getDay();
+        const diff = hoy.getDate() - day + (day === 0 ? -6 : 1);
+        inicio.setDate(diff);
+        inicio.setHours(0, 0, 0, 0);
+        fin.setHours(23, 59, 59, 999);
+        break;
+      case 'MES':
+        inicio.setDate(1);
+        inicio.setHours(0, 0, 0, 0);
+        fin.setHours(23, 59, 59, 999);
+        break;
+      case 'AÑO':
+        inicio.setMonth(0, 1);
+        inicio.setHours(0, 0, 0, 0);
+        fin.setHours(23, 59, 59, 999);
+        break;
+    }
+    return { inicio: inicio.toISOString(), fin: fin.toISOString() };
+  };
+
+  const cargarEstadisticasRuta = useCallback(async () => {
+    if (!rutaId) return
+    try {
+      const { inicio, fin } = getDatesByPeriod(periodoCards)
+      const saldo = await obtenerSaldoDisponibleRuta(rutaId, undefined, inicio, fin)
+      setRutaStats((prev) => {
+        const meta = prev.meta
+        const cobranza = Number(
+          (saldo as any)?.cobranzaDelDia ??
+            (saldo as any)?.recaudoDelDia ??
+            prev.recaudo,
+        )
+        return {
+          ...prev,
+          recaudo: cobranza,
+          gastos: Number((saldo as any)?.gastosDelDia ?? prev.gastos),
+          base: Number((saldo as any)?.baseEfectivo ?? prev.base),
+          eficiencia:
+            meta > 0 ? Math.round((cobranza / meta) * 100) : prev.eficiencia,
+        }
+      })
+    } catch (error) {
+      console.error('Error al cargar estadísticas por periodo (supervisor):', error)
+    }
+  }, [rutaId, periodoCards])
 
   useEffect(() => {
     const cargarHistorial = async () => {
@@ -181,12 +227,25 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
               saldoTotal: v.prestamos?.reduce((sum: number, p: any) => sum + Number(p.saldoPendiente || 0), 0) || 0,
              periodoRuta: 'DIA'
         }));
+        const recaudo = visitasMap
+          .filter((v: any) => v.estado === 'pagado')
+          .reduce((sum: number, v: any) => sum + (v.montoCuota || 0), 0);
+        const esperado = visitasMap
+          .filter((v: any) => v.periodoRuta === 'DIA')
+          .reduce((sum: number, v: any) => sum + (v.montoCuota || 0), 0);
+        const efectividad = esperado > 0 ? Math.round((recaudo / esperado) * 100) : 0;
 
         setHistorialRutas({
-            [fecha]: {
-                resumen: { visitados: visitasMap.length, total: visitasMap.length },
-                visitas: visitasMap
-            }
+          [fecha]: {
+            resumen: {
+              recaudo,
+              gastos: 0,
+              efectividad,
+              visitados: visitasMap.length,
+              total: visitasMap.length,
+            },
+            visitas: visitasMap,
+          },
         });
       } catch (e) {}
     };
@@ -213,38 +272,218 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
              setUserSession(perfil);
         }
 
-        // Cargar Ruta si existe ID
         if (rutaId) {
-            const ruta = await rutasService.obtenerRutaPorId(rutaId);
-            if (ruta && ruta.asignaciones) {
-                 const visitas: VisitaRuta[] = ruta.asignaciones.map((a: any, index: number) => ({
-                    id: a.cliente.id, 
-                    cliente: `${a.cliente.nombres} ${a.cliente.apellidos}`,
-                    direccion: a.cliente.direccion || 'Sin dirección',
-                    telefono: a.cliente.telefono || '',
-                    horaSugerida: '09:00',
-                    montoCuota: Number(a.cliente.prestamos?.find((p: any) => p.estado === 'ACTIVO' || p.estado === 'EN_MORA')?.proximaCuota?.monto || 0),
-                    saldoTotal: a.cliente.prestamos?.reduce((sum: number, p: any) => sum + Number(p.saldoPendiente || 0), 0) || 0,
-                    estado: 'pendiente',
-                    proximaVisita: 'Hoy',
-                    ordenVisita: index + 1,
-                    prioridad: 'media',
-                    nivelRiesgo: (() => {
-                        const r = a.cliente.nivelRiesgo || 'VERDE';
-                        if (r === 'VERDE') return 'bajo';
-                        if (r === 'AMARILLO') return 'precaucion' as any;
-                        if (r === 'ROJO') return 'moderado';
-                        if (r === 'LISTA_NEGRA') return 'critico';
-                        return 'bajo';
-                    })() as any,
-                    cobradorId: ruta.cobradorId,
-                    periodoRuta: 'DIA',
-                    clienteId: a.cliente.id,
-                    prestamoId: a.cliente.prestamos?.[0]?.id || ''
-                 }));
-                 setVisitasBase(visitas);
-                 setVisitasOrden(visitas.map(v => v.id));
+          const ruta = await rutasService.obtenerRutaPorId(rutaId)
+
+          try {
+            const est: any = (ruta as any).estadisticas || {}
+            const { inicio, fin } = getDatesByPeriod(periodoCards)
+            const saldo = await obtenerSaldoDisponibleRuta(ruta.id, undefined, inicio, fin)
+
+            const cobranza = Number(
+              (saldo as any)?.cobranzaDelDia ??
+              (saldo as any)?.recaudoDelDia ??
+              est.cobranzaDelDia ??
+              0,
+            )
+            const meta = Number(est.metaDelDia ?? 0)
+
+            setRutaStats({
+              recaudo: cobranza,
+              meta,
+              eficiencia:
+                meta > 0
+                  ? Math.round((cobranza / meta) * 100)
+                  : Number(est.avanceDiario ?? 0),
+              gastos: Number((saldo as any)?.gastosDelDia ?? 0),
+              base: Number((saldo as any)?.baseEfectivo ?? 0),
+            })
+          } catch {
+            const est: any = (ruta as any).estadisticas || {}
+            setRutaStats({
+              recaudo: Number(est.cobranzaDelDia ?? 0),
+              meta: Number(est.metaDelDia ?? 0),
+              eficiencia: Number(est.avanceDiario ?? 0),
+              gastos: 0,
+              base: 0,
+            })
+          }
+
+          if (ruta && ruta.asignaciones) {
+            const visitas = ruta.asignaciones.map((asig: any, index: number) => {
+              const cliente = asig.cliente || {}
+              const prestamos = cliente.prestamos || []
+              const prestamoActivo =
+                prestamos.find(
+                  (p: any) => p.estado === 'ACTIVO' || p.estado === 'EN_MORA'
+                ) || prestamos[0] || {}
+
+              const proximaCuota = prestamoActivo.proximaCuota || {}
+              const saldoTotal =
+                asig.cliente?.prestamos?.reduce(
+                  (sum: number, p: any) => sum + Number(p.saldoPendiente || 0),
+                  0,
+                ) || 0
+
+              let estado: EstadoVisita = 'pendiente'
+              if (proximaCuota.estado === 'VENCIDA') estado = 'en_mora'
+              else if (proximaCuota.estado === 'PAGADA') estado = 'pagado'
+              else if (!prestamoActivo.id) estado = 'pendiente'
+
+              const periodoRuta: PeriodoRuta = (() => {
+                const f = prestamoActivo.frecuenciaPago || 'DIARIO'
+                if (f === 'DIARIO') return 'DIA'
+                if (f === 'SEMANAL') return 'SEMANA'
+                if (f === 'QUINCENAL') return 'QUINCENA'
+                if (f === 'MENSUAL') return 'MES'
+                return 'DIA'
+              })()
+
+              return {
+                id: asig.id || `asig-${index}`,
+                cliente:
+                  `${cliente.nombres || ''} ${cliente.apellidos || ''}`.trim() ||
+                  'Cliente Sin Nombre',
+                direccion: cliente.direccion || 'Sin dirección registrada',
+                telefono: cliente.telefono || '',
+                horaSugerida: asig.horaSugerida || '08:00 AM',
+                montoCuota: Number(proximaCuota.monto || 0),
+                saldoTotal: Number(saldoTotal),
+                estado,
+                proximaVisita:
+                  proximaCuota.fechaVencimiento ||
+                  '9999-12-31T00:00:00.000Z',
+                targetVencimiento: proximaCuota.fechaVencimiento || undefined,
+                ordenVisita: asig.ordenVisita || index + 1,
+                prioridad:
+                  (asig.prioridad?.toLowerCase() as 'alta' | 'media' | 'baja') ||
+                  (estado === 'en_mora' ? 'alta' : 'media'),
+                nivelRiesgo: (() => {
+                  const r = cliente.nivelRiesgo || 'VERDE'
+                  if (r === 'VERDE') return 'bajo'
+                  if (r === 'AMARILLO') return 'precaucion' as any
+                  if (r === 'ROJO') return 'moderado'
+                  if (r === 'LISTA_NEGRA') return 'critico'
+                  return 'bajo'
+                })(),
+                cobradorId: ruta.cobradorId,
+                periodoRuta,
+                clienteId: cliente.id,
+                prestamoId: prestamoActivo.id,
+              } as any
+            })
+
+            const visitasEnriquecidas = await Promise.all(
+              visitas.map(async (v: any) => {
+                if (!v.prestamoId) return v
+                try {
+                  const cuotas = await prestamosService.obtenerCuotas(v.prestamoId)
+                  const pendiente = cuotas.find((c: any) => c.estado !== 'PAGADA')
+
+                  if (pendiente) {
+                    const montoReal = Number(
+                      pendiente.monto ||
+                        pendiente.montoCapital + pendiente.montoInteres ||
+                        0,
+                    )
+                    return {
+                      ...v,
+                      montoCuota: montoReal > 0 ? montoReal : v.montoCuota,
+                      proximaVisita:
+                        pendiente.fechaVencimiento || v.proximaVisita,
+                    }
+                  }
+
+                  const p = await prestamosService.obtenerPrestamoPorId(
+                    v.prestamoId,
+                  )
+                  const proxima = p.proximaCuota || {}
+                  const montoP = Number(
+                    proxima.monto ||
+                      p.montoCuota ||
+                      (p as any).valorCuota ||
+                      0,
+                  )
+
+                  return {
+                    ...v,
+                    montoCuota: montoP > 0 ? montoP : v.montoCuota,
+                    proximaVisita: proxima.fechaVencimiento || v.proximaVisita,
+                  }
+                } catch {
+                  return v
+                }
+              }),
+            )
+
+            const hoyStr = new Date().toDateString()
+            const withRecaudo = await Promise.all(
+              visitasEnriquecidas.map(async (v: any) => {
+                if (!v.clienteId) {
+                  return {
+                    ...v,
+                    recaudadoDelDia: 0,
+                    recaudadoTotalClient: 0,
+                  }
+                }
+                try {
+                  const pagosResp = await pagosService.obtenerPagos({
+                    clienteId: v.clienteId,
+                    limit: 100,
+                  })
+                  const pagosCalc = pagosResp?.pagos || []
+
+                  const totalHoy = pagosCalc.reduce((sum: number, p: any) => {
+                    const f = new Date(p.fechaPago).toDateString()
+                    return f === hoyStr ? sum + Number(p.montoTotal || 0) : sum
+                  }, 0)
+
+                  const totalHistorico = pagosCalc.reduce(
+                    (sum: number, p: any) => sum + Number(p.montoTotal || 0),
+                    0,
+                  )
+
+                  return {
+                    ...v,
+                    recaudadoDelDia: totalHoy,
+                    recaudadoTotalClient: totalHistorico,
+                  }
+                } catch {
+                  return {
+                    ...v,
+                    recaudadoDelDia: 0,
+                    recaudadoTotalClient: 0,
+                  }
+                }
+              }),
+            )
+
+            const ajustarEstadoConPago = (v: any): EstadoVisita => {
+              if (Number(v.saldoTotal || 0) <= 0) return 'pagado'
+
+              const saldoHoy = Number(v.recaudadoDelDia || 0)
+              const cuota = Number(v.montoCuota || 0)
+
+              if (saldoHoy >= cuota - 1 && saldoHoy > 0) return 'pagado'
+
+              const hoy = new Date().toDateString()
+              const proxima = new Date(v.proximaVisita).toDateString()
+
+              if (proxima === hoy && saldoHoy >= cuota - 1) return 'pagado'
+
+              return v.estado
             }
+
+            const finales = withRecaudo.map((v: any) => ({
+              ...v,
+              estado: ajustarEstadoConPago(v),
+            }))
+
+            finales.sort((a: any, b: any) => a.ordenVisita - b.ordenVisita)
+
+            setVisitasBase(finales)
+            setVisitasOrden(finales.map((v: any) => v.id))
+          }
         }
       } catch (error) {
         console.error('Error al cargar datos:', error);
@@ -254,7 +493,11 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
     };
 
     cargarDatos();
-  }, [router, rutaId]);
+  }, [router, rutaId, periodoCards]);
+
+  useEffect(() => {
+    cargarEstadisticasRuta()
+  }, [cargarEstadisticasRuta])
 
 
   // Filtrar y ordenar visitas
@@ -389,43 +632,7 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
     w.document.close()
   }, [visitasCobrador])
 
-  const operacionesCobrador = useMemo(() => 
-    operacionesCaja.filter(op => op.cobradorId === 'CB-001'), 
-    [operacionesCaja]
-  )
-
-  const cajaRuta = useMemo(() => {
-    const recaudoTotal = operacionesCobrador
-      .filter(op => op.tipo === 'pago' && op.estado === 'completado')
-      .reduce((sum, op) => sum + op.monto, 0)
-    
-    const gastosOperativos = operacionesCobrador
-      .filter(op => op.tipo === 'gasto' && op.estado === 'completado')
-      .reduce((sum, op) => sum + op.monto, 0)
-    
-    const baseSolicitada = operacionesCobrador
-      .filter(op => op.tipo === 'base' && op.estado === 'pendiente')
-      .reduce((sum, op) => sum + op.monto, 0)
-
-    const recaudoEsperado = visitasCobrador
-      .filter(v => v.periodoRuta === 'DIA')
-      .reduce((sum, v) => sum + (v.montoCuota || 0), 0)
-
-    const eficiencia = recaudoEsperado > 0 
-      ? Math.round((recaudoTotal / recaudoEsperado) * 100) 
-      : 0
-
-    return {
-      recaudoTotal,
-      recaudoEsperado,
-      gastosOperativos,
-      eficiencia,
-      baseDisponible: baseSolicitada,
-      saldoNeto: recaudoTotal - gastosOperativos,
-      efectivoDisponible: recaudoTotal - gastosOperativos - baseSolicitada,
-      cambioNecesario: 20000,
-    }
-  }, [operacionesCobrador, visitasCobrador])
+  // rutaStats se actualiza al cargar la ruta desde backend usando pagos reales
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -753,82 +960,111 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
         </header>
 
 
-        {/* Stats rápidos */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          
-          <div className="bg-white border border-slate-100 rounded-[2rem] p-6 hover:shadow-2xl hover:shadow-slate-200/50 transition-all duration-500 group relative overflow-hidden">
-            <div className="flex items-start justify-between mb-6">
-              <div className="flex items-center justify-center p-3 rounded-2xl bg-slate-50 text-slate-400 group-hover:text-[#08557f] group-hover:bg-blue-50 transition-colors border border-slate-100 shadow-sm">
-                <DollarSign className="h-5 w-5" />
-              </div>
-              <div className="flex flex-col items-end gap-2">
-                <div className="flex items-center font-black text-[10px] px-3 py-1 rounded-full bg-emerald-50 text-emerald-600">
-                  +12.5%
+        <div className="flex items-center justify-between">
+          <div className="flex rounded-xl border border-slate-200 bg-white p-1 shadow-sm">
+            {(['HOY', 'SEM', 'MES', 'AÑO'] as const).map((p) => (
+              <button
+                key={p}
+                onClick={() => setPeriodoCards(p)}
+                className={`px-4 py-2 text-xs font-bold rounded-lg transition-all ${
+                  periodoCards === p
+                    ? 'bg-blue-600 text-white shadow-md'
+                    : 'text-slate-600 hover:text-blue-600 hover:bg-blue-50'
+                }`}
+              >
+                {p}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all group">
+            <div className="flex justify-between items-start mb-4">
+              <div>
+                <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+                  Recaudo {periodoCards === 'HOY' ? 'Hoy' : periodoCards === 'SEM' ? 'Semana' : periodoCards === 'MES' ? 'Mes' : 'Año'}
+                </p>
+                <div className="flex items-baseline gap-2 mt-2">
+                  <h3 className="text-2xl font-bold text-slate-900">{formatCurrency(rutaStats.recaudo)}</h3>
+                  <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">
+                    {rutaStats.meta > 0 ? `+${((rutaStats.recaudo / rutaStats.meta) * 100).toFixed(1)}%` : '---'}
+                  </span>
                 </div>
-                <Sparkline data={[10, 15, 12, 18, 22, 19, 25]} color="#08557f" height={30} />
+              </div>
+              <div className="p-3 bg-blue-50/50 rounded-xl border border-blue-100 group-hover:scale-110 transition-transform">
+                <DollarSign className="h-5 w-5 text-blue-600" />
               </div>
             </div>
-            <div className="space-y-1">
-              <div className="text-3xl font-black text-slate-900 tracking-tighter">
-                ${cajaRuta.recaudoTotal.toLocaleString('es-CO')}
-              </div>
-              <div className="text-[10px] font-bold text-slate-400 mt-1">
-                Meta: ${cajaRuta.recaudoEsperado.toLocaleString('es-CO')}
-              </div>
-              <div className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] leading-none pt-1">
-                Mi Recaudo
-              </div>
-            </div>
+            <p className="text-xs text-slate-400 font-medium">Meta: {formatCurrency(rutaStats.meta)}</p>
           </div>
 
-          <div className="bg-white border border-slate-100 rounded-[2rem] p-6 hover:shadow-2xl hover:shadow-slate-200/50 transition-all duration-500 group relative overflow-hidden">
-            <div className="flex items-start justify-between mb-6">
-              <div className="flex items-center justify-center p-3 rounded-2xl bg-slate-50 text-slate-400 group-hover:text-emerald-600 group-hover:bg-emerald-50 transition-colors border border-slate-100 shadow-sm">
-                <Target className="h-5 w-5" />
-              </div>
-              <div className="flex flex-col items-end gap-2">
-                <div className="flex items-center font-black text-[10px] px-3 py-1 rounded-full bg-emerald-50 text-emerald-600">
-                  ÓPTIMO
+          <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all group">
+            <div className="flex justify-between items-start mb-4">
+              <div>
+                <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Efectividad</p>
+                <div className="flex items-baseline gap-2 mt-2">
+                  <h3 className="text-2xl font-bold text-slate-900">{rutaStats.eficiencia}%</h3>
+                  <span
+                    className={`text-xs font-bold px-2 py-0.5 rounded-full ${
+                      rutaStats.eficiencia >= 90
+                        ? 'text-emerald-600 bg-emerald-50'
+                        : rutaStats.eficiencia >= 70
+                        ? 'text-orange-600 bg-orange-50'
+                        : 'text-rose-600 bg-rose-50'
+                    }`}
+                  >
+                    {rutaStats.eficiencia >= 90 ? 'ÓPTIMO' : rutaStats.eficiencia >= 70 ? 'REGULAR' : 'BAJO'}
+                  </span>
                 </div>
-                <Sparkline data={[40, 50, 45, 70, 85, 90, cajaRuta.eficiencia]} color="#10b981" height={30} />
+              </div>
+              <div className="p-3 bg-emerald-50 rounded-xl border border-emerald-100 group-hover:scale-110 transition-transform">
+                <Target className="h-5 w-5 text-emerald-600" />
               </div>
             </div>
-            <div className="space-y-1">
-              <div className="text-3xl font-black text-slate-900 tracking-tighter">
-                {cajaRuta.eficiencia}%
-              </div>
-              <div className="text-[10px] font-bold text-slate-400 mt-1">
-                Pendiente: ${(Math.max(0, cajaRuta.recaudoEsperado - cajaRuta.recaudoTotal)).toLocaleString('es-CO')}
-              </div>
-              <div className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] leading-none pt-1">
-                Efectividad
-              </div>
+            <div className="w-full bg-slate-100 rounded-full h-1.5 mt-1 overflow-hidden">
+              <div
+                className="bg-emerald-500 h-1.5 rounded-full transition-all duration-1000"
+                style={{ width: `${rutaStats.eficiencia}%` }}
+              />
             </div>
+            <p className="text-xs text-slate-400 font-medium mt-2">
+              Pendiente: {formatCurrency(Math.max(0, rutaStats.meta - rutaStats.recaudo))}
+            </p>
           </div>
 
-          <div className="bg-white border border-slate-100 rounded-[2rem] p-6 hover:shadow-2xl hover:shadow-slate-200/50 transition-all duration-500 group relative overflow-hidden">
-            <div className="flex items-start justify-between mb-6">
-              <div className="flex items-center justify-center p-3 rounded-2xl bg-slate-50 text-slate-400 group-hover:text-rose-600 group-hover:bg-rose-50 transition-colors border border-slate-100 shadow-sm">
-                <Receipt className="h-5 w-5" />
-              </div>
-              <div className="flex flex-col items-end gap-2">
-                <div className="flex items-center font-black text-[10px] px-3 py-1 rounded-full bg-rose-50 text-rose-600">
-                  RUTA
+          <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all group">
+            <div className="flex justify-between items-start mb-4">
+              <div>
+                <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+                  Gastos {periodoCards === 'HOY' ? 'Hoy' : periodoCards === 'SEM' ? 'Semana' : periodoCards === 'MES' ? 'Mes' : 'Año'}
+                </p>
+                <div className="flex items-baseline gap-2 mt-2">
+                  <h3 className="text-2xl font-bold text-slate-900">{formatCurrency(rutaStats.gastos)}</h3>
                 </div>
-                <Sparkline data={[5, 10, 8, 15, 12, 20]} color="#f43f5e" height={30} />
+              </div>
+              <div className="p-3 bg-rose-50 rounded-xl border border-rose-100 group-hover:scale-110 transition-transform">
+                <Receipt className="h-5 w-5 text-rose-600" />
               </div>
             </div>
-            <div className="space-y-1">
-              <div className="text-3xl font-black text-slate-900 tracking-tighter">
-                ${cajaRuta.gastosOperativos.toLocaleString('es-CO')}
+            <p className="text-xs text-slate-400 font-medium">
+              Registrados {periodoCards === 'HOY' ? 'hoy' : periodoCards === 'SEM' ? 'esta semana' : periodoCards === 'MES' ? 'este mes' : 'este año'}
+            </p>
+          </div>
+
+          <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all group">
+            <div className="flex justify-between items-start mb-4">
+              <div>
+                <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Base Efectivo</p>
+                <div className="flex items-baseline gap-2 mt-2">
+                  <h3 className="text-2xl font-bold text-slate-900">{formatCurrency(rutaStats.base)}</h3>
+                </div>
               </div>
-              <div className="text-[10px] font-bold text-slate-400 mt-1">
-                Registrados hoy
-              </div>
-              <div className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] leading-none pt-1">
-                Gastos
+              <div className="p-3 bg-amber-50 rounded-xl border border-amber-100 group-hover:scale-110 transition-transform">
+                <Wallet className="h-5 w-5 text-amber-600" />
               </div>
             </div>
+            <p className="text-xs text-slate-400 font-medium">Asignada por coordinador</p>
           </div>
         </div>
 
@@ -897,41 +1133,44 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
             </div>
             </div>
             
-            {/* TOP TOOLBAR - Visible for Supervisor on ANY route */}
             <div className="mt-4 pt-4 border-t border-slate-100">
                 <div className="flex items-center gap-2 overflow-x-auto pb-2 no-scrollbar">
-                        <button onClick={() => { 
-                          if (visitaSeleccionada) {
-                             const v = visitasCobrador.find(v => v.id === visitaSeleccionada);
-                             if (v) {
-                               setVisitaPagoSeleccionadaId(v.id);
-                               setPagoInitialIsAbono(false);
-                               setShowPaymentModal(true);
-                             }
-                          } else {
-                             setVisitaPagoSeleccionadaId(null);
-                             setShowPaymentModal(true);
-                             setPagoInitialIsAbono(false); 
-                          }
-                        }} className="flex-1 min-w-[max-content] bg-[#08557f]/5 text-[#08557f] border border-[#08557f]/10 px-4 py-3 rounded-xl flex items-center justify-center gap-2 font-bold shadow-sm active:scale-95 transition-all">
-                            <DollarSign className="h-5 w-5" /> Pagar
-                        </button>
-                        <button onClick={() => { 
-                           if (visitaSeleccionada) {
-                             const v = visitasCobrador.find(v => v.id === visitaSeleccionada);
-                             if (v) {
-                               setVisitaPagoSeleccionadaId(v.id);
-                               setPagoInitialIsAbono(true);
-                               setShowPaymentModal(true);
-                             }
-                           } else {
-                               setVisitaPagoSeleccionadaId(null); 
-                               setShowPaymentModal(true); 
-                               setPagoInitialIsAbono(true);
-                           }
-                        }} className="flex-1 min-w-[max-content] bg-orange-50 text-orange-700 border border-orange-200 px-4 py-3 rounded-xl flex items-center justify-center gap-2 font-bold shadow-sm active:scale-95 transition-all">
-                            <RefreshCw className="h-5 w-5" /> Abonar
-                        </button>
+                        {!isReadOnly && (
+                          <>
+                            <button onClick={() => { 
+                              if (visitaSeleccionada) {
+                                 const v = visitasCobrador.find(v => v.id === visitaSeleccionada);
+                                 if (v) {
+                                   setVisitaPagoSeleccionadaId(v.id);
+                                   setPagoInitialIsAbono(false);
+                                   setShowPaymentModal(true);
+                                 }
+                              } else {
+                                 setVisitaPagoSeleccionadaId(null);
+                                 setShowPaymentModal(true);
+                                 setPagoInitialIsAbono(false); 
+                              }
+                            }} className="flex-1 min-w-[max-content] bg-[#08557f]/5 text-[#08557f] border border-[#08557f]/10 px-4 py-3 rounded-xl flex items-center justify-center gap-2 font-bold shadow-sm active:scale-95 transition-all">
+                                <DollarSign className="h-5 w-5" /> Pagar
+                            </button>
+                            <button onClick={() => { 
+                               if (visitaSeleccionada) {
+                                 const v = visitasCobrador.find(v => v.id === visitaSeleccionada);
+                                 if (v) {
+                                   setVisitaPagoSeleccionadaId(v.id);
+                                   setPagoInitialIsAbono(true);
+                                   setShowPaymentModal(true);
+                                 }
+                               } else {
+                                   setVisitaPagoSeleccionadaId(null); 
+                                   setShowPaymentModal(true); 
+                                   setPagoInitialIsAbono(true);
+                               }
+                            }} className="flex-1 min-w-[max-content] bg-orange-50 text-orange-700 border border-orange-200 px-4 py-3 rounded-xl flex items-center justify-center gap-2 font-bold shadow-sm active:scale-95 transition-all">
+                                <RefreshCw className="h-5 w-5" /> Abonar
+                            </button>
+                          </>
+                        )}
                         <button onClick={() => { 
                            if (visitaSeleccionada) {
                               const v = visitasCobrador.find(v => v.id === visitaSeleccionada);
@@ -1114,38 +1353,97 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
                         MES: noPagadas.filter(v => v.periodoRuta === 'MES'),
                       }
 
-                      const renderSeccion = (titulo: string, visitas: VisitaRuta[]) => (
-                        <div className="space-y-3">
-                          <div className="flex items-center justify-between">
-                            <div className="text-xs font-bold text-slate-700 uppercase tracking-wider bg-slate-100 px-3 py-1.5 rounded-xl border border-slate-200">
-                              {titulo}
+                      const renderSeccion = (titulo: string, visitas: VisitaRuta[]) => {
+                        if (visitas.length === 0) return null
+                        return (
+                          <div className="space-y-4">
+                            <div className="flex items-center gap-4">
+                              <div className="h-px flex-1 bg-slate-200" />
+                              <span className="text-[11px] font-black text-[#08557f] uppercase tracking-[0.25em] bg-blue-50/50 px-4 py-1.5 rounded-full border border-blue-100 shadow-sm">
+                                {titulo}{' '}
+                                <span className="ml-1 bg-blue-600 text-white text-[9px] px-2 py-0.5 rounded-full">
+                                  {visitas.length}
+                                </span>
+                              </span>
+                              <div className="h-px flex-1 bg-slate-200" />
                             </div>
-                            <div className="text-[11px] font-bold text-slate-500 bg-slate-100 px-2 py-1 rounded-full border border-slate-200">
-                              {visitas.length}
-                            </div>
-                          </div>
-                          {visitas.length === 0 ? (
-                            <div className="rounded-2xl border border-dashed border-slate-200 bg-white/50 px-4 py-6 text-sm text-slate-500">
-                              Sin visitas
-                            </div>
-                          ) : (
                             <div className="space-y-3">
                               {visitas.map((visita) => (
                                 <SortableVisita
                                   key={visita.id}
                                   visita={visita}
-                                  onSelect={(id) => setVisitaSeleccionada(id === visitaSeleccionada ? null : id)}
+                                  onSelect={(id) =>
+                                    setVisitaSeleccionada(
+                                      id === visitaSeleccionada ? null : id,
+                                    )
+                                  }
                                   onVerCliente={handleAbrirClienteInfo}
                                   getEstadoClasses={getEstadoClasses}
                                   disableSort={rutaCompletada || !isPersonal}
                                   isSelected={visita.id === visitaSeleccionada}
                                 >
+                                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1">
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation()
+                                        setVisitaPagoSeleccionadaId(visita.id)
+                                        setPagoInitialIsAbono(false)
+                                        setShowPaymentModal(true)
+                                      }}
+                                      className="flex flex-col items-center justify-center p-2 rounded-xl bg-blue-600 text-white hover:bg-blue-700 transition-all shadow-sm active:scale-95"
+                                    >
+                                      <DollarSign className="h-4 w-4 mb-1" />
+                                      <span className="text-[9px] font-bold uppercase">
+                                        Pago
+                                      </span>
+                                    </button>
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation()
+                                        setVisitaPagoSeleccionadaId(visita.id)
+                                        setPagoInitialIsAbono(true)
+                                        setShowPaymentModal(true)
+                                      }}
+                                      className="flex flex-col items-center justify-center p-2 rounded-xl bg-emerald-600 text-white hover:bg-emerald-700 transition-all shadow-sm active:scale-95"
+                                    >
+                                      <Wallet className="h-4 w-4 mb-1" />
+                                      <span className="text-[9px] font-bold uppercase">
+                                        Abono
+                                      </span>
+                                    </button>
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation()
+                                        setVisitaEstadoCuentaSeleccionada(visita)
+                                        setShowEstadoCuentaModal(true)
+                                      }}
+                                      className="flex flex-col items-center justify-center p-2 rounded-xl bg-white text-slate-700 border border-slate-200 hover:bg-slate-50 transition-all shadow-sm active:scale-95"
+                                    >
+                                      <FileTextIcon className="h-4 w-4 mb-1 text-slate-400" />
+                                      <span className="text-[9px] font-bold uppercase">
+                                        Estado
+                                      </span>
+                                    </button>
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation()
+                                        setVisitaReprogramar(visita)
+                                        setShowReprogramModal(true)
+                                      }}
+                                      className="flex flex-col items-center justify-center p-2 rounded-xl bg-white text-slate-700 border border-slate-200 hover:bg-slate-50 transition-all shadow-sm active:scale-95"
+                                    >
+                                      <Calendar className="h-4 w-4 mb-1 text-slate-400" />
+                                      <span className="text-[9px] font-bold uppercase">
+                                        Repro.
+                                      </span>
+                                    </button>
+                                  </div>
                                 </SortableVisita>
                               ))}
                             </div>
-                          )}
-                        </div>
-                      )
+                          </div>
+                        )
+                      }
 
                       if (periodoRutaFiltro === 'DIA') return renderSeccion('Ruta del día', porPeriodo.DIA)
                       if (periodoRutaFiltro === 'SEMANA') return renderSeccion('Ruta de la semana', porPeriodo.SEMANA)
@@ -1435,14 +1733,14 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
           />
         )}
 
-        {/* Floating Action Button (FAB) */}
+        {/* Floating Action Button (FAB) - siempre visible para supervisor */}
         <FloatingActionMenu actions={[
-          { label: 'Crear Crédito', icon: <CreditCard className="h-5 w-5" />, onClick: () => setShowCreditModal(true) },
-          { label: 'Nuevo Cliente', icon: <UserPlus className="h-5 w-5" />, onClick: () => setShowNewClientModal(true) },
-          { label: 'Registrar abono', icon: <RefreshCw className="h-5 w-5" />, color: 'orange', onClick: () => { setPendingAction('ABONO'); setShowClientSelector(true); } },
-          { label: 'Registrar pago', icon: <DollarSign className="h-5 w-5" />, onClick: () => { setPendingAction('PAGO'); setShowClientSelector(true); } },
-          { label: 'Gastos', icon: <ReceiptText className="h-5 w-5" />, color: 'rose', onClick: () => setShowGastoModal(true) },
-        ] as FabAction[]} />
+            { label: 'Crear Crédito', icon: <CreditCard className="h-5 w-5" />, onClick: () => setShowCreditModal(true) },
+            { label: 'Nuevo Cliente', icon: <UserPlus className="h-5 w-5" />, onClick: () => setShowNewClientModal(true) },
+            { label: 'Registrar abono', icon: <RefreshCw className="h-5 w-5" />, color: 'orange', onClick: () => { setPendingAction('ABONO'); setShowClientSelector(true); } },
+            { label: 'Registrar pago', icon: <DollarSign className="h-5 w-5" />, onClick: () => { setPendingAction('PAGO'); setShowClientSelector(true); } },
+            { label: 'Gastos', icon: <ReceiptText className="h-5 w-5" />, color: 'rose', onClick: () => setShowGastoModal(true) },
+          ] as FabAction[]} />
 
         {/* Modal de Alerta */}
         {modalAlerta && (

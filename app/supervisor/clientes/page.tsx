@@ -158,7 +158,15 @@ const ClientesSupervisorPage = () => {
 
   const getRiesgoColor = (riesgo: NivelRiesgo) => {
     switch (riesgo) {
-        default:
+      case 'VERDE':
+        return 'text-emerald-600 bg-emerald-50 ring-emerald-600/20'
+      case 'AMARILLO':
+        return 'text-amber-600 bg-amber-50 ring-amber-600/20'
+      case 'ROJO':
+        return 'text-rose-600 bg-rose-50 ring-rose-600/20'
+      case 'LISTA_NEGRA':
+        return 'text-slate-800 bg-slate-200 ring-slate-600/20'
+      default:
         return 'text-slate-600 bg-slate-50 ring-slate-600/20'
     }
   }
