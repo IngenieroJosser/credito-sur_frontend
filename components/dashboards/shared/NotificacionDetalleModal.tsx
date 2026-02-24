@@ -265,6 +265,7 @@ export default function NotificacionDetalleModal({
   const isGasto = tipo === 'GASTO' || approvalType === 'GASTO'
   const isSolicitudBase = tipo === 'SOLICITUD_DINERO' || approvalType === 'SOLICITUD_BASE_EFECTIVO'
   const isArticle = isPrestamo && (editedDetails?.tipo === 'ARTICULO' || safeMeta?.tipo === 'ARTICULO' || titulo.toLowerCase().includes('artículo') || titulo.toLowerCase().includes('articulo') || mensaje.toLowerCase().includes('artículo') || mensaje.toLowerCase().includes('articulo'))
+  const isApprovalNotification = Boolean(approvalType)
 
   const handleClose = () => {
     setIsEditingMode(false)
@@ -850,51 +851,11 @@ export default function NotificacionDetalleModal({
               </div>
             )}
 
-            {/* Historial Completo de Aprobaciones */}
-            {history.length > 0 && (
-              <div className="space-y-3">
-                <div className="flex items-center gap-2 px-1">
-                  <Layers className="h-4 w-4 text-slate-400" />
-                  <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Historial de Revisiones</p>
-                </div>
-                <div className="space-y-2">
-                  {history.map((item, idx) => (
-                    <div key={item.id} className={`p-4 rounded-2xl border ${item.estado === 'RECHAZADO' ? 'bg-rose-50/30 border-rose-100' : item.estado === 'APROBADO' ? 'bg-emerald-50/30 border-emerald-100' : 'bg-slate-50/50 border-slate-100'}`}>
-                      <div className="flex justify-between items-start mb-2">
-                        <div className={`px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-widest ${
-                          item.estado === 'RECHAZADO' ? 'bg-rose-100 text-rose-700' : 
-                          item.estado === 'APROBADO' ? 'bg-emerald-100 text-emerald-700' : 
-                          'bg-slate-200 text-slate-600'
-                        }`}>
-                          {item.estado}
-                        </div>
-                        <p className="text-[9px] font-bold text-slate-400">
-                          {new Date(item.creadoEn).toLocaleDateString()} {new Date(item.creadoEn).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                        </p>
-                      </div>
-                      <p className="text-[11px] font-bold text-slate-700">
-                        {item.estado === 'PENDIENTE' ? 'Solicitado por' : item.estado === 'RECHAZADO' ? 'Rechazado por' : 'Aprobado por'}: 
-                        <span className="text-slate-900 ml-1 uppercase">
-                          {item.estado === 'PENDIENTE' 
-                            ? `${item.solicitadoPor?.nombres || ''} ${item.solicitadoPor?.apellidos || ''}`
-                            : `${item.aprobadoPor?.nombres || ''} ${item.aprobadoPor?.apellidos || ''}` || 'Admin'}
-                        </span>
-                      </p>
-                      {item.comentarios && (
-                        <p className="text-[10px] text-slate-500 italic mt-1 leading-relaxed border-l-2 border-slate-200 pl-2">
-                          &quot;{item.comentarios}&quot;
-                        </p>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
           </div>
 
           {/* Footer Actions */}
           <div className="p-6 bg-slate-50 border-t border-slate-100 flex gap-4 sticky bottom-0 z-10">
-            {estado === 'PENDIENTE' && canApprove && (
+            {estado === 'PENDIENTE' && canApprove && isApprovalNotification && (
               <>
                 <button 
                   onClick={() => setConfirmAction('REJECT')}
@@ -910,7 +871,7 @@ export default function NotificacionDetalleModal({
                 </button>
               </>
             )}
-            {(estado !== 'PENDIENTE' || !canApprove) && (
+            {(estado !== 'PENDIENTE' || !canApprove || !isApprovalNotification) && (
               <button 
                 onClick={handleClose}
                 className="w-full py-4 bg-white border border-slate-200 text-slate-600 font-black text-[11px] uppercase tracking-widest rounded-2xl hover:bg-slate-50 transition-all shadow-sm"
