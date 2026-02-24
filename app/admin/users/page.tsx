@@ -923,6 +923,31 @@ const UserManagementPage = () => {
       });
 
       console.log("[UPDATE] Datos personales actualizados.");
+      
+      // Sincronizar localStorage si el usuario editado es el mismo que tiene la sesión iniciada
+      if (currentUser && selectedUser.id === currentUser.id) {
+        console.log("[UPDATE] El usuario editado es el actual. Sincronizando sesión local...");
+        const userData = localStorage.getItem('user');
+        if (userData) {
+          try {
+            const parsedLocal = JSON.parse(userData);
+            const newUserData = {
+              ...parsedLocal,
+              nombres: formData.nombres,
+              apellidos: formData.apellidos,
+              correo: formData.correo,
+              telefono: formData.telefono,
+              rol: formData.rol,
+              estado: formData.estado
+            };
+            localStorage.setItem('user', JSON.stringify(newUserData));
+            // Notificar a otros componentes (Layout, hooks) que el usuario cambió
+            window.dispatchEvent(new Event('userUpdated'));
+          } catch (e) {
+            console.error("Error al actualizar localStorage:", e);
+          }
+        }
+      }
       showNotification(
         "success",
         "Información de usuario actualizada",
