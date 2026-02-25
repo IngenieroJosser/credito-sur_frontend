@@ -50,7 +50,11 @@ export default function CrearCreditoModal({ isOpen, onClose, onConfirm, defaultC
   const [tasaInteresInput, setTasaInteresInput] = useState('10')
   const [cuotasPrestamoInput, setCuotasPrestamoInput] = useState('12')
   const [cuotaInicialArticuloInput, setCuotaInicialArticuloInput] = useState('')
-  const [fechaCreditoInput, setFechaCreditoInput] = useState(new Date().toISOString().split('T')[0])
+  const [fechaCreditoInput, setFechaCreditoInput] = useState(() => {
+    const now = new Date()
+    const tzAdjusted = new Date(now.getTime() - now.getTimezoneOffset() * 60000)
+    return tzAdjusted.toISOString().slice(0, 16) // YYYY-MM-DDTHH:mm
+  })
   const [frecuenciaPago, setFrecuenciaPago] = useState('Diaria')
   const [fechaPrimerCobro, setFechaPrimerCobro] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -134,7 +138,11 @@ export default function CrearCreditoModal({ isOpen, onClose, onConfirm, defaultC
     setArticuloSeleccionadoId('')
     setPlanArticuloIndex(null)
     setFrecuenciaPago('Diaria')
-    setFechaCreditoInput(new Date().toISOString().split('T')[0])
+    {
+      const now = new Date()
+      const tzAdjusted = new Date(now.getTime() - now.getTimezoneOffset() * 60000)
+      setFechaCreditoInput(tzAdjusted.toISOString().slice(0, 16))
+    }
     onClose()
   }
 
@@ -276,7 +284,19 @@ export default function CrearCreditoModal({ isOpen, onClose, onConfirm, defaultC
                       <label className="block text-sm font-bold text-slate-700 mb-2">Frecuencia de Pago</label>
                       <select 
                          value={frecuenciaPago}
-                         onChange={(e) => setFrecuenciaPago(e.target.value)}
+                         onChange={(e) => {
+                           const val = e.target.value;
+                           setFrecuenciaPago(val);
+                           if (val === 'QUINCENAL') {
+                             const now = new Date();
+                             const y = now.getFullYear();
+                             const m = now.getMonth();
+                             const day = now.getDate();
+                             const target = new Date(y, day <= 15 ? m : m + 1, 15);
+                             const iso = target.toISOString().split('T')[0];
+                             setFechaPrimerCobro(iso);
+                           }
+                         }}
                          className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-[#08557f] focus:ring-0 font-medium text-slate-900"
                       >
                         <option value="DIARIO">Diario</option>
@@ -288,7 +308,7 @@ export default function CrearCreditoModal({ isOpen, onClose, onConfirm, defaultC
                     <div>
                       <label className="block text-sm font-bold text-slate-700 mb-2">Fecha Crédito</label>
                        <input 
-                          type="date"
+                          type="datetime-local"
                           value={fechaCreditoInput}
                           readOnly
                           className="w-full px-4 py-3 bg-slate-100 border border-slate-200 rounded-xl focus:outline-none font-medium text-slate-500 cursor-not-allowed"
@@ -414,7 +434,7 @@ export default function CrearCreditoModal({ isOpen, onClose, onConfirm, defaultC
                   <div>
                     <label className="block text-sm font-bold text-slate-700 mb-2">Fecha Crédito</label>
                     <input 
-                       type="date"
+                       type="datetime-local"
                        value={fechaCreditoInput}
                        readOnly
                        className="w-full px-4 py-3 bg-slate-100 border border-slate-200 rounded-xl focus:outline-none font-bold text-slate-500 cursor-not-allowed"
@@ -460,12 +480,52 @@ export default function CrearCreditoModal({ isOpen, onClose, onConfirm, defaultC
               {!(creditType === 'articulo' && esContado) && (
                 <div>
                   <label className="block text-sm font-bold text-slate-700 mb-2">Fecha Primer Cobro</label>
-                  <input 
-                    type="date"
-                    value={fechaPrimerCobro}
-                    onChange={(e) => setFechaPrimerCobro(e.target.value)}
-                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-[#08557f] focus:ring-0 font-medium text-slate-900"
-                  />
+                  {frecuenciaPago === 'QUINCENAL' ? (
+                    <div className="space-y-2">
+                      <div className="inline-flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const now = new Date();
+                            const y = now.getFullYear();
+                            const m = now.getMonth();
+                            const d15 = new Date(y, m, 15);
+                            setFechaPrimerCobro(d15.toISOString().split('T')[0]);
+                          }}
+                          className={`px-3 py-2 rounded-lg border text-xs font-bold uppercase tracking-widest ${new Date(fechaPrimerCobro).getDate() === 15 ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'}`}
+                        >
+                          Día 15
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const now = new Date();
+                            const y = now.getFullYear();
+                            const m = now.getMonth();
+                            const lastDay = new Date(y, m + 1, 0).getDate();
+                            const d30 = new Date(y, m, Math.min(30, lastDay));
+                            setFechaPrimerCobro(d30.toISOString().split('T')[0]);
+                          }}
+                          className={`px-3 py-2 rounded-lg border text-xs font-bold uppercase tracking-widest ${new Date(fechaPrimerCobro).getDate() >= 28 ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'}`}
+                        >
+                          Día 30
+                        </button>
+                      </div>
+                      <input 
+                        type="date"
+                        value={fechaPrimerCobro}
+                        readOnly
+                        className="w-full px-4 py-3 bg-slate-100 border border-slate-200 rounded-xl font-medium text-slate-500 cursor-not-allowed"
+                      />
+                    </div>
+                  ) : (
+                    <input 
+                      type="date"
+                      value={fechaPrimerCobro}
+                      onChange={(e) => setFechaPrimerCobro(e.target.value)}
+                      className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-[#08557f] focus:ring-0 font-medium text-slate-900"
+                    />
+                  )}
                 </div>
               )}
 
@@ -515,7 +575,7 @@ export default function CrearCreditoModal({ isOpen, onClose, onConfirm, defaultC
                             tasaInteres: Number(tasaInteresInput),
                             cuotasTotales: Number(cuotasPrestamoInput),
                             frecuenciaPago,
-                            fechaInicio: fechaCreditoInput,
+                            fechaInicio: new Date(fechaCreditoInput).toISOString(),
                             fechaPrimerCobro
                           }
                         : {
@@ -534,7 +594,7 @@ export default function CrearCreditoModal({ isOpen, onClose, onConfirm, defaultC
                             monto: calculoCreditoArticulo?.precioTotal || 0,
                             cuotaInicialArticulo: parseCOPInputToNumber(cuotaInicialArticuloInput),
                             frecuenciaPago: esContado ? 'MENSUAL' : frecuenciaPago,
-                            fechaInicio: fechaCreditoInput,
+                            fechaInicio: new Date(fechaCreditoInput).toISOString(),
                             plazoMeses: esContado ? 1 : mesesPlan,
                             numCuotas: esContado ? 1 : (calculoCreditoArticulo?.numCuotas || 0),
                             ventaContado: esContado ? true : undefined

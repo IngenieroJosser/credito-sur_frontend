@@ -204,13 +204,14 @@ export default function ArticulosContent() {
   const enStock = articulosFiltrados.filter(a => a.stock > 0).length
   const atencionStockBajo = articulosFiltrados.filter(a => a.stock <= a.stockMinimo).length
   const valorInventario = articulosFiltrados.reduce((acc, a) => {
-    const precio = a.precioContado !== undefined ? Number(a.precioContado) : Number(a.costo)
-    return acc + (precio * Number(a.stock))
+    const costo = Number(a.costo)
+    return acc + (costo * Number(a.stock))
   }, 0)
 
   const deltaInventarioPorcentaje = (() => {
-    if (!statsBase || statsBase.valorTotalInventario === 0) return 0
-    const base = Number(statsBase.valorTotalInventario)
+    const baseField = (statsBase as any)?.totalValorInventario ?? statsBase?.valorTotalInventario
+    if (!statsBase || !baseField || Number(baseField) === 0) return 0
+    const base = Number(baseField)
     const actual = Number(valorInventario)
     return Math.round(((actual - base) / base) * 100)
   })()
@@ -534,7 +535,7 @@ export default function ArticulosContent() {
                       ) : (
                         <>
                           <div className="text-sm font-bold text-slate-900">
-                            {formatCurrency(((articulo.precioContado !== undefined ? Number(articulo.precioContado) : Number(articulo.costo)) * Number(articulo.stock)) || 0)}
+                            {formatCurrency((Number(articulo.costo) * Number(articulo.stock)) || 0)}
                           </div>
                           <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Valor Inventario</div>
                         </>
@@ -543,7 +544,7 @@ export default function ArticulosContent() {
                     {esReadOnly && (
                       <td className="px-6 py-4 whitespace-nowrap text-right">
                         <div className="text-sm font-bold text-slate-900">
-                          {formatCurrency(((articulo.precioContado !== undefined ? Number(articulo.precioContado) : Number(articulo.costo)) * Number(articulo.stock)) || 0)}
+                          {formatCurrency((Number(articulo.costo) * Number(articulo.stock)) || 0)}
                         </div>
                         <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Valor Inventario</div>
                       </td>

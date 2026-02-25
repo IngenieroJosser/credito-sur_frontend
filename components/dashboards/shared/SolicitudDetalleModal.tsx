@@ -4,6 +4,8 @@ import { useState } from 'react'
 import { X, CheckCircle2, FileText, Clock, AlertCircle } from 'lucide-react'
 import { Portal, MODAL_Z_INDEX } from '@/components/dashboards/shared/CobradorElements'
 import { formatCurrency } from '@/lib/utils'
+import ConfirmRejectModal from '@/components/ui/ConfirmRejectModal'
+import ConfirmApproveModal from '@/components/ui/ConfirmApproveModal'
 
 export interface SolicitudData {
   id: string
@@ -28,6 +30,8 @@ interface SolicitudDetalleModalProps {
 export default function SolicitudDetalleModal({ isOpen, onClose, solicitud, onResolve, readOnly = false }: SolicitudDetalleModalProps) {
   const [comentario, setComentario] = useState('')
   const [actionType, setActionType] = useState<'APROBAR' | 'RECHAZAR' | null>(null)
+  const [showApproveModal, setShowApproveModal] = useState(false)
+  const [showRejectModal, setShowRejectModal] = useState(false)
   if (!isOpen || !solicitud) return null
 
   const handleClose = () => {
@@ -106,70 +110,42 @@ export default function SolicitudDetalleModal({ isOpen, onClose, solicitud, onRe
               </div>
           </div>
 
-          {/* Action Area - Solo si NO es readOnly */}
+          {/* Action Area mejorada */}
           {!readOnly && (
-            <div className="p-6 bg-slate-50/50 border-t border-slate-100 flex justify-end gap-3">
-               <button 
-                 onClick={() => setActionType('RECHAZAR')}
-                 className="px-5 py-2.5 bg-white border border-rose-200 text-rose-600 font-bold rounded-xl hover:bg-rose-50 transition-all shadow-sm text-sm"
-               >
-                 Rechazar
-               </button>
-               <button 
-                 onClick={() => setActionType('APROBAR')}
-                 className="px-5 py-2.5 bg-blue-600 border border-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 transition-all shadow-md shadow-blue-600/20 text-sm"
-               >
-                 Aprobar
-               </button>
+            <div className="p-6 bg-slate-50 border-t border-slate-100 flex items-center justify-end gap-3 sticky bottom-0 z-10">
+              <button 
+                onClick={() => setShowRejectModal(true)}
+                className="px-5 py-2.5 bg-white border border-rose-200 text-rose-600 font-bold rounded-2xl hover:bg-rose-50 transition-all shadow-sm text-sm"
+                title="Rechazar solicitud"
+              >
+                Rechazar
+              </button>
+              <button 
+                onClick={() => setShowApproveModal(true)}
+                className="px-5 py-2.5 bg-emerald-600 border border-emerald-600 text-white font-bold rounded-2xl hover:bg-emerald-700 transition-all shadow-md shadow-emerald-600/20 text-sm"
+                title="Aprobar solicitud"
+              >
+                Aprobar
+              </button>
             </div>
           )}
 
-          {/* Confirmation Overlay In-Modal */}
-          {actionType && (
-            <div className="absolute inset-0 bg-white z-20 p-8 flex flex-col items-center justify-center text-center animate-in fade-in duration-200">
-               <div className={`w-16 h-16 rounded-full flex items-center justify-center mb-4 ${
-                  actionType === 'APROBAR' ? 'bg-emerald-100 text-emerald-600' : 'bg-rose-100 text-rose-600'
-               }`}>
-                  {actionType === 'APROBAR' ? <CheckCircle2 className="w-8 h-8" /> : <AlertCircle className="w-8 h-8" />}
-               </div>
-               <h3 className="text-xl font-bold text-slate-900 mb-2">
-                 {actionType === 'APROBAR' ? '¿Aprobar Solicitud?' : '¿Rechazar Solicitud?'}
-               </h3>
-               <p className="text-slate-500 text-sm mb-6 max-w-xs mx-auto">
-                 {actionType === 'APROBAR' 
-                   ? 'Esta acción es definitiva y quedará registrada.' 
-                   : 'Por favor confirma que deseas rechazar este elemento.'}
-               </p>
-               
-               {actionType === 'RECHAZAR' && (
-                 <textarea
-                   className="w-full max-w-xs p-3 rounded-xl border border-slate-200 mb-4 text-sm focus:ring-2 focus:ring-rose-500/20 outline-none"
-                   placeholder="Motivo del rechazo..."
-                   value={comentario}
-                   onChange={(e) => setComentario(e.target.value)}
-                   rows={2}
-                 />
-               )}
-
-               <div className="flex gap-3 w-full max-w-xs">
-                 <button
-                   onClick={() => setActionType(null)}
-                   className="flex-1 py-2.5 rounded-xl border border-slate-200 font-bold text-slate-600 hover:bg-slate-50"
-                 >
-                   Cancelar
-                 </button>
-                 <button
-                   onClick={handleFinalConfirm}
-                   disabled={actionType === 'RECHAZAR' && !comentario.trim()}
-                   className={`flex-1 py-2.5 rounded-xl font-bold text-white shadow-lg ${
-                      actionType === 'APROBAR' ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-rose-600 hover:bg-rose-700'
-                   }`}
-                 >
-                   Confirmar
-                 </button>
-               </div>
-            </div>
-          )}
+          <ConfirmRejectModal
+            isOpen={showRejectModal}
+            onClose={() => setShowRejectModal(false)}
+            onConfirm={(motivo) => {
+              onResolve('RECHAZAR', motivo)
+              setShowRejectModal(false)
+            }}
+          />
+          <ConfirmApproveModal
+            isOpen={showApproveModal}
+            onClose={() => setShowApproveModal(false)}
+            onConfirm={() => {
+              onResolve('APROBAR', '')
+              setShowApproveModal(false)
+            }}
+          />
         </div>
       </div>
     </Portal>

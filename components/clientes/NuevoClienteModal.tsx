@@ -214,8 +214,13 @@ export default function NuevoClienteModal({ onClose, onClienteCreado, cliente = 
           // Si falla el encolado, mostrar error normal
         }
       }
-      const message = error?.message || 'Error al guardar el cliente';
-      showNotification('error', message, 'Error');
+      if (error?.statusCode === 409) {
+        const msg = error?.message || 'El cliente ya existe (posiblemente archivado).';
+        showNotification('warning', msg, 'Cliente existente');
+      } else {
+        const message = error?.message || 'Error al guardar el cliente';
+        showNotification('error', message, 'Error');
+      }
     } finally {
       setIsSubmitting(false);
     }

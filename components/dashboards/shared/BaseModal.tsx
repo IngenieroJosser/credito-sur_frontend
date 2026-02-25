@@ -45,7 +45,7 @@ export default function BaseModal({ isOpen, onClose, onConfirm }: BaseModalProps
       <div
         className="fixed inset-0 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-200"
         style={{ zIndex: MODAL_Z_INDEX }}
-        onClick={handleReset}
+        onClick={(e) => e.stopPropagation()}
       >
         <div
           className="w-full max-w-md bg-white rounded-3xl shadow-2xl animate-in zoom-in-95 duration-200 overflow-hidden"

@@ -20,6 +20,8 @@ import { Portal } from '@/components/dashboards/shared/CobradorElements'
 import { formatCurrency, formatCOPInputValue, parseCOPInputToNumber } from '@/lib/utils'
 import { aprobacionesService } from '@/services/aprobaciones-service'
 import { articulosService } from '@/services/articulos-service'
+import ConfirmApproveModal from '@/components/ui/ConfirmApproveModal'
+import ConfirmRejectModal from '@/components/ui/ConfirmRejectModal'
 
 export interface NotificacionDetalleModalProps {
   isOpen: boolean
@@ -41,7 +43,8 @@ export default function NotificacionDetalleModal({
   const [isEditingMode, setIsEditingMode] = useState(false)
   const [editedDetails, setEditedDetails] = useState<any>(notificacion?.detalles || {})
   const [actionComment, setActionComment] = useState('')
-  const [confirmAction, setConfirmAction] = useState<'APPROVE' | 'REJECT' | null>(null)
+  const [showApproveModal, setShowApproveModal] = useState(false)
+  const [showRejectModal, setShowRejectModal] = useState(false)
   const [isProcessing, setIsProcessing] = useState(false)
   const [history, setHistory] = useState<any[]>([])
   const [isLoadingHistory, setIsLoadingHistory] = useState(false)
@@ -88,9 +91,9 @@ export default function NotificacionDetalleModal({
         }
       }
 
-      const baseValorArticulo = Number(combined.valorArticulo || combined.monto) || montoFromMsg || 0;
-      const baseMonto = Number(combined.monto || combined.valorArticulo) || montoFromMsg || 0;
       const baseCuotaInicial = Number(combined.cuotaInicial ?? 0);
+      const baseValorArticulo = (Number(combined.valorArticulo) || 0) || (montoFromMsg || 0) || (Number(combined.monto || 0) + baseCuotaInicial) || 0;
+      const baseMonto = Number(combined.monto || 0);
       const derivedCuotaInicial =
         baseCuotaInicial > 0
           ? baseCuotaInicial
@@ -236,6 +239,44 @@ export default function NotificacionDetalleModal({
       mensajeEff.includes('articulo')
     )
     if (!isArticleEff) return
+    if (!articuloData) return
+    if (esContado) return
+    const meses = Number(editedDetails?.plazoMeses || dets?.plazoMeses || meta?.plazoMeses || 0)
+    const matchIdx = articuloData.opcionesCuotas?.findIndex((op: any) => Number(op.numeroCuotas) === meses) ?? -1
+    const idx = planIndex ?? (matchIdx >= 0 ? matchIdx : null)
+    if (idx === null || idx < 0) return
+    const op = articuloData.opcionesCuotas[idx]
+    const precioTotal = Number(op?.precioTotal || 0)
+    const inicial = Number(editedDetails?.cuotaInicial || dets?.cuotaInicial || meta?.cuotaInicial || 0)
+    const aFinanciar = Math.max(0, precioTotal - inicial)
+    if (precioTotal > 0) {
+      setEditedDetails((prev: any) => ({
+        ...prev,
+        valorArticulo: precioTotal,
+        monto: aFinanciar
+      }))
+    }
+  }, [articuloData, planIndex, esContado])
+
+  React.useEffect(() => {
+    const meta = typeof notificacion?.metadata === 'string'
+      ? JSON.parse(notificacion!.metadata as any)
+      : (notificacion?.metadata || {})
+    const dets = typeof notificacion?.detalles === 'string'
+      ? JSON.parse(notificacion!.detalles as any)
+      : (notificacion?.detalles || {})
+    const isPrestamoEff = (notificacion?.tipo === 'PRESTAMO' || (notificacion as any)?.approvalType === 'NUEVO_PRESTAMO')
+    const tituloEff = (notificacion?.titulo || '').toLowerCase()
+    const mensajeEff = (notificacion?.mensaje || '').toLowerCase()
+    const isArticleEff = isPrestamoEff && (
+      dets?.tipo === 'ARTICULO' ||
+      meta?.tipo === 'ARTICULO' ||
+      tituloEff.includes('artículo') ||
+      tituloEff.includes('articulo') ||
+      mensajeEff.includes('artículo') ||
+      mensajeEff.includes('articulo')
+    )
+    if (!isArticleEff) return
     const meses = Number(editedDetails?.plazoMeses || dets?.plazoMeses || meta?.plazoMeses || 0)
     const freq = editedDetails?.frecuenciaPago || dets?.frecuenciaPago || meta?.frecuenciaPago || 'DIARIO'
     let c = 0
@@ -266,47 +307,70 @@ export default function NotificacionDetalleModal({
   const isSolicitudBase = tipo === 'SOLICITUD_DINERO' || approvalType === 'SOLICITUD_BASE_EFECTIVO'
   const isArticle = isPrestamo && (editedDetails?.tipo === 'ARTICULO' || safeMeta?.tipo === 'ARTICULO' || titulo.toLowerCase().includes('artículo') || titulo.toLowerCase().includes('articulo') || mensaje.toLowerCase().includes('artículo') || mensaje.toLowerCase().includes('articulo'))
   const isApprovalNotification = Boolean(approvalType)
+  const isNuevoCliente = approvalType === 'NUEVO_CLIENTE'
+  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3001'
+  const mediaArchivos = (() => {
+    const meta = typeof notificacion.metadata === 'string' ? JSON.parse(notificacion.metadata) : (notificacion.metadata || {})
+    const dets = typeof notificacion.detalles === 'string' ? JSON.parse(notificacion.detalles) : (notificacion.detalles || {})
+    const arr = (dets.archivos || meta.archivos || []) as any[]
+    return Array.isArray(arr) ? arr : []
+  })()
+  const tipoLabels: Record<string, string> = {
+    FOTO_PERFIL: 'Foto de Perfil',
+    DOCUMENTO_IDENTIDAD_FRENTE: 'Documento Identidad (Frente)',
+    DOCUMENTO_IDENTIDAD_REVERSO: 'Documento Identidad (Reverso)',
+    COMPROBANTE_DOMICILIO: 'Comprobante de Domicilio',
+  }
+  const mensajeFmt = (mensaje || '').replace(/\bDNI\b/gi, 'CC')
 
   const handleClose = () => {
     setIsEditingMode(false)
-    setConfirmAction(null)
     setActionComment('')
     onClose()
   }
 
-  const handleConfirmAction = async () => {
+  const approveNow = async () => {
     if (!notificacion.entidadId || !approvalType) return
     setIsProcessing(true)
     try {
-      if (confirmAction === 'APPROVE') {
-        let finalDetails = editedDetails
-        if (isPrestamo && isArticle && esContado) {
-          const precioContado = (() => {
-            if (articuloData) {
-              return Number(articuloData.precioContado || articuloData.precioBase || editedDetails?.valorArticulo || editedDetails?.monto || 0)
-            }
-            return Number(editedDetails?.valorArticulo || editedDetails?.monto || 0)
-          })()
-          const inicial = Number(editedDetails?.cuotaInicial || 0)
-          const montoFinanciar = Math.max(0, precioContado - inicial)
-          finalDetails = {
-            ...editedDetails,
-            monto: montoFinanciar,
-            valorArticulo: precioContado,
-            porcentaje: 0,
-            cuotas: 1,
-            numCuotas: 1,
-            cantidadCuotas: 1,
-            plazoMeses: 1,
-            frecuenciaPago: 'MENSUAL',
-            ventaContado: true,
+      let finalDetails = editedDetails
+      if (isPrestamo && isArticle && esContado) {
+        const precioContado = (() => {
+          if (articuloData) {
+            return Number(articuloData.precioContado || articuloData.precioBase || editedDetails?.valorArticulo || editedDetails?.monto || 0)
           }
+          return Number(editedDetails?.valorArticulo || editedDetails?.monto || 0)
+        })()
+        const inicial = Number(editedDetails?.cuotaInicial || 0)
+        const montoFinanciar = Math.max(0, precioContado - inicial)
+        finalDetails = {
+          ...editedDetails,
+          monto: montoFinanciar,
+          valorArticulo: precioContado,
+          porcentaje: 0,
+          cuotas: 1,
+          numCuotas: 1,
+          cantidadCuotas: 1,
+          plazoMeses: 1,
+          frecuenciaPago: 'MENSUAL',
+          ventaContado: true,
         }
-        finalDetails = { ...finalDetails, comentarios: actionComment.trim() }
-        await onApprove(notificacion.entidadId, approvalType, finalDetails)
-      } else if (confirmAction === 'REJECT') {
-        await onReject(notificacion.entidadId, approvalType, actionComment.trim())
       }
+      finalDetails = { ...finalDetails }
+      await onApprove(notificacion.entidadId, approvalType, finalDetails)
+      handleClose()
+    } catch (error) {
+      console.error('Error processing notification action:', error)
+    } finally {
+      setIsProcessing(false)
+    }
+  }
+
+  const rejectNow = async (motivo: string) => {
+    if (!notificacion.entidadId || !approvalType) return
+    setIsProcessing(true)
+    try {
+      await onReject(notificacion.entidadId, approvalType, motivo)
       handleClose()
     } catch (error) {
       console.error('Error processing notification action:', error)
@@ -344,6 +408,52 @@ export default function NotificacionDetalleModal({
       case 'SOLICITUD_DINERO': return 'bg-emerald-50 text-emerald-600 border-emerald-100'
       default: return 'bg-slate-50 text-slate-600 border-slate-100'
     }
+  }
+
+  const renderMedia = () => {
+    if (!isNuevoCliente) return null
+    return (
+      <div className="mt-6">
+        <div className="flex items-center justify-between mb-2">
+          <div className="text-xs font-black text-slate-500 uppercase tracking-widest">Archivos</div>
+          <div className="text-[10px] font-bold text-slate-400">
+            {mediaArchivos.length > 0 ? `${mediaArchivos.length} adjunto(s)` : 'Sin archivos adjuntos'}
+          </div>
+        </div>
+        {mediaArchivos.length === 0 ? (
+          <div className="p-4 rounded-xl border border-slate-200 bg-slate-50 text-xs text-slate-600">
+            Esta solicitud no incluye fotos ni videos. Puedes aprobar o rechazar con base en los datos capturados.
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+            {mediaArchivos.map((file, idx) => {
+              const url = file.url || file.path || file.ruta
+              const fullUrl = String(url || '').startsWith('http') ? url : `${baseUrl}${url || ''}`
+              const tipo = String(file.tipoArchivo || '').toLowerCase()
+              const ext = (String(fullUrl).split('.').pop() || '').toLowerCase()
+              const isImage = tipo.startsWith('image/') || /(jpg|jpeg|png|gif|webp)$/i.test(ext)
+              const isVideo = tipo.startsWith('video/') || /(mp4|webm)$/i.test(ext)
+              return (
+                <div key={`${idx}-${file.nombreAlmacenamiento || file.nombreOriginal || 'media'}`} className="border border-slate-200 rounded-xl overflow-hidden bg-slate-50">
+                  <div className="px-2 py-1 text-[10px] font-bold text-slate-600 border-b border-slate-200">
+                    {tipoLabels[file.tipoContenido] || (file.tipoContenido || 'Archivo')}
+                  </div>
+                  {isImage && (
+                    <img src={fullUrl} alt={file.nombreOriginal || 'archivo'} className="w-full h-32 object-cover" />
+                  )}
+                  {isVideo && (
+                    <video src={fullUrl} controls className="w-full h-32 object-cover" />
+                  )}
+                  {!isImage && !isVideo && (
+                    <div className="p-3 text-xs text-slate-600 break-all">{file.nombreOriginal || file.nombreAlmacenamiento || 'archivo'}</div>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </div>
+    )
   }
 
   const renderPrestamo = () => (
@@ -608,6 +718,21 @@ export default function NotificacionDetalleModal({
                 <div className="col-span-2 p-4 bg-white/50 rounded-2xl border border-blue-100 space-y-4">
                   <p className="text-[9px] font-black text-blue-500 uppercase tracking-widest mb-1">Detalles de Venta</p>
                   <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-[9px] text-blue-500 uppercase font-black block mb-0.5">Total a Pagar</label>
+                      <p className="text-lg font-black text-blue-900">
+                        {(() => {
+                          const total = (() => {
+                            const va = Number(editedDetails?.valorArticulo ?? safeMeta?.valorArticulo ?? 0)
+                            if (va > 0) return va
+                            const m = Number(editedDetails?.monto ?? safeMeta?.monto ?? 0)
+                            const ci = Number(editedDetails?.cuotaInicial ?? safeMeta?.cuotaInicial ?? 0)
+                            return m + ci
+                          })()
+                          return formatCurrency(isNaN(total) ? 0 : total)
+                        })()}
+                      </p>
+                    </div>
                     {isArticle && esContado ? (
                       <div className="col-span-2">
                         <label className="text-[9px] text-blue-500 uppercase font-black block mb-0.5">Total de Contado</label>
@@ -700,8 +825,12 @@ export default function NotificacionDetalleModal({
                             const m = Number(editedDetails?.monto || safeMeta?.monto || 0);
                             const cBase = Number(editedDetails?.cuotas || safeMeta?.cuotas || editedDetails?.numCuotas || safeMeta?.numCuotas || 1);
                             const c = Math.max(1, isArticle && esContado ? 1 : cBase);
-                            const p = Number(editedDetails?.porcentaje || safeMeta?.porcentaje || 0);
-                            const val = isArticle ? m / c : (m * (1 + p / 100)) / c;
+                            const mt = Number(editedDetails?.montoTotal || safeMeta?.montoTotal || 0);
+                            const it = Number(editedDetails?.interesTotal || safeMeta?.interesTotal || 0);
+                            const tasa = Number(editedDetails?.tasaInteres || safeMeta?.tasaInteres || Number(editedDetails?.porcentaje || safeMeta?.porcentaje || 0));
+                            const meses = Number(editedDetails?.plazoMeses || safeMeta?.plazoMeses || 1);
+                            const total = isArticle ? m : (mt > 0 ? mt : (it > 0 ? m + it : m + ((m * tasa * meses) / 100)));
+                            const val = total / c;
                             return formatCurrency(isNaN(val) ? 0 : val);
                           })()}
                         </p>
@@ -711,8 +840,14 @@ export default function NotificacionDetalleModal({
                         <p className="text-lg font-black text-emerald-900">
                           {(() => {
                             const m = Number(editedDetails?.monto || safeMeta?.monto || 0);
-                            const p = Number(editedDetails?.porcentaje || safeMeta?.porcentaje || 0);
-                            const val = isArticle ? m : (m * (1 + p / 100));
+                            const mt = Number(editedDetails?.montoTotal || safeMeta?.montoTotal || 0);
+                            const it = Number(editedDetails?.interesTotal || safeMeta?.interesTotal || 0);
+                            const tasa = Number(editedDetails?.tasaInteres || safeMeta?.tasaInteres || Number(editedDetails?.porcentaje || safeMeta?.porcentaje || 0));
+                            const meses = Number(editedDetails?.plazoMeses || safeMeta?.plazoMeses || 1);
+                            const va = Number(editedDetails?.valorArticulo ?? safeMeta?.valorArticulo ?? 0);
+                            const ci = Number(editedDetails?.cuotaInicial ?? safeMeta?.cuotaInicial ?? 0);
+                            const totalArticulo = va > 0 ? va : (m + ci);
+                            const val = isArticle ? totalArticulo : (mt > 0 ? mt : (it > 0 ? m + it : m + ((m * tasa * meses) / 100)));
                             return formatCurrency(isNaN(val) ? 0 : val);
                           })()}
                         </p>
@@ -732,7 +867,6 @@ export default function NotificacionDetalleModal({
     <Portal>
       <div 
         className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-200"
-        onClick={handleClose}
       >
         <div 
           className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-lg overflow-hidden animate-in zoom-in-95 duration-200 border border-slate-100 flex flex-col max-h-[90vh]"
@@ -768,7 +902,7 @@ export default function NotificacionDetalleModal({
             <div>
               <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1 block pl-1">Mensaje de la Notificación</label>
               <p className="text-slate-600 text-sm font-medium bg-slate-50 p-4 rounded-2xl border border-slate-100 leading-relaxed italic">
-                &quot;{mensaje}&quot;
+                &quot;{mensajeFmt}&quot;
               </p>
             </div>
 
@@ -781,6 +915,42 @@ export default function NotificacionDetalleModal({
                   <p className="text-[9px] font-black text-amber-600 uppercase tracking-widest">Solicitado por</p>
                   <p className="text-sm font-black text-slate-900">{solicitante}</p>
                 </div>
+              </div>
+            )}
+
+            {isNuevoCliente && (
+              <div className="bg-slate-50 rounded-2xl border border-slate-100 p-5 space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-slate-600 font-medium">Nombre:</span>
+                      <span className="font-bold text-slate-900">{editedDetails?.nombres} {editedDetails?.apellidos}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-slate-600 font-medium">CC:</span>
+                      <span className="font-bold text-slate-900">{editedDetails?.dni || editedDetails?.cedula || safeMeta?.dni || safeMeta?.cedula}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-slate-600 font-medium">Teléfono:</span>
+                      <span className="font-bold text-slate-900">{editedDetails?.telefono}</span>
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-slate-600 font-medium">Dirección:</span>
+                      <span className="font-bold text-slate-900">{editedDetails?.direccion}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-slate-600 font-medium">Referencia:</span>
+                      <span className="font-bold text-slate-900">{editedDetails?.referencia}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-slate-600 font-medium">Correo:</span>
+                      <span className="font-bold text-slate-900">{editedDetails?.correo}</span>
+                    </div>
+                  </div>
+                </div>
+                {renderMedia()}
               </div>
             )}
 
@@ -858,13 +1028,13 @@ export default function NotificacionDetalleModal({
             {estado === 'PENDIENTE' && canApprove && isApprovalNotification && (
               <>
                 <button 
-                  onClick={() => setConfirmAction('REJECT')}
+                  onClick={() => setShowRejectModal(true)}
                   className="flex-1 py-4 bg-white border border-rose-200 text-rose-600 font-black text-[11px] uppercase tracking-widest rounded-2xl hover:bg-rose-50 transition-all shadow-sm hover:shadow-md"
                 >
                   Rechazar
                 </button>
                 <button 
-                  onClick={() => setConfirmAction('APPROVE')}
+                  onClick={() => setShowApproveModal(true)}
                   className="flex-1 py-4 bg-slate-900 text-white font-black text-[11px] uppercase tracking-widest rounded-2xl hover:bg-slate-800 shadow-xl shadow-slate-900/20 transition-all border border-slate-700"
                 >
                   Aprobar Ahora
@@ -881,63 +1051,16 @@ export default function NotificacionDetalleModal({
             )}
           </div>
 
-          {/* Confirmation Overlays */}
-          {confirmAction && (
-            <div className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm z-[110] flex items-center justify-center p-4 animate-in fade-in duration-300">
-              <div className="bg-white rounded-2xl shadow-2xl border border-slate-100 w-full max-w-md p-6 text-center">
-                <div className={`w-20 h-20 rounded-full mx-auto flex items-center justify-center mb-5 shadow-xl ${
-                  confirmAction === 'APPROVE' ? "bg-emerald-100 text-emerald-600 shadow-emerald-500/20" : "bg-rose-100 text-rose-600 shadow-rose-500/20"
-                }`}>
-                  {confirmAction === 'APPROVE' ? <CheckCircle2 className="h-10 w-10" /> : <AlertTriangle className="h-10 w-10" />}
-                </div>
-                
-                <h3 className="text-2xl font-black text-slate-900 tracking-tight">
-                  {confirmAction === 'APPROVE' ? '¿Confirmar Aprobación?' : '¿Confirmar Rechazo?'}
-                </h3>
-                <p className="text-slate-500 text-sm mt-2 font-medium">
-                  {confirmAction === 'APPROVE' 
-                    ? 'Se generarán los movimientos correspondientes y se notificará al solicitante.' 
-                    : 'Esta acción detendrá el proceso y se informará al solicitante el motivo.'}
-                </p>
-
-                <div className="text-left space-y-2 mt-5">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
-                    {confirmAction === 'APPROVE' ? 'Comentario de Aprobación' : 'Motivo del Rechazo'}
-                  </label>
-                  <textarea 
-                    value={actionComment}
-                    onChange={(e) => setActionComment(e.target.value)}
-                    placeholder={confirmAction === 'APPROVE' ? 'Ej: Condiciones revisadas, cliente calificado, etc...' : 'Ej: Información insuficiente, monto excedido, etc...'}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-[1.5rem] p-4 text-sm font-medium text-slate-800 h-28 outline-none focus:ring-4 focus:ring-slate-500/5 focus:border-slate-500 resize-none transition-all shadow-inner"
-                  />
-                </div>
-
-                <div className="flex gap-4 pt-5">
-                  <button 
-                    disabled={isProcessing}
-                    onClick={() => {
-                      setConfirmAction(null)
-                      setActionComment('')
-                    }}
-                    className="flex-1 py-3 bg-slate-100 text-slate-600 font-black text-[11px] uppercase tracking-widest rounded-2xl hover:bg-slate-200 transition-all disabled:opacity-50"
-                  >
-                    Volver
-                  </button>
-                  <button 
-                    disabled={isProcessing}
-                    onClick={handleConfirmAction}
-                    className={`flex-1 py-3 font-black text-[11px] uppercase tracking-widest rounded-2xl shadow-xl transition-all text-white disabled:opacity-50 ${
-                      confirmAction === 'APPROVE' 
-                        ? "bg-emerald-600 hover:bg-emerald-700 shadow-emerald-500/30" 
-                        : "bg-rose-600 hover:bg-rose-700 shadow-rose-500/30"
-                    }`}
-                  >
-                    {isProcessing ? 'Procesando...' : 'Confirmar'}
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
+          <ConfirmRejectModal
+            isOpen={showRejectModal}
+            onClose={() => setShowRejectModal(false)}
+            onConfirm={(motivo) => rejectNow(motivo)}
+          />
+          <ConfirmApproveModal
+            isOpen={showApproveModal}
+            onClose={() => setShowApproveModal(false)}
+            onConfirm={() => approveNow()}
+          />
         </div>
       </div>
     </Portal>
