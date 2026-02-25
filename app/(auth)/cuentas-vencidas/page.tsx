@@ -542,7 +542,21 @@ function CuentasVencidasContent() {
             setShowGestionarModal(false)
             setSelectedCuenta(null)
           }}
-          onConfirm={(data: { cobrarInteres: boolean; montoInteres: number }) => handleSaveDecision({ decision: 'CASTIGAR', montoInteres: data.montoInteres })}
+          onConfirm={(data) => {
+            let nuevaFecha: string | undefined = undefined;
+            if (data.decision === 'PRORROGAR' && data.diasGracia > 0) {
+              const date = new Date();
+              date.setDate(date.getDate() + data.diasGracia);
+              nuevaFecha = date.toISOString().split('T')[0];
+            }
+            
+            handleSaveDecision({ 
+              decision: data.decision, 
+              montoInteres: data.montoInteres,
+              comentarios: data.comentarios,
+              nuevaFechaVencimiento: nuevaFecha
+            });
+          }}
         />
       )}
 

@@ -50,12 +50,14 @@ import { ExportButton } from '@/components/ui/ExportButton'
 import FiltroRuta from '@/components/filtros/FiltroRuta'
 import DetalleMoraModal from '@/components/cobranza/DetalleMoraModal'
 import ClientePortalModal from '@/components/cliente/ClientePortalModal'
+import GestionarMoraModal from '@/components/cobranza/GestionarMoraModal'
 import ProtectedPage from '@/components/auth/ProtectedPage'
 import { usePermission } from '@/hooks/usePermission'
 import { apiRequest } from '@/lib/api/api'
 import { exportService } from '@/services/export-service'
 import { toast } from 'sonner'
 import { offlineStore } from '@/lib/offline/offlineDb'
+import { vencidasService } from '@/services/vencidas-service'
 
 // Enums alineados con Prisma
 type NivelRiesgo = 'VERDE' | 'AMARILLO' | 'ROJO' | 'LISTA_NEGRA';
@@ -75,12 +77,14 @@ interface CuentaMora {
   diasMora: number
   montoMora: number
   montoTotalDeuda: number
+  montoOriginal: number
   cuotasVencidas: number
   ruta: string
   cobrador: string
   nivelRiesgo: NivelRiesgo
   estado: EstadoPrestamo
   ultimoPago?: string
+  fechaVencimiento?: string
 }
 
 interface EstadisticasMora {
@@ -123,6 +127,7 @@ function CuentasMoraContent() {
   const rolesConAcceso = ['SUPER_ADMINISTRADOR', 'ADMIN', 'COORDINADOR', 'CONTADOR']
   const puedeExportar = can('CUENTAS_MORA_EXPORTAR') || rolesConAcceso.includes(rol || '')
   const puedeVerPerfil = can('CUENTAS_MORA_VER_PERFIL') || rolesConAcceso.includes(rol || '')
+  const puedeGestionarMora = can('CUENTAS_MORA_VIEW') || can('CUENTAS_VENCIDAS_VIEW') || rolesConAcceso.includes(rol || '')
 
   // Estados de datos
   const [cuentas, setCuentas] = useState<CuentaMora[]>([])
@@ -141,6 +146,7 @@ function CuentasMoraContent() {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [selectedClientId, setSelectedClientId] = useState<string | null>(null)
   const [isClientModalOpen, setIsClientModalOpen] = useState(false)
+  const [isGestionarOpen, setIsGestionarOpen] = useState(false)
 
   // Paginación
   const [page, setPage] = useState(1)
@@ -190,6 +196,7 @@ function CuentasMoraContent() {
               diasMora: p.diasMora || 0,
               montoMora: p.montoMora || 0,
               montoTotalDeuda: p.saldoPendiente || p.montoTotal || 0,
+              montoOriginal: p.monto || p.montoTotal || 0,
               cuotasVencidas: 0,
               ruta: '',
               cobrador: '',
@@ -245,6 +252,31 @@ function CuentasMoraContent() {
   const handleVerCliente = (id: string) => {
     setSelectedClientId(id)
     setIsClientModalOpen(true)
+  }
+  const handleGestionar = (cuenta: CuentaMora) => {
+    setSelectedCuenta(cuenta)
+    setIsGestionarOpen(true)
+  }
+  const handleAplicarMora = async (data: { montoInteres: number; diasGracia: number; comentarios?: string }) => {
+    if (!selectedCuenta) return
+    try {
+      const date = new Date()
+      date.setDate(date.getDate() + (data.diasGracia > 0 ? data.diasGracia : 30))
+      const nuevaFecha = vencidasService.formatearFechaParaInput(date)
+      await vencidasService.procesarDecision({
+        prestamoId: selectedCuenta.id,
+        decision: 'PRORROGAR',
+        montoInteres: data.montoInteres,
+        nuevaFechaVencimiento: nuevaFecha,
+        comentarios: data.comentarios || `Interés de mora asignado manualmente (${data.diasGracia} días de gracia)`
+      })
+      toast.success('Interés por mora aplicado correctamente')
+      setIsGestionarOpen(false)
+      fetchData()
+    } catch (e) {
+      console.error('Error aplicando mora:', e)
+      toast.error('No se pudo aplicar el interés de mora')
+    }
   }
 
   const handleExportExcel = async () => {
@@ -516,7 +548,13 @@ function CuentasMoraContent() {
                       </div>
                       <span className={cn("px-3 py-1 rounded-full text-xs font-bold border flex items-center gap-1.5", getRiesgoColor(cuenta.nivelRiesgo))}>
                         {getRiesgoIcon(cuenta.nivelRiesgo)}
+                        {cuenta.nivelRiesgo}
                       </span>
+                      {cuenta.fechaVencimiento && new Date(cuenta.fechaVencimiento) < new Date() && (
+                        <span className="px-3 py-1 rounded-full text-[10px] font-black bg-rose-600 text-white border border-rose-500 shadow-sm animate-pulse">
+                          VENCIDO
+                        </span>
+                      )}
                     </div>
                     
                     <div className="flex flex-col gap-1.5 text-sm text-slate-600 font-medium mt-3">
@@ -563,6 +601,15 @@ function CuentasMoraContent() {
                       >
                         <User className="h-4 w-4 mr-2" />
                         Perfil
+                      </button>
+                    )}
+                    {puedeGestionarMora && (
+                      <button
+                        onClick={() => handleGestionar(cuenta)}
+                        className="flex-1 inline-flex items-center justify-center px-4 py-2 bg-amber-600 text-white rounded-xl hover:bg-amber-700 text-sm font-bold transition-colors shadow-lg shadow-amber-600/20"
+                      >
+                        <AlertTriangle className="h-4 w-4 mr-2" />
+                        Gestionar
                       </button>
                     )}
                     <button
@@ -613,10 +660,17 @@ function CuentasMoraContent() {
                         </div>
                       </td>
                       <td className="px-6 py-4">
-                        <span className={cn("px-2.5 py-1 rounded-full text-xs font-bold border inline-flex items-center gap-1.5", getRiesgoColor(cuenta.nivelRiesgo))}>
-                          {getRiesgoIcon(cuenta.nivelRiesgo)}
-                          {cuenta.nivelRiesgo.replace('_', ' ')}
-                        </span>
+                        <div className="flex flex-col gap-1">
+                          <span className={cn("px-2.5 py-1 rounded-full text-xs font-bold border inline-flex items-center gap-1.5", getRiesgoColor(cuenta.nivelRiesgo))}>
+                            {getRiesgoIcon(cuenta.nivelRiesgo)}
+                            {cuenta.nivelRiesgo.replace('_', ' ')}
+                          </span>
+                          {cuenta.fechaVencimiento && new Date(cuenta.fechaVencimiento) < new Date() && (
+                            <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-rose-600 text-white border border-rose-500 w-fit">
+                              VENCIDO
+                            </span>
+                          )}
+                        </div>
                       </td>
                       <td className="px-6 py-4">
                         <div className="flex flex-col gap-1">
@@ -644,6 +698,15 @@ function CuentasMoraContent() {
                               title="Ver Perfil"
                             >
                               <User className="w-4 h-4" />
+                            </button>
+                          )}
+                          {puedeGestionarMora && (
+                            <button
+                              onClick={() => handleGestionar(cuenta)}
+                              className="p-2 text-amber-600 hover:text-white hover:bg-amber-600 rounded-lg transition-colors border border-amber-200"
+                              title="Gestionar Mora"
+                            >
+                              <AlertTriangle className="w-4 h-4" />
                             </button>
                           )}
                           <button 
@@ -680,6 +743,21 @@ function CuentasMoraContent() {
           cuenta={selectedCuenta} 
           onClose={() => setIsModalOpen(false)} 
           onVerCliente={handleVerCliente}
+        />
+      )}
+
+      {/* Modal Gestionar Mora (Coordinador) */}
+      {isGestionarOpen && selectedCuenta && (
+        <GestionarMoraModal
+          cuenta={{
+            id: selectedCuenta.id,
+            numeroPrestamo: selectedCuenta.numeroPrestamo,
+            saldoPendiente: selectedCuenta.montoTotalDeuda,
+            montoOriginal: selectedCuenta.montoOriginal,
+            diasMora: selectedCuenta.diasMora
+          }}
+          onClose={() => setIsGestionarOpen(false)}
+          onConfirm={handleAplicarMora}
         />
       )}
 

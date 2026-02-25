@@ -1,9 +1,10 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
-import { Calendar, User, FileText, TrendingUp, Package, Image as ImageIcon, ChevronRight, ChevronLeft, Clock, BarChart3 } from 'lucide-react';
+import React, { useState, useMemo, useEffect } from 'react';
+import { Calendar, User, FileText, TrendingUp, Package, Image as ImageIcon, ChevronRight, ChevronLeft, Clock, BarChart3, AlertTriangle } from 'lucide-react';
 import { formatCurrency, cn } from '@/lib/utils';
 import ClientePortalModal from '@/components/cliente/ClientePortalModal';
+// imports de permiso/servicios de mora removidos: la asignación se hace en Cuentas en Mora
 
 const formatDate = (dateStr: string | undefined | null): string => {
   if (!dateStr) return '—';
@@ -65,6 +66,7 @@ export default function DetallePrestamo({ prestamo }: DetallePrestamoProps) {
   const [showClienteModal, setShowClienteModal] = useState(false);
   const [cuotaPage] = useState(1);
   const CUOTAS_PER_PAGE = Number.MAX_SAFE_INTEGER;
+  // Estados de asignación de mora removidos: acción se realiza desde Cuentas en Mora
 
   const isArticle = prestamo.tipoPrestamo?.toUpperCase() === 'ARTICULO';
 
@@ -116,6 +118,23 @@ export default function DetallePrestamo({ prestamo }: DetallePrestamoProps) {
   const cuotasPagadas = prestamo.cuotas.filter((c) => c.estado === 'PAGADO' || c.estado === 'PAGADA').length;
   const totalCuotas = prestamo.cuotas.length;
   const progresoCuotas = totalCuotas > 0 ? Math.round((cuotasPagadas / totalCuotas) * 100) : 0;
+  const [nowTs, setNowTs] = useState<number>(0);
+  useEffect(() => {
+    setNowTs(Date.now());
+  }, []);
+  const diasMora = useMemo(() => {
+    const vencidas = prestamo.cuotas.filter((c) => (c.estado || '').toUpperCase().startsWith('VENC'));
+    if (vencidas.length === 0) return 0;
+    const oldest = vencidas.reduce((min, c) => {
+      const ct = new Date(c.fecha).getTime();
+      const mt = new Date(min.fecha).getTime();
+      return ct < mt ? c : min;
+    }, vencidas[0]);
+    const baseNow = nowTs || Date.parse(new Date().toISOString());
+    const diff = Math.floor((baseNow - new Date(oldest.fecha).getTime()) / (1000 * 60 * 60 * 24));
+    return diff > 0 ? diff : 0;
+  }, [prestamo.cuotas, nowTs]);
+  // No mostrar monto sugerido de mora aquí; se asigna desde Cuentas en Mora
 
   return (
     <div className="w-full p-6 md:p-8 space-y-8">
@@ -258,6 +277,16 @@ export default function DetallePrestamo({ prestamo }: DetallePrestamoProps) {
              <p className="text-lg font-bold text-orange-700 tracking-tight">{formatCurrency(prestamo.cuotaInicial || 0)}</p>
           </div>
           )}
+          
+          <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm flex flex-col justify-between h-28">
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Interés por Mora</span>
+              <AlertTriangle className="w-4 h-4 text-amber-600" />
+            </div>
+            <p className="text-xl font-black text-rose-600 tracking-tight">—</p>
+            <span className="text-[10px] font-bold text-slate-500">Días en mora: {diasMora}</span>
+            <span className="text-[10px] font-medium text-slate-400 mt-1">Asignación manual de mora se gestiona en Cuentas en Mora</span>
+          </div>
         </div>
       </div>
 
@@ -533,6 +562,8 @@ export default function DetallePrestamo({ prestamo }: DetallePrestamoProps) {
           onClose={() => setShowClienteModal(false)}
         />
       )}
+      
+      
     </div>
   );
 }
