@@ -18,7 +18,9 @@ import {
   Phone,
   MapPin,
   Calendar,
-  ChevronDown
+  ChevronDown,
+  Plus,
+  CreditCard
 } from 'lucide-react'
 
 import { formatCOPInputValue, formatCurrency } from '@/lib/utils'
@@ -27,11 +29,17 @@ import { useParams } from 'next/navigation'
 import { useCallback, useEffect, useMemo } from 'react'
 import { Cliente, clientesService } from '@/services/clientes-service'
 import { rutasService } from '@/services/rutas-service'
+import { EstadoVisita, VisitaRuta } from '@/lib/types/cobranza'
+import {
+    StaticVisitaItem,
+    SeleccionClienteModal,
+    Portal,
+    MODAL_Z_INDEX
+} from '@/components/dashboards/shared/CobradorElements'
+import ReprogramarModal from '@/components/cobranza/ReprogramarModal'
 import PagoModal from '@/components/cobranza/PagoModal'
 import EstadoCuentaModal from '@/components/cobranza/EstadoCuentaModal'
-import ReprogramarModal from '@/components/cobranza/ReprogramarModal'
-import { VisitaRuta, EstadoVisita } from '@/lib/types/cobranza'
-import { StaticVisitaItem, SeleccionClienteModal } from '@/components/dashboards/shared/CobradorElements'
+import CreacionUnificada from '@/components/creditos/CreacionUnificada'
 import AnimacionCarga from '@/components/ui/AnimacionCarga'
 import { prestamosService } from '@/services/prestamos-service'
 import { pagosService } from '@/services/pagos-service'
@@ -90,6 +98,8 @@ const DetalleRutaPage = () => {
   const [visitaReprogramar, setVisitaReprogramar] = useState<VisitaRuta | null>(null)
   const [clienteDetalle, setClienteDetalle] = useState<VisitaRuta | null>(null)
   const [showClienteSelector, setShowClienteSelector] = useState(false)
+  const [showNuevoCreditoModal, setShowNuevoCreditoModal] = useState(false)
+  const [selectedClienteForCredito, setSelectedClienteForCredito] = useState<VisitaRuta | null>(null)
 
   const [showHistory, setShowHistory] = useState(false)
   const [historialRutas, setHistorialRutas] = useState<Record<string, HistorialDia> | null>(null)
@@ -645,6 +655,16 @@ const DetalleRutaPage = () => {
               Ver Estado de Cuenta
             </button>
             <button 
+              onClick={() => {
+                setSelectedClienteForCredito(null)
+                setShowNuevoCreditoModal(true)
+              }}
+              className="flex-1 md:flex-none px-6 py-3 rounded-2xl text-sm font-bold transition-all shadow-sm bg-white text-slate-700 border border-slate-200 hover:bg-slate-50 flex items-center justify-center gap-2 active:scale-95"
+            >
+              <Plus className="h-4 w-4 text-slate-400" />
+              Nuevo Crédito
+            </button>
+            <button 
               onClick={() => setShowHistory(!showHistory)} 
               className={`flex-1 md:flex-none px-6 py-3 rounded-2xl text-sm font-bold transition-all shadow-sm flex items-center justify-center gap-2 active:scale-95 ${
                 showHistory ? 'bg-slate-900 text-white shadow-slate-900/20' : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-50'
@@ -985,6 +1005,22 @@ const DetalleRutaPage = () => {
           visita={clienteDetalle}
           onClose={() => setClienteDetalle(null)}
         />
+      )}
+
+      {showNuevoCreditoModal && (
+        <Portal>
+           <div className="fixed inset-0 z-[2147483600] flex items-center justify-center p-4 md:p-10 bg-slate-900/60 backdrop-blur-md animate-in fade-in duration-300">
+              <div className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-5xl overflow-hidden animate-in zoom-in-95 duration-300 border border-slate-100 flex flex-col max-h-[95vh]">
+                 <div className="overflow-y-auto custom-scrollbar p-6 md:p-10">
+                    <CreacionUnificada 
+                        isModal={true} 
+                        initialClienteId={selectedClienteForCredito?.clienteId} 
+                        onClose={() => setShowNuevoCreditoModal(false)} 
+                    />
+                 </div>
+              </div>
+           </div>
+        </Portal>
       )}
     </div>
   )

@@ -43,10 +43,10 @@ import PagoModal from '@/components/cobranza/PagoModal'
 import EstadoCuentaModal from '@/components/cobranza/EstadoCuentaModal'
 import ReprogramarModal from '@/components/cobranza/ReprogramarModal'
 import { VisitaRuta, EstadoVisita } from '@/lib/types/cobranza'
-import { StaticVisitaItem, SeleccionClienteModal } from '@/components/dashboards/shared/CobradorElements'
+import { StaticVisitaItem, SeleccionClienteModal, Portal } from '@/components/dashboards/shared/CobradorElements'
 import NuevoClienteModal from '@/components/clientes/NuevoClienteModal'
 import { useAuth } from '@/hooks/useAuth'
-import CrearCreditoModal from '@/components/dashboards/shared/CrearCreditoModal'
+import CreacionUnificada from '@/components/creditos/CreacionUnificada'
 import ConfirmModal from '@/components/ui/ConfirmModal'
 import { prestamosService } from '@/services/prestamos-service'
 import { pagosService } from '@/services/pagos-service'
@@ -83,6 +83,7 @@ const RutaClient = ({ initialRuta }: RutaClientProps) => {
   const [showClienteSelector, setShowClienteSelector] = useState(false)
   const [showNewClientModal, setShowNewClientModal] = useState(false)
   const [showCrearCreditoModal, setShowCrearCreditoModal] = useState(false)
+  const [selectedClienteForCredito, setSelectedClienteForCredito] = useState<VisitaRuta | null>(null)
   const [defaultClienteId, setDefaultClienteId] = useState<string | null>(null)
   const [showCrearCreditoPrompt, setShowCrearCreditoPrompt] = useState(false)
   // Eliminado flujo de recolectar en detalle de ruta
@@ -582,13 +583,26 @@ const RutaClient = ({ initialRuta }: RutaClientProps) => {
                   )}
 
                   {(currentUser?.rol === 'SUPER_ADMINISTRADOR' || currentUser?.rol === 'ADMIN') && !showHistory && (
-                    <button
-                      onClick={() => setShowNewClientModal(true)}
-                      className="px-4 py-2 border rounded-xl flex items-center gap-2 font-bold shadow-sm bg-white text-slate-700 border-slate-200 hover:bg-slate-50 transition-colors"
-                    >
-                      <UserPlus className="h-4 w-4 text-slate-400" />
-                      <span className="hidden md:inline">Crear Cliente</span>
-                    </button>
+                    <div className="flex gap-2">
+                        <button
+                        onClick={() => setShowNewClientModal(true)}
+                        className="px-4 py-2 border rounded-xl flex items-center gap-2 font-bold shadow-sm bg-white text-slate-700 border-slate-200 hover:bg-slate-50 transition-colors"
+                        >
+                        <UserPlus className="h-4 w-4 text-slate-400" />
+                        <span className="hidden md:inline">Crear Cliente</span>
+                        </button>
+
+                        <button 
+                        onClick={() => {
+                            setSelectedClienteForCredito(null)
+                            setShowCrearCreditoModal(true)
+                        }}
+                        className="px-4 py-2 border rounded-xl flex items-center gap-2 font-bold shadow-sm bg-white text-slate-700 border-slate-200 hover:bg-slate-50 transition-colors"
+                        >
+                        <Plus className="h-4 w-4 text-slate-400" />
+                        <span className="hidden md:inline">Crear Crédito</span>
+                        </button>
+                    </div>
                   )}
                   
                   {/* Botón Recolectar Dinero removido en detalle de ruta */}
@@ -985,56 +999,23 @@ const RutaClient = ({ initialRuta }: RutaClientProps) => {
       {/* Modal de selección de caja principal removido en detalle de ruta */}
       
       {showCrearCreditoModal && (
-        <CrearCreditoModal
-          isOpen={showCrearCreditoModal}
-          defaultClienteId={defaultClienteId || undefined}
-          onClose={() => setShowCrearCreditoModal(false)}
-          onConfirm={async (data) => {
-            try {
-              if (data.creditType === 'prestamo' && data.clienteCreditoId) {
-                const mapFrecuencia = (f: string): FrecuenciaPago => {
-                  const val = (f || '').toLowerCase().trim()
-                  if (val.startsWith('diar')) return FrecuenciaPago.DIARIO
-                  if (val.startsWith('seman')) return FrecuenciaPago.SEMANAL
-                  if (val.startsWith('quin')) return FrecuenciaPago.QUINCENAL
-                  if (val.startsWith('mens')) return FrecuenciaPago.MENSUAL
-                  return FrecuenciaPago.MENSUAL
-                }
-                const pagosPorMes = (f: string) => {
-                  switch (f) {
-                    case 'Diaria': return 30
-                    case 'Semanal': return 4
-                    case 'Quincenal': return 2
-                    default: return 1
-                  }
-                }
-                const cuotas = Number(data.cuotasTotales || 0)
-                const meses = Math.max(1, Math.ceil(cuotas / pagosPorMes(data.frecuenciaPago || 'Mensuales')))
-                await prestamosService.crearPrestamo({
-                  clienteId: data.clienteCreditoId,
-                  tipoPrestamo: 'EFECTIVO',
-                  monto: Number(data.monto || 0),
-                  tasaInteres: Number(data.tasaInteres || 0),
-                  tasaInteresMora: 0,
-                  plazoMeses: meses,
-                  frecuenciaPago: mapFrecuencia(data.frecuenciaPago || 'Mensuales'),
-                  fechaInicio: data.fechaInicio || new Date().toISOString().split('T')[0],
-                  creadoPorId: currentUser?.id || ''
-                })
-                if (initialRuta?.id && initialRuta?.cobradorId) {
-                  await routesService.assignClient(initialRuta.id, data.clienteCreditoId, initialRuta.cobradorId)
-                }
-                showNotification('success', 'Crédito creado y cliente asignado a la ruta', 'Éxito')
-                setShowCrearCreditoModal(false)
-              } else {
-                showNotification('warning', 'Selecciona "Préstamo" y un cliente válido', 'Aviso')
-              }
-            } catch (e) {
-              console.error('Error creando crédito/asignando ruta', e)
-              showNotification('error', 'Ocurrió un error al crear el crédito', 'Error')
-            }
-          }}
-        />
+        <Portal>
+           <div className="fixed inset-0 z-[2147483600] flex items-center justify-center p-4 md:p-10 bg-slate-900/60 backdrop-blur-md animate-in fade-in duration-300">
+              <div className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-5xl overflow-hidden animate-in zoom-in-95 duration-300 border border-slate-100 flex flex-col max-h-[95vh]">
+                 <div className="overflow-y-auto custom-scrollbar p-6 md:p-10">
+                    <CreacionUnificada 
+                        isModal={true} 
+                        initialClienteId={selectedClienteForCredito?.clienteId || defaultClienteId || undefined} 
+                        onClose={() => {
+                            setShowCrearCreditoModal(false);
+                            setSelectedClienteForCredito(null);
+                            setDefaultClienteId(null);
+                        }} 
+                    />
+                 </div>
+              </div>
+           </div>
+        </Portal>
       )}
     </div>
   )
