@@ -320,7 +320,12 @@ export default function NotificacionDetalleModal({
         finalDetails = { ...finalDetails, comentarios: actionComment.trim() }
         await onApprove(notificacion.entidadId, approvalType, finalDetails)
       } else if (confirmAction === 'REJECT') {
-        await onReject(notificacion.entidadId, approvalType, actionComment.trim())
+        const motivo = actionComment.trim()
+        if (!motivo) {
+          setIsProcessing(false)
+          return
+        }
+        await onReject(notificacion.entidadId, approvalType, motivo)
       }
       handleClose()
     } catch (error) {
@@ -329,6 +334,7 @@ export default function NotificacionDetalleModal({
       setIsProcessing(false)
     }
   }
+  const [confirmRejectChecked, setConfirmRejectChecked] = useState(false)
 
   const formatCOPInput = (val: number | undefined) => {
     if (val === undefined || val === 0) return ''
@@ -669,6 +675,15 @@ export default function NotificacionDetalleModal({
                 <div className="col-span-2 p-4 bg-white/50 rounded-2xl border border-blue-100 space-y-4">
                   <p className="text-[9px] font-black text-blue-500 uppercase tracking-widest mb-1">Detalles de Venta</p>
                   <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-[9px] text-blue-500 uppercase font-black block mb-0.5">Total a Pagar</label>
+                      <p className="text-lg font-black text-blue-900">
+                        {(() => {
+                          const val = Number(editedDetails?.valorArticulo || safeMeta?.valorArticulo || editedDetails?.monto || safeMeta?.monto || 0)
+                          return formatCurrency(isNaN(val) ? 0 : val)
+                        })()}
+                      </p>
+                    </div>
                     {isArticle && esContado ? (
                       <div className="col-span-2">
                         <label className="text-[9px] text-blue-500 uppercase font-black block mb-0.5">Total de Contado</label>
@@ -1006,6 +1021,20 @@ export default function NotificacionDetalleModal({
                     placeholder={confirmAction === 'APPROVE' ? 'Ej: Condiciones revisadas, cliente calificado, etc...' : 'Ej: Información insuficiente, monto excedido, etc...'}
                     className="w-full bg-slate-50 border border-slate-200 rounded-[1.5rem] p-4 text-sm font-medium text-slate-800 h-28 outline-none focus:ring-4 focus:ring-slate-500/5 focus:border-slate-500 resize-none transition-all shadow-inner"
                   />
+                {confirmAction === 'REJECT' && !actionComment.trim() && (
+                  <p className="text-[10px] font-bold text-rose-600 ml-1">Debes ingresar el motivo del rechazo.</p>
+                )}
+                {confirmAction === 'REJECT' && (
+                  <label className="inline-flex items-center gap-2 text-[10px] font-bold text-slate-600 ml-1 mt-1">
+                    <input 
+                      type="checkbox" 
+                      checked={confirmRejectChecked} 
+                      onChange={(e) => setConfirmRejectChecked(e.target.checked)} 
+                      className="rounded border-slate-300"
+                    />
+                    Confirmo que deseo rechazar esta solicitud
+                  </label>
+                )}
                 </div>
 
                 <div className="flex gap-4 pt-5">
@@ -1020,7 +1049,7 @@ export default function NotificacionDetalleModal({
                     Volver
                   </button>
                   <button 
-                    disabled={isProcessing}
+                  disabled={isProcessing || (confirmAction === 'REJECT' && (!actionComment.trim() || !confirmRejectChecked))}
                     onClick={handleConfirmAction}
                     className={`flex-1 py-3 font-black text-[11px] uppercase tracking-widest rounded-2xl shadow-xl transition-all text-white disabled:opacity-50 ${
                       confirmAction === 'APPROVE' 
