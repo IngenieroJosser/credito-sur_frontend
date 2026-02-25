@@ -91,9 +91,9 @@ export default function NotificacionDetalleModal({
         }
       }
 
-      const baseValorArticulo = Number(combined.valorArticulo || combined.monto) || montoFromMsg || 0;
-      const baseMonto = Number(combined.monto || combined.valorArticulo) || montoFromMsg || 0;
       const baseCuotaInicial = Number(combined.cuotaInicial ?? 0);
+      const baseValorArticulo = (Number(combined.valorArticulo) || 0) || (montoFromMsg || 0) || (Number(combined.monto || 0) + baseCuotaInicial) || 0;
+      const baseMonto = Number(combined.monto || 0);
       const derivedCuotaInicial =
         baseCuotaInicial > 0
           ? baseCuotaInicial
@@ -219,6 +219,44 @@ export default function NotificacionDetalleModal({
       } catch {}
     })()
   }, [isOpen, notificacion, editedDetails?.plazoMeses])
+
+  React.useEffect(() => {
+    const meta = typeof notificacion?.metadata === 'string'
+      ? JSON.parse(notificacion!.metadata as any)
+      : (notificacion?.metadata || {})
+    const dets = typeof notificacion?.detalles === 'string'
+      ? JSON.parse(notificacion!.detalles as any)
+      : (notificacion?.detalles || {})
+    const isPrestamoEff = (notificacion?.tipo === 'PRESTAMO' || (notificacion as any)?.approvalType === 'NUEVO_PRESTAMO')
+    const tituloEff = (notificacion?.titulo || '').toLowerCase()
+    const mensajeEff = (notificacion?.mensaje || '').toLowerCase()
+    const isArticleEff = isPrestamoEff && (
+      dets?.tipo === 'ARTICULO' ||
+      meta?.tipo === 'ARTICULO' ||
+      tituloEff.includes('artículo') ||
+      tituloEff.includes('articulo') ||
+      mensajeEff.includes('artículo') ||
+      mensajeEff.includes('articulo')
+    )
+    if (!isArticleEff) return
+    if (!articuloData) return
+    if (esContado) return
+    const meses = Number(editedDetails?.plazoMeses || dets?.plazoMeses || meta?.plazoMeses || 0)
+    const matchIdx = articuloData.opcionesCuotas?.findIndex((op: any) => Number(op.numeroCuotas) === meses) ?? -1
+    const idx = planIndex ?? (matchIdx >= 0 ? matchIdx : null)
+    if (idx === null || idx < 0) return
+    const op = articuloData.opcionesCuotas[idx]
+    const precioTotal = Number(op?.precioTotal || 0)
+    const inicial = Number(editedDetails?.cuotaInicial || dets?.cuotaInicial || meta?.cuotaInicial || 0)
+    const aFinanciar = Math.max(0, precioTotal - inicial)
+    if (precioTotal > 0) {
+      setEditedDetails((prev: any) => ({
+        ...prev,
+        valorArticulo: precioTotal,
+        monto: aFinanciar
+      }))
+    }
+  }, [articuloData, planIndex, esContado])
 
   React.useEffect(() => {
     const meta = typeof notificacion?.metadata === 'string'
@@ -684,8 +722,14 @@ export default function NotificacionDetalleModal({
                       <label className="text-[9px] text-blue-500 uppercase font-black block mb-0.5">Total a Pagar</label>
                       <p className="text-lg font-black text-blue-900">
                         {(() => {
-                          const val = Number(editedDetails?.valorArticulo || safeMeta?.valorArticulo || editedDetails?.monto || safeMeta?.monto || 0)
-                          return formatCurrency(isNaN(val) ? 0 : val)
+                          const total = (() => {
+                            const va = Number(editedDetails?.valorArticulo ?? safeMeta?.valorArticulo ?? 0)
+                            if (va > 0) return va
+                            const m = Number(editedDetails?.monto ?? safeMeta?.monto ?? 0)
+                            const ci = Number(editedDetails?.cuotaInicial ?? safeMeta?.cuotaInicial ?? 0)
+                            return m + ci
+                          })()
+                          return formatCurrency(isNaN(total) ? 0 : total)
                         })()}
                       </p>
                     </div>
@@ -781,8 +825,12 @@ export default function NotificacionDetalleModal({
                             const m = Number(editedDetails?.monto || safeMeta?.monto || 0);
                             const cBase = Number(editedDetails?.cuotas || safeMeta?.cuotas || editedDetails?.numCuotas || safeMeta?.numCuotas || 1);
                             const c = Math.max(1, isArticle && esContado ? 1 : cBase);
-                            const p = Number(editedDetails?.porcentaje || safeMeta?.porcentaje || 0);
-                            const val = isArticle ? m / c : (m * (1 + p / 100)) / c;
+                            const mt = Number(editedDetails?.montoTotal || safeMeta?.montoTotal || 0);
+                            const it = Number(editedDetails?.interesTotal || safeMeta?.interesTotal || 0);
+                            const tasa = Number(editedDetails?.tasaInteres || safeMeta?.tasaInteres || Number(editedDetails?.porcentaje || safeMeta?.porcentaje || 0));
+                            const meses = Number(editedDetails?.plazoMeses || safeMeta?.plazoMeses || 1);
+                            const total = isArticle ? m : (mt > 0 ? mt : (it > 0 ? m + it : m + ((m * tasa * meses) / 100)));
+                            const val = total / c;
                             return formatCurrency(isNaN(val) ? 0 : val);
                           })()}
                         </p>
@@ -792,8 +840,14 @@ export default function NotificacionDetalleModal({
                         <p className="text-lg font-black text-emerald-900">
                           {(() => {
                             const m = Number(editedDetails?.monto || safeMeta?.monto || 0);
-                            const p = Number(editedDetails?.porcentaje || safeMeta?.porcentaje || 0);
-                            const val = isArticle ? m : (m * (1 + p / 100));
+                            const mt = Number(editedDetails?.montoTotal || safeMeta?.montoTotal || 0);
+                            const it = Number(editedDetails?.interesTotal || safeMeta?.interesTotal || 0);
+                            const tasa = Number(editedDetails?.tasaInteres || safeMeta?.tasaInteres || Number(editedDetails?.porcentaje || safeMeta?.porcentaje || 0));
+                            const meses = Number(editedDetails?.plazoMeses || safeMeta?.plazoMeses || 1);
+                            const va = Number(editedDetails?.valorArticulo ?? safeMeta?.valorArticulo ?? 0);
+                            const ci = Number(editedDetails?.cuotaInicial ?? safeMeta?.cuotaInicial ?? 0);
+                            const totalArticulo = va > 0 ? va : (m + ci);
+                            const val = isArticle ? totalArticulo : (mt > 0 ? mt : (it > 0 ? m + it : m + ((m * tasa * meses) / 100)));
                             return formatCurrency(isNaN(val) ? 0 : val);
                           })()}
                         </p>
