@@ -28,11 +28,13 @@ interface SolicitudDetalleModalProps {
 export default function SolicitudDetalleModal({ isOpen, onClose, solicitud, onResolve, readOnly = false }: SolicitudDetalleModalProps) {
   const [comentario, setComentario] = useState('')
   const [actionType, setActionType] = useState<'APROBAR' | 'RECHAZAR' | null>(null)
+  const [confirmRejectChecked, setConfirmRejectChecked] = useState(false)
   if (!isOpen || !solicitud) return null
 
   const handleClose = () => {
     setComentario('')
     setActionType(null)
+    setConfirmRejectChecked(false)
     onClose()
   }
 
@@ -150,6 +152,17 @@ export default function SolicitudDetalleModal({ isOpen, onClose, solicitud, onRe
                    rows={2}
                  />
                )}
+               {actionType === 'RECHAZAR' && (
+                 <label className="inline-flex items-center gap-2 text-xs font-bold text-slate-600 mb-4">
+                   <input 
+                     type="checkbox" 
+                     checked={confirmRejectChecked} 
+                     onChange={(e) => setConfirmRejectChecked(e.target.checked)} 
+                     className="rounded border-slate-300"
+                   />
+                   Confirmo que deseo rechazar esta solicitud
+                 </label>
+               )}
 
                <div className="flex gap-3 w-full max-w-xs">
                  <button
@@ -160,7 +173,7 @@ export default function SolicitudDetalleModal({ isOpen, onClose, solicitud, onRe
                  </button>
                  <button
                    onClick={handleFinalConfirm}
-                   disabled={actionType === 'RECHAZAR' && !comentario.trim()}
+                   disabled={actionType === 'RECHAZAR' && (!comentario.trim() || !confirmRejectChecked)}
                    className={`flex-1 py-2.5 rounded-xl font-bold text-white shadow-lg ${
                       actionType === 'APROBAR' ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-rose-600 hover:bg-rose-700'
                    }`}

@@ -49,6 +49,7 @@ export default function NotificacionDetalleModal({
   const [planIndex, setPlanIndex] = React.useState<number | null>(null)
   const [autoCuotas, setAutoCuotas] = useState(true)
   const [esContado, setEsContado] = useState(false)
+  const [confirmRejectChecked, setConfirmRejectChecked] = useState(false)
 
   React.useEffect(() => {
     if (notificacion) {
