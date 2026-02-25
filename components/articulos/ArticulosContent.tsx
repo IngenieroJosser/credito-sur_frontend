@@ -204,13 +204,14 @@ export default function ArticulosContent() {
   const enStock = articulosFiltrados.filter(a => a.stock > 0).length
   const atencionStockBajo = articulosFiltrados.filter(a => a.stock <= a.stockMinimo).length
   const valorInventario = articulosFiltrados.reduce((acc, a) => {
-    const precio = a.precioContado !== undefined ? Number(a.precioContado) : Number(a.costo)
-    return acc + (precio * Number(a.stock))
+    const costo = Number(a.costo)
+    return acc + (costo * Number(a.stock))
   }, 0)
 
   const deltaInventarioPorcentaje = (() => {
-    if (!statsBase || statsBase.valorTotalInventario === 0) return 0
-    const base = Number(statsBase.valorTotalInventario)
+    const baseField = (statsBase as any)?.totalValorInventario ?? statsBase?.valorTotalInventario
+    if (!statsBase || !baseField || Number(baseField) === 0) return 0
+    const base = Number(baseField)
     const actual = Number(valorInventario)
     return Math.round(((actual - base) / base) * 100)
   })()

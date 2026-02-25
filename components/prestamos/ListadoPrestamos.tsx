@@ -852,7 +852,7 @@ const ListadoPrestamosElegante = () => {
               tasaInteresMora: 2.0,
               plazoMeses,
               frecuenciaPago: freq,
-              fechaInicio: data.fechaInicio || new Date().toISOString().split('T')[0],
+              fechaInicio: data.fechaInicio || new Date().toISOString(),
               creadoPorId: userId,
             };
 
