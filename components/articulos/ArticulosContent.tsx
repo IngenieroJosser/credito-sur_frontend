@@ -535,7 +535,7 @@ export default function ArticulosContent() {
                       ) : (
                         <>
                           <div className="text-sm font-bold text-slate-900">
-                            {formatCurrency(((articulo.precioContado !== undefined ? Number(articulo.precioContado) : Number(articulo.costo)) * Number(articulo.stock)) || 0)}
+                            {formatCurrency((Number(articulo.costo) * Number(articulo.stock)) || 0)}
                           </div>
                           <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Valor Inventario</div>
                         </>
@@ -544,7 +544,7 @@ export default function ArticulosContent() {
                     {esReadOnly && (
                       <td className="px-6 py-4 whitespace-nowrap text-right">
                         <div className="text-sm font-bold text-slate-900">
-                          {formatCurrency(((articulo.precioContado !== undefined ? Number(articulo.precioContado) : Number(articulo.costo)) * Number(articulo.stock)) || 0)}
+                          {formatCurrency((Number(articulo.costo) * Number(articulo.stock)) || 0)}
                         </div>
                         <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Valor Inventario</div>
                       </td>
