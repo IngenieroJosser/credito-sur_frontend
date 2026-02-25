@@ -24,6 +24,7 @@ import {
   Save,
   ArrowRightLeft,
   XCircle,
+  Wallet,
 } from 'lucide-react'
 import { formatCurrency, cn } from '@/lib/utils'
 import { useAuth } from '@/hooks/useAuth'
@@ -33,6 +34,8 @@ import { useNotification } from '@/components/providers/NotificationProvider';
 import { usePermission } from '@/hooks/usePermission';
 import { offlineStore } from '@/lib/offline/offlineDb';
 import CrearCreditoModal from '@/components/dashboards/shared/CrearCreditoModal';
+import { getCajas, createTransaccion, Caja } from '@/services/contabilidad-service';
+import ConfirmModal from '@/components/ui/ConfirmModal';
 
 interface Ruta {
   id: string;
@@ -118,6 +121,12 @@ export const RutasPageView = ({
   // State for lists with fallback fetching
   const [cobradoresList, setCobradoresList] = useState(cobradores);
   const [supervisoresList, setSupervisoresList] = useState(supervisores);
+  const [showSelectPrincipalModal, setShowSelectPrincipalModal] = useState(false)
+  const [principalOptions, setPrincipalOptions] = useState<Caja[]>([])
+  const [processingTransfer, setProcessingTransfer] = useState(false)
+  const [routeForTransfer, setRouteForTransfer] = useState<Ruta | null>(null)
+  const showRecolectar = true
+  const [showConfirmRecolectar, setShowConfirmRecolectar] = useState(false)
 
   useEffect(() => {
     const fetchLists = async () => {
@@ -313,6 +322,69 @@ export const RutasPageView = ({
       router.refresh();
     } catch (error) {
       showNotification('error', 'No se pudo cambiar el estado', 'Error');
+    }
+  }
+  const handleRecolectarDinero = async (ruta: Ruta) => {
+    try {
+      setProcessingTransfer(true)
+      const cajas = await getCajas()
+      const cajaRuta = cajas.find(c => c.tipo === 'RUTA' && c.rutaId === ruta.id)
+      const principalCajas = cajas.filter(c => c.tipo === 'PRINCIPAL')
+      if (!cajaRuta) {
+        showNotification('warning', 'No se encontró la caja de esta ruta', 'Aviso')
+        return
+      }
+      if ((cajaRuta.saldo || 0) <= 0) {
+        showNotification('warning', 'La caja de ruta no tiene saldo para recolectar', 'Aviso')
+        return
+      }
+      if (principalCajas.length === 0) {
+        showNotification('error', 'No hay cajas principales disponibles', 'Error')
+        return
+      }
+      if (principalCajas.length === 1) {
+        const destino = principalCajas[0]
+        await createTransaccion({
+          cajaId: destino.id,
+          tipo: 'INGRESO',
+          monto: cajaRuta.saldo,
+          descripcion: `Consolidación desde Ruta ${ruta.nombre}`,
+          cajaOrigenId: cajaRuta.id
+        })
+        showNotification('success', 'Dinero recolectado y enviado a la caja principal', 'Éxito')
+      } else {
+        setPrincipalOptions(principalCajas)
+        setRouteForTransfer(ruta)
+        setShowSelectPrincipalModal(true)
+      }
+    } catch {
+      showNotification('error', 'Ocurrió un error al recolectar dinero', 'Error')
+    } finally {
+      setProcessingTransfer(false)
+    }
+  }
+  const confirmarEnvioA = async (destinoId: string) => {
+    try {
+      setProcessingTransfer(true)
+      if (!routeForTransfer) return
+      const cajas = await getCajas()
+      const cajaRuta = cajas.find(c => c.tipo === 'RUTA' && c.rutaId === routeForTransfer.id)
+      const destino = cajas.find(c => c.id === destinoId)
+      if (!cajaRuta || !destino) return
+      await createTransaccion({
+        cajaId: destino.id,
+        tipo: 'INGRESO',
+        monto: cajaRuta.saldo,
+        descripcion: `Consolidación desde Ruta ${routeForTransfer.nombre}`,
+        cajaOrigenId: cajaRuta.id
+      })
+      setShowSelectPrincipalModal(false)
+      setRouteForTransfer(null)
+      showNotification('success', `Dinero enviado a ${destino.nombre}`, 'Éxito')
+    } catch {
+      showNotification('error', 'No se pudo completar la transferencia', 'Error')
+    } finally {
+      setProcessingTransfer(false)
     }
   }
   const handleMoveCliente = async (clienteId: string) => {
@@ -724,7 +796,7 @@ export const RutasPageView = ({
                     )}
                   </div>
 
-                  <div className="p-4 bg-slate-50/50 border-t border-slate-100 group-hover:bg-blue-50/30 transition-colors">
+                  <div className="p-4 bg-slate-50/50 border-t border-slate-100 group-hover:bg-blue-50/30 transition-colors" onClick={(e) => e.stopPropagation()}>
                     <div className="flex justify-between items-center gap-3">
                       <span className="text-xs text-slate-400 font-bold">ID: {ruta.id}</span>
 
@@ -764,9 +836,28 @@ export const RutasPageView = ({
                             href={`${rutasBasePath}/${ruta.id}`}
                             className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
                             title="Ver detalle"
+                              onClick={(e) => {
+                                e.preventDefault()
+                                e.stopPropagation()
+                                router.push(`${rutasBasePath}/${ruta.id}`)
+                              }}
                           >
                             <Eye className="h-4 w-4" />
                           </Link>
+                          {showRecolectar && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                setRouteForTransfer(ruta)
+                                setShowConfirmRecolectar(true)
+                              }}
+                              disabled={processingTransfer}
+                              className="p-2 text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-blue-600/30"
+                              title="Recolectar Dinero"
+                            >
+                              <Wallet className="h-4 w-4" />
+                            </button>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -919,6 +1010,23 @@ export const RutasPageView = ({
                                 {ruta.estado === 'ACTIVA' ? <Trash2 className="w-4 h-4" /> : <CheckCircle2 className="w-4 h-4" />}
                               </button>
                             )}
+                            {showRecolectar && (
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.preventDefault()
+                                  e.stopPropagation()
+                                  setRouteForTransfer(ruta)
+                                  setShowConfirmRecolectar(true)
+                                showNotification('info', 'Confirma la recolección de dinero de la ruta', 'Acción')
+                                }}
+                                disabled={processingTransfer}
+                                className="p-2 text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors"
+                                title="Recolectar Dinero"
+                              >
+                                <Wallet className="w-4 h-4" />
+                              </button>
+                            )}
                           </div>
                         </td>
                       </tr>
@@ -1038,6 +1146,23 @@ export const RutasPageView = ({
                         title={ruta.estado === 'ACTIVA' ? "Desactivar" : "Activar"}
                       >
                         {ruta.estado === 'ACTIVA' ? <Trash2 className="w-4 h-4" /> : <CheckCircle2 className="w-4 h-4" />}
+                      </button>
+                    )}
+                    {showRecolectar && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.preventDefault()
+                          e.stopPropagation()
+                          setRouteForTransfer(ruta)
+                          setShowConfirmRecolectar(true)
+                          showNotification('info', 'Confirma la recolección de dinero de la ruta', 'Acción')
+                        }}
+                        disabled={processingTransfer}
+                        className="p-2 text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors"
+                        title="Recolectar Dinero"
+                      >
+                        <Wallet className="w-4 h-4" />
                       </button>
                     )}
                   </div>
@@ -1434,6 +1559,58 @@ export const RutasPageView = ({
                   </div>
                 )}
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      <ConfirmModal
+        isOpen={showConfirmRecolectar}
+        onClose={() => setShowConfirmRecolectar(false)}
+        onConfirm={async () => {
+          const r = routeForTransfer
+          setShowConfirmRecolectar(false)
+          if (r) await handleRecolectarDinero(r)
+        }}
+        title="Recolectar dinero de la ruta"
+        message="¿Deseas consolidar el dinero de esta ruta en una caja principal?"
+        confirmText="Sí, recolectar"
+        cancelText="Cancelar"
+        variant="info"
+      />
+      
+      {showSelectPrincipalModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6">
+          <div className="absolute inset-0 bg-slate-900/30 backdrop-blur-sm transition-opacity" onClick={() => setShowSelectPrincipalModal(false)} />
+          <div className="relative w-full max-w-md bg-white rounded-2xl shadow-2xl ring-1 ring-slate-900/5 transform transition-all animate-in fade-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-slate-50/50">
+              <div className="flex items-center gap-2">
+                <Wallet className="h-5 w-5 text-blue-600" />
+                <h3 className="text-sm font-bold text-slate-900">Seleccionar Caja Principal</h3>
+              </div>
+              <button onClick={() => setShowSelectPrincipalModal(false)} className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <div className="p-6 space-y-3">
+              {principalOptions.map((caja) => (
+                <div key={caja.id} className="flex items-center justify-between p-3 rounded-xl border border-slate-200">
+                  <div>
+                    <div className="text-sm font-bold text-slate-900">{caja.nombre}</div>
+                    <div className="text-xs text-slate-500 font-medium">Saldo: {formatCurrency(caja.saldo)}</div>
+                  </div>
+                  <button
+                    onClick={() => confirmarEnvioA(caja.id)}
+                    disabled={processingTransfer}
+                    className="px-3 py-2 rounded-xl bg-blue-600 text-white text-xs font-bold hover:bg-blue-700 disabled:opacity-60"
+                  >
+                    Enviar a esta caja
+                  </button>
+                </div>
+              ))}
+            </div>
+            <div className="px-6 py-4 border-t border-slate-100 bg-slate-50 text-xs text-slate-500">
+              El dinero será transferido desde la caja de la ruta seleccionada a la caja principal elegida.
             </div>
           </div>
         </div>

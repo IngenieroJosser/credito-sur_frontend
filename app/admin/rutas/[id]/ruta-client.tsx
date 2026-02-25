@@ -3,6 +3,7 @@
 import { useState, useCallback, useMemo, useEffect } from 'react'
 import {
   CheckCircle2,
+  X,
   XCircle,
   Search,
   Filter,
@@ -84,6 +85,7 @@ const RutaClient = ({ initialRuta }: RutaClientProps) => {
   const [showCrearCreditoModal, setShowCrearCreditoModal] = useState(false)
   const [defaultClienteId, setDefaultClienteId] = useState<string | null>(null)
   const [showCrearCreditoPrompt, setShowCrearCreditoPrompt] = useState(false)
+  // Eliminado flujo de recolectar en detalle de ruta
 
   // Estados para filtros y historial (Portados de VistaCobrador)
   const [periodoRutaFiltro, setPeriodoRutaFiltro] = useState<'TODOS' | 'DIA' | 'SEMANA' | 'QUINCENA' | 'MES'>('TODOS')
@@ -478,6 +480,8 @@ const RutaClient = ({ initialRuta }: RutaClientProps) => {
   const { estadisticas, nivelRiesgo } = initialRuta;
   const porcentajeProgreso = estadisticas.avanceDiario || 0;
 
+  // Eliminado flujo de recolectar en detalle de ruta
+
   return (
     <div className="min-h-screen bg-slate-50 relative pb-20">
       <div className="fixed inset-0 pointer-events-none">
@@ -586,6 +590,8 @@ const RutaClient = ({ initialRuta }: RutaClientProps) => {
                       <span className="hidden md:inline">Crear Cliente</span>
                     </button>
                   )}
+                  
+                  {/* Botón Recolectar Dinero removido en detalle de ruta */}
               </div>
 
               {/* Filtros de Periodo (Estilo Cobrador Exacto) */}
@@ -975,6 +981,8 @@ const RutaClient = ({ initialRuta }: RutaClientProps) => {
         cancelText="No, más tarde"
         variant="info"
       />
+      
+      {/* Modal de selección de caja principal removido en detalle de ruta */}
       
       {showCrearCreditoModal && (
         <CrearCreditoModal

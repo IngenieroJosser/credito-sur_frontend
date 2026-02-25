@@ -78,6 +78,12 @@ export const PERMISSION_DEFINITIONS: PermissionDefinition[] = [
     description: 'Permite reasignar cobradores o modificar zonas de una ruta.',
     module: 'Rutas'
   },
+  {
+    code: 'RUTAS_RECOLECTAR',
+    name: 'Recolectar Dinero de Ruta',
+    description: 'Permite consolidar y transferir dinero de la caja de ruta a una caja principal.',
+    module: 'Rutas'
+  },
 
   // --- Módulo: Cuentas Vencidas ---
   {
