@@ -26,6 +26,8 @@ import {
 import FiltroRuta from '@/components/filtros/FiltroRuta'
 import { notificacionesService, type Notificacion } from '@/services/notificaciones-service'
 import ConfirmModal from '@/components/ui/ConfirmModal'
+import ConfirmApproveModal from '@/components/ui/ConfirmApproveModal'
+import ConfirmRejectModal from '@/components/ui/ConfirmRejectModal'
 import EditarPrestamoModal from '@/components/prestamos/EditarPrestamoModal'
 import { aprobacionesService } from '@/services/aprobaciones-service'
 import { TipoAprobacion } from '@/types/enums'
@@ -210,11 +212,10 @@ export default function NotificacionesPage() {
   // Estados para modales y acciones
   const [selectedNotif, setSelectedNotif] = useState<Notificacion | null>(null)
   const [editedDetails, setEditedDetails] = useState<Notificacion['detalles']>({})
-  const [rejectionReason, setRejectionReason] = useState('')
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false)
   const [isEditingMode, setIsEditingMode] = useState(false)
-  const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false)
-  const [confirmAction, setConfirmAction] = useState<'APPROVE' | 'REJECT' | null>(null)
+  const [showApproveModalList, setShowApproveModalList] = useState(false)
+  const [showRejectModalList, setShowRejectModalList] = useState(false)
   const [showMarkAllReadConfirm, setShowMarkAllReadConfirm] = useState(false)
   const [prestamoModalOpen, setPrestamoModalOpen] = useState(false)
   const [selectedPrestamoId, setSelectedPrestamoId] = useState<string | null>(null)
@@ -314,13 +315,15 @@ export default function NotificacionesPage() {
   const handleOpenConfirm = (notif: Notificacion, action: 'APPROVE' | 'REJECT') => {
     setSelectedNotif(notif)
     setEditedDetails(notif.detalles || {})
-    setRejectionReason('')
-    setConfirmAction(action)
-    setIsConfirmModalOpen(true)
+    if (action === 'REJECT') {
+      setShowRejectModalList(true)
+    } else {
+      setShowApproveModalList(true)
+    }
   }
 
-  const handleConfirmAction = async () => {
-    if (!selectedNotif || !confirmAction) return
+  const handleApproveConfirmList = async () => {
+    if (!selectedNotif) return
 
     const anyNotif: any = selectedNotif
     const approvalType: string | undefined = anyNotif.approvalType
@@ -329,67 +332,39 @@ export default function NotificacionesPage() {
     if (!approvalType || !entidadId) {
       setFeedbackModal({
         titulo: 'No se puede procesar',
-        mensaje: 'Esta notificación no tiene la información necesaria para ser aprobada o rechazada. Falta el tipo de aprobación o el ID de la entidad.',
+        mensaje: 'Esta notificación no tiene la información necesaria para ser aprobada. Falta el tipo de aprobación o el ID de la entidad.',
         tipo: 'danger'
       })
-      setIsConfirmModalOpen(false)
-      setSelectedNotif(null)
-      setConfirmAction(null)
+      setShowApproveModalList(false)
       return
     }
 
     setIsProcessing(true)
 
     try {
-      if (confirmAction === 'APPROVE') {
-        await aprobacionesService.aprobar(entidadId, {
-          type: approvalType as any,
-          notas: editedDetails ? JSON.stringify(editedDetails) : undefined,
-        })
+      await aprobacionesService.aprobar(entidadId, {
+        type: approvalType as any,
+        notas: editedDetails ? JSON.stringify(editedDetails) : undefined,
+      })
 
-        setNotificacionesState(prev =>
-          prev.map(n =>
-            n.id === selectedNotif.id
-              ? {
-                  ...n,
-                  estado: 'APROBADA',
-                  leida: true,
-                  detalles: { ...n.detalles, ...editedDetails },
-                }
-              : n,
-          ),
-        )
+      setNotificacionesState(prev =>
+        prev.map(n =>
+          n.id === selectedNotif.id
+            ? {
+                ...n,
+                estado: 'APROBADA',
+                leida: true,
+                detalles: { ...n.detalles, ...editedDetails },
+              }
+            : n,
+        ),
+      )
 
         setFeedbackModal({
           titulo: 'Solicitud Aprobada',
-          mensaje: `La solicitud ha sido aprobada correctamente y se ha reflejado en el sistema.`,
+        mensaje: `La solicitud ha sido aprobada correctamente y se ha reflejado en el sistema.`,
           tipo: 'success'
         })
-      } else if (confirmAction === 'REJECT') {
-        await aprobacionesService.rechazar(entidadId, {
-          type: approvalType as any,
-          motivoRechazo: rejectionReason || 'Rechazado por el administrador',
-        })
-
-        setNotificacionesState(prev =>
-          prev.map(n =>
-            n.id === selectedNotif.id
-              ? {
-                  ...n,
-                  estado: 'RECHAZADA',
-                  leida: true,
-                  motivoRechazo: rejectionReason,
-                }
-              : n,
-          ),
-        )
-
-        setFeedbackModal({
-          titulo: 'Solicitud Rechazada',
-          mensaje: `La solicitud ha sido rechazada. ${rejectionReason ? 'Motivo: ' + rejectionReason : ''}`,
-          tipo: 'danger'
-        })
-      }
     } catch (err: any) {
       console.error('Error procesando aprobación/rechazo:', err)
       setFeedbackModal({
@@ -401,9 +376,59 @@ export default function NotificacionesPage() {
       setIsProcessing(false)
     }
 
-    setIsConfirmModalOpen(false)
+    setShowApproveModalList(false)
     setSelectedNotif(null)
-    setConfirmAction(null)
+  }
+
+  const handleRejectConfirmList = async (reason: string) => {
+    if (!selectedNotif) return
+    const anyNotif: any = selectedNotif
+    const approvalType: string | undefined = anyNotif.approvalType
+    const entidadId = selectedNotif.entidadId
+    if (!approvalType || !entidadId) {
+      setFeedbackModal({
+        titulo: 'No se puede procesar',
+        mensaje: 'Esta notificación no tiene la información necesaria para ser rechazada.',
+        tipo: 'danger'
+      })
+      setShowRejectModalList(false)
+      return
+    }
+    setIsProcessing(true)
+    try {
+      await aprobacionesService.rechazar(entidadId, {
+        type: approvalType as any,
+        motivoRechazo: reason || 'Rechazado por el administrador',
+      })
+      setNotificacionesState(prev =>
+        prev.map(n =>
+          n.id === selectedNotif.id
+            ? {
+                ...n,
+                estado: 'RECHAZADA',
+                leida: true,
+                motivoRechazo: reason,
+              }
+            : n,
+        ),
+      )
+      setFeedbackModal({
+        titulo: 'Solicitud Rechazada',
+        mensaje: `La solicitud ha sido rechazada correctamente.`,
+        tipo: 'danger'
+      })
+    } catch (err: any) {
+      console.error('Error procesando rechazo:', err)
+      setFeedbackModal({
+        titulo: 'Error al procesar',
+        mensaje: err?.message || 'Ocurrió un error al procesar el rechazo.',
+        tipo: 'danger'
+      })
+    } finally {
+      setIsProcessing(false)
+      setShowRejectModalList(false)
+      setSelectedNotif(null)
+    }
   }
 
   const handleOpenDetail = (notif: Notificacion) => {
@@ -820,110 +845,16 @@ export default function NotificacionesPage() {
         canApprove={canApprove}
       />
 
-      {/* Modal de Confirmación */}
-      {isConfirmModalOpen && selectedNotif && confirmAction && (
-        <div 
-          onClick={() => {
-            setIsConfirmModalOpen(false)
-            setConfirmAction(null)
-          }}
-          className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md animate-in fade-in duration-200"
-        >
-          <div 
-            onClick={(e) => e.stopPropagation()}
-            className="bg-white rounded-[2.5rem] shadow-2xl p-8 max-w-sm w-full text-center space-y-6 animate-in zoom-in-95 duration-200"
-          >
-            <div className={`w-20 h-20 rounded-full flex items-center justify-center mx-auto shadow-inner ${
-              confirmAction === 'APPROVE' ? "bg-emerald-100 text-emerald-600" : "bg-rose-100 text-rose-600"
-            }`}>
-              {confirmAction === 'APPROVE' ? (
-                <CheckCircle2 className="h-10 w-10" />
-              ) : (
-                <AlertTriangle className="h-10 w-10" />
-              )}
-            </div>
-            
-            <div className="space-y-4">
-              <div className="space-y-2 text-center">
-                <h3 className="text-2xl font-black text-slate-900 tracking-tight">
-                  {confirmAction === 'APPROVE' ? 'Confirmar Aprobación' : 'Confirmar Rechazo'}
-                </h3>
-              </div>
-
-              {confirmAction === 'APPROVE' && editedDetails && editedDetails.monto !== undefined && (
-                <div className="p-4 bg-slate-50 rounded-[1.5rem] border border-slate-100 space-y-4 text-left">
-                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Ajustar parámetros finales</p>
-                  <div className="space-y-3">
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="col-span-2">
-                        <label className="text-[10px] font-bold text-slate-500 mb-1 ml-1 block">Monto Solicitado</label>
-                        <input 
-                          type="text" 
-                          value={formatCOPInput(editedDetails?.monto)}
-                          onChange={(e) => setEditedDetails({...(editedDetails || {}), monto: parseCOPInput(e.target.value)})}
-                          className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2 text-sm font-black text-slate-900 outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
-                        />
-                      </div>
-                      <div>
-                        <label className="text-[10px] font-bold text-slate-500 mb-1 ml-1 block">Cuotas</label>
-                        <input 
-                          type="number" 
-                          value={editedDetails?.cuotas || ''}
-                          onChange={(e) => setEditedDetails({...(editedDetails || {}), cuotas: Number(e.target.value)})}
-                          className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2 text-sm font-bold text-slate-900 outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
-                        />
-                      </div>
-                      <div>
-                        <label className="text-[10px] font-bold text-slate-500 mb-1 ml-1 block">Interés (%)</label>
-                        <input 
-                          type="number" 
-                          value={editedDetails?.porcentaje || ''}
-                          onChange={(e) => setEditedDetails({...(editedDetails || {}), porcentaje: Number(e.target.value)})}
-                          className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2 text-sm font-bold text-slate-900 outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {confirmAction === 'REJECT' && (
-                <div className="space-y-3 text-left">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Razón del rechazo</label>
-                  <textarea 
-                    value={rejectionReason}
-                    onChange={(e) => setRejectionReason(e.target.value)}
-                    placeholder="Escriba el motivo (ej: este gasto no es de la empresa)..."
-                    className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-4 text-sm font-medium text-slate-700 h-24 outline-none focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 resize-none"
-                  />
-                </div>
-              )}
-            </div>
-            
-            <div className="flex gap-3 pt-2">
-              <button 
-                onClick={() => {
-                  setIsConfirmModalOpen(false)
-                  setConfirmAction(null)
-                }}
-                className="flex-1 py-4 bg-slate-100 text-slate-600 font-black text-xs uppercase tracking-widest rounded-2xl hover:bg-slate-200 transition-all"
-              >
-                Cancelar
-              </button>
-              <button 
-                onClick={handleConfirmAction}
-                className={`flex-1 py-4 font-black text-xs uppercase tracking-widest rounded-2xl shadow-lg transition-all text-white ${
-                  confirmAction === 'APPROVE' 
-                    ? "bg-emerald-600 hover:bg-emerald-700 shadow-emerald-500/30" 
-                    : "bg-rose-600 hover:bg-rose-700 shadow-rose-500/30"
-                }`}
-              >
-                Confirmar
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <ConfirmRejectModal
+        isOpen={showRejectModalList && !!selectedNotif}
+        onClose={() => setShowRejectModalList(false)}
+        onConfirm={(motivo) => handleRejectConfirmList(motivo)}
+      />
+      <ConfirmApproveModal
+        isOpen={showApproveModalList && !!selectedNotif}
+        onClose={() => setShowApproveModalList(false)}
+        onConfirm={() => handleApproveConfirmList()}
+      />
 
       {/* Modal de Confirmación - Marcar Todas como Leídas */}
       <ConfirmModal
