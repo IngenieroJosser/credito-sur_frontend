@@ -46,6 +46,7 @@ import { StaticVisitaItem, SeleccionClienteModal } from '@/components/dashboards
 import NuevoClienteModal from '@/components/clientes/NuevoClienteModal'
 import { useAuth } from '@/hooks/useAuth'
 import CrearCreditoModal from '@/components/dashboards/shared/CrearCreditoModal'
+import ConfirmModal from '@/components/ui/ConfirmModal'
 import { prestamosService } from '@/services/prestamos-service'
 import { pagosService } from '@/services/pagos-service'
 import { FrecuenciaPago } from '@/types/enums'
@@ -82,6 +83,7 @@ const RutaClient = ({ initialRuta }: RutaClientProps) => {
   const [showNewClientModal, setShowNewClientModal] = useState(false)
   const [showCrearCreditoModal, setShowCrearCreditoModal] = useState(false)
   const [defaultClienteId, setDefaultClienteId] = useState<string | null>(null)
+  const [showCrearCreditoPrompt, setShowCrearCreditoPrompt] = useState(false)
 
   // Estados para filtros y historial (Portados de VistaCobrador)
   const [periodoRutaFiltro, setPeriodoRutaFiltro] = useState<'TODOS' | 'DIA' | 'SEMANA' | 'QUINCENA' | 'MES'>('TODOS')
@@ -939,12 +941,16 @@ const RutaClient = ({ initialRuta }: RutaClientProps) => {
           onClienteCreado={async (nuevo) => {
             setShowNewClientModal(false)
             if (nuevo?.id) {
-              const deseaCredito = typeof window !== 'undefined' ? window.confirm('¿Deseas crearle un crédito a este cliente ahora?') : false
-              if (deseaCredito) {
+              try {
+                if (initialRuta?.id && initialRuta?.cobradorId) {
+                  await routesService.assignClient(initialRuta.id, nuevo.id, initialRuta.cobradorId)
+                }
                 setDefaultClienteId(nuevo.id)
-                setShowCrearCreditoModal(true)
-              } else {
-                showNotification('success', 'Cliente creado correctamente', 'Éxito')
+                setShowCrearCreditoPrompt(true)
+              } catch (e) {
+                showNotification('warning', 'Cliente creado, pero no se pudo asignar automáticamente a la ruta', 'Aviso')
+                setDefaultClienteId(nuevo.id)
+                setShowCrearCreditoPrompt(true)
               }
             } else {
               showNotification('warning', 'Cliente creado, pero no se obtuvo el ID', 'Aviso')
@@ -952,6 +958,23 @@ const RutaClient = ({ initialRuta }: RutaClientProps) => {
           }}
         />
       )}
+      
+      <ConfirmModal
+        isOpen={showCrearCreditoPrompt}
+        onClose={() => {
+          setShowCrearCreditoPrompt(false)
+          showNotification('success', 'Cliente creado correctamente', 'Éxito')
+        }}
+        onConfirm={async () => {
+          setShowCrearCreditoPrompt(false)
+          setShowCrearCreditoModal(true)
+        }}
+        title="Crear crédito para el cliente"
+        message="¿Deseas crearle un crédito a este cliente ahora?"
+        confirmText="Sí, crear crédito"
+        cancelText="No, más tarde"
+        variant="info"
+      />
       
       {showCrearCreditoModal && (
         <CrearCreditoModal
