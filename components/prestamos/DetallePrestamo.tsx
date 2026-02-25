@@ -63,8 +63,8 @@ interface DetallePrestamoProps {
 export default function DetallePrestamo({ prestamo }: DetallePrestamoProps) {
   const [activeTab, setActiveTab] = useState<'info' | 'cuotas' | 'documentos'>('cuotas');
   const [showClienteModal, setShowClienteModal] = useState(false);
-  const [cuotaPage, setCuotaPage] = useState(1);
-  const CUOTAS_PER_PAGE = 5;
+  const [cuotaPage] = useState(1);
+  const CUOTAS_PER_PAGE = Number.MAX_SAFE_INTEGER;
 
   const isArticle = prestamo.tipoPrestamo?.toUpperCase() === 'ARTICULO';
 
@@ -392,9 +392,7 @@ export default function DetallePrestamo({ prestamo }: DetallePrestamoProps) {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-slate-100">
-                {cuotasConSaldo
-                  .slice((cuotaPage - 1) * CUOTAS_PER_PAGE, cuotaPage * CUOTAS_PER_PAGE)
-                  .map((cuota) => {
+                {cuotasConSaldo.map((cuota) => {
                     const esCuotaActual = cuotaActual && cuota.numero === cuotaActual.numero;
                     return (
                   <tr key={cuota.numero} className={cn(
@@ -436,44 +434,7 @@ export default function DetallePrestamo({ prestamo }: DetallePrestamoProps) {
               </tbody>
             </table>
 
-            {/* Paginador de cuotas */}
-            {cuotasConSaldo.length > CUOTAS_PER_PAGE && (
-              <div className="px-4 py-3 border-t border-slate-100 bg-slate-50/50 flex items-center justify-between">
-                <span className="text-xs font-medium text-slate-500">
-                  {(cuotaPage - 1) * CUOTAS_PER_PAGE + 1}–{Math.min(cuotaPage * CUOTAS_PER_PAGE, cuotasConSaldo.length)} de {cuotasConSaldo.length} cuotas
-                </span>
-                <div className="flex items-center gap-1">
-                  <button
-                    onClick={() => setCuotaPage(p => Math.max(1, p - 1))}
-                    disabled={cuotaPage === 1}
-                    className="p-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                  >
-                    <ChevronLeft className="w-4 h-4 text-slate-600" />
-                  </button>
-                  {Array.from({ length: Math.ceil(prestamo.cuotas.length / CUOTAS_PER_PAGE) }, (_, i) => i + 1).map(page => (
-                    <button
-                      key={page}
-                      onClick={() => setCuotaPage(page)}
-                      className={cn(
-                        "w-8 h-8 rounded-lg text-xs font-bold transition-colors",
-                        page === cuotaPage
-                          ? "bg-slate-900 text-white"
-                          : "bg-white border border-slate-200 text-slate-600 hover:bg-slate-50"
-                      )}
-                    >
-                      {page}
-                    </button>
-                  ))}
-                  <button
-                    onClick={() => setCuotaPage(p => Math.min(Math.ceil(prestamo.cuotas.length / CUOTAS_PER_PAGE), p + 1))}
-                    disabled={cuotaPage === Math.ceil(cuotasConSaldo.length / CUOTAS_PER_PAGE)}
-                    className="p-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                  >
-                    <ChevronRight className="w-4 h-4 text-slate-600" />
-                  </button>
-                </div>
-              </div>
-            )}
+            {/* Paginador de cuotas removido: se muestran todas las cuotas */}
             </div>
           </div>
         )}

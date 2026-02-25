@@ -284,7 +284,19 @@ export default function CrearCreditoModal({ isOpen, onClose, onConfirm, defaultC
                       <label className="block text-sm font-bold text-slate-700 mb-2">Frecuencia de Pago</label>
                       <select 
                          value={frecuenciaPago}
-                         onChange={(e) => setFrecuenciaPago(e.target.value)}
+                         onChange={(e) => {
+                           const val = e.target.value;
+                           setFrecuenciaPago(val);
+                           if (val === 'QUINCENAL') {
+                             const now = new Date();
+                             const y = now.getFullYear();
+                             const m = now.getMonth();
+                             const day = now.getDate();
+                             const target = new Date(y, day <= 15 ? m : m + 1, 15);
+                             const iso = target.toISOString().split('T')[0];
+                             setFechaPrimerCobro(iso);
+                           }
+                         }}
                          className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-[#08557f] focus:ring-0 font-medium text-slate-900"
                       >
                         <option value="DIARIO">Diario</option>
