@@ -793,7 +793,6 @@ export default function NotificacionDetalleModal({
     <Portal>
       <div 
         className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-200"
-        onClick={handleClose}
       >
         <div 
           className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-lg overflow-hidden animate-in zoom-in-95 duration-200 border border-slate-100 flex flex-col max-h-[90vh]"

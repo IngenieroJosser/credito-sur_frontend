@@ -11,6 +11,7 @@ interface ModalProps {
   children: React.ReactNode;
   footer?: React.ReactNode;
   size?: 'sm' | 'md' | 'lg' | 'xl';
+  backdropClosable?: boolean;
 }
 
 export const Modal: React.FC<ModalProps> = ({
@@ -19,7 +20,8 @@ export const Modal: React.FC<ModalProps> = ({
   title,
   children,
   footer,
-  size = 'md'
+  size = 'md',
+  backdropClosable = false
 }) => {
   const [mounted, setMounted] = useState(false);
 
@@ -50,7 +52,7 @@ export const Modal: React.FC<ModalProps> = ({
   return createPortal(
     <div 
       className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6"
-      onClick={onClose}
+      onClick={backdropClosable ? onClose : undefined}
     >
       {/* Backdrop */}
       <div 
