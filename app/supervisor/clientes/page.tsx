@@ -399,6 +399,13 @@ const ClientesSupervisorPage = () => {
                           <div className="text-xs text-slate-500 flex items-center mt-0.5 font-mono font-medium">
                               CC: {cliente.dni}
                           </div>
+                          {cliente.estadoAprobacion && cliente.estadoAprobacion !== 'APROBADO' && (
+                            <div className="mt-1">
+                              <span className="inline-flex items-center px-1.5 py-0.5 rounded-md text-[10px] font-bold bg-amber-100 text-amber-700 ring-1 ring-inset ring-amber-200 uppercase">
+                                {cliente.estadoAprobacion === 'PENDIENTE' ? 'Pendiente de Aprobación' : cliente.estadoAprobacion}
+                              </span>
+                            </div>
+                          )}
                         </div>
                       </div>
                     </td>

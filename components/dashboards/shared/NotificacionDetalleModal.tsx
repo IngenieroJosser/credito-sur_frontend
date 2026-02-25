@@ -266,6 +266,21 @@ export default function NotificacionDetalleModal({
   const isSolicitudBase = tipo === 'SOLICITUD_DINERO' || approvalType === 'SOLICITUD_BASE_EFECTIVO'
   const isArticle = isPrestamo && (editedDetails?.tipo === 'ARTICULO' || safeMeta?.tipo === 'ARTICULO' || titulo.toLowerCase().includes('artículo') || titulo.toLowerCase().includes('articulo') || mensaje.toLowerCase().includes('artículo') || mensaje.toLowerCase().includes('articulo'))
   const isApprovalNotification = Boolean(approvalType)
+  const isNuevoCliente = approvalType === 'NUEVO_CLIENTE'
+  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3001'
+  const mediaArchivos = (() => {
+    const meta = typeof notificacion.metadata === 'string' ? JSON.parse(notificacion.metadata) : (notificacion.metadata || {})
+    const dets = typeof notificacion.detalles === 'string' ? JSON.parse(notificacion.detalles) : (notificacion.detalles || {})
+    const arr = (dets.archivos || meta.archivos || []) as any[]
+    return Array.isArray(arr) ? arr : []
+  })()
+  const tipoLabels: Record<string, string> = {
+    FOTO_PERFIL: 'Foto de Perfil',
+    DOCUMENTO_IDENTIDAD_FRENTE: 'Documento Identidad (Frente)',
+    DOCUMENTO_IDENTIDAD_REVERSO: 'Documento Identidad (Reverso)',
+    COMPROBANTE_DOMICILIO: 'Comprobante de Domicilio',
+  }
+  const mensajeFmt = (mensaje || '').replace(/\bDNI\b/gi, 'CC')
 
   const handleClose = () => {
     setIsEditingMode(false)
@@ -344,6 +359,52 @@ export default function NotificacionDetalleModal({
       case 'SOLICITUD_DINERO': return 'bg-emerald-50 text-emerald-600 border-emerald-100'
       default: return 'bg-slate-50 text-slate-600 border-slate-100'
     }
+  }
+
+  const renderMedia = () => {
+    if (!isNuevoCliente) return null
+    return (
+      <div className="mt-6">
+        <div className="flex items-center justify-between mb-2">
+          <div className="text-xs font-black text-slate-500 uppercase tracking-widest">Archivos</div>
+          <div className="text-[10px] font-bold text-slate-400">
+            {mediaArchivos.length > 0 ? `${mediaArchivos.length} adjunto(s)` : 'Sin archivos adjuntos'}
+          </div>
+        </div>
+        {mediaArchivos.length === 0 ? (
+          <div className="p-4 rounded-xl border border-slate-200 bg-slate-50 text-xs text-slate-600">
+            Esta solicitud no incluye fotos ni videos. Puedes aprobar o rechazar con base en los datos capturados.
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+            {mediaArchivos.map((file, idx) => {
+              const url = file.url || file.path || file.ruta
+              const fullUrl = String(url || '').startsWith('http') ? url : `${baseUrl}${url || ''}`
+              const tipo = String(file.tipoArchivo || '').toLowerCase()
+              const ext = (String(fullUrl).split('.').pop() || '').toLowerCase()
+              const isImage = tipo.startsWith('image/') || /(jpg|jpeg|png|gif|webp)$/i.test(ext)
+              const isVideo = tipo.startsWith('video/') || /(mp4|webm)$/i.test(ext)
+              return (
+                <div key={`${idx}-${file.nombreAlmacenamiento || file.nombreOriginal || 'media'}`} className="border border-slate-200 rounded-xl overflow-hidden bg-slate-50">
+                  <div className="px-2 py-1 text-[10px] font-bold text-slate-600 border-b border-slate-200">
+                    {tipoLabels[file.tipoContenido] || (file.tipoContenido || 'Archivo')}
+                  </div>
+                  {isImage && (
+                    <img src={fullUrl} alt={file.nombreOriginal || 'archivo'} className="w-full h-32 object-cover" />
+                  )}
+                  {isVideo && (
+                    <video src={fullUrl} controls className="w-full h-32 object-cover" />
+                  )}
+                  {!isImage && !isVideo && (
+                    <div className="p-3 text-xs text-slate-600 break-all">{file.nombreOriginal || file.nombreAlmacenamiento || 'archivo'}</div>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </div>
+    )
   }
 
   const renderPrestamo = () => (
@@ -768,7 +829,7 @@ export default function NotificacionDetalleModal({
             <div>
               <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1 block pl-1">Mensaje de la Notificación</label>
               <p className="text-slate-600 text-sm font-medium bg-slate-50 p-4 rounded-2xl border border-slate-100 leading-relaxed italic">
-                &quot;{mensaje}&quot;
+                &quot;{mensajeFmt}&quot;
               </p>
             </div>
 
@@ -781,6 +842,42 @@ export default function NotificacionDetalleModal({
                   <p className="text-[9px] font-black text-amber-600 uppercase tracking-widest">Solicitado por</p>
                   <p className="text-sm font-black text-slate-900">{solicitante}</p>
                 </div>
+              </div>
+            )}
+
+            {isNuevoCliente && (
+              <div className="bg-slate-50 rounded-2xl border border-slate-100 p-5 space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-slate-600 font-medium">Nombre:</span>
+                      <span className="font-bold text-slate-900">{editedDetails?.nombres} {editedDetails?.apellidos}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-slate-600 font-medium">CC:</span>
+                      <span className="font-bold text-slate-900">{editedDetails?.dni || editedDetails?.cedula || safeMeta?.dni || safeMeta?.cedula}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-slate-600 font-medium">Teléfono:</span>
+                      <span className="font-bold text-slate-900">{editedDetails?.telefono}</span>
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-slate-600 font-medium">Dirección:</span>
+                      <span className="font-bold text-slate-900">{editedDetails?.direccion}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-slate-600 font-medium">Referencia:</span>
+                      <span className="font-bold text-slate-900">{editedDetails?.referencia}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-slate-600 font-medium">Correo:</span>
+                      <span className="font-bold text-slate-900">{editedDetails?.correo}</span>
+                    </div>
+                  </div>
+                </div>
+                {renderMedia()}
               </div>
             )}
 
