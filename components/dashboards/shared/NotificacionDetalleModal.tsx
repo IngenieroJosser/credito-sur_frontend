@@ -20,6 +20,8 @@ import { Portal } from '@/components/dashboards/shared/CobradorElements'
 import { formatCurrency, formatCOPInputValue, parseCOPInputToNumber } from '@/lib/utils'
 import { aprobacionesService } from '@/services/aprobaciones-service'
 import { articulosService } from '@/services/articulos-service'
+import ConfirmApproveModal from '@/components/ui/ConfirmApproveModal'
+import ConfirmRejectModal from '@/components/ui/ConfirmRejectModal'
 
 export interface NotificacionDetalleModalProps {
   isOpen: boolean
@@ -41,7 +43,8 @@ export default function NotificacionDetalleModal({
   const [isEditingMode, setIsEditingMode] = useState(false)
   const [editedDetails, setEditedDetails] = useState<any>(notificacion?.detalles || {})
   const [actionComment, setActionComment] = useState('')
-  const [confirmAction, setConfirmAction] = useState<'APPROVE' | 'REJECT' | null>(null)
+  const [showApproveModal, setShowApproveModal] = useState(false)
+  const [showRejectModal, setShowRejectModal] = useState(false)
   const [isProcessing, setIsProcessing] = useState(false)
   const [history, setHistory] = useState<any[]>([])
   const [isLoadingHistory, setIsLoadingHistory] = useState(false)
@@ -49,7 +52,6 @@ export default function NotificacionDetalleModal({
   const [planIndex, setPlanIndex] = React.useState<number | null>(null)
   const [autoCuotas, setAutoCuotas] = useState(true)
   const [esContado, setEsContado] = useState(false)
-  const [confirmRejectChecked, setConfirmRejectChecked] = useState(false)
 
   React.useEffect(() => {
     if (notificacion) {
@@ -285,49 +287,39 @@ export default function NotificacionDetalleModal({
 
   const handleClose = () => {
     setIsEditingMode(false)
-    setConfirmAction(null)
     setActionComment('')
     onClose()
   }
 
-  const handleConfirmAction = async () => {
+  const approveNow = async () => {
     if (!notificacion.entidadId || !approvalType) return
     setIsProcessing(true)
     try {
-      if (confirmAction === 'APPROVE') {
-        let finalDetails = editedDetails
-        if (isPrestamo && isArticle && esContado) {
-          const precioContado = (() => {
-            if (articuloData) {
-              return Number(articuloData.precioContado || articuloData.precioBase || editedDetails?.valorArticulo || editedDetails?.monto || 0)
-            }
-            return Number(editedDetails?.valorArticulo || editedDetails?.monto || 0)
-          })()
-          const inicial = Number(editedDetails?.cuotaInicial || 0)
-          const montoFinanciar = Math.max(0, precioContado - inicial)
-          finalDetails = {
-            ...editedDetails,
-            monto: montoFinanciar,
-            valorArticulo: precioContado,
-            porcentaje: 0,
-            cuotas: 1,
-            numCuotas: 1,
-            cantidadCuotas: 1,
-            plazoMeses: 1,
-            frecuenciaPago: 'MENSUAL',
-            ventaContado: true,
+      let finalDetails = editedDetails
+      if (isPrestamo && isArticle && esContado) {
+        const precioContado = (() => {
+          if (articuloData) {
+            return Number(articuloData.precioContado || articuloData.precioBase || editedDetails?.valorArticulo || editedDetails?.monto || 0)
           }
+          return Number(editedDetails?.valorArticulo || editedDetails?.monto || 0)
+        })()
+        const inicial = Number(editedDetails?.cuotaInicial || 0)
+        const montoFinanciar = Math.max(0, precioContado - inicial)
+        finalDetails = {
+          ...editedDetails,
+          monto: montoFinanciar,
+          valorArticulo: precioContado,
+          porcentaje: 0,
+          cuotas: 1,
+          numCuotas: 1,
+          cantidadCuotas: 1,
+          plazoMeses: 1,
+          frecuenciaPago: 'MENSUAL',
+          ventaContado: true,
         }
-        finalDetails = { ...finalDetails, comentarios: actionComment.trim() }
-        await onApprove(notificacion.entidadId, approvalType, finalDetails)
-      } else if (confirmAction === 'REJECT') {
-        const motivo = actionComment.trim()
-        if (!motivo) {
-          setIsProcessing(false)
-          return
-        }
-        await onReject(notificacion.entidadId, approvalType, motivo)
       }
+      finalDetails = { ...finalDetails }
+      await onApprove(notificacion.entidadId, approvalType, finalDetails)
       handleClose()
     } catch (error) {
       console.error('Error processing notification action:', error)
@@ -335,7 +327,19 @@ export default function NotificacionDetalleModal({
       setIsProcessing(false)
     }
   }
-  const [confirmRejectChecked, setConfirmRejectChecked] = useState(false)
+
+  const rejectNow = async (motivo: string) => {
+    if (!notificacion.entidadId || !approvalType) return
+    setIsProcessing(true)
+    try {
+      await onReject(notificacion.entidadId, approvalType, motivo)
+      handleClose()
+    } catch (error) {
+      console.error('Error processing notification action:', error)
+    } finally {
+      setIsProcessing(false)
+    }
+  }
 
   const formatCOPInput = (val: number | undefined) => {
     if (val === undefined || val === 0) return ''
@@ -970,13 +974,13 @@ export default function NotificacionDetalleModal({
             {estado === 'PENDIENTE' && canApprove && isApprovalNotification && (
               <>
                 <button 
-                  onClick={() => setConfirmAction('REJECT')}
+                  onClick={() => setShowRejectModal(true)}
                   className="flex-1 py-4 bg-white border border-rose-200 text-rose-600 font-black text-[11px] uppercase tracking-widest rounded-2xl hover:bg-rose-50 transition-all shadow-sm hover:shadow-md"
                 >
                   Rechazar
                 </button>
                 <button 
-                  onClick={() => setConfirmAction('APPROVE')}
+                  onClick={() => setShowApproveModal(true)}
                   className="flex-1 py-4 bg-slate-900 text-white font-black text-[11px] uppercase tracking-widest rounded-2xl hover:bg-slate-800 shadow-xl shadow-slate-900/20 transition-all border border-slate-700"
                 >
                   Aprobar Ahora
@@ -993,77 +997,16 @@ export default function NotificacionDetalleModal({
             )}
           </div>
 
-          {/* Confirmation Overlays */}
-          {confirmAction && (
-            <div className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm z-[110] flex items-center justify-center p-4 animate-in fade-in duration-300">
-              <div className="bg-white rounded-2xl shadow-2xl border border-slate-100 w-full max-w-md p-6 text-center">
-                <div className={`w-20 h-20 rounded-full mx-auto flex items-center justify-center mb-5 shadow-xl ${
-                  confirmAction === 'APPROVE' ? "bg-emerald-100 text-emerald-600 shadow-emerald-500/20" : "bg-rose-100 text-rose-600 shadow-rose-500/20"
-                }`}>
-                  {confirmAction === 'APPROVE' ? <CheckCircle2 className="h-10 w-10" /> : <AlertTriangle className="h-10 w-10" />}
-                </div>
-                
-                <h3 className="text-2xl font-black text-slate-900 tracking-tight">
-                  {confirmAction === 'APPROVE' ? '¿Confirmar Aprobación?' : '¿Confirmar Rechazo?'}
-                </h3>
-                <p className="text-slate-500 text-sm mt-2 font-medium">
-                  {confirmAction === 'APPROVE' 
-                    ? 'Se generarán los movimientos correspondientes y se notificará al solicitante.' 
-                    : 'Esta acción detendrá el proceso y se informará al solicitante el motivo.'}
-                </p>
-
-                <div className="text-left space-y-2 mt-5">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
-                    {confirmAction === 'APPROVE' ? 'Comentario de Aprobación' : 'Motivo del Rechazo'}
-                  </label>
-                  <textarea 
-                    value={actionComment}
-                    onChange={(e) => setActionComment(e.target.value)}
-                    placeholder={confirmAction === 'APPROVE' ? 'Ej: Condiciones revisadas, cliente calificado, etc...' : 'Ej: Información insuficiente, monto excedido, etc...'}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-[1.5rem] p-4 text-sm font-medium text-slate-800 h-28 outline-none focus:ring-4 focus:ring-slate-500/5 focus:border-slate-500 resize-none transition-all shadow-inner"
-                  />
-                {confirmAction === 'REJECT' && !actionComment.trim() && (
-                  <p className="text-[10px] font-bold text-rose-600 ml-1">Debes ingresar el motivo del rechazo.</p>
-                )}
-                {confirmAction === 'REJECT' && (
-                  <label className="inline-flex items-center gap-2 text-[10px] font-bold text-slate-600 ml-1 mt-1">
-                    <input 
-                      type="checkbox" 
-                      checked={confirmRejectChecked} 
-                      onChange={(e) => setConfirmRejectChecked(e.target.checked)} 
-                      className="rounded border-slate-300"
-                    />
-                    Confirmo que deseo rechazar esta solicitud
-                  </label>
-                )}
-                </div>
-
-                <div className="flex gap-4 pt-5">
-                  <button 
-                    disabled={isProcessing}
-                    onClick={() => {
-                      setConfirmAction(null)
-                      setActionComment('')
-                    }}
-                    className="flex-1 py-3 bg-slate-100 text-slate-600 font-black text-[11px] uppercase tracking-widest rounded-2xl hover:bg-slate-200 transition-all disabled:opacity-50"
-                  >
-                    Volver
-                  </button>
-                  <button 
-                  disabled={isProcessing || (confirmAction === 'REJECT' && (!actionComment.trim() || !confirmRejectChecked))}
-                    onClick={handleConfirmAction}
-                    className={`flex-1 py-3 font-black text-[11px] uppercase tracking-widest rounded-2xl shadow-xl transition-all text-white disabled:opacity-50 ${
-                      confirmAction === 'APPROVE' 
-                        ? "bg-emerald-600 hover:bg-emerald-700 shadow-emerald-500/30" 
-                        : "bg-rose-600 hover:bg-rose-700 shadow-rose-500/30"
-                    }`}
-                  >
-                    {isProcessing ? 'Procesando...' : 'Confirmar'}
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
+          <ConfirmRejectModal
+            isOpen={showRejectModal}
+            onClose={() => setShowRejectModal(false)}
+            onConfirm={(motivo) => rejectNow(motivo)}
+          />
+          <ConfirmApproveModal
+            isOpen={showApproveModal}
+            onClose={() => setShowApproveModal(false)}
+            onConfirm={() => approveNow()}
+          />
         </div>
       </div>
     </Portal>
