@@ -55,7 +55,7 @@ export default function CrearCreditoModal({ isOpen, onClose, onConfirm, defaultC
     const tzAdjusted = new Date(now.getTime() - now.getTimezoneOffset() * 60000)
     return tzAdjusted.toISOString().slice(0, 16) // YYYY-MM-DDTHH:mm
   })
-  const [frecuenciaPago, setFrecuenciaPago] = useState('Diaria')
+  const [frecuenciaPago, setFrecuenciaPago] = useState('DIARIO')
   const [fechaPrimerCobro, setFechaPrimerCobro] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
   
@@ -137,7 +137,7 @@ export default function CrearCreditoModal({ isOpen, onClose, onConfirm, defaultC
     setCuotaInicialArticuloInput('')
     setArticuloSeleccionadoId('')
     setPlanArticuloIndex(null)
-    setFrecuenciaPago('Diaria')
+    setFrecuenciaPago('DIARIO')
     {
       const now = new Date()
       const tzAdjusted = new Date(now.getTime() - now.getTimezoneOffset() * 60000)

@@ -46,8 +46,9 @@ import { VisitaRuta, EstadoVisita } from '@/lib/types/cobranza'
 import { StaticVisitaItem, SeleccionClienteModal, Portal } from '@/components/dashboards/shared/CobradorElements'
 import NuevoClienteModal from '@/components/clientes/NuevoClienteModal'
 import { useAuth } from '@/hooks/useAuth'
-import CreacionUnificada from '@/components/creditos/CreacionUnificada'
 import ConfirmModal from '@/components/ui/ConfirmModal'
+import CrearCreditoModal from '@/components/dashboards/shared/CrearCreditoModal'
+import { creditosService } from '@/services/creditos-service'
 import { prestamosService } from '@/services/prestamos-service'
 import { pagosService } from '@/services/pagos-service'
 import { FrecuenciaPago } from '@/types/enums'
@@ -999,23 +1000,62 @@ const RutaClient = ({ initialRuta }: RutaClientProps) => {
       {/* Modal de selección de caja principal removido en detalle de ruta */}
       
       {showCrearCreditoModal && (
-        <Portal>
-           <div className="fixed inset-0 z-[2147483600] flex items-center justify-center p-4 md:p-10 bg-slate-900/60 backdrop-blur-md animate-in fade-in duration-300">
-              <div className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-5xl overflow-hidden animate-in zoom-in-95 duration-300 border border-slate-100 flex flex-col max-h-[95vh]">
-                 <div className="overflow-y-auto custom-scrollbar p-6 md:p-10">
-                    <CreacionUnificada 
-                        isModal={true} 
-                        initialClienteId={selectedClienteForCredito?.clienteId || defaultClienteId || undefined} 
-                        onClose={() => {
-                            setShowCrearCreditoModal(false);
-                            setSelectedClienteForCredito(null);
-                            setDefaultClienteId(null);
-                        }} 
-                    />
-                 </div>
-              </div>
-           </div>
-        </Portal>
+        <CrearCreditoModal
+          isOpen={showCrearCreditoModal}
+          defaultClienteId={selectedClienteForCredito?.clienteId || defaultClienteId || undefined}
+          onClose={() => {
+            setShowCrearCreditoModal(false);
+            setSelectedClienteForCredito(null);
+            setDefaultClienteId(null);
+          }}
+          onConfirm={async (data: any) => {
+            try {
+              const payload = {
+                ...data,
+                creadoPorId: currentUser?.id || ''
+              };
+              
+              if (data.creditType === 'prestamo') {
+                await prestamosService.crearPrestamo({
+                  clienteId: data.clienteCreditoId,
+                  tipoPrestamo: 'EFECTIVO',
+                  monto: data.monto,
+                  tasaInteres: data.tasaInteres,
+                  tasaInteresMora: 2.0,
+                  plazoMeses: data.cuotasTotales,
+                  frecuenciaPago: data.frecuenciaPago,
+                  fechaInicio: data.fechaInicio,
+                  creadoPorId: currentUser?.id || ''
+                } as any);
+              } else {
+                await creditosService.crearCredito(payload as any);
+              }
+
+              // Asignar cliente a la ruta automáticamente si estamos en el detalle de una ruta
+              if (initialRuta?.id) {
+                try {
+                  await rutasService.asignarCliente(
+                    initialRuta.id,
+                    data.clienteCreditoId,
+                    initialRuta.cobradorId || ''
+                  );
+                } catch (assignError) {
+                  console.error('Error al asignar cliente a la ruta:', assignError);
+                  // No bloqueamos el flujo principal si falla la asignación (puede que ya esté asignado)
+                }
+              }
+              
+              showNotification('success', 'Crédito creado y cliente asignado a la ruta', 'Operación completada');
+              setShowCrearCreditoModal(false);
+              setSelectedClienteForCredito(null);
+              setDefaultClienteId(null);
+              router.refresh();
+            } catch (error) {
+              console.error('Error al crear crédito:', error);
+              showNotification('error', 'No se pudo crear el crédito', 'Error');
+            }
+          }}
+        />
       )}
     </div>
   )

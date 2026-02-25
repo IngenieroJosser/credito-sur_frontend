@@ -35,6 +35,8 @@ import { usePermission } from '@/hooks/usePermission';
 import { offlineStore } from '@/lib/offline/offlineDb';
 import CrearCreditoModal from '@/components/dashboards/shared/CrearCreditoModal';
 import { getCajas, createTransaccion, Caja } from '@/services/contabilidad-service';
+import { prestamosService } from '@/services/prestamos-service';
+import { creditosService } from '@/services/creditos-service';
 import ConfirmModal from '@/components/ui/ConfirmModal';
 
 interface Ruta {
@@ -1620,10 +1622,36 @@ export const RutasPageView = ({
       <CrearCreditoModal
         isOpen={showCrearCreditoModal}
         onClose={() => setShowCrearCreditoModal(false)}
-        onConfirm={(data) => {
-          setShowCrearCreditoModal(false);
-          showNotification('success', 'Crédito creado exitosamente', 'Operación completada');
-          // Crédito creado exitosamente
+        onConfirm={async (data: any) => {
+          try {
+            const payload = {
+              ...data,
+              creadoPorId: currentUser?.id || ''
+            };
+            
+            if (data.creditType === 'prestamo') {
+              await prestamosService.crearPrestamo({
+                clienteId: data.clienteCreditoId,
+                tipoPrestamo: 'EFECTIVO',
+                monto: data.monto,
+                tasaInteres: data.tasaInteres,
+                tasaInteresMora: 2.0,
+                plazoMeses: data.cuotasTotales,
+                frecuenciaPago: data.frecuenciaPago,
+                fechaInicio: data.fechaInicio,
+                creadoPorId: currentUser?.id || ''
+              } as any);
+            } else {
+              await creditosService.crearCredito(payload as any);
+            }
+            
+            showNotification('success', 'Crédito creado exitosamente', 'Operación completada');
+            setShowCrearCreditoModal(false);
+            router.refresh();
+          } catch (error) {
+            console.error('Error al crear crédito:', error);
+            showNotification('error', 'No se pudo crear el crédito', 'Error');
+          }
         }}
       />
     </div>

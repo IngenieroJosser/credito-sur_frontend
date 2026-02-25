@@ -147,6 +147,7 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
     base: number
   }>({ recaudo: 0, meta: 0, eficiencia: 0, gastos: 0, base: 0 })
   const router = useRouter();
+  const [rutaInfo, setRutaInfo] = useState<{ id: string; cobradorId: string } | null>(null);
 
   // Datos base
   const [visitasBase, setVisitasBase] = useState<VisitaRuta[]>([])
@@ -302,6 +303,7 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
 
         if (rutaId) {
           const ruta = await rutasService.obtenerRutaPorId(rutaId)
+          setRutaInfo({ id: ruta.id, cobradorId: ruta.cobradorId });
 
           try {
             const est: any = (ruta as any).estadisticas || {}
@@ -864,9 +866,22 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
 
       await prestamosService.crearPrestamo(payload)
       
+      // Asignar cliente a la ruta automáticamente si estamos en una ruta específica
+      if (rutaId) {
+        try {
+          await rutasService.asignarCliente(
+            rutaId,
+            data.clienteCreditoId,
+            rutaInfo?.cobradorId || ''
+          );
+        } catch (assignError) {
+          console.error('Error al asignar cliente a la ruta:', assignError);
+        }
+      }
+
       setModalAlerta({
         titulo: 'Crédito Creado',
-        mensaje: 'El crédito ha sido registrado exitosamente y está listo para gestión.',
+        mensaje: 'El crédito ha sido registrado exitosamente y el cliente vinculado a esta ruta.',
         tipo: 'exito'
       })
       setShowCreditModal(false)

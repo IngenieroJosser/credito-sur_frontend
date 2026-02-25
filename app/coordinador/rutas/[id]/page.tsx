@@ -39,8 +39,11 @@ import {
 import ReprogramarModal from '@/components/cobranza/ReprogramarModal'
 import PagoModal from '@/components/cobranza/PagoModal'
 import EstadoCuentaModal from '@/components/cobranza/EstadoCuentaModal'
-import CreacionUnificada from '@/components/creditos/CreacionUnificada'
 import AnimacionCarga from '@/components/ui/AnimacionCarga'
+import CrearCreditoModal from '@/components/dashboards/shared/CrearCreditoModal'
+import { creditosService } from '@/services/creditos-service'
+import { useNotification } from '@/components/providers/NotificationProvider'
+import { useAuth } from '@/hooks/useAuth'
 import { prestamosService } from '@/services/prestamos-service'
 import { pagosService } from '@/services/pagos-service'
 import { obtenerSaldoDisponibleRuta } from '@/services/contabilidad-service'
@@ -60,6 +63,8 @@ interface ClienteRuta {
 }
 
 const DetalleRutaPage = () => {
+  const { showNotification } = useNotification()
+  const { user: currentUser } = useAuth()
   const params = useParams()
   // Manejo seguro del ID de la ruta
   const rutaId = params?.id ? decodeURIComponent(params.id as string) : 'Desconocida'
@@ -82,10 +87,12 @@ const DetalleRutaPage = () => {
   const [periodoRutaFiltro, setPeriodoRutaFiltro] = useState<'TODOS' | 'DIA' | 'SEMANA' | 'QUINCENA' | 'MES'>('TODOS')
 
   const [rutaActual, setRutaActual] = useState<{ 
+    id?: string;
     nombre: string | null; 
     activa: boolean;
     codigo?: string;
     cobrador?: string;
+    cobradorId?: string;
     nivelRiesgo?: string;
     estadisticas?: any;
   } | null>(null)
@@ -293,10 +300,12 @@ const DetalleRutaPage = () => {
 
                 const rExtra = ruta as any;
                 setRutaActual({ 
+                  id: ruta.id,
                   nombre: ruta.nombre, 
                   activa: ruta.activa,
                   codigo: rExtra.codigo,
                   cobrador: rExtra.cobrador?.nombres ? `${rExtra.cobrador.nombres} ${rExtra.cobrador.apellidos || ''}` : rExtra.cobrador || 'Desconocido',
+                  cobradorId: ruta.cobradorId,
                   nivelRiesgo: rExtra.nivelRiesgo || 'VERDE',
                   estadisticas: rExtra.estadisticas || {
                     cobranzaDelDia: cobranzaDia,
@@ -1008,19 +1017,58 @@ const DetalleRutaPage = () => {
       )}
 
       {showNuevoCreditoModal && (
-        <Portal>
-           <div className="fixed inset-0 z-[2147483600] flex items-center justify-center p-4 md:p-10 bg-slate-900/60 backdrop-blur-md animate-in fade-in duration-300">
-              <div className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-5xl overflow-hidden animate-in zoom-in-95 duration-300 border border-slate-100 flex flex-col max-h-[95vh]">
-                 <div className="overflow-y-auto custom-scrollbar p-6 md:p-10">
-                    <CreacionUnificada 
-                        isModal={true} 
-                        initialClienteId={selectedClienteForCredito?.clienteId} 
-                        onClose={() => setShowNuevoCreditoModal(false)} 
-                    />
-                 </div>
-              </div>
-           </div>
-        </Portal>
+        <CrearCreditoModal
+          isOpen={showNuevoCreditoModal}
+          defaultClienteId={selectedClienteForCredito?.clienteId || undefined}
+          onClose={() => {
+            setShowNuevoCreditoModal(false);
+            setSelectedClienteForCredito(null);
+          }}
+          onConfirm={async (data: any) => {
+            try {
+              const payload = {
+                ...data,
+                creadoPorId: currentUser?.id || ''
+              };
+              
+              if (data.creditType === 'prestamo') {
+                await prestamosService.crearPrestamo({
+                  clienteId: data.clienteCreditoId,
+                  tipoPrestamo: 'EFECTIVO',
+                  monto: data.monto,
+                  tasaInteres: data.tasaInteres,
+                  tasaInteresMora: 2.0,
+                  plazoMeses: data.cuotasTotales,
+                  frecuenciaPago: data.frecuenciaPago,
+                  fechaInicio: data.fechaInicio,
+                  creadoPorId: currentUser?.id || ''
+                } as any);
+              } else {
+                await creditosService.crearCredito(payload as any);
+              }
+
+              // Asignar cliente a la ruta automáticamente
+              if (rutaActual?.id) {
+                try {
+                  await rutasService.asignarCliente(
+                    rutaActual.id,
+                    data.clienteCreditoId,
+                    rutaActual.cobradorId || ''
+                  );
+                } catch (assignError) {
+                  console.error('Error al asignar cliente a la ruta:', assignError);
+                }
+              }
+              
+              showNotification('success', 'Crédito creado y cliente asignado a la ruta', 'Operación completada');
+              setShowNuevoCreditoModal(false);
+              setSelectedClienteForCredito(null);
+            } catch (error) {
+              console.error('Error al crear crédito:', error);
+              showNotification('error', 'No se pudo crear el crédito', 'Error');
+            }
+          }}
+        />
       )}
     </div>
   )
