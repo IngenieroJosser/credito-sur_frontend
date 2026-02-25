@@ -1060,7 +1060,7 @@ const DetalleRutaPage = () => {
                 }
               }
               
-              showNotification('success', 'Crédito creado y cliente asignado a la ruta', 'Operación completada');
+              showNotification('success', 'Crédito creado (Pendiente de Aprobación) y cliente vinculado a la ruta', 'Operación completada');
               setShowNuevoCreditoModal(false);
               setSelectedClienteForCredito(null);
             } catch (error) {

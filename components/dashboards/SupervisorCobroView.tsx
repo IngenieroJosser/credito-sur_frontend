@@ -881,7 +881,7 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
 
       setModalAlerta({
         titulo: 'Crédito Creado',
-        mensaje: 'El crédito ha sido registrado exitosamente y el cliente vinculado a esta ruta.',
+        mensaje: 'El crédito ha sido registrado (Pendiente de Aprobación) y el cliente vinculado a esta ruta.',
         tipo: 'exito'
       })
       setShowCreditModal(false)

@@ -1045,7 +1045,7 @@ const RutaClient = ({ initialRuta }: RutaClientProps) => {
                 }
               }
               
-              showNotification('success', 'Crédito creado y cliente asignado a la ruta', 'Operación completada');
+              showNotification('success', 'Crédito creado (Pendiente de Aprobación) y cliente vinculado a la ruta', 'Operación completada');
               setShowCrearCreditoModal(false);
               setSelectedClienteForCredito(null);
               setDefaultClienteId(null);
