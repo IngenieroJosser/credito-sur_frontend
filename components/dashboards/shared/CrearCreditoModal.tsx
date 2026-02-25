@@ -50,7 +50,11 @@ export default function CrearCreditoModal({ isOpen, onClose, onConfirm, defaultC
   const [tasaInteresInput, setTasaInteresInput] = useState('10')
   const [cuotasPrestamoInput, setCuotasPrestamoInput] = useState('12')
   const [cuotaInicialArticuloInput, setCuotaInicialArticuloInput] = useState('')
-  const [fechaCreditoInput, setFechaCreditoInput] = useState(new Date().toISOString().split('T')[0])
+  const [fechaCreditoInput, setFechaCreditoInput] = useState(() => {
+    const now = new Date()
+    const tzAdjusted = new Date(now.getTime() - now.getTimezoneOffset() * 60000)
+    return tzAdjusted.toISOString().slice(0, 16) // YYYY-MM-DDTHH:mm
+  })
   const [frecuenciaPago, setFrecuenciaPago] = useState('Diaria')
   const [fechaPrimerCobro, setFechaPrimerCobro] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -134,7 +138,11 @@ export default function CrearCreditoModal({ isOpen, onClose, onConfirm, defaultC
     setArticuloSeleccionadoId('')
     setPlanArticuloIndex(null)
     setFrecuenciaPago('Diaria')
-    setFechaCreditoInput(new Date().toISOString().split('T')[0])
+    {
+      const now = new Date()
+      const tzAdjusted = new Date(now.getTime() - now.getTimezoneOffset() * 60000)
+      setFechaCreditoInput(tzAdjusted.toISOString().slice(0, 16))
+    }
     onClose()
   }
 
@@ -288,7 +296,7 @@ export default function CrearCreditoModal({ isOpen, onClose, onConfirm, defaultC
                     <div>
                       <label className="block text-sm font-bold text-slate-700 mb-2">Fecha Crédito</label>
                        <input 
-                          type="date"
+                          type="datetime-local"
                           value={fechaCreditoInput}
                           readOnly
                           className="w-full px-4 py-3 bg-slate-100 border border-slate-200 rounded-xl focus:outline-none font-medium text-slate-500 cursor-not-allowed"
@@ -414,7 +422,7 @@ export default function CrearCreditoModal({ isOpen, onClose, onConfirm, defaultC
                   <div>
                     <label className="block text-sm font-bold text-slate-700 mb-2">Fecha Crédito</label>
                     <input 
-                       type="date"
+                       type="datetime-local"
                        value={fechaCreditoInput}
                        readOnly
                        className="w-full px-4 py-3 bg-slate-100 border border-slate-200 rounded-xl focus:outline-none font-bold text-slate-500 cursor-not-allowed"
@@ -515,7 +523,7 @@ export default function CrearCreditoModal({ isOpen, onClose, onConfirm, defaultC
                             tasaInteres: Number(tasaInteresInput),
                             cuotasTotales: Number(cuotasPrestamoInput),
                             frecuenciaPago,
-                            fechaInicio: fechaCreditoInput,
+                            fechaInicio: new Date(fechaCreditoInput).toISOString(),
                             fechaPrimerCobro
                           }
                         : {
@@ -534,7 +542,7 @@ export default function CrearCreditoModal({ isOpen, onClose, onConfirm, defaultC
                             monto: calculoCreditoArticulo?.precioTotal || 0,
                             cuotaInicialArticulo: parseCOPInputToNumber(cuotaInicialArticuloInput),
                             frecuenciaPago: esContado ? 'MENSUAL' : frecuenciaPago,
-                            fechaInicio: fechaCreditoInput,
+                            fechaInicio: new Date(fechaCreditoInput).toISOString(),
                             plazoMeses: esContado ? 1 : mesesPlan,
                             numCuotas: esContado ? 1 : (calculoCreditoArticulo?.numCuotas || 0),
                             ventaContado: esContado ? true : undefined
