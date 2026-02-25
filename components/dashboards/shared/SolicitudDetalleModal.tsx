@@ -110,21 +110,23 @@ export default function SolicitudDetalleModal({ isOpen, onClose, solicitud, onRe
               </div>
           </div>
 
-          {/* Action Area */}
+          {/* Action Area mejorada */}
           {!readOnly && (
-            <div className="p-6 bg-slate-50/50 border-t border-slate-100 flex justify-end gap-3">
-               <button 
-                 onClick={() => setShowRejectModal(true)}
-                 className="px-5 py-2.5 bg-white border border-rose-200 text-rose-600 font-bold rounded-xl hover:bg-rose-50 transition-all shadow-sm text-sm"
-               >
-                 Rechazar
-               </button>
-               <button 
-                 onClick={() => setShowApproveModal(true)}
-                 className="px-5 py-2.5 bg-blue-600 border border-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 transition-all shadow-md shadow-blue-600/20 text-sm"
-               >
-                 Aprobar
-               </button>
+            <div className="p-6 bg-slate-50 border-t border-slate-100 flex items-center justify-end gap-3 sticky bottom-0 z-10">
+              <button 
+                onClick={() => setShowRejectModal(true)}
+                className="px-5 py-2.5 bg-white border border-rose-200 text-rose-600 font-bold rounded-2xl hover:bg-rose-50 transition-all shadow-sm text-sm"
+                title="Rechazar solicitud"
+              >
+                Rechazar
+              </button>
+              <button 
+                onClick={() => setShowApproveModal(true)}
+                className="px-5 py-2.5 bg-emerald-600 border border-emerald-600 text-white font-bold rounded-2xl hover:bg-emerald-700 transition-all shadow-md shadow-emerald-600/20 text-sm"
+                title="Aprobar solicitud"
+              >
+                Aprobar
+              </button>
             </div>
           )}
 
