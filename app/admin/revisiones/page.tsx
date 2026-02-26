@@ -34,7 +34,6 @@ import {
   User,
   Ban,
   RotateCcw,
-  ShieldAlert,
   Calendar,
 } from 'lucide-react'
 import { formatCurrency } from '@/lib/utils'
@@ -43,6 +42,7 @@ import { TipoAprobacion } from '@/types/enums'
 import { toast } from 'sonner'
 import { useNotificaciones } from '@/components/providers/NotificacionesProvider'
 import NotificacionDetalleModal from '@/components/dashboards/shared/NotificacionDetalleModal'
+import ConfirmRejectModal from '@/components/ui/ConfirmRejectModal'
 
 // Configuración de categorías con meta visual
 const CATEGORIAS: Record<string, { label: string; icon: any; color: string; bgColor: string; borderColor: string; tipoNotif: string }> = {
@@ -99,57 +99,24 @@ const CATEGORIAS: Record<string, { label: string; icon: any; color: string; bgCo
 const formatFecha = (iso: string | null | undefined) => {
   if (!iso) return '—'
   const d = new Date(iso)
-  return d.toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+  return d.toLocaleDateString('es-ES', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })
 }
 
 /**
- * Transforma una Aprobacion del backend al formato que espera NotificacionDetalleModal
- * para poder reutilizar toda la UI de detalle de créditos, clientes, gastos, etc.
+ * Transforma un objeto de aprobación al formato que recibe NotificacionDetalleModal
  */
-function aprobacionToNotificacion(item: Aprobacion) {
+const aprobacionToNotificacion = (item: Aprobacion) => {
   const datos = item.datosSolicitud || {}
   const cat = CATEGORIAS[item.tipoAprobacion] || CATEGORIAS.BAJA_POR_PERDIDA
-
-  // Construir título legible
-  let titulo = ''
-  let mensaje = ''
-  switch (item.tipoAprobacion) {
-    case 'NUEVO_CLIENTE':
-      titulo = 'Nueva solicitud de cliente'
-      mensaje = `Solicitud de registro del cliente ${datos.nombres || ''} ${datos.apellidos || ''} con DNI ${datos.dni || 'N/A'}.`
-      break
-    case 'NUEVO_PRESTAMO':
-      titulo = datos.tipo === 'ARTICULO' || datos.tipoPrestamo === 'ARTICULO'
-        ? 'Solicitud de crédito por un artículo'
-        : 'Solicitud de préstamo'
-      mensaje = `Solicitud de crédito para ${datos.cliente || 'cliente'} por ${formatCurrency(Number(datos.monto || datos.valorArticulo || item.montoSolicitud || 0))}.`
-      break
-    case 'GASTO':
-      titulo = 'Solicitud de gasto'
-      mensaje = `Gasto operativo: ${datos.descripcion || 'Sin descripción'} por ${formatCurrency(Number(datos.monto || item.montoSolicitud || 0))}.`
-      break
-    case 'SOLICITUD_BASE_EFECTIVO':
-      titulo = 'Solicitud de base de efectivo'
-      mensaje = `${datos.descripcion || 'Solicitud'} por ${formatCurrency(Number(datos.monto || item.montoSolicitud || 0))}.`
-      break
-    case 'PRORROGA_PAGO':
-      titulo = 'Solicitud de prórroga de pago'
-      mensaje = datos.razon || 'Solicitud de extensión de fecha de vencimiento.'
-      break
-    default:
-      titulo = item.tipoAprobacion.replace(/_/g, ' ')
-      mensaje = 'Solicitud pendiente de revisión.'
-  }
-
+  
   return {
     id: item.id,
-    tipo: cat.tipoNotif,
-    titulo,
-    mensaje,
-    fecha: formatFecha(item.creadoEn),
+    titulo: cat.label,
+    mensaje: `Solicitud de ${cat.label.toLowerCase()} por ${item.solicitante}`,
+    tipo: cat.tipoNotif as any,
     creadoEn: item.creadoEn,
     leida: false,
-    entidadId: item.id, // El id de la aprobación es el entity ID para aprobar/rechazar
+    entidadId: item.id,
     estado: item.estado === 'PENDIENTE' ? 'PENDIENTE' : item.estado,
     solicitante: item.solicitante || 'Desconocido',
     approvalType: item.tipoAprobacion,
@@ -172,11 +139,14 @@ export default function RevisionesPage() {
   const [superadminData, setSuperadminData] = useState<SuperadminReviewResponse | null>(null)
   const [activeTab, setActiveTab] = useState<string>('todos')
   const [processingId, setProcessingId] = useState<string | null>(null)
-  const [showConfirmModal, setShowConfirmModal] = useState<{ item: Aprobacion; accion: 'CONFIRMAR' | 'REVERTIR' } | null>(null)
   const [notaSuperadmin, setNotaSuperadmin] = useState('')
   const [userRol, setUserRol] = useState<string>('')
+  const [confirmModal, setConfirmModal] = useState<{
+    isOpen: boolean;
+    type: 'APPROVE' | 'REJECT' | 'CONFIRMAR' | 'REVERTIR';
+    item: Aprobacion;
+  } | null>(null)
 
-  // Modal de detalle (reutiliza NotificacionDetalleModal)
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false)
   const [selectedItem, setSelectedItem] = useState<any>(null)
 
@@ -195,7 +165,7 @@ export default function RevisionesPage() {
       ])
 
       if (pendientes.status === 'fulfilled') setData(pendientes.value)
-      if (superadmin.status === 'fulfilled') setSuperadminData(superadmin.value)
+      if (superadmin.status === 'fulfilled') setSuperadminData(superadmin.value as any)
     } catch (error) {
       console.error('Error cargando revisiones:', error)
       toast.error('Error al cargar las revisiones')
@@ -218,7 +188,6 @@ export default function RevisionesPage() {
     if (userRol) loadData()
   }, [userRol, loadData])
 
-  // Escuchar actualizaciones en tiempo real
   useEffect(() => {
     if (!socket) return
     const handler = () => { loadData() }
@@ -234,52 +203,36 @@ export default function RevisionesPage() {
     }
   }, [socket, loadData])
 
-  // Abrir modal de detalle transformando la aprobación al formato de notificación
   const handleOpenDetail = (item: Aprobacion) => {
     const notifData = aprobacionToNotificacion(item)
     setSelectedItem(notifData)
     setIsDetailModalOpen(true)
   }
 
-  // Handler para aprobar desde el modal de detalle
-  const handleApproveFromModal = async (entityId: string, type: string, details: any) => {
-    try {
-      await aprobacionesService.aprobar(entityId, {
-        type: type as TipoAprobacion,
-        notas: details ? JSON.stringify(details) : undefined,
-        editedData: details,
-      })
-      toast.success('Solicitud aprobada exitosamente')
-      await loadData()
-    } catch (err: any) {
-      console.error('Error aprobando:', err)
-      toast.error(err?.message || 'Error al aprobar')
-      throw err
-    }
+  const handleApproveFromModal = async (entityId: string) => {
+    const item = Object.values(data?.items || {}).flat().find(i => i.id === entityId)
+    if (item) handleAprobar(item)
   }
 
-  // Handler para rechazar desde el modal de detalle
-  const handleRejectFromModal = async (entityId: string, type: string, reason: string) => {
-    try {
-      await aprobacionesService.rechazar(entityId, {
-        type: type as TipoAprobacion,
-        motivoRechazo: reason || 'Rechazado sin motivo especificado',
-      })
-      toast.success('Solicitud rechazada')
-      await loadData()
-    } catch (err: any) {
-      console.error('Error rechazando:', err)
-      toast.error(err?.message || 'Error al rechazar')
-      throw err
-    }
+  const handleRejectFromModal = async (entityId: string) => {
+    const item = Object.values(data?.items || {}).flat().find(i => i.id === entityId)
+    if (item) handleRechazar(item)
   }
 
-  // Aprobar directamente desde el card (rápido)
-  const handleAprobar = async (item: Aprobacion) => {
+  const handleAprobar = (item: Aprobacion) => {
+    setConfirmModal({ isOpen: true, type: 'APPROVE', item })
+  }
+
+  const handleConfirmAprobar = async () => {
+    if (!confirmModal?.item) return
+    const { item } = confirmModal
     setProcessingId(item.id)
     try {
-      await aprobacionesService.aprobar(item.id, { type: item.tipoAprobacion as TipoAprobacion })
-      toast.success('Solicitud aprobada exitosamente')
+      await aprobacionesService.aprobar(item.id, {
+        type: item.tipoAprobacion as TipoAprobacion
+      })
+      toast.success('Solicitud aprobada correctamente')
+      setConfirmModal(null)
       await loadData()
     } catch (error: any) {
       toast.error(error?.message || 'Error al aprobar')
@@ -288,20 +241,40 @@ export default function RevisionesPage() {
     }
   }
 
-  // Confirmar/Revertir rechazo (Admin/SuperAdmin)
+  const handleRechazar = (item: Aprobacion) => {
+    setConfirmModal({ isOpen: true, type: 'REJECT', item })
+  }
+
+  const handleConfirmRechazar = async (reason: string) => {
+    if (!confirmModal?.item) return
+    const { item } = confirmModal
+    setProcessingId(item.id)
+    try {
+      await aprobacionesService.rechazar(item.id, {
+        type: item.tipoAprobacion as TipoAprobacion,
+        motivoRechazo: reason
+      })
+      toast.success('Solicitud rechazada')
+      setConfirmModal(null)
+      await loadData()
+    } catch (error: any) {
+      toast.error(error?.message || 'Error al rechazar')
+    } finally {
+      setProcessingId(null)
+    }
+  }
+
   const handleSuperadminAction = async () => {
-    if (!showConfirmModal) return
-    setProcessingId(showConfirmModal.item.id)
+    if (!confirmModal || (confirmModal.type !== 'CONFIRMAR' && confirmModal.type !== 'REVERTIR')) return
+    setProcessingId(confirmModal.item.id)
     try {
       await aprobacionesService.confirmarAccionSuperadmin(
-        showConfirmModal.item.id,
-        showConfirmModal.accion,
+        confirmModal.item.id,
+        confirmModal.type as any,
         notaSuperadmin || undefined,
       )
-      toast.success(showConfirmModal.accion === 'CONFIRMAR'
-        ? 'Eliminación confirmada'
-        : 'Solicitud restaurada a pendiente')
-      setShowConfirmModal(null)
+      toast.success(confirmModal.type === 'CONFIRMAR' ? 'Eliminación confirmada' : 'Solicitud restaurada')
+      setConfirmModal(null)
       setNotaSuperadmin('')
       await loadData()
     } catch (error: any) {
@@ -311,7 +284,6 @@ export default function RevisionesPage() {
     }
   }
 
-  // Tabs dinámicos basados en los datos
   const tabs = [
     { id: 'todos', label: 'Todas', count: data?.total || 0 },
     ...Object.entries(data?.conteo || {}).map(([tipo, count]) => ({
@@ -324,15 +296,10 @@ export default function RevisionesPage() {
       : []),
   ]
 
-  // Items filtrados según tab activo
   const getFilteredItems = (): Aprobacion[] => {
     if (!data) return []
-    if (activeTab === 'todos') {
-      return Object.values(data.items).flat()
-    }
-    if (activeTab === 'revision-final') {
-      return superadminData?.items || []
-    }
+    if (activeTab === 'todos') return Object.values(data.items).flat()
+    if (activeTab === 'revision-final') return superadminData?.items || []
     return data.items[activeTab] || []
   }
 
@@ -344,43 +311,24 @@ export default function RevisionesPage() {
     const datos = item.datosSolicitud || {}
     const isProcessing = processingId === item.id
 
-    // Extraer info relevante según el tipo
     const getResumen = () => {
       switch (item.tipoAprobacion) {
         case 'NUEVO_CLIENTE':
           return {
             titulo: `${datos.nombres || ''} ${datos.apellidos || ''}`.trim() || 'Cliente nuevo',
-            subtitulo: `DNI: ${datos.dni || 'N/A'} • Tel: ${datos.telefono || 'N/A'}`,
+            subtitulo: `CC: ${datos.dni || 'N/A'} • Tel: ${datos.telefono || 'N/A'}`,
             monto: null,
           }
         case 'NUEVO_PRESTAMO':
           return {
             titulo: datos.cliente || 'Crédito nuevo',
-            subtitulo: `${datos.tipo === 'ARTICULO' || datos.tipoPrestamo === 'ARTICULO' ? `Artículo: ${datos.articulo || 'N/A'}` : 'Préstamo efectivo'} • ${datos.cuotas || datos.numCuotas || '?'} cuotas`,
+            subtitulo: `${(datos.tipo === 'ARTICULO' || datos.tipoPrestamo === 'ARTICULO') ? `Artículo: ${datos.articulo || 'N/A'}` : 'Efectivo'} • ${datos.cuotas || datos.numCuotas || '?'} cuotas`,
             monto: Number(datos.monto || datos.valorArticulo || item.montoSolicitud || 0),
-          }
-        case 'GASTO':
-          return {
-            titulo: datos.descripcion || 'Gasto operativo',
-            subtitulo: `Tipo: ${datos.tipoGasto || 'N/A'}`,
-            monto: Number(datos.monto || item.montoSolicitud || 0),
-          }
-        case 'SOLICITUD_BASE_EFECTIVO':
-          return {
-            titulo: 'Solicitud de Base de Efectivo',
-            subtitulo: datos.descripcion || 'Sin descripción',
-            monto: Number(datos.monto || item.montoSolicitud || 0),
-          }
-        case 'PRORROGA_PAGO':
-          return {
-            titulo: 'Prórroga de Pago',
-            subtitulo: datos.razon || 'Sin razón especificada',
-            monto: null,
           }
         default:
           return {
             titulo: item.tipoAprobacion.replace(/_/g, ' '),
-            subtitulo: 'Pendiente de revisión',
+            subtitulo: 'Pendiente revisión',
             monto: Number(item.montoSolicitud || 0) || null,
           }
       }
@@ -389,113 +337,46 @@ export default function RevisionesPage() {
     const resumen = getResumen()
 
     return (
-      <div
-        key={item.id}
-        className={`group bg-white rounded-2xl border ${isReviewMode ? 'border-rose-200' : 'border-slate-200'} shadow-[0_4px_20px_rgb(0,0,0,0.03)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all duration-300 overflow-hidden`}
-      >
-        {/* Barra superior de color */}
-        <div className={`h-1 ${isReviewMode ? 'bg-gradient-to-r from-rose-500 to-orange-500' : `bg-gradient-to-r ${cat.color === 'text-blue-600' ? 'from-blue-500 to-blue-400' : cat.color === 'text-emerald-600' ? 'from-emerald-500 to-emerald-400' : cat.color === 'text-amber-600' ? 'from-amber-500 to-amber-400' : cat.color === 'text-purple-600' ? 'from-purple-500 to-purple-400' : cat.color === 'text-rose-600' ? 'from-rose-500 to-rose-400' : 'from-slate-500 to-slate-400'}`}`} />
-
-        <div className="p-5 md:p-6">
-          {/* Header del card */}
-          <div className="flex items-start justify-between gap-4 mb-4">
-            <div className="flex items-start gap-3 min-w-0">
-              <div className={`p-2.5 rounded-xl ${cat.bgColor} border ${cat.borderColor} shrink-0`}>
-                <Icon className={`h-5 w-5 ${cat.color}`} />
+      <div key={item.id} className={`bg-white rounded-2xl border ${isReviewMode ? 'border-rose-200' : 'border-slate-200'} shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden`}>
+        <div className="p-5">
+          <div className="flex items-start justify-between mb-4">
+            <div className="flex items-center gap-3">
+              <div className={`p-2 rounded-xl ${cat.bgColor} ${cat.color} border ${cat.borderColor}`}>
+                <Icon className="h-5 w-5" />
               </div>
-              <div className="min-w-0">
-                <h3 className="font-bold text-slate-900 text-sm md:text-base truncate">{resumen.titulo}</h3>
-                <p className="text-xs text-slate-500 font-medium mt-0.5 truncate">{resumen.subtitulo}</p>
+              <div>
+                <h3 className="font-bold text-slate-900 leading-tight">{resumen.titulo}</h3>
+                <p className="text-xs text-slate-500 mt-0.5">{resumen.subtitulo}</p>
               </div>
             </div>
-
-            {resumen.monto !== null && resumen.monto > 0 && (
-              <div className="text-right shrink-0">
-                <p className="text-lg font-black text-slate-900">{formatCurrency(resumen.monto)}</p>
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Monto</p>
-              </div>
-            )}
+            {resumen.monto !== null && <div className="text-right font-black text-slate-900">{formatCurrency(resumen.monto)}</div>}
           </div>
 
-          {/* Metadata */}
-          <div className="flex flex-wrap items-center gap-3 mb-4 text-xs text-slate-500 font-medium">
-            <span className="inline-flex items-center gap-1.5">
-              <User className="h-3 w-3" />
-              {item.solicitante || 'Desconocido'}
-            </span>
-            <span className="w-1 h-1 rounded-full bg-slate-300" />
-            <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${cat.bgColor} ${cat.color} ${cat.borderColor}`}>
-              {cat.label}
-            </span>
-            <span className="w-1 h-1 rounded-full bg-slate-300" />
-            <span className="inline-flex items-center gap-1">
-              <Calendar className="h-3 w-3" />
-              {formatFecha(item.creadoEn)}
-            </span>
+          <div className="flex items-center gap-3 mb-4 text-[11px] font-bold text-slate-400">
+             <span className="flex items-center gap-1"><User className="h-3 w-3" /> {item.solicitante}</span>
+             <span className="w-1 h-1 bg-slate-200 rounded-full"></span>
+             <span className="flex items-center gap-1"><Calendar className="h-3 w-3" /> {formatFecha(item.creadoEn)}</span>
           </div>
 
-          {/* Info de rechazo (solo en revisión final) */}
-          {isReviewMode && (
-            <div className="mb-4 p-3 bg-rose-50/50 rounded-xl border border-rose-100">
-              <p className="text-xs font-bold text-rose-700 mb-1 flex items-center gap-1.5">
-                <XCircle className="h-3.5 w-3.5" />
-                Rechazado por: {item.rechazadoPor || 'Desconocido'}
-              </p>
-              {item.comentarios && (
-                <p className="text-xs text-rose-600 font-medium">Motivo: {item.comentarios}</p>
-              )}
-            </div>
-          )}
-
-          {/* Botones de acción */}
-          <div className="flex items-center gap-2 pt-3 border-t border-slate-100">
-            {/* Botón "Ver Detalle" siempre visible */}
-            <button
-              onClick={() => handleOpenDetail(item)}
-              className="inline-flex items-center justify-center gap-1.5 py-2.5 px-3 bg-white text-slate-600 text-xs font-bold rounded-xl hover:bg-slate-50 transition-all border border-slate-200 active:scale-[0.98]"
-              title="Ver detalle completo"
-            >
-              <Eye className="h-3.5 w-3.5" />
-              <span className="hidden sm:inline">Detalle</span>
+          <div className="flex gap-2">
+            <button onClick={() => handleOpenDetail(item)} className="p-2 border border-slate-200 rounded-xl text-slate-400 hover:text-slate-600 hover:bg-slate-50 transition-colors">
+              <Eye className="h-4 w-4" />
             </button>
-
             {!isReviewMode ? (
               <>
-                <button
-                  onClick={() => handleAprobar(item)}
-                  disabled={isProcessing}
-                  className="flex-1 inline-flex items-center justify-center gap-2 py-2.5 px-4 bg-emerald-600 text-white text-xs font-bold rounded-xl hover:bg-emerald-700 transition-all shadow-sm shadow-emerald-600/20 disabled:opacity-50 active:scale-[0.98]"
-                >
+                <button onClick={() => handleAprobar(item)} disabled={isProcessing} className="flex-1 py-2.5 bg-emerald-600 text-white rounded-xl text-xs font-bold hover:bg-emerald-700 transition-colors flex items-center justify-center gap-2">
                   {isProcessing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CheckCircle2 className="h-3.5 w-3.5" />}
                   Aprobar
                 </button>
-                <button
-                  onClick={() => handleOpenDetail(item)}
-                  disabled={isProcessing}
-                  className="flex-1 inline-flex items-center justify-center gap-2 py-2.5 px-4 bg-white text-rose-600 text-xs font-bold rounded-xl hover:bg-rose-50 transition-all border border-rose-200 disabled:opacity-50 active:scale-[0.98]"
-                >
+                <button onClick={() => handleRechazar(item)} disabled={isProcessing} className="flex-1 py-2.5 border border-rose-200 text-rose-600 rounded-xl text-xs font-bold hover:bg-rose-50 transition-colors flex items-center justify-center gap-2">
                   <XCircle className="h-3.5 w-3.5" />
                   Rechazar
                 </button>
               </>
             ) : (
               <>
-                <button
-                  onClick={() => setShowConfirmModal({ item, accion: 'CONFIRMAR' })}
-                  disabled={isProcessing}
-                  className="flex-1 inline-flex items-center justify-center gap-2 py-2.5 px-4 bg-rose-600 text-white text-xs font-bold rounded-xl hover:bg-rose-700 transition-all shadow-sm disabled:opacity-50 active:scale-[0.98]"
-                >
-                  <Ban className="h-3.5 w-3.5" />
-                  Confirmar Eliminación
-                </button>
-                <button
-                  onClick={() => setShowConfirmModal({ item, accion: 'REVERTIR' })}
-                  disabled={isProcessing}
-                  className="flex-1 inline-flex items-center justify-center gap-2 py-2.5 px-4 bg-blue-600 text-white text-xs font-bold rounded-xl hover:bg-blue-700 transition-all shadow-sm disabled:opacity-50 active:scale-[0.98]"
-                >
-                  <RotateCcw className="h-3.5 w-3.5" />
-                  Restaurar
-                </button>
+                <button onClick={() => setConfirmModal({ isOpen: true, type: 'CONFIRMAR', item })} disabled={isProcessing} className="flex-1 py-2.5 bg-rose-600 text-white rounded-xl text-xs font-bold hover:bg-rose-700 transition-colors">Eliminar</button>
+                <button onClick={() => setConfirmModal({ isOpen: true, type: 'REVERTIR', item })} disabled={isProcessing} className="flex-1 py-2.5 bg-blue-600 text-white rounded-xl text-xs font-bold hover:bg-blue-700 transition-colors">Restaurar</button>
               </>
             )}
           </div>
@@ -505,198 +386,92 @@ export default function RevisionesPage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 relative">
-      {/* Fondo */}
-      <div className="fixed inset-0 pointer-events-none">
-        <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px]" />
-        <div className="absolute left-0 right-0 top-0 -z-10 m-auto h-[310px] w-[310px] rounded-full bg-blue-400 opacity-20 blur-[100px]" />
-      </div>
+    <div className="min-h-screen bg-slate-50 p-6 md:p-10">
+      <header className="mb-10">
+        <h1 className="text-3xl font-bold text-slate-900 mb-2">Revisiones</h1>
+        <p className="text-slate-500 text-sm">Controle las solicitudes pendientes de aprobación en el sistema.</p>
+      </header>
 
-      <div className="relative z-10 w-full space-y-6 md:space-y-8 p-4 md:p-8">
-        {/* Header */}
-        <header className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between animate-in fade-in slide-in-from-bottom-4 duration-700">
-          <div className="space-y-3">
-            <div className="inline-flex items-center gap-2 self-start px-3 py-1 rounded-full bg-slate-100 text-xs text-slate-600 tracking-wide font-bold border border-slate-200">
-              <ShieldCheck className="h-3.5 w-3.5" />
-              <span>Centro de Revisiones</span>
-            </div>
-            <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold tracking-tight">
-              <span className="text-blue-600">Aprobaciones</span>{' '}
-              <span className="text-orange-500">Pendientes</span>
-            </h1>
-            <p className="text-sm md:text-base text-slate-500 mt-2 max-w-2xl font-medium leading-relaxed">
-              Gestiona todas las solicitudes que requieren tu aprobación: clientes, créditos, gastos y más.
-              Haz clic en <strong>&quot;Detalle&quot;</strong> para ver información completa y editar condiciones.
-            </p>
-          </div>
-
-          <button
-            onClick={loadData}
-            disabled={loading}
-            className="inline-flex items-center gap-2 px-4 py-2.5 bg-white text-slate-700 text-xs font-bold rounded-xl border border-slate-200 hover:bg-slate-50 transition-all shadow-sm disabled:opacity-50"
+      <div className="flex gap-2 mb-8 overflow-x-auto pb-2 no-scrollbar">
+        {tabs.map(t => (
+          <button 
+            key={t.id} 
+            onClick={() => setActiveTab(t.id)} 
+            className={`px-5 py-2.5 rounded-xl text-xs font-bold whitespace-nowrap border transition-all ${
+              activeTab === t.id 
+                ? 'bg-slate-900 text-white border-slate-900 shadow-md' 
+                : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
+            }`}
           >
-            <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-            Actualizar
+            {t.label} <span className="ml-1.5 opacity-50">{t.count}</span>
           </button>
-        </header>
-
-        {/* Tabs */}
-        <div className="overflow-x-auto -mx-4 px-4 md:mx-0 md:px-0">
-          <div className="inline-flex items-center gap-1 p-1.5 bg-white/80 backdrop-blur-sm rounded-2xl border border-slate-200 shadow-sm min-w-max">
-            {tabs.map((tab) => {
-              const isActive = activeTab === tab.id
-              const isReview = tab.id === 'revision-final'
-
-              return (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
-                  className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all duration-200 flex items-center gap-2 whitespace-nowrap ${
-                    isActive
-                      ? isReview
-                        ? 'bg-rose-600 text-white shadow-sm'
-                        : 'bg-white text-slate-900 shadow-sm ring-1 ring-black/5'
-                      : isReview
-                        ? 'text-rose-500 hover:text-rose-700 hover:bg-rose-50'
-                        : 'text-slate-500 hover:text-slate-900 hover:bg-white/50'
-                  }`}
-                >
-                  {isReview && <ShieldAlert className="h-3.5 w-3.5" />}
-                  {tab.label}
-                  <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-black ${
-                    isActive
-                      ? isReview ? 'bg-rose-700 text-white' : 'bg-blue-100 text-blue-600'
-                      : isReview ? 'bg-rose-100 text-rose-600' : 'bg-slate-100 text-slate-500'
-                  }`}>
-                    {tab.count}
-                  </span>
-                </button>
-              )
-            })}
-          </div>
-        </div>
-
-        {/* Contenido principal */}
-        {loading ? (
-          <div className="flex items-center justify-center py-20">
-            <div className="text-center space-y-4">
-              <Loader2 className="h-8 w-8 text-blue-600 animate-spin mx-auto" />
-              <p className="text-sm text-slate-500 font-medium">Cargando revisiones...</p>
-            </div>
-          </div>
-        ) : filteredItems.length === 0 ? (
-          <div className="flex items-center justify-center py-20">
-            <div className="text-center space-y-4 max-w-sm">
-              <div className="w-20 h-20 bg-emerald-50 rounded-2xl flex items-center justify-center mx-auto border border-emerald-100">
-                <CheckCircle2 className="h-10 w-10 text-emerald-500" />
-              </div>
-              <h3 className="text-lg font-bold text-slate-900">¡Todo al día!</h3>
-              <p className="text-sm text-slate-500 font-medium">
-                {activeTab === 'revision-final'
-                  ? 'No hay items rechazados que requieran tu decisión final.'
-                  : 'No hay solicitudes pendientes de aprobación en esta categoría.'}
-              </p>
-            </div>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 md:gap-6">
-            {filteredItems.map((item) =>
-              renderItemCard(item, activeTab === 'revision-final')
-            )}
-          </div>
-        )}
-
-        {/* KPI Footer */}
-        {data && !loading && (
-          <div className="flex flex-wrap items-center gap-6 pt-6 border-t border-slate-200 text-sm font-medium text-slate-500">
-            {Object.entries(data.conteo).map(([tipo, count]) => {
-              const cat = CATEGORIAS[tipo]
-              if (!cat) return null
-              const Icon = cat.icon
-              return (
-                <div key={tipo} className="flex items-center gap-2">
-                  <div className={`p-1.5 rounded-lg ${cat.bgColor} border ${cat.borderColor}`}>
-                    <Icon className={`h-3.5 w-3.5 ${cat.color}`} />
-                  </div>
-                  <span className="text-xs">
-                    <span className="font-bold text-slate-900">{count}</span> {cat.label}
-                  </span>
-                </div>
-              )
-            })}
-          </div>
-        )}
-
-        {/* Footer */}
-        <div className="text-center pb-6">
-          <p className="text-[10px] text-gray-400 uppercase tracking-widest font-bold">
-            Centro de Revisiones • CrediSur v1.0
-          </p>
-        </div>
+        ))}
       </div>
 
-      {/* Modal de Detalle - Reutiliza NotificacionDetalleModal */}
-      <NotificacionDetalleModal
-        isOpen={isDetailModalOpen}
-        onClose={() => setIsDetailModalOpen(false)}
-        notificacion={selectedItem}
-        onApprove={handleApproveFromModal}
-        onReject={handleRejectFromModal}
-        canApprove={true}
+      {loading ? (
+        <div className="py-20 text-center text-slate-500">
+          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
+          <p className="font-medium">Cargando datos...</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {filteredItems.length > 0 ? (
+            filteredItems.map(i => renderItemCard(i, activeTab === 'revision-final'))
+          ) : (
+             <div className="col-span-full py-20 text-center bg-white rounded-3xl border-2 border-dashed border-slate-200">
+                <CheckCircle2 className="h-10 w-10 text-slate-200 mx-auto mb-3" />
+                <p className="text-slate-500 font-bold">No hay solicitudes pendientes en esta categoría</p>
+             </div>
+          )}
+        </div>
+      )}
+
+      <NotificacionDetalleModal 
+        isOpen={isDetailModalOpen} 
+        onClose={() => setIsDetailModalOpen(false)} 
+        notificacion={selectedItem} 
+        onApprove={handleApproveFromModal} 
+        onReject={handleRejectFromModal} 
+        canApprove 
       />
 
-      {/* Modal de Decisión Final (Admin/SuperAdmin) */}
-      {showConfirmModal && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-          <div className="w-full max-w-md bg-white rounded-[2rem] shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
-            <div className="p-8 text-center">
-              <div className={`w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-6 border ${
-                showConfirmModal.accion === 'CONFIRMAR'
-                  ? 'bg-rose-50 text-rose-600 border-rose-100'
-                  : 'bg-blue-50 text-blue-600 border-blue-100'
-              }`}>
-                {showConfirmModal.accion === 'CONFIRMAR'
-                  ? <Ban className="h-8 w-8" />
-                  : <RotateCcw className="h-8 w-8" />
-                }
-              </div>
-              <h3 className="text-xl font-black text-slate-900 mb-2">
-                {showConfirmModal.accion === 'CONFIRMAR' ? 'Confirmar Eliminación' : 'Restaurar Solicitud'}
+      {confirmModal && confirmModal.type === 'REJECT' && (
+        <ConfirmRejectModal 
+          isOpen={true}
+          onClose={() => setConfirmModal(null)}
+          onConfirm={handleConfirmRechazar}
+          title={`Rechazar Solicitud: ${confirmModal.item.solicitante}`}
+        />
+      )}
+
+      {confirmModal && confirmModal.type !== 'REJECT' && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
+           <div className="bg-white rounded-3xl p-8 max-w-sm w-full text-center shadow-2xl animate-in zoom-in-95 duration-200">
+              <h3 className="text-lg font-bold text-slate-900 mb-2">
+                {confirmModal.type === 'APPROVE' ? 'Aprobar Solicitud' : 
+                 confirmModal.type === 'CONFIRMAR' ? 'Confirmar Eliminación' : 'Restaurar Solicitud'}
               </h3>
-              <p className="text-sm text-slate-500 mb-6 leading-relaxed">
-                {showConfirmModal.accion === 'CONFIRMAR'
-                  ? 'Esta acción eliminará definitivamente la solicitud. No se podrá deshacer.'
-                  : 'La solicitud será restaurada a estado pendiente para que pueda ser re-evaluada.'}
-              </p>
-              <textarea
-                value={notaSuperadmin}
-                onChange={(e) => setNotaSuperadmin(e.target.value)}
-                placeholder="Notas adicionales (opcional)..."
-                className="w-full h-24 p-4 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-blue-500/10 outline-none text-sm resize-none text-slate-900 font-medium mb-6"
-              />
+              <p className="text-sm text-slate-500 mb-6">¿Estás seguro de realizar esta acción para {confirmModal.item.solicitante}?</p>
+              
               <div className="flex flex-col gap-2">
-                <button
-                  onClick={handleSuperadminAction}
-                  disabled={processingId === showConfirmModal.item.id}
-                  className={`w-full rounded-2xl py-4 text-sm font-bold text-white shadow-xl transition-all active:scale-[0.98] disabled:opacity-50 ${
-                    showConfirmModal.accion === 'CONFIRMAR'
-                      ? 'bg-rose-600 hover:bg-rose-700 shadow-rose-600/20'
-                      : 'bg-blue-600 hover:bg-blue-700 shadow-blue-600/20'
+                <button 
+                  onClick={() => {
+                    if (confirmModal.type === 'APPROVE') handleConfirmAprobar();
+                    else handleSuperadminAction();
+                  }} 
+                  disabled={!!processingId} 
+                  className={`py-3 rounded-xl font-bold text-white ${
+                    confirmModal.type === 'APPROVE' ? 'bg-emerald-600' : 
+                    confirmModal.type === 'CONFIRMAR' ? 'bg-slate-900' : 'bg-blue-600'
                   }`}
                 >
-                  {processingId === showConfirmModal.item.id ? 'Procesando...' : (
-                    showConfirmModal.accion === 'CONFIRMAR' ? 'Confirmar Eliminación Definitiva' : 'Restaurar a Pendiente'
-                  )}
+                  {processingId ? 'Procesando...' : 'Confirmar'}
                 </button>
-                <button
-                  onClick={() => { setShowConfirmModal(null); setNotaSuperadmin('') }}
-                  className="w-full rounded-2xl bg-slate-50 py-4 text-sm font-bold text-slate-500 hover:bg-slate-100 transition-all"
-                >
+                <button onClick={() => setConfirmModal(null)} className="py-3 text-slate-400 font-bold hover:text-slate-600">
                   Cancelar
                 </button>
               </div>
-            </div>
-          </div>
+           </div>
         </div>
       )}
     </div>
