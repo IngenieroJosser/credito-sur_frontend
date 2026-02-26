@@ -199,4 +199,9 @@ export const routesService = {
   async moveClient(clienteId: string, fromRutaId: string, toRutaId: string) {
     return apiRequest<any>('POST', '/routes/move-client', { clienteId, fromRutaId, toRutaId });
   },
+
+  // Asignar un crédito específico a otra ruta (agrega el cliente a la ruta destino)
+  async moveLoan(prestamoId: string, toRutaId: string) {
+    return apiRequest<any>('POST', '/routes/move-loan', { prestamoId, toRutaId });
+  },
 };

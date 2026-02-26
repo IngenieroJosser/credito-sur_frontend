@@ -57,10 +57,19 @@ interface Ruta {
   frecuenciaVisita?: string;
 }
 
+interface PrestamoResumen {
+  id: string;
+  tipo: 'EFECTIVO' | 'ARTICULO';
+  articulo?: string;
+  frecuencia: string;
+  saldoPendiente: number;
+}
+
 interface ClienteSelection {
   id: string;
   nombre?: string;
   codigo?: string;
+  prestamos?: PrestamoResumen[];
   // Allow other properties to avoid tight coupling with backend response in this view
   [key: string]: unknown;
 }
@@ -180,6 +189,8 @@ export const RutasPageView = ({
   const [clienteSearch, setClienteSearch] = useState('')
   const [clienteAMover, setClienteAMover] = useState<string | null>(null)
   const [rutaDestinoId, setRutaDestinoId] = useState('')
+  // Mapa de prestamoId -> rutaId destino para mover créditos individualmente
+  const [rutaDestinoMap, setRutaDestinoMap] = useState<Record<string, string>>({})
 
   // Efecto para buscar clientes disponibles
   useEffect(() => {
@@ -251,8 +262,14 @@ export const RutasPageView = ({
           id: a.cliente.id,
           nombre: `${a.cliente.nombres} ${a.cliente.apellidos}`,
           codigo: a.cliente.dni,
-          direccion: a.cliente.telefono, 
-          deuda: a.cliente.prestamos?.reduce((sum: number, p: any) => sum + Number(p.saldoPendiente || 0), 0) || 0
+          direccion: a.cliente.telefono,
+          prestamos: (a.cliente.prestamos || []).filter((p: any) => p.estado === 'ACTIVO' || p.estado === 'EN_MORA').map((p: any) => ({
+            id: p.id,
+            tipo: (p.tipo === 'ARTICULO' || p.tipoPrestamo === 'ARTICULO') ? 'ARTICULO' : 'EFECTIVO',
+            articulo: p.articulo || p.descripcionArticulo || undefined,
+            frecuencia: p.frecuenciaPago || 'DIARIO',
+            saldoPendiente: Number(p.saldoPendiente || 0),
+          })) as PrestamoResumen[]
         })));
       }
     } catch (error) {
@@ -396,15 +413,25 @@ export const RutasPageView = ({
       await routesService.moveClient(clienteId, editingId, rutaDestinoId);
       showNotification('success', 'Cliente movido exitosamente', 'Éxito');
       
-      // Actualizar lista local
       setClientesRuta(prev => prev.filter(c => c.id !== clienteId));
       setClienteAMover(null);
       setRutaDestinoId('');
       
-      // Opcional: refrescar estadísticas
       router.refresh();
     } catch (error) {
       showNotification('error', 'No se pudo mover el cliente', 'Error');
+    }
+  }
+
+  const handleMoveLoan = async (prestamoId: string) => {
+    const toRutaId = rutaDestinoMap[prestamoId];
+    if (!toRutaId) return;
+    try {
+      await routesService.moveLoan(prestamoId, toRutaId);
+      showNotification('success', 'Crédito asignado a la ruta correctamente', 'Éxito');
+      setRutaDestinoMap(prev => { const n = { ...prev }; delete n[prestamoId]; return n; });
+    } catch (error) {
+      showNotification('error', 'No se pudo mover el crédito', 'Error');
     }
   }
 
@@ -1499,57 +1526,91 @@ export const RutasPageView = ({
                     </div>
 
                     <div className="space-y-4">
-                      {clientesRuta.map((cliente) => (
-                        <div key={cliente.id} className="p-4 bg-white border border-slate-200 rounded-xl hover:shadow-md transition-shadow group">
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-4">
-                              <div className="h-10 w-10 bg-slate-100 rounded-full flex items-center justify-center text-slate-500 font-bold border border-slate-200">
-                                {String(cliente.nombre || '?').charAt(0)}
-                              </div>
-                              <div>
-                                <h4 className="font-bold text-slate-900">{String(cliente.nombre || 'Sin nombre')}</h4>
-                                <p className="text-xs text-slate-500 truncate max-w-[200px]">{String(cliente.direccion || '')}</p>
-                              </div>
+                      {clientesRuta.map((cliente) => {
+                        const prestamos = (cliente.prestamos as PrestamoResumen[]) || [];
+                        const FREQ_LABEL: Record<string, string> = {
+                          DIARIO: 'Diario',
+                          SEMANAL: 'Semanal',
+                          QUINCENAL: 'Quincenal',
+                          MENSUAL: 'Mensual',
+                        };
+                        const FREQ_COLOR: Record<string, string> = {
+                          DIARIO: 'bg-blue-50 text-blue-700 border-blue-200',
+                          SEMANAL: 'bg-purple-50 text-purple-700 border-purple-200',
+                          QUINCENAL: 'bg-amber-50 text-amber-700 border-amber-200',
+                          MENSUAL: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+                        };
+                        return (
+                        <div key={cliente.id} className="bg-white border border-slate-200 rounded-xl hover:shadow-md transition-shadow group overflow-hidden">
+                          {/* Cabecera del cliente */}
+                          <div className="flex items-center gap-4 p-4">
+                            <div className="h-10 w-10 bg-slate-100 rounded-full flex items-center justify-center text-slate-500 font-bold border border-slate-200 flex-shrink-0">
+                              {String(cliente.nombre || '?').charAt(0)}
                             </div>
-
-                            <div className="text-right">
-                              <p className="text-xs text-slate-400 font-bold uppercase">Deuda</p>
-                              <p className="font-bold text-slate-900">{formatCurrency(Number(cliente.deuda || 0))}</p>
+                            <div className="flex-1 min-w-0">
+                              <h4 className="font-bold text-slate-900 truncate">{String(cliente.nombre || 'Sin nombre')}</h4>
+                              <p className="text-xs text-slate-500 truncate">{String(cliente.codigo || cliente.direccion || '')}</p>
+                            </div>
+                            <div className="text-right flex-shrink-0">
+                              <p className="text-[10px] text-slate-400 font-bold uppercase">{prestamos.length} crédito{prestamos.length !== 1 ? 's' : ''}</p>
                             </div>
                           </div>
 
-                          {/* Acciones de movimiento */}
-                          <div className="mt-4 pt-4 border-t border-slate-100 flex items-center gap-3">
-                            <div className="flex-1 relative">
-                              <select
-                                className="w-full text-sm pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-slate-700 appearance-none focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
-                                value={clienteAMover === cliente.id ? rutaDestinoId : ''}
-                                onChange={(e) => {
-                                  setClienteAMover(cliente.id)
-                                  setRutaDestinoId(e.target.value)
-                                }}
-                              >
-                                <option value="">Mover a otra ruta...</option>
-                                {rutas
-                                  .filter(r => r.id !== editingId)
-                                  .map(r => (
-                                    <option key={r.id} value={r.id}>{r.nombre}</option>
-                                  ))
-                                }
-                              </select>
-                              <ArrowRightLeft className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
+                          {/* Créditos individuales con selector de ruta por crédito */}
+                          {prestamos.length > 0 ? (
+                            <div className="border-t border-slate-100 divide-y divide-slate-100">
+                              {prestamos.map((p) => (
+                                <div key={p.id} className="px-4 py-3 space-y-2">
+                                  <div className="flex items-center justify-between gap-3">
+                                    <div className="flex items-center gap-2 min-w-0">
+                                      <span className={`flex-shrink-0 text-[10px] font-bold px-2 py-0.5 rounded-full border ${
+                                        p.tipo === 'ARTICULO' ? 'bg-rose-50 text-rose-700 border-rose-200' : 'bg-slate-100 text-slate-600 border-slate-200'
+                                      }`}>
+                                        {p.tipo === 'ARTICULO' ? `Artículo${p.articulo ? `: ${p.articulo}` : ''}` : 'Efectivo'}
+                                      </span>
+                                      <span className={`flex-shrink-0 text-[10px] font-bold px-2 py-0.5 rounded-full border ${FREQ_COLOR[p.frecuencia] || 'bg-slate-100 text-slate-600 border-slate-200'}`}>
+                                        {FREQ_LABEL[p.frecuencia] || p.frecuencia}
+                                      </span>
+                                    </div>
+                                    <div className="text-right flex-shrink-0">
+                                      <p className="font-bold text-slate-900 text-sm">{formatCurrency(p.saldoPendiente)}</p>
+                                      <p className="text-[10px] text-slate-400">Saldo pendiente</p>
+                                    </div>
+                                  </div>
+                                  {/* Selector de ruta individual por crédito */}
+                                  <div className="flex items-center gap-2">
+                                    <div className="flex-1 relative">
+                                      <select
+                                        className="w-full text-xs pl-8 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-600 appearance-none focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                                        value={rutaDestinoMap[p.id] || ''}
+                                        onChange={(e) => setRutaDestinoMap(prev => ({ ...prev, [p.id]: e.target.value }))}
+                                      >
+                                        <option value="">Asignar a otra ruta...</option>
+                                        {rutas.filter(r => r.id !== editingId).map(r => (
+                                          <option key={r.id} value={r.id}>{r.nombre}</option>
+                                        ))}
+                                      </select>
+                                      <ArrowRightLeft className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3 w-3 text-slate-400 pointer-events-none" />
+                                    </div>
+                                    <button
+                                      disabled={!rutaDestinoMap[p.id]}
+                                      onClick={() => handleMoveLoan(p.id)}
+                                      className="px-3 py-1.5 bg-slate-800 text-white text-xs font-bold rounded-lg hover:bg-slate-700 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+                                    >
+                                      Asignar
+                                    </button>
+                                  </div>
+                                </div>
+                              ))}
                             </div>
-
-                            <button
-                              disabled={clienteAMover !== cliente.id || !rutaDestinoId}
-                              onClick={() => handleMoveCliente(cliente.id)}
-                              className="px-4 py-2 bg-slate-900 text-white text-sm font-bold rounded-lg hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center gap-2"
-                            >
-                              Mover
-                            </button>
-                          </div>
+                          ) : (
+                            <div className="border-t border-slate-100 px-4 py-3">
+                              <p className="text-xs text-slate-400 italic">Sin créditos activos</p>
+                            </div>
+                          )}
                         </div>
-                      ))}
+                        );
+                      })}
 
                       {clientesRuta.length === 0 && (
                         <div className="text-center py-10 border-2 border-dashed border-slate-200 rounded-xl bg-slate-50">

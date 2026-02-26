@@ -127,6 +127,17 @@ export function StaticVisitaItem({
                                  visita.periodoRuta === 'MES' ? 'Mensual' : visita.periodoRuta}
                             </span>
                         </div>
+                        {visita.tipoPrestamo && (
+                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md border uppercase ${
+                            visita.tipoPrestamo === 'ARTICULO'
+                              ? 'bg-rose-50 text-rose-700 border-rose-200'
+                              : 'bg-slate-100 text-slate-600 border-slate-200'
+                          }`}>
+                            {visita.tipoPrestamo === 'ARTICULO'
+                              ? (visita.articuloNombre ? `Artículo: ${visita.articuloNombre}` : 'Artículo')
+                              : 'Efectivo'}
+                          </span>
+                        )}
                     </div>
                 </div>
                 <button 
@@ -279,6 +290,17 @@ export function SortableItem({
                                  visita.periodoRuta === 'MES' ? 'Mensual' : visita.periodoRuta}
                             </span>
                         </div>
+                        {visita.tipoPrestamo && (
+                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md border uppercase ${
+                            visita.tipoPrestamo === 'ARTICULO'
+                              ? 'bg-rose-50 text-rose-700 border-rose-200'
+                              : 'bg-slate-100 text-slate-600 border-slate-200'
+                          }`}>
+                            {visita.tipoPrestamo === 'ARTICULO'
+                              ? (visita.articuloNombre ? `Artículo: ${visita.articuloNombre}` : 'Artículo')
+                              : 'Efectivo'}
+                          </span>
+                        )}
                     </div>
                 </div>
                 <button 

@@ -21,6 +21,8 @@ export interface VisitaRuta {
   periodoRuta: PeriodoRuta
   clienteId: string
   prestamoId?: string
+  tipoPrestamo?: 'EFECTIVO' | 'ARTICULO'
+  articuloNombre?: string
 }
 
 export interface HistorialDia {

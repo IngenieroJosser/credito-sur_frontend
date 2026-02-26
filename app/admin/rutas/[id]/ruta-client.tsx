@@ -307,48 +307,63 @@ const RutaClient = ({ initialRuta }: RutaClientProps) => {
   }, [showHistory, initialRuta?.id, historialRutas, cargarHistorialFecha]);
 
   // Map ALL asignaciones from backend to visits UI model
+  // Un cliente con 2 créditos (diario + semanal) genera 2 entradas separadas
   const [visitasCobrador, setVisitasCobrador] = useState<VisitaRuta[]>(() => {
       const asignaciones = initialRuta?.asignaciones || initialRuta?.asignacionesRuta;
       if (!asignaciones || !Array.isArray(asignaciones)) return [];
-      
-      return (asignaciones as any[]).map((asig: any, index: number) => {
-          const prestamo = asig.cliente?.prestamos?.[0];
+
+      const toPeriodo = (f: string) => {
+        if (f === 'SEMANAL') return 'SEMANA';
+        if (f === 'QUINCENAL') return 'QUINCENA';
+        if (f === 'MENSUAL') return 'MES';
+        return 'DIA';
+      };
+
+      const toNivelRiesgo = (r: string) => {
+        if (r === 'AMARILLO') return 'precaucion' as any;
+        if (r === 'ROJO') return 'moderado';
+        if (r === 'LISTA_NEGRA') return 'critico';
+        return 'bajo';
+      };
+
+      let globalIndex = 0;
+      return (asignaciones as any[]).flatMap((asig: any) => {
+        const prestamosActivos: any[] = (asig.cliente?.prestamos || []).filter(
+          (p: any) => p.estado === 'ACTIVO' || p.estado === 'EN_MORA'
+        );
+
+        // Si no tiene préstamos activos, igual mostramos la entrada vacía
+        const lista = prestamosActivos.length > 0 ? prestamosActivos : [null];
+
+        return lista.map((prestamo: any) => {
           const proximaCuota = prestamo?.cuotas?.[0];
+          const esArticulo = prestamo?.tipo === 'ARTICULO' || prestamo?.tipoPrestamo === 'ARTICULO';
+          const idx = globalIndex++;
 
           return {
-            id: asig.id || `temp-${index}`,
+            id: prestamo ? `${asig.id}-${prestamo.id}` : (asig.id || `temp-${idx}`),
             cliente: `${asig.cliente?.nombres || ''} ${asig.cliente?.apellidos || ''}`.trim() || 'Cliente Desconocido',
             direccion: asig.cliente?.direccion || 'Sin dirección registrada',
             telefono: asig.cliente?.telefono || '',
             horaSugerida: asig.horaSugerida || '08:00 AM',
             montoCuota: Number(proximaCuota?.monto || 0),
-            saldoTotal: asig.cliente?.prestamos?.reduce((sum: number, p: any) => sum + Number(p.saldoPendiente || 0), 0) || 0,
+            saldoTotal: Number(prestamo?.saldoPendiente || 0),
             estado: asig.estado?.toLowerCase() || 'pendiente',
             proximaVisita: proximaCuota?.fechaVencimiento || new Date().toISOString().split('T')[0],
-            ordenVisita: asig.ordenVisita || index + 1,
+            ordenVisita: asig.ordenVisita || idx + 1,
             prioridad: (asig.prioridad?.toLowerCase() as any) || 'media',
             cobradorId: initialRuta.cobradorId || '',
-            periodoRuta: (() => {
-              const f = prestamo?.frecuenciaPago || 'DIARIO';
-              if (f === 'DIARIO') return 'DIA';
-              if (f === 'SEMANAL') return 'SEMANA';
-              if (f === 'QUINCENAL') return 'QUINCENA';
-              if (f === 'MENSUAL') return 'MES';
-              return 'DIA';
-            })() as any,
-            nivelRiesgo: (() => {
-              const r = asig.cliente?.nivelRiesgo || 'VERDE';
-              if (r === 'VERDE') return 'bajo';
-              if (r === 'AMARILLO') return 'precaucion' as any;
-              if (r === 'ROJO') return 'moderado';
-              if (r === 'LISTA_NEGRA') return 'critico';
-              return 'bajo';
-            })() as any,
+            periodoRuta: toPeriodo(prestamo?.frecuenciaPago || 'DIARIO') as any,
+            nivelRiesgo: toNivelRiesgo(asig.cliente?.nivelRiesgo || 'VERDE') as any,
             clienteId: asig.cliente?.id || '',
-            prestamoId: prestamo?.id || ''
+            prestamoId: prestamo?.id || '',
+            tipoPrestamo: esArticulo ? 'ARTICULO' : 'EFECTIVO',
+            articuloNombre: esArticulo ? (prestamo?.articulo || prestamo?.descripcionArticulo || undefined) : undefined,
           };
+        });
       });
   })
+
 
   // Cargar historial de pagos para enriquecer las visitas
   useEffect(() => {
