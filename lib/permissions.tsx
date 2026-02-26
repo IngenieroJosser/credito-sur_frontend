@@ -53,6 +53,7 @@ export interface ModuloPermiso {
 export const permisosPorRol: Record<Rol, ModuloPermiso[]> = {
   SUPER_ADMINISTRADOR: [
     { id: 'dashboard', nombre: 'Dashboard', icono: 'LayoutDashboard', path: '/admin', roles: ['SUPER_ADMINISTRADOR', 'COORDINADOR', 'SUPERVISOR', 'COBRADOR', 'CONTADOR'] },
+    { id: 'revisiones', nombre: 'Revisiones', icono: 'ShieldCheck', path: '/revisiones', roles: ['SUPER_ADMINISTRADOR'], isNew: true },
     { 
       id: 'operaciones', 
       nombre: 'Operaciones', 
@@ -64,7 +65,6 @@ export const permisosPorRol: Record<Rol, ModuloPermiso[]> = {
         { id: 'rutas', nombre: 'Rutas', icono: 'Route', path: '/rutas', roles: ['SUPER_ADMINISTRADOR', 'COORDINADOR'] },
       ]
     },
-    { id: 'revisiones', nombre: 'Revisiones', icono: 'ShieldCheck', path: '/revisiones', roles: ['SUPER_ADMINISTRADOR'], isNew: true },
     {
       id: 'gestion-clientes',
       nombre: 'Gestión Clientes',
@@ -119,6 +119,7 @@ export const permisosPorRol: Record<Rol, ModuloPermiso[]> = {
 
   ADMIN: [
     { id: 'dashboard', nombre: 'Dashboard', icono: 'LayoutDashboard', path: '/admin', roles: ['SUPER_ADMINISTRADOR', 'ADMIN'] },
+    { id: 'revisiones', nombre: 'Revisiones', icono: 'ShieldCheck', path: '/revisiones', roles: ['SUPER_ADMINISTRADOR', 'ADMIN'], isNew: true },
     { 
       id: 'operaciones', 
       nombre: 'Operaciones', 
@@ -130,7 +131,6 @@ export const permisosPorRol: Record<Rol, ModuloPermiso[]> = {
         { id: 'rutas', nombre: 'Rutas', icono: 'Route', path: '/rutas', roles: ['SUPER_ADMINISTRADOR', 'ADMIN', 'COORDINADOR'] },
       ]
     },
-    { id: 'revisiones', nombre: 'Revisiones', icono: 'ShieldCheck', path: '/revisiones', roles: ['SUPER_ADMINISTRADOR', 'ADMIN'], isNew: true },
     {
       id: 'gestion-clientes',
       nombre: 'Gestión Clientes',
@@ -171,6 +171,7 @@ export const permisosPorRol: Record<Rol, ModuloPermiso[]> = {
 
   COORDINADOR: [
     { id: 'dashboard', nombre: 'Dashboard', icono: 'LayoutDashboard', path: '/coordinador', roles: ['COORDINADOR'] },
+    { id: 'revisiones', nombre: 'Revisiones', icono: 'ShieldCheck', path: '/coordinador/revisiones', roles: ['COORDINADOR'], isNew: true },
     {
       id: 'gestion',
       nombre: 'Gestión',
@@ -195,7 +196,6 @@ export const permisosPorRol: Record<Rol, ModuloPermiso[]> = {
         { id: 'rutas', nombre: 'Rutas', icono: 'Route', path: '/coordinador/rutas', roles: ['COORDINADOR'] },
       ]
     },
-    { id: 'revisiones', nombre: 'Revisiones', icono: 'ShieldCheck', path: '/coordinador/revisiones', roles: ['COORDINADOR'], isNew: true },
     { id: 'reportes-operativos', nombre: 'Reportes operativos', icono: 'ClipboardList', path: '/coordinador/reportes', roles: ['COORDINADOR'] },
   ],
 
