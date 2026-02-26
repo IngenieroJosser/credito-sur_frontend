@@ -251,7 +251,9 @@ const DetalleRutaPage = () => {
                 }));
 
                 // Enriquecer recaudo
-                const hoyStr = new Date().toDateString();
+                const toLocalKey = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+                const hoyStr = toLocalKey(new Date());
+
                 const withRecaudo = await Promise.all(visitasEnriquecidas.map(async (v: any) => {
                   if (!v.clienteId) return { ...v, recaudadoDelDia: 0, recaudadoTotalClient: 0 };
                   try {
@@ -259,7 +261,8 @@ const DetalleRutaPage = () => {
                     const pagosCalc = (pagosResp?.pagos || []);
                     
                     const totalHoy = pagosCalc.reduce((sum: number, p: any) => {
-                      const f = new Date(p.fechaPago).toDateString();
+                      const raw = p.fechaPago || p.creadoEn;
+                      const f = raw ? (raw.includes('T') ? raw.split('T')[0] : raw) : '';
                       return f === hoyStr ? sum + Number(p.montoTotal || 0) : sum;
                     }, 0);
                     
@@ -284,10 +287,9 @@ const DetalleRutaPage = () => {
                   
                   if (saldoHoy >= (cuota - 1) && saldoHoy > 0) return 'pagado';
 
-                  const hoy = new Date().toDateString();
-                  const proxima = new Date(v.proximaVisita).toDateString();
+                  const proximaC = v.proximaVisita ? (v.proximaVisita.includes('T') ? v.proximaVisita.split('T')[0] : v.proximaVisita) : '';
                   
-                  if (proxima === hoy && saldoHoy >= (cuota - 1)) return 'pagado';
+                  if (proximaC === hoyStr && saldoHoy >= (cuota - 1)) return 'pagado';
                   
                   return v.estado;
                 }

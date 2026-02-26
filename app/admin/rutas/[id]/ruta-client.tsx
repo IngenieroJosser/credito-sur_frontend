@@ -358,7 +358,9 @@ const RutaClient = ({ initialRuta }: RutaClientProps) => {
     if (visitasCobrador.some(v => v.recaudadoTotalClient !== undefined)) return;
 
     const enriquecerConPagos = async () => {
-      const hoyStr = new Date().toDateString();
+      const toLocalKey = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      const hoyStr = toLocalKey(new Date());
+
       const actualizadas = await Promise.all(visitasCobrador.map(async (v: any) => {
         if (!v.clienteId) return { ...v, recaudadoDelDia: 0, recaudadoTotalClient: 0 };
         try {
@@ -367,7 +369,8 @@ const RutaClient = ({ initialRuta }: RutaClientProps) => {
           const pagosCalc = (pagosResp?.pagos || []);
           
           const totalHoy = pagosCalc.reduce((sum: number, p: any) => {
-            const f = new Date(p.fechaPago).toDateString();
+            const raw = p.fechaPago || p.creadoEn;
+            const f = raw ? (raw.includes('T') ? raw.split('T')[0] : raw) : '';
             return f === hoyStr ? sum + Number(p.montoTotal || 0) : sum;
           }, 0);
           

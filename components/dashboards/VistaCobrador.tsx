@@ -515,7 +515,9 @@ const VistaCobrador = () => {
 
         // Enriquecer con recaudado total y del día por cliente
         try {
-          const hoyStr = new Date().toDateString();
+          const toLocalKey = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+          const hoyStr = toLocalKey(new Date());
+
           const withRecaudo = await Promise.all(visitasEnriquecidas.map(async (v) => {
             if (!v.clienteId) return { ...v, recaudadoDelDia: 0, recaudadoTotalClient: 0 };
             try {
@@ -523,7 +525,8 @@ const VistaCobrador = () => {
               const pagosCalc = (pagosResp?.pagos || []);
               
               const totalHoy = pagosCalc.reduce((sum: number, p: any) => {
-                const f = new Date(p.fechaPago).toDateString();
+                const raw = p.fechaPago || p.creadoEn;
+                const f = raw ? (raw.includes('T') ? raw.split('T')[0] : raw) : '';
                 return f === hoyStr ? sum + Number(p.montoTotal || 0) : sum;
               }, 0);
               const totalHistorico = pagosCalc.reduce((sum: number, p: any) => {
@@ -545,8 +548,8 @@ const VistaCobrador = () => {
 
           // Fallback KPIs si backend vino en cero
           const metaCalculada = withRecaudo.reduce((sum, v) => {
-            const d = new Date(v.proximaVisita);
-            const sameDay = !isNaN(d.getTime()) && d.toDateString() === new Date().toDateString();
+            const propDateStr = v.proximaVisita ? (v.proximaVisita.includes('T') ? v.proximaVisita.split('T')[0] : v.proximaVisita) : '';
+            const sameDay = propDateStr === hoyStr;
             return sameDay ? sum + Number(v.montoCuota || 0) : sum;
           }, 0);
           const recaudadoCalculado = withRecaudo.reduce((sum, v) => sum + Number(v.recaudadoDelDia || 0), 0);
@@ -1549,14 +1552,18 @@ const VistaCobrador = () => {
           }).sort((a: any, b: any) => a.ordenVisita - b.ordenVisita);
           // Enriquecer con recaudado del día por cliente
           try {
-            const hoyStr = new Date().toDateString();
+            const toLocalKey = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+            const hoyStr = toLocalKey(new Date());
+
             const enriquecidas = await Promise.all(visitasActualizadas.map(async (v) => {
               if (!v.clienteId) return { ...v, recaudadoDelDia: 0, recaudadoTotalClient: 0 };
               try {
                 const pagosResp = await pagosService.obtenerPagos({ clienteId: v.clienteId, limit: 100 });
                 const pagosCalc = (pagosResp?.pagos || []);
                 const totalHoy = pagosCalc.reduce((sum: number, p: any) => {
-                  return new Date(p.fechaPago).toDateString() === hoyStr ? sum + Number(p.montoTotal || 0) : sum;
+                  const raw = p.fechaPago || p.creadoEn;
+                  const f = raw ? (raw.includes('T') ? raw.split('T')[0] : raw) : '';
+                  return f === hoyStr ? sum + Number(p.montoTotal || 0) : sum;
                 }, 0);
                 const totalHistorico = pagosCalc.reduce((sum: number, p: any) => sum + Number(p.montoTotal || 0), 0);
                 return { ...v, recaudadoDelDia: totalHoy, recaudadoTotalClient: totalHistorico };
@@ -1569,8 +1576,8 @@ const VistaCobrador = () => {
             setVisitasOrden(finales2.map(v => v.id));
             // Actualizar KPIs si faltan valores
             const metaCalculada = enriquecidas.reduce((sum, v) => {
-              const d = new Date(v.proximaVisita);
-              const sameDay = !isNaN(d.getTime()) && d.toDateString() === new Date().toDateString();
+              const propDateStr = v.proximaVisita ? (v.proximaVisita.includes('T') ? v.proximaVisita.split('T')[0] : v.proximaVisita) : '';
+              const sameDay = propDateStr === hoyStr;
               return sameDay ? sum + Number(v.montoCuota || 0) : sum;
             }, 0);
             const recaudadoCalculado = enriquecidas.reduce((sum, v) => sum + Number(v.recaudadoDelDia || 0), 0);
