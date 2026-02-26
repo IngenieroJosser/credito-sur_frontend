@@ -65,7 +65,6 @@ export const permisosPorRol: Record<Rol, ModuloPermiso[]> = {
       ]
     },
     { id: 'revisiones', nombre: 'Revisiones', icono: 'ShieldCheck', path: '/revisiones', roles: ['SUPER_ADMINISTRADOR'], isNew: true },
-    { id: 'articulos', nombre: 'Artículos (Inventario)', icono: 'Package', path: '/articulos', roles: ['SUPER_ADMINISTRADOR', 'COORDINADOR', 'CONTADOR'] },
     {
       id: 'gestion-clientes',
       nombre: 'Gestión Clientes',
@@ -98,6 +97,7 @@ export const permisosPorRol: Record<Rol, ModuloPermiso[]> = {
       path: '#',
       roles: ['SUPER_ADMINISTRADOR'],
       submodulos: [
+        { id: 'articulos', nombre: 'Artículos (Inventario)', icono: 'Package', path: '/articulos', roles: ['SUPER_ADMINISTRADOR', 'COORDINADOR', 'CONTADOR'] },
         { id: 'usuarios', nombre: 'Usuarios', icono: 'User', path: '/users', roles: ['SUPER_ADMINISTRADOR'] },
         { id: 'auditoria', nombre: 'Auditoría', icono: 'FileText', path: '/auditoria', roles: ['SUPER_ADMINISTRADOR'] },
       ] // Fin submodulos administracion
@@ -131,7 +131,6 @@ export const permisosPorRol: Record<Rol, ModuloPermiso[]> = {
       ]
     },
     { id: 'revisiones', nombre: 'Revisiones', icono: 'ShieldCheck', path: '/revisiones', roles: ['SUPER_ADMINISTRADOR', 'ADMIN'], isNew: true },
-    { id: 'articulos', nombre: 'Artículos (Inventario)', icono: 'Package', path: '/articulos', roles: ['SUPER_ADMINISTRADOR', 'ADMIN', 'COORDINADOR', 'CONTADOR'] },
     {
       id: 'gestion-clientes',
       nombre: 'Gestión Clientes',
@@ -155,6 +154,16 @@ export const permisosPorRol: Record<Rol, ModuloPermiso[]> = {
         { id: 'contable', nombre: 'Movimientos', icono: 'Calculator', path: '/contable', roles: ['SUPER_ADMINISTRADOR', 'ADMIN', 'CONTADOR'] },
         { id: 'arqueo', nombre: 'Arqueo de Caja', icono: 'History', path: '/contable/cierre-caja', roles: ['SUPER_ADMINISTRADOR', 'ADMIN'], isNew: true },
         { id: 'reportes-financieros', nombre: 'Reportes financieros', icono: 'BarChart3', path: '/reportes/financieros', roles: ['SUPER_ADMINISTRADOR', 'ADMIN', 'CONTADOR'], isNew: true },
+      ]
+    },
+    {
+      id: 'administracion',
+      nombre: 'Administración',
+      icono: 'Shield',
+      path: '#',
+      roles: ['SUPER_ADMINISTRADOR', 'ADMIN'],
+      submodulos: [
+        { id: 'articulos', nombre: 'Artículos (Inventario)', icono: 'Package', path: '/articulos', roles: ['SUPER_ADMINISTRADOR', 'ADMIN', 'COORDINADOR', 'CONTADOR'] },
       ]
     },
     { id: 'reportes-operativos', nombre: 'Reportes operativos', icono: 'ClipboardList', path: '/reportes/operativos', roles: ['SUPER_ADMINISTRADOR', 'ADMIN', 'COORDINADOR', 'SUPERVISOR'] },
