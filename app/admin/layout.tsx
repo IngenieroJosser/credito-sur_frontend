@@ -579,10 +579,12 @@ export default function AdminLayout({
                         }`}
                         onClick={() => handleModuleClick(item.id, item.isNew)}
                       >
-                        <div className={`transition-colors ${isActive ? 'text-[#08557f]' : 'text-gray-400 group-hover:text-[#08557f]'}`}>
-                          {item.icon}
+                        <div className="flex items-center gap-3">
+                          <div className={`transition-colors ${isActive ? 'text-[#08557f]' : 'text-gray-400 group-hover:text-[#08557f]'}`}>
+                            {item.icon}
+                          </div>
+                          <span className="text-sm">{item.name}</span>
                         </div>
-                        <span className="text-sm">{item.name}</span>
                         {isNew && (
                             <span className="text-[10px] font-bold text-white bg-gradient-to-r from-pink-500 to-rose-500 px-1.5 py-0.5 rounded-full shadow-sm animate-pulse">
                               NUEVO
