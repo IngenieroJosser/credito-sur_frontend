@@ -91,6 +91,14 @@ export const permisosPorRol: Record<Rol, ModuloPermiso[]> = {
       ]
     },
     {
+      id: 'revisiones',
+      nombre: 'Revisiones',
+      icono: 'ShieldCheck',
+      path: '/revisiones',
+      roles: ['SUPER_ADMINISTRADOR'],
+      isNew: true,
+    },
+    {
       id: 'administracion',
       nombre: 'Administración',
       icono: 'Shield',
@@ -155,6 +163,7 @@ export const permisosPorRol: Record<Rol, ModuloPermiso[]> = {
         { id: 'reportes-financieros', nombre: 'Reportes financieros', icono: 'BarChart3', path: '/reportes/financieros', roles: ['SUPER_ADMINISTRADOR', 'ADMIN', 'CONTADOR'], isNew: true },
       ]
     },
+    { id: 'revisiones', nombre: 'Revisiones', icono: 'ShieldCheck', path: '/revisiones', roles: ['SUPER_ADMINISTRADOR', 'ADMIN'], isNew: true },
     { id: 'reportes-operativos', nombre: 'Reportes operativos', icono: 'ClipboardList', path: '/reportes/operativos', roles: ['SUPER_ADMINISTRADOR', 'ADMIN', 'COORDINADOR', 'SUPERVISOR'] },
   ],
 
@@ -184,6 +193,7 @@ export const permisosPorRol: Record<Rol, ModuloPermiso[]> = {
         { id: 'rutas', nombre: 'Rutas', icono: 'Route', path: '/coordinador/rutas', roles: ['COORDINADOR'] },
       ]
     },
+    { id: 'revisiones', nombre: 'Revisiones', icono: 'ShieldCheck', path: '/coordinador/revisiones', roles: ['COORDINADOR'], isNew: true },
     { id: 'reportes-operativos', nombre: 'Reportes operativos', icono: 'ClipboardList', path: '/coordinador/reportes', roles: ['COORDINADOR'] },
   ],
 
@@ -256,6 +266,7 @@ import {
   Bell,
   CreditCard,
   ShoppingBag,
+  ShieldCheck,
   Banknote,
   Users,
   AlertCircle,
@@ -316,6 +327,7 @@ export const iconosMap: Record<string, React.ReactNode> = {
   'FileText': <FileText className="h-4 w-4" />,
   'RefreshCw': <RefreshCw className="h-4 w-4" />,
   'UserCircle': <UserCircle className="h-4 w-4" />,
+  'ShieldCheck': <ShieldCheck className="h-4 w-4" />,
 };
 
 export const getIconComponent = (iconName: string): React.ReactNode => {
@@ -393,6 +405,7 @@ const ACTION_ICON_MAP: Record<string, string> = {
   solicitudes: 'ClipboardList',
   'prestamos-dinero': 'CreditCard',
   'creditos-articulos': 'ShoppingBag',
+  'revisiones': 'ShieldCheck',
 };
 
 const normalizePermissionId = (rawId: string) => {
@@ -721,6 +734,9 @@ export const tieneAcceso = (rol: Rol, path: string, permisos?: string[]): boolea
       '/cobranzas/solicitudes': 'solicitudes',
       '/creditos-articulos': 'creditos-articulos',
       '/punto-de-venta': 'dashboard',
+      '/revisiones': 'revisiones',
+      '/admin/revisiones': 'revisiones',
+      '/coordinador/revisiones': 'revisiones',
     };
 
     // Match exacto
