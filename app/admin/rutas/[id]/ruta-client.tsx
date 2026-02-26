@@ -95,6 +95,7 @@ const RutaClient = ({ initialRuta }: RutaClientProps) => {
   const [historialRutas, setHistorialRutas] = useState<any>(null)
   const [historyViewMode, setHistoryViewMode] = useState<'DAYS' | 'MONTHS'>('DAYS')
   const [selectedHistoryDate, setSelectedHistoryDate] = useState<string | null>(null)
+  const [selectedHistoryMonth, setSelectedHistoryMonth] = useState<string | null>(null)
 
   const historyDates = useMemo(() => {
     if (!historialRutas) return [];
@@ -106,42 +107,77 @@ const RutaClient = ({ initialRuta }: RutaClientProps) => {
     if (!showHistory || !initialRuta?.id) return;
     if (historialRutas && Object.keys(historialRutas).length > 0) return;
     const hoy = new Date();
+    const toKey = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
     const prefill: Record<string, HistorialDia> = {};
     for (let i = 0; i < 30; i++) {
         const d = new Date(hoy);
         d.setDate(hoy.getDate() - i);
-        const yyyy = d.getFullYear();
-        const mm = String(d.getMonth() + 1).padStart(2, '0');
-        const dd = String(d.getDate()).padStart(2, '0');
-        const key = `${yyyy}-${mm}-${dd}`;
-        prefill[key] = {
+        prefill[toKey(d)] = {
             resumen: { recaudo: 0, gastos: 0, efectividad: 0, visitados: 0, total: 0 },
             visitas: [],
             loaded: false
         };
     }
     setHistorialRutas(prefill);
+
+    const cargarResumenRecaudos = async () => {
+      try {
+        const pagosResp = await pagosService.obtenerPagos({ limit: 5000 });
+        const pagosData = (pagosResp as any)?.pagos || pagosResp || [];
+        setHistorialRutas((prev: any) => {
+          if (!prev) return prev;
+          const next = { ...prev };
+          const keys = Object.keys(next);
+          for (const k of keys) {
+            if (!next[k].loaded) next[k].resumen.recaudo = 0;
+          }
+           for (const p of pagosData) {
+            const raw = p.fechaPago || p.creadoEn;
+            if (!raw) continue;
+            const dStr = typeof raw === 'string' ? raw.split('T')[0] : new Date(raw).toISOString().split('T')[0];
+            const pk = dStr;
+            const cobradorMatch = initialRuta?.cobradorId ? (p.cobradorId === initialRuta.cobradorId) : true;
+            if (next[pk] && !next[pk].loaded && cobradorMatch) {
+               next[pk].resumen.recaudo += Number(p.montoTotal || 0);
+            }
+          }
+          return next;
+        });
+      } catch (e) { console.warn('Error precargando montos de historial', e); }
+    };
+    cargarResumenRecaudos();
   }, [showHistory, initialRuta?.id]);
 
   const cargarHistorialFecha = useCallback(async (fechaClave: string) => {
     if (!initialRuta?.id) return;
+    let visitasResp: any = null;
+    let saldo: any = null;
+    let pagosDelDia: any[] = [];
+    
     try {
-      const visitasResp = await rutasService.obtenerVisitasDelDia(initialRuta.id, fechaClave);
-      const saldo = await obtenerSaldoDisponibleRuta(initialRuta.id, fechaClave);
-      const pagosResp = await pagosService.obtenerPagos({ limit: 1000 });
+      visitasResp = await rutasService.obtenerVisitasDelDia(initialRuta.id, fechaClave);
+    } catch(e) { console.warn(`[Admin Historial ${fechaClave}] visitas falló:`, e); }
+
+    try {
+      saldo = await obtenerSaldoDisponibleRuta(initialRuta.id, fechaClave);
+    } catch(e) { console.warn(`[Admin Historial ${fechaClave}] saldo falló:`, e); }
+
+    try {
+      const pagosResp = await pagosService.obtenerPagos({ limit: 5000 });
       const pagosData = (pagosResp as any)?.pagos || pagosResp || [];
       
-      const pagosDelDia = (Array.isArray(pagosData) ? pagosData : []).filter((p: any) => {
-        const raw = p.fechaPago || p.creadoEn;
-        if (!raw) return false;
-        const d = new Date(raw);
-        const yyyy = d.getFullYear();
-        const mm = String(d.getMonth() + 1).padStart(2, '0');
-        const dd = String(d.getDate()).padStart(2, '0');
-        const key = `${yyyy}-${mm}-${dd}`;
-        return key === fechaClave && (p.ruta === initialRuta.nombre);
-      });
+      const toKey = (raw: string) => {
+        if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw;
+        try { const d2 = new Date(raw); return `${d2.getFullYear()}-${String(d2.getMonth()+1).padStart(2,'0')}-${String(d2.getDate()).padStart(2,'0')}`; } catch { return ''; }
+      };
 
+      pagosDelDia = (Array.isArray(pagosData) ? pagosData : []).filter((p: any) => {
+        const raw = p.fechaPago || p.creadoEn;
+        return raw && toKey(raw) === fechaClave;
+      });
+    } catch(e) { console.warn(`[Admin Historial ${fechaClave}] pagos falló:`, e); }
+
+    try {
       const recaudadoPorCliente: Record<string, number> = {};
       for (const p of pagosDelDia) {
         const cid = p.clienteId || (p.cliente?.id);
@@ -244,7 +280,20 @@ const RutaClient = ({ initialRuta }: RutaClientProps) => {
         [fechaClave]: { resumen, visitas: todasVisitas, loaded: true }
       }));
     } catch (e) {
-      console.error("Error cargando historial de fecha (Admin):", e);
+      console.error("Error procesando datos del historial (Admin):", e);
+    } finally {
+      // Siempre asegurarse de no dejarlo colgando
+      setHistorialRutas((prev: any) => {
+          if ((prev || {})[fechaClave]?.loaded) return prev;
+          return {
+             ...(prev || {}),
+             [fechaClave]: { 
+                resumen: { recaudo: 0, gastos: 0, efectividad: 0, visitados: 0, total: 0 }, 
+                visitas: [], 
+                loaded: true 
+             }
+          };
+      });
     }
   }, [initialRuta]);
 
@@ -663,110 +712,147 @@ const RutaClient = ({ initialRuta }: RutaClientProps) => {
                      <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest bg-slate-100 px-3 py-1 rounded-full">Últimos 30 días</div>
                    </div>
 
+                   {/* Toggle DÍAS | MESES */}
+                   <div className="flex items-center gap-2 mb-3">
+                     <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mr-1">VISTA:</span>
+                     <button onClick={() => setHistoryViewMode('DAYS')} className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all border ${historyViewMode === 'DAYS' ? 'bg-slate-900 text-white border-slate-900 shadow-lg' : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300'}`}>Días</button>
+                     <button onClick={() => setHistoryViewMode('MONTHS')} className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all border ${historyViewMode === 'MONTHS' ? 'bg-slate-900 text-white border-slate-900 shadow-lg' : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300'}`}>Meses</button>
+                   </div>
+
                    {historyDates.length > 0 ? (
                       <div className="space-y-3">
-                         {historyDates.map(date => {
-                            const data = (historialRutas as Record<string, HistorialDia>)[date];
-                            const isExpanded = selectedHistoryDate === date;
-                            const [y, m, d] = date.split('-');
-                            const dateObj = new Date(parseInt(y), parseInt(m)-1, parseInt(d));
-                            const dayName = dateObj.toLocaleDateString('es-CO', { weekday: 'long', day: 'numeric', month: 'long' });
-                            
-                            const isCompleted = data.visitas.length > 0 && (data.resumen.efectividad >= 95 || data.visitas.every((v: any) => v.estado === 'pagado'));
 
-                            return (
-                              <div key={date} 
-                                   className={`rounded-2xl border transition-all overflow-hidden bg-white border-slate-200
-                                     ${isExpanded ? 'ring-1 ring-slate-300 shadow-md' : 'shadow-sm'}
-                                   `}
-                              >
-                                {/* Header (Clickable) */}
-                                <div 
-                                   className="p-4 flex items-center justify-between cursor-pointer hover:bg-slate-50 transition-colors"
-                                  onClick={async () => {
-                                    if (!isExpanded && (!data.loaded)) {
-                                      await cargarHistorialFecha(date);
-                                    }
-                                    setSelectedHistoryDate(isExpanded ? null : date);
-                                  }}
-                                >
-                                  <div className="flex items-center gap-3">
-                                     <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-xs shadow-sm
-                                         ${isExpanded ? 'bg-[#08557f] text-white' : 'bg-slate-100 text-slate-600'}
-                                     `}>
-                                        {d}
-                                     </div>
-                                     
-                                     <div>
-                                        <div className="font-bold text-slate-900 capitalize flex items-center gap-2">
-                                           {dayName}
-                                           {isCompleted && <span className="text-[10px] bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full font-bold uppercase border border-emerald-200">Completada</span>}
+                        {/* === VISTA MESES === */}
+                        {historyViewMode === 'MONTHS' && (() => {
+                          const byMonth: Record<string, string[]> = {};
+                          for (const date of historyDates) {
+                            const [y, mi] = date.split('-');
+                            const mk = `${y}-${mi}`;
+                            if (!byMonth[mk]) byMonth[mk] = [];
+                            byMonth[mk].push(date);
+                          }
+                          const monthKeys = Object.keys(byMonth).sort().reverse();
+                          return (
+                            <div className="space-y-4">
+                              {monthKeys.map(monthKey => {
+                                const [my, mNum] = monthKey.split('-');
+                                const monthObj = new Date(parseInt(my), parseInt(mNum)-1, 1);
+                                const monthName = monthObj.toLocaleDateString('es-CO', { month: 'long', year: 'numeric' });
+                                const daysInMonth = byMonth[monthKey];
+                                const isMonthExpanded = selectedHistoryMonth === monthKey;
+                                const monthRecaudo = daysInMonth.reduce((sum, d2) => sum + ((historialRutas as any)[d2]?.resumen?.recaudo || 0), 0);
+                                const monthPagados = daysInMonth.reduce((sum, d2) => sum + (((historialRutas as any)[d2]?.visitas || []).filter((v: any) => v.estado === 'pagado').length), 0);
+                                return (
+                                  <div key={monthKey} className={`rounded-2xl border transition-all overflow-hidden bg-white border-slate-200 ${isMonthExpanded ? 'ring-1 ring-slate-300 shadow-md' : 'shadow-sm'}`}>
+                                    <div className="p-4 flex items-center justify-between cursor-pointer hover:bg-slate-50 transition-colors" onClick={() => setSelectedHistoryMonth(isMonthExpanded ? null : monthKey)}>
+                                      <div className="flex items-center gap-3">
+                                        <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-xs shadow-sm ${isMonthExpanded ? 'bg-[#08557f] text-white' : 'bg-slate-100 text-slate-600'}`}>{mNum}</div>
+                                        <div>
+                                          <div className="font-bold text-slate-900 capitalize">{monthName}</div>
+                                          <div className="text-xs text-slate-500">{daysInMonth.length} días · Recaudo: <b>${monthRecaudo.toLocaleString('es-CO')}</b></div>
                                         </div>
-                                        <div className="text-xs text-slate-500">
-                                           Recaudo: <b>${data.resumen.recaudo.toLocaleString('es-CO')}</b>
-                                        </div>
-                                     </div>
-                                  </div>
-                                  <div className="flex items-center gap-3">
-                                     <div className={`px-2 py-1 rounded-lg text-[10px] font-bold ${data.resumen.efectividad >= 90 ? 'bg-emerald-50 text-emerald-700' : 'bg-orange-50 text-orange-700'}`}>
-                                       {data.resumen.efectividad}%
-                                     </div>
-                                     <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
-                                  </div>
-                                </div>
-
-                                {/* Body (Expanded) */}
-                                {isExpanded && (
-                                   <div className="border-t border-slate-100 bg-white p-4 space-y-4 animate-in slide-in-from-top-2 duration-200">
-                                      {/* Mini Resumen */}
-                                      <div className="grid grid-cols-3 gap-2">
-                                         <div className="bg-slate-50 p-2 rounded-xl border border-slate-100 text-center">
-                                             <div className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter">Recaudo</div>
-                                             <div className="text-xs font-black text-slate-700">${data.resumen.recaudo.toLocaleString('es-CO')}</div>
-                                         </div>
-                                         <div className="bg-slate-50 p-2 rounded-xl border border-slate-100 text-center">
-                                             <div className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter">Gastos</div>
-                                             <div className="text-xs font-black text-rose-600">${data.resumen.gastos.toLocaleString('es-CO')}</div>
-                                         </div>
-                                         <div className="bg-slate-50 p-2 rounded-xl border border-slate-100 text-center">
-                                             <div className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter">Visitados</div>
-                                             <div className="text-xs font-black text-blue-600">{data.resumen.visitados}/{data.resumen.total}</div>
-                                         </div>
                                       </div>
+                                      <div className="flex items-center gap-3">
+                                        <div className="px-2 py-1 rounded-lg text-[10px] font-bold bg-blue-50 text-blue-700">{monthPagados} cobros</div>
+                                        <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${isMonthExpanded ? 'rotate-180' : ''}`} />
+                                      </div>
+                                    </div>
+                                    {isMonthExpanded && (
+                                      <div className="border-t border-slate-100">
+                                        {daysInMonth.map(date => {
+                                          const dayData = (historialRutas as any)[date];
+                                          const isDayExpanded = selectedHistoryDate === date;
+                                          const [dy, dm, dd] = date.split('-');
+                                          const dateObj = new Date(parseInt(dy), parseInt(dm)-1, parseInt(dd));
+                                          const dayNameStr = dateObj.toLocaleDateString('es-CO', { weekday: 'long', day: 'numeric' });
+                                          return (
+                                            <div key={date} className={`border-b border-slate-50 last:border-0 ${isDayExpanded ? 'bg-slate-50/40' : ''}`}>
+                                              <div className="px-5 py-3 flex items-center justify-between cursor-pointer hover:bg-slate-50 transition-colors" onClick={async () => {
+                                                if (!isDayExpanded && !dayData.loaded) { await cargarHistorialFecha(date); }
+                                                setSelectedHistoryDate(isDayExpanded ? null : date);
+                                              }}>
+                                                <div className="flex items-center gap-3">
+                                                  <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-[11px] ${isDayExpanded ? 'bg-[#08557f] text-white' : 'bg-white border border-slate-200 text-slate-600'}`}>{dd}</div>
+                                                  <div>
+                                                    <span className="text-sm font-semibold text-slate-700 capitalize">{dayNameStr}</span>
+                                                    <div className="text-[11px] text-slate-400">Recaudo: <b>${(dayData?.resumen?.recaudo || 0).toLocaleString('es-CO')}</b>{dayData?.loaded && dayData.visitas.length > 0 && <span className="ml-2">· {dayData.visitas.length} clientes</span>}</div>
+                                                  </div>
+                                                </div>
+                                                <ChevronDown className={`w-3.5 h-3.5 text-slate-400 transition-transform ${isDayExpanded ? 'rotate-180' : ''}`} />
+                                              </div>
+                                              {isDayExpanded && (
+                                                <div className="px-4 pb-4 space-y-2 animate-in slide-in-from-top-1 duration-150">
+                                                  {!dayData.loaded ? (
+                                                    <div className="flex flex-col items-center justify-center py-6 text-slate-400"><div className="w-5 h-5 border-2 border-slate-300 border-t-[#08557f] rounded-full animate-spin mb-2" /><span className="text-xs">Cargando...</span></div>
+                                                  ) : dayData.visitas.length === 0 ? (
+                                                    <div className="text-center py-6 text-[11px] text-slate-400">Sin cobros para este día</div>
+                                                  ) : (
+                                                    dayData.visitas.map((v: any) => (
+                                                      <StaticVisitaItem key={v.id} visita={v} allowClick={false} onVerCliente={handleAbrirClienteInfo} getEstadoClasses={getEstadoClasses} getPrioridadColor={getPrioridadColor} />
+                                                    ))
+                                                  )}
+                                                </div>
+                                              )}
+                                            </div>
+                                          );
+                                        })}
+                                      </div>
+                                    )}
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          );
+                        })()}
 
-                                      <div className="space-y-3">
-                                         <div className="flex justify-between text-[10px] font-bold text-slate-500 uppercase px-1">
-                                            <span>Clientes Gestionados hoy</span>
-                                            <span>Estado</span>
-                                         </div>
-                                         {!data.loaded ? (
-                                           <div className="flex flex-col items-center justify-center py-8 text-slate-400">
-                                             <Loader2 className="w-6 h-6 animate-spin mb-2 opacity-20" />
-                                             <span className="text-xs font-medium">Cargando detalles...</span>
-                                           </div>
-                                         ) : data.visitas.length === 0 ? (
-                                           <div className="flex flex-col items-center justify-center py-10 bg-slate-50 rounded-2xl border border-dashed border-slate-200">
-                                              <History className="w-8 h-8 text-slate-300 mb-2 opacity-30" />
-                                              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest text-center px-4">No se registraron visitas ni pagos para este día</span>
-                                           </div>
-                                         ) : (
-                                           data.visitas.map((v: any) => (
-                                             <StaticVisitaItem
-                                                 key={v.id}
-                                                 visita={v}
-                                                 allowClick={false}
-                                                 onVerCliente={handleAbrirClienteInfo}
-                                                 getEstadoClasses={getEstadoClasses}
-                                                 getPrioridadColor={getPrioridadColor}
-                                             />
-                                           ))
-                                         )}
+                        {/* === VISTA DÍAS === */}
+                        {historyViewMode === 'DAYS' && historyDates.map(date => {
+                             const data = (historialRutas as Record<string, HistorialDia>)[date];
+                             const isExpanded = selectedHistoryDate === date;
+                             const [y, m, d] = date.split('-');
+                             const dateObj = new Date(parseInt(y), parseInt(m)-1, parseInt(d));
+                             const dayName = dateObj.toLocaleDateString('es-CO', { weekday: 'long', day: 'numeric', month: 'long' });
+                             const isCompleted = data.visitas.length > 0 && (data.resumen.efectividad >= 95 || data.visitas.every((v: any) => v.estado === 'pagado'));
+                             return (
+                               <div key={date} className={`rounded-2xl border transition-all overflow-hidden bg-white border-slate-200 ${isExpanded ? 'ring-1 ring-slate-300 shadow-md' : 'shadow-sm'}`}>
+                                 <div className="p-4 flex items-center justify-between cursor-pointer hover:bg-slate-50 transition-colors" onClick={async () => { if (!isExpanded && !data.loaded) { await cargarHistorialFecha(date); } setSelectedHistoryDate(isExpanded ? null : date); }}>
+                                   <div className="flex items-center gap-3">
+                                      <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-xs shadow-sm ${isExpanded ? 'bg-[#08557f] text-white' : 'bg-slate-100 text-slate-600'}`}>{d}</div>
+                                      <div>
+                                         <div className="font-bold text-slate-900 capitalize flex items-center gap-2">{dayName}{isCompleted && <span className="text-[10px] bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full font-bold uppercase border border-emerald-200">Completada</span>}</div>
+                                         <div className="text-xs text-slate-500">Recaudo: <b>${data.resumen.recaudo.toLocaleString('es-CO')}</b></div>
                                       </div>
                                    </div>
-                                )}
-                              </div>
-                            )
-                         })}
+                                   <div className="flex items-center gap-3">
+                                      <div className={`px-2 py-1 rounded-lg text-[10px] font-bold ${data.resumen.efectividad >= 90 ? 'bg-emerald-50 text-emerald-700' : 'bg-orange-50 text-orange-700'}`}>{data.resumen.efectividad}%</div>
+                                      <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+                                   </div>
+                                 </div>
+                                 {isExpanded && (
+                                    <div className="border-t border-slate-100 bg-white p-4 space-y-4 animate-in slide-in-from-top-2 duration-200">
+                                       <div className="grid grid-cols-3 gap-2">
+                                          <div className="bg-slate-50 p-2 rounded-xl border border-slate-100 text-center"><div className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter">Recaudo</div><div className="text-xs font-black text-slate-700">${data.resumen.recaudo.toLocaleString('es-CO')}</div></div>
+                                          <div className="bg-slate-50 p-2 rounded-xl border border-slate-100 text-center"><div className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter">Gastos</div><div className="text-xs font-black text-rose-600">${data.resumen.gastos.toLocaleString('es-CO')}</div></div>
+                                          <div className="bg-slate-50 p-2 rounded-xl border border-slate-100 text-center"><div className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter">Visitados</div><div className="text-xs font-black text-blue-600">{data.resumen.visitados}/{data.resumen.total}</div></div>
+                                       </div>
+                                       <div className="space-y-3">
+                                          <div className="flex justify-between text-[10px] font-bold text-slate-500 uppercase px-1"><span>Clientes Gestionados</span><span>Estado</span></div>
+                                          {!data.loaded ? (
+                                            <div className="flex flex-col items-center justify-center py-8 text-slate-400"><Loader2 className="w-6 h-6 animate-spin mb-2 opacity-20" /><span className="text-xs font-medium">Cargando detalles...</span></div>
+                                          ) : data.visitas.length === 0 ? (
+                                            <div className="flex flex-col items-center justify-center py-10 bg-slate-50 rounded-2xl border border-dashed border-slate-200"><History className="w-8 h-8 text-slate-300 mb-2 opacity-30" /><span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest text-center px-4">No se registraron visitas ni pagos para este día</span></div>
+                                          ) : (
+                                            data.visitas.map((v: any) => (
+                                              <StaticVisitaItem key={v.id} visita={v} allowClick={false} onVerCliente={handleAbrirClienteInfo} getEstadoClasses={getEstadoClasses} getPrioridadColor={getPrioridadColor} />
+                                            ))
+                                          )}
+                                       </div>
+                                    </div>
+                                 )}
+                               </div>
+                             );
+                        })}
+
                       </div>
                    ) : (
                      <div className="bg-white rounded-2xl border border-slate-200 p-12 text-center">
