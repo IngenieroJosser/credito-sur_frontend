@@ -1609,11 +1609,24 @@ const VistaCobrador = () => {
   }, [visitaPagoSeleccionada, pagoInitialIsAbono, userSession?.id])
 
   const confirmarFinalizarRuta = useCallback(() => {
+    const meta = rutaStats.meta || 1;
+    const recaudo = rutaStats.recaudo || 0;
+    const clientesFaltantes = visitasBase.filter(v => v.estado === 'pendiente' || v.estado === 'en_mora').length;
+    const efectividad = Math.round((recaudo / meta) * 100);
+
+    socket?.emit('ruta_completada_emit', {
+      rutaNombre: rutaActual?.nombre || 'Mi Ruta',
+      cobradorNombre: userSession?.nombres || 'El Cobrador',
+      recaudo: recaudo,
+      efectividad: efectividad,
+      clientesFaltantes: clientesFaltantes
+    });
+
     setRutaCompletada(true)
-    setCoordinadorToast('Se notificó al coordinador: ruta diaria marcada como completada.')
+    setCoordinadorToast('Se ha cerrado el día de manera exitosa y se alertó a la oficina.')
     setShowConfirmCompleteModal(false)
     window.setTimeout(() => setCoordinadorToast(null), 4000)
-  }, [])
+  }, [socket, rutaActual, userSession, rutaStats, visitasBase])
 
   const handleCompletarRuta = useCallback(() => {
     setShowConfirmCompleteModal(true)
@@ -2829,9 +2842,32 @@ const VistaCobrador = () => {
                    </div>
                    <div>
                      <h3 className="text-xl font-black text-slate-900 tracking-tight mb-2">¿Finalizar Ruta del Día?</h3>
-                     <p className="text-slate-500 text-sm font-medium leading-relaxed">
-                        Al marcar la ruta como completada, no podrás registrar más movimientos hasta mañana.
+                     <p className="text-slate-500 text-sm font-medium leading-relaxed mb-4">
+                        Al marcar la ruta como completada se reportará tu rendimiento a la oficina.
                      </p>
+                     
+                     <div className="bg-slate-50 border border-slate-100 rounded-2xl p-4 text-left grid grid-cols-2 gap-3">
+                        <div>
+                          <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Meta</p>
+                          <p className="text-sm font-black text-slate-900">${(rutaStats.meta || 0).toLocaleString('es-CO')}</p>
+                        </div>
+                        <div>
+                          <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Recaudado</p>
+                          <p className="text-sm font-black text-emerald-600">${(rutaStats.recaudo || 0).toLocaleString('es-CO')}</p>
+                        </div>
+                        <div>
+                          <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Efectividad</p>
+                          <p className={`text-sm font-black ${(rutaStats.recaudo / (rutaStats.meta || 1)) >= 1 ? 'text-emerald-600' : 'text-orange-600'}`}>
+                             {Math.round(((rutaStats.recaudo || 0) / (rutaStats.meta || 1)) * 100)}%
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Pendientes</p>
+                          <p className="text-sm font-black text-slate-900 text-slate-400">
+                            {visitasBase.filter(v => v.estado === 'pendiente' || v.estado === 'en_mora').length} clientes
+                          </p>
+                        </div>
+                     </div>
                    </div>
                    <div className="flex gap-3 w-full mt-4">
                       <button 
