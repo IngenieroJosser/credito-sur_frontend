@@ -693,117 +693,12 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
   }, [visitasBase, searchQuery])
 
   const exportarRutaDiariaCSV = useCallback(() => {
-    const filas = visitasCobrador
-      .filter((v) => v.periodoRuta === 'DIA' && v.estado !== 'pagado')
-      .map((v) => {
-        const cols = [
-          v.ordenVisita,
-          v.cliente,
-          v.telefono,
-          v.direccion,
-          v.horaSugerida,
-          v.estado,
-          v.montoCuota,
-          v.saldoTotal,
-          v.proximaVisita,
-        ]
-        return cols
-          .map((c) => String(c).replace(/\r?\n/g, ' ').replace(/"/g, '""'))
-          .map((c) => `"${c}"`)
-          .join(',')
-      })
-
-    const header = [
-      'orden',
-      'cliente',
-      'telefono',
-      'direccion',
-      'hora_sugerida',
-      'estado',
-      'monto_cuota',
-      'saldo_total',
-      'proxima_visita',
-    ].join(',')
-
-    const csv = [header, ...filas].join('\n')
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
-    const url = URL.createObjectURL(blob)
-
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `ruta-diaria-${new Date().toISOString().slice(0, 10)}.csv`
-    document.body.appendChild(a)
-    a.click()
-    a.remove()
-    URL.revokeObjectURL(url)
-  }, [visitasCobrador])
+    console.log('TODO: Exportar CSV en desarrollo')
+  }, [])
 
   const exportarRutaDiariaPDF = useCallback(() => {
-    const data = visitasCobrador
-      .filter((v) => v.periodoRuta === 'DIA' && v.estado !== 'pagado')
-
-    const rows = data
-      .map(
-        (v) => `
-          <tr>
-            <td>${v.ordenVisita}</td>
-            <td>${v.cliente}</td>
-            <td>${v.telefono}</td>
-            <td>${v.direccion}</td>
-            <td>${v.horaSugerida}</td>
-            <td>${v.estado}</td>
-            <td style="text-align:right;">${formatCurrency(v.montoCuota)}</td>
-          </tr>
-        `
-      )
-      .join('')
-
-    const html = `
-      <html>
-        <head>
-          <title>Ruta diaria</title>
-          <meta charset="utf-8" />
-          <style>
-            body { font-family: Arial, sans-serif; padding: 24px; }
-            h1 { font-size: 18px; margin: 0 0 4px; }
-            .sub { color: #64748b; font-size: 12px; margin-bottom: 16px; }
-            table { width: 100%; border-collapse: collapse; }
-            th, td { border: 1px solid #e2e8f0; padding: 8px; font-size: 12px; vertical-align: top; }
-            th { background: #f8fafc; text-align: left; }
-          </style>
-        </head>
-        <body>
-          <h1>Ruta diaria</h1>
-          <div class="sub">${new Date().toISOString().slice(0, 10)} • ${data.length} visitas</div>
-          <table>
-            <thead>
-              <tr>
-                <th>#</th>
-                <th>Cliente</th>
-                <th>Teléfono</th>
-                <th>Dirección</th>
-                <th>Hora</th>
-                <th>Estado</th>
-                <th>Monto</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${rows}
-            </tbody>
-          </table>
-          <script>
-            window.onload = () => { window.print(); };
-          </script>
-        </body>
-      </html>
-    `
-
-    const w = window.open('', '_blank', 'noopener,noreferrer')
-    if (!w) return
-    w.document.open()
-    w.document.write(html)
-    w.document.close()
-  }, [visitasCobrador])
+    console.log('TODO: Exportar PDF en desarrollo')
+  }, [])
 
   // rutaStats se actualiza al cargar la ruta desde backend usando pagos reales
 

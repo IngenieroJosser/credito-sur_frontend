@@ -38,6 +38,7 @@ import { routesService } from '@/services/routes-service'
 import { rutasService } from '@/services/rutas-service'
 import { clientesService } from '@/services/clientes-service'
 import { useNotification } from '@/components/providers/NotificationProvider'
+import { ExportButton } from '@/components/ui/ExportButton'
 
 import PagoModal from '@/components/cobranza/PagoModal'
 import EstadoCuentaModal from '@/components/cobranza/EstadoCuentaModal'
@@ -433,7 +434,7 @@ const RutaClient = ({ initialRuta }: RutaClientProps) => {
   }, [visitasCobrador]);
 
   // Agrupar visitas por frecuencia de pago
-  const { visitasAgrupadas, totalMostradas } = useMemo(() => {
+  const { visitasAgrupadas, totalMostradas, exportarRutaDiariaCSV, exportarRutaDiariaPDF } = useMemo(() => {
     const hoy = new Date();
     hoy.setHours(0, 0, 0, 0);
 
@@ -446,6 +447,14 @@ const RutaClient = ({ initialRuta }: RutaClientProps) => {
     // Aplicar filtro de periodo
     if (periodoRutaFiltro !== 'TODOS') {
         filtradas = filtradas.filter(v => v.periodoRuta === periodoRutaFiltro);
+    }
+
+    const exportarRutaDiariaCSV = () => {
+      console.log('TODO: Exportar CSV en desarrollo')
+    }
+  
+    const exportarRutaDiariaPDF = () => {
+      console.log('TODO: Exportar PDF en desarrollo')
     }
 
     const isTodayOrMora = (dateStr: string) => {
@@ -466,7 +475,10 @@ const RutaClient = ({ initialRuta }: RutaClientProps) => {
       DIA: filtradas.filter(v => v.periodoRuta === 'DIA' && filterByDate(v)),
     }
 
-    return { visitasAgrupadas: agrupar, totalMostradas: filtradas.length };
+    return { visitasAgrupadas: agrupar, totalMostradas: filtradas.length,
+      exportarRutaDiariaCSV,
+      exportarRutaDiariaPDF
+    };
   }, [visitasCobrador, searchQuery, periodoRutaFiltro]);
 
   const [visitaSeleccionada, setVisitaSeleccionada] = useState<string | null>(null)
@@ -681,33 +693,38 @@ const RutaClient = ({ initialRuta }: RutaClientProps) => {
                 <div className="mt-4 pt-4 border-t border-slate-200">
                   <div className="flex flex-col md:flex-row gap-3 md:items-center md:justify-between">
                     <div className="text-xs font-bold text-slate-500 uppercase tracking-wider">Período de ruta</div>
-                    <div className="flex gap-2 overflow-x-auto pb-1">
+                    <div className="flex gap-2 overflow-x-auto pb-1 items-center">
+                      <ExportButton
+                        label="Exportar Ruta"
+                        onExportExcel={exportarRutaDiariaCSV}
+                        onExportPDF={exportarRutaDiariaPDF}
+                      />
                       {(
-                        [
-                          { key: 'TODOS' as const, label: 'Todo' },
-                          { key: 'DIA' as const, label: 'Día' },
-                          { key: 'SEMANA' as const, label: 'Semanal' },
-                          { key: 'QUINCENA' as const, label: 'Quincenal' },
-                          { key: 'MES' as const, label: 'Mensual' },
-                        ]
-                      ).map((item) => (
-                        <button
-                          key={item.key}
-                          onClick={() => setPeriodoRutaFiltro(item.key)}
-                          className={`px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all border ${
-                            periodoRutaFiltro === item.key
-                              ? 'bg-[#08557f] text-white border-[#08557f] shadow-lg shadow-[#08557f]/20'
-                              : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
-                          }`}
-                        >
-                          {item.label}
-                        </button>
-                      ))}
+                          [
+                            { key: 'TODOS' as const, label: 'Todo' },
+                            { key: 'DIA' as const, label: 'Día' },
+                            { key: 'SEMANA' as const, label: 'Semanal' },
+                            { key: 'QUINCENA' as const, label: 'Quincenal' },
+                            { key: 'MES' as const, label: 'Mensual' },
+                          ]
+                        ).map((item) => (
+                          <button
+                            key={item.key}
+                            onClick={() => setPeriodoRutaFiltro(item.key)}
+                            className={`px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all border ${
+                              periodoRutaFiltro === item.key
+                                ? 'bg-[#08557f] text-white border-[#08557f] shadow-lg shadow-[#08557f]/20'
+                                : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+                            }`}
+                          >
+                            {item.label}
+                          </button>
+                        ))}
+                      </div>
                     </div>
                   </div>
-                </div>
-              )}
-        </div>
+                )}
+          </div>
         
          {/* Contenido Principal: Lista o Historial */}
          <div className="space-y-6">
