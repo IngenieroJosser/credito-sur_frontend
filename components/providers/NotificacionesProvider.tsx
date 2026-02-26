@@ -76,20 +76,28 @@ export function NotificacionesProvider({ children }: { children: React.ReactNode
       withCredentials: true,
     })
 
+    let hasLoggedError = false;
+
     newSocket.on('connect', () => {
+      hasLoggedError = false; // Reset error flag on successful connect
       console.log(`[Socket] Conectado con ID: ${newSocket.id}`);
       if (currentUserId) {
-        console.log(`[Socket] Registrando usuario: ${currentUserId}`);
         newSocket.emit('register', { userId: currentUserId })
       }
     })
 
     newSocket.on('connect_error', (error) => {
-      console.error('[Socket] Error de conexión:', error.message);
+      // Evitar spam en la consola durante desconexiones temporales (ej. reinicios del backend)
+      if (!hasLoggedError) {
+        console.warn(`[Socket] Desconectado o esperando backend... (${error.message})`);
+        hasLoggedError = true;
+      }
     })
 
     newSocket.on('disconnect', (reason) => {
-      console.warn('[Socket] Desconectado:', reason);
+      if (reason !== 'io client disconnect') {
+        console.warn(`[Socket] Desconectado: ${reason}. Reintentando...`);
+      }
     })
 
     const formatFecha = (fechaRaw?: any) => {

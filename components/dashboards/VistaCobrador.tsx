@@ -316,9 +316,13 @@ const VistaCobrador = () => {
             const perfil = await obtenerPerfil();
             localStorage.setItem('user', JSON.stringify(perfil));
             setUserSession(perfil);
-          } catch (error) {
-            console.error('Error al obtener perfil:', error);
-            router.replace('/login');
+          } catch (error: any) {
+            console.warn('Error al obtener perfil, usando modo offline:', error);
+            // No echar al usuario si es un problema temporal de red o servidor.
+            // Solo redirigir si el token definitivamente murió (401) pero api.ts ya no lanza 401 severamente.
+            if (error?.statusCode === 401) {
+              router.replace('/login');
+            }
           }
         }
       } catch (error) {

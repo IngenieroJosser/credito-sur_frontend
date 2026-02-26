@@ -438,9 +438,14 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
         if (userData) {
           setUserSession(JSON.parse(userData));
         } else {
-             const perfil = await obtenerPerfil();
-             localStorage.setItem('user', JSON.stringify(perfil));
-             setUserSession(perfil);
+             try {
+               const perfil = await obtenerPerfil();
+               localStorage.setItem('user', JSON.stringify(perfil));
+               setUserSession(perfil);
+             } catch (error: any) {
+               console.warn('Error al obtener perfil en supervisor:', error);
+               if (error?.statusCode === 401) router.replace('/login');
+             }
         }
 
         if (rutaId) {
