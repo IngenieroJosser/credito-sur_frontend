@@ -427,58 +427,65 @@ const VistaCobrador = () => {
 
 
         // 4. Mapear asignaciones a Visitas
-        // Usamos las asignaciones directas de la ruta para tener la lista completa de clientes
+        // *** IMPORTANTE: cada crédito activo genera una entrada independiente ***
+        // Un cliente con crédito diario + semanal aparece como 2 filas separadas
         const asignaciones = (rutaCompleta as any).asignaciones || (rutaCompleta as any).asignacionesRuta || [];
 
-        const visitasMapeadas: VisitaRuta[] = asignaciones.map((asig: any, index: number) => {
+        const toPeriodo = (f: string): PeriodoRuta => {
+          if (f === 'SEMANAL') return 'SEMANA';
+          if (f === 'QUINCENAL') return 'QUINCENA';
+          if (f === 'MENSUAL') return 'MES';
+          return 'DIA';
+        };
+
+        const toNivel = (r: string) => {
+          if (r === 'AMARILLO') return 'leve';
+          if (r === 'ROJO') return 'moderado';
+          if (r === 'LISTA_NEGRA') return 'critico';
+          return 'bajo';
+        };
+
+        let globalIdx = 0;
+        const visitasMapeadas: VisitaRuta[] = asignaciones.flatMap((asig: any) => {
            const cliente = asig.cliente || {};
-           // Intentar obtener el préstamo activo
-           const prestamos = cliente.prestamos || [];
-           const prestamoActivo = prestamos.find((p: any) => p.estado === 'ACTIVO' || p.estado === 'VENCIDO') || prestamos[0] || {};
-           
-           // Calcular proxima cuota o saldo
-           const proximaCuota = prestamoActivo.proximaCuota || {}; 
-           const saldoTotal = cliente.prestamos?.reduce((sum: number, p: any) => sum + Number(p.saldoPendiente || 0), 0) || 0;
+           const prestamosActivos: any[] = (cliente.prestamos || []).filter(
+             (p: any) => p.estado === 'ACTIVO' || p.estado === 'EN_MORA'
+           );
 
-           // Determinar estado basado en prestamo
-           let estado: EstadoVisita = 'pendiente';
-           if (proximaCuota.estado === 'VENCIDA') estado = 'en_mora';
-           else if (proximaCuota.estado === 'PAGADA') estado = 'pagado';
-           else if (!prestamoActivo.id) estado = 'pendiente'; // Sin prestamo
+           // Si no tiene préstamos activos, mostrar entrada vacía
+           const lista = prestamosActivos.length > 0 ? prestamosActivos : [null];
 
-           return {
-            id: asig.id || `asig-${index}`,
-            cliente: `${cliente.nombres || ''} ${cliente.apellidos || ''}`.trim() || 'Cliente Sin Nombre',
-            direccion: cliente.direccion || 'Sin dirección registrada',
-            telefono: cliente.telefono || '',
-            horaSugerida: asig.horaSugerida || '08:00 AM',
-            montoCuota: Number(proximaCuota.monto || 0),
-            saldoTotal: Number(saldoTotal),
-            estado: estado,
-            proximaVisita: proximaCuota.fechaVencimiento || '9999-12-31T00:00:00.000Z', // Far future if no payment
-            targetVencimiento: proximaCuota.fechaVencimiento || undefined,
-            ordenVisita: asig.ordenVisita || index + 1,
-            prioridad: (asig.prioridad?.toLowerCase()) || (estado === 'en_mora' ? 'alta' : 'media'),
-            nivelRiesgo: (() => {
-               const r = cliente.nivelRiesgo || 'VERDE';
-               if (r === 'VERDE') return 'bajo';
-               if (r === 'AMARILLO') return 'leve';
-               if (r === 'ROJO') return 'moderado';
-               if (r === 'LISTA_NEGRA') return 'critico';
-               return 'bajo';
-            })(),
-            cobradorId: userSession.id,
-            periodoRuta: (() => {
-               const f = prestamoActivo.frecuenciaPago || 'DIARIO';
-               if (f === 'DIARIO') return 'DIA';
-               if (f === 'SEMANAL') return 'SEMANA';
-               if (f === 'QUINCENAL') return 'QUINCENA';
-               if (f === 'MENSUAL') return 'MES';
-               return 'DIA';
-            })() as PeriodoRuta,
-            clienteId: cliente.id,
-            prestamoId: prestamoActivo.id
-           };
+           return lista.map((prestamo: any) => {
+             const proximaCuota = prestamo?.proximaCuota || {};
+             const esArticulo = prestamo?.tipo === 'ARTICULO' || prestamo?.tipoPrestamo === 'ARTICULO';
+             const idx = globalIdx++;
+
+             let estado: EstadoVisita = 'pendiente';
+             if (proximaCuota.estado === 'VENCIDA') estado = 'en_mora';
+             else if (proximaCuota.estado === 'PAGADA') estado = 'pagado';
+
+             return {
+               id: prestamo ? `${asig.id}-${prestamo.id}` : (asig.id || `asig-${idx}`),
+               cliente: `${cliente.nombres || ''} ${cliente.apellidos || ''}`.trim() || 'Cliente Sin Nombre',
+               direccion: cliente.direccion || 'Sin dirección registrada',
+               telefono: cliente.telefono || '',
+               horaSugerida: asig.horaSugerida || '08:00 AM',
+               montoCuota: Number(proximaCuota.monto || 0),
+               saldoTotal: Number(prestamo?.saldoPendiente || 0),
+               estado,
+               proximaVisita: proximaCuota.fechaVencimiento || '9999-12-31T00:00:00.000Z',
+               targetVencimiento: proximaCuota.fechaVencimiento || undefined,
+               ordenVisita: asig.ordenVisita || idx + 1,
+               prioridad: (asig.prioridad?.toLowerCase()) || (estado === 'en_mora' ? 'alta' : 'media'),
+               nivelRiesgo: toNivel(cliente.nivelRiesgo || 'VERDE'),
+               cobradorId: userSession.id,
+               periodoRuta: toPeriodo(prestamo?.frecuenciaPago || 'DIARIO'),
+               clienteId: cliente.id,
+               prestamoId: prestamo?.id,
+               tipoPrestamo: esArticulo ? 'ARTICULO' : 'EFECTIVO',
+               articuloNombre: esArticulo ? (prestamo?.articulo || prestamo?.descripcionArticulo || undefined) : undefined,
+             } as VisitaRuta;
+           });
         });
 
          // Consultamos explícitamente las cuotas para obtener el valor real del backend.

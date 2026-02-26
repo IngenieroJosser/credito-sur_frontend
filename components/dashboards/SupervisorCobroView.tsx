@@ -482,68 +482,62 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
           }
 
           if (ruta && ruta.asignaciones) {
-            const visitas = ruta.asignaciones.map((asig: any, index: number) => {
+            const toPeriodo = (f: string): PeriodoRuta => {
+              if (f === 'SEMANAL') return 'SEMANA';
+              if (f === 'QUINCENAL') return 'QUINCENA';
+              if (f === 'MENSUAL') return 'MES';
+              return 'DIA';
+            };
+
+            const toNivel = (r: string) => {
+              if (r === 'AMARILLO') return 'precaucion' as any;
+              if (r === 'ROJO') return 'moderado';
+              if (r === 'LISTA_NEGRA') return 'critico';
+              return 'bajo';
+            };
+
+            let gIdx = 0;
+            // *** Expandir cada crédito activo en su propia entrada de visita ***
+            const visitas = ruta.asignaciones.flatMap((asig: any) => {
               const cliente = asig.cliente || {}
-              const prestamos = cliente.prestamos || []
-              const prestamoActivo =
-                prestamos.find(
-                  (p: any) => p.estado === 'ACTIVO' || p.estado === 'EN_MORA'
-                ) || prestamos[0] || {}
+              const prestamosActivos: any[] = (cliente.prestamos || []).filter(
+                (p: any) => p.estado === 'ACTIVO' || p.estado === 'EN_MORA'
+              );
+              const lista = prestamosActivos.length > 0 ? prestamosActivos : [null];
 
-              const proximaCuota = prestamoActivo.proximaCuota || {}
-              const saldoTotal =
-                asig.cliente?.prestamos?.reduce(
-                  (sum: number, p: any) => sum + Number(p.saldoPendiente || 0),
-                  0,
-                ) || 0
+              return lista.map((prestamo: any) => {
+                const proximaCuota = prestamo?.proximaCuota || {}
+                const esArticulo = prestamo?.tipo === 'ARTICULO' || prestamo?.tipoPrestamo === 'ARTICULO'
+                const idx = gIdx++
 
-              let estado: EstadoVisita = 'pendiente'
-              if (proximaCuota.estado === 'VENCIDA') estado = 'en_mora'
-              else if (proximaCuota.estado === 'PAGADA') estado = 'pagado'
-              else if (!prestamoActivo.id) estado = 'pendiente'
+                let estado: EstadoVisita = 'pendiente'
+                if (proximaCuota.estado === 'VENCIDA') estado = 'en_mora'
+                else if (proximaCuota.estado === 'PAGADA') estado = 'pagado'
+                else if (!prestamo?.id) estado = 'pendiente'
 
-              const periodoRuta: PeriodoRuta = (() => {
-                const f = prestamoActivo.frecuenciaPago || 'DIARIO'
-                if (f === 'DIARIO') return 'DIA'
-                if (f === 'SEMANAL') return 'SEMANA'
-                if (f === 'QUINCENAL') return 'QUINCENA'
-                if (f === 'MENSUAL') return 'MES'
-                return 'DIA'
-              })()
-
-              return {
-                id: asig.id || `asig-${index}`,
-                cliente:
-                  `${cliente.nombres || ''} ${cliente.apellidos || ''}`.trim() ||
-                  'Cliente Sin Nombre',
-                direccion: cliente.direccion || 'Sin dirección registrada',
-                telefono: cliente.telefono || '',
-                horaSugerida: asig.horaSugerida || '08:00 AM',
-                montoCuota: Number(proximaCuota.monto || 0),
-                saldoTotal: Number(saldoTotal),
-                estado,
-                proximaVisita:
-                  proximaCuota.fechaVencimiento ||
-                  '9999-12-31T00:00:00.000Z',
-                targetVencimiento: proximaCuota.fechaVencimiento || undefined,
-                ordenVisita: asig.ordenVisita || index + 1,
-                prioridad:
-                  (asig.prioridad?.toLowerCase() as 'alta' | 'media' | 'baja') ||
-                  (estado === 'en_mora' ? 'alta' : 'media'),
-                nivelRiesgo: (() => {
-                  const r = cliente.nivelRiesgo || 'VERDE'
-                  if (r === 'VERDE') return 'bajo'
-                  if (r === 'AMARILLO') return 'precaucion' as any
-                  if (r === 'ROJO') return 'moderado'
-                  if (r === 'LISTA_NEGRA') return 'critico'
-                  return 'bajo'
-                })(),
-                cobradorId: ruta.cobradorId,
-                periodoRuta,
-                clienteId: cliente.id,
-                prestamoId: prestamoActivo.id,
-              } as any
-            })
+                return {
+                  id: prestamo ? `${asig.id}-${prestamo.id}` : (asig.id || `asig-${idx}`),
+                  cliente: `${cliente.nombres || ''} ${cliente.apellidos || ''}`.trim() || 'Cliente Sin Nombre',
+                  direccion: cliente.direccion || 'Sin dirección registrada',
+                  telefono: cliente.telefono || '',
+                  horaSugerida: asig.horaSugerida || '08:00 AM',
+                  montoCuota: Number(proximaCuota.monto || 0),
+                  saldoTotal: Number(prestamo?.saldoPendiente || 0),
+                  estado,
+                  proximaVisita: proximaCuota.fechaVencimiento || '9999-12-31T00:00:00.000Z',
+                  targetVencimiento: proximaCuota.fechaVencimiento || undefined,
+                  ordenVisita: asig.ordenVisita || idx + 1,
+                  prioridad: (asig.prioridad?.toLowerCase() as 'alta' | 'media' | 'baja') || (estado === 'en_mora' ? 'alta' : 'media'),
+                  nivelRiesgo: toNivel(cliente.nivelRiesgo || 'VERDE'),
+                  cobradorId: ruta.cobradorId,
+                  periodoRuta: toPeriodo(prestamo?.frecuenciaPago || 'DIARIO'),
+                  clienteId: cliente.id,
+                  prestamoId: prestamo?.id,
+                  tipoPrestamo: esArticulo ? 'ARTICULO' : 'EFECTIVO',
+                  articuloNombre: esArticulo ? (prestamo?.articulo || prestamo?.descripcionArticulo || undefined) : undefined,
+                } as any
+              });
+            });
 
             const visitasEnriquecidas = await Promise.all(
               visitas.map(async (v: any) => {
