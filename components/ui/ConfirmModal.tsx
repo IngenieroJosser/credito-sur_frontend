@@ -1,6 +1,6 @@
 'use client'
 
-import { ReactNode } from 'react'
+import { ReactNode, useRef } from 'react'
 import { AlertTriangle, Info, XCircle, CheckCircle2 } from 'lucide-react'
 import Portal, { ALERT_Z_INDEX } from '@/components/ui/Portal'
 
@@ -61,13 +61,20 @@ export default function ConfirmModal({
   }
 
   const currentVariant = variants[variant]
+  const mouseDownTargetRef = useRef<EventTarget | null>(null)
 
   return (
     <Portal>
       <div 
         className="fixed inset-0 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-200"
         style={{ zIndex: ALERT_Z_INDEX }}
-        onClick={onClose}
+        onMouseDown={(e) => { mouseDownTargetRef.current = e.target }}
+        onMouseUp={(e) => {
+          if (e.target === e.currentTarget && mouseDownTargetRef.current === e.currentTarget) {
+            onClose()
+          }
+          mouseDownTargetRef.current = null
+        }}
       >
         <div 
           className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200"

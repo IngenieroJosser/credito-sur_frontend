@@ -8,8 +8,11 @@
  * @description
  * Vista centralizada para gestionar todas las solicitudes pendientes de aprobación.
  * Muestra las aprobaciones organizadas por categoría (Clientes, Créditos, Gastos, etc.)
- * con tabs para navegar entre ellas. El SuperAdmin además tiene acceso a una pestaña
- * especial de "Revisión SuperAdmin" donde decide sobre items rechazados/eliminados.
+ * con tabs para navegar entre ellas. SuperAdmin y Admin tienen acceso a una pestaña
+ * especial de "Revisión Final" donde deciden sobre items rechazados/eliminados.
+ * 
+ * Reutiliza el NotificacionDetalleModal para mostrar el detalle completo de cada
+ * solicitud (créditos, clientes, gastos) con la misma funcionalidad de edición.
  * 
  * @roles ['SUPER_ADMINISTRADOR', 'ADMIN', 'COORDINADOR']
  */
@@ -28,29 +31,28 @@ import {
   Loader2,
   RefreshCw,
   Eye,
-  ChevronRight,
-  FileText,
   User,
   Ban,
   RotateCcw,
   ShieldAlert,
   Calendar,
-  DollarSign,
 } from 'lucide-react'
 import { formatCurrency } from '@/lib/utils'
 import { aprobacionesService, type Aprobacion, type PendingResponse, type SuperadminReviewResponse } from '@/services/aprobaciones-service'
 import { TipoAprobacion } from '@/types/enums'
 import { toast } from 'sonner'
 import { useNotificaciones } from '@/components/providers/NotificacionesProvider'
+import NotificacionDetalleModal from '@/components/dashboards/shared/NotificacionDetalleModal'
 
 // Configuración de categorías con meta visual
-const CATEGORIAS: Record<string, { label: string; icon: any; color: string; bgColor: string; borderColor: string }> = {
+const CATEGORIAS: Record<string, { label: string; icon: any; color: string; bgColor: string; borderColor: string; tipoNotif: string }> = {
   NUEVO_CLIENTE: {
     label: 'Clientes',
     icon: Users,
     color: 'text-blue-600',
     bgColor: 'bg-blue-50',
     borderColor: 'border-blue-200',
+    tipoNotif: 'CLIENTE',
   },
   NUEVO_PRESTAMO: {
     label: 'Créditos',
@@ -58,6 +60,7 @@ const CATEGORIAS: Record<string, { label: string; icon: any; color: string; bgCo
     color: 'text-emerald-600',
     bgColor: 'bg-emerald-50',
     borderColor: 'border-emerald-200',
+    tipoNotif: 'PRESTAMO',
   },
   GASTO: {
     label: 'Gastos',
@@ -65,6 +68,7 @@ const CATEGORIAS: Record<string, { label: string; icon: any; color: string; bgCo
     color: 'text-amber-600',
     bgColor: 'bg-amber-50',
     borderColor: 'border-amber-200',
+    tipoNotif: 'GASTO',
   },
   SOLICITUD_BASE_EFECTIVO: {
     label: 'Base de Efectivo',
@@ -72,6 +76,7 @@ const CATEGORIAS: Record<string, { label: string; icon: any; color: string; bgCo
     color: 'text-purple-600',
     bgColor: 'bg-purple-50',
     borderColor: 'border-purple-200',
+    tipoNotif: 'SOLICITUD_DINERO',
   },
   PRORROGA_PAGO: {
     label: 'Prórrogas',
@@ -79,6 +84,7 @@ const CATEGORIAS: Record<string, { label: string; icon: any; color: string; bgCo
     color: 'text-rose-600',
     bgColor: 'bg-rose-50',
     borderColor: 'border-rose-200',
+    tipoNotif: 'SISTEMA',
   },
   BAJA_POR_PERDIDA: {
     label: 'Bajas por pérdida',
@@ -86,6 +92,7 @@ const CATEGORIAS: Record<string, { label: string; icon: any; color: string; bgCo
     color: 'text-slate-600',
     bgColor: 'bg-slate-50',
     borderColor: 'border-slate-200',
+    tipoNotif: 'SISTEMA',
   },
 }
 
@@ -95,26 +102,94 @@ const formatFecha = (iso: string | null | undefined) => {
   return d.toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
 }
 
+/**
+ * Transforma una Aprobacion del backend al formato que espera NotificacionDetalleModal
+ * para poder reutilizar toda la UI de detalle de créditos, clientes, gastos, etc.
+ */
+function aprobacionToNotificacion(item: Aprobacion) {
+  const datos = item.datosSolicitud || {}
+  const cat = CATEGORIAS[item.tipoAprobacion] || CATEGORIAS.BAJA_POR_PERDIDA
+
+  // Construir título legible
+  let titulo = ''
+  let mensaje = ''
+  switch (item.tipoAprobacion) {
+    case 'NUEVO_CLIENTE':
+      titulo = 'Nueva solicitud de cliente'
+      mensaje = `Solicitud de registro del cliente ${datos.nombres || ''} ${datos.apellidos || ''} con DNI ${datos.dni || 'N/A'}.`
+      break
+    case 'NUEVO_PRESTAMO':
+      titulo = datos.tipo === 'ARTICULO' || datos.tipoPrestamo === 'ARTICULO'
+        ? 'Solicitud de crédito por un artículo'
+        : 'Solicitud de préstamo'
+      mensaje = `Solicitud de crédito para ${datos.cliente || 'cliente'} por ${formatCurrency(Number(datos.monto || datos.valorArticulo || item.montoSolicitud || 0))}.`
+      break
+    case 'GASTO':
+      titulo = 'Solicitud de gasto'
+      mensaje = `Gasto operativo: ${datos.descripcion || 'Sin descripción'} por ${formatCurrency(Number(datos.monto || item.montoSolicitud || 0))}.`
+      break
+    case 'SOLICITUD_BASE_EFECTIVO':
+      titulo = 'Solicitud de base de efectivo'
+      mensaje = `${datos.descripcion || 'Solicitud'} por ${formatCurrency(Number(datos.monto || item.montoSolicitud || 0))}.`
+      break
+    case 'PRORROGA_PAGO':
+      titulo = 'Solicitud de prórroga de pago'
+      mensaje = datos.razon || 'Solicitud de extensión de fecha de vencimiento.'
+      break
+    default:
+      titulo = item.tipoAprobacion.replace(/_/g, ' ')
+      mensaje = 'Solicitud pendiente de revisión.'
+  }
+
+  return {
+    id: item.id,
+    tipo: cat.tipoNotif,
+    titulo,
+    mensaje,
+    fecha: formatFecha(item.creadoEn),
+    creadoEn: item.creadoEn,
+    leida: false,
+    entidadId: item.id, // El id de la aprobación es el entity ID para aprobar/rechazar
+    estado: item.estado === 'PENDIENTE' ? 'PENDIENTE' : item.estado,
+    solicitante: item.solicitante || 'Desconocido',
+    approvalType: item.tipoAprobacion,
+    detalles: datos,
+    metadata: {
+      ...datos,
+      tipoAprobacion: item.tipoAprobacion,
+      estadoAprobacion: item.estado,
+      solicitadoPor: item.solicitante,
+      monto: datos.monto || item.montoSolicitud,
+    },
+    motivoRechazo: item.comentarios,
+    revisadoPor: item.rechazadoPor,
+  }
+}
+
 export default function RevisionesPage() {
   const [loading, setLoading] = useState(true)
   const [data, setData] = useState<PendingResponse | null>(null)
   const [superadminData, setSuperadminData] = useState<SuperadminReviewResponse | null>(null)
   const [activeTab, setActiveTab] = useState<string>('todos')
   const [processingId, setProcessingId] = useState<string | null>(null)
-  const [motivoRechazo, setMotivoRechazo] = useState('')
-  const [showRejectModal, setShowRejectModal] = useState<Aprobacion | null>(null)
   const [showConfirmModal, setShowConfirmModal] = useState<{ item: Aprobacion; accion: 'CONFIRMAR' | 'REVERTIR' } | null>(null)
   const [notaSuperadmin, setNotaSuperadmin] = useState('')
   const [userRol, setUserRol] = useState<string>('')
 
+  // Modal de detalle (reutiliza NotificacionDetalleModal)
+  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false)
+  const [selectedItem, setSelectedItem] = useState<any>(null)
+
   const { socket } = useNotificaciones()
+
+  const canReviewRejected = userRol === 'SUPER_ADMINISTRADOR' || userRol === 'ADMIN'
 
   const loadData = useCallback(async () => {
     setLoading(true)
     try {
       const [pendientes, superadmin] = await Promise.allSettled([
         aprobacionesService.obtenerPendientes(),
-        userRol === 'SUPER_ADMINISTRADOR' 
+        canReviewRejected
           ? aprobacionesService.obtenerRevisionSuperadmin()
           : Promise.resolve({ total: 0, items: [] }),
       ])
@@ -127,7 +202,7 @@ export default function RevisionesPage() {
     } finally {
       setLoading(false)
     }
-  }, [userRol])
+  }, [canReviewRejected])
 
   useEffect(() => {
     const userData = localStorage.getItem('user')
@@ -150,13 +225,56 @@ export default function RevisionesPage() {
     socket.on('aprobaciones_actualizadas', handler)
     socket.on('clientes_actualizados', handler)
     socket.on('prestamos_actualizados', handler)
+    socket.on('dashboards_actualizados', handler)
     return () => {
       socket.off('aprobaciones_actualizadas', handler)
       socket.off('clientes_actualizados', handler)
       socket.off('prestamos_actualizados', handler)
+      socket.off('dashboards_actualizados', handler)
     }
   }, [socket, loadData])
 
+  // Abrir modal de detalle transformando la aprobación al formato de notificación
+  const handleOpenDetail = (item: Aprobacion) => {
+    const notifData = aprobacionToNotificacion(item)
+    setSelectedItem(notifData)
+    setIsDetailModalOpen(true)
+  }
+
+  // Handler para aprobar desde el modal de detalle
+  const handleApproveFromModal = async (entityId: string, type: string, details: any) => {
+    try {
+      await aprobacionesService.aprobar(entityId, {
+        type: type as TipoAprobacion,
+        notas: details ? JSON.stringify(details) : undefined,
+        editedData: details,
+      })
+      toast.success('Solicitud aprobada exitosamente')
+      await loadData()
+    } catch (err: any) {
+      console.error('Error aprobando:', err)
+      toast.error(err?.message || 'Error al aprobar')
+      throw err
+    }
+  }
+
+  // Handler para rechazar desde el modal de detalle
+  const handleRejectFromModal = async (entityId: string, type: string, reason: string) => {
+    try {
+      await aprobacionesService.rechazar(entityId, {
+        type: type as TipoAprobacion,
+        motivoRechazo: reason || 'Rechazado sin motivo especificado',
+      })
+      toast.success('Solicitud rechazada')
+      await loadData()
+    } catch (err: any) {
+      console.error('Error rechazando:', err)
+      toast.error(err?.message || 'Error al rechazar')
+      throw err
+    }
+  }
+
+  // Aprobar directamente desde el card (rápido)
   const handleAprobar = async (item: Aprobacion) => {
     setProcessingId(item.id)
     try {
@@ -170,25 +288,7 @@ export default function RevisionesPage() {
     }
   }
 
-  const handleRechazar = async () => {
-    if (!showRejectModal) return
-    setProcessingId(showRejectModal.id)
-    try {
-      await aprobacionesService.rechazar(showRejectModal.id, {
-        type: showRejectModal.tipoAprobacion as TipoAprobacion,
-        motivoRechazo: motivoRechazo || 'Rechazado sin motivo especificado',
-      })
-      toast.success('Solicitud rechazada')
-      setShowRejectModal(null)
-      setMotivoRechazo('')
-      await loadData()
-    } catch (error: any) {
-      toast.error(error?.message || 'Error al rechazar')
-    } finally {
-      setProcessingId(null)
-    }
-  }
-
+  // Confirmar/Revertir rechazo (Admin/SuperAdmin)
   const handleSuperadminAction = async () => {
     if (!showConfirmModal) return
     setProcessingId(showConfirmModal.item.id)
@@ -219,8 +319,8 @@ export default function RevisionesPage() {
       label: CATEGORIAS[tipo]?.label || tipo,
       count,
     })),
-    ...(userRol === 'SUPER_ADMINISTRADOR' && (superadminData?.total || 0) > 0
-      ? [{ id: 'superadmin', label: 'Revisión SuperAdmin', count: superadminData?.total || 0 }]
+    ...(canReviewRejected && (superadminData?.total || 0) > 0
+      ? [{ id: 'revision-final', label: 'Revisión Final', count: superadminData?.total || 0 }]
       : []),
   ]
 
@@ -230,7 +330,7 @@ export default function RevisionesPage() {
     if (activeTab === 'todos') {
       return Object.values(data.items).flat()
     }
-    if (activeTab === 'superadmin') {
+    if (activeTab === 'revision-final') {
       return superadminData?.items || []
     }
     return data.items[activeTab] || []
@@ -238,7 +338,7 @@ export default function RevisionesPage() {
 
   const filteredItems = getFilteredItems()
 
-  const renderItemCard = (item: Aprobacion, isSuperadminReview = false) => {
+  const renderItemCard = (item: Aprobacion, isReviewMode = false) => {
     const cat = CATEGORIAS[item.tipoAprobacion] || CATEGORIAS.BAJA_POR_PERDIDA
     const Icon = cat.icon
     const datos = item.datosSolicitud || {}
@@ -256,7 +356,7 @@ export default function RevisionesPage() {
         case 'NUEVO_PRESTAMO':
           return {
             titulo: datos.cliente || 'Crédito nuevo',
-            subtitulo: `${datos.tipo === 'ARTICULO' ? `Artículo: ${datos.articulo || 'N/A'}` : 'Préstamo efectivo'} • ${datos.cuotas || datos.numCuotas || '?'} cuotas`,
+            subtitulo: `${datos.tipo === 'ARTICULO' || datos.tipoPrestamo === 'ARTICULO' ? `Artículo: ${datos.articulo || 'N/A'}` : 'Préstamo efectivo'} • ${datos.cuotas || datos.numCuotas || '?'} cuotas`,
             monto: Number(datos.monto || datos.valorArticulo || item.montoSolicitud || 0),
           }
         case 'GASTO':
@@ -291,10 +391,10 @@ export default function RevisionesPage() {
     return (
       <div
         key={item.id}
-        className={`group bg-white rounded-2xl border ${isSuperadminReview ? 'border-rose-200' : 'border-slate-200'} shadow-[0_4px_20px_rgb(0,0,0,0.03)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all duration-300 overflow-hidden`}
+        className={`group bg-white rounded-2xl border ${isReviewMode ? 'border-rose-200' : 'border-slate-200'} shadow-[0_4px_20px_rgb(0,0,0,0.03)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all duration-300 overflow-hidden`}
       >
         {/* Barra superior de color */}
-        <div className={`h-1 ${isSuperadminReview ? 'bg-gradient-to-r from-rose-500 to-orange-500' : `bg-gradient-to-r ${cat.color === 'text-blue-600' ? 'from-blue-500 to-blue-400' : cat.color === 'text-emerald-600' ? 'from-emerald-500 to-emerald-400' : cat.color === 'text-amber-600' ? 'from-amber-500 to-amber-400' : cat.color === 'text-purple-600' ? 'from-purple-500 to-purple-400' : cat.color === 'text-rose-600' ? 'from-rose-500 to-rose-400' : 'from-slate-500 to-slate-400'}`}`} />
+        <div className={`h-1 ${isReviewMode ? 'bg-gradient-to-r from-rose-500 to-orange-500' : `bg-gradient-to-r ${cat.color === 'text-blue-600' ? 'from-blue-500 to-blue-400' : cat.color === 'text-emerald-600' ? 'from-emerald-500 to-emerald-400' : cat.color === 'text-amber-600' ? 'from-amber-500 to-amber-400' : cat.color === 'text-purple-600' ? 'from-purple-500 to-purple-400' : cat.color === 'text-rose-600' ? 'from-rose-500 to-rose-400' : 'from-slate-500 to-slate-400'}`}`} />
 
         <div className="p-5 md:p-6">
           {/* Header del card */}
@@ -334,8 +434,8 @@ export default function RevisionesPage() {
             </span>
           </div>
 
-          {/* Info de rechazo (solo SuperAdmin review) */}
-          {isSuperadminReview && (
+          {/* Info de rechazo (solo en revisión final) */}
+          {isReviewMode && (
             <div className="mb-4 p-3 bg-rose-50/50 rounded-xl border border-rose-100">
               <p className="text-xs font-bold text-rose-700 mb-1 flex items-center gap-1.5">
                 <XCircle className="h-3.5 w-3.5" />
@@ -349,7 +449,17 @@ export default function RevisionesPage() {
 
           {/* Botones de acción */}
           <div className="flex items-center gap-2 pt-3 border-t border-slate-100">
-            {!isSuperadminReview ? (
+            {/* Botón "Ver Detalle" siempre visible */}
+            <button
+              onClick={() => handleOpenDetail(item)}
+              className="inline-flex items-center justify-center gap-1.5 py-2.5 px-3 bg-white text-slate-600 text-xs font-bold rounded-xl hover:bg-slate-50 transition-all border border-slate-200 active:scale-[0.98]"
+              title="Ver detalle completo"
+            >
+              <Eye className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">Detalle</span>
+            </button>
+
+            {!isReviewMode ? (
               <>
                 <button
                   onClick={() => handleAprobar(item)}
@@ -360,7 +470,7 @@ export default function RevisionesPage() {
                   Aprobar
                 </button>
                 <button
-                  onClick={() => setShowRejectModal(item)}
+                  onClick={() => handleOpenDetail(item)}
                   disabled={isProcessing}
                   className="flex-1 inline-flex items-center justify-center gap-2 py-2.5 px-4 bg-white text-rose-600 text-xs font-bold rounded-xl hover:bg-rose-50 transition-all border border-rose-200 disabled:opacity-50 active:scale-[0.98]"
                 >
@@ -416,6 +526,7 @@ export default function RevisionesPage() {
             </h1>
             <p className="text-sm md:text-base text-slate-500 mt-2 max-w-2xl font-medium leading-relaxed">
               Gestiona todas las solicitudes que requieren tu aprobación: clientes, créditos, gastos y más.
+              Haz clic en <strong>&quot;Detalle&quot;</strong> para ver información completa y editar condiciones.
             </p>
           </div>
 
@@ -434,7 +545,7 @@ export default function RevisionesPage() {
           <div className="inline-flex items-center gap-1 p-1.5 bg-white/80 backdrop-blur-sm rounded-2xl border border-slate-200 shadow-sm min-w-max">
             {tabs.map((tab) => {
               const isActive = activeTab === tab.id
-              const isSuperadmin = tab.id === 'superadmin'
+              const isReview = tab.id === 'revision-final'
 
               return (
                 <button
@@ -442,20 +553,20 @@ export default function RevisionesPage() {
                   onClick={() => setActiveTab(tab.id)}
                   className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all duration-200 flex items-center gap-2 whitespace-nowrap ${
                     isActive
-                      ? isSuperadmin
+                      ? isReview
                         ? 'bg-rose-600 text-white shadow-sm'
                         : 'bg-white text-slate-900 shadow-sm ring-1 ring-black/5'
-                      : isSuperadmin
+                      : isReview
                         ? 'text-rose-500 hover:text-rose-700 hover:bg-rose-50'
                         : 'text-slate-500 hover:text-slate-900 hover:bg-white/50'
                   }`}
                 >
-                  {isSuperadmin && <ShieldAlert className="h-3.5 w-3.5" />}
+                  {isReview && <ShieldAlert className="h-3.5 w-3.5" />}
                   {tab.label}
                   <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-black ${
                     isActive
-                      ? isSuperadmin ? 'bg-rose-700 text-white' : 'bg-blue-100 text-blue-600'
-                      : isSuperadmin ? 'bg-rose-100 text-rose-600' : 'bg-slate-100 text-slate-500'
+                      ? isReview ? 'bg-rose-700 text-white' : 'bg-blue-100 text-blue-600'
+                      : isReview ? 'bg-rose-100 text-rose-600' : 'bg-slate-100 text-slate-500'
                   }`}>
                     {tab.count}
                   </span>
@@ -481,7 +592,7 @@ export default function RevisionesPage() {
               </div>
               <h3 className="text-lg font-bold text-slate-900">¡Todo al día!</h3>
               <p className="text-sm text-slate-500 font-medium">
-                {activeTab === 'superadmin'
+                {activeTab === 'revision-final'
                   ? 'No hay items rechazados que requieran tu decisión final.'
                   : 'No hay solicitudes pendientes de aprobación en esta categoría.'}
               </p>
@@ -490,7 +601,7 @@ export default function RevisionesPage() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 md:gap-6">
             {filteredItems.map((item) =>
-              renderItemCard(item, activeTab === 'superadmin')
+              renderItemCard(item, activeTab === 'revision-final')
             )}
           </div>
         )}
@@ -524,45 +635,17 @@ export default function RevisionesPage() {
         </div>
       </div>
 
-      {/* Modal de Rechazo */}
-      {showRejectModal && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-          <div className="w-full max-w-md bg-white rounded-[2rem] shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
-            <div className="p-8 text-center">
-              <div className="w-16 h-16 bg-rose-50 text-rose-600 rounded-2xl flex items-center justify-center mx-auto mb-6 border border-rose-100">
-                <XCircle className="h-8 w-8" />
-              </div>
-              <h3 className="text-xl font-black text-slate-900 mb-2">Rechazar Solicitud</h3>
-              <p className="text-sm text-slate-500 mb-6 leading-relaxed">
-                ¿Estás seguro de rechazar esta solicitud? Puedes agregar un motivo para que el solicitante lo sepa.
-              </p>
-              <textarea
-                value={motivoRechazo}
-                onChange={(e) => setMotivoRechazo(e.target.value)}
-                placeholder="Motivo del rechazo (opcional)..."
-                className="w-full h-24 p-4 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-rose-500/10 outline-none text-sm resize-none text-slate-900 font-medium mb-6"
-              />
-              <div className="flex flex-col gap-2">
-                <button
-                  onClick={handleRechazar}
-                  disabled={processingId === showRejectModal.id}
-                  className="w-full rounded-2xl bg-rose-600 py-4 text-sm font-bold text-white hover:bg-rose-700 shadow-xl shadow-rose-600/20 transition-all active:scale-[0.98] disabled:opacity-50"
-                >
-                  {processingId === showRejectModal.id ? 'Procesando...' : 'Confirmar Rechazo'}
-                </button>
-                <button
-                  onClick={() => { setShowRejectModal(null); setMotivoRechazo('') }}
-                  className="w-full rounded-2xl bg-slate-50 py-4 text-sm font-bold text-slate-500 hover:bg-slate-100 transition-all"
-                >
-                  Cancelar
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Modal de Detalle - Reutiliza NotificacionDetalleModal */}
+      <NotificacionDetalleModal
+        isOpen={isDetailModalOpen}
+        onClose={() => setIsDetailModalOpen(false)}
+        notificacion={selectedItem}
+        onApprove={handleApproveFromModal}
+        onReject={handleRejectFromModal}
+        canApprove={true}
+      />
 
-      {/* Modal de Decisión SuperAdmin */}
+      {/* Modal de Decisión Final (Admin/SuperAdmin) */}
       {showConfirmModal && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4 animate-in fade-in duration-200">
           <div className="w-full max-w-md bg-white rounded-[2rem] shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">

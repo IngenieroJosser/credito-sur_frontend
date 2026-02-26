@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { X, Loader2 } from 'lucide-react';
 import { useNotification } from '@/components/providers/NotificationProvider';
 import Portal, { MODAL_Z_INDEX } from '@/components/ui/Portal';
@@ -23,6 +23,7 @@ export default function NuevoClienteModal({ onClose, onClienteCreado, cliente = 
   const { showNotification } = useNotification();
   const { user: currentUser } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const mouseDownTargetRef = useRef<EventTarget | null>(null);
   const [formulario, setFormulario] = useState({
     dni: cliente?.dni || '',
     nombres: cliente?.nombres || '',
@@ -231,7 +232,13 @@ export default function NuevoClienteModal({ onClose, onClienteCreado, cliente = 
       <div
         className="fixed inset-0 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-200"
         style={{ zIndex: MODAL_Z_INDEX }}
-        onClick={onClose}
+        onMouseDown={(e) => { mouseDownTargetRef.current = e.target }}
+        onMouseUp={(e) => {
+          if (e.target === e.currentTarget && mouseDownTargetRef.current === e.currentTarget) {
+            onClose();
+          }
+          mouseDownTargetRef.current = null;
+        }}
       >
         <div
           className="w-full max-w-2xl bg-white rounded-3xl shadow-2xl animate-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto"
