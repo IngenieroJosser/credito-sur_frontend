@@ -167,9 +167,9 @@ const VistaCobrador = () => {
       if (parts.length >= 3) return `${parts[2].slice(0,2)}/${parts[1]}/${parts[0]}`;
       return String(iso);
     }
-    const dd = String(d.getDate()).padStart(2, '0');
-    const mm = String(d.getMonth() + 1).padStart(2, '0');
-    const yyyy = d.getFullYear();
+    const dd = String(d.getUTCDate()).padStart(2, '0');
+    const mm = String(d.getUTCMonth() + 1).padStart(2, '0');
+    const yyyy = d.getUTCFullYear();
     return `${dd}/${mm}/${yyyy}`;
   }
   const formatFechaLargaUTC = (iso: string | undefined | null) => {
@@ -189,8 +189,11 @@ const VistaCobrador = () => {
     const cobroSuficiente = Number(v.recaudadoDelDia || 0) >= (Number(v.montoCuota || 0) - 1);
     if (cobroSuficiente && Number(v.recaudadoDelDia || 0) > 0) return 'pagado';
 
-    const hoy = new Date().toDateString();
-    const esHoy = new Date(v.proximaVisita).toDateString() === hoy;
+    const toLocalKey = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    const hoyStr = toLocalKey(new Date());
+    const propDateStr = v.proximaVisita ? (v.proximaVisita.includes('T') ? v.proximaVisita.split('T')[0] : v.proximaVisita) : '';
+    const esHoy = propDateStr === hoyStr;
+    
     if (esHoy && cobroSuficiente) return 'pagado';
     
     return v.estado;
@@ -1657,18 +1660,20 @@ const VistaCobrador = () => {
       }
       try {
         const resp = await pagosService.obtenerPagos({ clienteId: visitaClienteSeleccionada.clienteId, limit: 100 });
-        let targetDateStr = new Date().toDateString();
-        // Si hay una fecha seleccionada en el historial, evaluarla
+        const toLocalKey = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+        let targetDateStr = toLocalKey(new Date());
+        
+        // Si hay una fecha seleccionada en el historial, evaluarla directamente
         if (selectedHistoryDate) {
-           const [y, m, d] = selectedHistoryDate.split('-');
-           targetDateStr = new Date(parseInt(y), parseInt(m)-1, parseInt(d)).toDateString();
+           targetDateStr = selectedHistoryDate;
         } else if ((visitaClienteSeleccionada as any).fecha || visitaClienteSeleccionada.proximaVisita) {
-           targetDateStr = new Date((visitaClienteSeleccionada as any).fecha || visitaClienteSeleccionada.proximaVisita).toDateString();
+           const dString = (visitaClienteSeleccionada as any).fecha || visitaClienteSeleccionada.proximaVisita;
+           targetDateStr = dString.includes('T') ? dString.split('T')[0] : dString;
         }
 
         const totalDelDia = (resp?.pagos || []).reduce((sum: number, p: any) => {
           const rawPago = p.fechaPago || p.creadoEn;
-          const f = rawPago ? new Date(rawPago).toDateString() : '';
+          const f = rawPago ? (rawPago.includes('T') ? rawPago.split('T')[0] : rawPago) : '';
           
           if (f === targetDateStr) return sum + Number(p.montoTotal || 0);
           return sum;
