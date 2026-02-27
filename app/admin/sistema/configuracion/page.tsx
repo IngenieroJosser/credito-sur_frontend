@@ -1,10 +1,56 @@
 'use client'
 
-import { Settings, CreditCard, Bell, Shield, Users, Database, Wallet, Calculator } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { Settings, CreditCard, Bell, Shield, Users, Database, Wallet, Calculator, CheckCircle } from 'lucide-react'
+import { configuracionService, ConfiguracionSistema } from '@/services/configuracion-service'
+import { Toaster, toast } from 'sonner'
 
 const ConfiguracionSistemaPage = () => {
+  const [loading, setLoading] = useState(true);
+  const [config, setConfig] = useState<ConfiguracionSistema>({
+    id: 'default',
+    autoAprobarClientes: false,
+    autoAprobarCreditos: false,
+  });
+
+  useEffect(() => {
+    fetchConfig();
+  }, []);
+
+  const fetchConfig = async () => {
+    try {
+      const data = await configuracionService.getConfiguracion();
+      setConfig(data);
+    } catch (error) {
+      toast.error('Error al cargar la configuración');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const updateConfig = async (key: keyof ConfiguracionSistema, value: boolean | number) => {
+    const originalConfig = { ...config };
+    try {
+      setConfig({ ...config, [key]: value });
+      await configuracionService.updateConfiguracion({ [key]: value });
+      toast.success('Configuración actualizada');
+    } catch (error) {
+      setConfig(originalConfig);
+      toast.error('Error al actualizar la configuración');
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-slate-50 relative">
+      <Toaster position="top-right" />
       {/* Fondo arquitectónico standard */}
       <div className="fixed inset-0 pointer-events-none">
         <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px]"></div>
@@ -68,182 +114,59 @@ const ConfiguracionSistemaPage = () => {
             </div>
           </section>
 
+          {/* NUEVA SECCIÓN DE APROBACIONES */}
           <section className="group bg-white p-6 rounded-2xl border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all duration-300">
             <div className="flex items-center gap-4 mb-6">
-              <div className="p-3 bg-slate-100 text-slate-600 rounded-xl group-hover:scale-110 transition-transform duration-300">
-                <CreditCard className="h-6 w-6" />
+              <div className="p-3 bg-blue-50 text-blue-600 rounded-xl group-hover:scale-110 transition-transform duration-300">
+                <CheckCircle className="h-6 w-6" />
               </div>
               <div>
-                <h2 className="text-lg font-bold text-slate-900">Reglas de Préstamos</h2>
-                <p className="text-xs text-slate-500 mt-1 font-medium">Tasas, cuotas y políticas</p>
-              </div>
-            </div>
-            
-            <div className="space-y-4">
-              <div className="p-4 bg-slate-50/50 rounded-xl border border-slate-100 group-hover:border-slate-200 transition-colors">
-                <div className="flex items-center justify-between mb-1">
-                  <span className="text-sm text-slate-600 font-medium">Tasa de interés base</span>
-                  <span className="text-sm font-bold text-slate-900">20%</span>
-                </div>
-                <div className="w-full bg-slate-200 rounded-full h-1.5 mt-2">
-                  <div className="bg-slate-900 h-1.5 rounded-full" style={{ width: '20%' }}></div>
-                </div>
-              </div>
-
-              <div className="p-4 bg-slate-50/50 rounded-xl border border-slate-100 group-hover:border-slate-200 transition-colors">
-                <div className="flex items-center justify-between mb-1">
-                  <span className="text-sm text-slate-600 font-medium">Mora diaria</span>
-                  <span className="text-sm font-bold text-rose-600">2.5%</span>
-                </div>
-                <div className="w-full bg-slate-200 rounded-full h-1.5 mt-2">
-                  <div className="bg-rose-500 h-1.5 rounded-full" style={{ width: '25%' }}></div>
-                </div>
-              </div>
-
-              <div className="flex items-center justify-between p-4 bg-slate-50/50 rounded-xl border border-slate-100">
-                <div>
-                  <div className="text-sm font-bold text-slate-900">Tipo de Interés</div>
-                  <div className="text-xs text-slate-500 mt-0.5 font-medium">Cálculo predeterminado</div>
-                </div>
-                <span className="px-3 py-1 bg-white border border-slate-200 rounded-lg text-sm font-bold text-slate-600 shadow-sm">
-                  Simple
-                </span>
-              </div>
-
-              <div className="flex items-center justify-between p-4 bg-slate-50/50 rounded-xl border border-slate-100">
-                <div>
-                  <div className="text-sm font-bold text-slate-900">Frecuencias Habilitadas</div>
-                  <div className="text-xs text-slate-500 mt-0.5 font-medium">Diario, Semanal, Quincenal, Mensual</div>
-                </div>
-                <button className="text-xs font-bold text-blue-600 hover:text-blue-700">Editar</button>
-              </div>
-            </div>
-          </section>
-
-          <section className="group bg-white p-6 rounded-2xl border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all duration-300">
-            <div className="flex items-center gap-4 mb-6">
-              <div className="p-3 bg-violet-50 text-violet-600 rounded-xl group-hover:scale-110 transition-transform duration-300">
-                <Wallet className="h-6 w-6" />
-              </div>
-              <div>
-                <h2 className="text-lg font-bold text-slate-900">Métodos de Pago</h2>
-                <p className="text-xs text-slate-500 mt-1 font-medium">Opciones de cobro habilitadas</p>
+                <h2 className="text-lg font-bold text-slate-900">Aprobación de Solicitudes</h2>
+                <p className="text-xs text-slate-500 mt-1 font-medium">Auto-Aprobar Clientes y Créditos</p>
               </div>
             </div>
 
             <div className="space-y-4">
               <div className="flex items-center justify-between p-4 bg-slate-50/50 rounded-xl border border-slate-100">
-                <span className="text-sm text-slate-700 font-medium">Efectivo</span>
-                <button className="w-11 h-6 bg-emerald-500 rounded-full relative transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500">
-                  <span className="absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform translate-x-5 shadow-sm"></span>
+                <div>
+                  <div className="text-sm font-bold text-slate-900">Auto-Aprobar Clientes</div>
+                  <div className="text-xs text-slate-500 mt-0.5 font-medium">Bypass flujo de aprobación inicial</div>
+                </div>
+                <button 
+                  onClick={() => updateConfig('autoAprobarClientes', !config.autoAprobarClientes)}
+                  className={`w-11 h-6 rounded-full relative transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 ${config.autoAprobarClientes ? 'bg-emerald-500 focus:ring-emerald-500' : 'bg-slate-300 focus:ring-slate-400'}`}
+                >
+                  <span className={`absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform shadow-sm ${config.autoAprobarClientes ? 'translate-x-5' : 'translate-x-0'}`}></span>
                 </button>
               </div>
+
               <div className="flex items-center justify-between p-4 bg-slate-50/50 rounded-xl border border-slate-100">
-                <span className="text-sm text-slate-700 font-medium">Transferencia Bancaria</span>
-                <button className="w-11 h-6 bg-emerald-500 rounded-full relative transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500">
-                  <span className="absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform translate-x-5 shadow-sm"></span>
+                <div>
+                  <div className="text-sm font-bold text-slate-900">Auto-Aprobar Créditos</div>
+                  <div className="text-xs text-slate-500 mt-0.5 font-medium">Aprobar préstamos automáticamente</div>
+                </div>
+                <button 
+                  onClick={() => updateConfig('autoAprobarCreditos', !config.autoAprobarCreditos)}
+                  className={`w-11 h-6 rounded-full relative transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 ${config.autoAprobarCreditos ? 'bg-emerald-500 focus:ring-emerald-500' : 'bg-slate-300 focus:ring-slate-400'}`}
+                >
+                  <span className={`absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform shadow-sm ${config.autoAprobarCreditos ? 'translate-x-5' : 'translate-x-0'}`}></span>
                 </button>
               </div>
-              <div className="p-4 bg-amber-50 rounded-xl border border-amber-100">
+              
+              <div className="p-4 bg-blue-50 rounded-xl border border-blue-100">
                  <div className="flex items-start gap-3">
                    <div className="mt-0.5">
-                     <Bell className="h-4 w-4 text-amber-600" />
+                     <Bell className="h-4 w-4 text-blue-600" />
                    </div>
-                   <p className="text-xs text-amber-800 font-medium leading-relaxed">
-                     Los cobradores deben confirmar las transferencias con soporte de imagen obligatorio.
+                   <p className="text-xs text-blue-800 font-medium leading-relaxed">
+                     Habilite estas opciones temporalmente si va a realizar una carga masiva. Por razones de seguridad, se recomienda mantener la aprobación manual.
                    </p>
                  </div>
               </div>
             </div>
           </section>
 
-
-          <section className="group bg-white p-6 rounded-2xl border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all duration-300">
-            <div className="flex items-center gap-4 mb-6">
-              <div className="p-3 bg-emerald-50 text-emerald-600 rounded-xl group-hover:scale-110 transition-transform duration-300">
-                <Shield className="h-6 w-6" />
-              </div>
-              <div>
-                <h2 className="text-lg font-bold text-slate-900">Seguridad</h2>
-                <p className="text-xs text-slate-500 mt-1 font-medium">Accesos y autenticación</p>
-              </div>
-            </div>
-
-            <div className="space-y-4">
-              <div className="flex items-center justify-between p-4 bg-slate-50/50 rounded-xl border border-slate-100 hover:bg-white hover:shadow-sm transition-all cursor-pointer">
-                <div>
-                  <div className="text-sm font-bold text-slate-900">Expiración de sesión</div>
-                  <div className="text-xs text-slate-500 mt-0.5 font-medium">Tiempo de inactividad permitido</div>
-                </div>
-                <span className="px-3 py-1 bg-white border border-slate-200 rounded-lg text-sm font-bold text-slate-600 shadow-sm">
-                  8 horas
-                </span>
-              </div>
-
-              <div className="flex items-center justify-between p-4 bg-slate-50/50 rounded-xl border border-slate-100 hover:bg-white hover:shadow-sm transition-all cursor-pointer">
-                <div>
-                  <div className="text-sm font-bold text-slate-900">Intentos fallidos</div>
-                  <div className="text-xs text-slate-500 mt-0.5 font-medium">Bloqueo temporal de cuenta</div>
-                </div>
-                <span className="px-3 py-1 bg-white border border-slate-200 rounded-lg text-sm font-bold text-slate-600 shadow-sm">
-                  3 intentos
-                </span>
-              </div>
-            </div>
-          </section>
-
-          <section className="group bg-white p-6 rounded-2xl border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all duration-300">
-            <div className="flex items-center gap-4 mb-6">
-              <div className="p-3 bg-amber-50 text-amber-600 rounded-xl group-hover:scale-110 transition-transform duration-300">
-                <Bell className="h-6 w-6" />
-              </div>
-              <div>
-                <h2 className="text-lg font-bold text-slate-900">Notificaciones</h2>
-                <p className="text-xs text-slate-500 mt-1 font-medium">Alertas y avisos automáticos</p>
-              </div>
-            </div>
-
-            <div className="space-y-4">
-              <div className="flex items-center justify-between p-4 bg-slate-50/50 rounded-xl border border-slate-100">
-                <span className="text-sm text-slate-700 font-medium">Alertas de mora</span>
-                <button className="w-11 h-6 bg-emerald-500 rounded-full relative transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500">
-                  <span className="absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform translate-x-5 shadow-sm"></span>
-                </button>
-              </div>
-              <div className="flex items-center justify-between p-4 bg-slate-50/50 rounded-xl border border-slate-100">
-                <span className="text-sm text-slate-700 font-medium">Reportes diarios</span>
-                <button className="w-11 h-6 bg-emerald-500 rounded-full relative transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500">
-                  <span className="absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform translate-x-5 shadow-sm"></span>
-                </button>
-              </div>
-            </div>
-          </section>
-
-          <section className="group bg-white p-6 rounded-2xl border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all duration-300">
-            <div className="flex items-center gap-4 mb-6">
-              <div className="p-3 bg-slate-100 text-slate-600 rounded-xl group-hover:scale-110 transition-transform duration-300">
-                <Users className="h-6 w-6" />
-              </div>
-              <div>
-                <h2 className="text-lg font-bold text-slate-900">Roles por Defecto</h2>
-                <p className="text-xs text-slate-500 mt-1 font-medium">Permisos iniciales</p>
-              </div>
-            </div>
-
-            <div className="space-y-4">
-              <div className="p-4 bg-slate-50/50 rounded-xl border border-slate-100">
-                <div className="flex items-center justify-between mb-3">
-                  <span className="text-sm font-bold text-slate-900">Nuevos cobradores</span>
-                  <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-sky-50 text-sky-700 border border-sky-100">
-                    Estándar
-                  </span>
-                </div>
-                <div className="text-xs text-slate-500 leading-relaxed font-medium">
-                  Los nuevos cobradores tendrán acceso limitado a sus rutas asignadas y no podrán modificar configuraciones globales.
-                </div>
-              </div>
-            </div>
-          </section>
+          {/* Las secciones eliminadas estaban aquí */}
         </div>
       </div>
     </div>

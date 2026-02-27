@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { X } from 'lucide-react';
 import { createPortal } from 'react-dom';
 
@@ -24,6 +24,7 @@ export const Modal: React.FC<ModalProps> = ({
   backdropClosable = false
 }) => {
   const [mounted, setMounted] = useState(false);
+  const mouseDownTargetRef = useRef<EventTarget | null>(null);
 
   useEffect(() => {
     setMounted(true);
@@ -52,7 +53,13 @@ export const Modal: React.FC<ModalProps> = ({
   return createPortal(
     <div 
       className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6"
-      onClick={backdropClosable ? onClose : undefined}
+      onMouseDown={backdropClosable ? (e) => { mouseDownTargetRef.current = e.target } : undefined}
+      onMouseUp={backdropClosable ? (e) => {
+        if (e.target === e.currentTarget && mouseDownTargetRef.current === e.currentTarget) {
+          onClose()
+        }
+        mouseDownTargetRef.current = null
+      } : undefined}
     >
       {/* Backdrop */}
       <div 

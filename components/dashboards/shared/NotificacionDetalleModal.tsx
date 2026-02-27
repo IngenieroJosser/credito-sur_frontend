@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useRef } from 'react'
 import { 
   X, 
   CheckCircle2, 
@@ -52,6 +52,7 @@ export default function NotificacionDetalleModal({
   const [planIndex, setPlanIndex] = React.useState<number | null>(null)
   const [autoCuotas, setAutoCuotas] = useState(true)
   const [esContado, setEsContado] = useState(false)
+  const mouseDownTargetRef = useRef<EventTarget | null>(null)
 
   React.useEffect(() => {
     if (notificacion) {
@@ -867,6 +868,14 @@ export default function NotificacionDetalleModal({
     <Portal>
       <div 
         className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-200"
+        onMouseDown={(e) => { mouseDownTargetRef.current = e.target }}
+        onMouseUp={(e) => {
+          // Solo cerrar si mousedown Y mouseup ocurrieron en el backdrop (no al arrastrar texto)
+          if (e.target === e.currentTarget && mouseDownTargetRef.current === e.currentTarget) {
+            handleClose()
+          }
+          mouseDownTargetRef.current = null
+        }}
       >
         <div 
           className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-lg overflow-hidden animate-in zoom-in-95 duration-200 border border-slate-100 flex flex-col max-h-[90vh]"
@@ -1006,7 +1015,15 @@ export default function NotificacionDetalleModal({
                     </div>
                     <div className="text-right">
                       <p className="text-[9px] text-slate-400 uppercase font-bold mb-0.5">Fecha</p>
-                      <p className="text-[10px] font-bold text-slate-600">{safeMeta.fechaRevision || 'N/A'}</p>
+                      <p className="text-[10px] font-bold text-slate-600">
+                        {(() => {
+                          const raw = safeMeta.fechaRevision || notificacion?.revisadoEn || notificacion?.actualizadoEn || notificacion?.creadoEn
+                          if (!raw || raw === 'N/A') return fecha || '—'
+                          try {
+                            return new Date(raw).toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+                          } catch { return fecha || '—' }
+                        })()}
+                      </p>
                     </div>
                   </div>
                   {safeMeta.motivoRechazo && (

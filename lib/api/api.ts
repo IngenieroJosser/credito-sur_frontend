@@ -127,13 +127,12 @@ export const apiRequest = async <T>(
     if (status === 400) {
       errorMessage = err.response.data?.message || "Error de validación en la solicitud";
     } else if (status === 401) {
-      errorMessage = "No autorizado. Por favor, inicie sesión.";
+      errorMessage = "No autorizado. La sesión permanece activa en modo seguro.";
       if (typeof window !== "undefined") {
-        const isLoginPage = window.location.pathname === "/login";
-        localStorage.removeItem("token");
-        if (!isLoginPage) {
-          window.location.href = "/login";
-        }
+        // Mantener sesión activa según requerimiento del cliente:
+        // No eliminar token ni redirigir automáticamente.
+        // Se puede operar en modo limitado/offline hasta reconectar.
+        console.warn('[API] 401 recibido. Se mantiene la sesión. No se redirige al login.');
       }
     } else if (status === 404) {
       errorMessage = err.response.data?.message || "Recurso no encontrado";

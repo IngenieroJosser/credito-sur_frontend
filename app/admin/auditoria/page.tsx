@@ -119,8 +119,13 @@ const AuditoriaSistemaPage = () => {
     return coincideTexto && coincideNivel && coincideRuta
   })
 
-  const todayStr = new Date().toDateString()
-  const eventosHoy = logs.filter(l => new Date(l.fecha).toDateString() === todayStr).length
+  const toLocalKey = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+  const todayStr = toLocalKey(new Date())
+  const eventosHoy = logs.filter(l => {
+    const raw = l.fecha;
+    const f = raw ? (raw.includes('T') ? raw.split('T')[0] : raw) : '';
+    return f === todayStr;
+  }).length
   const alertasCriticas = logs.filter(l => l.nivel === 'CRITICO').length
   const usuariosActivos = new Set(logs.map(l => l.usuario)).size
 

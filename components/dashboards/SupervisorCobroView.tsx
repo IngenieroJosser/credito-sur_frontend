@@ -124,6 +124,7 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
   const [showHistory, setShowHistory] = useState(false)
   const [periodoRutaFiltro, setPeriodoRutaFiltro] = useState<PeriodoRuta | 'TODOS'>('TODOS')
   const [selectedHistoryDate, setSelectedHistoryDate] = useState<string | null>(null)
+  const [selectedHistoryMonth, setSelectedHistoryMonth] = useState<string | null>(null)
   const [historyViewMode, setHistoryViewMode] = useState<'DAYS' | 'MONTHS'>('DAYS')
 
   // Selector de cliente para acciones globales
@@ -147,6 +148,7 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
     base: number
   }>({ recaudo: 0, meta: 0, eficiencia: 0, gastos: 0, base: 0 })
   const router = useRouter();
+  const [rutaInfo, setRutaInfo] = useState<{ id: string; cobradorId: string } | null>(null);
 
   // Datos base
   const [visitasBase, setVisitasBase] = useState<VisitaRuta[]>([])
@@ -212,47 +214,188 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
     }
   }, [rutaId, periodoCards])
 
+  // Prefill historial: 30 días con loaded:false (carga lazy por día)
   useEffect(() => {
-    const cargarHistorial = async () => {
-      if (!rutaId) return;
-      try {
-        const resp = await rutasService.obtenerVisitasDelDia(rutaId as string);
-        const hoy = new Date();
-        const fecha = hoy.toISOString().split('T')[0];
-        
-        const visitasMap: any[] = (resp?.visitas || []).map((v: any, index: number) => ({
-             id: v.asignacionId || `hist-${index}`,
-             cliente: `${v.cliente?.nombres || ''} ${v.cliente?.apellidos || ''}`,
-             estado: v.prestamos?.[0]?.proximaCuota?.estado === 'PAGADA' ? 'pagado' : 'pendiente',
-             telefono: v.cliente?.telefono,
-              montoCuota: Number(v.prestamos?.find((p: any) => p.estado === 'ACTIVO' || p.estado === 'EN_MORA' || p.estado === 'PAGADO')?.proximaCuota?.monto || 0),
-              saldoTotal: v.prestamos?.reduce((sum: number, p: any) => sum + Number(p.saldoPendiente || 0), 0) || 0,
-             periodoRuta: 'DIA'
-        }));
-        const recaudo = visitasMap
-          .filter((v: any) => v.estado === 'pagado')
-          .reduce((sum: number, v: any) => sum + (v.montoCuota || 0), 0);
-        const esperado = visitasMap
-          .filter((v: any) => v.periodoRuta === 'DIA')
-          .reduce((sum: number, v: any) => sum + (v.montoCuota || 0), 0);
-        const efectividad = esperado > 0 ? Math.round((recaudo / esperado) * 100) : 0;
+    if (!showHistory || !rutaId) return;
+    if (historialRutas && Object.keys(historialRutas).length > 0) return;
+    const hoy = new Date();
+    const toKey = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    const prefill: Record<string, any> = {};
+    for (let i = 0; i < 30; i++) {
+      const d = new Date(hoy);
+      d.setDate(hoy.getDate() - i);
+      prefill[toKey(d)] = {
+        resumen: { recaudo: 0, gastos: 0, efectividad: 0, visitados: 0, total: 0 },
+        visitas: [],
+        loaded: false,
+      };
+    }
+    setHistorialRutas(prefill);
 
-        setHistorialRutas({
-          [fecha]: {
-            resumen: {
-              recaudo,
-              gastos: 0,
-              efectividad,
-              visitados: visitasMap.length,
-              total: visitasMap.length,
-            },
-            visitas: visitasMap,
-          },
+    const cargarResumenRecaudos = async () => {
+      try {
+        const pagosResp = await pagosService.obtenerPagos({ limit: 5000 });
+        const pagosData = (pagosResp as any)?.pagos || pagosResp || [];
+        setHistorialRutas((prev: any) => {
+          if (!prev) return prev;
+          const next = { ...prev };
+          const keys = Object.keys(next);
+          for (const k of keys) {
+            if (!next[k].loaded) next[k].resumen.recaudo = 0;
+          }
+          for (const p of pagosData) {
+            const raw = p.fechaPago || p.creadoEn;
+            if (!raw) continue;
+            const dStr = typeof raw === 'string' ? raw.split('T')[0] : new Date(raw).toISOString().split('T')[0];
+            const pk = dStr;
+            const cobradorMatch = rutaInfo?.cobradorId ? (p.cobradorId === rutaInfo.cobradorId) : true;
+            if (next[pk] && !next[pk].loaded && cobradorMatch) {
+               next[pk].resumen.recaudo += Number(p.montoTotal || 0);
+            }
+          }
+          return next;
         });
-      } catch (e) {}
+      } catch (e) { console.warn('Error precargando montos de historial', e); }
     };
-    cargarHistorial();
+    cargarResumenRecaudos();
+  }, [showHistory, rutaId, rutaInfo?.cobradorId]);
+
+  // Cargar historial de una fecha específica desde BD (lazy)
+  const cargarHistorialFecha = useCallback(async (fechaClave: string) => {
+    if (!rutaId) return;
+
+    // Normalizar fecha string a clave YYYY-MM-DD en hora local (evita bug de TZ)
+    const toKey = (raw: string): string => {
+      if (!raw) return '';
+      if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw;
+      try {
+        const d = new Date(raw);
+        return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+      } catch { return ''; }
+    };
+
+    let visitasResp: any = null;
+    let saldo: any = null;
+    let pagosDelDia: any[] = [];
+
+    try {
+      // 1. Visitas del día (puede fallar para fechas antiguas — tolerable)
+      visitasResp = await rutasService.obtenerVisitasDelDia(rutaId as string, fechaClave);
+    } catch (e) {
+      console.warn(`[Historial ${fechaClave}] obtenerVisitasDelDia falló:`, e);
+    }
+
+    try {
+      // 2. Saldo del día filtrado por ruta en el backend — fuente principal del recaudo
+      saldo = await obtenerSaldoDisponibleRuta(rutaId as string, fechaClave);
+    } catch (e) {
+      console.warn(`[Historial ${fechaClave}] obtenerSaldoDisponibleRuta falló:`, e);
+    }
+
+    try {
+      // 3. Pagos — modelo Pago SIN rutaId, filtramos solo por fecha
+      const pagosResp = await pagosService.obtenerPagos({ limit: 5000 });
+      const pagosData = (pagosResp as any)?.pagos || pagosResp || [];
+      pagosDelDia = (Array.isArray(pagosData) ? pagosData : []).filter((p: any) => {
+        const raw = p.fechaPago || p.creadoEn;
+        return raw && toKey(raw) === fechaClave;
+      });
+    } catch (e) {
+      console.warn(`[Historial ${fechaClave}] obtenerPagos falló:`, e);
+    }
+
+    const recaudadoPorCliente: Record<string, number> = {};
+    for (const p of pagosDelDia) {
+      const cid = p.clienteId || p.cliente?.id;
+      if (!cid) continue;
+      recaudadoPorCliente[cid] = (recaudadoPorCliente[cid] || 0) + Number(p.montoTotal || 0);
+    }
+
+    const existentes = new Set<string>();
+    const visitas = (visitasResp?.visitas || []).map((item: any, index: number) => {
+      const cliente = item.cliente || {};
+      const prestamos = item.prestamos || [];
+      const prestamoActivo = prestamos.find((p: any) => p.estado === 'ACTIVO' || p.estado === 'EN_MORA' || p.estado === 'PAGADO') || prestamos[0] || {};
+      const proximaCuota = prestamoActivo?.proximaCuota || {};
+      const saldoTotal = Number(prestamoActivo?.saldoPendiente || 0);
+      const recDia = cliente.id ? (recaudadoPorCliente[cliente.id] || 0) : 0;
+      const montoCuota = Number(proximaCuota?.monto || 0);
+      if (cliente.id) existentes.add(cliente.id);
+
+      let estado: any = 'pendiente';
+      if (proximaCuota?.estado === 'PAGADA' || (recDia > 0 && recDia >= montoCuota - 1) || saldoTotal <= 0) estado = 'pagado';
+      else if (proximaCuota?.estado === 'VENCIDA') estado = 'en_mora';
+
+      return {
+        id: item.asignacionId || `hist-${fechaClave}-${index}`,
+        cliente: `${cliente.nombres || ''} ${cliente.apellidos || ''}`.trim() || 'Cliente Sin Nombre',
+        direccion: cliente.direccion || 'Sin dirección',
+        telefono: cliente.telefono || '',
+        horaSugerida: '08:00 AM',
+        montoCuota,
+        saldoTotal,
+        estado,
+        proximaVisita: proximaCuota?.fechaVencimiento || fechaClave,
+        ordenVisita: item.ordenVisita || index + 1,
+        prioridad: cliente.nivelRiesgo === 'ROJO' ? 'alta' : 'media',
+        nivelRiesgo: (() => {
+          const r = cliente.nivelRiesgo || 'VERDE';
+          if (r === 'VERDE') return 'bajo'; if (r === 'AMARILLO') return 'leve';
+          if (r === 'ROJO') return 'moderado'; if (r === 'LISTA_NEGRA') return 'critico';
+          return 'bajo';
+        })(),
+        cobradorId: '',
+        periodoRuta: (() => {
+          const f = prestamoActivo?.frecuenciaPago || 'DIARIO';
+          if (f === 'DIARIO') return 'DIA'; if (f === 'SEMANAL') return 'SEMANA';
+          if (f === 'QUINCENAL') return 'QUINCENA'; if (f === 'MENSUAL') return 'MES';
+          return 'DIA';
+        })() as any,
+        clienteId: cliente.id,
+        recaudadoDelDia: recDia,
+      };
+    });
+
+    // Visitas sintéticas de pagos cuyos clientes no están en la ruta principal del día
+    const sinteticos = pagosDelDia.flatMap((p: any, i: number) => {
+      const cid = p.clienteId || p.cliente?.id;
+      if (!cid || existentes.has(cid)) return [];
+      return [{ id: `pago-${p.id || i}-${fechaClave}`, cliente: p.cliente ? `${p.cliente.nombres || ''} ${p.cliente.apellidos || ''}`.trim() : 'Cliente', direccion: p.cliente?.direccion || '', telefono: p.cliente?.telefono || '', horaSugerida: '08:00 AM', montoCuota: 0, saldoTotal: 0, estado: 'pagado', proximaVisita: fechaClave, ordenVisita: visitas.length + i + 1, prioridad: 'media', cobradorId: '', periodoRuta: 'DIA', clienteId: cid, recaudadoDelDia: Number(p.montoTotal || 0) }];
+    });
+
+    const todasVisitas = [...visitas, ...sinteticos];
+    const esperado = todasVisitas.reduce((s, v) => s + (v.montoCuota || 0), 0);
+    // recaudoDelDia del saldo es la fuente más confiable (filtrada por ruta en backend)
+    const recaudoSaldo = Number(saldo?.recaudoDelDia ?? saldo?.cobranzaDelDia ?? 0);
+    const recaudoPagos = pagosDelDia.reduce((s: number, p: any) => s + Number(p.montoTotal || 0), 0);
+    const recaudoFinal = recaudoSaldo > 0 ? recaudoSaldo : recaudoPagos;
+    console.log(`[Historial ${fechaClave}] recaudo final: ${recaudoFinal} (saldo=${recaudoSaldo}, pagos=${recaudoPagos})`);
+
+    setHistorialRutas((prev: any) => ({
+      ...(prev || {}),
+      [fechaClave]: {
+        resumen: {
+          recaudo: recaudoFinal,
+          gastos: Number(saldo?.gastosDelDia ?? 0),
+          efectividad: esperado > 0 ? Math.round((recaudoFinal / esperado) * 100) : (recaudoFinal > 0 ? 100 : 0),
+          visitados: todasVisitas.filter(v => (v.recaudadoDelDia || 0) > 0 || v.estado === 'pagado').length,
+          total: todasVisitas.length
+        },
+        visitas: todasVisitas,
+        loaded: true,
+      },
+    }));
   }, [rutaId]);
+
+  // Al abrir el historial, cargar hoy automáticamente
+  useEffect(() => {
+    if (!showHistory || !rutaId) return;
+    const hoy = new Date().toISOString().split('T')[0];
+    const existing = (historialRutas || {})[hoy];
+    if (!existing || !existing.loaded) {
+      cargarHistorialFecha(hoy);
+    }
+  }, [showHistory, rutaId, historialRutas, cargarHistorialFecha]);
 
   useEffect(() => {
     if (!socket) return;
@@ -295,13 +438,19 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
         if (userData) {
           setUserSession(JSON.parse(userData));
         } else {
-             const perfil = await obtenerPerfil();
-             localStorage.setItem('user', JSON.stringify(perfil));
-             setUserSession(perfil);
+             try {
+               const perfil = await obtenerPerfil();
+               localStorage.setItem('user', JSON.stringify(perfil));
+               setUserSession(perfil);
+             } catch (error: any) {
+               console.warn('Error al obtener perfil en supervisor:', error);
+               if (error?.statusCode === 401) router.replace('/login');
+             }
         }
 
         if (rutaId) {
           const ruta = await rutasService.obtenerRutaPorId(rutaId)
+          setRutaInfo({ id: ruta.id, cobradorId: ruta.cobradorId });
 
           try {
             const est: any = (ruta as any).estadisticas || {}
@@ -338,68 +487,62 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
           }
 
           if (ruta && ruta.asignaciones) {
-            const visitas = ruta.asignaciones.map((asig: any, index: number) => {
+            const toPeriodo = (f: string): PeriodoRuta => {
+              if (f === 'SEMANAL') return 'SEMANA';
+              if (f === 'QUINCENAL') return 'QUINCENA';
+              if (f === 'MENSUAL') return 'MES';
+              return 'DIA';
+            };
+
+            const toNivel = (r: string) => {
+              if (r === 'AMARILLO') return 'precaucion' as any;
+              if (r === 'ROJO') return 'moderado';
+              if (r === 'LISTA_NEGRA') return 'critico';
+              return 'bajo';
+            };
+
+            let gIdx = 0;
+            // *** Expandir cada crédito activo en su propia entrada de visita ***
+            const visitas = ruta.asignaciones.flatMap((asig: any) => {
               const cliente = asig.cliente || {}
-              const prestamos = cliente.prestamos || []
-              const prestamoActivo =
-                prestamos.find(
-                  (p: any) => p.estado === 'ACTIVO' || p.estado === 'EN_MORA'
-                ) || prestamos[0] || {}
+              const prestamosActivos: any[] = (cliente.prestamos || []).filter(
+                (p: any) => p.estado === 'ACTIVO' || p.estado === 'EN_MORA'
+              );
+              const lista = prestamosActivos.length > 0 ? prestamosActivos : [null];
 
-              const proximaCuota = prestamoActivo.proximaCuota || {}
-              const saldoTotal =
-                asig.cliente?.prestamos?.reduce(
-                  (sum: number, p: any) => sum + Number(p.saldoPendiente || 0),
-                  0,
-                ) || 0
+              return lista.map((prestamo: any) => {
+                const proximaCuota = prestamo?.proximaCuota || {}
+                const esArticulo = prestamo?.tipo === 'ARTICULO' || prestamo?.tipoPrestamo === 'ARTICULO'
+                const idx = gIdx++
 
-              let estado: EstadoVisita = 'pendiente'
-              if (proximaCuota.estado === 'VENCIDA') estado = 'en_mora'
-              else if (proximaCuota.estado === 'PAGADA') estado = 'pagado'
-              else if (!prestamoActivo.id) estado = 'pendiente'
+                let estado: EstadoVisita = 'pendiente'
+                if (proximaCuota.estado === 'VENCIDA') estado = 'en_mora'
+                else if (proximaCuota.estado === 'PAGADA') estado = 'pagado'
+                else if (!prestamo?.id) estado = 'pendiente'
 
-              const periodoRuta: PeriodoRuta = (() => {
-                const f = prestamoActivo.frecuenciaPago || 'DIARIO'
-                if (f === 'DIARIO') return 'DIA'
-                if (f === 'SEMANAL') return 'SEMANA'
-                if (f === 'QUINCENAL') return 'QUINCENA'
-                if (f === 'MENSUAL') return 'MES'
-                return 'DIA'
-              })()
-
-              return {
-                id: asig.id || `asig-${index}`,
-                cliente:
-                  `${cliente.nombres || ''} ${cliente.apellidos || ''}`.trim() ||
-                  'Cliente Sin Nombre',
-                direccion: cliente.direccion || 'Sin dirección registrada',
-                telefono: cliente.telefono || '',
-                horaSugerida: asig.horaSugerida || '08:00 AM',
-                montoCuota: Number(proximaCuota.monto || 0),
-                saldoTotal: Number(saldoTotal),
-                estado,
-                proximaVisita:
-                  proximaCuota.fechaVencimiento ||
-                  '9999-12-31T00:00:00.000Z',
-                targetVencimiento: proximaCuota.fechaVencimiento || undefined,
-                ordenVisita: asig.ordenVisita || index + 1,
-                prioridad:
-                  (asig.prioridad?.toLowerCase() as 'alta' | 'media' | 'baja') ||
-                  (estado === 'en_mora' ? 'alta' : 'media'),
-                nivelRiesgo: (() => {
-                  const r = cliente.nivelRiesgo || 'VERDE'
-                  if (r === 'VERDE') return 'bajo'
-                  if (r === 'AMARILLO') return 'precaucion' as any
-                  if (r === 'ROJO') return 'moderado'
-                  if (r === 'LISTA_NEGRA') return 'critico'
-                  return 'bajo'
-                })(),
-                cobradorId: ruta.cobradorId,
-                periodoRuta,
-                clienteId: cliente.id,
-                prestamoId: prestamoActivo.id,
-              } as any
-            })
+                return {
+                  id: prestamo ? `${asig.id}-${prestamo.id}` : (asig.id || `asig-${idx}`),
+                  cliente: `${cliente.nombres || ''} ${cliente.apellidos || ''}`.trim() || 'Cliente Sin Nombre',
+                  direccion: cliente.direccion || 'Sin dirección registrada',
+                  telefono: cliente.telefono || '',
+                  horaSugerida: asig.horaSugerida || '08:00 AM',
+                  montoCuota: Number(proximaCuota.monto || 0),
+                  saldoTotal: Number(prestamo?.saldoPendiente || 0),
+                  estado,
+                  proximaVisita: proximaCuota.fechaVencimiento || '9999-12-31T00:00:00.000Z',
+                  targetVencimiento: proximaCuota.fechaVencimiento || undefined,
+                  ordenVisita: asig.ordenVisita || idx + 1,
+                  prioridad: (asig.prioridad?.toLowerCase() as 'alta' | 'media' | 'baja') || (estado === 'en_mora' ? 'alta' : 'media'),
+                  nivelRiesgo: toNivel(cliente.nivelRiesgo || 'VERDE'),
+                  cobradorId: ruta.cobradorId,
+                  periodoRuta: toPeriodo(prestamo?.frecuenciaPago || 'DIARIO'),
+                  clienteId: cliente.id,
+                  prestamoId: prestamo?.id,
+                  tipoPrestamo: esArticulo ? 'ARTICULO' : 'EFECTIVO',
+                  articuloNombre: esArticulo ? (prestamo?.articulo || prestamo?.descripcionArticulo || undefined) : undefined,
+                } as any
+              });
+            });
 
             const visitasEnriquecidas = await Promise.all(
               visitas.map(async (v: any) => {
@@ -444,7 +587,9 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
               }),
             )
 
-            const hoyStr = new Date().toDateString()
+            const toLocalKey = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+            const hoyStr = toLocalKey(new Date())
+
             const withRecaudo = await Promise.all(
               visitasEnriquecidas.map(async (v: any) => {
                 if (!v.clienteId) {
@@ -462,7 +607,8 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
                   const pagosCalc = pagosResp?.pagos || []
 
                   const totalHoy = pagosCalc.reduce((sum: number, p: any) => {
-                    const f = new Date(p.fechaPago).toDateString()
+                    const raw = p.fechaPago || p.creadoEn;
+                    const f = raw ? (raw.includes('T') ? raw.split('T')[0] : raw) : '';
                     return f === hoyStr ? sum + Number(p.montoTotal || 0) : sum
                   }, 0)
 
@@ -494,10 +640,9 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
 
               if (saldoHoy >= cuota - 1 && saldoHoy > 0) return 'pagado'
 
-              const hoy = new Date().toDateString()
-              const proxima = new Date(v.proximaVisita).toDateString()
+              const proximoC = v.proximaVisita ? (v.proximaVisita.includes('T') ? v.proximaVisita.split('T')[0] : v.proximaVisita) : '';
 
-              if (proxima === hoy && saldoHoy >= cuota - 1) return 'pagado'
+              if (proximoC === hoyStr && saldoHoy >= cuota - 1) return 'pagado'
 
               return v.estado
             }
@@ -548,117 +693,12 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
   }, [visitasBase, searchQuery])
 
   const exportarRutaDiariaCSV = useCallback(() => {
-    const filas = visitasCobrador
-      .filter((v) => v.periodoRuta === 'DIA' && v.estado !== 'pagado')
-      .map((v) => {
-        const cols = [
-          v.ordenVisita,
-          v.cliente,
-          v.telefono,
-          v.direccion,
-          v.horaSugerida,
-          v.estado,
-          v.montoCuota,
-          v.saldoTotal,
-          v.proximaVisita,
-        ]
-        return cols
-          .map((c) => String(c).replace(/\r?\n/g, ' ').replace(/"/g, '""'))
-          .map((c) => `"${c}"`)
-          .join(',')
-      })
-
-    const header = [
-      'orden',
-      'cliente',
-      'telefono',
-      'direccion',
-      'hora_sugerida',
-      'estado',
-      'monto_cuota',
-      'saldo_total',
-      'proxima_visita',
-    ].join(',')
-
-    const csv = [header, ...filas].join('\n')
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
-    const url = URL.createObjectURL(blob)
-
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `ruta-diaria-${new Date().toISOString().slice(0, 10)}.csv`
-    document.body.appendChild(a)
-    a.click()
-    a.remove()
-    URL.revokeObjectURL(url)
-  }, [visitasCobrador])
+    console.log('TODO: Exportar CSV en desarrollo')
+  }, [])
 
   const exportarRutaDiariaPDF = useCallback(() => {
-    const data = visitasCobrador
-      .filter((v) => v.periodoRuta === 'DIA' && v.estado !== 'pagado')
-
-    const rows = data
-      .map(
-        (v) => `
-          <tr>
-            <td>${v.ordenVisita}</td>
-            <td>${v.cliente}</td>
-            <td>${v.telefono}</td>
-            <td>${v.direccion}</td>
-            <td>${v.horaSugerida}</td>
-            <td>${v.estado}</td>
-            <td style="text-align:right;">${formatCurrency(v.montoCuota)}</td>
-          </tr>
-        `
-      )
-      .join('')
-
-    const html = `
-      <html>
-        <head>
-          <title>Ruta diaria</title>
-          <meta charset="utf-8" />
-          <style>
-            body { font-family: Arial, sans-serif; padding: 24px; }
-            h1 { font-size: 18px; margin: 0 0 4px; }
-            .sub { color: #64748b; font-size: 12px; margin-bottom: 16px; }
-            table { width: 100%; border-collapse: collapse; }
-            th, td { border: 1px solid #e2e8f0; padding: 8px; font-size: 12px; vertical-align: top; }
-            th { background: #f8fafc; text-align: left; }
-          </style>
-        </head>
-        <body>
-          <h1>Ruta diaria</h1>
-          <div class="sub">${new Date().toISOString().slice(0, 10)} • ${data.length} visitas</div>
-          <table>
-            <thead>
-              <tr>
-                <th>#</th>
-                <th>Cliente</th>
-                <th>Teléfono</th>
-                <th>Dirección</th>
-                <th>Hora</th>
-                <th>Estado</th>
-                <th>Monto</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${rows}
-            </tbody>
-          </table>
-          <script>
-            window.onload = () => { window.print(); };
-          </script>
-        </body>
-      </html>
-    `
-
-    const w = window.open('', '_blank', 'noopener,noreferrer')
-    if (!w) return
-    w.document.open()
-    w.document.write(html)
-    w.document.close()
-  }, [visitasCobrador])
+    console.log('TODO: Exportar PDF en desarrollo')
+  }, [])
 
   // rutaStats se actualiza al cargar la ruta desde backend usando pagos reales
 
@@ -864,9 +904,22 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
 
       await prestamosService.crearPrestamo(payload)
       
+      // Asignar cliente a la ruta automáticamente si estamos en una ruta específica
+      if (rutaId) {
+        try {
+          await rutasService.asignarCliente(
+            rutaId,
+            data.clienteCreditoId,
+            rutaInfo?.cobradorId || ''
+          );
+        } catch (assignError) {
+          console.error('Error al asignar cliente a la ruta:', assignError);
+        }
+      }
+
       setModalAlerta({
         titulo: 'Crédito Creado',
-        mensaje: 'El crédito ha sido registrado exitosamente y está listo para gestión.',
+        mensaje: 'El crédito ha sido registrado (Pendiente de Aprobación) y el cliente vinculado a esta ruta.',
         tipo: 'exito'
       })
       setShowCreditModal(false)
@@ -1296,81 +1349,247 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
                                >
                                  Días
                                </button>
+                               <button 
+                                 onClick={() => setHistoryViewMode('MONTHS')}
+                                 className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all border ${
+                                    historyViewMode === 'MONTHS' 
+                                    ? 'bg-slate-900 text-white border-slate-900 shadow-lg shadow-slate-900/20' 
+                                    : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300 hover:text-slate-700'
+                                 }`}
+                               >
+                                 Meses
+                               </button>
                              </div>
 
                              {historyViewMode === 'DAYS' && (
                                 <div className="space-y-3">
                                     <h3 className="text-sm font-bold text-slate-500 uppercase px-1">Historial de Días</h3>
-                                    {historyDates.map(date => {
-                                       const data = (historialRutas as Record<string, HistorialDia>)[date]
-                                       const isExpanded = selectedHistoryDate === date
-                                       const [y, m, d] = date.split('-')
-                                       const dateObj = new Date(parseInt(y), parseInt(m)-1, parseInt(d))
-                                       const dayName = dateObj.toLocaleDateString('es-CO', { weekday: 'long', day: 'numeric', month: 'long' })
-                                       
-                                       const isCompleted = data.resumen.efectividad === 100 || data.visitas.every((v: VisitaRuta) => v.estado === 'pagado');
+                                     {historyDates.map(date => {
+                                        const data = (historialRutas as Record<string, any>)[date];
+                                        const isExpanded = selectedHistoryDate === date;
+                                        const [y, m, d] = date.split('-');
+                                        const dateObj = new Date(parseInt(y), parseInt(m)-1, parseInt(d));
+                                        const dayName = dateObj.toLocaleDateString('es-CO', { weekday: 'long', day: 'numeric', month: 'long' });
+                                        const isCompleted = data.visitas.length > 0 && (data.resumen.efectividad >= 95 || data.visitas.every((v: any) => v.estado === 'pagado'));
 
-                                       return (
-                                         <div key={date} 
-                                              className={`rounded-2xl border transition-all overflow-hidden bg-white border-slate-200
-                                                ${isExpanded ? 'ring-1 ring-slate-300 shadow-md' : 'shadow-sm'}
-                                              `}
-                                         >
-                                           <div 
-                                             className="p-4 flex items-center justify-between cursor-pointer hover:bg-slate-50 transition-colors"
-                                             onClick={() => setSelectedHistoryDate(isExpanded ? null : date)}
-                                           >
-                                             <div className="flex items-center gap-3">
-                                                <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-xs shadow-sm
-                                                    ${isExpanded ? 'bg-[#08557f] text-white' : 'bg-slate-100 text-slate-600'}
-                                                `}>
-                                                   {d}
-                                                </div>
-                                                
-                                                <div>
-                                                   <div className="font-bold text-slate-900 capitalize flex items-center gap-2">
-                                                      {dayName}
-                                                      {isCompleted && <span className="text-[10px] bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full font-bold uppercase border border-emerald-200">Completada</span>}
-                                                   </div>
-                                                   <div className="text-xs text-slate-500">
-                                                      Recaudo: <b>${data.resumen.recaudo.toLocaleString('es-CO')}</b>
-                                                   </div>
-                                                </div>
-                                             </div>
-                                             <div className="flex items-center gap-3">
-                                                <div className={`px-2 py-1 rounded-lg text-[10px] font-bold ${data.resumen.efectividad >= 90 ? 'bg-emerald-50 text-emerald-700' : 'bg-orange-50 text-orange-700'}`}>
-                                                  {data.resumen.efectividad}%
-                                                </div>
-                                                <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
-                                             </div>
-                                           </div>
-
-                                           {isExpanded && (
-                                              <div className="border-t border-slate-100 bg-white p-4 space-y-3 animate-in slide-in-from-top-2 duration-200">
-                                                 <div className="flex justify-between text-xs font-bold text-slate-500 uppercase px-1">
-                                                    <span>{data.visitas.length} Clientes Visitados</span>
-                                                    <span>Detalle</span>
+                                        return (
+                                          <div key={date} 
+                                               className={`rounded-2xl border transition-all overflow-hidden bg-white border-slate-200
+                                                 ${isExpanded ? 'ring-1 ring-slate-300 shadow-md' : 'shadow-sm'}
+                                               `}
+                                          >
+                                            <div 
+                                              className="p-4 flex items-center justify-between cursor-pointer hover:bg-slate-50 transition-colors"
+                                              onClick={async () => {
+                                                if (!isExpanded && !data.loaded) {
+                                                  await cargarHistorialFecha(date);
+                                                }
+                                                setSelectedHistoryDate(isExpanded ? null : date);
+                                              }}
+                                            >
+                                              <div className="flex items-center gap-3">
+                                                 <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-xs shadow-sm
+                                                     ${isExpanded ? 'bg-[#08557f] text-white' : 'bg-slate-100 text-slate-600'}
+                                                 `}>
+                                                    {d}
                                                  </div>
-                                                 <div className="">
-                                                    {data.visitas.map((visita: VisitaRuta) => (
-                                                        <StaticVisitaItem 
-                                                        key={visita.id}
-                                                        visita={visita}
-                                                        onSelect={() => {}} onVerCliente={handleAbrirClienteInfo}
-                                                        getEstadoClasses={getEstadoClasses}
-                                                        />
-                                                    ))}
+                                                 <div>
+                                                    <div className="font-bold text-slate-900 capitalize flex items-center gap-2">
+                                                       {dayName}
+                                                       {isCompleted && <span className="text-[10px] bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full font-bold uppercase border border-emerald-200">Completada</span>}
+                                                    </div>
+                                                    <div className="text-xs text-slate-500">
+                                                       Recaudo: <b>${data.resumen.recaudo.toLocaleString('es-CO')}</b>
+                                                    </div>
                                                  </div>
                                               </div>
-                                           )}
-                                         </div>
-                                       )
-                                    })}
+                                              <div className="flex items-center gap-3">
+                                                 <div className={`px-2 py-1 rounded-lg text-[10px] font-bold ${data.resumen.efectividad >= 90 ? 'bg-emerald-50 text-emerald-700' : 'bg-orange-50 text-orange-700'}`}>
+                                                   {data.resumen.efectividad}%
+                                                 </div>
+                                                 <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+                                              </div>
+                                            </div>
+
+                                            {isExpanded && (
+                                               <div className="border-t border-slate-100 bg-white p-4 space-y-3 animate-in slide-in-from-top-2 duration-200">
+                                                  <div className="flex justify-between text-xs font-bold text-slate-500 uppercase px-1">
+                                                     <span>{data.visitas.length} Clientes Gestionados</span>
+                                                     <span>Estado</span>
+                                                  </div>
+                                                  <div>
+                                                     {!data.loaded ? (
+                                                       <div className="flex flex-col items-center justify-center py-8 text-slate-400">
+                                                         <div className="w-6 h-6 border-2 border-slate-300 border-t-[#08557f] rounded-full animate-spin mb-2" />
+                                                         <span className="text-xs font-medium">Cargando detalles...</span>
+                                                       </div>
+                                                     ) : data.visitas.length === 0 ? (
+                                                       <div className="flex flex-col items-center justify-center py-10 bg-slate-50 rounded-2xl border border-dashed border-slate-200">
+                                                          <History className="w-8 h-8 text-slate-300 mb-2 opacity-30" />
+                                                          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest text-center px-4">No se registraron visitas ni pagos para este día</span>
+                                                       </div>
+                                                     ) : (
+                                                       data.visitas.map((visita: VisitaRuta) => (
+                                                           <StaticVisitaItem 
+                                                           key={visita.id}
+                                                           visita={visita}
+                                                           onSelect={() => {}} onVerCliente={handleAbrirClienteInfo}
+                                                           getEstadoClasses={getEstadoClasses}
+                                                           />
+                                                       ))
+                                                     )}
+                                                  </div>
+                                               </div>
+                                            )}
+                                          </div>
+                                        )
+                                     })}
                                 </div>
-                             )}
-                          </div>
-                        )
-                      }
+                              )}
+
+                              {/* MONTHS VIEW: días agrupados por mes, con tarjetas de clientes */}
+                              {historyViewMode === 'MONTHS' && (() => {
+                                // Agrupar todos los días del historialRutas por mes
+                                const allDates = Object.keys(historialRutas).sort().reverse();
+                                const byMonth: Record<string, string[]> = {};
+                                for (const date of allDates) {
+                                  const [y, m] = date.split('-');
+                                  const monthKey = `${y}-${m}`;
+                                  if (!byMonth[monthKey]) byMonth[monthKey] = [];
+                                  byMonth[monthKey].push(date);
+                                }
+                                const monthKeys = Object.keys(byMonth).sort().reverse();
+
+                                if (monthKeys.length === 0) {
+                                  return (
+                                    <div className="flex flex-col items-center justify-center py-12 text-slate-400">
+                                      <History className="h-12 w-12 mb-3 opacity-20" />
+                                      <p className="text-sm font-bold">Sin historial disponible</p>
+                                    </div>
+                                  );
+                                }
+
+                                return (
+                                  <div className="space-y-4">
+                                    {monthKeys.map(monthKey => {
+                                      const [my, mm] = monthKey.split('-');
+                                      const monthObj = new Date(parseInt(my), parseInt(mm)-1, 1);
+                                      const monthName = monthObj.toLocaleDateString('es-CO', { month: 'long', year: 'numeric' });
+                                      const daysInMonth = byMonth[monthKey];
+                                      const isMonthExpanded = selectedHistoryMonth === monthKey;
+
+                                      // Calcular totales del mes desde los días que ya están cargados
+                                      const monthRecaudo = daysInMonth.reduce((sum, d) => sum + ((historialRutas as any)[d]?.resumen?.recaudo || 0), 0);
+                                      const monthPagados = daysInMonth.reduce((sum, d) => {
+                                        const dayData = (historialRutas as any)[d];
+                                        return sum + (dayData?.visitas?.filter((v: any) => v.estado === 'pagado')?.length || 0);
+                                      }, 0);
+
+                                      return (
+                                        <div key={monthKey} className={`rounded-2xl border transition-all overflow-hidden bg-white border-slate-200 ${isMonthExpanded ? 'ring-1 ring-slate-300 shadow-md' : 'shadow-sm'}`}>
+                                          {/* Header del mes */}
+                                          <div
+                                            className="p-4 flex items-center justify-between cursor-pointer hover:bg-slate-50 transition-colors"
+                                            onClick={() => setSelectedHistoryMonth(isMonthExpanded ? null : monthKey)}
+                                          >
+                                            <div className="flex items-center gap-3">
+                                              <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-xs shadow-sm ${isMonthExpanded ? 'bg-[#08557f] text-white' : 'bg-slate-100 text-slate-600'}`}>
+                                                {mm}
+                                              </div>
+                                              <div>
+                                                <div className="font-bold text-slate-900 capitalize">{monthName}</div>
+                                                <div className="text-xs text-slate-500">
+                                                  <span>{daysInMonth.length} días · </span>
+                                                  <span>Recaudo: <b>${monthRecaudo.toLocaleString('es-CO')}</b></span>
+                                                </div>
+                                              </div>
+                                            </div>
+                                            <div className="flex items-center gap-3">
+                                              <div className="px-2 py-1 rounded-lg text-[10px] font-bold bg-blue-50 text-blue-700">
+                                                {monthPagados} cobros
+                                              </div>
+                                              <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${isMonthExpanded ? 'rotate-180' : ''}`} />
+                                            </div>
+                                          </div>
+
+                                          {/* Días del mes expandibles */}
+                                          {isMonthExpanded && (
+                                            <div className="border-t border-slate-100">
+                                              {daysInMonth.map(date => {
+                                                const dayData = (historialRutas as any)[date];
+                                                const isDayExpanded = selectedHistoryDate === date;
+                                                const [dy, dm, dd] = date.split('-');
+                                                const dateObj = new Date(parseInt(dy), parseInt(dm)-1, parseInt(dd));
+                                                const dayName = dateObj.toLocaleDateString('es-CO', { weekday: 'long', day: 'numeric' });
+
+                                                return (
+                                                  <div key={date} className={`border-b border-slate-50 last:border-0 transition-all ${isDayExpanded ? 'bg-slate-50/40' : ''}`}>
+                                                    {/* Sub-header del día */}
+                                                    <div
+                                                      className="px-5 py-3 flex items-center justify-between cursor-pointer hover:bg-slate-50 transition-colors"
+                                                      onClick={async () => {
+                                                        if (!isDayExpanded && !dayData.loaded) {
+                                                          await cargarHistorialFecha(date);
+                                                        }
+                                                        setSelectedHistoryDate(isDayExpanded ? null : date);
+                                                      }}
+                                                    >
+                                                      <div className="flex items-center gap-3">
+                                                        <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-[11px] ${isDayExpanded ? 'bg-[#08557f] text-white' : 'bg-white border border-slate-200 text-slate-600'}`}>
+                                                          {dd}
+                                                        </div>
+                                                        <div>
+                                                          <span className="text-sm font-semibold text-slate-700 capitalize">{dayName}</span>
+                                                          <div className="text-[11px] text-slate-400">
+                                                            Recaudo: <b>${(dayData?.resumen?.recaudo || 0).toLocaleString('es-CO')}</b>
+                                                            {dayData?.loaded && dayData.visitas.length > 0 && (
+                                                              <span className="ml-2">&middot; {dayData.visitas.length} clientes</span>
+                                                            )}
+                                                          </div>
+                                                        </div>
+                                                      </div>
+                                                      <ChevronDown className={`w-3.5 h-3.5 text-slate-400 transition-transform ${isDayExpanded ? 'rotate-180' : ''}`} />
+                                                    </div>
+
+                                                    {/* Tarjetas de clientes del día */}
+                                                    {isDayExpanded && (
+                                                      <div className="px-4 pb-4 space-y-2 animate-in slide-in-from-top-1 duration-150">
+                                                        {!dayData.loaded ? (
+                                                          <div className="flex flex-col items-center justify-center py-6 text-slate-400">
+                                                            <div className="w-5 h-5 border-2 border-slate-300 border-t-[#08557f] rounded-full animate-spin mb-2" />
+                                                            <span className="text-xs font-medium">Cargando clientes...</span>
+                                                          </div>
+                                                        ) : dayData.visitas.length === 0 ? (
+                                                          <div className="text-center py-6 text-[11px] text-slate-400 font-medium">
+                                                            Sin cobros registrados para este día
+                                                          </div>
+                                                        ) : (
+                                                          dayData.visitas.map((visita: VisitaRuta) => (
+                                                            <StaticVisitaItem
+                                                              key={visita.id}
+                                                              visita={visita}
+                                                              onSelect={() => {}}
+                                                              onVerCliente={handleAbrirClienteInfo}
+                                                              getEstadoClasses={getEstadoClasses}
+                                                            />
+                                                          ))
+                                                        )}
+                                                      </div>
+                                                    )}
+                                                  </div>
+                                                );
+                                              })}
+                                            </div>
+                                          )}
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
+                                );
+                              })()}
+                           </div>
+                         )
+                       }
 
                       const noPagadas = visitasCobrador.filter(v => v.estado !== 'pagado')
 

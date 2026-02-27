@@ -4,6 +4,7 @@ import React, { createContext, useContext, useEffect, useState } from 'react'
 import { io, Socket } from 'socket.io-client'
 import { Notificacion, notificacionesService } from '@/services/notificaciones-service'
 import { toast } from 'sonner'
+import { showLocalNotification } from '@/lib/push/pushNotifications'
 
 interface NotificacionesContextProps {
   socket: Socket | null;
@@ -76,20 +77,28 @@ export function NotificacionesProvider({ children }: { children: React.ReactNode
       withCredentials: true,
     })
 
+    let hasLoggedError = false;
+
     newSocket.on('connect', () => {
+      hasLoggedError = false; // Reset error flag on successful connect
       console.log(`[Socket] Conectado con ID: ${newSocket.id}`);
       if (currentUserId) {
-        console.log(`[Socket] Registrando usuario: ${currentUserId}`);
         newSocket.emit('register', { userId: currentUserId })
       }
     })
 
     newSocket.on('connect_error', (error) => {
-      console.error('[Socket] Error de conexión:', error.message);
+      // Evitar spam en la consola durante desconexiones temporales (ej. reinicios del backend)
+      if (!hasLoggedError) {
+        console.warn(`[Socket] Desconectado o esperando backend... (${error.message})`);
+        hasLoggedError = true;
+      }
     })
 
     newSocket.on('disconnect', (reason) => {
-      console.warn('[Socket] Desconectado:', reason);
+      if (reason !== 'io client disconnect') {
+        console.warn(`[Socket] Desconectado: ${reason}. Reintentando...`);
+      }
     })
 
     const formatFecha = (fechaRaw?: any) => {
@@ -113,6 +122,9 @@ export function NotificacionesProvider({ children }: { children: React.ReactNode
       
       // En lugar de toast, abrimos el dropdown
       setShowDropdown(true)
+      
+      // Mostrar Push Notification local
+      showLocalNotification(notificacion.titulo, { body: notificacion.mensaje })
     })
 
     // Escuchar cambios de estado (ej. se marcaron como leídas en otra pestaña)
@@ -128,6 +140,9 @@ export function NotificacionesProvider({ children }: { children: React.ReactNode
       };
       setNotificaciones(prev => [formattedNotif, ...prev])
       setShowDropdown(true)
+      
+      // Mostrar Push Notification local global
+      showLocalNotification(notificacion.titulo, { body: notificacion.mensaje })
     })
 
     setSocket(newSocket)

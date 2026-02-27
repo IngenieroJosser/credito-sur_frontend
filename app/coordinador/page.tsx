@@ -221,6 +221,13 @@ export default function CoordinadorPage() {
             href: '/coordinador/clientes',
           },
           {
+            title: 'Cuentas Vencidas',
+            subtitle: 'Plazos expirados',
+            icon: <AlertCircle className="h-5 w-5" />,
+            color: '#e11d48',
+            href: '/coordinador/cuentas-vencidas',
+          },
+          {
             title: 'Reportes',
             subtitle: 'Flujo de caja y rendimiento',
             icon: <PieChart className="h-5 w-5" />,

@@ -8,7 +8,7 @@ import {
   ChevronRight, ChevronDown, Search, Filter
 } from 'lucide-react';
 import { usePathname, useRouter } from 'next/navigation';
-import { formatCurrency } from '@/lib/utils';
+import { formatCurrency, cn } from '@/lib/utils';
 import { useNotification } from '@/components/providers/NotificationProvider';
 import NuevoClienteModal from '@/components/clientes/NuevoClienteModal';
 import { clientesService, Cliente } from '@/services/clientes-service';
@@ -160,7 +160,7 @@ const calcularCuotasYResumen = (form: FormularioPrestamo) => {
   };
 };
 
-const CreacionPrestamoElegante = () => {
+const CreacionPrestamoElegante = ({ initialClienteId, isModal }: { initialClienteId?: string, isModal?: boolean }) => {
   const { showNotification } = useNotification();
   const router = useRouter();
   const pathname = usePathname();
@@ -201,7 +201,7 @@ const CreacionPrestamoElegante = () => {
   }, []);
 
   const [form, setForm] = useState<FormularioPrestamo>({
-    clienteId: '',
+    clienteId: initialClienteId || '',
     montoTotal: 0,
     proposito: 'PERSONAL',
     tasaInteres: 5.0,
@@ -215,6 +215,13 @@ const CreacionPrestamoElegante = () => {
     comision: 1.0,
     observaciones: ''
   });
+
+  // If initialClienteId is provided, move to step 2 automatically if we are in step 1
+  useEffect(() => {
+    if (initialClienteId && step === 1) {
+      setStep(2);
+    }
+  }, [initialClienteId]);
 
   const [montoTotalInput, setMontoTotalInput] = useState('')
   const [cuotasInput, setCuotasInput] = useState('')
@@ -366,13 +373,15 @@ const CreacionPrestamoElegante = () => {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 relative pb-12">
-      <div className="fixed inset-0 pointer-events-none z-0">
-        <div className="fixed inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px]"></div>
-        <div className="fixed left-0 right-0 top-0 -z-10 m-auto h-[310px] w-[310px] rounded-full bg-indigo-500 opacity-20 blur-[100px]"></div>
-      </div>
+    <div className={cn("relative", !isModal && "min-h-screen bg-slate-50 pb-12")}>
+      {!isModal && (
+        <div className="fixed inset-0 pointer-events-none z-0">
+          <div className="fixed inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px]"></div>
+          <div className="fixed left-0 right-0 top-0 -z-10 m-auto h-[310px] w-[310px] rounded-full bg-indigo-500 opacity-20 blur-[100px]"></div>
+        </div>
+      )}
 
-      <div className="relative z-10 px-0 pt-0">
+      <div className={cn("relative z-10 px-0 pt-0", !isModal && "p-8")}>
         <div className="mb-8 flex items-center justify-between">
            <div className="flex items-center gap-6">
             <div className="hidden md:flex items-center gap-4">

@@ -25,7 +25,7 @@ export async function setAuthCookiesAction(token: string, rol: string): Promise<
     cookieStore.set('token', token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
-      maxAge: 60 * 60 * 24 * 7, // 1 semana
+      maxAge: 60 * 60 * 24 * 365 * 100, // 100 años (Prácticamente nunca expira)
       path: '/',
     });
     

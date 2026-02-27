@@ -534,12 +534,17 @@ const UserManagementPage = () => {
             amount: `+$${Number(p.monto).toLocaleString("es-CO")}`,
             type: "in" as const,
           }));
+          const toLocalKeyDate = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+          const hoyStrAdmin = toLocalKeyDate(new Date());
+
           const gastosHoy = Array.isArray(gastosResp?.items)
             ? gastosResp.items
                 .filter(
-                  (g: any) =>
-                    new Date(g.fecha).toDateString() ===
-                    new Date().toDateString(),
+                  (g: any) => {
+                    const raw = g.fecha || g.creadoEn;
+                    const f = raw ? (raw.includes('T') ? raw.split('T')[0] : raw) : '';
+                    return f === hoyStrAdmin;
+                  }
                 )
                 .reduce((s: number, g: any) => s + Number(g.monto || 0), 0)
             : 0;

@@ -24,6 +24,7 @@ import {
   Save,
   ArrowRightLeft,
   XCircle,
+  Wallet,
 } from 'lucide-react'
 import { formatCurrency, cn } from '@/lib/utils'
 import { useAuth } from '@/hooks/useAuth'
@@ -33,6 +34,10 @@ import { useNotification } from '@/components/providers/NotificationProvider';
 import { usePermission } from '@/hooks/usePermission';
 import { offlineStore } from '@/lib/offline/offlineDb';
 import CrearCreditoModal from '@/components/dashboards/shared/CrearCreditoModal';
+import { getCajas, createTransaccion, Caja } from '@/services/contabilidad-service';
+import { prestamosService } from '@/services/prestamos-service';
+import { creditosService } from '@/services/creditos-service';
+import ConfirmModal from '@/components/ui/ConfirmModal';
 
 interface Ruta {
   id: string;
@@ -52,10 +57,19 @@ interface Ruta {
   frecuenciaVisita?: string;
 }
 
+interface PrestamoResumen {
+  id: string;
+  tipo: 'EFECTIVO' | 'ARTICULO';
+  articulo?: string;
+  frecuencia: string;
+  saldoPendiente: number;
+}
+
 interface ClienteSelection {
   id: string;
   nombre?: string;
   codigo?: string;
+  prestamos?: PrestamoResumen[];
   // Allow other properties to avoid tight coupling with backend response in this view
   [key: string]: unknown;
 }
@@ -118,6 +132,12 @@ export const RutasPageView = ({
   // State for lists with fallback fetching
   const [cobradoresList, setCobradoresList] = useState(cobradores);
   const [supervisoresList, setSupervisoresList] = useState(supervisores);
+  const [showSelectPrincipalModal, setShowSelectPrincipalModal] = useState(false)
+  const [principalOptions, setPrincipalOptions] = useState<Caja[]>([])
+  const [processingTransfer, setProcessingTransfer] = useState(false)
+  const [routeForTransfer, setRouteForTransfer] = useState<Ruta | null>(null)
+  const showRecolectar = true
+  const [showConfirmRecolectar, setShowConfirmRecolectar] = useState(false)
 
   useEffect(() => {
     const fetchLists = async () => {
@@ -169,6 +189,8 @@ export const RutasPageView = ({
   const [clienteSearch, setClienteSearch] = useState('')
   const [clienteAMover, setClienteAMover] = useState<string | null>(null)
   const [rutaDestinoId, setRutaDestinoId] = useState('')
+  // Mapa de prestamoId -> rutaId destino para mover créditos individualmente
+  const [rutaDestinoMap, setRutaDestinoMap] = useState<Record<string, string>>({})
 
   // Efecto para buscar clientes disponibles
   useEffect(() => {
@@ -240,8 +262,14 @@ export const RutasPageView = ({
           id: a.cliente.id,
           nombre: `${a.cliente.nombres} ${a.cliente.apellidos}`,
           codigo: a.cliente.dni,
-          direccion: a.cliente.telefono, 
-          deuda: a.cliente.prestamos?.reduce((sum: number, p: any) => sum + Number(p.saldoPendiente || 0), 0) || 0
+          direccion: a.cliente.telefono,
+          prestamos: (a.cliente.prestamos || []).filter((p: any) => p.estado === 'ACTIVO' || p.estado === 'EN_MORA').map((p: any) => ({
+            id: p.id,
+            tipo: (p.tipo === 'ARTICULO' || p.tipoPrestamo === 'ARTICULO') ? 'ARTICULO' : 'EFECTIVO',
+            articulo: p.articulo || p.descripcionArticulo || undefined,
+            frecuencia: p.frecuenciaPago || 'DIARIO',
+            saldoPendiente: Number(p.saldoPendiente || 0),
+          })) as PrestamoResumen[]
         })));
       }
     } catch (error) {
@@ -315,6 +343,69 @@ export const RutasPageView = ({
       showNotification('error', 'No se pudo cambiar el estado', 'Error');
     }
   }
+  const handleRecolectarDinero = async (ruta: Ruta) => {
+    try {
+      setProcessingTransfer(true)
+      const cajas = await getCajas()
+      const cajaRuta = cajas.find(c => c.tipo === 'RUTA' && c.rutaId === ruta.id)
+      const principalCajas = cajas.filter(c => c.tipo === 'PRINCIPAL')
+      if (!cajaRuta) {
+        showNotification('warning', 'No se encontró la caja de esta ruta', 'Aviso')
+        return
+      }
+      if ((cajaRuta.saldo || 0) <= 0) {
+        showNotification('warning', 'La caja de ruta no tiene saldo para recolectar', 'Aviso')
+        return
+      }
+      if (principalCajas.length === 0) {
+        showNotification('error', 'No hay cajas principales disponibles', 'Error')
+        return
+      }
+      if (principalCajas.length === 1) {
+        const destino = principalCajas[0]
+        await createTransaccion({
+          cajaId: destino.id,
+          tipo: 'INGRESO',
+          monto: cajaRuta.saldo,
+          descripcion: `Consolidación desde Ruta ${ruta.nombre}`,
+          cajaOrigenId: cajaRuta.id
+        })
+        showNotification('success', 'Dinero recolectado y enviado a la caja principal', 'Éxito')
+      } else {
+        setPrincipalOptions(principalCajas)
+        setRouteForTransfer(ruta)
+        setShowSelectPrincipalModal(true)
+      }
+    } catch {
+      showNotification('error', 'Ocurrió un error al recolectar dinero', 'Error')
+    } finally {
+      setProcessingTransfer(false)
+    }
+  }
+  const confirmarEnvioA = async (destinoId: string) => {
+    try {
+      setProcessingTransfer(true)
+      if (!routeForTransfer) return
+      const cajas = await getCajas()
+      const cajaRuta = cajas.find(c => c.tipo === 'RUTA' && c.rutaId === routeForTransfer.id)
+      const destino = cajas.find(c => c.id === destinoId)
+      if (!cajaRuta || !destino) return
+      await createTransaccion({
+        cajaId: destino.id,
+        tipo: 'INGRESO',
+        monto: cajaRuta.saldo,
+        descripcion: `Consolidación desde Ruta ${routeForTransfer.nombre}`,
+        cajaOrigenId: cajaRuta.id
+      })
+      setShowSelectPrincipalModal(false)
+      setRouteForTransfer(null)
+      showNotification('success', `Dinero enviado a ${destino.nombre}`, 'Éxito')
+    } catch {
+      showNotification('error', 'No se pudo completar la transferencia', 'Error')
+    } finally {
+      setProcessingTransfer(false)
+    }
+  }
   const handleMoveCliente = async (clienteId: string) => {
     if (!editingId || !rutaDestinoId) return;
     
@@ -322,15 +413,25 @@ export const RutasPageView = ({
       await routesService.moveClient(clienteId, editingId, rutaDestinoId);
       showNotification('success', 'Cliente movido exitosamente', 'Éxito');
       
-      // Actualizar lista local
       setClientesRuta(prev => prev.filter(c => c.id !== clienteId));
       setClienteAMover(null);
       setRutaDestinoId('');
       
-      // Opcional: refrescar estadísticas
       router.refresh();
     } catch (error) {
       showNotification('error', 'No se pudo mover el cliente', 'Error');
+    }
+  }
+
+  const handleMoveLoan = async (prestamoId: string) => {
+    const toRutaId = rutaDestinoMap[prestamoId];
+    if (!toRutaId) return;
+    try {
+      await routesService.moveLoan(prestamoId, toRutaId);
+      showNotification('success', 'Crédito asignado a la ruta correctamente', 'Éxito');
+      setRutaDestinoMap(prev => { const n = { ...prev }; delete n[prestamoId]; return n; });
+    } catch (error) {
+      showNotification('error', 'No se pudo mover el crédito', 'Error');
     }
   }
 
@@ -724,7 +825,7 @@ export const RutasPageView = ({
                     )}
                   </div>
 
-                  <div className="p-4 bg-slate-50/50 border-t border-slate-100 group-hover:bg-blue-50/30 transition-colors">
+                  <div className="p-4 bg-slate-50/50 border-t border-slate-100 group-hover:bg-blue-50/30 transition-colors" onClick={(e) => e.stopPropagation()}>
                     <div className="flex justify-between items-center gap-3">
                       <span className="text-xs text-slate-400 font-bold">ID: {ruta.id}</span>
 
@@ -764,9 +865,28 @@ export const RutasPageView = ({
                             href={`${rutasBasePath}/${ruta.id}`}
                             className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
                             title="Ver detalle"
+                              onClick={(e) => {
+                                e.preventDefault()
+                                e.stopPropagation()
+                                router.push(`${rutasBasePath}/${ruta.id}`)
+                              }}
                           >
                             <Eye className="h-4 w-4" />
                           </Link>
+                          {showRecolectar && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                setRouteForTransfer(ruta)
+                                setShowConfirmRecolectar(true)
+                              }}
+                              disabled={processingTransfer}
+                              className="p-2 text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-blue-600/30"
+                              title="Recolectar Dinero"
+                            >
+                              <Wallet className="h-4 w-4" />
+                            </button>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -919,6 +1039,23 @@ export const RutasPageView = ({
                                 {ruta.estado === 'ACTIVA' ? <Trash2 className="w-4 h-4" /> : <CheckCircle2 className="w-4 h-4" />}
                               </button>
                             )}
+                            {showRecolectar && (
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.preventDefault()
+                                  e.stopPropagation()
+                                  setRouteForTransfer(ruta)
+                                  setShowConfirmRecolectar(true)
+                                showNotification('info', 'Confirma la recolección de dinero de la ruta', 'Acción')
+                                }}
+                                disabled={processingTransfer}
+                                className="p-2 text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors"
+                                title="Recolectar Dinero"
+                              >
+                                <Wallet className="w-4 h-4" />
+                              </button>
+                            )}
                           </div>
                         </td>
                       </tr>
@@ -1038,6 +1175,23 @@ export const RutasPageView = ({
                         title={ruta.estado === 'ACTIVA' ? "Desactivar" : "Activar"}
                       >
                         {ruta.estado === 'ACTIVA' ? <Trash2 className="w-4 h-4" /> : <CheckCircle2 className="w-4 h-4" />}
+                      </button>
+                    )}
+                    {showRecolectar && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.preventDefault()
+                          e.stopPropagation()
+                          setRouteForTransfer(ruta)
+                          setShowConfirmRecolectar(true)
+                          showNotification('info', 'Confirma la recolección de dinero de la ruta', 'Acción')
+                        }}
+                        disabled={processingTransfer}
+                        className="p-2 text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors"
+                        title="Recolectar Dinero"
+                      >
+                        <Wallet className="w-4 h-4" />
                       </button>
                     )}
                   </div>
@@ -1372,57 +1526,91 @@ export const RutasPageView = ({
                     </div>
 
                     <div className="space-y-4">
-                      {clientesRuta.map((cliente) => (
-                        <div key={cliente.id} className="p-4 bg-white border border-slate-200 rounded-xl hover:shadow-md transition-shadow group">
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-4">
-                              <div className="h-10 w-10 bg-slate-100 rounded-full flex items-center justify-center text-slate-500 font-bold border border-slate-200">
-                                {String(cliente.nombre || '?').charAt(0)}
-                              </div>
-                              <div>
-                                <h4 className="font-bold text-slate-900">{String(cliente.nombre || 'Sin nombre')}</h4>
-                                <p className="text-xs text-slate-500 truncate max-w-[200px]">{String(cliente.direccion || '')}</p>
-                              </div>
+                      {clientesRuta.map((cliente) => {
+                        const prestamos = (cliente.prestamos as PrestamoResumen[]) || [];
+                        const FREQ_LABEL: Record<string, string> = {
+                          DIARIO: 'Diario',
+                          SEMANAL: 'Semanal',
+                          QUINCENAL: 'Quincenal',
+                          MENSUAL: 'Mensual',
+                        };
+                        const FREQ_COLOR: Record<string, string> = {
+                          DIARIO: 'bg-blue-50 text-blue-700 border-blue-200',
+                          SEMANAL: 'bg-purple-50 text-purple-700 border-purple-200',
+                          QUINCENAL: 'bg-amber-50 text-amber-700 border-amber-200',
+                          MENSUAL: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+                        };
+                        return (
+                        <div key={cliente.id} className="bg-white border border-slate-200 rounded-xl hover:shadow-md transition-shadow group overflow-hidden">
+                          {/* Cabecera del cliente */}
+                          <div className="flex items-center gap-4 p-4">
+                            <div className="h-10 w-10 bg-slate-100 rounded-full flex items-center justify-center text-slate-500 font-bold border border-slate-200 flex-shrink-0">
+                              {String(cliente.nombre || '?').charAt(0)}
                             </div>
-
-                            <div className="text-right">
-                              <p className="text-xs text-slate-400 font-bold uppercase">Deuda</p>
-                              <p className="font-bold text-slate-900">{formatCurrency(Number(cliente.deuda || 0))}</p>
+                            <div className="flex-1 min-w-0">
+                              <h4 className="font-bold text-slate-900 truncate">{String(cliente.nombre || 'Sin nombre')}</h4>
+                              <p className="text-xs text-slate-500 truncate">{String(cliente.codigo || cliente.direccion || '')}</p>
+                            </div>
+                            <div className="text-right flex-shrink-0">
+                              <p className="text-[10px] text-slate-400 font-bold uppercase">{prestamos.length} crédito{prestamos.length !== 1 ? 's' : ''}</p>
                             </div>
                           </div>
 
-                          {/* Acciones de movimiento */}
-                          <div className="mt-4 pt-4 border-t border-slate-100 flex items-center gap-3">
-                            <div className="flex-1 relative">
-                              <select
-                                className="w-full text-sm pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-slate-700 appearance-none focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
-                                value={clienteAMover === cliente.id ? rutaDestinoId : ''}
-                                onChange={(e) => {
-                                  setClienteAMover(cliente.id)
-                                  setRutaDestinoId(e.target.value)
-                                }}
-                              >
-                                <option value="">Mover a otra ruta...</option>
-                                {rutas
-                                  .filter(r => r.id !== editingId)
-                                  .map(r => (
-                                    <option key={r.id} value={r.id}>{r.nombre}</option>
-                                  ))
-                                }
-                              </select>
-                              <ArrowRightLeft className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
+                          {/* Créditos individuales con selector de ruta por crédito */}
+                          {prestamos.length > 0 ? (
+                            <div className="border-t border-slate-100 divide-y divide-slate-100">
+                              {prestamos.map((p) => (
+                                <div key={p.id} className="px-4 py-3 space-y-2">
+                                  <div className="flex items-center justify-between gap-3">
+                                    <div className="flex items-center gap-2 min-w-0">
+                                      <span className={`flex-shrink-0 text-[10px] font-bold px-2 py-0.5 rounded-full border ${
+                                        p.tipo === 'ARTICULO' ? 'bg-rose-50 text-rose-700 border-rose-200' : 'bg-slate-100 text-slate-600 border-slate-200'
+                                      }`}>
+                                        {p.tipo === 'ARTICULO' ? `Artículo${p.articulo ? `: ${p.articulo}` : ''}` : 'Efectivo'}
+                                      </span>
+                                      <span className={`flex-shrink-0 text-[10px] font-bold px-2 py-0.5 rounded-full border ${FREQ_COLOR[p.frecuencia] || 'bg-slate-100 text-slate-600 border-slate-200'}`}>
+                                        {FREQ_LABEL[p.frecuencia] || p.frecuencia}
+                                      </span>
+                                    </div>
+                                    <div className="text-right flex-shrink-0">
+                                      <p className="font-bold text-slate-900 text-sm">{formatCurrency(p.saldoPendiente)}</p>
+                                      <p className="text-[10px] text-slate-400">Saldo pendiente</p>
+                                    </div>
+                                  </div>
+                                  {/* Selector de ruta individual por crédito */}
+                                  <div className="flex items-center gap-2">
+                                    <div className="flex-1 relative">
+                                      <select
+                                        className="w-full text-xs pl-8 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-600 appearance-none focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                                        value={rutaDestinoMap[p.id] || ''}
+                                        onChange={(e) => setRutaDestinoMap(prev => ({ ...prev, [p.id]: e.target.value }))}
+                                      >
+                                        <option value="">Asignar a otra ruta...</option>
+                                        {rutas.filter(r => r.id !== editingId).map(r => (
+                                          <option key={r.id} value={r.id}>{r.nombre}</option>
+                                        ))}
+                                      </select>
+                                      <ArrowRightLeft className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3 w-3 text-slate-400 pointer-events-none" />
+                                    </div>
+                                    <button
+                                      disabled={!rutaDestinoMap[p.id]}
+                                      onClick={() => handleMoveLoan(p.id)}
+                                      className="px-3 py-1.5 bg-slate-800 text-white text-xs font-bold rounded-lg hover:bg-slate-700 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+                                    >
+                                      Asignar
+                                    </button>
+                                  </div>
+                                </div>
+                              ))}
                             </div>
-
-                            <button
-                              disabled={clienteAMover !== cliente.id || !rutaDestinoId}
-                              onClick={() => handleMoveCliente(cliente.id)}
-                              className="px-4 py-2 bg-slate-900 text-white text-sm font-bold rounded-lg hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center gap-2"
-                            >
-                              Mover
-                            </button>
-                          </div>
+                          ) : (
+                            <div className="border-t border-slate-100 px-4 py-3">
+                              <p className="text-xs text-slate-400 italic">Sin créditos activos</p>
+                            </div>
+                          )}
                         </div>
-                      ))}
+                        );
+                      })}
 
                       {clientesRuta.length === 0 && (
                         <div className="text-center py-10 border-2 border-dashed border-slate-200 rounded-xl bg-slate-50">
@@ -1439,14 +1627,92 @@ export const RutasPageView = ({
         </div>
       )}
       
+      <ConfirmModal
+        isOpen={showConfirmRecolectar}
+        onClose={() => setShowConfirmRecolectar(false)}
+        onConfirm={async () => {
+          const r = routeForTransfer
+          setShowConfirmRecolectar(false)
+          if (r) await handleRecolectarDinero(r)
+        }}
+        title="Recolectar dinero de la ruta"
+        message="¿Deseas consolidar el dinero de esta ruta en una caja principal?"
+        confirmText="Sí, recolectar"
+        cancelText="Cancelar"
+        variant="info"
+      />
+      
+      {showSelectPrincipalModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6">
+          <div className="absolute inset-0 bg-slate-900/30 backdrop-blur-sm transition-opacity" onClick={() => setShowSelectPrincipalModal(false)} />
+          <div className="relative w-full max-w-md bg-white rounded-2xl shadow-2xl ring-1 ring-slate-900/5 transform transition-all animate-in fade-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-slate-50/50">
+              <div className="flex items-center gap-2">
+                <Wallet className="h-5 w-5 text-blue-600" />
+                <h3 className="text-sm font-bold text-slate-900">Seleccionar Caja Principal</h3>
+              </div>
+              <button onClick={() => setShowSelectPrincipalModal(false)} className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <div className="p-6 space-y-3">
+              {principalOptions.map((caja) => (
+                <div key={caja.id} className="flex items-center justify-between p-3 rounded-xl border border-slate-200">
+                  <div>
+                    <div className="text-sm font-bold text-slate-900">{caja.nombre}</div>
+                    <div className="text-xs text-slate-500 font-medium">Saldo: {formatCurrency(caja.saldo)}</div>
+                  </div>
+                  <button
+                    onClick={() => confirmarEnvioA(caja.id)}
+                    disabled={processingTransfer}
+                    className="px-3 py-2 rounded-xl bg-blue-600 text-white text-xs font-bold hover:bg-blue-700 disabled:opacity-60"
+                  >
+                    Enviar a esta caja
+                  </button>
+                </div>
+              ))}
+            </div>
+            <div className="px-6 py-4 border-t border-slate-100 bg-slate-50 text-xs text-slate-500">
+              El dinero será transferido desde la caja de la ruta seleccionada a la caja principal elegida.
+            </div>
+          </div>
+        </div>
+      )}
+      
       {/* Modal de Crear Crédito */}
       <CrearCreditoModal
         isOpen={showCrearCreditoModal}
         onClose={() => setShowCrearCreditoModal(false)}
-        onConfirm={(data) => {
-          setShowCrearCreditoModal(false);
-          showNotification('success', 'Crédito creado exitosamente', 'Operación completada');
-          // Crédito creado exitosamente
+        onConfirm={async (data: any) => {
+          try {
+            const payload = {
+              ...data,
+              creadoPorId: currentUser?.id || ''
+            };
+            
+            if (data.creditType === 'prestamo') {
+              await prestamosService.crearPrestamo({
+                clienteId: data.clienteCreditoId,
+                tipoPrestamo: 'EFECTIVO',
+                monto: data.monto,
+                tasaInteres: data.tasaInteres,
+                tasaInteresMora: 2.0,
+                plazoMeses: data.cuotasTotales,
+                frecuenciaPago: data.frecuenciaPago,
+                fechaInicio: data.fechaInicio,
+                creadoPorId: currentUser?.id || ''
+              } as any);
+            } else {
+              await creditosService.crearCredito(payload as any);
+            }
+            
+            showNotification('success', 'Crédito creado exitosamente', 'Operación completada');
+            setShowCrearCreditoModal(false);
+            router.refresh();
+          } catch (error) {
+            console.error('Error al crear crédito:', error);
+            showNotification('error', 'No se pudo crear el crédito', 'Error');
+          }
         }}
       />
     </div>

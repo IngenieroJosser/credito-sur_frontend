@@ -1,0 +1,479 @@
+'use client'
+
+/**
+ * ============================================================================
+ * MÓDULO DE REVISIONES - Centro de Aprobaciones
+ * ============================================================================
+ * 
+ * @description
+ * Vista centralizada para gestionar todas las solicitudes pendientes de aprobación.
+ * Muestra las aprobaciones organizadas por categoría (Clientes, Créditos, Gastos, etc.)
+ * con tabs para navegar entre ellas. SuperAdmin y Admin tienen acceso a una pestaña
+ * especial de "Revisión Final" donde deciden sobre items rechazados/eliminados.
+ * 
+ * Reutiliza el NotificacionDetalleModal para mostrar el detalle completo de cada
+ * solicitud (créditos, clientes, gastos) con la misma funcionalidad de edición.
+ * 
+ * @roles ['SUPER_ADMINISTRADOR', 'ADMIN', 'COORDINADOR']
+ */
+
+import { useState, useEffect, useCallback } from 'react'
+import {
+  ShieldCheck,
+  Users,
+  CreditCard,
+  Wallet,
+  Landmark,
+  Clock,
+  CheckCircle2,
+  XCircle,
+  AlertTriangle,
+  Loader2,
+  RefreshCw,
+  Eye,
+  User,
+  Ban,
+  RotateCcw,
+  Calendar,
+} from 'lucide-react'
+import { formatCurrency } from '@/lib/utils'
+import { aprobacionesService, type Aprobacion, type PendingResponse, type SuperadminReviewResponse } from '@/services/aprobaciones-service'
+import { TipoAprobacion } from '@/types/enums'
+import { toast } from 'sonner'
+import { useNotificaciones } from '@/components/providers/NotificacionesProvider'
+import NotificacionDetalleModal from '@/components/dashboards/shared/NotificacionDetalleModal'
+import ConfirmRejectModal from '@/components/ui/ConfirmRejectModal'
+
+// Configuración de categorías con meta visual
+const CATEGORIAS: Record<string, { label: string; icon: any; color: string; bgColor: string; borderColor: string; tipoNotif: string }> = {
+  NUEVO_CLIENTE: {
+    label: 'Clientes',
+    icon: Users,
+    color: 'text-blue-600',
+    bgColor: 'bg-blue-50',
+    borderColor: 'border-blue-200',
+    tipoNotif: 'CLIENTE',
+  },
+  NUEVO_PRESTAMO: {
+    label: 'Créditos',
+    icon: CreditCard,
+    color: 'text-emerald-600',
+    bgColor: 'bg-emerald-50',
+    borderColor: 'border-emerald-200',
+    tipoNotif: 'PRESTAMO',
+  },
+  GASTO: {
+    label: 'Gastos',
+    icon: Wallet,
+    color: 'text-amber-600',
+    bgColor: 'bg-amber-50',
+    borderColor: 'border-amber-200',
+    tipoNotif: 'GASTO',
+  },
+  SOLICITUD_BASE_EFECTIVO: {
+    label: 'Base de Efectivo',
+    icon: Landmark,
+    color: 'text-purple-600',
+    bgColor: 'bg-purple-50',
+    borderColor: 'border-purple-200',
+    tipoNotif: 'SOLICITUD_DINERO',
+  },
+  PRORROGA_PAGO: {
+    label: 'Prórrogas',
+    icon: Clock,
+    color: 'text-rose-600',
+    bgColor: 'bg-rose-50',
+    borderColor: 'border-rose-200',
+    tipoNotif: 'SISTEMA',
+  },
+  BAJA_POR_PERDIDA: {
+    label: 'Bajas por pérdida',
+    icon: AlertTriangle,
+    color: 'text-slate-600',
+    bgColor: 'bg-slate-50',
+    borderColor: 'border-slate-200',
+    tipoNotif: 'SISTEMA',
+  },
+}
+
+const formatFecha = (iso: string | null | undefined) => {
+  if (!iso) return '—'
+  const d = new Date(iso)
+  return d.toLocaleDateString('es-ES', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })
+}
+
+/**
+ * Transforma un objeto de aprobación al formato que recibe NotificacionDetalleModal
+ */
+const aprobacionToNotificacion = (item: Aprobacion) => {
+  const datos = item.datosSolicitud || {}
+  const cat = CATEGORIAS[item.tipoAprobacion] || CATEGORIAS.BAJA_POR_PERDIDA
+  
+  return {
+    id: item.id,
+    titulo: cat.label,
+    mensaje: `Solicitud de ${cat.label.toLowerCase()} por ${item.solicitante}`,
+    tipo: cat.tipoNotif as any,
+    creadoEn: item.creadoEn,
+    leida: false,
+    entidadId: item.id,
+    estado: item.estado === 'PENDIENTE' ? 'PENDIENTE' : item.estado,
+    solicitante: item.solicitante || 'Desconocido',
+    approvalType: item.tipoAprobacion,
+    detalles: datos,
+    metadata: {
+      ...datos,
+      tipoAprobacion: item.tipoAprobacion,
+      estadoAprobacion: item.estado,
+      solicitadoPor: item.solicitante,
+      monto: datos.monto || item.montoSolicitud,
+    },
+    motivoRechazo: item.comentarios,
+    revisadoPor: item.rechazadoPor,
+  }
+}
+
+export default function RevisionesPage() {
+  const [loading, setLoading] = useState(true)
+  const [data, setData] = useState<PendingResponse | null>(null)
+  const [superadminData, setSuperadminData] = useState<SuperadminReviewResponse | null>(null)
+  const [activeTab, setActiveTab] = useState<string>('todos')
+  const [processingId, setProcessingId] = useState<string | null>(null)
+  const [notaSuperadmin, setNotaSuperadmin] = useState('')
+  const [userRol, setUserRol] = useState<string>('')
+  const [confirmModal, setConfirmModal] = useState<{
+    isOpen: boolean;
+    type: 'APPROVE' | 'REJECT' | 'CONFIRMAR' | 'REVERTIR';
+    item: Aprobacion;
+  } | null>(null)
+
+  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false)
+  const [selectedItem, setSelectedItem] = useState<any>(null)
+
+  const { socket } = useNotificaciones()
+
+  const canReviewRejected = userRol === 'SUPER_ADMINISTRADOR' || userRol === 'ADMIN'
+
+  const loadData = useCallback(async () => {
+    setLoading(true)
+    try {
+      const [pendientes, superadmin] = await Promise.allSettled([
+        aprobacionesService.obtenerPendientes(),
+        canReviewRejected
+          ? aprobacionesService.obtenerRevisionSuperadmin()
+          : Promise.resolve({ total: 0, items: [] }),
+      ])
+
+      if (pendientes.status === 'fulfilled') setData(pendientes.value)
+      if (superadmin.status === 'fulfilled') setSuperadminData(superadmin.value as any)
+    } catch (error) {
+      console.error('Error cargando revisiones:', error)
+      toast.error('Error al cargar las revisiones')
+    } finally {
+      setLoading(false)
+    }
+  }, [canReviewRejected])
+
+  useEffect(() => {
+    const userData = localStorage.getItem('user')
+    if (userData) {
+      try {
+        const user = JSON.parse(userData)
+        setUserRol(user.rol || '')
+      } catch { /* ignore */ }
+    }
+  }, [])
+
+  useEffect(() => {
+    if (userRol) loadData()
+  }, [userRol, loadData])
+
+  useEffect(() => {
+    if (!socket) return
+    const handler = () => { loadData() }
+    socket.on('aprobaciones_actualizadas', handler)
+    socket.on('clientes_actualizados', handler)
+    socket.on('prestamos_actualizados', handler)
+    socket.on('dashboards_actualizados', handler)
+    return () => {
+      socket.off('aprobaciones_actualizadas', handler)
+      socket.off('clientes_actualizados', handler)
+      socket.off('prestamos_actualizados', handler)
+      socket.off('dashboards_actualizados', handler)
+    }
+  }, [socket, loadData])
+
+  const handleOpenDetail = (item: Aprobacion) => {
+    const notifData = aprobacionToNotificacion(item)
+    setSelectedItem(notifData)
+    setIsDetailModalOpen(true)
+  }
+
+  const handleApproveFromModal = async (entityId: string) => {
+    const item = Object.values(data?.items || {}).flat().find(i => i.id === entityId)
+    if (item) handleAprobar(item)
+  }
+
+  const handleRejectFromModal = async (entityId: string) => {
+    const item = Object.values(data?.items || {}).flat().find(i => i.id === entityId)
+    if (item) handleRechazar(item)
+  }
+
+  const handleAprobar = (item: Aprobacion) => {
+    setConfirmModal({ isOpen: true, type: 'APPROVE', item })
+  }
+
+  const handleConfirmAprobar = async () => {
+    if (!confirmModal?.item) return
+    const { item } = confirmModal
+    setProcessingId(item.id)
+    try {
+      await aprobacionesService.aprobar(item.id, {
+        type: item.tipoAprobacion as TipoAprobacion
+      })
+      toast.success('Solicitud aprobada correctamente')
+      setConfirmModal(null)
+      await loadData()
+    } catch (error: any) {
+      toast.error(error?.message || 'Error al aprobar')
+    } finally {
+      setProcessingId(null)
+    }
+  }
+
+  const handleRechazar = (item: Aprobacion) => {
+    setConfirmModal({ isOpen: true, type: 'REJECT', item })
+  }
+
+  const handleConfirmRechazar = async (reason: string) => {
+    if (!confirmModal?.item) return
+    const { item } = confirmModal
+    setProcessingId(item.id)
+    try {
+      await aprobacionesService.rechazar(item.id, {
+        type: item.tipoAprobacion as TipoAprobacion,
+        motivoRechazo: reason
+      })
+      toast.success('Solicitud rechazada')
+      setConfirmModal(null)
+      await loadData()
+    } catch (error: any) {
+      toast.error(error?.message || 'Error al rechazar')
+    } finally {
+      setProcessingId(null)
+    }
+  }
+
+  const handleSuperadminAction = async () => {
+    if (!confirmModal || (confirmModal.type !== 'CONFIRMAR' && confirmModal.type !== 'REVERTIR')) return
+    setProcessingId(confirmModal.item.id)
+    try {
+      await aprobacionesService.confirmarAccionSuperadmin(
+        confirmModal.item.id,
+        confirmModal.type as any,
+        notaSuperadmin || undefined,
+      )
+      toast.success(confirmModal.type === 'CONFIRMAR' ? 'Eliminación confirmada' : 'Solicitud restaurada')
+      setConfirmModal(null)
+      setNotaSuperadmin('')
+      await loadData()
+    } catch (error: any) {
+      toast.error(error?.message || 'Error al procesar')
+    } finally {
+      setProcessingId(null)
+    }
+  }
+
+  const tabs = [
+    { id: 'todos', label: 'Todas', count: data?.total || 0 },
+    ...Object.entries(data?.conteo || {}).map(([tipo, count]) => ({
+      id: tipo,
+      label: CATEGORIAS[tipo]?.label || tipo,
+      count,
+    })),
+    ...(canReviewRejected && (superadminData?.total || 0) > 0
+      ? [{ id: 'revision-final', label: 'Revisión Final', count: superadminData?.total || 0 }]
+      : []),
+  ]
+
+  const getFilteredItems = (): Aprobacion[] => {
+    if (!data) return []
+    if (activeTab === 'todos') return Object.values(data.items).flat()
+    if (activeTab === 'revision-final') return superadminData?.items || []
+    return data.items[activeTab] || []
+  }
+
+  const filteredItems = getFilteredItems()
+
+  const renderItemCard = (item: Aprobacion, isReviewMode = false) => {
+    const cat = CATEGORIAS[item.tipoAprobacion] || CATEGORIAS.BAJA_POR_PERDIDA
+    const Icon = cat.icon
+    const datos = item.datosSolicitud || {}
+    const isProcessing = processingId === item.id
+
+    const getResumen = () => {
+      switch (item.tipoAprobacion) {
+        case 'NUEVO_CLIENTE':
+          return {
+            titulo: `${datos.nombres || ''} ${datos.apellidos || ''}`.trim() || 'Cliente nuevo',
+            subtitulo: `CC: ${datos.dni || 'N/A'} • Tel: ${datos.telefono || 'N/A'}`,
+            monto: null,
+          }
+        case 'NUEVO_PRESTAMO':
+          return {
+            titulo: datos.cliente || 'Crédito nuevo',
+            subtitulo: `${(datos.tipo === 'ARTICULO' || datos.tipoPrestamo === 'ARTICULO') ? `Artículo: ${datos.articulo || 'N/A'}` : 'Efectivo'} • ${datos.cuotas || datos.numCuotas || '?'} cuotas`,
+            monto: Number(datos.monto || datos.valorArticulo || item.montoSolicitud || 0),
+          }
+        default:
+          return {
+            titulo: item.tipoAprobacion.replace(/_/g, ' '),
+            subtitulo: 'Pendiente revisión',
+            monto: Number(item.montoSolicitud || 0) || null,
+          }
+      }
+    }
+
+    const resumen = getResumen()
+
+    return (
+      <div key={item.id} className={`bg-white rounded-2xl border ${isReviewMode ? 'border-rose-200' : 'border-slate-200'} shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden`}>
+        <div className="p-5">
+          <div className="flex items-start justify-between mb-4">
+            <div className="flex items-center gap-3">
+              <div className={`p-2 rounded-xl ${cat.bgColor} ${cat.color} border ${cat.borderColor}`}>
+                <Icon className="h-5 w-5" />
+              </div>
+              <div>
+                <h3 className="font-bold text-slate-900 leading-tight">{resumen.titulo}</h3>
+                <p className="text-xs text-slate-500 mt-0.5">{resumen.subtitulo}</p>
+              </div>
+            </div>
+            {resumen.monto !== null && <div className="text-right font-black text-slate-900">{formatCurrency(resumen.monto)}</div>}
+          </div>
+
+          <div className="flex items-center gap-3 mb-4 text-[11px] font-bold text-slate-400">
+             <span className="flex items-center gap-1"><User className="h-3 w-3" /> {item.solicitante}</span>
+             <span className="w-1 h-1 bg-slate-200 rounded-full"></span>
+             <span className="flex items-center gap-1"><Calendar className="h-3 w-3" /> {formatFecha(item.creadoEn)}</span>
+          </div>
+
+          <div className="flex gap-2">
+            <button onClick={() => handleOpenDetail(item)} className="p-2 border border-slate-200 rounded-xl text-slate-400 hover:text-slate-600 hover:bg-slate-50 transition-colors">
+              <Eye className="h-4 w-4" />
+            </button>
+            {!isReviewMode ? (
+              <>
+                <button onClick={() => handleAprobar(item)} disabled={isProcessing} className="flex-1 py-2.5 bg-emerald-600 text-white rounded-xl text-xs font-bold hover:bg-emerald-700 transition-colors flex items-center justify-center gap-2">
+                  {isProcessing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CheckCircle2 className="h-3.5 w-3.5" />}
+                  Aprobar
+                </button>
+                <button onClick={() => handleRechazar(item)} disabled={isProcessing} className="flex-1 py-2.5 border border-rose-200 text-rose-600 rounded-xl text-xs font-bold hover:bg-rose-50 transition-colors flex items-center justify-center gap-2">
+                  <XCircle className="h-3.5 w-3.5" />
+                  Rechazar
+                </button>
+              </>
+            ) : (
+              <>
+                <button onClick={() => setConfirmModal({ isOpen: true, type: 'CONFIRMAR', item })} disabled={isProcessing} className="flex-1 py-2.5 bg-rose-600 text-white rounded-xl text-xs font-bold hover:bg-rose-700 transition-colors">Eliminar</button>
+                <button onClick={() => setConfirmModal({ isOpen: true, type: 'REVERTIR', item })} disabled={isProcessing} className="flex-1 py-2.5 bg-blue-600 text-white rounded-xl text-xs font-bold hover:bg-blue-700 transition-colors">Restaurar</button>
+              </>
+            )}
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="min-h-screen bg-slate-50 p-6 md:p-10">
+      <header className="mb-10">
+        <h1 className="text-3xl font-bold text-slate-900 mb-2">Revisiones</h1>
+        <p className="text-slate-500 text-sm">Controle las solicitudes pendientes de aprobación en el sistema.</p>
+      </header>
+
+      <div className="flex gap-2 mb-8 overflow-x-auto pb-2 no-scrollbar">
+        {tabs.map(t => (
+          <button 
+            key={t.id} 
+            onClick={() => setActiveTab(t.id)} 
+            className={`px-5 py-2.5 rounded-xl text-xs font-bold whitespace-nowrap border transition-all ${
+              activeTab === t.id 
+                ? 'bg-slate-900 text-white border-slate-900 shadow-md' 
+                : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
+            }`}
+          >
+            {t.label} <span className="ml-1.5 opacity-50">{t.count}</span>
+          </button>
+        ))}
+      </div>
+
+      {loading ? (
+        <div className="py-20 text-center text-slate-500">
+          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
+          <p className="font-medium">Cargando datos...</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {filteredItems.length > 0 ? (
+            filteredItems.map(i => renderItemCard(i, activeTab === 'revision-final'))
+          ) : (
+             <div className="col-span-full py-20 text-center bg-white rounded-3xl border-2 border-dashed border-slate-200">
+                <CheckCircle2 className="h-10 w-10 text-slate-200 mx-auto mb-3" />
+                <p className="text-slate-500 font-bold">No hay solicitudes pendientes en esta categoría</p>
+             </div>
+          )}
+        </div>
+      )}
+
+      <NotificacionDetalleModal 
+        isOpen={isDetailModalOpen} 
+        onClose={() => setIsDetailModalOpen(false)} 
+        notificacion={selectedItem} 
+        onApprove={handleApproveFromModal} 
+        onReject={handleRejectFromModal} 
+        canApprove 
+      />
+
+      {confirmModal && confirmModal.type === 'REJECT' && (
+        <ConfirmRejectModal 
+          isOpen={true}
+          onClose={() => setConfirmModal(null)}
+          onConfirm={handleConfirmRechazar}
+          title={`Rechazar Solicitud: ${confirmModal.item.solicitante}`}
+        />
+      )}
+
+      {confirmModal && confirmModal.type !== 'REJECT' && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
+           <div className="bg-white rounded-3xl p-8 max-w-sm w-full text-center shadow-2xl animate-in zoom-in-95 duration-200">
+              <h3 className="text-lg font-bold text-slate-900 mb-2">
+                {confirmModal.type === 'APPROVE' ? 'Aprobar Solicitud' : 
+                 confirmModal.type === 'CONFIRMAR' ? 'Confirmar Eliminación' : 'Restaurar Solicitud'}
+              </h3>
+              <p className="text-sm text-slate-500 mb-6">¿Estás seguro de realizar esta acción para {confirmModal.item.solicitante}?</p>
+              
+              <div className="flex flex-col gap-2">
+                <button 
+                  onClick={() => {
+                    if (confirmModal.type === 'APPROVE') handleConfirmAprobar();
+                    else handleSuperadminAction();
+                  }} 
+                  disabled={!!processingId} 
+                  className={`py-3 rounded-xl font-bold text-white ${
+                    confirmModal.type === 'APPROVE' ? 'bg-emerald-600' : 
+                    confirmModal.type === 'CONFIRMAR' ? 'bg-slate-900' : 'bg-blue-600'
+                  }`}
+                >
+                  {processingId ? 'Procesando...' : 'Confirmar'}
+                </button>
+                <button onClick={() => setConfirmModal(null)} className="py-3 text-slate-400 font-bold hover:text-slate-600">
+                  Cancelar
+                </button>
+              </div>
+           </div>
+        </div>
+      )}
+    </div>
+  )
+}

@@ -27,12 +27,14 @@ interface ArticuloSeleccionado extends Articulo {
 
 interface CreacionCreditoArticuloProps {
   isModal?: boolean;
+  initialClienteId?: string;
   onClose?: () => void;
   onSuccess?: (data?: any) => void;
 }
 
 export default function CreacionCreditoArticulo({ 
   isModal = false, 
+  initialClienteId,
   onClose, 
   onSuccess 
 }: CreacionCreditoArticuloProps) {
@@ -43,12 +45,20 @@ export default function CreacionCreditoArticulo({
   const [animating, setAnimating] = useState(false);
 
   // Estados del Formulario
-  const [clienteId, setClienteId] = useState<string>('');
+  const [clienteId, setClienteId] = useState<string>(initialClienteId || '');
   const [showNuevoClienteModal, setShowNuevoClienteModal] = useState(false);
   const [articulosSeleccionados, setArticulosSeleccionados] = useState<ArticuloSeleccionado[]>([]);
   
   // Configuración del Crédito (Basado en número de pagos según Mock)
   const [numeroCuotas, setNumeroCuotas] = useState<number>(12);
+
+  // If initialClienteId is provided, move to step 2 automatically if we are in step 1
+  React.useEffect(() => {
+     if (initialClienteId && step === 1) {
+       setStep(2);
+     }
+  }, [initialClienteId]);
+
   const [frecuenciaPago, setFrecuenciaPago] = useState<FrecuenciaPago>('QUINCENAL');
   const [cuotaInicial, setCuotaInicial] = useState<number>(0);
   const [fechaInicio, setFechaInicio] = useState<string>(new Date().toISOString().split('T')[0]);

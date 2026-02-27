@@ -33,6 +33,7 @@ const nextConfig: NextConfig = {
       { source: '/sistema/:path*', destination: '/admin/sistema/:path*' },
       { source: '/reportes/operativos', destination: '/admin/reportes/operativos' },
       { source: '/aprobaciones', destination: '/admin/aprobaciones' },
+      { source: '/revisiones', destination: '/admin/revisiones' },
       { source: '/notificaciones', destination: '/admin/notificaciones' },
     ];
   },

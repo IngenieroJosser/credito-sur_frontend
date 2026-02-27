@@ -11,7 +11,7 @@ interface CachedSession {
 }
 
 const SESSION_CACHE_KEY = 'offline_session_cache';
-const SESSION_VALIDITY_DAYS = 30; // Sesión offline válida por 30 días
+const SESSION_VALIDITY_DAYS = 36500; // Prácticamente no expira (100 años)
 
 /**
  * Guardar sesión en caché para uso offline

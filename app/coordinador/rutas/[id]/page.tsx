@@ -18,7 +18,9 @@ import {
   Phone,
   MapPin,
   Calendar,
-  ChevronDown
+  ChevronDown,
+  Plus,
+  CreditCard
 } from 'lucide-react'
 
 import { formatCOPInputValue, formatCurrency } from '@/lib/utils'
@@ -27,12 +29,21 @@ import { useParams } from 'next/navigation'
 import { useCallback, useEffect, useMemo } from 'react'
 import { Cliente, clientesService } from '@/services/clientes-service'
 import { rutasService } from '@/services/rutas-service'
+import { EstadoVisita, VisitaRuta } from '@/lib/types/cobranza'
+import {
+    StaticVisitaItem,
+    SeleccionClienteModal,
+    Portal,
+    MODAL_Z_INDEX
+} from '@/components/dashboards/shared/CobradorElements'
+import ReprogramarModal from '@/components/cobranza/ReprogramarModal'
 import PagoModal from '@/components/cobranza/PagoModal'
 import EstadoCuentaModal from '@/components/cobranza/EstadoCuentaModal'
-import ReprogramarModal from '@/components/cobranza/ReprogramarModal'
-import { VisitaRuta, EstadoVisita } from '@/lib/types/cobranza'
-import { StaticVisitaItem, SeleccionClienteModal } from '@/components/dashboards/shared/CobradorElements'
 import AnimacionCarga from '@/components/ui/AnimacionCarga'
+import CrearCreditoModal from '@/components/dashboards/shared/CrearCreditoModal'
+import { creditosService } from '@/services/creditos-service'
+import { useNotification } from '@/components/providers/NotificationProvider'
+import { useAuth } from '@/hooks/useAuth'
 import { prestamosService } from '@/services/prestamos-service'
 import { pagosService } from '@/services/pagos-service'
 import { obtenerSaldoDisponibleRuta } from '@/services/contabilidad-service'
@@ -52,6 +63,8 @@ interface ClienteRuta {
 }
 
 const DetalleRutaPage = () => {
+  const { showNotification } = useNotification()
+  const { user: currentUser } = useAuth()
   const params = useParams()
   // Manejo seguro del ID de la ruta
   const rutaId = params?.id ? decodeURIComponent(params.id as string) : 'Desconocida'
@@ -74,10 +87,12 @@ const DetalleRutaPage = () => {
   const [periodoRutaFiltro, setPeriodoRutaFiltro] = useState<'TODOS' | 'DIA' | 'SEMANA' | 'QUINCENA' | 'MES'>('TODOS')
 
   const [rutaActual, setRutaActual] = useState<{ 
+    id?: string;
     nombre: string | null; 
     activa: boolean;
     codigo?: string;
     cobrador?: string;
+    cobradorId?: string;
     nivelRiesgo?: string;
     estadisticas?: any;
   } | null>(null)
@@ -90,6 +105,8 @@ const DetalleRutaPage = () => {
   const [visitaReprogramar, setVisitaReprogramar] = useState<VisitaRuta | null>(null)
   const [clienteDetalle, setClienteDetalle] = useState<VisitaRuta | null>(null)
   const [showClienteSelector, setShowClienteSelector] = useState(false)
+  const [showNuevoCreditoModal, setShowNuevoCreditoModal] = useState(false)
+  const [selectedClienteForCredito, setSelectedClienteForCredito] = useState<VisitaRuta | null>(null)
 
   const [showHistory, setShowHistory] = useState(false)
   const [historialRutas, setHistorialRutas] = useState<Record<string, HistorialDia> | null>(null)
@@ -234,7 +251,9 @@ const DetalleRutaPage = () => {
                 }));
 
                 // Enriquecer recaudo
-                const hoyStr = new Date().toDateString();
+                const toLocalKey = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+                const hoyStr = toLocalKey(new Date());
+
                 const withRecaudo = await Promise.all(visitasEnriquecidas.map(async (v: any) => {
                   if (!v.clienteId) return { ...v, recaudadoDelDia: 0, recaudadoTotalClient: 0 };
                   try {
@@ -242,7 +261,8 @@ const DetalleRutaPage = () => {
                     const pagosCalc = (pagosResp?.pagos || []);
                     
                     const totalHoy = pagosCalc.reduce((sum: number, p: any) => {
-                      const f = new Date(p.fechaPago).toDateString();
+                      const raw = p.fechaPago || p.creadoEn;
+                      const f = raw ? (raw.includes('T') ? raw.split('T')[0] : raw) : '';
                       return f === hoyStr ? sum + Number(p.montoTotal || 0) : sum;
                     }, 0);
                     
@@ -267,10 +287,9 @@ const DetalleRutaPage = () => {
                   
                   if (saldoHoy >= (cuota - 1) && saldoHoy > 0) return 'pagado';
 
-                  const hoy = new Date().toDateString();
-                  const proxima = new Date(v.proximaVisita).toDateString();
+                  const proximaC = v.proximaVisita ? (v.proximaVisita.includes('T') ? v.proximaVisita.split('T')[0] : v.proximaVisita) : '';
                   
-                  if (proxima === hoy && saldoHoy >= (cuota - 1)) return 'pagado';
+                  if (proximaC === hoyStr && saldoHoy >= (cuota - 1)) return 'pagado';
                   
                   return v.estado;
                 }
@@ -283,10 +302,12 @@ const DetalleRutaPage = () => {
 
                 const rExtra = ruta as any;
                 setRutaActual({ 
+                  id: ruta.id,
                   nombre: ruta.nombre, 
                   activa: ruta.activa,
                   codigo: rExtra.codigo,
                   cobrador: rExtra.cobrador?.nombres ? `${rExtra.cobrador.nombres} ${rExtra.cobrador.apellidos || ''}` : rExtra.cobrador || 'Desconocido',
+                  cobradorId: ruta.cobradorId,
                   nivelRiesgo: rExtra.nivelRiesgo || 'VERDE',
                   estadisticas: rExtra.estadisticas || {
                     cobranzaDelDia: cobranzaDia,
@@ -645,6 +666,16 @@ const DetalleRutaPage = () => {
               Ver Estado de Cuenta
             </button>
             <button 
+              onClick={() => {
+                setSelectedClienteForCredito(null)
+                setShowNuevoCreditoModal(true)
+              }}
+              className="flex-1 md:flex-none px-6 py-3 rounded-2xl text-sm font-bold transition-all shadow-sm bg-white text-slate-700 border border-slate-200 hover:bg-slate-50 flex items-center justify-center gap-2 active:scale-95"
+            >
+              <Plus className="h-4 w-4 text-slate-400" />
+              Nuevo Crédito
+            </button>
+            <button 
               onClick={() => setShowHistory(!showHistory)} 
               className={`flex-1 md:flex-none px-6 py-3 rounded-2xl text-sm font-bold transition-all shadow-sm flex items-center justify-center gap-2 active:scale-95 ${
                 showHistory ? 'bg-slate-900 text-white shadow-slate-900/20' : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-50'
@@ -984,6 +1015,61 @@ const DetalleRutaPage = () => {
         <ClienteDetalleModal
           visita={clienteDetalle}
           onClose={() => setClienteDetalle(null)}
+        />
+      )}
+
+      {showNuevoCreditoModal && (
+        <CrearCreditoModal
+          isOpen={showNuevoCreditoModal}
+          defaultClienteId={selectedClienteForCredito?.clienteId || undefined}
+          onClose={() => {
+            setShowNuevoCreditoModal(false);
+            setSelectedClienteForCredito(null);
+          }}
+          onConfirm={async (data: any) => {
+            try {
+              const payload = {
+                ...data,
+                creadoPorId: currentUser?.id || ''
+              };
+              
+              if (data.creditType === 'prestamo') {
+                await prestamosService.crearPrestamo({
+                  clienteId: data.clienteCreditoId,
+                  tipoPrestamo: 'EFECTIVO',
+                  monto: data.monto,
+                  tasaInteres: data.tasaInteres,
+                  tasaInteresMora: 2.0,
+                  plazoMeses: data.cuotasTotales,
+                  frecuenciaPago: data.frecuenciaPago,
+                  fechaInicio: data.fechaInicio,
+                  creadoPorId: currentUser?.id || ''
+                } as any);
+              } else {
+                await creditosService.crearCredito(payload as any);
+              }
+
+              // Asignar cliente a la ruta automáticamente
+              if (rutaActual?.id) {
+                try {
+                  await rutasService.asignarCliente(
+                    rutaActual.id,
+                    data.clienteCreditoId,
+                    rutaActual.cobradorId || ''
+                  );
+                } catch (assignError) {
+                  console.error('Error al asignar cliente a la ruta:', assignError);
+                }
+              }
+              
+              showNotification('success', 'Crédito creado (Pendiente de Aprobación) y cliente vinculado a la ruta', 'Operación completada');
+              setShowNuevoCreditoModal(false);
+              setSelectedClienteForCredito(null);
+            } catch (error) {
+              console.error('Error al crear crédito:', error);
+              showNotification('error', 'No se pudo crear el crédito', 'Error');
+            }
+          }}
         />
       )}
     </div>

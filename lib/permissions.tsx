@@ -53,6 +53,7 @@ export interface ModuloPermiso {
 export const permisosPorRol: Record<Rol, ModuloPermiso[]> = {
   SUPER_ADMINISTRADOR: [
     { id: 'dashboard', nombre: 'Dashboard', icono: 'LayoutDashboard', path: '/admin', roles: ['SUPER_ADMINISTRADOR', 'COORDINADOR', 'SUPERVISOR', 'COBRADOR', 'CONTADOR'] },
+    { id: 'revisiones', nombre: 'Revisiones', icono: 'ShieldCheck', path: '/revisiones', roles: ['SUPER_ADMINISTRADOR'], isNew: true },
     { 
       id: 'operaciones', 
       nombre: 'Operaciones', 
@@ -86,7 +87,6 @@ export const permisosPorRol: Record<Rol, ModuloPermiso[]> = {
       submodulos: [
         { id: 'contable', nombre: 'Movimientos', icono: 'Calculator', path: '/contable', roles: ['SUPER_ADMINISTRADOR', 'CONTADOR'] },
         { id: 'arqueo', nombre: 'Arqueo de Caja', icono: 'History', path: '/contable/cierre-caja', roles: ['SUPER_ADMINISTRADOR', 'CONTADOR'], isNew: true },
-        { id: 'articulos', nombre: 'Artículos (Inventario)', icono: 'Package', path: '/articulos', roles: ['SUPER_ADMINISTRADOR', 'COORDINADOR', 'CONTADOR'] },
         { id: 'reportes-financieros', nombre: 'Reportes financieros', icono: 'BarChart3', path: '/reportes/financieros', roles: ['SUPER_ADMINISTRADOR', 'CONTADOR'] },
       ]
     },
@@ -97,6 +97,7 @@ export const permisosPorRol: Record<Rol, ModuloPermiso[]> = {
       path: '#',
       roles: ['SUPER_ADMINISTRADOR'],
       submodulos: [
+        { id: 'articulos', nombre: 'Artículos (Inventario)', icono: 'Package', path: '/articulos', roles: ['SUPER_ADMINISTRADOR', 'COORDINADOR', 'CONTADOR'] },
         { id: 'usuarios', nombre: 'Usuarios', icono: 'User', path: '/users', roles: ['SUPER_ADMINISTRADOR'] },
         { id: 'auditoria', nombre: 'Auditoría', icono: 'FileText', path: '/auditoria', roles: ['SUPER_ADMINISTRADOR'] },
       ] // Fin submodulos administracion
@@ -118,6 +119,7 @@ export const permisosPorRol: Record<Rol, ModuloPermiso[]> = {
 
   ADMIN: [
     { id: 'dashboard', nombre: 'Dashboard', icono: 'LayoutDashboard', path: '/admin', roles: ['SUPER_ADMINISTRADOR', 'ADMIN'] },
+    { id: 'revisiones', nombre: 'Revisiones', icono: 'ShieldCheck', path: '/revisiones', roles: ['SUPER_ADMINISTRADOR', 'ADMIN'], isNew: true },
     { 
       id: 'operaciones', 
       nombre: 'Operaciones', 
@@ -151,8 +153,17 @@ export const permisosPorRol: Record<Rol, ModuloPermiso[]> = {
       submodulos: [
         { id: 'contable', nombre: 'Movimientos', icono: 'Calculator', path: '/contable', roles: ['SUPER_ADMINISTRADOR', 'ADMIN', 'CONTADOR'] },
         { id: 'arqueo', nombre: 'Arqueo de Caja', icono: 'History', path: '/contable/cierre-caja', roles: ['SUPER_ADMINISTRADOR', 'ADMIN'], isNew: true },
-        { id: 'articulos', nombre: 'Artículos (Inventario)', icono: 'Package', path: '/articulos', roles: ['SUPER_ADMINISTRADOR', 'ADMIN', 'COORDINADOR', 'CONTADOR'] },
         { id: 'reportes-financieros', nombre: 'Reportes financieros', icono: 'BarChart3', path: '/reportes/financieros', roles: ['SUPER_ADMINISTRADOR', 'ADMIN', 'CONTADOR'], isNew: true },
+      ]
+    },
+    {
+      id: 'administracion',
+      nombre: 'Administración',
+      icono: 'Shield',
+      path: '#',
+      roles: ['SUPER_ADMINISTRADOR', 'ADMIN'],
+      submodulos: [
+        { id: 'articulos', nombre: 'Artículos (Inventario)', icono: 'Package', path: '/articulos', roles: ['SUPER_ADMINISTRADOR', 'ADMIN', 'COORDINADOR', 'CONTADOR'] },
       ]
     },
     { id: 'reportes-operativos', nombre: 'Reportes operativos', icono: 'ClipboardList', path: '/reportes/operativos', roles: ['SUPER_ADMINISTRADOR', 'ADMIN', 'COORDINADOR', 'SUPERVISOR'] },
@@ -160,6 +171,7 @@ export const permisosPorRol: Record<Rol, ModuloPermiso[]> = {
 
   COORDINADOR: [
     { id: 'dashboard', nombre: 'Dashboard', icono: 'LayoutDashboard', path: '/coordinador', roles: ['COORDINADOR'] },
+    { id: 'revisiones', nombre: 'Revisiones', icono: 'ShieldCheck', path: '/coordinador/revisiones', roles: ['COORDINADOR'], isNew: true },
     {
       id: 'gestion',
       nombre: 'Gestión',
@@ -221,9 +233,9 @@ export const permisosPorRol: Record<Rol, ModuloPermiso[]> = {
       submodulos: [
         { id: 'contable', nombre: 'Movimientos', icono: 'Calculator', path: '/contable', roles: ['CONTADOR'] },
         { id: 'arqueo', nombre: 'Arqueo de Caja', icono: 'Landmark', path: '/contable/cierre-caja', roles: ['CONTADOR'], isNew: true },
-        { id: 'articulos', nombre: 'Artículos (Inventario)', icono: 'Package', path: '/articulos', roles: ['CONTADOR'] },
       ]
     },
+    { id: 'articulos', nombre: 'Artículos (Inventario)', icono: 'Package', path: '/articulos', roles: ['CONTADOR'] },
     {
       id: 'reportes',
       nombre: 'Reportes',
@@ -256,6 +268,7 @@ import {
   Bell,
   CreditCard,
   ShoppingBag,
+  ShieldCheck,
   Banknote,
   Users,
   AlertCircle,
@@ -316,6 +329,7 @@ export const iconosMap: Record<string, React.ReactNode> = {
   'FileText': <FileText className="h-4 w-4" />,
   'RefreshCw': <RefreshCw className="h-4 w-4" />,
   'UserCircle': <UserCircle className="h-4 w-4" />,
+  'ShieldCheck': <ShieldCheck className="h-4 w-4" />,
 };
 
 export const getIconComponent = (iconName: string): React.ReactNode => {
@@ -393,6 +407,7 @@ const ACTION_ICON_MAP: Record<string, string> = {
   solicitudes: 'ClipboardList',
   'prestamos-dinero': 'CreditCard',
   'creditos-articulos': 'ShoppingBag',
+  'revisiones': 'ShieldCheck',
 };
 
 const normalizePermissionId = (rawId: string) => {
@@ -721,6 +736,9 @@ export const tieneAcceso = (rol: Rol, path: string, permisos?: string[]): boolea
       '/cobranzas/solicitudes': 'solicitudes',
       '/creditos-articulos': 'creditos-articulos',
       '/punto-de-venta': 'dashboard',
+      '/revisiones': 'revisiones',
+      '/admin/revisiones': 'revisiones',
+      '/coordinador/revisiones': 'revisiones',
     };
 
     // Match exacto
