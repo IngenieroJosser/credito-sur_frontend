@@ -4,6 +4,7 @@ import React, { createContext, useContext, useEffect, useState } from 'react'
 import { io, Socket } from 'socket.io-client'
 import { Notificacion, notificacionesService } from '@/services/notificaciones-service'
 import { toast } from 'sonner'
+import { showLocalNotification } from '@/lib/push/pushNotifications'
 
 interface NotificacionesContextProps {
   socket: Socket | null;
@@ -121,6 +122,9 @@ export function NotificacionesProvider({ children }: { children: React.ReactNode
       
       // En lugar de toast, abrimos el dropdown
       setShowDropdown(true)
+      
+      // Mostrar Push Notification local
+      showLocalNotification(notificacion.titulo, { body: notificacion.mensaje })
     })
 
     // Escuchar cambios de estado (ej. se marcaron como leídas en otra pestaña)
@@ -136,6 +140,9 @@ export function NotificacionesProvider({ children }: { children: React.ReactNode
       };
       setNotificaciones(prev => [formattedNotif, ...prev])
       setShowDropdown(true)
+      
+      // Mostrar Push Notification local global
+      showLocalNotification(notificacion.titulo, { body: notificacion.mensaje })
     })
 
     setSocket(newSocket)
