@@ -1004,14 +1004,14 @@ export default function ArticulosContent() {
                   setShowEliminarModal(false)
                   setArticuloSeleccionado(null)
                 }}
-                className="px-5 py-2.5 rounded-xl border border-slate-200 bg-white text-sm font-bold text-slate-700 hover:bg-slate-50"
+                className="px-5 py-2.5 rounded-xl text-sm font-bold text-slate-500 hover:text-slate-700 hover:bg-slate-100 transition-all duration-200"
               >
                 Cancelar
               </button>
               <button
                 type="button"
                 onClick={confirmarEliminar}
-                className="px-5 py-2.5 rounded-xl bg-rose-600 text-white text-sm font-bold hover:bg-rose-700 shadow-lg shadow-rose-600/20"
+                className="px-6 py-2.5 rounded-xl bg-rose-500 text-white text-sm font-bold hover:bg-rose-600 active:bg-rose-700 transition-all duration-200 shadow-sm shadow-rose-200"
               >
                 Sí, archivar
               </button>

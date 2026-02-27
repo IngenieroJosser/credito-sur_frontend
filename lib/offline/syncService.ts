@@ -11,11 +11,17 @@ export const syncService = {
    */
   async processQueue() {
     if (typeof navigator !== 'undefined' && !navigator.onLine) {
-      console.log('❌ [SyncService] No hay conexión. Abortando.');
+      console.log('[SyncService] No hay conexion. Abortando.');
       return;
     }
-    console.log('🔄 [SyncService] Sincronizando operaciones pendientes...');
-    return await syncManager.processQueue();
+    console.log('[SyncService] Sincronizando operaciones pendientes...');
+    const result = await syncManager.processQueue();
+    
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('offline-queue-changed'));
+    }
+    
+    return result;
   },
 
   /**
@@ -23,7 +29,7 @@ export const syncService = {
    * Adapta la llamada a la estructura de offlineQueue.enqueue
    */
   async enqueueOperation(
-    type: 'pago' | 'cliente_update' | 'prestamo_update' | 'cliente_create' | 'prestamo_create' | 'cliente_delete',
+    type: string,
     endpoint: string,
     method: 'POST' | 'PUT' | 'DELETE' | 'PATCH',
     payload: any,
@@ -42,7 +48,11 @@ export const syncService = {
       priority: 'normal',
     });
 
-    console.log(`📥 [SyncService] Operación encolada: ${description}`);
+    console.log(`[SyncService] Operacion encolada: ${description}`);
+
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('offline-queue-changed'));
+    }
 
     // Intentar sincronizar inmediatamente si hay red (Fire & Forget)
     if (typeof navigator !== 'undefined' && navigator.onLine) {

@@ -67,16 +67,29 @@ export const syncManager = {
           timeout: 30000,
         });
 
-        // Éxito: eliminar de la cola
-        await offlineQueue.remove(item.id);
+        // Éxito: marcar como completado
+        await offlineQueue.updateStatus(item.id, 'completed');
         result.succeeded++;
+
+        // Eliminar permanentemente tras 3 segundos (para que el usuario vea el check)
+        setTimeout(async () => {
+          await offlineQueue.remove(item.id);
+        }, 3000);
       } catch (err: any) {
+        const status = err?.response?.status;
         const errorMsg = err?.response?.data?.message || err?.message || 'Error desconocido';
 
         // Si es 401, no reintentar (token expirado)
-        if (err?.response?.status === 401) {
+        if (status === 401) {
           await offlineQueue.updateStatus(item.id, 'failed', 'Token expirado. Inicie sesión nuevamente.');
-        } else {
+        } 
+        // Si es 409 (Conflicto/Ya existe), marcar como fallo fatal para no reintentar automáticamente
+        else if (status === 409) {
+          // Forzamos que no se reintente más poniéndole el máximo de retries o una marca especial
+          await offlineQueue.updateStatus(item.id, 'failed', `Error: ${errorMsg}`);
+          // Podríamos incluso eliminarlo si es crítico, pero mejor dejar que el usuario lo vea
+        }
+        else {
           await offlineQueue.updateStatus(item.id, 'failed', errorMsg);
         }
 
@@ -268,6 +281,72 @@ export const syncManager = {
     }
   },
 
+  async downloadProductos(): Promise<number> {
+    if (!navigator.onLine) return 0;
+    try {
+      const data = await apiRequest<any>('GET', '/inventory', undefined, { timeout: 30000, cacheTTL: 0 });
+      const productos = (Array.isArray(data) ? data : data.data || []).map((p: any) => ({
+        id: String(p.id),
+        codigo: p.codigo || '',
+        nombre: p.nombre || '',
+        descripcion: p.descripcion || '',
+        categoria: p.categoria || 'General',
+        stock: p.stock || 0,
+        costo: p.costo || 0,
+        activo: p.activo ?? true,
+      }));
+      await offlineStore.saveMany('productos', productos, true);
+      await trackOfflineEvent('download', { storeName: 'productos', recordCount: productos.length });
+      return productos.length;
+    } catch (err) {
+      console.error('[Offline Sync] Error descargando productos:', err);
+      return 0;
+    }
+  },
+
+  async downloadCajas(): Promise<number> {
+    if (!navigator.onLine) return 0;
+    try {
+      const data = await apiRequest<any>('GET', '/accounting/cajas', undefined, { timeout: 30000, cacheTTL: 0 });
+      const cajas = (Array.isArray(data) ? data : data.data || []).map((c: any) => ({
+        id: c.id,
+        codigo: c.codigo || '',
+        nombre: c.nombre || '',
+        tipo: c.tipo || 'RUTA',
+        responsable: c.responsable || '',
+        saldo: Number(c.saldo) || 0,
+        estado: c.estado || 'CERRADA',
+      }));
+      await offlineStore.saveMany('cajas', cajas, true);
+      await trackOfflineEvent('download', { storeName: 'cajas', recordCount: cajas.length });
+      return cajas.length;
+    } catch (err) {
+      console.error('[Offline Sync] Error descargando cajas:', err);
+      return 0;
+    }
+  },
+
+  async downloadUsuarios(): Promise<number> {
+    if (!navigator.onLine) return 0;
+    try {
+      const data = await apiRequest<any>('GET', '/usuarios', undefined, { timeout: 30000, cacheTTL: 0 });
+      const usuarios = (Array.isArray(data) ? data : data.data || []).map((u: any) => ({
+        id: u.id,
+        nombres: u.nombres || '',
+        apellidos: u.apellidos || '',
+        correo: u.correo || '',
+        rol: u.rol || 'COBRADOR',
+        estado: u.estado || 'ACTIVO',
+      }));
+      await offlineStore.saveMany('usuarios', usuarios, true);
+      await trackOfflineEvent('download', { storeName: 'usuarios', recordCount: usuarios.length });
+      return usuarios.length;
+    } catch (err) {
+      console.error('[Offline Sync] Error descargando usuarios:', err);
+      return 0;
+    }
+  },
+
   // Limpiar todos los datos locales para forzar una resincronización limpia
   async clearLocalData(): Promise<void> {
     await offlineStore.clearAll();
@@ -275,17 +354,20 @@ export const syncManager = {
   },
 
   // Descargar todos los datos para uso offline
-  async downloadAll(): Promise<{ clientes: number; prestamos: number; rutas: number }> {
+  async downloadAll(): Promise<{ clientes: number; prestamos: number; rutas: number; productos: number; cajas: number; usuarios: number }> {
     try {
-      const [clientes, prestamos, rutas] = await Promise.all([
+      const [clientes, prestamos, rutas, productos, cajas, usuarios] = await Promise.all([
         this.downloadClientes(),
         this.downloadPrestamos(),
         this.downloadRutas(),
+        this.downloadProductos(),
+        this.downloadCajas(),
+        this.downloadUsuarios(),
       ]);
-      return { clientes, prestamos, rutas };
+      return { clientes, prestamos, rutas, productos, cajas, usuarios };
     } catch (err) {
-      console.error('[Offline Sync] Error crítico en downloadAll:', err);
-      return { clientes: 0, prestamos: 0, rutas: 0 };
+      console.error('[Offline Sync] Error critico en downloadAll:', err);
+      return { clientes: 0, prestamos: 0, rutas: 0, productos: 0, cajas: 0, usuarios: 0 };
     }
   },
 
@@ -297,17 +379,39 @@ export const syncManager = {
     lastSync: Record<string, string | undefined>;
     recordCounts: Record<string, number>;
   }> {
-    const [pendingOps, failedOps, clientesMeta, prestamosMeta, rutasMeta, clientesCount, prestamosCount, cuotasCount, rutasCount] =
+    const [
+      pendingOps, 
+      failedOps, 
+      clientesMeta, 
+      prestamosMeta, 
+      rutasMeta, 
+      productosMeta,
+      cajasMeta,
+      usuariosMeta,
+      clientesCount, 
+      prestamosCount, 
+      cuotasCount, 
+      rutasCount,
+      productosCount,
+      cajasCount,
+      usuariosCount
+    ] =
       await Promise.all([
         offlineQueue.countPending(),
         offlineQueue.countFailed(),
         offlineStore.getSyncMeta('clientes'),
         offlineStore.getSyncMeta('prestamos'),
         offlineStore.getSyncMeta('rutas'),
+        offlineStore.getSyncMeta('productos'),
+        offlineStore.getSyncMeta('cajas'),
+        offlineStore.getSyncMeta('usuarios'),
         offlineStore.count('clientes'),
         offlineStore.count('prestamos'),
         offlineStore.count('cuotas'),
         offlineStore.count('rutas'),
+        offlineStore.count('productos'),
+        offlineStore.count('cajas'),
+        offlineStore.count('usuarios'),
       ]);
 
     return {
@@ -318,12 +422,18 @@ export const syncManager = {
         clientes: clientesMeta?.lastSyncAt,
         prestamos: prestamosMeta?.lastSyncAt,
         rutas: rutasMeta?.lastSyncAt,
+        productos: productosMeta?.lastSyncAt,
+        cajas: cajasMeta?.lastSyncAt,
+        usuarios: usuariosMeta?.lastSyncAt,
       },
       recordCounts: {
         clientes: clientesCount,
         prestamos: prestamosCount,
         cuotas: cuotasCount,
         rutas: rutasCount,
+        productos: productosCount,
+        cajas: cajasCount,
+        usuarios: usuariosCount,
       },
     };
   },

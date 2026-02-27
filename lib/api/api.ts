@@ -67,6 +67,17 @@ export const apiRequest = async <T>(
       await setCache(cacheKey, response.data, cacheTTL);
     } else {
       await invalidateCache();
+      
+      // Feedback visual global en la cola de sync para operaciones que no son GET
+      if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(method.toUpperCase())) {
+        try {
+          const { logSyncActivity } = await import('@/lib/offline/offlineQueue');
+          const description = `${method.toUpperCase()} ${url.split('?')[0]}`;
+          logSyncActivity(description);
+        } catch (e) {
+          // Ignorar si falla el log
+        }
+      }
     }
 
     return response.data;
@@ -129,9 +140,6 @@ export const apiRequest = async <T>(
     } else if (status === 401) {
       errorMessage = "No autorizado. La sesión permanece activa en modo seguro.";
       if (typeof window !== "undefined") {
-        // Mantener sesión activa según requerimiento del cliente:
-        // No eliminar token ni redirigir automáticamente.
-        // Se puede operar en modo limitado/offline hasta reconectar.
         console.warn('[API] 401 recibido. Se mantiene la sesión. No se redirige al login.');
       }
     } else if (status === 404) {
@@ -145,27 +153,6 @@ export const apiRequest = async <T>(
       message: errorMessage,
       error: err.response.data
     };
-
-    if (status === 403 || status === 401) {
-      console.warn(`API ${status === 401 ? 'Unauthorized' : 'Permission Denied'}: ${method} ${url} | Status: ${status}`);
-    } else {
-      console.error(`API Request Failed: ${method} ${url} | Status: ${apiError.statusCode}`);
-      console.error('Full Error Object:', err);
-      try {
-        const dataStr = JSON.stringify(err.response?.data);
-        console.error('Response Data JSON:', dataStr);
-      } catch {
-        console.error('Response Data:', err.response?.data);
-      }
-      if (url === '/loans' && method === 'POST') {
-        try {
-          const payloadStr = String((err as any).config?.data ?? '');
-          console.error('Payload usado en POST /loans (raw):', payloadStr);
-        } catch {
-          console.error('No se pudo serializar el payload de POST /loans');
-        }
-      }
-    }
 
     throw apiError;
   }

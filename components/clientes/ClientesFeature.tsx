@@ -25,10 +25,11 @@ import {
   TrendingDown,
   Minus,
   Calendar,
+  Clock,
   ChevronLeft,
   ChevronRight
 } from 'lucide-react';
-import { formatCurrency } from '@/lib/utils';
+import { formatCurrency, cn } from '@/lib/utils';
 import { Modal } from '@/components/ui/Modal';
 import FiltroRuta from '@/components/filtros/FiltroRuta';
 import NuevoClienteModal from '@/components/clientes/NuevoClienteModal';
@@ -371,10 +372,15 @@ export default function ClientesFeature({ initialClientes, basePath = '/admin/cl
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {currentItems.length > 0 ? (
-                  currentItems.map((cliente, index) => (
+                  currentItems.map((cliente, index) => {
+                    const isPending = cliente.estadoAprobacion === 'PENDIENTE' || cliente.id?.includes('offline') || cliente.id?.includes('temp');
+                    return (
                     <tr
                       key={cliente.id || `client-${index}`}
-                      className="hover:bg-slate-50/50 transition-colors group cursor-pointer"
+                      className={cn(
+                        "transition-colors group cursor-pointer",
+                        isPending ? "bg-amber-50/50 hover:bg-amber-100/50" : "hover:bg-slate-50/50"
+                      )}
                       onClick={() => {
                         setSelectedClientId(cliente.id);
                         setIsDetailsModalOpen(true);
@@ -384,6 +390,7 @@ export default function ClientesFeature({ initialClientes, basePath = '/admin/cl
                         <div className="flex items-center gap-3">
                           <div
                             className={`w-10 h-10 rounded-xl flex items-center justify-center text-sm font-bold shadow-sm ${
+                              isPending ? 'bg-amber-100 text-amber-700' :
                               cliente.nivelRiesgo === 'VERDE'
                                 ? 'bg-emerald-100 text-emerald-700'
                                 : cliente.nivelRiesgo === 'AMARILLO'
@@ -393,12 +400,21 @@ export default function ClientesFeature({ initialClientes, basePath = '/admin/cl
                                     : 'bg-slate-100 text-slate-600'
                             }`}
                           >
-                            {cliente.nombres?.charAt(0) || '?'}
-                            {cliente.apellidos?.charAt(0) || ''}
+                            {isPending ? <Clock className="h-5 w-5" /> : (
+                              <>
+                                {cliente.nombres?.charAt(0) || '?'}
+                                {cliente.apellidos?.charAt(0) || ''}
+                              </>
+                            )}
                           </div>
                           <div className="ml-4">
-                            <div className="font-bold text-slate-900">
+                            <div className="font-bold text-slate-900 flex items-center gap-2">
                               {(cliente.nombres || cliente.apellidos) ? `${cliente.nombres} ${cliente.apellidos}` : 'Cliente sin nombre'}
+                              {isPending && (
+                                <span className="inline-flex items-center px-1.5 py-0.5 rounded-md bg-amber-100 text-[9px] font-black text-amber-700 uppercase tracking-tighter border border-amber-200">
+                                  {cliente.id?.includes('offline') ? 'OFFLINE' : 'PENDIENTE'}
+                                </span>
+                              )}
                             </div>
                             <div className="text-xs text-slate-500 flex items-center mt-0.5 font-mono font-medium">
                               CC: {cliente.dni}
@@ -507,7 +523,8 @@ export default function ClientesFeature({ initialClientes, basePath = '/admin/cl
                         </div>
                       </td>
                     </tr>
-                  ))
+                    );
+                  })
                 ) : (
                   <tr>
                     <td colSpan={7} className="px-6 py-20 text-center text-slate-500">
@@ -529,28 +546,53 @@ export default function ClientesFeature({ initialClientes, basePath = '/admin/cl
         </div>
 
         <div className="md:hidden space-y-4">
-          {currentItems.map((cliente, index) => (
-            <div key={cliente.id || `client-${index}`} className="bg-white border rounded-2xl p-4" onClick={() => { setSelectedClientId(cliente.id); setIsDetailsModalOpen(true); }}>
+          {currentItems.map((cliente, index) => {
+            const isPending = cliente.estadoAprobacion === 'PENDIENTE' || cliente.id?.includes('offline') || cliente.id?.includes('temp');
+            return (
+            <div 
+              key={cliente.id || `client-${index}`} 
+              className={cn(
+                "border rounded-2xl p-4 transition-all",
+                isPending ? "bg-amber-50 border-amber-200 shadow-sm" : "bg-white border-slate-200"
+              )}
+              onClick={() => { setSelectedClientId(cliente.id); setIsDetailsModalOpen(true); }}
+            >
               <div className="flex justify-between items-start mb-3">
                 <div className="flex gap-3">
-                   <div className="w-10 h-10 rounded-lg bg-slate-100 flex items-center justify-center font-bold">{cliente.nombres?.charAt(0)}</div>
+                   <div className={cn(
+                     "w-10 h-10 rounded-lg flex items-center justify-center font-bold",
+                     isPending ? "bg-amber-100 text-amber-700" : "bg-slate-100"
+                   )}>
+                     {isPending ? <Clock className="h-5 w-5" /> : (cliente.nombres?.charAt(0) || '?')}
+                   </div>
                    <div>
-                     <div className="font-bold">{cliente.nombres} {cliente.apellidos}</div>
+                     <div className="font-bold flex items-center gap-2">
+                       {cliente.nombres} {cliente.apellidos}
+                       {isPending && (
+                         <span className="px-1.5 py-0.5 rounded-md bg-amber-100 text-[8px] font-black text-amber-700 uppercase tracking-tighter">OFFLINE</span>
+                       )}
+                     </div>
                      <div className="text-xs text-slate-500 font-mono">CC: {cliente.dni}</div>
                    </div>
                 </div>
-                <div className={`px-2 py-1 rounded-lg text-[10px] font-bold ${getRiesgoColor(cliente.nivelRiesgo || 'VERDE' as any)}`}>{(cliente.nivelRiesgo || 'VERDE').replace('_', ' ')}</div>
+                <div className={cn(
+                  "px-2 py-1 rounded-lg text-[10px] font-bold",
+                  isPending ? "bg-amber-200/50 text-amber-700" : getRiesgoColor(cliente.nivelRiesgo || 'VERDE' as any)
+                )}>
+                  {isPending ? 'PENDIENTE' : (cliente.nivelRiesgo || 'VERDE').replace('_', ' ')}
+                </div>
               </div>
-              <div className="flex justify-between items-center pt-3 border-t">
+              <div className="flex justify-between items-center pt-3 border-t border-slate-100">
                  <div className="text-sm font-bold">{formatCurrency(cliente.montoTotal ?? 0)}</div>
                  <div className="flex gap-2" onClick={e => e.stopPropagation()}>
-                    <button onClick={() => { setSelectedClientId(cliente.id); setIsDetailsModalOpen(true); }} className="p-2"><Eye className="h-4 w-4" /></button>
-                    {puedeEditar && <button onClick={() => { setClientToEdit(cliente); setIsEditModalOpen(true); }} className="p-2"><Pencil className="h-4 w-4" /></button>}
-                    {puedeEliminar && <button onClick={() => handleDeleteClick(cliente)} className="p-2"><Trash2 className="h-4 w-4" /></button>}
+                    <button onClick={() => { setSelectedClientId(cliente.id); setIsDetailsModalOpen(true); }} className="p-2 text-slate-400"><Eye className="h-4 w-4" /></button>
+                    {puedeEditar && <button onClick={() => { setClientToEdit(cliente); setIsEditModalOpen(true); }} className="p-2 text-slate-400"><Pencil className="h-4 w-4" /></button>}
+                    {puedeEliminar && <button onClick={() => handleDeleteClick(cliente)} className="p-2 text-slate-400"><Trash2 className="h-4 w-4" /></button>}
                  </div>
               </div>
             </div>
-          ))}
+            );
+          })}
         </div>
       </div>
 
@@ -559,13 +601,27 @@ export default function ClientesFeature({ initialClientes, basePath = '/admin/cl
         onClose={() => setIsDeleteModalOpen(false)}
         title="Confirmar Archivado"
         footer={
-          <div className="flex gap-2">
-            <button onClick={() => setIsDeleteModalOpen(false)} className="px-4 py-2 text-sm font-bold">Cancelar</button>
-            <button onClick={confirmDelete} disabled={isDeleting} className="px-4 py-2 text-sm font-bold text-white bg-rose-600 rounded-xl">{isDeleting ? 'Archivando...' : 'Sí, archivar'}</button>
+          <div className="flex gap-3">
+            <button 
+              onClick={() => setIsDeleteModalOpen(false)} 
+              disabled={isDeleting}
+              className="px-5 py-2.5 text-sm font-bold text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded-xl transition-all duration-200"
+            >
+              Cancelar
+            </button>
+            <button 
+              onClick={confirmDelete} 
+              disabled={isDeleting} 
+              className="px-6 py-2.5 text-sm font-bold text-white bg-rose-600 hover:bg-rose-700 active:bg-rose-800 rounded-xl transition-all duration-200 shadow-lg shadow-rose-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+            >
+              {isDeleting ? 'Archivando...' : 'Sí, archivar'}
+            </button>
           </div>
         }
       >
-        <p className="text-sm">¿Estás seguro que deseas archivar al cliente <span className="font-bold">{clientToDelete?.nombres} {clientToDelete?.apellidos}</span>?</p>
+        <p className="text-sm text-slate-600 font-medium">
+          ¿Estás seguro que deseas archivar al cliente <span className="font-bold text-slate-900">{clientToDelete?.nombres} {clientToDelete?.apellidos}</span>?
+        </p>
       </Modal>
 
       {isCreateModalOpen && (
