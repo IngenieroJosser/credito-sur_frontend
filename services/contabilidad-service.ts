@@ -1,4 +1,6 @@
 import { apiRequest } from '@/lib/api/api';
+import { syncService } from '@/lib/offline/syncService';
+import { offlineStore } from '@/lib/offline/offlineDb';
 
 // Interfaces
 export interface Caja {
@@ -103,6 +105,11 @@ export async function getCajas(): Promise<Caja[]> {
   try {
     return await apiRequest<Caja[]>('GET', '/accounting/cajas');
   } catch (error) {
+    if (typeof navigator !== 'undefined' && !navigator.onLine) {
+      console.log('[Offline Mode] Cargando cajas desde cache local...');
+      const cached = await offlineStore.getAll<Caja>('cajas');
+      if (cached.length > 0) return cached;
+    }
     console.error('Error fetching cajas:', error);
     return [];
   }
@@ -112,6 +119,11 @@ export async function getCajaById(id: string): Promise<Caja | null> {
   try {
     return await apiRequest<Caja>('GET', `/accounting/cajas/${id}`);
   } catch (error) {
+    if (typeof navigator !== 'undefined' && !navigator.onLine) {
+       console.log('[Offline Mode] Buscando caja ID ' + id + ' en cache local...');
+       const cached = await offlineStore.getById<Caja>('cajas', id);
+       if (cached) return cached;
+    }
     console.error('Error fetching caja:', error);
     return null;
   }
@@ -126,7 +138,23 @@ export async function createCaja(data: {
 }): Promise<Caja | null> {
   try {
     return await apiRequest<Caja>('POST', '/accounting/cajas', data);
-  } catch (error) {
+  } catch (error: any) {
+    if (
+        (typeof navigator !== 'undefined' && !navigator.onLine) ||
+        error?.statusCode === 0 || 
+        error?.message?.includes('network') ||
+        error?.code === 'ERR_NETWORK'
+      ) {
+        console.log('[Offline Mode] Guardando creacion de caja en cola...');
+        await syncService.enqueueOperation(
+          'caja_crear',
+          '/accounting/cajas',
+          'POST',
+          data,
+          `Crear caja: ${data.nombre}`
+        );
+        return { ...data, id: `temp-caja-${Date.now()}`, estado: 'ABIERTA', saldo: data.saldoInicial || 0, ultimaActualizacion: new Date().toISOString(), responsable: 'Local', responsableId: data.responsableId, codigo: 'TEMP' } as any;
+    }
     console.error('Error creating caja:', error);
     throw error;
   }
@@ -140,7 +168,23 @@ export async function updateCaja(id: string, data: {
 }): Promise<Caja | null> {
   try {
     return await apiRequest<Caja>('PATCH', `/accounting/cajas/${id}`, data);
-  } catch (error) {
+  } catch (error: any) {
+    if (
+        (typeof navigator !== 'undefined' && !navigator.onLine) ||
+        error?.statusCode === 0 || 
+        error?.message?.includes('network') ||
+        error?.code === 'ERR_NETWORK'
+      ) {
+        console.log('[Offline Mode] Guardando actualizacion de caja en cola...');
+        await syncService.enqueueOperation(
+          'caja_actualizar',
+          `/accounting/cajas/${id}`,
+          'PATCH',
+          data,
+          `Actualizar caja ID: ${id}`
+        );
+        return { id, ...data } as any;
+    }
     throw error;
   }
 }
@@ -148,7 +192,23 @@ export async function updateCaja(id: string, data: {
 export async function consolidarCaja(cajaId: string) {
   try {
     return await apiRequest('POST', `/accounting/cajas/${cajaId}/consolidar`);
-  } catch (error) {
+  } catch (error: any) {
+    if (
+        (typeof navigator !== 'undefined' && !navigator.onLine) ||
+        error?.statusCode === 0 || 
+        error?.message?.includes('network') ||
+        error?.code === 'ERR_NETWORK'
+      ) {
+        console.log('[Offline Mode] Guardando consolidacion de caja en cola...');
+        await syncService.enqueueOperation(
+          'caja_consolidar',
+          `/accounting/cajas/${cajaId}/consolidar`,
+          'POST',
+          null,
+          `Consolidar caja ID: ${cajaId}`
+        );
+        return { esOffline: true };
+    }
     console.error('Error consolidating caja:', error);
     throw error;
   }
@@ -196,7 +256,33 @@ export async function createTransaccion(data: {
 }): Promise<Transaccion | null> {
   try {
     return await apiRequest<Transaccion>('POST', '/accounting/transacciones', data);
-  } catch (error) {
+  } catch (error: any) {
+    if (
+      (typeof navigator !== 'undefined' && !navigator.onLine) ||
+      error?.statusCode === 0 || 
+      error?.message?.includes('network') ||
+      error?.code === 'ERR_NETWORK'
+    ) {
+      console.log('[Offline Mode] Guardando transacción en cola...');
+      await syncService.enqueueOperation(
+        'transaccion_crear', // Tipo más descriptivo
+        '/accounting/transacciones',
+        'POST',
+        data,
+        `Transacción: ${data.descripcion} ($${data.monto})`
+      );
+      return {
+        id: `temp-trx-${Date.now()}`,
+        numero: 'OFFLINE',
+        fecha: new Date().toISOString(),
+        tipo: data.tipo,
+        monto: data.monto,
+        descripcion: data.descripcion,
+        cajaId: data.cajaId,
+        estado: 'PENDIENTE',
+        caja: 'Caja Local'
+      } as any;
+    }
     console.error('Error creating transaccion:', error);
     throw error;
   }
@@ -294,7 +380,23 @@ export async function registrarArqueo(cajaId: string, data: {
 }): Promise<any> {
   try {
     return await apiRequest<any>('POST', `/accounting/cajas/${cajaId}/arqueos`, data);
-  } catch (error) {
+  } catch (error: any) {
+    if (
+      (typeof navigator !== 'undefined' && !navigator.onLine) ||
+      error?.statusCode === 0 || 
+      error?.message?.includes('network') ||
+      error?.code === 'ERR_NETWORK'
+    ) {
+      console.log('[Offline Mode] Guardando arqueo en cola...');
+      await syncService.enqueueOperation(
+        'arqueo_registrar',
+        `/accounting/cajas/${cajaId}/arqueos`,
+        'POST',
+        data,
+        `Arqueo de Caja (Offline)`
+      );
+      return { id: `temp-arq-${Date.now()}`, esOffline: true };
+    }
     console.error('Error registrando arqueo:', error);
     throw error;
   }
@@ -322,14 +424,44 @@ export async function registrarGasto(data: {
   rutaId: string
   cobradorId: string
 }): Promise<any> {
-  const payload: any = {
-    descripcion: data.descripcion,
-    valor: data.valor,
-    rutaId: data.rutaId,
-    cobradorId: data.cobradorId
-  };
+  try {
+    const payload: any = {
+      descripcion: data.descripcion,
+      valor: data.valor,
+      rutaId: data.rutaId,
+      cobradorId: data.cobradorId
+    };
 
-  return apiRequest('POST', '/accounting/gastos', payload);
+    return await apiRequest('POST', '/accounting/gastos', payload);
+  } catch (error: any) {
+    if (
+      (typeof navigator !== 'undefined' && !navigator.onLine) ||
+      error?.statusCode === 0 || 
+      error?.message?.includes('network') ||
+      error?.code === 'ERR_NETWORK'
+    ) {
+      console.log('[Offline Mode] Guardando gasto en cola...');
+      
+      const payload: any = {
+        descripcion: data.descripcion,
+        valor: data.valor,
+        rutaId: data.rutaId,
+        cobradorId: data.cobradorId
+      };
+
+      await syncService.enqueueOperation(
+        'gasto_registrar',
+        '/accounting/gastos',
+        'POST',
+        payload,
+        `Gasto: ${data.descripcion} ($${data.valor})`,
+        data.comprobante || undefined
+      );
+
+      return { id: `temp-gasto-${Date.now()}`, esOffline: true };
+    }
+    throw error;
+  }
 }
 
 export async function solicitarBase(data: { 
@@ -338,5 +470,25 @@ export async function solicitarBase(data: {
   cobradorId: string 
   rutaId: string 
 }): Promise<any> {
-   return apiRequest('POST', '/accounting/base-requests', data);
+  try {
+    return await apiRequest('POST', '/accounting/base-requests', data);
+  } catch (error: any) {
+    if (
+      (typeof navigator !== 'undefined' && !navigator.onLine) ||
+      error?.statusCode === 0 || 
+      error?.message?.includes('network') ||
+      error?.code === 'ERR_NETWORK'
+    ) {
+      console.log('[Offline Mode] Guardando solicitud de base en cola...');
+      await syncService.enqueueOperation(
+        'base_solicitar',
+        '/accounting/base-requests',
+        'POST',
+        data,
+        `Solicitud de Base: $${data.monto}`
+      );
+      return { id: `temp-base-${Date.now()}`, esOffline: true };
+    }
+    throw error;
+  }
 }

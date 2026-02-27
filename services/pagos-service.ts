@@ -108,7 +108,7 @@ export const pagosService = {
         error?.message?.includes('network') ||
         error?.code === 'ERR_NETWORK'
       ) {
-         console.log('🌐 [Offline Mode] Guardando pago en cola...');
+         console.log('[Offline Mode] Guardando pago en cola...');
          const tempId = `temp-pay-${Date.now()}`;
          
          await syncService.enqueueOperation(

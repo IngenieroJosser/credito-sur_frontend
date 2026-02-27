@@ -15,6 +15,7 @@ import {
   Clock,
   Trash2,
 } from 'lucide-react';
+import { Modal } from '@/components/ui/Modal';
 import { syncManager } from '@/lib/offline/syncManager';
 import { useOffline } from '@/hooks/useOffline';
 import { useAutoSync } from '@/hooks/use-auto-sync';
@@ -23,7 +24,7 @@ import { OfflineQueueItem } from '@/lib/offline/offlineDb';
 import { hasValidOfflineSession, getOfflineSessionDaysRemaining, isSessionExpiringSoon } from '@/lib/auth/offlineAuth';
 
 export default function OfflineIndicator() {
-  const { isOnline, pendingOps, failedOps, isSyncing, syncNow, downloadForOffline, lastSyncResult } = useOffline();
+  const { isOnline, pendingOps, failedOps, syncingOps, completedOps, isSyncing, syncNow, downloadForOffline, lastSyncResult } = useOffline();
   
   // Activar sincronización automática y polling cada 5 minutos
   useAutoSync(300000); 
@@ -34,8 +35,55 @@ export default function OfflineIndicator() {
   const [hasOfflineSession, setHasOfflineSession] = useState(false);
   const [daysRemaining, setDaysRemaining] = useState(0);
   const [isExpiringSoon, setIsExpiringSoon] = useState(false);
+  const [isClearModalOpen, setIsClearModalOpen] = useState(false);
+  const [isClearing, setIsClearing] = useState(false);
 
-  const totalOps = pendingOps + failedOps;
+  const [manualActivities, setManualActivities] = useState<any[]>([]);
+
+  const totalOps = pendingOps + failedOps + syncingOps + completedOps + manualActivities.length;
+
+  // Refrescar items de la cola cuando hay cambios en los contadores o estado de sync
+  useEffect(() => {
+    const refreshItems = () => {
+      offlineQueue.getAll().then(items => {
+        // Combinar items de DB con actividades manuales efímeras
+        const allItems = [...manualActivities, ...items];
+        setQueueItems(allItems);
+      });
+    };
+
+    if (expanded || totalOps > 0) {
+      refreshItems();
+    }
+
+    const interval = setInterval(refreshItems, 1000); // Refresco rápido mientras hay ops
+
+    const handleManualActivity = (e: any) => {
+      const activity = e.detail;
+      setManualActivities(prev => {
+        // Evitar duplicados
+        if (prev.find(a => a.description === activity.description && a.timestamp === activity.timestamp)) return prev;
+        return [activity, ...prev];
+      });
+    };
+
+    // Limpiar actividades manuales solo al volver a estar online y no haber nada pendiente
+    if (isOnline && pendingOps === 0 && syncingOps === 0 && failedOps === 0 && manualActivities.length > 0) {
+      const timer = setTimeout(() => {
+        setManualActivities([]);
+      }, 10000); // 10 segundos de cortesía tras estar totalmente sincronizado
+      return () => clearTimeout(timer);
+    }
+
+    window.addEventListener('offline-queue-changed', refreshItems);
+    window.addEventListener('offline-activity', handleManualActivity);
+    
+    return () => {
+      window.removeEventListener('offline-queue-changed', refreshItems);
+      window.removeEventListener('offline-activity', handleManualActivity);
+      clearInterval(interval);
+    };
+  }, [expanded, totalOps, isSyncing, manualActivities, isOnline, pendingOps, syncingOps, failedOps]);
 
   // Verificar sesión offline periódicamente
   useEffect(() => {
@@ -51,11 +99,7 @@ export default function OfflineIndicator() {
     return () => clearInterval(interval);
   }, []);
 
-  const handleExpand = async () => {
-    if (!expanded) {
-      const items = await offlineQueue.getAll();
-      setQueueItems(items);
-    }
+  const handleExpand = () => {
     setExpanded(!expanded);
   };
 
@@ -70,19 +114,14 @@ export default function OfflineIndicator() {
     }
   };
 
-  const handleDownload = async () => {
-    const result = await downloadForOffline();
-    if (result) {
-      setShowResult(true);
-      setTimeout(() => setShowResult(false), 5000);
-    }
-  };
-
   const handleClear = async () => {
-    if (confirm('¿Estás seguro de que deseas limpiar TODOS los datos locales? Esto eliminará el cache de clientes, préstamos y rutas, pero conservará las operaciones pendientes de envío.')) {
+    setIsClearing(true);
+    try {
       await syncManager.clearLocalData();
-      alert('Datos locales limpiados con éxito. Se recomienda recargar la página.');
       window.location.reload();
+    } finally {
+      setIsClearing(false);
+      setIsClearModalOpen(false);
     }
   };
 
@@ -138,14 +177,6 @@ export default function OfflineIndicator() {
               <h3 className="text-sm font-bold text-slate-800">Cola de Sincronización</h3>
               <div className="flex items-center gap-2">
                 <button
-                  onClick={handleDownload}
-                  disabled={isSyncing || !isOnline}
-                  className="p-1.5 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 disabled:opacity-50 transition-colors"
-                  title="Descargar datos para offline"
-                >
-                  <Download className="h-3.5 w-3.5" />
-                </button>
-                <button
                   onClick={handleSync}
                   disabled={isSyncing || !isOnline || totalOps === 0}
                   className="p-1.5 rounded-lg bg-emerald-50 text-emerald-600 hover:bg-emerald-100 disabled:opacity-50 transition-colors"
@@ -154,7 +185,7 @@ export default function OfflineIndicator() {
                   <CloudUpload className={`h-3.5 w-3.5 ${isSyncing ? 'animate-pulse' : ''}`} />
                 </button>
                 <button
-                  onClick={handleClear}
+                  onClick={() => setIsClearModalOpen(true)}
                   className="p-1.5 rounded-lg bg-rose-50 text-rose-600 hover:bg-rose-100 transition-colors"
                   title="Limpiar cache local (Emergencia)"
                 >
@@ -166,39 +197,98 @@ export default function OfflineIndicator() {
             {queueItems.length === 0 ? (
               <p className="text-xs text-slate-500 text-center py-4">No hay operaciones en cola</p>
             ) : (
-              <div className="space-y-2 max-h-48 overflow-y-auto">
-                {queueItems.slice(0, 10).map((item) => (
+              <div className="space-y-2 max-h-64 overflow-y-auto pr-1 custom-scrollbar">
+                {queueItems.slice(0, 15).map((item) => (
                   <div
                     key={item.id}
-                    className={`p-2.5 rounded-lg border text-xs ${
+                    className={`p-2.5 rounded-lg border text-xs transition-all animate-in fade-in slide-in-from-right-2 duration-300 ${
                       item.status === 'pending'
                         ? 'bg-amber-50 border-amber-100'
                         : item.status === 'syncing'
                         ? 'bg-blue-50 border-blue-100'
+                        : item.status === 'completed'
+                        ? 'bg-emerald-50 border-emerald-100'
                         : 'bg-rose-50 border-rose-100'
                     }`}
                   >
-                    <div className="flex items-center justify-between">
-                      <span className="font-bold text-slate-700 truncate flex-1">{item.description}</span>
-                      <span
-                        className={`ml-2 px-1.5 py-0.5 rounded text-[10px] font-bold uppercase ${
-                          item.status === 'pending'
-                            ? 'bg-amber-100 text-amber-700'
-                            : item.status === 'syncing'
-                            ? 'bg-blue-100 text-blue-700'
-                            : 'bg-rose-100 text-rose-700'
-                        }`}
-                      >
-                        {item.status === 'pending' ? 'Pendiente' : item.status === 'syncing' ? 'Enviando' : `Fallido (${item.retries})`}
-                      </span>
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex items-start gap-2 flex-1">
+                        <div className="mt-0.5">
+                          {item.status === 'completed' ? (
+                            <CheckCircle className="h-3.5 w-3.5 text-emerald-500" />
+                          ) : item.status === 'failed' ? (
+                            <AlertTriangle className="h-3.5 w-3.5 text-rose-500" />
+                          ) : item.status === 'syncing' ? (
+                            <RefreshCw className="h-3.5 w-3.5 text-blue-500 animate-spin" />
+                          ) : (
+                            <Clock className="h-3.5 w-3.5 text-amber-500" />
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-bold text-slate-700 leading-tight">
+                            {item.description}
+                          </p>
+                          {item.lastError && (
+                            <p className="text-[10px] text-rose-600 mt-1 font-medium bg-rose-100/30 p-1.5 rounded-md border border-rose-100/50 break-words">
+                              {item.lastError}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                      
+                      <div className="flex flex-col gap-1.5">
+                        <span
+                          className={`px-1.5 py-0.5 rounded text-[9px] font-black uppercase tracking-tighter text-center ${
+                            item.status === 'pending'
+                              ? 'bg-amber-100 text-amber-700'
+                              : item.status === 'syncing'
+                              ? 'bg-blue-100 text-blue-700'
+                              : item.status === 'completed'
+                              ? 'bg-emerald-100 text-emerald-700'
+                              : 'bg-rose-100 text-rose-700'
+                          }`}
+                        >
+                          {item.status === 'pending' ? 'Espera' : 
+                           item.status === 'syncing' ? 'Envío' : 
+                           item.status === 'completed' ? 'Listo' :
+                           'Error'}
+                        </span>
+                        
+                        <div className="flex items-center gap-1 justify-end">
+                          {item.status === 'failed' && item.id && !item.id.startsWith('act-') && (
+                            <button 
+                              onClick={async (e) => {
+                                e.stopPropagation();
+                                await offlineQueue.updateStatus(item.id!, 'pending');
+                                handleSync();
+                              }}
+                              className="p-1 hover:bg-white rounded transition-colors text-rose-600"
+                              title="Reintentar ahora"
+                            >
+                              <RefreshCw className="h-3 w-3" />
+                            </button>
+                          )}
+                          <button 
+                            onClick={async (e) => {
+                              e.stopPropagation();
+                              if (item.id?.startsWith('act-')) {
+                                setManualActivities(prev => prev.filter(a => a.id !== item.id));
+                              } else if (item.id) {
+                                await offlineQueue.remove(item.id);
+                              }
+                            }}
+                            className="p-1 hover:bg-white rounded transition-colors text-slate-400 hover:text-rose-600"
+                            title="Eliminar de la cola"
+                          >
+                            <X className="h-3 w-3" />
+                          </button>
+                        </div>
+                      </div>
                     </div>
-                    {item.lastError && (
-                      <p className="text-[10px] text-rose-600 mt-1 truncate">{item.lastError}</p>
-                    )}
                   </div>
                 ))}
-                {queueItems.length > 10 && (
-                  <p className="text-[10px] text-slate-400 text-center">+{queueItems.length - 10} más</p>
+                {queueItems.length > 15 && (
+                  <p className="text-[10px] text-slate-400 text-center font-medium pt-1">+{queueItems.length - 15} operaciones más</p>
                 )}
               </div>
             )}

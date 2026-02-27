@@ -1,4 +1,5 @@
 import { apiRequest } from '@/lib/api/api';
+import { syncService } from '@/lib/offline/syncService';
 
 export interface CreateCreditDto {
   clienteId: string;
@@ -67,7 +68,22 @@ class CreditosService {
     try {
       const response = await apiRequest<any>('POST', 'loans', creditData);
       return response;
-    } catch (error) {
+    } catch (error: any) {
+      if (
+        (typeof navigator !== 'undefined' && !navigator.onLine) ||
+        error?.statusCode === 0 || 
+        error?.message?.includes('network') ||
+        error?.code === 'ERR_NETWORK'
+      ) {
+        console.log('[Offline Mode] Guardando creacion de credito en cola...');
+        return await syncService.enqueueOperation(
+          'prestamo_crear',
+          'loans',
+          'POST',
+          creditData,
+          `Crear crédito para cliente ID: ${creditData.clienteId}`
+        );
+      }
       console.error('Error creating credit:', error);
       throw error;
     }
@@ -119,7 +135,22 @@ class CreditosService {
         aprobadoPorId
       });
       return response;
-    } catch (error) {
+    } catch (error: any) {
+      if (
+        (typeof navigator !== 'undefined' && !navigator.onLine) ||
+        error?.statusCode === 0 || 
+        error?.message?.includes('network') ||
+        error?.code === 'ERR_NETWORK'
+      ) {
+        console.log('[Offline Mode] Guardando aprobacion de credito en cola...');
+        return await syncService.enqueueOperation(
+          'prestamo_aprobar',
+          `loans/${id}/approve`,
+          'POST',
+          { aprobadoPorId },
+          `Aprobar crédito ID: ${id}`
+        );
+      }
       console.error('Error approving credit:', error);
       throw error;
     }
@@ -132,7 +163,22 @@ class CreditosService {
         motivo
       });
       return response;
-    } catch (error) {
+    } catch (error: any) {
+      if (
+        (typeof navigator !== 'undefined' && !navigator.onLine) ||
+        error?.statusCode === 0 || 
+        error?.message?.includes('network') ||
+        error?.code === 'ERR_NETWORK'
+      ) {
+        console.log('[Offline Mode] Guardando rechazo de credito en cola...');
+        return await syncService.enqueueOperation(
+          'prestamo_rechazar',
+          `loans/${id}/reject`,
+          'POST',
+          { rechazadoPorId, motivo },
+          `Rechazar crédito ID: ${id}`
+        );
+      }
       console.error('Error rejecting credit:', error);
       throw error;
     }
@@ -154,7 +200,22 @@ class CreditosService {
         userId
       });
       return response;
-    } catch (error) {
+    } catch (error: any) {
+      if (
+        (typeof navigator !== 'undefined' && !navigator.onLine) ||
+        error?.statusCode === 0 || 
+        error?.message?.includes('network') ||
+        error?.code === 'ERR_NETWORK'
+      ) {
+        console.log('[Offline Mode] Guardando eliminacion de credito en cola...');
+        return await syncService.enqueueOperation(
+          'prestamo_eliminar',
+          `loans/${id}`,
+          'DELETE',
+          { userId },
+          `Eliminar crédito ID: ${id}`
+        );
+      }
       console.error('Error deleting credit:', error);
       throw error;
     }
@@ -166,7 +227,22 @@ class CreditosService {
         userId
       });
       return response;
-    } catch (error) {
+    } catch (error: any) {
+      if (
+        (typeof navigator !== 'undefined' && !navigator.onLine) ||
+        error?.statusCode === 0 || 
+        error?.message?.includes('network') ||
+        error?.code === 'ERR_NETWORK'
+      ) {
+        console.log('[Offline Mode] Guardando restauracion de credito en cola...');
+        return await syncService.enqueueOperation(
+          'prestamo_restaurar',
+          `loans/${id}/restore`,
+          'PATCH',
+          { userId },
+          `Restaurar crédito ID: ${id}`
+        );
+      }
       console.error('Error restoring credit:', error);
       throw error;
     }

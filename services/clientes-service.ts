@@ -118,7 +118,13 @@ export const clientesService = {
    */
   async crear(data: CrearClienteDto): Promise<Cliente> {
     try {
-      return await apiRequest<Cliente>('POST', '/clients', data);
+      const result = await apiRequest<Cliente>('POST', '/clients', data);
+      
+      // Feedback visual inmediato en la cola de sync
+      const { logSyncActivity } = await import('@/lib/offline/offlineQueue');
+      logSyncActivity(`Crear cliente: ${data.nombres} ${data.apellidos}`);
+      
+      return result;
     } catch (error: any) {
       if (
         (typeof navigator !== 'undefined' && !navigator.onLine) ||
@@ -126,7 +132,7 @@ export const clientesService = {
         error?.message?.includes('network') ||
         error?.code === 'ERR_NETWORK'
       ) {
-         console.log('🌐 [Offline Mode] Guardando creación de cliente en cola...');
+         console.log('[Offline Mode] Guardando creacion de cliente en cola...');
          // Usar un ID temporal
          const tempId = `temp-${Date.now()}`;
          
@@ -171,9 +177,10 @@ export const clientesService = {
       if (
         (typeof navigator !== 'undefined' && !navigator.onLine) ||
         error?.statusCode === 0 || 
-        error?.message?.includes('network')
+        error?.message?.includes('network') ||
+        error?.code === 'ERR_NETWORK'
       ) {
-         console.log('🌐 [Offline Mode] Guardando actualización de cliente en cola...');
+         console.log('[Offline Mode] Guardando actualizacion de cliente en cola...');
          await syncService.enqueueOperation(
            'cliente_update',
            `/clients/${id}`,
@@ -196,9 +203,11 @@ export const clientesService = {
     } catch (error: any) {
       if (
         (typeof navigator !== 'undefined' && !navigator.onLine) ||
-        error?.statusCode === 0
+        error?.statusCode === 0 || 
+        error?.message?.includes('network') ||
+        error?.code === 'ERR_NETWORK'
       ) {
-         console.log('🌐 [Offline Mode] Guardando eliminación de cliente en cola...');
+         console.log('[Offline Mode] Guardando eliminacion de cliente en cola...');
          await syncService.enqueueOperation(
            'cliente_delete',
            `/clients/${id}`,
@@ -216,31 +225,108 @@ export const clientesService = {
    * Aprobar un cliente
    */
   async aprobar(id: string, aprobadoPorId: string, datosAprobados?: unknown): Promise<Cliente> {
-    return apiRequest<Cliente>('POST', `/clients/approve/${id}`, { 
-      aprobadoPorId, 
-      datosAprobados 
-    });
+    try {
+      return await apiRequest<Cliente>('POST', `/clients/approve/${id}`, { 
+        aprobadoPorId, 
+        datosAprobados 
+      });
+    } catch (error: any) {
+      if (
+        (typeof navigator !== 'undefined' && !navigator.onLine) ||
+        error?.statusCode === 0 || 
+        error?.message?.includes('network') ||
+        error?.code === 'ERR_NETWORK'
+      ) {
+        console.log('[Offline Mode] Guardando aprobacion de cliente en cola...');
+        return await syncService.enqueueOperation(
+          'cliente_aprobar',
+          `/clients/approve/${id}`,
+          'POST',
+          { aprobadoPorId, datosAprobados },
+          `Aprobar cliente: ${id}`
+        ) as any;
+      }
+      throw error;
+    }
   },
 
   /**
    * Agregar cliente a lista negra
    */
   async agregarListaNegra(id: string, data: AgregarListaNegraDto): Promise<Cliente> {
-    return apiRequest<Cliente>('POST', `/clients/${id}/blacklist`, data);
+    try {
+      return await apiRequest<Cliente>('POST', `/clients/${id}/blacklist`, data);
+    } catch (error: any) {
+       if (
+        (typeof navigator !== 'undefined' && !navigator.onLine) ||
+        error?.statusCode === 0 || 
+        error?.message?.includes('network') ||
+        error?.code === 'ERR_NETWORK'
+      ) {
+        console.log('[Offline Mode] Guardando agregar a lista negra en cola...');
+        return await syncService.enqueueOperation(
+          'cliente_blacklist_add',
+          `/clients/${id}/blacklist`,
+          'POST',
+          data,
+          `Agregar a lista negra cliente: ${id}`
+        ) as any;
+      }
+      throw error;
+    }
   },
 
   /**
    * Remover cliente de lista negra
    */
   async removerListaNegra(id: string): Promise<Cliente> {
-    return apiRequest<Cliente>('DELETE', `/clients/${id}/blacklist`);
+    try {
+      return await apiRequest<Cliente>('DELETE', `/clients/${id}/blacklist`);
+    } catch (error: any) {
+      if (
+        (typeof navigator !== 'undefined' && !navigator.onLine) ||
+        error?.statusCode === 0 || 
+        error?.message?.includes('network') ||
+        error?.code === 'ERR_NETWORK'
+      ) {
+        console.log('[Offline Mode] Guardando remover de lista negra en cola...');
+        return await syncService.enqueueOperation(
+          'cliente_blacklist_remove',
+          `/clients/${id}/blacklist`,
+          'DELETE',
+          null,
+          `Remover de lista negra cliente: ${id}`
+        ) as any;
+      }
+      throw error;
+    }
   },
 
   /**
    * Asignar cliente a una ruta
    */
   async asignarRuta(clienteId: string, data: AsignarRutaDto): Promise<void> {
-    return apiRequest<void>('POST', `/clients/${clienteId}/assign-route`, data);
+    try {
+      return await apiRequest<void>('POST', `/clients/${clienteId}/assign-route`, data);
+    } catch (error: any) {
+      if (
+        (typeof navigator !== 'undefined' && !navigator.onLine) ||
+        error?.statusCode === 0 || 
+        error?.message?.includes('network') ||
+        error?.code === 'ERR_NETWORK'
+      ) {
+        console.log('[Offline Mode] Guardando asignacion de ruta en cola...');
+        await syncService.enqueueOperation(
+          'cliente_assign_route',
+          `/clients/${clienteId}/assign-route`,
+          'POST',
+          data,
+          `Asignar ruta a cliente: ${clienteId}`
+        );
+        return;
+      }
+      throw error;
+    }
   },
 
   // Alias para compatibilidad

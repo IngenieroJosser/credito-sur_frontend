@@ -8,6 +8,8 @@ export interface OfflineState {
   isOnline: boolean;
   pendingOps: number;
   failedOps: number;
+  syncingOps: number;
+  completedOps: number;
   isSyncing: boolean;
   lastSyncResult: SyncResult | null;
 }
@@ -17,6 +19,8 @@ export function useOffline() {
     isOnline: typeof navigator !== 'undefined' ? navigator.onLine : true,
     pendingOps: 0,
     failedOps: 0,
+    syncingOps: 0,
+    completedOps: 0,
     isSyncing: false,
     lastSyncResult: null,
   });
@@ -26,11 +30,20 @@ export function useOffline() {
   // Actualizar contadores de la cola
   const refreshCounts = useCallback(async () => {
     try {
-      const [pending, failed] = await Promise.all([
-        offlineQueue.countPending(),
-        offlineQueue.countFailed(),
+      const db = (await import('@/lib/offline/offlineQueue')).offlineQueue;
+      const [pending, failed, syncing, completed] = await Promise.all([
+        db.countPending(),
+        db.countFailed(),
+        (db as any).countSyncing(),
+        (db as any).countCompleted(),
       ]);
-      setState((prev) => ({ ...prev, pendingOps: pending, failedOps: failed }));
+      setState((prev) => ({ 
+        ...prev, 
+        pendingOps: pending, 
+        failedOps: failed,
+        syncingOps: syncing,
+        completedOps: completed
+      }));
     } catch {
       // IndexedDB puede no estar disponible
     }
@@ -87,6 +100,7 @@ export function useOffline() {
 
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
+    window.addEventListener('offline-queue-changed', refreshCounts);
 
     // Cargar contadores iniciales
     refreshCounts();
@@ -94,6 +108,7 @@ export function useOffline() {
     return () => {
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
+      window.removeEventListener('offline-queue-changed', refreshCounts);
     };
   }, [syncNow, refreshCounts]);
 

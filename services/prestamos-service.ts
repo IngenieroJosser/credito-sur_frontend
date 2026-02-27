@@ -98,7 +98,27 @@ export const prestamosService = {
    * Archivar préstamo como pérdida y agregar cliente a blacklist
    */
   async archivarPrestamo(prestamoId: string, data: { motivo: string; notas?: string }) {
-    return apiRequest('POST', `/loans/${prestamoId}/archive`, data);
+    try {
+      return await apiRequest('POST', `/loans/${prestamoId}/archive`, data);
+    } catch (error: any) {
+      if (
+        (typeof navigator !== 'undefined' && !navigator.onLine) ||
+        error?.statusCode === 0 || 
+        error?.message?.includes('network') ||
+        error?.code === 'ERR_NETWORK'
+      ) {
+        console.log('[Offline Mode] Guardando archivado de prestamo en cola...');
+        await syncService.enqueueOperation(
+          'prestamo_archivar',
+          `/loans/${prestamoId}/archive`,
+          'POST',
+          data,
+          `Archivar préstamo ID: ${prestamoId}`
+        );
+        return { esOffline: true };
+      }
+      throw error;
+    }
   },
 
   /**
@@ -117,7 +137,7 @@ export const prestamosService = {
         error?.message?.includes('network') ||
         error?.code === 'ERR_NETWORK'
       ) {
-         console.log('🌐 [Offline Mode] Guardando creación de préstamo en cola...');
+         console.log('[Offline Mode] Guardando creacion de préstamo en cola...');
          const tempId = `temp-loan-${Date.now()}`;
          
          await syncService.enqueueOperation(
@@ -149,7 +169,27 @@ export const prestamosService = {
    * Eliminar un préstamo
    */
   async eliminarPrestamo(id: string, userId: string): Promise<void> {
-    return apiRequest<void>('DELETE', `/loans/${id}`, { userId });
+    try {
+      return await apiRequest<void>('DELETE', `/loans/${id}`, { userId });
+    } catch (error: any) {
+      if (
+        (typeof navigator !== 'undefined' && !navigator.onLine) ||
+        error?.statusCode === 0 || 
+        error?.message?.includes('network') ||
+        error?.code === 'ERR_NETWORK'
+      ) {
+        console.log('[Offline Mode] Guardando eliminacion de prestamo en cola...');
+        await syncService.enqueueOperation(
+          'prestamo_eliminar',
+          `/loans/${id}`,
+          'DELETE',
+          { userId },
+          `Eliminar préstamo ID: ${id}`
+        );
+        return;
+      }
+      throw error;
+    }
   },
 
   /**
@@ -163,17 +203,57 @@ export const prestamosService = {
    * Aprobar un préstamo
    */
   async aprobarPrestamo(id: string, aprobadoPorId: string): Promise<any> {
-    return apiRequest('POST', `/loans/${id}/approve`, { aprobadoPorId });
+    try {
+      return await apiRequest('POST', `/loans/${id}/approve`, { aprobadoPorId });
+    } catch (error: any) {
+      if (
+        (typeof navigator !== 'undefined' && !navigator.onLine) ||
+        error?.statusCode === 0 || 
+        error?.message?.includes('network') ||
+        error?.code === 'ERR_NETWORK'
+      ) {
+        console.log('[Offline Mode] Guardando aprobacion de prestamo en cola...');
+        await syncService.enqueueOperation(
+          'prestamo_aprobar',
+          `/loans/${id}/approve`,
+          'POST',
+          { aprobadoPorId },
+          `Aprobar préstamo ID: ${id}`
+        );
+        return { esOffline: true };
+      }
+      throw error;
+    }
   },
 
   /**
    * Rechazar un préstamo
    */
   async rechazarPrestamo(id: string, rechazadoPorId: string, motivo?: string): Promise<any> {
-    return apiRequest('POST', `/loans/${id}/reject`, { 
-      rechazadoPorId, 
-      motivo 
-    });
+    try {
+      return await apiRequest('POST', `/loans/${id}/reject`, { 
+        rechazadoPorId, 
+        motivo 
+      });
+    } catch (error: any) {
+      if (
+        (typeof navigator !== 'undefined' && !navigator.onLine) ||
+        error?.statusCode === 0 || 
+        error?.message?.includes('network') ||
+        error?.code === 'ERR_NETWORK'
+      ) {
+        console.log('[Offline Mode] Guardando rechazo de prestamo en cola...');
+        await syncService.enqueueOperation(
+          'prestamo_rechazar',
+          `/loans/${id}/reject`,
+          'POST',
+          { rechazadoPorId, motivo },
+          `Rechazar préstamo ID: ${id}`
+        );
+        return { esOffline: true };
+      }
+      throw error;
+    }
   },
 
   /**
@@ -189,30 +269,91 @@ export const prestamosService = {
     cobradorId?: string;
     fecha?: string;
   }): Promise<any> {
-    const formData = new FormData();
-    formData.append('prestamoId', data.prestamoId);
-    if (data.clienteId) formData.append('clienteId', data.clienteId);
-    formData.append('montoTotal', data.monto.toString());
-    formData.append('metodoPago', data.metodoPago);
-    
-    if (data.esAbono) formData.append('tipo', 'ABONO');
-    else formData.append('tipo', 'PAGO');
+    try {
+      const formData = new FormData();
+      formData.append('prestamoId', data.prestamoId);
+      if (data.clienteId) formData.append('clienteId', data.clienteId);
+      formData.append('montoTotal', data.monto.toString());
+      formData.append('metodoPago', data.metodoPago);
+      
+      if (data.esAbono) formData.append('tipo', 'ABONO');
+      else formData.append('tipo', 'PAGO');
 
-    if (data.cobradorId) formData.append('cobradorId', data.cobradorId);
-    if (data.fecha) formData.append('fechaPago', data.fecha);
-    
-    if (data.comprobante) {
-      formData.append('comprobante', data.comprobante);
+      if (data.cobradorId) formData.append('cobradorId', data.cobradorId);
+      if (data.fecha) formData.append('fechaPago', data.fecha);
+      
+      if (data.comprobante) {
+        formData.append('comprobante', data.comprobante);
+      }
+      
+      return await apiRequest('POST', '/payments', formData);
+    } catch (error: any) {
+      if (
+        (typeof navigator !== 'undefined' && !navigator.onLine) ||
+        error?.statusCode === 0 || 
+        error?.message?.includes('network') ||
+        error?.code === 'ERR_NETWORK'
+      ) {
+        console.log('[Offline Mode] Guardando pago en cola...');
+        
+        // El payload para la cola no debe ser FormData, sino el objeto plano
+        // El syncManager se encargará de convertirlo si hay file
+        const payload = {
+          prestamoId: data.prestamoId,
+          clienteId: data.clienteId,
+          montoTotal: data.monto,
+          metodoPago: data.metodoPago,
+          tipo: data.esAbono ? 'ABONO' : 'PAGO',
+          cobradorId: data.cobradorId,
+          fechaPago: data.fecha || new Date().toISOString()
+        };
+
+        await syncService.enqueueOperation(
+          'pago',
+          '/payments',
+          'POST',
+          payload,
+          `Pago $${data.monto.toLocaleString()} - ${data.prestamoId}`,
+          data.comprobante || undefined
+        );
+
+        return {
+          id: `temp-pago-${Date.now()}`,
+          estado: 'PENDIENTE',
+          montoTotal: data.monto,
+          esOffline: true,
+          mensaje: 'Almacenado localmente para sincronizar'
+        };
+      }
+      throw error;
     }
-    
-    return apiRequest('POST', '/payments', formData);
   },
 
   /**
    * Reprogramar la próxima cuota de un préstamo
    */
   async reprogramarPrestamo(prestamoId: string, data: { fecha: string; motivo: string; cobradorId: string }): Promise<any> {
-    return apiRequest('POST', `/loans/${prestamoId}/reschedule`, data);
+    try {
+      return await apiRequest('POST', `/loans/${prestamoId}/reschedule`, data);
+    } catch (error: any) {
+      if (
+        (typeof navigator !== 'undefined' && !navigator.onLine) ||
+        error?.statusCode === 0 || 
+        error?.message?.includes('network') ||
+        error?.code === 'ERR_NETWORK'
+      ) {
+        console.log('[Offline Mode] Guardando reprogramacion de prestamo en cola...');
+        await syncService.enqueueOperation(
+          'prestamo_reprograr',
+          `/loans/${prestamoId}/reschedule`,
+          'POST',
+          data,
+          `Reprogramar préstamo ID: ${prestamoId}`
+        );
+        return { esOffline: true };
+      }
+      throw error;
+    }
   },
   
   /**
@@ -231,6 +372,26 @@ export const prestamosService = {
     fechaInicio?: string;
     garantia?: string;
   }): Promise<any> {
-    return apiRequest('PATCH', `/loans/${id}`, data);
+    try {
+      return await apiRequest('PATCH', `/loans/${id}`, data);
+    } catch (error: any) {
+      if (
+        (typeof navigator !== 'undefined' && !navigator.onLine) ||
+        error?.statusCode === 0 || 
+        error?.message?.includes('network') ||
+        error?.code === 'ERR_NETWORK'
+      ) {
+        console.log('[Offline Mode] Guardando actualizacion de prestamo en cola...');
+        await syncService.enqueueOperation(
+          'prestamo_actualizar',
+          `/loans/${id}`,
+          'PATCH',
+          data,
+          `Actualizar préstamo ID: ${id}`
+        );
+        return { id, ...data };
+      }
+      throw error;
+    }
   }
 };

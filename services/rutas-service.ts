@@ -1,4 +1,5 @@
 import { apiRequest } from '@/lib/api/api';
+import { syncService } from '@/lib/offline/syncService';
 
 export interface Ruta {
   id: string;
@@ -118,56 +119,193 @@ export const rutasService = {
    * Crear una nueva ruta
    */
   async crearRuta(data: CrearRutaDto): Promise<Ruta> {
-    return apiRequest<Ruta>('POST', '/routes', data);
+    try {
+      return await apiRequest<Ruta>('POST', '/routes', data);
+    } catch (error: any) {
+      if (
+        (typeof navigator !== 'undefined' && !navigator.onLine) ||
+        error?.statusCode === 0 || 
+        error?.message?.includes('network') ||
+        error?.code === 'ERR_NETWORK'
+      ) {
+        console.log('[Offline Mode] Guardando creacion de ruta en cola...');
+        return await syncService.enqueueOperation(
+          'ruta_crear',
+          '/routes',
+          'POST',
+          data,
+          'Crear ruta: ' + data.nombre
+        ) as any;
+      }
+      throw error;
+    }
   },
 
   /**
    * Actualizar una ruta existente
    */
   async actualizarRuta(id: string, data: ActualizarRutaDto): Promise<Ruta> {
-    return apiRequest<Ruta>('PATCH', `/routes/${id}`, data);
+    try {
+      return await apiRequest<Ruta>('PATCH', `/routes/${id}`, data);
+    } catch (error: any) {
+      if (
+        (typeof navigator !== 'undefined' && !navigator.onLine) ||
+        error?.statusCode === 0 || 
+        error?.message?.includes('network') ||
+        error?.code === 'ERR_NETWORK'
+      ) {
+        console.log('[Offline Mode] Guardando actualizacion de ruta en cola...');
+        return await syncService.enqueueOperation(
+          'ruta_actualizar',
+          `/routes/${id}`,
+          'PATCH',
+          data,
+          'Actualizar ruta ID: ' + id
+        ) as any;
+      }
+      throw error;
+    }
   },
 
   /**
    * Eliminar una ruta (soft delete)
    */
   async eliminarRuta(id: string): Promise<void> {
-    return apiRequest<void>('DELETE', `/routes/${id}`);
+    try {
+      return await apiRequest<void>('DELETE', `/routes/${id}`);
+    } catch (error: any) {
+      if (
+        (typeof navigator !== 'undefined' && !navigator.onLine) ||
+        error?.statusCode === 0 || 
+        error?.message?.includes('network') ||
+        error?.code === 'ERR_NETWORK'
+      ) {
+        console.log('[Offline Mode] Guardando eliminacion de ruta en cola...');
+        await syncService.enqueueOperation(
+          'ruta_eliminar',
+          `/routes/${id}`,
+          'DELETE',
+          null,
+          'Eliminar ruta ID: ' + id
+        );
+        return;
+      }
+      throw error;
+    }
   },
 
   /**
    * Activar o desactivar una ruta
    */
   async toggleActiva(id: string): Promise<Ruta> {
-    return apiRequest<Ruta>('PATCH', `/routes/${id}/toggle-active`);
+    try {
+      return await apiRequest<Ruta>('PATCH', `/routes/${id}/toggle-active`);
+    } catch (error: any) {
+      if (
+        (typeof navigator !== 'undefined' && !navigator.onLine) ||
+        error?.statusCode === 0 || 
+        error?.message?.includes('network') ||
+        error?.code === 'ERR_NETWORK'
+      ) {
+        console.log('[Offline Mode] Guardando cambio de estado de ruta en cola...');
+        return await syncService.enqueueOperation(
+          'ruta_toggle_activa',
+          `/routes/${id}/toggle-active`,
+          'PATCH',
+          null,
+          'Alternar estado activo de ruta ID: ' + id
+        ) as any;
+      }
+      throw error;
+    }
   },
 
   /**
    * Asignar cliente a una ruta
    */
   async asignarCliente(rutaId: string, clienteId: string, cobradorId: string): Promise<void> {
-    return apiRequest<void>('POST', `/routes/${rutaId}/assign-client`, {
-      clienteId,
-      cobradorId
-    });
+    try {
+      return await apiRequest<void>('POST', `/routes/${rutaId}/assign-client`, {
+        clienteId,
+        cobradorId
+      });
+    } catch (error: any) {
+      if (
+        (typeof navigator !== 'undefined' && !navigator.onLine) ||
+        error?.statusCode === 0 || 
+        error?.message?.includes('network') ||
+        error?.code === 'ERR_NETWORK'
+      ) {
+        console.log('[Offline Mode] Guardando asignacion de cliente a ruta en cola...');
+        await syncService.enqueueOperation(
+          'ruta_asignar_cliente',
+          `/routes/${rutaId}/assign-client`,
+          'POST',
+          { clienteId, cobradorId },
+          `Asignar cliente ${clienteId} a ruta: ${rutaId}`
+        );
+        return;
+      }
+      throw error;
+    }
   },
 
   /**
    * Remover cliente de una ruta
    */
   async removerCliente(rutaId: string, clienteId: string): Promise<void> {
-    return apiRequest<void>('DELETE', `/routes/${rutaId}/remove-client/${clienteId}`);
+    try {
+      return await apiRequest<void>('DELETE', `/routes/${rutaId}/remove-client/${clienteId}`);
+    } catch (error: any) {
+      if (
+        (typeof navigator !== 'undefined' && !navigator.onLine) ||
+        error?.statusCode === 0 || 
+        error?.message?.includes('network') ||
+        error?.code === 'ERR_NETWORK'
+      ) {
+        console.log('[Offline Mode] Guardando remocion de cliente de ruta en cola...');
+        await syncService.enqueueOperation(
+          'ruta_remover_cliente',
+          `/routes/${rutaId}/remove-client/${clienteId}`,
+          'DELETE',
+          null,
+          `Remover cliente ${clienteId} de ruta: ${rutaId}`
+        );
+        return;
+      }
+      throw error;
+    }
   },
 
   /**
    * Mover cliente entre rutas
    */
   async moverCliente(clienteId: string, fromRutaId: string, toRutaId: string): Promise<void> {
-    return apiRequest<void>('POST', '/routes/move-client', {
-      clienteId,
-      fromRutaId,
-      toRutaId
-    });
+    try {
+      return await apiRequest<void>('POST', '/routes/move-client', {
+        clienteId,
+        fromRutaId,
+        toRutaId
+      });
+    } catch (error: any) {
+      if (
+        (typeof navigator !== 'undefined' && !navigator.onLine) ||
+        error?.statusCode === 0 || 
+        error?.message?.includes('network') ||
+        error?.code === 'ERR_NETWORK'
+      ) {
+        console.log('[Offline Mode] Guardando movimiento de cliente entre rutas en cola...');
+        await syncService.enqueueOperation(
+          'ruta_mover_cliente',
+          '/routes/move-client',
+          'POST',
+          { clienteId, fromRutaId, toRutaId },
+          `Mover cliente ${clienteId} de ruta ${fromRutaId} a ${toRutaId}`
+        );
+        return;
+      }
+      throw error;
+    }
   },
 
   /**
@@ -182,6 +320,25 @@ export const rutasService = {
    * Actualizar orden de clientes en una ruta (drag & drop)
    */
   async actualizarOrdenClientes(rutaId: string, orden: Array<{ clienteId: string; orden: number }>): Promise<any> {
-    return apiRequest('PATCH', `/routes/${rutaId}/reorder`, { orden });
+    try {
+      return await apiRequest('PATCH', `/routes/${rutaId}/reorder`, { orden });
+    } catch (error: any) {
+      if (
+        (typeof navigator !== 'undefined' && !navigator.onLine) ||
+        error?.statusCode === 0 || 
+        error?.message?.includes('network') ||
+        error?.code === 'ERR_NETWORK'
+      ) {
+        console.log('[Offline Mode] Guardando reordenamiento de clientes en cola...');
+        return await syncService.enqueueOperation(
+          'ruta_reorder_clientes',
+          `/routes/${rutaId}/reorder`,
+          'PATCH',
+          { orden },
+          `Reordenar clientes en ruta: ${rutaId}`
+        ) as any;
+      }
+      throw error;
+    }
   },
 };

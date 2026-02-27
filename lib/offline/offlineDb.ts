@@ -63,7 +63,7 @@ export interface OfflineRuta {
 
 export interface OfflineQueueItem {
   id: string;
-  type: 'pago' | 'cliente_update' | 'prestamo_update' | 'cliente_create' | 'prestamo_create' | 'cliente_delete';
+  type: string;
   endpoint: string;
   method: 'POST' | 'PUT' | 'PATCH' | 'DELETE';
   data: unknown;
@@ -72,7 +72,7 @@ export interface OfflineQueueItem {
   description: string;
   amount?: number;
   createdAt: string;
-  status: 'pending' | 'syncing' | 'failed';
+  status: 'pending' | 'syncing' | 'failed' | 'completed';
   retries: number;
   lastError?: string;
   priority: 'high' | 'normal' | 'low';
@@ -106,6 +106,21 @@ interface OfflineDB extends DBSchema {
     value: OfflineRuta;
     indexes: { 'by-cobradorId': string };
   };
+  productos: {
+    key: string;
+    value: any;
+    indexes: { 'by-categoria': string };
+  };
+  cajas: {
+    key: string;
+    value: any;
+    indexes: { 'by-tipo': string };
+  };
+  usuarios: {
+    key: string;
+    value: any;
+    indexes: { 'by-rol': string };
+  };
   'offline-queue': {
     key: string;
     value: OfflineQueueItem;
@@ -118,7 +133,7 @@ interface OfflineDB extends DBSchema {
 }
 
 const DB_NAME = 'creditsur-offline';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 
 let dbPromise: Promise<IDBPDatabase<OfflineDB>> | null = null;
 
@@ -152,6 +167,24 @@ export const getOfflineDb = async (): Promise<IDBPDatabase<OfflineDB>> => {
           const rutasStore = db.createObjectStore('rutas', { keyPath: 'id' });
           rutasStore.createIndex('by-cobradorId', 'cobradorId');
         }
+        
+        // Productos
+        if (!db.objectStoreNames.contains('productos')) {
+          const productosStore = db.createObjectStore('productos', { keyPath: 'id' });
+          productosStore.createIndex('by-categoria', 'categoria');
+        }
+
+        // Cajas
+        if (!db.objectStoreNames.contains('cajas')) {
+          const cajasStore = db.createObjectStore('cajas', { keyPath: 'id' });
+          cajasStore.createIndex('by-tipo', 'tipo');
+        }
+
+        // Usuarios
+        if (!db.objectStoreNames.contains('usuarios')) {
+          const usuariosStore = db.createObjectStore('usuarios', { keyPath: 'id' });
+          usuariosStore.createIndex('by-rol', 'rol');
+        }
 
         // Cola de operaciones offline
         if (!db.objectStoreNames.contains('offline-queue')) {
@@ -172,7 +205,7 @@ export const getOfflineDb = async (): Promise<IDBPDatabase<OfflineDB>> => {
 
 // ─── Operaciones genéricas ───────────────────────────────────────
 
-type StoreName = 'clientes' | 'prestamos' | 'cuotas' | 'rutas';
+type StoreName = 'clientes' | 'prestamos' | 'cuotas' | 'rutas' | 'productos' | 'cajas' | 'usuarios';
 
 export const offlineStore = {
   // Guardar múltiples registros (bulk upsert o overwrite completo)
@@ -241,6 +274,9 @@ export const offlineStore = {
       db.clear('prestamos'),
       db.clear('cuotas'),
       db.clear('rutas'),
+      db.clear('productos'),
+      db.clear('cajas'),
+      db.clear('usuarios'),
       db.clear('sync-meta'),
     ]);
   },

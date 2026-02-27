@@ -193,34 +193,43 @@ export default function NuevoClienteModal({ onClose, onClienteCreado, cliente = 
       onClose();
 
     } catch (error: any) {
-      console.error(error);
-      // Si estamos offline, encolar la operación
-      if (!navigator.onLine) {
+      console.error('[NuevoClienteModal] Error:', error);
+      
+      // Si el servicio no pudo manejar el modo offline automáticamente (ej. navigator.onLine es true pero falló)
+      // o si queremos asegurar que se guarde localmente ante cualquier error de conexión
+      const isNetworkError = !navigator.onLine || error?.statusCode === 0 || error?.code === 'ERR_NETWORK';
+      
+      if (isNetworkError) {
         try {
+          const { enqueueClienteCreate, enqueueClienteUpdate } = await import('@/lib/offline/offlineQueue');
+          
           if (esEdicion && cliente?.id) {
-            await enqueueClienteUpdate(cliente.id, payload as unknown as Record<string, unknown>, `${formulario.nombres} ${formulario.apellidos}`);
+            await enqueueClienteUpdate(cliente.id, payload as any, `${formulario.nombres} ${formulario.apellidos}`);
           } else {
-            const { enqueueClienteUpdate: enqueue } = await import('@/lib/offline/offlineQueue');
-            await enqueue('new', payload as any, `${formulario.nombres} ${formulario.apellidos}`);
+            await enqueueClienteCreate(payload as any, `${formulario.nombres} ${formulario.apellidos}`);
           }
-          showNotification('warning', 'Sin conexión. La operación se guardó en cola y se enviará cuando vuelva la conexión.', 'Guardado Offline');
+          
+          showNotification('warning', 'Sin conexión con el servidor. La operación se guardó localmente y se enviará automáticamente al reconectar.', 'Modo Offline');
+          
           onClienteCreado({
             ...formulario,
             id: `offline-${Date.now()}`,
-            codigo: 'PENDIENTE',
+            codigo: 'OFFLINE',
+            estadoAprobacion: 'PENDIENTE',
+            creadoEn: new Date().toISOString(),
           } as any);
+          
           onClose();
           return;
-        } catch {
-          // Si falla el encolado, mostrar error normal
+        } catch (queueError) {
+          console.error('[NuevoClienteModal] Falló el guardado en cola:', queueError);
         }
       }
+
       if (error?.statusCode === 409) {
-        const msg = error?.message || 'El cliente ya existe (posiblemente archivado).';
-        showNotification('warning', msg, 'Cliente existente');
+        showNotification('warning', error.message || 'El cliente ya existe.', 'Conflicto');
       } else {
-        const message = error?.message || 'Error al guardar el cliente';
-        showNotification('error', message, 'Error');
+        showNotification('error', error.message || 'No se pudo guardar el cliente', 'Error');
       }
     } finally {
       setIsSubmitting(false);

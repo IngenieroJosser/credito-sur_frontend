@@ -14,6 +14,12 @@ export const offlineQueue = {
       retries: 0,
     };
     await db.put('offline-queue', queueItem);
+    
+    // Notificar cambio
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('offline-queue-changed'));
+    }
+    
     return queueItem;
   },
 
@@ -55,12 +61,22 @@ export const offlineQueue = {
       item.lastError = lastError;
     }
     await db.put('offline-queue', item);
+
+    // Notificar cambio
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('offline-queue-changed'));
+    }
   },
 
   // Eliminar una operación de la cola
   async remove(id: string): Promise<void> {
     const db = await getOfflineDb();
     await db.delete('offline-queue', id);
+
+    // Notificar cambio
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('offline-queue-changed'));
+    }
   },
 
   // Limpiar operaciones completadas (synced)
@@ -87,6 +103,18 @@ export const offlineQueue = {
   async countFailed(): Promise<number> {
     const db = await getOfflineDb();
     return db.countFromIndex('offline-queue', 'by-status', 'failed');
+  },
+
+  // Contar en proceso
+  async countSyncing(): Promise<number> {
+    const db = await getOfflineDb();
+    return db.countFromIndex('offline-queue', 'by-status', 'syncing');
+  },
+
+  // Contar completados (historial breve)
+  async countCompleted(): Promise<number> {
+    const db = await getOfflineDb();
+    return db.countFromIndex('offline-queue', 'by-status', 'completed');
   },
 };
 
@@ -133,4 +161,35 @@ export const enqueueClienteUpdate = async (
     description: `Actualizar cliente: ${clienteNombre || clienteId}`,
     priority: 'normal',
   });
+};
+
+export const enqueueClienteCreate = async (
+  data: Record<string, unknown>,
+  clienteNombre?: string
+) => {
+  return offlineQueue.enqueue({
+    type: 'cliente_create',
+    endpoint: '/clients',
+    method: 'POST',
+    data,
+    description: `Crear cliente: ${clienteNombre || 'Nuevo Cliente'}`,
+    priority: 'normal',
+  });
+};
+
+/**
+ * Registra una actividad de sincronización instantánea para ser mostrada en el dashboard.
+ * Útil para dar feedback cuando se está online pero se quiere feedback visual de la sync.
+ */
+export const logSyncActivity = (description: string) => {
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('offline-activity', { 
+      detail: { 
+        id: `act-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+        description,
+        timestamp: new Date().toISOString(),
+        status: 'completed'
+      } 
+    }));
+  }
 };
