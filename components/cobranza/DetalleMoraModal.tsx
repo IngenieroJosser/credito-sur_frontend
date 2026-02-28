@@ -32,7 +32,7 @@ interface DetalleMoraModalProps {
     diasMora: number
     montoMora: number
     montoTotalDeuda: number
-    montoOriginal: number
+    montoOriginal?: number
     cuotasVencidas: number
     ruta: string
     cobrador: string
