@@ -31,12 +31,27 @@ export interface CrearAuditoriaDto {
   metadata?: any;
 }
 
+export interface RegistroAuditoriaPaginado {
+  registros: RegistroAuditoria[];
+  total: number;
+  pagina: number;
+  limite: number;
+  totalPaginas: number;
+}
+
 export const auditoriaService = {
   /**
-   * Obtener todos los registros de auditoria
+   * Obtener todos los registros de auditoria (hasta 100, sin paginar)
    */
   async obtenerRegistros(): Promise<RegistroAuditoria[]> {
     return apiRequest<RegistroAuditoria[]>('GET', '/audit');
+  },
+
+  /**
+   * Obtener registros de auditoría con paginación real del backend
+   */
+  async obtenerRegistrosPaginados(pagina: number = 1, limite: number = 50): Promise<RegistroAuditoriaPaginado> {
+    return apiRequest<RegistroAuditoriaPaginado>('GET', `/audit?pagina=${pagina}&limite=${limite}`);
   },
 
   /**

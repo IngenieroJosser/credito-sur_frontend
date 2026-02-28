@@ -1,18 +1,25 @@
+'use client'
+
+/**
+ * GestionarVencidaModal — Gestionar una cuenta cuyo contrato ya venció
+ *
+ * Opciones:
+ * - PRORROGAR: extender el plazo con opción de cobrar mora
+ * - CASTIGAR:  marcar como pérdida contable
+ * - JURIDICO:  escalar a cobro jurídico
+ *
+ * Diseño consistente con el sistema: header de gradiente, footer slate,
+ * scroll interno, cierre al click fuera, loading state.
+ */
+
 import React, { useState } from 'react'
-import { 
-  X, 
-  AlertCircle, 
-  DollarSign, 
-  Percent,
-  Save,
-  Ban,
-  Calculator,
-  Check,
-  Clock,
-  CalendarClock
+import { createPortal } from 'react-dom'
+import {
+  X, AlertCircle, DollarSign, Save, Ban, Clock,
+  CalendarClock, Check, Loader2, Scale, Info,
+  ChevronRight
 } from 'lucide-react'
 import { formatCurrency, cn } from '@/lib/utils'
-import { createPortal } from 'react-dom'
 
 interface CuentaVencida {
   id: string
@@ -33,15 +40,41 @@ interface CuentaVencida {
 interface GestionarVencidaModalProps {
   cuenta: CuentaVencida
   onClose: () => void
-  onConfirm: (data: { 
-    decision: 'CASTIGAR' | 'PRORROGAR'; 
-    montoInteres: number; 
-    diasGracia: number;
-    comentarios?: string;
+  onConfirm: (data: {
+    decision: 'CASTIGAR' | 'PRORROGAR'
+    montoInteres: number
+    diasGracia: number
+    comentarios?: string
   }) => void
 }
 
-const MODAL_Z_INDEX = 50
+type Decision = 'PRORROGAR' | 'CASTIGAR'
+
+const DECISION_CONFIG: Record<Decision, {
+  label: string
+  description: string
+  icon: React.ReactNode
+  activeColor: string
+  activeBorder: string
+  activeBg: string
+}> = {
+  PRORROGAR: {
+    label: 'Prorrogar Plan',
+    description: 'Extender plazo + cobrar mora opcional',
+    icon: <Clock className="h-5 w-5" />,
+    activeColor: 'text-[#08557f]',
+    activeBorder: 'border-[#08557f]',
+    activeBg: 'bg-blue-50/50',
+  },
+  CASTIGAR: {
+    label: 'Reportar Pérdida',
+    description: 'Castigar cartera como incobrable',
+    icon: <Ban className="h-5 w-5" />,
+    activeColor: 'text-rose-700',
+    activeBorder: 'border-rose-500',
+    activeBg: 'bg-rose-50/50',
+  },
+}
 
 function Portal({ children }: { children: React.ReactNode }) {
   if (typeof document === 'undefined') return null
@@ -49,222 +82,273 @@ function Portal({ children }: { children: React.ReactNode }) {
 }
 
 export default function GestionarVencidaModal({ cuenta, onClose, onConfirm }: GestionarVencidaModalProps) {
-  const [decision, setDecision] = useState<'CASTIGAR' | 'PRORROGAR'>('PRORROGAR')
+  const [decision, setDecision] = useState<Decision>('PRORROGAR')
   const [cobrarInteres, setCobrarInteres] = useState(true)
   const [montoInteres, setMontoInteres] = useState<string>('')
   const [diasGracia, setDiasGracia] = useState<string>('30')
   const [comentarios, setComentarios] = useState('')
-  
-  const handleConfirm = () => {
-    onConfirm({
-      decision,
-      montoInteres: cobrarInteres ? Number(montoInteres) : 0,
-      diasGracia: Number(diasGracia),
-      comentarios
-    })
-    onClose()
-  }
+  const [isLoading, setIsLoading] = useState(false)
 
-  // Calcular nueva fecha proyectada
-  const getNuevaFecha = () => {
-    const hoy = new Date()
-    hoy.setDate(hoy.getDate() + Number(diasGracia || 0))
-    return hoy.toLocaleDateString()
+  const cfg = DECISION_CONFIG[decision]
+
+  const nuevaFecha = (() => {
+    const d = new Date()
+    d.setDate(d.getDate() + Number(diasGracia || 0))
+    return d.toLocaleDateString('es-CO', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })
+  })()
+
+  const montoInteresNum = cobrarInteres ? Number(montoInteres || 0) : 0
+
+  const isValid = decision !== 'PRORROGAR' || (Number(diasGracia) >= 1)
+
+  const handleConfirm = async () => {
+    if (!isValid || isLoading) return
+    setIsLoading(true)
+    try {
+      await onConfirm({
+        decision,
+        montoInteres: montoInteresNum,
+        diasGracia: decision === 'PRORROGAR' ? Number(diasGracia) : 0,
+        comentarios,
+      })
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   return (
     <Portal>
-      <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm transition-opacity z-[49]" onClick={onClose} />
-      <div className="fixed inset-0 flex items-center justify-center p-4 overflow-y-auto" style={{ zIndex: MODAL_Z_INDEX }}>
-        <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden animate-in zoom-in-95 duration-200 my-8">
-          
-          {/* Header */}
+      <div
+        className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200"
+        style={{ zIndex: 2147483600 }}
+        onClick={onClose}
+      />
+      <div
+        className="fixed inset-0 flex items-center justify-center p-4"
+        style={{ zIndex: 2147483601 }}
+      >
+        <div
+          className="bg-white rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden animate-in zoom-in-95 duration-200 flex flex-col max-h-[90vh] border border-slate-100"
+          onClick={e => e.stopPropagation()}
+        >
+          {/* ── Header ── */}
           <div className={cn(
-            "px-6 py-5 flex items-center justify-between relative overflow-hidden transition-colors",
-            decision === 'PRORROGAR' ? "bg-[#08557f]" : "bg-slate-800"
+            'px-7 py-5 relative overflow-hidden shrink-0 transition-colors duration-300',
+            decision === 'PRORROGAR' ? 'bg-gradient-to-br from-[#08557f] to-blue-800'
+            : decision === 'CASTIGAR'  ? 'bg-gradient-to-br from-rose-700 to-rose-900'
+            : 'bg-gradient-to-br from-slate-700 to-slate-900'
           )}>
-             
-            <div className="absolute inset-0 opacity-20">
-                <div className="absolute -right-4 -top-10 w-32 h-32 rounded-full bg-white blur-3xl"></div>
-                <div className="absolute -left-4 -bottom-10 w-24 h-24 rounded-full bg-blue-400 blur-2xl"></div>
+            <div className="absolute inset-0 opacity-10">
+              <div className="absolute -right-8 -top-8 w-40 h-40 rounded-full bg-white blur-3xl" />
             </div>
-
-            <div className="relative z-10">
-              <h2 className="text-xl font-bold text-white flex items-center gap-2">
-                <AlertCircle className="h-5 w-5 text-orange-300" />
-                Gestión de Cuenta Vencida
-              </h2>
-              <p className="text-blue-100 text-xs mt-1 font-medium">
-                Préstamo: <span className="text-white font-mono bg-white/10 px-1.5 py-0.5 rounded">{cuenta.numeroPrestamo}</span>
-              </p>
+            <div className="relative z-10 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 bg-white/15 rounded-xl text-white">
+                  <AlertCircle className="h-5 w-5 text-orange-300" />
+                </div>
+                <div>
+                  <h2 className="text-lg font-black text-white tracking-tight">Gestión de Cuenta Vencida</h2>
+                  <p className="text-white/60 text-[10px] font-bold uppercase tracking-widest mt-0.5">
+                    {cuenta.numeroPrestamo} · {cuenta.cliente.nombre}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={onClose}
+                className="p-2 bg-white/10 hover:bg-white/20 rounded-full text-white transition-colors"
+              >
+                <X className="h-4 w-4" />
+              </button>
             </div>
-            <button 
-              onClick={onClose}
-              className="relative z-10 p-2 bg-white/10 hover:bg-white/20 rounded-full text-white transition-colors border border-white/10"
-            >
-              <X className="h-5 w-5" />
-            </button>
           </div>
 
-          <div className="p-6 space-y-6 max-h-[80vh] overflow-y-auto custom-scrollbar">
-            
-            {/* Resumen */}
+          {/* ── Body ── */}
+          <div className="overflow-y-auto flex-1 p-6 space-y-5">
+
+            {/* Resumen del saldo */}
             <div className="flex items-center gap-4 p-4 bg-rose-50 rounded-2xl border border-rose-100">
-              <div className="h-12 w-12 rounded-xl bg-rose-100 flex items-center justify-center text-rose-600 font-bold shrink-0">
+              <div className="h-12 w-12 rounded-2xl bg-rose-100 flex items-center justify-center text-rose-700 font-black text-sm shrink-0">
                 {cuenta.diasVencidos}d
               </div>
               <div className="flex-1">
-                <div className="text-xs font-bold text-rose-600 uppercase tracking-wide">Saldo Vencido</div>
+                <div className="text-[9px] font-black text-rose-500 uppercase tracking-widest">Saldo Vencido</div>
                 <div className="text-2xl font-black text-slate-900">{formatCurrency(cuenta.saldoPendiente)}</div>
-                <div className="text-sm text-slate-500 font-medium">{cuenta.cliente.nombre}</div>
+                <div className="text-xs text-slate-500 font-medium">{cuenta.cliente.nombre} · {cuenta.ruta || 'Sin ruta'}</div>
               </div>
             </div>
 
-            {/* Tipo de Decisión */}
-            <div className="grid grid-cols-2 gap-3">
-              <button
-                onClick={() => setDecision('PRORROGAR')}
-                className={cn(
-                  "p-4 rounded-2xl border-2 transition-all text-left",
-                  decision === 'PRORROGAR' 
-                    ? "border-[#08557f] bg-blue-50/50" 
-                    : "border-slate-100 bg-slate-50 hover:border-slate-200"
-                )}
-              >
-                <Clock className={cn("h-5 w-5 mb-2", decision === 'PRORROGAR' ? "text-[#08557f]" : "text-slate-400")} />
-                <div className="text-sm font-bold text-slate-900">Prorrogar Plan</div>
-                <div className="text-[10px] text-slate-500 font-medium">Extender plazo de pago</div>
-              </button>
-              <button
-                onClick={() => setDecision('CASTIGAR')}
-                className={cn(
-                  "p-4 rounded-2xl border-2 transition-all text-left",
-                  decision === 'CASTIGAR' 
-                    ? "border-rose-500 bg-rose-50/50" 
-                    : "border-slate-100 bg-slate-50 hover:border-slate-200"
-                )}
-              >
-                <Ban className={cn("h-5 w-5 mb-2", decision === 'CASTIGAR' ? "text-rose-500" : "text-slate-400")} />
-                <div className="text-sm font-bold text-slate-900">Reportar Pérdida</div>
-                <div className="text-[10px] text-slate-500 font-medium">Castigar cartera vencida</div>
-              </button>
+            {/* Selector de decisión */}
+            <div>
+              <label className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em] block mb-2">
+                Tipo de acción
+              </label>
+              <div className="grid grid-cols-3 gap-2">
+                {(Object.keys(DECISION_CONFIG) as Decision[]).map(d => {
+                  const c = DECISION_CONFIG[d]
+                  const isActive = decision === d
+                  return (
+                    <button
+                      key={d}
+                      onClick={() => setDecision(d)}
+                      className={cn(
+                        'p-3 rounded-2xl border-2 transition-all text-left',
+                        isActive ? cn(c.activeBorder, c.activeBg) : 'border-slate-100 bg-slate-50 hover:border-slate-200'
+                      )}
+                    >
+                      <div className={cn('mb-1.5', isActive ? c.activeColor : 'text-slate-400')}>
+                        {c.icon}
+                      </div>
+                      <div className={cn('text-xs font-black', isActive ? 'text-slate-900' : 'text-slate-600')}>
+                        {c.label}
+                      </div>
+                      <div className="text-[9px] text-slate-400 font-medium mt-0.5 leading-tight">
+                        {c.description}
+                      </div>
+                    </button>
+                  )
+                })}
+              </div>
             </div>
 
+            {/* Panel de PRORROGAR */}
             {decision === 'PRORROGAR' && (
-              <div className="space-y-4 animate-in fade-in slide-in-from-top-2">
-                {/* Plazo / Tiempo */}
+              <div className="space-y-4 animate-in fade-in slide-in-from-top-2 duration-200">
+                {/* Días */}
                 <div>
-                  <label className="text-xs font-bold text-slate-700 mb-1.5 block uppercase tracking-wider">Tiempo de Plazo (Días)</label>
+                  <label className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em] block mb-2">
+                    Días de extensión
+                  </label>
                   <div className="relative">
-                    <CalendarClock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-                    <input 
-                      type="number" 
+                    <div className="absolute left-4 top-1/2 -translate-y-1/2 h-8 w-8 bg-blue-50 rounded-xl flex items-center justify-center border border-blue-100">
+                      <CalendarClock className="h-4 w-4 text-blue-600" />
+                    </div>
+                    <input
+                      type="number"
                       value={diasGracia}
-                      onChange={(e) => setDiasGracia(e.target.value)}
+                      onChange={e => setDiasGracia(e.target.value)}
                       placeholder="30"
                       min="1"
-                      className="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-200 bg-white font-bold text-slate-900 focus:ring-4 focus:ring-blue-500/10 focus:border-blue-600 outline-none transition-all"
+                      className="w-full pl-14 pr-4 py-4 rounded-2xl border border-slate-200 font-black text-xl text-slate-900 focus:ring-4 focus:ring-blue-500/10 focus:border-blue-600 outline-none transition-all"
                     />
                   </div>
-                  <p className="text-[10px] text-blue-600 font-bold mt-1.5 flex items-center gap-1">
-                    Nueva fecha límite: <span className="text-slate-900">{getNuevaFecha()}</span>
-                  </p>
+                  {Number(diasGracia) > 0 && (
+                    <p className="text-[10px] text-blue-600 font-bold mt-1.5 flex items-center gap-1">
+                      Nueva fecha límite: <span className="text-slate-900 ml-1">{nuevaFecha}</span>
+                    </p>
+                  )}
                 </div>
 
-                {/* Interés de Mora */}
+                {/* Interés */}
                 <div className="space-y-3">
-                  <label className="flex items-center gap-3 p-4 rounded-xl border border-slate-200 hover:border-blue-200 cursor-pointer transition-all group bg-white shadow-sm">
+                  <label
+                    className="flex items-center gap-3 p-4 rounded-2xl border border-slate-200 hover:border-blue-200 cursor-pointer transition-all bg-white shadow-sm"
+                    onClick={() => setCobrarInteres(!cobrarInteres)}
+                  >
                     <div className={cn(
-                      "h-6 w-6 rounded-lg border-2 flex items-center justify-center transition-colors",
-                      cobrarInteres ? "bg-[#08557f] border-[#08557f]" : "border-slate-300 bg-slate-50 group-hover:border-blue-300"
+                      'h-6 w-6 rounded-lg border-2 flex items-center justify-center transition-colors shrink-0',
+                      cobrarInteres ? 'bg-[#08557f] border-[#08557f]' : 'border-slate-300 bg-slate-50'
                     )}>
-                       <input 
-                          type="checkbox" 
-                          className="hidden" 
-                          checked={cobrarInteres} 
-                          onChange={(e) => setCobrarInteres(e.target.checked)} 
-                       />
-                       {cobrarInteres && <Check className="w-4 h-4 text-white" />}
+                      {cobrarInteres && <Check className="w-4 h-4 text-white" />}
                     </div>
                     <div>
-                       <div className="text-sm font-bold text-slate-900">Aplicar Interés de Mora</div>
-                       <div className="text-xs text-slate-500 text-balance">Se sumará al saldo pendiente del cliente</div>
+                      <div className="text-sm font-black text-slate-900">Cobrar interés de mora adicional</div>
+                      <div className="text-xs text-slate-500">Se sumará al saldo pendiente</div>
                     </div>
                   </label>
 
                   {cobrarInteres && (
-                    <div className="space-y-1.5 animate-in zoom-in-95">
-                        <label className="text-xs font-bold text-slate-900 ml-1 uppercase tracking-wider">Monto de Interés Manual ($)</label>
-                        <div className="relative">
-                          <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-                          <input 
-                              type="number" 
-                              value={montoInteres}
-                              onChange={(e) => setMontoInteres(e.target.value)}
-                              placeholder="0"
-                              className="w-full pl-10 pr-4 py-3 rounded-xl border border-[#08557f]/20 bg-white font-black text-slate-900 focus:ring-4 focus:ring-[#08557f]/10 focus:border-[#08557f] outline-none transition-all"
-                          />
+                    <div className="space-y-2 animate-in zoom-in-95 duration-200">
+                      <label className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em] block">
+                        Monto del interés ($)
+                      </label>
+                      <div className="relative">
+                        <div className="absolute left-4 top-1/2 -translate-y-1/2 h-8 w-8 bg-amber-50 rounded-xl flex items-center justify-center border border-amber-100">
+                          <DollarSign className="h-4 w-4 text-amber-600" />
                         </div>
-                        <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 mt-3">
-                          <div className="flex justify-between items-center text-xs">
-                            <span className="text-slate-500 font-medium">Nueva Deuda Total</span>
-                            <span className="text-slate-900 font-black text-base">{formatCurrency(cuenta.saldoPendiente + Number(montoInteres || 0))}</span>
-                          </div>
+                        <input
+                          type="number"
+                          value={montoInteres}
+                          onChange={e => setMontoInteres(e.target.value)}
+                          placeholder="0"
+                          className="w-full pl-14 pr-4 py-4 rounded-2xl border border-amber-200 font-black text-xl text-slate-900 focus:ring-4 focus:ring-amber-500/10 focus:border-amber-500 outline-none transition-all"
+                        />
+                      </div>
+                      {montoInteresNum > 0 && (
+                        <div className="flex justify-between items-center px-4 py-3 bg-slate-50 rounded-2xl border border-slate-200 text-sm">
+                          <span className="text-slate-500 font-medium">Nueva deuda total</span>
+                          <span className="font-black text-slate-900">{formatCurrency(cuenta.saldoPendiente + montoInteresNum)}</span>
                         </div>
+                      )}
                     </div>
                   )}
                 </div>
-
-                {/* Comentarios */}
-                <div>
-                  <label className="text-xs font-bold text-slate-700 mb-1.5 block uppercase tracking-wider">Observaciones</label>
-                  <textarea 
-                    value={comentarios}
-                    onChange={(e) => setComentarios(e.target.value)}
-                    placeholder="Ej. El cliente se compromete a pagar..."
-                    className="w-full p-4 rounded-xl border border-slate-200 bg-white text-sm font-medium focus:ring-4 focus:ring-blue-500/10 focus:border-blue-600 outline-none transition-all min-h-[100px] resize-none"
-                  />
-                </div>
               </div>
             )}
 
+            {/* Panel de CASTIGAR */}
             {decision === 'CASTIGAR' && (
-              <div className="p-4 bg-rose-50 rounded-2xl border border-rose-100 space-y-3 animate-in fade-in slide-in-from-top-2">
+              <div className="p-4 bg-rose-50 rounded-2xl border border-rose-100 space-y-3 animate-in fade-in slide-in-from-top-2 duration-200">
                 <div className="flex items-start gap-3">
                   <AlertCircle className="h-5 w-5 text-rose-500 shrink-0 mt-0.5" />
                   <div>
-                    <h4 className="text-sm font-bold text-rose-900">¿Desea reportar esta cuenta como pérdida?</h4>
+                    <h4 className="text-sm font-black text-rose-900">¿Reportar como pérdida?</h4>
                     <p className="text-xs text-rose-700 leading-relaxed mt-1">
-                      Esta acción marcará el préstamo como incobrable y el capital restante {formatCurrency(cuenta.saldoPendiente)} será registrado como saldo negativo en el balance.
+                      Esta acción marcará el préstamo como pérdida contable.
+                      El capital restante <strong>{formatCurrency(cuenta.saldoPendiente)}</strong> quedará registrado como cartera castigada.
+                      Esta acción es <strong>irreversible</strong>.
                     </p>
                   </div>
                 </div>
-                <textarea 
-                    value={comentarios}
-                    onChange={(e) => setComentarios(e.target.value)}
-                    placeholder="Escriba la razón del castigo de cartera..."
-                    className="w-full p-3 rounded-xl border border-rose-200 bg-white text-sm font-medium focus:ring-4 focus:ring-rose-500/10 focus:border-rose-500 outline-none transition-all min-h-[80px]"
-                  />
               </div>
             )}
 
-            {/* Actions */}
-            <div className="grid grid-cols-2 gap-3 pt-2 border-t border-slate-100 mt-4">
-               <button onClick={onClose} className="py-3.5 px-4 rounded-xl text-slate-600 font-bold bg-slate-100 hover:bg-slate-200 transition-colors">
-                  Cancelar
-               </button>
-               <button 
-                onClick={handleConfirm}
-                className={cn(
-                  "py-3.5 px-4 rounded-xl text-white font-bold transition-all shadow-lg flex items-center justify-center gap-2 hover:scale-[1.02] active:scale-95",
-                  decision === 'PRORROGAR' ? "bg-[#08557f] shadow-blue-900/20 hover:bg-[#063a58]" : "bg-rose-600 shadow-rose-900/20 hover:bg-rose-700"
-                )}
-               >
-                  <Save className="h-4 w-4" />
-                  {decision === 'PRORROGAR' ? 'Actualizar Cuenta' : 'Reportar Pérdida'}
-               </button>
+            {/* Observaciones */}
+            <div>
+              <label className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em] block mb-2">
+                Observaciones {decision !== 'CASTIGAR' ? '(opcional)' : '(requerido)'}
+              </label>
+              <textarea
+                value={comentarios}
+                onChange={e => setComentarios(e.target.value)}
+                placeholder={
+                  decision === 'PRORROGAR' ? 'Ej: El cliente se compromete a pagar...'
+                  : 'Razón del castigo de cartera...'
+                }
+                rows={3}
+                className="w-full p-4 rounded-2xl border border-slate-200 bg-white text-sm font-medium text-slate-700 focus:ring-4 focus:ring-blue-500/10 focus:border-blue-600 outline-none transition-all resize-none placeholder:text-slate-300"
+              />
             </div>
+          </div>
 
+          {/* ── Footer ── */}
+          <div className="px-6 py-5 bg-slate-50 border-t border-slate-100 flex gap-3 shrink-0">
+            <button
+              onClick={onClose}
+              className="flex-1 py-3.5 px-4 rounded-2xl text-slate-600 font-black text-[10px] uppercase tracking-widest bg-white border border-slate-200 hover:bg-slate-100 transition-colors"
+            >
+              Cancelar
+            </button>
+            <button
+              onClick={handleConfirm}
+              disabled={!isValid || isLoading || (decision === 'CASTIGAR' && !comentarios.trim())}
+              className={cn(
+                'flex-[2] py-3.5 px-4 rounded-2xl text-white font-black text-[10px] uppercase tracking-widest transition-all shadow-xl flex items-center justify-center gap-2',
+                (!isValid || isLoading || (decision === 'CASTIGAR' && !comentarios.trim()))
+                  ? 'bg-slate-200 text-slate-400 cursor-not-allowed shadow-none'
+                  : decision === 'PRORROGAR'
+                    ? 'bg-[#08557f] shadow-blue-900/20 hover:scale-[1.02] active:scale-95'
+                    : 'bg-rose-600 shadow-rose-900/20 hover:bg-rose-700'
+              )}
+            >
+              {isLoading ? (
+                <><Loader2 className="h-4 w-4 animate-spin" /> Procesando...</>
+              ) : (
+                <>
+                  <Save className="h-4 w-4" />
+                  {decision === 'PRORROGAR' ? 'Confirmar Prórroga' : 'Confirmar Pérdida'}
+                </>
+              )}
+            </button>
           </div>
         </div>
       </div>

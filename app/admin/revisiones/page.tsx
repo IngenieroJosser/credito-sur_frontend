@@ -35,6 +35,8 @@ import {
   Ban,
   RotateCcw,
   Calendar,
+  TrendingDown,
+  Gavel,
 } from 'lucide-react'
 import { formatCurrency } from '@/lib/utils'
 import { aprobacionesService, type Aprobacion, type PendingResponse, type SuperadminReviewResponse } from '@/services/aprobaciones-service'
@@ -92,6 +94,23 @@ const CATEGORIAS: Record<string, { label: string; icon: any; color: string; bgCo
     color: 'text-slate-600',
     bgColor: 'bg-slate-50',
     borderColor: 'border-slate-200',
+    tipoNotif: 'SISTEMA',
+  },
+  // ── Gestión Mora ──────────────────────────────────────────────────────
+  ASIGNAR_MORA: {
+    label: 'Intereses de Mora',
+    icon: TrendingDown,
+    color: 'text-amber-600',
+    bgColor: 'bg-amber-50',
+    borderColor: 'border-amber-200',
+    tipoNotif: 'SISTEMA',
+  },
+  GESTION_VENCIDA: {
+    label: 'Cuentas Vencidas',
+    icon: Gavel,
+    color: 'text-rose-700',
+    bgColor: 'bg-rose-50',
+    borderColor: 'border-rose-200',
     tipoNotif: 'SISTEMA',
   },
 }
@@ -312,6 +331,24 @@ export default function RevisionesPage() {
     const isProcessing = processingId === item.id
 
     const getResumen = () => {
+      // Detectar subtipo de mora/vencida primero
+      if (datos.tipo === 'ASIGNAR_MORA') {
+        return {
+          titulo: datos.cliente || 'Cliente',
+          subtitulo: `Préstamo ${datos.numeroPrestamo || 'N/A'} · ${datos.diasGracia} días de plazo · Asignado por ${datos.asignadoPor || 'N/A'}`,
+          monto: Number(datos.montoInteres || 0),
+        }
+      }
+      if (datos.tipo === 'GESTION_VENCIDA') {
+        const LABEL_DECISION: Record<string, string> = {
+          PRORROGAR: '📅 Prórroga', CASTIGAR: '🔴 Baja por pérdida', JURIDICO: '⚖️ Cobro jurídico',
+        }
+        return {
+          titulo: datos.cliente || 'Cliente',
+          subtitulo: `${LABEL_DECISION[datos.decision] || datos.decision} · Préstamo ${datos.numeroPrestamo || 'N/A'} · por ${datos.gestionadoPor || 'N/A'}`,
+          monto: Number(datos.saldoPendiente || item.montoSolicitud || 0),
+        }
+      }
       switch (item.tipoAprobacion) {
         case 'NUEVO_CLIENTE':
           return {
