@@ -21,7 +21,7 @@ export default async function Page() {
 
   return (
     <RutasPageView 
-      rutasBasePath="/rutas" 
+      rutasBasePath="/admin/rutas" 
       rutas={rutas} 
       cobradores={cobradoresList}
       supervisores={supervisoresList}
