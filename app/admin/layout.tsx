@@ -49,6 +49,7 @@ import { notificacionesService, type Notificacion } from '@/services/notificacio
 import UserDropdownMenu, { formatRoleName, getRoleColor, getRoleIcon } from '@/components/ui/UserDropdownMenu'
 import { useNotificaciones } from '@/components/providers/NotificacionesProvider';
 import PushNotificationPrompt from '@/components/push/PushNotificationPrompt';
+import { aprobacionesService } from '@/services/aprobaciones-service';
 
 interface NavigationItem {
   name: string;
@@ -105,6 +106,9 @@ export default function AdminLayout({
   const [openMenus, setOpenMenus] = useState<Record<string, boolean>>({}) // Controla qué submenús están expandidos
   const [seenModules, setSeenModules] = useState<string[]>([]) // Rastrea qué módulos "Nuevos" ya vio el usuario
 
+  // Estado para badge de revisiones pendientes
+  const [pendingRevisiones, setPendingRevisiones] = useState<number>(0)
+
   const pathname = usePathname()
   const router = useRouter()
 
@@ -146,6 +150,23 @@ export default function AdminLayout({
       document.removeEventListener('mousedown', handleClickOutside)
     }
   }, [])
+
+  // Polling de revisiones pendientes cada 30 segundos (solo roles con acceso)
+  useEffect(() => {
+    const ROLES_CON_REVISIONES = ['SUPER_ADMINISTRADOR', 'ADMIN', 'COORDINADOR']
+    if (!user?.rol || !ROLES_CON_REVISIONES.includes(user.rol)) return
+
+    const fetchPending = async () => {
+      try {
+        const res = await aprobacionesService.obtenerPendientes()
+        setPendingRevisiones(res?.total ?? 0)
+      } catch { /* silencioso */ }
+    }
+
+    fetchPending()
+    const interval = setInterval(fetchPending, 30_000)
+    return () => clearInterval(interval)
+  }, [user?.rol])
 
   // Carga inicial de datos del usuario y configuración del menú
   useEffect(() => {
@@ -585,11 +606,16 @@ export default function AdminLayout({
                           </div>
                           <span className="text-sm">{item.name}</span>
                         </div>
-                        {isNew && (
-                            <span className="text-[10px] font-bold text-white bg-gradient-to-r from-pink-500 to-rose-500 px-1.5 py-0.5 rounded-full shadow-sm animate-pulse">
-                              NUEVO
-                            </span>
-                        )}
+                        {/* Badge revisiones pendientes */}
+                        {item.id === 'revisiones' && pendingRevisiones > 0 ? (
+                          <span className="min-w-[20px] h-5 px-1.5 flex items-center justify-center text-[10px] font-black text-white bg-rose-500 rounded-full shadow-sm animate-pulse">
+                            {pendingRevisiones > 99 ? '99+' : pendingRevisiones}
+                          </span>
+                        ) : isNew ? (
+                          <span className="text-[10px] font-bold text-white bg-gradient-to-r from-pink-500 to-rose-500 px-1.5 py-0.5 rounded-full shadow-sm animate-pulse">
+                            NUEVO
+                          </span>
+                        ) : null}
                       </Link>
                     )
                   })}

@@ -34,6 +34,11 @@ const AuditoriaSistemaPage = () => {
   const [error, setError] = useState<string | null>(null)
   const [filtroRuta, setFiltroRuta] = useState<string>('Todas')
   const [rutas, setRutas] = useState<Route[]>([])
+  // Paginación
+  const [pagina, setPagina] = useState(1)
+  const [totalPaginas, setTotalPaginas] = useState(1)
+  const [totalRegistros, setTotalRegistros] = useState(0)
+  const LIMITE = 50
 
   interface LogItem {
     id: string
@@ -61,14 +66,19 @@ const AuditoriaSistemaPage = () => {
         setLoading(true)
         setError(null)
         const [registrosResp, rutasResp] = await Promise.all([
-          auditoriaService.obtenerRegistros(),
+          auditoriaService.obtenerRegistrosPaginados(pagina, LIMITE),
           routesService.getAll({ limit: 1000 })
         ])
-        const registros = registrosResp
         const rutasList = rutasResp?.data || []
         setRutas(rutasList)
+        // Soporte tanto respuesta paginada como lista plana
+        const registros = (registrosResp as any).registros ?? registrosResp
+        const total = (registrosResp as any).total ?? registros.length
+        const totPag = (registrosResp as any).totalPaginas ?? 1
+        setTotalRegistros(total)
+        setTotalPaginas(totPag)
         const rutaMap = new Map<string, string>()
-        rutasList.forEach(r => rutaMap.set(r.id, r.nombre))
+        rutasList.forEach((r: Route) => rutaMap.set(r.id, r.nombre))
         const items: LogItem[] = registros.map((r: RegistroAuditoria) => ({
           id: r.id,
           usuario: r.usuario ? `${r.usuario.nombres} ${r.usuario.apellidos}` : r.usuarioId,
@@ -88,7 +98,7 @@ const AuditoriaSistemaPage = () => {
         setLoading(false)
       }
     })()
-  }, [])
+  }, [pagina])
 
   const handleExportExcel = async () => {
     try {
@@ -412,13 +422,44 @@ const AuditoriaSistemaPage = () => {
             </div>
           )}
           
-          <div className="p-4 border-t border-slate-100 bg-slate-50/30 flex justify-between items-center text-xs text-slate-500 font-medium">
-            <span>Mostrando {logsFiltrados.length} de {logs.length} eventos</span>
-            <div className="flex gap-2">
-              <button disabled className="px-4 py-2 rounded-lg border border-slate-200 bg-white opacity-50 cursor-not-allowed font-bold flex items-center gap-1">
+          {/* Paginador */}
+          <div className="p-4 border-t border-slate-100 bg-slate-50/30 flex flex-col sm:flex-row justify-between items-center gap-3 text-xs text-slate-500 font-medium">
+            <span>
+              Mostrando <strong className="text-slate-700">{logs.length}</strong> de <strong className="text-slate-700">{totalRegistros}</strong> registros
+              {totalPaginas > 1 && <> · Página <strong className="text-slate-700">{pagina}</strong> de <strong className="text-slate-700">{totalPaginas}</strong></>}
+            </span>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setPagina(p => Math.max(1, p - 1))}
+                disabled={pagina <= 1 || loading}
+                className="px-4 py-2 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 font-bold transition-colors flex items-center gap-1 disabled:opacity-40 disabled:cursor-not-allowed"
+              >
                 <ChevronLeft className="h-3 w-3" /> Anterior
               </button>
-              <button className="px-4 py-2 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 font-bold transition-colors flex items-center gap-1">
+              {/* Botones de página visibles */}
+              {Array.from({ length: Math.min(5, totalPaginas) }, (_, i) => {
+                const start = Math.max(1, pagina - 2)
+                const p = start + i
+                if (p > totalPaginas) return null
+                return (
+                  <button
+                    key={p}
+                    onClick={() => setPagina(p)}
+                    className={`w-9 h-9 rounded-lg border font-bold text-xs transition-colors ${
+                      p === pagina
+                        ? 'bg-slate-900 text-white border-slate-900'
+                        : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+                    }`}
+                  >
+                    {p}
+                  </button>
+                )
+              })}
+              <button
+                onClick={() => setPagina(p => Math.min(totalPaginas, p + 1))}
+                disabled={pagina >= totalPaginas || loading}
+                className="px-4 py-2 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 font-bold transition-colors flex items-center gap-1 disabled:opacity-40 disabled:cursor-not-allowed"
+              >
                 Siguiente <ChevronRight className="h-3 w-3" />
               </button>
             </div>
