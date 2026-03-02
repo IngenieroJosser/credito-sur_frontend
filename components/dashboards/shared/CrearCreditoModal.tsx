@@ -70,6 +70,11 @@ export default function CrearCreditoModal({ isOpen, onClose, onConfirm, defaultC
   useEffect(() => {
     if (isOpen) {
         if (defaultClienteId) setClienteCreditoId(defaultClienteId)
+        if (!fechaPrimerCobro) {
+          const now = new Date()
+          const tzAdjusted = new Date(now.getTime() - now.getTimezoneOffset() * 60000)
+          setFechaPrimerCobro(tzAdjusted.toISOString().split('T')[0])
+        }
         Promise.all([
           clientesService.obtenerTodos(),
           articulosService.obtenerArticulos()
@@ -302,6 +307,10 @@ export default function CrearCreditoModal({ isOpen, onClose, onConfirm, defaultC
                              const target = new Date(y, day <= 15 ? m : m + 1, 15);
                              const iso = target.toISOString().split('T')[0];
                              setFechaPrimerCobro(iso);
+                           } else {
+                             const now = new Date()
+                             const tzAdjusted = new Date(now.getTime() - now.getTimezoneOffset() * 60000)
+                             setFechaPrimerCobro(tzAdjusted.toISOString().split('T')[0])
                            }
                          }}
                          className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-[#08557f] focus:ring-0 font-medium text-slate-900"
