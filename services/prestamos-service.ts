@@ -31,8 +31,13 @@ export interface CrearPrestamoDto {
   tasaInteresMora: number;
   plazoMeses: number;
   frecuenciaPago: FrecuenciaPago;
+  tipoAmortizacion?: 'INTERES_SIMPLE' | 'FRANCESA';
   fechaInicio: string;
+  fechaPrimerCobro?: string;
   creadoPorId: string;
+  cuotaInicial?: number;
+  notas?: string;
+  garantia?: string;
 }
 
 export interface FiltrosPrestamos {
