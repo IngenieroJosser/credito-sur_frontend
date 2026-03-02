@@ -32,6 +32,7 @@ export interface PrestamoDetalle {
   duracion: string;
   frecuencia: string;
   fechaInicio: string;
+  fechaPrimerCobro?: string;
   fechaVencimiento: string;
   estado: 'ACTIVO' | 'PAGADO' | 'EN_MORA' | 'PENDIENTE' | 'PENDIENTE_APROBACION' | string;
   tipoAmortizacion?: 'FRANCESA' | 'INTERES_SIMPLE';
@@ -45,6 +46,7 @@ export interface PrestamoDetalle {
     categoria?: string;
   };
   garantia?: string;
+  notas?: string;
   fotos?: string[];
   cuotas: {
     numero: number;

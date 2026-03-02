@@ -68,6 +68,7 @@ export default function DetallePrestamoModal({ id, onClose }: DetallePrestamoMod
           duracion: meses ? `${meses} Meses` : (data.duracion || ''),
           frecuencia: data.frecuenciaPago || data.frecuencia || 'SEMANAL',
           fechaInicio: data.fechaInicio || '',
+          fechaPrimerCobro: data.fechaPrimerCobro || undefined,
           fechaVencimiento: data.fechaFin || data.fechaVencimiento || '',
           estado: data.estado || 'ACTIVO',
           tipoAmortizacion: data.tipoAmortizacion || 'INTERES_SIMPLE',
@@ -81,6 +82,7 @@ export default function DetallePrestamoModal({ id, onClose }: DetallePrestamoMod
             categoria: data.producto.categoria
           } : undefined,
           garantia: data.garantia || '',
+          notas: data.notas || '',
           fotos: data.fotos || [],
           cuotas: cuotasData.map((c: any) => ({
             numero: c.numeroCuota,
