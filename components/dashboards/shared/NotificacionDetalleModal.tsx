@@ -59,12 +59,13 @@ export default function NotificacionDetalleModal({
       const meta = typeof notificacion.metadata === 'string'
         ? JSON.parse(notificacion.metadata)
         : (notificacion.metadata || {})
+      const metaDetalles = (meta && typeof meta === 'object') ? (meta.detalles || {}) : {}
         
       const dets = typeof notificacion.detalles === 'string' 
         ? JSON.parse(notificacion.detalles) 
         : (notificacion.detalles || {})
         
-      const combined = { ...meta, ...dets }
+      const combined = { ...meta, ...metaDetalles, ...dets }
       
       // Intentar extraer cédula/teléfono/monto del mensaje si no están en metadata
       const msg = notificacion.mensaje || ''
@@ -125,6 +126,14 @@ export default function NotificacionDetalleModal({
         monto: baseMonto,
         cedula: String(combined.cedula || combined.dni || cedulaFromMsg || ''),
         telefono: String(combined.telefono || combined.phone || ''),
+        notas: String(
+          combined.notas ??
+            combined.observaciones ??
+            combined.comentarios ??
+            combined.nota ??
+            ''
+        ),
+        garantia: String(combined.garantia ?? ''),
       }
       
       const isPrestamoEff = (notificacion?.tipo === 'PRESTAMO' || (notificacion as any)?.approvalType === 'NUEVO_PRESTAMO')
@@ -302,6 +311,7 @@ export default function NotificacionDetalleModal({
   const safeMeta = typeof notificacion.metadata === 'string'
     ? JSON.parse(notificacion.metadata)
     : (notificacion.metadata || {})
+  const safeMetaDetalles = (safeMeta && typeof safeMeta === 'object') ? (safeMeta.detalles || {}) : {}
 
   const isPrestamo = tipo === 'PRESTAMO' || approvalType === 'NUEVO_PRESTAMO'
   const isGasto = tipo === 'GASTO' || approvalType === 'GASTO'
@@ -800,14 +810,14 @@ export default function NotificacionDetalleModal({
                       <label className="text-[10px] text-blue-600 uppercase font-black block mb-1">Notas / Observaciones</label>
                       {isEditingMode ? (
                         <textarea 
-                          value={editedDetails?.garantia || safeMeta?.garantia || editedDetails?.notas || safeMeta?.notas || ''}
+                          value={editedDetails?.garantia || safeMetaDetalles?.garantia || safeMeta?.garantia || editedDetails?.notas || safeMetaDetalles?.notas || safeMeta?.notas || ''}
                           onChange={(e) => setEditedDetails({...editedDetails, garantia: e.target.value})}
                           className="w-full bg-white border border-blue-200 text-slate-900 rounded-xl px-4 py-2 text-xs font-medium outline-none focus:ring-2 focus:ring-blue-500/20 min-h-[60px]"
                           placeholder="Notas adicionales..."
                         />
                       ) : (
                         <p className="text-xs text-slate-600 italic">
-                          {editedDetails?.garantia || safeMeta?.garantia || editedDetails?.notas || safeMeta?.notas || 'Sin notas registradas.'}
+                          {editedDetails?.garantia || safeMetaDetalles?.garantia || safeMeta?.garantia || editedDetails?.notas || safeMetaDetalles?.notas || safeMeta?.notas || 'Sin notas registradas.'}
                         </p>
                       )}
                     </div>
