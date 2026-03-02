@@ -2,7 +2,7 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
 import { Calendar, User, FileText, TrendingUp, Package, Image as ImageIcon, ChevronRight, ChevronLeft, Clock, BarChart3, AlertTriangle } from 'lucide-react';
-import { formatCurrency, cn } from '@/lib/utils';
+import { formatCurrency, cn, resolveMediaUrl } from '@/lib/utils';
 import ClientePortalModal from '@/components/cliente/ClientePortalModal';
 // imports de permiso/servicios de mora removidos: la asignación se hace en Cuentas en Mora
 
@@ -530,20 +530,41 @@ export default function DetallePrestamo({ prestamo }: DetallePrestamoProps) {
           <div className="bg-white rounded-2xl p-6 border border-slate-100">
              {prestamo.fotos && prestamo.fotos.length > 0 ? (
                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                 {prestamo.fotos.map((foto, index) => (
-                   <div key={index} className="aspect-square bg-slate-100 rounded-xl overflow-hidden relative group">
-                     {/* Placeholder real de imagen */}
-                     <div className="w-full h-full flex items-center justify-center text-slate-400">
-                       <ImageIcon className="h-8 w-8" />
-                     </div>
-                     {/* Overlay */}
-                     <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                       <button className="text-white text-xs font-bold bg-white/20 px-3 py-1.5 rounded-full backdrop-blur-sm hover:bg-white/30 transition-colors">
-                         Ver
-                       </button>
-                     </div>
-                   </div>
-                 ))}
+                 {prestamo.fotos.map((foto, index) => {
+                   const src = resolveMediaUrl(foto);
+                   const ext = (String(src).split('.').pop() || '').toLowerCase();
+                   const isVideo = /(mp4|webm|ogg|mov)$/i.test(ext);
+                   const isImage = /(jpg|jpeg|png|gif|webp|bmp|svg)$/i.test(ext);
+                   const isPdf = /pdf$/i.test(ext);
+
+                   return (
+                     <a
+                       key={index}
+                       href={src || undefined}
+                       target="_blank"
+                       rel="noreferrer"
+                       className="aspect-square bg-slate-100 rounded-xl overflow-hidden relative group block"
+                     >
+                       {isImage && (
+                         <img src={src} alt={`Documento ${index + 1}`} className="w-full h-full object-cover" />
+                       )}
+                       {isVideo && (
+                         <video src={src} controls className="w-full h-full object-cover" />
+                       )}
+                       {!isImage && !isVideo && (
+                         <div className="w-full h-full flex flex-col items-center justify-center text-slate-500 gap-2 p-3 text-center">
+                           <FileText className="h-8 w-8 text-slate-400" />
+                           <span className="text-xs font-bold">{isPdf ? 'Abrir PDF' : 'Abrir archivo'}</span>
+                         </div>
+                       )}
+                       <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                         <span className="text-white text-xs font-bold bg-white/20 px-3 py-1.5 rounded-full backdrop-blur-sm hover:bg-white/30 transition-colors">
+                           Ver
+                         </span>
+                       </div>
+                     </a>
+                   );
+                 })}
                </div>
              ) : (
                <div className="text-center py-12">

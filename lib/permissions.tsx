@@ -53,7 +53,7 @@ export interface ModuloPermiso {
 export const permisosPorRol: Record<Rol, ModuloPermiso[]> = {
   SUPER_ADMINISTRADOR: [
     { id: 'dashboard', nombre: 'Dashboard', icono: 'LayoutDashboard', path: '/admin', roles: ['SUPER_ADMINISTRADOR', 'COORDINADOR', 'SUPERVISOR', 'COBRADOR', 'CONTADOR'] },
-    { id: 'revisiones', nombre: 'Revisiones', icono: 'ShieldCheck', path: '/revisiones', roles: ['SUPER_ADMINISTRADOR'], isNew: true },
+    { id: 'revisiones', nombre: 'Revisiones', icono: 'ShieldCheck', path: '/admin/revisiones', roles: ['SUPER_ADMINISTRADOR'], isNew: true },
     { 
       id: 'operaciones', 
       nombre: 'Operaciones', 
@@ -119,7 +119,7 @@ export const permisosPorRol: Record<Rol, ModuloPermiso[]> = {
 
   ADMIN: [
     { id: 'dashboard', nombre: 'Dashboard', icono: 'LayoutDashboard', path: '/admin', roles: ['SUPER_ADMINISTRADOR', 'ADMIN'] },
-    { id: 'revisiones', nombre: 'Revisiones', icono: 'ShieldCheck', path: '/revisiones', roles: ['SUPER_ADMINISTRADOR', 'ADMIN'], isNew: true },
+    { id: 'revisiones', nombre: 'Revisiones', icono: 'ShieldCheck', path: '/admin/revisiones', roles: ['SUPER_ADMINISTRADOR', 'ADMIN'], isNew: true },
     { 
       id: 'operaciones', 
       nombre: 'Operaciones', 
@@ -663,13 +663,34 @@ export const obtenerModulos = (rol: Rol, sidebarData?: SidebarModulo[]): ModuloP
       .filter((m) => m.path !== '#' || (m.submodulos && m.submodulos.length > 0));
   };
 
+  const ensureCuratedAdminModules = (modulos: ModuloPermiso[]): ModuloPermiso[] => {
+    if (rol !== 'SUPER_ADMINISTRADOR' && rol !== 'ADMIN' && rol !== 'COORDINADOR') return modulos;
+
+    const curated = obtenerModulosPorRol(rol);
+    const curatedRevisiones = curated.find((m) => m.id === 'revisiones');
+    if (!curatedRevisiones) return modulos;
+
+    const hasRevisiones = modulos.some(
+      (m) => m.id === 'revisiones' || String(m.path || '').includes('/revisiones'),
+    );
+
+    if (hasRevisiones) return modulos;
+
+    const dashboardIndex = modulos.findIndex((m) => m.id === 'dashboard');
+    const next = [...modulos];
+    const insertAt = dashboardIndex >= 0 ? dashboardIndex + 1 : 0;
+    next.splice(insertAt, 0, curatedRevisiones);
+    return next;
+  };
+
   if (sidebarData && sidebarData.length > 0) {
-    return filterForFloatingButtons(applyAliases(buildSidebarFromApi(sidebarData)));
+    const dynamic = filterForFloatingButtons(applyAliases(buildSidebarFromApi(sidebarData)));
+    return ensureCuratedAdminModules(dynamic);
   }
   if (ROLES_CONOCIDOS.includes(rol)) {
-    return filterForFloatingButtons(applyAliases(obtenerModulosPorRol(rol)));
+    return ensureCuratedAdminModules(filterForFloatingButtons(applyAliases(obtenerModulosPorRol(rol))));
   }
-  return filterForFloatingButtons(applyAliases(buildSidebarFromApi(sidebarData || [])));
+  return ensureCuratedAdminModules(filterForFloatingButtons(applyAliases(buildSidebarFromApi(sidebarData || []))));
 };
 
 // Verificar si un usuario tiene acceso a una ruta

@@ -31,3 +31,13 @@ export const parseCOPInputToNumber = (raw: string) => {
   const digits = raw.replace(/\D/g, '')
   return Number(digits || '0')
 }
+
+export const resolveMediaUrl = (rawUrl: unknown) => {
+  if (!rawUrl) return ''
+  const url = String(rawUrl)
+  if (!url) return ''
+  if (url.startsWith('http://') || url.startsWith('https://')) return url
+  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3001'
+  if (url.startsWith('/')) return `${baseUrl}${url}`
+  return `${baseUrl}/${url}`
+}

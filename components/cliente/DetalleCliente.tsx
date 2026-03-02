@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import {
   User, Phone, Mail, MapPin, Calendar, FileText,
   DollarSign, TrendingUp, AlertCircle, CheckCircle,
@@ -11,7 +12,7 @@ import {
   Image as ImageIcon,
   Map as MapIcon
 } from 'lucide-react';
-import { formatCurrency } from '@/lib/utils';
+import { formatCurrency, resolveMediaUrl } from '@/lib/utils';
 import { ExportButton } from '@/components/ui/ExportButton';
 import DetallePrestamoModal from '@/components/prestamos/DetallePrestamoModal';
 
@@ -105,13 +106,62 @@ const ClienteDetalleElegante: React.FC<ClienteDetalleProps> = ({
   const [isNoteModalOpen, setIsNoteModalOpen] = useState(false);
   const [newNote, setNewNote] = useState('');
   const [idPrestamoAVer, setIdPrestamoAVer] = useState<string | null>(null);
+  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
+  const [isZoomed, setIsZoomed] = useState(false);
+
+  const fotosArr = cliente.fotos ?? [];
+
+  const lightboxItem = (lightboxIndex != null && fotosArr[lightboxIndex])
+    ? fotosArr[lightboxIndex]
+    : null;
+
+  useEffect(() => {
+    if (lightboxIndex == null) return;
+
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setLightboxIndex(null);
+      if (e.key === 'ArrowLeft') {
+        setLightboxIndex((prev) => {
+          if (prev == null || !fotosArr.length) return prev;
+          return (prev - 1 + fotosArr.length) % fotosArr.length;
+        });
+      }
+      if (e.key === 'ArrowRight') {
+        setLightboxIndex((prev) => {
+          if (prev == null || !fotosArr.length) return prev;
+          return (prev + 1) % fotosArr.length;
+        });
+      }
+    };
+
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [lightboxIndex, fotosArr.length]);
+
+  useEffect(() => {
+    setIsZoomed(false);
+  }, [lightboxIndex]);
 
   const calcularTotales = () => {
+    const normalizarEstado = (estado: unknown) => String(estado || '').toUpperCase().trim();
+    const esPrestamoEnMora = (estado: unknown) => {
+      const e = normalizarEstado(estado);
+      return e === 'EN_MORA' || e === 'MORA' || e === 'EN MORA';
+    };
+    const esPrestamoActivo = (estado: unknown) => {
+      const e = normalizarEstado(estado);
+      if (!e) return false;
+      if (e === 'BORRADOR') return false;
+      if (e === 'PAGADO' || e === 'PAGADA' || e === 'CANCELADO' || e === 'CANCELADA' || e === 'RECHAZADO' || e === 'RECHAZADA') return false;
+      if (e === 'INCUMPLIDO' || e === 'ANULADO' || e === 'ANULADA') return false;
+      return true;
+    };
+
     const totalPrestamos = prestamos.reduce((sum, p) => sum + p.montoTotal, 0);
     const totalPagado = prestamos.reduce((sum, p) => sum + p.montoPagado, 0);
     const totalPendiente = prestamos.reduce((sum, p) => sum + p.montoPendiente, 0);
-    const prestamosActivos = prestamos.filter(p => p.estado === 'ACTIVO' || p.estado === 'EN_MORA').length;
-    const prestamosEnMora = prestamos.filter(p => p.estado === 'EN_MORA').length;
+    const prestamosActivos = prestamos.filter(p => esPrestamoActivo(p.estado)).length;
+    const prestamosEnMora = prestamos.filter(p => esPrestamoEnMora(p.estado)).length;
     const totalMora = prestamos.reduce((sum, p) => sum + (p.moraAcumulada || 0), 0);
     
     return {
@@ -598,29 +648,38 @@ const ClienteDetalleElegante: React.FC<ClienteDetalleProps> = ({
               {(cliente.fotos && cliente.fotos.length > 0) ? (
                 cliente.fotos.map((foto, idx) => {
                    const isVideo = foto.match(/\.(mp4|webm|ogg|mov)$/i);
-                   const src = foto.startsWith('http') ? foto : `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3001'}${foto}`;
+                   const src = resolveMediaUrl(foto);
                    
                    return (
-                  <div key={idx} className="group relative aspect-square rounded-2xl overflow-hidden border border-slate-200 bg-slate-100 transition-all hover:shadow-xl">
+                  <button
+                    key={idx}
+                    type="button"
+                    onClick={() => setLightboxIndex(idx)}
+                    className="group relative aspect-square rounded-2xl overflow-hidden border border-slate-200 bg-slate-100 transition-all hover:shadow-xl text-left"
+                  >
                     {isVideo ? (
-                      <video 
-                        src={src} 
-                        controls 
+                      <video
+                        src={src}
                         className="h-full w-full object-cover"
+                        muted
+                        playsInline
                       />
                     ) : (
-                      <img 
-                        src={src} 
-                        alt={`Foto ${idx + 1}`} 
-                        className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110" 
+                      <img
+                        src={src}
+                        alt={`Foto ${idx + 1}`}
+                        className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110"
                       />
                     )}
+                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                      <span className="text-white text-xs font-black bg-white/20 px-3 py-1.5 rounded-full backdrop-blur-sm">Ver</span>
+                    </div>
                     {!isVideo && (
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-end p-4">
+                      <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-end p-4">
                         <p className="text-white text-xs font-bold font-sans">Verificación {idx + 1}</p>
                       </div>
                     )}
-                  </div>
+                  </button>
                    );
                 })
               ) : (
@@ -650,6 +709,90 @@ const ClienteDetalleElegante: React.FC<ClienteDetalleProps> = ({
                 </>
               )}
             </div>
+
+            {lightboxItem && typeof document !== 'undefined' && createPortal(
+              <div
+                className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4"
+                style={{ zIndex: 2147483647 }}
+                onClick={() => {
+                  setLightboxIndex(null);
+                  setIsZoomed(false);
+                }}
+              >
+                <div
+                  className="relative w-full max-w-4xl bg-white rounded-3xl shadow-2xl border border-slate-200 overflow-hidden"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 bg-slate-50/50">
+                    <div className="text-sm font-black text-slate-900">
+                      Archivo {lightboxIndex != null ? lightboxIndex + 1 : 1} de {fotosArr.length}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setLightboxIndex(null)}
+                      className="w-9 h-9 rounded-full bg-white border border-slate-200 text-slate-900 font-black shadow-sm hover:bg-slate-50"
+                      aria-label="Cerrar"
+                    >
+                      ×
+                    </button>
+                  </div>
+
+                  <div className={
+                    `relative bg-black flex items-center justify-center ${isZoomed ? 'overflow-auto' : 'overflow-hidden'} max-h-[78vh]`
+                  }>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (!fotosArr.length) return;
+                        setLightboxIndex((prev) => {
+                          if (prev == null) return prev;
+                          return (prev - 1 + fotosArr.length) % fotosArr.length;
+                        });
+                      }}
+                      className="absolute left-3 top-1/2 -translate-y-1/2 z-10 w-10 h-10 rounded-full bg-white/20 border border-white/30 text-white font-black backdrop-blur-sm"
+                      aria-label="Anterior"
+                    >
+                      ‹
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (!fotosArr.length) return;
+                        setLightboxIndex((prev) => {
+                          if (prev == null) return prev;
+                          return (prev + 1) % fotosArr.length;
+                        });
+                      }}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 z-10 w-10 h-10 rounded-full bg-white/20 border border-white/30 text-white font-black backdrop-blur-sm"
+                      aria-label="Siguiente"
+                    >
+                      ›
+                    </button>
+
+                    {(/\.(mp4|webm|ogg|mov)$/i.test(lightboxItem)) ? (
+                      <video
+                        src={resolveMediaUrl(lightboxItem)}
+                        controls
+                        autoPlay
+                        className="max-w-full max-h-[78vh] w-auto h-auto object-contain"
+                      />
+                    ) : (
+                      <img
+                        src={resolveMediaUrl(lightboxItem)}
+                        alt="Vista completa"
+                        onClick={() => setIsZoomed((z) => !z)}
+                        className={
+                          `max-w-full max-h-[78vh] w-auto h-auto object-contain ${isZoomed ? 'cursor-zoom-out' : 'cursor-zoom-in'}`
+                        }
+                        style={isZoomed ? { maxWidth: 'none', maxHeight: 'none' } : undefined}
+                      />
+                    )}
+                  </div>
+                </div>
+              </div>,
+              document.body
+            )}
           </div>
         )}
       </div>

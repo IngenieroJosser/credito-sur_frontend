@@ -51,6 +51,18 @@ export default function DetallePrestamoModal({ id, onClose }: DetallePrestamoMod
         const montoTotal = isArticle ? (principal + cuotaInicial) : (principal + interesTotal);
         const saldoPendiente = Number(data.saldoPendiente || 0);
 
+        const fotos = Array.isArray(data.fotos)
+          ? data.fotos
+          : Array.isArray(data.archivos)
+            ? data.archivos
+              .map((a: any) => a?.url || a?.path || a?.ruta)
+              .filter(Boolean)
+            : Array.isArray(data?.cliente?.archivos)
+              ? data.cliente.archivos
+                .map((a: any) => a?.url || a?.path || a?.ruta)
+                .filter(Boolean)
+              : [];
+
         setPrestamo({
           id: data.id || id,
           clienteId: data.clienteId || data.cliente?.id || '',
@@ -83,7 +95,7 @@ export default function DetallePrestamoModal({ id, onClose }: DetallePrestamoMod
           } : undefined,
           garantia: data.garantia || '',
           notas: data.notas || '',
-          fotos: data.fotos || [],
+          fotos,
           cuotas: cuotasData.map((c: any) => ({
             numero: c.numeroCuota,
             fecha: c.fechaVencimiento,
