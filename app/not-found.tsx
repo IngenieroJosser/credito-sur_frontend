@@ -21,7 +21,7 @@ const NotFoundPage = () => {
     { id: 1, label: 'Dashboard', path: '/admin', icon: Grid },
     { id: 2, label: 'Créditos', path: '/admin/creditos' },
     { id: 3, label: 'Préstamos', path: '/admin/prestamos' },
-    { id: 4, label: 'Cobranzas', path: '/admin/cobranzas' },
+    { id: 4, label: 'Cobranzas', path: '/cobranzas' },
     { id: 5, label: 'Clientes', path: '/admin/clientes' },
     { id: 6, label: 'Reportes', path: '/admin/reportes/operativos' },
   ]
