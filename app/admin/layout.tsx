@@ -87,7 +87,7 @@ export default function AdminLayout({
   const [authChecked, setAuthChecked] = useState(false)
   
   // Proveedor global WebSocket
-  const { notificaciones, unreadCount, showDropdown: showNotifications, setShowDropdown: setShowNotifications, marcarTodasComoLeidas, marcarComoLeida } = useNotificaciones();
+  const { socket, notificaciones, unreadCount, showDropdown: showNotifications, setShowDropdown: setShowNotifications, marcarTodasComoLeidas, marcarComoLeida } = useNotificaciones();
   
   const [isLoadingNotificaciones, setIsLoadingNotificaciones] = useState(false)
   
@@ -167,6 +167,41 @@ export default function AdminLayout({
     const interval = setInterval(fetchPending, 30_000)
     return () => clearInterval(interval)
   }, [user?.rol])
+
+  // Tiempo real: cuando el backend emite eventos de aprobaciones/clientes/préstamos, refrescamos el badge al instante
+  useEffect(() => {
+    const ROLES_CON_REVISIONES = ['SUPER_ADMINISTRADOR', 'ADMIN', 'COORDINADOR']
+    if (!user?.rol || !ROLES_CON_REVISIONES.includes(user.rol)) return
+    if (!socket) return
+
+    const fetchPending = async () => {
+      try {
+        const res = await aprobacionesService.obtenerPendientes()
+        setPendingRevisiones(res?.total ?? 0)
+      } catch {
+        // silencioso
+      }
+    }
+
+    const handler = () => {
+      fetchPending()
+    }
+
+    socket.on('aprobaciones_actualizadas', handler)
+    socket.on('clientes_actualizados', handler)
+    socket.on('prestamos_actualizados', handler)
+    socket.on('dashboards_actualizados', handler)
+
+    // sync inmediato al engancharse (por si el polling aún no corrió)
+    fetchPending()
+
+    return () => {
+      socket.off('aprobaciones_actualizadas', handler)
+      socket.off('clientes_actualizados', handler)
+      socket.off('prestamos_actualizados', handler)
+      socket.off('dashboards_actualizados', handler)
+    }
+  }, [socket, user?.rol])
 
   // Carga inicial de datos del usuario y configuración del menú
   useEffect(() => {
