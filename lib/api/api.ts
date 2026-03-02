@@ -34,8 +34,10 @@ export const apiRequest = async <T>(
   const isGET = method.toUpperCase() === "GET";
   const cacheKey = getCacheKey(method, url);
 
+  const requestedCacheTTL = config?.cacheTTL;
+
   // 1. CACHE HIT (ahora asíncrono)
-  if (isGET) {
+  if (isGET && requestedCacheTTL !== 0) {
     const cached = await getCached<T>(cacheKey);
     if (cached) return cached;
   }

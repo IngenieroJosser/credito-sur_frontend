@@ -112,7 +112,7 @@ export const clientesService = {
    * Obtener un cliente por ID
    */
   async obtenerPorId(id: string): Promise<Cliente> {
-    return apiRequest<Cliente>('GET', `/clients/${id}`);
+    return apiRequest<Cliente>('GET', `/clients/${id}`, undefined, { cacheTTL: 0 });
   },
 
   /**

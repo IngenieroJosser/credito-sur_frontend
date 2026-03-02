@@ -130,11 +130,16 @@ export default function ClienteDetalleSupervisorPage() {
     )
   }
 
+  const fotos: string[] = (clienteData.archivos || [])
+    .map((a: any) => a?.url || a?.path || a?.ruta)
+    .filter(Boolean)
+
   const cliente: Cliente = {
     ...clienteData,
     fechaRegistro: clienteData.creadoEn || 'No disponible',
     ruta: clienteData.asignacionesRuta?.[0]?.ruta?.nombre || 'Sin Ruta',
     avatarColor: 'bg-blue-600',
+    fotos,
   }
 
   const prestamos: Prestamo[] = (clienteData.prestamos || []).map((p: any) => {

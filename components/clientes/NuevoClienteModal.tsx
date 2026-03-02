@@ -8,6 +8,8 @@ import { clientesService, CrearClienteDto, Cliente } from '@/services/clientes-s
 import MediaUpload from '@/components/ui/MediaUpload';
 import { enqueueClienteUpdate } from '@/lib/offline/offlineQueue';
 
+import { resolveMediaUrl } from '@/lib/utils';
+
 import { UploadResponse } from '@/services/upload-service';
 
 interface NuevoClienteModalProps {
@@ -88,7 +90,7 @@ export default function NuevoClienteModal({ onClose, onClienteCreado, cliente = 
 
           fullClient.archivos.forEach((file: any) => {
              const url = file.url || file.path || file.ruta;
-             const fullUrl = url.startsWith('http') ? url : `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3001'}${url}`;
+             const fullUrl = resolveMediaUrl(url);
              
              if (file.tipoContenido === 'FOTO_PERFIL') {
                newExisting.fotoPerfil = fullUrl;
@@ -135,9 +137,9 @@ export default function NuevoClienteModal({ onClose, onClienteCreado, cliente = 
         archivos.push({
           tipoContenido: map.tipo,
           tipoArchivo: upload.mimetype,
-          nombreOriginal: upload.filename,
-          nombreAlmacenamiento: upload.filename,
-          ruta: upload.path,
+          nombreOriginal: (upload as any).originalName || upload.filename,
+          nombreAlmacenamiento: (upload as any).publicId || upload.filename,
+          ruta: (upload as any).publicId || upload.filename,
           url: upload.path,
           tamanoBytes: upload.size,
         });
@@ -370,6 +372,12 @@ export default function NuevoClienteModal({ onClose, onClienteCreado, cliente = 
                     accept="image/jpeg,image/png,image/webp"
                     maxSize={2}
                     existingUrl={existingFiles.fotoPerfil || undefined}
+                    uploadMeta={{
+                      dni: formulario.dni,
+                      nombres: formulario.nombres,
+                      apellidos: formulario.apellidos,
+                      tipoContenido: 'FOTO_PERFIL',
+                    }}
                     onChange={(file) => {
                       if (!file) {
                         setExistingFiles(prev => ({ ...prev, fotoPerfil: null }));
@@ -385,6 +393,12 @@ export default function NuevoClienteModal({ onClose, onClienteCreado, cliente = 
                     accept="image/jpeg,image/png,image/webp"
                     maxSize={5}
                     existingUrl={existingFiles.documentoFrente || undefined}
+                    uploadMeta={{
+                      dni: formulario.dni,
+                      nombres: formulario.nombres,
+                      apellidos: formulario.apellidos,
+                      tipoContenido: 'DOCUMENTO_IDENTIDAD_FRENTE',
+                    }}
                     onChange={(file) => {
                       if (!file) {
                         setExistingFiles(prev => ({ ...prev, documentoFrente: null }));
@@ -400,6 +414,12 @@ export default function NuevoClienteModal({ onClose, onClienteCreado, cliente = 
                     accept="image/jpeg,image/png,image/webp"
                     maxSize={5}
                     existingUrl={existingFiles.documentoReverso || undefined}
+                    uploadMeta={{
+                      dni: formulario.dni,
+                      nombres: formulario.nombres,
+                      apellidos: formulario.apellidos,
+                      tipoContenido: 'DOCUMENTO_IDENTIDAD_REVERSO',
+                    }}
                     onChange={(file) => {
                       if (!file) {
                         setExistingFiles(prev => ({ ...prev, documentoReverso: null }));
@@ -415,6 +435,12 @@ export default function NuevoClienteModal({ onClose, onClienteCreado, cliente = 
                     accept="image/jpeg,image/png,image/webp,video/mp4,video/webm"
                     maxSize={50}
                     existingUrl={existingFiles.comprobanteDomicilio || undefined}
+                    uploadMeta={{
+                      dni: formulario.dni,
+                      nombres: formulario.nombres,
+                      apellidos: formulario.apellidos,
+                      tipoContenido: 'COMPROBANTE_DOMICILIO',
+                    }}
                     onChange={(file) => {
                       if (!file) {
                         setExistingFiles(prev => ({ ...prev, comprobanteDomicilio: null }));

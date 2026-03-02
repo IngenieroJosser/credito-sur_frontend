@@ -62,11 +62,16 @@ export default function ClienteDetallePage() {
   }
 
   // Mapeo de datos del backend a la interfaz de UI
+  const fotos: string[] = (clienteData.archivos || [])
+    .map((a: any) => a?.url || a?.path || a?.ruta)
+    .filter(Boolean)
+
   const cliente: Cliente = {
     ...clienteData,
     fechaRegistro: clienteData.creadoEn || 'No disponible',
     ruta: clienteData.asignacionesRuta?.[0]?.ruta?.nombre || 'Sin Ruta',
-    avatarColor: 'bg-blue-600'
+    avatarColor: 'bg-blue-600',
+    fotos,
   };
 
   // Mapeo de préstamos (si vienen del backend)

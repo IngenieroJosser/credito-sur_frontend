@@ -17,7 +17,7 @@ import {
   Layers
 } from 'lucide-react'
 import { Portal } from '@/components/dashboards/shared/CobradorElements'
-import { formatCurrency, formatCOPInputValue, parseCOPInputToNumber } from '@/lib/utils'
+import { formatCurrency, formatCOPInputValue, parseCOPInputToNumber, resolveMediaUrl } from '@/lib/utils'
 import { aprobacionesService } from '@/services/aprobaciones-service'
 import { articulosService } from '@/services/articulos-service'
 import ConfirmApproveModal from '@/components/ui/ConfirmApproveModal'
@@ -319,7 +319,6 @@ export default function NotificacionDetalleModal({
   const isArticle = isPrestamo && (editedDetails?.tipo === 'ARTICULO' || safeMeta?.tipo === 'ARTICULO' || titulo.toLowerCase().includes('artículo') || titulo.toLowerCase().includes('articulo') || mensaje.toLowerCase().includes('artículo') || mensaje.toLowerCase().includes('articulo'))
   const isApprovalNotification = Boolean(approvalType)
   const isNuevoCliente = approvalType === 'NUEVO_CLIENTE'
-  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3001'
   const mediaArchivos = (() => {
     const meta = typeof notificacion.metadata === 'string' ? JSON.parse(notificacion.metadata) : (notificacion.metadata || {})
     const dets = typeof notificacion.detalles === 'string' ? JSON.parse(notificacion.detalles) : (notificacion.detalles || {})
@@ -439,7 +438,7 @@ export default function NotificacionDetalleModal({
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
             {mediaArchivos.map((file, idx) => {
               const url = file.url || file.path || file.ruta
-              const fullUrl = String(url || '').startsWith('http') ? url : `${baseUrl}${url || ''}`
+              const fullUrl = resolveMediaUrl(url)
               const tipo = String(file.tipoArchivo || '').toLowerCase()
               const ext = (String(fullUrl).split('.').pop() || '').toLowerCase()
               const isImage = tipo.startsWith('image/') || /(jpg|jpeg|png|gif|webp)$/i.test(ext)

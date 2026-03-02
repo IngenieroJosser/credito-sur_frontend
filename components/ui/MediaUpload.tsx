@@ -25,6 +25,13 @@ export interface MediaUploadProps {
   existingUrl?: string; // URL de imagen existente (al editar)
   onChange?: (file: File | null) => void;
   onUploadComplete?: (data: UploadResponse) => void; // AHORA RECIBE DATA REAL
+  uploadMeta?: {
+    clienteId?: string;
+    dni?: string;
+    nombres?: string;
+    apellidos?: string;
+    tipoContenido?: string;
+  };
   className?: string;
   disabled?: boolean;
   multiple?: boolean;
@@ -42,6 +49,7 @@ export default function MediaUpload({
   existingUrl,
   onChange,
   onUploadComplete,
+  uploadMeta,
   className,
   disabled = false,
   multiple = false
@@ -66,7 +74,7 @@ export default function MediaUpload({
 
     try {
       // 1. Subir al servidor real
-      const result = await uploadService.uploadFile(file);
+      const result = await uploadService.uploadFile(file, uploadMeta);
       
       setProgress(100);
       setStatus('success');
@@ -88,7 +96,7 @@ export default function MediaUpload({
       // Resetear estado visual parcial
       setMedia(prev => prev ? { ...prev, status: 'error' } : null);
     }
-  }, [onUploadComplete]);
+  }, [onUploadComplete, uploadMeta]);
 
   const handleFileSelect = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];

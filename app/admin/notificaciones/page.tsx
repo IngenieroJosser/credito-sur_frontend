@@ -529,10 +529,10 @@ export default function NotificacionesPage() {
                 </span>
               </div>
               <h1 className="text-3xl font-bold text-slate-900 tracking-tight">
-                Notificaciones y <span className="text-orange-500">Revisiones</span>
+                Notificaciones
               </h1>
               <p className="text-slate-500 mt-2 text-lg">
-                Gestiona alertas y aprueba solicitudes pendientes en un solo lugar.
+                Gestiona alertas y avisos informativos del sistema.
               </p>
             </div>
             
