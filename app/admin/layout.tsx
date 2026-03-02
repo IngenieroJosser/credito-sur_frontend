@@ -607,7 +607,7 @@ export default function AdminLayout({
                           <span className="text-sm">{item.name}</span>
                         </div>
                         {/* Badge revisiones pendientes */}
-                        {item.id === 'revisiones' && pendingRevisiones > 0 ? (
+                        {typeof item.href === 'string' && item.href.includes('/revisiones') && pendingRevisiones > 0 ? (
                           <span className="min-w-[20px] h-5 px-1.5 flex items-center justify-center text-[10px] font-black text-white bg-rose-500 rounded-full shadow-sm animate-pulse">
                             {pendingRevisiones > 99 ? '99+' : pendingRevisiones}
                           </span>
