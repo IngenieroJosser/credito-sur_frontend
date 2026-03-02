@@ -66,13 +66,68 @@ interface GastoRuta {
 
 interface RutaClientProps {
   initialRuta: RutaDetalleMock | null;
+  rutaId?: string;
 }
 
-const RutaClient = ({ initialRuta }: RutaClientProps) => {
+const RutaClient = ({ initialRuta: initialRutaProp, rutaId }: RutaClientProps) => {
   const { showNotification } = useNotification()
   const router = useRouter()
   const { user: currentUser } = useAuth()
+
+  const [rutaData, setRutaData] = useState<RutaDetalleMock | null>(initialRutaProp)
+  const [loadingRuta, setLoadingRuta] = useState(!initialRutaProp && !!rutaId)
+
+  useEffect(() => {
+    if (rutaData || !rutaId) return
+
+    const run = async () => {
+      try {
+        setLoadingRuta(true)
+        const ruta = await rutasService.obtenerRutaPorId(rutaId)
+        setRutaData(ruta as any)
+      } catch (e) {
+        setRutaData(null)
+      } finally {
+        setLoadingRuta(false)
+      }
+    }
+
+    run()
+  }, [rutaData, rutaId])
+
+  const initialRuta = rutaData
   
+  if (loadingRuta) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+        <div className="flex items-center gap-2 text-slate-600 font-medium">
+          <Loader2 className="w-5 h-5 animate-spin" />
+          <span>Cargando detalle de ruta...</span>
+        </div>
+      </div>
+    )
+  }
+
+  if (!initialRuta) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+        <div className="text-center">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-rose-50 text-xs text-rose-700 font-bold border border-rose-200">
+            <XCircle className="h-3.5 w-3.5" />
+            <span>Ruta no encontrada</span>
+          </div>
+          <p className="mt-4 text-slate-500 font-medium">No se pudo cargar el detalle de la ruta.</p>
+          <button
+            onClick={() => router.back()}
+            className="mt-4 px-4 py-2 rounded-xl bg-white border border-slate-200 text-slate-700 font-bold hover:bg-slate-50"
+          >
+            Volver
+          </button>
+        </div>
+      </div>
+    )
+  }
+
   // No mocks. Use backend data or empty state managed by modals.
   const [gastos] = useState<GastoRuta[]>([])
 
@@ -81,7 +136,7 @@ const RutaClient = ({ initialRuta }: RutaClientProps) => {
   // const [searchQuery, setSearchQuery] ... used in render
   const [searchQuery, setSearchQuery] = useState('')
   const [showFilters, setShowFilters] = useState(false) // Used in render toggle
-  const [rutaCompletada, setRutaCompletada] = useState(!!initialRuta?.activa)
+  const [rutaCompletada, setRutaCompletada] = useState(!!rutaData?.activa)
   const [showClienteSelector, setShowClienteSelector] = useState(false)
   const [showNewClientModal, setShowNewClientModal] = useState(false)
   const [showCrearCreditoModal, setShowCrearCreditoModal] = useState(false)
@@ -105,7 +160,7 @@ const RutaClient = ({ initialRuta }: RutaClientProps) => {
 
   // Prefill historial keys for últimos 30 días (lazy fetch per día al expandir)
   useEffect(() => {
-    if (!showHistory || !initialRuta?.id) return;
+    if (!showHistory || !rutaData?.id) return;
     if (historialRutas && Object.keys(historialRutas).length > 0) return;
     const hoy = new Date();
     const toKey = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -147,20 +202,20 @@ const RutaClient = ({ initialRuta }: RutaClientProps) => {
       } catch (e) { console.warn('Error precargando montos de historial', e); }
     };
     cargarResumenRecaudos();
-  }, [showHistory, initialRuta?.id]);
+  }, [showHistory, rutaData?.id]);
 
   const cargarHistorialFecha = useCallback(async (fechaClave: string) => {
-    if (!initialRuta?.id) return;
+    if (!rutaData?.id) return;
     let visitasResp: any = null;
     let saldo: any = null;
     let pagosDelDia: any[] = [];
     
     try {
-      visitasResp = await rutasService.obtenerVisitasDelDia(initialRuta.id, fechaClave);
+      visitasResp = await rutasService.obtenerVisitasDelDia(rutaData.id, fechaClave);
     } catch(e) { console.warn(`[Admin Historial ${fechaClave}] visitas falló:`, e); }
 
     try {
-      saldo = await obtenerSaldoDisponibleRuta(initialRuta.id, fechaClave);
+      saldo = await obtenerSaldoDisponibleRuta(rutaData.id, fechaClave);
     } catch(e) { console.warn(`[Admin Historial ${fechaClave}] saldo falló:`, e); }
 
     try {
@@ -305,7 +360,7 @@ const RutaClient = ({ initialRuta }: RutaClientProps) => {
     if (!existing || (!existing.loaded)) {
       cargarHistorialFecha(hoy);
     }
-  }, [showHistory, initialRuta?.id, historialRutas, cargarHistorialFecha]);
+  }, [showHistory, rutaId, historialRutas, cargarHistorialFecha]);
 
   // Map ALL asignaciones from backend to visits UI model
   // Un cliente con 2 créditos (diario + semanal) genera 2 entradas separadas
@@ -545,17 +600,6 @@ const RutaClient = ({ initialRuta }: RutaClientProps) => {
 
   const getRiesgoLabel = (riesgo: string) => {
       return riesgo.replace('_', ' ');
-  }
-
-  if (!initialRuta) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-50">
-        <div className="text-center">
-            <h2 className="text-xl font-bold text-slate-800">Ruta no encontrada</h2>
-            <Link href="/rutas" className="text-primary hover:underline mt-2 block">Volver al listado</Link>
-        </div>
-      </div>
-    )
   }
 
   const { estadisticas, nivelRiesgo } = initialRuta;
