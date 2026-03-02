@@ -69,64 +69,25 @@ interface RutaClientProps {
   rutaId?: string;
 }
 
-const RutaClient = ({ initialRuta: initialRutaProp, rutaId }: RutaClientProps) => {
+type RutaClientLoadedProps = {
+  initialRuta: RutaDetalleMock;
+  rutaData: RutaDetalleMock;
+  rutaId?: string;
+  rutaCompletada: boolean;
+  setRutaCompletada: React.Dispatch<React.SetStateAction<boolean>>;
+  currentUser: any;
+};
+
+const RutaClientLoaded = ({
+  initialRuta,
+  rutaData,
+  rutaId,
+  rutaCompletada,
+  setRutaCompletada,
+  currentUser,
+}: RutaClientLoadedProps) => {
   const { showNotification } = useNotification()
   const router = useRouter()
-  const { user: currentUser } = useAuth()
-
-  const [rutaData, setRutaData] = useState<RutaDetalleMock | null>(initialRutaProp)
-  const [loadingRuta, setLoadingRuta] = useState(!initialRutaProp && !!rutaId)
-
-  useEffect(() => {
-    if (rutaData || !rutaId) return
-
-    const run = async () => {
-      try {
-        setLoadingRuta(true)
-        const ruta = await rutasService.obtenerRutaPorId(rutaId)
-        setRutaData(ruta as any)
-      } catch (e) {
-        setRutaData(null)
-      } finally {
-        setLoadingRuta(false)
-      }
-    }
-
-    run()
-  }, [rutaData, rutaId])
-
-  const initialRuta = rutaData
-  
-  if (loadingRuta) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-50">
-        <div className="flex items-center gap-2 text-slate-600 font-medium">
-          <Loader2 className="w-5 h-5 animate-spin" />
-          <span>Cargando detalle de ruta...</span>
-        </div>
-      </div>
-    )
-  }
-
-  if (!initialRuta) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-50">
-        <div className="text-center">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-rose-50 text-xs text-rose-700 font-bold border border-rose-200">
-            <XCircle className="h-3.5 w-3.5" />
-            <span>Ruta no encontrada</span>
-          </div>
-          <p className="mt-4 text-slate-500 font-medium">No se pudo cargar el detalle de la ruta.</p>
-          <button
-            onClick={() => router.back()}
-            className="mt-4 px-4 py-2 rounded-xl bg-white border border-slate-200 text-slate-700 font-bold hover:bg-slate-50"
-          >
-            Volver
-          </button>
-        </div>
-      </div>
-    )
-  }
 
   // No mocks. Use backend data or empty state managed by modals.
   const [gastos] = useState<GastoRuta[]>([])
@@ -136,7 +97,7 @@ const RutaClient = ({ initialRuta: initialRutaProp, rutaId }: RutaClientProps) =
   // const [searchQuery, setSearchQuery] ... used in render
   const [searchQuery, setSearchQuery] = useState('')
   const [showFilters, setShowFilters] = useState(false) // Used in render toggle
-  const [rutaCompletada, setRutaCompletada] = useState(!!rutaData?.activa)
+  // rutaCompletada is owned by the parent wrapper (RutaClient) to keep hook order stable
   const [showClienteSelector, setShowClienteSelector] = useState(false)
   const [showNewClientModal, setShowNewClientModal] = useState(false)
   const [showCrearCreditoModal, setShowCrearCreditoModal] = useState(false)
@@ -1223,6 +1184,78 @@ const RutaClient = ({ initialRuta: initialRutaProp, rutaId }: RutaClientProps) =
         />
       )}
     </div>
+  )
+}
+
+const RutaClient = ({ initialRuta: initialRutaProp, rutaId }: RutaClientProps) => {
+  const router = useRouter()
+  const { user: currentUser } = useAuth()
+
+  const [rutaData, setRutaData] = useState<RutaDetalleMock | null>(initialRutaProp)
+  const [loadingRuta, setLoadingRuta] = useState(!initialRutaProp && !!rutaId)
+  const [rutaCompletada, setRutaCompletada] = useState(!!initialRutaProp?.activa)
+
+  useEffect(() => {
+    if (rutaData || !rutaId) return
+
+    const run = async () => {
+      try {
+        setLoadingRuta(true)
+        const ruta = await rutasService.obtenerRutaPorId(rutaId)
+        setRutaData(ruta as any)
+        setRutaCompletada(!!(ruta as any)?.activa)
+      } catch (e) {
+        setRutaData(null)
+      } finally {
+        setLoadingRuta(false)
+      }
+    }
+
+    run()
+  }, [rutaData, rutaId])
+
+  const initialRuta = rutaData
+
+  if (loadingRuta) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+        <div className="flex items-center gap-2 text-slate-600 font-medium">
+          <Loader2 className="w-5 h-5 animate-spin" />
+          <span>Cargando detalle de ruta...</span>
+        </div>
+      </div>
+    )
+  }
+
+  if (!initialRuta) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+        <div className="text-center">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-rose-50 text-xs text-rose-700 font-bold border border-rose-200">
+            <XCircle className="h-3.5 w-3.5" />
+            <span>Ruta no encontrada</span>
+          </div>
+          <p className="mt-4 text-slate-500 font-medium">No se pudo cargar el detalle de la ruta.</p>
+          <button
+            onClick={() => router.back()}
+            className="mt-4 px-4 py-2 rounded-xl bg-white border border-slate-200 text-slate-700 font-bold hover:bg-slate-50"
+          >
+            Volver
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <RutaClientLoaded
+      initialRuta={initialRuta}
+      rutaData={initialRuta}
+      rutaId={rutaId}
+      rutaCompletada={rutaCompletada}
+      setRutaCompletada={setRutaCompletada}
+      currentUser={currentUser}
+    />
   )
 }
 
