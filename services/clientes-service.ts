@@ -44,6 +44,8 @@ export interface CrearClienteDto {
   nivelRiesgo?: NivelRiesgo;
   puntaje?: number;
   creadoPorId?: string;
+  rutaId?: string;
+  observaciones?: string;
   categoriaId?: string;
   archivos?: {
     tipoContenido: string;
