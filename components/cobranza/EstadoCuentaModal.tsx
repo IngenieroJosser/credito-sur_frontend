@@ -222,6 +222,25 @@ export default function EstadoCuentaModal({ visita, onClose }: EstadoCuentaModal
                         </div>
                     </div>
 
+                    {(loanData?.notas || loanData?.garantia) && (
+                      <div className="bg-slate-50 border border-slate-100 p-5 rounded-2xl">
+                        <div className="grid grid-cols-1 gap-4">
+                          {loanData?.garantia && (
+                            <div>
+                              <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Garantía</div>
+                              <div className="text-xs font-bold text-slate-700">{String(loanData.garantia)}</div>
+                            </div>
+                          )}
+                          {loanData?.notas && (
+                            <div>
+                              <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Notas / Observaciones</div>
+                              <div className="text-xs font-medium text-slate-700 whitespace-pre-wrap">{String(loanData.notas)}</div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
                     {/* Balance (Diseño Original) */}
                     <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
                         <div className="flex justify-between items-end mb-4">

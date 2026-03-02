@@ -258,19 +258,33 @@ export const RutasPageView = ({
     try {
       const rutaDetalle = await routesService.getById(ruta.id);
       if (rutaDetalle.asignaciones) {
-        setClientesRuta(rutaDetalle.asignaciones.map((a: any) => ({
-          id: a.cliente.id,
-          nombre: `${a.cliente.nombres} ${a.cliente.apellidos}`,
-          codigo: a.cliente.dni,
-          direccion: a.cliente.telefono,
-          prestamos: (a.cliente.prestamos || []).filter((p: any) => p.estado === 'ACTIVO' || p.estado === 'EN_MORA').map((p: any) => ({
-            id: p.id,
-            tipo: (p.tipo === 'ARTICULO' || p.tipoPrestamo === 'ARTICULO') ? 'ARTICULO' : 'EFECTIVO',
-            articulo: p.articulo || p.descripcionArticulo || undefined,
-            frecuencia: p.frecuenciaPago || 'DIARIO',
-            saldoPendiente: Number(p.saldoPendiente || 0),
-          })) as PrestamoResumen[]
-        })));
+        const uniqueByClienteId = new Map<string, ClienteSelection>();
+        rutaDetalle.asignaciones.forEach((a: any) => {
+          const clienteId = a?.cliente?.id;
+          if (!clienteId) return;
+          if (uniqueByClienteId.has(clienteId)) return;
+
+          uniqueByClienteId.set(clienteId, {
+            id: clienteId,
+            nombre: `${a.cliente.nombres} ${a.cliente.apellidos}`,
+            codigo: a.cliente.dni,
+            direccion: a.cliente.telefono,
+            prestamos: (a.cliente.prestamos || [])
+              .filter((p: any) => p.estado === 'ACTIVO' || p.estado === 'EN_MORA')
+              .map((p: any) => ({
+                id: p.id,
+                tipo:
+                  p.tipo === 'ARTICULO' || p.tipoPrestamo === 'ARTICULO'
+                    ? 'ARTICULO'
+                    : 'EFECTIVO',
+                articulo: p.articulo || p.descripcionArticulo || undefined,
+                frecuencia: p.frecuenciaPago || 'DIARIO',
+                saldoPendiente: Number(p.saldoPendiente || 0),
+              })) as PrestamoResumen[],
+          });
+        });
+
+        setClientesRuta(Array.from(uniqueByClienteId.values()));
       }
     } catch (error) {
       console.error('Error cargando clientes de la ruta:', error);
@@ -446,7 +460,10 @@ export const RutasPageView = ({
       showNotification('success', `Cliente ${cliente.nombre} asignado a la ruta`, 'Éxito');
       
       // Actualizar lista local
-      setClientesRuta(prev => [...prev, cliente]);
+      setClientesRuta(prev => {
+        if (prev.some((c) => c.id === cliente.id)) return prev;
+        return [...prev, cliente];
+      });
       setIsAddingCliente(false);
       setClienteSearch('');
       
