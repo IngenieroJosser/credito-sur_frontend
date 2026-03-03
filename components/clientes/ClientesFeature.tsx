@@ -667,7 +667,20 @@ export default function ClientesFeature({ initialClientes, basePath = '/admin/cl
             setClientToEdit(null);
           }}
           onClienteCreado={(editado: Cliente) => {
-            setClientes(prev => prev.map(c => c.id === editado.id ? editado as ClienteAdmin : c));
+            setClientes(prev => prev.map((c) => {
+              if (c.id !== editado.id) return c;
+              const patch = editado as any;
+              return {
+                ...c,
+                ...patch,
+                score: patch.score ?? c.score,
+                tendencia: patch.tendencia ?? c.tendencia,
+                montoTotal: patch.montoTotal ?? c.montoTotal,
+                montoMora: patch.montoMora ?? c.montoMora,
+                ultimaVisita: patch.ultimaVisita ?? c.ultimaVisita,
+                prestamosActivos: patch.prestamosActivos ?? c.prestamosActivos,
+              } as ClienteAdmin;
+            }));
             setIsEditModalOpen(false);
             setClientToEdit(null);
             showNotification('success', 'Los datos del cliente han sido actualizados', 'Cliente Actualizado');
