@@ -511,6 +511,14 @@ export default function DetallePrestamo({ prestamo }: DetallePrestamoProps) {
                 Indicadores
               </h3>
               <dl className="space-y-4">
+                <div className="flex justify-between border-b border-slate-50 pb-2">
+                  <dt className="text-xs font-bold text-slate-400">Tipo de interés</dt>
+                  <dd className="text-sm font-bold text-slate-700">
+                    {prestamo.tipoAmortizacion === 'FRANCESA'
+                      ? 'Amortización Francesa (cuota fija)'
+                      : 'Interés Simple'}
+                  </dd>
+                </div>
                 {!isArticle && (
                   <div className="flex justify-between border-b border-slate-50 pb-2">
                     <dt className="text-xs font-bold text-slate-400">Tasa de Interés</dt>
