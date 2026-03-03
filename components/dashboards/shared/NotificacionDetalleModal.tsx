@@ -809,14 +809,14 @@ export default function NotificacionDetalleModal({
                       <label className="text-[10px] text-blue-600 uppercase font-black block mb-1">Notas / Observaciones</label>
                       {isEditingMode ? (
                         <textarea 
-                          value={editedDetails?.garantia || safeMetaDetalles?.garantia || safeMeta?.garantia || editedDetails?.notas || safeMetaDetalles?.notas || safeMeta?.notas || ''}
-                          onChange={(e) => setEditedDetails({...editedDetails, garantia: e.target.value})}
+                          value={editedDetails?.notas || safeMetaDetalles?.notas || safeMeta?.notas || ''}
+                          onChange={(e) => setEditedDetails({ ...editedDetails, notas: e.target.value })}
                           className="w-full bg-white border border-blue-200 text-slate-900 rounded-xl px-4 py-2 text-xs font-medium outline-none focus:ring-2 focus:ring-blue-500/20 min-h-[60px]"
                           placeholder="Notas adicionales..."
                         />
                       ) : (
                         <p className="text-xs text-slate-600 italic">
-                          {editedDetails?.garantia || safeMetaDetalles?.garantia || safeMeta?.garantia || editedDetails?.notas || safeMetaDetalles?.notas || safeMeta?.notas || 'Sin notas registradas.'}
+                          {editedDetails?.notas || safeMetaDetalles?.notas || safeMeta?.notas || 'Sin notas registradas.'}
                         </p>
                       )}
                     </div>
