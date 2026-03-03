@@ -53,11 +53,15 @@ export default function DetallePrestamoModal({ id, onClose }: DetallePrestamoMod
 
         const rawFotos = Array.isArray(data.fotos)
           ? data.fotos
-          : Array.isArray(data.archivos)
+          : Array.isArray(data.archivos) && data.archivos.length > 0
             ? data.archivos
               .map((a: any) => a?.url || a?.path || a?.ruta)
               .filter(Boolean)
-            : [];
+            : Array.isArray(data?.cliente?.archivos)
+              ? data.cliente.archivos
+                .map((a: any) => a?.url || a?.path || a?.ruta)
+                .filter(Boolean)
+              : [];
 
         const fotos: string[] = Array.from(
           new Set(
