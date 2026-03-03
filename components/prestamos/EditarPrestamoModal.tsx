@@ -33,6 +33,10 @@ export default function EditarPrestamoModal({ id, onClose, onSuccess }: EditarPr
   const [loading, setLoading] = useState(false);
   const [fetching, setFetching] = useState(true);
 
+  const [backendInteresTotal, setBackendInteresTotal] = useState(0);
+  const [backendTotalFinal, setBackendTotalFinal] = useState(0);
+  const [backendCuotaProyectada, setBackendCuotaProyectada] = useState(0);
+
   // Form state
   const [monto, setMonto] = useState(0);
   const [tasaStr, setTasaStr] = useState('');
@@ -85,10 +89,14 @@ export default function EditarPrestamoModal({ id, onClose, onSuccess }: EditarPr
   const isArticle = tipoPrestamo?.toUpperCase() === 'ARTICULO';
   const themeColor = isArticle ? 'orange' : 'blue';
 
-  // Computed preview
-  const interesTotal = isArticle ? 0 : (monto * tasa * (plazoMeses || 1)) / 100;
-  const totalRecaudar = isArticle ? monto : monto + interesTotal;
-  const cobroPorCuota = cuotas > 0 ? totalRecaudar / cuotas : 0;
+  // Computed preview (si no hay cambios, usar backend para que coincida con el detalle)
+  const interesTotal = hasChanges ? (isArticle ? 0 : (monto * tasa * (plazoMeses || 1)) / 100) : backendInteresTotal;
+  const totalRecaudar = hasChanges
+    ? (isArticle ? monto : monto + interesTotal)
+    : backendTotalFinal;
+  const cobroPorCuota = hasChanges
+    ? (cuotas > 0 ? totalRecaudar / cuotas : 0)
+    : backendCuotaProyectada;
 
   useEffect(() => {
     setMounted(true);
@@ -103,6 +111,7 @@ export default function EditarPrestamoModal({ id, onClose, onSuccess }: EditarPr
       setFetching(true);
       try {
         const data = await prestamosService.obtenerPrestamoPorId(id);
+        const cuotasData = await prestamosService.obtenerCuotas(id).catch(() => []);
         const m = Number(data.monto) || 0;
         const t = Number(data.tasaInteres) || 0;
         const c = Number(data.cantidadCuotas) || 0;
@@ -115,6 +124,12 @@ export default function EditarPrestamoModal({ id, onClose, onSuccess }: EditarPr
         const n = data.notas || '';
         const g = data.garantia || '';
         const ta = data.tipoAmortizacion || 'INTERES_SIMPLE';
+
+        const interesBackend = Number(data.interesTotal || 0);
+        setBackendInteresTotal(interesBackend);
+        setBackendTotalFinal(((data.tipoPrestamo || '').toUpperCase() === 'ARTICULO') ? (m + ci) : (m + interesBackend));
+        const primeraCuota = Array.isArray(cuotasData) && cuotasData.length > 0 ? Number(cuotasData[0].monto || 0) : 0;
+        setBackendCuotaProyectada(primeraCuota);
 
         setMonto(m); setTasaStr(String(t)); setCuotasStr(String(c)); setPlazoMeses(p);
         setFrecuencia(f); setEstado(e); setTipoAmortizacion(ta);

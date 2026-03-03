@@ -376,6 +376,8 @@ export const prestamosService = {
     cuotaInicial?: number;
     fechaInicio?: string;
     garantia?: string;
+    tipoAmortizacion?: string;
+    archivos?: any[];
   }): Promise<any> {
     try {
       return await apiRequest('PATCH', `/loans/${id}`, data);

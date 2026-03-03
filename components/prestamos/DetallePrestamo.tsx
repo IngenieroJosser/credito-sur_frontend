@@ -200,6 +200,15 @@ export default function DetallePrestamo({ prestamo }: DetallePrestamoProps) {
              <p className="text-2xl font-bold text-slate-900 tracking-tight">{formatCurrency(prestamo.montoPrestamo)}</p>
           </div>
 
+          <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm flex flex-col justify-between h-28">
+             <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Tipo de Interés</span>
+             <p className="text-lg font-bold text-slate-900 tracking-tight">
+               {prestamo.tipoAmortizacion === 'FRANCESA'
+                 ? 'Amortización Francesa'
+                 : 'Interés Simple'}
+             </p>
+          </div>
+
           {/* Abonado */}
           <div className="bg-emerald-50/50 p-5 rounded-2xl border border-emerald-100 shadow-sm flex flex-col justify-between h-28">
              <div className="flex justify-between items-start">
@@ -474,13 +483,21 @@ export default function DetallePrestamo({ prestamo }: DetallePrestamoProps) {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="bg-white rounded-2xl p-6 border border-slate-100">
               <h3 className="text-xs font-black text-slate-900 uppercase tracking-widest mb-6 flex items-center gap-2">
-                <Package className="h-4 w-4 text-slate-400" />
-                Detalles del Producto
+                <BarChart3 className="h-4 w-4 text-slate-400" />
+                Resumen de la Cuenta
               </h3>
               <dl className="space-y-4">
                 <div className="flex justify-between border-b border-slate-50 pb-2">
-                  <dt className="text-xs font-bold text-slate-400">Producto / Artículo</dt>
-                  <dd className="text-sm font-bold text-slate-700">{prestamo.producto || 'N/A'}</dd>
+                  <dt className="text-xs font-bold text-slate-400">Tipo de interés</dt>
+                  <dd className="text-sm font-bold text-slate-700">
+                    {prestamo.tipoAmortizacion === 'FRANCESA'
+                      ? 'Amortización Francesa (cuota fija)'
+                      : 'Interés Simple'}
+                  </dd>
+                </div>
+                <div className="flex justify-between border-b border-slate-50 pb-2">
+                  <dt className="text-xs font-bold text-slate-400">Monto Prestado</dt>
+                  <dd className="text-sm font-bold text-slate-700">{formatCurrency(prestamo.montoPrestamo)}</dd>
                 </div>
                 {prestamo.productoInfo && (
                   <>
