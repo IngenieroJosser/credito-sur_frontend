@@ -51,7 +51,7 @@ export default function DetallePrestamoModal({ id, onClose }: DetallePrestamoMod
         const montoTotal = isArticle ? (principal + cuotaInicial) : (principal + interesTotal);
         const saldoPendiente = Number(data.saldoPendiente || 0);
 
-        const fotos = Array.isArray(data.fotos)
+        const rawFotos = Array.isArray(data.fotos)
           ? data.fotos
           : Array.isArray(data.archivos)
             ? data.archivos
@@ -62,6 +62,16 @@ export default function DetallePrestamoModal({ id, onClose }: DetallePrestamoMod
                 .map((a: any) => a?.url || a?.path || a?.ruta)
                 .filter(Boolean)
               : [];
+
+        const fotos: string[] = Array.from(
+          new Set(
+            (rawFotos || [])
+              .map((u: any) => String(u || '').trim())
+              .filter(Boolean)
+              // filtrar entradas rotas tipo "oxz...jpg" sin ruta/publicId ni URL
+              .filter((u: string) => u.startsWith('http://') || u.startsWith('https://') || u.includes('/'))
+          )
+        );
 
         setPrestamo({
           id: data.id || id,
