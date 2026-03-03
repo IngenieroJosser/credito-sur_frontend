@@ -32,6 +32,63 @@ export const parseCOPInputToNumber = (raw: string) => {
   return Number(digits || '0')
 }
 
+export const formatMilesCOPDecimal = (amount: number) => {
+  return new Intl.NumberFormat('es-CO', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(amount)
+}
+
+const splitCopDecimalParts = (raw: string) => {
+  const s = String(raw ?? '')
+  const cleaned = s.replace(/\./g, '') // quitar separadores de miles
+  const parts = cleaned.split(',')
+  const intPart = (parts[0] || '').replace(/\D/g, '')
+  const decRaw = (parts[1] || '').replace(/\D/g, '').slice(0, 2)
+  return { intPart, decRaw, hasComma: cleaned.includes(',') }
+}
+
+export const formatCOPDecimalTypingInputValue = (raw: string) => {
+  const s = String(raw ?? '')
+  if (!s.trim()) return ''
+
+  const { intPart, decRaw, hasComma } = splitCopDecimalParts(s)
+  if (!intPart) return ''
+
+  const intNum = Number(intPart || '0')
+  const intFmt = new Intl.NumberFormat('es-CO', {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format(intNum)
+
+  if (!hasComma) return intFmt
+  return `${intFmt},${decRaw}`
+}
+
+export const formatCOPDecimalBlurInputValue = (raw: string) => {
+  const s = String(raw ?? '')
+  if (!s.trim()) return ''
+
+  const { intPart, decRaw } = splitCopDecimalParts(s)
+  if (!intPart) return ''
+
+  const intNum = Number(intPart || '0')
+  const intFmt = new Intl.NumberFormat('es-CO', {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format(intNum)
+
+  return `${intFmt},${decRaw.padEnd(2, '0')}`
+}
+
+export const parseCOPDecimalInputToNumber = (raw: string) => {
+  const s = String(raw ?? '').trim()
+  if (!s) return 0
+  const normalized = s.replace(/\./g, '').replace(',', '.')
+  const n = Number(normalized)
+  return isNaN(n) ? 0 : n
+}
+
 export const resolveMediaUrl = (rawUrl: unknown) => {
   if (!rawUrl) return ''
   const url = String(rawUrl)

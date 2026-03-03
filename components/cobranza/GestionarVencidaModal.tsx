@@ -19,7 +19,7 @@ import {
   CalendarClock, Check, Loader2, Scale, Info,
   ChevronRight
 } from 'lucide-react'
-import { formatCurrency, cn } from '@/lib/utils'
+import { formatCurrency, cn, formatCOPDecimalTypingInputValue, formatCOPDecimalBlurInputValue, parseCOPDecimalInputToNumber } from '@/lib/utils'
 
 interface CuentaVencida {
   id: string
@@ -97,7 +97,7 @@ export default function GestionarVencidaModal({ cuenta, onClose, onConfirm }: Ge
     return d.toLocaleDateString('es-CO', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })
   })()
 
-  const montoInteresNum = cobrarInteres ? Number(montoInteres || 0) : 0
+  const montoInteresNum = cobrarInteres ? parseCOPDecimalInputToNumber(montoInteres) : 0
 
   const isValid = decision !== 'PRORROGAR' || (Number(diasGracia) >= 1)
 
@@ -126,6 +126,7 @@ export default function GestionarVencidaModal({ cuenta, onClose, onConfirm }: Ge
       <div
         className="fixed inset-0 flex items-center justify-center p-4"
         style={{ zIndex: 2147483601 }}
+        onClick={onClose}
       >
         <div
           className="bg-white rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden animate-in zoom-in-95 duration-200 flex flex-col max-h-[90vh] border border-slate-100"
@@ -266,9 +267,11 @@ export default function GestionarVencidaModal({ cuenta, onClose, onConfirm }: Ge
                           <DollarSign className="h-4 w-4 text-amber-600" />
                         </div>
                         <input
-                          type="number"
+                          type="text"
+                          inputMode="decimal"
                           value={montoInteres}
-                          onChange={e => setMontoInteres(e.target.value)}
+                          onChange={e => setMontoInteres(formatCOPDecimalTypingInputValue(e.target.value))}
+                          onBlur={(e) => setMontoInteres(formatCOPDecimalBlurInputValue(e.target.value))}
                           placeholder="0"
                           className="w-full pl-14 pr-4 py-4 rounded-2xl border border-amber-200 font-black text-xl text-slate-900 focus:ring-4 focus:ring-amber-500/10 focus:border-amber-500 outline-none transition-all"
                         />
