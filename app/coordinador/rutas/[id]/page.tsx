@@ -983,7 +983,6 @@ const DetalleRutaPage = () => {
           tipo={pagoVisita.tipo}
           onClose={() => setPagoVisita(null)}
           onConfirm={(monto, metodo) => {
-            alert(`Registrar ${pagoVisita.tipo}: $${monto} - ${metodo}`)
             setPagoVisita(null)
           }}
         />
@@ -994,7 +993,6 @@ const DetalleRutaPage = () => {
             visita={visitaReprogramar}
             onClose={() => setVisitaReprogramar(null)}
             onConfirm={(fecha, motivo) => {
-                alert(`Reprogramar para: ${fecha} - ${motivo}`)
                 setVisitaReprogramar(null)
             }}
         />
