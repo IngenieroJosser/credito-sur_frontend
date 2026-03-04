@@ -756,24 +756,7 @@ export default function NotificacionesPage() {
                           <Eye className="h-4 w-4" />
                         </button>
                         
-                        {(notif as any).approvalType && notif.estado !== 'APROBADA' && notif.estado !== 'RECHAZADA' && (
-                          <>
-                            <button
-                              onClick={() => handleOpenConfirm(notif, 'REJECT')}
-                              className="p-2 text-rose-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-colors"
-                              title="Rechazar"
-                            >
-                              <X className="h-4 w-4" />
-                            </button>
-                            <button
-                              onClick={() => handleOpenConfirm(notif, 'APPROVE')}
-                              className="p-2 text-emerald-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-xl transition-colors"
-                              title="Aprobar"
-                            >
-                              <Check className="h-4 w-4" />
-                            </button>
-                          </>
-                        )}
+
 
                          {!notif.leida && (
                            <button
@@ -842,7 +825,7 @@ export default function NotificacionesPage() {
         notificacion={selectedNotif}
         onApprove={handleApproveFromModal}
         onReject={handleRejectFromModal}
-        canApprove={canApprove}
+        canApprove={false}
       />
 
       <ConfirmRejectModal
