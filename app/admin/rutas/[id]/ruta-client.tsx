@@ -114,6 +114,11 @@ const RutaClientLoaded = ({
   const [selectedHistoryMonth, setSelectedHistoryMonth] = useState<string | null>(null)
   const [historyFrecuenciaFiltro, setHistoryFrecuenciaFiltro] = useState<'TODOS' | 'DIA' | 'SEMANA' | 'QUINCENA' | 'MES'>('TODOS')
 
+  // Grupos colapsables en la vista principal de la ruta (por defecto todos abiertos)
+  const [gruposColapsados, setGruposColapsados] = useState<Record<string, boolean>>({})
+  const toggleGrupo = (key: string) =>
+    setGruposColapsados(prev => ({ ...prev, [key]: !prev[key] }))
+
   const historyDates = useMemo(() => {
     if (!historialRutas) return [];
     return Object.keys(historialRutas).sort((a, b) => b.localeCompare(a));
@@ -970,7 +975,7 @@ const RutaClientLoaded = ({
                     </div>
                   </div>
 
-                  {/* LISTA DE VISITAS AGRUPADA POR FRECUENCIA */}
+                  {/* LISTA DE VISITAS AGRUPADA POR FRECUENCIA — Colapsables */}
                   <div className="space-y-10">
                     {Object.entries({
                         MES: 'Mensual',
@@ -980,18 +985,27 @@ const RutaClientLoaded = ({
                     }).map(([key, label]) => {
                         const visitas = visitasAgrupadas[key as keyof typeof visitasAgrupadas];
                         if (visitas.length === 0) return null;
-                        
+                        const estaColapsado = !!gruposColapsados[key];
+
                         return (
                             <div key={key} className="space-y-4">
-                                <div className="flex items-center gap-4">
-                                    <div className="h-px flex-1 bg-slate-200"></div>
-                                    <span className="text-[11px] font-black text-[#08557f] uppercase tracking-[0.25em] bg-blue-50/50 px-4 py-1.5 rounded-full border border-blue-100 shadow-sm">
+                                {/* Separador clicable — mismo look de antes + chevron */}
+                                <button
+                                  type="button"
+                                  onClick={() => toggleGrupo(key)}
+                                  className="w-full flex items-center gap-4 group"
+                                >
+                                    <div className="h-px flex-1 bg-slate-200" />
+                                    <span className="flex items-center gap-2 text-[11px] font-black text-[#08557f] uppercase tracking-[0.25em] bg-blue-50/50 px-4 py-1.5 rounded-full border border-blue-100 shadow-sm whitespace-nowrap select-none group-hover:bg-blue-100/60 transition-colors">
                                         {label}
+                                        <ChevronDown className={`h-3 w-3 transition-transform duration-200 ${estaColapsado ? '' : 'rotate-180'}`} />
                                     </span>
-                                    <div className="h-px flex-1 bg-slate-200"></div>
-                                </div>
+                                    <div className="h-px flex-1 bg-slate-200" />
+                                </button>
 
-                                <div className="space-y-4">
+                                {/* Visitas — se ocultan si está colapsado */}
+                                {!estaColapsado && (
+                                  <div className="space-y-4 animate-in slide-in-from-top-2 duration-150">
                                     {visitas.map((visita) => (
                                         <StaticVisitaItem
                                             key={visita.id}
@@ -1033,7 +1047,8 @@ const RutaClientLoaded = ({
                                             </div>
                                         </StaticVisitaItem>
                                     ))}
-                                </div>
+                                  </div>
+                                )}
                             </div>
                         )
                     })}
