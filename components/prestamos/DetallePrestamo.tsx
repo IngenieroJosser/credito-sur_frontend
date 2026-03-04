@@ -11,7 +11,12 @@ const formatDate = (dateStr: string | undefined | null): string => {
   try {
     const d = new Date(dateStr);
     if (isNaN(d.getTime())) return dateStr;
-    return d.toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' });
+    // Usar UTC para evitar desplazamiento de zona horaria (UTC-5 en Colombia)
+    const day = String(d.getUTCDate()).padStart(2, '0');
+    const monthNames = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+    const month = monthNames[d.getUTCMonth()];
+    const year = d.getUTCFullYear();
+    return `${day} ${month} ${year}`;
   } catch { return dateStr; }
 };
 

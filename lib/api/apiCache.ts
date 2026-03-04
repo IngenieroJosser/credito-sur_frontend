@@ -31,8 +31,18 @@ const getDb = async () => {
   return dbPromise;
 };
 
-export const getCacheKey = (method: string, url: string) =>
-  `${method.toUpperCase()}:${url}`;
+export const getCacheKey = (method: string, url: string, params?: Record<string, unknown>) => {
+  const base = `${method.toUpperCase()}:${url}`;
+  if (!params || Object.keys(params).length === 0) return base;
+  // Serializar params ordenados para que el mismo conjunto de filtros genere la misma clave
+  const sorted = Object.keys(params).sort().reduce<Record<string, unknown>>((acc, k) => {
+    if (params[k] !== undefined && params[k] !== null && params[k] !== '') acc[k] = params[k];
+    return acc;
+  }, {});
+  if (Object.keys(sorted).length === 0) return base;
+  return `${base}?${JSON.stringify(sorted)}`;
+};
+
 
 export const getCached = async <T>(key: string): Promise<T | null> => {
   try {

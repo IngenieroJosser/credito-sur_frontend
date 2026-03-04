@@ -74,7 +74,7 @@ export const permisosPorRol: Record<Rol, ModuloPermiso[]> = {
       submodulos: [
         { id: 'clientes', nombre: 'Clientes', icono: 'Users', path: '/admin/clientes', roles: ['SUPER_ADMINISTRADOR', 'ADMIN', 'COORDINADOR', 'COBRADOR'] },
         { id: 'cuentas-mora', nombre: 'Cuentas en mora', icono: 'AlertCircle', path: '/admin/cuentas-mora', roles: ['SUPER_ADMINISTRADOR', 'ADMIN', 'COORDINADOR', 'SUPERVISOR', 'CONTADOR'], isNew: true },
-        { id: 'cuentas-vencidas', nombre: 'Cuentas vencidas', icono: 'Archive', path: '/admin/cuentas-vencidas', roles: ['SUPER_ADMINISTRADOR', 'ADMIN'] },
+        { id: 'cuentas-vencidas', nombre: 'Cuentas vencidas', icono: 'FileX2', path: '/admin/cuentas-vencidas', roles: ['SUPER_ADMINISTRADOR', 'ADMIN'] },
         { id: 'archivados', nombre: 'Archivados', icono: 'Archive', path: '/admin/archivados', roles: ['SUPER_ADMINISTRADOR', 'ADMIN'] },
       ]
     },
@@ -140,7 +140,7 @@ export const permisosPorRol: Record<Rol, ModuloPermiso[]> = {
       submodulos: [
         { id: 'clientes', nombre: 'Clientes', icono: 'Users', path: '/admin/clientes', roles: ['SUPER_ADMINISTRADOR', 'ADMIN', 'COORDINADOR', 'COBRADOR'] },
         { id: 'cuentas-mora', nombre: 'Cuentas en mora', icono: 'AlertCircle', path: '/admin/cuentas-mora', roles: ['SUPER_ADMINISTRADOR', 'ADMIN', 'COORDINADOR', 'CONTADOR'], isNew: true },
-        { id: 'cuentas-vencidas', nombre: 'Cuentas vencidas', icono: 'Archive', path: '/admin/cuentas-vencidas', roles: ['SUPER_ADMINISTRADOR', 'ADMIN'] },
+        { id: 'cuentas-vencidas', nombre: 'Cuentas vencidas', icono: 'FileX2', path: '/admin/cuentas-vencidas', roles: ['SUPER_ADMINISTRADOR', 'ADMIN'] },
         { id: 'archivados', nombre: 'Archivados', icono: 'Archive', path: '/admin/archivados', roles: ['SUPER_ADMINISTRADOR', 'ADMIN'] },
       ]
     },
@@ -182,7 +182,7 @@ export const permisosPorRol: Record<Rol, ModuloPermiso[]> = {
         { id: 'gestion-creditos', nombre: 'Créditos', icono: 'CreditCard', path: '/coordinador/creditos', roles: ['COORDINADOR'] },
         { id: 'clientes', nombre: 'Clientes', icono: 'Users', path: '/coordinador/clientes', roles: ['COORDINADOR'] },
         { id: 'cuentas-mora', nombre: 'Cuentas en mora', icono: 'AlertCircle', path: '/cuentas-mora', roles: ['COORDINADOR'], isNew: true },
-        { id: 'cuentas-vencidas', nombre: 'Cuentas vencidas', icono: 'Archive', path: '/cuentas-vencidas', roles: ['COORDINADOR'] },
+        { id: 'cuentas-vencidas', nombre: 'Cuentas vencidas', icono: 'FileX2', path: '/cuentas-vencidas', roles: ['COORDINADOR'] },
         { id: 'articulos', nombre: 'Artículos (Catálogo)', icono: 'Package', path: '/articulos', roles: ['COORDINADOR'] },
       ]
     },
@@ -244,7 +244,7 @@ export const permisosPorRol: Record<Rol, ModuloPermiso[]> = {
       roles: ['CONTADOR'],
       submodulos: [
         { id: 'cuentas-mora', nombre: 'Cuentas en mora', icono: 'AlertCircle', path: '/cuentas-mora', roles: ['CONTADOR'], isNew: true },
-        { id: 'cuentas-vencidas', nombre: 'Cuentas vencidas', icono: 'Archive', path: '/cuentas-vencidas', roles: ['CONTADOR'] },
+        { id: 'cuentas-vencidas', nombre: 'Cuentas vencidas', icono: 'FileX2', path: '/cuentas-vencidas', roles: ['CONTADOR'] },
         { id: 'reportes-financieros', nombre: 'Reportes financieros', icono: 'BarChart3', path: '/reportes/financieros', roles: ['CONTADOR'], isNew: true },
       ]
     },
@@ -292,6 +292,7 @@ import {
   BarChart3,
   Key,
   FileText,
+  FileX2,
   RefreshCw,
   UserCircle,
   // Agregar más iconos según necesites
@@ -312,6 +313,7 @@ export const iconosMap: Record<string, React.ReactNode> = {
   'PieChart': <PieChart className="h-4 w-4" />,
   'User': <User className="h-4 w-4" />,
   'Archive': <Archive className="h-4 w-4" />,
+  'FileX2': <FileX2 className="h-4 w-4" />,
   'Shield': <Shield className="h-4 w-4" />,
   'Settings': <Settings className="h-4 w-4" />,
   'CheckCircle2': <CheckCircle2 className="h-4 w-4" />,
@@ -392,8 +394,8 @@ const ACTION_ICON_MAP: Record<string, string> = {
   rutas: 'Route',
   'cuentas-mora': 'AlertCircle',
   mora: 'AlertCircle',
-  'cuentas-vencidas': 'Archive',
-  vencidas: 'Archive',
+  'cuentas-vencidas': 'FileX2',
+  vencidas: 'FileX2',
   archivados: 'Archive',
   articulos: 'Package',
   inventario: 'Package',
@@ -410,21 +412,29 @@ const ACTION_ICON_MAP: Record<string, string> = {
   'revisiones': 'ShieldCheck',
 };
 
-const normalizePermissionId = (rawId: string) => {
-  const id = String(rawId || '').trim();
-  if (!id) return '';
+const normalizePermissionId = (id: string) => {
+  return String(id || '')
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, '-')
+    .replace(/_/g, '-')
+    .replace(/[^a-z0-9-]/g, '')
+}
 
-  const lower = id.toLowerCase();
-  const cleaned = lower.replace(/[^a-z0-9_\-]/g, '_');
-  const noSuffix = cleaned.replace(
-    /_(view|ver|create|crear|edit|editar|delete|eliminar|manage|gestionar|exportar|registrar|cierre)$/,
-    '',
-  );
-
-  return noSuffix.replace(/_/g, '-');
-};
+const isCuentasVencidas = (id?: string | null, ruta?: string | null) => {
+  const key = normalizePermissionId(String(id || ''))
+  const r = String(ruta || '').toLowerCase()
+  return (
+    key === 'cuentas-vencidas' ||
+    key === 'cuentas-vencidas-view' ||
+    key === 'cuentas-vencidas-ver' ||
+    key.startsWith('cuentas-vencidas') ||
+    r.includes('cuentas-vencidas')
+  )
+}
 
 const inferIconName = (id: string, iconFromApi?: string | null) => {
+  if (isCuentasVencidas(id)) return 'FileX2';
   if (iconFromApi) return iconFromApi;
   const key = normalizePermissionId(id);
   const base = key.split('-')[0] || '';
@@ -563,7 +573,7 @@ export const buildSidebarFromApi = (sidebarData: SidebarModulo[]): ModuloPermiso
       const sub: ModuloPermiso = {
         id: item.id,
         nombre: displayName,
-        icono: inferIconName(item.id, item.icono),
+        icono: isCuentasVencidas(item.id, item.ruta) ? 'FileX2' : inferIconName(item.id, item.icono),
         path: item.ruta || '#',
         roles: [],
       };

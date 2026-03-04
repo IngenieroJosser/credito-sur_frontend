@@ -166,9 +166,10 @@ function CuentasVencidasContent() {
       })
 
       const LABEL: Record<string, string> = {
-        PRORROGAR: 'Prórroga',
-        CASTIGAR: 'Baja por pérdida',
-        JURIDICO: 'Cobro jurídico',
+        PRORROGAR: 'Prorroga',
+        CASTIGAR: 'Baja por perdida',
+        JURIDICO: 'Cobro juridico',
+        DEJAR_QUIETO: 'Sin mora por ahora',
       }
       toast.success(
         `✅ ${LABEL[data.decision] || data.decision} enviada a aprobación`,

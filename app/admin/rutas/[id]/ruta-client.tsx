@@ -104,7 +104,6 @@ const RutaClientLoaded = ({
   const [selectedClienteForCredito, setSelectedClienteForCredito] = useState<VisitaRuta | null>(null)
   const [defaultClienteId, setDefaultClienteId] = useState<string | null>(null)
   const [showCrearCreditoPrompt, setShowCrearCreditoPrompt] = useState(false)
-  // Eliminado flujo de recolectar en detalle de ruta
 
   // Estados para filtros y historial (Portados de VistaCobrador)
   const [periodoRutaFiltro, setPeriodoRutaFiltro] = useState<'TODOS' | 'DIA' | 'SEMANA' | 'QUINCENA' | 'MES'>('TODOS')
@@ -113,6 +112,12 @@ const RutaClientLoaded = ({
   const [historyViewMode, setHistoryViewMode] = useState<'DAYS' | 'MONTHS'>('DAYS')
   const [selectedHistoryDate, setSelectedHistoryDate] = useState<string | null>(null)
   const [selectedHistoryMonth, setSelectedHistoryMonth] = useState<string | null>(null)
+  const [historyFrecuenciaFiltro, setHistoryFrecuenciaFiltro] = useState<'TODOS' | 'DIA' | 'SEMANA' | 'QUINCENA' | 'MES'>('TODOS')
+
+  // Grupos colapsables en la vista principal de la ruta (por defecto todos abiertos)
+  const [gruposColapsados, setGruposColapsados] = useState<Record<string, boolean>>({})
+  const toggleGrupo = (key: string) =>
+    setGruposColapsados(prev => ({ ...prev, [key]: !prev[key] }))
 
   const historyDates = useMemo(() => {
     if (!historialRutas) return [];
@@ -566,7 +571,6 @@ const RutaClientLoaded = ({
   const { estadisticas, nivelRiesgo } = initialRuta;
   const porcentajeProgreso = estadisticas.avanceDiario || 0;
 
-  // Eliminado flujo de recolectar en detalle de ruta
 
   return (
     <div className="min-h-screen bg-slate-50 relative pb-20">
@@ -690,7 +694,6 @@ const RutaClientLoaded = ({
                     </div>
                   )}
                   
-                  {/* Botón Recolectar Dinero removido en detalle de ruta */}
               </div>
 
               {/* Filtros de Periodo (Estilo Cobrador Exacto) */}
@@ -752,11 +755,36 @@ const RutaClientLoaded = ({
                      <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest bg-slate-100 px-3 py-1 rounded-full">Últimos 30 días</div>
                    </div>
 
-                   {/* Toggle DÍAS | MESES */}
-                   <div className="flex items-center gap-2 mb-3">
-                     <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mr-1">VISTA:</span>
-                     <button onClick={() => setHistoryViewMode('DAYS')} className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all border ${historyViewMode === 'DAYS' ? 'bg-slate-900 text-white border-slate-900 shadow-lg' : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300'}`}>Días</button>
-                     <button onClick={() => setHistoryViewMode('MONTHS')} className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all border ${historyViewMode === 'MONTHS' ? 'bg-slate-900 text-white border-slate-900 shadow-lg' : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300'}`}>Meses</button>
+                   {/* Toggle DIAS | MESES + Filtro de Frecuencia */}
+                   <div className="flex flex-col gap-3 mb-3">
+                     <div className="flex items-center gap-2">
+                       <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mr-1">VISTA:</span>
+                       <button onClick={() => setHistoryViewMode('DAYS')} className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all border ${historyViewMode === 'DAYS' ? 'bg-slate-900 text-white border-slate-900 shadow-lg' : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300'}`}>Dias</button>
+                       <button onClick={() => setHistoryViewMode('MONTHS')} className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all border ${historyViewMode === 'MONTHS' ? 'bg-slate-900 text-white border-slate-900 shadow-lg' : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300'}`}>Meses</button>
+                     </div>
+                     {/* Chips de frecuencia para filtrar clientes dentro del historial */}
+                     <div className="flex items-center gap-2 flex-wrap">
+                       <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">COBROS:</span>
+                       {([
+                         { key: 'TODOS' as const, label: 'Todos' },
+                         { key: 'DIA' as const, label: 'Diarios' },
+                         { key: 'SEMANA' as const, label: 'Semanales' },
+                         { key: 'QUINCENA' as const, label: 'Quincenales' },
+                         { key: 'MES' as const, label: 'Mensuales' },
+                       ]).map(f => (
+                         <button
+                           key={f.key}
+                           onClick={() => setHistoryFrecuenciaFiltro(f.key)}
+                           className={`px-3 py-1 rounded-full text-[10px] font-bold transition-all border ${
+                             historyFrecuenciaFiltro === f.key
+                               ? 'bg-[#08557f] text-white border-[#08557f] shadow-md'
+                               : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300'
+                           }`}
+                         >
+                           {f.label}
+                         </button>
+                       ))}
+                     </div>
                    </div>
 
                    {historyDates.length > 0 ? (
@@ -822,15 +850,18 @@ const RutaClientLoaded = ({
                                               </div>
                                               {isDayExpanded && (
                                                 <div className="px-4 pb-4 space-y-2 animate-in slide-in-from-top-1 duration-150">
-                                                  {!dayData.loaded ? (
+                                                   {!dayData.loaded ? (
                                                     <div className="flex flex-col items-center justify-center py-6 text-slate-400"><div className="w-5 h-5 border-2 border-slate-300 border-t-[#08557f] rounded-full animate-spin mb-2" /><span className="text-xs">Cargando...</span></div>
-                                                  ) : dayData.visitas.length === 0 ? (
-                                                    <div className="text-center py-6 text-[11px] text-slate-400">Sin cobros para este día</div>
-                                                  ) : (
-                                                    dayData.visitas.map((v: any) => (
+                                                  ) : (() => {
+                                                    const filtradas = historyFrecuenciaFiltro === 'TODOS'
+                                                      ? dayData.visitas
+                                                      : dayData.visitas.filter((v: any) => v.periodoRuta === historyFrecuenciaFiltro);
+                                                    if (filtradas.length === 0) return <div className="text-center py-6 text-[11px] text-slate-400">Sin cobros {historyFrecuenciaFiltro !== 'TODOS' ? `(${historyFrecuenciaFiltro.toLowerCase()})` : ''} para este dia</div>;
+                                                    return filtradas.map((v: any) => (
                                                       <StaticVisitaItem key={v.id} visita={v} allowClick={false} onVerCliente={handleAbrirClienteInfo} getEstadoClasses={getEstadoClasses} getPrioridadColor={getPrioridadColor} />
-                                                    ))
-                                                  )}
+                                                    ));
+                                                  })()
+                                                  }
                                                 </div>
                                               )}
                                             </div>
@@ -877,16 +908,20 @@ const RutaClientLoaded = ({
                                        </div>
                                        <div className="space-y-3">
                                           <div className="flex justify-between text-[10px] font-bold text-slate-500 uppercase px-1"><span>Clientes Gestionados</span><span>Estado</span></div>
-                                          {!data.loaded ? (
-                                            <div className="flex flex-col items-center justify-center py-8 text-slate-400"><Loader2 className="w-6 h-6 animate-spin mb-2 opacity-20" /><span className="text-xs font-medium">Cargando detalles...</span></div>
-                                          ) : data.visitas.length === 0 ? (
-                                            <div className="flex flex-col items-center justify-center py-10 bg-slate-50 rounded-2xl border border-dashed border-slate-200"><History className="w-8 h-8 text-slate-300 mb-2 opacity-30" /><span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest text-center px-4">No se registraron visitas ni pagos para este día</span></div>
-                                          ) : (
-                                            data.visitas.map((v: any) => (
-                                              <StaticVisitaItem key={v.id} visita={v} allowClick={false} onVerCliente={handleAbrirClienteInfo} getEstadoClasses={getEstadoClasses} getPrioridadColor={getPrioridadColor} />
-                                            ))
-                                          )}
-                                       </div>
+                                           {!data.loaded ? (
+                                             <div className="flex flex-col items-center justify-center py-8 text-slate-400"><Loader2 className="w-6 h-6 animate-spin mb-2 opacity-20" /><span className="text-xs font-medium">Cargando detalles...</span></div>
+                                           ) : (() => {
+                                             const filtradas = historyFrecuenciaFiltro === 'TODOS'
+                                               ? data.visitas
+                                               : data.visitas.filter((v: any) => v.periodoRuta === historyFrecuenciaFiltro);
+                                             if (filtradas.length === 0) return (
+                                               <div className="flex flex-col items-center justify-center py-10 bg-slate-50 rounded-2xl border border-dashed border-slate-200"><History className="w-8 h-8 text-slate-300 mb-2 opacity-30" /><span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest text-center px-4">No hay visitas {historyFrecuenciaFiltro !== 'TODOS' ? `con frecuencia ${historyFrecuenciaFiltro.toLowerCase()}` : ''} para este dia</span></div>
+                                             );
+                                             return filtradas.map((v: any) => (
+                                               <StaticVisitaItem key={v.id} visita={v} allowClick={false} onVerCliente={handleAbrirClienteInfo} getEstadoClasses={getEstadoClasses} getPrioridadColor={getPrioridadColor} />
+                                             ));
+                                           })()}
+                                        </div>
                                     </div>
                                  )}
                                </div>
@@ -940,7 +975,7 @@ const RutaClientLoaded = ({
                     </div>
                   </div>
 
-                  {/* LISTA DE VISITAS AGRUPADA POR FRECUENCIA */}
+                  {/* LISTA DE VISITAS AGRUPADA POR FRECUENCIA — Colapsables */}
                   <div className="space-y-10">
                     {Object.entries({
                         MES: 'Mensual',
@@ -950,18 +985,27 @@ const RutaClientLoaded = ({
                     }).map(([key, label]) => {
                         const visitas = visitasAgrupadas[key as keyof typeof visitasAgrupadas];
                         if (visitas.length === 0) return null;
-                        
+                        const estaColapsado = !!gruposColapsados[key];
+
                         return (
                             <div key={key} className="space-y-4">
-                                <div className="flex items-center gap-4">
-                                    <div className="h-px flex-1 bg-slate-200"></div>
-                                    <span className="text-[11px] font-black text-[#08557f] uppercase tracking-[0.25em] bg-blue-50/50 px-4 py-1.5 rounded-full border border-blue-100 shadow-sm">
+                                {/* Separador clicable — mismo look de antes + chevron */}
+                                <button
+                                  type="button"
+                                  onClick={() => toggleGrupo(key)}
+                                  className="w-full flex items-center gap-4 group"
+                                >
+                                    <div className="h-px flex-1 bg-slate-200" />
+                                    <span className="flex items-center gap-2 text-[11px] font-black text-[#08557f] uppercase tracking-[0.25em] bg-blue-50/50 px-4 py-1.5 rounded-full border border-blue-100 shadow-sm whitespace-nowrap select-none group-hover:bg-blue-100/60 transition-colors">
                                         {label}
+                                        <ChevronDown className={`h-3 w-3 transition-transform duration-200 ${estaColapsado ? '' : 'rotate-180'}`} />
                                     </span>
-                                    <div className="h-px flex-1 bg-slate-200"></div>
-                                </div>
+                                    <div className="h-px flex-1 bg-slate-200" />
+                                </button>
 
-                                <div className="space-y-4">
+                                {/* Visitas — se ocultan si está colapsado */}
+                                {!estaColapsado && (
+                                  <div className="space-y-4 animate-in slide-in-from-top-2 duration-150">
                                     {visitas.map((visita) => (
                                         <StaticVisitaItem
                                             key={visita.id}
@@ -1003,7 +1047,8 @@ const RutaClientLoaded = ({
                                             </div>
                                         </StaticVisitaItem>
                                     ))}
-                                </div>
+                                  </div>
+                                )}
                             </div>
                         )
                     })}

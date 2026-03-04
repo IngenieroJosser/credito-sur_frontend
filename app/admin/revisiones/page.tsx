@@ -40,6 +40,7 @@ import {
 } from 'lucide-react'
 import { formatCurrency } from '@/lib/utils'
 import { aprobacionesService, type Aprobacion, type PendingResponse, type SuperadminReviewResponse } from '@/services/aprobaciones-service'
+import { prestamosService } from '@/services/prestamos-service'
 import { TipoAprobacion } from '@/types/enums'
 import { toast } from 'sonner'
 import { useNotificaciones } from '@/components/providers/NotificacionesProvider'
@@ -112,6 +113,15 @@ const CATEGORIAS: Record<string, { label: string; icon: any; color: string; bgCo
     bgColor: 'bg-rose-50',
     borderColor: 'border-rose-200',
     tipoNotif: 'SISTEMA',
+  },
+  // ── Reprogramaciones ──────────────────────────────────────────────────
+  REPROGRAMACION_CUOTA: {
+    label: 'Reprogramaciones',
+    icon: Calendar,
+    color: 'text-orange-600',
+    bgColor: 'bg-orange-50',
+    borderColor: 'border-orange-200',
+    tipoNotif: 'REPROGRAMACION',
   },
 }
 
@@ -247,9 +257,14 @@ export default function RevisionesPage() {
     const { item } = confirmModal
     setProcessingId(item.id)
     try {
-      await aprobacionesService.aprobar(item.id, {
-        type: item.tipoAprobacion as TipoAprobacion
-      })
+      // Las reprogramaciones tienen su propio endpoint dedicado
+      if (item.tipoAprobacion === TipoAprobacion.REPROGRAMACION_CUOTA) {
+        await prestamosService.aprobarReprogramacion(item.id)
+      } else {
+        await aprobacionesService.aprobar(item.id, {
+          type: item.tipoAprobacion as TipoAprobacion
+        })
+      }
       toast.success('Solicitud aprobada correctamente')
       setConfirmModal(null)
       await loadData()
@@ -269,10 +284,15 @@ export default function RevisionesPage() {
     const { item } = confirmModal
     setProcessingId(item.id)
     try {
-      await aprobacionesService.rechazar(item.id, {
-        type: item.tipoAprobacion as TipoAprobacion,
-        motivoRechazo: reason
-      })
+      // Las reprogramaciones tienen su propio endpoint dedicado
+      if (item.tipoAprobacion === TipoAprobacion.REPROGRAMACION_CUOTA) {
+        await prestamosService.rechazarReprogramacion(item.id, reason || undefined)
+      } else {
+        await aprobacionesService.rechazar(item.id, {
+          type: item.tipoAprobacion as TipoAprobacion,
+          motivoRechazo: reason
+        })
+      }
       toast.success('Solicitud rechazada')
       setConfirmModal(null)
       await loadData()
@@ -362,6 +382,16 @@ export default function RevisionesPage() {
             subtitulo: `${(datos.tipo === 'ARTICULO' || datos.tipoPrestamo === 'ARTICULO') ? `Artículo: ${datos.articulo || 'N/A'}` : 'Efectivo'} • ${datos.cuotas || datos.numCuotas || '?'} cuotas`,
             monto: Number(datos.monto || datos.valorArticulo || item.montoSolicitud || 0),
           }
+        case 'REPROGRAMACION_CUOTA': {
+          const frecLabel: Record<string,string> = { SEMANAL:'Semanal', QUINCENAL:'Quincenal', MENSUAL:'Mensual', DIARIO:'Diario' }
+          const fechaOrig = datos.fechaVencimientoOriginal ? new Date(datos.fechaVencimientoOriginal).toLocaleDateString('es-CO',{day:'2-digit',month:'short'}) : '?'
+          const fechaNueva = datos.nuevaFecha ? new Date(datos.nuevaFecha+'T00:00:00').toLocaleDateString('es-CO',{day:'2-digit',month:'short'}) : '?'
+          return {
+            titulo: datos.clienteNombre || 'Cliente',
+            subtitulo: `${frecLabel[datos.frecuenciaPago]||datos.frecuenciaPago} · ${fechaOrig} → ${fechaNueva} · Motivo: ${datos.motivo || 'N/A'}`,
+            monto: Number(datos.montoCuota || 0) || null,
+          }
+        }
         default:
           return {
             titulo: item.tipoAprobacion.replace(/_/g, ' '),

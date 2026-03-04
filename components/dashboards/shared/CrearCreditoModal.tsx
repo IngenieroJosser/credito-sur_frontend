@@ -591,7 +591,7 @@ export default function CrearCreditoModal({ isOpen, onClose, onConfirm, defaultC
                             tasaInteres: Number(tasaInteresInput),
                             cuotasTotales: Number(cuotasPrestamoInput),
                             frecuenciaPago,
-                            fechaInicio: new Date(fechaCreditoInput).toISOString(),
+                            fechaInicio: fechaCreditoInput.split('T')[0], // Extraer solo YYYY-MM-DD para evitar desfase de zona horaria
                             fechaPrimerCobro
                           }
                         : {
@@ -610,7 +610,7 @@ export default function CrearCreditoModal({ isOpen, onClose, onConfirm, defaultC
                             monto: calculoCreditoArticulo?.precioTotal || 0,
                             cuotaInicialArticulo: parseCOPInputToNumber(cuotaInicialArticuloInput),
                             frecuenciaPago: esContado ? 'MENSUAL' : frecuenciaPago,
-                            fechaInicio: new Date(fechaCreditoInput).toISOString(),
+                            fechaInicio: fechaCreditoInput.split('T')[0], // Extraer solo YYYY-MM-DD para evitar desfase de zona horaria
                             plazoMeses: esContado ? 1 : mesesPlan,
                             numCuotas: esContado ? 1 : (calculoCreditoArticulo?.numCuotas || 0),
                             ventaContado: esContado ? true : undefined

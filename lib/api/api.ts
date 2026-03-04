@@ -32,7 +32,8 @@ export const apiRequest = async <T>(
 
   const url = endpoint.startsWith("/") ? endpoint.substring(1) : endpoint;
   const isGET = method.toUpperCase() === "GET";
-  const cacheKey = getCacheKey(method, url);
+  // Incluir params en la clave de cache para que distintos filtros sean caches distintos
+  const cacheKey = getCacheKey(method, url, isGET ? (config?.params as Record<string, unknown> | undefined) : undefined);
 
   const requestedCacheTTL = config?.cacheTTL;
 

@@ -164,6 +164,7 @@ const UserManagementPage = () => {
   const [isPermissionsModalOpen, setIsPermissionsModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
+  const [isSavingUser, setIsSavingUser] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [actividadPage, setActividadPage] = useState(1);
   const actividadPerPage = 3;
@@ -866,72 +867,39 @@ const UserManagementPage = () => {
   };
 
   const handleUpdateUser = async () => {
-    if (!selectedUser) return;
-
-    console.log(
-      "[UPDATE] Iniciando actualización de usuario:",
-      selectedUser.id,
-    );
-    console.log(
-      "[UPDATE] FormData antes de actualizar:",
-      JSON.stringify(formData),
-    );
-    console.log("[UPDATE] SearchTerm antes de actualizar:", searchTerm);
-
+    if (!selectedUser || isSavingUser) return;
+    setIsSavingUser(true);
     try {
-      console.log("[UPDATE] INICIANDO PROCESO ROBUSTO DE ACTUALIZACIÓN...");
-
-      // 1. Cambiar contraseña PRIMERO (si se proporcionó)
-      if (formData.password && formData.password.trim() !== "") {
+      // Cambiar contrasena primero si se proporcionó
+      if (formData.password && formData.password.trim() !== '') {
         const passwordToSet = formData.password.trim();
         if (passwordToSet.length < 6) {
-          showNotification(
-            "error",
-            "La contraseña debe tener al menos 6 caracteres",
-            "Error Validación",
-          );
-          // No cerramos el modal aquí para que el usuario pueda corregir la contraseña
+          showNotification('error', 'La contrasena debe tener al menos 6 caracteres', 'Error Validacion');
           return;
         }
-        
-        console.log("[UPDATE] Intentando cambiar contraseña...");
         try {
           await usuariosService.cambiarContrasena(selectedUser.id, {
             contrasenaNueva: passwordToSet,
           });
-          console.log("[UPDATE] Contraseña cambiada exitosamente.");
-          showNotification(
-            "success",
-            "Contraseña actualizada correctamente",
-            "Seguridad",
-          );
+          showNotification('success', 'Contrasena actualizada correctamente', 'Seguridad');
         } catch (e) {
-          console.error("[UPDATE] Error al cambiar contraseña:", e);
-          showNotification(
-            "error",
-            "Falló el cambio de contraseña",
-            "Error Crítico",
-          );
-          throw e; // Detener todo si falla la contraseña
+          showNotification('error', 'Fallo el cambio de contrasena', 'Error Critico');
+          throw e;
         }
       }
 
-      // 2. Actualizar datos personales
-      console.log("[UPDATE] Actualizando datos personales...");
+      // Actualizar datos personales
       await usuariosService.actualizar(selectedUser.id, {
         nombres: formData.nombres,
         apellidos: formData.apellidos,
         correo: formData.correo,
         telefono: formData.telefono,
         rol: formData.rol,
-        estado: formData.estado, // Agregamos estado explícitamente
+        estado: formData.estado,
       });
 
-      console.log("[UPDATE] Datos personales actualizados.");
-      
-      // Sincronizar localStorage si el usuario editado es el mismo que tiene la sesión iniciada
+      // Sincronizar localStorage si el usuario editado es el mismo que tiene la sesion
       if (currentUser && selectedUser.id === currentUser.id) {
-        console.log("[UPDATE] El usuario editado es el actual. Sincronizando sesión local...");
         const userData = localStorage.getItem('user');
         if (userData) {
           try {
@@ -946,44 +914,26 @@ const UserManagementPage = () => {
               estado: formData.estado
             };
             localStorage.setItem('user', JSON.stringify(newUserData));
-            // Notificar a otros componentes (Layout, hooks) que el usuario cambió
             window.dispatchEvent(new Event('userUpdated'));
           } catch (e) {
-            console.error("Error al actualizar localStorage:", e);
+            console.error('Error al actualizar localStorage:', e);
           }
         }
       }
-      showNotification(
-        "success",
-        "Información de usuario actualizada",
-        "Éxito",
-      );
 
-      // Cerrar modal y refrescar
+      showNotification('success', 'Informacion de usuario actualizada', 'Exito');
       setIsEditModalOpen(false);
-      setSelectedUser(null); // Limpiar usuario seleccionado
+      setSelectedUser(null);
       await fetchUsers();
     } catch (error: any) {
-      console.error("[UPDATE] Error global:", error);
-
-      // Extraer mensaje de error legible
-      const errorMsg =
-        error?.response?.data?.message || error?.message || "Error desconocido";
-
-      // Si el error fue en la actualización de datos pero ya se cambió la contraseña
-      if (formData.password && formData.password.trim() !== "") {
-        showNotification(
-          "warning",
-          `Contraseña cambiada, pero falló la actualización de datos: ${errorMsg}`,
-          "Actualización Parcial",
-        );
+      const errorMsg = error?.response?.data?.message || error?.message || 'Error desconocido';
+      if (formData.password && formData.password.trim() !== '') {
+        showNotification('warning', `Contrasena cambiada, pero fallo la actualizacion de datos: ${errorMsg}`, 'Actualizacion Parcial');
       } else {
-        showNotification(
-          "error",
-          `No se pudo actualizar el usuario: ${errorMsg}`,
-          "Error",
-        );
+        showNotification('error', `No se pudo actualizar el usuario: ${errorMsg}`, 'Error');
       }
+    } finally {
+      setIsSavingUser(false);
     }
   };
 
@@ -1967,16 +1917,21 @@ const UserManagementPage = () => {
                     <div className="flex justify-end gap-3 mt-8 pt-4 border-t border-slate-100">
                       <button
                         onClick={() => setIsEditModalOpen(false)}
-                        className="px-5 py-2.5 text-sm font-bold text-slate-600 hover:text-slate-900 hover:bg-slate-50 rounded-2xl transition-colors"
+                        disabled={isSavingUser}
+                        className="px-5 py-2.5 text-sm font-bold text-slate-600 hover:text-slate-900 hover:bg-slate-50 rounded-2xl transition-colors disabled:opacity-50"
                       >
                         Cancelar
                       </button>
                       <button
                         onClick={handleUpdateUser}
-                        className="px-5 py-2.5 text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-2xl shadow-lg shadow-blue-600/20 transition-all transform active:scale-95 flex items-center gap-2"
+                        disabled={isSavingUser}
+                        className="px-5 py-2.5 text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-2xl shadow-lg shadow-blue-600/20 transition-all transform active:scale-95 flex items-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:bg-blue-600 disabled:scale-100"
                       >
-                        <Save className="h-4 w-4" />
-                        <span>Guardar Cambios</span>
+                        {isSavingUser ? (
+                          <><svg className="animate-spin h-4 w-4" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/></svg> Guardando...</>
+                        ) : (
+                          <><Save className="h-4 w-4" /><span>Guardar Cambios</span></>
+                        )}
                       </button>
                     </div>
                   </div>

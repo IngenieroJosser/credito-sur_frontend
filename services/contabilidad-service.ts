@@ -189,9 +189,9 @@ export async function updateCaja(id: string, data: {
   }
 }
 
-export async function consolidarCaja(cajaId: string) {
+export async function consolidarCaja(cajaId: string, monto?: number) {
   try {
-    return await apiRequest('POST', `/accounting/cajas/${cajaId}/consolidar`);
+    return await apiRequest('POST', `/accounting/cajas/${cajaId}/consolidar`, monto ? { monto } : {});
   } catch (error: any) {
     if (
         (typeof navigator !== 'undefined' && !navigator.onLine) ||
@@ -204,7 +204,7 @@ export async function consolidarCaja(cajaId: string) {
           'caja_consolidar',
           `/accounting/cajas/${cajaId}/consolidar`,
           'POST',
-          null,
+          monto ? { monto } : null,
           `Consolidar caja ID: ${cajaId}`
         );
         return { esOffline: true };
