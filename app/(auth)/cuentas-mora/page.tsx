@@ -54,6 +54,10 @@ interface CuentaMora {
   ultimoPago?: string
   fechaVencimiento?: string
   etiquetaMora?: string
+  // Prorroga / extension de pago aprobada
+  fechaProrroga?: string
+  diasProrroga?: number
+  tieneProrroga?: boolean
 }
 
 interface EstadisticasMora {
@@ -96,7 +100,44 @@ function diasRestantesGracia(fechaVencimiento?: string): number | null {
   return Math.ceil((limite.getTime() - hoy.getTime()) / (1000 * 60 * 60 * 24))
 }
 
-function GracePeriodBadge({ fechaVencimiento, montoMora }: { fechaVencimiento?: string; montoMora: number }) {
+function GracePeriodBadge({ fechaVencimiento, montoMora, fechaProrroga, diasProrroga, tieneProrroga }: {
+  fechaVencimiento?: string
+  montoMora: number
+  fechaProrroga?: string
+  diasProrroga?: number
+  tieneProrroga?: boolean
+}) {
+  // Prioridad 1: mostrar plazo de prorroga aprobada
+  if (tieneProrroga && fechaProrroga) {
+    const dias = diasProrroga ?? Math.ceil((new Date(fechaProrroga).getTime() - Date.now()) / (1000 * 60 * 60 * 24))
+    if (dias < 0) {
+      return (
+        <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-rose-100 border border-rose-200 text-rose-700 text-[10px] font-black">
+          <Timer className="h-3 w-3" />
+          Prorroga vencida
+        </div>
+      )
+    }
+    if (dias === 0) {
+      return (
+        <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-50 border border-amber-200 text-amber-700 text-[10px] font-black animate-pulse">
+          <Timer className="h-3 w-3" />
+          Prorroga vence HOY
+        </div>
+      )
+    }
+    const color = dias <= 2
+      ? 'bg-amber-50 border-amber-200 text-amber-700'
+      : 'bg-blue-50 border-blue-200 text-blue-700'
+    return (
+      <div className={cn('flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-[10px] font-black', color)}>
+        <Timer className="h-3 w-3" />
+        Prorroga: {dias}d restante{dias !== 1 ? 's' : ''}
+      </div>
+    )
+  }
+
+  // Prioridad 2: si tiene interés de mora asignado, mostrar fecha límite
   if (!fechaVencimiento || montoMora <= 0) return null
   const dias = diasRestantesGracia(fechaVencimiento)
   if (dias === null) return null
@@ -421,7 +462,13 @@ function CuentasMoraContent() {
                           )}
                         </td>
                         <td className="px-6 py-4">
-                          <GracePeriodBadge fechaVencimiento={cuenta.fechaVencimiento} montoMora={cuenta.montoMora} />
+                          <GracePeriodBadge
+                            fechaVencimiento={cuenta.fechaVencimiento}
+                            montoMora={cuenta.montoMora}
+                            fechaProrroga={cuenta.fechaProrroga}
+                            diasProrroga={cuenta.diasProrroga}
+                            tieneProrroga={cuenta.tieneProrroga}
+                          />
                         </td>
                         {puedeVerPerfil && (
                           <td className="px-6 py-4 text-right">
@@ -490,7 +537,13 @@ function CuentasMoraContent() {
                       {cuenta.cobrador && <span> · {cuenta.cobrador}</span>}
                     </div>
 
-                    <GracePeriodBadge fechaVencimiento={cuenta.fechaVencimiento} montoMora={cuenta.montoMora} />
+                    <GracePeriodBadge
+                      fechaVencimiento={cuenta.fechaVencimiento}
+                      montoMora={cuenta.montoMora}
+                      fechaProrroga={cuenta.fechaProrroga}
+                      diasProrroga={cuenta.diasProrroga}
+                      tieneProrroga={cuenta.tieneProrroga}
+                    />
                   </div>
 
                   {puedeVerPerfil && (
