@@ -137,11 +137,34 @@ const formatFecha = (iso: string | null | undefined) => {
 const aprobacionToNotificacion = (item: Aprobacion) => {
   const datos = item.datosSolicitud || {}
   const cat = CATEGORIAS[item.tipoAprobacion] || CATEGORIAS.BAJA_POR_PERDIDA
-  
+
+  // Construir titulo y mensaje ricos segun el tipo
+  let titulo = cat.label
+  let mensaje = `Solicitud de ${cat.label.toLowerCase()} por ${item.solicitante}`
+
+  if (item.tipoAprobacion === 'PRORROGA_PAGO' || datos.tipo === 'GESTION_VENCIDA' || datos.tipo === 'ASIGNAR_MORA') {
+    const clienteNombre = datos.cliente || datos.clienteNombre || '—'
+    const decision = datos.decision || 'PRORROGAR'
+    const DECISION_LABEL: Record<string, string> = {
+      PRORROGAR: 'Prorroga de Plazo',
+      CASTIGAR:  'Baja por Perdida',
+      JURIDICO:  'Cobro Juridico',
+      ASIGNAR_MORA: 'Asignacion de Mora',
+    }
+    titulo = `${DECISION_LABEL[decision] || cat.label} — ${clienteNombre}`
+    if (decision === 'PRORROGAR' && datos.diasGracia) {
+      mensaje = `${item.solicitante} solicito una prorroga de ${datos.diasGracia} dias para ${clienteNombre}${datos.numeroPrestamo ? ` (${datos.numeroPrestamo})` : ''}. Saldo: ${datos.saldoPendiente ? `$${Number(datos.saldoPendiente).toLocaleString('es-CO')}` : '—'}.`
+    } else if (decision === 'ASIGNAR_MORA') {
+      mensaje = `${item.solicitante} asigno $${Number(datos.montoInteres || 0).toLocaleString('es-CO')} de mora a ${clienteNombre}${datos.numeroPrestamo ? ` (${datos.numeroPrestamo})` : ''}.`
+    } else {
+      mensaje = `${item.solicitante} solicito ${(DECISION_LABEL[decision] || decision).toLowerCase()} para ${clienteNombre}${datos.numeroPrestamo ? ` (${datos.numeroPrestamo})` : ''}.`
+    }
+  }
+
   return {
     id: item.id,
-    titulo: cat.label,
-    mensaje: `Solicitud de ${cat.label.toLowerCase()} por ${item.solicitante}`,
+    titulo,
+    mensaje,
     tipo: cat.tipoNotif as any,
     creadoEn: item.creadoEn,
     leida: false,
