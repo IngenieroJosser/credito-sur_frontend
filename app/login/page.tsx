@@ -45,6 +45,19 @@ const LoginPage = () => {
     nombres: '',
     password: ''
   });
+
+  // Contador secreto para revelar el link de recuperacion (solo superadmin lo sabe)
+  const [versionClicks, setVersionClicks] = useState(0);
+  const [showRecoveryLink, setShowRecoveryLink] = useState(false);
+
+  const handleVersionClick = () => {
+    const next = versionClicks + 1;
+    setVersionClicks(next);
+    if (next >= 5) {
+      setShowRecoveryLink(true);
+      setVersionClicks(0);
+    }
+  };
   
   // Estados para controlar la interfaz visual
   const [showPassword, setShowPassword] = useState(false);
@@ -532,17 +545,18 @@ const LoginPage = () => {
             </div>
           </form>
 
-          {/* Enlace de recuperación de contraseña */}
-          <div className="text-center mt-4">
-            <a
-              href="/recuperar-contrasena"
-              className="text-xs text-gray-400 hover:text-[#08557f] transition-colors duration-200 underline-offset-4 hover:underline"
-            >
-              ¿Olvidaste tu contraseña?
-            </a>
-          </div>
+          {/* Link de recuperacion — solo visible tras 5 clicks en el texto de version */}
+          {showRecoveryLink && (
+            <div className="text-center mt-4 animate-in fade-in duration-500">
+              <a
+                href="/recuperar-contrasena"
+                className="text-xs text-[#08557f] hover:text-[#064d73] transition-colors duration-200 underline underline-offset-4"
+              >
+                Recuperar contraseña de administrador
+              </a>
+            </div>
+          )}
         </div>
-
 
         {/* Footer / Copyright */}
         <div className="text-center space-y-4">
@@ -551,7 +565,13 @@ const LoginPage = () => {
               <div className="w-full border-t border-gray-200"></div>
             </div>
             <div className="relative flex justify-center">
-              <span className="px-3 bg-white text-xs text-gray-400">Versión Alpha 1.0</span>
+              <span
+                className="px-3 bg-white text-xs text-gray-400 cursor-default select-none"
+                onClick={handleVersionClick}
+                title=""
+              >
+                Versión Alpha 1.0
+              </span>
             </div>
           </div>
 
