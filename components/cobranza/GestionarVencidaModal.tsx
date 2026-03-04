@@ -41,14 +41,14 @@ interface GestionarVencidaModalProps {
   cuenta: CuentaVencida
   onClose: () => void
   onConfirm: (data: {
-    decision: 'CASTIGAR' | 'PRORROGAR'
+    decision: 'CASTIGAR' | 'PRORROGAR' | 'DEJAR_QUIETO'
     montoInteres: number
     diasGracia: number
     comentarios?: string
   }) => void
 }
 
-type Decision = 'PRORROGAR' | 'CASTIGAR'
+type Decision = 'PRORROGAR' | 'CASTIGAR' | 'DEJAR_QUIETO'
 
 const DECISION_CONFIG: Record<Decision, {
   label: string
@@ -66,10 +66,18 @@ const DECISION_CONFIG: Record<Decision, {
     activeBorder: 'border-[#08557f]',
     activeBg: 'bg-blue-50/50',
   },
+  DEJAR_QUIETO: {
+    label: 'Dejar Quieto',
+    description: 'Sin mora por ahora, queda en seguimiento',
+    icon: <Ban className="h-5 w-5" />,
+    activeColor: 'text-slate-700',
+    activeBorder: 'border-slate-400',
+    activeBg: 'bg-slate-50',
+  },
   CASTIGAR: {
     label: 'Reportar Pérdida',
     description: 'Castigar cartera como incobrable',
-    icon: <Ban className="h-5 w-5" />,
+    icon: <Scale className="h-5 w-5" />,
     activeColor: 'text-rose-700',
     activeBorder: 'border-rose-500',
     activeBg: 'bg-rose-50/50',
@@ -100,14 +108,16 @@ export default function GestionarVencidaModal({ cuenta, onClose, onConfirm }: Ge
   const montoInteresNum = cobrarInteres ? parseCOPDecimalInputToNumber(montoInteres) : 0
 
   const isValid = decision !== 'PRORROGAR' || (Number(diasGracia) >= 1)
+  const requireComentario = decision === 'CASTIGAR'
 
   const handleConfirm = async () => {
     if (!isValid || isLoading) return
+    if (requireComentario && !comentarios.trim()) return
     setIsLoading(true)
     try {
       await onConfirm({
         decision,
-        montoInteres: montoInteresNum,
+        montoInteres: decision === 'PRORROGAR' ? montoInteresNum : 0,
         diasGracia: decision === 'PRORROGAR' ? Number(diasGracia) : 0,
         comentarios,
       })
@@ -178,10 +188,10 @@ export default function GestionarVencidaModal({ cuenta, onClose, onConfirm }: Ge
               </div>
             </div>
 
-            {/* Selector de decisión */}
+            {/* Selector de decision */}
             <div>
               <label className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em] block mb-2">
-                Tipo de acción
+                Tipo de accion
               </label>
               <div className="grid grid-cols-3 gap-2">
                 {(Object.keys(DECISION_CONFIG) as Decision[]).map(d => {
@@ -288,7 +298,24 @@ export default function GestionarVencidaModal({ cuenta, onClose, onConfirm }: Ge
               </div>
             )}
 
-            {/* Panel de CASTIGAR */}
+            {/* Panel DEJAR_QUIETO */}
+            {decision === 'DEJAR_QUIETO' && (
+              <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 space-y-3 animate-in fade-in slide-in-from-top-2 duration-200">
+                <div className="flex items-start gap-3">
+                  <Info className="h-5 w-5 text-slate-500 shrink-0 mt-0.5" />
+                  <div>
+                    <h4 className="text-sm font-black text-slate-900">Sin cargo de mora por ahora</h4>
+                    <p className="text-xs text-slate-600 leading-relaxed mt-1">
+                      El cliente <strong>{cuenta.cliente.nombre}</strong> permanecera en seguimiento
+                      pero no se le asignara ningun interes de mora en este momento.
+                      Podras gestionarlo nuevamente cuando sea necesario.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Panel CASTIGAR */}
             {decision === 'CASTIGAR' && (
               <div className="p-4 bg-rose-50 rounded-2xl border border-rose-100 space-y-3 animate-in fade-in slide-in-from-top-2 duration-200">
                 <div className="flex items-start gap-3">
@@ -333,14 +360,16 @@ export default function GestionarVencidaModal({ cuenta, onClose, onConfirm }: Ge
             </button>
             <button
               onClick={handleConfirm}
-              disabled={!isValid || isLoading || (decision === 'CASTIGAR' && !comentarios.trim())}
+              disabled={!isValid || isLoading || (requireComentario && !comentarios.trim())}
               className={cn(
                 'flex-[2] py-3.5 px-4 rounded-2xl text-white font-black text-[10px] uppercase tracking-widest transition-all shadow-xl flex items-center justify-center gap-2',
-                (!isValid || isLoading || (decision === 'CASTIGAR' && !comentarios.trim()))
+                (!isValid || isLoading || (requireComentario && !comentarios.trim()))
                   ? 'bg-slate-200 text-slate-400 cursor-not-allowed shadow-none'
                   : decision === 'PRORROGAR'
                     ? 'bg-[#08557f] shadow-blue-900/20 hover:scale-[1.02] active:scale-95'
-                    : 'bg-rose-600 shadow-rose-900/20 hover:bg-rose-700'
+                    : decision === 'DEJAR_QUIETO'
+                      ? 'bg-slate-700 shadow-slate-900/20 hover:bg-slate-800'
+                      : 'bg-rose-600 shadow-rose-900/20 hover:bg-rose-700'
               )}
             >
               {isLoading ? (
@@ -348,7 +377,9 @@ export default function GestionarVencidaModal({ cuenta, onClose, onConfirm }: Ge
               ) : (
                 <>
                   <Save className="h-4 w-4" />
-                  {decision === 'PRORROGAR' ? 'Confirmar Prórroga' : 'Confirmar Pérdida'}
+                  {decision === 'PRORROGAR' ? 'Confirmar Prorroga'
+                    : decision === 'DEJAR_QUIETO' ? 'Confirmar - Sin Mora'
+                    : 'Confirmar Perdida'}
                 </>
               )}
             </button>

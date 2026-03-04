@@ -11,6 +11,7 @@ export interface VisitaRuta {
   saldoTotal: number
   recaudadoDelDia?: number
   recaudadoTotalClient?: number
+  recaudadoPeriodo?: number  // Total pagado en el período actual (semana/quincena/mes/día)
   estado: EstadoVisita
   proximaVisita: string
   targetVencimiento?: string

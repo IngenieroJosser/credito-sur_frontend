@@ -51,11 +51,22 @@ export function SeleccionClienteModal({
                        }}
                     >
                        <option value="" disabled className="text-slate-400 bg-white">Seleccionar de la lista...</option>
-                       {visitas.map(v => (
-                          <option key={v.id} value={v.id} className="text-slate-900 bg-white">
-                            {v.cliente} - {v.direccion}
-                          </option>
-                       ))}
+                       {visitas.map(v => {
+                          // Mostrar tipo y frecuencia para diferenciar múltiples créditos del mismo cliente
+                          const tipoCred = v.tipoPrestamo === 'ARTICULO'
+                            ? (v.articuloNombre ? `Artículo: ${v.articuloNombre}` : 'Artículo')
+                            : 'Efectivo';
+                          const periodoCred = v.periodoRuta === 'DIA' ? 'Diario'
+                            : v.periodoRuta === 'SEMANA' ? 'Semanal'
+                            : v.periodoRuta === 'QUINCENA' ? 'Quincenal'
+                            : v.periodoRuta === 'MES' ? 'Mensual'
+                            : v.periodoRuta;
+                          return (
+                            <option key={v.id} value={v.id} className="text-slate-900 bg-white">
+                              {`${v.cliente} — ${tipoCred} · ${periodoCred}`}
+                            </option>
+                          );
+                       })}
                     </select>
                     <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
                        <ChevronDown className="h-5 w-5" />
@@ -180,14 +191,14 @@ export function StaticVisitaItem({
                     <span className={`text-[9px] font-black uppercase tracking-tighter px-1.5 py-0.5 rounded w-fit ${
                         visita.nivelRiesgo === 'bajo' ? 'text-emerald-600 bg-emerald-50 border border-emerald-100' :
                         visita.nivelRiesgo === 'leve' ? 'text-blue-600 bg-blue-50 border border-blue-100' :
-                        visita.nivelRiesgo === 'precaucion' as any ? 'text-yellow-600 bg-yellow-50 border border-yellow-100' :
+                        (visita.nivelRiesgo as string) === 'precaucion' ? 'text-yellow-600 bg-yellow-50 border border-yellow-100' :
                         visita.nivelRiesgo === 'moderado' ? 'text-orange-600 bg-orange-50 border border-orange-100' :
                         visita.nivelRiesgo === 'critico' ? 'text-red-600 bg-red-50 border border-red-100' :
                         'text-slate-400 bg-slate-50'
                     }`}>
                         {visita.nivelRiesgo === 'bajo' ? 'Peligro Mínimo' :
                          visita.nivelRiesgo === 'leve' ? 'Leve Retraso' :
-                         visita.nivelRiesgo === 'precaucion' as any ? 'Precaución' :
+                         (visita.nivelRiesgo as string) === 'precaucion' ? 'Precaución' :
                          visita.nivelRiesgo === 'moderado' ? 'Riesgo Moderado' :
                          visita.nivelRiesgo === 'critico' ? 'Alto Riesgo' :
                         'Riesgo Desconocido'}
@@ -343,14 +354,14 @@ export function SortableItem({
                     <span className={`text-[9px] font-black uppercase tracking-tighter px-1.5 py-0.5 rounded w-fit ${
                         visita.nivelRiesgo === 'bajo' ? 'text-emerald-600 bg-emerald-50 border border-emerald-100' :
                         visita.nivelRiesgo === 'leve' ? 'text-blue-600 bg-blue-50 border border-blue-100' :
-                        visita.nivelRiesgo === 'precaucion' as any ? 'text-yellow-600 bg-yellow-50 border border-yellow-100' :
+                        (visita.nivelRiesgo as string) === 'precaucion' ? 'text-yellow-600 bg-yellow-50 border border-yellow-100' :
                         visita.nivelRiesgo === 'moderado' ? 'text-orange-600 bg-orange-50 border border-orange-100' :
                         visita.nivelRiesgo === 'critico' ? 'text-red-600 bg-red-50 border border-red-100' :
                         'text-slate-400 bg-slate-50'
                     }`}>
                         {visita.nivelRiesgo === 'bajo' ? 'Peligro Mínimo' :
                          visita.nivelRiesgo === 'leve' ? 'Leve Retraso' :
-                         visita.nivelRiesgo === 'precaucion' as any ? 'Precaución' :
+                         (visita.nivelRiesgo as string) === 'precaucion' ? 'Precaución' :
                          visita.nivelRiesgo === 'moderado' ? 'Riesgo Moderado' :
                          visita.nivelRiesgo === 'critico' ? 'Alto Riesgo' :
                         'Riesgo Desconocido'}

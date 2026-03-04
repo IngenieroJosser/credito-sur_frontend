@@ -104,7 +104,6 @@ const RutaClientLoaded = ({
   const [selectedClienteForCredito, setSelectedClienteForCredito] = useState<VisitaRuta | null>(null)
   const [defaultClienteId, setDefaultClienteId] = useState<string | null>(null)
   const [showCrearCreditoPrompt, setShowCrearCreditoPrompt] = useState(false)
-  // Eliminado flujo de recolectar en detalle de ruta
 
   // Estados para filtros y historial (Portados de VistaCobrador)
   const [periodoRutaFiltro, setPeriodoRutaFiltro] = useState<'TODOS' | 'DIA' | 'SEMANA' | 'QUINCENA' | 'MES'>('TODOS')
@@ -566,7 +565,6 @@ const RutaClientLoaded = ({
   const { estadisticas, nivelRiesgo } = initialRuta;
   const porcentajeProgreso = estadisticas.avanceDiario || 0;
 
-  // Eliminado flujo de recolectar en detalle de ruta
 
   return (
     <div className="min-h-screen bg-slate-50 relative pb-20">
@@ -690,7 +688,6 @@ const RutaClientLoaded = ({
                     </div>
                   )}
                   
-                  {/* Botón Recolectar Dinero removido en detalle de ruta */}
               </div>
 
               {/* Filtros de Periodo (Estilo Cobrador Exacto) */}

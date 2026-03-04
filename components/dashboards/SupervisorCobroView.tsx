@@ -718,28 +718,44 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
     setActiveId(event.active.id as string)
   }, [rutaCompletada])
 
-  const handleGuardarReprogramacion = useCallback((fecha: string, motivo: string) => {
+  const handleGuardarReprogramacion = useCallback(async (fecha: string, motivo: string, cuotaId?: string) => {
     if (!visitaReprogramar) return
-    if (!fecha) return
+    if (!fecha || !motivo) return
 
-    const formatearFechaISO = (iso: string) => {
-      const [yyyy, mm, dd] = iso.split('-')
-      if (!yyyy || !mm || !dd) return iso
-      return `${dd}/${mm}`
+    try {
+      // Enviar solicitud al backend — queda pendiente de aprobación del supervisor
+      if (visitaReprogramar.prestamoId && cuotaId) {
+        await prestamosService.solicitarReprogramacionCuota({
+          prestamoId: visitaReprogramar.prestamoId,
+          cuotaId,
+          nuevaFecha: fecha,
+          motivo,
+        })
+      }
+
+      // Marcar localmente como reprogramado (UI feedback)
+      const [yyyy, mm, dd] = fecha.split('-')
+      const fechaLabel = dd && mm ? `${dd}/${mm}` : fecha
+      setVisitasBase((prev) =>
+        prev.map((v) => {
+          if (v.id !== visitaReprogramar.id) return v
+          return { ...v, estado: 'reprogramado', proximaVisita: fechaLabel }
+        })
+      )
+
+      setModalAlerta({
+        tipo: 'info',
+        titulo: 'Solicitud enviada',
+        mensaje: `La reprogramacion fue enviada al supervisor para aprobacion. ${fecha ? `Nueva fecha solicitada: ${fechaLabel}` : ''}`,
+      })
+    } catch (err: any) {
+      setModalAlerta({
+        tipo: 'error',
+        titulo: 'Error al solicitar',
+        mensaje: err?.message || 'No se pudo enviar la solicitud de reprogramación.',
+      })
     }
 
-    setVisitasBase((prev) =>
-      prev.map((v) => {
-        if (v.id !== visitaReprogramar.id) return v
-        return {
-          ...v,
-          estado: 'reprogramado',
-          proximaVisita: formatearFechaISO(fecha),
-        }
-      })
-    )
-
-    console.log('Reprogramar visita', visitaReprogramar.id, fecha, motivo)
     setShowReprogramModal(false)
     setVisitaReprogramar(null)
   }, [visitaReprogramar])
