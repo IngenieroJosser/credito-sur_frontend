@@ -2,7 +2,7 @@ import { apiRequest, ApiRequestConfig } from '@/lib/api/api';
 
 export type NivelRiesgo = 'VERDE' | 'AMARILLO' | 'ROJO' | 'LISTA_NEGRA';
 export type EstadoPrestamo = 'EN_MORA' | 'INCUMPLIDO' | 'PERDIDA';
-export type DecisionCastigo = 'CASTIGAR' | 'PRORROGAR';
+export type DecisionCastigo = 'CASTIGAR' | 'PRORROGAR' | 'DEJAR_QUIETO';
 
 export interface ClienteInfo {
   nombre: string;
