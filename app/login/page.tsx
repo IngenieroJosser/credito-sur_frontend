@@ -531,7 +531,18 @@ const LoginPage = () => {
               )}
             </div>
           </form>
+
+          {/* Enlace de recuperación de contraseña */}
+          <div className="text-center mt-4">
+            <a
+              href="/recuperar-contrasena"
+              className="text-xs text-gray-400 hover:text-[#08557f] transition-colors duration-200 underline-offset-4 hover:underline"
+            >
+              ¿Olvidaste tu contraseña?
+            </a>
+          </div>
         </div>
+
 
         {/* Footer / Copyright */}
         <div className="text-center space-y-4">
