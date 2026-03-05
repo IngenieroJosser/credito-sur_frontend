@@ -16,7 +16,7 @@
  * - Soporte para modo offline: verificar sesión cacheada y permitir acceso sin conexión.
  */
 
-import { useState, FormEvent, useEffect } from 'react';
+import { useState, FormEvent, useEffect, Suspense } from 'react';
 import { Eye, EyeOff, Lock, User, ChevronRight, WifiOff } from 'lucide-react';
 import { LoginData } from '@/lib/types/autenticacion-type';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -712,4 +712,12 @@ const LoginPage = () => {
   );
 };
 
-export default LoginPage;
+// Suspense wrapper requerido por Next.js para useSearchParams()
+// sin esto el build falla con "missing-suspense-with-csr-bailout"
+export default function LoginPageWrapper() {
+  return (
+    <Suspense fallback={null}>
+      <LoginPage />
+    </Suspense>
+  );
+}
