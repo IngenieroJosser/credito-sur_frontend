@@ -5,6 +5,7 @@ import { cleanExpired } from '@/lib/api/apiCache';
 import { syncManager } from '@/lib/offline/syncManager';
 import { startOfflineTimer, stopOfflineTimer } from '@/lib/offline/offlineAnalytics';
 import { renewOfflineSession, hasValidOfflineSession, shouldShowExpirationWarning, getOfflineSessionDaysRemaining } from '@/lib/auth/offlineAuth';
+import { checkRealConnectivity } from '@/lib/offline/connectivity';
 
 export default function ServiceWorkerRegister() {
   useEffect(() => {
@@ -38,15 +39,13 @@ export default function ServiceWorkerRegister() {
 
     // Descargar datos para offline si hay sesión activa
     const token = localStorage.getItem('token');
-    if (token && navigator.onLine) {
-      syncManager.downloadAll().catch(() => {});
-
-      // Procesar cola pendiente al cargar
-      syncManager.processQueue().catch(() => {});
-
-      // La auto-suscripción silenciosa se ha movido a PushNotificationPrompt 
-      // para asegurar que sea iniciada por el usuario o mostrada mediante UI,
-      // evitando bloqueos de permisos por parte del navegador.
+    if (token) {
+      checkRealConnectivity().then((isOnline) => {
+        if (isOnline) {
+          syncManager.downloadAll().catch(() => {});
+          syncManager.processQueue().catch(() => {});
+        }
+      });
     }
 
     // Verificar y notificar si la sesión offline está por expirar
@@ -64,18 +63,18 @@ export default function ServiceWorkerRegister() {
       }
     }
 
-    // Auto-sync cuando vuelve la conexión
-    const handleOnline = () => {
+    // Auto-sync cuando vuelve la conexión (confirmado con ping real)
+    const handleOnline = async () => {
+      const reallyOnline = await checkRealConnectivity();
+      if (!reallyOnline) return; // WiFi sin internet real
+
       stopOfflineTimer();
-      
+
       // Renovar sesión offline automáticamente al reconectar
       if (hasValidOfflineSession()) {
-        const renewed = renewOfflineSession();
-        if (renewed) {
-          // Sesión offline renovada automáticamente
-        }
+        renewOfflineSession();
       }
-      
+
       syncManager.processQueue().catch(() => {});
     };
 
