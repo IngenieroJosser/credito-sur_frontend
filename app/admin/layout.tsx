@@ -160,7 +160,7 @@ export default function AdminLayout({
       try {
         const res = await aprobacionesService.obtenerPendientes()
         setPendingRevisiones(res?.total ?? 0)
-      } catch { /* silencioso */ }
+      } catch (err) { console.warn('[Revisiones] No se pudo actualizar el badge de revisiones pendientes:', err) }
     }
 
     fetchPending()
@@ -178,8 +178,8 @@ export default function AdminLayout({
       try {
         const res = await aprobacionesService.obtenerPendientes()
         setPendingRevisiones(res?.total ?? 0)
-      } catch {
-        // silencioso
+      } catch (err) {
+        console.warn('[Revisiones/WS] Error al actualizar badge desde WebSocket:', err);
       }
     }
 
@@ -223,7 +223,6 @@ export default function AdminLayout({
         // Validación básica de sesión. El token real seguro está en cookies httpOnly,
         // pero verificamos localStorage para feedback inmediato en UI.
         if (!userData) {
-          console.log('Sesión no encontrada, redirigiendo al login...');
           setUser(null)
           setNavigation([])
           setAuthChecked(true)
@@ -271,7 +270,6 @@ export default function AdminLayout({
 
     // Escuchar actualizaciones de perfil en tiempo real (mismo tab)
     const handleUserUpdate = () => {
-      console.log('Sincronizando datos de usuario en layout...');
       loadUserData();
     };
 
@@ -308,7 +306,6 @@ export default function AdminLayout({
     })()
 
     if (roleRedirects[user.rol] && pathname?.startsWith('/admin') && !hasAllowedAdminRoute) {
-      console.log(`Redirigiendo usuario ${user.rol} a su panel correcto: ${roleRedirects[user.rol]}`)
       router.replace(roleRedirects[user.rol])
     }
   }, [authChecked, navigation, pathname, router, user?.rol])

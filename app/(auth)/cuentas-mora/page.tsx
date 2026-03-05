@@ -229,7 +229,9 @@ function CuentasMoraContent() {
     try {
       const items = await apiRequest<EstadisticasMora>('GET', '/reports/estadisticas-mora')
       setEstadisticas(items)
-    } catch { /* silencioso */ } finally {
+    } catch (err) {
+      console.warn('[CuentasMora] No se pudieron cargar las estadísticas de mora:', err)
+    } finally {
       setIsStatsLoading(false)
     }
   }
