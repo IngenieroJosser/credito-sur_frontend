@@ -358,9 +358,25 @@ const RutaClientLoaded = ({
         const lista = prestamosActivos.length > 0 ? prestamosActivos : [null];
 
         return lista.map((prestamo: any) => {
-          const proximaCuota = prestamo?.cuotas?.[0];
-          const esArticulo = prestamo?.tipo === 'ARTICULO' || prestamo?.tipoPrestamo === 'ARTICULO';
-          const idx = globalIndex++;
+          const proximaCuota = prestamo?.cuotas?.[0]
+          const esArticulo = prestamo?.tipo === 'ARTICULO' || prestamo?.tipoPrestamo === 'ARTICULO'
+          const idx = globalIndex++
+
+          // Detectar prórroga: por estado de cuota O por extensiones del préstamo
+          const cuotaEnProrroga = proximaCuota?.estado === 'PRORROGADA'
+          const extension = prestamo?.extensiones?.[0]
+          const hayProrroga = cuotaEnProrroga || !!extension
+
+          // Fecha de prórroga: de la cuota o de la extensión
+          const fechaProrrogaFecha =
+            (cuotaEnProrroga && proximaCuota?.fechaVencimientoProrroga)
+              ? proximaCuota.fechaVencimientoProrroga
+              : extension?.nuevaFechaVencimiento ?? null
+
+          // Fecha efectiva de cobro
+          const fechaEfectiva = fechaProrrogaFecha
+            ?? proximaCuota?.fechaVencimiento
+            ?? new Date().toISOString().split('T')[0]
 
           return {
             id: prestamo ? `${asig.id}-${prestamo.id}` : (asig.id || `temp-${idx}`),
@@ -370,8 +386,8 @@ const RutaClientLoaded = ({
             horaSugerida: asig.horaSugerida || '08:00 AM',
             montoCuota: Number(proximaCuota?.monto || 0),
             saldoTotal: Number(prestamo?.saldoPendiente || 0),
-            estado: asig.estado?.toLowerCase() || 'pendiente',
-            proximaVisita: proximaCuota?.fechaVencimiento || new Date().toISOString().split('T')[0],
+            estado: (hayProrroga ? 'en_prorroga' : (asig.estado?.toLowerCase() || 'pendiente')) as any,
+            proximaVisita: fechaEfectiva,
             ordenVisita: asig.ordenVisita || idx + 1,
             prioridad: (asig.prioridad?.toLowerCase() as any) || 'media',
             cobradorId: initialRuta.cobradorId || '',
@@ -381,8 +397,11 @@ const RutaClientLoaded = ({
             prestamoId: prestamo?.id || '',
             tipoPrestamo: esArticulo ? 'ARTICULO' : 'EFECTIVO',
             articuloNombre: esArticulo ? (prestamo?.articulo || prestamo?.descripcionArticulo || undefined) : undefined,
-          };
-        });
+            enProrroga: hayProrroga,
+            fechaProrroga: fechaProrrogaFecha ?? undefined,
+            fechaOriginalVencimiento: cuotaEnProrroga ? (proximaCuota?.fechaVencimiento || undefined) : undefined,
+          }
+        })
       });
   })
 
@@ -419,10 +438,19 @@ const RutaClientLoaded = ({
           
           if (v.prestamoId) {
             const cuotas = await prestamosService.obtenerCuotas(v.prestamoId);
-            const pendiente = cuotas.find(c => c.estado !== 'PAGADA');
+            const pendiente = cuotas.find((c: any) => c.estado !== 'PAGADA');
             if (pendiente) {
                montoCuotaReal = Number(pendiente.monto || (pendiente.montoCapital + pendiente.montoInteres) || 0);
-               fechaReal = pendiente.fechaVencimiento || v.proximaVisita;
+               const esProrroga = pendiente.estado === 'PRORROGADA'
+               fechaReal = (esProrroga && pendiente.fechaVencimientoProrroga)
+                 ? pendiente.fechaVencimientoProrroga
+                 : (pendiente.fechaVencimiento || v.proximaVisita);
+               // Propagar prórroga al estado de la visita
+               if (esProrroga) {
+                 (v as any).enProrroga = true;
+                 (v as any).fechaProrroga = pendiente.fechaVencimientoProrroga || undefined;
+                 (v as any).fechaOriginalVencimiento = pendiente.fechaVencimiento || undefined;
+               }
             }
           }
 
@@ -1038,8 +1066,10 @@ const RutaClientLoaded = ({
                                                     <span className="text-[9px] font-bold uppercase">Estado</span>
                                                 </button>
                                                 <button
-                                                    onClick={(e) => { e.stopPropagation(); setVisitaReprogramar(visita); }}
-                                                    className="flex flex-col items-center justify-center p-2 rounded-xl bg-white text-slate-700 border border-slate-200 hover:bg-slate-50 transition-all shadow-sm active:scale-95"
+                                                    onClick={(e) => { e.stopPropagation(); if (!visita.enProrroga) setVisitaReprogramar(visita); }}
+                                                    disabled={!!visita.enProrroga}
+                                                    title={visita.enProrroga ? 'No se puede reprogramar con prorroga activa' : 'Solicitar reprogramacion'}
+                                                    className={`flex flex-col items-center justify-center p-2 rounded-xl border transition-all shadow-sm ${visita.enProrroga ? 'bg-slate-50 text-slate-300 border-slate-100 opacity-50 cursor-not-allowed' : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50 active:scale-95'}`}
                                                 >
                                                     <Calendar className="h-4 w-4 mb-1 text-slate-400" />
                                                     <span className="text-[9px] font-bold uppercase">Repro.</span>

@@ -1,10 +1,9 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { X, Loader2, Clock, AlertTriangle, CheckCircle2, Calendar } from 'lucide-react'
+import { useState } from 'react'
+import { X, Clock, AlertTriangle, CheckCircle2, Calendar, Loader2 } from 'lucide-react'
 import { VisitaRuta } from '@/lib/types/cobranza'
 import Portal, { MODAL_Z_INDEX } from '@/components/ui/Portal'
-import { prestamosService, Cuota } from '@/services/prestamos-service'
 
 interface ReprogramarModalProps {
   visita: VisitaRuta
@@ -21,22 +20,11 @@ const LIMITES_DIAS: Record<string, number> = {
   MES: 30,
 }
 
-function formatFechaDisplay(iso: string) {
-  if (!iso) return ''
-  const [y, m, d] = iso.split('T')[0].split('-')
-  const meses = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic']
-  return `${d} ${meses[parseInt(m) - 1]} ${y}`
-}
 
 export default function ReprogramarModal({ visita, onClose, onConfirm }: ReprogramarModalProps) {
   const [reprogramFecha, setReprogramFecha] = useState('')
   const [reprogramMotivo, setReprogramMotivo] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
-
-  // Cuotas del préstamo para que el cobrador seleccione cuál reprogramar
-  const [cuotas, setCuotas] = useState<Cuota[]>([])
-  const [cuotaSeleccionadaId, setCuotaSeleccionadaId] = useState<string>('')
-  const [cargandoCuotas, setCargandoCuotas] = useState(false)
 
   // Validación de límite de días
   const limite = LIMITES_DIAS[visita.periodoRuta] ?? 30
@@ -54,30 +42,13 @@ export default function ReprogramarModal({ visita, onClose, onConfirm }: Reprogr
   const excedeLimite = reprogramFecha ? diasSeleccionados > limite : false
   const fechaAnteriorHoy = reprogramFecha ? diasSeleccionados < 0 : false
 
-  const cuotaSeleccionada = cuotas.find(c => c.id === cuotaSeleccionadaId)
-
-  // Cargar cuotas pendientes del préstamo
-  useEffect(() => {
-    if (!visita.prestamoId) return
-    setCargandoCuotas(true)
-    prestamosService.obtenerCuotas(visita.prestamoId)
-      .then(all => {
-        const pendientes = all.filter(c => c.estado === 'PENDIENTE' || c.estado === 'VENCIDA' || c.estado === 'PARCIAL')
-        setCuotas(pendientes)
-        // Auto-seleccionar la primera cuota pendiente
-        if (pendientes.length > 0) setCuotaSeleccionadaId(pendientes[0].id)
-      })
-      .catch(() => setCuotas([]))
-      .finally(() => setCargandoCuotas(false))
-  }, [visita.prestamoId])
-
-  const canSubmit = reprogramFecha && reprogramMotivo && cuotaSeleccionadaId && !excedeLimite && !fechaAnteriorHoy && !isSubmitting
+  const canSubmit = reprogramFecha && reprogramMotivo && !excedeLimite && !fechaAnteriorHoy && !isSubmitting
 
   const handleGuardar = async () => {
     if (!canSubmit) return
     setIsSubmitting(true)
     try {
-      await onConfirm(reprogramFecha, reprogramMotivo, cuotaSeleccionadaId)
+      await onConfirm(reprogramFecha, reprogramMotivo)
     } catch (error) {
       console.error('Error al solicitar reprogramación:', error)
       setIsSubmitting(false)
@@ -133,49 +104,6 @@ export default function ReprogramarModal({ visita, onClose, onConfirm }: Reprogr
               </p>
             </div>
 
-            {/* Selección de cuota */}
-            <div>
-              <label className="block text-sm font-bold text-slate-700 mb-2">
-                Cuota a reprogramar
-              </label>
-              {cargandoCuotas ? (
-                <div className="flex items-center gap-2 py-3 text-slate-400 text-sm">
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  Cargando cuotas...
-                </div>
-              ) : cuotas.length === 0 ? (
-                <div className="py-3 text-sm text-slate-500 italic">No hay cuotas pendientes disponibles</div>
-              ) : (
-                <div className="space-y-2">
-                  {cuotas.slice(0, 5).map(c => (
-                    <button
-                      key={c.id}
-                      type="button"
-                      onClick={() => setCuotaSeleccionadaId(c.id)}
-                      className={`w-full text-left flex items-center justify-between px-4 py-3 rounded-2xl border-2 transition-all ${
-                        cuotaSeleccionadaId === c.id
-                          ? 'border-orange-500 bg-orange-50'
-                          : 'border-slate-200 bg-white hover:border-slate-300'
-                      }`}
-                    >
-                      <div>
-                        <div className="text-sm font-bold text-slate-900">Cuota #{c.numeroCuota}</div>
-                        <div className="text-xs text-slate-500 mt-0.5">
-                          Vence: {formatFechaDisplay(c.fechaVencimiento)} · ${Number(c.monto).toLocaleString('es-CO')}
-                        </div>
-                      </div>
-                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase ${
-                        c.estado === 'VENCIDA' ? 'bg-red-100 text-red-700' :
-                        c.estado === 'PARCIAL' ? 'bg-yellow-100 text-yellow-700' :
-                        'bg-slate-100 text-slate-600'
-                      }`}>
-                        {c.estado}
-                      </span>
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
 
             {/* Nueva fecha */}
             <div>

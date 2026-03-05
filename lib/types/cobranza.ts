@@ -1,4 +1,4 @@
-export type EstadoVisita = 'pendiente' | 'pagado' | 'en_mora' | 'ausente' | 'reprogramado'
+export type EstadoVisita = 'pendiente' | 'pagado' | 'en_mora' | 'ausente' | 'reprogramado' | 'en_prorroga'
 export type PeriodoRuta = 'DIA' | 'SEMANA' | 'QUINCENA' | 'MES'
 
 export interface VisitaRuta {
@@ -24,6 +24,10 @@ export interface VisitaRuta {
   prestamoId?: string
   tipoPrestamo?: 'EFECTIVO' | 'ARTICULO'
   articuloNombre?: string
+  // Prórroga activa
+  enProrroga?: boolean
+  fechaProrroga?: string        // ISO string — nueva fecha límite de pago
+  fechaOriginalVencimiento?: string  // fecha original antes de la prórroga
 }
 
 export interface HistorialDia {
