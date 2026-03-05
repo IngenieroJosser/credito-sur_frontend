@@ -2,7 +2,7 @@
 
 import React, { ReactNode } from 'react'
 import { createPortal } from 'react-dom'
-import { MapPin, Eye, Phone, GripVertical, Clock, XCircle, ChevronDown, Calendar } from 'lucide-react'
+import { MapPin, Eye, Phone, GripVertical, Clock, XCircle, ChevronDown, Calendar, Timer } from 'lucide-react'
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { VisitaRuta, EstadoVisita } from '@/lib/types/cobranza'
@@ -166,6 +166,24 @@ export function StaticVisitaItem({
                 <span className="truncate flex-1 font-medium">{visita.direccion}</span>
             </div>
 
+            {/* Badge prorroga activa */}
+            {visita.enProrroga && (() => {
+              if (!visita.fechaProrroga) return (
+                <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl border text-[10px] font-black uppercase tracking-wide bg-blue-50 border-blue-200 text-blue-700">
+                  <Timer className="w-3 h-3 shrink-0" />
+                  En prórroga activa
+                </div>
+              )
+              const diasRestantes = Math.ceil((new Date(visita.fechaProrroga).getTime() - Date.now()) / (1000 * 60 * 60 * 24))
+              const color = diasRestantes < 0 ? 'bg-rose-50 border-rose-200 text-rose-700' : diasRestantes <= 1 ? 'bg-amber-50 border-amber-200 text-amber-700' : 'bg-blue-50 border-blue-200 text-blue-700'
+              return (
+                <div className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border text-[10px] font-black uppercase tracking-wide ${color}`}>
+                  <Timer className="w-3 h-3 shrink-0" />
+                  {diasRestantes < 0 ? 'Prórroga vencida' : diasRestantes === 0 ? 'Prórroga vence HOY' : `En prórroga — vence ${new Date(visita.fechaProrroga).toLocaleDateString('es-CO')} (${diasRestantes}d)`}
+                </div>
+              )
+            })()}
+
             {/* Metrics */}
             <div className="grid grid-cols-3 gap-2">
                  <div className="bg-white/60 p-2 rounded-lg border border-slate-100/50 shadow-sm">
@@ -328,6 +346,24 @@ export function SortableItem({
                 <MapPin className="w-4 h-4 text-slate-400 shrink-0" />
                 <span className="truncate flex-1 font-medium">{visita.direccion}</span>
             </div>
+
+            {/* Badge prorroga activa */}
+            {visita.enProrroga && (() => {
+              if (!visita.fechaProrroga) return (
+                <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl border text-[10px] font-black uppercase tracking-wide bg-blue-50 border-blue-200 text-blue-700">
+                  <Timer className="w-3 h-3 shrink-0" />
+                  En prórroga activa
+                </div>
+              )
+              const diasRestantes = Math.ceil((new Date(visita.fechaProrroga).getTime() - Date.now()) / (1000 * 60 * 60 * 24))
+              const color = diasRestantes < 0 ? 'bg-rose-50 border-rose-200 text-rose-700' : diasRestantes <= 1 ? 'bg-amber-50 border-amber-200 text-amber-700' : 'bg-blue-50 border-blue-200 text-blue-700'
+              return (
+                <div className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border text-[10px] font-black uppercase tracking-wide ${color}`}>
+                  <Timer className="w-3 h-3 shrink-0" />
+                  {diasRestantes < 0 ? 'Prórroga vencida' : diasRestantes === 0 ? 'Prórroga vence HOY' : `En prórroga — vence ${new Date(visita.fechaProrroga).toLocaleDateString('es-CO')} (${diasRestantes}d)`}
+                </div>
+              )
+            })()}
 
             {/* Metrics */}
             <div className="grid grid-cols-3 gap-2">

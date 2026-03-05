@@ -45,6 +45,7 @@ import { TipoAprobacion } from '@/types/enums'
 import { toast } from 'sonner'
 import { useNotificaciones } from '@/components/providers/NotificacionesProvider'
 import NotificacionDetalleModal from '@/components/dashboards/shared/NotificacionDetalleModal'
+import ProrrogaDetalleModal, { type ProrrogaData } from '@/components/revisiones/ProrrogaDetalleModal'
 import ConfirmRejectModal from '@/components/ui/ConfirmRejectModal'
 
 // Configuración de categorías con meta visual
@@ -137,11 +138,34 @@ const formatFecha = (iso: string | null | undefined) => {
 const aprobacionToNotificacion = (item: Aprobacion) => {
   const datos = item.datosSolicitud || {}
   const cat = CATEGORIAS[item.tipoAprobacion] || CATEGORIAS.BAJA_POR_PERDIDA
-  
+
+  // Construir titulo y mensaje ricos segun el tipo
+  let titulo = cat.label
+  let mensaje = `Solicitud de ${cat.label.toLowerCase()} por ${item.solicitante}`
+
+  if (item.tipoAprobacion === 'PRORROGA_PAGO' || datos.tipo === 'GESTION_VENCIDA' || datos.tipo === 'ASIGNAR_MORA') {
+    const clienteNombre = datos.cliente || datos.clienteNombre || '—'
+    const decision = datos.decision || 'PRORROGAR'
+    const DECISION_LABEL: Record<string, string> = {
+      PRORROGAR: 'Prorroga de Plazo',
+      CASTIGAR:  'Baja por Perdida',
+      JURIDICO:  'Cobro Juridico',
+      ASIGNAR_MORA: 'Asignacion de Mora',
+    }
+    titulo = `${DECISION_LABEL[decision] || cat.label} — ${clienteNombre}`
+    if (decision === 'PRORROGAR' && datos.diasGracia) {
+      mensaje = `${item.solicitante} solicito una prorroga de ${datos.diasGracia} dias para ${clienteNombre}${datos.numeroPrestamo ? ` (${datos.numeroPrestamo})` : ''}. Saldo: ${datos.saldoPendiente ? `$${Number(datos.saldoPendiente).toLocaleString('es-CO')}` : '—'}.`
+    } else if (decision === 'ASIGNAR_MORA') {
+      mensaje = `${item.solicitante} asigno $${Number(datos.montoInteres || 0).toLocaleString('es-CO')} de mora a ${clienteNombre}${datos.numeroPrestamo ? ` (${datos.numeroPrestamo})` : ''}.`
+    } else {
+      mensaje = `${item.solicitante} solicito ${(DECISION_LABEL[decision] || decision).toLowerCase()} para ${clienteNombre}${datos.numeroPrestamo ? ` (${datos.numeroPrestamo})` : ''}.`
+    }
+  }
+
   return {
     id: item.id,
-    titulo: cat.label,
-    mensaje: `Solicitud de ${cat.label.toLowerCase()} por ${item.solicitante}`,
+    titulo,
+    mensaje,
     tipo: cat.tipoNotif as any,
     creadoEn: item.creadoEn,
     leida: false,
@@ -178,6 +202,10 @@ export default function RevisionesPage() {
 
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false)
   const [selectedItem, setSelectedItem] = useState<any>(null)
+
+  // Modal dedicado para prorrogas
+  const [prorrogaModalOpen, setProrrogaModalOpen] = useState(false)
+  const [selectedProrroga, setSelectedProrroga] = useState<ProrrogaData | null>(null)
 
   const { socket } = useNotificaciones()
 
@@ -232,10 +260,44 @@ export default function RevisionesPage() {
     }
   }, [socket, loadData])
 
+  // Helper para detectar si un item corresponde a una prorroga o gestion vencida
+  const isProrrogaOrVencida = (item: Aprobacion) => {
+    const datos = item.datosSolicitud || {} as any
+    return (
+      item.tipoAprobacion === 'PRORROGA_PAGO' ||
+      datos.tipo === 'GESTION_VENCIDA' ||
+      datos.tipo === 'ASIGNAR_MORA'
+    )
+  }
+
   const handleOpenDetail = (item: Aprobacion) => {
-    const notifData = aprobacionToNotificacion(item)
-    setSelectedItem(notifData)
-    setIsDetailModalOpen(true)
+    const datos = (item.datosSolicitud || {}) as any
+    if (isProrrogaOrVencida(item)) {
+      // Abrir modal dedicado para prorrogas / gestion vencida
+      setSelectedProrroga({
+        id: item.id,
+        solicitante: item.solicitante,
+        creadoEn: item.creadoEn,
+        estado: item.estado,
+        decision:                datos.decision,
+        cliente:                 datos.cliente || datos.clienteNombre,
+        clienteNombre:           datos.clienteNombre || datos.cliente,
+        numeroPrestamo:          datos.numeroPrestamo,
+        saldoPendiente:          datos.saldoPendiente ?? item.montoSolicitud,
+        montoInteres:            datos.montoInteres,
+        diasGracia:              datos.diasGracia,
+        fechaVencimientoOriginal: datos.fechaVencimientoOriginal,
+        nuevaFechaVencimiento:   datos.nuevaFechaVencimiento,
+        comentarios:             datos.comentarios,
+        gestionadoPor:           datos.gestionadoPor || datos.asignadoPor || item.solicitante,
+      })
+      setProrrogaModalOpen(true)
+    } else {
+      // Modal generico para el resto
+      const notifData = aprobacionToNotificacion(item)
+      setSelectedItem(notifData)
+      setIsDetailModalOpen(true)
+    }
   }
 
   const handleApproveFromModal = async (entityId: string) => {
@@ -500,6 +562,25 @@ export default function RevisionesPage() {
         onApprove={handleApproveFromModal} 
         onReject={handleRejectFromModal} 
         canApprove 
+      />
+
+      {/* Modal dedicado para prorrogas y gestion de cuentas vencidas */}
+      <ProrrogaDetalleModal
+        isOpen={prorrogaModalOpen}
+        onClose={() => { setProrrogaModalOpen(false); setSelectedProrroga(null) }}
+        data={selectedProrroga}
+        canApprove={canReviewRejected || userRol === 'COORDINADOR'}
+        isProcessing={!!processingId}
+        onApprove={(id) => {
+          setProrrogaModalOpen(false)
+          const item = Object.values(data?.items || {}).flat().find(i => i.id === id)
+          if (item) handleAprobar(item)
+        }}
+        onReject={(id) => {
+          setProrrogaModalOpen(false)
+          const item = Object.values(data?.items || {}).flat().find(i => i.id === id)
+          if (item) handleRechazar(item)
+        }}
       />
 
       {confirmModal && confirmModal.type === 'REJECT' && (

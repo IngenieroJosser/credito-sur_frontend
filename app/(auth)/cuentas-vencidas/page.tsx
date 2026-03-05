@@ -157,8 +157,8 @@ function CuentasVencidasContent() {
     try {
       if (!selectedCuenta) return
 
-      // Llama el nuevo endpoint que crea Aprobacion + Auditoria + Notificacion push
-      await apiRequest('POST', `/loans/${selectedCuenta.id}/gestion-vencida`, {
+      // Llamar al endpoint de gestion vencida
+      await apiRequest('POST', `loans/${selectedCuenta.id}/gestion-vencida`, {
         decision: data.decision,
         montoInteres: data.montoInteres,
         diasGracia: data.diasGracia ?? 0,
@@ -171,14 +171,19 @@ function CuentasVencidasContent() {
         JURIDICO: 'Cobro juridico',
         DEJAR_QUIETO: 'Sin mora por ahora',
       }
+
+      const descripcion = data.decision === 'PRORROGAR'
+        ? 'La solicitud fue enviada a revisiones y se aplicara al ser aprobada.'
+        : 'Los aprobadores recibieron una notificacion. La accion se aplicara al ser aprobada.'
+
       toast.success(
-        `✅ ${LABEL[data.decision] || data.decision} enviada a aprobación`,
-        { description: 'Los aprobadores recibieron una notificación. La acción se aplicará al ser aprobada.' }
+        `${LABEL[data.decision] || data.decision} enviada a revision`,
+        { description: descripcion }
       )
       setShowGestionarModal(false); setShowCastigoModal(false); setSelectedCuenta(null)
       fetchCuentasVencidas()
     } catch (e: any) {
-      toast.error(e?.message || 'Error al procesar la decisión')
+      toast.error(e?.message || 'Error al procesar la decision')
     }
   }
 
