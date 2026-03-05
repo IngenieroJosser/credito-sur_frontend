@@ -241,8 +241,6 @@ const LoginPage = () => {
         throw new Error(cookieRes.error || 'Error seteando sesión');
       }
 
-      // Login Exitoso
-      
       // Guardamos datos en localStorage para uso en el cliente
       if (result.usuario) {
         const userFullName = `${result.usuario.nombres || ''} ${result.usuario.apellidos || ''}`.trim() || formData.nombres;
@@ -257,6 +255,24 @@ const LoginPage = () => {
           cacheSession(result.access_token, userData);
         }
       }
+
+      // ── Descarga background para modo offline ──────────────────────────
+      // Fire & Forget: no bloquea la redirección. Descarga clientes,
+      // préstamos, rutas, cajas, productos y usuarios en IndexedDB para
+      // que estén disponibles si el usuario pierde internet más adelante.
+      import('@/lib/offline/syncManager')
+        .then(({ syncManager }) => {
+          console.log('[PWA] Iniciando descarga de datos offline en background...');
+          return syncManager.downloadAll();
+        })
+        .then((counts) => {
+          console.log('[PWA] Datos offline actualizados:', counts);
+        })
+        .catch(() => {
+          // Silencioso: no afecta el login
+        });
+      // ───────────────────────────────────────────────────────────────────
+
 
       const userName = result.usuario?.nombres || formData.nombres;
       const rol = result.usuario?.rol || 'Usuario';
