@@ -50,6 +50,7 @@ import UserDropdownMenu, { formatRoleName, getRoleColor, getRoleIcon } from '@/c
 import { useNotificaciones } from '@/components/providers/NotificacionesProvider';
 import PushNotificationPrompt from '@/components/push/PushNotificationPrompt';
 import { aprobacionesService } from '@/services/aprobaciones-service';
+import { isTokenExpired } from '@/lib/auth/offlineAuth';
 
 interface NavigationItem {
   name: string;
@@ -220,13 +221,23 @@ export default function AdminLayout({
           }
         }
 
-        // Validación básica de sesión. El token real seguro está en cookies httpOnly,
-        // pero verificamos localStorage para feedback inmediato en UI.
+        // Validación de sesión: verificar si hay usuario Y si el token no expiró
         if (!userData) {
           setUser(null)
           setNavigation([])
           setAuthChecked(true)
           router.replace('/login')
+          return
+        }
+
+        // Si el token expiró, limpiar sesión y redirigir con aviso
+        if (token && isTokenExpired(token)) {
+          localStorage.removeItem('token')
+          localStorage.removeItem('user')
+          setUser(null)
+          setNavigation([])
+          setAuthChecked(true)
+          router.replace('/login?expired=1')
           return
         }
 
