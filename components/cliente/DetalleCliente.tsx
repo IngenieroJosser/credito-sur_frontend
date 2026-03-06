@@ -262,6 +262,15 @@ const ClienteDetalleElegante: React.FC<ClienteDetalleProps> = ({
     return (pagado / total) * 100;
   };
 
+  const formatFecha = (fechaStr: string) => {
+    if (!fechaStr || fechaStr === '---' || !fechaStr.includes('T')) return fechaStr;
+    try {
+      return new Date(fechaStr).toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric' });
+    } catch {
+      return fechaStr;
+    }
+  };
+
   return (
     <div className="min-h-screen bg-slate-50 p-4 md:p-8 relative">
       <div className="fixed inset-0 pointer-events-none">
@@ -574,8 +583,8 @@ const ClienteDetalleElegante: React.FC<ClienteDetalleProps> = ({
                           <div className="flex items-center gap-4 text-sm text-slate-500 mb-4 font-medium">
                             <span className="flex items-center gap-1">
                               <Calendar className="w-3.5 h-3.5" />
-                              {prestamo.fechaInicio} -{" "}
-                              {prestamo.fechaVencimiento}
+                              {formatFecha(prestamo.fechaInicio)} -{" "}
+                              {formatFecha(prestamo.fechaVencimiento)}
                             </span>
                             <span className="bg-slate-100 px-2 py-0.5 rounded text-xs font-bold text-slate-600">
                               ID: {prestamo.id}
