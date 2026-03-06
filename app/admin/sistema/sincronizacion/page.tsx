@@ -14,6 +14,7 @@ import { offlineQueue } from '@/lib/offline/offlineQueue'
 import { offlineStore } from '@/lib/offline/offlineDb'
 import { syncManager } from '@/lib/offline/syncManager'
 import type { OfflineQueueItem, SyncMeta } from '@/lib/offline/offlineDb'
+import ListaConflictos from '@/components/conflictos/ListaConflictos'
 
 const SyncStatusPage = () => {
   const { isOnline, pendingOps, failedOps, isSyncing, syncNow, downloadForOffline } = useOffline()
@@ -214,7 +215,7 @@ const SyncStatusPage = () => {
             </div>
           </div>
 
-          <div className="lg:col-span-2 space-y-8">
+          <div className="lg:col-span-2 space-y-6">
             <div className="bg-white rounded-2xl border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden">
               <div className="p-4 md:p-6 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <h2 className="text-base md:text-lg font-bold text-slate-900 flex items-center gap-2">
@@ -331,6 +332,9 @@ const SyncStatusPage = () => {
                 </div>
               )}
             </div>
+            
+            {/* Sección de Conflictos Centralizados */}
+            <ListaConflictos />
           </div>
         </div>
       </div>

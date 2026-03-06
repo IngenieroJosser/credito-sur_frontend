@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { AlertTriangle, CheckCircle, XCircle, Eye, AlertCircle, RefreshCw } from "lucide-react";
-import { apiClient as api } from "@/lib/api/apiClient";
+import { apiRequest } from "@/lib/api/api";
 import { toast } from "sonner";
 
 interface SyncConflict {
@@ -25,8 +25,8 @@ export default function ListaConflictos() {
   const loadConflictos = async () => {
     try {
       setLoading(true);
-      const res = await api.get("/sync-conflicts");
-      setConflictos(res.data);
+      const res = await apiRequest<SyncConflict[]>("GET", "/sync-conflicts");
+      setConflictos(res);
     } catch (error) {
       console.error("Error cargando conflictos", error);
       toast.error("Error vinculando con el servidor de conflictos");
@@ -42,12 +42,12 @@ export default function ListaConflictos() {
   const handleResolver = async (id: string, accion: "RESOLVER" | "DESCARTAR") => {
     try {
       const toastId = toast.loading(accion === "RESOLVER" ? "Reprocesando petición..." : "Descartando registro...");
-      await api.patch(`/sync-conflicts/${id}/resolve`, { accion });
+      await apiRequest("PATCH", `/sync-conflicts/${id}/resolve`, { accion });
       toast.success(`Conflicto ${accion === "RESOLVER" ? "resuelto y reprocesado" : "descartado"} exitosamente`, { id: toastId });
       setSelectedConflict(null);
       loadConflictos();
     } catch (error: any) {
-      toast.error(error?.response?.data?.message || "Hubo un error al aplicar la acción");
+      toast.error(error?.message || "Hubo un error al aplicar la acción");
     }
   };
 
@@ -62,27 +62,27 @@ export default function ListaConflictos() {
   };
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+    <div className="bg-white rounded-2xl border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden">
+      <div className="p-4 md:p-6 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900 flex items-center gap-2">
-            <AlertTriangle className="w-6 h-6 text-amber-500" />
-            Centro de Resolución de Conflictos
-          </h1>
-          <p className="text-slate-500 mt-1 font-medium">
-            Gestión de fallos de sincronización de la aplicación offline
+          <h2 className="text-base md:text-lg font-bold text-slate-900 flex items-center gap-2">
+            <AlertTriangle className="w-5 h-5 text-amber-500" />
+            Conflictos en Servidor
+          </h2>
+          <p className="text-xs font-medium text-slate-500 max-w-xl mt-1">
+            Gestión centralizada de pagos fallidos y conflictos operacionales estancados en el servidor.
           </p>
         </div>
         <button
           onClick={loadConflictos}
-          className="flex items-center gap-2 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-bold transition-colors"
+          className="flex items-center gap-2 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-bold transition-colors text-sm"
         >
           <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
           Actualizar
         </button>
       </div>
 
-      <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+      <div className="bg-white">
         {loading ? (
           <div className="p-8 text-center text-slate-500 flex flex-col items-center">
             <RefreshCw className="w-8 h-8 animate-spin mb-4 text-brand-500" />
