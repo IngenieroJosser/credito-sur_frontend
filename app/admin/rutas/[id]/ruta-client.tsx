@@ -1356,8 +1356,27 @@ function ClienteDetalleModal({ visita, onClose }: { visita: VisitaRuta; onClose:
       try {
         setLoading(true)
         if (visita.clienteId) {
-          const res = await clientesService.obtenerPorId(visita.clienteId)
-          setClienteCompleto(res)
+          const res: any = await clientesService.obtenerPorId(visita.clienteId)
+          // Calcular score dinámico igual que getAllClients en el backend
+          let score = res.puntaje || 100
+          const prestamosEnMora = (res.prestamos || []).filter((p: any) => p.estado === 'EN_MORA')
+          const prestamosActivos = (res.prestamos || []).filter((p: any) => p.estado === 'ACTIVO')
+          if (prestamosEnMora.length > 0) {
+            score -= 20
+          } else if (prestamosActivos.length > 0) {
+            score += 5
+          }
+          // Ajuste por último pago
+          const pagos = res.pagos || []
+          if (pagos.length > 0) {
+            const diasDesdeUltimoPago = Math.floor(
+              (Date.now() - new Date(pagos[0].fechaPago).getTime()) / (1000 * 60 * 60 * 24)
+            )
+            if (diasDesdeUltimoPago > 30) score -= 10
+            else if (diasDesdeUltimoPago <= 7) score += 5
+          }
+          score = Math.max(0, Math.min(100, score))
+          setClienteCompleto({ ...res, score })
         }
       } catch (e) {
         console.error("Error al cargar detalle del cliente", e)
@@ -1438,17 +1457,51 @@ function ClienteDetalleModal({ visita, onClose }: { visita: VisitaRuta; onClose:
                   <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100">
                      <div className="flex items-center gap-1.5 mb-1 text-slate-400">
                         <Fingerprint className="w-3 h-3" />
-                        <span className="text-[9px] font-black uppercase">Cédula / DNI</span>
+                        <span className="text-[9px] font-black uppercase">Cédula</span>
                      </div>
                      <p className="text-sm font-black text-slate-900">{clienteCompleto?.dni || '---'}</p>
                   </div>
-                  <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100">
-                     <div className="flex items-center gap-1.5 mb-1 text-slate-400">
-                        <Star className="w-3 h-3" />
-                        <span className="text-[9px] font-black uppercase">Puntaje</span>
-                     </div>
-                     <p className="text-sm font-black text-emerald-600">{clienteCompleto?.puntaje || 0} pts</p>
-                  </div>
+                   <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100">
+                      <div className="flex items-center gap-1.5 mb-2 text-slate-400">
+                         <Star className="w-3 h-3" />
+                         <span className="text-[9px] font-black uppercase">Score Crediticio</span>
+                      </div>
+                      <div className="flex items-center justify-between mb-1">
+                        <span className={`text-xl font-black ${
+                          ((clienteCompleto?.score ?? clienteCompleto?.puntaje) || 0) >= 80 ? 'text-emerald-600' :
+                          ((clienteCompleto?.score ?? clienteCompleto?.puntaje) || 0) >= 60 ? 'text-amber-500' :
+                          ((clienteCompleto?.score ?? clienteCompleto?.puntaje) || 0) >= 40 ? 'text-amber-600' :
+                          'text-rose-600'
+                        }`}>{clienteCompleto?.score ?? clienteCompleto?.puntaje ?? '—'}<span className="text-xs font-bold text-slate-400">/100</span></span>
+                        <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full border ${
+                          ((clienteCompleto?.score ?? clienteCompleto?.puntaje) || 0) >= 80 ? 'text-emerald-700 bg-emerald-50 border-emerald-200' :
+                          ((clienteCompleto?.score ?? clienteCompleto?.puntaje) || 0) >= 60 ? 'text-amber-600 bg-amber-50 border-amber-200' :
+                          ((clienteCompleto?.score ?? clienteCompleto?.puntaje) || 0) >= 40 ? 'text-amber-700 bg-amber-50 border-amber-200' :
+                          'text-rose-700 bg-rose-50 border-rose-200'
+                        }`}>
+                          {((clienteCompleto?.score ?? clienteCompleto?.puntaje) || 0) >= 80 ? 'Bueno' :
+                           ((clienteCompleto?.score ?? clienteCompleto?.puntaje) || 0) >= 60 ? 'Regular' :
+                           ((clienteCompleto?.score ?? clienteCompleto?.puntaje) || 0) >= 40 ? 'Precaución' : 'Bajo'}
+                        </span>
+                      </div>
+                      {/* ScoreMeter — igual al del listado de clientes */}
+                      <div className="relative pt-2">
+                        <div className="h-1.5 bg-slate-200 rounded-full overflow-hidden">
+                          <div
+                            className={`h-full rounded-full transition-all duration-300 ${
+                              ((clienteCompleto?.score ?? clienteCompleto?.puntaje) || 0) >= 80 ? 'bg-emerald-500' :
+                              ((clienteCompleto?.score ?? clienteCompleto?.puntaje) || 0) >= 60 ? 'bg-amber-500' :
+                              ((clienteCompleto?.score ?? clienteCompleto?.puntaje) || 0) >= 40 ? 'bg-amber-600' :
+                              'bg-rose-500'
+                            }`}
+                            style={{ width: `${Math.min(100, (clienteCompleto?.score ?? clienteCompleto?.puntaje) || 0)}%` }}
+                          />
+                        </div>
+                        <div className="flex justify-between text-[9px] text-slate-400 mt-1 font-bold">
+                          <span>0</span><span>50</span><span>100</span>
+                        </div>
+                      </div>
+                   </div>
                   <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100">
                      <div className="flex items-center gap-1.5 mb-1 text-slate-400">
                         <CalendarDays className="w-3 h-3" />

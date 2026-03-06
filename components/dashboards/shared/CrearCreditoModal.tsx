@@ -58,6 +58,7 @@ export default function CrearCreditoModal({ isOpen, onClose, onConfirm, defaultC
   const [frecuenciaPago, setFrecuenciaPago] = useState('DIARIO')
   const [fechaPrimerCobro, setFechaPrimerCobro] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [notasInput, setNotasInput] = useState('')
   const mouseDownTargetRef = useRef<EventTarget | null>(null)
   
   const [articuloSeleccionadoId, setArticuloSeleccionadoId] = useState<string>('')
@@ -144,6 +145,7 @@ export default function CrearCreditoModal({ isOpen, onClose, onConfirm, defaultC
     setArticuloSeleccionadoId('')
     setPlanArticuloIndex(null)
     setFrecuenciaPago('DIARIO')
+    setNotasInput('')
     {
       const now = new Date()
       const tzAdjusted = new Date(now.getTime() - now.getTimezoneOffset() * 60000)
@@ -551,6 +553,8 @@ export default function CrearCreditoModal({ isOpen, onClose, onConfirm, defaultC
                   className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-[#08557f] focus:ring-0 font-medium text-slate-900 resize-none"
                   rows={3}
                   placeholder="Observaciones adicionales..."
+                  value={notasInput}
+                  onChange={(e) => setNotasInput(e.target.value)}
                 ></textarea>
               </div>
 
@@ -592,7 +596,8 @@ export default function CrearCreditoModal({ isOpen, onClose, onConfirm, defaultC
                             cuotasTotales: Number(cuotasPrestamoInput),
                             frecuenciaPago,
                             fechaInicio: fechaCreditoInput.split('T')[0], // Extraer solo YYYY-MM-DD para evitar desfase de zona horaria
-                            fechaPrimerCobro
+                            fechaPrimerCobro,
+                            notas: notasInput.trim() || undefined,
                           }
                         : {
                             creditType,
@@ -613,7 +618,8 @@ export default function CrearCreditoModal({ isOpen, onClose, onConfirm, defaultC
                             fechaInicio: fechaCreditoInput.split('T')[0], // Extraer solo YYYY-MM-DD para evitar desfase de zona horaria
                             plazoMeses: esContado ? 1 : mesesPlan,
                             numCuotas: esContado ? 1 : (calculoCreditoArticulo?.numCuotas || 0),
-                            ventaContado: esContado ? true : undefined
+                            ventaContado: esContado ? true : undefined,
+                            notas: notasInput.trim() || undefined,
                           }
                       await onConfirm(payload as any)
                       handleReset()
