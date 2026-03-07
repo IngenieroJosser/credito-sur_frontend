@@ -258,7 +258,11 @@ const RutaClientLoaded = ({
           })() as any,
           clienteId: cliente.id,
           recaudadoDelDia: recDia,
-          recaudadoTotalClient: recDia
+          recaudadoTotalClient: recDia,
+          cuotaActual: proximaCuota?.numeroCuota,
+          cuotasTotales: prestamoActivo?.cantidadCuotas,
+          enProrroga: proximaCuota?.enProrroga,
+          fechaProrroga: proximaCuota?.fechaVencimiento
         };
       });
 
@@ -297,9 +301,11 @@ const RutaClientLoaded = ({
         total: todasVisitas.length
       };
 
+      const gestionadas = todasVisitas.filter(v => (v.recaudadoDelDia || 0) > 0 || v.estado === 'pagado');
+
       setHistorialRutas((prev: any) => ({
         ...(prev || {}),
-        [fechaClave]: { resumen, visitas: todasVisitas, loaded: true }
+        [fechaClave]: { resumen, visitas: gestionadas, loaded: true }
       }));
     } catch (e) {
       console.error("Error procesando datos del historial (Admin):", e);
@@ -400,6 +406,8 @@ const RutaClientLoaded = ({
             enProrroga: hayProrroga,
             fechaProrroga: fechaProrrogaFecha ?? undefined,
             fechaOriginalVencimiento: cuotaEnProrroga ? (proximaCuota?.fechaVencimiento || undefined) : undefined,
+            cuotaActual: proximaCuota?.numeroCuota,
+            cuotasTotales: prestamo?.cantidadCuotas
           }
         })
       });
@@ -1066,10 +1074,14 @@ const RutaClientLoaded = ({
                                                     <span className="text-[9px] font-bold uppercase">Estado</span>
                                                 </button>
                                                 <button
-                                                    onClick={(e) => { e.stopPropagation(); if (!visita.enProrroga) setVisitaReprogramar(visita); }}
-                                                    disabled={!!visita.enProrroga}
-                                                    title={visita.enProrroga ? 'No se puede reprogramar con prorroga activa' : 'Solicitar reprogramacion'}
-                                                    className={`flex flex-col items-center justify-center p-2 rounded-xl border transition-all shadow-sm ${visita.enProrroga ? 'bg-slate-50 text-slate-300 border-slate-100 opacity-50 cursor-not-allowed' : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50 active:scale-95'}`}
+                                                    onClick={(e) => { 
+                                                      e.stopPropagation(); 
+                                                      const isProrrogaVencida = visita.enProrroga && visita.fechaProrroga && new Date(visita.fechaProrroga).getTime() < Date.now();
+                                                      if (!visita.enProrroga || isProrrogaVencida) setVisitaReprogramar(visita); 
+                                                    }}
+                                                    disabled={!!visita.enProrroga && !(visita.fechaProrroga && new Date(visita.fechaProrroga).getTime() < Date.now())}
+                                                    title={visita.enProrroga && !(visita.fechaProrroga && new Date(visita.fechaProrroga).getTime() < Date.now()) ? 'No se puede reprogramar con prorroga activa' : 'Solicitar reprogramacion'}
+                                                    className={`flex flex-col items-center justify-center p-2 rounded-xl border transition-all shadow-sm ${visita.enProrroga && !(visita.fechaProrroga && new Date(visita.fechaProrroga).getTime() < Date.now()) ? 'bg-slate-50 text-slate-300 border-slate-100 opacity-50 cursor-not-allowed' : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50 active:scale-95'}`}
                                                 >
                                                     <Calendar className="h-4 w-4 mb-1 text-slate-400" />
                                                     <span className="text-[9px] font-bold uppercase">Repro.</span>
@@ -1223,7 +1235,8 @@ const RutaClientLoaded = ({
                   monto: data.monto,
                   tasaInteres: data.tasaInteres,
                   tasaInteresMora: 2.0,
-                  plazoMeses: data.cuotasTotales,
+                  plazoMeses: data.plazoMeses,
+                  cantidadCuotas: data.cantidadCuotas,
                   frecuenciaPago: data.frecuenciaPago,
                   fechaInicio: data.fechaInicio,
                   creadoPorId: currentUser?.id || ''

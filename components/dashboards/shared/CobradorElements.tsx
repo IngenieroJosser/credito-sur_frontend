@@ -137,9 +137,14 @@ export function StaticVisitaItem({
               {visita.nivelRiesgo === 'bajo' ? 'Mínimo' :
                visita.nivelRiesgo === 'leve' ? 'Leve' :
                (visita.nivelRiesgo as string) === 'precaucion' ? 'Precaución' :
-               visita.nivelRiesgo === 'moderado' ? 'Moderado' :
-               visita.nivelRiesgo === 'critico' ? 'Crítico' : '—'}
-            </span>
+                visita.nivelRiesgo === 'moderado' ? 'Moderado' :
+                visita.nivelRiesgo === 'critico' ? 'Crítico' : '—'}
+             </span>
+             {visita.cuotaActual && (
+               <span className="text-[9px] font-black bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded border border-slate-200">
+                 #{visita.cuotaActual}{visita.cuotasTotales ? `/${visita.cuotasTotales}` : ''}
+               </span>
+             )}
             <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-md border uppercase ${getEstadoClasses(visita.estado)}`}>
               {visita.estado.replace('_', ' ')}
             </span>
@@ -290,9 +295,14 @@ export function SortableItem({
               {visita.nivelRiesgo === 'bajo' ? 'Mínimo' :
                visita.nivelRiesgo === 'leve' ? 'Leve' :
                (visita.nivelRiesgo as string) === 'precaucion' ? 'Precaución' :
-               visita.nivelRiesgo === 'moderado' ? 'Moderado' :
-               visita.nivelRiesgo === 'critico' ? 'Crítico' : '—'}
-            </span>
+                visita.nivelRiesgo === 'moderado' ? 'Moderado' :
+                visita.nivelRiesgo === 'critico' ? 'Crítico' : '—'}
+             </span>
+             {visita.cuotaActual && (
+               <span className="text-[9px] font-black bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded border border-slate-200">
+                 #{visita.cuotaActual}{visita.cuotasTotales ? `/${visita.cuotasTotales}` : ''}
+               </span>
+             )}
             <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-md border uppercase ${getEstadoClasses(visita.estado)}`}>
               {visita.estado.replace('_', ' ')}
             </span>

@@ -224,6 +224,13 @@ export const clientesService = {
   },
 
   /**
+   * Restaurar un cliente eliminado
+   */
+  async restaurar(id: string): Promise<any> {
+    return apiRequest('PATCH', `/clients/${id}/restore`, {});
+  },
+
+  /**
    * Aprobar un cliente
    */
   async aprobar(id: string, aprobadoPorId: string, datosAprobados?: unknown): Promise<Cliente> {

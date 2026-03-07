@@ -30,6 +30,7 @@ export interface CrearPrestamoDto {
   tasaInteres: number;
   tasaInteresMora: number;
   plazoMeses: number;
+  cantidadCuotas?: number;
   frecuenciaPago: FrecuenciaPago;
   tipoAmortizacion?: 'INTERES_SIMPLE' | 'FRANCESA';
   fechaInicio: string;
@@ -97,6 +98,13 @@ export const prestamosService = {
    */
   async obtenerPrestamoPorId(id: string): Promise<any> {
     return apiRequest('GET', `/loans/${id}`);
+  },
+
+  /**
+   * Restaurar un préstamo eliminado
+   */
+  async restaurarPrestamo(id: string): Promise<any> {
+    return apiRequest('PATCH', `/loans/${id}/restore`, {});
   },
 
   /**
