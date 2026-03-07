@@ -8,7 +8,20 @@ const primaryUrl =
     : "http://127.0.0.1:3001");
 
 // URL de Contingencia (Servidor Físico en LAN local)
-const secondaryUrl = process.env.NEXT_PUBLIC_LOCAL_URL || "http://192.168.1.100:3001"; // IP provisional, se puede configurar en .env
+const getSecondaryUrl = () => {
+  const envUrl = process.env.NEXT_PUBLIC_LOCAL_URL;
+  if (envUrl) return envUrl;
+
+  // Si estamos en el navegador, intentar detectar el protocolo para evitar Mixed Content
+  if (typeof window !== "undefined") {
+    const protocol = window.location.protocol === "https:" ? "https:" : "http:";
+    return `${protocol}//192.168.1.100:3001`;
+  }
+  
+  return "http://192.168.1.100:3001";
+};
+
+const secondaryUrl = getSecondaryUrl();
 
 const normalizeUrl = (url: string) => {
   const normalized = url.replace(/\/$/, "");
