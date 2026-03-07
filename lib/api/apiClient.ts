@@ -15,10 +15,10 @@ const getSecondaryUrl = () => {
   // Si estamos en el navegador, intentar detectar el protocolo para evitar Mixed Content
   if (typeof window !== "undefined") {
     const protocol = window.location.protocol === "https:" ? "https:" : "http:";
-    return `${protocol}//192.168.1.100:3001`;
+    return `${protocol}//credito-sur-backend.onrender.com`;
   }
   
-  return "http://192.168.1.100:3001";
+  return "https://credito-sur-backend.onrender.com";
 };
 
 const secondaryUrl = getSecondaryUrl();
