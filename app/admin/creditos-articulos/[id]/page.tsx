@@ -118,20 +118,7 @@ export default function CreditoDetallePage() {
             </div>
 
             <div className="flex items-center gap-2">
-              <button
-                onClick={async () => {
-                  try {
-                    await exportService.exportContrato(id);
-                    toast.success('Contrato descargado');
-                  } catch (e) {
-                    toast.error('Error al descargar contrato');
-                  }
-                }}
-                className="px-4 py-2 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 transition-all text-sm shadow-sm hover:shadow-md flex items-center gap-2"
-              >
-                <FileText className="w-4 h-4" />
-                Descargar Contrato
-              </button>
+
               <Link
                 href={`/creditos-articulos/${id}/editar`}
                 className="px-4 py-2 bg-white border border-slate-200 text-slate-700 font-bold rounded-xl hover:bg-slate-50 transition-all text-sm shadow-sm hover:shadow-md"

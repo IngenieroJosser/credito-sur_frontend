@@ -33,7 +33,7 @@ import { useNotification } from '@/components/providers/NotificationProvider';
 import { loansService, Loan, LoansFilters } from '@/services/loans-service';
 import { formatErrorForComponent } from '@/lib/api/api';
 import { usePermission } from '@/hooks/usePermission';
-import { ExportButton } from '@/components/ui/ExportButton';
+
 import { exportService } from '@/services/export-service';
 import { offlineStore } from '@/lib/offline/offlineDb';
 import { prestamosService } from '@/services/prestamos-service';
@@ -193,33 +193,7 @@ const ListadoPrestamosElegante = () => {
     }
   };
 
-  const handleExportExcel = async () => {
-    try {
-      showNotification('info', 'Generando archivo Excel...', 'Exportando');
-      await exportService.exportLoans('excel', {
-        estado: filtros.estado !== 'todos' ? filtros.estado : undefined,
-        ruta: filtros.ruta !== 'todas' ? filtros.ruta : undefined,
-        search: filtros.busqueda || undefined,
-      });
-      showNotification('success', 'Archivo descargado correctamente', 'Exportación Exitosa');
-    } catch (err) {
-      showNotification('error', 'Error al exportar. Intente de nuevo.', 'Error');
-    }
-  };
 
-  const handleExportPDF = async () => {
-    try {
-      showNotification('info', 'Generando archivo PDF...', 'Exportando');
-      await exportService.exportLoans('pdf', {
-        estado: filtros.estado !== 'todos' ? filtros.estado : undefined,
-        ruta: filtros.ruta !== 'todas' ? filtros.ruta : undefined,
-        search: filtros.busqueda || undefined,
-      });
-      showNotification('success', 'Archivo descargado correctamente', 'Exportación Exitosa');
-    } catch (err) {
-      showNotification('error', 'Error al exportar. Intente de nuevo.', 'Error');
-    }
-  };
 
   // Client-side filters for fields not handled by backend
   const prestamosFiltrados = prestamos.filter(prestamo => {
@@ -336,12 +310,7 @@ const ListadoPrestamosElegante = () => {
             </p>
           </div>
           <div className="flex items-center gap-3">
-            <ExportButton
-              onExportExcel={handleExportExcel}
-              onExportPDF={handleExportPDF}
-              label="Exportar"
-              className="!px-4 !py-2 text-sm"
-            />
+
             <button
               onClick={handleRefresh}
               disabled={refreshing}
@@ -849,11 +818,14 @@ const ListadoPrestamosElegante = () => {
               monto: data.monto || 0,
               tasaInteres: esContado ? 0 : (data.tasaInteres || 0),
               tasaInteresMora: 2.0,
-              plazoMeses,
+              plazoMeses: data.plazoMeses || 1,
+              cantidadCuotas: data.cantidadCuotas || data.cuotas || 0,
+              cuotas: data.cuotas || data.cantidadCuotas || 0,
               frecuenciaPago: freq,
               tipoAmortizacion: data.tipoInteres || 'INTERES_SIMPLE',
               fechaInicio: data.fechaInicio || new Date().toISOString().split('T')[0],
               creadoPorId: userId,
+              notas: data.notas // IMPORTANTE: Pasar las notas
             };
 
             if (data.articuloId) {
