@@ -1245,19 +1245,18 @@ const RutaClientLoaded = ({
               
               if (data.creditType === 'prestamo') {
                 await prestamosService.crearPrestamo({
+                  ...data,
                   clienteId: data.clienteCreditoId,
                   tipoPrestamo: 'EFECTIVO',
-                  monto: data.monto,
-                  tasaInteres: data.tasaInteres,
                   tasaInteresMora: 2.0,
-                  plazoMeses: data.plazoMeses,
-                  cantidadCuotas: data.cantidadCuotas,
-                  frecuenciaPago: data.frecuenciaPago,
-                  fechaInicio: data.fechaInicio,
                   creadoPorId: currentUser?.id || ''
                 } as any);
               } else {
-                await creditosService.crearCredito(payload as any);
+                await creditosService.crearCredito({
+                  ...data,
+                  clienteId: data.clienteCreditoId,
+                  creadoPorId: currentUser?.id || ''
+                } as any);
               }
 
               // Asignar cliente a la ruta automáticamente si estamos en el detalle de una ruta

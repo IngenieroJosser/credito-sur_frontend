@@ -28,6 +28,8 @@ interface CrearCreditoModalProps {
     tipoInteres?: TipoAmortizacion
     tasaInteres?: number
     cuotasTotales?: number
+    cantidadCuotas?: number
+    cuotas?: number
     frecuenciaPago?: string
     fechaInicio?: string
     fechaPrimerCobro?: string
@@ -36,6 +38,7 @@ interface CrearCreditoModalProps {
     plazoMeses?: number
     numCuotas?: number
     cuotaInicialArticulo?: number
+    notas?: string
   }) => void | Promise<void>
   defaultClienteId?: string
   defaultCreditType?: 'prestamo' | 'articulo'
@@ -145,9 +148,11 @@ export default function CrearCreditoModal({ isOpen, onClose, onConfirm, defaultC
     else if (frecuenciaPago === 'MENSUAL') meses = cuotas
     
     const tasa = Number(tasaInteresInput) || 0
-    const intereses = (monto * tasa * meses) / 100
+    // Cobrar al menos 1 mes de interés si el plazo es menor a 1 mes (típico en microcréditos)
+    const mesesInteres = Math.max(1, meses)
+    const intereses = (monto * tasa * mesesInteres) / 100
     const total = monto + intereses
-    const valorCuota = total / cuotas
+    const valorCuota = cuotas > 0 ? total / cuotas : 0
     
     return { meses, monto, intereses, total, valorCuota, numCuotas: cuotas }
   }, [creditType, montoPrestamoInput, cuotasPrestamoInput, frecuenciaPago, tasaInteresInput])
@@ -649,10 +654,11 @@ export default function CrearCreditoModal({ isOpen, onClose, onConfirm, defaultC
                             clienteCreditoId,
                             monto: parseCOPInputToNumber(montoPrestamoInput),
                             tipoInteres,
-                            tasaInteres: Number(tasaInteresInput),
-                            cuotasTotales: Number(cuotasPrestamoInput),
-                            cantidadCuotas: Number(cuotasPrestamoInput),
-                            plazoMeses: calculoPrestamo?.meses || 1,
+                             tasaInteres: Number(tasaInteresInput),
+                             cuotas: Number(cuotasPrestamoInput),
+                             cantidadCuotas: Number(cuotasPrestamoInput),
+                             cuotasTotales: Number(cuotasPrestamoInput),
+                             plazoMeses: (calculoPrestamo?.meses && calculoPrestamo.meses > 0) ? calculoPrestamo.meses : 1,
                             frecuenciaPago,
                             fechaInicio: fechaCreditoInput.split('T')[0], // Extraer solo YYYY-MM-DD para evitar desfase de zona horaria
                             fechaPrimerCobro,
@@ -662,6 +668,7 @@ export default function CrearCreditoModal({ isOpen, onClose, onConfirm, defaultC
                             creditType,
                             clienteCreditoId,
                             articuloId: articuloSeleccionadoId,
+                            articuloNombre: articuloSeleccionado?.nombre,
                             precioProductoId: articuloSeleccionado
                               ? (
                                   esContado
@@ -676,7 +683,7 @@ export default function CrearCreditoModal({ isOpen, onClose, onConfirm, defaultC
                             frecuenciaPago: esContado ? 'MENSUAL' : frecuenciaPago,
                             fechaInicio: fechaCreditoInput.split('T')[0], // Extraer solo YYYY-MM-DD para evitar desfase de zona horaria
                             plazoMeses: esContado ? 1 : mesesPlan,
-                            numCuotas: esContado ? 1 : (calculoCreditoArticulo?.numCuotas || 0),
+                            cantidadCuotas: esContado ? 1 : (calculoCreditoArticulo?.numCuotas || 0),
                             ventaContado: esContado ? true : undefined,
                             notas: notasInput.trim() || undefined,
                           }

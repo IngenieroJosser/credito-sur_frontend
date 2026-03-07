@@ -109,15 +109,16 @@ export default function NotificacionDetalleModal({
         tipoAmortizacion: combined.tipoAmortizacion || 'INTERES_SIMPLE',
         fechaInicio: combined.fechaInicio || new Date().toISOString().split('T')[0],
         cuotas: (() => {
-           const val = Number(combined.cuotas || combined.numCuotas || combined.cantidadCuotas || 0);
+           const val = Number(combined.cantidadCuotas || combined.cuotas || combined.numCuotas || 0);
            if (val > 0) return val;
-           const meses = Number(combined.plazoMeses || combined.plajeMeses || 1);
+           const meses = Number(combined.plazoMeses || combined.plajeMeses || 0);
+           if (meses === 0) return 0;
            const freq = combined.frecuenciaPago || combined.frecuencia || 'DIARIO';
-           if (freq === 'DIARIO') return meses * 30;
-           if (freq === 'SEMANAL') return meses * 4;
-           if (freq === 'QUINCENAL') return meses * 2;
-           if (freq === 'MENSUAL') return meses;
-           return meses * 4;
+           if (freq === 'DIARIO') return Math.ceil(meses * 30);
+           if (freq === 'SEMANAL') return Math.ceil(meses * 4);
+           if (freq === 'QUINCENAL') return Math.ceil(meses * 2);
+           if (freq === 'MENSUAL') return Math.ceil(meses);
+           return Math.ceil(meses * 4);
         })(),
         frecuenciaPago: combined.frecuenciaPago || combined.frecuencia || 'DIARIO',
         articulo: combined.articulo || combined.articuloNombre || articuloFromMsg || ((notificacion.titulo + notificacion.mensaje).toLowerCase().includes('artículo') || (notificacion.titulo + notificacion.mensaje).toLowerCase().includes('articulo') ? 'Artículo por definir' : 'N/A'),
@@ -636,7 +637,8 @@ export default function NotificacionDetalleModal({
                         onChange={(e) => {
                           const v = e.target.value.replace(/[^0-9]/g, '')
                           setAutoCuotas(false)
-                          setEditedDetails({ ...editedDetails, cuotas: v === '' ? undefined : Number(v) })
+                          const numVal = v === '' ? undefined : Number(v)
+                          setEditedDetails({ ...editedDetails, cuotas: numVal, cantidadCuotas: numVal, numCuotas: numVal })
                         }}
                         className="w-full bg-white border border-blue-200 text-slate-900 rounded-xl px-4 py-2 text-sm font-black outline-none focus:ring-2 focus:ring-blue-500/20"
                       />

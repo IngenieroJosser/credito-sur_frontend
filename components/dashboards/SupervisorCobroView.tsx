@@ -899,15 +899,13 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
       const payload: any = {
         clienteId: data.clienteCreditoId,
         tipoPrestamo: data.creditType === 'prestamo' ? 'EFECTIVO' : 'ARTICULO',
-        monto: data.montoPrestamo || (data.creditType === 'articulo' ? (data.monto || 0) : 0),
+        monto: data.monto || 0,
         tasaInteres: esContado ? 0 : (data.tasaInteres || 0),
         tasaInteresMora: 2, 
-        plazoMeses: data.creditType === 'prestamo'
-          ? Math.ceil((data.cuotasPrestamo || 0) / (data.frecuenciaPago === 'Diaria' ? 30 : data.frecuenciaPago === 'Semanal' ? 4 : data.frecuenciaPago === 'Quincenal' ? 2 : 1))
-          : (esContado ? 1 : (data.plazoMeses || 1)),
-        frecuenciaPago: esContado
-          ? 'MENSUAL'
-          : (data.frecuenciaPago === 'Diaria' ? 'DIARIO' : data.frecuenciaPago === 'Semanal' ? 'SEMANAL' : data.frecuenciaPago === 'Quincenal' ? 'QUINCENAL' : 'MENSUAL'),
+        plazoMeses: data.plazoMeses || 1,
+        cantidadCuotas: data.cantidadCuotas || data.cuotas || data.cuotasTotales || 0,
+        cuotas: data.cuotas || data.cantidadCuotas || 0,
+        frecuenciaPago: esContado ? 'MENSUAL' : (data.frecuenciaPago || 'DIARIO'),
         fechaInicio: data.fechaInicio || new Date().toISOString(),
         creadoPorId: userSession?.id,
         cuotaInicial: data.cuotaInicialArticulo || 0,
