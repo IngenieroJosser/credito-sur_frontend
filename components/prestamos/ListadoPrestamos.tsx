@@ -33,7 +33,7 @@ import { useNotification } from '@/components/providers/NotificationProvider';
 import { loansService, Loan, LoansFilters } from '@/services/loans-service';
 import { formatErrorForComponent } from '@/lib/api/api';
 import { usePermission } from '@/hooks/usePermission';
-import { ExportButton } from '@/components/ui/ExportButton';
+
 import { exportService } from '@/services/export-service';
 import { offlineStore } from '@/lib/offline/offlineDb';
 import { prestamosService } from '@/services/prestamos-service';
