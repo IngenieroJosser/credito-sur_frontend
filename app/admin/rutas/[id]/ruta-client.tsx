@@ -207,9 +207,14 @@ const RutaClientLoaded = ({
         recaudadoPorCliente[cid] = (recaudadoPorCliente[cid] || 0) + Number(p.montoTotal || 0);
       }
 
-      const existentes = new Set();
-      const visitas: VisitaRuta[] = (visitasResp?.visitas || []).map((item: any, index: number) => {
+      const existentes = new Set<string>();
+      const visitas: VisitaRuta[] = (visitasResp?.visitas || []).reduce((acc: VisitaRuta[], item: any, index: number) => {
         const cliente = item.cliente || {};
+        
+        // Evitar duplicados si el backend llegara a enviarlos
+        if (cliente.id && existentes.has(cliente.id)) return acc;
+        if (cliente.id) existentes.add(cliente.id);
+
         const prestamos = item.prestamos || [];
         const prestamoActivo = prestamos.find((p: any) => p.estado === 'ACTIVO' || p.estado === 'EN_MORA' || p.estado === 'PAGADO') || prestamos[0] || {};
         const proximaCuota = prestamoActivo?.proximaCuota || {};
@@ -218,8 +223,6 @@ const RutaClientLoaded = ({
         const recDia = cliente.id ? (recaudadoPorCliente[cliente.id] || 0) : 0;
         const montoCuota = Number(proximaCuota?.monto || 0);
         
-        if (cliente.id) existentes.add(cliente.id);
-
         let estado: EstadoVisita = 'pendiente';
         if (proximaCuota?.estado === 'PAGADA' || (recDia > 0 && recDia >= (montoCuota - 1)) || saldoTotalToken <= 0) {
             estado = 'pagado';
@@ -227,7 +230,7 @@ const RutaClientLoaded = ({
             estado = 'en_mora';
         }
 
-        return {
+        acc.push({
           id: item.asignacionId || `hist-${fechaClave}-${index}`,
           cliente: `${cliente.nombres || ''} ${cliente.apellidos || ''}`.trim() || 'Cliente Sin Nombre',
           direccion: cliente.direccion || 'Sin dirección registrada',
@@ -256,15 +259,17 @@ const RutaClientLoaded = ({
             if (f === 'MENSUAL') return 'MES';
             return 'DIA';
           })() as any,
-          clienteId: cliente.id,
+          clienteId: cliente.id || '',
           recaudadoDelDia: recDia,
           recaudadoTotalClient: recDia,
           cuotaActual: proximaCuota?.numeroCuota,
           cuotasTotales: prestamoActivo?.cantidadCuotas,
           enProrroga: proximaCuota?.enProrroga,
           fechaProrroga: proximaCuota?.fechaVencimiento
-        };
-      });
+        });
+
+        return acc;
+      }, []);
 
       const sinteticos: VisitaRuta[] = (pagosDelDia || []).flatMap((p: any, i: number) => {
         const cid = p.clienteId || (p.cliente?.id);
@@ -355,7 +360,11 @@ const RutaClientLoaded = ({
       };
 
       let globalIndex = 0;
+      const idsProcesados = new Set<string>();
+
       return (asignaciones as any[]).flatMap((asig: any) => {
+        if (!asig.cliente) return [];
+
         const prestamosActivos: any[] = (asig.cliente?.prestamos || []).filter(
           (p: any) => p.estado === 'ACTIVO' || p.estado === 'EN_MORA'
         );
@@ -363,28 +372,34 @@ const RutaClientLoaded = ({
         // Si no tiene préstamos activos, igual mostramos la entrada vacía
         const lista = prestamosActivos.length > 0 ? prestamosActivos : [null];
 
-        return lista.map((prestamo: any) => {
-          const proximaCuota = prestamo?.cuotas?.[0]
-          const esArticulo = prestamo?.tipo === 'ARTICULO' || prestamo?.tipoPrestamo === 'ARTICULO'
-          const idx = globalIndex++
+        return lista.flatMap((prestamo: any) => {
+          const idx = globalIndex++;
+          // Generar una clave única para este par cliente-préstamo
+          const uniqueKey = prestamo ? `loan-${prestamo.id}` : `client-${asig.cliente.id}`;
+          
+          if (idsProcesados.has(uniqueKey)) return [];
+          idsProcesados.add(uniqueKey);
+
+          const proximaCuota = prestamo?.cuotas?.[0];
+          const esArticulo = prestamo?.tipo === 'ARTICULO' || prestamo?.tipoPrestamo === 'ARTICULO';
 
           // Detectar prórroga: por estado de cuota O por extensiones del préstamo
-          const cuotaEnProrroga = proximaCuota?.estado === 'PRORROGADA'
-          const extension = prestamo?.extensiones?.[0]
-          const hayProrroga = cuotaEnProrroga || !!extension
+          const cuotaEnProrroga = proximaCuota?.estado === 'PRORROGADA';
+          const extension = prestamo?.extensiones?.[0];
+          const hayProrroga = cuotaEnProrroga || !!extension;
 
           // Fecha de prórroga: de la cuota o de la extensión
           const fechaProrrogaFecha =
             (cuotaEnProrroga && proximaCuota?.fechaVencimientoProrroga)
               ? proximaCuota.fechaVencimientoProrroga
-              : extension?.nuevaFechaVencimiento ?? null
+              : extension?.nuevaFechaVencimiento ?? null;
 
           // Fecha efectiva de cobro
           const fechaEfectiva = fechaProrrogaFecha
             ?? proximaCuota?.fechaVencimiento
-            ?? new Date().toISOString().split('T')[0]
+            ?? new Date().toISOString().split('T')[0];
 
-          return {
+          return [{
             id: prestamo ? `${asig.id}-${prestamo.id}` : (asig.id || `temp-${idx}`),
             cliente: `${asig.cliente?.nombres || ''} ${asig.cliente?.apellidos || ''}`.trim() || 'Cliente Desconocido',
             direccion: asig.cliente?.direccion || 'Sin dirección registrada',
@@ -408,10 +423,10 @@ const RutaClientLoaded = ({
             fechaOriginalVencimiento: cuotaEnProrroga ? (proximaCuota?.fechaVencimiento || undefined) : undefined,
             cuotaActual: proximaCuota?.numeroCuota,
             cuotasTotales: prestamo?.cantidadCuotas
-          }
-        })
+          }];
+        });
       });
-  })
+  });
 
 
   // Cargar historial de pagos para enriquecer las visitas
