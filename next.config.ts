@@ -8,6 +8,14 @@ const withPWA = require("@ducanh2912/next-pwa").default({
   disable: process.env.NODE_ENV === 'development',
   workboxOptions: {
     disableDevLogs: true,
+    // Excluir /api/ping del caché: debe ir SIEMPRE a la red
+    // para que checkRealConnectivity() sea preciso
+    runtimeCaching: [
+      {
+        urlPattern: /^\/api\/ping$/,
+        handler: 'NetworkOnly',
+      },
+    ],
   },
 });
 

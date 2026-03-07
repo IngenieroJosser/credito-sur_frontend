@@ -551,8 +551,25 @@ export default function DetallePrestamo({ prestamo }: DetallePrestamoProps) {
                   <dt className="text-xs font-bold text-slate-400">{isArticle ? 'Precio de Venta' : 'Monto Total a Pagar'}</dt>
                   <dd className="text-sm font-bold text-slate-700">{formatCurrency(prestamo.montoTotal)}</dd>
                 </div>
+                {prestamo.garantia && (
+                  <div className="flex justify-between border-b border-slate-50 pb-2">
+                    <dt className="text-xs font-bold text-slate-400">Garantía</dt>
+                    <dd className="text-sm font-bold text-slate-700">{prestamo.garantia}</dd>
+                  </div>
+                )}
               </dl>
             </div>
+
+            {/* Notas del crédito */}
+            {prestamo.notas && (
+              <div className="md:col-span-2 bg-amber-50/60 rounded-2xl p-6 border border-amber-100">
+                <h3 className="text-xs font-black text-amber-800 uppercase tracking-widest mb-3 flex items-center gap-2">
+                  <FileText className="h-4 w-4" />
+                  Notas / Observaciones
+                </h3>
+                <p className="text-sm font-medium text-slate-700 whitespace-pre-wrap leading-relaxed">{prestamo.notas}</p>
+              </div>
+            )}
           </div>
         )}
 

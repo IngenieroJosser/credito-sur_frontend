@@ -50,6 +50,7 @@ import UserDropdownMenu, { formatRoleName, getRoleColor, getRoleIcon } from '@/c
 import { useNotificaciones } from '@/components/providers/NotificacionesProvider';
 import PushNotificationPrompt from '@/components/push/PushNotificationPrompt';
 import { aprobacionesService } from '@/services/aprobaciones-service';
+import { isTokenExpired } from '@/lib/auth/offlineAuth';
 
 interface NavigationItem {
   name: string;
@@ -160,7 +161,7 @@ export default function AdminLayout({
       try {
         const res = await aprobacionesService.obtenerPendientes()
         setPendingRevisiones(res?.total ?? 0)
-      } catch { /* silencioso */ }
+      } catch (err) { console.warn('[Revisiones] No se pudo actualizar el badge de revisiones pendientes:', err) }
     }
 
     fetchPending()
@@ -178,8 +179,8 @@ export default function AdminLayout({
       try {
         const res = await aprobacionesService.obtenerPendientes()
         setPendingRevisiones(res?.total ?? 0)
-      } catch {
-        // silencioso
+      } catch (err) {
+        console.warn('[Revisiones/WS] Error al actualizar badge desde WebSocket:', err);
       }
     }
 
@@ -220,14 +221,23 @@ export default function AdminLayout({
           }
         }
 
-        // Validación básica de sesión. El token real seguro está en cookies httpOnly,
-        // pero verificamos localStorage para feedback inmediato en UI.
+        // Validación de sesión: verificar si hay usuario Y si el token no expiró
         if (!userData) {
-          console.log('Sesión no encontrada, redirigiendo al login...');
           setUser(null)
           setNavigation([])
           setAuthChecked(true)
           router.replace('/login')
+          return
+        }
+
+        // Si el token expiró, limpiar sesión y redirigir con aviso
+        if (token && isTokenExpired(token)) {
+          localStorage.removeItem('token')
+          localStorage.removeItem('user')
+          setUser(null)
+          setNavigation([])
+          setAuthChecked(true)
+          router.replace('/login?expired=1')
           return
         }
 
@@ -271,7 +281,6 @@ export default function AdminLayout({
 
     // Escuchar actualizaciones de perfil en tiempo real (mismo tab)
     const handleUserUpdate = () => {
-      console.log('Sincronizando datos de usuario en layout...');
       loadUserData();
     };
 
@@ -308,7 +317,6 @@ export default function AdminLayout({
     })()
 
     if (roleRedirects[user.rol] && pathname?.startsWith('/admin') && !hasAllowedAdminRoute) {
-      console.log(`Redirigiendo usuario ${user.rol} a su panel correcto: ${roleRedirects[user.rol]}`)
       router.replace(roleRedirects[user.rol])
     }
   }, [authChecked, navigation, pathname, router, user?.rol])

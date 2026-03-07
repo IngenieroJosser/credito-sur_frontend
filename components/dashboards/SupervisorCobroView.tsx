@@ -137,8 +137,10 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
   const [modalAlerta, setModalAlerta] = useState<{titulo: string, mensaje: string, tipo: 'exito' | 'error' | 'info'} | null>(null)
   const [isLoading, setIsLoading] = useState(true)
 
+  // El supervisor puede gestionar pagos en CUALQUIER ruta (propia o de un cobrador)
+  // isPersonal solo controla si puede reordenar la lista (drag & drop)
   const isPersonal = rutaId === 'RT-SUP' || rutaId === 'SUP-001' || !rutaId
-  const isReadOnly = !isPersonal
+  const isReadOnly = false  // El supervisor/admin siempre puede registrar pagos
   const [periodoCards, setPeriodoCards] = useState<'HOY' | 'SEM' | 'MES' | 'AÑO'>('HOY')
   const [rutaStats, setRutaStats] = useState<{
     recaudo: number

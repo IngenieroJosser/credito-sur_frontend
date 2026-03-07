@@ -141,10 +141,22 @@ export const apiRequest = async <T>(
     if (status === 400) {
       errorMessage = err.response.data?.message || "Error de validación en la solicitud";
     } else if (status === 401) {
-      errorMessage = "No autorizado. La sesión permanece activa en modo seguro.";
-      if (typeof window !== "undefined") {
-        console.warn('[API] 401 recibido. Se mantiene la sesión. No se redirige al login.');
+      // Verificar si es por token expirado o por falta de permisos
+      if (typeof window !== 'undefined') {
+        const token = localStorage.getItem('token');
+        // Importamos dinámicamente para evitar ciclos de dependencia
+        const { isTokenExpired } = await import('@/lib/auth/offlineAuth');
+        if (!token || isTokenExpired(token)) {
+          // Token expirado: limpiamos la sesión y redirigimos al login
+          localStorage.removeItem('token');
+          localStorage.removeItem('user');
+          window.location.href = '/login?expired=1';
+          throw { statusCode: 401, message: 'Sesión expirada. Redirigiendo al login...' };
+        }
+        // Token válido pero sin permisos (403-like via 401): no redirigir
+        console.warn('[API] 401 por permisos insuficientes — token vigente, no se redirige.');
       }
+      errorMessage = 'No tienes permisos para realizar esta acción.';
     } else if (status === 404) {
       errorMessage = err.response.data?.message || "Recurso no encontrado";
     } else if (status === 500) {

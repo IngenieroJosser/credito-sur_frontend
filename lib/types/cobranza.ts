@@ -28,6 +28,9 @@ export interface VisitaRuta {
   enProrroga?: boolean
   fechaProrroga?: string        // ISO string — nueva fecha límite de pago
   fechaOriginalVencimiento?: string  // fecha original antes de la prórroga
+  // Detalle de cuotas
+  cuotaActual?: number
+  cuotasTotales?: number
 }
 
 export interface HistorialDia {

@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { offlineStore, OfflineCliente, OfflinePrestamo, OfflineCuota, OfflineRuta } from '@/lib/offline/offlineDb';
+import { checkRealConnectivity } from '@/lib/offline/connectivity';
 
 // Hook genérico para leer datos offline con fallback
 function useOfflineStore<T>(
@@ -15,8 +16,10 @@ function useOfflineStore<T>(
   const load = useCallback(async () => {
     setLoading(true);
 
-    // Si estamos online y tenemos fetcher, intentar online primero
-    if (navigator.onLine && fetchOnline) {
+    // Verificar conectividad REAL antes de intentar el fetch online
+    const isOnline = await checkRealConnectivity();
+
+    if (isOnline && fetchOnline) {
       try {
         const onlineData = await fetchOnline();
         setData(onlineData);

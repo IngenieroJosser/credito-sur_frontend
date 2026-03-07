@@ -166,6 +166,16 @@ export const permisosPorRol: Record<Rol, ModuloPermiso[]> = {
         { id: 'articulos', nombre: 'Artículos (Inventario)', icono: 'Package', path: '/admin/articulos', roles: ['SUPER_ADMINISTRADOR', 'ADMIN', 'COORDINADOR', 'CONTADOR'] },
       ]
     },
+    {
+      id: 'sistema',
+      nombre: 'Sistema',
+      icono: 'Settings',
+      path: '#',
+      roles: ['ADMIN'],
+      submodulos: [
+        { id: 'sincronizacion', nombre: 'Sincronización', icono: 'RefreshCw', path: '/sistema/sincronizacion', roles: ['ADMIN'], isNew: true },
+      ]
+    },
     { id: 'reportes-operativos', nombre: 'Reportes operativos', icono: 'ClipboardList', path: '/admin/reportes/operativos', roles: ['SUPER_ADMINISTRADOR', 'ADMIN', 'COORDINADOR', 'SUPERVISOR'] },
   ],
 
@@ -194,6 +204,16 @@ export const permisosPorRol: Record<Rol, ModuloPermiso[]> = {
       roles: ['COORDINADOR'],
       submodulos: [
         { id: 'rutas', nombre: 'Rutas', icono: 'Route', path: '/coordinador/rutas', roles: ['COORDINADOR'] },
+      ]
+    },
+    {
+      id: 'sistema',
+      nombre: 'Sistema',
+      icono: 'Settings',
+      path: '#',
+      roles: ['COORDINADOR'],
+      submodulos: [
+        { id: 'sincronizacion', nombre: 'Sincronización', icono: 'RefreshCw', path: '/sistema/sincronizacion', roles: ['COORDINADOR'], isNew: true },
       ]
     },
     { id: 'reportes-operativos', nombre: 'Reportes operativos', icono: 'ClipboardList', path: '/coordinador/reportes', roles: ['COORDINADOR'] },
@@ -295,8 +315,10 @@ import {
   FileX2,
   RefreshCw,
   UserCircle,
+  AlertTriangle,
   // Agregar más iconos según necesites
 } from 'lucide-react';
+
 
 export const iconosMap: Record<string, React.ReactNode> = {
   'Eye': <Eye className="h-4 w-4" />,
@@ -332,6 +354,7 @@ export const iconosMap: Record<string, React.ReactNode> = {
   'RefreshCw': <RefreshCw className="h-4 w-4" />,
   'UserCircle': <UserCircle className="h-4 w-4" />,
   'ShieldCheck': <ShieldCheck className="h-4 w-4" />,
+  'AlertTriangle': <AlertTriangle className="h-4 w-4" />,
 };
 
 export const getIconComponent = (iconName: string): React.ReactNode => {
@@ -410,6 +433,7 @@ const ACTION_ICON_MAP: Record<string, string> = {
   'prestamos-dinero': 'CreditCard',
   'creditos-articulos': 'ShoppingBag',
   'revisiones': 'ShieldCheck',
+  'conflictos-sinc': 'AlertTriangle',
 };
 
 const normalizePermissionId = (id: string) => {
@@ -770,6 +794,9 @@ export const tieneAcceso = (rol: Rol, path: string, permisos?: string[]): boolea
       '/revisiones': 'revisiones',
       '/admin/revisiones': 'revisiones',
       '/coordinador/revisiones': 'revisiones',
+      '/conflictos': 'conflictos-sinc',
+      '/admin/conflictos': 'conflictos-sinc',
+      '/coordinador/conflictos': 'conflictos-sinc',
     };
 
     // Match exacto

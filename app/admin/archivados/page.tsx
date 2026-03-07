@@ -5,9 +5,14 @@ import { useState, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { cn } from '@/lib/utils'
 import { auditoriaService } from '@/services/auditoria-service'
+import { clientesService } from '@/services/clientes-service'
+import { prestamosService } from '@/services/prestamos-service'
+import { usuariosService } from '@/services/usuarios-service'
+import { toast } from 'sonner'
 
 interface ArchivedItem {
   id: string
+  entidadId: string
   tipo: string
   nombre: string
   fechaEliminacion: string
@@ -26,20 +31,27 @@ export default function ArchivadosPage() {
 
   useEffect(() => {
     setMounted(true)
-    const loadArchivados = async () => {
+    const fetchItems = async () => {
       setLoading(true)
       try {
         const registros = await auditoriaService.obtenerRegistros()
         const eliminaciones = registros
-          .filter((r: any) => (r.accion || '').toUpperCase().includes('ELIMINAR') || (r.accion || '').toUpperCase().includes('DELETE'))
+          .filter((r: any) => {
+            const accion = (r.accion || '').toUpperCase();
+            return accion.includes('ELIMINAR') || 
+                   accion.includes('DELETE') || 
+                   accion.includes('ARCHIVAR') || 
+                   accion.includes('RECHAZAR');
+          })
           .map((r: any) => ({
             id: r.id,
+            entidadId: r.entidadId,
             tipo: (r.entidad || 'desconocido').toLowerCase(),
             nombre: r.valoresAnteriores?.nombres
               ? `${r.valoresAnteriores.nombres} ${r.valoresAnteriores.apellidos || ''}`
-              : r.valoresAnteriores?.nombre || `${r.entidad} #${r.entidadId?.slice(0, 8)}`,
+              : r.valoresAnteriores?.nombre || r.valoresAnteriores?.numeroPrestamo || `${r.entidad} #${r.entidadId?.slice(0, 8)}`,
             fechaEliminacion: r.creadoEn,
-            motivo: r.cambios?.motivo || r.endpoint || 'Eliminación',
+            motivo: r.cambios?.motivo || r.valoresNuevos?.motivo || r.valoresAnteriores?.motivo || r.endpoint || 'Eliminación',
             usuarioEliminador: r.usuario ? `${r.usuario.nombres} ${r.usuario.apellidos}` : 'Sistema',
           }))
         setItems(eliminaciones)
@@ -50,8 +62,51 @@ export default function ArchivadosPage() {
         setLoading(false)
       }
     }
-    loadArchivados()
+    
+    // Función disponible globalmente para recargar
+    (window as any).refreshArchivados = fetchItems;
+    
+    // Carga inicial
+    fetchItems();
   }, [])
+
+  const handleRestore = async () => {
+    if (!selectedItem) return
+    
+    setIsRestoreModalOpen(false)
+    const toastId = toast.loading(`Restaurando ${selectedItem.tipo}...`)
+    
+    try {
+      let result
+      const { entidadId, tipo } = selectedItem
+      
+      switch (tipo) {
+        case 'cliente':
+          result = await clientesService.restaurar(entidadId)
+          break
+        case 'prestamo':
+          result = await prestamosService.restaurarPrestamo(entidadId)
+          break
+        case 'usuario':
+          // result = await usuariosService.restaurar(entidadId) // Si se implementa después
+          toast.error('Restauración de usuarios no implementada aún', { id: toastId })
+          return
+        default:
+          toast.error(`Tipo de entidad desconocido: ${tipo}`, { id: toastId })
+          return
+      }
+      
+      toast.success(`${selectedItem.tipo.charAt(0).toUpperCase() + selectedItem.tipo.slice(1)} restaurado correctamente`, { id: toastId })
+      
+      // Recargar lista
+      if ((window as any).refreshArchivados) {
+        (window as any).refreshArchivados()
+      }
+    } catch (error: any) {
+      console.error('Error al restaurar:', error)
+      toast.error(error.message || 'Error al restaurar el elemento', { id: toastId })
+    }
+  }
 
   const filteredItems = items.filter(item => {
     const matchesSearch = item.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -244,7 +299,7 @@ export default function ArchivadosPage() {
                   Cancelar
                 </button>
                 <button
-                  onClick={() => setIsRestoreModalOpen(false)}
+                  onClick={handleRestore}
                   className="flex-1 px-4 py-2.5 text-sm font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl shadow-lg shadow-emerald-600/20 transition-all transform active:scale-95"
                 >
                   Restaurar
