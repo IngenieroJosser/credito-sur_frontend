@@ -62,8 +62,8 @@ export const exportService = {
     if (filters.ruta && filters.ruta !== 'todas') params.ruta = filters.ruta;
     if (filters.search) params.search = filters.search;
 
-    const ext = format === 'excel' ? 'xlsm' : 'pdf';
-    await this.downloadFile('loans/export', params, `cartera-creditos.${ext}`);
+    const ext = format === 'excel' ? 'xlsx' : 'pdf';
+    await this.downloadFile('loans/export', params, `listado-creditos.${ext}`);
   },
 
   /**
