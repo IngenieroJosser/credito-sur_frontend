@@ -76,14 +76,14 @@ const TIME_FILTER_MAP: Record<TimeFilterPeriod, string> = {
   today: 'today',
   week: 'week',
   month: 'month',
-  quarter: 'quarter',
+  year: 'year',
 };
 
 const PERIOD_LABEL: Record<TimeFilterPeriod, string> = {
   today: 'Hoy',
   week: 'Semana',
   month: 'Mes',
-  quarter: 'Trimestre',
+  year: 'Año',
 };
 
 export default function CoordinadorPage() {

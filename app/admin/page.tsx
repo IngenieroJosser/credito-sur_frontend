@@ -79,14 +79,14 @@ const TIME_FILTER_MAP: Record<TimeFilterPeriod, string> = {
   today: 'today',
   week: 'week',
   month: 'month',
-  quarter: 'quarter',
+  year: 'year',
 };
 
 const PERIOD_LABEL: Record<TimeFilterPeriod, string> = {
   today: 'Hoy',
   week: 'Semana',
   month: 'Mes',
-  quarter: 'Trimestre',
+  year: 'Año',
 };
 
 /**
@@ -121,11 +121,10 @@ function calculateDatesFromPeriod(period: TimeFilterPeriod): { fechaInicio: stri
       fechaInicio.setHours(0, 0, 0, 0);
       fechaFin = new Date(today.getFullYear(), today.getMonth() + 1, 0, 23, 59, 59, 999);
       break;
-    case 'quarter':
-      const quarter = Math.floor(today.getMonth() / 3);
-      fechaInicio = new Date(today.getFullYear(), quarter * 3, 1);
+    case 'year':
+      fechaInicio = new Date(today.getFullYear(), 0, 1);
       fechaInicio.setHours(0, 0, 0, 0);
-      fechaFin = new Date(today.getFullYear(), (quarter + 1) * 3, 0, 23, 59, 59, 999);
+      fechaFin = new Date(today.getFullYear(), 11, 31, 23, 59, 59, 999);
       break;
     default:
       fechaInicio = new Date(today.getFullYear(), today.getMonth(), 1);
@@ -238,19 +237,24 @@ export default function DashboardPage() {
         const prestamos = prestamosData.status === 'fulfilled' ? prestamosData.value : null;
         const resumen = resumenFinanciero.status === 'fulfilled' ? resumenFinanciero.value : null;
 
-        // Convertir valores a números explícitamente (por si vienen como Decimal de Prisma)
+        // Convertir valores a números explícitamente (Decimal de Prisma viene como objeto)
         const capitalPrestado = Number(dashboard?.metrics?.capitalPrestado ?? 0);
+        // Recaudo: viene directamente del backend filtrado por período (agrega pagos del período)
         const recaudo = Number(dashboard?.metrics?.recaudo ?? 0);
-        // Mora: usar datos reales del backend filtrados por período
+        // Mora: número de préstamos EN_MORA ACTUALMENTE (sin filtro de fecha porque la mora
+        // ocurre en cualquier momento, no sólo en el período de creación del préstamo)
         const moraCount = Number(dashboard?.metrics?.delinquentAccounts ?? 0);
-        // Monto total en mora estimado: si el backend no lo da directamente, usamos los delinquentAccounts
+        // Monto en mora: suma de saldoPendiente de los préstamos en mora
         const moraMonto = (dashboard?.delinquentAccounts || []).reduce(
-          (acc: number, item: any) => acc + (item.amountDue || 0),
+          (acc: number, item: any) => acc + Number(item.amountDue || 0),
           0,
         );
         const moraPercent = capitalPrestado > 0 && moraMonto > 0
           ? ((moraMonto / capitalPrestado) * 100).toFixed(1)
-          : '0';
+          : moraCount > 0 ? '> 0' : '0';
+        // Gastos del período (viene del resumen financiero con fechas del período)
+        const gastosPeriodo = resumen?.egresosHoy || 0;
+        const utilidadPeriodo = resumen?.gananciaNeta || 0;
 
         const mainMetrics: MetricItem[] = [
           {
@@ -264,16 +268,16 @@ export default function DashboardPage() {
           {
             title: `Recaudo (${PERIOD_LABEL[requestedPeriod]})`,
             value: recaudo,
-            subValue: recaudo > 0 ? `${formatCurrency(recaudo)} recaudado` : undefined,
+            subValue: recaudo > 0 ? `${formatCurrency(recaudo)} cobrado` : 'Sin pagos en el período',
             isCurrency: true,
             change: resumen?.porcentajeIngresosVsAyer || 0,
             icon: <Target className="h-4 w-4" />,
             color: '#8b5cf6'
           },
           {
-            title: `Cartera en Mora (${PERIOD_LABEL[requestedPeriod]})`,
+            title: `Cartera en Mora`,
             value: moraMonto,
-            subValue: `${moraPercent}% del capital · ${moraCount} cuentas`,
+            subValue: `${moraPercent}% del capital · ${moraCount} cuentas en mora`,
             isCurrency: true,
             change: 0,
             icon: <AlertCircle className="h-4 w-4" />,
@@ -281,8 +285,8 @@ export default function DashboardPage() {
           },
           {
             title: `Gastos (${PERIOD_LABEL[requestedPeriod]})`,
-            value: resumen?.egresosHoy || 0,
-            subValue: resumen ? `Utilidad: ${formatCurrency(resumen.gananciaNeta)}` : undefined,
+            value: gastosPeriodo,
+            subValue: `Utilidad: ${formatCurrency(utilidadPeriodo)}`,
             isCurrency: true,
             change: resumen?.porcentajeEgresosVsAyer || 0,
             icon: <Banknote className="h-4 w-4" />,

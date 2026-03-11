@@ -17,6 +17,8 @@ import CrearCreditoModal from '@/components/dashboards/shared/CrearCreditoModal'
 import NuevoClienteModal from '@/components/clientes/NuevoClienteModal';
 import { useRealtimeData } from '@/hooks/useRealtimeData';
 import { usePageFocusRefresh } from '@/hooks/usePageFocusRefresh';
+import { exportService } from '@/services/export-service';
+import { toast } from 'sonner';
 
 interface MetricItem {
   title: string;
@@ -102,13 +104,21 @@ export function DashboardClient({ data }: DashboardClientProps) {
   );
   usePageFocusRefresh(refreshDashboard, 60_000); // 60s throttle en dashboard (datos pesados)
 
-  // TODO: conectar con exportService cuando el backend implemente /dashboard/export
-  const handleExportExcel = () => {
-    // Exportación pendiente de implementación en backend
+  // Exportar resumen del dashboard usando exportService (ya implementado en backend)
+  const handleExportExcel = async () => {
+    try {
+      await exportService.exportOperationalReport('excel', { period: activePeriod });
+    } catch {
+      toast.error('Error al exportar. Intenta de nuevo.');
+    }
   };
 
-  const handleExportPDF = () => {
-    // Exportación pendiente de implementación en backend
+  const handleExportPDF = async () => {
+    try {
+      await exportService.exportOperationalReport('pdf', { period: activePeriod });
+    } catch {
+      toast.error('Error al exportar. Intenta de nuevo.');
+    }
   };
 
   // Formato de fecha amigable para el encabezado (ej: Vie, 6 Feb 2026)

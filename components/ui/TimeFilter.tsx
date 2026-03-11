@@ -2,7 +2,7 @@
 
 import React from 'react';
 
-export type TimeFilterPeriod = 'today' | 'week' | 'month' | 'quarter';
+export type TimeFilterPeriod = 'today' | 'week' | 'month' | 'year';
 
 interface TimeFilterProps {
   activePeriod: TimeFilterPeriod;
@@ -15,7 +15,7 @@ export function TimeFilter({ activePeriod, onPeriodChange, className = '' }: Tim
     { id: 'today', label: 'Hoy', fullLabel: 'Hoy' },
     { id: 'week', label: 'Sem', fullLabel: 'Semana' },
     { id: 'month', label: 'Mes', fullLabel: 'Mes' },
-    { id: 'quarter', label: 'Trim', fullLabel: 'Trimestre' },
+    { id: 'year', label: 'Año', fullLabel: 'Año' },
   ] as const;
 
   return (

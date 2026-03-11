@@ -136,7 +136,7 @@ const HistorialPagosPage = () => {
 
   const getDateRangeForPeriod = (p: TimeFilterPeriod) => {
     const ahora = new Date()
-    const inicio = new Date(ahora)
+    let inicio = new Date(ahora)
 
     if (p === 'today') {
       inicio.setHours(0, 0, 0, 0)
@@ -146,8 +146,8 @@ const HistorialPagosPage = () => {
     } else if (p === 'month') {
       inicio.setMonth(ahora.getMonth(), 1)
       inicio.setHours(0, 0, 0, 0)
-    } else if (p === 'quarter') {
-      inicio.setMonth(ahora.getMonth() - 3, 1)
+    } else if (p === 'year') {
+      inicio = new Date(ahora.getFullYear(), 0, 1)
       inicio.setHours(0, 0, 0, 0)
     }
 
