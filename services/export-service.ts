@@ -116,7 +116,7 @@ export const exportService = {
     if (filters.startDate) params.startDate = filters.startDate;
     if (filters.endDate) params.endDate = filters.endDate;
 
-    const ext = format === 'excel' ? 'xlsm' : 'pdf';
+    const ext = format === 'excel' ? 'xlsx' : 'pdf';
     await this.downloadFile('reports/operational/export', params, `reporte-operativo.${ext}`);
   },
 
@@ -127,7 +127,7 @@ export const exportService = {
     format: 'excel' | 'pdf',
     filters: { busqueda?: string; nivelRiesgo?: string; rutaId?: string } = {},
   ): Promise<void> {
-    const ext = format === 'excel' ? 'xlsm' : 'pdf';
+    const ext = format === 'excel' ? 'xlsx' : 'pdf';
     await this.downloadFilePost('reports/exportar-mora', {
       filtros: filters,
       formato: format,
@@ -141,7 +141,7 @@ export const exportService = {
     format: 'excel' | 'pdf',
     filters: { busqueda?: string; nivelRiesgo?: string; rutaId?: string } = {},
   ): Promise<void> {
-    const ext = format === 'excel' ? 'xlsm' : 'pdf';
+    const ext = format === 'excel' ? 'xlsx' : 'pdf';
     await this.downloadFilePost('reports/cuentas-vencidas/exportar', {
       formato: format,
       filtros: filters,
@@ -158,7 +158,7 @@ export const exportService = {
     const params: Record<string, string> = { format };
     if (filters.startDate) params.startDate = filters.startDate;
     if (filters.endDate) params.endDate = filters.endDate;
-    const ext = format === 'excel' ? 'xlsm' : 'pdf';
+    const ext = format === 'excel' ? 'xlsx' : 'pdf';
     await this.downloadFile('reports/financial/export', params, `reporte-financiero.${ext}`);
   },
 
@@ -173,7 +173,7 @@ export const exportService = {
     if (filters.startDate) params.startDate = filters.startDate;
     if (filters.endDate) params.endDate = filters.endDate;
     if (filters.rutaId) params.rutaId = filters.rutaId;
-    const ext = format === 'excel' ? 'xlsm' : 'pdf';
+    const ext = format === 'excel' ? 'xlsx' : 'pdf';
     await this.downloadFile('payments/export', params, `historial-pagos.${ext}`);
   },
 
@@ -183,7 +183,7 @@ export const exportService = {
   async exportAccounting(
     format: 'excel' | 'pdf',
   ): Promise<void> {
-    const ext = format === 'excel' ? 'xlsm' : 'pdf';
+    const ext = format === 'excel' ? 'xlsx' : 'pdf';
     await this.downloadFile('accounting/export', { format }, `reporte-contable.${ext}`);
   },
 
@@ -197,7 +197,7 @@ export const exportService = {
     const params: Record<string, string> = { format };
     if (filters.startDate) params.startDate = filters.startDate;
     if (filters.endDate) params.endDate = filters.endDate;
-    const ext = format === 'excel' ? 'xlsm' : 'pdf';
+    const ext = format === 'excel' ? 'xlsx' : 'pdf';
     await this.downloadFile('audit/export', params, `auditoria.${ext}`);
   },
 
