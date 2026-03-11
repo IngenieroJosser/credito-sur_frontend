@@ -35,7 +35,7 @@ interface MetricItem {
   value: number | string;
   subValue?: string;
   isCurrency: boolean;
-  change: number;
+  change: number | null;
   icon: React.ReactNode;
   color: string;
 }
@@ -262,7 +262,7 @@ export default function DashboardPage() {
             title: `Capital Prestado (${PERIOD_LABEL[requestedPeriod]})`,
             value: capitalPrestado,
             isCurrency: true,
-            change: 0, // No mostrar cambio porcentual para capital prestado
+            change: null, // El backend no provee variación de capital vs período anterior
             icon: <CreditCard className="h-4 w-4" />,
             color: '#3b82f6'
           },
@@ -271,7 +271,8 @@ export default function DashboardPage() {
             value: recaudo,
             subValue: recaudo > 0 ? `${formatCurrency(recaudo)} cobrado` : 'Sin pagos en el período',
             isCurrency: true,
-            change: resumen?.porcentajeIngresosVsAyer || 0,
+            // Solo disponible cuando period=today porque el backend compara vs ayer
+            change: requestedPeriod === 'today' ? (resumen?.porcentajeIngresosVsAyer ?? null) : null,
             icon: <Target className="h-4 w-4" />,
             color: '#8b5cf6'
           },
@@ -280,7 +281,7 @@ export default function DashboardPage() {
             value: moraMonto,
             subValue: `${moraPercent}% del capital · ${moraCount} cuentas en mora`,
             isCurrency: true,
-            change: 0,
+            change: null, // La mora es un estado actual, no tiene variación vs período anterior
             icon: <AlertCircle className="h-4 w-4" />,
             color: '#f43f5e'
           },
@@ -289,7 +290,8 @@ export default function DashboardPage() {
             value: gastosPeriodo,
             subValue: `Utilidad: ${formatCurrency(utilidadPeriodo)}`,
             isCurrency: true,
-            change: resumen?.porcentajeEgresosVsAyer || 0,
+            // Solo disponible cuando period=today porque el backend compara vs ayer
+            change: requestedPeriod === 'today' ? (resumen?.porcentajeEgresosVsAyer ?? null) : null,
             icon: <Banknote className="h-4 w-4" />,
             color: '#f59e0b'
           }

@@ -25,7 +25,7 @@ interface MetricItem {
   value: number | string;
   subValue?: string;
   isCurrency: boolean;
-  change: number;
+  change: number | null;
   icon: React.ReactNode;
   color: string;
 }
@@ -198,14 +198,16 @@ export function DashboardClient({ data }: DashboardClientProps) {
                 >
                   {React.cloneElement(metric.icon as React.ReactElement<any>, { size: 24 })}
                 </div>
-                <div className={`flex items-center space-x-1.5 text-[11px] font-black px-3 py-1 rounded-full shadow-sm ${
-                  metric.change >= 0 
-                    ? 'text-emerald-700 bg-emerald-100/50' 
-                    : 'text-rose-700 bg-rose-100/50'
-                }`}>
-                  {metric.change >= 0 ? <TrendingUp className="h-3.5 w-3.5" /> : <TrendingDown className="h-3.5 w-3.5" />}
-                  <span>{metric.change >= 0 ? '+' : ''}{metric.change}%</span>
-                </div>
+                {metric.change !== null && (
+                  <div className={`flex items-center space-x-1.5 text-[11px] font-black px-3 py-1 rounded-full shadow-sm ${
+                    metric.change >= 0 
+                      ? 'text-emerald-700 bg-emerald-100/50' 
+                      : 'text-rose-700 bg-rose-100/50'
+                  }`}>
+                    {metric.change >= 0 ? <TrendingUp className="h-3.5 w-3.5" /> : <TrendingDown className="h-3.5 w-3.5" />}
+                    <span>{metric.change >= 0 ? '+' : ''}{metric.change}%</span>
+                  </div>
+                )}
               </div>
               
               <div className="space-y-2 relative z-10">
