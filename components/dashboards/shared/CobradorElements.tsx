@@ -125,6 +125,24 @@ export function StaticVisitaItem({
         {/* Nombre + meta */}
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-1.5 flex-wrap">
+            {/* Dot semáforo: Verde=al día · Amarillo=leve retraso · Rojo=mora/crítico */}
+            <span
+              title={
+                visita.nivelRiesgo === 'bajo' ? 'Al día' :
+                visita.nivelRiesgo === 'leve' ? 'Riesgo leve' :
+                (visita.nivelRiesgo as string) === 'precaucion' ? 'Precaución' :
+                visita.nivelRiesgo === 'moderado' ? 'En mora' :
+                visita.nivelRiesgo === 'critico' ? 'Crítico / Lista negra' : ''
+              }
+              className={`w-2 h-2 rounded-full shrink-0 ${
+                visita.nivelRiesgo === 'bajo' ? 'bg-emerald-500' :
+                visita.nivelRiesgo === 'leve' ? 'bg-yellow-400' :
+                (visita.nivelRiesgo as string) === 'precaucion' ? 'bg-orange-400' :
+                visita.nivelRiesgo === 'moderado' ? 'bg-orange-500' :
+                visita.nivelRiesgo === 'critico' ? 'bg-red-600' :
+                'bg-slate-300'
+              }`}
+            />
             <span className="text-sm font-bold text-slate-900 truncate max-w-[160px]">{visita.cliente}</span>
             <span className={`text-[9px] font-black uppercase px-1.5 py-0.5 rounded border ${
               visita.nivelRiesgo === 'bajo' ? 'text-emerald-700 bg-emerald-50 border-emerald-100' :
@@ -283,6 +301,24 @@ export function SortableItem({
         {/* Nombre + meta */}
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-1.5 flex-wrap">
+            {/* Dot semáforo */}
+            <span
+              title={
+                visita.nivelRiesgo === 'bajo' ? 'Al día' :
+                visita.nivelRiesgo === 'leve' ? 'Riesgo leve' :
+                (visita.nivelRiesgo as string) === 'precaucion' ? 'Precaución' :
+                visita.nivelRiesgo === 'moderado' ? 'En mora' :
+                visita.nivelRiesgo === 'critico' ? 'Crítico / Lista negra' : ''
+              }
+              className={`w-2 h-2 rounded-full shrink-0 ${
+                visita.nivelRiesgo === 'bajo' ? 'bg-emerald-500' :
+                visita.nivelRiesgo === 'leve' ? 'bg-yellow-400' :
+                (visita.nivelRiesgo as string) === 'precaucion' ? 'bg-orange-400' :
+                visita.nivelRiesgo === 'moderado' ? 'bg-orange-500' :
+                visita.nivelRiesgo === 'critico' ? 'bg-red-600' :
+                'bg-slate-300'
+              }`}
+            />
             <span className="text-sm font-bold text-slate-900 truncate max-w-[160px]">{visita.cliente}</span>
             <span className={`text-[9px] font-black uppercase px-1.5 py-0.5 rounded border ${
               visita.nivelRiesgo === 'bajo' ? 'text-emerald-700 bg-emerald-50 border-emerald-100' :

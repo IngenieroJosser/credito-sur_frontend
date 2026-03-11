@@ -47,6 +47,8 @@ import {
   AlertTriangle,
   XCircle,
   Info,
+  FileDown,
+  FileSpreadsheet,
 } from 'lucide-react'
 import ConfirmModal from '@/components/ui/ConfirmModal'
 import { Sparkline } from '@/components/ui/PremiumCharts'
@@ -260,7 +262,34 @@ const VistaCobrador = () => {
 
   const [creditosPendientes, setCreditosPendientes] = useState<any[]>([]);
 
+  const [isExporting, setIsExporting] = useState<'excel' | 'pdf' | null>(null)
   const router = useRouter();
+
+  // Descargar ruta como Excel o PDF llamando directamente al endpoint
+  const handleExportarRuta = async (formato: 'excel' | 'pdf') => {
+    if (!rutaActual?.id) return;
+    setIsExporting(formato);
+    try {
+      const token = localStorage.getItem('token');
+      const baseUrl = process.env.NEXT_PUBLIC_API_URL || '';
+      const url = `${baseUrl}/routes/${rutaActual.id}/export/${formato}`;
+      const res = await fetch(url, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error('Error al generar el archivo');
+      const blob = await res.blob();
+      const href = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = href;
+      a.download = `ruta_${rutaActual.nombre || rutaActual.id}_${new Date().toISOString().slice(0, 10)}.${formato === 'excel' ? 'xlsx' : 'pdf'}`;
+      a.click();
+      URL.revokeObjectURL(href);
+    } catch (err) {
+      setModalAlerta({ titulo: 'Error', mensaje: 'No se pudo generar el archivo. Intente de nuevo.', tipo: 'error' });
+    } finally {
+      setIsExporting(null);
+    }
+  };
 
   // Datos base - se cargan desde el backend
   const [visitasBase, setVisitasBase] = useState<VisitaRuta[]>([])
@@ -1908,6 +1937,40 @@ const VistaCobrador = () => {
                 </div>
               </div>
             </div>
+
+            {/* Botones de exportación de ruta */}
+            {rutaActual?.id && (
+              <div className="flex items-center gap-2 mt-2 md:mt-0">
+                <button
+                  id="btn-exportar-ruta-excel"
+                  onClick={() => handleExportarRuta('excel')}
+                  disabled={!!isExporting}
+                  className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold rounded-xl border border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                  title="Exportar ruta como Excel"
+                >
+                  {isExporting === 'excel' ? (
+                    <span className="w-3 h-3 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin" />
+                  ) : (
+                    <FileSpreadsheet className="w-3 h-3" />
+                  )}
+                  Excel
+                </button>
+                <button
+                  id="btn-exportar-ruta-pdf"
+                  onClick={() => handleExportarRuta('pdf')}
+                  disabled={!!isExporting}
+                  className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold rounded-xl border border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                  title="Exportar ruta como PDF"
+                >
+                  {isExporting === 'pdf' ? (
+                    <span className="w-3 h-3 border-2 border-rose-600 border-t-transparent rounded-full animate-spin" />
+                  ) : (
+                    <FileDown className="w-3 h-3" />
+                  )}
+                  PDF
+                </button>
+              </div>
+            )}
           </div>
         </header>
 

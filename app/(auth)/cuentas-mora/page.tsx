@@ -68,7 +68,29 @@ interface EstadisticasMora {
   variacionMensual: number
 }
 
-function etiquetaMora(dias: number): string {
+// ── Tipos de nivel de mora ────────────────────────────────────────────────────
+
+/** Clave interna usada para comparar (sin tildes, ASCII-safe) */
+export type NivelMoraKey = 'Minimo' | 'Leve' | 'Precaucion' | 'Moderado' | 'Critico'
+
+/** Etiqueta visible con tilde para el usuario */
+const NIVEL_LABEL: Record<NivelMoraKey, string> = {
+  Minimo:     'Mínimo',
+  Leve:       'Leve',
+  Precaucion: 'Precaución',
+  Moderado:   'Moderado',
+  Critico:    'Crítico',
+}
+
+/** Lista ordenada de niveles de mora */
+const NIVELES_MORA: NivelMoraKey[] = ['Minimo', 'Leve', 'Precaucion', 'Moderado', 'Critico']
+
+/**
+ * Clasifica un cliente por días de mora.
+ * Umbrales: 0 d = Mínimo, 1-2 d = Leve, 3-4 d = Precaución,
+ *           5-7 d = Moderado, 8+ d = Crítico
+ */
+function calcularNivelMora(dias: number): NivelMoraKey {
   if (dias >= 8) return 'Critico'
   if (dias >= 5) return 'Moderado'
   if (dias >= 3) return 'Precaucion'
@@ -77,11 +99,11 @@ function etiquetaMora(dias: number): string {
 }
 
 const NIVEL_COLORS: Record<string, { badge: string; bar: string; icon: string }> = {
-  'Minimo':    { badge: 'bg-emerald-50 text-emerald-700 border-emerald-200', bar: 'bg-emerald-400', icon: 'text-emerald-500' },
-  'Leve':      { badge: 'bg-emerald-50 text-emerald-700 border-emerald-200', bar: 'bg-emerald-500', icon: 'text-emerald-600' },
-  'Precaucion':{ badge: 'bg-amber-50  text-amber-700  border-amber-200',    bar: 'bg-amber-500',   icon: 'text-amber-600' },
-  'Moderado':  { badge: 'bg-orange-50 text-orange-700 border-orange-200',   bar: 'bg-orange-500',  icon: 'text-orange-600' },
-  'Critico':   { badge: 'bg-rose-50   text-rose-700   border-rose-200',     bar: 'bg-rose-600',    icon: 'text-rose-600' },
+  Minimo:     { badge: 'bg-emerald-50 text-emerald-700 border-emerald-200', bar: 'bg-emerald-400', icon: 'text-emerald-500' },
+  Leve:       { badge: 'bg-yellow-50  text-yellow-700  border-yellow-200',  bar: 'bg-yellow-400',  icon: 'text-yellow-600' },
+  Precaucion: { badge: 'bg-amber-50   text-amber-700   border-amber-200',   bar: 'bg-amber-500',   icon: 'text-amber-600'  },
+  Moderado:   { badge: 'bg-orange-50  text-orange-700  border-orange-200',  bar: 'bg-orange-500',  icon: 'text-orange-600' },
+  Critico:    { badge: 'bg-rose-50    text-rose-700    border-rose-200',    bar: 'bg-rose-600',    icon: 'text-rose-600'   },
 }
 
 function NivelIcon({ nivel, className }: { nivel: string; className?: string }) {
@@ -212,10 +234,15 @@ function CuentasMoraContent() {
 
       const enriched: CuentaMora[] = raw.map(p => ({
         ...p,
-        etiquetaMora: p.etiquetaMora || etiquetaMora(p.diasMora || 0),
+        // Usar clave interna sin tilde para comparar en filtros
+        etiquetaMora: p.etiquetaMora || calcularNivelMora(p.diasMora || 0),
       }))
 
-      setCuentas(filtroNivel === 'TODOS' ? enriched : enriched.filter(c => c.etiquetaMora === filtroNivel))
+      const filtradas = filtroNivel === 'TODOS'
+        ? enriched
+        : enriched.filter(c => c.etiquetaMora === filtroNivel)
+
+      setCuentas(filtradas)
     } catch (error) {
       console.error('Error al cargar cuentas en mora:', error)
       toast.error('Error al cargar la lista de cuentas en mora')
@@ -268,9 +295,9 @@ function CuentasMoraContent() {
   const clientesAfectados = estadisticas?.totalClientesAfectados ?? cuentas.length
   const clientesCriticos = estadisticas?.clientesCriticos ?? cuentas.filter(c => c.nivelRiesgo === 'ROJO').length
 
-  const porNivel: Record<string, number> = {}
+  const porNivel: Partial<Record<NivelMoraKey, number>> = {}
   cuentas.forEach(c => {
-    const n = c.etiquetaMora || etiquetaMora(c.diasMora)
+    const n = (c.etiquetaMora || calcularNivelMora(c.diasMora)) as NivelMoraKey
     porNivel[n] = (porNivel[n] || 0) + 1
   })
 
@@ -331,27 +358,48 @@ function CuentasMoraContent() {
           ))}
         </div>
 
-        {/* Filtros nivel */}
+        {/* Filtros nivel de mora: Todos + escala completa (Mínimo→Crítico) */}
         <div className="flex items-center gap-2 flex-wrap">
-          {['TODOS', 'Leve', 'Precaucion', 'Moderado', 'Critico'].map(n => {
-            const cfg = NIVEL_COLORS[n] || NIVEL_COLORS['Leve']
-            const count = n === 'TODOS' ? cuentas.length : (porNivel[n] || 0)
-            const isActive = filtroNivel === n
+          {/* Botón "Todos" */}
+          <button
+            key="TODOS"
+            onClick={() => setFiltroNivel('TODOS')}
+            className={cn(
+              'flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-black border transition-all',
+              filtroNivel === 'TODOS'
+                ? 'bg-slate-900 text-white border-slate-900 shadow-sm'
+                : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300'
+            )}
+          >
+            <CircleDot className="h-3 w-3" />
+            Todos
+            <span className={cn(
+              'ml-0.5 px-1.5 py-0.5 rounded-full text-[9px] font-black',
+              filtroNivel === 'TODOS' ? 'bg-white/20' : 'bg-slate-100 text-slate-500'
+            )}>
+              {cuentas.length}
+            </span>
+          </button>
+
+          {/* Botón por cada nivel */}
+          {NIVELES_MORA.map(key => {
+            const cfg = NIVEL_COLORS[key]
+            const count = porNivel[key] || 0
+            const isActive = filtroNivel === key
             return (
               <button
-                key={n}
-                onClick={() => setFiltroNivel(n)}
+                key={key}
+                onClick={() => setFiltroNivel(key)}
                 className={cn(
                   'flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-black border transition-all',
                   isActive
-                    ? n === 'TODOS'
-                      ? 'bg-slate-900 text-white border-slate-900'
-                      : cn(cfg?.badge, 'border-current shadow-sm')
+                    ? cn(cfg?.badge, 'border-current shadow-sm')
                     : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300'
                 )}
               >
-                {n === 'TODOS' ? <CircleDot className="h-3 w-3" /> : <NivelIcon nivel={n} className="h-3 w-3" />}
-                {n}
+                <NivelIcon nivel={key} className="h-3 w-3" />
+                {/* Mostrar label con tilde al usuario */}
+                {NIVEL_LABEL[key]}
                 <span className={cn(
                   'ml-0.5 px-1.5 py-0.5 rounded-full text-[9px] font-black',
                   isActive ? 'bg-white/30' : 'bg-slate-100 text-slate-500'
@@ -421,7 +469,7 @@ function CuentasMoraContent() {
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {cuentas.map(cuenta => {
-                    const nivel = cuenta.etiquetaMora || etiquetaMora(cuenta.diasMora)
+                    const nivel = (cuenta.etiquetaMora || calcularNivelMora(cuenta.diasMora)) as NivelMoraKey
                     const cfg = NIVEL_COLORS[nivel]
                     return (
                       <tr key={cuenta.id} className="hover:bg-slate-50/50 transition-colors group">
@@ -440,7 +488,7 @@ function CuentasMoraContent() {
                           <div className="flex flex-col gap-1">
                             <span className={cn('px-2.5 py-1 rounded-full text-[10px] font-black border inline-flex items-center gap-1.5 w-fit', cfg?.badge)}>
                               <NivelIcon nivel={nivel} className="h-3 w-3" />
-                              {nivel} · {cuenta.diasMora}d
+                              {NIVEL_LABEL[nivel] ?? nivel} · {cuenta.diasMora}d
                             </span>
                             <span className="text-[10px] text-slate-400 font-medium">{cuenta.cuotasVencidas} cuota{cuenta.cuotasVencidas !== 1 ? 's' : ''} vencida{cuenta.cuotasVencidas !== 1 ? 's' : ''}</span>
                           </div>
@@ -496,7 +544,7 @@ function CuentasMoraContent() {
           /* GRID */
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {cuentas.map(cuenta => {
-              const nivel = cuenta.etiquetaMora || etiquetaMora(cuenta.diasMora)
+              const nivel = (cuenta.etiquetaMora || calcularNivelMora(cuenta.diasMora)) as NivelMoraKey
               const cfg = NIVEL_COLORS[nivel]
               return (
                 <div key={cuenta.id} className="bg-white rounded-2xl border border-slate-200 shadow-sm hover:shadow-lg hover:-translate-y-1 transition-all duration-300 overflow-hidden flex flex-col group">
@@ -510,7 +558,7 @@ function CuentasMoraContent() {
                       </div>
                       <span className={cn('px-2.5 py-1 rounded-full text-[10px] font-black border flex items-center gap-1', cfg?.badge)}>
                         <NivelIcon nivel={nivel} className="h-3 w-3" />
-                        {nivel}
+                        {NIVEL_LABEL[nivel] ?? nivel}
                       </span>
                     </div>
 
