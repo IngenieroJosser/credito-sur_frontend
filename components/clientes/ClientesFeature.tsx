@@ -1,10 +1,12 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNotification } from '@/components/providers/NotificationProvider';
 import { clientesService, Cliente } from '@/services/clientes-service';
 import { ClienteAdmin } from '@/lib/clientes-data';
 import { usePermission } from '@/hooks/usePermission';
+import { useRealtimeData } from '@/hooks/useRealtimeData';
+import { usePageFocusRefresh } from '@/hooks/usePageFocusRefresh';
 import {
   Search,
   Filter,
@@ -36,7 +38,6 @@ import NuevoClienteModal from '@/components/clientes/NuevoClienteModal';
 import ClientePortalModal from '@/components/cliente/ClientePortalModal';
 import { offlineStore } from '@/lib/offline/offlineDb';
 import { WifiOff } from 'lucide-react';
-import { useNotificaciones } from '@/components/providers/NotificacionesProvider';
 
 // Tipos locales
 type NivelRiesgo = 'VERDE' | 'AMARILLO' | 'ROJO' | 'LISTA_NEGRA';
@@ -56,7 +57,6 @@ export default function ClientesFeature({ initialClientes, basePath = '/admin/cl
   const puedeEliminar = can('CLIENTES_DELETE') || canForPath(basePath);
   
   const { showNotification } = useNotification();
-  const { socket } = useNotificaciones();
   
   const [clientes, setClientes] = useState<ClienteAdmin[]>(initialClientes);
   const [dataSource, setDataSource] = useState<'online' | 'offline'>('online');
@@ -74,62 +74,32 @@ export default function ClientesFeature({ initialClientes, basePath = '/admin/cl
     }
   }, [initialClientes]);
 
-  useEffect(() => {
-    if (!socket) return;
-
-    const timeoutRef = { current: null as ReturnType<typeof setTimeout> | null };
-
-    const refetch = async () => {
-      try {
-        const fresh = await clientesService.obtenerTodos();
-        if (Array.isArray(fresh) && fresh.length > 0) {
-          setClientes(fresh as ClienteAdmin[]);
-          offlineStore.saveMany('clientes', fresh as ClienteAdmin[]).catch(() => {});
-          setDataSource('online');
-          return;
-        }
-
-        const cached = await offlineStore.getAll<ClienteAdmin>('clientes');
-        if (cached.length > 0) {
-          setClientes(cached);
-          setDataSource('offline');
-        }
-      } catch {
-        offlineStore
-          .getAll<ClienteAdmin>('clientes')
-          .then((cached) => {
-            if (cached.length > 0) {
-              setClientes(cached);
-              setDataSource('offline');
-            }
-          })
-          .catch(() => {});
+  const refetch = useCallback(async () => {
+    try {
+      const fresh = await clientesService.obtenerTodos();
+      if (Array.isArray(fresh) && fresh.length > 0) {
+        setClientes(fresh as ClienteAdmin[]);
+        offlineStore.saveMany('clientes', fresh as ClienteAdmin[]).catch(() => {});
+        setDataSource('online');
+        return;
       }
-    };
+      const cached = await offlineStore.getAll<ClienteAdmin>('clientes');
+      if (cached.length > 0) { setClientes(cached); setDataSource('offline'); }
+    } catch {
+      offlineStore.getAll<ClienteAdmin>('clientes').then((cached) => {
+        if (cached.length > 0) { setClientes(cached); setDataSource('offline'); }
+      }).catch(() => {});
+    }
+  }, []);
 
-    const scheduleRefetch = () => {
-      if (timeoutRef.current) clearTimeout(timeoutRef.current);
-      timeoutRef.current = setTimeout(() => {
-        timeoutRef.current = null;
-        refetch();
-      }, 350);
-    };
+  // Tiempo real: refresca ante cualquier cambio del backend
+  useRealtimeData(
+    ['clientes_actualizados', 'prestamos_actualizados', 'pagos_actualizados', 'rutas_actualizadas', 'dashboards_actualizados'],
+    refetch,
+  );
 
-    const EVENTS = [
-      'clientes_actualizados',
-      'prestamos_actualizados',
-      'pagos_actualizados',
-      'rutas_actualizadas',
-      'dashboards_actualizados',
-    ] as const;
-
-    EVENTS.forEach((evt) => socket.on(evt, scheduleRefetch));
-
-    return () => {
-      EVENTS.forEach((evt) => socket.off(evt, scheduleRefetch));
-      if (timeoutRef.current) clearTimeout(timeoutRef.current);
-    };
-  }, [socket]);
+  // Refresca silenciosamente al volver al foco o al reconectar el socket
+  usePageFocusRefresh(refetch);
 
   const [searchTerm, setSearchTerm] = useState('');
   const [filterRiesgo, setFilterRiesgo] = useState<string>('all');

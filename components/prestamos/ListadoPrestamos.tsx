@@ -40,6 +40,8 @@ import { prestamosService } from '@/services/prestamos-service';
 import { WifiOff } from 'lucide-react';
 import ConfirmModal from '@/components/ui/ConfirmModal';
 import { useNotificaciones } from '@/components/providers/NotificacionesProvider';
+import { useRealtimeData } from '@/hooks/useRealtimeData';
+import { usePageFocusRefresh } from '@/hooks/usePageFocusRefresh';
 
 interface Filtros {
   estado: string;
@@ -161,19 +163,14 @@ const ListadoPrestamosElegante = () => {
     loadPrestamos();
   }, [loadPrestamos]);
 
-  useEffect(() => {
-    if (!socket) return;
+  // Tiempo real: eventos del backend
+  useRealtimeData(
+    ['prestamos_actualizados', 'pagos_actualizados', 'clientes_actualizados', 'dashboards_actualizados'],
+    handleRefresh,
+  );
 
-    const handler = () => {
-      handleRefresh();
-    };
-
-    socket.on('prestamos_actualizados', handler);
-
-    return () => {
-      socket.off('prestamos_actualizados', handler);
-    };
-  }, [socket, handleRefresh]);
+  // Refresca silenciosamente al volver al foco o reconectar socket
+  usePageFocusRefresh(handleRefresh);
 
   const handleEliminarPrestamo = async () => {
     if (!prestamoAEliminar) return;

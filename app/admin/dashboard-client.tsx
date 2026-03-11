@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { 
   TrendingUp, 
   TrendingDown,
@@ -15,6 +15,8 @@ import { ExportButton } from '@/components/ui/ExportButton';
 import { TransactionalHighDetailChart } from '@/components/ui/TransactionalHighDetailChart';
 import CrearCreditoModal from '@/components/dashboards/shared/CrearCreditoModal';
 import NuevoClienteModal from '@/components/clientes/NuevoClienteModal';
+import { useRealtimeData } from '@/hooks/useRealtimeData';
+import { usePageFocusRefresh } from '@/hooks/usePageFocusRefresh';
 
 interface MetricItem {
   title: string;
@@ -91,6 +93,14 @@ export function DashboardClient({ data }: DashboardClientProps) {
   // Controlamos la visibilidad de los modales de creación
   const [showCrearCreditoModal, setShowCrearCreditoModal] = useState(false);
   const [showNuevoClienteModal, setShowNuevoClienteModal] = useState(false);
+
+  // Refrescar el Server Component cuando el backend emite cambios
+  const refreshDashboard = useCallback(() => router.refresh(), [router]);
+  useRealtimeData(
+    ['dashboards_actualizados', 'pagos_actualizados', 'prestamos_actualizados', 'clientes_actualizados'],
+    refreshDashboard,
+  );
+  usePageFocusRefresh(refreshDashboard, 60_000); // 60s throttle en dashboard (datos pesados)
 
   // TODO: Exportar resumen del dashboard administrativo
   // Qué exportar: Estadísticas generales, Cartera activa, Recaudo del día, Alertas

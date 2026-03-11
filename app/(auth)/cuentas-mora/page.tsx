@@ -12,6 +12,8 @@
  */
 
 import { useState, useEffect, useCallback } from 'react'
+import { useRealtimeData } from '@/hooks/useRealtimeData'
+import { usePageFocusRefresh } from '@/hooks/usePageFocusRefresh'
 import {
   AlertCircle, Search, User,
   CheckCircle, AlertTriangle, LayoutGrid, List, RefreshCw,
@@ -268,6 +270,15 @@ function CuentasMoraContent() {
     const t = setTimeout(() => fetchData(), 400)
     return () => clearTimeout(t)
   }, [fetchData])
+
+  // Tiempo real: cualquier cambio en pagos o préstamos actualiza la mora
+  useRealtimeData(
+    ['pagos_actualizados', 'prestamos_actualizados', 'dashboards_actualizados'],
+    () => { fetchData(); fetchEstadisticas(); },
+  )
+
+  // Refresca al volver al foco
+  usePageFocusRefresh(() => { fetchData(); fetchEstadisticas(); })
 
   const handleVerCliente = (id?: string) => {
     const clientId = id || ''
