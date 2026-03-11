@@ -2,6 +2,39 @@ import { logger } from '@/lib/logger'
 import { apiRequest } from '@/lib/api/api';
 import { syncService } from '@/lib/offline/syncService';
 
+export interface AsignacionCliente {
+  id: string;
+  clienteId: string;
+  cobradorId: string;
+  ordenVisita?: number | null;
+  estado?: string | null;
+  horaSugerida?: string | null;
+  cliente?: { id: string; nombres: string; apellidos: string; telefono?: string };
+}
+
+export interface RutasMeta {
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+}
+
+export interface VisitaDelDia {
+  clienteId: string;
+  clienteNombre: string;
+  direccion?: string;
+  telefono?: string;
+  montoCuota?: number;
+  saldoTotal?: number;
+  ordenVisita?: number;
+  estado?: string;
+}
+
+export interface ReordenarClientesResult {
+  exito: boolean;
+  mensaje?: string;
+}
+
 export interface Ruta {
   id: string;
   codigo: string;
@@ -14,7 +47,7 @@ export interface Ruta {
   creadoEn: string;
   actualizadoEn: string;
   eliminadoEn: string | null;
-  asignaciones?: any[]; // Incluimos asignaciones para el detalle
+  asignaciones?: AsignacionCliente[];
 }
 
 export interface CrearRutaDto {
@@ -77,7 +110,7 @@ export const rutasService = {
     const query = params.toString();
     const endpoint = query ? `/routes?${query}` : '/routes';
     
-    const response = await apiRequest<{ data: Ruta[], meta: any }>('GET', endpoint);
+    const response = await apiRequest<{ data: Ruta[], meta: RutasMeta }>('GET', endpoint);
     return response.data || [];
   },
 
@@ -312,15 +345,15 @@ export const rutasService = {
   /**
    * Obtener visitas del día para una ruta (agenda de cobro)
    */
-  async obtenerVisitasDelDia(rutaId: string, fecha?: string): Promise<any> {
+  async obtenerVisitasDelDia(rutaId: string, fecha?: string): Promise<VisitaDelDia[]> {
     const params = fecha ? `?fecha=${fecha}` : '';
-    return apiRequest('GET', `/routes/${rutaId}/daily-visits${params}`);
+    return apiRequest<VisitaDelDia[]>('GET', `/routes/${rutaId}/daily-visits${params}`);
   },
 
   /**
    * Actualizar orden de clientes en una ruta (drag & drop)
    */
-  async actualizarOrdenClientes(rutaId: string, orden: Array<{ clienteId: string; orden: number }>): Promise<any> {
+  async actualizarOrdenClientes(rutaId: string, orden: Array<{ clienteId: string; orden: number }>): Promise<ReordenarClientesResult> {
     try {
       return await apiRequest('PATCH', `/routes/${rutaId}/reorder`, { orden });
     } catch (error: any) {

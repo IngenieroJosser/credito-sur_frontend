@@ -105,7 +105,8 @@ export const clientesService = {
     const query = params.toString();
     const endpoint = query ? `/clients?${query}` : '/clients';
     
-    const response = await apiRequest<any>('GET', endpoint, undefined, { cacheTTL: 0 });
+    // El backend puede devolver un array directo o un objeto { clientes: [] }
+    const response = await apiRequest<Cliente[] | { clientes: Cliente[] }>('GET', endpoint, undefined, { cacheTTL: 0 });
     return Array.isArray(response) ? response : (response.clientes || []);
   },
 
@@ -227,8 +228,8 @@ export const clientesService = {
   /**
    * Restaurar un cliente eliminado
    */
-  async restaurar(id: string): Promise<any> {
-    return apiRequest('PATCH', `/clients/${id}/restore`, {});
+  async restaurar(id: string): Promise<Cliente> {
+    return apiRequest<Cliente>('PATCH', `/clients/${id}/restore`, {});
   },
 
   /**
