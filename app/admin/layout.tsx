@@ -382,7 +382,7 @@ export default function AdminLayout({
 
       {/* Header ultra minimalista */}
       <header 
-        className={`fixed top-0 left-0 right-0 z-40 bg-white/80 backdrop-blur-sm border-b border-gray-100 transition-opacity duration-300 ${isPageLoaded ? 'opacity-100' : 'opacity-0'}`}
+        className={`fixed top-0 left-0 right-0 z-40 bg-white border-b border-gray-100 shadow-sm transition-opacity duration-300 ${isPageLoaded ? 'opacity-100' : 'opacity-0'}`}
         style={{ opacity: isPageLoaded ? 1 : 0 }}
       >
         <div className="px-4 sm:px-6 lg:px-8 py-3">
@@ -554,7 +554,7 @@ export default function AdminLayout({
       {/* Sidebar elegante para desktop */}
       {showSidebar && (
         <aside 
-          className={`fixed left-0 top-16 bottom-0 w-64 bg-white/80 backdrop-blur-sm border-r border-gray-100 transition-all duration-300 z-20 ${
+          className={`fixed left-0 top-16 bottom-0 w-64 bg-white border-r border-gray-100 transition-all duration-300 z-20 ${
             isMenuOpen ? 'translate-x-0' : '-translate-x-full'
           } lg:translate-x-0 lg:block ${isPageLoaded ? 'opacity-100' : 'opacity-0'}`}
           style={{ opacity: isPageLoaded ? 1 : 0 }}
