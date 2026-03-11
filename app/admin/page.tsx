@@ -271,8 +271,9 @@ export default function DashboardPage() {
             value: recaudo,
             subValue: recaudo > 0 ? `${formatCurrency(recaudo)} cobrado` : 'Sin pagos en el período',
             isCurrency: true,
-            // Solo disponible cuando period=today porque el backend compara vs ayer
-            change: requestedPeriod === 'today' ? (resumen?.porcentajeIngresosVsAyer ?? null) : null,
+            // Solo disponible cuando period=today y el backend devuelve un porcentaje != 0
+            // (0 puede ser el valor por defecto cuando no hay datos de ayer para comparar)
+            change: requestedPeriod === 'today' ? (resumen?.porcentajeIngresosVsAyer || null) : null,
             icon: <Target className="h-4 w-4" />,
             color: '#8b5cf6'
           },
@@ -290,8 +291,8 @@ export default function DashboardPage() {
             value: gastosPeriodo,
             subValue: `Utilidad: ${formatCurrency(utilidadPeriodo)}`,
             isCurrency: true,
-            // Solo disponible cuando period=today porque el backend compara vs ayer
-            change: requestedPeriod === 'today' ? (resumen?.porcentajeEgresosVsAyer ?? null) : null,
+            // Solo disponible cuando period=today y el backend devuelve un porcentaje != 0
+            change: requestedPeriod === 'today' ? (resumen?.porcentajeEgresosVsAyer || null) : null,
             icon: <Banknote className="h-4 w-4" />,
             color: '#f59e0b'
           }
