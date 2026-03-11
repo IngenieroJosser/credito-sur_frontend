@@ -24,7 +24,7 @@ import {
 import { formatCurrency } from '@/lib/utils'
 import { EstadoPrestamo, NivelRiesgo, type Prestamo } from '@/components/prestamos/data'
 import AnimacionCarga from '@/components/ui/AnimacionCarga'
-import { loansService } from '@/services/loans-service'
+import { loansServiceExt as loansService } from '@/services/loans-service'
 import CrearCreditoModal from '@/components/dashboards/shared/CrearCreditoModal'
 
 export default function CreditosArticulosPage() {

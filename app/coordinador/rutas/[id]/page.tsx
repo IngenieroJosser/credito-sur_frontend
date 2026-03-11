@@ -238,7 +238,7 @@ const DetalleRutaPage = () => {
                        }
                        
                        const p = await prestamosService.obtenerPrestamoPorId(v.prestamoId);
-                       const proxima = p.proximaCuota || {};
+                       const proxima = (p.proximaCuota ?? {}) as any;
                        const montoP = Number(proxima.monto || p.montoCuota || p.valorCuota || 0);
                        
                        return { 
@@ -404,7 +404,7 @@ const DetalleRutaPage = () => {
       }
 
       const existentes = new Set();
-      const visitas: VisitaRuta[] = (visitasResp?.visitas || []).map((item: any, index: number) => {
+      const visitas: VisitaRuta[] = ((visitasResp as any)?.visitas || []).map((item: any, index: number) => {
         const cliente = item.cliente || {};
         const prestamos = item.prestamos || [];
         const prestamoActivo = prestamos.find((p: any) => p.estado === 'ACTIVO' || p.estado === 'EN_MORA' || p.estado === 'PAGADO') || prestamos[0] || {};

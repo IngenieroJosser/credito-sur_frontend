@@ -66,7 +66,6 @@ import BaseModal from '@/components/dashboards/shared/BaseModal'
 import DetalleMoraModal from '@/components/cobranza/DetalleMoraModal'
 import FloatingActionMenu, { FabAction } from '@/components/dashboards/shared/FloatingActionMenu'
 import { prestamosService } from '@/services/prestamos-service'
-import { prestamosService } from '@/services/prestamos-service'
 import { pagosService } from '@/services/pagos-service'
 import { obtenerSaldoDisponibleRuta } from '@/services/contabilidad-service'
 import { useNotificaciones } from '@/components/providers/NotificacionesProvider'
@@ -570,9 +569,9 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
                   const p = await prestamosService.obtenerPrestamoPorId(
                     v.prestamoId,
                   )
-                  const proxima = p.proximaCuota || {}
+                  const proxima = (p.proximaCuota ?? {}) as Partial<typeof p.cuotas extends (infer C)[] | undefined ? C : Record<string, unknown>>
                   const montoP = Number(
-                    proxima.monto ||
+                    (proxima as any).monto ||
                       p.montoCuota ||
                       (p as any).valorCuota ||
                       0,
@@ -581,7 +580,7 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
                   return {
                     ...v,
                     montoCuota: montoP > 0 ? montoP : v.montoCuota,
-                    proximaVisita: proxima.fechaVencimiento || v.proximaVisita,
+                    proximaVisita: (proxima as any).fechaVencimiento || v.proximaVisita,
                   }
                 } catch {
                   return v

@@ -40,14 +40,14 @@ export default function PrestamoDetallePage() {
           fechaInicio: data.fechaInicio || '',
           fechaVencimiento: data.fechaFin || '',
           estado: data.estado || 'ACTIVO',
-          tipoPrestamo: data.tipoPrestamo,
+          tipoPrestamo: typeof data.tipoPrestamo === 'string' ? data.tipoPrestamo : '',
           cuotaInicial: Number(data.cuotaInicial || 0),
-          producto: data.producto?.nombre || data.tipoPrestamo || 'Préstamo Personal',
+          producto: typeof data.producto === 'string' ? data.producto : ((data.producto as any)?.nombre || data.tipoPrestamo || 'Préstamo Personal'),
           productoInfo: data.producto ? {
-            marca: data.producto.marca,
-            modelo: data.producto.modelo,
-            serie: data.producto.serie,
-            categoria: data.producto.categoria
+            marca: (data.producto as any).marca,
+            modelo: (data.producto as any).modelo,
+            serie: (data.producto as any).serie,
+            categoria: (data.producto as any).categoria
           } : undefined,
           garantia: data.garantia || '',
           fotos: data.fotos || [],

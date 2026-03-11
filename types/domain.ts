@@ -41,12 +41,16 @@ export interface Cliente {
   telefono?: string | null;
   direccion?: string | null;
   cedula?: string | null;
+  /** Alias de cedula — usado en gran parte del frontend */
+  dni?: string | null;
   nivelRiesgo: NivelRiesgo;
   estado: string;
   foto?: string | null;
   creadoEn: string;
   actualizadoEn: string;
   eliminadoEn?: string | null;
+  // Campos extendidos del backend
+  archivos?: { id: string; url?: string; path?: string; ruta?: string; tipoArchivo?: string }[];
 }
 
 // ─── PRÉSTAMO ────────────────────────────────────────────────────────────────
@@ -76,6 +80,49 @@ export interface Prestamo {
   proximaCuota?: Cuota | null;
   creadoEn: string;
   actualizadoEn: string;
+  // ── Campos calculados / enriquecidos que devuelve el backend ───────────────
+  montoTotal?: number;             // monto + intereses
+  interesTotal?: number;
+  montoPendiente?: number;
+  capitalPagado?: number;
+  interesPagado?: number;
+  totalPagado?: number;
+  interesMoraPagado?: number;
+  moraAcumulada?: number;
+  plazoMeses?: number;
+  cuotaInicial?: number;
+  montoCuota?: number;
+  valorCuota?: number;
+  diasMora?: number;
+  proximoPago?: string | null;
+  fechaVencimiento?: string | null;
+  fechaPrimerCobro?: string | null;
+  tipoAmortizacion?: string | null;
+  notas?: string | null;
+  garantia?: string | null;
+  duracion?: string | null;
+  frecuencia?: string | null;
+  // Campos de cliente aplanados
+  clienteNombre?: string | null;
+  clienteDni?: string | null;
+  clienteTelefono?: string | null;
+  clienteDireccion?: string | null;
+  // Producto (para créditos por artículo)
+  producto?: {
+    id?: string;
+    nombre?: string;
+    precio?: number;
+    descripcion?: string;
+    [key: string]: unknown;
+  } | null;
+  fotos?: string[];
+  archivos?: { id: string; url?: string; path?: string; ruta?: string }[];
+  // Campos UI calculados (vienen ya calculados en el objeto de lista)
+  progreso?: number;
+  cuotasPagadas?: number;
+  cuotasTotales?: number;
+  riesgo?: string | null;
+  tipoProducto?: string | null;
 }
 
 export interface Cuota {

@@ -76,7 +76,6 @@ import { formatCurrency, resolveMediaUrl } from '@/lib/utils'
 import { rutasService, Ruta } from '@/services/rutas-service'
 import { registrarGasto, solicitarBase, obtenerSaldoDisponibleRuta } from '@/services/contabilidad-service'
 import { prestamosService } from '@/services/prestamos-service'
-import { prestamosService } from '@/services/prestamos-service'
 import { reportesCoordinadorService } from '@/services/reportes-coordinador-service'
 import type { RouteDetailResponse } from '@/services/reportes-coordinador-service'
 import { clientesService, Cliente } from '@/services/clientes-service'
@@ -552,7 +551,7 @@ const VistaCobrador = () => {
                 
                 // 2. Fallback: Consultar detalle del préstamo
                 const p = await prestamosService.obtenerPrestamoPorId(v.prestamoId);
-                const proxima = p.proximaCuota || {};
+                const proxima = (p.proximaCuota ?? {}) as any;
                 const montoP = Number(proxima.monto || p.montoCuota || p.valorCuota || 0);
                 
                 return { 
@@ -1477,7 +1476,7 @@ const VistaCobrador = () => {
           const nuevoRecaudoDia = Number(v.recaudadoDelDia || 0) + Number(monto || 0);
           const nuevoRecaudoTotalClient = Number(v.recaudadoTotalClient || 0) + Number(monto || 0);
           if (proxima) {
-            const nuevoEstado: EstadoVisita = proxima.estado === 'ATRASADA' ? 'en_mora' : 'pendiente';
+            const nuevoEstado: EstadoVisita = (proxima.estado as any) === 'ATRASADA' ? 'en_mora' : 'pendiente';
             return {
               ...v,
               proximaVisita: proxima.fechaVencimiento || v.proximaVisita,

@@ -205,5 +205,22 @@ export const exportService = {
     await this.downloadFile(`loans/${loanId}/contrato`, {}, `contrato.pdf`);
   },
 
+  /**
+   * Exportar listado de clientes en Excel o PDF.
+   * Endpoint: GET /clients/export?format=excel|pdf
+   * Soporta filtros opcionales: nivelRiesgo, ruta, search
+   */
+  async exportClientes(
+    format: 'excel' | 'pdf',
+    filters: { nivelRiesgo?: string; ruta?: string; search?: string } = {},
+  ): Promise<void> {
+    const params: Record<string, string> = { format };
+    if (filters.nivelRiesgo && filters.nivelRiesgo !== 'all') params.nivelRiesgo = filters.nivelRiesgo;
+    if (filters.ruta) params.ruta = filters.ruta;
+    if (filters.search) params.search = filters.search;
+    const ext = format === 'excel' ? 'xlsx' : 'pdf';
+    await this.downloadFile('api/v1/clients/export', params, `clientes.${ext}`);
+  },
+
 };
 

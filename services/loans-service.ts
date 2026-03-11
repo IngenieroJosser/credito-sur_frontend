@@ -11,7 +11,21 @@ export {
   type RespuestaPrestamos as LoansResponse,
   type FiltrosPrestamos as LoansFilters,
   type Cuota,
+  type Prestamo as Loan,
 } from '@/services/prestamos-service';
+
+import { prestamosService } from '@/services/prestamos-service';
+import type { FiltrosPrestamos, Prestamo } from '@/services/prestamos-service';
+
+/** @deprecated usa prestamosService.obtenerPrestamos directamente */
+export const loansServiceExt = {
+  ...prestamosService,
+  getLoans: (f?: FiltrosPrestamos) => prestamosService.obtenerPrestamos(f),
+  deleteLoan: (id: string, _userId?: string) => prestamosService.archivarPrestamo(id, { motivo: 'Archivado por usuario' }),
+};
+
+// Re-exportar loansService enriquecido (sobrescribe el re-export anterior)
+export { loansServiceExt as loansServiceFull };
 
 // Tipos específicos de mora que no están en prestamos-service — mantenidos aquí por ahora
 export type NivelRiesgo = 'VERDE' | 'AMARILLO' | 'ROJO' | 'LISTA_NEGRA';

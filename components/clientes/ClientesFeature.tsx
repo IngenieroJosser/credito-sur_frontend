@@ -38,6 +38,8 @@ import NuevoClienteModal from '@/components/clientes/NuevoClienteModal';
 import ClientePortalModal from '@/components/cliente/ClientePortalModal';
 import { offlineStore } from '@/lib/offline/offlineDb';
 import { WifiOff } from 'lucide-react';
+import { ExportButton } from '@/components/ui/ExportButton';
+import { exportService } from '@/services/export-service';
 
 // Tipos locales
 type NivelRiesgo = 'VERDE' | 'AMARILLO' | 'ROJO' | 'LISTA_NEGRA';
@@ -244,6 +246,23 @@ export default function ClientesFeature({ initialClientes, basePath = '/admin/cl
               Nuevo Cliente
             </button>
           )}
+          <ExportButton
+            onExportExcel={() =>
+              exportService.exportClientes('excel', {
+                nivelRiesgo: filterRiesgo !== 'all' ? filterRiesgo : undefined,
+                ruta: filterRuta || undefined,
+                search: searchTerm || undefined,
+              })
+            }
+            onExportPDF={() =>
+              exportService.exportClientes('pdf', {
+                nivelRiesgo: filterRiesgo !== 'all' ? filterRiesgo : undefined,
+                ruta: filterRuta || undefined,
+                search: searchTerm || undefined,
+              })
+            }
+            label="Exportar Clientes"
+          />
         </div>
 
         {dataSource === 'offline' && (
