@@ -1,40 +1,35 @@
-# Script para corregir archivos .tsx donde el logger fue insertado ANTES de 'use client'
-# El patron erroneo es: [import logger] [CRLF] ['use client']
+# Script v2 - Corrige 'use client' para TODOS los casos (con o sin punto y coma)
 
 $root = "c:\Users\ACER\Desktop\Creditos del Sur\credito-sur_frontend"
 $fixed = 0
-$skipped = 0
 
-Get-ChildItem -Recurse -Path "$root\app" -Filter "*.tsx" | ForEach-Object {
+# Patron: la primera linea es import logger, la segunda es 'use client' (con o sin ;)
+$pattern = "^import \{ logger \} from '@/lib/logger'\r?\n'use client';?\r?\n"
+
+Get-ChildItem -Recurse -Path "$root\app", "$root\components", "$root\lib", "$root\hooks" -Filter "*.tsx" -ErrorAction SilentlyContinue | ForEach-Object {
     try {
-        $content = Get-Content -LiteralPath $_.FullName -Raw -ErrorAction Stop
-        
-        # Detectar si el logger fue incorrectamente insertado antes de 'use client'
-        # Patron: linea 1 = import logger, linea 2 = 'use client'
-        if ($content -match "^import \{ logger \} from '@/lib/logger'\r?\n'use client'") {
-            # Verificar si el archivo realmente USA logger.* (no solo tiene el import)
-            $usesLogger = $content -match "logger\.(log|warn|info|error|group)\("
+        $c = Get-Content -LiteralPath $_.FullName -Raw -ErrorAction Stop
+        if ($c -match $pattern) {
+            # Determinar si usa logger realmente
+            $rest = $c -replace $pattern, ""
+            $usesLogger = $rest -match "logger\.(log|warn|info|error|group)\("
             
             if ($usesLogger) {
-                # Mover 'use client' al top, dejar el import despues
-                $newContent = $content -replace "^import \{ logger \} from '@/lib/logger'\r?\n'use client'\r?\n", "'use client'`r`nimport { logger } from '@/lib/logger'`r`n"
-                Set-Content -LiteralPath $_.FullName $newContent -NoNewline
-                Write-Host "FIXED (kept logger): $($_.Name)"
-                $fixed++
+                # Reconstruir: 'use client' primero, luego import logger
+                $newContent = "'use client'`r`nimport { logger } from '@/lib/logger'`r`n" + $rest
             } else {
-                # No usa logger realmente: quitar el import fantasma
-                $newContent = $content -replace "^import \{ logger \} from '@/lib/logger'\r?\n", ""
-                Set-Content -LiteralPath $_.FullName $newContent -NoNewline
-                Write-Host "FIXED (removed unused logger): $($_.Name)"
-                $fixed++
+                # No usa logger en el cuerpo; quitarlo
+                $newContent = "'use client'`r`n" + $rest
             }
-        } else {
-            $skipped++
+            
+            Set-Content -LiteralPath $_.FullName $newContent -NoNewline
+            Write-Host "FIXED: $($_.Name)"
+            $fixed++
         }
     } catch {
-        Write-Host "ERROR: $($_.Name) - $_"
+        Write-Host "ERROR: $($_.Name)"
     }
 }
 
 Write-Host ""
-Write-Host "Done. Fixed: $fixed | Skipped: $skipped"
+Write-Host "Total fixed: $fixed"

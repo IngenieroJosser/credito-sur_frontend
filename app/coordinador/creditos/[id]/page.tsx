@@ -1,5 +1,5 @@
+'use client'
 import { logger } from '@/lib/logger'
-'use client';
 
 import { useState, useEffect, use } from 'react';
 import { ChevronLeft, BarChart3, Pencil, UserCog, Percent } from 'lucide-react';
