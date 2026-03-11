@@ -1149,152 +1149,202 @@ function ClienteDetalleModal({ visita, onClose }: { visita: VisitaRuta; onClose:
   }, [clienteCompleto]);
 
   return (
-    <div 
-      className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md animate-in fade-in duration-300"
+    <div
+      className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center sm:p-4 bg-slate-900/60 backdrop-blur-md animate-in fade-in duration-300"
       onClick={onClose}
     >
-      <div 
-        className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-sm overflow-hidden animate-in zoom-in-95 duration-300 border border-slate-100 flex flex-col max-h-[90vh]"
+      <div
+        className="bg-white sm:rounded-[2.5rem] rounded-t-3xl shadow-2xl w-full sm:max-w-sm overflow-hidden animate-in slide-in-from-bottom-4 sm:zoom-in-95 duration-300 border border-slate-100 flex flex-col max-h-[92vh]"
         onClick={(e) => e.stopPropagation()}
       >
-        
-        {/* Header Compacto */}
-        <div className="px-8 pt-8 pb-4 flex justify-between items-center">
+        {/* Handle visual para móvil */}
+        <div className="flex justify-center pt-3 pb-1 sm:hidden">
+          <div className="w-10 h-1 rounded-full bg-slate-200" />
+        </div>
+
+        {/* Header */}
+        <div className="px-5 sm:px-8 pt-4 sm:pt-8 pb-3 sm:pb-4 flex justify-between items-center shrink-0">
           <div>
-            <h3 className="font-black text-2xl text-slate-900 tracking-tight">Expediente</h3>
+            <h3 className="font-black text-xl sm:text-2xl text-slate-900 tracking-tight">Expediente</h3>
             <p className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em]">Detalle Administrativo</p>
           </div>
-          <button onClick={onClose} className="p-2 bg-slate-50 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-full transition-all group">
-            <XCircle className="h-7 w-7 group-active:scale-90" />
+          <button
+            onClick={onClose}
+            className="p-2 bg-slate-50 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-full transition-all active:scale-90"
+          >
+            <XCircle className="h-6 w-6" />
           </button>
         </div>
-        
-        <div className="px-8 pb-8 space-y-6 overflow-y-auto custom-scrollbar">
-           {loading ? (
-             <div className="py-20 flex flex-col items-center justify-center gap-4">
-                <Loader2 className="w-10 h-10 text-[#08557f] animate-spin" />
-                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Sincronizando...</p>
-             </div>
-           ) : (
-             <>
-               {/* Perfil Header */}
-               <div className="text-center space-y-3">
-                 <div className="w-20 h-20 bg-slate-50 rounded-3xl mx-auto flex items-center justify-center text-slate-200 border border-slate-100">
-                   <User className="w-10 h-10" />
-                 </div>
-                 <div>
-                    <h4 className="text-xl font-black text-slate-900">{visita.cliente}</h4>
-                    <div className="flex justify-center gap-2 mt-1">
-                       <span className={`${riesgoColor} text-[9px] font-black px-3 py-1 rounded-full uppercase border border-current/10`}>
-                         {riesgoLabel}
-                       </span>
+
+        {/* Contenido scrollable */}
+        <div className="px-5 sm:px-8 pb-6 sm:pb-8 space-y-5 overflow-y-auto flex-1">
+          {loading ? (
+            <div className="py-16 flex flex-col items-center justify-center gap-4">
+              <Loader2 className="w-10 h-10 text-[#08557f] animate-spin" />
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Sincronizando...</p>
+            </div>
+          ) : (
+            <>
+              {/* Perfil Header */}
+              <div className="text-center space-y-2">
+                <div className="w-16 h-16 sm:w-20 sm:h-20 bg-slate-50 rounded-3xl mx-auto flex items-center justify-center text-slate-200 border border-slate-100">
+                  <User className="w-8 h-8 sm:w-10 sm:h-10" />
+                </div>
+                <div>
+                  <h4 className="text-lg sm:text-xl font-black text-slate-900 leading-snug">{visita.cliente}</h4>
+                  <div className="flex justify-center gap-2 mt-1">
+                    <span className={`${riesgoColor} text-[9px] font-black px-3 py-1 rounded-full uppercase border border-current/10`}>
+                      {riesgoLabel}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Grid de datos — 1 col en muy pequeño, 2 en sm */}
+              <div className="grid grid-cols-1 min-[360px]:grid-cols-2 gap-3">
+                <div className="p-3 sm:p-4 rounded-2xl bg-slate-50 border border-slate-100">
+                  <div className="flex items-center gap-1.5 mb-1 text-slate-400">
+                    <Fingerprint className="w-3 h-3" />
+                    <span className="text-[9px] font-black uppercase">Cédula / DNI</span>
+                  </div>
+                  <p className="text-sm font-black text-slate-900">{clienteCompleto?.dni || '---'}</p>
+                </div>
+
+                <div className="p-3 sm:p-4 rounded-2xl bg-slate-50 border border-slate-100">
+                  <div className="flex items-center gap-1.5 mb-2 text-slate-400">
+                    <Star className="w-3 h-3" />
+                    <span className="text-[9px] font-black uppercase">Score Crediticio</span>
+                  </div>
+                  <div className="flex items-center justify-between mb-1">
+                    <span className={`text-xl font-black ${
+                      ((clienteCompleto?.score ?? clienteCompleto?.puntaje) || 0) >= 80 ? 'text-emerald-600' :
+                      ((clienteCompleto?.score ?? clienteCompleto?.puntaje) || 0) >= 60 ? 'text-amber-500' :
+                      ((clienteCompleto?.score ?? clienteCompleto?.puntaje) || 0) >= 40 ? 'text-amber-600' :
+                      'text-rose-600'
+                    }`}>
+                      {clienteCompleto?.score ?? clienteCompleto?.puntaje ?? '—'}
+                      <span className="text-xs font-bold text-slate-400">/100</span>
+                    </span>
+                    <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full border ${
+                      ((clienteCompleto?.score ?? clienteCompleto?.puntaje) || 0) >= 80 ? 'text-emerald-700 bg-emerald-50 border-emerald-200' :
+                      ((clienteCompleto?.score ?? clienteCompleto?.puntaje) || 0) >= 60 ? 'text-amber-600 bg-amber-50 border-amber-200' :
+                      ((clienteCompleto?.score ?? clienteCompleto?.puntaje) || 0) >= 40 ? 'text-amber-700 bg-amber-50 border-amber-200' :
+                      'text-rose-700 bg-rose-50 border-rose-200'
+                    }`}>
+                      {((clienteCompleto?.score ?? clienteCompleto?.puntaje) || 0) >= 80 ? 'Bueno' :
+                       ((clienteCompleto?.score ?? clienteCompleto?.puntaje) || 0) >= 60 ? 'Regular' :
+                       ((clienteCompleto?.score ?? clienteCompleto?.puntaje) || 0) >= 40 ? 'Precaución' : 'Bajo'}
+                    </span>
+                  </div>
+                  <div className="relative pt-1">
+                    <div className="h-1.5 bg-slate-200 rounded-full overflow-hidden">
+                      <div
+                        className={`h-full rounded-full transition-all duration-300 ${
+                          ((clienteCompleto?.score ?? clienteCompleto?.puntaje) || 0) >= 80 ? 'bg-emerald-500' :
+                          ((clienteCompleto?.score ?? clienteCompleto?.puntaje) || 0) >= 60 ? 'bg-amber-500' :
+                          ((clienteCompleto?.score ?? clienteCompleto?.puntaje) || 0) >= 40 ? 'bg-amber-600' :
+                          'bg-rose-500'
+                        }`}
+                        style={{ width: `${Math.min(100, (clienteCompleto?.score ?? clienteCompleto?.puntaje) || 0)}%` }}
+                      />
                     </div>
-                 </div>
-               </div>
+                    <div className="flex justify-between text-[9px] text-slate-400 mt-1 font-bold">
+                      <span>0</span><span>50</span><span>100</span>
+                    </div>
+                  </div>
+                </div>
 
-               {/* Información DINÁMICA */}
-               <div className="grid grid-cols-2 gap-3">
-                  <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100">
-                     <div className="flex items-center gap-1.5 mb-1 text-slate-400">
-                        <Fingerprint className="w-3 h-3" />
-                        <span className="text-[9px] font-black uppercase">Cédula / DNI</span>
-                     </div>
-                     <p className="text-sm font-black text-slate-900">{clienteCompleto?.dni || '---'}</p>
+                <div className="p-3 sm:p-4 rounded-2xl bg-slate-50 border border-slate-100">
+                  <div className="flex items-center gap-1.5 mb-1 text-slate-400">
+                    <CalendarDays className="w-3 h-3" />
+                    <span className="text-[9px] font-black uppercase">Miembro Desde</span>
                   </div>
-                   <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100">
-                      <div className="flex items-center gap-1.5 mb-2 text-slate-400">
-                         <Star className="w-3 h-3" />
-                         <span className="text-[9px] font-black uppercase">Score Crediticio</span>
-                      </div>
-                      <div className="flex items-center justify-between mb-1">
-                        <span className={`text-xl font-black ${
-                          ((clienteCompleto?.score ?? clienteCompleto?.puntaje) || 0) >= 80 ? 'text-emerald-600' :
-                          ((clienteCompleto?.score ?? clienteCompleto?.puntaje) || 0) >= 60 ? 'text-amber-500' :
-                          ((clienteCompleto?.score ?? clienteCompleto?.puntaje) || 0) >= 40 ? 'text-amber-600' :
-                          'text-rose-600'
-                        }`}>{clienteCompleto?.score ?? clienteCompleto?.puntaje ?? '—'}<span className="text-xs font-bold text-slate-400">/100</span></span>
-                        <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full border ${
-                          ((clienteCompleto?.score ?? clienteCompleto?.puntaje) || 0) >= 80 ? 'text-emerald-700 bg-emerald-50 border-emerald-200' :
-                          ((clienteCompleto?.score ?? clienteCompleto?.puntaje) || 0) >= 60 ? 'text-amber-600 bg-amber-50 border-amber-200' :
-                          ((clienteCompleto?.score ?? clienteCompleto?.puntaje) || 0) >= 40 ? 'text-amber-700 bg-amber-50 border-amber-200' :
-                          'text-rose-700 bg-rose-50 border-rose-200'
-                        }`}>
-                          {((clienteCompleto?.score ?? clienteCompleto?.puntaje) || 0) >= 80 ? 'Bueno' :
-                           ((clienteCompleto?.score ?? clienteCompleto?.puntaje) || 0) >= 60 ? 'Regular' :
-                           ((clienteCompleto?.score ?? clienteCompleto?.puntaje) || 0) >= 40 ? 'Precaución' : 'Bajo'}
-                        </span>
-                      </div>
-                      {/* ScoreMeter — igual al del listado de clientes */}
-                      <div className="relative pt-2">
-                        <div className="h-1.5 bg-slate-200 rounded-full overflow-hidden">
-                          <div
-                            className={`h-full rounded-full transition-all duration-300 ${
-                              ((clienteCompleto?.score ?? clienteCompleto?.puntaje) || 0) >= 80 ? 'bg-emerald-500' :
-                              ((clienteCompleto?.score ?? clienteCompleto?.puntaje) || 0) >= 60 ? 'bg-amber-500' :
-                              ((clienteCompleto?.score ?? clienteCompleto?.puntaje) || 0) >= 40 ? 'bg-amber-600' :
-                              'bg-rose-500'
-                            }`}
-                            style={{ width: `${Math.min(100, (clienteCompleto?.score ?? clienteCompleto?.puntaje) || 0)}%` }}
-                          />
-                        </div>
-                        <div className="flex justify-between text-[9px] text-slate-400 mt-1 font-bold">
-                          <span>0</span><span>50</span><span>100</span>
-                        </div>
-                      </div>
-                   </div>
-                  <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100">
-                     <div className="flex items-center gap-1.5 mb-1 text-slate-400">
-                        <CalendarDays className="w-3 h-3" />
-                        <span className="text-[9px] font-black uppercase">Miembro Desde</span>
-                     </div>
-                     <p className="text-sm font-black text-slate-900 uppercase">
-                       {clienteCompleto?.creadoEn ? formatDateUTC(clienteCompleto.creadoEn) : '---'}
-                     </p>
-                  </div>
-                  <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100">
-                     <div className="flex items-center gap-1.5 mb-1 text-slate-400">
-                        <History className="w-3 h-3" />
-                        <span className="text-[9px] font-black uppercase">Préstamos</span>
-                     </div>
-                     <p className="text-sm font-black text-[#08557f]">{prestamosActivosCount} Activos</p>
-                  </div>
-               </div>
+                  <p className="text-sm font-black text-slate-900 uppercase">
+                    {clienteCompleto?.creadoEn ? formatDateUTC(clienteCompleto.creadoEn) : '---'}
+                  </p>
+                </div>
 
-               {/* Contacto Alternativo */}
-               <div className="p-5 rounded-3xl bg-blue-50 border border-blue-100">
-                  <h5 className="text-[10px] font-black text-[#08557f] uppercase tracking-widest mb-3">Referencias / Contacto</h5>
-                  <div className="space-y-4">
-                     <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 bg-white rounded-xl flex items-center justify-center text-[#08557f] shadow-sm">
-                          <Phone className="w-4 h-4" />
-                        </div>
-                        <div>
-                          <p className="text-[9px] font-bold text-blue-400 uppercase">WhatsApp / Tel</p>
-                          <p className="text-sm font-black text-slate-900">{clienteCompleto?.telefono || visita.telefono}</p>
-                        </div>
-                     </div>
-                     <div className="flex items-start gap-3">
-                        <div className="w-8 h-8 bg-white rounded-xl flex items-center justify-center text-[#08557f] shadow-sm">
-                          <MapPin className="w-4 h-4" />
-                        </div>
-                        <div>
-                          <p className="text-[9px] font-bold text-blue-400 uppercase">Referencia de Ubicación</p>
-                          <p className="text-xs font-bold text-slate-700 leading-tight">
-                            {clienteCompleto?.referencia || "Sin referencias adicionales registradas."}
-                          </p>
-                        </div>
-                     </div>
+                <div className="p-3 sm:p-4 rounded-2xl bg-slate-50 border border-slate-100">
+                  <div className="flex items-center gap-1.5 mb-1 text-slate-400">
+                    <History className="w-3 h-3" />
+                    <span className="text-[9px] font-black uppercase">Préstamos</span>
                   </div>
-               </div>
+                  <p className="text-sm font-black text-[#08557f]">{prestamosActivosCount} Activos</p>
+                </div>
+              </div>
 
-               <button 
-                 onClick={onClose} 
-                 className="w-full rounded-2xl bg-[#08557f] py-4 text-sm font-black text-white hover:bg-[#063a58] shadow-xl shadow-[#08557f]/20 transition-all uppercase tracking-widest mt-6"
-               >
-                 Cerrar Expediente
-               </button>
-             </>
-           )}
+              {/* Contacto y Ubicación */}
+              <div className="p-4 sm:p-5 rounded-2xl sm:rounded-3xl bg-blue-50 border border-blue-100">
+                <h5 className="text-[10px] font-black text-[#08557f] uppercase tracking-widest mb-3">Referencias / Contacto</h5>
+                <div className="space-y-3">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 bg-white rounded-xl flex items-center justify-center text-[#08557f] shadow-sm shrink-0">
+                      <Phone className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <p className="text-[9px] font-bold text-blue-400 uppercase">WhatsApp / Tel</p>
+                      <a
+                        href={`tel:${clienteCompleto?.telefono || visita.telefono}`}
+                        className="text-sm font-black text-slate-900 hover:text-[#08557f] transition-colors"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        {clienteCompleto?.telefono || visita.telefono}
+                      </a>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <div className="w-8 h-8 bg-white rounded-xl flex items-center justify-center text-[#08557f] shadow-sm shrink-0">
+                      <MapPin className="w-4 h-4" />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-[9px] font-bold text-blue-400 uppercase">Referencia de Ubicación</p>
+                      <p className="text-xs font-bold text-slate-700 leading-tight break-words">
+                        {clienteCompleto?.referencia || visita.direccion || 'Sin referencias adicionales.'}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Fotografías del cliente (si existen) */}
+              {(clienteCompleto?.archivos || []).filter((a: any) => {
+                const url = String(a.url || a.path || a.ruta || '')
+                return /(jpg|jpeg|png|gif|webp)$/i.test(url) || String(a.tipoArchivo || '').startsWith('image/')
+              }).length > 0 && (
+                <div className="space-y-2">
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Fotografías</p>
+                  <div className="grid grid-cols-2 gap-2">
+                    {(clienteCompleto.archivos as any[]).filter((a) => {
+                      const url = String(a.url || a.path || a.ruta || '')
+                      return /(jpg|jpeg|png|gif|webp)$/i.test(url) || String(a.tipoArchivo || '').startsWith('image/')
+                    }).map((archivo: any, idx: number) => {
+                      const rawUrl = archivo.url || archivo.path || archivo.ruta || ''
+                      const fullUrl = rawUrl.startsWith('http') ? rawUrl
+                        : `https://res.cloudinary.com/${process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME}/image/upload/${rawUrl}`
+                      const label = archivo.tipoContenido === 'CEDULA_FRONTAL' ? 'Cédula — frente'
+                        : archivo.tipoContenido === 'CEDULA_REVERSO' ? 'Cédula — reverso'
+                        : archivo.tipoContenido === 'FOTO_VIVIENDA' ? 'Foto vivienda'
+                        : archivo.tipoContenido === 'FOTO_PERFIL' ? 'Foto perfil'
+                        : archivo.nombreOriginal || 'Foto'
+                      return (
+                        <div key={idx} className="border border-slate-200 rounded-xl overflow-hidden bg-slate-50">
+                          <div className="px-2 py-1 text-[9px] font-bold text-slate-500 border-b border-slate-200 truncate">{label}</div>
+                          <img src={fullUrl} alt={label} className="w-full h-28 object-cover" onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none' }} />
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
+
+              <button
+                onClick={onClose}
+                className="w-full rounded-2xl bg-[#08557f] py-4 text-sm font-black text-white hover:bg-[#063a58] shadow-xl shadow-[#08557f]/20 transition-all uppercase tracking-widest active:scale-[0.98]"
+              >
+                Cerrar Expediente
+              </button>
+            </>
+          )}
         </div>
       </div>
     </div>
