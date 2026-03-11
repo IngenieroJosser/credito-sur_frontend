@@ -1,6 +1,9 @@
 import axios from 'axios';
 
-const API_BASE = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3001';
+const rawBase = process.env.NEXT_PUBLIC_BASE_URL || 'http://127.0.0.1:3001';
+const API_BASE = rawBase.replace(/\/$/, '').endsWith('/api-credisur') 
+  ? rawBase.replace(/\/$/, '') 
+  : `${rawBase.replace(/\/$/, '')}/api-credisur`;
 
 /**
  * Generic export service that downloads files from backend endpoints.
