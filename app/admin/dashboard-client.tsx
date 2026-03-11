@@ -218,10 +218,8 @@ export function DashboardClient({ data }: DashboardClientProps) {
           ))}
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Columna Principal (Izquierda) */}
-          <div className="lg:col-span-2 space-y-8">
-            
+        <div className="space-y-8">
+          
             {/* Gráfico Principal: Tendencia de Cobros */}
             <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
               <div className="flex items-center justify-between mb-6">
@@ -285,59 +283,6 @@ export function DashboardClient({ data }: DashboardClientProps) {
               </div>
             </div>
 
-          </div>
-
-          {/* Columna Lateral (Derecha) */}
-          <div className="space-y-8">
-            {/* Accesos Rápidos (Reducido) */}
-            <div className="bg-slate-50 rounded-2xl p-6 border border-slate-200/60">
-              <h3 className="text-sm font-bold text-slate-500 uppercase tracking-wider mb-4">Accesos Rápidos</h3>
-              <div className="grid grid-cols-1 gap-3">
-                 {data.quickAccess.slice(0, 3).map((item, index) => {
-                   // Acciones que abren modal en lugar de navegar
-                   const modalAction = 
-                     item.title === 'Nuevo Crédito' ? () => setShowCrearCreditoModal(true) :
-                     item.title === 'Nuevo Cliente' ? () => setShowNuevoClienteModal(true) :
-                     null;
-                   
-                   if (modalAction) {
-                     return (
-                       <button
-                         key={index}
-                         onClick={modalAction}
-                         className="w-full flex items-center gap-3 p-3 bg-white rounded-xl shadow-sm border border-slate-100 hover:shadow-md hover:border-blue-100 transition-all group text-left"
-                       >
-                         <div className="p-2 rounded-lg bg-slate-50 text-slate-600 group-hover:bg-blue-50 group-hover:text-blue-600 transition-colors">
-                           {item.icon}
-                         </div>
-                         <div>
-                           <div className="font-medium text-slate-900 text-sm group-hover:text-blue-700">{item.title}</div>
-                           <div className="text-xs text-slate-500">{item.subtitle}</div>
-                         </div>
-                       </button>
-                     );
-                   }
-                   
-                   return (
-                     <Link
-                       key={index}
-                       href={item.href}
-                       className="flex items-center gap-3 p-3 bg-white rounded-xl shadow-sm border border-slate-100 hover:shadow-md hover:border-blue-100 transition-all group"
-                     >
-                       <div className="p-2 rounded-lg bg-slate-50 text-slate-600 group-hover:bg-blue-50 group-hover:text-blue-600 transition-colors">
-                         {item.icon}
-                       </div>
-                       <div>
-                         <div className="font-medium text-slate-900 text-sm group-hover:text-blue-700">{item.title}</div>
-                         <div className="text-xs text-slate-500">{item.subtitle}</div>
-                       </div>
-                     </Link>
-                   );
-                 })}
-              </div>
-            </div>
-
-          </div>
         </div>
 
         {/* Footer sutil */}

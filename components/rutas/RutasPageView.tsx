@@ -1,6 +1,8 @@
 'use client'
 
-import { useState, ChangeEvent, FormEvent, useEffect } from 'react'
+import { useState, ChangeEvent, FormEvent, useEffect, useCallback } from 'react'
+import { useRealtimeData } from '@/hooks/useRealtimeData'
+import { usePageFocusRefresh } from '@/hooks/usePageFocusRefresh'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import {
@@ -154,6 +156,28 @@ export const RutasPageView = ({
     return parseFloat(formatted.replace(/\./g, '').replace(',', '.')) || 0
   }
 
+  const fetchRutas = useCallback(async () => {
+    try {
+      const response = await routesService.getAll({ limit: 100 });
+      const data = (response as any)?.data || (response as any) || [];
+      if (Array.isArray(data) && data.length > 0) {
+        setRutasList(data as unknown as Ruta[]);
+      }
+    } catch {
+      try {
+        const offRutas = await offlineStore.getAll<any>('rutas');
+        if (offRutas.length > 0) {
+          setRutasList(offRutas.map((r: any) => ({
+            id: r.id, nombre: r.nombre, codigo: r.codigo, zona: r.zona || '',
+            estado: r.activa ? 'ACTIVA' : 'INACTIVA', cobrador: '',
+            cobradorId: r.cobradorId || '', supervisorId: r.supervisorId || '',
+            clientesAsignados: 0, clientesNuevos: 0, cobranzaDelDia: 0, metaDelDia: 0,
+          } as Ruta)));
+        }
+      } catch {}
+    }
+  }, [])
+
   useEffect(() => {
     const fetchLists = async () => {
       try {
@@ -165,40 +189,18 @@ export const RutasPageView = ({
           const fetchedSupervisores = await routesService.getSupervisores();
           setSupervisoresList(fetchedSupervisores);
         }
-
-        try {
-          const response = await routesService.getAll({ limit: 100 });
-          const data = (response as any)?.data || (response as any) || [];
-          if (Array.isArray(data) && data.length > 0) {
-            setRutasList(data as unknown as Ruta[]);
-          }
-        } catch (e) {
-        }
-      } catch (error) {
-        try {
-          const offRutas = await offlineStore.getAll<any>('rutas');
-          if (offRutas.length > 0 && rutasList.length === 0) {
-            setRutasList(offRutas.map((r: any) => ({
-              id: r.id,
-              nombre: r.nombre,
-              codigo: r.codigo,
-              zona: r.zona || '',
-              estado: r.activa ? 'ACTIVA' : 'INACTIVA',
-              cobrador: '',
-              cobradorId: r.cobradorId || '',
-              supervisorId: r.supervisorId || '',
-              clientesAsignados: 0,
-              clientesNuevos: 0,
-              cobranzaDelDia: 0,
-              metaDelDia: 0,
-            } as Ruta)));
-          }
-        } catch {}
-      }
+        await fetchRutas();
+      } catch (error) { /* offline handled inside fetchRutas */ }
     };
-
     fetchLists();
-  }, []);
+  }, [fetchRutas]);
+
+  // Tiempo real: rutas o clientes actualizados
+  useRealtimeData(
+    ['rutas_actualizadas', 'clientes_actualizados', 'dashboards_actualizados'],
+    fetchRutas,
+  )
+  usePageFocusRefresh(fetchRutas)
 
 
   const [clienteSearch, setClienteSearch] = useState('')

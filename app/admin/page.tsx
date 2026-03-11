@@ -237,35 +237,20 @@ export default function DashboardPage() {
         const dashboard = backendData.status === 'fulfilled' ? backendData.value : null;
         const prestamos = prestamosData.status === 'fulfilled' ? prestamosData.value : null;
         const resumen = resumenFinanciero.status === 'fulfilled' ? resumenFinanciero.value : null;
-        const stats = prestamos?.estadisticas;
-
-        // Build metrics from real backend data filtradas por período
-        const moraPercent = stats && stats.montoTotal > 0
-          ? ((stats.moraTotal / stats.montoTotal) * 100).toFixed(1)
-          : '0';
 
         // Convertir valores a números explícitamente (por si vienen como Decimal de Prisma)
         const capitalPrestado = Number(dashboard?.metrics?.capitalPrestado ?? 0);
         const recaudo = Number(dashboard?.metrics?.recaudo ?? 0);
-
-        // Debug: Log de datos recibidos
-        console.log('[FRONTEND] Dashboard data completo:', dashboard);
-        console.log('[FRONTEND] Dashboard metrics:', dashboard?.metrics);
-        console.log('[FRONTEND] Valores específicos:', {
-          capitalPrestado: {
-            raw: dashboard?.metrics?.capitalPrestado,
-            converted: capitalPrestado,
-            type: typeof dashboard?.metrics?.capitalPrestado
-          },
-          recaudo: {
-            raw: dashboard?.metrics?.recaudo,
-            converted: recaudo,
-            type: typeof dashboard?.metrics?.recaudo
-          },
-          requestedPeriod,
-          fechaInicio,
-          fechaFin
-        });
+        // Mora: usar datos reales del backend filtrados por período
+        const moraCount = Number(dashboard?.metrics?.delinquentAccounts ?? 0);
+        // Monto total en mora estimado: si el backend no lo da directamente, usamos los delinquentAccounts
+        const moraMonto = (dashboard?.delinquentAccounts || []).reduce(
+          (acc: number, item: any) => acc + (item.amountDue || 0),
+          0,
+        );
+        const moraPercent = capitalPrestado > 0 && moraMonto > 0
+          ? ((moraMonto / capitalPrestado) * 100).toFixed(1)
+          : '0';
 
         const mainMetrics: MetricItem[] = [
           {
@@ -286,9 +271,9 @@ export default function DashboardPage() {
             color: '#8b5cf6'
           },
           {
-            title: 'Cartera en Mora',
-            value: stats?.moraTotal || 0,
-            subValue: `${moraPercent}% del total · ${stats?.morosos || 0} cuentas`,
+            title: `Cartera en Mora (${PERIOD_LABEL[requestedPeriod]})`,
+            value: moraMonto,
+            subValue: `${moraPercent}% del capital · ${moraCount} cuentas`,
             isCurrency: true,
             change: 0,
             icon: <AlertCircle className="h-4 w-4" />,
