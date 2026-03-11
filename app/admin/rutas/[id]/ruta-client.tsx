@@ -55,6 +55,8 @@ import { pagosService } from '@/services/pagos-service'
 import { FrecuenciaPago } from '@/types/enums'
 import { obtenerSaldoDisponibleRuta } from '@/services/contabilidad-service'
 import { HistorialDia } from '@/lib/types/cobranza'
+import { exportService } from '@/services/export-service'
+import { toast } from 'sonner'
 
 interface GastoRuta {
   id: string
@@ -521,12 +523,28 @@ const RutaClientLoaded = ({
         filtradas = filtradas.filter(v => v.periodoRuta === periodoRutaFiltro);
     }
 
-    const exportarRutaDiariaCSV = () => {
-      console.log('TODO: Exportar CSV en desarrollo')
+    const exportarRutaDiariaCSV = async () => {
+      try {
+        await exportService.exportOperationalReport('excel', {
+          rutaId: initialRuta.id,
+          startDate: new Date().toISOString().split('T')[0],
+        } as any);
+      } catch (e) {
+        toast.error('No se pudo exportar el reporte de ruta a Excel');
+        console.error('Error exportando ruta CSV:', e);
+      }
     }
   
-    const exportarRutaDiariaPDF = () => {
-      console.log('TODO: Exportar PDF en desarrollo')
+    const exportarRutaDiariaPDF = async () => {
+      try {
+        await exportService.exportOperationalReport('pdf', {
+          rutaId: initialRuta.id,
+          startDate: new Date().toISOString().split('T')[0],
+        } as any);
+      } catch (e) {
+        toast.error('No se pudo exportar el reporte de ruta a PDF');
+        console.error('Error exportando ruta PDF:', e);
+      }
     }
 
     const isTodayOrMora = (dateStr: string) => {
