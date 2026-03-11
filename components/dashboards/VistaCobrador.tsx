@@ -72,7 +72,7 @@ import {
 import { useRouter } from 'next/navigation'
 import { RolUsuario } from '@/lib/types/autenticacion-type'
 import { obtenerPerfil } from '@/services/autenticacion-service'
-import { formatCurrency } from '@/lib/utils'
+import { formatCurrency, resolveMediaUrl } from '@/lib/utils'
 import { rutasService, Ruta } from '@/services/rutas-service'
 import { registrarGasto, solicitarBase, obtenerSaldoDisponibleRuta } from '@/services/contabilidad-service'
 import { prestamosService } from '@/services/prestamos-service'
@@ -91,6 +91,7 @@ import ReprogramarModal from '@/components/cobranza/ReprogramarModal'
 import GastoModal from '@/components/dashboards/shared/GastoModal'
 import BaseModal from '@/components/dashboards/shared/BaseModal'
 import DetalleMoraModal from '@/components/cobranza/DetalleMoraModal'
+import ClienteInfoModal from '@/components/cobranza/ClienteInfoModal'
 import FloatingActionMenu, { FabAction } from '@/components/dashboards/shared/FloatingActionMenu'
 import { offlineStore } from '@/lib/offline/offlineDb'
 import { enqueuePago } from '@/lib/offline/offlineQueue'
@@ -2615,120 +2616,19 @@ const VistaCobrador = () => {
         ] as FabAction[]} />
 
 
-        {showClienteInfoModal && (
-          <Portal>
-            <div
-              className="fixed inset-0 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-200"
-              style={{ zIndex: MODAL_Z_INDEX }}
-              onClick={() => {
-                setShowClienteInfoModal(false)
-                setVisitaClienteSeleccionada(null)
-              }}
-            >
-              <div
-                className="w-full max-w-md bg-white rounded-3xl shadow-2xl animate-in zoom-in-95 duration-200"
-                onClick={(e) => e.stopPropagation()}
-              >
-                <div className="p-6">
-                  <div className="flex items-center justify-between mb-6">
-                    <h3 className="text-xl font-bold text-slate-900">Cliente</h3>
-                    <button
-                      onClick={() => {
-                        setShowClienteInfoModal(false)
-                        setVisitaClienteSeleccionada(null)
-                      }}
-                      className="p-2 bg-slate-100 rounded-full text-slate-500 hover:bg-slate-200 transition-colors"
-                    >
-                      <X className="h-5 w-5" />
-                    </button>
-                  </div>
-
-                  <div className="space-y-6">
-                    {/* Header Info */}
-                    <div className="bg-slate-50 p-6 rounded-3xl border border-slate-100 relative overflow-hidden">
-                      <div className="absolute top-0 right-0 w-32 h-32 bg-slate-100 rounded-full -mr-16 -mt-16"></div>
-                      <div className="relative z-10 flex items-center gap-5">
-                        <div className="h-24 w-24 rounded-2xl bg-white border border-slate-200 shadow-sm flex items-center justify-center text-slate-300 font-bold overflow-hidden">
-                          <User className="w-12 h-12" />
-                        </div>
-                        <div className="flex-1">
-                          <h4 className="text-2xl font-bold text-slate-900 leading-tight">
-                            {visitaClienteSeleccionada?.cliente || 'Sin nombre'}
-                          </h4>
-                          <div className="flex items-center gap-2 mt-2">
-                             <span className="bg-[#08557f] text-white text-[10px] font-black px-2 py-0.5 rounded-full uppercase tracking-tighter">Activo</span>
-                             <span className="text-slate-400 text-xs font-bold">{visitaClienteSeleccionada?.id}</span>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-
-
-                    {/* Detailed Info Sections */}
-                    <div className="space-y-4">
-                       {/* Personal Data */}
-                       <div className="space-y-3">
-                          <h5 className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Información de contacto</h5>
-                          <div className="grid grid-cols-1 gap-3">
-                             <div className="bg-white border border-slate-100 p-4 rounded-2xl shadow-sm">
-                                <div className="text-xs text-slate-500 font-bold mb-1 uppercase tracking-tighter">Dirección Exacta</div>
-                                <div className="text-slate-900 font-bold">{visitaClienteSeleccionada?.direccion || 'No registrada'}</div>
-                             </div>
-                             <div className="bg-white border border-slate-100 p-4 rounded-2xl shadow-sm">
-                                <div className="text-xs text-slate-500 font-bold mb-1 uppercase tracking-tighter">Punto de Referencia</div>
-                                <div className="text-slate-900 font-medium italic">{visitaClienteSeleccionada?.direccion || 'Casa rejas blancas, frente al parque.'}</div>
-                             </div>
-                          </div>
-                       </div>
-
-                       {/* Financial Summary */}
-                       <div className="space-y-3 pt-2">
-                          <h5 className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Resumen Financiero</h5>
-                          <div className="grid grid-cols-2 gap-3">
-                             <div className="bg-orange-50 border border-orange-100 p-4 rounded-2xl shadow-sm">
-                                <div className="text-xs text-orange-600 font-bold mb-1 uppercase tracking-tighter">Por Entregar</div>
-                                <div className="text-orange-900 font-black text-xl">${visitaClienteSeleccionada?.saldoTotal.toLocaleString('es-CO')}</div>
-                             </div>
-                             <div className="bg-emerald-50 border border-emerald-100 p-4 rounded-2xl shadow-sm text-right">
-                                <div className="text-xs text-emerald-600 font-bold mb-1 uppercase tracking-tighter">Recaudado</div>
-                                <div className="text-emerald-900 font-black text-xl">${recaudadoClienteHoy.toLocaleString('es-CO')}</div>
-                             </div>
-                          </div>
-                          <div className="bg-slate-50 border border-slate-100 p-4 rounded-2xl flex justify-between items-center">
-                             <div>
-                                <div className="text-[10px] text-slate-500 font-bold uppercase">Cuota Proyectada</div>
-                              <div className="text-slate-900 font-bold text-lg">${(nextPagoMonto ?? visitaClienteSeleccionada?.montoCuota ?? 0).toLocaleString('es-CO')}</div>
-                             </div>
-                             <div className="text-right">
-                              {nextPagoFecha && (
-                                <>
-                                  <div className="text-[10px] text-slate-500 font-bold uppercase">Próxima Fecha</div>
-                                  <div className="text-[#08557f] font-bold">{formatFechaLargaUTC(nextPagoFecha)}</div>
-                                </>
-                              )}
-                             </div>
-                          </div>
-                       </div>
-                    </div>
-
-                    <div className="pt-4 mt-2">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setShowClienteInfoModal(false)
-                          setVisitaClienteSeleccionada(null)
-                        }}
-                        className="w-full rounded-2xl bg-[#08557f] py-4 text-sm font-black text-white hover:bg-[#063a58] shadow-xl shadow-[#08557f]/20 transition-all uppercase tracking-widest"
-                      >
-                        Cerrar Detalles
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </Portal>
+        {/* ── Modal de Información del Cliente (Expediente / Detalle) ── */}
+        {showClienteInfoModal && visitaClienteSeleccionada && (
+          <ClienteInfoModal
+            visita={visitaClienteSeleccionada}
+            nextPagoMonto={nextPagoMonto}
+            nextPagoFecha={nextPagoFecha}
+            recaudadoHoy={recaudadoClienteHoy}
+            formatFechaLargaUTC={formatFechaLargaUTC}
+            onClose={() => {
+              setShowClienteInfoModal(false)
+              setVisitaClienteSeleccionada(null)
+            }}
+          />
         )}
 
         {/* Modales Compartidos */}

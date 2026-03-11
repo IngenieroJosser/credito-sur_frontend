@@ -6,6 +6,7 @@ import { MapPin, Eye, Phone, GripVertical, Clock, XCircle, ChevronDown, Calendar
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { VisitaRuta, EstadoVisita } from '@/lib/types/cobranza'
+import { formatMilesCOP } from '@/lib/utils'
 
 export const MODAL_Z_INDEX = 2147483600
 
@@ -143,7 +144,7 @@ export function StaticVisitaItem({
                 'bg-slate-300'
               }`}
             />
-            <span className="text-sm font-bold text-slate-900 truncate max-w-[160px]">{visita.cliente}</span>
+            <span className="text-sm font-bold text-slate-900 truncate min-w-0">{visita.cliente}</span>
             <span className={`text-[9px] font-black uppercase px-1.5 py-0.5 rounded border ${
               visita.nivelRiesgo === 'bajo' ? 'text-emerald-700 bg-emerald-50 border-emerald-100' :
               visita.nivelRiesgo === 'leve' ? 'text-blue-700 bg-blue-50 border-blue-100' :
@@ -180,12 +181,12 @@ export function StaticVisitaItem({
         <div className="flex items-center gap-2 shrink-0">
           <div className="text-center">
             <div className="text-[9px] font-bold text-slate-400 uppercase">Cuota</div>
-            <div className="text-xs font-black text-slate-800">${visita.montoCuota.toLocaleString('es-CO')}</div>
+            <div className="text-xs font-black text-slate-800">${formatMilesCOP(visita.montoCuota)}</div>
           </div>
           <div className="w-px h-6 bg-slate-200" />
           <div className="text-center">
             <div className="text-[9px] font-bold text-slate-400 uppercase">Saldo</div>
-            <div className={`text-xs font-black ${visita.saldoTotal > 0 ? 'text-slate-700' : 'text-emerald-600'}`}>${visita.saldoTotal.toLocaleString('es-CO')}</div>
+            <div className={`text-xs font-black ${visita.saldoTotal > 0 ? 'text-slate-700' : 'text-emerald-600'}`}>${formatMilesCOP(visita.saldoTotal)}</div>
           </div>
           <div className="w-px h-6 bg-slate-200" />
           <div className="flex items-center gap-1 text-[10px] font-bold bg-[#08557f]/5 text-[#08557f] border border-[#08557f]/10 px-1.5 py-0.5 rounded-md uppercase">
@@ -319,7 +320,7 @@ export function SortableItem({
                 'bg-slate-300'
               }`}
             />
-            <span className="text-sm font-bold text-slate-900 truncate max-w-[160px]">{visita.cliente}</span>
+            <span className="text-sm font-bold text-slate-900 truncate min-w-0">{visita.cliente}</span>
             <span className={`text-[9px] font-black uppercase px-1.5 py-0.5 rounded border ${
               visita.nivelRiesgo === 'bajo' ? 'text-emerald-700 bg-emerald-50 border-emerald-100' :
               visita.nivelRiesgo === 'leve' ? 'text-blue-700 bg-blue-50 border-blue-100' :
@@ -356,12 +357,12 @@ export function SortableItem({
         <div className="flex items-center gap-2 shrink-0">
           <div className="text-center">
             <div className="text-[9px] font-bold text-slate-400 uppercase">Cuota</div>
-            <div className="text-xs font-black text-slate-800">${visita.montoCuota.toLocaleString('es-CO')}</div>
+            <div className="text-xs font-black text-slate-800">${formatMilesCOP(visita.montoCuota)}</div>
           </div>
           <div className="w-px h-6 bg-slate-200" />
           <div className="text-center">
             <div className="text-[9px] font-bold text-slate-400 uppercase">Saldo</div>
-            <div className={`text-xs font-black ${visita.saldoTotal > 0 ? 'text-slate-700' : 'text-emerald-600'}`}>${visita.saldoTotal.toLocaleString('es-CO')}</div>
+            <div className={`text-xs font-black ${visita.saldoTotal > 0 ? 'text-slate-700' : 'text-emerald-600'}`}>${formatMilesCOP(visita.saldoTotal)}</div>
           </div>
           <div className="w-px h-6 bg-slate-200" />
           <div className="flex items-center gap-1 text-[10px] font-bold bg-[#08557f]/5 text-[#08557f] border border-[#08557f]/10 px-1.5 py-0.5 rounded-md uppercase">
