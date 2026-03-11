@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNotification } from '@/components/providers/NotificationProvider';
 import { clientesService, Cliente } from '@/services/clientes-service';
 import { ClienteAdmin } from '@/lib/clientes-data';
@@ -77,34 +77,57 @@ export default function ClientesFeature({ initialClientes, basePath = '/admin/cl
   useEffect(() => {
     if (!socket) return;
 
-    const handler = async () => {
+    const timeoutRef = { current: null as ReturnType<typeof setTimeout> | null };
+
+    const refetch = async () => {
       try {
         const fresh = await clientesService.obtenerTodos();
         if (Array.isArray(fresh) && fresh.length > 0) {
           setClientes(fresh as ClienteAdmin[]);
           offlineStore.saveMany('clientes', fresh as ClienteAdmin[]).catch(() => {});
           setDataSource('online');
-        } else {
-          const cached = await offlineStore.getAll<ClienteAdmin>('clientes');
-          if (cached.length > 0) {
-            setClientes(cached);
-            setDataSource('offline');
-          }
+          return;
+        }
+
+        const cached = await offlineStore.getAll<ClienteAdmin>('clientes');
+        if (cached.length > 0) {
+          setClientes(cached);
+          setDataSource('offline');
         }
       } catch {
-        offlineStore.getAll<ClienteAdmin>('clientes').then((cached) => {
-          if (cached.length > 0) {
-            setClientes(cached);
-            setDataSource('offline');
-          }
-        }).catch(() => {});
+        offlineStore
+          .getAll<ClienteAdmin>('clientes')
+          .then((cached) => {
+            if (cached.length > 0) {
+              setClientes(cached);
+              setDataSource('offline');
+            }
+          })
+          .catch(() => {});
       }
     };
 
-    socket.on('clientes_actualizados', handler);
+    const scheduleRefetch = () => {
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+      timeoutRef.current = setTimeout(() => {
+        timeoutRef.current = null;
+        refetch();
+      }, 350);
+    };
+
+    const EVENTS = [
+      'clientes_actualizados',
+      'prestamos_actualizados',
+      'pagos_actualizados',
+      'rutas_actualizadas',
+      'dashboards_actualizados',
+    ] as const;
+
+    EVENTS.forEach((evt) => socket.on(evt, scheduleRefetch));
 
     return () => {
-      socket.off('clientes_actualizados', handler);
+      EVENTS.forEach((evt) => socket.off(evt, scheduleRefetch));
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
     };
   }, [socket]);
 
@@ -644,7 +667,20 @@ export default function ClientesFeature({ initialClientes, basePath = '/admin/cl
             setClientToEdit(null);
           }}
           onClienteCreado={(editado: Cliente) => {
-            setClientes(prev => prev.map(c => c.id === editado.id ? editado as ClienteAdmin : c));
+            setClientes(prev => prev.map((c) => {
+              if (c.id !== editado.id) return c;
+              const patch = editado as any;
+              return {
+                ...c,
+                ...patch,
+                score: patch.score ?? c.score,
+                tendencia: patch.tendencia ?? c.tendencia,
+                montoTotal: patch.montoTotal ?? c.montoTotal,
+                montoMora: patch.montoMora ?? c.montoMora,
+                ultimaVisita: patch.ultimaVisita ?? c.ultimaVisita,
+                prestamosActivos: patch.prestamosActivos ?? c.prestamosActivos,
+              } as ClienteAdmin;
+            }));
             setIsEditModalOpen(false);
             setClientToEdit(null);
             showNotification('success', 'Los datos del cliente han sido actualizados', 'Cliente Actualizado');

@@ -51,6 +51,28 @@ export default function DetallePrestamoModal({ id, onClose }: DetallePrestamoMod
         const montoTotal = isArticle ? (principal + cuotaInicial) : (principal + interesTotal);
         const saldoPendiente = Number(data.saldoPendiente || 0);
 
+        const rawFotos = Array.isArray(data.fotos)
+          ? data.fotos
+          : Array.isArray(data.archivos) && data.archivos.length > 0
+            ? data.archivos
+              .map((a: any) => a?.url || a?.path || a?.ruta)
+              .filter(Boolean)
+            : Array.isArray(data?.cliente?.archivos)
+              ? data.cliente.archivos
+                .map((a: any) => a?.url || a?.path || a?.ruta)
+                .filter(Boolean)
+              : [];
+
+        const fotos: string[] = Array.from(
+          new Set(
+            (rawFotos || [])
+              .map((u: any) => String(u || '').trim())
+              .filter(Boolean)
+              // filtrar entradas rotas tipo "oxz...jpg" sin ruta/publicId ni URL
+              .filter((u: string) => u.startsWith('http://') || u.startsWith('https://') || u.includes('/'))
+          )
+        );
+
         setPrestamo({
           id: data.id || id,
           clienteId: data.clienteId || data.cliente?.id || '',
@@ -68,6 +90,7 @@ export default function DetallePrestamoModal({ id, onClose }: DetallePrestamoMod
           duracion: meses ? `${meses} Meses` : (data.duracion || ''),
           frecuencia: data.frecuenciaPago || data.frecuencia || 'SEMANAL',
           fechaInicio: data.fechaInicio || '',
+          fechaPrimerCobro: data.fechaPrimerCobro || undefined,
           fechaVencimiento: data.fechaFin || data.fechaVencimiento || '',
           estado: data.estado || 'ACTIVO',
           tipoAmortizacion: data.tipoAmortizacion || 'INTERES_SIMPLE',
@@ -81,7 +104,8 @@ export default function DetallePrestamoModal({ id, onClose }: DetallePrestamoMod
             categoria: data.producto.categoria
           } : undefined,
           garantia: data.garantia || '',
-          fotos: data.fotos || [],
+          notas: data.notas || '',
+          fotos,
           cuotas: cuotasData.map((c: any) => ({
             numero: c.numeroCuota,
             fecha: c.fechaVencimiento,

@@ -44,6 +44,8 @@ export interface CrearClienteDto {
   nivelRiesgo?: NivelRiesgo;
   puntaje?: number;
   creadoPorId?: string;
+  rutaId?: string;
+  observaciones?: string;
   categoriaId?: string;
   archivos?: {
     tipoContenido: string;
@@ -110,7 +112,7 @@ export const clientesService = {
    * Obtener un cliente por ID
    */
   async obtenerPorId(id: string): Promise<Cliente> {
-    return apiRequest<Cliente>('GET', `/clients/${id}`);
+    return apiRequest<Cliente>('GET', `/clients/${id}`, undefined, { cacheTTL: 0 });
   },
 
   /**
@@ -219,6 +221,13 @@ export const clientesService = {
       }
       throw error;
     }
+  },
+
+  /**
+   * Restaurar un cliente eliminado
+   */
+  async restaurar(id: string): Promise<any> {
+    return apiRequest('PATCH', `/clients/${id}/restore`, {});
   },
 
   /**

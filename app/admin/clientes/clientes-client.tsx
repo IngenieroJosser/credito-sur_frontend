@@ -631,7 +631,20 @@ export default function ClientesClient({ initialClientes }: ClientesClientProps)
             setClientToEdit(null);
           }} 
           onClienteCreado={(updatedClient) => {
-            setClientes(prev => prev.map(c => c.id === updatedClient.id ? { ...c, ...updatedClient } : c));
+            setClientes(prev => prev.map((c) => {
+              if (c.id !== updatedClient.id) return c;
+              const patch = updatedClient as any;
+              return {
+                ...c,
+                ...patch,
+                score: patch.score ?? (c as any).score,
+                tendencia: patch.tendencia ?? (c as any).tendencia,
+                montoTotal: patch.montoTotal ?? (c as any).montoTotal,
+                montoMora: patch.montoMora ?? (c as any).montoMora,
+                ultimaVisita: patch.ultimaVisita ?? (c as any).ultimaVisita,
+                prestamosActivos: patch.prestamosActivos ?? (c as any).prestamosActivos,
+              } as any;
+            }));
             setIsEditModalOpen(false);
             setClientToEdit(null);
           }}

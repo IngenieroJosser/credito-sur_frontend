@@ -18,12 +18,12 @@ const NotFoundPage = () => {
   }, [pathname])
 
   const modules = [
-    { id: 1, label: 'Dashboard', path: '/dashboard', icon: Grid },
-    { id: 2, label: 'Créditos', path: '/creditos' },
-    { id: 3, label: 'Préstamos', path: '/prestamos' },
+    { id: 1, label: 'Dashboard', path: '/admin', icon: Grid },
+    { id: 2, label: 'Créditos', path: '/admin/creditos' },
+    { id: 3, label: 'Préstamos', path: '/admin/prestamos' },
     { id: 4, label: 'Cobranzas', path: '/cobranzas' },
-    { id: 5, label: 'Clientes', path: '/clientes' },
-    { id: 6, label: 'Reportes', path: '/reportes' },
+    { id: 5, label: 'Clientes', path: '/admin/clientes' },
+    { id: 6, label: 'Reportes', path: '/admin/reportes/operativos' },
   ]
 
   const goBack = () => {
@@ -272,7 +272,7 @@ const NotFoundPage = () => {
             isVisible ? 'opacity-100' : 'opacity-0'
           } transition-opacity duration-500 delay-900`}>
             <Link
-              href="/dashboard"
+              href="/admin"
               className="group relative overflow-hidden"
             >
               <div className="absolute inset-0 bg-gradient-to-r from-white to-gray-50 border border-gray-200 rounded-2xl transition-all duration-500 group-hover:border-primary/30 group-hover:shadow-sm"></div>

@@ -2,7 +2,7 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
 import { Calendar, User, FileText, TrendingUp, Package, Image as ImageIcon, ChevronRight, ChevronLeft, Clock, BarChart3, AlertTriangle } from 'lucide-react';
-import { formatCurrency, cn } from '@/lib/utils';
+import { formatCurrency, cn, resolveMediaUrl } from '@/lib/utils';
 import ClientePortalModal from '@/components/cliente/ClientePortalModal';
 // imports de permiso/servicios de mora removidos: la asignación se hace en Cuentas en Mora
 
@@ -11,7 +11,12 @@ const formatDate = (dateStr: string | undefined | null): string => {
   try {
     const d = new Date(dateStr);
     if (isNaN(d.getTime())) return dateStr;
-    return d.toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' });
+    // Usar UTC para evitar desplazamiento de zona horaria (UTC-5 en Colombia)
+    const day = String(d.getUTCDate()).padStart(2, '0');
+    const monthNames = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+    const month = monthNames[d.getUTCMonth()];
+    const year = d.getUTCFullYear();
+    return `${day} ${month} ${year}`;
   } catch { return dateStr; }
 };
 
@@ -32,6 +37,7 @@ export interface PrestamoDetalle {
   duracion: string;
   frecuencia: string;
   fechaInicio: string;
+  fechaPrimerCobro?: string;
   fechaVencimiento: string;
   estado: 'ACTIVO' | 'PAGADO' | 'EN_MORA' | 'PENDIENTE' | 'PENDIENTE_APROBACION' | string;
   tipoAmortizacion?: 'FRANCESA' | 'INTERES_SIMPLE';
@@ -45,6 +51,7 @@ export interface PrestamoDetalle {
     categoria?: string;
   };
   garantia?: string;
+  notas?: string;
   fotos?: string[];
   cuotas: {
     numero: number;
@@ -196,6 +203,15 @@ export default function DetallePrestamo({ prestamo }: DetallePrestamoProps) {
           <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm flex flex-col justify-between h-28">
              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{isArticle ? 'Monto Financiado' : 'Monto Prestado'}</span>
              <p className="text-2xl font-bold text-slate-900 tracking-tight">{formatCurrency(prestamo.montoPrestamo)}</p>
+          </div>
+
+          <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm flex flex-col justify-between h-28">
+             <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Tipo de Interés</span>
+             <p className="text-lg font-bold text-slate-900 tracking-tight">
+               {prestamo.tipoAmortizacion === 'FRANCESA'
+                 ? 'Amortización Francesa'
+                 : 'Interés Simple'}
+             </p>
           </div>
 
           {/* Abonado */}
@@ -472,13 +488,21 @@ export default function DetallePrestamo({ prestamo }: DetallePrestamoProps) {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="bg-white rounded-2xl p-6 border border-slate-100">
               <h3 className="text-xs font-black text-slate-900 uppercase tracking-widest mb-6 flex items-center gap-2">
-                <Package className="h-4 w-4 text-slate-400" />
-                Detalles del Producto
+                <BarChart3 className="h-4 w-4 text-slate-400" />
+                Resumen de la Cuenta
               </h3>
               <dl className="space-y-4">
                 <div className="flex justify-between border-b border-slate-50 pb-2">
-                  <dt className="text-xs font-bold text-slate-400">Producto / Artículo</dt>
-                  <dd className="text-sm font-bold text-slate-700">{prestamo.producto || 'N/A'}</dd>
+                  <dt className="text-xs font-bold text-slate-400">Tipo de interés</dt>
+                  <dd className="text-sm font-bold text-slate-700">
+                    {prestamo.tipoAmortizacion === 'FRANCESA'
+                      ? 'Amortización Francesa (cuota fija)'
+                      : 'Interés Simple'}
+                  </dd>
+                </div>
+                <div className="flex justify-between border-b border-slate-50 pb-2">
+                  <dt className="text-xs font-bold text-slate-400">Monto Prestado</dt>
+                  <dd className="text-sm font-bold text-slate-700">{formatCurrency(prestamo.montoPrestamo)}</dd>
                 </div>
                 {prestamo.productoInfo && (
                   <>
@@ -509,6 +533,14 @@ export default function DetallePrestamo({ prestamo }: DetallePrestamoProps) {
                 Indicadores
               </h3>
               <dl className="space-y-4">
+                <div className="flex justify-between border-b border-slate-50 pb-2">
+                  <dt className="text-xs font-bold text-slate-400">Tipo de interés</dt>
+                  <dd className="text-sm font-bold text-slate-700">
+                    {prestamo.tipoAmortizacion === 'FRANCESA'
+                      ? 'Amortización Francesa (cuota fija)'
+                      : 'Interés Simple'}
+                  </dd>
+                </div>
                 {!isArticle && (
                   <div className="flex justify-between border-b border-slate-50 pb-2">
                     <dt className="text-xs font-bold text-slate-400">Tasa de Interés</dt>
@@ -519,8 +551,25 @@ export default function DetallePrestamo({ prestamo }: DetallePrestamoProps) {
                   <dt className="text-xs font-bold text-slate-400">{isArticle ? 'Precio de Venta' : 'Monto Total a Pagar'}</dt>
                   <dd className="text-sm font-bold text-slate-700">{formatCurrency(prestamo.montoTotal)}</dd>
                 </div>
+                {prestamo.garantia && (
+                  <div className="flex justify-between border-b border-slate-50 pb-2">
+                    <dt className="text-xs font-bold text-slate-400">Garantía</dt>
+                    <dd className="text-sm font-bold text-slate-700">{prestamo.garantia}</dd>
+                  </div>
+                )}
               </dl>
             </div>
+
+            {/* Notas del crédito */}
+            {prestamo.notas && (
+              <div className="md:col-span-2 bg-amber-50/60 rounded-2xl p-6 border border-amber-100">
+                <h3 className="text-xs font-black text-amber-800 uppercase tracking-widest mb-3 flex items-center gap-2">
+                  <FileText className="h-4 w-4" />
+                  Notas / Observaciones
+                </h3>
+                <p className="text-sm font-medium text-slate-700 whitespace-pre-wrap leading-relaxed">{prestamo.notas}</p>
+              </div>
+            )}
           </div>
         )}
 
@@ -528,20 +577,41 @@ export default function DetallePrestamo({ prestamo }: DetallePrestamoProps) {
           <div className="bg-white rounded-2xl p-6 border border-slate-100">
              {prestamo.fotos && prestamo.fotos.length > 0 ? (
                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                 {prestamo.fotos.map((foto, index) => (
-                   <div key={index} className="aspect-square bg-slate-100 rounded-xl overflow-hidden relative group">
-                     {/* Placeholder real de imagen */}
-                     <div className="w-full h-full flex items-center justify-center text-slate-400">
-                       <ImageIcon className="h-8 w-8" />
-                     </div>
-                     {/* Overlay */}
-                     <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                       <button className="text-white text-xs font-bold bg-white/20 px-3 py-1.5 rounded-full backdrop-blur-sm hover:bg-white/30 transition-colors">
-                         Ver
-                       </button>
-                     </div>
-                   </div>
-                 ))}
+                 {prestamo.fotos.map((foto, index) => {
+                   const src = resolveMediaUrl(foto);
+                   const ext = (String(src).split('.').pop() || '').toLowerCase();
+                   const isVideo = /(mp4|webm|ogg|mov)$/i.test(ext);
+                   const isImage = /(jpg|jpeg|png|gif|webp|bmp|svg)$/i.test(ext);
+                   const isPdf = /pdf$/i.test(ext);
+
+                   return (
+                     <a
+                       key={index}
+                       href={src || undefined}
+                       target="_blank"
+                       rel="noreferrer"
+                       className="aspect-square bg-slate-100 rounded-xl overflow-hidden relative group block"
+                     >
+                       {isImage && (
+                         <img src={src} alt={`Documento ${index + 1}`} className="w-full h-full object-cover" />
+                       )}
+                       {isVideo && (
+                         <video src={src} controls className="w-full h-full object-cover" />
+                       )}
+                       {!isImage && !isVideo && (
+                         <div className="w-full h-full flex flex-col items-center justify-center text-slate-500 gap-2 p-3 text-center">
+                           <FileText className="h-8 w-8 text-slate-400" />
+                           <span className="text-xs font-bold">{isPdf ? 'Abrir PDF' : 'Abrir archivo'}</span>
+                         </div>
+                       )}
+                       <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                         <span className="text-white text-xs font-bold bg-white/20 px-3 py-1.5 rounded-full backdrop-blur-sm hover:bg-white/30 transition-colors">
+                           Ver
+                         </span>
+                       </div>
+                     </a>
+                   );
+                 })}
                </div>
              ) : (
                <div className="text-center py-12">

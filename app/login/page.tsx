@@ -16,12 +16,12 @@
  * - Soporte para modo offline: verificar sesión cacheada y permitir acceso sin conexión.
  */
 
-import { useState, FormEvent, useEffect } from 'react';
+import { useState, FormEvent, useEffect, Suspense } from 'react';
 import { Eye, EyeOff, Lock, User, ChevronRight, WifiOff } from 'lucide-react';
 import { LoginData } from '@/lib/types/autenticacion-type';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Image from 'next/image';
-import { restoreOfflineSession, hasValidOfflineSession, getOfflineSessionDaysRemaining } from '@/lib/auth/offlineAuth';
+import { restoreOfflineSession, hasValidOfflineSession, getOfflineSessionDaysRemaining, isTokenExpired, cacheSession } from '@/lib/auth/offlineAuth';
 import { setAuthCookiesAction } from './actions';
 import { apiClient } from '@/lib/api/apiClient';
 
@@ -45,6 +45,19 @@ const LoginPage = () => {
     nombres: '',
     password: ''
   });
+
+  // Contador secreto para revelar el link de recuperacion (solo superadmin lo sabe)
+  const [versionClicks, setVersionClicks] = useState(0);
+  const [showRecoveryLink, setShowRecoveryLink] = useState(false);
+
+  const handleVersionClick = () => {
+    const next = versionClicks + 1;
+    setVersionClicks(next);
+    if (next >= 5) {
+      setShowRecoveryLink(true);
+      setVersionClicks(0);
+    }
+  };
   
   // Estados para controlar la interfaz visual
   const [showPassword, setShowPassword] = useState(false);
@@ -62,6 +75,7 @@ const LoginPage = () => {
   });
   
   const router = useRouter();
+  const searchParams = useSearchParams();
 
   // Obtenemos el año actual para el footer
   const currentYear = new Date().getFullYear();
@@ -76,22 +90,36 @@ const LoginPage = () => {
     }
   }, [toast]);
 
-  // Ping the backend directly from the browser on mount to wake up Render instances 
+  // Mostrar aviso si la sesión expiró (viene desde ?expired=1)
+  useEffect(() => {
+    if (searchParams.get('expired') === '1') {
+      setError('Tu sesión expiró. Por favor inicia sesión de nuevo.');
+    }
+  }, [searchParams]);
+
+  // Ping the backend directly from the browser on mount to wake up Render instances
   // bypassing Vercel's 10-second timeout limits.
   useEffect(() => {
     fetch('https://credito-sur-backend.onrender.com/api-credisur/auth', { method: 'GET' })
       .catch((e) => console.log('Ping para despertar el backend enviado.'));
   }, []);
 
-  // Función para redirigir si el token ya está
+  // Si ya hay sesión válida en localStorage, redirigir directo al dashboard
   useEffect(() => {
     const token = localStorage.getItem('token');
     const userStr = localStorage.getItem('user');
 
     if (token && userStr) {
+      // Si el token ya expiró, limpiamos y nos quedamos en login
+      if (isTokenExpired(token)) {
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        setError('Tu sesión expiró. Por favor inicia sesión de nuevo.');
+        return;
+      }
+
       try {
         const user = JSON.parse(userStr);
-        // Mapa de redirección según el rol del usuario
         const roleRedirects: Record<string, string> = {
           'COBRADOR': '/cobranzas',
           'COORDINADOR': '/coordinador',
@@ -101,12 +129,9 @@ const LoginPage = () => {
           'CONTADOR': '/contador/contable',
           'PUNTO_DE_VENTA': '/punto-de-venta'
         };
-        
-        // Si el rol existe en el mapa, usamos esa ruta, si no, por defecto a admin
         const redirectPath = roleRedirects[user.rol] || '/admin';
         router.replace(redirectPath);
       } catch {
-        // Si los datos están corruptos, mejor limpiamos todo para que inicie de cero
         localStorage.removeItem('token');
         localStorage.removeItem('user');
       }
@@ -216,8 +241,6 @@ const LoginPage = () => {
         throw new Error(cookieRes.error || 'Error seteando sesión');
       }
 
-      // Login Exitoso
-      
       // Guardamos datos en localStorage para uso en el cliente
       if (result.usuario) {
         const userFullName = `${result.usuario.nombres || ''} ${result.usuario.apellidos || ''}`.trim() || formData.nombres;
@@ -228,8 +251,28 @@ const LoginPage = () => {
         // Guardamos el token también para las peticiones desde el cliente
         if (result.access_token) {
           localStorage.setItem('token', result.access_token);
+          // Cachear sesión para que el modo offline funcione cuando no hay internet
+          cacheSession(result.access_token, userData);
         }
       }
+
+      // ── Descarga background para modo offline ──────────────────────────
+      // Fire & Forget: no bloquea la redirección. Descarga clientes,
+      // préstamos, rutas, cajas, productos y usuarios en IndexedDB para
+      // que estén disponibles si el usuario pierde internet más adelante.
+      import('@/lib/offline/syncManager')
+        .then(({ syncManager }) => {
+          console.log('[PWA] Iniciando descarga de datos offline en background...');
+          return syncManager.downloadAll();
+        })
+        .then((counts) => {
+          console.log('[PWA] Datos offline actualizados:', counts);
+        })
+        .catch(() => {
+          // Silencioso: no afecta el login
+        });
+      // ───────────────────────────────────────────────────────────────────
+
 
       const userName = result.usuario?.nombres || formData.nombres;
       const rol = result.usuario?.rol || 'Usuario';
@@ -531,6 +574,18 @@ const LoginPage = () => {
               )}
             </div>
           </form>
+
+          {/* Link de recuperacion — solo visible tras 5 clicks en el texto de version */}
+          {showRecoveryLink && (
+            <div className="text-center mt-4 animate-in fade-in duration-500">
+              <a
+                href="/recuperar-contrasena"
+                className="text-xs text-[#08557f] hover:text-[#064d73] transition-colors duration-200 underline underline-offset-4"
+              >
+                Recuperar contraseña de administrador
+              </a>
+            </div>
+          )}
         </div>
 
         {/* Footer / Copyright */}
@@ -540,7 +595,13 @@ const LoginPage = () => {
               <div className="w-full border-t border-gray-200"></div>
             </div>
             <div className="relative flex justify-center">
-              <span className="px-3 bg-white text-xs text-gray-400">Versión Alpha 1.0</span>
+              <span
+                className="px-3 bg-white text-xs text-gray-400 cursor-default select-none"
+                onClick={handleVersionClick}
+                title=""
+              >
+                Versión Alpha 1.0
+              </span>
             </div>
           </div>
 
@@ -651,4 +712,12 @@ const LoginPage = () => {
   );
 };
 
-export default LoginPage;
+// Suspense wrapper requerido por Next.js para useSearchParams()
+// sin esto el build falla con "missing-suspense-with-csr-bailout"
+export default function LoginPageWrapper() {
+  return (
+    <Suspense fallback={null}>
+      <LoginPage />
+    </Suspense>
+  );
+}

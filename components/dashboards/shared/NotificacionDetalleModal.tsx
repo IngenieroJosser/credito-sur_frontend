@@ -17,7 +17,7 @@ import {
   Layers
 } from 'lucide-react'
 import { Portal } from '@/components/dashboards/shared/CobradorElements'
-import { formatCurrency, formatCOPInputValue, parseCOPInputToNumber } from '@/lib/utils'
+import { formatCurrency, formatCOPInputValue, parseCOPInputToNumber, resolveMediaUrl } from '@/lib/utils'
 import { aprobacionesService } from '@/services/aprobaciones-service'
 import { articulosService } from '@/services/articulos-service'
 import ConfirmApproveModal from '@/components/ui/ConfirmApproveModal'
@@ -59,12 +59,13 @@ export default function NotificacionDetalleModal({
       const meta = typeof notificacion.metadata === 'string'
         ? JSON.parse(notificacion.metadata)
         : (notificacion.metadata || {})
+      const metaDetalles = (meta && typeof meta === 'object') ? (meta.detalles || {}) : {}
         
       const dets = typeof notificacion.detalles === 'string' 
         ? JSON.parse(notificacion.detalles) 
         : (notificacion.detalles || {})
         
-      const combined = { ...meta, ...dets }
+      const combined = { ...meta, ...metaDetalles, ...dets }
       
       // Intentar extraer cédula/teléfono/monto del mensaje si no están en metadata
       const msg = notificacion.mensaje || ''
@@ -108,15 +109,16 @@ export default function NotificacionDetalleModal({
         tipoAmortizacion: combined.tipoAmortizacion || 'INTERES_SIMPLE',
         fechaInicio: combined.fechaInicio || new Date().toISOString().split('T')[0],
         cuotas: (() => {
-           const val = Number(combined.cuotas || combined.numCuotas || combined.cantidadCuotas || 0);
+           const val = Number(combined.cantidadCuotas || combined.cuotas || combined.numCuotas || 0);
            if (val > 0) return val;
-           const meses = Number(combined.plazoMeses || combined.plajeMeses || 1);
+           const meses = Number(combined.plazoMeses || combined.plajeMeses || 0);
+           if (meses === 0) return 0;
            const freq = combined.frecuenciaPago || combined.frecuencia || 'DIARIO';
-           if (freq === 'DIARIO') return meses * 30;
-           if (freq === 'SEMANAL') return meses * 4;
-           if (freq === 'QUINCENAL') return meses * 2;
-           if (freq === 'MENSUAL') return meses;
-           return meses * 4;
+           if (freq === 'DIARIO') return Math.ceil(meses * 30);
+           if (freq === 'SEMANAL') return Math.ceil(meses * 4);
+           if (freq === 'QUINCENAL') return Math.ceil(meses * 2);
+           if (freq === 'MENSUAL') return Math.ceil(meses);
+           return Math.ceil(meses * 4);
         })(),
         frecuenciaPago: combined.frecuenciaPago || combined.frecuencia || 'DIARIO',
         articulo: combined.articulo || combined.articuloNombre || articuloFromMsg || ((notificacion.titulo + notificacion.mensaje).toLowerCase().includes('artículo') || (notificacion.titulo + notificacion.mensaje).toLowerCase().includes('articulo') ? 'Artículo por definir' : 'N/A'),
@@ -125,6 +127,14 @@ export default function NotificacionDetalleModal({
         monto: baseMonto,
         cedula: String(combined.cedula || combined.dni || cedulaFromMsg || ''),
         telefono: String(combined.telefono || combined.phone || ''),
+        notas: String(
+          combined.notas ??
+            combined.observaciones ??
+            combined.comentarios ??
+            combined.nota ??
+            ''
+        ),
+        garantia: String(combined.garantia ?? ''),
       }
       
       const isPrestamoEff = (notificacion?.tipo === 'PRESTAMO' || (notificacion as any)?.approvalType === 'NUEVO_PRESTAMO')
@@ -302,6 +312,7 @@ export default function NotificacionDetalleModal({
   const safeMeta = typeof notificacion.metadata === 'string'
     ? JSON.parse(notificacion.metadata)
     : (notificacion.metadata || {})
+  const safeMetaDetalles = (safeMeta && typeof safeMeta === 'object') ? (safeMeta.detalles || {}) : {}
 
   const isPrestamo = tipo === 'PRESTAMO' || approvalType === 'NUEVO_PRESTAMO'
   const isGasto = tipo === 'GASTO' || approvalType === 'GASTO'
@@ -309,7 +320,6 @@ export default function NotificacionDetalleModal({
   const isArticle = isPrestamo && (editedDetails?.tipo === 'ARTICULO' || safeMeta?.tipo === 'ARTICULO' || titulo.toLowerCase().includes('artículo') || titulo.toLowerCase().includes('articulo') || mensaje.toLowerCase().includes('artículo') || mensaje.toLowerCase().includes('articulo'))
   const isApprovalNotification = Boolean(approvalType)
   const isNuevoCliente = approvalType === 'NUEVO_CLIENTE'
-  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3001'
   const mediaArchivos = (() => {
     const meta = typeof notificacion.metadata === 'string' ? JSON.parse(notificacion.metadata) : (notificacion.metadata || {})
     const dets = typeof notificacion.detalles === 'string' ? JSON.parse(notificacion.detalles) : (notificacion.detalles || {})
@@ -429,7 +439,7 @@ export default function NotificacionDetalleModal({
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
             {mediaArchivos.map((file, idx) => {
               const url = file.url || file.path || file.ruta
-              const fullUrl = String(url || '').startsWith('http') ? url : `${baseUrl}${url || ''}`
+              const fullUrl = resolveMediaUrl(url)
               const tipo = String(file.tipoArchivo || '').toLowerCase()
               const ext = (String(fullUrl).split('.').pop() || '').toLowerCase()
               const isImage = tipo.startsWith('image/') || /(jpg|jpeg|png|gif|webp)$/i.test(ext)
@@ -627,7 +637,8 @@ export default function NotificacionDetalleModal({
                         onChange={(e) => {
                           const v = e.target.value.replace(/[^0-9]/g, '')
                           setAutoCuotas(false)
-                          setEditedDetails({ ...editedDetails, cuotas: v === '' ? undefined : Number(v) })
+                          const numVal = v === '' ? undefined : Number(v)
+                          setEditedDetails({ ...editedDetails, cuotas: numVal, cantidadCuotas: numVal, numCuotas: numVal })
                         }}
                         className="w-full bg-white border border-blue-200 text-slate-900 rounded-xl px-4 py-2 text-sm font-black outline-none focus:ring-2 focus:ring-blue-500/20"
                       />
@@ -800,14 +811,14 @@ export default function NotificacionDetalleModal({
                       <label className="text-[10px] text-blue-600 uppercase font-black block mb-1">Notas / Observaciones</label>
                       {isEditingMode ? (
                         <textarea 
-                          value={editedDetails?.garantia || safeMeta?.garantia || editedDetails?.notas || safeMeta?.notas || ''}
-                          onChange={(e) => setEditedDetails({...editedDetails, garantia: e.target.value})}
+                          value={editedDetails?.notas || safeMetaDetalles?.notas || safeMeta?.notas || ''}
+                          onChange={(e) => setEditedDetails({ ...editedDetails, notas: e.target.value })}
                           className="w-full bg-white border border-blue-200 text-slate-900 rounded-xl px-4 py-2 text-xs font-medium outline-none focus:ring-2 focus:ring-blue-500/20 min-h-[60px]"
                           placeholder="Notas adicionales..."
                         />
                       ) : (
                         <p className="text-xs text-slate-600 italic">
-                          {editedDetails?.garantia || safeMeta?.garantia || editedDetails?.notas || safeMeta?.notas || 'Sin notas registradas.'}
+                          {editedDetails?.notas || safeMetaDetalles?.notas || safeMeta?.notas || 'Sin notas registradas.'}
                         </p>
                       )}
                     </div>

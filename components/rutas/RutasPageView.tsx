@@ -34,7 +34,7 @@ import { useNotification } from '@/components/providers/NotificationProvider';
 import { usePermission } from '@/hooks/usePermission';
 import { offlineStore } from '@/lib/offline/offlineDb';
 import CrearCreditoModal from '@/components/dashboards/shared/CrearCreditoModal';
-import { getCajas, createTransaccion, Caja } from '@/services/contabilidad-service';
+import { getCajas, consolidarCaja, obtenerSaldoDisponibleRuta, Caja } from '@/services/contabilidad-service';
 import { prestamosService } from '@/services/prestamos-service';
 import { creditosService } from '@/services/creditos-service';
 import ConfirmModal from '@/components/ui/ConfirmModal';
@@ -136,8 +136,23 @@ export const RutasPageView = ({
   const [principalOptions, setPrincipalOptions] = useState<Caja[]>([])
   const [processingTransfer, setProcessingTransfer] = useState(false)
   const [routeForTransfer, setRouteForTransfer] = useState<Ruta | null>(null)
-  const showRecolectar = true
-  const [showConfirmRecolectar, setShowConfirmRecolectar] = useState(false)
+  const showRecolectar = currentUser?.rol === 'SUPER_ADMINISTRADOR' || currentUser?.rol === 'ADMIN'
+  const [showRecolectarModal, setShowRecolectarModal] = useState(false)
+  const [montoRecolectar, setMontoRecolectar] = useState('')      // valor formateado con puntos
+  const [saldoDisponibleRecolectar, setSaldoDisponibleRecolectar] = useState<number | null>(null)
+  const [cajaRutaIdRecolectar, setCajaRutaIdRecolectar] = useState<string | null>(null)
+  const [errorRecolectar, setErrorRecolectar] = useState<string | null>(null)
+
+  // Formatea numero con puntos de miles: 200000 -> '200.000'
+  const formatInputMonto = (raw: string): string => {
+    const numeros = raw.replace(/[^0-9]/g, '')
+    if (!numeros) return ''
+    return parseInt(numeros, 10).toLocaleString('es-CO')
+  }
+  // Parsea el valor formateado a numero
+  const parseMonto = (formatted: string): number => {
+    return parseFloat(formatted.replace(/\./g, '').replace(',', '.')) || 0
+  }
 
   useEffect(() => {
     const fetchLists = async () => {
@@ -258,19 +273,33 @@ export const RutasPageView = ({
     try {
       const rutaDetalle = await routesService.getById(ruta.id);
       if (rutaDetalle.asignaciones) {
-        setClientesRuta(rutaDetalle.asignaciones.map((a: any) => ({
-          id: a.cliente.id,
-          nombre: `${a.cliente.nombres} ${a.cliente.apellidos}`,
-          codigo: a.cliente.dni,
-          direccion: a.cliente.telefono,
-          prestamos: (a.cliente.prestamos || []).filter((p: any) => p.estado === 'ACTIVO' || p.estado === 'EN_MORA').map((p: any) => ({
-            id: p.id,
-            tipo: (p.tipo === 'ARTICULO' || p.tipoPrestamo === 'ARTICULO') ? 'ARTICULO' : 'EFECTIVO',
-            articulo: p.articulo || p.descripcionArticulo || undefined,
-            frecuencia: p.frecuenciaPago || 'DIARIO',
-            saldoPendiente: Number(p.saldoPendiente || 0),
-          })) as PrestamoResumen[]
-        })));
+        const uniqueByClienteId = new Map<string, ClienteSelection>();
+        rutaDetalle.asignaciones.forEach((a: any) => {
+          const clienteId = a?.cliente?.id;
+          if (!clienteId) return;
+          if (uniqueByClienteId.has(clienteId)) return;
+
+          uniqueByClienteId.set(clienteId, {
+            id: clienteId,
+            nombre: `${a.cliente.nombres} ${a.cliente.apellidos}`,
+            codigo: a.cliente.dni,
+            direccion: a.cliente.telefono,
+            prestamos: (a.cliente.prestamos || [])
+              .filter((p: any) => p.estado === 'ACTIVO' || p.estado === 'EN_MORA')
+              .map((p: any) => ({
+                id: p.id,
+                tipo:
+                  p.tipo === 'ARTICULO' || p.tipoPrestamo === 'ARTICULO'
+                    ? 'ARTICULO'
+                    : 'EFECTIVO',
+                articulo: p.articulo || p.descripcionArticulo || undefined,
+                frecuencia: p.frecuenciaPago || 'DIARIO',
+                saldoPendiente: Number(p.saldoPendiente || 0),
+              })) as PrestamoResumen[],
+          });
+        });
+
+        setClientesRuta(Array.from(uniqueByClienteId.values()));
       }
     } catch (error) {
       console.error('Error cargando clientes de la ruta:', error);
@@ -344,40 +373,46 @@ export const RutasPageView = ({
     }
   }
   const handleRecolectarDinero = async (ruta: Ruta) => {
+    setErrorRecolectar(null)
+    setMontoRecolectar('')
+    setSaldoDisponibleRecolectar(null)
+    setCajaRutaIdRecolectar(null)
+    setRouteForTransfer(ruta)
+    setShowRecolectarModal(true)
+    // Cargar saldo y buscar caja de la ruta en paralelo
     try {
-      setProcessingTransfer(true)
-      const cajas = await getCajas()
-      const cajaRuta = cajas.find(c => c.tipo === 'RUTA' && c.rutaId === ruta.id)
-      const principalCajas = cajas.filter(c => c.tipo === 'PRINCIPAL')
-      if (!cajaRuta) {
-        showNotification('warning', 'No se encontró la caja de esta ruta', 'Aviso')
-        return
-      }
-      if ((cajaRuta.saldo || 0) <= 0) {
-        showNotification('warning', 'La caja de ruta no tiene saldo para recolectar', 'Aviso')
-        return
-      }
-      if (principalCajas.length === 0) {
-        showNotification('error', 'No hay cajas principales disponibles', 'Error')
-        return
-      }
-      if (principalCajas.length === 1) {
-        const destino = principalCajas[0]
-        await createTransaccion({
-          cajaId: destino.id,
-          tipo: 'INGRESO',
-          monto: cajaRuta.saldo,
-          descripcion: `Consolidación desde Ruta ${ruta.nombre}`,
-          cajaOrigenId: cajaRuta.id
-        })
-        showNotification('success', 'Dinero recolectado y enviado a la caja principal', 'Éxito')
-      } else {
-        setPrincipalOptions(principalCajas)
-        setRouteForTransfer(ruta)
-        setShowSelectPrincipalModal(true)
-      }
-    } catch {
-      showNotification('error', 'Ocurrió un error al recolectar dinero', 'Error')
+      const [saldoResp, cajasResp] = await Promise.all([
+        obtenerSaldoDisponibleRuta(ruta.id),
+        getCajas(),
+      ])
+      const saldo = saldoResp?.recaudoDelDia ?? saldoResp?.saldoDisponible ?? 0
+      setSaldoDisponibleRecolectar(saldo)
+      const cajaRuta = cajasResp.find(c => c.rutaId === ruta.id) ||
+                       cajasResp.find(c => c.tipo === 'RUTA') ||
+                       (saldoResp && (saldoResp as any).cajaId ? cajasResp.find(c => c.id === (saldoResp as any).cajaId) : null)
+      setCajaRutaIdRecolectar((saldoResp as any)?.cajaId || cajaRuta?.id || null)
+    } catch (e) {
+      console.error('Error cargando saldo:', e)
+      setErrorRecolectar('No se pudo cargar el saldo de la ruta')
+    }
+  }
+
+  const handleConfirmarRecolectar = async () => {
+    const monto = parseMonto(montoRecolectar)
+    if (!monto || monto <= 0) { setErrorRecolectar('Ingresa un monto valido'); return }
+    if (saldoDisponibleRecolectar !== null && monto > saldoDisponibleRecolectar) {
+      setErrorRecolectar(`El monto supera el saldo disponible (${saldoDisponibleRecolectar.toLocaleString('es-CO', { style: 'currency', currency: 'COP' })})`);
+      return
+    }
+    if (!cajaRutaIdRecolectar) { setErrorRecolectar('No se encontro la caja de la ruta'); return }
+    setProcessingTransfer(true)
+    setErrorRecolectar(null)
+    try {
+      await consolidarCaja(cajaRutaIdRecolectar, monto)
+      setShowRecolectarModal(false)
+      showNotification('success', `Se recolectaron ${monto.toLocaleString('es-CO', { style: 'currency', currency: 'COP' })} de la ruta hacia Caja de Oficina`, 'Recoleccion exitosa')
+    } catch (e: any) {
+      setErrorRecolectar(e?.message || 'No se pudo recolectar. Intenta de nuevo.')
     } finally {
       setProcessingTransfer(false)
     }
@@ -390,13 +425,7 @@ export const RutasPageView = ({
       const cajaRuta = cajas.find(c => c.tipo === 'RUTA' && c.rutaId === routeForTransfer.id)
       const destino = cajas.find(c => c.id === destinoId)
       if (!cajaRuta || !destino) return
-      await createTransaccion({
-        cajaId: destino.id,
-        tipo: 'INGRESO',
-        monto: cajaRuta.saldo,
-        descripcion: `Consolidación desde Ruta ${routeForTransfer.nombre}`,
-        cajaOrigenId: cajaRuta.id
-      })
+      await consolidarCaja(cajaRuta.id)
       setShowSelectPrincipalModal(false)
       setRouteForTransfer(null)
       showNotification('success', `Dinero enviado a ${destino.nombre}`, 'Éxito')
@@ -446,7 +475,10 @@ export const RutasPageView = ({
       showNotification('success', `Cliente ${cliente.nombre} asignado a la ruta`, 'Éxito');
       
       // Actualizar lista local
-      setClientesRuta(prev => [...prev, cliente]);
+      setClientesRuta(prev => {
+        if (prev.some((c) => c.id === cliente.id)) return prev;
+        return [...prev, cliente];
+      });
       setIsAddingCliente(false);
       setClienteSearch('');
       
@@ -874,14 +906,13 @@ export const RutasPageView = ({
                             <Eye className="h-4 w-4" />
                           </Link>
                           {showRecolectar && (
-                            <button
+                          <button
                               onClick={(e) => {
                                 e.stopPropagation()
-                                setRouteForTransfer(ruta)
-                                setShowConfirmRecolectar(true)
+                                handleRecolectarDinero(ruta)
                               }}
                               disabled={processingTransfer}
-                              className="p-2 text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-blue-600/30"
+                              className="p-2 text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-emerald-600/30"
                               title="Recolectar Dinero"
                             >
                               <Wallet className="h-4 w-4" />
@@ -1045,12 +1076,10 @@ export const RutasPageView = ({
                                 onClick={(e) => {
                                   e.preventDefault()
                                   e.stopPropagation()
-                                  setRouteForTransfer(ruta)
-                                  setShowConfirmRecolectar(true)
-                                showNotification('info', 'Confirma la recolección de dinero de la ruta', 'Acción')
+                                  handleRecolectarDinero(ruta)
                                 }}
                                 disabled={processingTransfer}
-                                className="p-2 text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors"
+                                className="p-2 text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg transition-colors"
                                 title="Recolectar Dinero"
                               >
                                 <Wallet className="w-4 h-4" />
@@ -1178,17 +1207,15 @@ export const RutasPageView = ({
                       </button>
                     )}
                     {showRecolectar && (
-                      <button
+                          <button
                         type="button"
                         onClick={(e) => {
                           e.preventDefault()
                           e.stopPropagation()
-                          setRouteForTransfer(ruta)
-                          setShowConfirmRecolectar(true)
-                          showNotification('info', 'Confirma la recolección de dinero de la ruta', 'Acción')
+                          handleRecolectarDinero(ruta)
                         }}
                         disabled={processingTransfer}
-                        className="p-2 text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors"
+                        className="p-2 text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg transition-colors"
                         title="Recolectar Dinero"
                       >
                         <Wallet className="w-4 h-4" />
@@ -1627,21 +1654,89 @@ export const RutasPageView = ({
         </div>
       )}
       
-      <ConfirmModal
-        isOpen={showConfirmRecolectar}
-        onClose={() => setShowConfirmRecolectar(false)}
-        onConfirm={async () => {
-          const r = routeForTransfer
-          setShowConfirmRecolectar(false)
-          if (r) await handleRecolectarDinero(r)
-        }}
-        title="Recolectar dinero de la ruta"
-        message="¿Deseas consolidar el dinero de esta ruta en una caja principal?"
-        confirmText="Sí, recolectar"
-        cancelText="Cancelar"
-        variant="info"
-      />
-      
+      {/* Modal de Recolectar Dinero con monto personalizable */}
+      {showRecolectarModal && routeForTransfer && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4" onClick={() => setShowRecolectarModal(false)}>
+          <div className="w-full max-w-md bg-white rounded-2xl shadow-2xl overflow-hidden" onClick={e => e.stopPropagation()}>
+            <div className="bg-emerald-600 px-6 py-4 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <Wallet className="h-5 w-5 text-white" />
+                <div>
+                  <h2 className="text-white font-bold text-base">Recolectar Dinero</h2>
+                  <p className="text-emerald-100 text-xs">{routeForTransfer.nombre}</p>
+                </div>
+              </div>
+              <button onClick={() => setShowRecolectarModal(false)} className="p-1 rounded-full hover:bg-white/20 transition-colors">
+                <X className="h-5 w-5 text-white" />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-5">
+              {/* Saldo disponible */}
+              <div className="bg-slate-50 rounded-xl p-4 border border-slate-200">
+                <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Saldo disponible en ruta</p>
+                {saldoDisponibleRecolectar === null ? (
+                  <div className="flex items-center gap-2 text-slate-400 text-sm">
+                    <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/></svg>
+                    Cargando saldo...
+                  </div>
+                ) : (
+                  <p className="text-2xl font-bold text-emerald-700">
+                    {saldoDisponibleRecolectar.toLocaleString('es-CO', { style: 'currency', currency: 'COP' })}
+                  </p>
+                )}
+                <p className="text-xs text-slate-400 mt-1">Sera enviado a la <strong>Caja de Oficina</strong></p>
+              </div>
+
+              {/* Input monto con formato automático de puntos */}
+              <div>
+                <label className="block text-sm font-bold text-slate-700 mb-2">Monto a recolectar</label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 font-bold">$</span>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    value={montoRecolectar}
+                    onChange={(e) => {
+                      setMontoRecolectar(formatInputMonto(e.target.value))
+                      setErrorRecolectar(null)
+                    }}
+                    placeholder="0"
+                    className="w-full pl-8 pr-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 text-slate-900 text-lg font-bold tracking-wide"
+                  />
+                </div>
+                {saldoDisponibleRecolectar !== null && saldoDisponibleRecolectar > 0 && (
+                  <button type="button" onClick={() => setMontoRecolectar(formatInputMonto(saldoDisponibleRecolectar.toString()))}
+                    className="mt-1 text-xs text-emerald-600 font-bold hover:underline">
+                    Recolectar monto completo
+                  </button>
+                )}
+              </div>
+
+              {errorRecolectar && (
+                <div className="flex items-start gap-2 p-3 bg-rose-50 rounded-xl border border-rose-200">
+                  <XCircle className="h-4 w-4 text-rose-500 mt-0.5 flex-shrink-0" />
+                  <p className="text-sm text-rose-700">{errorRecolectar}</p>
+                </div>
+              )}
+
+              <div className="flex gap-3 pt-1">
+                <button onClick={() => setShowRecolectarModal(false)}
+                  className="flex-1 py-3 rounded-xl border border-slate-200 text-slate-700 font-bold hover:bg-slate-50 transition-colors"
+                  disabled={processingTransfer}>
+                  Cancelar
+                </button>
+                <button onClick={handleConfirmarRecolectar}
+                  disabled={processingTransfer || !montoRecolectar || !cajaRutaIdRecolectar}
+                  className="flex-1 py-3 rounded-xl bg-emerald-600 text-white font-bold hover:bg-emerald-700 transition-colors disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2">
+                  {processingTransfer ? 'Recolectando...' : <><Wallet className="h-4 w-4" /> Confirmar</>}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {showSelectPrincipalModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6">
           <div className="absolute inset-0 bg-slate-900/30 backdrop-blur-sm transition-opacity" onClick={() => setShowSelectPrincipalModal(false)} />

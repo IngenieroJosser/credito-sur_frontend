@@ -30,9 +30,15 @@ export interface CrearPrestamoDto {
   tasaInteres: number;
   tasaInteresMora: number;
   plazoMeses: number;
+  cantidadCuotas?: number;
   frecuenciaPago: FrecuenciaPago;
+  tipoAmortizacion?: 'INTERES_SIMPLE' | 'FRANCESA';
   fechaInicio: string;
+  fechaPrimerCobro?: string;
   creadoPorId: string;
+  cuotaInicial?: number;
+  notas?: string;
+  garantia?: string;
 }
 
 export interface FiltrosPrestamos {
@@ -92,6 +98,13 @@ export const prestamosService = {
    */
   async obtenerPrestamoPorId(id: string): Promise<any> {
     return apiRequest('GET', `/loans/${id}`);
+  },
+
+  /**
+   * Restaurar un préstamo eliminado
+   */
+  async restaurarPrestamo(id: string): Promise<any> {
+    return apiRequest('PATCH', `/loans/${id}/restore`, {});
   },
 
   /**
@@ -371,6 +384,8 @@ export const prestamosService = {
     cuotaInicial?: number;
     fechaInicio?: string;
     garantia?: string;
+    tipoAmortizacion?: string;
+    archivos?: any[];
   }): Promise<any> {
     try {
       return await apiRequest('PATCH', `/loans/${id}`, data);
@@ -393,5 +408,43 @@ export const prestamosService = {
       }
       throw error;
     }
-  }
+  },
+
+  /**
+   * Solicitar reprogramación de cuota al supervisor/admin para aprobación.
+   * Valida límites de días: semanal ≤6 días, quincenal ≤14 días.
+   */
+  async solicitarReprogramacionCuota(data: {
+    prestamoId: string;
+    cuotaId: string;
+    nuevaFecha: string;
+    motivo: string;
+  }): Promise<any> {
+    return apiRequest('POST', '/loans/solicitar-reprogramacion', data);
+  },
+
+  /**
+   * Listar solicitudes de reprogramación (módulo de revisiones para admin/supervisor).
+   */
+  async listarReprogramacionesPendientes(estado?: string): Promise<any[]> {
+    const endpoint = estado
+      ? `/loans/reprogramaciones-pendientes?estado=${estado}`
+      : '/loans/reprogramaciones-pendientes';
+    return apiRequest('GET', endpoint);
+  },
+
+  /**
+   * Aprobar una solicitud de reprogramación.
+   */
+  async aprobarReprogramacion(aprobacionId: string): Promise<any> {
+    return apiRequest('PATCH', `/loans/reprogramaciones/${aprobacionId}/aprobar`, {});
+  },
+
+  /**
+   * Rechazar una solicitud de reprogramación.
+   */
+  async rechazarReprogramacion(aprobacionId: string, comentarios?: string): Promise<any> {
+    return apiRequest('PATCH', `/loans/reprogramaciones/${aprobacionId}/rechazar`, { comentarios });
+  },
 };
+

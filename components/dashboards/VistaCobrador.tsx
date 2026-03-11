@@ -450,7 +450,7 @@ const VistaCobrador = () => {
         };
 
         let globalIdx = 0;
-        const visitasMapeadas: VisitaRuta[] = asignaciones.flatMap((asig: any) => {
+        const visitasMapeadasRaw: VisitaRuta[] = asignaciones.flatMap((asig: any) => {
            const cliente = asig.cliente || {};
            const prestamosActivos: any[] = (cliente.prestamos || []).filter(
              (p: any) => p.estado === 'ACTIVO' || p.estado === 'EN_MORA'
@@ -492,6 +492,17 @@ const VistaCobrador = () => {
            });
         });
 
+        // Deduplicar: un cliente con múltiples asignaciones en la ruta generaría tarjetas
+        // repetidas. Conservamos solo la primera ocurrencia por prestamoId (o clienteId si
+        // no tiene préstamo activo).
+        const seenIds = new Set<string>();
+        const visitasMapeadas: VisitaRuta[] = visitasMapeadasRaw.filter(v => {
+          const clave = v.prestamoId ? `prestamo-${v.prestamoId}` : `cliente-${v.clienteId}`;
+          if (seenIds.has(clave)) return false;
+          seenIds.add(clave);
+          return true;
+        });
+
          // Consultamos explícitamente las cuotas para obtener el valor real del backend.
          const visitasEnriquecidas = await Promise.all(visitasMapeadas.map(async (v) => {
              if (!v.prestamoId) return v;
@@ -524,29 +535,61 @@ const VistaCobrador = () => {
              }
          }));
 
-        // Enriquecer con recaudado total y del día por cliente
+        // Enriquecer con recaudado total, del día y del período actual por cliente
         try {
           const toLocalKey = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
           const hoyStr = toLocalKey(new Date());
 
+          // Función para obtener la fecha de inicio del período según frecuencia
+          const getInicioPeriodoStr = (periodo: string): string => {
+            const hoy = new Date();
+            hoy.setHours(0, 0, 0, 0);
+            if (periodo === 'SEMANA' || periodo === 'SEMANAL') {
+              const day = hoy.getDay();
+              const diff = day === 0 ? -6 : 1 - day;
+              const lunes = new Date(hoy);
+              lunes.setDate(hoy.getDate() + diff);
+              return toLocalKey(lunes);
+            } else if (periodo === 'QUINCENA' || periodo === 'QUINCENAL') {
+              const q = new Date(hoy);
+              q.setDate(hoy.getDate() <= 15 ? 1 : 16);
+              return toLocalKey(q);
+            } else if (periodo === 'MES' || periodo === 'MENSUAL') {
+              const m = new Date(hoy);
+              m.setDate(1);
+              return toLocalKey(m);
+            }
+            return hoyStr; // DIA
+          };
+
           const withRecaudo = await Promise.all(visitasEnriquecidas.map(async (v) => {
-            if (!v.clienteId) return { ...v, recaudadoDelDia: 0, recaudadoTotalClient: 0 };
+            if (!v.clienteId) return { ...v, recaudadoDelDia: 0, recaudadoTotalClient: 0, recaudadoPeriodo: 0 };
             try {
               const pagosResp = await pagosService.obtenerPagos({ clienteId: v.clienteId, limit: 100 });
               const pagosCalc = (pagosResp?.pagos || []);
               
+              const inicioPeriodo = getInicioPeriodoStr(v.periodoRuta);
+
               const totalHoy = pagosCalc.reduce((sum: number, p: any) => {
                 const raw = p.fechaPago || p.creadoEn;
                 const f = raw ? (raw.includes('T') ? raw.split('T')[0] : raw) : '';
                 return f === hoyStr ? sum + Number(p.montoTotal || 0) : sum;
               }, 0);
+
+              // Pagado en el período actual (esta semana / quincena / mes / hoy)
+              const totalPeriodo = pagosCalc.reduce((sum: number, p: any) => {
+                const raw = p.fechaPago || p.creadoEn;
+                const f = raw ? (raw.includes('T') ? raw.split('T')[0] : raw) : '';
+                return f >= inicioPeriodo && f <= hoyStr ? sum + Number(p.montoTotal || 0) : sum;
+              }, 0);
+
               const totalHistorico = pagosCalc.reduce((sum: number, p: any) => {
                 return sum + Number(p.montoTotal || 0);
               }, 0);
 
-              return { ...v, recaudadoDelDia: totalHoy, recaudadoTotalClient: totalHistorico };
+              return { ...v, recaudadoDelDia: totalHoy, recaudadoTotalClient: totalHistorico, recaudadoPeriodo: totalPeriodo };
             } catch {
-              return { ...v, recaudadoDelDia: 0, recaudadoTotalClient: 0 };
+              return { ...v, recaudadoDelDia: 0, recaudadoTotalClient: 0, recaudadoPeriodo: 0 };
             }
           }));
 
@@ -1038,25 +1081,58 @@ const VistaCobrador = () => {
   }, [showHistory, rutaActual?.id, historialRutas, cargarHistorialFecha]);
   // Filtrar y ordenar visitas
   const visitasCobrador = useMemo(() => {
+    // Calcular inicio del período actual según frecuencia del crédito
+    const getInicioPeriodoStr = (periodo: string): string => {
+      const hoy = new Date();
+      hoy.setHours(0, 0, 0, 0);
+      const toKey = (d: Date) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+      if (periodo === 'SEMANA') {
+        const day = hoy.getDay();
+        const diff = day === 0 ? -6 : 1 - day;
+        const lunes = new Date(hoy);
+        lunes.setDate(hoy.getDate() + diff);
+        return toKey(lunes);
+      } else if (periodo === 'QUINCENA') {
+        const q = new Date(hoy);
+        q.setDate(hoy.getDate() <= 15 ? 1 : 16);
+        return toKey(q);
+      } else if (periodo === 'MES') {
+        const m = new Date(hoy);
+        m.setDate(1);
+        return toKey(m);
+      }
+      return (() => { const d = new Date(); return toKey(d); })(); // DIA = hoy
+    };
+
+    const hoyLocal = new Date();
+    hoyLocal.setHours(0, 0, 0, 0);
+    const toKey = (d: Date) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+    const hoyStr = toKey(hoyLocal);
+
     const filtradas = visitasBase
       .filter(v => !userSession?.id || v.cobradorId === userSession.id)
       .filter(v => {
+        // Si ya está completamente pagado, ocultar siempre
         if (v.estado === 'pagado') return false;
+
+        const montoCuota = Number(v.montoCuota || 0);
+        // Usar recaudadoPeriodo si existe, si no caer al recaudadoDelDia
+        const recaudadoPeriodo = Number(v.recaudadoPeriodo ?? v.recaudadoDelDia ?? 0);
+
+        // Si ya pagó la cuota completa en este período → no mostrar hasta el próximo
+        if (montoCuota > 0 && recaudadoPeriodo >= montoCuota - 1) return false;
+
+        // Para diarios: si ya pagó algo hoy, no mostrar de nuevo
+        if (v.periodoRuta === 'DIA' && Number(v.recaudadoDelDia || 0) > 0) return false;
+
+        // Clientes en mora: mostrar si no han pagado suficiente en el período
         if (v.estado === 'en_mora') return true;
-        
-        const hoy = new Date();
-        hoy.setHours(23, 59, 59, 999); // Final del día de hoy
-        
+
+        // Clientes pendientes: mostrar solo si la cuota vence hoy o antes
         const d = new Date(v.proximaVisita);
-        if (isNaN(d.getTime())) return false; // Hide invalid dates
-        
+        if (isNaN(d.getTime())) return false;
         const dLocal = new Date(d);
         dLocal.setHours(0, 0, 0, 0);
-        
-        const hoyLocal = new Date();
-        hoyLocal.setHours(0, 0, 0, 0);
-        
-        // Mostrar si es hoy o antes
         return dLocal <= hoyLocal;
       })
     
@@ -1150,9 +1226,9 @@ const VistaCobrador = () => {
 
 
 
-  const handleGuardarReprogramacion = useCallback(async (fecha: string, motivo: string) => {
+  const handleGuardarReprogramacion = useCallback(async (fecha: string, motivo: string, cuotaId?: string) => {
     if (!visitaReprogramar) return
-    if (!fecha) return
+    if (!fecha || !motivo) return
 
     const formatearFechaISO = (iso: string) => {
       const [yyyy, mm, dd] = iso.split('-')
@@ -1171,11 +1247,22 @@ const VistaCobrador = () => {
         return;
       }
 
-      await prestamosService.reprogramarPrestamo(visitaReprogramar.prestamoId, {
-        fecha: fecha, // YYYY-MM-DD
-        motivo,
-        cobradorId: userSession?.id || ''
-      })
+      // Usar el nuevo flujo con revisión del supervisor
+      if (cuotaId) {
+        await prestamosService.solicitarReprogramacionCuota({
+          prestamoId: visitaReprogramar.prestamoId,
+          cuotaId,
+          nuevaFecha: fecha,
+          motivo,
+        })
+      } else {
+        // Fallback al endpoint anterior si no hay cuota específica
+        await prestamosService.reprogramarPrestamo(visitaReprogramar.prestamoId, {
+          fecha,
+          motivo,
+          cobradorId: userSession?.id || ''
+        })
+      }
 
       setVisitasBase((prev) =>
         prev.map((v) => {
@@ -1189,9 +1276,11 @@ const VistaCobrador = () => {
       )
 
       setModalAlerta({
-        titulo: 'Éxito',
-        mensaje: 'Visita reprogramada exitosamente',
-        tipo: 'exito'
+        titulo: cuotaId ? 'Solicitud enviada' : 'Reprogramado',
+        mensaje: cuotaId
+          ? `La solicitud fue enviada al supervisor para aprobacion. Nueva fecha solicitada: ${formatearFechaISO(fecha)}`
+          : 'Visita reprogramada exitosamente',
+        tipo: 'info'
       })
       setShowReprogramModal(false)
       setVisitaReprogramar(null)
@@ -1251,7 +1340,8 @@ const VistaCobrador = () => {
         tasaInteres: data.tasaInteres || 0,
         tasaInteresMora: 2, 
         plazoMeses: data.plazoMeses || 1,
-        cantidadCuotas: isArticulo ? data.numCuotas : data.cuotasTotales,
+        cantidadCuotas: data.cantidadCuotas || data.cuotas || data.cuotasTotales || (isArticulo ? data.numCuotas : 0),
+        cuotas: data.cuotas || data.cantidadCuotas || (isArticulo ? data.numCuotas : 0),
         frecuenciaPago: freq,
         fechaInicio: data.fechaInicio || new Date().toISOString(),
         creadoPorId: userSession?.id,
@@ -1417,22 +1507,37 @@ const VistaCobrador = () => {
             const cliente = asig.cliente || {};
             const prestamos = cliente.prestamos || [];
             const prestamoActivo = prestamos.find((p: any) => p.estado === 'ACTIVO' || p.estado === 'VENCIDO') || prestamos[0] || {};
-            const proximaCuota = prestamoActivo.proximaCuota || {};
+            const proximaCuota = prestamoActivo.proximaCuota || null;
             const saldoTotal = Number(prestamoActivo.saldoPendiente || 0);
+
+            // Buscar la visita previa para conservar datos cuando el backend no los trae
+            const visitaPrevia = visitasBase.find(vb => vb.id === (asig.id || `asig-${index}`));
+
             let estado: EstadoVisita = 'pendiente';
-            if (proximaCuota.estado === 'VENCIDA') estado = 'en_mora';
-            else if (proximaCuota.estado === 'PAGADA') estado = 'pagado';
-            else if (!prestamoActivo.id) estado = 'pendiente';
+            if (proximaCuota?.estado === 'VENCIDA' || proximaCuota?.estado === 'ATRASADA') estado = 'en_mora';
+            else if (proximaCuota?.estado === 'PAGADA') {
+              // Si no hay mas cuotas pendientes, marcar como pagado
+              const hayPendientes = prestamos.some((p: any) =>
+                (p.cuotas || []).some((c: any) => c.estado === 'PENDIENTE' || c.estado === 'PARCIAL')
+              );
+              estado = hayPendientes ? 'pendiente' : 'pagado';
+            }
+            else if (!prestamoActivo.id) estado = visitaPrevia?.estado || 'pendiente';
+
+            // Preservar montoCuota anterior si el backend no trae dato valido
+            const montoCuotaBackend = proximaCuota?.monto ? Number(proximaCuota.monto) : 0;
+            const montoCuotaFinal = montoCuotaBackend > 0 ? montoCuotaBackend : (visitaPrevia?.montoCuota || 0);
+
             return {
               id: asig.id || `asig-${index}`,
               cliente: `${cliente.nombres || ''} ${cliente.apellidos || ''}`.trim() || 'Cliente Sin Nombre',
-              direccion: cliente.direccion || 'Sin dirección registrada',
+              direccion: cliente.direccion || 'Sin direccion registrada',
               telefono: cliente.telefono || '',
               horaSugerida: asig.horaSugerida || '08:00 AM',
-              montoCuota: Number(proximaCuota.monto || 0),
-              saldoTotal,
+              montoCuota: montoCuotaFinal,
+              saldoTotal: saldoTotal > 0 ? saldoTotal : (visitaPrevia?.saldoTotal || 0),
               estado,
-              proximaVisita: proximaCuota.fechaVencimiento || new Date().toISOString(),
+              proximaVisita: proximaCuota?.fechaVencimiento || visitaPrevia?.proximaVisita || new Date().toISOString(),
               ordenVisita: asig.ordenVisita || index + 1,
               prioridad: (asig.prioridad?.toLowerCase()) || (estado === 'en_mora' ? 'alta' : 'media'),
               nivelRiesgo: (() => {
@@ -1445,17 +1550,20 @@ const VistaCobrador = () => {
               })(),
               cobradorId: userSession?.id || '',
               periodoRuta: (() => {
-                const f = prestamoActivo.frecuenciaPago || 'DIARIO';
-                if (f === 'DIARIO') return 'DIA';
-                if (f === 'SEMANAL') return 'SEMANA';
-                if (f === 'QUINCENAL') return 'QUINCENA';
-                if (f === 'MENSUAL') return 'MES';
+                const f = prestamoActivo.frecuenciaPago || visitaPrevia?.periodoRuta || 'DIARIO';
+                if (f === 'DIARIO' || f === 'DIA') return 'DIA';
+                if (f === 'SEMANAL' || f === 'SEMANA') return 'SEMANA';
+                if (f === 'QUINCENAL' || f === 'QUINCENA') return 'QUINCENA';
+                if (f === 'MENSUAL' || f === 'MES') return 'MES';
                 return 'DIA';
               })() as PeriodoRuta,
               clienteId: cliente.id,
-              prestamoId: prestamoActivo.id
+              prestamoId: prestamoActivo.id || visitaPrevia?.prestamoId,
+              recaudadoDelDia: visitaPrevia?.recaudadoDelDia || 0,
+              recaudadoTotalClient: visitaPrevia?.recaudadoTotalClient || 0,
             };
           }).sort((a: any, b: any) => a.ordenVisita - b.ordenVisita);
+
           // Enriquecer con recaudado del día por cliente
           try {
             const toLocalKey = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -1504,12 +1612,7 @@ const VistaCobrador = () => {
         // Silencioso: mantenemos el optimista si falla el refresh
       }
 
-      setModalAlerta({
-        titulo: 'Éxito',
-        mensaje: 'Pago registrado correctamente en el sistema',
-        tipo: 'exito'
-      })
-      
+      // No mostrar modal de confirmación — el pago se refleja directamente en la tarjeta del cliente
       setShowPaymentModal(false)
       setVisitaPagoSeleccionada(null)
     } catch (error: any) {

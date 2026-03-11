@@ -19,7 +19,7 @@ import {
   Calendar, AlertTriangle, CheckCircle, Loader2,
   ChevronDown
 } from 'lucide-react'
-import { formatCurrency, cn } from '@/lib/utils'
+import { formatCurrency, cn, formatCOPDecimalTypingInputValue, formatCOPDecimalBlurInputValue, parseCOPDecimalInputToNumber } from '@/lib/utils'
 
 interface GestionarMoraModalProps {
   cuenta: {
@@ -53,7 +53,7 @@ export default function GestionarMoraModal({ cuenta, onClose, onConfirm }: Gesti
 
   const montoCalculado = modoEntrada === 'PORCENTAJE'
     ? Math.round(base * (Number(porcentaje || 0) / 100))
-    : Number(montoManual || 0)
+    : parseCOPDecimalInputToNumber(montoManual)
 
   const nuevaFechaLimite = (() => {
     const d = new Date()
@@ -221,9 +221,11 @@ export default function GestionarMoraModal({ cuenta, onClose, onConfirm }: Gesti
                   <DollarSign className="h-4 w-4 text-amber-600" />
                 </div>
                 <input
-                  type="number"
+                  type="text"
+                  inputMode="decimal"
                   value={montoManual}
-                  onChange={e => setMontoManual(e.target.value)}
+                  onChange={e => setMontoManual(formatCOPDecimalTypingInputValue(e.target.value))}
+                  onBlur={(e) => setMontoManual(formatCOPDecimalBlurInputValue(e.target.value))}
                   placeholder="0"
                   className="w-full pl-14 pr-4 py-4 rounded-2xl border border-amber-200 font-black text-2xl text-slate-900 focus:ring-4 focus:ring-amber-500/10 focus:border-amber-500 outline-none transition-all"
                 />

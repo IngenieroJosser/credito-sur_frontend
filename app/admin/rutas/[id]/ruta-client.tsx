@@ -66,13 +66,29 @@ interface GastoRuta {
 
 interface RutaClientProps {
   initialRuta: RutaDetalleMock | null;
+  rutaId?: string;
 }
 
-const RutaClient = ({ initialRuta }: RutaClientProps) => {
+type RutaClientLoadedProps = {
+  initialRuta: RutaDetalleMock;
+  rutaData: RutaDetalleMock;
+  rutaId?: string;
+  rutaCompletada: boolean;
+  setRutaCompletada: React.Dispatch<React.SetStateAction<boolean>>;
+  currentUser: any;
+};
+
+const RutaClientLoaded = ({
+  initialRuta,
+  rutaData,
+  rutaId,
+  rutaCompletada,
+  setRutaCompletada,
+  currentUser,
+}: RutaClientLoadedProps) => {
   const { showNotification } = useNotification()
   const router = useRouter()
-  const { user: currentUser } = useAuth()
-  
+
   // No mocks. Use backend data or empty state managed by modals.
   const [gastos] = useState<GastoRuta[]>([])
 
@@ -81,14 +97,13 @@ const RutaClient = ({ initialRuta }: RutaClientProps) => {
   // const [searchQuery, setSearchQuery] ... used in render
   const [searchQuery, setSearchQuery] = useState('')
   const [showFilters, setShowFilters] = useState(false) // Used in render toggle
-  const [rutaCompletada, setRutaCompletada] = useState(!!initialRuta?.activa)
+  // rutaCompletada is owned by the parent wrapper (RutaClient) to keep hook order stable
   const [showClienteSelector, setShowClienteSelector] = useState(false)
   const [showNewClientModal, setShowNewClientModal] = useState(false)
   const [showCrearCreditoModal, setShowCrearCreditoModal] = useState(false)
   const [selectedClienteForCredito, setSelectedClienteForCredito] = useState<VisitaRuta | null>(null)
   const [defaultClienteId, setDefaultClienteId] = useState<string | null>(null)
   const [showCrearCreditoPrompt, setShowCrearCreditoPrompt] = useState(false)
-  // Eliminado flujo de recolectar en detalle de ruta
 
   // Estados para filtros y historial (Portados de VistaCobrador)
   const [periodoRutaFiltro, setPeriodoRutaFiltro] = useState<'TODOS' | 'DIA' | 'SEMANA' | 'QUINCENA' | 'MES'>('TODOS')
@@ -97,6 +112,12 @@ const RutaClient = ({ initialRuta }: RutaClientProps) => {
   const [historyViewMode, setHistoryViewMode] = useState<'DAYS' | 'MONTHS'>('DAYS')
   const [selectedHistoryDate, setSelectedHistoryDate] = useState<string | null>(null)
   const [selectedHistoryMonth, setSelectedHistoryMonth] = useState<string | null>(null)
+  const [historyFrecuenciaFiltro, setHistoryFrecuenciaFiltro] = useState<'TODOS' | 'DIA' | 'SEMANA' | 'QUINCENA' | 'MES'>('TODOS')
+
+  // Grupos colapsables en la vista principal de la ruta (por defecto todos abiertos)
+  const [gruposColapsados, setGruposColapsados] = useState<Record<string, boolean>>({})
+  const toggleGrupo = (key: string) =>
+    setGruposColapsados(prev => ({ ...prev, [key]: !prev[key] }))
 
   const historyDates = useMemo(() => {
     if (!historialRutas) return [];
@@ -105,7 +126,7 @@ const RutaClient = ({ initialRuta }: RutaClientProps) => {
 
   // Prefill historial keys for últimos 30 días (lazy fetch per día al expandir)
   useEffect(() => {
-    if (!showHistory || !initialRuta?.id) return;
+    if (!showHistory || !rutaData?.id) return;
     if (historialRutas && Object.keys(historialRutas).length > 0) return;
     const hoy = new Date();
     const toKey = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -147,20 +168,20 @@ const RutaClient = ({ initialRuta }: RutaClientProps) => {
       } catch (e) { console.warn('Error precargando montos de historial', e); }
     };
     cargarResumenRecaudos();
-  }, [showHistory, initialRuta?.id]);
+  }, [showHistory, rutaData?.id]);
 
   const cargarHistorialFecha = useCallback(async (fechaClave: string) => {
-    if (!initialRuta?.id) return;
+    if (!rutaData?.id) return;
     let visitasResp: any = null;
     let saldo: any = null;
     let pagosDelDia: any[] = [];
     
     try {
-      visitasResp = await rutasService.obtenerVisitasDelDia(initialRuta.id, fechaClave);
+      visitasResp = await rutasService.obtenerVisitasDelDia(rutaData.id, fechaClave);
     } catch(e) { console.warn(`[Admin Historial ${fechaClave}] visitas falló:`, e); }
 
     try {
-      saldo = await obtenerSaldoDisponibleRuta(initialRuta.id, fechaClave);
+      saldo = await obtenerSaldoDisponibleRuta(rutaData.id, fechaClave);
     } catch(e) { console.warn(`[Admin Historial ${fechaClave}] saldo falló:`, e); }
 
     try {
@@ -186,9 +207,14 @@ const RutaClient = ({ initialRuta }: RutaClientProps) => {
         recaudadoPorCliente[cid] = (recaudadoPorCliente[cid] || 0) + Number(p.montoTotal || 0);
       }
 
-      const existentes = new Set();
-      const visitas: VisitaRuta[] = (visitasResp?.visitas || []).map((item: any, index: number) => {
+      const existentes = new Set<string>();
+      const visitas: VisitaRuta[] = (visitasResp?.visitas || []).reduce((acc: VisitaRuta[], item: any, index: number) => {
         const cliente = item.cliente || {};
+        
+        // Evitar duplicados si el backend llegara a enviarlos
+        if (cliente.id && existentes.has(cliente.id)) return acc;
+        if (cliente.id) existentes.add(cliente.id);
+
         const prestamos = item.prestamos || [];
         const prestamoActivo = prestamos.find((p: any) => p.estado === 'ACTIVO' || p.estado === 'EN_MORA' || p.estado === 'PAGADO') || prestamos[0] || {};
         const proximaCuota = prestamoActivo?.proximaCuota || {};
@@ -197,8 +223,6 @@ const RutaClient = ({ initialRuta }: RutaClientProps) => {
         const recDia = cliente.id ? (recaudadoPorCliente[cliente.id] || 0) : 0;
         const montoCuota = Number(proximaCuota?.monto || 0);
         
-        if (cliente.id) existentes.add(cliente.id);
-
         let estado: EstadoVisita = 'pendiente';
         if (proximaCuota?.estado === 'PAGADA' || (recDia > 0 && recDia >= (montoCuota - 1)) || saldoTotalToken <= 0) {
             estado = 'pagado';
@@ -206,7 +230,7 @@ const RutaClient = ({ initialRuta }: RutaClientProps) => {
             estado = 'en_mora';
         }
 
-        return {
+        acc.push({
           id: item.asignacionId || `hist-${fechaClave}-${index}`,
           cliente: `${cliente.nombres || ''} ${cliente.apellidos || ''}`.trim() || 'Cliente Sin Nombre',
           direccion: cliente.direccion || 'Sin dirección registrada',
@@ -235,11 +259,17 @@ const RutaClient = ({ initialRuta }: RutaClientProps) => {
             if (f === 'MENSUAL') return 'MES';
             return 'DIA';
           })() as any,
-          clienteId: cliente.id,
+          clienteId: cliente.id || '',
           recaudadoDelDia: recDia,
-          recaudadoTotalClient: recDia
-        };
-      });
+          recaudadoTotalClient: recDia,
+          cuotaActual: proximaCuota?.numeroCuota,
+          cuotasTotales: prestamoActivo?.cantidadCuotas,
+          enProrroga: proximaCuota?.enProrroga,
+          fechaProrroga: proximaCuota?.fechaVencimiento
+        });
+
+        return acc;
+      }, []);
 
       const sinteticos: VisitaRuta[] = (pagosDelDia || []).flatMap((p: any, i: number) => {
         const cid = p.clienteId || (p.cliente?.id);
@@ -276,9 +306,11 @@ const RutaClient = ({ initialRuta }: RutaClientProps) => {
         total: todasVisitas.length
       };
 
+      const gestionadas = todasVisitas.filter(v => (v.recaudadoDelDia || 0) > 0 || v.estado === 'pagado');
+
       setHistorialRutas((prev: any) => ({
         ...(prev || {}),
-        [fechaClave]: { resumen, visitas: todasVisitas, loaded: true }
+        [fechaClave]: { resumen, visitas: gestionadas, loaded: true }
       }));
     } catch (e) {
       console.error("Error procesando datos del historial (Admin):", e);
@@ -305,7 +337,7 @@ const RutaClient = ({ initialRuta }: RutaClientProps) => {
     if (!existing || (!existing.loaded)) {
       cargarHistorialFecha(hoy);
     }
-  }, [showHistory, initialRuta?.id, historialRutas, cargarHistorialFecha]);
+  }, [showHistory, rutaId, historialRutas, cargarHistorialFecha]);
 
   // Map ALL asignaciones from backend to visits UI model
   // Un cliente con 2 créditos (diario + semanal) genera 2 entradas separadas
@@ -328,7 +360,11 @@ const RutaClient = ({ initialRuta }: RutaClientProps) => {
       };
 
       let globalIndex = 0;
+      const idsProcesados = new Set<string>();
+
       return (asignaciones as any[]).flatMap((asig: any) => {
+        if (!asig.cliente) return [];
+
         const prestamosActivos: any[] = (asig.cliente?.prestamos || []).filter(
           (p: any) => p.estado === 'ACTIVO' || p.estado === 'EN_MORA'
         );
@@ -336,12 +372,34 @@ const RutaClient = ({ initialRuta }: RutaClientProps) => {
         // Si no tiene préstamos activos, igual mostramos la entrada vacía
         const lista = prestamosActivos.length > 0 ? prestamosActivos : [null];
 
-        return lista.map((prestamo: any) => {
+        return lista.flatMap((prestamo: any) => {
+          const idx = globalIndex++;
+          // Generar una clave única para este par cliente-préstamo
+          const uniqueKey = prestamo ? `loan-${prestamo.id}` : `client-${asig.cliente.id}`;
+          
+          if (idsProcesados.has(uniqueKey)) return [];
+          idsProcesados.add(uniqueKey);
+
           const proximaCuota = prestamo?.cuotas?.[0];
           const esArticulo = prestamo?.tipo === 'ARTICULO' || prestamo?.tipoPrestamo === 'ARTICULO';
-          const idx = globalIndex++;
 
-          return {
+          // Detectar prórroga: por estado de cuota O por extensiones del préstamo
+          const cuotaEnProrroga = proximaCuota?.estado === 'PRORROGADA';
+          const extension = prestamo?.extensiones?.[0];
+          const hayProrroga = cuotaEnProrroga || !!extension;
+
+          // Fecha de prórroga: de la cuota o de la extensión
+          const fechaProrrogaFecha =
+            (cuotaEnProrroga && proximaCuota?.fechaVencimientoProrroga)
+              ? proximaCuota.fechaVencimientoProrroga
+              : extension?.nuevaFechaVencimiento ?? null;
+
+          // Fecha efectiva de cobro
+          const fechaEfectiva = fechaProrrogaFecha
+            ?? proximaCuota?.fechaVencimiento
+            ?? new Date().toISOString().split('T')[0];
+
+          return [{
             id: prestamo ? `${asig.id}-${prestamo.id}` : (asig.id || `temp-${idx}`),
             cliente: `${asig.cliente?.nombres || ''} ${asig.cliente?.apellidos || ''}`.trim() || 'Cliente Desconocido',
             direccion: asig.cliente?.direccion || 'Sin dirección registrada',
@@ -349,8 +407,8 @@ const RutaClient = ({ initialRuta }: RutaClientProps) => {
             horaSugerida: asig.horaSugerida || '08:00 AM',
             montoCuota: Number(proximaCuota?.monto || 0),
             saldoTotal: Number(prestamo?.saldoPendiente || 0),
-            estado: asig.estado?.toLowerCase() || 'pendiente',
-            proximaVisita: proximaCuota?.fechaVencimiento || new Date().toISOString().split('T')[0],
+            estado: (hayProrroga ? 'en_prorroga' : (asig.estado?.toLowerCase() || 'pendiente')) as any,
+            proximaVisita: fechaEfectiva,
             ordenVisita: asig.ordenVisita || idx + 1,
             prioridad: (asig.prioridad?.toLowerCase() as any) || 'media',
             cobradorId: initialRuta.cobradorId || '',
@@ -360,10 +418,15 @@ const RutaClient = ({ initialRuta }: RutaClientProps) => {
             prestamoId: prestamo?.id || '',
             tipoPrestamo: esArticulo ? 'ARTICULO' : 'EFECTIVO',
             articuloNombre: esArticulo ? (prestamo?.articulo || prestamo?.descripcionArticulo || undefined) : undefined,
-          };
+            enProrroga: hayProrroga,
+            fechaProrroga: fechaProrrogaFecha ?? undefined,
+            fechaOriginalVencimiento: cuotaEnProrroga ? (proximaCuota?.fechaVencimiento || undefined) : undefined,
+            cuotaActual: proximaCuota?.numeroCuota,
+            cuotasTotales: prestamo?.cantidadCuotas
+          }];
         });
       });
-  })
+  });
 
 
   // Cargar historial de pagos para enriquecer las visitas
@@ -398,10 +461,19 @@ const RutaClient = ({ initialRuta }: RutaClientProps) => {
           
           if (v.prestamoId) {
             const cuotas = await prestamosService.obtenerCuotas(v.prestamoId);
-            const pendiente = cuotas.find(c => c.estado !== 'PAGADA');
+            const pendiente = cuotas.find((c: any) => c.estado !== 'PAGADA');
             if (pendiente) {
                montoCuotaReal = Number(pendiente.monto || (pendiente.montoCapital + pendiente.montoInteres) || 0);
-               fechaReal = pendiente.fechaVencimiento || v.proximaVisita;
+               const esProrroga = pendiente.estado === 'PRORROGADA'
+               fechaReal = (esProrroga && pendiente.fechaVencimientoProrroga)
+                 ? pendiente.fechaVencimientoProrroga
+                 : (pendiente.fechaVencimiento || v.proximaVisita);
+               // Propagar prórroga al estado de la visita
+               if (esProrroga) {
+                 (v as any).enProrroga = true;
+                 (v as any).fechaProrroga = pendiente.fechaVencimientoProrroga || undefined;
+                 (v as any).fechaOriginalVencimiento = pendiente.fechaVencimiento || undefined;
+               }
             }
           }
 
@@ -547,21 +619,9 @@ const RutaClient = ({ initialRuta }: RutaClientProps) => {
       return riesgo.replace('_', ' ');
   }
 
-  if (!initialRuta) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-50">
-        <div className="text-center">
-            <h2 className="text-xl font-bold text-slate-800">Ruta no encontrada</h2>
-            <Link href="/rutas" className="text-primary hover:underline mt-2 block">Volver al listado</Link>
-        </div>
-      </div>
-    )
-  }
-
   const { estadisticas, nivelRiesgo } = initialRuta;
   const porcentajeProgreso = estadisticas.avanceDiario || 0;
 
-  // Eliminado flujo de recolectar en detalle de ruta
 
   return (
     <div className="min-h-screen bg-slate-50 relative pb-20">
@@ -685,7 +745,6 @@ const RutaClient = ({ initialRuta }: RutaClientProps) => {
                     </div>
                   )}
                   
-                  {/* Botón Recolectar Dinero removido en detalle de ruta */}
               </div>
 
               {/* Filtros de Periodo (Estilo Cobrador Exacto) */}
@@ -747,11 +806,36 @@ const RutaClient = ({ initialRuta }: RutaClientProps) => {
                      <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest bg-slate-100 px-3 py-1 rounded-full">Últimos 30 días</div>
                    </div>
 
-                   {/* Toggle DÍAS | MESES */}
-                   <div className="flex items-center gap-2 mb-3">
-                     <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mr-1">VISTA:</span>
-                     <button onClick={() => setHistoryViewMode('DAYS')} className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all border ${historyViewMode === 'DAYS' ? 'bg-slate-900 text-white border-slate-900 shadow-lg' : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300'}`}>Días</button>
-                     <button onClick={() => setHistoryViewMode('MONTHS')} className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all border ${historyViewMode === 'MONTHS' ? 'bg-slate-900 text-white border-slate-900 shadow-lg' : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300'}`}>Meses</button>
+                   {/* Toggle DIAS | MESES + Filtro de Frecuencia */}
+                   <div className="flex flex-col gap-3 mb-3">
+                     <div className="flex items-center gap-2">
+                       <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mr-1">VISTA:</span>
+                       <button onClick={() => setHistoryViewMode('DAYS')} className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all border ${historyViewMode === 'DAYS' ? 'bg-slate-900 text-white border-slate-900 shadow-lg' : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300'}`}>Dias</button>
+                       <button onClick={() => setHistoryViewMode('MONTHS')} className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all border ${historyViewMode === 'MONTHS' ? 'bg-slate-900 text-white border-slate-900 shadow-lg' : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300'}`}>Meses</button>
+                     </div>
+                     {/* Chips de frecuencia para filtrar clientes dentro del historial */}
+                     <div className="flex items-center gap-2 flex-wrap">
+                       <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">COBROS:</span>
+                       {([
+                         { key: 'TODOS' as const, label: 'Todos' },
+                         { key: 'DIA' as const, label: 'Diarios' },
+                         { key: 'SEMANA' as const, label: 'Semanales' },
+                         { key: 'QUINCENA' as const, label: 'Quincenales' },
+                         { key: 'MES' as const, label: 'Mensuales' },
+                       ]).map(f => (
+                         <button
+                           key={f.key}
+                           onClick={() => setHistoryFrecuenciaFiltro(f.key)}
+                           className={`px-3 py-1 rounded-full text-[10px] font-bold transition-all border ${
+                             historyFrecuenciaFiltro === f.key
+                               ? 'bg-[#08557f] text-white border-[#08557f] shadow-md'
+                               : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300'
+                           }`}
+                         >
+                           {f.label}
+                         </button>
+                       ))}
+                     </div>
                    </div>
 
                    {historyDates.length > 0 ? (
@@ -817,15 +901,18 @@ const RutaClient = ({ initialRuta }: RutaClientProps) => {
                                               </div>
                                               {isDayExpanded && (
                                                 <div className="px-4 pb-4 space-y-2 animate-in slide-in-from-top-1 duration-150">
-                                                  {!dayData.loaded ? (
+                                                   {!dayData.loaded ? (
                                                     <div className="flex flex-col items-center justify-center py-6 text-slate-400"><div className="w-5 h-5 border-2 border-slate-300 border-t-[#08557f] rounded-full animate-spin mb-2" /><span className="text-xs">Cargando...</span></div>
-                                                  ) : dayData.visitas.length === 0 ? (
-                                                    <div className="text-center py-6 text-[11px] text-slate-400">Sin cobros para este día</div>
-                                                  ) : (
-                                                    dayData.visitas.map((v: any) => (
+                                                  ) : (() => {
+                                                    const filtradas = historyFrecuenciaFiltro === 'TODOS'
+                                                      ? dayData.visitas
+                                                      : dayData.visitas.filter((v: any) => v.periodoRuta === historyFrecuenciaFiltro);
+                                                    if (filtradas.length === 0) return <div className="text-center py-6 text-[11px] text-slate-400">Sin cobros {historyFrecuenciaFiltro !== 'TODOS' ? `(${historyFrecuenciaFiltro.toLowerCase()})` : ''} para este dia</div>;
+                                                    return filtradas.map((v: any) => (
                                                       <StaticVisitaItem key={v.id} visita={v} allowClick={false} onVerCliente={handleAbrirClienteInfo} getEstadoClasses={getEstadoClasses} getPrioridadColor={getPrioridadColor} />
-                                                    ))
-                                                  )}
+                                                    ));
+                                                  })()
+                                                  }
                                                 </div>
                                               )}
                                             </div>
@@ -872,16 +959,20 @@ const RutaClient = ({ initialRuta }: RutaClientProps) => {
                                        </div>
                                        <div className="space-y-3">
                                           <div className="flex justify-between text-[10px] font-bold text-slate-500 uppercase px-1"><span>Clientes Gestionados</span><span>Estado</span></div>
-                                          {!data.loaded ? (
-                                            <div className="flex flex-col items-center justify-center py-8 text-slate-400"><Loader2 className="w-6 h-6 animate-spin mb-2 opacity-20" /><span className="text-xs font-medium">Cargando detalles...</span></div>
-                                          ) : data.visitas.length === 0 ? (
-                                            <div className="flex flex-col items-center justify-center py-10 bg-slate-50 rounded-2xl border border-dashed border-slate-200"><History className="w-8 h-8 text-slate-300 mb-2 opacity-30" /><span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest text-center px-4">No se registraron visitas ni pagos para este día</span></div>
-                                          ) : (
-                                            data.visitas.map((v: any) => (
-                                              <StaticVisitaItem key={v.id} visita={v} allowClick={false} onVerCliente={handleAbrirClienteInfo} getEstadoClasses={getEstadoClasses} getPrioridadColor={getPrioridadColor} />
-                                            ))
-                                          )}
-                                       </div>
+                                           {!data.loaded ? (
+                                             <div className="flex flex-col items-center justify-center py-8 text-slate-400"><Loader2 className="w-6 h-6 animate-spin mb-2 opacity-20" /><span className="text-xs font-medium">Cargando detalles...</span></div>
+                                           ) : (() => {
+                                             const filtradas = historyFrecuenciaFiltro === 'TODOS'
+                                               ? data.visitas
+                                               : data.visitas.filter((v: any) => v.periodoRuta === historyFrecuenciaFiltro);
+                                             if (filtradas.length === 0) return (
+                                               <div className="flex flex-col items-center justify-center py-10 bg-slate-50 rounded-2xl border border-dashed border-slate-200"><History className="w-8 h-8 text-slate-300 mb-2 opacity-30" /><span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest text-center px-4">No hay visitas {historyFrecuenciaFiltro !== 'TODOS' ? `con frecuencia ${historyFrecuenciaFiltro.toLowerCase()}` : ''} para este dia</span></div>
+                                             );
+                                             return filtradas.map((v: any) => (
+                                               <StaticVisitaItem key={v.id} visita={v} allowClick={false} onVerCliente={handleAbrirClienteInfo} getEstadoClasses={getEstadoClasses} getPrioridadColor={getPrioridadColor} />
+                                             ));
+                                           })()}
+                                        </div>
                                     </div>
                                  )}
                                </div>
@@ -935,7 +1026,7 @@ const RutaClient = ({ initialRuta }: RutaClientProps) => {
                     </div>
                   </div>
 
-                  {/* LISTA DE VISITAS AGRUPADA POR FRECUENCIA */}
+                  {/* LISTA DE VISITAS AGRUPADA POR FRECUENCIA — Colapsables */}
                   <div className="space-y-10">
                     {Object.entries({
                         MES: 'Mensual',
@@ -945,18 +1036,27 @@ const RutaClient = ({ initialRuta }: RutaClientProps) => {
                     }).map(([key, label]) => {
                         const visitas = visitasAgrupadas[key as keyof typeof visitasAgrupadas];
                         if (visitas.length === 0) return null;
-                        
+                        const estaColapsado = !!gruposColapsados[key];
+
                         return (
                             <div key={key} className="space-y-4">
-                                <div className="flex items-center gap-4">
-                                    <div className="h-px flex-1 bg-slate-200"></div>
-                                    <span className="text-[11px] font-black text-[#08557f] uppercase tracking-[0.25em] bg-blue-50/50 px-4 py-1.5 rounded-full border border-blue-100 shadow-sm">
+                                {/* Separador clicable — mismo look de antes + chevron */}
+                                <button
+                                  type="button"
+                                  onClick={() => toggleGrupo(key)}
+                                  className="w-full flex items-center gap-4 group"
+                                >
+                                    <div className="h-px flex-1 bg-slate-200" />
+                                    <span className="flex items-center gap-2 text-[11px] font-black text-[#08557f] uppercase tracking-[0.25em] bg-blue-50/50 px-4 py-1.5 rounded-full border border-blue-100 shadow-sm whitespace-nowrap select-none group-hover:bg-blue-100/60 transition-colors">
                                         {label}
+                                        <ChevronDown className={`h-3 w-3 transition-transform duration-200 ${estaColapsado ? '' : 'rotate-180'}`} />
                                     </span>
-                                    <div className="h-px flex-1 bg-slate-200"></div>
-                                </div>
+                                    <div className="h-px flex-1 bg-slate-200" />
+                                </button>
 
-                                <div className="space-y-4">
+                                {/* Visitas — se ocultan si está colapsado */}
+                                {!estaColapsado && (
+                                  <div className="space-y-4 animate-in slide-in-from-top-2 duration-150">
                                     {visitas.map((visita) => (
                                         <StaticVisitaItem
                                             key={visita.id}
@@ -989,8 +1089,14 @@ const RutaClient = ({ initialRuta }: RutaClientProps) => {
                                                     <span className="text-[9px] font-bold uppercase">Estado</span>
                                                 </button>
                                                 <button
-                                                    onClick={(e) => { e.stopPropagation(); setVisitaReprogramar(visita); }}
-                                                    className="flex flex-col items-center justify-center p-2 rounded-xl bg-white text-slate-700 border border-slate-200 hover:bg-slate-50 transition-all shadow-sm active:scale-95"
+                                                    onClick={(e) => { 
+                                                      e.stopPropagation(); 
+                                                      const isProrrogaVencida = visita.enProrroga && visita.fechaProrroga && new Date(visita.fechaProrroga).getTime() < Date.now();
+                                                      if (!visita.enProrroga || isProrrogaVencida) setVisitaReprogramar(visita); 
+                                                    }}
+                                                    disabled={!!visita.enProrroga && !(visita.fechaProrroga && new Date(visita.fechaProrroga).getTime() < Date.now())}
+                                                    title={visita.enProrroga && !(visita.fechaProrroga && new Date(visita.fechaProrroga).getTime() < Date.now()) ? 'No se puede reprogramar con prorroga activa' : 'Solicitar reprogramacion'}
+                                                    className={`flex flex-col items-center justify-center p-2 rounded-xl border transition-all shadow-sm ${visita.enProrroga && !(visita.fechaProrroga && new Date(visita.fechaProrroga).getTime() < Date.now()) ? 'bg-slate-50 text-slate-300 border-slate-100 opacity-50 cursor-not-allowed' : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50 active:scale-95'}`}
                                                 >
                                                     <Calendar className="h-4 w-4 mb-1 text-slate-400" />
                                                     <span className="text-[9px] font-bold uppercase">Repro.</span>
@@ -998,7 +1104,8 @@ const RutaClient = ({ initialRuta }: RutaClientProps) => {
                                             </div>
                                         </StaticVisitaItem>
                                     ))}
-                                </div>
+                                  </div>
+                                )}
                             </div>
                         )
                     })}
@@ -1138,18 +1245,18 @@ const RutaClient = ({ initialRuta }: RutaClientProps) => {
               
               if (data.creditType === 'prestamo') {
                 await prestamosService.crearPrestamo({
+                  ...data,
                   clienteId: data.clienteCreditoId,
                   tipoPrestamo: 'EFECTIVO',
-                  monto: data.monto,
-                  tasaInteres: data.tasaInteres,
                   tasaInteresMora: 2.0,
-                  plazoMeses: data.cuotasTotales,
-                  frecuenciaPago: data.frecuenciaPago,
-                  fechaInicio: data.fechaInicio,
                   creadoPorId: currentUser?.id || ''
                 } as any);
               } else {
-                await creditosService.crearCredito(payload as any);
+                await creditosService.crearCredito({
+                  ...data,
+                  clienteId: data.clienteCreditoId,
+                  creadoPorId: currentUser?.id || ''
+                } as any);
               }
 
               // Asignar cliente a la ruta automáticamente si estamos en el detalle de una ruta
@@ -1182,6 +1289,78 @@ const RutaClient = ({ initialRuta }: RutaClientProps) => {
   )
 }
 
+const RutaClient = ({ initialRuta: initialRutaProp, rutaId }: RutaClientProps) => {
+  const router = useRouter()
+  const { user: currentUser } = useAuth()
+
+  const [rutaData, setRutaData] = useState<RutaDetalleMock | null>(initialRutaProp)
+  const [loadingRuta, setLoadingRuta] = useState(!initialRutaProp && !!rutaId)
+  const [rutaCompletada, setRutaCompletada] = useState(!!initialRutaProp?.activa)
+
+  useEffect(() => {
+    if (rutaData || !rutaId) return
+
+    const run = async () => {
+      try {
+        setLoadingRuta(true)
+        const ruta = await rutasService.obtenerRutaPorId(rutaId)
+        setRutaData(ruta as any)
+        setRutaCompletada(!!(ruta as any)?.activa)
+      } catch (e) {
+        setRutaData(null)
+      } finally {
+        setLoadingRuta(false)
+      }
+    }
+
+    run()
+  }, [rutaData, rutaId])
+
+  const initialRuta = rutaData
+
+  if (loadingRuta) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+        <div className="flex items-center gap-2 text-slate-600 font-medium">
+          <Loader2 className="w-5 h-5 animate-spin" />
+          <span>Cargando detalle de ruta...</span>
+        </div>
+      </div>
+    )
+  }
+
+  if (!initialRuta) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+        <div className="text-center">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-rose-50 text-xs text-rose-700 font-bold border border-rose-200">
+            <XCircle className="h-3.5 w-3.5" />
+            <span>Ruta no encontrada</span>
+          </div>
+          <p className="mt-4 text-slate-500 font-medium">No se pudo cargar el detalle de la ruta.</p>
+          <button
+            onClick={() => router.back()}
+            className="mt-4 px-4 py-2 rounded-xl bg-white border border-slate-200 text-slate-700 font-bold hover:bg-slate-50"
+          >
+            Volver
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <RutaClientLoaded
+      initialRuta={initialRuta}
+      rutaData={initialRuta}
+      rutaId={rutaId}
+      rutaCompletada={rutaCompletada}
+      setRutaCompletada={setRutaCompletada}
+      currentUser={currentUser}
+    />
+  )
+}
+
 /**
  * Formatea una fecha UTC para evitar saltos de día por zona horaria
  */
@@ -1204,8 +1383,27 @@ function ClienteDetalleModal({ visita, onClose }: { visita: VisitaRuta; onClose:
       try {
         setLoading(true)
         if (visita.clienteId) {
-          const res = await clientesService.obtenerPorId(visita.clienteId)
-          setClienteCompleto(res)
+          const res: any = await clientesService.obtenerPorId(visita.clienteId)
+          // Calcular score dinámico igual que getAllClients en el backend
+          let score = res.puntaje || 100
+          const prestamosEnMora = (res.prestamos || []).filter((p: any) => p.estado === 'EN_MORA')
+          const prestamosActivos = (res.prestamos || []).filter((p: any) => p.estado === 'ACTIVO')
+          if (prestamosEnMora.length > 0) {
+            score -= 20
+          } else if (prestamosActivos.length > 0) {
+            score += 5
+          }
+          // Ajuste por último pago
+          const pagos = res.pagos || []
+          if (pagos.length > 0) {
+            const diasDesdeUltimoPago = Math.floor(
+              (Date.now() - new Date(pagos[0].fechaPago).getTime()) / (1000 * 60 * 60 * 24)
+            )
+            if (diasDesdeUltimoPago > 30) score -= 10
+            else if (diasDesdeUltimoPago <= 7) score += 5
+          }
+          score = Math.max(0, Math.min(100, score))
+          setClienteCompleto({ ...res, score })
         }
       } catch (e) {
         console.error("Error al cargar detalle del cliente", e)
@@ -1286,17 +1484,51 @@ function ClienteDetalleModal({ visita, onClose }: { visita: VisitaRuta; onClose:
                   <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100">
                      <div className="flex items-center gap-1.5 mb-1 text-slate-400">
                         <Fingerprint className="w-3 h-3" />
-                        <span className="text-[9px] font-black uppercase">Cédula / DNI</span>
+                        <span className="text-[9px] font-black uppercase">Cédula</span>
                      </div>
                      <p className="text-sm font-black text-slate-900">{clienteCompleto?.dni || '---'}</p>
                   </div>
-                  <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100">
-                     <div className="flex items-center gap-1.5 mb-1 text-slate-400">
-                        <Star className="w-3 h-3" />
-                        <span className="text-[9px] font-black uppercase">Puntaje</span>
-                     </div>
-                     <p className="text-sm font-black text-emerald-600">{clienteCompleto?.puntaje || 0} pts</p>
-                  </div>
+                   <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100">
+                      <div className="flex items-center gap-1.5 mb-2 text-slate-400">
+                         <Star className="w-3 h-3" />
+                         <span className="text-[9px] font-black uppercase">Score Crediticio</span>
+                      </div>
+                      <div className="flex items-center justify-between mb-1">
+                        <span className={`text-xl font-black ${
+                          ((clienteCompleto?.score ?? clienteCompleto?.puntaje) || 0) >= 80 ? 'text-emerald-600' :
+                          ((clienteCompleto?.score ?? clienteCompleto?.puntaje) || 0) >= 60 ? 'text-amber-500' :
+                          ((clienteCompleto?.score ?? clienteCompleto?.puntaje) || 0) >= 40 ? 'text-amber-600' :
+                          'text-rose-600'
+                        }`}>{clienteCompleto?.score ?? clienteCompleto?.puntaje ?? '—'}<span className="text-xs font-bold text-slate-400">/100</span></span>
+                        <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full border ${
+                          ((clienteCompleto?.score ?? clienteCompleto?.puntaje) || 0) >= 80 ? 'text-emerald-700 bg-emerald-50 border-emerald-200' :
+                          ((clienteCompleto?.score ?? clienteCompleto?.puntaje) || 0) >= 60 ? 'text-amber-600 bg-amber-50 border-amber-200' :
+                          ((clienteCompleto?.score ?? clienteCompleto?.puntaje) || 0) >= 40 ? 'text-amber-700 bg-amber-50 border-amber-200' :
+                          'text-rose-700 bg-rose-50 border-rose-200'
+                        }`}>
+                          {((clienteCompleto?.score ?? clienteCompleto?.puntaje) || 0) >= 80 ? 'Bueno' :
+                           ((clienteCompleto?.score ?? clienteCompleto?.puntaje) || 0) >= 60 ? 'Regular' :
+                           ((clienteCompleto?.score ?? clienteCompleto?.puntaje) || 0) >= 40 ? 'Precaución' : 'Bajo'}
+                        </span>
+                      </div>
+                      {/* ScoreMeter — igual al del listado de clientes */}
+                      <div className="relative pt-2">
+                        <div className="h-1.5 bg-slate-200 rounded-full overflow-hidden">
+                          <div
+                            className={`h-full rounded-full transition-all duration-300 ${
+                              ((clienteCompleto?.score ?? clienteCompleto?.puntaje) || 0) >= 80 ? 'bg-emerald-500' :
+                              ((clienteCompleto?.score ?? clienteCompleto?.puntaje) || 0) >= 60 ? 'bg-amber-500' :
+                              ((clienteCompleto?.score ?? clienteCompleto?.puntaje) || 0) >= 40 ? 'bg-amber-600' :
+                              'bg-rose-500'
+                            }`}
+                            style={{ width: `${Math.min(100, (clienteCompleto?.score ?? clienteCompleto?.puntaje) || 0)}%` }}
+                          />
+                        </div>
+                        <div className="flex justify-between text-[9px] text-slate-400 mt-1 font-bold">
+                          <span>0</span><span>50</span><span>100</span>
+                        </div>
+                      </div>
+                   </div>
                   <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100">
                      <div className="flex items-center gap-1.5 mb-1 text-slate-400">
                         <CalendarDays className="w-3 h-3" />

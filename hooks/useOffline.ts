@@ -3,6 +3,11 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { syncManager, SyncResult } from '@/lib/offline/syncManager';
 import { offlineQueue } from '@/lib/offline/offlineQueue';
+import {
+  checkRealConnectivity,
+  checkRealConnectivityForce,
+  setConnectivityResult,
+} from '@/lib/offline/connectivity';
 
 export interface OfflineState {
   isOnline: boolean;
@@ -15,6 +20,7 @@ export interface OfflineState {
 }
 
 export function useOffline() {
+  // Estado inicial conservador: usar navigator.onLine como primer guess
   const [state, setState] = useState<OfflineState>({
     isOnline: typeof navigator !== 'undefined' ? navigator.onLine : true,
     pendingOps: 0,
@@ -37,21 +43,23 @@ export function useOffline() {
         (db as any).countSyncing(),
         (db as any).countCompleted(),
       ]);
-      setState((prev) => ({ 
-        ...prev, 
-        pendingOps: pending, 
+      setState((prev) => ({
+        ...prev,
+        pendingOps: pending,
         failedOps: failed,
         syncingOps: syncing,
-        completedOps: completed
+        completedOps: completed,
       }));
     } catch {
-      // IndexedDB puede no estar disponible
+      // IndexedDB puede no estar disponible en SSR
     }
   }, []);
 
   // Sincronizar: subir operaciones pendientes
   const syncNow = useCallback(async (): Promise<SyncResult | null> => {
-    if (syncInProgress.current || !navigator.onLine) return null;
+    // Verificar conectividad REAL antes de intentar sincronizar
+    const online = await checkRealConnectivity();
+    if (syncInProgress.current || !online) return null;
 
     syncInProgress.current = true;
     setState((prev) => ({ ...prev, isSyncing: true }));
@@ -72,7 +80,8 @@ export function useOffline() {
 
   // Descargar datos para uso offline
   const downloadForOffline = useCallback(async () => {
-    if (!navigator.onLine) return null;
+    const online = await checkRealConnectivity();
+    if (!online) return null;
 
     setState((prev) => ({ ...prev, isSyncing: true }));
     try {
@@ -88,19 +97,42 @@ export function useOffline() {
 
   // Escuchar cambios de conectividad
   useEffect(() => {
-    const handleOnline = () => {
-      setState((prev) => ({ ...prev, isOnline: true }));
-      // Auto-sync cuando vuelve la conexión
-      syncNow();
+    /**
+     * El evento 'online' del navegador es poco confiable:
+     * se dispara cuando la interfaz de red se activa, pero no
+     * garantiza que haya internet real (ej: WiFi sin internet).
+     *
+     * Por eso hacemos un ping real al recibir el evento 'online'
+     * antes de actualizar el estado. El evento 'offline' SÍ es
+     * confiable: si se dispara, definitivamente no hay red.
+     */
+    const handleOnline = async () => {
+      // Confirmar con ping real antes de asumir que hay internet
+      const reallyOnline = await checkRealConnectivityForce();
+      if (reallyOnline) {
+        setState((prev) => ({ ...prev, isOnline: true }));
+        setConnectivityResult(true);
+        // Auto-sync cuando vuelve la conexión real
+        syncNow();
+      }
+      // Si el ping falla, no cambiamos el estado (seguimos offline)
     };
 
     const handleOffline = () => {
+      // El evento offline es confiable — siempre actualizar inmediatamente
       setState((prev) => ({ ...prev, isOnline: false }));
+      setConnectivityResult(false);
     };
 
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
     window.addEventListener('offline-queue-changed', refreshCounts);
+
+    // Verificar conectividad real al montar (navigator.onLine puede ser incorrecto)
+    checkRealConnectivity().then((online) => {
+      setState((prev) => ({ ...prev, isOnline: online }));
+      setConnectivityResult(online);
+    });
 
     // Cargar contadores iniciales
     refreshCounts();
@@ -112,11 +144,27 @@ export function useOffline() {
     };
   }, [syncNow, refreshCounts]);
 
-  // Polling de contadores cada 30s
+  // Polling cada 30s: verificar conectividad real + actualizar contadores
   useEffect(() => {
-    const interval = setInterval(refreshCounts, 30_000);
+    const interval = setInterval(async () => {
+      const online = await checkRealConnectivity();
+      setState((prev) => {
+        // Solo actualizar si cambió para evitar renders innecesarios
+        if (prev.isOnline !== online) {
+          setConnectivityResult(online);
+          // Si acaba de reconectar, auto-sync
+          if (online && !prev.isOnline) {
+            syncNow();
+          }
+          return { ...prev, isOnline: online };
+        }
+        return prev;
+      });
+      refreshCounts();
+    }, 30_000);
+
     return () => clearInterval(interval);
-  }, [refreshCounts]);
+  }, [refreshCounts, syncNow]);
 
   return {
     ...state,

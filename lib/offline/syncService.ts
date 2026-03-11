@@ -1,5 +1,6 @@
 import { offlineQueue } from './offlineQueue';
 import { syncManager } from './syncManager';
+import { checkRealConnectivity } from './connectivity';
 
 /**
  * Servicio unificado de sincronización.
@@ -10,29 +11,30 @@ export const syncService = {
    * Procesa la cola de operaciones pendientes.
    */
   async processQueue() {
-    if (typeof navigator !== 'undefined' && !navigator.onLine) {
-      console.log('[SyncService] No hay conexion. Abortando.');
+    const isOnline = await checkRealConnectivity();
+    if (!isOnline) {
+      console.log('[SyncService] Sin conexión real. Abortando sync.');
       return;
     }
     console.log('[SyncService] Sincronizando operaciones pendientes...');
     const result = await syncManager.processQueue();
-    
+
     if (typeof window !== 'undefined') {
       window.dispatchEvent(new CustomEvent('offline-queue-changed'));
     }
-    
+
     return result;
   },
 
   /**
    * Encola una operación genérica y trata de sincronizar si es posible.
-   * Adapta la llamada a la estructura de offlineQueue.enqueue
+   * Adapta la llamada a la estructura de offlineQueue.enqueue.
    */
   async enqueueOperation(
     type: string,
     endpoint: string,
     method: 'POST' | 'PUT' | 'DELETE' | 'PATCH',
-    payload: any,
+    payload: unknown,
     description: string,
     file?: Blob
   ) {
@@ -54,11 +56,11 @@ export const syncService = {
       window.dispatchEvent(new CustomEvent('offline-queue-changed'));
     }
 
-    // Intentar sincronizar inmediatamente si hay red (Fire & Forget)
-    if (typeof navigator !== 'undefined' && navigator.onLine) {
-      this.processQueue();
-    }
+    // Intentar sincronizar inmediatamente si hay conexión real (Fire & Forget)
+    checkRealConnectivity().then((isOnline) => {
+      if (isOnline) this.processQueue();
+    });
 
     return item;
-  }
+  },
 };

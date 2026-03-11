@@ -1,9 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
 
+import { routesService } from '@/services/routes-service';
 import { clientesService, CrearClienteDto } from '@/services/clientes-service';
 import { NivelRiesgo } from '@/types/enums';
 import { Save, User, Phone, Mail, MapPin, Briefcase, Shield, AlertCircle, ChevronRight, ArrowLeft, Camera } from 'lucide-react';
@@ -78,11 +79,13 @@ const ClienteFormPage = () => {
     comprobanteDomicilio: null as File | null,
   });
 
-  const rutasDisponibles = [
-    { id: 'ruta-1', nombre: 'Ruta Centro - Carlos Pérez' },
-    { id: 'ruta-2', nombre: 'Ruta Norte - Ana Gómez' },
-    { id: 'ruta-3', nombre: 'Ruta Sur - Juan López' }
-  ];
+  const [rutasDisponibles, setRutasDisponibles] = useState<{ id: string, nombre: string }[]>([]);
+
+  useEffect(() => {
+    routesService.getAll({ activa: true }).then(res => {
+      setRutasDisponibles(res.data?.map(r => ({ id: r.id, nombre: r.nombre })) || []);
+    }).catch(console.error);
+  }, []);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target;
@@ -110,6 +113,10 @@ const ClienteFormPage = () => {
       ;(async () => {
         setIsSaving(true)
         try {
+          const userData = (() => {
+            try { return JSON.parse(localStorage.getItem('user') || '{}') } catch { return {} }
+          })()
+
           const nuevoCliente: CrearClienteDto = {
             nombres: formData.nombres,
             apellidos: formData.apellidos,
@@ -120,13 +127,14 @@ const ClienteFormPage = () => {
             referencia: formData.referencia || undefined,
             nivelRiesgo: formData.nivelRiesgo as unknown as NivelRiesgo,
             puntaje: formData.puntaje,
+            rutaId: formData.rutaId || undefined,
+            observaciones: formData.observaciones || undefined,
+            creadoPorId: userData.id || undefined,
           }
           await clientesService.crear(nuevoCliente)
           alert('Cliente creado exitosamente')
 
-          const rolUsuario = (() => {
-            try { return JSON.parse(localStorage.getItem('user') || '{}').rol } catch { return null }
-          })()
+          const rolUsuario = userData.rol
           const destino = rolUsuario === 'COBRADOR' ? '/cobranzas' : '/admin/clientes'
 
           router.push(destino)

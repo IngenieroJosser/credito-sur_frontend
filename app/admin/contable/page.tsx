@@ -335,8 +335,8 @@ const ModuloContableContent = () => {
         })));
       }
 
-      // 3. Traemos los números grandes (Resumen)
-      const resumen = await getResumenFinanciero();
+      // 3. Traemos los números totales (Resumen histórico completo)
+      const resumen = await getResumenFinanciero('2020-01-01');
       if (resumen) {
         setResumenData({
           ingresosHoy: resumen.ingresosHoy,
@@ -714,7 +714,7 @@ const ModuloContableContent = () => {
           >
             <div className="flex items-center justify-between mb-4">
               <div className="text-xs font-bold uppercase tracking-wider text-slate-500">
-                Ingresos
+                Total Ingresos
               </div>
               <div className="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-50 text-emerald-600 border border-emerald-100">
                 <TrendingUp className="h-4 w-4" />
@@ -723,7 +723,7 @@ const ModuloContableContent = () => {
             <div className="text-2xl font-bold text-slate-900 tracking-tight">
               {formatCurrency(resumenData.ingresosHoy)}
             </div>
-            {resumenData.porcentajeIngresosVsAyer != null && (
+            {resumenData.porcentajeIngresosVsAyer != null && resumenData.porcentajeIngresosVsAyer !== 0 && (
               <div className={cn(
                   "mt-2 flex items-center text-xs font-bold w-fit px-2 py-1 rounded-full",
                   resumenData.esIngresoPositivo ? "text-emerald-600 bg-emerald-50" : "text-rose-600 bg-rose-50"
@@ -741,7 +741,7 @@ const ModuloContableContent = () => {
           >
             <div className="flex items-center justify-between mb-4">
               <div className="text-xs font-bold uppercase tracking-wider text-slate-500">
-                Gastos
+                Total Gastos
               </div>
               <div className="flex h-8 w-8 items-center justify-center rounded-full bg-rose-50 text-rose-600 border border-rose-100">
                 <TrendingDown className="h-4 w-4" />
@@ -750,7 +750,7 @@ const ModuloContableContent = () => {
             <div className="text-2xl font-bold text-slate-900 tracking-tight">
               {formatCurrency(resumenData.egresosHoy)}
             </div>
-            {resumenData.porcentajeEgresosVsAyer != null && (
+            {resumenData.porcentajeEgresosVsAyer != null && resumenData.porcentajeEgresosVsAyer !== 0 && (
               <div className={cn(
                   "mt-2 text-xs font-bold w-fit px-2 py-1 rounded-full flex items-center",
                   resumenData.esEgresoPositivo ? "text-emerald-600 bg-emerald-50" : "text-rose-600 bg-rose-50"
@@ -2449,7 +2449,7 @@ const ModuloContableContent = () => {
                     <div className="grid grid-cols-2 gap-4">
                         <div className="p-5 rounded-[1.5rem] bg-slate-50 border border-slate-100 flex flex-col items-center justify-center gap-1 group hover:bg-white transition-colors duration-300">
                             <span className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter">Monto Consolidado</span>
-                            <span className="text-base font-black text-slate-900">{formatCurrency(arqueoSeleccionado.saldoSistema)}</span>
+                            <span className="text-base font-black text-slate-900">{formatCurrency(Math.abs(arqueoSeleccionado.saldoSistema))}</span>
                         </div>
                         <div className="p-5 rounded-[1.5rem] border border-blue-100 bg-blue-50 flex flex-col items-center justify-center gap-1">
                             <span className="text-[9px] font-bold text-blue-600 uppercase tracking-tighter">Estado</span>

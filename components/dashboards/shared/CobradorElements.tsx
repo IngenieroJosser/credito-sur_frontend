@@ -2,7 +2,7 @@
 
 import React, { ReactNode } from 'react'
 import { createPortal } from 'react-dom'
-import { MapPin, Eye, Phone, GripVertical, Clock, XCircle, ChevronDown, Calendar } from 'lucide-react'
+import { MapPin, Eye, Phone, GripVertical, Clock, XCircle, ChevronDown, Calendar, Timer } from 'lucide-react'
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { VisitaRuta, EstadoVisita } from '@/lib/types/cobranza'
@@ -51,11 +51,22 @@ export function SeleccionClienteModal({
                        }}
                     >
                        <option value="" disabled className="text-slate-400 bg-white">Seleccionar de la lista...</option>
-                       {visitas.map(v => (
-                          <option key={v.id} value={v.id} className="text-slate-900 bg-white">
-                            {v.cliente} - {v.direccion}
-                          </option>
-                       ))}
+                       {visitas.map(v => {
+                          // Mostrar tipo y frecuencia para diferenciar múltiples créditos del mismo cliente
+                          const tipoCred = v.tipoPrestamo === 'ARTICULO'
+                            ? (v.articuloNombre ? `Artículo: ${v.articuloNombre}` : 'Artículo')
+                            : 'Efectivo';
+                          const periodoCred = v.periodoRuta === 'DIA' ? 'Diario'
+                            : v.periodoRuta === 'SEMANA' ? 'Semanal'
+                            : v.periodoRuta === 'QUINCENA' ? 'Quincenal'
+                            : v.periodoRuta === 'MES' ? 'Mensual'
+                            : v.periodoRuta;
+                          return (
+                            <option key={v.id} value={v.id} className="text-slate-900 bg-white">
+                              {`${v.cliente} — ${tipoCred} · ${periodoCred}`}
+                            </option>
+                          );
+                       })}
                     </select>
                     <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
                        <ChevronDown className="h-5 w-5" />
@@ -94,121 +105,115 @@ export function StaticVisitaItem({
   return (
     <div
       onClick={() => allowClick && onSelect && onSelect(visita.id)}
-      className={`relative z-10 w-full rounded-2xl px-4 py-3 transition-all bg-white ${
-        allowClick ? 'cursor-pointer hover:shadow-lg' : 'cursor-default'
-      } border-[3px] ${
+      className={`relative z-10 w-full rounded-xl px-3 py-2 transition-all bg-white ${
+        allowClick ? 'cursor-pointer hover:shadow-md' : 'cursor-default'
+      } border-2 ${
         isSelected 
-          ? 'ring-2 ring-[#08557f] shadow-md bg-slate-50 border-[#08557f]' 
-          : visita.nivelRiesgo === 'bajo' ? 'border-emerald-600 shadow-sm' :
-            visita.nivelRiesgo === 'leve' ? 'border-blue-600 shadow-sm' :
-            (visita.nivelRiesgo as string) === 'precaucion' ? 'border-yellow-500 shadow-md' :
-            visita.nivelRiesgo === 'moderado' ? 'border-orange-600 shadow-md' :
-            visita.nivelRiesgo === 'critico' ? 'border-red-700 shadow-lg' :
+          ? 'ring-2 ring-[#08557f] shadow-md bg-blue-50/30 border-[#08557f]' 
+          : visita.nivelRiesgo === 'bajo' ? 'border-emerald-500 shadow-sm' :
+            visita.nivelRiesgo === 'leve' ? 'border-blue-500 shadow-sm' :
+            (visita.nivelRiesgo as string) === 'precaucion' ? 'border-yellow-400 shadow-sm' :
+            visita.nivelRiesgo === 'moderado' ? 'border-orange-500 shadow-sm' :
+            visita.nivelRiesgo === 'critico' ? 'border-red-600 shadow-md' :
             'border-slate-200'
       }`}
     >
-      <div className="flex items-start gap-3">
-        <div className="mt-1 flex items-center">
-          <GripVertical className="h-5 w-5 text-slate-200" />
-        </div>
+      {/* FILA PRINCIPAL — todo en una sola línea */}
+      <div className="flex items-center gap-2">
+        <GripVertical className="h-4 w-4 text-slate-200 shrink-0" />
 
-        <div className="flex-1 space-y-3">
-            <div className="flex items-start justify-between">
-                <div>
-                    <div className="text-lg font-bold text-slate-900 leading-tight">{visita.cliente}</div>
-                    <div className="text-xs font-semibold text-slate-500 mt-1 flex items-center flex-wrap gap-1">
-                        <span className="bg-slate-100 px-1.5 py-0.5 rounded text-slate-600 border border-slate-200">#{visita.ordenVisita}</span>
-                        <span>•</span>
-                        <div className="flex items-center gap-1 bg-[#08557f]/5 px-2 py-0.5 rounded-md text-[#08557f] font-bold border border-[#08557f]/10 uppercase text-[10px]">
-                            <span>
-                                {visita.periodoRuta === 'DIA' ? 'Diario' : 
-                                 visita.periodoRuta === 'SEMANA' ? 'Semanal' :
-                                 visita.periodoRuta === 'QUINCENA' ? 'Quincenal' :
-                                 visita.periodoRuta === 'MES' ? 'Mensual' : visita.periodoRuta}
-                            </span>
-                        </div>
-                        {visita.tipoPrestamo && (
-                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md border uppercase ${
-                            visita.tipoPrestamo === 'ARTICULO'
-                              ? 'bg-rose-50 text-rose-700 border-rose-200'
-                              : 'bg-slate-100 text-slate-600 border-slate-200'
-                          }`}>
-                            {visita.tipoPrestamo === 'ARTICULO'
-                              ? (visita.articuloNombre ? `Artículo: ${visita.articuloNombre}` : 'Artículo')
-                              : 'Efectivo'}
-                          </span>
-                        )}
-                    </div>
-                </div>
-                <button 
-                  onClick={(e) => { e.stopPropagation(); onVerCliente(visita); }}
-                  className="p-2 bg-slate-100/50 rounded-full hover:bg-white text-slate-500 hover:text-[#08557f] transition-all border border-transparent hover:border-slate-200 shadow-sm"
-                  title="Ver detalles"
-                >
-                   <Eye className="w-5 h-5" />
-                </button>
-            </div>
-
-            {/* Address */}
-            <div className="flex items-center gap-2 text-sm text-slate-700 bg-white/50 px-3 py-2 rounded-lg border border-slate-100/50">
-                <MapPin className="w-4 h-4 text-slate-400 shrink-0" />
-                <span className="truncate flex-1 font-medium">{visita.direccion}</span>
-            </div>
-
-            {/* Metrics */}
-            <div className="grid grid-cols-3 gap-2">
-                 <div className="bg-white/60 p-2 rounded-lg border border-slate-100/50 shadow-sm">
-                     <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-0.5 whitespace-nowrap">Cuota</div>
-                     <div className="text-sm font-bold text-slate-900">${visita.montoCuota.toLocaleString('es-CO')}</div>
-                 </div>
-                 <div className="bg-white/60 p-2 rounded-lg border border-slate-100/50 shadow-sm text-center">
-                     <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-0.5 whitespace-nowrap">Recaudado</div>
-                     <div className="text-sm font-bold text-emerald-600">${(visita.recaudadoTotalClient ?? 0).toLocaleString('es-CO')}</div>
-                 </div>
-                 <div className="bg-white/60 p-2 rounded-lg border border-slate-100/50 shadow-sm text-right">
-                     <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-0.5 whitespace-nowrap">Por Entregar</div>
-                     <div className={`text-sm font-bold ${visita.saldoTotal > 0 ? 'text-slate-900' : 'text-emerald-600'}`}>${visita.saldoTotal.toLocaleString('es-CO')}</div>
-                 </div>
-            </div>
-
-            {/* Status Footer */}
-            <div className="flex items-center justify-between pt-2 border-t border-slate-100/20">
-                 <div className="flex flex-col gap-1">
-                    <span className={`px-2 py-1 rounded-md text-[10px] font-bold uppercase w-fit ${getEstadoClasses(visita.estado)} shadow-sm`}>
-                        {visita.estado.replace('_', ' ')}
-                    </span>
-                    <span className={`text-[9px] font-black uppercase tracking-tighter px-1.5 py-0.5 rounded w-fit ${
-                        visita.nivelRiesgo === 'bajo' ? 'text-emerald-600 bg-emerald-50 border border-emerald-100' :
-                        visita.nivelRiesgo === 'leve' ? 'text-blue-600 bg-blue-50 border border-blue-100' :
-                        visita.nivelRiesgo === 'precaucion' as any ? 'text-yellow-600 bg-yellow-50 border border-yellow-100' :
-                        visita.nivelRiesgo === 'moderado' ? 'text-orange-600 bg-orange-50 border border-orange-100' :
-                        visita.nivelRiesgo === 'critico' ? 'text-red-600 bg-red-50 border border-red-100' :
-                        'text-slate-400 bg-slate-50'
-                    }`}>
-                        {visita.nivelRiesgo === 'bajo' ? 'Peligro Mínimo' :
-                         visita.nivelRiesgo === 'leve' ? 'Leve Retraso' :
-                         visita.nivelRiesgo === 'precaucion' as any ? 'Precaución' :
-                         visita.nivelRiesgo === 'moderado' ? 'Riesgo Moderado' :
-                         visita.nivelRiesgo === 'critico' ? 'Alto Riesgo' :
-                        'Riesgo Desconocido'}
-                    </span>
-                 </div>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <div className="flex items-center gap-1.5 text-xs font-black text-slate-900 bg-slate-100 px-3 py-1.5 rounded-full border border-slate-200">
-                        <Phone className="w-3.5 h-3.5 text-[#08557f]" />
-                        {visita.telefono}
-                    </div>
-                  </div>
-            </div>
-
-            {/* Extra Actions Prop */}
-            {children && (
-              <div className="pt-3 mt-3 border-t border-slate-100">
-                {children}
-              </div>
+        {/* Nombre + meta */}
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <span className="text-sm font-bold text-slate-900 truncate max-w-[160px]">{visita.cliente}</span>
+            <span className={`text-[9px] font-black uppercase px-1.5 py-0.5 rounded border ${
+              visita.nivelRiesgo === 'bajo' ? 'text-emerald-700 bg-emerald-50 border-emerald-100' :
+              visita.nivelRiesgo === 'leve' ? 'text-blue-700 bg-blue-50 border-blue-100' :
+              (visita.nivelRiesgo as string) === 'precaucion' ? 'text-yellow-700 bg-yellow-50 border-yellow-100' :
+              visita.nivelRiesgo === 'moderado' ? 'text-orange-700 bg-orange-50 border-orange-100' :
+              visita.nivelRiesgo === 'critico' ? 'text-red-700 bg-red-50 border-red-100' :
+              'text-slate-400 bg-slate-50 border-slate-200'
+            }`}>
+              {visita.nivelRiesgo === 'bajo' ? 'Mínimo' :
+               visita.nivelRiesgo === 'leve' ? 'Leve' :
+               (visita.nivelRiesgo as string) === 'precaucion' ? 'Precaución' :
+                visita.nivelRiesgo === 'moderado' ? 'Moderado' :
+                visita.nivelRiesgo === 'critico' ? 'Crítico' : '—'}
+             </span>
+             {visita.cuotaActual && (
+               <span className="text-[9px] font-black bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded border border-slate-200">
+                 #{visita.cuotaActual}{visita.cuotasTotales ? `/${visita.cuotasTotales}` : ''}
+               </span>
+             )}
+            <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-md border uppercase ${getEstadoClasses(visita.estado)}`}>
+              {visita.estado.replace('_', ' ')}
+            </span>
+          </div>
+          <div className="flex items-center gap-1 mt-0.5 text-[10px] text-slate-400 font-medium">
+            <MapPin className="w-3 h-3 shrink-0" />
+            <span className="truncate max-w-[180px]">{visita.direccion}</span>
+            {visita.telefono && (
+              <><span className="mx-0.5">·</span><Phone className="w-3 h-3 shrink-0" /><span>{visita.telefono}</span></>
             )}
+          </div>
         </div>
+
+        {/* KPIs en horizontal */}
+        <div className="flex items-center gap-2 shrink-0">
+          <div className="text-center">
+            <div className="text-[9px] font-bold text-slate-400 uppercase">Cuota</div>
+            <div className="text-xs font-black text-slate-800">${visita.montoCuota.toLocaleString('es-CO')}</div>
+          </div>
+          <div className="w-px h-6 bg-slate-200" />
+          <div className="text-center">
+            <div className="text-[9px] font-bold text-slate-400 uppercase">Saldo</div>
+            <div className={`text-xs font-black ${visita.saldoTotal > 0 ? 'text-slate-700' : 'text-emerald-600'}`}>${visita.saldoTotal.toLocaleString('es-CO')}</div>
+          </div>
+          <div className="w-px h-6 bg-slate-200" />
+          <div className="flex items-center gap-1 text-[10px] font-bold bg-[#08557f]/5 text-[#08557f] border border-[#08557f]/10 px-1.5 py-0.5 rounded-md uppercase">
+            {visita.periodoRuta === 'DIA' ? 'Día' :
+             visita.periodoRuta === 'SEMANA' ? 'Sem' :
+             visita.periodoRuta === 'QUINCENA' ? 'Qna' :
+             visita.periodoRuta === 'MES' ? 'Mes' : visita.periodoRuta}
+          </div>
+        </div>
+
+        {/* Ojo */}
+        <button
+          onClick={(e) => { e.stopPropagation(); onVerCliente(visita); }}
+          className="p-1.5 bg-slate-100/60 rounded-lg hover:bg-white text-slate-400 hover:text-[#08557f] transition-all border border-transparent hover:border-slate-200 shrink-0"
+          title="Ver detalles"
+        >
+          <Eye className="w-4 h-4" />
+        </button>
       </div>
+
+      {/* Prórroga — solo si aplica */}
+      {visita.enProrroga && (() => {
+        const diasRestantes = visita.fechaProrroga
+          ? Math.ceil((new Date(visita.fechaProrroga).getTime() - Date.now()) / (1000 * 60 * 60 * 24))
+          : null
+        const color = diasRestantes === null || diasRestantes < 0
+          ? 'bg-rose-50 border-rose-200 text-rose-700'
+          : diasRestantes <= 1 ? 'bg-amber-50 border-amber-200 text-amber-700'
+          : 'bg-blue-50 border-blue-200 text-blue-700'
+        return (
+          <div className={`mt-1.5 flex items-center gap-1.5 px-2 py-1 rounded-lg border text-[9px] font-black uppercase tracking-wide ${color}`}>
+            <Timer className="w-3 h-3 shrink-0" />
+            {diasRestantes === null ? 'En prórroga activa' :
+             diasRestantes < 0 ? 'Prórroga vencida' :
+             diasRestantes === 0 ? 'Prórroga vence HOY' :
+             `Prórroga — vence ${new Date(visita.fechaProrroga!).toLocaleDateString('es-CO')} (${diasRestantes}d)`}
+          </div>
+        )
+      })()}
+
+      {/* Botones de acción — en fila compacta */}
+      {children && (
+        <div className="mt-2 pt-2 border-t border-slate-100">
+          {children}
+        </div>
+      )}
     </div>
   )
 }
@@ -249,128 +254,124 @@ export function SortableItem({
     <div
       ref={setNodeRef}
       style={style}
-      className={`relative z-10 w-full rounded-2xl px-4 py-3 transition-all bg-white border-[3px] ${
+      className={`relative z-10 w-full rounded-xl px-3 py-2 transition-all bg-white border-2 ${
         isSelected 
-          ? 'ring-2 ring-[#08557f] shadow-md bg-slate-50 border-[#08557f]' 
-          : visita.nivelRiesgo === 'bajo' ? 'border-emerald-600 shadow-sm' :
-            visita.nivelRiesgo === 'leve' ? 'border-blue-600 shadow-sm' :
-            (visita.nivelRiesgo as string) === 'precaucion' ? 'border-yellow-500 shadow-md' :
-            visita.nivelRiesgo === 'moderado' ? 'border-orange-600 shadow-md' :
-            visita.nivelRiesgo === 'critico' ? 'border-red-700 shadow-lg' :
+          ? 'ring-2 ring-[#08557f] shadow-md bg-blue-50/30 border-[#08557f]' 
+          : visita.nivelRiesgo === 'bajo' ? 'border-emerald-500 shadow-sm' :
+            visita.nivelRiesgo === 'leve' ? 'border-blue-500 shadow-sm' :
+            (visita.nivelRiesgo as string) === 'precaucion' ? 'border-yellow-400 shadow-sm' :
+            visita.nivelRiesgo === 'moderado' ? 'border-orange-500 shadow-sm' :
+            visita.nivelRiesgo === 'critico' ? 'border-red-600 shadow-md' :
             'border-slate-200'
       }`}
     >
-      <div className="flex items-start gap-3">
+      {/* FILA PRINCIPAL — todo en una sola línea */}
+      <div className="flex items-center gap-2">
+        {/* Handle drag */}
         {disableSort ? (
-          <div className="mt-1 flex items-center">
-            <GripVertical className="h-5 w-5 text-slate-200" />
-          </div>
+          <GripVertical className="h-4 w-4 text-slate-200 shrink-0" />
         ) : (
           <div
-            className="mt-1 flex items-center cursor-grab active:cursor-grabbing"
+            className="cursor-grab active:cursor-grabbing shrink-0"
             {...attributes}
             {...listeners}
           >
-            <GripVertical className="h-5 w-5 text-slate-400" />
+            <GripVertical className="h-4 w-4 text-slate-400" />
           </div>
         )}
-        
-        <div className="flex-1 space-y-3">
-            <div className="flex items-start justify-between">
-                <div>
-                    <div className="text-lg font-bold text-slate-900 leading-tight">{visita.cliente}</div>
-                    <div className="text-xs font-semibold text-slate-500 mt-1 flex items-center flex-wrap gap-1">
-                        <span className="bg-slate-100 px-1.5 py-0.5 rounded text-slate-600 border border-slate-200">#{visita.ordenVisita}</span>
-                        <span>•</span>
-                        <div className="flex items-center gap-1 bg-[#08557f]/5 px-2 py-0.5 rounded-md text-[#08557f] font-bold border border-[#08557f]/10 uppercase text-[10px]">
-                            <span>
-                                {visita.periodoRuta === 'DIA' ? 'Diario' : 
-                                 visita.periodoRuta === 'SEMANA' ? 'Semanal' :
-                                 visita.periodoRuta === 'QUINCENA' ? 'Quincenal' :
-                                 visita.periodoRuta === 'MES' ? 'Mensual' : visita.periodoRuta}
-                            </span>
-                        </div>
-                        {visita.tipoPrestamo && (
-                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md border uppercase ${
-                            visita.tipoPrestamo === 'ARTICULO'
-                              ? 'bg-rose-50 text-rose-700 border-rose-200'
-                              : 'bg-slate-100 text-slate-600 border-slate-200'
-                          }`}>
-                            {visita.tipoPrestamo === 'ARTICULO'
-                              ? (visita.articuloNombre ? `Artículo: ${visita.articuloNombre}` : 'Artículo')
-                              : 'Efectivo'}
-                          </span>
-                        )}
-                    </div>
-                </div>
-                <button 
-                  onClick={(e) => { e.stopPropagation(); onVerCliente(visita); }}
-                  className="p-2 bg-slate-100/50 rounded-full hover:bg-white text-slate-500 hover:text-[#08557f] transition-all border border-transparent hover:border-slate-200 shadow-sm"
-                  title="Ver detalles"
-                >
-                   <Eye className="w-5 h-5" />
-                </button>
-            </div>
 
-            {/* Address */}
-            <div className="flex items-center gap-2 text-sm text-slate-700 bg-white/50 px-3 py-2 rounded-lg border border-slate-100/50">
-                <MapPin className="w-4 h-4 text-slate-400 shrink-0" />
-                <span className="truncate flex-1 font-medium">{visita.direccion}</span>
-            </div>
-
-            {/* Metrics */}
-            <div className="grid grid-cols-3 gap-2">
-                 <div className="bg-white/60 p-2 rounded-lg border border-slate-100/50 shadow-sm">
-                     <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-0.5 whitespace-nowrap">Cuota</div>
-                     <div className="text-sm font-bold text-slate-900">${visita.montoCuota.toLocaleString('es-CO')}</div>
-                 </div>
-                 <div className="bg-white/60 p-2 rounded-lg border border-slate-100/50 shadow-sm text-center">
-                     <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-0.5 whitespace-nowrap">Recaudado</div>
-                     <div className="text-sm font-bold text-emerald-600">${(visita.recaudadoTotalClient ?? 0).toLocaleString('es-CO')}</div>
-                 </div>
-                 <div className="bg-white/60 p-2 rounded-lg border border-slate-100/50 shadow-sm text-right">
-                     <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-0.5 whitespace-nowrap">Por Entregar</div>
-                     <div className={`text-sm font-bold ${visita.saldoTotal > 0 ? 'text-slate-900' : 'text-emerald-600'}`}>${visita.saldoTotal.toLocaleString('es-CO')}</div>
-                 </div>
-            </div>
-
-            {/* Status Footer */}
-            <div className="flex items-center justify-between pt-2 border-t border-slate-100/20">
-                 <div className="flex flex-col gap-1">
-                    <span className={`px-2 py-1 rounded-md text-[10px] font-bold uppercase w-fit ${getEstadoClasses(visita.estado)} shadow-sm`}>
-                        {visita.estado.replace('_', ' ')}
-                    </span>
-                    <span className={`text-[9px] font-black uppercase tracking-tighter px-1.5 py-0.5 rounded w-fit ${
-                        visita.nivelRiesgo === 'bajo' ? 'text-emerald-600 bg-emerald-50 border border-emerald-100' :
-                        visita.nivelRiesgo === 'leve' ? 'text-blue-600 bg-blue-50 border border-blue-100' :
-                        visita.nivelRiesgo === 'precaucion' as any ? 'text-yellow-600 bg-yellow-50 border border-yellow-100' :
-                        visita.nivelRiesgo === 'moderado' ? 'text-orange-600 bg-orange-50 border border-orange-100' :
-                        visita.nivelRiesgo === 'critico' ? 'text-red-600 bg-red-50 border border-red-100' :
-                        'text-slate-400 bg-slate-50'
-                    }`}>
-                        {visita.nivelRiesgo === 'bajo' ? 'Peligro Mínimo' :
-                         visita.nivelRiesgo === 'leve' ? 'Leve Retraso' :
-                         visita.nivelRiesgo === 'precaucion' as any ? 'Precaución' :
-                         visita.nivelRiesgo === 'moderado' ? 'Riesgo Moderado' :
-                         visita.nivelRiesgo === 'critico' ? 'Alto Riesgo' :
-                        'Riesgo Desconocido'}
-                    </span>
-                 </div>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <div className="flex items-center gap-1.5 text-xs font-black text-slate-900 bg-slate-100 px-3 py-1.5 rounded-full border border-slate-200">
-                        <Phone className="w-3.5 h-3.5 text-[#08557f]" />
-                        {visita.telefono}
-                    </div>
-                  </div>
-            </div>
-            
-            {children && (
-              <div className="pt-3 mt-3 border-t border-slate-100 animate-in slide-in-from-top-2">
-                {children}
-              </div>
+        {/* Nombre + meta */}
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <span className="text-sm font-bold text-slate-900 truncate max-w-[160px]">{visita.cliente}</span>
+            <span className={`text-[9px] font-black uppercase px-1.5 py-0.5 rounded border ${
+              visita.nivelRiesgo === 'bajo' ? 'text-emerald-700 bg-emerald-50 border-emerald-100' :
+              visita.nivelRiesgo === 'leve' ? 'text-blue-700 bg-blue-50 border-blue-100' :
+              (visita.nivelRiesgo as string) === 'precaucion' ? 'text-yellow-700 bg-yellow-50 border-yellow-100' :
+              visita.nivelRiesgo === 'moderado' ? 'text-orange-700 bg-orange-50 border-orange-100' :
+              visita.nivelRiesgo === 'critico' ? 'text-red-700 bg-red-50 border-red-100' :
+              'text-slate-400 bg-slate-50 border-slate-200'
+            }`}>
+              {visita.nivelRiesgo === 'bajo' ? 'Mínimo' :
+               visita.nivelRiesgo === 'leve' ? 'Leve' :
+               (visita.nivelRiesgo as string) === 'precaucion' ? 'Precaución' :
+                visita.nivelRiesgo === 'moderado' ? 'Moderado' :
+                visita.nivelRiesgo === 'critico' ? 'Crítico' : '—'}
+             </span>
+             {visita.cuotaActual && (
+               <span className="text-[9px] font-black bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded border border-slate-200">
+                 #{visita.cuotaActual}{visita.cuotasTotales ? `/${visita.cuotasTotales}` : ''}
+               </span>
+             )}
+            <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-md border uppercase ${getEstadoClasses(visita.estado)}`}>
+              {visita.estado.replace('_', ' ')}
+            </span>
+          </div>
+          <div className="flex items-center gap-1 mt-0.5 text-[10px] text-slate-400 font-medium">
+            <MapPin className="w-3 h-3 shrink-0" />
+            <span className="truncate max-w-[180px]">{visita.direccion}</span>
+            {visita.telefono && (
+              <><span className="mx-0.5">·</span><Phone className="w-3 h-3 shrink-0" /><span>{visita.telefono}</span></>
             )}
+          </div>
         </div>
+
+        {/* KPIs en horizontal */}
+        <div className="flex items-center gap-2 shrink-0">
+          <div className="text-center">
+            <div className="text-[9px] font-bold text-slate-400 uppercase">Cuota</div>
+            <div className="text-xs font-black text-slate-800">${visita.montoCuota.toLocaleString('es-CO')}</div>
+          </div>
+          <div className="w-px h-6 bg-slate-200" />
+          <div className="text-center">
+            <div className="text-[9px] font-bold text-slate-400 uppercase">Saldo</div>
+            <div className={`text-xs font-black ${visita.saldoTotal > 0 ? 'text-slate-700' : 'text-emerald-600'}`}>${visita.saldoTotal.toLocaleString('es-CO')}</div>
+          </div>
+          <div className="w-px h-6 bg-slate-200" />
+          <div className="flex items-center gap-1 text-[10px] font-bold bg-[#08557f]/5 text-[#08557f] border border-[#08557f]/10 px-1.5 py-0.5 rounded-md uppercase">
+            {visita.periodoRuta === 'DIA' ? 'Día' :
+             visita.periodoRuta === 'SEMANA' ? 'Sem' :
+             visita.periodoRuta === 'QUINCENA' ? 'Qna' :
+             visita.periodoRuta === 'MES' ? 'Mes' : visita.periodoRuta}
+          </div>
+        </div>
+
+        {/* Ojo */}
+        <button
+          onClick={(e) => { e.stopPropagation(); onVerCliente(visita); }}
+          className="p-1.5 bg-slate-100/60 rounded-lg hover:bg-white text-slate-400 hover:text-[#08557f] transition-all border border-transparent hover:border-slate-200 shrink-0"
+          title="Ver detalles"
+        >
+          <Eye className="w-4 h-4" />
+        </button>
       </div>
+
+      {/* Prórroga — solo si aplica */}
+      {visita.enProrroga && (() => {
+        const diasRestantes = visita.fechaProrroga
+          ? Math.ceil((new Date(visita.fechaProrroga).getTime() - Date.now()) / (1000 * 60 * 60 * 24))
+          : null
+        const color = diasRestantes === null || diasRestantes < 0
+          ? 'bg-rose-50 border-rose-200 text-rose-700'
+          : diasRestantes <= 1 ? 'bg-amber-50 border-amber-200 text-amber-700'
+          : 'bg-blue-50 border-blue-200 text-blue-700'
+        return (
+          <div className={`mt-1.5 flex items-center gap-1.5 px-2 py-1 rounded-lg border text-[9px] font-black uppercase tracking-wide ${color}`}>
+            <Timer className="w-3 h-3 shrink-0" />
+            {diasRestantes === null ? 'En prórroga activa' :
+             diasRestantes < 0 ? 'Prórroga vencida' :
+             diasRestantes === 0 ? 'Prórroga vence HOY' :
+             `Prórroga — vence ${new Date(visita.fechaProrroga!).toLocaleDateString('es-CO')} (${diasRestantes}d)`}
+          </div>
+        )
+      })()}
+
+      {/* Botones de acción */}
+      {children && (
+        <div className="mt-2 pt-2 border-t border-slate-100">
+          {children}
+        </div>
+      )}
     </div>
   )
 }

@@ -50,6 +50,7 @@ import UserDropdownMenu, { formatRoleName, getRoleColor, getRoleIcon } from '@/c
 import { useNotificaciones } from '@/components/providers/NotificacionesProvider';
 import PushNotificationPrompt from '@/components/push/PushNotificationPrompt';
 import { aprobacionesService } from '@/services/aprobaciones-service';
+import { isTokenExpired } from '@/lib/auth/offlineAuth';
 
 interface NavigationItem {
   name: string;
@@ -87,7 +88,7 @@ export default function AdminLayout({
   const [authChecked, setAuthChecked] = useState(false)
   
   // Proveedor global WebSocket
-  const { notificaciones, unreadCount, showDropdown: showNotifications, setShowDropdown: setShowNotifications, marcarTodasComoLeidas, marcarComoLeida } = useNotificaciones();
+  const { socket, notificaciones, unreadCount, showDropdown: showNotifications, setShowDropdown: setShowNotifications, marcarTodasComoLeidas, marcarComoLeida } = useNotificaciones();
   
   const [isLoadingNotificaciones, setIsLoadingNotificaciones] = useState(false)
   
@@ -160,13 +161,48 @@ export default function AdminLayout({
       try {
         const res = await aprobacionesService.obtenerPendientes()
         setPendingRevisiones(res?.total ?? 0)
-      } catch { /* silencioso */ }
+      } catch (err) { console.warn('[Revisiones] No se pudo actualizar el badge de revisiones pendientes:', err) }
     }
 
     fetchPending()
     const interval = setInterval(fetchPending, 30_000)
     return () => clearInterval(interval)
   }, [user?.rol])
+
+  // Tiempo real: cuando el backend emite eventos de aprobaciones/clientes/préstamos, refrescamos el badge al instante
+  useEffect(() => {
+    const ROLES_CON_REVISIONES = ['SUPER_ADMINISTRADOR', 'ADMIN', 'COORDINADOR']
+    if (!user?.rol || !ROLES_CON_REVISIONES.includes(user.rol)) return
+    if (!socket) return
+
+    const fetchPending = async () => {
+      try {
+        const res = await aprobacionesService.obtenerPendientes()
+        setPendingRevisiones(res?.total ?? 0)
+      } catch (err) {
+        console.warn('[Revisiones/WS] Error al actualizar badge desde WebSocket:', err);
+      }
+    }
+
+    const handler = () => {
+      fetchPending()
+    }
+
+    socket.on('aprobaciones_actualizadas', handler)
+    socket.on('clientes_actualizados', handler)
+    socket.on('prestamos_actualizados', handler)
+    socket.on('dashboards_actualizados', handler)
+
+    // sync inmediato al engancharse (por si el polling aún no corrió)
+    fetchPending()
+
+    return () => {
+      socket.off('aprobaciones_actualizadas', handler)
+      socket.off('clientes_actualizados', handler)
+      socket.off('prestamos_actualizados', handler)
+      socket.off('dashboards_actualizados', handler)
+    }
+  }, [socket, user?.rol])
 
   // Carga inicial de datos del usuario y configuración del menú
   useEffect(() => {
@@ -185,14 +221,23 @@ export default function AdminLayout({
           }
         }
 
-        // Validación básica de sesión. El token real seguro está en cookies httpOnly,
-        // pero verificamos localStorage para feedback inmediato en UI.
+        // Validación de sesión: verificar si hay usuario Y si el token no expiró
         if (!userData) {
-          console.log('Sesión no encontrada, redirigiendo al login...');
           setUser(null)
           setNavigation([])
           setAuthChecked(true)
           router.replace('/login')
+          return
+        }
+
+        // Si el token expiró, limpiar sesión y redirigir con aviso
+        if (token && isTokenExpired(token)) {
+          localStorage.removeItem('token')
+          localStorage.removeItem('user')
+          setUser(null)
+          setNavigation([])
+          setAuthChecked(true)
+          router.replace('/login?expired=1')
           return
         }
 
@@ -236,7 +281,6 @@ export default function AdminLayout({
 
     // Escuchar actualizaciones de perfil en tiempo real (mismo tab)
     const handleUserUpdate = () => {
-      console.log('Sincronizando datos de usuario en layout...');
       loadUserData();
     };
 
@@ -273,7 +317,6 @@ export default function AdminLayout({
     })()
 
     if (roleRedirects[user.rol] && pathname?.startsWith('/admin') && !hasAllowedAdminRoute) {
-      console.log(`Redirigiendo usuario ${user.rol} a su panel correcto: ${roleRedirects[user.rol]}`)
       router.replace(roleRedirects[user.rol])
     }
   }, [authChecked, navigation, pathname, router, user?.rol])
@@ -607,7 +650,7 @@ export default function AdminLayout({
                           <span className="text-sm">{item.name}</span>
                         </div>
                         {/* Badge revisiones pendientes */}
-                        {item.id === 'revisiones' && pendingRevisiones > 0 ? (
+                        {typeof item.href === 'string' && item.href.includes('/revisiones') && pendingRevisiones > 0 ? (
                           <span className="min-w-[20px] h-5 px-1.5 flex items-center justify-center text-[10px] font-black text-white bg-rose-500 rounded-full shadow-sm animate-pulse">
                             {pendingRevisiones > 99 ? '99+' : pendingRevisiones}
                           </span>

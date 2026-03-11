@@ -137,8 +137,10 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
   const [modalAlerta, setModalAlerta] = useState<{titulo: string, mensaje: string, tipo: 'exito' | 'error' | 'info'} | null>(null)
   const [isLoading, setIsLoading] = useState(true)
 
+  // El supervisor puede gestionar pagos en CUALQUIER ruta (propia o de un cobrador)
+  // isPersonal solo controla si puede reordenar la lista (drag & drop)
   const isPersonal = rutaId === 'RT-SUP' || rutaId === 'SUP-001' || !rutaId
-  const isReadOnly = !isPersonal
+  const isReadOnly = false  // El supervisor/admin siempre puede registrar pagos
   const [periodoCards, setPeriodoCards] = useState<'HOY' | 'SEM' | 'MES' | 'AÑO'>('HOY')
   const [rutaStats, setRutaStats] = useState<{
     recaudo: number
@@ -718,28 +720,44 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
     setActiveId(event.active.id as string)
   }, [rutaCompletada])
 
-  const handleGuardarReprogramacion = useCallback((fecha: string, motivo: string) => {
+  const handleGuardarReprogramacion = useCallback(async (fecha: string, motivo: string, cuotaId?: string) => {
     if (!visitaReprogramar) return
-    if (!fecha) return
+    if (!fecha || !motivo) return
 
-    const formatearFechaISO = (iso: string) => {
-      const [yyyy, mm, dd] = iso.split('-')
-      if (!yyyy || !mm || !dd) return iso
-      return `${dd}/${mm}`
+    try {
+      // Enviar solicitud al backend — queda pendiente de aprobación del supervisor
+      if (visitaReprogramar.prestamoId && cuotaId) {
+        await prestamosService.solicitarReprogramacionCuota({
+          prestamoId: visitaReprogramar.prestamoId,
+          cuotaId,
+          nuevaFecha: fecha,
+          motivo,
+        })
+      }
+
+      // Marcar localmente como reprogramado (UI feedback)
+      const [yyyy, mm, dd] = fecha.split('-')
+      const fechaLabel = dd && mm ? `${dd}/${mm}` : fecha
+      setVisitasBase((prev) =>
+        prev.map((v) => {
+          if (v.id !== visitaReprogramar.id) return v
+          return { ...v, estado: 'reprogramado', proximaVisita: fechaLabel }
+        })
+      )
+
+      setModalAlerta({
+        tipo: 'info',
+        titulo: 'Solicitud enviada',
+        mensaje: `La reprogramacion fue enviada al supervisor para aprobacion. ${fecha ? `Nueva fecha solicitada: ${fechaLabel}` : ''}`,
+      })
+    } catch (err: any) {
+      setModalAlerta({
+        tipo: 'error',
+        titulo: 'Error al solicitar',
+        mensaje: err?.message || 'No se pudo enviar la solicitud de reprogramación.',
+      })
     }
 
-    setVisitasBase((prev) =>
-      prev.map((v) => {
-        if (v.id !== visitaReprogramar.id) return v
-        return {
-          ...v,
-          estado: 'reprogramado',
-          proximaVisita: formatearFechaISO(fecha),
-        }
-      })
-    )
-
-    console.log('Reprogramar visita', visitaReprogramar.id, fecha, motivo)
     setShowReprogramModal(false)
     setVisitaReprogramar(null)
   }, [visitaReprogramar])
@@ -881,15 +899,13 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
       const payload: any = {
         clienteId: data.clienteCreditoId,
         tipoPrestamo: data.creditType === 'prestamo' ? 'EFECTIVO' : 'ARTICULO',
-        monto: data.montoPrestamo || (data.creditType === 'articulo' ? (data.monto || 0) : 0),
+        monto: data.monto || 0,
         tasaInteres: esContado ? 0 : (data.tasaInteres || 0),
         tasaInteresMora: 2, 
-        plazoMeses: data.creditType === 'prestamo'
-          ? Math.ceil((data.cuotasPrestamo || 0) / (data.frecuenciaPago === 'Diaria' ? 30 : data.frecuenciaPago === 'Semanal' ? 4 : data.frecuenciaPago === 'Quincenal' ? 2 : 1))
-          : (esContado ? 1 : (data.plazoMeses || 1)),
-        frecuenciaPago: esContado
-          ? 'MENSUAL'
-          : (data.frecuenciaPago === 'Diaria' ? 'DIARIO' : data.frecuenciaPago === 'Semanal' ? 'SEMANAL' : data.frecuenciaPago === 'Quincenal' ? 'QUINCENAL' : 'MENSUAL'),
+        plazoMeses: data.plazoMeses || 1,
+        cantidadCuotas: data.cantidadCuotas || data.cuotas || data.cuotasTotales || 0,
+        cuotas: data.cuotas || data.cantidadCuotas || 0,
+        frecuenciaPago: esContado ? 'MENSUAL' : (data.frecuenciaPago || 'DIARIO'),
         fechaInicio: data.fechaInicio || new Date().toISOString(),
         creadoPorId: userSession?.id,
         cuotaInicial: data.cuotaInicialArticulo || 0,

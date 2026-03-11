@@ -36,9 +36,13 @@ export default function ClientePortalModal({ clientId, onClose, rolUsuario = 'co
             if (data) {
                 // Adaptar data backend a UI
                 // Adaptar data backend a UI
-                const fotos: string[] = (data as any).archivos?.map((a: any) => {
-                  return a.url || a.path || a.ruta;
-                }).filter(Boolean) || [];
+                const fotos: string[] = Array.from(
+                  new Set(
+                    ((data as any).archivos || [])
+                      .map((a: any) => a.url || a.path || a.ruta)
+                      .filter(Boolean),
+                  ),
+                );
 
                 setClienteData({
                     id: data.id,

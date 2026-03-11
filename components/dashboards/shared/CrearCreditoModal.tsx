@@ -28,6 +28,8 @@ interface CrearCreditoModalProps {
     tipoInteres?: TipoAmortizacion
     tasaInteres?: number
     cuotasTotales?: number
+    cantidadCuotas?: number
+    cuotas?: number
     frecuenciaPago?: string
     fechaInicio?: string
     fechaPrimerCobro?: string
@@ -36,6 +38,7 @@ interface CrearCreditoModalProps {
     plazoMeses?: number
     numCuotas?: number
     cuotaInicialArticulo?: number
+    notas?: string
   }) => void | Promise<void>
   defaultClienteId?: string
   defaultCreditType?: 'prestamo' | 'articulo'
@@ -58,6 +61,7 @@ export default function CrearCreditoModal({ isOpen, onClose, onConfirm, defaultC
   const [frecuenciaPago, setFrecuenciaPago] = useState('DIARIO')
   const [fechaPrimerCobro, setFechaPrimerCobro] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [notasInput, setNotasInput] = useState('')
   const mouseDownTargetRef = useRef<EventTarget | null>(null)
   
   const [articuloSeleccionadoId, setArticuloSeleccionadoId] = useState<string>('')
@@ -70,6 +74,11 @@ export default function CrearCreditoModal({ isOpen, onClose, onConfirm, defaultC
   useEffect(() => {
     if (isOpen) {
         if (defaultClienteId) setClienteCreditoId(defaultClienteId)
+        if (!fechaPrimerCobro) {
+          const now = new Date()
+          const tzAdjusted = new Date(now.getTime() - now.getTimezoneOffset() * 60000)
+          setFechaPrimerCobro(tzAdjusted.toISOString().split('T')[0])
+        }
         Promise.all([
           clientesService.obtenerTodos(),
           articulosService.obtenerArticulos()
@@ -126,6 +135,28 @@ export default function CrearCreditoModal({ isOpen, onClose, onConfirm, defaultC
      return { meses: mesesPlan, precioTotal, aFinanciar, numCuotas, valorCuota }
   }, [planSeleccionado, mesesPlan, frecuenciaPago, cuotaInicialArticuloInput, articuloSeleccionado, esContado])
 
+  const calculoPrestamo = useMemo(() => {
+    if (creditType !== 'prestamo') return null
+    const monto = parseCOPInputToNumber(montoPrestamoInput)
+    const cuotas = Number(cuotasPrestamoInput)
+    if (!monto || !cuotas) return null
+    
+    let meses = 0
+    if (frecuenciaPago === 'DIARIO') meses = cuotas / 30
+    else if (frecuenciaPago === 'SEMANAL') meses = cuotas / 4
+    else if (frecuenciaPago === 'QUINCENAL') meses = cuotas / 2
+    else if (frecuenciaPago === 'MENSUAL') meses = cuotas
+    
+    const tasa = Number(tasaInteresInput) || 0
+    // Cobrar al menos 1 mes de interés si el plazo es menor a 1 mes (típico en microcréditos)
+    const mesesInteres = Math.max(1, meses)
+    const intereses = (monto * tasa * mesesInteres) / 100
+    const total = monto + intereses
+    const valorCuota = cuotas > 0 ? total / cuotas : 0
+    
+    return { meses, monto, intereses, total, valorCuota, numCuotas: cuotas }
+  }, [creditType, montoPrestamoInput, cuotasPrestamoInput, frecuenciaPago, tasaInteresInput])
+
   if (!isOpen) return null
 
   const handleReset = () => {
@@ -139,6 +170,7 @@ export default function CrearCreditoModal({ isOpen, onClose, onConfirm, defaultC
     setArticuloSeleccionadoId('')
     setPlanArticuloIndex(null)
     setFrecuenciaPago('DIARIO')
+    setNotasInput('')
     {
       const now = new Date()
       const tzAdjusted = new Date(now.getTime() - now.getTimezoneOffset() * 60000)
@@ -302,6 +334,10 @@ export default function CrearCreditoModal({ isOpen, onClose, onConfirm, defaultC
                              const target = new Date(y, day <= 15 ? m : m + 1, 15);
                              const iso = target.toISOString().split('T')[0];
                              setFechaPrimerCobro(iso);
+                           } else {
+                             const now = new Date()
+                             const tzAdjusted = new Date(now.getTime() - now.getTimezoneOffset() * 60000)
+                             setFechaPrimerCobro(tzAdjusted.toISOString().split('T')[0])
                            }
                          }}
                          className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-[#08557f] focus:ring-0 font-medium text-slate-900"
@@ -322,6 +358,43 @@ export default function CrearCreditoModal({ isOpen, onClose, onConfirm, defaultC
                        />
                     </div>
                   </div>
+                  
+                  {calculoPrestamo && (
+                     <div className="bg-blue-50 border border-blue-100 rounded-2xl p-5 space-y-4 animate-in zoom-in-95 duration-200">
+                        <div className="flex justify-between items-center pb-3 border-b border-blue-200/50">
+                           <div className="flex items-center gap-2">
+                              <div className="p-1.5 bg-blue-500 rounded-lg text-white">
+                                 <Calculator className="w-3.5 h-3.5" />
+                              </div>
+                              <span className="text-[10px] font-black text-blue-800 uppercase tracking-widest">Resumen Financiero</span>
+                           </div>
+                           <span className="font-black text-blue-900 text-xl">{formatCurrency(calculoPrestamo.total)}</span>
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                           <div className="bg-white/50 p-3 rounded-xl border border-blue-100">
+                              <div className="text-[10px] text-blue-800 font-bold uppercase mb-1 flex items-center gap-1.5">
+                                 <Calendar className="w-3 h-3" />
+                                 Plazo Real
+                              </div>
+                              <div className="font-black text-blue-900 text-lg">
+                                 {calculoPrestamo.numCuotas} <span className="text-[10px] font-bold text-blue-600 uppercase tracking-tighter">Pagos {frecuenciaPago.toLowerCase()}s</span>
+                              </div>
+                           </div>
+                           <div className="bg-white/50 p-3 rounded-xl border border-blue-100">
+                              <div className="text-[10px] text-blue-800 font-bold uppercase mb-1 flex items-center gap-1.5">
+                                 <DollarSign className="w-3 h-3" />
+                                 Valor Cuota
+                              </div>
+                              <div className="font-black text-blue-900 text-lg">
+                                 {formatCurrency(calculoPrestamo.valorCuota)}
+                              </div>
+                           </div>
+                        </div>
+                        <div className="text-[11px] text-blue-600 font-medium italic text-center">
+                          Equivale a {calculoPrestamo.meses.toFixed(2)} meses de crédito.
+                        </div>
+                     </div>
+                  )}
                 </>
               ) : (
                 <>
@@ -542,6 +615,8 @@ export default function CrearCreditoModal({ isOpen, onClose, onConfirm, defaultC
                   className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-[#08557f] focus:ring-0 font-medium text-slate-900 resize-none"
                   rows={3}
                   placeholder="Observaciones adicionales..."
+                  value={notasInput}
+                  onChange={(e) => setNotasInput(e.target.value)}
                 ></textarea>
               </div>
 
@@ -579,16 +654,21 @@ export default function CrearCreditoModal({ isOpen, onClose, onConfirm, defaultC
                             clienteCreditoId,
                             monto: parseCOPInputToNumber(montoPrestamoInput),
                             tipoInteres,
-                            tasaInteres: Number(tasaInteresInput),
-                            cuotasTotales: Number(cuotasPrestamoInput),
+                             tasaInteres: Number(tasaInteresInput),
+                             cuotas: Number(cuotasPrestamoInput),
+                             cantidadCuotas: Number(cuotasPrestamoInput),
+                             cuotasTotales: Number(cuotasPrestamoInput),
+                             plazoMeses: (calculoPrestamo?.meses && calculoPrestamo.meses > 0) ? calculoPrestamo.meses : 1,
                             frecuenciaPago,
-                            fechaInicio: new Date(fechaCreditoInput).toISOString(),
-                            fechaPrimerCobro
+                            fechaInicio: fechaCreditoInput.split('T')[0], // Extraer solo YYYY-MM-DD para evitar desfase de zona horaria
+                            fechaPrimerCobro,
+                            notas: notasInput.trim() || undefined,
                           }
                         : {
                             creditType,
                             clienteCreditoId,
                             articuloId: articuloSeleccionadoId,
+                            articuloNombre: articuloSeleccionado?.nombre,
                             precioProductoId: articuloSeleccionado
                               ? (
                                   esContado
@@ -601,10 +681,11 @@ export default function CrearCreditoModal({ isOpen, onClose, onConfirm, defaultC
                             monto: calculoCreditoArticulo?.precioTotal || 0,
                             cuotaInicialArticulo: parseCOPInputToNumber(cuotaInicialArticuloInput),
                             frecuenciaPago: esContado ? 'MENSUAL' : frecuenciaPago,
-                            fechaInicio: new Date(fechaCreditoInput).toISOString(),
+                            fechaInicio: fechaCreditoInput.split('T')[0], // Extraer solo YYYY-MM-DD para evitar desfase de zona horaria
                             plazoMeses: esContado ? 1 : mesesPlan,
-                            numCuotas: esContado ? 1 : (calculoCreditoArticulo?.numCuotas || 0),
-                            ventaContado: esContado ? true : undefined
+                            cantidadCuotas: esContado ? 1 : (calculoCreditoArticulo?.numCuotas || 0),
+                            ventaContado: esContado ? true : undefined,
+                            notas: notasInput.trim() || undefined,
                           }
                       await onConfirm(payload as any)
                       handleReset()

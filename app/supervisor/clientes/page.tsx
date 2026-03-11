@@ -70,21 +70,40 @@ const ClientesSupervisorPage = () => {
   useEffect(() => {
     if (!socket) return;
 
-    const handler = async () => {
+    const timeoutRef = { current: null as ReturnType<typeof setTimeout> | null };
+
+    const refetch = async () => {
       try {
-        const data = await clientesService.obtenerClientes()
+        const data = await clientesService.obtenerClientes();
         if (Array.isArray(data)) {
-          setClientes(data)
+          setClientes(data);
         }
       } catch (error) {
-        console.error('Error refrescando clientes (supervisor):', error)
+        console.error('Error refrescando clientes (supervisor):', error);
       }
     };
 
-    socket.on('clientes_actualizados', handler);
+    const scheduleRefetch = () => {
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+      timeoutRef.current = setTimeout(() => {
+        timeoutRef.current = null;
+        refetch();
+      }, 350);
+    };
+
+    const EVENTS = [
+      'clientes_actualizados',
+      'prestamos_actualizados',
+      'pagos_actualizados',
+      'rutas_actualizadas',
+      'dashboards_actualizados',
+    ] as const;
+
+    EVENTS.forEach((evt) => socket.on(evt, scheduleRefetch));
 
     return () => {
-      socket.off('clientes_actualizados', handler);
+      EVENTS.forEach((evt) => socket.off(evt, scheduleRefetch));
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
     };
   }, [socket])
 

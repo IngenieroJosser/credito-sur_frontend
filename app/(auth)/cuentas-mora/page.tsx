@@ -2,37 +2,30 @@
 
 /**
  * ============================================================================
- * CUENTAS EN MORA — Flujo rediseñado
+ * CUENTAS EN MORA — Solo visualizacion y seguimiento
  * ============================================================================
  *
- * Flujo de mora manual:
- * 1. Sistema detecta automáticamente que un cliente no pagó → lo marca EN_MORA
- *    con nivel (Leve / Precaución / Moderado / Crítico).
- * 2. Coordinador / Admin ve la lista y entra a "Asignar Mora" en la tarjeta.
- * 3. Abre el modal → elige % o monto fijo + días de gracia para pagar.
- * 4. El cliente aparece con el interés asignado y un countdown de días restantes.
- * 5. Si el cliente no paga en el plazo, se puede asignar una nueva mora.
+ * Este modulo muestra el listado de todas las cuentas en mora.
+ * Es unicamente para hacer seguimiento: todos los roles ven lo mismo.
+ * Las acciones sobre la mora (asignar interes, prorrogar, castigar)
+ * se gestionan desde el modulo de Cuentas Vencidas.
  */
 
 import { useState, useEffect, useCallback } from 'react'
 import {
-  AlertCircle, Search, Filter, TrendingUp, User,
-  ChevronRight, Phone, MapPin, CheckCircle, Ban,
-  AlertTriangle, LayoutGrid, List, RefreshCw,
-  Clock, Timer, DollarSign, Calendar, ArrowRight,
-  CircleDot, Flame, Zap, ShieldAlert
+  AlertCircle, Search, User,
+  CheckCircle, AlertTriangle, LayoutGrid, List, RefreshCw,
+  Clock, Timer, DollarSign, CircleDot, Flame, Zap, ShieldAlert
 } from 'lucide-react'
 import { formatCurrency, cn } from '@/lib/utils'
 import { ExportButton } from '@/components/ui/ExportButton'
 import FiltroRuta from '@/components/filtros/FiltroRuta'
 import ClientePortalModal from '@/components/cliente/ClientePortalModal'
-import GestionarMoraModal from '@/components/cobranza/GestionarMoraModal'
 import ProtectedPage from '@/components/auth/ProtectedPage'
 import { usePermission } from '@/hooks/usePermission'
 import { apiRequest } from '@/lib/api/api'
 import { exportService } from '@/services/export-service'
 import { toast } from 'sonner'
-import { offlineStore } from '@/lib/offline/offlineDb'
 
 type NivelRiesgo = 'VERDE' | 'AMARILLO' | 'ROJO' | 'LISTA_NEGRA'
 type EstadoPrestamo = 'EN_MORA' | 'INCUMPLIDO' | 'PERDIDA'
@@ -41,7 +34,7 @@ type ViewMode = 'list' | 'grid'
 interface CuentaMora {
   id: string
   numeroPrestamo: string
-  clienteId?: string            // ID directo del cliente (para Ver Perfil)
+  clienteId?: string
   cliente: {
     id?: string
     nombre: string
@@ -50,7 +43,7 @@ interface CuentaMora {
     direccion: string
   }
   diasMora: number
-  montoMora: number           // interés de mora actualmente asignado
+  montoMora: number
   montoTotalDeuda: number
   montoOriginal: number
   cuotasVencidas: number
@@ -59,8 +52,12 @@ interface CuentaMora {
   nivelRiesgo: NivelRiesgo
   estado: EstadoPrestamo
   ultimoPago?: string
-  fechaVencimiento?: string   // fecha límite para pagar la mora asignada
-  etiquetaMora?: string       // 'Leve' | 'Precaución' | 'Moderado' | 'Crítico'
+  fechaVencimiento?: string
+  etiquetaMora?: string
+  // Prorroga / extension de pago aprobada
+  fechaProrroga?: string
+  diasProrroga?: number
+  tieneProrroga?: boolean
 }
 
 interface EstadisticasMora {
@@ -71,44 +68,76 @@ interface EstadisticasMora {
   variacionMensual: number
 }
 
-// ── Helpers de nivel ──────────────────────────────────────────────────────
-
 function etiquetaMora(dias: number): string {
-  if (dias >= 8)  return 'Crítico'
-  if (dias >= 5)  return 'Moderado'
-  if (dias >= 3)  return 'Precaución'
-  if (dias >= 1)  return 'Leve'
-  return 'Mínimo'
+  if (dias >= 8) return 'Critico'
+  if (dias >= 5) return 'Moderado'
+  if (dias >= 3) return 'Precaucion'
+  if (dias >= 1) return 'Leve'
+  return 'Minimo'
 }
 
 const NIVEL_COLORS: Record<string, { badge: string; bar: string; icon: string }> = {
-  'Mínimo':    { badge: 'bg-emerald-50 text-emerald-700 border-emerald-200', bar: 'bg-emerald-400', icon: 'text-emerald-500' },
+  'Minimo':    { badge: 'bg-emerald-50 text-emerald-700 border-emerald-200', bar: 'bg-emerald-400', icon: 'text-emerald-500' },
   'Leve':      { badge: 'bg-emerald-50 text-emerald-700 border-emerald-200', bar: 'bg-emerald-500', icon: 'text-emerald-600' },
-  'Precaución':{ badge: 'bg-amber-50  text-amber-700  border-amber-200',   bar: 'bg-amber-500',   icon: 'text-amber-600' },
-  'Moderado':  { badge: 'bg-orange-50 text-orange-700 border-orange-200',  bar: 'bg-orange-500',  icon: 'text-orange-600' },
-  'Crítico':   { badge: 'bg-rose-50   text-rose-700   border-rose-200',    bar: 'bg-rose-600',    icon: 'text-rose-600' },
+  'Precaucion':{ badge: 'bg-amber-50  text-amber-700  border-amber-200',    bar: 'bg-amber-500',   icon: 'text-amber-600' },
+  'Moderado':  { badge: 'bg-orange-50 text-orange-700 border-orange-200',   bar: 'bg-orange-500',  icon: 'text-orange-600' },
+  'Critico':   { badge: 'bg-rose-50   text-rose-700   border-rose-200',     bar: 'bg-rose-600',    icon: 'text-rose-600' },
 }
 
 function NivelIcon({ nivel, className }: { nivel: string; className?: string }) {
   const cls = cn(NIVEL_COLORS[nivel]?.icon, className)
-  if (nivel === 'Crítico')    return <Flame className={cls} />
+  if (nivel === 'Critico')    return <Flame className={cls} />
   if (nivel === 'Moderado')   return <ShieldAlert className={cls} />
-  if (nivel === 'Precaución') return <AlertTriangle className={cls} />
+  if (nivel === 'Precaucion') return <AlertTriangle className={cls} />
   if (nivel === 'Leve')       return <Zap className={cls} />
   return <CheckCircle className={cls} />
 }
 
-/** Días restantes hasta la fecha límite de gracia */
 function diasRestantesGracia(fechaVencimiento?: string): number | null {
   if (!fechaVencimiento) return null
-  const hoy = new Date(); hoy.setHours(0,0,0,0)
-  const limite = new Date(fechaVencimiento); limite.setHours(0,0,0,0)
+  const hoy = new Date(); hoy.setHours(0, 0, 0, 0)
+  const limite = new Date(fechaVencimiento); limite.setHours(0, 0, 0, 0)
   return Math.ceil((limite.getTime() - hoy.getTime()) / (1000 * 60 * 60 * 24))
 }
 
-// ── Componente countdown de gracia ──────────────────────────────────────────
+function GracePeriodBadge({ fechaVencimiento, montoMora, fechaProrroga, diasProrroga, tieneProrroga }: {
+  fechaVencimiento?: string
+  montoMora: number
+  fechaProrroga?: string
+  diasProrroga?: number
+  tieneProrroga?: boolean
+}) {
+  // Prioridad 1: mostrar plazo de prorroga aprobada
+  if (tieneProrroga && fechaProrroga) {
+    const dias = diasProrroga ?? Math.ceil((new Date(fechaProrroga).getTime() - Date.now()) / (1000 * 60 * 60 * 24))
+    if (dias < 0) {
+      return (
+        <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-rose-100 border border-rose-200 text-rose-700 text-[10px] font-black">
+          <Timer className="h-3 w-3" />
+          Prorroga vencida
+        </div>
+      )
+    }
+    if (dias === 0) {
+      return (
+        <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-50 border border-amber-200 text-amber-700 text-[10px] font-black animate-pulse">
+          <Timer className="h-3 w-3" />
+          Prorroga vence HOY
+        </div>
+      )
+    }
+    const color = dias <= 2
+      ? 'bg-amber-50 border-amber-200 text-amber-700'
+      : 'bg-blue-50 border-blue-200 text-blue-700'
+    return (
+      <div className={cn('flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-[10px] font-black', color)}>
+        <Timer className="h-3 w-3" />
+        Prorroga: {dias}d restante{dias !== 1 ? 's' : ''}
+      </div>
+    )
+  }
 
-function GracePeriodBadge({ fechaVencimiento, montoMora }: { fechaVencimiento?: string; montoMora: number }) {
+  // Prioridad 2: si tiene interés de mora asignado, mostrar fecha límite
   if (!fechaVencimiento || montoMora <= 0) return null
   const dias = diasRestantesGracia(fechaVencimiento)
   if (dias === null) return null
@@ -117,7 +146,7 @@ function GracePeriodBadge({ fechaVencimiento, montoMora }: { fechaVencimiento?: 
     return (
       <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-rose-100 border border-rose-200 text-rose-700 text-[10px] font-black">
         <Timer className="h-3 w-3" />
-        Plazo vencido · Nueva mora pendiente
+        Plazo vencido
       </div>
     )
   }
@@ -135,22 +164,19 @@ function GracePeriodBadge({ fechaVencimiento, montoMora }: { fechaVencimiento?: 
   return (
     <div className={cn('flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-[10px] font-black', color)}>
       <Timer className="h-3 w-3" />
-      {dias} día{dias !== 1 ? 's' : ''} para pagar
+      {dias} dia{dias !== 1 ? 's' : ''} para pagar
     </div>
   )
 }
 
-// ── Página principal ──────────────────────────────────────────────────────────
+// ── Pagina principal ──────────────────────────────────────────────────────────
 
 function CuentasMoraContent() {
   const { can, rol } = usePermission()
-  const esCoordinador = rol === 'COORDINADOR'
-  const esContador = rol === 'CONTADOR'
 
   const rolesConAcceso = ['SUPER_ADMINISTRADOR', 'ADMIN', 'COORDINADOR', 'CONTADOR']
   const puedeExportar = can('CUENTAS_MORA_EXPORTAR') || rolesConAcceso.includes(rol || '')
   const puedeVerPerfil = can('CUENTAS_MORA_VER_PERFIL') || rolesConAcceso.includes(rol || '')
-  const puedeGestionar = can('CUENTAS_MORA_VIEW') || rolesConAcceso.includes(rol || '')
 
   const [cuentas, setCuentas] = useState<CuentaMora[]>([])
   const [estadisticas, setEstadisticas] = useState<EstadisticasMora | null>(null)
@@ -158,29 +184,24 @@ function CuentasMoraContent() {
   const [isDataLoading, setIsDataLoading] = useState(true)
 
   const [busqueda, setBusqueda] = useState('')
-  const [filtroRiesgo, setFiltroRiesgo] = useState<NivelRiesgo | 'TODOS'>('TODOS')
+  const [filtroRiesgo] = useState<NivelRiesgo | 'TODOS'>('TODOS')
   const [filtroRuta, setFiltroRuta] = useState<string | null>(null)
   const [filtroNivel, setFiltroNivel] = useState<string>('TODOS')
   const [viewMode, setViewMode] = useState<ViewMode>('list')
 
-  const [selectedCuenta, setSelectedCuenta] = useState<CuentaMora | null>(null)
   const [selectedClientId, setSelectedClientId] = useState<string | null>(null)
   const [isClientModalOpen, setIsClientModalOpen] = useState(false)
-  const [isGestionarOpen, setIsGestionarOpen] = useState(false)
-
-  const [page, setPage] = useState(1)
 
   const fetchData = useCallback(async () => {
     setIsDataLoading(true)
     try {
-      const params: any = { pagina: page, limite: 50 }
+      const params: any = { pagina: 1, limite: 50 }
       if (busqueda) params.busqueda = busqueda
       if (filtroRiesgo !== 'TODOS') params.nivelRiesgo = filtroRiesgo
       if (filtroRuta) params.rutaId = filtroRuta
 
       const response = await apiRequest<any>('GET', '/reports/prestamos-mora', undefined, { params })
 
-      // Normalizar respuesta: { prestamos: [...] } | { data: [...] } | [...]
       const raw: any[] = Array.isArray(response)
         ? response
         : Array.isArray((response as any).prestamos)
@@ -189,32 +210,28 @@ function CuentasMoraContent() {
             ? (response as any).data
             : []
 
-      // Enriquecer con etiqueta de mora calculada en frontend si no viene del backend
       const enriched: CuentaMora[] = raw.map(p => ({
         ...p,
         etiquetaMora: p.etiquetaMora || etiquetaMora(p.diasMora || 0),
       }))
 
-      // Filtro adicional por nivel en frontend
-      const filtrados = filtroNivel === 'TODOS'
-        ? enriched
-        : enriched.filter(c => c.etiquetaMora === filtroNivel)
-
-      setCuentas(filtrados)
+      setCuentas(filtroNivel === 'TODOS' ? enriched : enriched.filter(c => c.etiquetaMora === filtroNivel))
     } catch (error) {
       console.error('Error al cargar cuentas en mora:', error)
       toast.error('Error al cargar la lista de cuentas en mora')
     } finally {
       setIsDataLoading(false)
     }
-  }, [page, busqueda, filtroRiesgo, filtroRuta, filtroNivel])
+  }, [busqueda, filtroRiesgo, filtroRuta, filtroNivel])
 
   const fetchEstadisticas = async () => {
     setIsStatsLoading(true)
     try {
       const items = await apiRequest<EstadisticasMora>('GET', '/reports/estadisticas-mora')
       setEstadisticas(items)
-    } catch { /* silencioso */ } finally {
+    } catch (err) {
+      console.warn('[CuentasMora] No se pudieron cargar las estadísticas de mora:', err)
+    } finally {
       setIsStatsLoading(false)
     }
   }
@@ -227,30 +244,9 @@ function CuentasMoraContent() {
 
   const handleVerCliente = (id?: string) => {
     const clientId = id || ''
-    if (!clientId) { toast.warning('El perfil de este cliente no está disponible'); return }
+    if (!clientId) { toast.warning('El perfil de este cliente no esta disponible'); return }
     setSelectedClientId(clientId)
     setIsClientModalOpen(true)
-  }
-  const handleGestionar = (c: CuentaMora) => { setSelectedCuenta(c); setIsGestionarOpen(true) }
-
-  const handleAplicarMora = async (data: { montoInteres: number; diasGracia: number; comentarios?: string }) => {
-    if (!selectedCuenta) return
-    try {
-      // Llama el nuevo endpoint que crea Aprobacion + Auditoria + Notificacion push
-      await apiRequest('POST', `/loans/${selectedCuenta.id}/asignar-mora`, {
-        montoInteres: data.montoInteres,
-        diasGracia: data.diasGracia,
-        comentarios: data.comentarios || `Interés de mora asignado — Nivel: ${selectedCuenta.etiquetaMora || etiquetaMora(selectedCuenta.diasMora)}`,
-      })
-      toast.success(
-        `✅ Mora enviada a aprobación — ${formatCurrency(data.montoInteres)} · Plazo ${data.diasGracia} días`,
-        { description: 'Los aprobadores recibieron una notificación. La mora se aplicará al ser aprobada.' }
-      )
-      setIsGestionarOpen(false)
-      fetchData()
-    } catch (e: any) {
-      toast.error(e?.message || 'No se pudo enviar la solicitud de mora')
-    }
   }
 
   const handleExportExcel = async () => {
@@ -267,13 +263,11 @@ function CuentasMoraContent() {
     } catch { toast.error('Error al exportar') }
   }
 
-  // Métricas
   const totalMora = estadisticas?.totalMora ?? cuentas.reduce((a, c) => a + c.montoMora, 0)
   const totalDeuda = estadisticas?.totalDeudaRiesgo ?? cuentas.reduce((a, c) => a + c.montoTotalDeuda, 0)
   const clientesAfectados = estadisticas?.totalClientesAfectados ?? cuentas.length
   const clientesCriticos = estadisticas?.clientesCriticos ?? cuentas.filter(c => c.nivelRiesgo === 'ROJO').length
 
-  // Conteo por nivel
   const porNivel: Record<string, number> = {}
   cuentas.forEach(c => {
     const n = c.etiquetaMora || etiquetaMora(c.diasMora)
@@ -282,7 +276,6 @@ function CuentasMoraContent() {
 
   return (
     <div className="min-h-screen bg-slate-50 relative">
-      {/* Fondo */}
       <div className="fixed inset-0 pointer-events-none">
         <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px]" />
         <div className="absolute left-0 right-0 top-0 -z-10 m-auto h-[310px] w-[310px] rounded-full bg-rose-500 opacity-20 blur-[100px]" />
@@ -290,19 +283,19 @@ function CuentasMoraContent() {
 
       <div className="relative z-10 px-6 md:px-8 py-8 space-y-6">
 
-        {/* ── Header ── */}
+        {/* Header */}
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between animate-in fade-in slide-in-from-top-4 duration-500">
           <div>
             <div className="inline-flex items-center gap-2 rounded-full bg-rose-50 px-3 py-1 text-xs font-bold text-rose-700 mb-2 border border-rose-100">
               <AlertCircle className="h-3.5 w-3.5" />
-              <span>Gestión de Cartera en Mora</span>
+              <span>Seguimiento de Cartera en Mora</span>
             </div>
             <h1 className="text-4xl md:text-5xl font-bold tracking-tight">
               <span className="text-blue-600">Cuentas en </span>
               <span className="text-orange-500">Mora</span>
             </h1>
             <p className="text-sm text-slate-500 max-w-2xl mt-1 font-medium">
-              Asigna intereses de mora y plazos de pago a clientes con retrasos.
+              Listado de cuentas con retrasos en sus pagos.
               <span className="text-slate-400 ml-2">({cuentas.length} registros)</span>
             </p>
           </div>
@@ -320,13 +313,13 @@ function CuentasMoraContent() {
           </div>
         </div>
 
-        {/* ── Métricas ── */}
+        {/* Metricas */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           {[
-            { label: 'Intereses de Mora', value: formatCurrency(totalMora), icon: <DollarSign className="h-5 w-5 text-rose-600" />, bg: 'bg-rose-50' },
-            { label: 'Deuda Total Cartera', value: formatCurrency(totalDeuda), icon: <TrendingUp className="h-5 w-5 text-amber-600" />, bg: 'bg-amber-50' },
+            { label: 'Interes de Mora', value: formatCurrency(totalMora), icon: <DollarSign className="h-5 w-5 text-rose-600" />, bg: 'bg-rose-50' },
+            { label: 'Deuda Total Cartera', value: formatCurrency(totalDeuda), icon: <AlertCircle className="h-5 w-5 text-amber-600" />, bg: 'bg-amber-50' },
             { label: 'Clientes Afectados', value: String(clientesAfectados), icon: <User className="h-5 w-5 text-sky-600" />, bg: 'bg-sky-50' },
-            { label: 'Clientes Críticos', value: String(clientesCriticos), icon: <Flame className="h-5 w-5 text-rose-700" />, bg: 'bg-rose-100' },
+            { label: 'Clientes Criticos', value: String(clientesCriticos), icon: <Flame className="h-5 w-5 text-rose-700" />, bg: 'bg-rose-100' },
           ].map(m => (
             <div key={m.label} className="bg-white/80 backdrop-blur-sm p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-4">
               <div className={cn('p-2.5 rounded-xl', m.bg)}>{m.icon}</div>
@@ -338,10 +331,10 @@ function CuentasMoraContent() {
           ))}
         </div>
 
-        {/* ── Filtros de nivel (pill bar) ── */}
+        {/* Filtros nivel */}
         <div className="flex items-center gap-2 flex-wrap">
-          {['TODOS', 'Leve', 'Precaución', 'Moderado', 'Crítico'].map(n => {
-            const cfg = NIVEL_COLORS[n]
+          {['TODOS', 'Leve', 'Precaucion', 'Moderado', 'Critico'].map(n => {
+            const cfg = NIVEL_COLORS[n] || NIVEL_COLORS['Leve']
             const count = n === 'TODOS' ? cuentas.length : (porNivel[n] || 0)
             const isActive = filtroNivel === n
             return (
@@ -370,7 +363,7 @@ function CuentasMoraContent() {
           })}
         </div>
 
-        {/* ── Filtros de búsqueda + ruta ── */}
+        {/* Filtros busqueda */}
         <div className="flex flex-col md:flex-row gap-3 items-center">
           <div className="bg-slate-50 p-2 rounded-xl border border-slate-200 w-full md:w-auto">
             <FiltroRuta onRutaChange={(r) => setFiltroRuta(r)} selectedRutaId={filtroRuta} layout="wrap" showAllOption hideLabel />
@@ -379,7 +372,7 @@ function CuentasMoraContent() {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
             <input
               type="text"
-              placeholder="Buscar por cliente, documento o préstamo..."
+              placeholder="Buscar por cliente, documento o prestamo..."
               className="w-full pl-10 pr-4 py-2.5 border border-slate-200 rounded-xl text-sm font-medium bg-white shadow-sm focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all placeholder:text-slate-400 outline-none"
               value={busqueda}
               onChange={e => setBusqueda(e.target.value)}
@@ -395,7 +388,7 @@ function CuentasMoraContent() {
           </div>
         </div>
 
-        {/* ── Contenido ── */}
+        {/* Contenido */}
         {isDataLoading ? (
           <div className="flex flex-col items-center justify-center py-20">
             <RefreshCw className="h-10 w-10 animate-spin text-primary mb-4" />
@@ -411,7 +404,7 @@ function CuentasMoraContent() {
           </div>
         ) : viewMode === 'list' ? (
 
-          /* ── LISTA ── */
+          /* LISTA */
           <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-sm border border-slate-200 overflow-hidden animate-in fade-in slide-in-from-bottom-2 duration-500">
             <div className="overflow-x-auto">
               <table className="w-full text-sm text-left">
@@ -421,9 +414,9 @@ function CuentasMoraContent() {
                     <th className="px-6 py-4 font-bold tracking-wider">Nivel Mora</th>
                     <th className="px-6 py-4 font-bold tracking-wider">Ruta / Cobrador</th>
                     <th className="px-6 py-4 font-bold tracking-wider">Deuda Total</th>
-                    <th className="px-6 py-4 font-bold tracking-wider">Interés Mora</th>
+                    <th className="px-6 py-4 font-bold tracking-wider">Interes Mora</th>
                     <th className="px-6 py-4 font-bold tracking-wider">Plazo</th>
-                    <th className="px-6 py-4 font-bold tracking-wider text-right">Acciones</th>
+                    {puedeVerPerfil && <th className="px-6 py-4 font-bold tracking-wider text-right">Perfil</th>}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
@@ -438,9 +431,7 @@ function CuentasMoraContent() {
                               {cuenta.cliente.nombre.charAt(0)}
                             </div>
                             <div>
-                              <div className="font-bold text-slate-900 group-hover:text-primary transition-colors">
-                                {cuenta.cliente.nombre}
-                              </div>
+                              <div className="font-bold text-slate-900 group-hover:text-primary transition-colors">{cuenta.cliente.nombre}</div>
                               <div className="text-xs text-slate-500 font-mono">{cuenta.cliente.documento}</div>
                             </div>
                           </div>
@@ -473,31 +464,25 @@ function CuentasMoraContent() {
                           )}
                         </td>
                         <td className="px-6 py-4">
-                          <GracePeriodBadge fechaVencimiento={cuenta.fechaVencimiento} montoMora={cuenta.montoMora} />
+                          <GracePeriodBadge
+                            fechaVencimiento={cuenta.fechaVencimiento}
+                            montoMora={cuenta.montoMora}
+                            fechaProrroga={cuenta.fechaProrroga}
+                            diasProrroga={cuenta.diasProrroga}
+                            tieneProrroga={cuenta.tieneProrroga}
+                          />
                         </td>
-                        <td className="px-6 py-4 text-right">
-                          <div className="flex items-center justify-end gap-1.5">
-                            {puedeVerPerfil && (
-                              <button
-                                onClick={() => handleVerCliente(cuenta.cliente.id || cuenta.clienteId)}
-                                className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                                title="Ver Perfil"
-                              >
-                                <User className="w-4 h-4" />
-                              </button>
-                            )}
-                            {puedeGestionar && (
-                              <button
-                                onClick={() => handleGestionar(cuenta)}
-                                className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-600 text-white rounded-lg hover:bg-amber-700 text-xs font-bold transition-colors shadow-sm shadow-amber-600/20"
-                                title="Asignar Mora"
-                              >
-                                <DollarSign className="w-3.5 h-3.5" />
-                                Asignar Mora
-                              </button>
-                            )}
-                          </div>
-                        </td>
+                        {puedeVerPerfil && (
+                          <td className="px-6 py-4 text-right">
+                            <button
+                              onClick={() => handleVerCliente(cuenta.cliente.id || cuenta.clienteId)}
+                              className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                              title="Ver Perfil"
+                            >
+                              <User className="w-4 h-4" />
+                            </button>
+                          </td>
+                        )}
                       </tr>
                     )
                   })}
@@ -508,24 +493,19 @@ function CuentasMoraContent() {
 
         ) : (
 
-          /* ── GRID ── */
+          /* GRID */
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {cuentas.map(cuenta => {
               const nivel = cuenta.etiquetaMora || etiquetaMora(cuenta.diasMora)
               const cfg = NIVEL_COLORS[nivel]
-              const diasRestantes = diasRestantesGracia(cuenta.fechaVencimiento)
               return (
                 <div key={cuenta.id} className="bg-white rounded-2xl border border-slate-200 shadow-sm hover:shadow-lg hover:-translate-y-1 transition-all duration-300 overflow-hidden flex flex-col group">
-                  {/* Barra de nivel */}
                   <div className={cn('h-1 w-full', cfg?.bar)} />
 
                   <div className="p-5 flex-1 space-y-4">
-                    {/* Cabecera */}
                     <div className="flex items-start justify-between">
                       <div>
-                        <div className="font-black text-slate-900 group-hover:text-primary transition-colors">
-                          {cuenta.cliente.nombre}
-                        </div>
+                        <div className="font-black text-slate-900 group-hover:text-primary transition-colors">{cuenta.cliente.nombre}</div>
                         <div className="text-xs text-slate-500 font-mono">{cuenta.cliente.documento}</div>
                       </div>
                       <span className={cn('px-2.5 py-1 rounded-full text-[10px] font-black border flex items-center gap-1', cfg?.badge)}>
@@ -534,58 +514,50 @@ function CuentasMoraContent() {
                       </span>
                     </div>
 
-                    {/* Días en mora */}
                     <div className="flex items-center gap-2 text-sm">
                       <Clock className="h-4 w-4 text-slate-400" />
-                      <span className="font-bold text-slate-700">{cuenta.diasMora} días en mora</span>
+                      <span className="font-bold text-slate-700">{cuenta.diasMora} dias en mora</span>
                       <span className="text-slate-400">·</span>
                       <span className="text-slate-500 text-xs">{cuenta.cuotasVencidas} cuota{cuenta.cuotasVencidas !== 1 ? 's' : ''}</span>
                     </div>
 
-                    {/* Montos */}
                     <div className="grid grid-cols-2 gap-3">
                       <div className="bg-slate-50 p-3 rounded-xl">
                         <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Deuda Total</p>
                         <p className="font-black text-slate-900">{formatCurrency(cuenta.montoTotalDeuda)}</p>
                       </div>
                       <div className={cn('p-3 rounded-xl', cuenta.montoMora > 0 ? 'bg-rose-50' : 'bg-slate-50')}>
-                        <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Interés Mora</p>
+                        <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Interes Mora</p>
                         <p className={cn('font-black', cuenta.montoMora > 0 ? 'text-rose-600' : 'text-slate-400 italic text-xs')}>
                           {cuenta.montoMora > 0 ? formatCurrency(cuenta.montoMora) : 'Sin asignar'}
                         </p>
                       </div>
                     </div>
 
-                    {/* Ruta */}
-                    <div className="flex items-center gap-1.5 text-xs text-slate-500">
-                      <MapPin className="h-3.5 w-3.5 text-slate-400" />
+                    <div className="text-xs text-slate-500">
                       <span className="font-bold text-slate-700">{cuenta.ruta || 'Sin ruta'}</span>
-                      {cuenta.cobrador && <span>· {cuenta.cobrador}</span>}
+                      {cuenta.cobrador && <span> · {cuenta.cobrador}</span>}
                     </div>
 
-                    {/* Plazo de pago */}
-                    <GracePeriodBadge fechaVencimiento={cuenta.fechaVencimiento} montoMora={cuenta.montoMora} />
+                    <GracePeriodBadge
+                      fechaVencimiento={cuenta.fechaVencimiento}
+                      montoMora={cuenta.montoMora}
+                      fechaProrroga={cuenta.fechaProrroga}
+                      diasProrroga={cuenta.diasProrroga}
+                      tieneProrroga={cuenta.tieneProrroga}
+                    />
                   </div>
 
-                  {/* Acciones */}
-                  <div className="px-5 pb-4 flex gap-2">
-                    {/* Botón Ver Perfil → siempre visible cuando el usuario tiene permiso */}
-                    {puedeVerPerfil && (
+                  {puedeVerPerfil && (
+                    <div className="px-5 pb-4">
                       <button
                         onClick={() => handleVerCliente(cuenta.cliente.id || cuenta.clienteId)}
-                        className="flex-1 py-2 text-xs font-bold text-slate-600 bg-slate-50 rounded-xl hover:bg-blue-50 hover:text-blue-600 transition-colors border border-slate-200"
-                        title="Ver perfil del cliente"
+                        className="w-full py-2 text-xs font-bold text-slate-600 bg-slate-50 rounded-xl hover:bg-blue-50 hover:text-blue-600 transition-colors border border-slate-200 flex items-center justify-center gap-1.5"
                       >
-                        <User className="h-3.5 w-3.5 mx-auto" />
+                        <User className="h-3.5 w-3.5" /> Ver Perfil
                       </button>
-                    )}
-                    {puedeGestionar && (
-                      <button onClick={() => handleGestionar(cuenta)} className="flex-[2] py-2 text-xs font-bold text-white bg-amber-600 rounded-xl hover:bg-amber-700 transition-colors shadow-sm shadow-amber-600/20 flex items-center justify-center gap-1.5">
-                        <DollarSign className="h-3.5 w-3.5" />
-                        Asignar Mora
-                      </button>
-                    )}
-                  </div>
+                    </div>
+                  )}
                 </div>
               )
             })}
@@ -593,31 +565,11 @@ function CuentasMoraContent() {
         )}
       </div>
 
-      {/* Modales */}
-      {isGestionarOpen && selectedCuenta && (
-        <GestionarMoraModal
-          cuenta={{
-            id: selectedCuenta.id,
-            numeroPrestamo: selectedCuenta.numeroPrestamo,
-            saldoPendiente: selectedCuenta.montoTotalDeuda,
-            montoOriginal: selectedCuenta.montoOriginal,
-            diasMora: selectedCuenta.diasMora,
-            nivelMora: selectedCuenta.etiquetaMora || etiquetaMora(selectedCuenta.diasMora),
-            nivelRiesgo: selectedCuenta.nivelRiesgo,
-            interesActual: selectedCuenta.montoMora,
-            plazoActual: selectedCuenta.fechaVencimiento,
-            cobradorNombre: selectedCuenta.cobrador,
-          }}
-          onClose={() => setIsGestionarOpen(false)}
-          onConfirm={handleAplicarMora}
-        />
-      )}
-
       {isClientModalOpen && selectedClientId && (
         <ClientePortalModal
           clientId={selectedClientId}
           onClose={() => setIsClientModalOpen(false)}
-          rolUsuario={esCoordinador ? 'coordinador' : esContador ? 'contador' : 'admin'}
+          rolUsuario={rol === 'COORDINADOR' ? 'coordinador' : rol === 'CONTADOR' ? 'contador' : 'admin'}
         />
       )}
     </div>

@@ -10,9 +10,11 @@ export interface CreateCreditDto {
   tasaInteres: number;
   tasaInteresMora: number;
   plazoMeses: number;
+  cantidadCuotas?: number;
   frecuenciaPago: string;
   fechaInicio: string;
   creadoPorId: string;
+  notas?: string;
 }
 
 export interface LoanResponse {

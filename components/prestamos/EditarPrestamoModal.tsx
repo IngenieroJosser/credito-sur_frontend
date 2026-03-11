@@ -24,6 +24,40 @@ const formatCOPInput = (val: number | undefined) => {
 
 const parseCOP = (val: string) => Number(val.replace(/\D/g, ''));
 
+const calcularAmortizacionFrancesaPreview = (
+  capital: number,
+  tasaMensualPorc: number,
+  numCuotas: number,
+  frecuencia: string
+) => {
+  if (!capital || capital <= 0 || !numCuotas || numCuotas <= 0) {
+    return { cuotaFija: 0, interesTotal: 0, total: 0 };
+  }
+
+  const tasaMensual = (Number(tasaMensualPorc) || 0) / 100;
+  let fraccionMes = 1;
+  const f = String(frecuencia || '').toUpperCase();
+  if (f === 'DIARIO') fraccionMes = 1 / 30;
+  else if (f === 'SEMANAL') fraccionMes = 1 / 4;
+  else if (f === 'QUINCENAL') fraccionMes = 1 / 2;
+  else fraccionMes = 1;
+
+  const tasaPeriodo = Math.pow(1 + tasaMensual, fraccionMes) - 1;
+  if (tasaPeriodo === 0) {
+    const cuotaFija = capital / numCuotas;
+    return {
+      cuotaFija,
+      interesTotal: 0,
+      total: capital,
+    };
+  }
+
+  const cuotaFija = (capital * tasaPeriodo) / (1 - Math.pow(1 + tasaPeriodo, -numCuotas));
+  const total = cuotaFija * numCuotas;
+  const interesTotal = total - capital;
+  return { cuotaFija, interesTotal, total };
+};
+
 export default function EditarPrestamoModal({ id, onClose, onSuccess }: EditarPrestamoModalProps) {
   const { showNotification } = useNotification();
   const { refreshNotificaciones } = useNotificaciones();
@@ -32,6 +66,10 @@ export default function EditarPrestamoModal({ id, onClose, onSuccess }: EditarPr
   const [isEditing, setIsEditing] = useState(true);
   const [loading, setLoading] = useState(false);
   const [fetching, setFetching] = useState(true);
+
+  const [backendInteresTotal, setBackendInteresTotal] = useState(0);
+  const [backendTotalFinal, setBackendTotalFinal] = useState(0);
+  const [backendCuotaProyectada, setBackendCuotaProyectada] = useState(0);
 
   // Form state
   const [monto, setMonto] = useState(0);
@@ -85,10 +123,32 @@ export default function EditarPrestamoModal({ id, onClose, onSuccess }: EditarPr
   const isArticle = tipoPrestamo?.toUpperCase() === 'ARTICULO';
   const themeColor = isArticle ? 'orange' : 'blue';
 
-  // Computed preview
-  const interesTotal = isArticle ? 0 : (monto * tasa * (plazoMeses || 1)) / 100;
-  const totalRecaudar = isArticle ? monto : monto + interesTotal;
-  const cobroPorCuota = cuotas > 0 ? totalRecaudar / cuotas : 0;
+  const previewFrancesa = (!isArticle && hasChanges && tipoAmortizacion === 'FRANCESA')
+    ? calcularAmortizacionFrancesaPreview(monto, tasa, cuotas, frecuencia)
+    : null;
+
+  // Computed preview (si no hay cambios, usar backend para que coincida con el detalle)
+  const interesTotal = hasChanges
+    ? (isArticle
+      ? 0
+      : (tipoAmortizacion === 'FRANCESA'
+        ? Number(previewFrancesa?.interesTotal || 0)
+        : (monto * tasa * (plazoMeses || 1)) / 100))
+    : backendInteresTotal;
+
+  const totalRecaudar = hasChanges
+    ? (isArticle
+      ? monto
+      : (tipoAmortizacion === 'FRANCESA'
+        ? Number(previewFrancesa?.total || 0)
+        : monto + interesTotal))
+    : backendTotalFinal;
+
+  const cobroPorCuota = hasChanges
+    ? (tipoAmortizacion === 'FRANCESA'
+      ? Number(previewFrancesa?.cuotaFija || 0)
+      : (cuotas > 0 ? totalRecaudar / cuotas : 0))
+    : backendCuotaProyectada;
 
   useEffect(() => {
     setMounted(true);
@@ -103,6 +163,7 @@ export default function EditarPrestamoModal({ id, onClose, onSuccess }: EditarPr
       setFetching(true);
       try {
         const data = await prestamosService.obtenerPrestamoPorId(id);
+        const cuotasData = await prestamosService.obtenerCuotas(id).catch(() => []);
         const m = Number(data.monto) || 0;
         const t = Number(data.tasaInteres) || 0;
         const c = Number(data.cantidadCuotas) || 0;
@@ -115,6 +176,12 @@ export default function EditarPrestamoModal({ id, onClose, onSuccess }: EditarPr
         const n = data.notas || '';
         const g = data.garantia || '';
         const ta = data.tipoAmortizacion || 'INTERES_SIMPLE';
+
+        const interesBackend = Number(data.interesTotal || 0);
+        setBackendInteresTotal(interesBackend);
+        setBackendTotalFinal(((data.tipoPrestamo || '').toUpperCase() === 'ARTICULO') ? (m + ci) : (m + interesBackend));
+        const primeraCuota = Array.isArray(cuotasData) && cuotasData.length > 0 ? Number(cuotasData[0].monto || 0) : 0;
+        setBackendCuotaProyectada(primeraCuota);
 
         setMonto(m); setTasaStr(String(t)); setCuotasStr(String(c)); setPlazoMeses(p);
         setFrecuencia(f); setEstado(e); setTipoAmortizacion(ta);
@@ -421,6 +488,28 @@ export default function EditarPrestamoModal({ id, onClose, onSuccess }: EditarPr
                       </div>
                     )}
                   </div>
+
+                  {!isArticle && (
+                    <div className="space-y-1">
+                      <label className="text-[8px] text-slate-400 font-black uppercase tracking-widest block">Tipo de Interés</label>
+                      {isEditing ? (
+                        <select
+                          value={tipoAmortizacion}
+                          onChange={(e) => setTipoAmortizacion(e.target.value)}
+                          className="w-full bg-slate-50 border border-slate-100 text-slate-900 rounded-2xl px-4 py-2.5 text-base font-black outline-none focus:ring-2 focus:ring-blue-500/10 focus:bg-white"
+                        >
+                          <option value="INTERES_SIMPLE">Interés Simple</option>
+                          <option value="FRANCESA">Amortización Francesa (cuota fija)</option>
+                        </select>
+                      ) : (
+                        <p className="text-sm font-black text-slate-900">
+                          {tipoAmortizacion === 'FRANCESA'
+                            ? 'Amortización Francesa (cuota fija)'
+                            : 'Interés Simple'}
+                        </p>
+                      )}
+                    </div>
+                  )}
 
                   <div className="space-y-1">
                     <label className="text-[8px] text-slate-400 font-black uppercase tracking-widest block">Plazo Total (Meses)</label>
