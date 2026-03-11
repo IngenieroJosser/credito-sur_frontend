@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter, useSearchParams, usePathname } from 'next/navigation'
-import { BarChart3, Calendar, Eye, Loader2 } from 'lucide-react'
+import { BarChart3, Eye, Loader2 } from 'lucide-react'
 import { formatCurrency, cn } from '@/lib/utils'
 import { ExportButton } from '@/components/ui/ExportButton'
 import FiltroRuta from '@/components/filtros/FiltroRuta'
@@ -10,6 +10,7 @@ import DetalleReporteOperativoModal from '@/components/reportes/DetalleReporteOp
 import { TimeFilter, TimeFilterPeriod } from '@/components/ui/TimeFilter'
 import { useReportesCoordinador } from '@/hooks/useReportesCoordinador'
 import AnimacionCarga from '@/components/ui/AnimacionCarga'
+import { toast } from 'sonner'
 
 const ReportesCoordinador = () => {
   const router = useRouter()
@@ -51,10 +52,9 @@ const ReportesCoordinador = () => {
     setExporting(true)
     try {
       await exportReport({ period, routeId }, 'excel')
-      alert('✅ Reporte exportado en Excel exitosamente')
+      toast.success('Reporte Excel exportado correctamente')
     } catch (error) {
-      console.error('Error al exportar Excel:', error)
-      alert('❌ Error al exportar el reporte en Excel')
+      toast.error('Error al exportar el reporte en Excel')
     } finally {
       setExporting(false)
     }
@@ -64,10 +64,9 @@ const ReportesCoordinador = () => {
     setExporting(true)
     try {
       await exportReport({ period, routeId }, 'pdf')
-      alert('✅ Reporte exportado en PDF exitosamente')
+      toast.success('Reporte PDF exportado correctamente')
     } catch (error) {
-      console.error('Error al exportar PDF:', error)
-      alert('❌ Error al exportar el reporte en PDF')
+      toast.error('Error al exportar el reporte en PDF')
     } finally {
       setExporting(false)
     }

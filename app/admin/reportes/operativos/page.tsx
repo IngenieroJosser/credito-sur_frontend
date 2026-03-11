@@ -33,6 +33,7 @@ import { TimeFilter, TimeFilterPeriod } from '@/components/ui/TimeFilter'
 import type { RoutePerformance } from '@/services/reportes-coordinador-service'
 import { useReportesCoordinador } from '@/hooks/useReportesCoordinador'
 import { useNotificaciones } from '@/components/providers/NotificacionesProvider'
+import { toast } from 'sonner'
 
 const ReportesOperativosPage = () => {
   const router = useRouter()
@@ -77,10 +78,9 @@ const ReportesOperativosPage = () => {
     setExporting(true)
     try {
       await exportReport({ period, routeId: filterRuta || undefined }, 'excel')
-      alert('Reporte exportado exitosamente')
+      toast.success('Reporte Excel exportado correctamente')
     } catch (error) {
-      console.error('Error exporting Excel:', error);
-      alert('Error al exportar reporte')
+      toast.error('Error al exportar el reporte')
     } finally {
       setExporting(false)
     }
@@ -90,10 +90,9 @@ const ReportesOperativosPage = () => {
     setExporting(true)
     try {
       await exportReport({ period, routeId: filterRuta || undefined }, 'pdf')
-      alert('Reporte exportado exitosamente')
+      toast.success('Reporte PDF exportado correctamente')
     } catch (error) {
-       console.error('Error exporting PDF:', error);
-       alert('Error al exportar reporte')
+      toast.error('Error al exportar el reporte')
     } finally {
       setExporting(false)
     }

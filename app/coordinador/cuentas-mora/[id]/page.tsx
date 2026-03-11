@@ -4,7 +4,8 @@ import { use, useState, useEffect } from 'react';
 import { ChevronLeft, AlertCircle, Calendar, Phone, MapPin, User, ArrowRight, DollarSign } from 'lucide-react';
 import Link from 'next/link';
 import { formatCurrency, cn } from '@/lib/utils';
-import { loansService_ } from '@/services/loans-service';
+import { prestamosService } from '@/services/prestamos-service';
+import { toast } from 'sonner';
 
 interface CuentaMora {
   id: string;
@@ -34,7 +35,7 @@ export default function DetalleCuentaMoraPage({
     const fetchData = async () => {
       setLoading(true);
       try {
-        const data: any = await loansService_.obtenerDetallePrestamo(id);
+        const data: any = await prestamosService.obtenerPrestamoPorId(id);
         setCuenta({
           id,
           numeroPrestamo: data.numeroPrestamo || id,
@@ -111,7 +112,7 @@ export default function DetalleCuentaMoraPage({
                  <button
                    onClick={() => {
                      if (confirm('¿Está seguro de pasar esta cuenta a revisión del supervisor?')) {
-                       alert('Cuenta enviada al supervisor para revisión');
+                       toast.success('Cuenta enviada al supervisor para revisión');
                      }
                    }}
                    className="inline-flex items-center gap-2 px-3 py-2 bg-white border border-orange-200 text-orange-600 font-black rounded-xl hover:bg-orange-50 transition-all text-xs shadow-sm hover:shadow-md active:scale-95"

@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
-
+import { toast } from 'sonner';
 import { routesService } from '@/services/routes-service';
 import { clientesService, CrearClienteDto } from '@/services/clientes-service';
 import { NivelRiesgo } from '@/types/enums';
@@ -107,8 +107,7 @@ const ClienteFormPage = () => {
     e.preventDefault();
 
     if (isEditMode) {
-      alert('Funcionalidad de edición pendiente');
-      // TODO: Implementar actualización
+      toast.info('La funcionalidad de edición aún no está disponible');
     } else {
       ;(async () => {
         setIsSaving(true)
@@ -132,15 +131,14 @@ const ClienteFormPage = () => {
             creadoPorId: userData.id || undefined,
           }
           await clientesService.crear(nuevoCliente)
-          alert('Cliente creado exitosamente')
+          toast.success('Cliente creado exitosamente')
 
           const rolUsuario = userData.rol
           const destino = rolUsuario === 'COBRADOR' ? '/cobranzas' : '/admin/clientes'
 
           router.push(destino)
         } catch (error) {
-          console.error('Error al crear cliente:', error)
-          alert('Error al crear el cliente. Verifique los datos.')
+          toast.error('Error al crear el cliente. Verifique los datos.')
         } finally {
           setIsSaving(false)
         }

@@ -65,7 +65,7 @@ import GastoModal from '@/components/dashboards/shared/GastoModal'
 import BaseModal from '@/components/dashboards/shared/BaseModal'
 import DetalleMoraModal from '@/components/cobranza/DetalleMoraModal'
 import FloatingActionMenu, { FabAction } from '@/components/dashboards/shared/FloatingActionMenu'
-import { loansService_ } from '@/services/loans-service'
+import { prestamosService } from '@/services/prestamos-service'
 import { prestamosService } from '@/services/prestamos-service'
 import { pagosService } from '@/services/pagos-service'
 import { obtenerSaldoDisponibleRuta } from '@/services/contabilidad-service'
@@ -787,7 +787,7 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
       try {
         let detalle: any = null
         try {
-          detalle = await loansService_.obtenerDetallePrestamo(prestamoId)
+          detalle = await prestamosService.obtenerPrestamoPorId(prestamoId)
         } catch {
           detalle = null
         }

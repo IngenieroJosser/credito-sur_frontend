@@ -76,7 +76,7 @@ import { formatCurrency, resolveMediaUrl } from '@/lib/utils'
 import { rutasService, Ruta } from '@/services/rutas-service'
 import { registrarGasto, solicitarBase, obtenerSaldoDisponibleRuta } from '@/services/contabilidad-service'
 import { prestamosService } from '@/services/prestamos-service'
-import { loansService_ } from '@/services/loans-service'
+import { prestamosService } from '@/services/prestamos-service'
 import { reportesCoordinadorService } from '@/services/reportes-coordinador-service'
 import type { RouteDetailResponse } from '@/services/reportes-coordinador-service'
 import { clientesService, Cliente } from '@/services/clientes-service'
@@ -1788,7 +1788,7 @@ const VistaCobrador = () => {
       try {
         let detalle: any = null
         try {
-          detalle = await loansService_.obtenerDetallePrestamo(prestamoId)
+          detalle = await prestamosService.obtenerPrestamoPorId(prestamoId)
         } catch {
           detalle = null
         }
