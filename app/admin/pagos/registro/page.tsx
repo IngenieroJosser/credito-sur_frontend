@@ -85,13 +85,13 @@ const RegistroPagoPage = () => {
         id: data.id,
         numeroPrestamo: data.numeroPrestamo,
         clienteNombre: data.cliente
-          ? `${(data.cliente as any).nombres || ''} ${(data.cliente as any).apellidos || ''}`.trim()
+          ? `${data.cliente.nombres || ''} ${data.cliente.apellidos || ''}`.trim()
           : 'Cliente',
-        clienteId: (data.cliente as any)?.id || data.clienteId || '',
+        clienteId: data.cliente?.id || data.clienteId || '',
         saldoPendiente: Number(data.saldoPendiente ?? 0),
-        proximaCuota: (data as any).proximaCuotaFecha || undefined,
-        nivelRiesgo: (data as any).nivelRiesgo || undefined,
-        cobradorId: (data as any).cobradorId || undefined,
+        proximaCuota: data.proximaCuotaFecha || undefined,
+        nivelRiesgo: data.nivelRiesgo || undefined,
+        cobradorId: data.cobradorId || undefined,
       })
       // Pre-rellenar el monto con el total del saldo
       setMonto(formatCOPInputValue(String(Math.round(Number(data.saldoPendiente ?? 0)))))

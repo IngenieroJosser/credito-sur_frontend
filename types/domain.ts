@@ -53,8 +53,11 @@ export interface Cliente {
 
 export interface Prestamo {
   id: string;
+  numeroPrestamo: string;          // Código generado por el backend, ej: "P-2024-00125"
   clienteId: string;
   cliente?: Cliente;
+  cobradorId?: string | null;      // Cobrador asignado al préstamo
+  rutaId?: string | null;
   monto: number;
   saldoPendiente: number;
   tasaInteres: number;
@@ -62,8 +65,10 @@ export interface Prestamo {
   frecuenciaPago: FrecuenciaPago;
   cantidadCuotas: number;
   estado: EstadoPrestamo;
+  nivelRiesgo?: NivelRiesgo | null;
   fechaInicio: string;
   fechaFin?: string | null;
+  proximaCuotaFecha?: string | null; // Fecha de la próxima cuota a vencer
   tipoPrestamo?: string | null;
   descripcionArticulo?: string | null;
   cuotas?: Cuota[];
