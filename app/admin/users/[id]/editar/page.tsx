@@ -1,5 +1,5 @@
-import { logger } from '@/lib/logger'
 'use client'
+import { logger } from '@/lib/logger'
 
 import { use, useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
