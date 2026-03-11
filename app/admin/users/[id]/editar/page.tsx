@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger'
 'use client'
 
 import { use, useState, useEffect } from 'react'
@@ -35,7 +36,7 @@ export default function EditarUsuarioPage({ params }: { params: Promise<{ id: st
   // Simular carga de datos
   useEffect(() => {
     // Aquí iría la llamada a la API
-    console.log('Cargando usuario', id)
+    logger.log('Cargando usuario', id)
   }, [id])
 
   const roles = [
@@ -54,7 +55,7 @@ export default function EditarUsuarioPage({ params }: { params: Promise<{ id: st
     // Simular API
     await new Promise(resolve => setTimeout(resolve, 1000))
     
-    console.log('Usuario actualizado:', formData)
+    logger.log('Usuario actualizado:', formData)
     router.push('/users')
   }
 

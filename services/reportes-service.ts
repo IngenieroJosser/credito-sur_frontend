@@ -45,3 +45,4 @@ export const getExpenseDistribution = async (startDate?: string, endDate?: strin
 export const getFinancialTargets = async () => {
   return apiRequest<{ metaMargen: number | null }>('GET', `/reports/financial/targets`, undefined, { cacheTTL: 0 });
 };
+

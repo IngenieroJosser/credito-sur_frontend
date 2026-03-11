@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger'
 import { apiClient } from '@/lib/api/apiClient';
 import { apiRequest } from '@/lib/api/api';
 import { restoreOfflineSession } from '@/lib/auth/offlineAuth';
@@ -143,7 +144,7 @@ export const syncManager = {
 
   async downloadClientes(): Promise<number> {
     if (!navigator.onLine) {
-      console.warn('[Offline Sync] Sin conexión a internet, omitiendo descarga de clientes');
+      logger.warn('[Offline Sync] Sin conexión a internet, omitiendo descarga de clientes');
       return 0;
     }
 
@@ -153,12 +154,12 @@ export const syncManager = {
         const restored = restoreOfflineSession();
         token = restored?.token || null as any;
         if (!token) {
-          console.warn('[Offline Sync] No hay token de autenticación disponible');
+          logger.warn('[Offline Sync] No hay token de autenticación disponible');
           return 0;
         }
       }
 
-      console.log('[Offline Sync] Iniciando descarga de clientes...');
+      logger.log('[Offline Sync] Iniciando descarga de clientes...');
       const data = await apiRequest<any>('GET', '/clients', undefined, { timeout: 30000, cacheTTL: 0 });
 
       const clientes: OfflineCliente[] = (Array.isArray(data) ? data : data.clientes || []).map((c: any) => ({
@@ -179,7 +180,7 @@ export const syncManager = {
 
       await offlineStore.saveMany('clientes', clientes, true);
       await trackOfflineEvent('download', { storeName: 'clientes', recordCount: clientes.length });
-      console.log(`[Offline Sync] Descarga de clientes completada: ${clientes.length} registros`);
+      logger.log(`[Offline Sync] Descarga de clientes completada: ${clientes.length} registros`);
       return clientes.length;
     } catch (err: any) {
       const errorMessage = err?.message || err?.error?.message || 'Error desconocido';
@@ -194,7 +195,7 @@ export const syncManager = {
       
       // Si es un error de red, no lanzar excepción para evitar que detenga otras descargas
       if (statusCode === 0 || err?.code === 'ERR_NETWORK' || err?.message?.includes('Network Error')) {
-        console.warn('[Offline Sync] Error de red al descargar clientes. El servidor puede no estar disponible.');
+        logger.warn('[Offline Sync] Error de red al descargar clientes. El servidor puede no estar disponible.');
       }
       
       return 0;
@@ -379,7 +380,7 @@ export const syncManager = {
   // Limpiar todos los datos locales para forzar una resincronización limpia
   async clearLocalData(): Promise<void> {
     await offlineStore.clearAll();
-    console.log('[Offline Sync] Datos locales limpiados');
+    logger.log('[Offline Sync] Datos locales limpiados');
   },
 
   // Descargar todos los datos para uso offline
@@ -467,3 +468,4 @@ export const syncManager = {
     };
   },
 };
+

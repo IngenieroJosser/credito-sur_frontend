@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger'
 import { apiRequest } from "@/lib/api/api";
 import { syncService } from '@/lib/offline/syncService';
 
@@ -34,7 +35,7 @@ export const categoriasService = {
         error?.message?.includes('network') ||
         error?.code === 'ERR_NETWORK'
       ) {
-        console.log('[Offline Mode] Guardando creacion de categoria en cola...');
+        logger.log('[Offline Mode] Guardando creacion de categoria en cola...');
         return await syncService.enqueueOperation(
           'categoria_crear',
           '/categorias',
@@ -57,7 +58,7 @@ export const categoriasService = {
         error?.message?.includes('network') ||
         error?.code === 'ERR_NETWORK'
       ) {
-        console.log('[Offline Mode] Guardando eliminacion de categoria en cola...');
+        logger.log('[Offline Mode] Guardando eliminacion de categoria en cola...');
         await syncService.enqueueOperation(
           'categoria_eliminar',
           `/categorias/${id}`,
@@ -71,3 +72,5 @@ export const categoriasService = {
     }
   }
 };
+
+

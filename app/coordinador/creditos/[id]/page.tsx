@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger'
 'use client';
 
 import { useState, useEffect, use } from 'react';
@@ -68,7 +69,7 @@ export default function PrestamoDetallePage({
   
   const handlePassToSupervisor = () => {
     if (confirm('¿Está seguro de pasar esta cuenta a revisión del supervisor?')) {
-      console.log('Pasando cuenta', id, 'al supervisor');
+      logger.log('Pasando cuenta', id, 'al supervisor');
       alert('Cuenta enviada al supervisor para revisión');
     }
   };
@@ -184,3 +185,4 @@ export default function PrestamoDetallePage({
     </div>
   );
 }
+

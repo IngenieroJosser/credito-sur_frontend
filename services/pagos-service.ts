@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger'
 import { apiRequest } from '@/lib/api/api';
 import { syncService } from '@/lib/offline/syncService';
 import { MetodoPago } from '@/types/enums';
@@ -122,7 +123,7 @@ export const pagosService = {
         error?.message?.includes('network') ||
         error?.code === 'ERR_NETWORK'
       ) {
-         console.log('[Offline Mode] Guardando pago en cola...');
+         logger.log('[Offline Mode] Guardando pago en cola...');
          const tempId = `temp-pay-${Date.now()}`;
          
          await syncService.enqueueOperation(
@@ -164,3 +165,5 @@ export const pagosService = {
     }
   },
 };
+
+

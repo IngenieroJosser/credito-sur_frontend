@@ -68,3 +68,4 @@ export const auditoriaService = {
     return apiRequest<RegistroAuditoria>('POST', '/audit', data);
   }
 };
+

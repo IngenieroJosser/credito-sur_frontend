@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger'
 import { cookies } from 'next/headers';
 import { Cliente } from '@/services/clientes-service';
 
@@ -14,13 +15,13 @@ export async function getClientesData(): Promise<ClienteAdmin[]> {
 
     // Si no hay token en SSR, retornar vacío (el cliente cargará con el hook)
     if (!token) {
-      console.log('[SSR] No token found in cookies, returning empty array');
+      logger.log('[SSR] No token found in cookies, returning empty array');
       return [];
     }
 
     const apiUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3001';
     
-    console.log(`[SSR] Fetching clients from: ${apiUrl}/api-credisur/clients`);
+    logger.log(`[SSR] Fetching clients from: ${apiUrl}/api-credisur/clients`);
     
     // Server-side fetch needs absolute URL with the API prefix
     const res = await fetch(`${apiUrl}/api-credisur/clients`, {
@@ -32,7 +33,7 @@ export async function getClientesData(): Promise<ClienteAdmin[]> {
       cache: 'no-store', // Always fetch fresh data for admin panel
     });
 
-    console.log(`[SSR] Response status: ${res.status} ${res.statusText}`);
+    logger.log(`[SSR] Response status: ${res.status} ${res.statusText}`);
 
     if (!res.ok) {
       if (res.status === 401) {
@@ -46,7 +47,7 @@ export async function getClientesData(): Promise<ClienteAdmin[]> {
 
     const data = await res.json();
     const clientes = Array.isArray(data) ? data : (data.clientes || []);
-    console.log(`[SSR] Successfully fetched ${clientes.length} clients`);
+    logger.log(`[SSR] Successfully fetched ${clientes.length} clients`);
     return clientes;
     
   } catch (error) {
@@ -56,3 +57,4 @@ export async function getClientesData(): Promise<ClienteAdmin[]> {
     return [];
   }
 }
+

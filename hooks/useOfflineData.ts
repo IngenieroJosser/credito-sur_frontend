@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger'
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
@@ -33,7 +34,7 @@ function useOfflineStore<T>(
         setLoading(false);
         return;
       } catch (err) {
-        console.warn(`[useOfflineData] Fallo online para ${storeName}, usando offline:`, err);
+        logger.warn(`[useOfflineData] Fallo online para ${storeName}, usando offline:`, err);
       }
     }
 
@@ -111,3 +112,4 @@ export async function getOfflinePrestamosByCliente(clienteId: string): Promise<O
 export async function getOfflineClientesByRuta(rutaId: string): Promise<OfflineCliente[]> {
   return offlineStore.getByIndex<OfflineCliente>('clientes', 'by-rutaId', rutaId);
 }
+

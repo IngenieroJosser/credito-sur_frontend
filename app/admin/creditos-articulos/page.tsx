@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger'
 'use client'
 
 import { useState, useEffect } from 'react'
@@ -573,10 +574,11 @@ export default function CreditosArticulosPage() {
         onClose={() => setShowCrearCreditoModal(false)}
         defaultCreditType="articulo"
         onConfirm={(data) => {
-          console.log('Crédito artículo creado:', data);
+          logger.log('Crédito artículo creado:', data);
           setShowCrearCreditoModal(false);
         }}
       />
     </div>
   )
 }
+

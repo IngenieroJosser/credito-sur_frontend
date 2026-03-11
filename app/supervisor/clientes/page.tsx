@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger'
 
 'use client'
 
@@ -551,7 +552,7 @@ const ClientesSupervisorPage = () => {
         isOpen={showPagoModal}
         onClose={resetPagoModal}
         onConfirm={(data) => {
-          console.log('Pago registrado:', data)
+          logger.log('Pago registrado:', data)
           resetPagoModal()
         }}
         initialIsAbono={pagoInitialIsAbono}
@@ -562,7 +563,7 @@ const ClientesSupervisorPage = () => {
         isOpen={showCreditoModal}
         onClose={() => setShowCreditoModal(false)}
         onConfirm={(data) => {
-          console.log('Crédito creado:', data)
+          logger.log('Crédito creado:', data)
           setShowCreditoModal(false)
         }}
       />
@@ -571,7 +572,7 @@ const ClientesSupervisorPage = () => {
         isOpen={showGastoModal}
         onClose={() => setShowGastoModal(false)}
         onConfirm={(data) => {
-          console.log('Gasto supervisor:', data)
+          logger.log('Gasto supervisor:', data)
           setShowGastoModal(false)
         }}
       />
@@ -580,7 +581,7 @@ const ClientesSupervisorPage = () => {
         isOpen={showBaseModal}
         onClose={() => setShowBaseModal(false)}
         onConfirm={(data) => {
-          console.log('Base supervisor:', data)
+          logger.log('Base supervisor:', data)
           setShowBaseModal(false)
         }}
       />
@@ -589,7 +590,7 @@ const ClientesSupervisorPage = () => {
         <NuevoClienteModal
           onClose={() => setShowNewClientModal(false)}
           onClienteCreado={(nuevo) => {
-            console.log('Nuevo cliente creado:', nuevo)
+            logger.log('Nuevo cliente creado:', nuevo)
             setShowNewClientModal(false)
           }}
         />
@@ -727,3 +728,4 @@ const ClientesSupervisorPage = () => {
 }
 
 export default ClientesSupervisorPage
+

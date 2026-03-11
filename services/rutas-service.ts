@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger'
 import { apiRequest } from '@/lib/api/api';
 import { syncService } from '@/lib/offline/syncService';
 
@@ -128,7 +129,7 @@ export const rutasService = {
         error?.message?.includes('network') ||
         error?.code === 'ERR_NETWORK'
       ) {
-        console.log('[Offline Mode] Guardando creacion de ruta en cola...');
+        logger.log('[Offline Mode] Guardando creacion de ruta en cola...');
         return await syncService.enqueueOperation(
           'ruta_crear',
           '/routes',
@@ -154,7 +155,7 @@ export const rutasService = {
         error?.message?.includes('network') ||
         error?.code === 'ERR_NETWORK'
       ) {
-        console.log('[Offline Mode] Guardando actualizacion de ruta en cola...');
+        logger.log('[Offline Mode] Guardando actualizacion de ruta en cola...');
         return await syncService.enqueueOperation(
           'ruta_actualizar',
           `/routes/${id}`,
@@ -180,7 +181,7 @@ export const rutasService = {
         error?.message?.includes('network') ||
         error?.code === 'ERR_NETWORK'
       ) {
-        console.log('[Offline Mode] Guardando eliminacion de ruta en cola...');
+        logger.log('[Offline Mode] Guardando eliminacion de ruta en cola...');
         await syncService.enqueueOperation(
           'ruta_eliminar',
           `/routes/${id}`,
@@ -207,7 +208,7 @@ export const rutasService = {
         error?.message?.includes('network') ||
         error?.code === 'ERR_NETWORK'
       ) {
-        console.log('[Offline Mode] Guardando cambio de estado de ruta en cola...');
+        logger.log('[Offline Mode] Guardando cambio de estado de ruta en cola...');
         return await syncService.enqueueOperation(
           'ruta_toggle_activa',
           `/routes/${id}/toggle-active`,
@@ -236,7 +237,7 @@ export const rutasService = {
         error?.message?.includes('network') ||
         error?.code === 'ERR_NETWORK'
       ) {
-        console.log('[Offline Mode] Guardando asignacion de cliente a ruta en cola...');
+        logger.log('[Offline Mode] Guardando asignacion de cliente a ruta en cola...');
         await syncService.enqueueOperation(
           'ruta_asignar_cliente',
           `/routes/${rutaId}/assign-client`,
@@ -263,7 +264,7 @@ export const rutasService = {
         error?.message?.includes('network') ||
         error?.code === 'ERR_NETWORK'
       ) {
-        console.log('[Offline Mode] Guardando remocion de cliente de ruta en cola...');
+        logger.log('[Offline Mode] Guardando remocion de cliente de ruta en cola...');
         await syncService.enqueueOperation(
           'ruta_remover_cliente',
           `/routes/${rutaId}/remove-client/${clienteId}`,
@@ -294,7 +295,7 @@ export const rutasService = {
         error?.message?.includes('network') ||
         error?.code === 'ERR_NETWORK'
       ) {
-        console.log('[Offline Mode] Guardando movimiento de cliente entre rutas en cola...');
+        logger.log('[Offline Mode] Guardando movimiento de cliente entre rutas en cola...');
         await syncService.enqueueOperation(
           'ruta_mover_cliente',
           '/routes/move-client',
@@ -329,7 +330,7 @@ export const rutasService = {
         error?.message?.includes('network') ||
         error?.code === 'ERR_NETWORK'
       ) {
-        console.log('[Offline Mode] Guardando reordenamiento de clientes en cola...');
+        logger.log('[Offline Mode] Guardando reordenamiento de clientes en cola...');
         return await syncService.enqueueOperation(
           'ruta_reorder_clientes',
           `/routes/${rutaId}/reorder`,
@@ -342,3 +343,5 @@ export const rutasService = {
     }
   },
 };
+
+

@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger'
 'use client';
 
 import { useEffect, useState, useRef } from 'react';
@@ -374,7 +375,7 @@ export default function DashboardPage() {
         const isLatestRequest = requestId === requestCounterRef.current;
         
         if (!isMounted || !isPeriodStillActive) {
-          console.log(`[FRONTEND] Ignorando respuesta: período cambió`, {
+          logger.log(`[FRONTEND] Ignorando respuesta: período cambió`, {
             isMounted,
             isPeriodStillActive,
             requestId,
@@ -387,7 +388,7 @@ export default function DashboardPage() {
         
         // Si no es la petición más reciente pero el período coincide, también la ignoramos para evitar sobreescribir datos más nuevos
         if (!isLatestRequest) {
-          console.log(`[FRONTEND] Ignorando respuesta: no es la petición más reciente`, {
+          logger.log(`[FRONTEND] Ignorando respuesta: no es la petición más reciente`, {
             requestId,
             latestRequestId: requestCounterRef.current,
             currentPeriod,
@@ -397,7 +398,7 @@ export default function DashboardPage() {
           return;
         }
         
-        console.log(`[FRONTEND] Aplicando datos para período: ${requestedPeriod} (requestId: ${requestId})`);
+        logger.log(`[FRONTEND] Aplicando datos para período: ${requestedPeriod} (requestId: ${requestId})`);
         
         // Limpiar el registro de esta petición después de aplicarla
         requestPeriodMapRef.current.delete(requestId);
@@ -465,3 +466,4 @@ export default function DashboardPage() {
 
   return <DashboardClient data={state.dashboardData} />;
 }
+

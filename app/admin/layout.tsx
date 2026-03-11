@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger'
 'use client'
 
 /**
@@ -161,7 +162,7 @@ export default function AdminLayout({
       try {
         const res = await aprobacionesService.obtenerPendientes()
         setPendingRevisiones(res?.total ?? 0)
-      } catch (err) { console.warn('[Revisiones] No se pudo actualizar el badge de revisiones pendientes:', err) }
+      } catch (err) { logger.warn('[Revisiones] No se pudo actualizar el badge de revisiones pendientes:', err) }
     }
 
     fetchPending()
@@ -180,7 +181,7 @@ export default function AdminLayout({
         const res = await aprobacionesService.obtenerPendientes()
         setPendingRevisiones(res?.total ?? 0)
       } catch (err) {
-        console.warn('[Revisiones/WS] Error al actualizar badge desde WebSocket:', err);
+        logger.warn('[Revisiones/WS] Error al actualizar badge desde WebSocket:', err);
       }
     }
 
@@ -788,3 +789,4 @@ export default function AdminLayout({
     </div>
   )
 }
+

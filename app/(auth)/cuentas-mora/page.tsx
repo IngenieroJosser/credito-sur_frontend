@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger'
 'use client'
 
 /**
@@ -259,7 +260,7 @@ function CuentasMoraContent() {
       const items = await apiRequest<EstadisticasMora>('GET', '/reports/estadisticas-mora')
       setEstadisticas(items)
     } catch (err) {
-      console.warn('[CuentasMora] No se pudieron cargar las estadísticas de mora:', err)
+      logger.warn('[CuentasMora] No se pudieron cargar las estadísticas de mora:', err)
     } finally {
       setIsStatsLoading(false)
     }
@@ -642,3 +643,4 @@ export default function CuentasMoraPage() {
     </ProtectedPage>
   )
 }
+

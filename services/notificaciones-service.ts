@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger'
 import { apiRequest } from '@/lib/api/api';
 import { syncService } from '@/lib/offline/syncService';
 
@@ -58,7 +59,7 @@ export const notificacionesService = {
         error?.message?.includes('network') ||
         error?.code === 'ERR_NETWORK'
       ) {
-        console.log('[Offline Mode] Guardando marcar notificacion como leida en cola...');
+        logger.log('[Offline Mode] Guardando marcar notificacion como leida en cola...');
         await syncService.enqueueOperation(
           'notificacion_leer',
           `/notificaciones/${id}/read`,
@@ -84,3 +85,5 @@ export const notificacionesService = {
     );
   }
 };
+
+

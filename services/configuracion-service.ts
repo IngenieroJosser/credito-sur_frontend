@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger'
 import { apiRequest } from "@/lib/api/api";
 import { syncService } from '@/lib/offline/syncService';
 
@@ -35,7 +36,7 @@ class ConfiguracionService {
         error?.message?.includes('network') ||
         error?.code === 'ERR_NETWORK'
       ) {
-        console.log('[Offline Mode] Guardando actualizacion de configuracion en cola...');
+        logger.log('[Offline Mode] Guardando actualizacion de configuracion en cola...');
         return await syncService.enqueueOperation(
           'configuracion_actualizar',
           '/configuracion',
@@ -50,3 +51,5 @@ class ConfiguracionService {
 }
 
 export const configuracionService = new ConfiguracionService();
+
+

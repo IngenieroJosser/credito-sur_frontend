@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger'
 import axios from "axios";
 
 // URL Principal (VPS en la nube o servidor por defecto)
@@ -46,7 +47,7 @@ apiClient.interceptors.response.use(
     // Si el error es de red (desconexión, timeout) y no hemos reintentado ya con la red local
     if (!config._retry && (!error.response || error.code === 'ECONNABORTED' || error.message === 'Network Error')) {
       config._retry = true;
-      console.warn('Conexión al servidor principal (VPS) fallida. Conmutando automáticamente a la Red Local (LAN)...');
+      logger.warn('Conexión al servidor principal (VPS) fallida. Conmutando automáticamente a la Red Local (LAN)...');
       
       // Cambiar la base URL a la IP local de contingencia
       const originalPath = config.url?.replace(/^\//, ''); // quitar slash inicial si existe
@@ -55,7 +56,7 @@ apiClient.interceptors.response.use(
       
       try {
         const response = await axios(config);
-        console.log('Operación exitosa en servidor local (LAN).');
+        logger.log('Operación exitosa en servidor local (LAN).');
         return response;
       } catch (localError) {
         console.error('El servidor local (LAN) también es inaccesible. Modo Offline estricto activado.');
@@ -66,3 +67,4 @@ apiClient.interceptors.response.use(
     return Promise.reject(error);
   }
 );
+

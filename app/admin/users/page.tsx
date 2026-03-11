@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger'
 "use client";
 
 import React, { useState, useEffect } from "react";
@@ -468,8 +469,8 @@ const UserManagementPage = () => {
   };
 
   const handleOpenEditModal = (user: User) => {
-    console.log("[EDIT_MODAL] Abriendo modal para usuario:", user.id);
-    console.log("[EDIT_MODAL] SearchTerm actual:", searchTerm);
+    logger.log("[EDIT_MODAL] Abriendo modal para usuario:", user.id);
+    logger.log("[EDIT_MODAL] SearchTerm actual:", searchTerm);
 
     if (
       user.rol === RolUsuario.SUPER_ADMINISTRADOR &&
@@ -491,7 +492,7 @@ const UserManagementPage = () => {
     setSelectedPermissions(user.permisos);
     setIsEditModalOpen(true);
 
-    console.log("[EDIT_MODAL] Modal abierto, SearchTerm después:", searchTerm);
+    logger.log("[EDIT_MODAL] Modal abierto, SearchTerm después:", searchTerm);
   };
 
   const handleOpenDetailModal = (user: User) => {
@@ -1143,12 +1144,12 @@ const UserManagementPage = () => {
                 value={searchTerm}
                 onChange={(e) => {
                   const value = e.target.value;
-                  console.log("[SEARCH] Input onChange - valor:", value);
-                  console.log(
+                  logger.log("[SEARCH] Input onChange - valor:", value);
+                  logger.log(
                     "[SEARCH] Input onChange - evento:",
                     e.nativeEvent,
                   );
-                  console.log(
+                  logger.log(
                     "[SEARCH] Input onChange - inputType:",
                     (e.nativeEvent as any)?.inputType,
                   );
@@ -1158,7 +1159,7 @@ const UserManagementPage = () => {
                     value.toLowerCase() === "superadmin" &&
                     (e.nativeEvent as any)?.inputType === undefined
                   ) {
-                    console.log(
+                    logger.log(
                       '[SEARCH] ⚠️ Escritura automática detectada - bloqueando "superadmin"',
                     );
                     setSearchTerm("");
@@ -2993,3 +2994,4 @@ const UserManagementPage = () => {
 };
 
 export default UserManagementPage;
+

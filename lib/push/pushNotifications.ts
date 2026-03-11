@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger'
 /**
  * Sistema de Push Notifications para PWA
  * Maneja suscripción, permisos y envío de notificaciones push
@@ -73,12 +74,12 @@ export async function subscribeToPush(): Promise<PushSubscriptionData | null> {
     // Verificar permiso
     const permission = await requestNotificationPermission();
     if (permission !== 'granted') {
-      console.log('Permiso de notificaciones denegado');
+      logger.log('Permiso de notificaciones denegado');
       return null;
     }
 
     if (!VAPID_PUBLIC_KEY) {
-      console.warn('VAPID_PUBLIC_KEY no está configurada. Las notificaciones funcionales no están disponibles.');
+      logger.warn('VAPID_PUBLIC_KEY no está configurada. Las notificaciones funcionales no están disponibles.');
       return null;
     }
 
@@ -163,7 +164,7 @@ export async function showLocalNotification(
   options?: NotificationOptions
 ): Promise<void> {
   if (!('Notification' in window)) {
-    console.warn('Notificaciones no soportadas');
+    logger.warn('Notificaciones no soportadas');
     return;
   }
 
@@ -176,3 +177,4 @@ export async function showLocalNotification(
     });
   }
 }
+

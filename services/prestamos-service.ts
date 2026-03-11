@@ -1,8 +1,10 @@
+import { logger } from '@/lib/logger'
 import { apiRequest } from '@/lib/api/api';
 import { syncService } from '@/lib/offline/syncService';
 import { EstadoPrestamo, FrecuenciaPago, EstadoCuota } from '@/types/enums';
+import type { Prestamo } from '@/types/domain';
 
-export type { EstadoPrestamo, FrecuenciaPago, EstadoCuota };
+export type { EstadoPrestamo, FrecuenciaPago, EstadoCuota, Prestamo };
 
 export interface Cuota {
   id: string;
@@ -63,7 +65,7 @@ export interface EstadisticasPrestamos {
 }
 
 export interface RespuestaPrestamos {
-  prestamos: any[];
+  prestamos: Prestamo[];
   estadisticas: EstadisticasPrestamos;
   paginacion: {
     total: number;
@@ -96,15 +98,15 @@ export const prestamosService = {
   /**
    * Obtener un préstamo por ID
    */
-  async obtenerPrestamoPorId(id: string): Promise<any> {
-    return apiRequest('GET', `/loans/${id}`);
+  async obtenerPrestamoPorId(id: string): Promise<Prestamo> {
+    return apiRequest<Prestamo>('GET', `/loans/${id}`);
   },
 
   /**
    * Restaurar un préstamo eliminado
    */
-  async restaurarPrestamo(id: string): Promise<any> {
-    return apiRequest('PATCH', `/loans/${id}/restore`, {});
+  async restaurarPrestamo(id: string): Promise<Prestamo> {
+    return apiRequest<Prestamo>('PATCH', `/loans/${id}/restore`, {});
   },
 
   /**
@@ -120,7 +122,7 @@ export const prestamosService = {
         error?.message?.includes('network') ||
         error?.code === 'ERR_NETWORK'
       ) {
-        console.log('[Offline Mode] Guardando archivado de prestamo en cola...');
+        logger.log('[Offline Mode] Guardando archivado de prestamo en cola...');
         await syncService.enqueueOperation(
           'prestamo_archivar',
           `/loans/${prestamoId}/archive`,
@@ -150,7 +152,7 @@ export const prestamosService = {
         error?.message?.includes('network') ||
         error?.code === 'ERR_NETWORK'
       ) {
-         console.log('[Offline Mode] Guardando creacion de préstamo en cola...');
+         logger.log('[Offline Mode] Guardando creacion de préstamo en cola...');
          const tempId = `temp-loan-${Date.now()}`;
          
          await syncService.enqueueOperation(
@@ -191,7 +193,7 @@ export const prestamosService = {
         error?.message?.includes('network') ||
         error?.code === 'ERR_NETWORK'
       ) {
-        console.log('[Offline Mode] Guardando eliminacion de prestamo en cola...');
+        logger.log('[Offline Mode] Guardando eliminacion de prestamo en cola...');
         await syncService.enqueueOperation(
           'prestamo_eliminar',
           `/loans/${id}`,
@@ -225,7 +227,7 @@ export const prestamosService = {
         error?.message?.includes('network') ||
         error?.code === 'ERR_NETWORK'
       ) {
-        console.log('[Offline Mode] Guardando aprobacion de prestamo en cola...');
+        logger.log('[Offline Mode] Guardando aprobacion de prestamo en cola...');
         await syncService.enqueueOperation(
           'prestamo_aprobar',
           `/loans/${id}/approve`,
@@ -255,7 +257,7 @@ export const prestamosService = {
         error?.message?.includes('network') ||
         error?.code === 'ERR_NETWORK'
       ) {
-        console.log('[Offline Mode] Guardando rechazo de prestamo en cola...');
+        logger.log('[Offline Mode] Guardando rechazo de prestamo en cola...');
         await syncService.enqueueOperation(
           'prestamo_rechazar',
           `/loans/${id}/reject`,
@@ -307,7 +309,7 @@ export const prestamosService = {
         error?.message?.includes('network') ||
         error?.code === 'ERR_NETWORK'
       ) {
-        console.log('[Offline Mode] Guardando pago en cola...');
+        logger.log('[Offline Mode] Guardando pago en cola...');
         
         // El payload para la cola no debe ser FormData, sino el objeto plano
         // El syncManager se encargará de convertirlo si hay file
@@ -355,7 +357,7 @@ export const prestamosService = {
         error?.message?.includes('network') ||
         error?.code === 'ERR_NETWORK'
       ) {
-        console.log('[Offline Mode] Guardando reprogramacion de prestamo en cola...');
+        logger.log('[Offline Mode] Guardando reprogramacion de prestamo en cola...');
         await syncService.enqueueOperation(
           'prestamo_reprograr',
           `/loans/${prestamoId}/reschedule`,
@@ -396,7 +398,7 @@ export const prestamosService = {
         error?.message?.includes('network') ||
         error?.code === 'ERR_NETWORK'
       ) {
-        console.log('[Offline Mode] Guardando actualizacion de prestamo en cola...');
+        logger.log('[Offline Mode] Guardando actualizacion de prestamo en cola...');
         await syncService.enqueueOperation(
           'prestamo_actualizar',
           `/loans/${id}`,
@@ -447,4 +449,6 @@ export const prestamosService = {
     return apiRequest('PATCH', `/loans/reprogramaciones/${aprobacionId}/rechazar`, { comentarios });
   },
 };
+
+
 

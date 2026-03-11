@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger'
 'use client'
 
 import { useEffect, useState } from 'react'
@@ -143,7 +144,7 @@ export default function RegistrarPagoClienteSupervisorPage() {
 
     setEstadoEnvio('enviando')
     setTimeout(() => {
-      console.log('Registrar pago:', {
+      logger.log('Registrar pago:', {
         clienteId,
         productoId: producto?.id,
         monto: parseCOPInputToNumber(monto),
@@ -429,3 +430,4 @@ export default function RegistrarPagoClienteSupervisorPage() {
     </div>
   )
 }
+

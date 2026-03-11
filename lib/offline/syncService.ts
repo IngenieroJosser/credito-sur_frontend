@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger'
 import { offlineQueue } from './offlineQueue';
 import { syncManager } from './syncManager';
 import { checkRealConnectivity } from './connectivity';
@@ -13,10 +14,10 @@ export const syncService = {
   async processQueue() {
     const isOnline = await checkRealConnectivity();
     if (!isOnline) {
-      console.log('[SyncService] Sin conexión real. Abortando sync.');
+      logger.log('[SyncService] Sin conexión real. Abortando sync.');
       return;
     }
-    console.log('[SyncService] Sincronizando operaciones pendientes...');
+    logger.log('[SyncService] Sincronizando operaciones pendientes...');
     const result = await syncManager.processQueue();
 
     if (typeof window !== 'undefined') {
@@ -50,7 +51,7 @@ export const syncService = {
       priority: 'normal',
     });
 
-    console.log(`[SyncService] Operacion encolada: ${description}`);
+    logger.log(`[SyncService] Operacion encolada: ${description}`);
 
     if (typeof window !== 'undefined') {
       window.dispatchEvent(new CustomEvent('offline-queue-changed'));
@@ -64,3 +65,4 @@ export const syncService = {
     return item;
   },
 };
+

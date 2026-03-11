@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger'
 'use client'
 
 import { useState } from 'react'
@@ -555,7 +556,7 @@ const DetalleRutaPage = () => {
   const handleGuardarGasto = (e: React.FormEvent) => {
     e.preventDefault()
     const horaActual = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })
-    console.log('Guardando gasto:', { ...nuevoGasto, hora: horaActual })
+    logger.log('Guardando gasto:', { ...nuevoGasto, hora: horaActual })
     setIsGastoModalOpen(false)
     setNuevoGasto({ tipo: 'OPERATIVO', descripcion: '', valor: '' })
   }
@@ -1352,3 +1353,4 @@ function ClienteDetalleModal({ visita, onClose }: { visita: VisitaRuta; onClose:
 }
 
 export default DetalleRutaPage
+

@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger'
 'use client'
 
 import { useState, useCallback, useMemo, useEffect } from 'react'
@@ -167,7 +168,7 @@ const RutaClientLoaded = ({
           }
           return next;
         });
-      } catch (e) { console.warn('Error precargando montos de historial', e); }
+      } catch (e) { logger.warn('Error precargando montos de historial', e); }
     };
     cargarResumenRecaudos();
   }, [showHistory, rutaData?.id]);
@@ -180,11 +181,11 @@ const RutaClientLoaded = ({
     
     try {
       visitasResp = await rutasService.obtenerVisitasDelDia(rutaData.id, fechaClave);
-    } catch(e) { console.warn(`[Admin Historial ${fechaClave}] visitas falló:`, e); }
+    } catch(e) { logger.warn(`[Admin Historial ${fechaClave}] visitas falló:`, e); }
 
     try {
       saldo = await obtenerSaldoDisponibleRuta(rutaData.id, fechaClave);
-    } catch(e) { console.warn(`[Admin Historial ${fechaClave}] saldo falló:`, e); }
+    } catch(e) { logger.warn(`[Admin Historial ${fechaClave}] saldo falló:`, e); }
 
     try {
       const pagosResp = await pagosService.obtenerPagos({ limit: 5000 });
@@ -199,7 +200,7 @@ const RutaClientLoaded = ({
         const raw = p.fechaPago || p.creadoEn;
         return raw && toKey(raw) === fechaClave;
       });
-    } catch(e) { console.warn(`[Admin Historial ${fechaClave}] pagos falló:`, e); }
+    } catch(e) { logger.warn(`[Admin Historial ${fechaClave}] pagos falló:`, e); }
 
     try {
       const recaudadoPorCliente: Record<string, number> = {};
@@ -1610,3 +1611,4 @@ function ClienteDetalleModal({ visita, onClose }: { visita: VisitaRuta; onClose:
 }
 
 export default RutaClient
+

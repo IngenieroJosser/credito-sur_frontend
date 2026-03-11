@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger'
 import { apiRequest } from '@/lib/api/api';
 import { syncService } from '@/lib/offline/syncService';
 import { offlineStore } from '@/lib/offline/offlineDb';
@@ -106,7 +107,7 @@ export async function getCajas(): Promise<Caja[]> {
     return await apiRequest<Caja[]>('GET', '/accounting/cajas');
   } catch (error) {
     if (typeof navigator !== 'undefined' && !navigator.onLine) {
-      console.log('[Offline Mode] Cargando cajas desde cache local...');
+      logger.log('[Offline Mode] Cargando cajas desde cache local...');
       const cached = await offlineStore.getAll<Caja>('cajas');
       if (cached.length > 0) return cached;
     }
@@ -120,7 +121,7 @@ export async function getCajaById(id: string): Promise<Caja | null> {
     return await apiRequest<Caja>('GET', `/accounting/cajas/${id}`);
   } catch (error) {
     if (typeof navigator !== 'undefined' && !navigator.onLine) {
-       console.log('[Offline Mode] Buscando caja ID ' + id + ' en cache local...');
+       logger.log('[Offline Mode] Buscando caja ID ' + id + ' en cache local...');
        const cached = await offlineStore.getById<Caja>('cajas', id);
        if (cached) return cached;
     }
@@ -145,7 +146,7 @@ export async function createCaja(data: {
         error?.message?.includes('network') ||
         error?.code === 'ERR_NETWORK'
       ) {
-        console.log('[Offline Mode] Guardando creacion de caja en cola...');
+        logger.log('[Offline Mode] Guardando creacion de caja en cola...');
         await syncService.enqueueOperation(
           'caja_crear',
           '/accounting/cajas',
@@ -175,7 +176,7 @@ export async function updateCaja(id: string, data: {
         error?.message?.includes('network') ||
         error?.code === 'ERR_NETWORK'
       ) {
-        console.log('[Offline Mode] Guardando actualizacion de caja en cola...');
+        logger.log('[Offline Mode] Guardando actualizacion de caja en cola...');
         await syncService.enqueueOperation(
           'caja_actualizar',
           `/accounting/cajas/${id}`,
@@ -199,7 +200,7 @@ export async function consolidarCaja(cajaId: string, monto?: number) {
         error?.message?.includes('network') ||
         error?.code === 'ERR_NETWORK'
       ) {
-        console.log('[Offline Mode] Guardando consolidacion de caja en cola...');
+        logger.log('[Offline Mode] Guardando consolidacion de caja en cola...');
         await syncService.enqueueOperation(
           'caja_consolidar',
           `/accounting/cajas/${cajaId}/consolidar`,
@@ -263,7 +264,7 @@ export async function createTransaccion(data: {
       error?.message?.includes('network') ||
       error?.code === 'ERR_NETWORK'
     ) {
-      console.log('[Offline Mode] Guardando transacción en cola...');
+      logger.log('[Offline Mode] Guardando transacción en cola...');
       await syncService.enqueueOperation(
         'transaccion_crear', // Tipo más descriptivo
         '/accounting/transacciones',
@@ -387,7 +388,7 @@ export async function registrarArqueo(cajaId: string, data: {
       error?.message?.includes('network') ||
       error?.code === 'ERR_NETWORK'
     ) {
-      console.log('[Offline Mode] Guardando arqueo en cola...');
+      logger.log('[Offline Mode] Guardando arqueo en cola...');
       await syncService.enqueueOperation(
         'arqueo_registrar',
         `/accounting/cajas/${cajaId}/arqueos`,
@@ -440,7 +441,7 @@ export async function registrarGasto(data: {
       error?.message?.includes('network') ||
       error?.code === 'ERR_NETWORK'
     ) {
-      console.log('[Offline Mode] Guardando gasto en cola...');
+      logger.log('[Offline Mode] Guardando gasto en cola...');
       
       const payload: any = {
         descripcion: data.descripcion,
@@ -479,7 +480,7 @@ export async function solicitarBase(data: {
       error?.message?.includes('network') ||
       error?.code === 'ERR_NETWORK'
     ) {
-      console.log('[Offline Mode] Guardando solicitud de base en cola...');
+      logger.log('[Offline Mode] Guardando solicitud de base en cola...');
       await syncService.enqueueOperation(
         'base_solicitar',
         '/accounting/base-requests',
@@ -492,3 +493,5 @@ export async function solicitarBase(data: {
     throw error;
   }
 }
+
+

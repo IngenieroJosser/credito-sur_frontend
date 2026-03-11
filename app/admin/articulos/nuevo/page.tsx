@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger'
 'use client'
 
 import { useState } from 'react'
@@ -52,7 +53,7 @@ export default function NuevoArticuloPage() {
       stock: Number(formData.stock || '0'),
       stockMinimo: Number(formData.stockMinimo || '0'),
     }
-    console.log('Guardar artículo:', payload)
+    logger.log('Guardar artículo:', payload)
     // Simular guardado
     await new Promise(resolve => setTimeout(resolve, 1000))
     setLoading(false)

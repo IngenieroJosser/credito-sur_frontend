@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger'
 'use client'
 
 import React, { useState } from 'react'
@@ -70,7 +71,7 @@ const SolicitudesPage = () => {
     e.preventDefault()
     
     // Aquí iría la llamada a la API para guardar la solicitud
-    console.log('Enviando solicitud:', { monto: parseCOPInputToNumber(monto), descripcion })
+    logger.log('Enviando solicitud:', { monto: parseCOPInputToNumber(monto), descripcion })
     
     // Limpiamos y cerramos el formulario
     setShowForm(false)
@@ -310,3 +311,4 @@ const SolicitudesPage = () => {
 }
 
 export default SolicitudesPage
+

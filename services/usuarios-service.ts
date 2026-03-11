@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger'
 import { apiRequest } from '@/lib/api/api';
 import { syncService } from '@/lib/offline/syncService';
 import { offlineStore } from '@/lib/offline/offlineDb';
@@ -57,7 +58,7 @@ export const usuariosService = {
       return await apiRequest<Usuario[]>('GET', '/usuarios');
     } catch (error) {
        if (typeof navigator !== 'undefined' && !navigator.onLine) {
-        console.log('[Offline Mode] Cargando usuarios desde cache local...');
+        logger.log('[Offline Mode] Cargando usuarios desde cache local...');
         const cached = await offlineStore.getAll<Usuario>('usuarios');
         if (cached.length > 0) return cached;
       }
@@ -73,7 +74,7 @@ export const usuariosService = {
       return await apiRequest<Usuario>('GET', `/usuarios/${id}`);
     } catch (error) {
        if (typeof navigator !== 'undefined' && !navigator.onLine) {
-        console.log('[Offline Mode] Buscando usuario ID ' + id + ' en cache local...');
+        logger.log('[Offline Mode] Buscando usuario ID ' + id + ' en cache local...');
         const cached = await offlineStore.getById<Usuario>('usuarios', id);
         if (cached) return cached;
       }
@@ -94,14 +95,14 @@ export const usuariosService = {
         error?.message?.includes('network') ||
         error?.code === 'ERR_NETWORK'
       ) {
-        console.log('[Offline Mode] Guardando creacion de usuario en cola...');
+        logger.log('[Offline Mode] Guardando creacion de usuario en cola...');
         return await syncService.enqueueOperation(
           'usuario_crear',
           '/usuarios',
           'POST',
           data,
           'Crear usuario: ' + data.nombres + ' ' + data.apellidos
-        ) as any;
+        ) as unknown as Usuario;
       }
       throw error;
     }
@@ -120,14 +121,14 @@ export const usuariosService = {
         error?.message?.includes('network') ||
         error?.code === 'ERR_NETWORK'
       ) {
-        console.log('[Offline Mode] Guardando actualizacion de usuario en cola...');
+        logger.log('[Offline Mode] Guardando actualizacion de usuario en cola...');
         return await syncService.enqueueOperation(
           'usuario_actualizar',
           `/usuarios/${id}`,
           'PATCH',
           data,
           'Actualizar usuario ID: ' + id
-        ) as any;
+        ) as unknown as Usuario;
       }
       throw error;
     }
@@ -146,7 +147,7 @@ export const usuariosService = {
         error?.message?.includes('network') ||
         error?.code === 'ERR_NETWORK'
       ) {
-        console.log('[Offline Mode] Guardando eliminacion de usuario en cola...');
+        logger.log('[Offline Mode] Guardando eliminacion de usuario en cola...');
         await syncService.enqueueOperation(
           'usuario_eliminar',
           `/usuarios/${id}`,
@@ -173,7 +174,7 @@ export const usuariosService = {
         error?.message?.includes('network') ||
         error?.code === 'ERR_NETWORK'
       ) {
-        console.log('[Offline Mode] Guardando cambio de contraseña en cola...');
+        logger.log('[Offline Mode] Guardando cambio de contraseña en cola...');
         await syncService.enqueueOperation(
           'usuario_password',
           `/usuarios/${id}/password`,
@@ -200,7 +201,7 @@ export const usuariosService = {
         error?.message?.includes('network') ||
         error?.code === 'ERR_NETWORK'
       ) {
-        console.log('[Offline Mode] Guardando reset de contraseña en cola...');
+        logger.log('[Offline Mode] Guardando reset de contraseña en cola...');
         await syncService.enqueueOperation(
           'usuario_reset_password',
           `/usuarios/${id}/reset-password`,
@@ -227,14 +228,14 @@ export const usuariosService = {
         error?.message?.includes('network') ||
         error?.code === 'ERR_NETWORK'
       ) {
-        console.log('[Offline Mode] Guardando cambio de estado de usuario en cola...');
+        logger.log('[Offline Mode] Guardando cambio de estado de usuario en cola...');
         return await syncService.enqueueOperation(
           'usuario_toggle_estado',
           `/usuarios/${id}`,
           'PATCH',
           { estado },
           'Cambiar estado usuario ID: ' + id + ' a ' + estado
-        ) as any;
+        ) as unknown as Usuario;
       }
       throw error;
     }
@@ -253,7 +254,7 @@ export const usuariosService = {
         error?.message?.includes('network') ||
         error?.code === 'ERR_NETWORK'
       ) {
-        console.log('[Offline Mode] Guardando asignacion de permisos en cola...');
+        logger.log('[Offline Mode] Guardando asignacion de permisos en cola...');
         await syncService.enqueueOperation(
           'usuario_permisos',
           `/usuarios/${id}/permisos`,
@@ -267,3 +268,5 @@ export const usuariosService = {
     }
   }
 };
+
+

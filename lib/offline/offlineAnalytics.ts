@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger'
 /**
  * Analytics y métricas de uso offline
  * Registra estadísticas de operación offline para monitoreo y optimización
@@ -53,7 +54,7 @@ export async function trackOfflineEvent(
     // Guardar métrica (si el store existe)
     // Por ahora solo lo logueamos en desarrollo
     if (process.env.NODE_ENV === 'development') {
-      console.log('[Offline Analytics]', eventType, details);
+      logger.log('[Offline Analytics]', eventType, details);
     }
 
     // Actualizar estadísticas en localStorage
@@ -197,3 +198,4 @@ export function formatDuration(ms: number): string {
   if (ms < 3600000) return `${(ms / 60000).toFixed(1)}m`;
   return `${(ms / 3600000).toFixed(1)}h`;
 }
+

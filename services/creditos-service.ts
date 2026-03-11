@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger'
 import { apiRequest } from '@/lib/api/api';
 import { syncService } from '@/lib/offline/syncService';
 
@@ -77,7 +78,7 @@ class CreditosService {
         error?.message?.includes('network') ||
         error?.code === 'ERR_NETWORK'
       ) {
-        console.log('[Offline Mode] Guardando creacion de credito en cola...');
+        logger.log('[Offline Mode] Guardando creacion de credito en cola...');
         return await syncService.enqueueOperation(
           'prestamo_crear',
           'loans',
@@ -144,7 +145,7 @@ class CreditosService {
         error?.message?.includes('network') ||
         error?.code === 'ERR_NETWORK'
       ) {
-        console.log('[Offline Mode] Guardando aprobacion de credito en cola...');
+        logger.log('[Offline Mode] Guardando aprobacion de credito en cola...');
         return await syncService.enqueueOperation(
           'prestamo_aprobar',
           `loans/${id}/approve`,
@@ -172,7 +173,7 @@ class CreditosService {
         error?.message?.includes('network') ||
         error?.code === 'ERR_NETWORK'
       ) {
-        console.log('[Offline Mode] Guardando rechazo de credito en cola...');
+        logger.log('[Offline Mode] Guardando rechazo de credito en cola...');
         return await syncService.enqueueOperation(
           'prestamo_rechazar',
           `loans/${id}/reject`,
@@ -209,7 +210,7 @@ class CreditosService {
         error?.message?.includes('network') ||
         error?.code === 'ERR_NETWORK'
       ) {
-        console.log('[Offline Mode] Guardando eliminacion de credito en cola...');
+        logger.log('[Offline Mode] Guardando eliminacion de credito en cola...');
         return await syncService.enqueueOperation(
           'prestamo_eliminar',
           `loans/${id}`,
@@ -236,7 +237,7 @@ class CreditosService {
         error?.message?.includes('network') ||
         error?.code === 'ERR_NETWORK'
       ) {
-        console.log('[Offline Mode] Guardando restauracion de credito en cola...');
+        logger.log('[Offline Mode] Guardando restauracion de credito en cola...');
         return await syncService.enqueueOperation(
           'prestamo_restaurar',
           `loans/${id}/restore`,
@@ -252,3 +253,4 @@ class CreditosService {
 }
 
 export const creditosService = new CreditosService();
+

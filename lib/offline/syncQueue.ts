@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger'
 /**
  * Estructura de una operación offline
  */
@@ -45,7 +46,7 @@ export const syncQueue = {
     
     queue.push(newOp);
     localStorage.setItem(STORAGE_KEY, JSON.stringify(queue));
-    console.log(`[Offline] Operación encolada: ${newOp.type} (${newOp.id})`);
+    logger.log(`[Offline] Operación encolada: ${newOp.type} (${newOp.id})`);
     return newOp;
   },
 
@@ -84,3 +85,4 @@ export const syncQueue = {
     return syncQueue.getQueue().length > 0;
   }
 };
+

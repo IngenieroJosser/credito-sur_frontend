@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger'
 'use client';
 
 import { useState } from 'react';
@@ -27,7 +28,7 @@ export default function EditarPrestamoPage() {
       estado,
     };
     alert('Préstamo actualizado (Simulado)');
-    console.log('Actualizar préstamo:', id, payload);
+    logger.log('Actualizar préstamo:', id, payload);
     router.push(`/coordinador/creditos/${id}`);
   };
 
@@ -136,3 +137,4 @@ export default function EditarPrestamoPage() {
     </div>
   );
 }
+

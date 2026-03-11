@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger'
 'use client'
 
 /**
@@ -101,7 +102,7 @@ const LoginPage = () => {
   // bypassing Vercel's 10-second timeout limits.
   useEffect(() => {
     fetch('https://credito-sur-backend.onrender.com/api-credisur/auth', { method: 'GET' })
-      .catch((e) => console.log('Ping para despertar el backend enviado.'));
+      .catch((e) => logger.log('Ping para despertar el backend enviado.'));
   }, []);
 
   // Si ya hay sesión válida en localStorage, redirigir directo al dashboard
@@ -225,7 +226,7 @@ const LoginPage = () => {
         contrasena: formData.password.trim(),
       };
 
-      console.log('Iniciando proceso de login directo al backend...');
+      logger.log('Iniciando proceso de login directo al backend...');
       
       // 1. Enviamos petición directa a Render (el browser espera tranquilamente 60s)
       const res = await apiClient.post('/auth/login', payload, { timeout: 65000 });
@@ -262,11 +263,11 @@ const LoginPage = () => {
       // que estén disponibles si el usuario pierde internet más adelante.
       import('@/lib/offline/syncManager')
         .then(({ syncManager }) => {
-          console.log('[PWA] Iniciando descarga de datos offline en background...');
+          logger.log('[PWA] Iniciando descarga de datos offline en background...');
           return syncManager.downloadAll();
         })
         .then((counts) => {
-          console.log('[PWA] Datos offline actualizados:', counts);
+          logger.log('[PWA] Datos offline actualizados:', counts);
         })
         .catch(() => {
           // Silencioso: no afecta el login
@@ -721,3 +722,4 @@ export default function LoginPageWrapper() {
     </Suspense>
   );
 }
+

@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger'
 
 'use client'
 
@@ -747,7 +748,7 @@ export default function ClienteDetalleSupervisorPage() {
                 <form
                   onSubmit={(e) => {
                     e.preventDefault()
-                    console.log('Crear cliente:', { ...formularioNuevoCliente, fotos: fotosCliente })
+                    logger.log('Crear cliente:', { ...formularioNuevoCliente, fotos: fotosCliente })
                     resetNuevoClienteForm()
                   }}
                   className="space-y-4"
@@ -985,3 +986,4 @@ export default function ClienteDetalleSupervisorPage() {
     </div>
   )
 }
+
