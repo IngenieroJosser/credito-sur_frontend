@@ -102,17 +102,13 @@ export function DashboardClient({ data }: DashboardClientProps) {
   );
   usePageFocusRefresh(refreshDashboard, 60_000); // 60s throttle en dashboard (datos pesados)
 
-  // TODO: Exportar resumen del dashboard administrativo
-  // Qué exportar: Estadísticas generales, Cartera activa, Recaudo del día, Alertas
-  // Backend: Crear GET /dashboard/export?format=excel|pdf en dashboard.controller.ts
-  // Backend: Método exportDashboardSummary() en dashboard.service.ts usando ExcelJS + PDFKit
-  // Frontend: Usar exportService.downloadFile('dashboard/export', params, 'resumen-dashboard.xlsm')
+  // TODO: conectar con exportService cuando el backend implemente /dashboard/export
   const handleExportExcel = () => {
-    console.log('TODO: Exportar resumen dashboard en Excel');
+    // Exportación pendiente de implementación en backend
   };
 
   const handleExportPDF = () => {
-    console.log('TODO: Exportar resumen dashboard en PDF');
+    // Exportación pendiente de implementación en backend
   };
 
   // Formato de fecha amigable para el encabezado (ej: Vie, 6 Feb 2026)
@@ -297,20 +293,14 @@ export function DashboardClient({ data }: DashboardClientProps) {
       <CrearCreditoModal
         isOpen={showCrearCreditoModal}
         onClose={() => setShowCrearCreditoModal(false)}
-        onConfirm={(data) => {
-          console.log('Crédito creado:', data);
-          setShowCrearCreditoModal(false);
-        }}
+        onConfirm={() => setShowCrearCreditoModal(false)}
       />
 
       {/* Modal de Nuevo Cliente */}
       {showNuevoClienteModal && (
         <NuevoClienteModal
           onClose={() => setShowNuevoClienteModal(false)}
-          onClienteCreado={(nuevo) => {
-            console.log('Cliente creado:', nuevo);
-            setShowNuevoClienteModal(false);
-          }}
+          onClienteCreado={() => setShowNuevoClienteModal(false)}
         />
       )}
     </div>

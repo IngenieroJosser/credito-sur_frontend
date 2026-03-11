@@ -581,7 +581,6 @@ export const RutasPageView = ({
             <h1 className="text-4xl md:text-5xl font-bold tracking-tight">
               <span className="text-blue-600">Rutas y </span>
               <span className="text-orange-500">Cobradores</span>
-              <span className="text-[10px] align-top text-slate-300 ml-2 font-normal">(V4-Fixed)</span>
             </h1>
             <p className="text-slate-500 mt-1 font-medium text-sm max-w-2xl">
               Administra la asignación geográfica de clientes y monitorea el rendimiento de cada zona operativa.
