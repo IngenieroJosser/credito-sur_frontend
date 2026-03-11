@@ -881,7 +881,7 @@ const UserManagementPage = () => {
           await usuariosService.cambiarContrasena(selectedUser.id, {
             contrasenaNueva: passwordToSet,
           });
-          showNotification('success', 'Contrasena actualizada correctamente', 'Seguridad');
+          // No mostramos toast aquí — se mostrará uno solo al final con todo el resultado
         } catch (e) {
           showNotification('error', 'Fallo el cambio de contrasena', 'Error Critico');
           throw e;
@@ -921,14 +921,18 @@ const UserManagementPage = () => {
         }
       }
 
-      showNotification('success', 'Informacion de usuario actualizada', 'Exito');
+      // Toast final unificado (incluye si se cambió la contraseña)
+      const msg = formData.password && formData.password.trim() !== ''
+        ? 'Datos y contraseña actualizados correctamente'
+        : 'Información de usuario actualizada';
+      showNotification('success', msg, 'Éxito');
       setIsEditModalOpen(false);
       setSelectedUser(null);
       await fetchUsers();
     } catch (error: any) {
       const errorMsg = error?.response?.data?.message || error?.message || 'Error desconocido';
       if (formData.password && formData.password.trim() !== '') {
-        showNotification('warning', `Contrasena cambiada, pero fallo la actualizacion de datos: ${errorMsg}`, 'Actualizacion Parcial');
+        showNotification('warning', `Contraseña cambiada, pero falló la actualización de datos: ${errorMsg}`, 'Actualización Parcial');
       } else {
         showNotification('error', `No se pudo actualizar el usuario: ${errorMsg}`, 'Error');
       }
