@@ -14,6 +14,18 @@ export interface DetallePago {
   montoInteresMora: number;
 }
 
+export interface ArchivoMultimediaPago {
+  id: string;
+  tipoContenido: string;        // 'COMPROBANTE_TRANSFERENCIA' | 'RECIBO_PAGO' | etc.
+  tipoArchivo: string;          // mimetype
+  nombreOriginal: string | null;
+  url: string | null;
+  ruta: string | null;
+  formato: string | null;
+  tamanoBytes: number;
+  creadoEn: string;
+}
+
 export interface Pago {
   id: string;
   numeroPago: string;
@@ -26,8 +38,10 @@ export interface Pago {
   numeroReferencia: string | null;
   notas: string | null;
   detalles?: DetallePago[];
+  archivos?: ArchivoMultimediaPago[];  // Comprobantes de transferencia, etc.
   cliente?: { id: string; nombres: string; apellidos: string; dni?: string };
   cobrador?: { id: string; nombres: string; apellidos: string };
+  prestamo?: { id: string; numeroPrestamo: string; saldoPendiente: number };
   creadoEn: string;
   actualizadoEn: string;
 }

@@ -47,7 +47,21 @@ export const exportService = {
     window.URL.revokeObjectURL(downloadUrl);
   },
 
+  /**
+   * Export loans list as Excel or PDF
+   */
+  async exportLoans(
+    format: 'excel' | 'pdf',
+    filters: { estado?: string; ruta?: string; search?: string } = {},
+  ): Promise<void> {
+    const params: Record<string, string> = { format };
+    if (filters.estado && filters.estado !== 'todos') params.estado = filters.estado;
+    if (filters.ruta && filters.ruta !== 'todas') params.ruta = filters.ruta;
+    if (filters.search) params.search = filters.search;
 
+    const ext = format === 'excel' ? 'xlsm' : 'pdf';
+    await this.downloadFile('loans/export', params, `cartera-creditos.${ext}`);
+  },
 
   /**
    * Download a file from a backend POST endpoint
@@ -184,5 +198,11 @@ export const exportService = {
     await this.downloadFile('audit/export', params, `auditoria.${ext}`);
   },
 
+  /**
+   * Download article credit contract PDF
+   */
+  async exportContrato(loanId: string): Promise<void> {
+    await this.downloadFile(`loans/${loanId}/contrato`, {}, `contrato.pdf`);
+  },
 
 };

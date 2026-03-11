@@ -14,12 +14,17 @@ import {
   DollarSign,
   Briefcase,
   Calendar,
-  Layers
+  Layers,
+  Banknote,
+  FileImage,
+  ExternalLink,
+  RefreshCw,
 } from 'lucide-react'
 import { Portal } from '@/components/dashboards/shared/CobradorElements'
 import { formatCurrency, formatCOPInputValue, parseCOPInputToNumber, resolveMediaUrl } from '@/lib/utils'
 import { aprobacionesService } from '@/services/aprobaciones-service'
 import { articulosService } from '@/services/articulos-service'
+import { pagosService, Pago } from '@/services/pagos-service'
 import ConfirmApproveModal from '@/components/ui/ConfirmApproveModal'
 import ConfirmRejectModal from '@/components/ui/ConfirmRejectModal'
 
@@ -53,6 +58,10 @@ export default function NotificacionDetalleModal({
   const [autoCuotas, setAutoCuotas] = useState(true)
   const [esContado, setEsContado] = useState(false)
   const mouseDownTargetRef = useRef<EventTarget | null>(null)
+  // Estado para carga de datos del pago por transferencia
+  const [pagoDetalle, setPagoDetalle] = useState<Pago | null>(null)
+  const [isLoadingPago, setIsLoadingPago] = useState(false)
+  const [errorPago, setErrorPago] = useState<string | null>(null)
 
   React.useEffect(() => {
     if (notificacion) {
@@ -172,6 +181,38 @@ export default function NotificacionDetalleModal({
       setEsContado(initialEsContado)
     }
   }, [notificacion])
+
+  // ── Cargar detalle del pago cuando la notificación es de transferencia ──────
+  React.useEffect(() => {
+    if (!isOpen) return
+    const meta = typeof notificacion?.metadata === 'string'
+      ? JSON.parse(notificacion.metadata)
+      : (notificacion?.metadata || {})
+
+    const esPagoTransferencia =
+      notificacion?.entidad === 'PAGO' &&
+      (meta?.metodoPago === 'TRANSFERENCIA' || meta?.tieneComprobante === true)
+    const pagoId = meta?.pagoId || notificacion?.entidadId
+
+    if (!esPagoTransferencia || !pagoId) {
+      setPagoDetalle(null)
+      return
+    }
+
+    const cargar = async () => {
+      setIsLoadingPago(true)
+      setErrorPago(null)
+      try {
+        const datos = await pagosService.obtenerPagoPorId(pagoId)
+        setPagoDetalle(datos)
+      } catch (err: any) {
+        setErrorPago(err?.message || 'No se pudo cargar el comprobante')
+      } finally {
+        setIsLoadingPago(false)
+      }
+    }
+    cargar()
+  }, [isOpen, notificacion?.entidadId, notificacion?.entidad, notificacion?.metadata])
 
   React.useEffect(() => {
     if (isOpen && notificacion?.entidadId) {
@@ -331,6 +372,8 @@ export default function NotificacionDetalleModal({
     DOCUMENTO_IDENTIDAD_FRENTE: 'Documento Identidad (Frente)',
     DOCUMENTO_IDENTIDAD_REVERSO: 'Documento Identidad (Reverso)',
     COMPROBANTE_DOMICILIO: 'Comprobante de Domicilio',
+    COMPROBANTE_TRANSFERENCIA: 'Comprobante de Transferencia',
+    RECIBO_PAGO: 'Recibo de Pago',
   }
   const mensajeFmt = (mensaje || '').replace(/\bDNI\b/gi, 'CC')
 
@@ -419,6 +462,208 @@ export default function NotificacionDetalleModal({
       case 'SOLICITUD_DINERO': return 'bg-emerald-50 text-emerald-600 border-emerald-100'
       default: return 'bg-slate-50 text-slate-600 border-slate-100'
     }
+  }
+
+  // ── Panel especial para pagos por transferencia ───────────────────────────
+  const renderPagoTransferencia = () => {
+    const meta = typeof notificacion?.metadata === 'string'
+      ? JSON.parse(notificacion.metadata)
+      : (notificacion?.metadata || {})
+    const esPagoTransferencia =
+      notificacion?.entidad === 'PAGO' &&
+      (meta?.metodoPago === 'TRANSFERENCIA' || meta?.tieneComprobante === true)
+    if (!esPagoTransferencia) return null
+
+    const comprobantes = (pagoDetalle?.archivos || []).filter(
+      a => a.tipoContenido === 'COMPROBANTE_TRANSFERENCIA'
+    )
+
+    return (
+      <div className="mt-2 space-y-4">
+        {/* Resumen financiero del pago */}
+        <div className="bg-blue-50 rounded-2xl border border-blue-100 p-5">
+          <div className="flex items-center gap-2 mb-4 pb-3 border-b border-blue-100">
+            <div className="p-1.5 bg-blue-100 rounded-lg">
+              <Banknote className="h-4 w-4 text-blue-600" />
+            </div>
+            <p className="text-[10px] font-black uppercase tracking-widest text-blue-700">
+              Pago por Transferencia Bancaria
+            </p>
+            <span className="ml-auto text-[10px] font-bold bg-blue-200 text-blue-800 px-2 py-0.5 rounded-full">
+              TRANSFERENCIA
+            </span>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="col-span-2">
+              <p className="text-[9px] text-blue-500 uppercase font-black mb-0.5">Monto Pagado</p>
+              <p className="text-3xl font-black text-slate-900 tabular-nums">
+                {formatCurrency(meta?.monto || pagoDetalle?.montoTotal || 0)}
+              </p>
+            </div>
+            <div>
+              <p className="text-[9px] text-blue-500 uppercase font-black mb-0.5">N° Pago</p>
+              <p className="text-sm font-black text-slate-900">
+                {meta?.numeroPago || pagoDetalle?.numeroPago || '—'}
+              </p>
+            </div>
+            <div>
+              <p className="text-[9px] text-blue-500 uppercase font-black mb-0.5">N° Préstamo</p>
+              <p className="text-sm font-black text-slate-900">
+                {meta?.numeroPrestamo || pagoDetalle?.prestamo?.numeroPrestamo || '—'}
+              </p>
+            </div>
+            {(meta?.capitalRecuperado > 0 || meta?.interesRecuperado > 0) && (
+              <>
+                <div>
+                  <p className="text-[9px] text-blue-500 uppercase font-black mb-0.5">Capital</p>
+                  <p className="text-sm font-bold text-emerald-700">
+                    {formatCurrency(meta?.capitalRecuperado || 0)}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-[9px] text-blue-500 uppercase font-black mb-0.5">Interés</p>
+                  <p className="text-sm font-bold text-amber-700">
+                    {formatCurrency(meta?.interesRecuperado || 0)}
+                  </p>
+                </div>
+              </>
+            )}
+            {meta?.saldoNuevo !== undefined && (
+              <div className="col-span-2 p-3 bg-white/70 rounded-xl border border-blue-100">
+                <p className="text-[9px] text-blue-500 uppercase font-black mb-0.5">Saldo Pendiente Tras Pago</p>
+                <p className="text-lg font-black text-slate-900">{formatCurrency(meta?.saldoNuevo || 0)}</p>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Comprobante(s) de transferencia */}
+        <div className="bg-slate-50 rounded-2xl border border-slate-100 p-5">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <div className="p-1.5 bg-slate-200 rounded-lg">
+                <FileImage className="h-4 w-4 text-slate-600" />
+              </div>
+              <p className="text-[10px] font-black uppercase tracking-widest text-slate-600">
+                Comprobante de Transferencia
+              </p>
+            </div>
+            {isLoadingPago && (
+              <RefreshCw className="h-4 w-4 text-slate-400 animate-spin" />
+            )}
+          </div>
+
+          {isLoadingPago && (
+            <div className="flex flex-col items-center justify-center py-8 gap-2">
+              <RefreshCw className="h-6 w-6 text-blue-400 animate-spin" />
+              <p className="text-xs text-slate-400 font-medium">Cargando comprobante...</p>
+            </div>
+          )}
+
+          {errorPago && !isLoadingPago && (
+            <div className="flex items-center gap-2 p-3 bg-rose-50 rounded-xl border border-rose-100">
+              <AlertTriangle className="h-4 w-4 text-rose-500 shrink-0" />
+              <p className="text-xs text-rose-600 font-medium">{errorPago}</p>
+            </div>
+          )}
+
+          {!isLoadingPago && !errorPago && comprobantes.length === 0 && (
+            <div className="text-center py-6">
+              <FileImage className="h-8 w-8 text-slate-300 mx-auto mb-2" />
+              <p className="text-xs text-slate-400 font-medium">
+                {meta?.tieneComprobante
+                  ? 'El comprobante aún se está procesando'
+                  : 'No se adjuntó comprobante en este pago'}
+              </p>
+            </div>
+          )}
+
+          {!isLoadingPago && comprobantes.length > 0 && (
+            <div className="space-y-3">
+              {comprobantes.map((archivo, idx) => {
+                const url = archivo.url || archivo.ruta || ''
+                const fullUrl = resolveMediaUrl(url)
+                const mime = (archivo.tipoArchivo || '').toLowerCase()
+                const ext = (fullUrl.split('.').pop() || '').toLowerCase()
+                const isImage = mime.startsWith('image/') || /(jpg|jpeg|png|gif|webp)$/i.test(ext)
+                const isPdf = mime === 'application/pdf' || ext === 'pdf'
+
+                return (
+                  <div key={archivo.id || idx} className="border border-slate-200 rounded-2xl overflow-hidden bg-white">
+                    {/* Etiqueta */}
+                    <div className="px-3 py-2 flex items-center justify-between border-b border-slate-100 bg-slate-50">
+                      <span className="text-[10px] font-black text-slate-700 uppercase tracking-wide">
+                        {tipoLabels[archivo.tipoContenido] || 'Comprobante'}
+                      </span>
+                      <a
+                        href={fullUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-1 text-[10px] font-bold text-blue-500 hover:text-blue-700 transition-colors"
+                      >
+                        <ExternalLink className="h-3 w-3" />
+                        Abrir original
+                      </a>
+                    </div>
+
+                    {/* Vista previa imagen */}
+                    {isImage && (
+                      <a href={fullUrl} target="_blank" rel="noopener noreferrer">
+                        <img
+                          src={fullUrl}
+                          alt={archivo.nombreOriginal || 'Comprobante'}
+                          className="w-full max-h-80 object-contain bg-slate-100 hover:opacity-95 transition-opacity cursor-zoom-in"
+                        />
+                      </a>
+                    )}
+
+                    {/* Vista previa PDF */}
+                    {isPdf && (
+                      <div className="p-4 flex flex-col items-center gap-3">
+                        <div className="w-14 h-14 rounded-2xl bg-rose-100 flex items-center justify-center">
+                          <FileImage className="h-7 w-7 text-rose-500" />
+                        </div>
+                        <p className="text-xs text-slate-600 font-medium text-center">
+                          {archivo.nombreOriginal || 'comprobante.pdf'}
+                        </p>
+                        <a
+                          href={fullUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="px-4 py-2 rounded-xl bg-blue-600 text-white text-[11px] font-black uppercase tracking-widest hover:bg-blue-700 transition-colors"
+                        >
+                          Ver PDF
+                        </a>
+                      </div>
+                    )}
+
+                    {/* Otros archivos */}
+                    {!isImage && !isPdf && (
+                      <div className="p-3 text-xs text-slate-600 break-all">
+                        {archivo.nombreOriginal || url}
+                      </div>
+                    )}
+
+                    {/* Metadata del archivo */}
+                    <div className="px-3 py-2 border-t border-slate-100 flex items-center justify-between">
+                      <span className="text-[10px] text-slate-400">
+                        {archivo.tamanoBytes > 0 ? `${(archivo.tamanoBytes / 1024).toFixed(0)} KB` : ''}
+                      </span>
+                      <span className="text-[10px] text-slate-400">
+                        {new Date(archivo.creadoEn).toLocaleString('es-CO', {
+                          day: '2-digit', month: 'short', year: 'numeric',
+                          hour: '2-digit', minute: '2-digit'
+                        })}
+                      </span>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </div>
+      </div>
+    )
   }
 
   const renderMedia = () => {
@@ -1007,6 +1252,9 @@ export default function NotificacionDetalleModal({
               )}
 
               {isPrestamo ? renderPrestamo() : null}
+
+              {/* Panel de pago por transferencia (carga el comprobante dinámicamente) */}
+              {renderPagoTransferencia()}
             </div>
 
             {/* Historial de Aprobación */}
