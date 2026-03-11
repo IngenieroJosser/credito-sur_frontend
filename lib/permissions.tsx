@@ -86,6 +86,7 @@ export const permisosPorRol: Record<Rol, ModuloPermiso[]> = {
       roles: ['SUPER_ADMINISTRADOR'],
       submodulos: [
         { id: 'contable', nombre: 'Movimientos', icono: 'Calculator', path: '/contable', roles: ['SUPER_ADMINISTRADOR', 'CONTADOR'] },
+        { id: 'pagos-historial', nombre: 'Historial de pagos', icono: 'Receipt', path: '/admin/pagos/historial', roles: ['SUPER_ADMINISTRADOR', 'CONTADOR'], isNew: true },
         { id: 'arqueo', nombre: 'Arqueo de Caja', icono: 'History', path: '/contable/cierre-caja', roles: ['SUPER_ADMINISTRADOR', 'CONTADOR'], isNew: true },
         { id: 'reportes-financieros', nombre: 'Reportes financieros', icono: 'BarChart3', path: '/admin/reportes/financieros', roles: ['SUPER_ADMINISTRADOR', 'CONTADOR'] },
       ]
@@ -152,6 +153,7 @@ export const permisosPorRol: Record<Rol, ModuloPermiso[]> = {
       roles: ['SUPER_ADMINISTRADOR', 'ADMIN'],
       submodulos: [
         { id: 'contable', nombre: 'Movimientos', icono: 'Calculator', path: '/contable', roles: ['SUPER_ADMINISTRADOR', 'ADMIN', 'CONTADOR'] },
+        { id: 'pagos-historial', nombre: 'Historial de pagos', icono: 'Receipt', path: '/admin/pagos/historial', roles: ['SUPER_ADMINISTRADOR', 'ADMIN', 'CONTADOR'], isNew: true },
         { id: 'arqueo', nombre: 'Arqueo de Caja', icono: 'History', path: '/contable/cierre-caja', roles: ['SUPER_ADMINISTRADOR', 'ADMIN'], isNew: true },
         { id: 'reportes-financieros', nombre: 'Reportes financieros', icono: 'BarChart3', path: '/admin/reportes/financieros', roles: ['SUPER_ADMINISTRADOR', 'ADMIN', 'CONTADOR'], isNew: true },
       ]
@@ -252,6 +254,7 @@ export const permisosPorRol: Record<Rol, ModuloPermiso[]> = {
       roles: ['CONTADOR'],
       submodulos: [
         { id: 'contable', nombre: 'Movimientos', icono: 'Calculator', path: '/contable', roles: ['CONTADOR'] },
+        { id: 'pagos-historial', nombre: 'Historial de pagos', icono: 'Receipt', path: '/admin/pagos/historial', roles: ['CONTADOR'], isNew: true },
         { id: 'arqueo', nombre: 'Arqueo de Caja', icono: 'Landmark', path: '/contable/cierre-caja', roles: ['CONTADOR'], isNew: true },
       ]
     },

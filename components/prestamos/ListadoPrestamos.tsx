@@ -22,7 +22,8 @@ import {
   Edit2,
   Trash2,
   RefreshCw,
-  Loader2
+  Loader2,
+  FileDown
 } from 'lucide-react';
 import { formatCurrency, cn } from '@/lib/utils';
 import FiltroRuta from '@/components/filtros/FiltroRuta';
@@ -216,6 +217,16 @@ const ListadoPrestamosElegante = () => {
       showNotification('success', 'Archivo descargado correctamente', 'Exportación Exitosa');
     } catch (err) {
       showNotification('error', 'Error al exportar. Intente de nuevo.', 'Error');
+    }
+  };
+
+  const handleExportPaymentsByPrestamo = async (prestamoId: string) => {
+    try {
+      showNotification('info', 'Generando Historial de Pagos...', 'Exportando');
+      await exportService.exportPayments('pdf', { prestamoId });
+      showNotification('success', 'Historial guardado exitosamente', 'Exito');
+    } catch(err) {
+      showNotification('error', 'No se pudo exportar el historial de pagos', 'Error');
     }
   };
 
@@ -584,6 +595,13 @@ const ListadoPrestamosElegante = () => {
                               <Edit2 className="h-4 w-4" />
                             </button>
                           ) : null}
+                          <button 
+                            onClick={(e) => { e.stopPropagation(); handleExportPaymentsByPrestamo(prestamo.id); }}
+                            className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-all"
+                            title="Exportar Historial Pagos (PDF)"
+                          >
+                            <FileDown className="h-4 w-4" />
+                          </button>
                           {can('CREDITOS_DELETE') || can('LOANS_DELETE') || canForPath(baseRoute) ? (
                             <button 
                               onClick={() => setPrestamoAEliminar(prestamo.id)}
@@ -733,6 +751,13 @@ const ListadoPrestamosElegante = () => {
                       <Edit2 className="h-4 w-4" />
                     </button>
                   ) : null}
+                  <button 
+                    onClick={(e) => { e.stopPropagation(); handleExportPaymentsByPrestamo(prestamo.id); }}
+                    className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-all"
+                    title="Exportar Historial Pagos (PDF)"
+                  >
+                    <FileDown className="h-4 w-4" />
+                  </button>
                   {can('CREDITOS_DELETE') || can('LOANS_DELETE') || canForPath(baseRoute) ? (
                     <button 
                       onClick={() => setPrestamoAEliminar(prestamo.id)}

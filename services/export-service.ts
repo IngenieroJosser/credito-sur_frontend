@@ -167,12 +167,13 @@ export const exportService = {
    */
   async exportPayments(
     format: 'excel' | 'pdf',
-    filters: { startDate?: string; endDate?: string; rutaId?: string } = {},
+    filters: { startDate?: string; endDate?: string; rutaId?: string; prestamoId?: string } = {},
   ): Promise<void> {
     const params: Record<string, string> = { format };
     if (filters.startDate) params.startDate = filters.startDate;
     if (filters.endDate) params.endDate = filters.endDate;
     if (filters.rutaId) params.rutaId = filters.rutaId;
+    if (filters.prestamoId) params.prestamoId = filters.prestamoId;
     const ext = format === 'excel' ? 'xlsx' : 'pdf';
     await this.downloadFile('payments/export', params, `historial-pagos.${ext}`);
   },
