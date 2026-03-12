@@ -702,7 +702,7 @@ export const obtenerModulos = (rol: Rol, sidebarData?: SidebarModulo[]): ModuloP
   };
 
   const ensureCuratedAdminModules = (modulos: ModuloPermiso[]): ModuloPermiso[] => {
-    if (rol !== 'SUPER_ADMINISTRADOR' && rol !== 'ADMIN' && rol !== 'COORDINADOR') return modulos;
+    if (rol !== 'SUPER_ADMINISTRADOR' && rol !== 'ADMIN' && rol !== 'COORDINADOR' && rol !== 'SUPERVISOR') return modulos;
 
     const curated = obtenerModulosPorRol(rol);
     const curatedRevisiones = curated.find((m) => m.id === 'revisiones');

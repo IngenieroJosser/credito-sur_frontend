@@ -371,7 +371,11 @@ export const syncManager = {
       await offlineStore.saveMany('usuarios', usuarios, true);
       await trackOfflineEvent('download', { storeName: 'usuarios', recordCount: usuarios.length });
       return usuarios.length;
-    } catch (err) {
+    } catch (err: any) {
+      if (err?.statusCode === 403 || err?.message?.includes('403') || err?.message?.toLowerCase().includes('forbidden')) {
+        logger.log('[Offline Sync] Descarga de usuarios omitida por permisos (SUPERVISOR/COBRADOR).');
+        return 0;
+      }
       console.error('[Offline Sync] Error descargando usuarios:', err);
       return 0;
     }
