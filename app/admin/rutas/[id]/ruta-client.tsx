@@ -457,6 +457,12 @@ const RutaClientLoaded = ({
           }, 0);
           
           const totalHistorico = pagosCalc.reduce((sum: number, p: any) => sum + Number(p.montoTotal || 0), 0);
+
+          let ultimoPagoDate = 0;
+          pagosCalc.forEach((p: any) => {
+            const d = new Date(p.fechaPago || p.creadoEn).getTime();
+            if (!isNaN(d) && d > ultimoPagoDate) ultimoPagoDate = d;
+          });
           
           // 2. Obtener Cuotas para actualizar fecha y monto real
           let montoCuotaReal = v.montoCuota;
@@ -493,13 +499,14 @@ const RutaClientLoaded = ({
             ...v, 
             recaudadoDelDia: totalHoy, 
             recaudadoTotalClient: totalHistorico, 
+            fechaUltimoPago: ultimoPagoDate,
             montoCuota: cuotaComparar,
             proximaVisita: fechaReal,
             estado: nuevoEstado 
           };
         } catch (error) {
           console.error("Error en enriquecerConPagos (Admin):", error);
-          return { ...v, recaudadoDelDia: 0, recaudadoTotalClient: 0 };
+          return { ...v, recaudadoDelDia: 0, recaudadoTotalClient: 0, fechaUltimoPago: 0 };
         }
       }));
       setVisitasCobrador(actualizadas);
@@ -523,6 +530,20 @@ const RutaClientLoaded = ({
     if (periodoRutaFiltro !== 'TODOS') {
         filtradas = filtradas.filter(v => v.periodoRuta === periodoRutaFiltro);
     }
+
+    filtradas.sort((a: any, b: any) => {
+      // 1. Los "pagados" van al final
+      if (a.estado === 'pagado' && b.estado !== 'pagado') return 1;
+      if (a.estado !== 'pagado' && b.estado === 'pagado') return -1;
+      
+      // 2. Ordenar por fechaUltimoPago (más antigua primero, es decir, el que más tiempo lleva sin pagar va arriba)
+      if (a.fechaUltimoPago !== b.fechaUltimoPago) {
+        return (a.fechaUltimoPago || 0) - (b.fechaUltimoPago || 0);
+      }
+      
+      // 3. Fallback a ordenVisita
+      return a.ordenVisita - b.ordenVisita;
+    });
 
     const exportarRutaDiariaCSV = async () => {
       try {
