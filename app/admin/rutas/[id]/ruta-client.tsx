@@ -114,6 +114,7 @@ const RutaClientLoaded = ({
   // Estados para filtros y historial (Portados de VistaCobrador)
   const [periodoRutaFiltro, setPeriodoRutaFiltro] = useState<'TODOS' | 'DIA' | 'SEMANA' | 'QUINCENA' | 'MES'>('TODOS')
   const [showHistory, setShowHistory] = useState(false)
+  const [showMisClientes, setShowMisClientes] = useState(false)
   const [historialRutas, setHistorialRutas] = useState<any>(null)
   const [historyViewMode, setHistoryViewMode] = useState<'DAYS' | 'MONTHS'>('DAYS')
   const [selectedHistoryDate, setSelectedHistoryDate] = useState<string | null>(null)
@@ -665,6 +666,73 @@ const RutaClientLoaded = ({
   const { estadisticas, nivelRiesgo } = initialRuta;
   const porcentajeProgreso = estadisticas.avanceDiario || 0;
 
+  const [misCreditos, setMisCreditos] = useState<VisitaRuta[]>([])
+  const [loadingMisCreditos, setLoadingMisCreditos] = useState(false)
+
+  const cargarMisCreditos = useCallback(async () => {
+    if (!initialRuta?.cobradorId) return
+    try {
+      setLoadingMisCreditos(true)
+      const resp = await rutasService.obtenerCreditosAsignadosACobrador(initialRuta.cobradorId)
+      const raw = (resp as any)?.data
+      const filas = Array.isArray(raw) ? raw : []
+      if (!Array.isArray(raw)) {
+        console.warn('Mis clientes: respuesta inesperada en obtenerCreditosAsignadosACobrador', resp)
+      }
+      const mapped: VisitaRuta[] = filas.map((row: any, idx: number) => {
+        const c = row?.cliente || {}
+        const p = row?.prestamo || {}
+        const prox = p?.proximaCuota || null
+        const esArticulo = p?.tipo === 'ARTICULO'
+        const toNivel = (nivel: string) => {
+          if (nivel === 'VERDE') return 'bajo'
+          if (nivel === 'AMARILLO') return 'precaucion'
+          if (nivel === 'ROJO') return 'moderado'
+          if (nivel === 'LISTA_NEGRA') return 'critico'
+          return 'bajo'
+        }
+        return {
+          id: `${row?.asignacionId || 'asig'}-${p?.id || idx}`,
+          cliente: `${c?.nombres || ''} ${c?.apellidos || ''}`.trim() || 'Cliente',
+          direccion: c?.direccion || 'Sin dirección registrada',
+          telefono: c?.telefono || '',
+          horaSugerida: '08:00 AM',
+          montoCuota: Number(prox?.monto || 0),
+          saldoTotal: Number(p?.saldoPendiente || 0),
+          estado: 'pendiente' as any,
+          proximaVisita: row?.prestamo?.fechaEfectiva || prox?.fechaVencimiento || new Date().toISOString().split('T')[0],
+          ordenVisita: Number(row?.ordenVisita || idx + 1),
+          prioridad: 'media' as any,
+          nivelRiesgo: toNivel(c?.nivelRiesgo || 'VERDE') as any,
+          cobradorId: initialRuta.cobradorId,
+          periodoRuta: (() => {
+            const f = p?.frecuenciaPago || 'DIARIO'
+            if (f === 'DIARIO') return 'DIA'
+            if (f === 'SEMANAL') return 'SEMANA'
+            if (f === 'QUINCENAL') return 'QUINCENA'
+            if (f === 'MENSUAL') return 'MES'
+            return 'DIA'
+          })() as any,
+          clienteId: c?.id || '',
+          prestamoId: p?.id || '',
+          tipoPrestamo: esArticulo ? 'ARTICULO' : 'EFECTIVO',
+          articuloNombre: esArticulo ? (p?.articulo || 'Artículo') : 'Préstamo',
+        } as any
+      })
+      setMisCreditos(mapped)
+    } catch (e: any) {
+      console.error('Error cargando mis clientes (ruta admin):', e)
+      toast.error('No se pudieron cargar los clientes asignados.')
+    } finally {
+      setLoadingMisCreditos(false)
+    }
+  }, [initialRuta?.cobradorId])
+
+  useEffect(() => {
+    if (!showMisClientes) return
+    cargarMisCreditos()
+  }, [showMisClientes, cargarMisCreditos])
+
 
   return (
     <div className="min-h-screen bg-slate-50 relative pb-20">
@@ -731,7 +799,10 @@ const RutaClientLoaded = ({
               {/* Botones de Acción y Navegación (Estilo Cobrador) */}
               <div className="mt-4 border-t border-slate-100 pt-4 flex flex-wrap items-center gap-2 overflow-x-auto pb-1">
                   <button 
-                    onClick={() => setShowHistory(false)}
+                    onClick={() => {
+                      setShowHistory(false)
+                      setShowMisClientes(false)
+                    }}
                     className={`px-4 py-2 border rounded-xl flex items-center gap-2 font-medium shadow-sm transition-colors ${
                       !showHistory 
                         ? 'bg-[#08557f] text-white border-[#08557f]' 
@@ -752,6 +823,21 @@ const RutaClientLoaded = ({
                   >
                     <History className="h-4 w-4" />
                     <span className="hidden md:inline">Historial</span>
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      setShowMisClientes(true)
+                      setShowHistory(false)
+                    }}
+                    className={`px-4 py-2 border rounded-xl flex items-center gap-2 font-medium shadow-sm transition-colors ${
+                      showMisClientes
+                        ? 'bg-[#08557f] text-white border-[#08557f]'
+                        : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+                    }`}
+                  >
+                    <User className="h-4 w-4" />
+                    <span className="hidden md:inline">Mis clientes</span>
                   </button>
 
                   {!rutaCompletada && !showHistory && (
@@ -791,7 +877,7 @@ const RutaClientLoaded = ({
               </div>
 
               {/* Filtros de Periodo (Estilo Cobrador Exacto) */}
-              {!showHistory && (
+              {!showHistory && !showMisClientes && (
                 <div className="mt-4 pt-4 border-t border-slate-200">
                   <div className="flex flex-col md:flex-row gap-3 md:items-center md:justify-between">
                     <div className="text-xs font-bold text-slate-500 uppercase tracking-wider">Período de ruta</div>
@@ -1030,6 +1116,74 @@ const RutaClientLoaded = ({
                      </div>
                    )}
                 </div>
+              </div>
+            ) : showMisClientes ? (
+              <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-300">
+                <div className="flex items-center justify-between px-1">
+                  <h3 className="font-bold text-slate-900 text-lg">Mis clientes</h3>
+                  <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest bg-slate-100 px-3 py-1 rounded-full">
+                    {loadingMisCreditos ? 'Cargando' : `${misCreditos.length} créditos`}
+                  </div>
+                </div>
+
+                {loadingMisCreditos ? (
+                  <div className="flex flex-col items-center justify-center py-10 text-slate-400">
+                    <Loader2 className="w-6 h-6 animate-spin mb-2 opacity-20" />
+                    <span className="text-xs font-medium">Cargando clientes...</span>
+                  </div>
+                ) : (() => {
+                  const filtradas = misCreditos.filter((v) =>
+                    v.cliente.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                    v.direccion.toLowerCase().includes(searchQuery.toLowerCase()),
+                  )
+
+                  if (filtradas.length === 0) {
+                    return (
+                      <div className="bg-white rounded-2xl border border-slate-200 p-12 text-center">
+                        <User className="w-12 h-12 text-slate-200 mx-auto mb-4" />
+                        <p className="font-bold text-slate-400">No hay créditos asignados para este cobrador.</p>
+                      </div>
+                    )
+                  }
+
+                  return (
+                    <div className="space-y-4">
+                      {filtradas.map((visita) => (
+                        <StaticVisitaItem
+                          key={visita.id}
+                          visita={visita}
+                          allowClick={false}
+                          onVerCliente={handleAbrirClienteInfo}
+                          getEstadoClasses={getEstadoClasses}
+                          getPrioridadColor={getPrioridadColor}
+                        >
+                          <div className="grid grid-cols-2 gap-2 pt-1">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleAbrirAbono(visita);
+                              }}
+                              className="flex flex-col items-center justify-center p-2 rounded-xl bg-emerald-600 text-white hover:bg-emerald-700 transition-all shadow-sm active:scale-95"
+                            >
+                              <Wallet className="h-4 w-4 mb-1" />
+                              <span className="text-[9px] font-bold uppercase">Abono</span>
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleAbrirEstadoCuenta(visita);
+                              }}
+                              className="flex flex-col items-center justify-center p-2 rounded-xl bg-white text-slate-700 border border-slate-200 hover:bg-slate-50 transition-all shadow-sm active:scale-95"
+                            >
+                              <FileTextIcon className="h-4 w-4 mb-1 text-slate-400" />
+                              <span className="text-[9px] font-bold uppercase">Estado</span>
+                            </button>
+                          </div>
+                        </StaticVisitaItem>
+                      ))}
+                    </div>
+                  )
+                })()}
               </div>
             ) : (
               // ========================= VISTA VISITAS ACTUALES =========================
@@ -1371,7 +1525,9 @@ const RutaClient = ({ initialRuta: initialRutaProp, rutaId }: RutaClientProps) =
     }
   }, [rutaId]);
 
-  useRealtimeData(['pagos_actualizados', 'rutas_actualizadas'], refreshRuta)
+  useRealtimeData(['pagos_actualizados', 'rutas_actualizadas', 'prestamos_actualizados'], async () => {
+    await refreshRuta()
+  })
 
   useEffect(() => {
     if (rutaData || !rutaId) return

@@ -49,6 +49,7 @@ import { prestamosService } from '@/services/prestamos-service'
 import { pagosService } from '@/services/pagos-service'
 import { obtenerSaldoDisponibleRuta } from '@/services/contabilidad-service'
 import { HistorialDia } from '@/lib/types/cobranza'
+import { useRealtimeData } from '@/hooks/useRealtimeData'
 
 // Interfaces de datos
 interface ClienteRuta {
@@ -110,8 +111,86 @@ const DetalleRutaPage = () => {
   const [selectedClienteForCredito, setSelectedClienteForCredito] = useState<VisitaRuta | null>(null)
 
   const [showHistory, setShowHistory] = useState(false)
+  const [showMisClientes, setShowMisClientes] = useState(false)
   const [historialRutas, setHistorialRutas] = useState<Record<string, HistorialDia> | null>(null)
   const [selectedHistoryDate, setSelectedHistoryDate] = useState<string | null>(null)
+
+  const [misCreditos, setMisCreditos] = useState<VisitaRuta[]>([])
+  const [loadingMisCreditos, setLoadingMisCreditos] = useState(false)
+
+  const cargarMisCreditos = useCallback(async () => {
+    const cobradorId = rutaActual?.cobradorId
+    if (!cobradorId) return
+    try {
+      setLoadingMisCreditos(true)
+      const resp = await rutasService.obtenerCreditosAsignadosACobrador(cobradorId)
+      const raw = (resp as any)?.data
+      const filas = Array.isArray(raw) ? raw : []
+      if (!Array.isArray(raw)) {
+        console.warn('Mis clientes: respuesta inesperada en obtenerCreditosAsignadosACobrador', resp)
+      }
+
+      const mapped: VisitaRuta[] = filas.map((row: any, idx: number) => {
+        const c = row?.cliente || {}
+        const p = row?.prestamo || {}
+        const prox = p?.proximaCuota || null
+        const esArticulo = p?.tipo === 'ARTICULO'
+        const toNivel = (nivel: string) => {
+          if (nivel === 'VERDE') return 'bajo'
+          if (nivel === 'AMARILLO') return 'precaucion'
+          if (nivel === 'ROJO') return 'moderado'
+          if (nivel === 'LISTA_NEGRA') return 'critico'
+          return 'bajo'
+        }
+
+        return {
+          id: `${row?.asignacionId || 'asig'}-${p?.id || idx}`,
+          cliente: `${c?.nombres || ''} ${c?.apellidos || ''}`.trim() || 'Cliente',
+          direccion: c?.direccion || 'Sin dirección registrada',
+          telefono: c?.telefono || '',
+          horaSugerida: '08:00 AM',
+          montoCuota: Number(prox?.monto || 0),
+          saldoTotal: Number(p?.saldoPendiente || 0),
+          estado: 'pendiente' as any,
+          proximaVisita: row?.prestamo?.fechaEfectiva || prox?.fechaVencimiento || new Date().toISOString().split('T')[0],
+          ordenVisita: Number(row?.ordenVisita || idx + 1),
+          prioridad: 'media' as any,
+          nivelRiesgo: toNivel(c?.nivelRiesgo || 'VERDE') as any,
+          cobradorId,
+          periodoRuta: (() => {
+            const f = p?.frecuenciaPago || 'DIARIO'
+            if (f === 'DIARIO') return 'DIA'
+            if (f === 'SEMANAL') return 'SEMANA'
+            if (f === 'QUINCENAL') return 'QUINCENA'
+            if (f === 'MENSUAL') return 'MES'
+            return 'DIA'
+          })() as any,
+          clienteId: c?.id || '',
+          prestamoId: p?.id || '',
+          tipoPrestamo: esArticulo ? 'ARTICULO' : 'EFECTIVO',
+          articuloNombre: esArticulo ? (p?.articulo || 'Artículo') : 'Préstamo',
+        } as any
+      })
+
+      setMisCreditos(mapped)
+    } catch (e: any) {
+      console.error('Error cargando mis clientes (ruta coordinador):', e)
+      showNotification('error', 'No se pudieron cargar los clientes asignados.', 'Error')
+    } finally {
+      setLoadingMisCreditos(false)
+    }
+  }, [rutaActual?.cobradorId])
+
+  useEffect(() => {
+    if (!showMisClientes) return
+    cargarMisCreditos()
+  }, [showMisClientes, cargarMisCreditos])
+
+  useRealtimeData(['pagos_actualizados', 'prestamos_actualizados', 'rutas_actualizadas'], async () => {
+    if (showMisClientes) {
+      await cargarMisCreditos()
+    }
+  })
 
   const [gruposColapsados, setGruposColapsados] = useState<Record<string, boolean>>({})
   const toggleGrupo = useCallback(
@@ -632,7 +711,7 @@ const DetalleRutaPage = () => {
               </div>
 
               {/* Filtros de Periodo (Estilo Admin/Cobrador) */}
-              {!showHistory && (
+              {!showHistory && !showMisClientes && (
                 <div className="mt-4 pt-4 border-t border-slate-200">
                   <div className="flex flex-col md:flex-row gap-3 md:items-center md:justify-between">
                     <div className="text-xs font-bold text-slate-500 uppercase tracking-wider">Período de ruta</div>
@@ -683,13 +762,42 @@ const DetalleRutaPage = () => {
               Nuevo Crédito
             </button>
             <button 
-              onClick={() => setShowHistory(!showHistory)} 
+              onClick={() => {
+                setShowHistory(!showHistory)
+                setShowMisClientes(false)
+              }} 
               className={`flex-1 md:flex-none px-6 py-3 rounded-2xl text-sm font-bold transition-all shadow-sm flex items-center justify-center gap-2 active:scale-95 ${
                 showHistory ? 'bg-slate-900 text-white shadow-slate-900/20' : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-50'
               }`}
             >
               <History className="h-4 w-4" />
               Historial
+            </button>
+
+            <button
+              onClick={() => {
+                setShowHistory(false)
+                setShowMisClientes(false)
+              }}
+              className={`flex-1 md:flex-none px-6 py-3 rounded-2xl text-sm font-bold transition-all shadow-sm flex items-center justify-center gap-2 active:scale-95 ${
+                !showHistory && !showMisClientes ? 'bg-slate-900 text-white shadow-slate-900/20' : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-50'
+              }`}
+            >
+              <MapPin className="h-4 w-4" />
+              Mi Ruta
+            </button>
+
+            <button
+              onClick={() => {
+                setShowMisClientes(true)
+                setShowHistory(false)
+              }}
+              className={`flex-1 md:flex-none px-6 py-3 rounded-2xl text-sm font-bold transition-all shadow-sm flex items-center justify-center gap-2 active:scale-95 ${
+                showMisClientes ? 'bg-slate-900 text-white shadow-slate-900/20' : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-50'
+              }`}
+            >
+              <User className="h-4 w-4" />
+              Mis clientes
             </button>
         </div>
 

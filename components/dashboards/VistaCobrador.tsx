@@ -123,8 +123,6 @@ interface UserSession {
   avatar?: string
 }
 
-
-
 const VistaCobrador = () => {
   const { socket } = useNotificaciones()
   const [userSession, setUserSession] = useState<UserSession | null>(null)
@@ -132,12 +130,12 @@ const VistaCobrador = () => {
   const [showPaymentModal, setShowPaymentModal] = useState(false)
   const [pagoInitialIsAbono, setPagoInitialIsAbono] = useState(false)
   const [visitaPagoSeleccionada, setVisitaPagoSeleccionada] = useState<VisitaRuta | null>(null)
-  
+
   const [showClienteInfoModal, setShowClienteInfoModal] = useState(false)
   const [visitaClienteSeleccionada, setVisitaClienteSeleccionada] = useState<VisitaRuta | null>(null)
   const [showEstadoCuentaModal, setShowEstadoCuentaModal] = useState(false)
   const [visitaEstadoCuentaSeleccionada, setVisitaEstadoCuentaSeleccionada] = useState<VisitaRuta | null>(null)
-  
+
   const [showMoraModal, setShowMoraModal] = useState(false)
   const [visitaMoraSeleccionada, setVisitaMoraSeleccionada] = useState<VisitaRuta | null>(null)
   const [moraCuenta, setMoraCuenta] = useState<{
@@ -160,7 +158,7 @@ const VistaCobrador = () => {
   const [activeId, setActiveId] = useState<string | null>(null)
   const [accionPendiente, setAccionPendiente] = useState<'PAGO' | 'ABONO' | 'REPROGRAMAR' | 'CUENTA' | null>(null)
   const [showClientSelector, setShowClientSelector] = useState(false)
-  
+
   // Nuevos estados para la refactorización
   const formatFechaCorta = (iso: string | undefined | null) => {
     if (!iso) return 'Sin fecha';
@@ -187,7 +185,7 @@ const VistaCobrador = () => {
   }
   const ajustarEstadoConPago = (v: VisitaRuta): EstadoVisita => {
     if (Number(v.saldoTotal || 0) <= 0) return 'pagado';
-    
+
     // Si ya recaudamos lo de la cuota hoy (con pequeño margen de redondeo), marcamos como pagado
     const cobroSuficiente = Number(v.recaudadoDelDia || 0) >= (Number(v.montoCuota || 0) - 1);
     if (cobroSuficiente && Number(v.recaudadoDelDia || 0) > 0) return 'pagado';
@@ -196,9 +194,9 @@ const VistaCobrador = () => {
     const hoyStr = toLocalKey(new Date());
     const propDateStr = v.proximaVisita ? (v.proximaVisita.includes('T') ? v.proximaVisita.split('T')[0] : v.proximaVisita) : '';
     const esHoy = propDateStr === hoyStr;
-    
+
     if (esHoy && cobroSuficiente) return 'pagado';
-    
+
     return v.estado;
   }
 
@@ -237,6 +235,7 @@ const VistaCobrador = () => {
   const [isFabOpen, setIsFabOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [showHistory, setShowHistory] = useState(false)
+  const [showMisClientes, setShowMisClientes] = useState(false)
   const [periodoRutaFiltro, setPeriodoRutaFiltro] = useState<PeriodoRuta | 'TODOS'>('TODOS')
   const [selectedHistoryDate, setSelectedHistoryDate] = useState<string | null>(null)
   const [selectedHistoryMonth, setSelectedHistoryMonth] = useState<string | null>(null)
@@ -311,6 +310,9 @@ const VistaCobrador = () => {
   const [monthlyReport, setMonthlyReport] = useState<RouteDetailResponse | null>(null);
   const [recaudadoClienteHoy, setRecaudadoClienteHoy] = useState<number>(0);
   const [nextPagoFecha, setNextPagoFecha] = useState<string | null>(null);
+
+  const [misCreditos, setMisCreditos] = useState<VisitaRuta[]>([])
+  const [loadingMisCreditos, setLoadingMisCreditos] = useState(false)
   const [nextPagoMonto, setNextPagoMonto] = useState<number | null>(null);
 
   // Cargar datos del usuario al montar el componente
@@ -321,7 +323,7 @@ const VistaCobrador = () => {
         // Primero intentar cargar desde localStorage
         const userData = localStorage.getItem('user');
         const token = localStorage.getItem('token');
-        
+
         if (!token) {
           router.replace('/login');
           return;
@@ -330,7 +332,7 @@ const VistaCobrador = () => {
         if (userData) {
           const user = JSON.parse(userData);
           setUserSession(user);
-          
+
           // Verificar que el rol sea COBRADOR
           if (user.rol !== 'COBRADOR') {
             // Redirigir según el rol
@@ -341,7 +343,7 @@ const VistaCobrador = () => {
               COBRADOR: '/cobranzas',
               CONTADOR: '/contador/contable',
             };
-            
+
             const redirectPath = ROLE_REDIRECT_MAP[user.rol as RolUsuario] ?? '/';
             router.replace(redirectPath);
             return;
@@ -377,7 +379,7 @@ const VistaCobrador = () => {
     try {
       const { inicio, fin } = getDatesByPeriod(periodoCards);
       const saldo = await obtenerSaldoDisponibleRuta(rutaId, undefined, inicio, fin);
-      
+
       setRutaStats(prev => ({
         ...prev,
         recaudo: Number(saldo?.recaudoDelDia ?? 0),
@@ -396,25 +398,106 @@ const VistaCobrador = () => {
     }
   }, [periodoCards, rutaActual?.id, cargarEstadisticasRuta]);
 
+  const cargarMisCreditosAsignados = useCallback(async (cobradorId: string) => {
+    try {
+      setLoadingMisCreditos(true)
+      const resp = await rutasService.obtenerCreditosAsignadosACobrador(cobradorId)
+      const raw = (resp as any)?.data
+      const filas = Array.isArray(raw) ? raw : []
+      if (!Array.isArray(raw)) {
+        console.warn('Mis clientes: respuesta inesperada en obtenerCreditosAsignadosACobrador', resp)
+      }
+
+      const mapped: VisitaRuta[] = filas.map((row: any, idx: number) => {
+        const c = row?.cliente || {}
+        const p = row?.prestamo || {}
+        const prox = p?.proximaCuota || null
+
+        const toNivel = (nivel: string) => {
+          if (nivel === 'VERDE') return 'bajo'
+          if (nivel === 'AMARILLO') return 'precaucion'
+          if (nivel === 'ROJO') return 'moderado'
+          if (nivel === 'LISTA_NEGRA') return 'critico'
+          return 'bajo'
+        }
+
+        const esArticulo = p?.tipo === 'ARTICULO'
+        const nombreCredito = esArticulo
+          ? (p?.articulo || 'Artículo')
+          : 'Préstamo'
+
+        return {
+          id: `${row?.asignacionId || 'asig'}-${p?.id || idx}`,
+          cliente: `${c?.nombres || ''} ${c?.apellidos || ''}`.trim() || 'Cliente',
+          direccion: c?.direccion || 'Sin dirección registrada',
+          telefono: c?.telefono || '',
+          horaSugerida: '08:00 AM',
+          montoCuota: Number(prox?.monto || 0),
+          saldoTotal: Number(p?.saldoPendiente || 0),
+          estado: 'pendiente' as EstadoVisita,
+          proximaVisita: row?.prestamo?.fechaEfectiva || prox?.fechaVencimiento || new Date().toISOString().split('T')[0],
+          ordenVisita: Number(row?.ordenVisita || idx + 1),
+          prioridad: 'media' as any,
+          nivelRiesgo: toNivel(c?.nivelRiesgo || 'VERDE') as any,
+          cobradorId,
+          periodoRuta: (() => {
+            const f = p?.frecuenciaPago || 'DIARIO'
+            if (f === 'DIARIO') return 'DIA'
+            if (f === 'SEMANAL') return 'SEMANA'
+            if (f === 'QUINCENAL') return 'QUINCENA'
+            if (f === 'MENSUAL') return 'MES'
+            return 'DIA'
+          })() as any,
+          clienteId: c?.id || '',
+          prestamoId: p?.id || '',
+          tipoPrestamo: esArticulo ? 'ARTICULO' : 'EFECTIVO',
+          articuloNombre: nombreCredito,
+          enProrroga: !!prox?.enProrroga,
+          fechaProrroga: prox?.fechaVencimientoProrroga || undefined,
+          cuotaActual: prox?.numeroCuota,
+          cuotasTotales: p?.cantidadCuotas,
+        } as any
+      })
+
+      setMisCreditos(mapped)
+    } catch (e: any) {
+      console.error('Error cargando mis clientes (VistaCobrador):', e)
+      toast.error('No se pudieron cargar los clientes asignados.')
+    } finally {
+      setLoadingMisCreditos(false)
+    }
+  }, [])
+
   useEffect(() => {
     if (!socket) return;
 
-    const handler = () => {
+    const handler = async () => {
       if (rutaActual?.id) {
-        cargarEstadisticasRuta(rutaActual.id);
+        await cargarEstadisticasRuta(rutaActual.id);
+      }
+
+      if (showMisClientes && userSession?.id) {
+        await cargarMisCreditosAsignados(userSession.id)
       }
     };
 
     socket.on('pagos_actualizados', handler);
     socket.on('prestamos_actualizados', handler);
+    socket.on('rutas_actualizadas', handler);
     socket.on('dashboards_actualizados', handler);
 
     return () => {
       socket.off('pagos_actualizados', handler);
       socket.off('prestamos_actualizados', handler);
+      socket.off('rutas_actualizadas', handler);
       socket.off('dashboards_actualizados', handler);
     };
-  }, [socket, rutaActual?.id, cargarEstadisticasRuta]);
+  }, [socket, rutaActual?.id, cargarEstadisticasRuta, showMisClientes, userSession?.id, cargarMisCreditosAsignados]);
+
+  useEffect(() => {
+    if (!showMisClientes || !userSession?.id) return
+    cargarMisCreditosAsignados(userSession.id)
+  }, [showMisClientes, userSession?.id, cargarMisCreditosAsignados])
 
   // Cargar visitas reales desde el backend cuando el usuario está disponible
   useEffect(() => {
@@ -2122,7 +2205,10 @@ const VistaCobrador = () => {
                     onExportPDF={exportarRutaDiariaPDF}
                   />
                   <button 
-                    onClick={() => setShowHistory(false)}
+                    onClick={() => {
+                      setShowHistory(false)
+                      setShowMisClientes(false)
+                    }}
                     className={`px-4 py-2 border rounded-xl flex items-center gap-2 font-medium shadow-sm transition-colors ${
                       !showHistory 
                         ? 'bg-[#08557f] text-white border-[#08557f]' 
@@ -2133,7 +2219,10 @@ const VistaCobrador = () => {
                     <span className="hidden md:inline">Mi Ruta</span>
                   </button>
                   <button 
-                    onClick={() => setShowHistory(true)}
+                    onClick={() => {
+                      setShowHistory(true)
+                      setShowMisClientes(false)
+                    }}
                     className={`px-4 py-2 border rounded-xl flex items-center gap-2 font-medium shadow-sm transition-colors ${
                       showHistory 
                         ? 'bg-[#08557f] text-white border-[#08557f]' 
@@ -2142,6 +2231,21 @@ const VistaCobrador = () => {
                   >
                     <History className="h-4 w-4" />
                     <span className="hidden md:inline">Historial</span>
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      setShowMisClientes(true)
+                      setShowHistory(false)
+                    }}
+                    className={`px-4 py-2 border rounded-xl flex items-center gap-2 font-medium shadow-sm transition-colors ${
+                      showMisClientes
+                        ? 'bg-[#08557f] text-white border-[#08557f]'
+                        : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+                    }`}
+                  >
+                    <User className="h-4 w-4" />
+                    <span className="hidden md:inline">Mis clientes</span>
                   </button>
 
                   <button
@@ -2161,7 +2265,7 @@ const VistaCobrador = () => {
             </div>
 
 
-              {!showHistory && (
+              {!showHistory && !showMisClientes && (
                 <div className="mt-4 pt-4 border-t border-slate-200">
                   <div className="flex flex-col md:flex-row gap-3 md:items-center md:justify-between">
                     <div className="text-xs font-bold text-slate-500 uppercase tracking-wider">Período de ruta</div>
@@ -2198,7 +2302,10 @@ const VistaCobrador = () => {
                   {showHistory && (
                     <h3 className="font-bold text-slate-900 text-lg">Histórico de Rutas</h3>
                   )}
-                  {!showHistory && (
+                  {showMisClientes && (
+                    <h3 className="font-bold text-slate-900 text-lg">Mis clientes</h3>
+                  )}
+                  {!showHistory && !showMisClientes && (
                      <div className="flex flex-wrap gap-2 text-[10px] font-black text-slate-600 bg-white p-3 rounded-xl border border-slate-200 shadow-sm uppercase tracking-tighter">
                          <div className="flex items-center gap-1.5 px-2 py-1 bg-emerald-50 rounded-lg border border-emerald-500/20">
                              <div className="w-2 h-2 rounded-full bg-emerald-500"></div> 
@@ -2469,6 +2576,71 @@ const VistaCobrador = () => {
                               )}
                            </div>
                          )
+                      }
+
+                      if (showMisClientes) {
+                        if (loadingMisCreditos) {
+                          return (
+                            <div className="flex flex-col items-center justify-center py-10 text-slate-400">
+                              <div className="w-6 h-6 border-2 border-slate-300 border-t-[#08557f] rounded-full animate-spin mb-2" />
+                              <span className="text-xs font-medium">Cargando clientes...</span>
+                            </div>
+                          )
+                        }
+
+                        const filtradas = misCreditos.filter((v) =>
+                          v.cliente.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                          v.direccion.toLowerCase().includes(searchQuery.toLowerCase()),
+                        )
+
+                        if (filtradas.length === 0) {
+                          return (
+                            <div className="text-center py-20 bg-slate-50 rounded-[2rem] border-2 border-dashed border-slate-200 text-slate-400">
+                              <Search className="h-10 w-10 mx-auto mb-3 opacity-20" />
+                              <p className="font-medium">No se encontraron clientes asignados</p>
+                            </div>
+                          )
+                        }
+
+                        return (
+                          <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-300">
+                            {filtradas.map((visita) => (
+                              <StaticVisitaItem
+                                key={visita.id}
+                                visita={visita}
+                                onSelect={() => {}}
+                                onVerCliente={handleAbrirClienteInfo}
+                                getEstadoClasses={getEstadoClasses}
+                              >
+                                <div className="grid grid-cols-2 gap-2 pt-1">
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setVisitaPagoSeleccionada(visita);
+                                      setPagoInitialIsAbono(true);
+                                      setShowPaymentModal(true);
+                                    }}
+                                    className="flex flex-col items-center justify-center p-2 rounded-xl bg-emerald-600 text-white hover:bg-emerald-700 transition-all shadow-sm active:scale-95"
+                                  >
+                                    <Wallet className="h-4 w-4 mb-1" />
+                                    <span className="text-[9px] font-bold uppercase">Abono</span>
+                                  </button>
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setVisitaEstadoCuentaSeleccionada(visita);
+                                      setShowEstadoCuentaModal(true);
+                                    }}
+                                    className="flex flex-col items-center justify-center p-2 rounded-xl bg-white text-slate-700 border border-slate-200 hover:bg-slate-50 transition-all shadow-sm active:scale-95"
+                                  >
+                                    <FileTextIcon className="h-4 w-4 mb-1 text-slate-400" />
+                                    <span className="text-[9px] font-bold uppercase">Estado</span>
+                                  </button>
+                                </div>
+                              </StaticVisitaItem>
+                            ))}
+                          </div>
+                        )
                       }
 
                       const noPagadas = visitasCobrador.filter(v => v.estado !== 'pagado')

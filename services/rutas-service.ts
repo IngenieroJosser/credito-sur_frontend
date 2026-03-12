@@ -93,6 +93,12 @@ export interface Cobrador {
   correo: string;
 }
 
+export interface CreditosAsignadosResponse {
+  cobradorId: string;
+  total: number;
+  data: any[];
+}
+
 export const rutasService = {
   /**
    * Obtener todas las rutas con filtros
@@ -140,6 +146,13 @@ export const rutasService = {
    */
   async obtenerRutaPorId(id: string): Promise<Ruta> {
     return apiRequest<Ruta>('GET', `/routes/${id}`);
+  },
+
+  async obtenerCreditosAsignadosACobrador(cobradorId: string): Promise<CreditosAsignadosResponse> {
+    return apiRequest<CreditosAsignadosResponse>(
+      'GET',
+      `/routes/cobradores/${cobradorId}/creditos-asignados`,
+    );
   },
 
   /**
