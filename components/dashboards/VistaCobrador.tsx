@@ -98,6 +98,7 @@ import { pagosService } from '@/services/pagos-service'
 import { TipoAmortizacion } from '@/types/enums'
 import { useNotificaciones } from '@/components/providers/NotificacionesProvider'
 import { Bell } from 'lucide-react'
+import { toast } from 'sonner'
 
 interface OperacionCaja {
   id: string
@@ -1303,6 +1304,10 @@ const VistaCobrador = () => {
           }
         })
       )
+
+      toast.success('Solicitud de reprogramación enviada exitosamente', {
+        description: `La cuota será revisada para reprogramarse al ${formatearFechaISO(fecha)}`
+      })
 
       setShowReprogramModal(false)
       setVisitaReprogramar(null)

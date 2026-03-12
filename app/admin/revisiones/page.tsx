@@ -46,6 +46,7 @@ import { toast } from 'sonner'
 import { useNotificaciones } from '@/components/providers/NotificacionesProvider'
 import NotificacionDetalleModal from '@/components/dashboards/shared/NotificacionDetalleModal'
 import ProrrogaDetalleModal, { type ProrrogaData } from '@/components/revisiones/ProrrogaDetalleModal'
+import ReprogramacionDetalleModal, { type ReprogramacionData } from '@/components/revisiones/ReprogramacionDetalleModal'
 import ConfirmRejectModal from '@/components/ui/ConfirmRejectModal'
 
 // Configuración de categorías con meta visual
@@ -147,19 +148,23 @@ const aprobacionToNotificacion = (item: Aprobacion) => {
     const clienteNombre = datos.cliente || datos.clienteNombre || '—'
     const decision = datos.decision || 'PRORROGAR'
     const DECISION_LABEL: Record<string, string> = {
-      PRORROGAR: 'Prorroga de Plazo',
-      CASTIGAR:  'Baja por Perdida',
-      JURIDICO:  'Cobro Juridico',
-      ASIGNAR_MORA: 'Asignacion de Mora',
+      PRORROGAR: 'Prórroga de Plazo',
+      CASTIGAR:  'Baja por Pérdida',
+      JURIDICO:  'Cobro Jurídico',
+      ASIGNAR_MORA: 'Asignación de Mora',
     }
     titulo = `${DECISION_LABEL[decision] || cat.label} — ${clienteNombre}`
     if (decision === 'PRORROGAR' && datos.diasGracia) {
-      mensaje = `${item.solicitante} solicito una prorroga de ${datos.diasGracia} dias para ${clienteNombre}${datos.numeroPrestamo ? ` (${datos.numeroPrestamo})` : ''}. Saldo: ${datos.saldoPendiente ? `$${Number(datos.saldoPendiente).toLocaleString('es-CO')}` : '—'}.`
+      mensaje = `${item.solicitante} solicitó una prórroga de ${datos.diasGracia} días para ${clienteNombre}${datos.numeroPrestamo ? ` (${datos.numeroPrestamo})` : ''}. Saldo: ${datos.saldoPendiente ? `$${Number(datos.saldoPendiente).toLocaleString('es-CO')}` : '—'}.`
     } else if (decision === 'ASIGNAR_MORA') {
-      mensaje = `${item.solicitante} asigno $${Number(datos.montoInteres || 0).toLocaleString('es-CO')} de mora a ${clienteNombre}${datos.numeroPrestamo ? ` (${datos.numeroPrestamo})` : ''}.`
+      mensaje = `${item.solicitante} asignó $${Number(datos.montoInteres || 0).toLocaleString('es-CO')} de mora a ${clienteNombre}${datos.numeroPrestamo ? ` (${datos.numeroPrestamo})` : ''}.`
     } else {
-      mensaje = `${item.solicitante} solicito ${(DECISION_LABEL[decision] || decision).toLowerCase()} para ${clienteNombre}${datos.numeroPrestamo ? ` (${datos.numeroPrestamo})` : ''}.`
+      mensaje = `${item.solicitante} solicitó ${(DECISION_LABEL[decision] || decision).toLowerCase()} para ${clienteNombre}${datos.numeroPrestamo ? ` (${datos.numeroPrestamo})` : ''}.`
     }
+  } else if (item.tipoAprobacion === 'REPROGRAMACION_CUOTA') {
+    const clienteNombre = datos.cliente || datos.clienteNombre || '—'
+    titulo = `Reprogramaciones — ${clienteNombre}`
+    mensaje = `Solicitud de reprogramación por ${item.solicitante}`
   }
 
   return {
@@ -206,6 +211,10 @@ export default function RevisionesPage() {
   // Modal dedicado para prorrogas
   const [prorrogaModalOpen, setProrrogaModalOpen] = useState(false)
   const [selectedProrroga, setSelectedProrroga] = useState<ProrrogaData | null>(null)
+
+  // Modal dedicado para reprogramaciones
+  const [reprogramacionModalOpen, setReprogramacionModalOpen] = useState(false)
+  const [selectedReprogramacion, setSelectedReprogramacion] = useState<ReprogramacionData | null>(null)
 
   const { socket } = useNotificaciones()
 
@@ -272,7 +281,23 @@ export default function RevisionesPage() {
 
   const handleOpenDetail = (item: Aprobacion) => {
     const datos = (item.datosSolicitud || {}) as any
-    if (isProrrogaOrVencida(item)) {
+    if (item.tipoAprobacion === 'REPROGRAMACION_CUOTA') {
+      setSelectedReprogramacion({
+        id: item.id,
+        solicitante: item.solicitante,
+        creadoEn: item.creadoEn,
+        estado: item.estado,
+        cliente:                 datos.cliente || datos.clienteNombre,
+        clienteNombre:           datos.clienteNombre || datos.cliente,
+        numeroPrestamo:          datos.numeroPrestamo,
+        montoCuota:              datos.montoCuota,
+        fechaVencimientoOriginal: datos.fechaVencimientoOriginal,
+        nuevaFechaVencimiento:   datos.nuevaFechaVencimiento || datos.nuevaFecha,
+        motivo:                  datos.motivo || datos.comentarios,
+        gestionadoPor:           datos.gestionadoPor || datos.asignadoPor || item.solicitante,
+      })
+      setReprogramacionModalOpen(true)
+    } else if (isProrrogaOrVencida(item)) {
       // Abrir modal dedicado para prorrogas / gestion vencida
       setSelectedProrroga({
         id: item.id,
@@ -447,7 +472,7 @@ export default function RevisionesPage() {
         case 'REPROGRAMACION_CUOTA': {
           const frecLabel: Record<string,string> = { SEMANAL:'Semanal', QUINCENAL:'Quincenal', MENSUAL:'Mensual', DIARIO:'Diario' }
           const fechaOrig = datos.fechaVencimientoOriginal ? new Date(datos.fechaVencimientoOriginal).toLocaleDateString('es-CO',{day:'2-digit',month:'short'}) : '?'
-          const fechaNueva = datos.nuevaFecha ? new Date(datos.nuevaFecha+'T00:00:00').toLocaleDateString('es-CO',{day:'2-digit',month:'short'}) : '?'
+          const fechaNueva = datos.nuevaFecha ? new Date(datos.nuevaFecha.includes('T') ? datos.nuevaFecha : datos.nuevaFecha+'T12:00:00').toLocaleDateString('es-CO',{day:'2-digit',month:'short'}) : '?'
           return {
             titulo: datos.clienteNombre || 'Cliente',
             subtitulo: `${frecLabel[datos.frecuenciaPago]||datos.frecuenciaPago} · ${fechaOrig} → ${fechaNueva} · Motivo: ${datos.motivo || 'N/A'}`,
@@ -578,6 +603,25 @@ export default function RevisionesPage() {
         }}
         onReject={(id) => {
           setProrrogaModalOpen(false)
+          const item = Object.values(data?.items || {}).flat().find(i => i.id === id)
+          if (item) handleRechazar(item)
+        }}
+      />
+
+      {/* Modal dedicado para reprogramaciones de cuota */}
+      <ReprogramacionDetalleModal
+        isOpen={reprogramacionModalOpen}
+        onClose={() => { setReprogramacionModalOpen(false); setSelectedReprogramacion(null) }}
+        data={selectedReprogramacion}
+        canApprove={canReviewRejected || userRol === 'COORDINADOR' || userRol === 'SUPERVISOR'}
+        isProcessing={!!processingId}
+        onApprove={(id) => {
+          setReprogramacionModalOpen(false)
+          const item = Object.values(data?.items || {}).flat().find(i => i.id === id)
+          if (item) handleAprobar(item)
+        }}
+        onReject={(id) => {
+          setReprogramacionModalOpen(false)
           const item = Object.values(data?.items || {}).flat().find(i => i.id === id)
           if (item) handleRechazar(item)
         }}
