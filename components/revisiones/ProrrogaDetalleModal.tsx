@@ -59,7 +59,10 @@ export interface ProrrogaDetalleModalProps {
 function formatFecha(iso: string | null | undefined) {
   if (!iso) return '—'
   try {
-    return new Date(iso).toLocaleDateString('es-CO', {
+    const isDateOnly = /^\d{4}-\d{2}-\d{2}$/.test(iso.trim())
+    const dateToParse = isDateOnly ? `${iso.trim()}T12:00:00` : iso
+
+    return new Date(dateToParse).toLocaleDateString('es-CO', {
       day: '2-digit', month: 'short', year: 'numeric',
     })
   } catch { return '—' }
@@ -171,7 +174,7 @@ export default function ProrrogaDetalleModal({
                     {cfg.label}
                   </h2>
                   <p className="text-white/60 text-[10px] font-bold uppercase tracking-widest mt-0.5">
-                    {data.numeroPrestamo || 'Sin número'} · {clienteNombre}
+                    {data.numeroPrestamo ? `${data.numeroPrestamo} · ` : ''}{clienteNombre}
                   </p>
                 </div>
               </div>

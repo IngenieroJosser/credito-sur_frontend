@@ -223,6 +223,7 @@ export const permisosPorRol: Record<Rol, ModuloPermiso[]> = {
 
   SUPERVISOR: [
     { id: 'dashboard', nombre: 'Dashboard', icono: 'LayoutDashboard', path: '/supervisor', roles: ['SUPERVISOR'] },
+    { id: 'revisiones', nombre: 'Revisiones', icono: 'ShieldCheck', path: '/supervisor/revisiones', roles: ['SUPERVISOR'], isNew: true },
     {
       id: 'supervision',
       nombre: 'Supervisión',
@@ -701,7 +702,7 @@ export const obtenerModulos = (rol: Rol, sidebarData?: SidebarModulo[]): ModuloP
   };
 
   const ensureCuratedAdminModules = (modulos: ModuloPermiso[]): ModuloPermiso[] => {
-    if (rol !== 'SUPER_ADMINISTRADOR' && rol !== 'ADMIN' && rol !== 'COORDINADOR') return modulos;
+    if (rol !== 'SUPER_ADMINISTRADOR' && rol !== 'ADMIN' && rol !== 'COORDINADOR' && rol !== 'SUPERVISOR') return modulos;
 
     const curated = obtenerModulosPorRol(rol);
     const curatedRevisiones = curated.find((m) => m.id === 'revisiones');
@@ -797,6 +798,7 @@ export const tieneAcceso = (rol: Rol, path: string, permisos?: string[]): boolea
       '/revisiones': 'revisiones',
       '/admin/revisiones': 'revisiones',
       '/coordinador/revisiones': 'revisiones',
+      '/supervisor/revisiones': 'revisiones',
       '/conflictos': 'conflictos-sinc',
       '/admin/conflictos': 'conflictos-sinc',
       '/coordinador/conflictos': 'conflictos-sinc',

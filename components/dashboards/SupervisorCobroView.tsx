@@ -69,6 +69,7 @@ import { prestamosService } from '@/services/prestamos-service'
 import { pagosService } from '@/services/pagos-service'
 import { obtenerSaldoDisponibleRuta } from '@/services/contabilidad-service'
 import { useNotificaciones } from '@/components/providers/NotificacionesProvider'
+import { toast } from 'sonner'
 
 interface UserSession {
   id: string
@@ -744,11 +745,10 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
         })
       )
 
-      setModalAlerta({
-        tipo: 'info',
-        titulo: 'Solicitud enviada',
-        mensaje: `La reprogramacion fue enviada al supervisor para aprobacion. ${fecha ? `Nueva fecha solicitada: ${fechaLabel}` : ''}`,
+      toast.success('Solicitud de reprogramación enviada exitosamente', {
+        description: `La cuota será revisada para reprogramarse al ${fechaLabel}`
       })
+
     } catch (err: any) {
       setModalAlerta({
         tipo: 'error',

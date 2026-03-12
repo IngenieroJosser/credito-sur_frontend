@@ -348,8 +348,9 @@ export const prestamosService = {
    * Reprogramar la próxima cuota de un préstamo
    */
   async reprogramarPrestamo(prestamoId: string, data: { fecha: string; motivo: string; cobradorId: string }): Promise<any> {
+    const payload = { prestamoId, nuevaFecha: data.fecha, motivo: data.motivo, solicitadoPorId: data.cobradorId };
     try {
-      return await apiRequest('POST', `/loans/${prestamoId}/reschedule`, data);
+      return await apiRequest('POST', `/loans/solicitar-reprogramacion`, payload);
     } catch (error: any) {
       if (
         (typeof navigator !== 'undefined' && !navigator.onLine) ||
@@ -360,9 +361,9 @@ export const prestamosService = {
         logger.log('[Offline Mode] Guardando reprogramacion de prestamo en cola...');
         await syncService.enqueueOperation(
           'prestamo_reprograr',
-          `/loans/${prestamoId}/reschedule`,
+          `/loans/solicitar-reprogramacion`,
           'POST',
-          data,
+          payload,
           `Reprogramar préstamo ID: ${prestamoId}`
         );
         return { esOffline: true };
