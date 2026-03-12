@@ -58,10 +58,18 @@ apiClient.interceptors.response.use(
       
       try {
         const response = await axios(config);
-        logger.log('Operación exitosa en servidor local (LAN).');
+        logger.log('Operación exitosa en servidor de contingencia.');
         return response;
       } catch (localError) {
-        console.error('El servidor local (LAN) también es inaccesible. Modo Offline estricto activado.');
+        const status = (localError as any)?.response?.status;
+        if (status) {
+          // Hubo respuesta HTTP: NO es un problema de conectividad.
+          // Ej: 401/403 = token/permisos, 404 = ruta, 500 = error servidor.
+          logger.warn(`[API] Fallo en servidor de contingencia con status ${status}. No se activa modo offline por esto.`);
+          return Promise.reject(localError);
+        }
+
+        console.error('El servidor de contingencia también es inaccesible. Modo Offline estricto activado.');
         return Promise.reject(localError);
       }
     }
