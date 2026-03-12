@@ -123,6 +123,14 @@ export function NotificacionesProvider({ children }: { children: React.ReactNode
       // En lugar de toast, abrimos el dropdown
       setShowDropdown(true)
       
+      // Añadir toast al llegar una notificacion para que el cobrador tenga confirmación visual clara en pantalla
+      const isSuccess = ['EXITO', 'APROBADA'].some(k => notificacion.tipo?.includes(k) || notificacion.titulo?.toUpperCase().includes(k));
+      const isError = ['RECHAZADA', 'ERROR', 'FRACASO'].some(k => notificacion.tipo?.includes(k) || notificacion.titulo?.toUpperCase().includes(k));
+      
+      if (isSuccess) toast.success(notificacion.titulo, { description: notificacion.mensaje, duration: 8000 });
+      else if (isError) toast.error(notificacion.titulo, { description: notificacion.mensaje, duration: 8000 });
+      else toast.info(notificacion.titulo, { description: notificacion.mensaje, duration: 5000 });
+
       // Mostrar Push Notification local
       showLocalNotification(notificacion.titulo, { body: notificacion.mensaje })
     })
@@ -141,6 +149,8 @@ export function NotificacionesProvider({ children }: { children: React.ReactNode
       setNotificaciones(prev => [formattedNotif, ...prev])
       setShowDropdown(true)
       
+      toast.info(notificacion.titulo, { description: notificacion.mensaje, duration: 5000 });
+
       // Mostrar Push Notification local global
       showLocalNotification(notificacion.titulo, { body: notificacion.mensaje })
     })
