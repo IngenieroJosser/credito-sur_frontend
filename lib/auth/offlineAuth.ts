@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger'
 /**
  * Sistema de Autenticación Offline
  * Permite continuar usando el sistema PWA sin conexión después de haber iniciado sesión previamente
@@ -32,7 +33,7 @@ export function cacheSession(token: string, user: any): void {
     };
 
     localStorage.setItem(SESSION_CACHE_KEY, JSON.stringify(cachedSession));
-    console.log('[Offline Auth] Sesión cacheada para uso offline');
+    logger.log('[Offline Auth] Sesión cacheada para uso offline');
   } catch (error) {
     console.error('[Offline Auth] Error cacheando sesión:', error);
   }
@@ -55,7 +56,7 @@ export function getCachedSession(): CachedSession | null {
     const expiresAt = new Date(session.expiresAt);
 
     if (now > expiresAt) {
-      console.log('[Offline Auth] Sesión offline expirada');
+      logger.log('[Offline Auth] Sesión offline expirada');
       clearCachedSession();
       return null;
     }
@@ -83,7 +84,7 @@ export function clearCachedSession(): void {
     if (typeof window === 'undefined') return;
     
     localStorage.removeItem(SESSION_CACHE_KEY);
-    console.log('[Offline Auth] Sesión offline limpiada');
+    logger.log('[Offline Auth] Sesión offline limpiada');
   } catch (error) {
     console.error('[Offline Auth] Error limpiando sesión:', error);
   }
@@ -102,7 +103,7 @@ export function restoreOfflineSession(): { token: string; user: any } | null {
   localStorage.setItem('token', cached.token);
   localStorage.setItem('user', JSON.stringify(cached.user));
 
-  console.log('[Offline Auth] Sesión restaurada desde caché offline');
+  logger.log('[Offline Auth] Sesión restaurada desde caché offline');
   return { token: cached.token, user: cached.user };
 }
 
@@ -201,7 +202,7 @@ export function renewOfflineSession(): boolean {
     };
 
     localStorage.setItem(SESSION_CACHE_KEY, JSON.stringify(renewed));
-    console.log('[Offline Auth] Sesión offline renovada');
+    logger.log('[Offline Auth] Sesión offline renovada');
     return true;
   } catch (error) {
     console.error('[Offline Auth] Error renovando sesión:', error);
@@ -239,3 +240,4 @@ export function shouldShowExpirationWarning(): boolean {
   localStorage.setItem(warningShownKey, new Date().toISOString());
   return true;
 }
+

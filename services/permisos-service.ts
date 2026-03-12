@@ -62,3 +62,4 @@ export const permisosService = {
     return apiRequest<void>('DELETE', `/permissions/${id}`);
   }
 };
+

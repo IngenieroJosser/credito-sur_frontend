@@ -93,15 +93,15 @@ export default function DetallePrestamoModal({ id, onClose }: DetallePrestamoMod
           fechaPrimerCobro: data.fechaPrimerCobro || undefined,
           fechaVencimiento: data.fechaFin || data.fechaVencimiento || '',
           estado: data.estado || 'ACTIVO',
-          tipoAmortizacion: data.tipoAmortizacion || 'INTERES_SIMPLE',
-          tipoPrestamo: (data.tipoPrestamo || '').toUpperCase(),
+          tipoAmortizacion: (data.tipoAmortizacion || 'INTERES_SIMPLE') as 'INTERES_SIMPLE' | 'FRANCESA',
+          tipoPrestamo: (typeof data.tipoPrestamo === 'string' ? data.tipoPrestamo : '').toUpperCase(),
           cuotaInicial: cuotaInicial,
-          producto: data.producto?.nombre || data.tipoPrestamo || 'Préstamo',
+          producto: typeof data.producto === 'string' ? data.producto : ((data.producto as any)?.nombre || data.tipoPrestamo || 'Préstamo'),
           productoInfo: data.producto ? {
-            marca: data.producto.marca,
-            modelo: data.producto.modelo,
-            serie: data.producto.serie,
-            categoria: data.producto.categoria
+            marca: (data.producto as any).marca,
+            modelo: (data.producto as any).modelo,
+            serie: (data.producto as any).serie,
+            categoria: (data.producto as any).categoria
           } : undefined,
           garantia: data.garantia || '',
           notas: data.notas || '',

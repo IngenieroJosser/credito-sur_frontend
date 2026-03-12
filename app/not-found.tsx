@@ -1,4 +1,5 @@
 'use client'
+import { logger } from '@/lib/logger'
 
 import Link from 'next/link'
 import Image from 'next/image'
@@ -184,7 +185,7 @@ const NotFoundPage = () => {
                       className="w-full bg-transparent border-none outline-none text-gray-700 placeholder-gray-400 text-sm tracking-wide py-3"
                       onKeyDown={(e) => {
                         if (e.key === 'Enter' && searchQuery.trim()) {
-                          console.log('Buscando:', searchQuery)
+                          logger.log('Buscando:', searchQuery)
                         }
                       }}
                     />
@@ -441,3 +442,4 @@ const NotFoundPage = () => {
 }
 
 export default NotFoundPage
+

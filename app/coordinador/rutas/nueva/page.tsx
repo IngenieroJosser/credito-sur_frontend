@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { rutasService } from '@/services/rutas-service';
+import { toast } from 'sonner';
 import {
   MapPin,
   Save,
@@ -83,8 +84,7 @@ const NuevaRutaPage = () => {
       } as any);
       router.push('/coordinador/rutas');
     } catch (err) {
-      console.error('Error creando ruta:', err);
-      alert('Error al crear la ruta');
+      toast.error('Error al crear la ruta. Verifique los datos e intente de nuevo.');
     } finally {
       setLoading(false);
     }

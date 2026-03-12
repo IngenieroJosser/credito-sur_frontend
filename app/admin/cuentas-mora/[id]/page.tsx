@@ -19,7 +19,7 @@ import {
   Archive
 } from 'lucide-react'
 import { formatCurrency, cn } from '@/lib/utils'
-import { loansService_ } from '@/services/loans-service'
+import { prestamosService } from '@/services/prestamos-service'
 import ArchivarCuentaModal from '@/components/prestamos/ArchivarCuentaModal'
 
 interface MoraDetalle {
@@ -70,7 +70,7 @@ export default function DetalleCuentaMoraPage({ params }: { params: Promise<{ id
     const fetchData = async () => {
       setLoading(true);
       try {
-        const detalle: any = await loansService_.obtenerDetallePrestamo(id);
+        const detalle: any = await prestamosService.obtenerPrestamoPorId(id);
         setData({
           id,
           numeroPrestamo: detalle.numeroPrestamo || id,

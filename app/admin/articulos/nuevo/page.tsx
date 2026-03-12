@@ -1,4 +1,5 @@
 'use client'
+import { logger } from '@/lib/logger'
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
@@ -52,7 +53,7 @@ export default function NuevoArticuloPage() {
       stock: Number(formData.stock || '0'),
       stockMinimo: Number(formData.stockMinimo || '0'),
     }
-    console.log('Guardar artículo:', payload)
+    logger.log('Guardar artículo:', payload)
     // Simular guardado
     await new Promise(resolve => setTimeout(resolve, 1000))
     setLoading(false)

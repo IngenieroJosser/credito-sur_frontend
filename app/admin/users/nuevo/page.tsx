@@ -1,4 +1,5 @@
 'use client'
+import { logger } from '@/lib/logger'
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
@@ -46,7 +47,7 @@ export default function NuevoUsuarioPage() {
     // Simular API
     await new Promise(resolve => setTimeout(resolve, 1000))
     
-    console.log('Usuario creado:', formData)
+    logger.log('Usuario creado:', formData)
     router.push('/users')
   }
 

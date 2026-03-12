@@ -66,3 +66,4 @@ export const rolesService = {
     return apiRequest<Rol>('POST', `/roles/${id}/permisos`, { permisosIds });
   }
 };
+

@@ -1,5 +1,39 @@
+import { logger } from '@/lib/logger'
 import { apiRequest } from '@/lib/api/api';
 import { syncService } from '@/lib/offline/syncService';
+
+export interface AsignacionCliente {
+  id: string;
+  clienteId: string;
+  cobradorId: string;
+  ordenVisita?: number | null;
+  estado?: string | null;
+  horaSugerida?: string | null;
+  cliente?: { id: string; nombres: string; apellidos: string; telefono?: string };
+}
+
+export interface RutasMeta {
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+}
+
+export interface VisitaDelDia {
+  clienteId: string;
+  clienteNombre: string;
+  direccion?: string;
+  telefono?: string;
+  montoCuota?: number;
+  saldoTotal?: number;
+  ordenVisita?: number;
+  estado?: string;
+}
+
+export interface ReordenarClientesResult {
+  exito: boolean;
+  mensaje?: string;
+}
 
 export interface Ruta {
   id: string;
@@ -13,7 +47,7 @@ export interface Ruta {
   creadoEn: string;
   actualizadoEn: string;
   eliminadoEn: string | null;
-  asignaciones?: any[]; // Incluimos asignaciones para el detalle
+  asignaciones?: AsignacionCliente[];
 }
 
 export interface CrearRutaDto {
@@ -76,7 +110,7 @@ export const rutasService = {
     const query = params.toString();
     const endpoint = query ? `/routes?${query}` : '/routes';
     
-    const response = await apiRequest<{ data: Ruta[], meta: any }>('GET', endpoint);
+    const response = await apiRequest<{ data: Ruta[], meta: RutasMeta }>('GET', endpoint);
     return response.data || [];
   },
 
@@ -128,7 +162,7 @@ export const rutasService = {
         error?.message?.includes('network') ||
         error?.code === 'ERR_NETWORK'
       ) {
-        console.log('[Offline Mode] Guardando creacion de ruta en cola...');
+        logger.log('[Offline Mode] Guardando creacion de ruta en cola...');
         return await syncService.enqueueOperation(
           'ruta_crear',
           '/routes',
@@ -154,7 +188,7 @@ export const rutasService = {
         error?.message?.includes('network') ||
         error?.code === 'ERR_NETWORK'
       ) {
-        console.log('[Offline Mode] Guardando actualizacion de ruta en cola...');
+        logger.log('[Offline Mode] Guardando actualizacion de ruta en cola...');
         return await syncService.enqueueOperation(
           'ruta_actualizar',
           `/routes/${id}`,
@@ -180,7 +214,7 @@ export const rutasService = {
         error?.message?.includes('network') ||
         error?.code === 'ERR_NETWORK'
       ) {
-        console.log('[Offline Mode] Guardando eliminacion de ruta en cola...');
+        logger.log('[Offline Mode] Guardando eliminacion de ruta en cola...');
         await syncService.enqueueOperation(
           'ruta_eliminar',
           `/routes/${id}`,
@@ -207,7 +241,7 @@ export const rutasService = {
         error?.message?.includes('network') ||
         error?.code === 'ERR_NETWORK'
       ) {
-        console.log('[Offline Mode] Guardando cambio de estado de ruta en cola...');
+        logger.log('[Offline Mode] Guardando cambio de estado de ruta en cola...');
         return await syncService.enqueueOperation(
           'ruta_toggle_activa',
           `/routes/${id}/toggle-active`,
@@ -236,7 +270,7 @@ export const rutasService = {
         error?.message?.includes('network') ||
         error?.code === 'ERR_NETWORK'
       ) {
-        console.log('[Offline Mode] Guardando asignacion de cliente a ruta en cola...');
+        logger.log('[Offline Mode] Guardando asignacion de cliente a ruta en cola...');
         await syncService.enqueueOperation(
           'ruta_asignar_cliente',
           `/routes/${rutaId}/assign-client`,
@@ -263,7 +297,7 @@ export const rutasService = {
         error?.message?.includes('network') ||
         error?.code === 'ERR_NETWORK'
       ) {
-        console.log('[Offline Mode] Guardando remocion de cliente de ruta en cola...');
+        logger.log('[Offline Mode] Guardando remocion de cliente de ruta en cola...');
         await syncService.enqueueOperation(
           'ruta_remover_cliente',
           `/routes/${rutaId}/remove-client/${clienteId}`,
@@ -294,7 +328,7 @@ export const rutasService = {
         error?.message?.includes('network') ||
         error?.code === 'ERR_NETWORK'
       ) {
-        console.log('[Offline Mode] Guardando movimiento de cliente entre rutas en cola...');
+        logger.log('[Offline Mode] Guardando movimiento de cliente entre rutas en cola...');
         await syncService.enqueueOperation(
           'ruta_mover_cliente',
           '/routes/move-client',
@@ -311,15 +345,15 @@ export const rutasService = {
   /**
    * Obtener visitas del día para una ruta (agenda de cobro)
    */
-  async obtenerVisitasDelDia(rutaId: string, fecha?: string): Promise<any> {
+  async obtenerVisitasDelDia(rutaId: string, fecha?: string): Promise<VisitaDelDia[]> {
     const params = fecha ? `?fecha=${fecha}` : '';
-    return apiRequest('GET', `/routes/${rutaId}/daily-visits${params}`);
+    return apiRequest<VisitaDelDia[]>('GET', `/routes/${rutaId}/daily-visits${params}`);
   },
 
   /**
    * Actualizar orden de clientes en una ruta (drag & drop)
    */
-  async actualizarOrdenClientes(rutaId: string, orden: Array<{ clienteId: string; orden: number }>): Promise<any> {
+  async actualizarOrdenClientes(rutaId: string, orden: Array<{ clienteId: string; orden: number }>): Promise<ReordenarClientesResult> {
     try {
       return await apiRequest('PATCH', `/routes/${rutaId}/reorder`, { orden });
     } catch (error: any) {
@@ -329,7 +363,7 @@ export const rutasService = {
         error?.message?.includes('network') ||
         error?.code === 'ERR_NETWORK'
       ) {
-        console.log('[Offline Mode] Guardando reordenamiento de clientes en cola...');
+        logger.log('[Offline Mode] Guardando reordenamiento de clientes en cola...');
         return await syncService.enqueueOperation(
           'ruta_reorder_clientes',
           `/routes/${rutaId}/reorder`,
@@ -342,3 +376,5 @@ export const rutasService = {
     }
   },
 };
+
+

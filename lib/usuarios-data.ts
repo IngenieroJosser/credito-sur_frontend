@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger'
 import { cookies } from 'next/headers';
 import { Usuario, RolUsuario } from '@/services/usuarios-service';
 
@@ -7,7 +8,7 @@ export async function getUsuariosByRol(rol: RolUsuario): Promise<Usuario[]> {
     const token = cookieStore.get('token')?.value;
     
     if (!token) {
-      console.log('[SSR usuarios-data] No token found, returning empty array');
+      logger.log('[SSR usuarios-data] No token found, returning empty array');
       return [];
     }
     
@@ -22,7 +23,7 @@ export async function getUsuariosByRol(rol: RolUsuario): Promise<Usuario[]> {
     });
     
     if (!res.ok) {
-      console.warn(`[SSR usuarios-data] Error fetching users: ${res.status} ${res.statusText}`);
+      logger.warn(`[SSR usuarios-data] Error fetching users: ${res.status} ${res.statusText}`);
       return [];
     }
     
@@ -34,3 +35,4 @@ export async function getUsuariosByRol(rol: RolUsuario): Promise<Usuario[]> {
     return [];
   }
 }
+

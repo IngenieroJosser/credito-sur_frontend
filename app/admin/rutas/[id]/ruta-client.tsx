@@ -1,4 +1,5 @@
 'use client'
+import { logger } from '@/lib/logger'
 
 import { useState, useCallback, useMemo, useEffect } from 'react'
 import {
@@ -55,6 +56,8 @@ import { pagosService } from '@/services/pagos-service'
 import { FrecuenciaPago } from '@/types/enums'
 import { obtenerSaldoDisponibleRuta } from '@/services/contabilidad-service'
 import { HistorialDia } from '@/lib/types/cobranza'
+import { exportService } from '@/services/export-service'
+import { toast } from 'sonner'
 
 interface GastoRuta {
   id: string
@@ -165,7 +168,7 @@ const RutaClientLoaded = ({
           }
           return next;
         });
-      } catch (e) { console.warn('Error precargando montos de historial', e); }
+      } catch (e) { logger.warn('Error precargando montos de historial', e); }
     };
     cargarResumenRecaudos();
   }, [showHistory, rutaData?.id]);
@@ -178,11 +181,11 @@ const RutaClientLoaded = ({
     
     try {
       visitasResp = await rutasService.obtenerVisitasDelDia(rutaData.id, fechaClave);
-    } catch(e) { console.warn(`[Admin Historial ${fechaClave}] visitas falló:`, e); }
+    } catch(e) { logger.warn(`[Admin Historial ${fechaClave}] visitas falló:`, e); }
 
     try {
       saldo = await obtenerSaldoDisponibleRuta(rutaData.id, fechaClave);
-    } catch(e) { console.warn(`[Admin Historial ${fechaClave}] saldo falló:`, e); }
+    } catch(e) { logger.warn(`[Admin Historial ${fechaClave}] saldo falló:`, e); }
 
     try {
       const pagosResp = await pagosService.obtenerPagos({ limit: 5000 });
@@ -197,7 +200,7 @@ const RutaClientLoaded = ({
         const raw = p.fechaPago || p.creadoEn;
         return raw && toKey(raw) === fechaClave;
       });
-    } catch(e) { console.warn(`[Admin Historial ${fechaClave}] pagos falló:`, e); }
+    } catch(e) { logger.warn(`[Admin Historial ${fechaClave}] pagos falló:`, e); }
 
     try {
       const recaudadoPorCliente: Record<string, number> = {};
@@ -521,12 +524,28 @@ const RutaClientLoaded = ({
         filtradas = filtradas.filter(v => v.periodoRuta === periodoRutaFiltro);
     }
 
-    const exportarRutaDiariaCSV = () => {
-      console.log('TODO: Exportar CSV en desarrollo')
+    const exportarRutaDiariaCSV = async () => {
+      try {
+        await exportService.exportOperationalReport('excel', {
+          rutaId: initialRuta.id,
+          startDate: new Date().toISOString().split('T')[0],
+        } as any);
+      } catch (e) {
+        toast.error('No se pudo exportar el reporte de ruta a Excel');
+        console.error('Error exportando ruta CSV:', e);
+      }
     }
   
-    const exportarRutaDiariaPDF = () => {
-      console.log('TODO: Exportar PDF en desarrollo')
+    const exportarRutaDiariaPDF = async () => {
+      try {
+        await exportService.exportOperationalReport('pdf', {
+          rutaId: initialRuta.id,
+          startDate: new Date().toISOString().split('T')[0],
+        } as any);
+      } catch (e) {
+        toast.error('No se pudo exportar el reporte de ruta a PDF');
+        console.error('Error exportando ruta PDF:', e);
+      }
     }
 
     const isTodayOrMora = (dateStr: string) => {
@@ -1592,3 +1611,4 @@ function ClienteDetalleModal({ visita, onClose }: { visita: VisitaRuta; onClose:
 }
 
 export default RutaClient
+

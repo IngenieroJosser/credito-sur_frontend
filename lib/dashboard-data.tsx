@@ -54,22 +54,8 @@ export async function getDashboardData(rol: Rol) {
   const cookieStore = await cookies();
   const token = cookieStore.get('token')?.value;
 
-  // TODO: Cuando el backend esté listo, descomentar y usar esta llamada
-  // const response = await fetch(`${API_URL}/dashboard/stats?rol=${rol}`, {
-  //   headers: {
-  //     'Authorization': `Bearer ${token}`,
-  //     'Content-Type': 'application/json',
-  //   },
-  //   cache: 'no-store', // Siempre datos frescos para el dashboard
-  // });
-
-  // if (!response.ok) {
-  //   throw new Error('Failed to fetch dashboard data');
-  // }
-
-  // const backendData = await response.json();
-
-  // Por ahora, usamos datos mock configurados según el rol
+  // El dashboard real está conectado en tiempo real mediante useRealtimeData (dashboard-client.tsx)
+  // Esta función retorna datos de configuración por rol para la estructura estática de la página servidor
   return configurarDashboardPorRol(rol);
 }
 

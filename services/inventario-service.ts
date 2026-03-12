@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger'
 import { apiRequest } from '@/lib/api/api';
 import { syncService } from '@/lib/offline/syncService';
 import { offlineStore } from '@/lib/offline/offlineDb';
@@ -72,7 +73,7 @@ export const inventarioService = {
       return await apiRequest<Producto[]>('GET', '/inventory');
     } catch (error) {
       if (typeof navigator !== 'undefined' && !navigator.onLine) {
-        console.log('[Offline Mode] Cargando productos desde cache local...');
+        logger.log('[Offline Mode] Cargando productos desde cache local...');
         const cached = await offlineStore.getAll<Producto>('productos');
         if (cached.length > 0) return cached;
       }
@@ -95,7 +96,7 @@ export const inventarioService = {
       return await apiRequest<Producto>('GET', `/inventory/${id}`);
     } catch (error) {
        if (typeof navigator !== 'undefined' && !navigator.onLine) {
-        console.log('[Offline Mode] Buscando producto ID ' + id + ' en cache local...');
+        logger.log('[Offline Mode] Buscando producto ID ' + id + ' en cache local...');
         const cached = await offlineStore.getById<Producto>('productos', id);
         if (cached) return cached;
       }
@@ -116,7 +117,7 @@ export const inventarioService = {
         error?.message?.includes('network') ||
         error?.code === 'ERR_NETWORK'
       ) {
-        console.log('[Offline Mode] Guardando creacion de producto en cola...');
+        logger.log('[Offline Mode] Guardando creacion de producto en cola...');
         return await syncService.enqueueOperation(
           'producto_crear',
           '/inventory',
@@ -142,7 +143,7 @@ export const inventarioService = {
         error?.message?.includes('network') ||
         error?.code === 'ERR_NETWORK'
       ) {
-        console.log('[Offline Mode] Guardando actualizacion de producto en cola...');
+        logger.log('[Offline Mode] Guardando actualizacion de producto en cola...');
         return await syncService.enqueueOperation(
           'producto_actualizar',
           `/inventory/${id}`,
@@ -168,7 +169,7 @@ export const inventarioService = {
         error?.message?.includes('network') ||
         error?.code === 'ERR_NETWORK'
       ) {
-        console.log('[Offline Mode] Guardando eliminacion de producto en cola...');
+        logger.log('[Offline Mode] Guardando eliminacion de producto en cola...');
         await syncService.enqueueOperation(
           'producto_eliminar',
           `/inventory/${id}`,
@@ -182,3 +183,5 @@ export const inventarioService = {
     }
   }
 };
+
+

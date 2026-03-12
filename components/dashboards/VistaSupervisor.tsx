@@ -41,7 +41,7 @@ interface MetricCard {
   title: string
   value: string
   subValue?: string
-  change: number
+  change: number | null
   icon: ReactNode
   color: string
   trendData: number[]
@@ -185,7 +185,7 @@ const VistaSupervisor = () => {
         title: 'Capital Prestado',
         value: formatCurrency(metrics.capitalPrestado || 0),
         subValue: `Créditos desembolsados · ${periodLabel}`,
-        change: 0,
+        change: null,
         icon: <CreditCard className="h-4 w-4" />,
         color: '#08557f',
         trendData: trendValues.length > 0 ? trendValues : [0],
@@ -194,7 +194,7 @@ const VistaSupervisor = () => {
         title: 'Recaudo del período',
         value: formatCurrency(metrics.recaudo || 0),
         subValue: `Pagos recibidos · ${periodLabel}`,
-        change: 0,
+        change: null,
         icon: <DollarSign className="h-4 w-4" />,
         color: '#10b981',
         trendData: trendValues.length > 0 ? trendValues : [0],
@@ -203,7 +203,7 @@ const VistaSupervisor = () => {
         title: 'Cuentas en Mora',
         value: String(metrics.delinquentAccounts || 0),
         subValue: 'Préstamos en estado EN_MORA',
-        change: 0,
+        change: null,
         icon: <AlertCircle className="h-4 w-4" />,
         color: '#ef4444',
         trendData: trendValues.length > 0 ? trendValues : [0],
@@ -212,7 +212,7 @@ const VistaSupervisor = () => {
         title: 'Eficiencia de cartera',
         value: `${(metrics.efficiency || 0).toFixed(1)}%`,
         subValue: 'Préstamos pagados vs activos',
-        change: 0,
+        change: null,
         icon: <Calendar className="h-4 w-4" />,
         color: '#fb851b',
         trendData: trendValues.length > 0 ? trendValues : [0],
@@ -345,17 +345,19 @@ const VistaSupervisor = () => {
                 >
                   {metric.icon}
                 </div>
-                <div
-                  className={`flex items-center space-x-1.5 text-[11px] font-black px-3 py-1 rounded-full shadow-sm ${
-                    metric.change >= 0 ? 'text-emerald-700 bg-emerald-100/50' : 'text-rose-700 bg-rose-100/50'
-                  }`}
-                >
-                  {metric.change >= 0 ? <TrendingUp className="h-3.5 w-3.5" /> : <TrendingDown className="h-3.5 w-3.5" />}
-                  <span>
-                    {metric.change >= 0 ? '+' : ''}
-                    {metric.change}%
-                  </span>
-                </div>
+                {metric.change !== null && (
+                  <div
+                    className={`flex items-center space-x-1.5 text-[11px] font-black px-3 py-1 rounded-full shadow-sm ${
+                      metric.change >= 0 ? 'text-emerald-700 bg-emerald-100/50' : 'text-rose-700 bg-rose-100/50'
+                    }`}
+                  >
+                    {metric.change >= 0 ? <TrendingUp className="h-3.5 w-3.5" /> : <TrendingDown className="h-3.5 w-3.5" />}
+                    <span>
+                      {metric.change >= 0 ? '+' : ''}
+                      {metric.change}%
+                    </span>
+                  </div>
+                )}
               </div>
 
               <div className="space-y-2 relative z-10">

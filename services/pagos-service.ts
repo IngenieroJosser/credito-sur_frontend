@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger'
 import { apiRequest } from '@/lib/api/api';
 import { syncService } from '@/lib/offline/syncService';
 import { MetodoPago } from '@/types/enums';
@@ -14,6 +15,18 @@ export interface DetallePago {
   montoInteresMora: number;
 }
 
+export interface ArchivoMultimediaPago {
+  id: string;
+  tipoContenido: string;        // 'COMPROBANTE_TRANSFERENCIA' | 'RECIBO_PAGO' | etc.
+  tipoArchivo: string;          // mimetype
+  nombreOriginal: string | null;
+  url: string | null;
+  ruta: string | null;
+  formato: string | null;
+  tamanoBytes: number;
+  creadoEn: string;
+}
+
 export interface Pago {
   id: string;
   numeroPago: string;
@@ -26,8 +39,10 @@ export interface Pago {
   numeroReferencia: string | null;
   notas: string | null;
   detalles?: DetallePago[];
+  archivos?: ArchivoMultimediaPago[];  // Comprobantes de transferencia, etc.
   cliente?: { id: string; nombres: string; apellidos: string; dni?: string };
   cobrador?: { id: string; nombres: string; apellidos: string };
+  prestamo?: { id: string; numeroPrestamo: string; saldoPendiente: number };
   creadoEn: string;
   actualizadoEn: string;
 }
@@ -108,7 +123,7 @@ export const pagosService = {
         error?.message?.includes('network') ||
         error?.code === 'ERR_NETWORK'
       ) {
-         console.log('[Offline Mode] Guardando pago en cola...');
+         logger.log('[Offline Mode] Guardando pago en cola...');
          const tempId = `temp-pay-${Date.now()}`;
          
          await syncService.enqueueOperation(
@@ -150,3 +165,5 @@ export const pagosService = {
     }
   },
 };
+
+

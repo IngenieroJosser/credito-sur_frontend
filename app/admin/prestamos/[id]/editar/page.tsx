@@ -1,4 +1,5 @@
-'use client';
+'use client'
+import { logger } from '@/lib/logger'
 
 import { useState } from 'react';
 import Link from 'next/link';
@@ -27,7 +28,7 @@ export default function EditarPrestamoPage() {
       estado,
     };
     alert('Préstamo actualizado (Simulado)');
-    console.log('Actualizar préstamo:', id, payload);
+    logger.log('Actualizar préstamo:', id, payload);
     router.push(`/prestamos/${id}`);
   };
 

@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { 
   TrendingUp, 
   TrendingDown,
@@ -15,13 +15,17 @@ import { ExportButton } from '@/components/ui/ExportButton';
 import { TransactionalHighDetailChart } from '@/components/ui/TransactionalHighDetailChart';
 import CrearCreditoModal from '@/components/dashboards/shared/CrearCreditoModal';
 import NuevoClienteModal from '@/components/clientes/NuevoClienteModal';
+import { useRealtimeData } from '@/hooks/useRealtimeData';
+import { usePageFocusRefresh } from '@/hooks/usePageFocusRefresh';
+import { exportService } from '@/services/export-service';
+import { toast } from 'sonner';
 
 interface MetricItem {
   title: string;
   value: number | string;
   subValue?: string;
   isCurrency: boolean;
-  change: number;
+  change: number | null;
   icon: React.ReactNode;
   color: string;
 }
@@ -92,17 +96,29 @@ export function DashboardClient({ data }: DashboardClientProps) {
   const [showCrearCreditoModal, setShowCrearCreditoModal] = useState(false);
   const [showNuevoClienteModal, setShowNuevoClienteModal] = useState(false);
 
-  // TODO: Exportar resumen del dashboard administrativo
-  // Qué exportar: Estadísticas generales, Cartera activa, Recaudo del día, Alertas
-  // Backend: Crear GET /dashboard/export?format=excel|pdf en dashboard.controller.ts
-  // Backend: Método exportDashboardSummary() en dashboard.service.ts usando ExcelJS + PDFKit
-  // Frontend: Usar exportService.downloadFile('dashboard/export', params, 'resumen-dashboard.xlsm')
-  const handleExportExcel = () => {
-    console.log('TODO: Exportar resumen dashboard en Excel');
+  // Refrescar el Server Component cuando el backend emite cambios
+  const refreshDashboard = useCallback(() => router.refresh(), [router]);
+  useRealtimeData(
+    ['dashboards_actualizados', 'pagos_actualizados', 'prestamos_actualizados', 'clientes_actualizados'],
+    refreshDashboard,
+  );
+  usePageFocusRefresh(refreshDashboard, 60_000); // 60s throttle en dashboard (datos pesados)
+
+  // Exportar resumen del dashboard usando exportService (ya implementado en backend)
+  const handleExportExcel = async () => {
+    try {
+      await exportService.exportOperationalReport('excel', { period: activePeriod });
+    } catch {
+      toast.error('Error al exportar. Intenta de nuevo.');
+    }
   };
 
-  const handleExportPDF = () => {
-    console.log('TODO: Exportar resumen dashboard en PDF');
+  const handleExportPDF = async () => {
+    try {
+      await exportService.exportOperationalReport('pdf', { period: activePeriod });
+    } catch {
+      toast.error('Error al exportar. Intenta de nuevo.');
+    }
   };
 
   // Formato de fecha amigable para el encabezado (ej: Vie, 6 Feb 2026)
@@ -182,14 +198,16 @@ export function DashboardClient({ data }: DashboardClientProps) {
                 >
                   {React.cloneElement(metric.icon as React.ReactElement<any>, { size: 24 })}
                 </div>
-                <div className={`flex items-center space-x-1.5 text-[11px] font-black px-3 py-1 rounded-full shadow-sm ${
-                  metric.change >= 0 
-                    ? 'text-emerald-700 bg-emerald-100/50' 
-                    : 'text-rose-700 bg-rose-100/50'
-                }`}>
-                  {metric.change >= 0 ? <TrendingUp className="h-3.5 w-3.5" /> : <TrendingDown className="h-3.5 w-3.5" />}
-                  <span>{metric.change >= 0 ? '+' : ''}{metric.change}%</span>
-                </div>
+                {metric.change !== null && (
+                  <div className={`flex items-center space-x-1.5 text-[11px] font-black px-3 py-1 rounded-full shadow-sm ${
+                    metric.change >= 0 
+                      ? 'text-emerald-700 bg-emerald-100/50' 
+                      : 'text-rose-700 bg-rose-100/50'
+                  }`}>
+                    {metric.change >= 0 ? <TrendingUp className="h-3.5 w-3.5" /> : <TrendingDown className="h-3.5 w-3.5" />}
+                    <span>{metric.change >= 0 ? '+' : ''}{metric.change}%</span>
+                  </div>
+                )}
               </div>
               
               <div className="space-y-2 relative z-10">
@@ -208,10 +226,8 @@ export function DashboardClient({ data }: DashboardClientProps) {
           ))}
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Columna Principal (Izquierda) */}
-          <div className="lg:col-span-2 space-y-8">
-            
+        <div className="space-y-8">
+          
             {/* Gráfico Principal: Tendencia de Cobros */}
             <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
               <div className="flex items-center justify-between mb-6">
@@ -275,59 +291,6 @@ export function DashboardClient({ data }: DashboardClientProps) {
               </div>
             </div>
 
-          </div>
-
-          {/* Columna Lateral (Derecha) */}
-          <div className="space-y-8">
-            {/* Accesos Rápidos (Reducido) */}
-            <div className="bg-slate-50 rounded-2xl p-6 border border-slate-200/60">
-              <h3 className="text-sm font-bold text-slate-500 uppercase tracking-wider mb-4">Accesos Rápidos</h3>
-              <div className="grid grid-cols-1 gap-3">
-                 {data.quickAccess.slice(0, 3).map((item, index) => {
-                   // Acciones que abren modal en lugar de navegar
-                   const modalAction = 
-                     item.title === 'Nuevo Crédito' ? () => setShowCrearCreditoModal(true) :
-                     item.title === 'Nuevo Cliente' ? () => setShowNuevoClienteModal(true) :
-                     null;
-                   
-                   if (modalAction) {
-                     return (
-                       <button
-                         key={index}
-                         onClick={modalAction}
-                         className="w-full flex items-center gap-3 p-3 bg-white rounded-xl shadow-sm border border-slate-100 hover:shadow-md hover:border-blue-100 transition-all group text-left"
-                       >
-                         <div className="p-2 rounded-lg bg-slate-50 text-slate-600 group-hover:bg-blue-50 group-hover:text-blue-600 transition-colors">
-                           {item.icon}
-                         </div>
-                         <div>
-                           <div className="font-medium text-slate-900 text-sm group-hover:text-blue-700">{item.title}</div>
-                           <div className="text-xs text-slate-500">{item.subtitle}</div>
-                         </div>
-                       </button>
-                     );
-                   }
-                   
-                   return (
-                     <Link
-                       key={index}
-                       href={item.href}
-                       className="flex items-center gap-3 p-3 bg-white rounded-xl shadow-sm border border-slate-100 hover:shadow-md hover:border-blue-100 transition-all group"
-                     >
-                       <div className="p-2 rounded-lg bg-slate-50 text-slate-600 group-hover:bg-blue-50 group-hover:text-blue-600 transition-colors">
-                         {item.icon}
-                       </div>
-                       <div>
-                         <div className="font-medium text-slate-900 text-sm group-hover:text-blue-700">{item.title}</div>
-                         <div className="text-xs text-slate-500">{item.subtitle}</div>
-                       </div>
-                     </Link>
-                   );
-                 })}
-              </div>
-            </div>
-
-          </div>
         </div>
 
         {/* Footer sutil */}
@@ -342,20 +305,14 @@ export function DashboardClient({ data }: DashboardClientProps) {
       <CrearCreditoModal
         isOpen={showCrearCreditoModal}
         onClose={() => setShowCrearCreditoModal(false)}
-        onConfirm={(data) => {
-          console.log('Crédito creado:', data);
-          setShowCrearCreditoModal(false);
-        }}
+        onConfirm={() => setShowCrearCreditoModal(false)}
       />
 
       {/* Modal de Nuevo Cliente */}
       {showNuevoClienteModal && (
         <NuevoClienteModal
           onClose={() => setShowNuevoClienteModal(false)}
-          onClienteCreado={(nuevo) => {
-            console.log('Cliente creado:', nuevo);
-            setShowNuevoClienteModal(false);
-          }}
+          onClienteCreado={() => setShowNuevoClienteModal(false)}
         />
       )}
     </div>

@@ -2,86 +2,245 @@
 
 import React, { ReactNode } from 'react'
 import { createPortal } from 'react-dom'
-import { MapPin, Eye, Phone, GripVertical, Clock, XCircle, ChevronDown, Calendar, Timer } from 'lucide-react'
+import { MapPin, Eye, Phone, GripVertical, XCircle, ChevronDown, Timer } from 'lucide-react'
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { VisitaRuta, EstadoVisita } from '@/lib/types/cobranza'
 
 export const MODAL_Z_INDEX = 2147483600
 
+// ── Portal ───────────────────────────────────────────────────────────────────
+
 export function Portal({ children }: { children: ReactNode }) {
   if (typeof document === 'undefined') return null
   return createPortal(children, document.body)
 }
 
-export function SeleccionClienteModal({ 
-  visitas, 
-  onSelect, 
-  onClose,
-  titulo = "Estado de Cuenta",
-  subtitulo = "Consultar Cliente"
-}: { 
-  visitas: VisitaRuta[], 
-  onSelect: (v: VisitaRuta) => void, 
-  onClose: () => void,
-  titulo?: string,
-  subtitulo?: string
+// ── Formato abreviado de montos (COP) ────────────────────────────────────────
+// Ejemplos: $401,5M · $13,4M · $458.333 · $1,2B
+
+function formatMontoCorto(amount: number): string {
+  const abs = Math.abs(amount)
+  if (abs >= 1_000_000_000) {
+    return `$${(amount / 1_000_000_000).toLocaleString('es-CO', { maximumFractionDigits: 1 })}B`
+  }
+  if (abs >= 1_000_000) {
+    return `$${(amount / 1_000_000).toLocaleString('es-CO', { maximumFractionDigits: 1 })}M`
+  }
+  return `$${new Intl.NumberFormat('es-CO', { maximumFractionDigits: 0 }).format(amount)}`
+}
+
+// ── Helpers de color de semáforo ─────────────────────────────────────────────
+
+function dotColor(nivelRiesgo: string | undefined): string {
+  switch (nivelRiesgo) {
+    case 'bajo':       return 'bg-emerald-500'
+    case 'leve':       return 'bg-yellow-400'
+    case 'precaucion': return 'bg-amber-400'
+    case 'moderado':   return 'bg-orange-500'
+    case 'critico':    return 'bg-red-600'
+    default:           return 'bg-slate-300'
+  }
+}
+
+function nivelBadgeColor(nivelRiesgo: string | undefined): string {
+  switch (nivelRiesgo) {
+    case 'bajo':       return 'text-emerald-700 bg-emerald-50 border-emerald-100'
+    case 'leve':       return 'text-yellow-700 bg-yellow-50 border-yellow-100'
+    case 'precaucion': return 'text-amber-700 bg-amber-50 border-amber-100'
+    case 'moderado':   return 'text-orange-700 bg-orange-50 border-orange-100'
+    case 'critico':    return 'text-red-700 bg-red-50 border-red-100'
+    default:           return 'text-slate-400 bg-slate-50 border-slate-200'
+  }
+}
+
+function nivelLabel(nivelRiesgo: string | undefined): string {
+  switch (nivelRiesgo) {
+    case 'bajo':       return 'Mínimo'
+    case 'leve':       return 'Leve'
+    case 'precaucion': return 'Precaución'
+    case 'moderado':   return 'Moderado'
+    case 'critico':    return 'Crítico'
+    default:           return '—'
+  }
+}
+
+function nivelTitle(nivelRiesgo: string | undefined): string {
+  switch (nivelRiesgo) {
+    case 'bajo':       return 'Al día'
+    case 'leve':       return 'Riesgo leve'
+    case 'precaucion': return 'Precaución'
+    case 'moderado':   return 'En mora'
+    case 'critico':    return 'Crítico / Lista negra'
+    default:           return ''
+  }
+}
+
+function borderColor(nivelRiesgo: string | undefined, isSelected: boolean): string {
+  if (isSelected) return 'ring-2 ring-[#08557f] shadow-md bg-blue-50/30 border-[#08557f]'
+  switch (nivelRiesgo) {
+    case 'bajo':       return 'border-emerald-400 shadow-sm'
+    case 'leve':       return 'border-yellow-400 shadow-sm'
+    case 'precaucion': return 'border-amber-400 shadow-sm'
+    case 'moderado':   return 'border-orange-500 shadow-sm'
+    case 'critico':    return 'border-red-600 shadow-md'
+    default:           return 'border-slate-200'
+  }
+}
+
+function periodoLabel(periodo: string): string {
+  switch (periodo) {
+    case 'DIA':      return 'Día'
+    case 'SEMANA':   return 'Sem'
+    case 'QUINCENA': return 'Qna'
+    case 'MES':      return 'Mes'
+    default:         return periodo
+  }
+}
+
+// ── Contenido de la tarjeta (reutilizado por Static y Sortable) ──────────────
+/**
+ * Layout responsive:
+ *   Fila 1 → [grip?] · nombre completo · [ojo]
+ *   Fila 2 → badges (nivel · cuota# · estado) | KPIs (cuota · saldo · período)
+ *   Fila 3 → dirección + teléfono (opcional)
+ *   Fila 4 → prórroga (opcional)
+ *   Fila 5 → botones de acción (children, opcional)
+ */
+function VisitaCardContent({
+  visita,
+  onVerCliente,
+  getEstadoClasses,
+  grip,
+  children,
+}: {
+  visita: VisitaRuta
+  onVerCliente: (v: VisitaRuta) => void
+  getEstadoClasses: (e: EstadoVisita) => string
+  grip?: ReactNode
+  children?: ReactNode
 }) {
   return (
-    <Portal>
-    <div className="fixed inset-0 z-[2147483600] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-200">
-       <div className="bg-white rounded-[2rem] w-full max-w-sm shadow-2xl animate-in zoom-in-95 duration-200 overflow-hidden">
-          <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50 text-center">
-             <h3 className="font-bold text-lg text-slate-900 flex-1">{titulo}</h3>
-             <button onClick={onClose} className="p-2 bg-slate-100 rounded-full text-slate-500 hover:bg-slate-200 transition-colors">
-                <XCircle className="h-5 w-5" />
-             </button>
+    <>
+      {/* Fila 1: grip + nombre + botón ojo */}
+      <div className="flex items-center gap-2">
+        {grip}
+
+        {/* Nombre (ocupa todo el espacio disponible) */}
+        <p className="flex-1 min-w-0 text-sm font-black text-slate-900 leading-snug break-words">
+          {visita.cliente}
+        </p>
+
+        {/* Botón ver detalles */}
+        <button
+          onClick={(e) => { e.stopPropagation(); onVerCliente(visita) }}
+          className="p-2 bg-slate-100/60 rounded-lg hover:bg-white text-slate-400 hover:text-[#08557f] transition-all border border-transparent hover:border-slate-200 shrink-0 active:scale-95"
+          title="Ver expediente del cliente"
+        >
+          <Eye className="w-4 h-4" />
+        </button>
+      </div>
+
+      {/* Fila 2: badges izquierda + KPIs derecha */}
+      <div className="mt-2 flex items-center justify-between gap-2 flex-wrap">
+        {/* Badges */}
+        <div className="flex items-center gap-1 flex-wrap">
+          {/* Dot semáforo */}
+          <span
+            title={nivelTitle(visita.nivelRiesgo)}
+            className={`w-2 h-2 rounded-full shrink-0 ${dotColor(visita.nivelRiesgo)}`}
+          />
+          {/* Badge nivel riesgo */}
+          <span className={`text-[9px] font-black uppercase px-1.5 py-0.5 rounded border ${nivelBadgeColor(visita.nivelRiesgo)}`}>
+            {nivelLabel(visita.nivelRiesgo)}
+          </span>
+          {/* Badge cuota actual */}
+          {visita.cuotaActual && (
+            <span className="text-[9px] font-black bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded border border-slate-200">
+              #{visita.cuotaActual}{visita.cuotasTotales ? `/${visita.cuotasTotales}` : ''}
+            </span>
+          )}
+          {/* Badge estado visita */}
+          <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-md border uppercase ${getEstadoClasses(visita.estado)}`}>
+            {visita.estado.replace('_', ' ')}
+          </span>
+        </div>
+
+        {/* KPIs: cuota · saldo · período */}
+        <div className="flex items-center gap-1.5 shrink-0">
+          <div className="text-center">
+            <div className="text-[8px] font-bold text-slate-400 uppercase leading-none mb-0.5">Cuota</div>
+            <div className="text-[11px] font-black text-slate-800 tabular-nums">{formatMontoCorto(visita.montoCuota)}</div>
           </div>
-          <div className="p-8 space-y-6">
-             <div className="space-y-3">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] pl-1">{subtitulo}</label>
-                <div className="relative">
-                    <select 
-                       autoFocus
-                       defaultValue=""
-                       className="w-full p-4 rounded-2xl border-2 border-slate-100 bg-slate-50 text-slate-900 font-bold focus:border-blue-600 focus:ring-4 focus:ring-blue-600/10 outline-none transition-all appearance-none cursor-pointer"
-                       onChange={(e) => {
-                          const visita = visitas.find(v => v.id === e.target.value);
-                          if (visita) onSelect(visita);
-                       }}
-                    >
-                       <option value="" disabled className="text-slate-400 bg-white">Seleccionar de la lista...</option>
-                       {visitas.map(v => {
-                          // Mostrar tipo y frecuencia para diferenciar múltiples créditos del mismo cliente
-                          const tipoCred = v.tipoPrestamo === 'ARTICULO'
-                            ? (v.articuloNombre ? `Artículo: ${v.articuloNombre}` : 'Artículo')
-                            : 'Efectivo';
-                          const periodoCred = v.periodoRuta === 'DIA' ? 'Diario'
-                            : v.periodoRuta === 'SEMANA' ? 'Semanal'
-                            : v.periodoRuta === 'QUINCENA' ? 'Quincenal'
-                            : v.periodoRuta === 'MES' ? 'Mensual'
-                            : v.periodoRuta;
-                          return (
-                            <option key={v.id} value={v.id} className="text-slate-900 bg-white">
-                              {`${v.cliente} — ${tipoCred} · ${periodoCred}`}
-                            </option>
-                          );
-                       })}
-                    </select>
-                    <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
-                       <ChevronDown className="h-5 w-5" />
-                    </div>
-                </div>
-             </div>
-             <button onClick={onClose} className="w-full py-4 text-xs font-black text-slate-400 uppercase tracking-widest hover:text-slate-600 transition-colors">
-                Cancelar consulta
-             </button>
+          <div className="w-px h-5 bg-slate-200" />
+          <div className="text-center">
+            <div className="text-[8px] font-bold text-slate-400 uppercase leading-none mb-0.5">Saldo</div>
+            <div className={`text-[11px] font-black tabular-nums ${visita.saldoTotal > 0 ? 'text-slate-700' : 'text-emerald-600'}`}>
+              {formatMontoCorto(visita.saldoTotal)}
+            </div>
           </div>
-       </div>
-    </div>
-    </Portal>
+          <div className="w-px h-5 bg-slate-200" />
+          <span className="text-[9px] font-bold bg-[#08557f]/5 text-[#08557f] border border-[#08557f]/10 px-1.5 py-0.5 rounded-md uppercase">
+            {periodoLabel(visita.periodoRuta)}
+          </span>
+        </div>
+      </div>
+
+      {/* Fila 3: dirección + teléfono */}
+      {(visita.direccion || visita.telefono) && (
+        <div className="mt-1.5 flex items-center gap-1 text-[10px] text-slate-400 font-medium leading-none flex-wrap">
+          {visita.direccion && (
+            <>
+              <MapPin className="w-3 h-3 shrink-0" />
+              <span className="truncate max-w-[55%]">{visita.direccion}</span>
+            </>
+          )}
+          {visita.telefono && (
+            <>
+              <span className="mx-0.5">·</span>
+              <Phone className="w-3 h-3 shrink-0" />
+              <span>{visita.telefono}</span>
+            </>
+          )}
+        </div>
+      )}
+
+      {/* Fila 4: prórroga activa */}
+      {visita.enProrroga && (() => {
+        const diasRestantes = visita.fechaProrroga
+          ? Math.ceil((new Date(visita.fechaProrroga).getTime() - Date.now()) / (1000 * 60 * 60 * 24))
+          : null
+        const color =
+          diasRestantes === null || diasRestantes < 0
+            ? 'bg-rose-50 border-rose-200 text-rose-700'
+            : diasRestantes <= 1
+              ? 'bg-amber-50 border-amber-200 text-amber-700'
+              : 'bg-blue-50 border-blue-200 text-blue-700'
+        return (
+          <div className={`mt-1.5 flex items-center gap-1.5 px-2 py-1 rounded-lg border text-[9px] font-black uppercase tracking-wide ${color}`}>
+            <Timer className="w-3 h-3 shrink-0" />
+            {diasRestantes === null
+              ? 'En prórroga activa'
+              : diasRestantes < 0
+                ? 'Prórroga vencida'
+                : diasRestantes === 0
+                  ? 'Prórroga vence HOY'
+                  : `Prórroga — vence ${new Date(visita.fechaProrroga!).toLocaleDateString('es-CO')} (${diasRestantes}d)`}
+          </div>
+        )
+      })()}
+
+      {/* Fila 5: botones de acción (children) */}
+      {children && (
+        <div className="mt-2 pt-2 border-t border-slate-100">
+          {children}
+        </div>
+      )}
+    </>
   )
 }
+
+// ── StaticVisitaItem ─────────────────────────────────────────────────────────
 
 export function StaticVisitaItem({
   visita,
@@ -105,118 +264,22 @@ export function StaticVisitaItem({
   return (
     <div
       onClick={() => allowClick && onSelect && onSelect(visita.id)}
-      className={`relative z-10 w-full rounded-xl px-3 py-2 transition-all bg-white ${
-        allowClick ? 'cursor-pointer hover:shadow-md' : 'cursor-default'
-      } border-2 ${
-        isSelected 
-          ? 'ring-2 ring-[#08557f] shadow-md bg-blue-50/30 border-[#08557f]' 
-          : visita.nivelRiesgo === 'bajo' ? 'border-emerald-500 shadow-sm' :
-            visita.nivelRiesgo === 'leve' ? 'border-blue-500 shadow-sm' :
-            (visita.nivelRiesgo as string) === 'precaucion' ? 'border-yellow-400 shadow-sm' :
-            visita.nivelRiesgo === 'moderado' ? 'border-orange-500 shadow-sm' :
-            visita.nivelRiesgo === 'critico' ? 'border-red-600 shadow-md' :
-            'border-slate-200'
-      }`}
+      className={`relative z-10 w-full rounded-xl px-3 py-2.5 transition-all bg-white border-2 ${
+        allowClick ? 'cursor-pointer hover:shadow-md active:scale-[0.99]' : 'cursor-default'
+      } ${borderColor(visita.nivelRiesgo, !!isSelected)}`}
     >
-      {/* FILA PRINCIPAL — todo en una sola línea */}
-      <div className="flex items-center gap-2">
-        <GripVertical className="h-4 w-4 text-slate-200 shrink-0" />
-
-        {/* Nombre + meta */}
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-1.5 flex-wrap">
-            <span className="text-sm font-bold text-slate-900 truncate max-w-[160px]">{visita.cliente}</span>
-            <span className={`text-[9px] font-black uppercase px-1.5 py-0.5 rounded border ${
-              visita.nivelRiesgo === 'bajo' ? 'text-emerald-700 bg-emerald-50 border-emerald-100' :
-              visita.nivelRiesgo === 'leve' ? 'text-blue-700 bg-blue-50 border-blue-100' :
-              (visita.nivelRiesgo as string) === 'precaucion' ? 'text-yellow-700 bg-yellow-50 border-yellow-100' :
-              visita.nivelRiesgo === 'moderado' ? 'text-orange-700 bg-orange-50 border-orange-100' :
-              visita.nivelRiesgo === 'critico' ? 'text-red-700 bg-red-50 border-red-100' :
-              'text-slate-400 bg-slate-50 border-slate-200'
-            }`}>
-              {visita.nivelRiesgo === 'bajo' ? 'Mínimo' :
-               visita.nivelRiesgo === 'leve' ? 'Leve' :
-               (visita.nivelRiesgo as string) === 'precaucion' ? 'Precaución' :
-                visita.nivelRiesgo === 'moderado' ? 'Moderado' :
-                visita.nivelRiesgo === 'critico' ? 'Crítico' : '—'}
-             </span>
-             {visita.cuotaActual && (
-               <span className="text-[9px] font-black bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded border border-slate-200">
-                 #{visita.cuotaActual}{visita.cuotasTotales ? `/${visita.cuotasTotales}` : ''}
-               </span>
-             )}
-            <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-md border uppercase ${getEstadoClasses(visita.estado)}`}>
-              {visita.estado.replace('_', ' ')}
-            </span>
-          </div>
-          <div className="flex items-center gap-1 mt-0.5 text-[10px] text-slate-400 font-medium">
-            <MapPin className="w-3 h-3 shrink-0" />
-            <span className="truncate max-w-[180px]">{visita.direccion}</span>
-            {visita.telefono && (
-              <><span className="mx-0.5">·</span><Phone className="w-3 h-3 shrink-0" /><span>{visita.telefono}</span></>
-            )}
-          </div>
-        </div>
-
-        {/* KPIs en horizontal */}
-        <div className="flex items-center gap-2 shrink-0">
-          <div className="text-center">
-            <div className="text-[9px] font-bold text-slate-400 uppercase">Cuota</div>
-            <div className="text-xs font-black text-slate-800">${visita.montoCuota.toLocaleString('es-CO')}</div>
-          </div>
-          <div className="w-px h-6 bg-slate-200" />
-          <div className="text-center">
-            <div className="text-[9px] font-bold text-slate-400 uppercase">Saldo</div>
-            <div className={`text-xs font-black ${visita.saldoTotal > 0 ? 'text-slate-700' : 'text-emerald-600'}`}>${visita.saldoTotal.toLocaleString('es-CO')}</div>
-          </div>
-          <div className="w-px h-6 bg-slate-200" />
-          <div className="flex items-center gap-1 text-[10px] font-bold bg-[#08557f]/5 text-[#08557f] border border-[#08557f]/10 px-1.5 py-0.5 rounded-md uppercase">
-            {visita.periodoRuta === 'DIA' ? 'Día' :
-             visita.periodoRuta === 'SEMANA' ? 'Sem' :
-             visita.periodoRuta === 'QUINCENA' ? 'Qna' :
-             visita.periodoRuta === 'MES' ? 'Mes' : visita.periodoRuta}
-          </div>
-        </div>
-
-        {/* Ojo */}
-        <button
-          onClick={(e) => { e.stopPropagation(); onVerCliente(visita); }}
-          className="p-1.5 bg-slate-100/60 rounded-lg hover:bg-white text-slate-400 hover:text-[#08557f] transition-all border border-transparent hover:border-slate-200 shrink-0"
-          title="Ver detalles"
-        >
-          <Eye className="w-4 h-4" />
-        </button>
-      </div>
-
-      {/* Prórroga — solo si aplica */}
-      {visita.enProrroga && (() => {
-        const diasRestantes = visita.fechaProrroga
-          ? Math.ceil((new Date(visita.fechaProrroga).getTime() - Date.now()) / (1000 * 60 * 60 * 24))
-          : null
-        const color = diasRestantes === null || diasRestantes < 0
-          ? 'bg-rose-50 border-rose-200 text-rose-700'
-          : diasRestantes <= 1 ? 'bg-amber-50 border-amber-200 text-amber-700'
-          : 'bg-blue-50 border-blue-200 text-blue-700'
-        return (
-          <div className={`mt-1.5 flex items-center gap-1.5 px-2 py-1 rounded-lg border text-[9px] font-black uppercase tracking-wide ${color}`}>
-            <Timer className="w-3 h-3 shrink-0" />
-            {diasRestantes === null ? 'En prórroga activa' :
-             diasRestantes < 0 ? 'Prórroga vencida' :
-             diasRestantes === 0 ? 'Prórroga vence HOY' :
-             `Prórroga — vence ${new Date(visita.fechaProrroga!).toLocaleDateString('es-CO')} (${diasRestantes}d)`}
-          </div>
-        )
-      })()}
-
-      {/* Botones de acción — en fila compacta */}
-      {children && (
-        <div className="mt-2 pt-2 border-t border-slate-100">
-          {children}
-        </div>
-      )}
+      <VisitaCardContent
+        visita={visita}
+        onVerCliente={onVerCliente}
+        getEstadoClasses={getEstadoClasses}
+      >
+        {children}
+      </VisitaCardContent>
     </div>
   )
 }
+
+// ── SortableItem (con drag handle) ───────────────────────────────────────────
 
 export function SortableItem({
   visita,
@@ -237,144 +300,44 @@ export function SortableItem({
   children?: ReactNode
   disableSort?: boolean
 }) {
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-  } = useSortable({ id: visita.id, disabled: !!disableSort })
+  const { attributes, listeners, setNodeRef, transform, transition } = useSortable({
+    id: visita.id,
+    disabled: !!disableSort,
+  })
 
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-  }
+  const style = { transform: CSS.Transform.toString(transform), transition }
+
+  const grip = disableSort ? (
+    <GripVertical className="h-4 w-4 text-slate-200 shrink-0" />
+  ) : (
+    <div
+      className="cursor-grab active:cursor-grabbing shrink-0 touch-none"
+      {...attributes}
+      {...listeners}
+    >
+      <GripVertical className="h-4 w-4 text-slate-400" />
+    </div>
+  )
 
   return (
     <div
       ref={setNodeRef}
       style={style}
-      className={`relative z-10 w-full rounded-xl px-3 py-2 transition-all bg-white border-2 ${
-        isSelected 
-          ? 'ring-2 ring-[#08557f] shadow-md bg-blue-50/30 border-[#08557f]' 
-          : visita.nivelRiesgo === 'bajo' ? 'border-emerald-500 shadow-sm' :
-            visita.nivelRiesgo === 'leve' ? 'border-blue-500 shadow-sm' :
-            (visita.nivelRiesgo as string) === 'precaucion' ? 'border-yellow-400 shadow-sm' :
-            visita.nivelRiesgo === 'moderado' ? 'border-orange-500 shadow-sm' :
-            visita.nivelRiesgo === 'critico' ? 'border-red-600 shadow-md' :
-            'border-slate-200'
-      }`}
+      className={`relative z-10 w-full rounded-xl px-3 py-2.5 transition-all bg-white border-2 ${borderColor(visita.nivelRiesgo, !!isSelected)}`}
     >
-      {/* FILA PRINCIPAL — todo en una sola línea */}
-      <div className="flex items-center gap-2">
-        {/* Handle drag */}
-        {disableSort ? (
-          <GripVertical className="h-4 w-4 text-slate-200 shrink-0" />
-        ) : (
-          <div
-            className="cursor-grab active:cursor-grabbing shrink-0"
-            {...attributes}
-            {...listeners}
-          >
-            <GripVertical className="h-4 w-4 text-slate-400" />
-          </div>
-        )}
-
-        {/* Nombre + meta */}
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-1.5 flex-wrap">
-            <span className="text-sm font-bold text-slate-900 truncate max-w-[160px]">{visita.cliente}</span>
-            <span className={`text-[9px] font-black uppercase px-1.5 py-0.5 rounded border ${
-              visita.nivelRiesgo === 'bajo' ? 'text-emerald-700 bg-emerald-50 border-emerald-100' :
-              visita.nivelRiesgo === 'leve' ? 'text-blue-700 bg-blue-50 border-blue-100' :
-              (visita.nivelRiesgo as string) === 'precaucion' ? 'text-yellow-700 bg-yellow-50 border-yellow-100' :
-              visita.nivelRiesgo === 'moderado' ? 'text-orange-700 bg-orange-50 border-orange-100' :
-              visita.nivelRiesgo === 'critico' ? 'text-red-700 bg-red-50 border-red-100' :
-              'text-slate-400 bg-slate-50 border-slate-200'
-            }`}>
-              {visita.nivelRiesgo === 'bajo' ? 'Mínimo' :
-               visita.nivelRiesgo === 'leve' ? 'Leve' :
-               (visita.nivelRiesgo as string) === 'precaucion' ? 'Precaución' :
-                visita.nivelRiesgo === 'moderado' ? 'Moderado' :
-                visita.nivelRiesgo === 'critico' ? 'Crítico' : '—'}
-             </span>
-             {visita.cuotaActual && (
-               <span className="text-[9px] font-black bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded border border-slate-200">
-                 #{visita.cuotaActual}{visita.cuotasTotales ? `/${visita.cuotasTotales}` : ''}
-               </span>
-             )}
-            <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-md border uppercase ${getEstadoClasses(visita.estado)}`}>
-              {visita.estado.replace('_', ' ')}
-            </span>
-          </div>
-          <div className="flex items-center gap-1 mt-0.5 text-[10px] text-slate-400 font-medium">
-            <MapPin className="w-3 h-3 shrink-0" />
-            <span className="truncate max-w-[180px]">{visita.direccion}</span>
-            {visita.telefono && (
-              <><span className="mx-0.5">·</span><Phone className="w-3 h-3 shrink-0" /><span>{visita.telefono}</span></>
-            )}
-          </div>
-        </div>
-
-        {/* KPIs en horizontal */}
-        <div className="flex items-center gap-2 shrink-0">
-          <div className="text-center">
-            <div className="text-[9px] font-bold text-slate-400 uppercase">Cuota</div>
-            <div className="text-xs font-black text-slate-800">${visita.montoCuota.toLocaleString('es-CO')}</div>
-          </div>
-          <div className="w-px h-6 bg-slate-200" />
-          <div className="text-center">
-            <div className="text-[9px] font-bold text-slate-400 uppercase">Saldo</div>
-            <div className={`text-xs font-black ${visita.saldoTotal > 0 ? 'text-slate-700' : 'text-emerald-600'}`}>${visita.saldoTotal.toLocaleString('es-CO')}</div>
-          </div>
-          <div className="w-px h-6 bg-slate-200" />
-          <div className="flex items-center gap-1 text-[10px] font-bold bg-[#08557f]/5 text-[#08557f] border border-[#08557f]/10 px-1.5 py-0.5 rounded-md uppercase">
-            {visita.periodoRuta === 'DIA' ? 'Día' :
-             visita.periodoRuta === 'SEMANA' ? 'Sem' :
-             visita.periodoRuta === 'QUINCENA' ? 'Qna' :
-             visita.periodoRuta === 'MES' ? 'Mes' : visita.periodoRuta}
-          </div>
-        </div>
-
-        {/* Ojo */}
-        <button
-          onClick={(e) => { e.stopPropagation(); onVerCliente(visita); }}
-          className="p-1.5 bg-slate-100/60 rounded-lg hover:bg-white text-slate-400 hover:text-[#08557f] transition-all border border-transparent hover:border-slate-200 shrink-0"
-          title="Ver detalles"
-        >
-          <Eye className="w-4 h-4" />
-        </button>
-      </div>
-
-      {/* Prórroga — solo si aplica */}
-      {visita.enProrroga && (() => {
-        const diasRestantes = visita.fechaProrroga
-          ? Math.ceil((new Date(visita.fechaProrroga).getTime() - Date.now()) / (1000 * 60 * 60 * 24))
-          : null
-        const color = diasRestantes === null || diasRestantes < 0
-          ? 'bg-rose-50 border-rose-200 text-rose-700'
-          : diasRestantes <= 1 ? 'bg-amber-50 border-amber-200 text-amber-700'
-          : 'bg-blue-50 border-blue-200 text-blue-700'
-        return (
-          <div className={`mt-1.5 flex items-center gap-1.5 px-2 py-1 rounded-lg border text-[9px] font-black uppercase tracking-wide ${color}`}>
-            <Timer className="w-3 h-3 shrink-0" />
-            {diasRestantes === null ? 'En prórroga activa' :
-             diasRestantes < 0 ? 'Prórroga vencida' :
-             diasRestantes === 0 ? 'Prórroga vence HOY' :
-             `Prórroga — vence ${new Date(visita.fechaProrroga!).toLocaleDateString('es-CO')} (${diasRestantes}d)`}
-          </div>
-        )
-      })()}
-
-      {/* Botones de acción */}
-      {children && (
-        <div className="mt-2 pt-2 border-t border-slate-100">
-          {children}
-        </div>
-      )}
+      <VisitaCardContent
+        visita={visita}
+        onVerCliente={onVerCliente}
+        getEstadoClasses={getEstadoClasses}
+        grip={grip}
+      >
+        {children}
+      </VisitaCardContent>
     </div>
   )
 }
+
+// ── SortableVisita (wrapper re-exportado) ────────────────────────────────────
 
 export function SortableVisita({
   visita,
@@ -407,5 +370,89 @@ export function SortableVisita({
     >
       {children}
     </SortableItem>
+  )
+}
+
+// ── SeleccionClienteModal ────────────────────────────────────────────────────
+
+export function SeleccionClienteModal({
+  visitas,
+  onSelect,
+  onClose,
+  titulo = 'Estado de Cuenta',
+  subtitulo = 'Consultar Cliente',
+}: {
+  visitas: VisitaRuta[]
+  onSelect: (v: VisitaRuta) => void
+  onClose: () => void
+  titulo?: string
+  subtitulo?: string
+}) {
+  return (
+    <Portal>
+      <div className="fixed inset-0 z-[2147483600] flex items-end sm:items-center justify-center sm:p-4 bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-200">
+        <div className="bg-white sm:rounded-[2rem] rounded-t-[2rem] w-full sm:max-w-sm shadow-2xl animate-in slide-in-from-bottom-4 sm:zoom-in-95 duration-200 overflow-hidden">
+          <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+            <h3 className="font-bold text-lg text-slate-900 flex-1">{titulo}</h3>
+            <button
+              onClick={onClose}
+              className="p-2 bg-slate-100 rounded-full text-slate-500 hover:bg-slate-200 transition-colors"
+            >
+              <XCircle className="h-5 w-5" />
+            </button>
+          </div>
+          <div className="p-6 space-y-6">
+            <div className="space-y-3">
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] pl-1">
+                {subtitulo}
+              </label>
+              <div className="relative">
+                <select
+                  autoFocus
+                  defaultValue=""
+                  className="w-full p-4 rounded-2xl border-2 border-slate-100 bg-slate-50 text-slate-900 font-bold focus:border-blue-600 focus:ring-4 focus:ring-blue-600/10 outline-none transition-all appearance-none cursor-pointer"
+                  onChange={(e) => {
+                    const visita = visitas.find((v) => v.id === e.target.value)
+                    if (visita) onSelect(visita)
+                  }}
+                >
+                  <option value="" disabled className="text-slate-400 bg-white">
+                    Seleccionar de la lista...
+                  </option>
+                  {visitas.map((v) => {
+                    const tipoCred =
+                      v.tipoPrestamo === 'ARTICULO'
+                        ? v.articuloNombre
+                          ? `Artículo: ${v.articuloNombre}`
+                          : 'Artículo'
+                        : 'Efectivo'
+                    const periodoCred =
+                      v.periodoRuta === 'DIA'      ? 'Diario'    :
+                      v.periodoRuta === 'SEMANA'   ? 'Semanal'   :
+                      v.periodoRuta === 'QUINCENA' ? 'Quincenal' :
+                      v.periodoRuta === 'MES'      ? 'Mensual'   :
+                      v.periodoRuta
+                    return (
+                      <option key={v.id} value={v.id} className="text-slate-900 bg-white">
+                        {`${v.cliente} — ${tipoCred} · ${periodoCred}`}
+                      </option>
+                    )
+                  })}
+                </select>
+                <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
+                  <ChevronDown className="h-5 w-5" />
+                </div>
+              </div>
+            </div>
+            <button
+              onClick={onClose}
+              className="w-full py-4 text-xs font-black text-slate-400 uppercase tracking-widest hover:text-slate-600 transition-colors"
+            >
+              Cancelar
+            </button>
+          </div>
+        </div>
+      </div>
+    </Portal>
   )
 }

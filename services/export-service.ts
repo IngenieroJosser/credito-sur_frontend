@@ -1,6 +1,9 @@
 import axios from 'axios';
 
-const API_BASE = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3001';
+const rawBase = process.env.NEXT_PUBLIC_BASE_URL || 'http://127.0.0.1:3001';
+const API_BASE = rawBase.replace(/\/$/, '').endsWith('/api-credisur') 
+  ? rawBase.replace(/\/$/, '') 
+  : `${rawBase.replace(/\/$/, '')}/api-credisur`;
 
 /**
  * Generic export service that downloads files from backend endpoints.
@@ -47,7 +50,21 @@ export const exportService = {
     window.URL.revokeObjectURL(downloadUrl);
   },
 
+  /**
+   * Export loans list as Excel or PDF
+   */
+  async exportLoans(
+    format: 'excel' | 'pdf',
+    filters: { estado?: string; ruta?: string; search?: string } = {},
+  ): Promise<void> {
+    const params: Record<string, string> = { format };
+    if (filters.estado && filters.estado !== 'todos') params.estado = filters.estado;
+    if (filters.ruta && filters.ruta !== 'todas') params.ruta = filters.ruta;
+    if (filters.search) params.search = filters.search;
 
+    const ext = format === 'excel' ? 'xlsx' : 'pdf';
+    await this.downloadFile('loans/export', params, `listado-creditos.${ext}`);
+  },
 
   /**
    * Download a file from a backend POST endpoint
@@ -99,7 +116,7 @@ export const exportService = {
     if (filters.startDate) params.startDate = filters.startDate;
     if (filters.endDate) params.endDate = filters.endDate;
 
-    const ext = format === 'excel' ? 'xlsm' : 'pdf';
+    const ext = format === 'excel' ? 'xlsx' : 'pdf';
     await this.downloadFile('reports/operational/export', params, `reporte-operativo.${ext}`);
   },
 
@@ -110,7 +127,7 @@ export const exportService = {
     format: 'excel' | 'pdf',
     filters: { busqueda?: string; nivelRiesgo?: string; rutaId?: string } = {},
   ): Promise<void> {
-    const ext = format === 'excel' ? 'xlsm' : 'pdf';
+    const ext = format === 'excel' ? 'xlsx' : 'pdf';
     await this.downloadFilePost('reports/exportar-mora', {
       filtros: filters,
       formato: format,
@@ -124,7 +141,7 @@ export const exportService = {
     format: 'excel' | 'pdf',
     filters: { busqueda?: string; nivelRiesgo?: string; rutaId?: string } = {},
   ): Promise<void> {
-    const ext = format === 'excel' ? 'xlsm' : 'pdf';
+    const ext = format === 'excel' ? 'xlsx' : 'pdf';
     await this.downloadFilePost('reports/cuentas-vencidas/exportar', {
       formato: format,
       filtros: filters,
@@ -141,7 +158,7 @@ export const exportService = {
     const params: Record<string, string> = { format };
     if (filters.startDate) params.startDate = filters.startDate;
     if (filters.endDate) params.endDate = filters.endDate;
-    const ext = format === 'excel' ? 'xlsm' : 'pdf';
+    const ext = format === 'excel' ? 'xlsx' : 'pdf';
     await this.downloadFile('reports/financial/export', params, `reporte-financiero.${ext}`);
   },
 
@@ -150,13 +167,14 @@ export const exportService = {
    */
   async exportPayments(
     format: 'excel' | 'pdf',
-    filters: { startDate?: string; endDate?: string; rutaId?: string } = {},
+    filters: { startDate?: string; endDate?: string; rutaId?: string; prestamoId?: string } = {},
   ): Promise<void> {
     const params: Record<string, string> = { format };
     if (filters.startDate) params.startDate = filters.startDate;
     if (filters.endDate) params.endDate = filters.endDate;
     if (filters.rutaId) params.rutaId = filters.rutaId;
-    const ext = format === 'excel' ? 'xlsm' : 'pdf';
+    if (filters.prestamoId) params.prestamoId = filters.prestamoId;
+    const ext = format === 'excel' ? 'xlsx' : 'pdf';
     await this.downloadFile('payments/export', params, `historial-pagos.${ext}`);
   },
 
@@ -166,7 +184,7 @@ export const exportService = {
   async exportAccounting(
     format: 'excel' | 'pdf',
   ): Promise<void> {
-    const ext = format === 'excel' ? 'xlsm' : 'pdf';
+    const ext = format === 'excel' ? 'xlsx' : 'pdf';
     await this.downloadFile('accounting/export', { format }, `reporte-contable.${ext}`);
   },
 
@@ -180,9 +198,33 @@ export const exportService = {
     const params: Record<string, string> = { format };
     if (filters.startDate) params.startDate = filters.startDate;
     if (filters.endDate) params.endDate = filters.endDate;
-    const ext = format === 'excel' ? 'xlsm' : 'pdf';
+    const ext = format === 'excel' ? 'xlsx' : 'pdf';
     await this.downloadFile('audit/export', params, `auditoria.${ext}`);
   },
 
+  /**
+   * Download article credit contract PDF
+   */
+  async exportContrato(loanId: string): Promise<void> {
+    await this.downloadFile(`loans/${loanId}/contrato`, {}, `contrato.pdf`);
+  },
+
+  /**
+   * Exportar listado de clientes en Excel o PDF.
+   * Endpoint: GET /clients/export?format=excel|pdf
+   * Soporta filtros opcionales: nivelRiesgo, ruta, search
+   */
+  async exportClientes(
+    format: 'excel' | 'pdf',
+    filters: { nivelRiesgo?: string; ruta?: string; search?: string } = {},
+  ): Promise<void> {
+    const params: Record<string, string> = { format };
+    if (filters.nivelRiesgo && filters.nivelRiesgo !== 'all') params.nivelRiesgo = filters.nivelRiesgo;
+    if (filters.ruta) params.ruta = filters.ruta;
+    if (filters.search) params.search = filters.search;
+    const ext = format === 'excel' ? 'xlsx' : 'pdf';
+    await this.downloadFile('api/v1/clients/export', params, `clientes.${ext}`);
+  },
 
 };
+

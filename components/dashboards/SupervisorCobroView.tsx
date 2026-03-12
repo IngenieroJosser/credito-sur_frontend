@@ -65,7 +65,6 @@ import GastoModal from '@/components/dashboards/shared/GastoModal'
 import BaseModal from '@/components/dashboards/shared/BaseModal'
 import DetalleMoraModal from '@/components/cobranza/DetalleMoraModal'
 import FloatingActionMenu, { FabAction } from '@/components/dashboards/shared/FloatingActionMenu'
-import { loansService_ } from '@/services/loans-service'
 import { prestamosService } from '@/services/prestamos-service'
 import { pagosService } from '@/services/pagos-service'
 import { obtenerSaldoDisponibleRuta } from '@/services/contabilidad-service'
@@ -570,9 +569,9 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
                   const p = await prestamosService.obtenerPrestamoPorId(
                     v.prestamoId,
                   )
-                  const proxima = p.proximaCuota || {}
+                  const proxima = (p.proximaCuota ?? {}) as Partial<typeof p.cuotas extends (infer C)[] | undefined ? C : Record<string, unknown>>
                   const montoP = Number(
-                    proxima.monto ||
+                    (proxima as any).monto ||
                       p.montoCuota ||
                       (p as any).valorCuota ||
                       0,
@@ -581,7 +580,7 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
                   return {
                     ...v,
                     montoCuota: montoP > 0 ? montoP : v.montoCuota,
-                    proximaVisita: proxima.fechaVencimiento || v.proximaVisita,
+                    proximaVisita: (proxima as any).fechaVencimiento || v.proximaVisita,
                   }
                 } catch {
                   return v
@@ -787,7 +786,7 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
       try {
         let detalle: any = null
         try {
-          detalle = await loansService_.obtenerDetallePrestamo(prestamoId)
+          detalle = await prestamosService.obtenerPrestamoPorId(prestamoId)
         } catch {
           detalle = null
         }

@@ -98,3 +98,4 @@ export const aprobacionesService = {
     return apiRequest<Aprobacion[]>('POST', '/approvals/history', { entidadId, tabla });
   }
 };
+

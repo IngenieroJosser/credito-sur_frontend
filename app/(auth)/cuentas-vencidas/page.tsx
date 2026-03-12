@@ -17,7 +17,9 @@
  * - Solo puede PROCESAR CASTIGO (contabilizar la pérdida)
  */
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
+import { useRealtimeData } from '@/hooks/useRealtimeData'
+import { usePageFocusRefresh } from '@/hooks/usePageFocusRefresh'
 import {
   Archive, Search, Clock, LayoutGrid, List, Calendar,
   AlertCircle as AlertCircleIcon, CheckCircle, XCircle,
@@ -97,7 +99,7 @@ function CuentasVencidasContent() {
   const puedeGestionar = can('CUENTAS_VENCIDAS_GESTIONAR') || can('CUENTAS_VENCIDAS_PROCESAR') || rolesConGestion.includes(rol || '')
   const puedeExportar = can('CUENTAS_VENCIDAS_EXPORTAR') || rolesConGestion.includes(rol || '')
 
-  const fetchCuentasVencidas = async () => {
+  const fetchCuentasVencidas = useCallback(async () => {
     try {
       setLoading(true); setError(null)
       const filtros = {
@@ -132,7 +134,7 @@ function CuentasVencidasContent() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [busqueda, filtroRuta])
 
   const handleExportExcel = async () => {
     setExportLoading(true)
@@ -191,7 +193,14 @@ function CuentasVencidasContent() {
   useEffect(() => {
     const t = setTimeout(() => fetchCuentasVencidas(), 500)
     return () => clearTimeout(t)
-  }, [busqueda, filtroRuta])
+  }, [busqueda, filtroRuta, fetchCuentasVencidas])
+
+  // Tiempo real: pagos y préstamos afectan las cuentas vencidas
+  useRealtimeData(
+    ['pagos_actualizados', 'prestamos_actualizados', 'aprobaciones_actualizadas'],
+    fetchCuentasVencidas,
+  )
+  usePageFocusRefresh(fetchCuentasVencidas)
 
   // Filtro local por severidad
   const cuentasFiltradas = filtroSeveridad === 'TODOS'

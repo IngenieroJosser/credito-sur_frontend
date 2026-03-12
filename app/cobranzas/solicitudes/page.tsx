@@ -1,4 +1,5 @@
 'use client'
+import { logger } from '@/lib/logger'
 
 import { useMemo, useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
@@ -285,7 +286,7 @@ export default function SolicitudesCobradorPage() {
                         title="Ver Detalle"
                         onClick={() => {
                           // Placeholder: detalle modal más adelante
-                          console.log('Ver detalle solicitud:', sol.id)
+                          logger.log('Ver detalle solicitud:', sol.id)
                         }}
                       >
                         <Eye className="h-4 w-4" />
@@ -311,3 +312,4 @@ export default function SolicitudesCobradorPage() {
     </div>
   )
 }
+

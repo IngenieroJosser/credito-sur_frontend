@@ -68,3 +68,4 @@ export const gastosService = {
     return apiRequest<void>('DELETE', `/accounting/${id}`);
   }
 };
+

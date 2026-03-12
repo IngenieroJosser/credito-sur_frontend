@@ -1,4 +1,5 @@
 'use client'
+import { logger } from '@/lib/logger'
 
 /**
  * ============================================================================
@@ -317,7 +318,7 @@ const ModuloContableContent = () => {
           const rutasData = await rutasService.obtenerRutas({ limit: 100, activa: true });
           setRutasDisponibles(rutasData);
         } catch (err) {
-          console.warn('No se pudo cargar rutas (permiso insuficiente)');
+          logger.warn('No se pudo cargar rutas (permiso insuficiente)');
         }
       }
 
@@ -2503,3 +2504,4 @@ const ModuloContablePage = () => {
 }
 
 export default ModuloContablePage
+

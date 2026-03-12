@@ -1,6 +1,8 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
+import { useRealtimeData } from '@/hooks/useRealtimeData'
+import { usePageFocusRefresh } from '@/hooks/usePageFocusRefresh'
 import {
   Search,
   Filter,
@@ -75,8 +77,7 @@ const HistorialPagosPage = () => {
     }
   }
 
-  useEffect(() => {
-    const loadPagos = async () => {
+  const loadPagos = useCallback(async () => {
       setIsLoading(true)
       try {
         const resp = await pagosService.obtenerPagos()
@@ -94,7 +95,6 @@ const HistorialPagosPage = () => {
         setPagos(mapped)
       } catch (err) {
         console.error('Error cargando historial de pagos:', err)
-        // Fallback offline: construir desde cola offline completada
         try {
           const db = await getOfflineDb();
           const offQueue = await db.getAll('offline-queue');
@@ -115,9 +115,13 @@ const HistorialPagosPage = () => {
       } finally {
         setIsLoading(false)
       }
-    }
-    loadPagos()
-  }, [])
+    }, [])
+
+  useEffect(() => { loadPagos() }, [loadPagos])
+
+  // Tiempo real: escucha nuevos pagos registrados
+  useRealtimeData(['pagos_actualizados', 'prestamos_actualizados'], loadPagos)
+  usePageFocusRefresh(loadPagos)
 
   if (isLoading) {
     return <AnimacionCarga texto="Cargando historial de pagos..." />
@@ -132,7 +136,7 @@ const HistorialPagosPage = () => {
 
   const getDateRangeForPeriod = (p: TimeFilterPeriod) => {
     const ahora = new Date()
-    const inicio = new Date(ahora)
+    let inicio = new Date(ahora)
 
     if (p === 'today') {
       inicio.setHours(0, 0, 0, 0)
@@ -142,8 +146,8 @@ const HistorialPagosPage = () => {
     } else if (p === 'month') {
       inicio.setMonth(ahora.getMonth(), 1)
       inicio.setHours(0, 0, 0, 0)
-    } else if (p === 'quarter') {
-      inicio.setMonth(ahora.getMonth() - 3, 1)
+    } else if (p === 'year') {
+      inicio = new Date(ahora.getFullYear(), 0, 1)
       inicio.setHours(0, 0, 0, 0)
     }
 

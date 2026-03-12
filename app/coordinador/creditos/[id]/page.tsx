@@ -1,4 +1,5 @@
-'use client';
+'use client'
+import { logger } from '@/lib/logger'
 
 import { useState, useEffect, use } from 'react';
 import { ChevronLeft, BarChart3, Pencil, UserCog, Percent } from 'lucide-react';
@@ -68,7 +69,7 @@ export default function PrestamoDetallePage({
   
   const handlePassToSupervisor = () => {
     if (confirm('¿Está seguro de pasar esta cuenta a revisión del supervisor?')) {
-      console.log('Pasando cuenta', id, 'al supervisor');
+      logger.log('Pasando cuenta', id, 'al supervisor');
       alert('Cuenta enviada al supervisor para revisión');
     }
   };
@@ -184,3 +185,4 @@ export default function PrestamoDetallePage({
     </div>
   );
 }
+

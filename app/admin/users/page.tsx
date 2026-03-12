@@ -1,4 +1,5 @@
 "use client";
+import { logger } from '@/lib/logger'
 
 import React, { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
@@ -468,8 +469,8 @@ const UserManagementPage = () => {
   };
 
   const handleOpenEditModal = (user: User) => {
-    console.log("[EDIT_MODAL] Abriendo modal para usuario:", user.id);
-    console.log("[EDIT_MODAL] SearchTerm actual:", searchTerm);
+    logger.log("[EDIT_MODAL] Abriendo modal para usuario:", user.id);
+    logger.log("[EDIT_MODAL] SearchTerm actual:", searchTerm);
 
     if (
       user.rol === RolUsuario.SUPER_ADMINISTRADOR &&
@@ -491,7 +492,7 @@ const UserManagementPage = () => {
     setSelectedPermissions(user.permisos);
     setIsEditModalOpen(true);
 
-    console.log("[EDIT_MODAL] Modal abierto, SearchTerm después:", searchTerm);
+    logger.log("[EDIT_MODAL] Modal abierto, SearchTerm después:", searchTerm);
   };
 
   const handleOpenDetailModal = (user: User) => {
@@ -881,7 +882,7 @@ const UserManagementPage = () => {
           await usuariosService.cambiarContrasena(selectedUser.id, {
             contrasenaNueva: passwordToSet,
           });
-          showNotification('success', 'Contrasena actualizada correctamente', 'Seguridad');
+          // No mostramos toast aquí — se mostrará uno solo al final con todo el resultado
         } catch (e) {
           showNotification('error', 'Fallo el cambio de contrasena', 'Error Critico');
           throw e;
@@ -921,14 +922,18 @@ const UserManagementPage = () => {
         }
       }
 
-      showNotification('success', 'Informacion de usuario actualizada', 'Exito');
+      // Toast final unificado (incluye si se cambió la contraseña)
+      const msg = formData.password && formData.password.trim() !== ''
+        ? 'Datos y contraseña actualizados correctamente'
+        : 'Información de usuario actualizada';
+      showNotification('success', msg, 'Éxito');
       setIsEditModalOpen(false);
       setSelectedUser(null);
       await fetchUsers();
     } catch (error: any) {
       const errorMsg = error?.response?.data?.message || error?.message || 'Error desconocido';
       if (formData.password && formData.password.trim() !== '') {
-        showNotification('warning', `Contrasena cambiada, pero fallo la actualizacion de datos: ${errorMsg}`, 'Actualizacion Parcial');
+        showNotification('warning', `Contraseña cambiada, pero falló la actualización de datos: ${errorMsg}`, 'Actualización Parcial');
       } else {
         showNotification('error', `No se pudo actualizar el usuario: ${errorMsg}`, 'Error');
       }
@@ -1139,12 +1144,12 @@ const UserManagementPage = () => {
                 value={searchTerm}
                 onChange={(e) => {
                   const value = e.target.value;
-                  console.log("[SEARCH] Input onChange - valor:", value);
-                  console.log(
+                  logger.log("[SEARCH] Input onChange - valor:", value);
+                  logger.log(
                     "[SEARCH] Input onChange - evento:",
                     e.nativeEvent,
                   );
-                  console.log(
+                  logger.log(
                     "[SEARCH] Input onChange - inputType:",
                     (e.nativeEvent as any)?.inputType,
                   );
@@ -1154,7 +1159,7 @@ const UserManagementPage = () => {
                     value.toLowerCase() === "superadmin" &&
                     (e.nativeEvent as any)?.inputType === undefined
                   ) {
-                    console.log(
+                    logger.log(
                       '[SEARCH] ⚠️ Escritura automática detectada - bloqueando "superadmin"',
                     );
                     setSearchTerm("");
@@ -2989,3 +2994,4 @@ const UserManagementPage = () => {
 };
 
 export default UserManagementPage;
+

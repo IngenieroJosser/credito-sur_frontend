@@ -14,7 +14,8 @@ import {
   DollarSign,
   Briefcase,
   Calendar,
-  Layers
+  Layers,
+  FileText,
 } from 'lucide-react'
 import { Portal } from '@/components/dashboards/shared/CobradorElements'
 import { formatCurrency, formatCOPInputValue, parseCOPInputToNumber, resolveMediaUrl } from '@/lib/utils'
@@ -22,6 +23,7 @@ import { aprobacionesService } from '@/services/aprobaciones-service'
 import { articulosService } from '@/services/articulos-service'
 import ConfirmApproveModal from '@/components/ui/ConfirmApproveModal'
 import ConfirmRejectModal from '@/components/ui/ConfirmRejectModal'
+import PagoDetalleModal from '@/components/dashboards/shared/PagoDetalleModal'
 
 export interface NotificacionDetalleModalProps {
   isOpen: boolean
@@ -53,6 +55,8 @@ export default function NotificacionDetalleModal({
   const [autoCuotas, setAutoCuotas] = useState(true)
   const [esContado, setEsContado] = useState(false)
   const mouseDownTargetRef = useRef<EventTarget | null>(null)
+  // Estado del modal de detalle de pago (componente separado)
+  const [showPagoDetalle, setShowPagoDetalle] = useState(false)
 
   React.useEffect(() => {
     if (notificacion) {
@@ -172,6 +176,7 @@ export default function NotificacionDetalleModal({
       setEsContado(initialEsContado)
     }
   }, [notificacion])
+
 
   React.useEffect(() => {
     if (isOpen && notificacion?.entidadId) {
@@ -331,6 +336,8 @@ export default function NotificacionDetalleModal({
     DOCUMENTO_IDENTIDAD_FRENTE: 'Documento Identidad (Frente)',
     DOCUMENTO_IDENTIDAD_REVERSO: 'Documento Identidad (Reverso)',
     COMPROBANTE_DOMICILIO: 'Comprobante de Domicilio',
+    COMPROBANTE_TRANSFERENCIA: 'Comprobante de Transferencia',
+    RECIBO_PAGO: 'Recibo de Pago',
   }
   const mensajeFmt = (mensaje || '').replace(/\bDNI\b/gi, 'CC')
 
@@ -420,6 +427,7 @@ export default function NotificacionDetalleModal({
       default: return 'bg-slate-50 text-slate-600 border-slate-100'
     }
   }
+
 
   const renderMedia = () => {
     if (!isNuevoCliente) return null
@@ -1007,6 +1015,19 @@ export default function NotificacionDetalleModal({
               )}
 
               {isPrestamo ? renderPrestamo() : null}
+
+              {/* Botón para abrir el modal de detalle del pago (transferencia o efectivo) */}
+              {notificacion?.entidad === 'PAGO' && safeMeta?.pagoId && (
+                <div className="mt-2">
+                  <button
+                    onClick={() => setShowPagoDetalle(true)}
+                    className="w-full flex items-center justify-center gap-2 py-3.5 rounded-2xl border border-blue-200 bg-blue-50 text-blue-700 font-black text-[11px] uppercase tracking-widest hover:bg-blue-100 transition-all shadow-sm"
+                  >
+                    <FileText className="h-4 w-4" />
+                    Ver Detalle del Pago
+                  </button>
+                </div>
+              )}
             </div>
 
             {/* Historial de Aprobación */}
@@ -1088,6 +1109,31 @@ export default function NotificacionDetalleModal({
             isOpen={showApproveModal}
             onClose={() => setShowApproveModal(false)}
             onConfirm={() => approveNow()}
+          />
+
+          {/* Modal de detalle del pago (archivo separado, sin deuda técnica) */}
+          <PagoDetalleModal
+            isOpen={showPagoDetalle}
+            onClose={() => setShowPagoDetalle(false)}
+            metadata={{
+              pagoId:             safeMeta?.pagoId,
+              numeroPago:         safeMeta?.numeroPago,
+              numeroPrestamo:     safeMeta?.numeroPrestamo,
+              prestamoId:         safeMeta?.prestamoId,
+              metodoPago:         safeMeta?.metodoPago,
+              numeroReferencia:   safeMeta?.numeroReferencia,
+              tieneComprobante:   safeMeta?.tieneComprobante,
+              cliente:            safeMeta?.cliente,
+              clienteId:          safeMeta?.clienteId,
+              clienteDni:         safeMeta?.clienteDni,
+              monto:              safeMeta?.monto,
+              capitalRecuperado:  safeMeta?.capitalRecuperado,
+              interesRecuperado:  safeMeta?.interesRecuperado,
+              saldoNuevo:         safeMeta?.saldoNuevo,
+              saldoAnterior:      safeMeta?.saldoAnterior,
+              prestamoQuedaPagado: safeMeta?.prestamoQuedaPagado,
+              cuotasAfectadas:    safeMeta?.cuotasAfectadas,
+            }}
           />
         </div>
       </div>

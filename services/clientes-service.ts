@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger'
 import { apiRequest } from "@/lib/api/api";
 import { syncService } from '@/lib/offline/syncService';
 import { NivelRiesgo, EstadoAprobacion } from '@/types/enums';
@@ -104,7 +105,8 @@ export const clientesService = {
     const query = params.toString();
     const endpoint = query ? `/clients?${query}` : '/clients';
     
-    const response = await apiRequest<any>('GET', endpoint, undefined, { cacheTTL: 0 });
+    // El backend puede devolver un array directo o un objeto { clientes: [] }
+    const response = await apiRequest<Cliente[] | { clientes: Cliente[] }>('GET', endpoint, undefined, { cacheTTL: 0 });
     return Array.isArray(response) ? response : (response.clientes || []);
   },
 
@@ -134,7 +136,7 @@ export const clientesService = {
         error?.message?.includes('network') ||
         error?.code === 'ERR_NETWORK'
       ) {
-         console.log('[Offline Mode] Guardando creacion de cliente en cola...');
+         logger.log('[Offline Mode] Guardando creacion de cliente en cola...');
          // Usar un ID temporal
          const tempId = `temp-${Date.now()}`;
          
@@ -182,7 +184,7 @@ export const clientesService = {
         error?.message?.includes('network') ||
         error?.code === 'ERR_NETWORK'
       ) {
-         console.log('[Offline Mode] Guardando actualizacion de cliente en cola...');
+         logger.log('[Offline Mode] Guardando actualizacion de cliente en cola...');
          await syncService.enqueueOperation(
            'cliente_update',
            `/clients/${id}`,
@@ -209,7 +211,7 @@ export const clientesService = {
         error?.message?.includes('network') ||
         error?.code === 'ERR_NETWORK'
       ) {
-         console.log('[Offline Mode] Guardando eliminacion de cliente en cola...');
+         logger.log('[Offline Mode] Guardando eliminacion de cliente en cola...');
          await syncService.enqueueOperation(
            'cliente_delete',
            `/clients/${id}`,
@@ -226,8 +228,8 @@ export const clientesService = {
   /**
    * Restaurar un cliente eliminado
    */
-  async restaurar(id: string): Promise<any> {
-    return apiRequest('PATCH', `/clients/${id}/restore`, {});
+  async restaurar(id: string): Promise<Cliente> {
+    return apiRequest<Cliente>('PATCH', `/clients/${id}/restore`, {});
   },
 
   /**
@@ -246,7 +248,7 @@ export const clientesService = {
         error?.message?.includes('network') ||
         error?.code === 'ERR_NETWORK'
       ) {
-        console.log('[Offline Mode] Guardando aprobacion de cliente en cola...');
+        logger.log('[Offline Mode] Guardando aprobacion de cliente en cola...');
         return await syncService.enqueueOperation(
           'cliente_aprobar',
           `/clients/approve/${id}`,
@@ -272,7 +274,7 @@ export const clientesService = {
         error?.message?.includes('network') ||
         error?.code === 'ERR_NETWORK'
       ) {
-        console.log('[Offline Mode] Guardando agregar a lista negra en cola...');
+        logger.log('[Offline Mode] Guardando agregar a lista negra en cola...');
         return await syncService.enqueueOperation(
           'cliente_blacklist_add',
           `/clients/${id}/blacklist`,
@@ -298,7 +300,7 @@ export const clientesService = {
         error?.message?.includes('network') ||
         error?.code === 'ERR_NETWORK'
       ) {
-        console.log('[Offline Mode] Guardando remover de lista negra en cola...');
+        logger.log('[Offline Mode] Guardando remover de lista negra en cola...');
         return await syncService.enqueueOperation(
           'cliente_blacklist_remove',
           `/clients/${id}/blacklist`,
@@ -324,7 +326,7 @@ export const clientesService = {
         error?.message?.includes('network') ||
         error?.code === 'ERR_NETWORK'
       ) {
-        console.log('[Offline Mode] Guardando asignacion de ruta en cola...');
+        logger.log('[Offline Mode] Guardando asignacion de ruta en cola...');
         await syncService.enqueueOperation(
           'cliente_assign_route',
           `/clients/${clienteId}/assign-route`,
@@ -353,4 +355,6 @@ export const clientesService = {
 };
 
 // MOCK_CLIENTES eliminado - usar clientesService.obtenerTodos() para obtener datos reales
+
+
 

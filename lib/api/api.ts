@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger'
 // app/lib/api/api.ts
 import { AxiosRequestConfig, Method, AxiosError } from "axios";
 import { apiClient } from "./apiClient";
@@ -154,7 +155,7 @@ export const apiRequest = async <T>(
           throw { statusCode: 401, message: 'Sesión expirada. Redirigiendo al login...' };
         }
         // Token válido pero sin permisos (403-like via 401): no redirigir
-        console.warn('[API] 401 por permisos insuficientes — token vigente, no se redirige.');
+        logger.warn('[API] 401 por permisos insuficientes — token vigente, no se redirige.');
       }
       errorMessage = 'No tienes permisos para realizar esta acción.';
     } else if (status === 404) {
@@ -198,3 +199,4 @@ export const formatErrorForComponent = (error: any): string => {
   
   return "No se pudo completar la solicitud. Por favor, intente más tarde.";
 };
+

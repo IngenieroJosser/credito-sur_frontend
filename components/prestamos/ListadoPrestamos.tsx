@@ -22,7 +22,8 @@ import {
   Edit2,
   Trash2,
   RefreshCw,
-  Loader2
+  Loader2,
+  FileDown
 } from 'lucide-react';
 import { formatCurrency, cn } from '@/lib/utils';
 import FiltroRuta from '@/components/filtros/FiltroRuta';
@@ -30,16 +31,18 @@ import EditarPrestamoModal from '@/components/prestamos/EditarPrestamoModal';
 import DetallePrestamoModal from '@/components/prestamos/DetallePrestamoModal';
 import CrearCreditoModal from '@/components/dashboards/shared/CrearCreditoModal';
 import { useNotification } from '@/components/providers/NotificationProvider';
-import { loansService, Loan, LoansFilters } from '@/services/loans-service';
+import { loansServiceExt as loansService, type Loan, type LoansFilters } from '@/services/loans-service';
 import { formatErrorForComponent } from '@/lib/api/api';
 import { usePermission } from '@/hooks/usePermission';
-
+import { ExportButton } from '@/components/ui/ExportButton';
 import { exportService } from '@/services/export-service';
 import { offlineStore } from '@/lib/offline/offlineDb';
 import { prestamosService } from '@/services/prestamos-service';
 import { WifiOff } from 'lucide-react';
 import ConfirmModal from '@/components/ui/ConfirmModal';
 import { useNotificaciones } from '@/components/providers/NotificacionesProvider';
+import { useRealtimeData } from '@/hooks/useRealtimeData';
+import { usePageFocusRefresh } from '@/hooks/usePageFocusRefresh';
 
 interface Filtros {
   estado: string;
@@ -161,19 +164,14 @@ const ListadoPrestamosElegante = () => {
     loadPrestamos();
   }, [loadPrestamos]);
 
-  useEffect(() => {
-    if (!socket) return;
+  // Tiempo real: eventos del backend
+  useRealtimeData(
+    ['prestamos_actualizados', 'pagos_actualizados', 'clientes_actualizados', 'dashboards_actualizados'],
+    handleRefresh,
+  );
 
-    const handler = () => {
-      handleRefresh();
-    };
-
-    socket.on('prestamos_actualizados', handler);
-
-    return () => {
-      socket.off('prestamos_actualizados', handler);
-    };
-  }, [socket, handleRefresh]);
+  // Refresca silenciosamente al volver al foco o reconectar socket
+  usePageFocusRefresh(handleRefresh);
 
   const handleEliminarPrestamo = async () => {
     if (!prestamoAEliminar) return;
@@ -194,6 +192,43 @@ const ListadoPrestamosElegante = () => {
   };
 
 
+  const handleExportExcel = async () => {
+    try {
+      showNotification('info', 'Generando archivo Excel...', 'Exportando');
+      await exportService.exportLoans('excel', {
+        estado: filtros.estado !== 'todos' ? filtros.estado : undefined,
+        ruta: filtros.ruta !== 'todas' ? filtros.ruta : undefined,
+        search: filtros.busqueda || undefined,
+      });
+      showNotification('success', 'Archivo descargado correctamente', 'Exportación Exitosa');
+    } catch (err) {
+      showNotification('error', 'Error al exportar. Intente de nuevo.', 'Error');
+    }
+  };
+
+  const handleExportPDF = async () => {
+    try {
+      showNotification('info', 'Generando archivo PDF...', 'Exportando');
+      await exportService.exportLoans('pdf', {
+        estado: filtros.estado !== 'todos' ? filtros.estado : undefined,
+        ruta: filtros.ruta !== 'todas' ? filtros.ruta : undefined,
+        search: filtros.busqueda || undefined,
+      });
+      showNotification('success', 'Archivo descargado correctamente', 'Exportación Exitosa');
+    } catch (err) {
+      showNotification('error', 'Error al exportar. Intente de nuevo.', 'Error');
+    }
+  };
+
+  const handleExportPaymentsByPrestamo = async (prestamoId: string) => {
+    try {
+      showNotification('info', 'Generando Historial de Pagos...', 'Exportando');
+      await exportService.exportPayments('pdf', { prestamoId });
+      showNotification('success', 'Historial guardado exitosamente', 'Exito');
+    } catch(err) {
+      showNotification('error', 'No se pudo exportar el historial de pagos', 'Error');
+    }
+  };
 
   // Client-side filters for fields not handled by backend
   const prestamosFiltrados = prestamos.filter(prestamo => {
@@ -310,7 +345,12 @@ const ListadoPrestamosElegante = () => {
             </p>
           </div>
           <div className="flex items-center gap-3">
-
+            <ExportButton
+              onExportExcel={handleExportExcel}
+              onExportPDF={handleExportPDF}
+              label="Exportar"
+              className="!px-4 !py-2 text-sm"
+            />
             <button
               onClick={handleRefresh}
               disabled={refreshing}
@@ -487,13 +527,13 @@ const ListadoPrestamosElegante = () => {
                       <td className="px-6 py-4">
                         <div className="flex flex-col">
                           <span className="font-bold text-slate-900 group-hover:text-slate-700 transition-colors">{prestamo.numeroPrestamo}</span>
-                          <span className="text-xs font-medium text-slate-500">{prestamo.cliente}</span>
+                          <span className="text-xs font-medium text-slate-500">{typeof prestamo.cliente === 'string' ? prestamo.cliente : prestamo.clienteNombre || (prestamo.cliente as any)?.nombres || ''}</span>
                         </div>
                       </td>
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-2 text-slate-600 font-medium">
-                          {getProductoIcono(prestamo.tipoProducto)}
-                          <span>{prestamo.producto}</span>
+                          {getProductoIcono(prestamo.tipoProducto ?? undefined)}
+                          <span>{typeof prestamo.producto === 'string' ? prestamo.producto : (prestamo.producto as any)?.nombre || ''}</span>
                         </div>
                       </td>
                       <td className="px-6 py-4">
@@ -506,14 +546,14 @@ const ListadoPrestamosElegante = () => {
                         </span>
                       </td>
                       <td className="px-6 py-4 text-right font-bold text-slate-900">
-                        {formatCurrency(prestamo.montoTotal)}
+                        {formatCurrency(Number(prestamo.montoTotal) || 0)}
                       </td>
                       <td className="px-6 py-4 text-right">
                         <span className={cn(
                           "font-bold",
-                          prestamo.montoPendiente > 0 ? "text-slate-700" : "text-emerald-600"
+                          (prestamo.montoPendiente ?? 0) > 0 ? "text-slate-700" : "text-emerald-600"
                         )}>
-                          {formatCurrency(prestamo.montoPendiente)}
+                          {formatCurrency(Number(prestamo.montoPendiente) || 0)}
                         </span>
                         {prestamo.moraAcumulada && prestamo.moraAcumulada > 0 && (
                           <div className="text-[10px] text-rose-500 font-bold mt-0.5">
@@ -555,6 +595,13 @@ const ListadoPrestamosElegante = () => {
                               <Edit2 className="h-4 w-4" />
                             </button>
                           ) : null}
+                          <button 
+                            onClick={(e) => { e.stopPropagation(); handleExportPaymentsByPrestamo(prestamo.id); }}
+                            className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-all"
+                            title="Exportar Historial Pagos (PDF)"
+                          >
+                            <FileDown className="h-4 w-4" />
+                          </button>
                           {can('CREDITOS_DELETE') || can('LOANS_DELETE') || canForPath(baseRoute) ? (
                             <button 
                               onClick={() => setPrestamoAEliminar(prestamo.id)}
@@ -628,7 +675,7 @@ const ListadoPrestamosElegante = () => {
                 <div className="flex items-start justify-between mb-3 pb-3 border-b border-slate-100">
                   <div className="flex-1 min-w-0">
                     <div className="font-bold text-slate-900 truncate">{prestamo.numeroPrestamo}</div>
-                    <div className="text-xs text-slate-500 font-medium mt-0.5">{prestamo.cliente}</div>
+                    <div className="text-xs text-slate-500 font-medium mt-0.5">{typeof prestamo.cliente === 'string' ? prestamo.cliente : prestamo.clienteNombre || (prestamo.cliente as any)?.nombres || ''}</div>
                   </div>
                   <span className={cn(
                     "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold tracking-wide uppercase border flex-shrink-0 ml-2",
@@ -643,8 +690,8 @@ const ListadoPrestamosElegante = () => {
                 <div className="mb-3">
                   <div className="text-xs text-slate-500 font-bold uppercase tracking-wider mb-1">Producto</div>
                   <div className="flex items-center gap-2 text-slate-700 font-medium">
-                    {getProductoIcono(prestamo.tipoProducto)}
-                    <span>{prestamo.producto}</span>
+                    {getProductoIcono(prestamo.tipoProducto ?? undefined)}
+                    <span>{typeof prestamo.producto === 'string' ? prestamo.producto : (prestamo.producto as any)?.nombre || ''}</span>
                   </div>
                 </div>
 
@@ -652,15 +699,15 @@ const ListadoPrestamosElegante = () => {
                 <div className="grid grid-cols-2 gap-3 mb-3 pb-3 border-b border-slate-100">
                   <div>
                     <div className="text-xs text-slate-500 font-bold uppercase tracking-wider mb-1">Monto Total</div>
-                    <div className="text-lg font-bold text-slate-900">{formatCurrency(prestamo.montoTotal)}</div>
+                    <div className="text-lg font-bold text-slate-900">{formatCurrency(Number(prestamo.montoTotal) || 0)}</div>
                   </div>
                   <div>
                     <div className="text-xs text-slate-500 font-bold uppercase tracking-wider mb-1">Pendiente</div>
                     <div className={cn(
                       "text-lg font-bold",
-                      prestamo.montoPendiente > 0 ? "text-slate-700" : "text-emerald-600"
+                      (prestamo.montoPendiente ?? 0) > 0 ? "text-slate-700" : "text-emerald-600"
                     )}>
-                      {formatCurrency(prestamo.montoPendiente)}
+                      {formatCurrency(Number(prestamo.montoPendiente) || 0)}
                     </div>
                     {prestamo.moraAcumulada && prestamo.moraAcumulada > 0 && (
                       <div className="text-[10px] text-rose-500 font-bold mt-0.5">
@@ -704,6 +751,13 @@ const ListadoPrestamosElegante = () => {
                       <Edit2 className="h-4 w-4" />
                     </button>
                   ) : null}
+                  <button 
+                    onClick={(e) => { e.stopPropagation(); handleExportPaymentsByPrestamo(prestamo.id); }}
+                    className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-all"
+                    title="Exportar Historial Pagos (PDF)"
+                  >
+                    <FileDown className="h-4 w-4" />
+                  </button>
                   {can('CREDITOS_DELETE') || can('LOANS_DELETE') || canForPath(baseRoute) ? (
                     <button 
                       onClick={() => setPrestamoAEliminar(prestamo.id)}

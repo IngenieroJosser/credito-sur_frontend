@@ -60,25 +60,26 @@ const RegistrarPagoClientePage = () => {
     const loadData = async () => {
       setLoading(true)
       try {
-        const clienteData = await clientesService.obtenerClientePorId(clienteId)
+        const clienteData = await clientesService.obtenerPorId(clienteId)
         setCliente({
           id: clienteData.id,
           nombre: `${clienteData.nombres} ${clienteData.apellidos}`,
-          dni: clienteData.dni,
+          dni: clienteData.dni || (clienteData as any).cedula || '',
           direccion: clienteData.direccion || ''
         })
 
         const prestamosResp = await prestamosService.obtenerPrestamos({ search: clienteId, limit: 1 })
         const prestamo = prestamosResp?.prestamos?.[0]
         if (prestamo) {
-          const tipoPrestamo = prestamo.tipoPrestamo || prestamo.producto || ''
+          const tipoPrestamoRaw = prestamo.tipoPrestamo || prestamo.producto || ''
+          const tipoPrestamo: string = typeof tipoPrestamoRaw === 'string' ? tipoPrestamoRaw : (tipoPrestamoRaw as any)?.nombre || ''
           const esArticulo = tipoPrestamo.toLowerCase() !== 'efectivo' && tipoPrestamo.toLowerCase() !== 'préstamo'
           setProducto({
             id: prestamo.id,
             tipo: esArticulo ? 'CREDITO_ARTICULO' : 'PRESTAMO_EFECTIVO',
             codigo: prestamo.numeroPrestamo || prestamo.id,
             descripcion: tipoPrestamo || 'Préstamo',
-            saldoPendiente: prestamo.montoPendiente || prestamo.saldoPendiente || 0,
+            saldoPendiente: Number(prestamo.montoPendiente) || prestamo.saldoPendiente || 0,
             proximaCuota: prestamo.proximoPago || prestamo.fechaFin || '',
             valorCuota: prestamo.valorCuota || 0,
             diasMora: prestamo.diasMora || 0,
