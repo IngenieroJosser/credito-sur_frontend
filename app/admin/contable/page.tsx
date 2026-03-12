@@ -73,6 +73,7 @@ import { usuariosService, type Usuario as ApiUsuario } from '@/services/usuarios
 import { rutasService, type Ruta as ApiRuta } from '@/services/rutas-service'
 import SelectCategoria from '@/components/ui/SelectCategoria'
 import AnimacionCarga from '@/components/ui/AnimacionCarga'
+import Link from 'next/link'
 
 // --- TIPOS DE DATOS ---
 // Definimos la estructura de nuestras "Cajas".
@@ -167,7 +168,7 @@ const ModuloContableContent = () => {
   
   // Filtros para la tabla de movimientos
   const [busqueda, setBusqueda] = useState('') // Buscará por concepto, responsable o categoría
-  const [filtroTipo, setFiltroTipo] = useState<'TODOS' | 'INGRESO' | 'EGRESO' | 'TRANSFERENCIA'>('TODOS')
+  const [filtroTipo, setFiltroTipo] = useState<'TODOS' | 'INGRESO' | 'EGRESO' | 'TRANSFERENCIA'>('TRANSFERENCIA')
   const [filtroOrigen, setFiltroOrigen] = useState<'TODOS' | MovimientoContable['origen']>('TODOS')
   const [filtroEstado, setFiltroEstado] = useState<'TODOS' | MovimientoContable['estado']>('TODOS')
   const [filtroRuta, setFiltroRuta] = useState<string>('TODOS')
@@ -433,23 +434,9 @@ const ModuloContableContent = () => {
       mov.responsable.toLowerCase().includes(busqueda.toLowerCase()) ||
       mov.categoria.toLowerCase().includes(busqueda.toLowerCase())
     
-    // Filtro de tipo mejorado para incluir transferencias en ingresos/egresos según el contexto
-    let cumpleTipo = filtroTipo === 'TODOS';
-    if (!cumpleTipo) {
-      if (filtroTipo === 'INGRESO') {
-        cumpleTipo = mov.tipo === 'INGRESO' || (mov.tipo === 'TRANSFERENCIA' && mov.tipo === 'TRANSFERENCIA'); 
-        // Nota: En la lista unificada, las transferencias se comportan visualmente según si suman o restan
-        // Pero como aquí no tenemos el contexto de "caja actual" para saber si sumó o restó, 
-        // simplemente las mostramos si el filtro no es estricto, o las excluimos.
-        // CORRECCIÓN: Como el backend manda todo como TRANSFERENCIA, necesitamos ver el signo visual o contexto.
-        // Simplificación: Mostramos TRANSFERENCIA en ambos filtros para no ocultar info, o solo en TODOS.
-        // Decisión UX: Incluir TRANSFERENCIA en ambos si es relevante, o dejar solo en TODOS.
-        // Dado el problema del usuario, vamos a permitir que se vean.
-        cumpleTipo = mov.tipo === 'INGRESO' || mov.tipo === 'TRANSFERENCIA';
-      } else if (filtroTipo === 'EGRESO') {
-        cumpleTipo = mov.tipo === 'EGRESO' || mov.tipo === 'TRANSFERENCIA';
-      }
-    }
+    // Movimientos recientes (global) ahora muestra solo TRANSFERENCIA entre cajas.
+    // Aun así dejamos el filtro para consistencia visual.
+    const cumpleTipo = filtroTipo === 'TODOS' || mov.tipo === filtroTipo;
 
     const cumpleOrigen = filtroOrigen === 'TODOS' || mov.origen === filtroOrigen
     const cumpleEstado = filtroEstado === 'TODOS' || mov.estado === filtroEstado
@@ -643,6 +630,12 @@ const ModuloContableContent = () => {
                 onExportExcel={handleExportExcel} 
                 onExportPDF={handleExportPDF} 
               />
+              <Link
+                href="/pagos/historial"
+                className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-5 py-2.5 text-sm font-bold text-slate-700 hover:bg-slate-50 hover:border-slate-300 transition-all shadow-sm"
+              >
+                Ver cobranzas
+              </Link>
               <button
                 type="button"
                 onClick={() => setShowCrearCajaModal(true)}
@@ -821,21 +814,12 @@ const ModuloContableContent = () => {
           {/* Sección Movimientos Recientes (Restaurada) */}
           <section className="space-y-8">
             <div className="rounded-2xl bg-white/80 backdrop-blur-sm border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden">
-            <div className="p-5 border-b border-slate-100 flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Receipt className="h-4 w-4 text-blue-600" />
-                <div className="text-sm font-extrabold text-slate-900">Movimientos recientes</div>
+            <div className="p-5 border-b border-slate-100 space-y-4">
+              <div>
+                <h1 className="text-3xl font-black text-slate-900 tracking-tight">Panel Contable</h1>
+                <p className="text-slate-500 mt-1 font-medium">Control total de movimientos, cajas y cierres.</p>
               </div>
-              <button
-                type="button"
-                onClick={openRegistrarMovimiento}
-                className="inline-flex items-center gap-2 rounded-2xl bg-blue-600 px-4 py-2 text-xs font-bold text-white hover:bg-blue-700 transition-all shadow-blue-600/20"
-              >
-                <Plus className="h-4 w-4" />
-                Nuevo
-              </button>
-            </div>
-            <div className="p-4 border-b border-slate-100 bg-slate-50/40 space-y-4">
+
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="space-y-1.5">
                   <div className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Tipo de Movimiento</div>
@@ -844,11 +828,11 @@ const ModuloContableContent = () => {
                     onChange={(e) => setFiltroTipo(e.target.value as typeof filtroTipo)}
                     className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-xs font-bold text-slate-700 shadow-sm focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 outline-none transition-all"
                   >
-                    <option value="TODOS">Todos los tipos</option>
-                    <option value="INGRESO">Solo Ingresos</option>
-                    <option value="EGRESO">Solo Egresos</option>
+                    <option value="TRANSFERENCIA">Transferencias entre cajas</option>
+                    <option value="TODOS">Todos</option>
                   </select>
                 </div>
+
                 <div className="space-y-1.5">
                   <div className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Origen / Fuente</div>
                   <select
@@ -862,15 +846,15 @@ const ModuloContableContent = () => {
                   </select>
                 </div>
 
-              </div>
-
-              <div className="pt-3 border-t border-slate-200/60">
+                <div className="space-y-1.5">
+                  <div className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Ruta</div>
                   <FiltroRuta 
-                      onRutaChange={(r: string | null) => setFiltroRuta(r || 'TODOS')} 
-                      selectedRutaId={filtroRuta === 'TODOS' ? null : filtroRuta}
-                      layout="wrap"
-                      hideLabel={true}
+                    onRutaChange={(r: string | null) => setFiltroRuta(r || 'TODOS')} 
+                    selectedRutaId={filtroRuta === 'TODOS' ? null : filtroRuta}
+                    layout="wrap"
+                    hideLabel={true}
                   />
+                </div>
               </div>
             </div>
 
