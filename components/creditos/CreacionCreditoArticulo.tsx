@@ -17,6 +17,7 @@ import { articulosService, Articulo } from '@/services/articulos-service';
 import { prestamosService } from '@/services/prestamos-service';
 import { obtenerPerfil } from '@/services/autenticacion-service';
 import { TipoAmortizacion } from '@/types/enums';
+import { exportService } from '@/services/export-service';
 
 type FrecuenciaPago = 'DIARIO' | 'SEMANAL' | 'QUINCENAL' | 'MENSUAL';
 
@@ -300,7 +301,17 @@ export default function CreacionCreditoArticulo({
         tipoAmortizacion: TipoAmortizacion.INTERES_SIMPLE
       };
 
-      await prestamosService.crearPrestamo(payload as any);
+      const creado = await prestamosService.crearPrestamo(payload as any);
+
+      try {
+        const loanId = creado?.id;
+        const esOffline = Boolean(creado?.esOffline) || String(loanId || '').startsWith('temp-loan-');
+        if (loanId && !esOffline) {
+          await exportService.exportContrato(String(loanId));
+        }
+      } catch (err) {
+        console.error('Error exportando contrato automáticamente:', err);
+      }
 
       showNotification('success', 'El crédito de artículo ha sido registrado exitosamente.', 'Solicitud Exitosa');
       

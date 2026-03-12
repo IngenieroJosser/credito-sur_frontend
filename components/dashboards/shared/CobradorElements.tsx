@@ -39,6 +39,10 @@ function dotColor(nivelRiesgo: string | undefined): string {
     case 'precaucion': return 'bg-amber-400'
     case 'moderado':   return 'bg-orange-500'
     case 'critico':    return 'bg-red-600'
+    case 'VERDE':      return 'bg-emerald-500'
+    case 'AMARILLO':   return 'bg-amber-400'
+    case 'ROJO':       return 'bg-orange-500'
+    case 'LISTA_NEGRA':return 'bg-red-600'
     default:           return 'bg-slate-300'
   }
 }
@@ -50,6 +54,10 @@ function nivelBadgeColor(nivelRiesgo: string | undefined): string {
     case 'precaucion': return 'text-amber-700 bg-amber-50 border-amber-100'
     case 'moderado':   return 'text-orange-700 bg-orange-50 border-orange-100'
     case 'critico':    return 'text-red-700 bg-red-50 border-red-100'
+    case 'VERDE':      return 'text-emerald-700 bg-emerald-50 border-emerald-100'
+    case 'AMARILLO':   return 'text-amber-700 bg-amber-50 border-amber-100'
+    case 'ROJO':       return 'text-orange-700 bg-orange-50 border-orange-100'
+    case 'LISTA_NEGRA':return 'text-red-700 bg-red-50 border-red-100'
     default:           return 'text-slate-400 bg-slate-50 border-slate-200'
   }
 }
@@ -61,6 +69,10 @@ function nivelLabel(nivelRiesgo: string | undefined): string {
     case 'precaucion': return 'Precaución'
     case 'moderado':   return 'Moderado'
     case 'critico':    return 'Crítico'
+    case 'VERDE':      return 'Mínimo'
+    case 'AMARILLO':   return 'Precaución'
+    case 'ROJO':       return 'Moderado'
+    case 'LISTA_NEGRA':return 'Crítico'
     default:           return '—'
   }
 }
@@ -72,6 +84,10 @@ function nivelTitle(nivelRiesgo: string | undefined): string {
     case 'precaucion': return 'Precaución'
     case 'moderado':   return 'En mora'
     case 'critico':    return 'Crítico / Lista negra'
+    case 'VERDE':      return 'Al día'
+    case 'AMARILLO':   return 'Precaución'
+    case 'ROJO':       return 'En mora'
+    case 'LISTA_NEGRA':return 'Crítico / Lista negra'
     default:           return ''
   }
 }
@@ -84,6 +100,10 @@ function borderColor(nivelRiesgo: string | undefined, isSelected: boolean): stri
     case 'precaucion': return 'border-amber-400 shadow-sm'
     case 'moderado':   return 'border-orange-500 shadow-sm'
     case 'critico':    return 'border-red-600 shadow-md'
+    case 'VERDE':      return 'border-emerald-400 shadow-sm'
+    case 'AMARILLO':   return 'border-amber-400 shadow-sm'
+    case 'ROJO':       return 'border-orange-500 shadow-sm'
+    case 'LISTA_NEGRA':return 'border-red-600 shadow-md'
     default:           return 'border-slate-200'
   }
 }

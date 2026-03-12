@@ -28,6 +28,7 @@ import {
   ReceiptText,
   AlertTriangle,
   Wallet,
+  FileDown,
 } from 'lucide-react'
 import ConfirmModal from '@/components/ui/ConfirmModal'
 import {
@@ -51,7 +52,6 @@ import { useRouter } from 'next/navigation'
 import { RolUsuario } from '@/lib/types/autenticacion-type'
 import { obtenerPerfil } from '@/services/autenticacion-service'
 import { formatCurrency } from '@/lib/utils'
-import { ExportButton } from '@/components/ui/ExportButton'
 import NuevoClienteModal from '@/components/clientes/NuevoClienteModal'
 import { VisitaRuta, EstadoVisita, PeriodoRuta, HistorialDia } from '@/lib/types/cobranza'
 import { StaticVisitaItem, SortableVisita, Portal, MODAL_Z_INDEX, SeleccionClienteModal } from '@/components/dashboards/shared/CobradorElements'
@@ -68,6 +68,7 @@ import FloatingActionMenu, { FabAction } from '@/components/dashboards/shared/Fl
 import { prestamosService } from '@/services/prestamos-service'
 import { pagosService } from '@/services/pagos-service'
 import { obtenerSaldoDisponibleRuta } from '@/services/contabilidad-service'
+import { exportService } from '@/services/export-service'
 import { useNotificaciones } from '@/components/providers/NotificacionesProvider'
 import { toast } from 'sonner'
 
@@ -122,10 +123,22 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
   const [isFabOpen, setIsFabOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [showHistory, setShowHistory] = useState(false)
+  const [showMisClientes, setShowMisClientes] = useState(false)
   const [periodoRutaFiltro, setPeriodoRutaFiltro] = useState<PeriodoRuta | 'TODOS'>('TODOS')
   const [selectedHistoryDate, setSelectedHistoryDate] = useState<string | null>(null)
   const [selectedHistoryMonth, setSelectedHistoryMonth] = useState<string | null>(null)
   const [historyViewMode, setHistoryViewMode] = useState<'DAYS' | 'MONTHS'>('DAYS')
+
+  const [isExportingPdf, setIsExportingPdf] = useState(false)
+
+  const [misCreditos, setMisCreditos] = useState<VisitaRuta[]>([])
+  const [loadingMisCreditos, setLoadingMisCreditos] = useState(false)
+
+  const [gruposColapsados, setGruposColapsados] = useState<Record<string, boolean>>({})
+  const toggleGrupo = useCallback(
+    (key: string) => setGruposColapsados((prev) => ({ ...prev, [key]: !prev[key] })),
+    [],
+  )
 
   // Selector de cliente para acciones globales
   const [showClientSelector, setShowClientSelector] = useState(false)
@@ -151,6 +164,74 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
   }>({ recaudo: 0, meta: 0, eficiencia: 0, gastos: 0, base: 0 })
   const router = useRouter();
   const [rutaInfo, setRutaInfo] = useState<{ id: string; cobradorId: string } | null>(null);
+
+  const cargarMisCreditos = useCallback(async () => {
+    const cobradorId = rutaInfo?.cobradorId
+    if (!cobradorId) return
+    try {
+      setLoadingMisCreditos(true)
+      const resp = await rutasService.obtenerCreditosAsignadosACobrador(cobradorId)
+      const raw = (resp as any)?.data
+      const filas = Array.isArray(raw) ? raw : []
+      if (!Array.isArray(raw)) {
+        console.warn('Mis clientes: respuesta inesperada en obtenerCreditosAsignadosACobrador', resp)
+      }
+      const mapped: VisitaRuta[] = filas.map((row: any, idx: number) => {
+        const c = row?.cliente || {}
+        const p = row?.prestamo || {}
+        const prox = p?.proximaCuota || null
+        const esArticulo = p?.tipo === 'ARTICULO'
+        const toNivel = (nivel: string) => {
+          if (nivel === 'VERDE') return 'bajo'
+          if (nivel === 'AMARILLO') return 'precaucion'
+          if (nivel === 'ROJO') return 'moderado'
+          if (nivel === 'LISTA_NEGRA') return 'critico'
+          return 'bajo'
+        }
+        return {
+          id: `${row?.asignacionId || 'asig'}-${p?.id || idx}`,
+          cliente: `${c?.nombres || ''} ${c?.apellidos || ''}`.trim() || 'Cliente',
+          direccion: c?.direccion || 'Sin dirección registrada',
+          telefono: c?.telefono || '',
+          horaSugerida: '08:00 AM',
+          montoCuota: Number(prox?.monto || 0),
+          saldoTotal: Number(p?.saldoPendiente || 0),
+          estado: 'pendiente' as any,
+          proximaVisita:
+            row?.prestamo?.fechaEfectiva ||
+            prox?.fechaVencimiento ||
+            new Date().toISOString().split('T')[0],
+          ordenVisita: Number(row?.ordenVisita || idx + 1),
+          prioridad: 'media' as any,
+          nivelRiesgo: toNivel(c?.nivelRiesgo || 'VERDE') as any,
+          cobradorId,
+          periodoRuta: (() => {
+            const f = p?.frecuenciaPago || 'DIARIO'
+            if (f === 'DIARIO') return 'DIA'
+            if (f === 'SEMANAL') return 'SEMANA'
+            if (f === 'QUINCENAL') return 'QUINCENA'
+            if (f === 'MENSUAL') return 'MES'
+            return 'DIA'
+          })() as any,
+          clienteId: c?.id || '',
+          prestamoId: p?.id || '',
+          tipoPrestamo: esArticulo ? 'ARTICULO' : 'EFECTIVO',
+          articuloNombre: esArticulo ? (p?.articulo || 'Artículo') : 'Préstamo',
+        } as any
+      })
+      setMisCreditos(mapped)
+    } catch (e: any) {
+      console.error('Error cargando mis clientes (SupervisorCobroView):', e)
+      toast.error('No se pudieron cargar los clientes asignados.')
+    } finally {
+      setLoadingMisCreditos(false)
+    }
+  }, [rutaInfo?.cobradorId])
+
+  useEffect(() => {
+    if (!showMisClientes) return
+    cargarMisCreditos()
+  }, [showMisClientes, cargarMisCreditos])
 
   // Datos base
   const [visitasBase, setVisitasBase] = useState<VisitaRuta[]>([])
@@ -243,7 +324,10 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
           const next = { ...prev };
           const keys = Object.keys(next);
           for (const k of keys) {
-            if (!next[k].loaded) next[k].resumen.recaudo = 0;
+            if (!next[k].loaded) {
+              next[k].resumen.recaudo = 0;
+              next[k].resumen.visitados = 0;
+            }
           }
           for (const p of pagosData) {
             const raw = p.fechaPago || p.creadoEn;
@@ -253,6 +337,9 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
             const cobradorMatch = rutaInfo?.cobradorId ? (p.cobradorId === rutaInfo.cobradorId) : true;
             if (next[pk] && !next[pk].loaded && cobradorMatch) {
                next[pk].resumen.recaudo += Number(p.montoTotal || 0);
+               // En vista "Meses", el conteo de "cobros" no puede depender de dayData.visitas
+               // porque los días no están cargados (lazy). Usamos pagos como fuente rápida.
+               next[pk].resumen.visitados = Number(next[pk].resumen.visitados || 0) + 1;
             }
           }
           return next;
@@ -294,21 +381,24 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
       console.warn(`[Historial ${fechaClave}] obtenerSaldoDisponibleRuta falló:`, e);
     }
 
+    // 3. Pagos del día — filtrar estrictamente por fecha y cobrador
     try {
-      // 3. Pagos — modelo Pago SIN rutaId, filtramos solo por fecha
       const pagosResp = await pagosService.obtenerPagos({ limit: 5000 });
       const pagosData = (pagosResp as any)?.pagos || pagosResp || [];
       pagosDelDia = (Array.isArray(pagosData) ? pagosData : []).filter((p: any) => {
         const raw = p.fechaPago || p.creadoEn;
-        return raw && toKey(raw) === fechaClave;
+        if (!raw) return false;
+        const cobradorMatch = rutaInfo?.cobradorId ? (p.cobradorId === rutaInfo.cobradorId) : true;
+        return toKey(raw) === fechaClave && cobradorMatch;
       });
     } catch (e) {
-      console.warn(`[Historial ${fechaClave}] obtenerPagos falló:`, e);
+      console.warn(`[Historial ${fechaClave}] pagos falló:`, e);
+      pagosDelDia = [];
     }
 
     const recaudadoPorCliente: Record<string, number> = {};
     for (const p of pagosDelDia) {
-      const cid = p.clienteId || p.cliente?.id;
+      const cid = p.clienteId || (p.cliente?.id);
       if (!cid) continue;
       recaudadoPorCliente[cid] = (recaudadoPorCliente[cid] || 0) + Number(p.montoTotal || 0);
     }
@@ -387,7 +477,7 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
         loaded: true,
       },
     }));
-  }, [rutaId]);
+  }, [rutaId, rutaInfo?.cobradorId]);
 
   // Al abrir el historial, cargar hoy automáticamente
   useEffect(() => {
@@ -404,14 +494,23 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
 
     const handlerPagos = () => {
       cargarEstadisticasRuta();
+      if (showMisClientes) {
+        cargarMisCreditos()
+      }
     };
 
     const handlerPrestamos = () => {
       cargarEstadisticasRuta();
+      if (showMisClientes) {
+        cargarMisCreditos()
+      }
     };
 
     const handlerDash = () => {
       cargarEstadisticasRuta();
+      if (showMisClientes) {
+        cargarMisCreditos()
+      }
     };
 
     socket.on('pagos_actualizados', handlerPagos);
@@ -423,7 +522,7 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
       socket.off('prestamos_actualizados', handlerPrestamos);
       socket.off('dashboards_actualizados', handlerDash);
     };
-  }, [socket, cargarEstadisticasRuta]);
+  }, [socket, cargarEstadisticasRuta, showMisClientes, cargarMisCreditos]);
 
   // Cargar datos del usuario y ruta
   useEffect(() => {
@@ -619,16 +718,24 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
                     0,
                   )
 
+                  let ultimoPagoDate = 0;
+                  pagosCalc.forEach((p: any) => {
+                     const d = new Date(p.fechaPago || p.creadoEn).getTime();
+                     if (!isNaN(d) && d > ultimoPagoDate) ultimoPagoDate = d;
+                  });
+
                   return {
                     ...v,
                     recaudadoDelDia: totalHoy,
                     recaudadoTotalClient: totalHistorico,
+                    fechaUltimoPago: ultimoPagoDate,
                   }
                 } catch {
                   return {
                     ...v,
                     recaudadoDelDia: 0,
                     recaudadoTotalClient: 0,
+                    fechaUltimoPago: 0,
                   }
                 }
               }),
@@ -654,7 +761,16 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
               estado: ajustarEstadoConPago(v),
             }))
 
-            finales.sort((a: any, b: any) => a.ordenVisita - b.ordenVisita)
+            finales.sort((a: any, b: any) => {
+              if (a.estado === 'pagado' && b.estado !== 'pagado') return 1;
+              if (a.estado !== 'pagado' && b.estado === 'pagado') return -1;
+              
+              if (a.fechaUltimoPago !== b.fechaUltimoPago) {
+                return a.fechaUltimoPago - b.fechaUltimoPago;
+              }
+              
+              return a.ordenVisita - b.ordenVisita;
+            });
 
             setVisitasBase(finales)
             setVisitasOrden(finales.map((v: any) => v.id))
@@ -675,35 +791,6 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
   }, [cargarEstadisticasRuta])
 
 
-  // Filtrar y ordenar visitas
-  const visitasCobrador = useMemo(() => {
-    const filtradas = visitasBase
-    
-    const buscadas = filtradas.filter(v => 
-      v.cliente.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      v.direccion.toLowerCase().includes(searchQuery.toLowerCase())
-    )
-
-    const sorted = buscadas.sort((a, b) => {
-        const priority: Record<string, number> = { 'MES': 0, 'QUINCENA': 1, 'SEMANA': 2, 'DIA': 3 };
-        const pA = priority[a.periodoRuta] ?? 99;
-        const pB = priority[b.periodoRuta] ?? 99;
-        return pA - pB;
-    });
-
-    return sorted;
-  }, [visitasBase, searchQuery])
-
-  const exportarRutaDiariaCSV = useCallback(() => {
-    console.log('TODO: Exportar CSV en desarrollo')
-  }, [])
-
-  const exportarRutaDiariaPDF = useCallback(() => {
-    console.log('TODO: Exportar PDF en desarrollo')
-  }, [])
-
-  // rutaStats se actualiza al cargar la ruta desde backend usando pagos reales
-
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
@@ -712,8 +799,39 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
     }),
     useSensor(KeyboardSensor, {
       coordinateGetter: sortableKeyboardCoordinates,
-    })
+    }),
   )
+
+  const handleExportarRutaPdf = useCallback(async () => {
+    if (!rutaId) return
+    setIsExportingPdf(true)
+    try {
+      await exportService.exportRutaCobrador('pdf', rutaId)
+    } catch {
+      setModalAlerta({ titulo: 'Error', mensaje: 'No se pudo generar el PDF. Intente de nuevo.', tipo: 'error' })
+    } finally {
+      setIsExportingPdf(false)
+    }
+  }, [rutaId])
+
+
+  // Filtrar y ordenar visitas
+  const visitasCobrador = useMemo(() => {
+    const buscadas = (visitasBase || []).filter(v =>
+      v.cliente.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      v.direccion.toLowerCase().includes(searchQuery.toLowerCase())
+    )
+
+    const priority: Record<string, number> = { MES: 0, QUINCENA: 1, SEMANA: 2, DIA: 3 }
+    const sorted = buscadas.sort((a, b) => {
+      const pA = priority[a.periodoRuta] ?? 99
+      const pB = priority[b.periodoRuta] ?? 99
+      if (pA !== pB) return pA - pB
+      return a.ordenVisita - b.ordenVisita
+    })
+
+    return sorted
+  }, [visitasBase, searchQuery])
 
   const handleDragStart = useCallback((event: DragStartEvent) => {
     if (rutaCompletada) return
@@ -1185,13 +1303,25 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
 
             <div className="mt-4 border-t border-slate-100 pt-4 flex flex-wrap items-center gap-2 overflow-x-auto pb-1">
 
-                  <ExportButton
-                    label="Exportar Ruta"
-                    onExportExcel={exportarRutaDiariaCSV}
-                    onExportPDF={exportarRutaDiariaPDF}
-                  />
+                  <button
+                    type="button"
+                    onClick={handleExportarRutaPdf}
+                    disabled={!rutaId || isExportingPdf}
+                    className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold rounded-xl border border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                    title="Exportar ruta como PDF"
+                  >
+                    {isExportingPdf ? (
+                      <span className="w-3 h-3 border-2 border-rose-600 border-t-transparent rounded-full animate-spin" />
+                    ) : (
+                      <FileDown className="w-3 h-3" />
+                    )}
+                    PDF
+                  </button>
                   <button 
-                    onClick={() => setShowHistory(false)}
+                    onClick={() => {
+                      setShowHistory(false)
+                      setShowMisClientes(false)
+                    }}
                     className={`px-4 py-2 border rounded-xl flex items-center gap-2 font-medium shadow-sm transition-colors ${
                       !showHistory 
                         ? 'bg-[#08557f] text-white border-[#08557f]' 
@@ -1202,7 +1332,10 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
                     <span className="hidden md:inline">Mi Ruta</span>
                   </button>
                   <button 
-                    onClick={() => setShowHistory(true)}
+                    onClick={() => {
+                      setShowHistory(true)
+                      setShowMisClientes(false)
+                    }}
                     className={`px-4 py-2 border rounded-xl flex items-center gap-2 font-medium shadow-sm transition-colors ${
                       showHistory 
                         ? 'bg-[#08557f] text-white border-[#08557f]' 
@@ -1211,6 +1344,21 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
                   >
                     <History className="h-4 w-4" />
                     <span className="hidden md:inline">Historial</span>
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      setShowMisClientes(true)
+                      setShowHistory(false)
+                    }}
+                    className={`px-4 py-2 border rounded-xl flex items-center gap-2 font-medium shadow-sm transition-colors ${
+                      showMisClientes
+                        ? 'bg-[#08557f] text-white border-[#08557f]'
+                        : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+                    }`}
+                  >
+                    <User className="h-4 w-4" />
+                    <span className="hidden md:inline">Mis clientes</span>
                   </button>
 
                   <button
@@ -1294,7 +1442,7 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
                 </div>
             </div>
 
-            {!showHistory && (
+            {!showHistory && !showMisClientes && (
                 <div className="mt-4 pt-4 border-t border-slate-200">
                   <div className="flex flex-col md:flex-row gap-3 md:items-center md:justify-between">
                     <div className="text-xs font-bold text-slate-500 uppercase tracking-wider">Período de ruta</div>
@@ -1497,6 +1645,8 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
                                       const monthRecaudo = daysInMonth.reduce((sum, d) => sum + ((historialRutas as any)[d]?.resumen?.recaudo || 0), 0);
                                       const monthPagados = daysInMonth.reduce((sum, d) => {
                                         const dayData = (historialRutas as any)[d];
+                                        const cobrosFromPagos = Number(dayData?.resumen?.visitados || 0);
+                                        if (cobrosFromPagos > 0) return sum + cobrosFromPagos;
                                         return sum + (dayData?.visitas?.filter((v: any) => v.estado === 'pagado')?.length || 0);
                                       }, 0);
 
@@ -1606,59 +1756,53 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
                          )
                        }
 
-                      const noPagadas = visitasCobrador.filter(v => v.estado !== 'pagado')
-
-                      const porPeriodo = {
-                        DIA: noPagadas.filter(v => v.periodoRuta === 'DIA'),
-                        SEMANA: noPagadas.filter(v => v.periodoRuta === 'SEMANA'),
-                        QUINCENA: noPagadas.filter(v => v.periodoRuta === 'QUINCENA'),
-                        MES: noPagadas.filter(v => v.periodoRuta === 'MES'),
-                      }
-
-                      const renderSeccion = (titulo: string, visitas: VisitaRuta[]) => {
-                        if (visitas.length === 0) return null
-                        return (
-                          <div className="space-y-4">
-                            <div className="flex items-center gap-4">
-                              <div className="h-px flex-1 bg-slate-200" />
-                              <span className="text-[11px] font-black text-[#08557f] uppercase tracking-[0.25em] bg-blue-50/50 px-4 py-1.5 rounded-full border border-blue-100 shadow-sm">
-                                {titulo}{' '}
-                                <span className="ml-1 bg-blue-600 text-white text-[9px] px-2 py-0.5 rounded-full">
-                                  {visitas.length}
-                                </span>
-                              </span>
-                              <div className="h-px flex-1 bg-slate-200" />
+                      if (showMisClientes) {
+                        if (loadingMisCreditos) {
+                          return (
+                            <div className="flex flex-col items-center justify-center py-10 text-slate-400">
+                              <div className="w-6 h-6 border-2 border-slate-300 border-t-[#08557f] rounded-full animate-spin mb-2" />
+                              <span className="text-xs font-medium">Cargando clientes...</span>
                             </div>
+                          )
+                        }
+
+                        const filtradas = misCreditos.filter((v) =>
+                          v.cliente.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                          v.direccion.toLowerCase().includes(searchQuery.toLowerCase()),
+                        )
+
+                        if (filtradas.length === 0) {
+                          return (
+                            <div className="bg-white rounded-2xl border border-slate-200 p-12 text-center">
+                              <User className="w-12 h-12 text-slate-200 mx-auto mb-4" />
+                              <p className="font-bold text-slate-400">No hay créditos asignados.</p>
+                            </div>
+                          )
+                        }
+
+                        return (
+                          <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-300">
+                            <div className="flex items-center justify-between px-1">
+                              <h3 className="font-bold text-slate-900 text-lg">Mis clientes</h3>
+                              <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest bg-slate-100 px-3 py-1 rounded-full">
+                                {`${filtradas.length} créditos`}
+                              </div>
+                            </div>
+
                             <div className="space-y-3">
-                              {visitas.map((visita) => (
-                                <SortableVisita
+                              {filtradas.map((visita) => (
+                                <StaticVisitaItem
                                   key={visita.id}
                                   visita={visita}
-                                  onSelect={(id) =>
-                                    setVisitaSeleccionada(
-                                      id === visitaSeleccionada ? null : id,
-                                    )
-                                  }
-                                  onVerCliente={handleAbrirClienteInfo}
+                                  allowClick={false}
+                                  onVerCliente={(v) => {
+                                    setVisitaClienteSeleccionada(v)
+                                    setShowClienteInfoModal(true)
+                                  }}
                                   getEstadoClasses={getEstadoClasses}
-                                  disableSort={rutaCompletada || !isPersonal}
-                                  isSelected={visita.id === visitaSeleccionada}
+                                  getPrioridadColor={getPrioridadColor}
                                 >
-                                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1">
-                                    <button
-                                      onClick={(e) => {
-                                        e.stopPropagation()
-                                        setVisitaPagoSeleccionadaId(visita.id)
-                                        setPagoInitialIsAbono(false)
-                                        setShowPaymentModal(true)
-                                      }}
-                                      className="flex flex-col items-center justify-center p-2 rounded-xl bg-blue-600 text-white hover:bg-blue-700 transition-all shadow-sm active:scale-95"
-                                    >
-                                      <DollarSign className="h-4 w-4 mb-1" />
-                                      <span className="text-[9px] font-bold uppercase">
-                                        Pago
-                                      </span>
-                                    </button>
+                                  <div className="grid grid-cols-2 gap-2 pt-1">
                                     <button
                                       onClick={(e) => {
                                         e.stopPropagation()
@@ -1669,9 +1813,7 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
                                       className="flex flex-col items-center justify-center p-2 rounded-xl bg-emerald-600 text-white hover:bg-emerald-700 transition-all shadow-sm active:scale-95"
                                     >
                                       <Wallet className="h-4 w-4 mb-1" />
-                                      <span className="text-[9px] font-bold uppercase">
-                                        Abono
-                                      </span>
+                                      <span className="text-[9px] font-bold uppercase">Abono</span>
                                     </button>
                                     <button
                                       onClick={(e) => {
@@ -1682,42 +1824,136 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
                                       className="flex flex-col items-center justify-center p-2 rounded-xl bg-white text-slate-700 border border-slate-200 hover:bg-slate-50 transition-all shadow-sm active:scale-95"
                                     >
                                       <FileTextIcon className="h-4 w-4 mb-1 text-slate-400" />
-                                      <span className="text-[9px] font-bold uppercase">
-                                        Estado
-                                      </span>
-                                    </button>
-                                    <button
-                                      onClick={(e) => {
-                                        e.stopPropagation()
-                                        setVisitaReprogramar(visita)
-                                        setShowReprogramModal(true)
-                                      }}
-                                      className="flex flex-col items-center justify-center p-2 rounded-xl bg-white text-slate-700 border border-slate-200 hover:bg-slate-50 transition-all shadow-sm active:scale-95"
-                                    >
-                                      <Calendar className="h-4 w-4 mb-1 text-slate-400" />
-                                      <span className="text-[9px] font-bold uppercase">
-                                        Repro.
-                                      </span>
+                                      <span className="text-[9px] font-bold uppercase">Estado</span>
                                     </button>
                                   </div>
-                                </SortableVisita>
+                                </StaticVisitaItem>
                               ))}
                             </div>
                           </div>
                         )
                       }
 
-                      if (periodoRutaFiltro === 'DIA') return renderSeccion('Ruta del día', porPeriodo.DIA)
-                      if (periodoRutaFiltro === 'SEMANA') return renderSeccion('Ruta de la semana', porPeriodo.SEMANA)
-                      if (periodoRutaFiltro === 'QUINCENA') return renderSeccion('Ruta quincenal', porPeriodo.QUINCENA)
-                      if (periodoRutaFiltro === 'MES') return renderSeccion('Ruta del mes', porPeriodo.MES)
+                      const noPagadas = visitasCobrador.filter(v => v.estado !== 'pagado')
+
+                      const porPeriodo = {
+                        DIA: noPagadas.filter(v => v.periodoRuta === 'DIA'),
+                        SEMANA: noPagadas.filter(v => v.periodoRuta === 'SEMANA'),
+                        QUINCENA: noPagadas.filter(v => v.periodoRuta === 'QUINCENA'),
+                        MES: noPagadas.filter(v => v.periodoRuta === 'MES'),
+                      }
+
+                      const renderSeccion = (key: string, titulo: string, visitas: VisitaRuta[]) => {
+                        if (visitas.length === 0) return null
+                        const estaColapsado = !!gruposColapsados[key]
+                        return (
+                          <div className="space-y-4">
+                            <button
+                              type="button"
+                              onClick={() => toggleGrupo(key)}
+                              className="w-full flex items-center gap-4 group"
+                            >
+                              <div className="h-px flex-1 bg-slate-200" />
+                              <span className="flex items-center gap-2 text-[11px] font-black text-[#08557f] uppercase tracking-[0.25em] bg-blue-50/50 px-4 py-1.5 rounded-full border border-blue-100 shadow-sm whitespace-nowrap select-none group-hover:bg-blue-100/60 transition-colors">
+                                {titulo}{' '}
+                                <span className="ml-1 bg-blue-600 text-white text-[9px] px-2 py-0.5 rounded-full">
+                                  {visitas.length}
+                                </span>
+                                <ChevronDown className={`h-3 w-3 transition-transform duration-200 ${estaColapsado ? '' : 'rotate-180'}`} />
+                              </span>
+                              <div className="h-px flex-1 bg-slate-200" />
+                            </button>
+                            {!estaColapsado && (
+                              <div className="space-y-3">
+                                {visitas.map((visita) => (
+                                  <SortableVisita
+                                    key={visita.id}
+                                    visita={visita}
+                                    onSelect={(id) =>
+                                      setVisitaSeleccionada(
+                                        id === visitaSeleccionada ? null : id,
+                                      )
+                                    }
+                                    onVerCliente={handleAbrirClienteInfo}
+                                    getEstadoClasses={getEstadoClasses}
+                                    disableSort={rutaCompletada || !isPersonal}
+                                    isSelected={visita.id === visitaSeleccionada}
+                                  >
+                                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1">
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation()
+                                          setVisitaPagoSeleccionadaId(visita.id)
+                                          setPagoInitialIsAbono(false)
+                                          setShowPaymentModal(true)
+                                        }}
+                                        className="flex flex-col items-center justify-center p-2 rounded-xl bg-blue-600 text-white hover:bg-blue-700 transition-all shadow-sm active:scale-95"
+                                      >
+                                        <DollarSign className="h-4 w-4 mb-1" />
+                                        <span className="text-[9px] font-bold uppercase">
+                                          Pago
+                                        </span>
+                                      </button>
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation()
+                                          setVisitaPagoSeleccionadaId(visita.id)
+                                          setPagoInitialIsAbono(true)
+                                          setShowPaymentModal(true)
+                                        }}
+                                        className="flex flex-col items-center justify-center p-2 rounded-xl bg-emerald-600 text-white hover:bg-emerald-700 transition-all shadow-sm active:scale-95"
+                                      >
+                                        <Wallet className="h-4 w-4 mb-1" />
+                                        <span className="text-[9px] font-bold uppercase">
+                                          Abono
+                                        </span>
+                                      </button>
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation()
+                                          setVisitaEstadoCuentaSeleccionada(visita)
+                                          setShowEstadoCuentaModal(true)
+                                        }}
+                                        className="flex flex-col items-center justify-center p-2 rounded-xl bg-white text-slate-700 border border-slate-200 hover:bg-slate-50 transition-all shadow-sm active:scale-95"
+                                      >
+                                        <FileTextIcon className="h-4 w-4 mb-1 text-slate-400" />
+                                        <span className="text-[9px] font-bold uppercase">
+                                          Estado
+                                        </span>
+                                      </button>
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation()
+                                          setVisitaReprogramar(visita)
+                                          setShowReprogramModal(true)
+                                        }}
+                                        className="flex flex-col items-center justify-center p-2 rounded-xl bg-white text-slate-700 border border-slate-200 hover:bg-slate-50 transition-all shadow-sm active:scale-95"
+                                      >
+                                        <Calendar className="h-4 w-4 mb-1 text-slate-400" />
+                                        <span className="text-[9px] font-bold uppercase">
+                                          Repro.
+                                        </span>
+                                      </button>
+                                    </div>
+                                  </SortableVisita>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        )
+                      }
+
+                      if (periodoRutaFiltro === 'DIA') return renderSeccion('DIA', 'Ruta del día', porPeriodo.DIA)
+                      if (periodoRutaFiltro === 'SEMANA') return renderSeccion('SEMANA', 'Ruta de la semana', porPeriodo.SEMANA)
+                      if (periodoRutaFiltro === 'QUINCENA') return renderSeccion('QUINCENA', 'Ruta quincenal', porPeriodo.QUINCENA)
+                      if (periodoRutaFiltro === 'MES') return renderSeccion('MES', 'Ruta del mes', porPeriodo.MES)
 
                       return (
                         <>
-                          {renderSeccion('Ruta mensual', porPeriodo.MES)}
-                          {renderSeccion('Ruta quincenal', porPeriodo.QUINCENA)}
-                          {renderSeccion('Ruta semanal', porPeriodo.SEMANA)}
-                          {renderSeccion('Ruta del día', porPeriodo.DIA)}
+                          {renderSeccion('MES', 'Ruta mensual', porPeriodo.MES)}
+                          {renderSeccion('QUINCENA', 'Ruta quincenal', porPeriodo.QUINCENA)}
+                          {renderSeccion('SEMANA', 'Ruta semanal', porPeriodo.SEMANA)}
+                          {renderSeccion('DIA', 'Ruta del día', porPeriodo.DIA)}
                         </>
                       )
                     })()}

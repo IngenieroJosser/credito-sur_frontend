@@ -28,7 +28,8 @@ import {
   Star,
   History,
   Loader2,
-  ChevronDown
+  ChevronDown,
+  FileDown
 } from 'lucide-react'
 
 import { formatCurrency } from '@/lib/utils'
@@ -39,7 +40,6 @@ import { routesService } from '@/services/routes-service'
 import { rutasService } from '@/services/rutas-service'
 import { clientesService } from '@/services/clientes-service'
 import { useNotification } from '@/components/providers/NotificationProvider'
-import { ExportButton } from '@/components/ui/ExportButton'
 
 import PagoModal from '@/components/cobranza/PagoModal'
 import EstadoCuentaModal from '@/components/cobranza/EstadoCuentaModal'
@@ -58,6 +58,7 @@ import { obtenerSaldoDisponibleRuta } from '@/services/contabilidad-service'
 import { HistorialDia } from '@/lib/types/cobranza'
 import { exportService } from '@/services/export-service'
 import { toast } from 'sonner'
+import { useRealtimeData } from '@/hooks/useRealtimeData'
 
 interface GastoRuta {
   id: string
@@ -79,6 +80,7 @@ type RutaClientLoadedProps = {
   rutaCompletada: boolean;
   setRutaCompletada: React.Dispatch<React.SetStateAction<boolean>>;
   currentUser: any;
+  onRutaRefresh?: () => Promise<void> | void;
 };
 
 const RutaClientLoaded = ({
@@ -88,6 +90,7 @@ const RutaClientLoaded = ({
   rutaCompletada,
   setRutaCompletada,
   currentUser,
+  onRutaRefresh,
 }: RutaClientLoadedProps) => {
   const { showNotification } = useNotification()
   const router = useRouter()
@@ -107,10 +110,12 @@ const RutaClientLoaded = ({
   const [selectedClienteForCredito, setSelectedClienteForCredito] = useState<VisitaRuta | null>(null)
   const [defaultClienteId, setDefaultClienteId] = useState<string | null>(null)
   const [showCrearCreditoPrompt, setShowCrearCreditoPrompt] = useState(false)
+  const [isExportingPdf, setIsExportingPdf] = useState(false)
 
   // Estados para filtros y historial (Portados de VistaCobrador)
   const [periodoRutaFiltro, setPeriodoRutaFiltro] = useState<'TODOS' | 'DIA' | 'SEMANA' | 'QUINCENA' | 'MES'>('TODOS')
   const [showHistory, setShowHistory] = useState(false)
+  const [showMisClientes, setShowMisClientes] = useState(false)
   const [historialRutas, setHistorialRutas] = useState<any>(null)
   const [historyViewMode, setHistoryViewMode] = useState<'DAYS' | 'MONTHS'>('DAYS')
   const [selectedHistoryDate, setSelectedHistoryDate] = useState<string | null>(null)
@@ -154,7 +159,10 @@ const RutaClientLoaded = ({
           const next = { ...prev };
           const keys = Object.keys(next);
           for (const k of keys) {
-            if (!next[k].loaded) next[k].resumen.recaudo = 0;
+            if (!next[k].loaded) {
+              next[k].resumen.recaudo = 0;
+              next[k].resumen.visitados = 0;
+            }
           }
            for (const p of pagosData) {
             const raw = p.fechaPago || p.creadoEn;
@@ -164,6 +172,8 @@ const RutaClientLoaded = ({
             const cobradorMatch = initialRuta?.cobradorId ? (p.cobradorId === initialRuta.cobradorId) : true;
             if (next[pk] && !next[pk].loaded && cobradorMatch) {
                next[pk].resumen.recaudo += Number(p.montoTotal || 0);
+               // En vista "Meses", el conteo de "cobros" no puede depender de visitas lazy-load.
+               next[pk].resumen.visitados = Number(next[pk].resumen.visitados || 0) + 1;
             }
           }
           return next;
@@ -198,7 +208,8 @@ const RutaClientLoaded = ({
 
       pagosDelDia = (Array.isArray(pagosData) ? pagosData : []).filter((p: any) => {
         const raw = p.fechaPago || p.creadoEn;
-        return raw && toKey(raw) === fechaClave;
+        const cobradorMatch = initialRuta?.cobradorId ? (p.cobradorId === initialRuta.cobradorId) : true;
+        return raw && toKey(raw) === fechaClave && cobradorMatch;
       });
     } catch(e) { logger.warn(`[Admin Historial ${fechaClave}] pagos falló:`, e); }
 
@@ -457,6 +468,12 @@ const RutaClientLoaded = ({
           }, 0);
           
           const totalHistorico = pagosCalc.reduce((sum: number, p: any) => sum + Number(p.montoTotal || 0), 0);
+
+          let ultimoPagoDate = 0;
+          pagosCalc.forEach((p: any) => {
+            const d = new Date(p.fechaPago || p.creadoEn).getTime();
+            if (!isNaN(d) && d > ultimoPagoDate) ultimoPagoDate = d;
+          });
           
           // 2. Obtener Cuotas para actualizar fecha y monto real
           let montoCuotaReal = v.montoCuota;
@@ -493,13 +510,14 @@ const RutaClientLoaded = ({
             ...v, 
             recaudadoDelDia: totalHoy, 
             recaudadoTotalClient: totalHistorico, 
+            fechaUltimoPago: ultimoPagoDate,
             montoCuota: cuotaComparar,
             proximaVisita: fechaReal,
             estado: nuevoEstado 
           };
         } catch (error) {
           console.error("Error en enriquecerConPagos (Admin):", error);
-          return { ...v, recaudadoDelDia: 0, recaudadoTotalClient: 0 };
+          return { ...v, recaudadoDelDia: 0, recaudadoTotalClient: 0, fechaUltimoPago: 0 };
         }
       }));
       setVisitasCobrador(actualizadas);
@@ -523,6 +541,20 @@ const RutaClientLoaded = ({
     if (periodoRutaFiltro !== 'TODOS') {
         filtradas = filtradas.filter(v => v.periodoRuta === periodoRutaFiltro);
     }
+
+    filtradas.sort((a: any, b: any) => {
+      // 1. Los "pagados" van al final
+      if (a.estado === 'pagado' && b.estado !== 'pagado') return 1;
+      if (a.estado !== 'pagado' && b.estado === 'pagado') return -1;
+      
+      // 2. Ordenar por fechaUltimoPago (más antigua primero, es decir, el que más tiempo lleva sin pagar va arriba)
+      if (a.fechaUltimoPago !== b.fechaUltimoPago) {
+        return (a.fechaUltimoPago || 0) - (b.fechaUltimoPago || 0);
+      }
+      
+      // 3. Fallback a ordenVisita
+      return a.ordenVisita - b.ordenVisita;
+    });
 
     const exportarRutaDiariaCSV = async () => {
       try {
@@ -641,6 +673,73 @@ const RutaClientLoaded = ({
   const { estadisticas, nivelRiesgo } = initialRuta;
   const porcentajeProgreso = estadisticas.avanceDiario || 0;
 
+  const [misCreditos, setMisCreditos] = useState<VisitaRuta[]>([])
+  const [loadingMisCreditos, setLoadingMisCreditos] = useState(false)
+
+  const cargarMisCreditos = useCallback(async () => {
+    if (!initialRuta?.cobradorId) return
+    try {
+      setLoadingMisCreditos(true)
+      const resp = await rutasService.obtenerCreditosAsignadosACobrador(initialRuta.cobradorId)
+      const raw = (resp as any)?.data
+      const filas = Array.isArray(raw) ? raw : []
+      if (!Array.isArray(raw)) {
+        console.warn('Mis clientes: respuesta inesperada en obtenerCreditosAsignadosACobrador', resp)
+      }
+      const mapped: VisitaRuta[] = filas.map((row: any, idx: number) => {
+        const c = row?.cliente || {}
+        const p = row?.prestamo || {}
+        const prox = p?.proximaCuota || null
+        const esArticulo = p?.tipo === 'ARTICULO'
+        const toNivel = (nivel: string) => {
+          if (nivel === 'VERDE') return 'bajo'
+          if (nivel === 'AMARILLO') return 'precaucion'
+          if (nivel === 'ROJO') return 'moderado'
+          if (nivel === 'LISTA_NEGRA') return 'critico'
+          return 'bajo'
+        }
+        return {
+          id: `${row?.asignacionId || 'asig'}-${p?.id || idx}`,
+          cliente: `${c?.nombres || ''} ${c?.apellidos || ''}`.trim() || 'Cliente',
+          direccion: c?.direccion || 'Sin dirección registrada',
+          telefono: c?.telefono || '',
+          horaSugerida: '08:00 AM',
+          montoCuota: Number(prox?.monto || 0),
+          saldoTotal: Number(p?.saldoPendiente || 0),
+          estado: 'pendiente' as any,
+          proximaVisita: row?.prestamo?.fechaEfectiva || prox?.fechaVencimiento || new Date().toISOString().split('T')[0],
+          ordenVisita: Number(row?.ordenVisita || idx + 1),
+          prioridad: 'media' as any,
+          nivelRiesgo: toNivel(c?.nivelRiesgo || 'VERDE') as any,
+          cobradorId: initialRuta.cobradorId,
+          periodoRuta: (() => {
+            const f = p?.frecuenciaPago || 'DIARIO'
+            if (f === 'DIARIO') return 'DIA'
+            if (f === 'SEMANAL') return 'SEMANA'
+            if (f === 'QUINCENAL') return 'QUINCENA'
+            if (f === 'MENSUAL') return 'MES'
+            return 'DIA'
+          })() as any,
+          clienteId: c?.id || '',
+          prestamoId: p?.id || '',
+          tipoPrestamo: esArticulo ? 'ARTICULO' : 'EFECTIVO',
+          articuloNombre: esArticulo ? (p?.articulo || 'Artículo') : 'Préstamo',
+        } as any
+      })
+      setMisCreditos(mapped)
+    } catch (e: any) {
+      console.error('Error cargando mis clientes (ruta admin):', e)
+      toast.error('No se pudieron cargar los clientes asignados.')
+    } finally {
+      setLoadingMisCreditos(false)
+    }
+  }, [initialRuta?.cobradorId])
+
+  useEffect(() => {
+    if (!showMisClientes) return
+    cargarMisCreditos()
+  }, [showMisClientes, cargarMisCreditos])
+
 
   return (
     <div className="min-h-screen bg-slate-50 relative pb-20">
@@ -707,7 +806,10 @@ const RutaClientLoaded = ({
               {/* Botones de Acción y Navegación (Estilo Cobrador) */}
               <div className="mt-4 border-t border-slate-100 pt-4 flex flex-wrap items-center gap-2 overflow-x-auto pb-1">
                   <button 
-                    onClick={() => setShowHistory(false)}
+                    onClick={() => {
+                      setShowHistory(false)
+                      setShowMisClientes(false)
+                    }}
                     className={`px-4 py-2 border rounded-xl flex items-center gap-2 font-medium shadow-sm transition-colors ${
                       !showHistory 
                         ? 'bg-[#08557f] text-white border-[#08557f]' 
@@ -728,6 +830,21 @@ const RutaClientLoaded = ({
                   >
                     <History className="h-4 w-4" />
                     <span className="hidden md:inline">Historial</span>
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      setShowMisClientes(true)
+                      setShowHistory(false)
+                    }}
+                    className={`px-4 py-2 border rounded-xl flex items-center gap-2 font-medium shadow-sm transition-colors ${
+                      showMisClientes
+                        ? 'bg-[#08557f] text-white border-[#08557f]'
+                        : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+                    }`}
+                  >
+                    <User className="h-4 w-4" />
+                    <span className="hidden md:inline">Mis clientes</span>
                   </button>
 
                   {!rutaCompletada && !showHistory && (
@@ -767,16 +884,32 @@ const RutaClientLoaded = ({
               </div>
 
               {/* Filtros de Periodo (Estilo Cobrador Exacto) */}
-              {!showHistory && (
+              {!showHistory && !showMisClientes && (
                 <div className="mt-4 pt-4 border-t border-slate-200">
                   <div className="flex flex-col md:flex-row gap-3 md:items-center md:justify-between">
                     <div className="text-xs font-bold text-slate-500 uppercase tracking-wider">Período de ruta</div>
                     <div className="flex gap-2 overflow-x-auto pb-1 items-center">
-                      <ExportButton
-                        label="Exportar Ruta"
-                        onExportExcel={exportarRutaDiariaCSV}
-                        onExportPDF={exportarRutaDiariaPDF}
-                      />
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          setIsExportingPdf(true)
+                          try {
+                            await exportService.exportRutaCobrador('pdf', initialRuta.id)
+                          } finally {
+                            setIsExportingPdf(false)
+                          }
+                        }}
+                        disabled={isExportingPdf}
+                        className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold rounded-xl border border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                        title="Exportar ruta como PDF"
+                      >
+                        {isExportingPdf ? (
+                          <span className="w-3 h-3 border-2 border-rose-600 border-t-transparent rounded-full animate-spin" />
+                        ) : (
+                          <FileDown className="w-3 h-3" />
+                        )}
+                        PDF
+                      </button>
                       {(
                           [
                             { key: 'TODOS' as const, label: 'Todo' },
@@ -879,7 +1012,12 @@ const RutaClientLoaded = ({
                                 const daysInMonth = byMonth[monthKey];
                                 const isMonthExpanded = selectedHistoryMonth === monthKey;
                                 const monthRecaudo = daysInMonth.reduce((sum, d2) => sum + ((historialRutas as any)[d2]?.resumen?.recaudo || 0), 0);
-                                const monthPagados = daysInMonth.reduce((sum, d2) => sum + (((historialRutas as any)[d2]?.visitas || []).filter((v: any) => v.estado === 'pagado').length), 0);
+                                const monthPagados = daysInMonth.reduce((sum, d2) => {
+                                  const dayData = (historialRutas as any)[d2];
+                                  const cobrosFromPagos = Number(dayData?.resumen?.visitados || 0);
+                                  if (cobrosFromPagos > 0) return sum + cobrosFromPagos;
+                                  return sum + (((dayData?.visitas) || []).filter((v: any) => v.estado === 'pagado').length);
+                                }, 0);
                                 return (
                                   <div key={monthKey} className={`rounded-2xl border transition-all overflow-hidden bg-white border-slate-200 ${isMonthExpanded ? 'ring-1 ring-slate-300 shadow-md' : 'shadow-sm'}`}>
                                     <div className="p-4 flex items-center justify-between cursor-pointer hover:bg-slate-50 transition-colors" onClick={() => setSelectedHistoryMonth(isMonthExpanded ? null : monthKey)}>
@@ -1007,17 +1145,79 @@ const RutaClientLoaded = ({
                    )}
                 </div>
               </div>
+            ) : showMisClientes ? (
+              <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-300">
+                <div className="flex items-center justify-between px-1">
+                  <h3 className="font-bold text-slate-900 text-lg">Mis clientes</h3>
+                  <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest bg-slate-100 px-3 py-1 rounded-full">
+                    {loadingMisCreditos ? 'Cargando' : `${misCreditos.length} créditos`}
+                  </div>
+                </div>
+
+                {loadingMisCreditos ? (
+                  <div className="flex flex-col items-center justify-center py-10 text-slate-400">
+                    <Loader2 className="w-6 h-6 animate-spin mb-2 opacity-20" />
+                    <span className="text-xs font-medium">Cargando clientes...</span>
+                  </div>
+                ) : (() => {
+                  const filtradas = misCreditos.filter((v) =>
+                    v.cliente.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                    v.direccion.toLowerCase().includes(searchQuery.toLowerCase()),
+                  )
+
+                  if (filtradas.length === 0) {
+                    return (
+                      <div className="bg-white rounded-2xl border border-slate-200 p-12 text-center">
+                        <User className="w-12 h-12 text-slate-200 mx-auto mb-4" />
+                        <p className="font-bold text-slate-400">No hay créditos asignados para este cobrador.</p>
+                      </div>
+                    )
+                  }
+
+                  return (
+                    <div className="space-y-4">
+                      {filtradas.map((visita) => (
+                        <StaticVisitaItem
+                          key={visita.id}
+                          visita={visita}
+                          allowClick={false}
+                          onVerCliente={handleAbrirClienteInfo}
+                          getEstadoClasses={getEstadoClasses}
+                          getPrioridadColor={getPrioridadColor}
+                        >
+                          <div className="grid grid-cols-2 gap-2 pt-1">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleAbrirAbono(visita);
+                              }}
+                              className="flex flex-col items-center justify-center p-2 rounded-xl bg-emerald-600 text-white hover:bg-emerald-700 transition-all shadow-sm active:scale-95"
+                            >
+                              <Wallet className="h-4 w-4 mb-1" />
+                              <span className="text-[9px] font-bold uppercase">Abono</span>
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleAbrirEstadoCuenta(visita);
+                              }}
+                              className="flex flex-col items-center justify-center p-2 rounded-xl bg-white text-slate-700 border border-slate-200 hover:bg-slate-50 transition-all shadow-sm active:scale-95"
+                            >
+                              <FileTextIcon className="h-4 w-4 mb-1 text-slate-400" />
+                              <span className="text-[9px] font-bold uppercase">Estado</span>
+                            </button>
+                          </div>
+                        </StaticVisitaItem>
+                      ))}
+                    </div>
+                  )
+                })()}
+              </div>
             ) : (
               // ========================= VISTA VISITAS ACTUALES =========================
               <>
                   <div className="flex flex-col gap-6 animate-in fade-in duration-300">
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 pb-4">
-                        <div className="flex items-center gap-3">
-                            <h3 className="font-bold text-slate-900 text-xl flex items-center gap-3">
-                                Visitas de la Ruta
-                                <span className="bg-blue-600 text-white text-xs px-2.5 py-1 rounded-full shadow-sm">{totalMostradas}</span>
-                            </h3>
-                        </div>
+                    <div className="flex items-center justify-end">
                     </div>
 
                     {/* Leyenda de Riesgos Simplificada */}
@@ -1165,9 +1365,35 @@ const RutaClientLoaded = ({
           visita={pagoVisita.visita}
           tipo={pagoVisita.tipo}
           onClose={() => setPagoVisita(null)}
-          onConfirm={(monto, metodo, comprobante) => {
-            alert(`Registrar ${pagoVisita.tipo}: $${monto} - ${metodo}`)
-            setPagoVisita(null)
+          onConfirm={async (monto, metodo) => {
+            try {
+              if (!pagoVisita?.visita?.clienteId || !pagoVisita?.visita?.prestamoId) {
+                showNotification('error', 'No se pudo registrar el pago: falta cliente o préstamo', 'Error');
+                return;
+              }
+
+              await pagosService.registrarPago({
+                clienteId: pagoVisita.visita.clienteId,
+                prestamoId: pagoVisita.visita.prestamoId,
+                cobradorId: initialRuta.cobradorId,
+                montoTotal: monto,
+                metodoPago: metodo,
+              } as any);
+
+              showNotification('success', `${pagoVisita.tipo === 'ABONO' ? 'Abono' : 'Pago'} registrado correctamente`, 'Éxito');
+              setPagoVisita(null);
+
+              // Refrescar estadísticas/avance diario
+              try {
+                await onRutaRefresh?.();
+              } catch {}
+
+              // Refrescar data derivada en UI
+              router.refresh();
+            } catch (e) {
+              console.error('Error registrando pago/abono:', e);
+              showNotification('error', 'No se pudo registrar el pago/abono', 'Error');
+            }
           }}
         />
       )}
@@ -1316,6 +1542,21 @@ const RutaClient = ({ initialRuta: initialRutaProp, rutaId }: RutaClientProps) =
   const [loadingRuta, setLoadingRuta] = useState(!initialRutaProp && !!rutaId)
   const [rutaCompletada, setRutaCompletada] = useState(!!initialRutaProp?.activa)
 
+  const refreshRuta = useCallback(async () => {
+    if (!rutaId) return;
+    try {
+      const ruta = await rutasService.obtenerRutaPorId(rutaId);
+      setRutaData(ruta as any);
+      setRutaCompletada(!!(ruta as any)?.activa);
+    } catch (e) {
+      console.error('Error refrescando ruta:', e);
+    }
+  }, [rutaId]);
+
+  useRealtimeData(['pagos_actualizados', 'rutas_actualizadas', 'prestamos_actualizados'], async () => {
+    await refreshRuta()
+  })
+
   useEffect(() => {
     if (rutaData || !rutaId) return
 
@@ -1376,6 +1617,7 @@ const RutaClient = ({ initialRuta: initialRutaProp, rutaId }: RutaClientProps) =
       rutaCompletada={rutaCompletada}
       setRutaCompletada={setRutaCompletada}
       currentUser={currentUser}
+      onRutaRefresh={refreshRuta}
     />
   )
 }
