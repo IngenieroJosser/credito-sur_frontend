@@ -127,7 +127,7 @@ export const prestamosService = {
           'prestamo_archivar',
           `/loans/${prestamoId}/archive`,
           'POST',
-          data,
+          { prestamoId, nuevaFecha: data.fecha, motivo: data.motivo, solicitadoPorId: data.cobradorId },
           `Archivar préstamo ID: ${prestamoId}`
         );
         return { esOffline: true };
@@ -349,7 +349,8 @@ export const prestamosService = {
    */
   async reprogramarPrestamo(prestamoId: string, data: { fecha: string; motivo: string; cobradorId: string }): Promise<any> {
     try {
-      return await apiRequest('POST', `/loans/${prestamoId}/reschedule`, data);
+      const payload = { prestamoId, nuevaFecha: data.fecha, motivo: data.motivo, solicitadoPorId: data.cobradorId };
+      return await apiRequest('POST', `/loans/solicitar-reprogramacion`, payload);
     } catch (error: any) {
       if (
         (typeof navigator !== 'undefined' && !navigator.onLine) ||
@@ -360,9 +361,9 @@ export const prestamosService = {
         logger.log('[Offline Mode] Guardando reprogramacion de prestamo en cola...');
         await syncService.enqueueOperation(
           'prestamo_reprograr',
-          `/loans/${prestamoId}/reschedule`,
+          `/loans/solicitar-reprogramacion`,
           'POST',
-          data,
+          payload,
           `Reprogramar préstamo ID: ${prestamoId}`
         );
         return { esOffline: true };
