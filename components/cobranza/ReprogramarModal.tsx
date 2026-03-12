@@ -14,7 +14,7 @@ interface ReprogramarModalProps {
 
 // Límites de días según frecuencia
 const LIMITES_DIAS: Record<string, number> = {
-  DIA: 1,
+  DIA: 8,
   SEMANA: 6,
   QUINCENA: 14,
   MES: 30,

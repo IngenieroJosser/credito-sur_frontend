@@ -22,8 +22,8 @@ const calcularFechaLimite = (fechaOriginal: string, frecuencia: FrecuenciaPago):
   
   switch (frecuencia) {
     case 'DIARIO':
-      // Máximo 2 días después
-      fecha.setDate(fecha.getDate() + 2);
+      // Máximo 8 días después
+      fecha.setDate(fecha.getDate() + 8);
       break;
     case 'SEMANAL':
       // Máximo 1 día antes de la siguiente semana

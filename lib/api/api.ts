@@ -54,7 +54,7 @@ export const apiRequest = async <T>(
   }
 
   // Separar cacheTTL del config y manejar timeout
-  const { cacheTTL, timeout = 10000, ...axiosConfig } = config || {};
+  const { cacheTTL, timeout = 30000, ...axiosConfig } = config || {};
 
   try {
     const response = await apiClient.request<T>({
@@ -199,4 +199,3 @@ export const formatErrorForComponent = (error: any): string => {
   
   return "No se pudo completar la solicitud. Por favor, intente más tarde.";
 };
-
