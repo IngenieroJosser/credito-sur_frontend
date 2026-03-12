@@ -120,6 +120,14 @@ export const exportService = {
     await this.downloadFile('reports/operational/export', params, `reporte-operativo.${ext}`);
   },
 
+  async exportRutaCobrador(
+    format: 'excel' | 'pdf',
+    rutaId: string,
+  ): Promise<void> {
+    const ext = format === 'excel' ? 'xlsx' : 'pdf';
+    await this.downloadFile(`routes/${rutaId}/export/${format}`, {}, `ruta_${rutaId}.${ext}`);
+  },
+
   /**
    * Export cuentas en mora report as Excel or PDF
    */

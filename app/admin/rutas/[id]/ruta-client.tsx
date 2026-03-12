@@ -28,7 +28,8 @@ import {
   Star,
   History,
   Loader2,
-  ChevronDown
+  ChevronDown,
+  FileDown
 } from 'lucide-react'
 
 import { formatCurrency } from '@/lib/utils'
@@ -39,7 +40,6 @@ import { routesService } from '@/services/routes-service'
 import { rutasService } from '@/services/rutas-service'
 import { clientesService } from '@/services/clientes-service'
 import { useNotification } from '@/components/providers/NotificationProvider'
-import { ExportButton } from '@/components/ui/ExportButton'
 
 import PagoModal from '@/components/cobranza/PagoModal'
 import EstadoCuentaModal from '@/components/cobranza/EstadoCuentaModal'
@@ -110,6 +110,7 @@ const RutaClientLoaded = ({
   const [selectedClienteForCredito, setSelectedClienteForCredito] = useState<VisitaRuta | null>(null)
   const [defaultClienteId, setDefaultClienteId] = useState<string | null>(null)
   const [showCrearCreditoPrompt, setShowCrearCreditoPrompt] = useState(false)
+  const [isExportingPdf, setIsExportingPdf] = useState(false)
 
   // Estados para filtros y historial (Portados de VistaCobrador)
   const [periodoRutaFiltro, setPeriodoRutaFiltro] = useState<'TODOS' | 'DIA' | 'SEMANA' | 'QUINCENA' | 'MES'>('TODOS')
@@ -888,11 +889,27 @@ const RutaClientLoaded = ({
                   <div className="flex flex-col md:flex-row gap-3 md:items-center md:justify-between">
                     <div className="text-xs font-bold text-slate-500 uppercase tracking-wider">Período de ruta</div>
                     <div className="flex gap-2 overflow-x-auto pb-1 items-center">
-                      <ExportButton
-                        label="Exportar Ruta"
-                        onExportExcel={exportarRutaDiariaCSV}
-                        onExportPDF={exportarRutaDiariaPDF}
-                      />
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          setIsExportingPdf(true)
+                          try {
+                            await exportService.exportRutaCobrador('pdf', initialRuta.id)
+                          } finally {
+                            setIsExportingPdf(false)
+                          }
+                        }}
+                        disabled={isExportingPdf}
+                        className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold rounded-xl border border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                        title="Exportar ruta como PDF"
+                      >
+                        {isExportingPdf ? (
+                          <span className="w-3 h-3 border-2 border-rose-600 border-t-transparent rounded-full animate-spin" />
+                        ) : (
+                          <FileDown className="w-3 h-3" />
+                        )}
+                        PDF
+                      </button>
                       {(
                           [
                             { key: 'TODOS' as const, label: 'Todo' },

@@ -28,6 +28,7 @@ import {
   ReceiptText,
   AlertTriangle,
   Wallet,
+  FileDown,
 } from 'lucide-react'
 import ConfirmModal from '@/components/ui/ConfirmModal'
 import {
@@ -51,7 +52,6 @@ import { useRouter } from 'next/navigation'
 import { RolUsuario } from '@/lib/types/autenticacion-type'
 import { obtenerPerfil } from '@/services/autenticacion-service'
 import { formatCurrency } from '@/lib/utils'
-import { ExportButton } from '@/components/ui/ExportButton'
 import NuevoClienteModal from '@/components/clientes/NuevoClienteModal'
 import { VisitaRuta, EstadoVisita, PeriodoRuta, HistorialDia } from '@/lib/types/cobranza'
 import { StaticVisitaItem, SortableVisita, Portal, MODAL_Z_INDEX, SeleccionClienteModal } from '@/components/dashboards/shared/CobradorElements'
@@ -68,6 +68,7 @@ import FloatingActionMenu, { FabAction } from '@/components/dashboards/shared/Fl
 import { prestamosService } from '@/services/prestamos-service'
 import { pagosService } from '@/services/pagos-service'
 import { obtenerSaldoDisponibleRuta } from '@/services/contabilidad-service'
+import { exportService } from '@/services/export-service'
 import { useNotificaciones } from '@/components/providers/NotificacionesProvider'
 import { toast } from 'sonner'
 
@@ -127,6 +128,8 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
   const [selectedHistoryDate, setSelectedHistoryDate] = useState<string | null>(null)
   const [selectedHistoryMonth, setSelectedHistoryMonth] = useState<string | null>(null)
   const [historyViewMode, setHistoryViewMode] = useState<'DAYS' | 'MONTHS'>('DAYS')
+
+  const [isExportingPdf, setIsExportingPdf] = useState(false)
 
   const [misCreditos, setMisCreditos] = useState<VisitaRuta[]>([])
   const [loadingMisCreditos, setLoadingMisCreditos] = useState(false)
@@ -788,35 +791,6 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
   }, [cargarEstadisticasRuta])
 
 
-  // Filtrar y ordenar visitas
-  const visitasCobrador = useMemo(() => {
-    const filtradas = visitasBase
-    
-    const buscadas = filtradas.filter(v => 
-      v.cliente.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      v.direccion.toLowerCase().includes(searchQuery.toLowerCase())
-    )
-
-    const sorted = buscadas.sort((a, b) => {
-        const priority: Record<string, number> = { 'MES': 0, 'QUINCENA': 1, 'SEMANA': 2, 'DIA': 3 };
-        const pA = priority[a.periodoRuta] ?? 99;
-        const pB = priority[b.periodoRuta] ?? 99;
-        return pA - pB;
-    });
-
-    return sorted;
-  }, [visitasBase, searchQuery])
-
-  const exportarRutaDiariaCSV = useCallback(() => {
-    console.log('TODO: Exportar CSV en desarrollo')
-  }, [])
-
-  const exportarRutaDiariaPDF = useCallback(() => {
-    console.log('TODO: Exportar PDF en desarrollo')
-  }, [])
-
-  // rutaStats se actualiza al cargar la ruta desde backend usando pagos reales
-
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
@@ -825,8 +799,39 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
     }),
     useSensor(KeyboardSensor, {
       coordinateGetter: sortableKeyboardCoordinates,
-    })
+    }),
   )
+
+  const handleExportarRutaPdf = useCallback(async () => {
+    if (!rutaId) return
+    setIsExportingPdf(true)
+    try {
+      await exportService.exportRutaCobrador('pdf', rutaId)
+    } catch {
+      setModalAlerta({ titulo: 'Error', mensaje: 'No se pudo generar el PDF. Intente de nuevo.', tipo: 'error' })
+    } finally {
+      setIsExportingPdf(false)
+    }
+  }, [rutaId])
+
+
+  // Filtrar y ordenar visitas
+  const visitasCobrador = useMemo(() => {
+    const buscadas = (visitasBase || []).filter(v =>
+      v.cliente.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      v.direccion.toLowerCase().includes(searchQuery.toLowerCase())
+    )
+
+    const priority: Record<string, number> = { MES: 0, QUINCENA: 1, SEMANA: 2, DIA: 3 }
+    const sorted = buscadas.sort((a, b) => {
+      const pA = priority[a.periodoRuta] ?? 99
+      const pB = priority[b.periodoRuta] ?? 99
+      if (pA !== pB) return pA - pB
+      return a.ordenVisita - b.ordenVisita
+    })
+
+    return sorted
+  }, [visitasBase, searchQuery])
 
   const handleDragStart = useCallback((event: DragStartEvent) => {
     if (rutaCompletada) return
@@ -1298,11 +1303,20 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
 
             <div className="mt-4 border-t border-slate-100 pt-4 flex flex-wrap items-center gap-2 overflow-x-auto pb-1">
 
-                  <ExportButton
-                    label="Exportar Ruta"
-                    onExportExcel={exportarRutaDiariaCSV}
-                    onExportPDF={exportarRutaDiariaPDF}
-                  />
+                  <button
+                    type="button"
+                    onClick={handleExportarRutaPdf}
+                    disabled={!rutaId || isExportingPdf}
+                    className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold rounded-xl border border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                    title="Exportar ruta como PDF"
+                  >
+                    {isExportingPdf ? (
+                      <span className="w-3 h-3 border-2 border-rose-600 border-t-transparent rounded-full animate-spin" />
+                    ) : (
+                      <FileDown className="w-3 h-3" />
+                    )}
+                    PDF
+                  </button>
                   <button 
                     onClick={() => {
                       setShowHistory(false)
