@@ -321,7 +321,10 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
           const next = { ...prev };
           const keys = Object.keys(next);
           for (const k of keys) {
-            if (!next[k].loaded) next[k].resumen.recaudo = 0;
+            if (!next[k].loaded) {
+              next[k].resumen.recaudo = 0;
+              next[k].resumen.visitados = 0;
+            }
           }
           for (const p of pagosData) {
             const raw = p.fechaPago || p.creadoEn;
@@ -331,6 +334,9 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
             const cobradorMatch = rutaInfo?.cobradorId ? (p.cobradorId === rutaInfo.cobradorId) : true;
             if (next[pk] && !next[pk].loaded && cobradorMatch) {
                next[pk].resumen.recaudo += Number(p.montoTotal || 0);
+               // En vista "Meses", el conteo de "cobros" no puede depender de dayData.visitas
+               // porque los días no están cargados (lazy). Usamos pagos como fuente rápida.
+               next[pk].resumen.visitados = Number(next[pk].resumen.visitados || 0) + 1;
             }
           }
           return next;
@@ -372,21 +378,24 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
       console.warn(`[Historial ${fechaClave}] obtenerSaldoDisponibleRuta falló:`, e);
     }
 
+    // 3. Pagos del día — filtrar estrictamente por fecha y cobrador
     try {
-      // 3. Pagos — modelo Pago SIN rutaId, filtramos solo por fecha
       const pagosResp = await pagosService.obtenerPagos({ limit: 5000 });
       const pagosData = (pagosResp as any)?.pagos || pagosResp || [];
       pagosDelDia = (Array.isArray(pagosData) ? pagosData : []).filter((p: any) => {
         const raw = p.fechaPago || p.creadoEn;
-        return raw && toKey(raw) === fechaClave;
+        if (!raw) return false;
+        const cobradorMatch = rutaInfo?.cobradorId ? (p.cobradorId === rutaInfo.cobradorId) : true;
+        return toKey(raw) === fechaClave && cobradorMatch;
       });
     } catch (e) {
-      console.warn(`[Historial ${fechaClave}] obtenerPagos falló:`, e);
+      console.warn(`[Historial ${fechaClave}] pagos falló:`, e);
+      pagosDelDia = [];
     }
 
     const recaudadoPorCliente: Record<string, number> = {};
     for (const p of pagosDelDia) {
-      const cid = p.clienteId || p.cliente?.id;
+      const cid = p.clienteId || (p.cliente?.id);
       if (!cid) continue;
       recaudadoPorCliente[cid] = (recaudadoPorCliente[cid] || 0) + Number(p.montoTotal || 0);
     }
@@ -465,7 +474,7 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
         loaded: true,
       },
     }));
-  }, [rutaId]);
+  }, [rutaId, rutaInfo?.cobradorId]);
 
   // Al abrir el historial, cargar hoy automáticamente
   useEffect(() => {
@@ -1622,6 +1631,8 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
                                       const monthRecaudo = daysInMonth.reduce((sum, d) => sum + ((historialRutas as any)[d]?.resumen?.recaudo || 0), 0);
                                       const monthPagados = daysInMonth.reduce((sum, d) => {
                                         const dayData = (historialRutas as any)[d];
+                                        const cobrosFromPagos = Number(dayData?.resumen?.visitados || 0);
+                                        if (cobrosFromPagos > 0) return sum + cobrosFromPagos;
                                         return sum + (dayData?.visitas?.filter((v: any) => v.estado === 'pagado')?.length || 0);
                                       }, 0);
 

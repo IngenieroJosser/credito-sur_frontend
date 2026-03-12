@@ -473,12 +473,13 @@ const DetalleRutaPage = () => {
         if (!raw) return false;
         
         const key = getLocalIsoKey(raw);
+        const cobradorMatch = rutaActual?.cobradorId ? (p.cobradorId === rutaActual.cobradorId) : true;
         const matchRuta = p.rutaId === rutaId || 
                           normalize(p.ruta) === rutaNombreNorm || 
                           (p.ruta && normalize(p.ruta).includes(rutaNombreNorm)) ||
                           (rutaNombreNorm && normalize(p.ruta).includes(rutaNombreNorm));
         
-        return key === fechaClave && (matchRuta || !p.ruta); // Fallback if no route specified
+        return key === fechaClave && cobradorMatch && (matchRuta || !p.ruta); // Fallback if no route specified
       });
 
       const recaudadoPorCliente: Record<string, number> = {};

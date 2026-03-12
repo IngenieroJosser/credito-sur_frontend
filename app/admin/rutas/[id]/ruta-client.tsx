@@ -158,7 +158,10 @@ const RutaClientLoaded = ({
           const next = { ...prev };
           const keys = Object.keys(next);
           for (const k of keys) {
-            if (!next[k].loaded) next[k].resumen.recaudo = 0;
+            if (!next[k].loaded) {
+              next[k].resumen.recaudo = 0;
+              next[k].resumen.visitados = 0;
+            }
           }
            for (const p of pagosData) {
             const raw = p.fechaPago || p.creadoEn;
@@ -168,6 +171,8 @@ const RutaClientLoaded = ({
             const cobradorMatch = initialRuta?.cobradorId ? (p.cobradorId === initialRuta.cobradorId) : true;
             if (next[pk] && !next[pk].loaded && cobradorMatch) {
                next[pk].resumen.recaudo += Number(p.montoTotal || 0);
+               // En vista "Meses", el conteo de "cobros" no puede depender de visitas lazy-load.
+               next[pk].resumen.visitados = Number(next[pk].resumen.visitados || 0) + 1;
             }
           }
           return next;
@@ -202,7 +207,8 @@ const RutaClientLoaded = ({
 
       pagosDelDia = (Array.isArray(pagosData) ? pagosData : []).filter((p: any) => {
         const raw = p.fechaPago || p.creadoEn;
-        return raw && toKey(raw) === fechaClave;
+        const cobradorMatch = initialRuta?.cobradorId ? (p.cobradorId === initialRuta.cobradorId) : true;
+        return raw && toKey(raw) === fechaClave && cobradorMatch;
       });
     } catch(e) { logger.warn(`[Admin Historial ${fechaClave}] pagos falló:`, e); }
 
@@ -989,7 +995,12 @@ const RutaClientLoaded = ({
                                 const daysInMonth = byMonth[monthKey];
                                 const isMonthExpanded = selectedHistoryMonth === monthKey;
                                 const monthRecaudo = daysInMonth.reduce((sum, d2) => sum + ((historialRutas as any)[d2]?.resumen?.recaudo || 0), 0);
-                                const monthPagados = daysInMonth.reduce((sum, d2) => sum + (((historialRutas as any)[d2]?.visitas || []).filter((v: any) => v.estado === 'pagado').length), 0);
+                                const monthPagados = daysInMonth.reduce((sum, d2) => {
+                                  const dayData = (historialRutas as any)[d2];
+                                  const cobrosFromPagos = Number(dayData?.resumen?.visitados || 0);
+                                  if (cobrosFromPagos > 0) return sum + cobrosFromPagos;
+                                  return sum + (((dayData?.visitas) || []).filter((v: any) => v.estado === 'pagado').length);
+                                }, 0);
                                 return (
                                   <div key={monthKey} className={`rounded-2xl border transition-all overflow-hidden bg-white border-slate-200 ${isMonthExpanded ? 'ring-1 ring-slate-300 shadow-md' : 'shadow-sm'}`}>
                                     <div className="p-4 flex items-center justify-between cursor-pointer hover:bg-slate-50 transition-colors" onClick={() => setSelectedHistoryMonth(isMonthExpanded ? null : monthKey)}>

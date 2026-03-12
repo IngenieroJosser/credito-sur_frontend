@@ -1033,7 +1033,10 @@ const VistaCobrador = () => {
           const next = { ...prev };
           const keys = Object.keys(next);
           for (const k of keys) {
-            if (!next[k].loaded) next[k].resumen.recaudo = 0;
+            if (!next[k].loaded) {
+              next[k].resumen.recaudo = 0;
+              next[k].resumen.visitados = 0;
+            }
           }
           for (const p of pagosData) {
             const raw = p.fechaPago || p.creadoEn;
@@ -1044,6 +1047,8 @@ const VistaCobrador = () => {
             const cobradorMatch = userSession?.id ? (p.cobradorId === userSession.id) : true;
             if (next[pk] && !next[pk].loaded && cobradorMatch) {
                next[pk].resumen.recaudo += Number(p.montoTotal || 0);
+               // En vista "Meses", el conteo de "cobros" no puede depender de visitas lazy-load.
+               next[pk].resumen.visitados = Number(next[pk].resumen.visitados || 0) + 1;
             }
           }
           return next;
@@ -1083,7 +1088,8 @@ const VistaCobrador = () => {
       // El modelo Pago NO tiene rutaId — filtramos SOLO por fecha
       pagosDelDia = (Array.isArray(pagosData) ? pagosData : []).filter((p: any) => {
         const raw = p.fechaPago || p.creadoEn;
-        return raw && toKey(raw) === fechaClave;
+        const cobradorMatch = userSession?.id ? (p.cobradorId === userSession.id) : true;
+        return raw && toKey(raw) === fechaClave && cobradorMatch;
       });
     } catch (e) { console.warn(`[Cobrador Historial ${fechaClave}] pagos falló:`, e); }
 
@@ -2410,21 +2416,25 @@ const VistaCobrador = () => {
                                      const monthObj = new Date(parseInt(my), parseInt(mNum)-1, 1);
                                      const monthName = monthObj.toLocaleDateString('es-CO', { month: 'long', year: 'numeric' });
                                      const daysInMonth = byMonth2[monthKey];
-                                     const isMonthExpanded = selectedHistoryMonth === monthKey;
-                                     const monthRecaudo = daysInMonth.reduce((sum, d2) => sum + (((historialRutas as any)||{})[d2]?.resumen?.recaudo || 0), 0);
-                                     const monthPagados = daysInMonth.reduce((sum, d2) => {
-                                       const dd2 = ((historialRutas as any)||{})[d2];
-                                       return sum + (dd2?.visitas?.filter((v: any) => v.estado === 'pagado')?.length || 0);
-                                     }, 0);
-                                     return (
-                                       <div key={monthKey} className={`rounded-2xl border transition-all overflow-hidden bg-white border-slate-200 ${isMonthExpanded ? 'ring-1 ring-slate-300 shadow-md' : 'shadow-sm'}`}>
-                                         <div className="p-4 flex items-center justify-between cursor-pointer hover:bg-slate-50 transition-colors" onClick={() => setSelectedHistoryMonth(isMonthExpanded ? null : monthKey)}>
-                                           <div className="flex items-center gap-3">
+                                    const isMonthExpanded = selectedHistoryMonth === monthKey;
+                                    const monthRecaudo = daysInMonth.reduce((sum, d2) => sum + (((historialRutas as any)||{})[d2]?.resumen?.recaudo || 0), 0);
+                                    const monthPagados = daysInMonth.reduce((sum, d2) => {
+                                      const dd2 = ((historialRutas as any)||{})[d2];
+                                      const cobrosFromPagos = Number(dd2?.resumen?.visitados || 0);
+                                      if (cobrosFromPagos > 0) return sum + cobrosFromPagos;
+                                      return sum + (dd2?.visitas?.filter((v: any) => v.estado === 'pagado')?.length || 0);
+                                    }, 0);
+                                    return (
+                                      <div key={monthKey} className={`rounded-2xl border transition-all overflow-hidden bg-white border-slate-200 ${isMonthExpanded ? 'ring-1 ring-slate-300 shadow-md' : 'shadow-sm'}`}>
+                                        <div className="p-4 flex items-center justify-between cursor-pointer hover:bg-slate-50 transition-colors" onClick={() => setSelectedHistoryMonth(isMonthExpanded ? null : monthKey)}>
+                                          <div className="flex items-center gap-3">
                                              <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-xs shadow-sm ${isMonthExpanded ? 'bg-[#08557f] text-white' : 'bg-slate-100 text-slate-600'}`}>{mNum}</div>
                                              <div>
                                                <div className="font-bold text-slate-900 capitalize">{monthName}</div>
                                                <div className="text-xs text-slate-500">{daysInMonth.length} días · Recaudo: <b>${monthRecaudo.toLocaleString('es-CO')}</b></div>
                                              </div>
+                                          </div>
+                                          <div className="flex items-center gap-3">
                                            </div>
                                            <div className="flex items-center gap-3">
                                              <div className="px-2 py-1 rounded-lg text-[10px] font-bold bg-blue-50 text-blue-700">{monthPagados} cobros</div>
