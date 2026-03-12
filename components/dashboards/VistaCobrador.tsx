@@ -1304,13 +1304,6 @@ const VistaCobrador = () => {
         })
       )
 
-      setModalAlerta({
-        titulo: cuotaId ? 'Solicitud enviada' : 'Reprogramado',
-        mensaje: cuotaId
-          ? `La solicitud fue enviada al supervisor para aprobacion. Nueva fecha solicitada: ${formatearFechaISO(fecha)}`
-          : 'Visita reprogramada exitosamente',
-        tipo: 'info'
-      })
       setShowReprogramModal(false)
       setVisitaReprogramar(null)
     } catch (error: any) {

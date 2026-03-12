@@ -161,7 +161,6 @@ export default function ReprogramarCuotaModal({
 
       const result = await response.json();
       
-      alert('Cuota reprogramada exitosamente');
       onSuccess();
     } catch (err: any) {
       setError(err.message || 'Error al reprogramar la cuota. Intente nuevamente.');

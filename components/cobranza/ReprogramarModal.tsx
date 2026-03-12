@@ -22,10 +22,6 @@ const LIMITES_DIAS: Record<string, number> = {
 
 
 export default function ReprogramarModal({ visita, onClose, onConfirm }: ReprogramarModalProps) {
-  const [reprogramFecha, setReprogramFecha] = useState('')
-  const [reprogramMotivo, setReprogramMotivo] = useState('')
-  const [isSubmitting, setIsSubmitting] = useState(false)
-
   // Validación de límite de días
   const limite = LIMITES_DIAS[visita.periodoRuta] ?? 30
   const hoy = new Date()
@@ -35,6 +31,14 @@ export default function ReprogramarModal({ visita, onClose, onConfirm }: Reprogr
   const maxFechaStr = maxFecha.toISOString().split('T')[0]
   const minFechaStr = hoy.toISOString().split('T')[0]
 
+  const manana = new Date(hoy)
+  manana.setDate(manana.getDate() + 1)
+  const mananaStr = manana.toISOString().split('T')[0]
+
+  const [reprogramFecha, setReprogramFecha] = useState(mananaStr)
+  const [reprogramMotivo, setReprogramMotivo] = useState('')
+  const [isSubmitting, setIsSubmitting] = useState(false)
+
   // Validar si la fecha seleccionada supera el límite
   const diasSeleccionados = reprogramFecha
     ? Math.round((new Date(reprogramFecha + 'T00:00:00').getTime() - hoy.getTime()) / 86_400_000)
@@ -42,13 +46,13 @@ export default function ReprogramarModal({ visita, onClose, onConfirm }: Reprogr
   const excedeLimite = reprogramFecha ? diasSeleccionados > limite : false
   const fechaAnteriorHoy = reprogramFecha ? diasSeleccionados < 0 : false
 
-  const canSubmit = reprogramFecha && reprogramMotivo && !excedeLimite && !fechaAnteriorHoy && !isSubmitting
+  const canSubmit = reprogramFecha && !excedeLimite && !fechaAnteriorHoy && !isSubmitting
 
   const handleGuardar = async () => {
     if (!canSubmit) return
     setIsSubmitting(true)
     try {
-      await onConfirm(reprogramFecha, reprogramMotivo)
+      await onConfirm(reprogramFecha, reprogramMotivo.trim() || 'Reprogramación solicitada')
     } catch (error) {
       console.error('Error al solicitar reprogramación:', error)
       setIsSubmitting(false)

@@ -744,11 +744,6 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
         })
       )
 
-      setModalAlerta({
-        tipo: 'info',
-        titulo: 'Solicitud enviada',
-        mensaje: `La reprogramacion fue enviada al supervisor para aprobacion. ${fecha ? `Nueva fecha solicitada: ${fechaLabel}` : ''}`,
-      })
     } catch (err: any) {
       setModalAlerta({
         tipo: 'error',
