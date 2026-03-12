@@ -127,7 +127,7 @@ export const prestamosService = {
           'prestamo_archivar',
           `/loans/${prestamoId}/archive`,
           'POST',
-          { prestamoId, nuevaFecha: data.fecha, motivo: data.motivo, solicitadoPorId: data.cobradorId },
+          data,
           `Archivar préstamo ID: ${prestamoId}`
         );
         return { esOffline: true };
@@ -348,8 +348,8 @@ export const prestamosService = {
    * Reprogramar la próxima cuota de un préstamo
    */
   async reprogramarPrestamo(prestamoId: string, data: { fecha: string; motivo: string; cobradorId: string }): Promise<any> {
+    const payload = { prestamoId, nuevaFecha: data.fecha, motivo: data.motivo, solicitadoPorId: data.cobradorId };
     try {
-      const payload = { prestamoId, nuevaFecha: data.fecha, motivo: data.motivo, solicitadoPorId: data.cobradorId };
       return await apiRequest('POST', `/loans/solicitar-reprogramacion`, payload);
     } catch (error: any) {
       if (
