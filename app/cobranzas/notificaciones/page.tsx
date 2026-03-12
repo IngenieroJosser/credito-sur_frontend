@@ -67,6 +67,21 @@ export default function NotificacionesCobranzasPage() {
     }
   }
 
+  // --- PAGINACIÓN ---
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 5;
+
+  const totalPages = Math.ceil(notificaciones.length / itemsPerPage);
+  const paginatedNotificaciones = notificaciones.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
+
+  // Resetear página cuando cambian los filtros
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filter, tipoFilter, search]);
+
   return (
     <div className="min-h-screen relative bg-white">
       {/* Fondo Arquitectónico (Consistent with Admin Style) */}
@@ -186,8 +201,8 @@ export default function NotificacionesCobranzasPage() {
 
             {/* List Section */}
             <div className="divide-y divide-slate-100">
-              {notificaciones.length > 0 ? (
-                notificaciones.map((notif) => (
+              {paginatedNotificaciones.length > 0 ? (
+                paginatedNotificaciones.map((notif) => (
                   <div 
                     key={notif.id} 
                     className={`p-6 hover:bg-slate-50/50 transition-all group relative ${!notif.leida ? 'bg-blue-50/20' : ''}`}
@@ -257,14 +272,25 @@ export default function NotificacionesCobranzasPage() {
             
             {/* Table Footer / Pagination */}
             <div className="px-6 py-5 border-t border-slate-100 bg-slate-50/30 flex flex-col sm:flex-row justify-between items-center gap-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">
-              <span>Mostrando {notificaciones.length} Notificaciones</span>
-              <div className="flex gap-3">
-                <button disabled className="px-5 py-2.5 rounded-xl border border-slate-200 bg-white opacity-40 cursor-not-allowed flex items-center gap-2 shadow-sm">
-                  <ChevronLeft className="h-3.5 w-3.5" /> Anterior
-                </button>
-                <button className="px-5 py-2.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 transition-all flex items-center gap-2 shadow-sm">
-                  Siguiente <ChevronRight className="h-3.5 w-3.5" />
-                </button>
+              <span>Mostrando {paginatedNotificaciones.length} de {notificaciones.length} Notificaciones</span>
+              <div className="flex items-center gap-3">
+                <span className="text-slate-400 font-bold uppercase tracking-widest text-[10px] mr-2">Página {currentPage} de {totalPages || 1}</span>
+                <div className="flex gap-2">
+                  <button 
+                    disabled={currentPage === 1}
+                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                    className={`px-5 py-2.5 rounded-xl border border-slate-200 bg-white flex items-center gap-2 shadow-sm ${currentPage === 1 ? 'opacity-40 cursor-not-allowed text-slate-400' : 'hover:bg-slate-50 text-slate-700 transition-all'}`}
+                  >
+                    <ChevronLeft className="h-3.5 w-3.5" /> Anterior
+                  </button>
+                  <button 
+                    disabled={currentPage >= totalPages}
+                    onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                    className={`px-5 py-2.5 rounded-xl border border-slate-200 bg-white flex items-center gap-2 shadow-sm ${currentPage >= totalPages ? 'opacity-40 cursor-not-allowed text-slate-400' : 'hover:bg-slate-50 text-slate-700 transition-all'}`}
+                  >
+                    Siguiente <ChevronRight className="h-3.5 w-3.5" />
+                  </button>
+                </div>
               </div>
             </div>
           </div>
