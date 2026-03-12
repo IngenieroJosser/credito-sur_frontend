@@ -127,6 +127,12 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
   const [selectedHistoryMonth, setSelectedHistoryMonth] = useState<string | null>(null)
   const [historyViewMode, setHistoryViewMode] = useState<'DAYS' | 'MONTHS'>('DAYS')
 
+  const [gruposColapsados, setGruposColapsados] = useState<Record<string, boolean>>({})
+  const toggleGrupo = useCallback(
+    (key: string) => setGruposColapsados((prev) => ({ ...prev, [key]: !prev[key] })),
+    [],
+  )
+
   // Selector de cliente para acciones globales
   const [showClientSelector, setShowClientSelector] = useState(false)
   const [pendingAction, setPendingAction] = useState<'CUENTA' | 'AGENDAR' | 'PAGO' | 'ABONO' | null>(null)
@@ -1632,109 +1638,117 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
                         MES: noPagadas.filter(v => v.periodoRuta === 'MES'),
                       }
 
-                      const renderSeccion = (titulo: string, visitas: VisitaRuta[]) => {
+                      const renderSeccion = (key: string, titulo: string, visitas: VisitaRuta[]) => {
                         if (visitas.length === 0) return null
+                        const estaColapsado = !!gruposColapsados[key]
                         return (
                           <div className="space-y-4">
-                            <div className="flex items-center gap-4">
+                            <button
+                              type="button"
+                              onClick={() => toggleGrupo(key)}
+                              className="w-full flex items-center gap-4 group"
+                            >
                               <div className="h-px flex-1 bg-slate-200" />
-                              <span className="text-[11px] font-black text-[#08557f] uppercase tracking-[0.25em] bg-blue-50/50 px-4 py-1.5 rounded-full border border-blue-100 shadow-sm">
+                              <span className="flex items-center gap-2 text-[11px] font-black text-[#08557f] uppercase tracking-[0.25em] bg-blue-50/50 px-4 py-1.5 rounded-full border border-blue-100 shadow-sm whitespace-nowrap select-none group-hover:bg-blue-100/60 transition-colors">
                                 {titulo}{' '}
                                 <span className="ml-1 bg-blue-600 text-white text-[9px] px-2 py-0.5 rounded-full">
                                   {visitas.length}
                                 </span>
+                                <ChevronDown className={`h-3 w-3 transition-transform duration-200 ${estaColapsado ? '' : 'rotate-180'}`} />
                               </span>
                               <div className="h-px flex-1 bg-slate-200" />
-                            </div>
-                            <div className="space-y-3">
-                              {visitas.map((visita) => (
-                                <SortableVisita
-                                  key={visita.id}
-                                  visita={visita}
-                                  onSelect={(id) =>
-                                    setVisitaSeleccionada(
-                                      id === visitaSeleccionada ? null : id,
-                                    )
-                                  }
-                                  onVerCliente={handleAbrirClienteInfo}
-                                  getEstadoClasses={getEstadoClasses}
-                                  disableSort={rutaCompletada || !isPersonal}
-                                  isSelected={visita.id === visitaSeleccionada}
-                                >
-                                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1">
-                                    <button
-                                      onClick={(e) => {
-                                        e.stopPropagation()
-                                        setVisitaPagoSeleccionadaId(visita.id)
-                                        setPagoInitialIsAbono(false)
-                                        setShowPaymentModal(true)
-                                      }}
-                                      className="flex flex-col items-center justify-center p-2 rounded-xl bg-blue-600 text-white hover:bg-blue-700 transition-all shadow-sm active:scale-95"
-                                    >
-                                      <DollarSign className="h-4 w-4 mb-1" />
-                                      <span className="text-[9px] font-bold uppercase">
-                                        Pago
-                                      </span>
-                                    </button>
-                                    <button
-                                      onClick={(e) => {
-                                        e.stopPropagation()
-                                        setVisitaPagoSeleccionadaId(visita.id)
-                                        setPagoInitialIsAbono(true)
-                                        setShowPaymentModal(true)
-                                      }}
-                                      className="flex flex-col items-center justify-center p-2 rounded-xl bg-emerald-600 text-white hover:bg-emerald-700 transition-all shadow-sm active:scale-95"
-                                    >
-                                      <Wallet className="h-4 w-4 mb-1" />
-                                      <span className="text-[9px] font-bold uppercase">
-                                        Abono
-                                      </span>
-                                    </button>
-                                    <button
-                                      onClick={(e) => {
-                                        e.stopPropagation()
-                                        setVisitaEstadoCuentaSeleccionada(visita)
-                                        setShowEstadoCuentaModal(true)
-                                      }}
-                                      className="flex flex-col items-center justify-center p-2 rounded-xl bg-white text-slate-700 border border-slate-200 hover:bg-slate-50 transition-all shadow-sm active:scale-95"
-                                    >
-                                      <FileTextIcon className="h-4 w-4 mb-1 text-slate-400" />
-                                      <span className="text-[9px] font-bold uppercase">
-                                        Estado
-                                      </span>
-                                    </button>
-                                    <button
-                                      onClick={(e) => {
-                                        e.stopPropagation()
-                                        setVisitaReprogramar(visita)
-                                        setShowReprogramModal(true)
-                                      }}
-                                      className="flex flex-col items-center justify-center p-2 rounded-xl bg-white text-slate-700 border border-slate-200 hover:bg-slate-50 transition-all shadow-sm active:scale-95"
-                                    >
-                                      <Calendar className="h-4 w-4 mb-1 text-slate-400" />
-                                      <span className="text-[9px] font-bold uppercase">
-                                        Repro.
-                                      </span>
-                                    </button>
-                                  </div>
-                                </SortableVisita>
-                              ))}
-                            </div>
+                            </button>
+                            {!estaColapsado && (
+                              <div className="space-y-3">
+                                {visitas.map((visita) => (
+                                  <SortableVisita
+                                    key={visita.id}
+                                    visita={visita}
+                                    onSelect={(id) =>
+                                      setVisitaSeleccionada(
+                                        id === visitaSeleccionada ? null : id,
+                                      )
+                                    }
+                                    onVerCliente={handleAbrirClienteInfo}
+                                    getEstadoClasses={getEstadoClasses}
+                                    disableSort={rutaCompletada || !isPersonal}
+                                    isSelected={visita.id === visitaSeleccionada}
+                                  >
+                                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1">
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation()
+                                          setVisitaPagoSeleccionadaId(visita.id)
+                                          setPagoInitialIsAbono(false)
+                                          setShowPaymentModal(true)
+                                        }}
+                                        className="flex flex-col items-center justify-center p-2 rounded-xl bg-blue-600 text-white hover:bg-blue-700 transition-all shadow-sm active:scale-95"
+                                      >
+                                        <DollarSign className="h-4 w-4 mb-1" />
+                                        <span className="text-[9px] font-bold uppercase">
+                                          Pago
+                                        </span>
+                                      </button>
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation()
+                                          setVisitaPagoSeleccionadaId(visita.id)
+                                          setPagoInitialIsAbono(true)
+                                          setShowPaymentModal(true)
+                                        }}
+                                        className="flex flex-col items-center justify-center p-2 rounded-xl bg-emerald-600 text-white hover:bg-emerald-700 transition-all shadow-sm active:scale-95"
+                                      >
+                                        <Wallet className="h-4 w-4 mb-1" />
+                                        <span className="text-[9px] font-bold uppercase">
+                                          Abono
+                                        </span>
+                                      </button>
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation()
+                                          setVisitaEstadoCuentaSeleccionada(visita)
+                                          setShowEstadoCuentaModal(true)
+                                        }}
+                                        className="flex flex-col items-center justify-center p-2 rounded-xl bg-white text-slate-700 border border-slate-200 hover:bg-slate-50 transition-all shadow-sm active:scale-95"
+                                      >
+                                        <FileTextIcon className="h-4 w-4 mb-1 text-slate-400" />
+                                        <span className="text-[9px] font-bold uppercase">
+                                          Estado
+                                        </span>
+                                      </button>
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation()
+                                          setVisitaReprogramar(visita)
+                                          setShowReprogramModal(true)
+                                        }}
+                                        className="flex flex-col items-center justify-center p-2 rounded-xl bg-white text-slate-700 border border-slate-200 hover:bg-slate-50 transition-all shadow-sm active:scale-95"
+                                      >
+                                        <Calendar className="h-4 w-4 mb-1 text-slate-400" />
+                                        <span className="text-[9px] font-bold uppercase">
+                                          Repro.
+                                        </span>
+                                      </button>
+                                    </div>
+                                  </SortableVisita>
+                                ))}
+                              </div>
+                            )}
                           </div>
                         )
                       }
 
-                      if (periodoRutaFiltro === 'DIA') return renderSeccion('Ruta del día', porPeriodo.DIA)
-                      if (periodoRutaFiltro === 'SEMANA') return renderSeccion('Ruta de la semana', porPeriodo.SEMANA)
-                      if (periodoRutaFiltro === 'QUINCENA') return renderSeccion('Ruta quincenal', porPeriodo.QUINCENA)
-                      if (periodoRutaFiltro === 'MES') return renderSeccion('Ruta del mes', porPeriodo.MES)
+                      if (periodoRutaFiltro === 'DIA') return renderSeccion('DIA', 'Ruta del día', porPeriodo.DIA)
+                      if (periodoRutaFiltro === 'SEMANA') return renderSeccion('SEMANA', 'Ruta de la semana', porPeriodo.SEMANA)
+                      if (periodoRutaFiltro === 'QUINCENA') return renderSeccion('QUINCENA', 'Ruta quincenal', porPeriodo.QUINCENA)
+                      if (periodoRutaFiltro === 'MES') return renderSeccion('MES', 'Ruta del mes', porPeriodo.MES)
 
                       return (
                         <>
-                          {renderSeccion('Ruta mensual', porPeriodo.MES)}
-                          {renderSeccion('Ruta quincenal', porPeriodo.QUINCENA)}
-                          {renderSeccion('Ruta semanal', porPeriodo.SEMANA)}
-                          {renderSeccion('Ruta del día', porPeriodo.DIA)}
+                          {renderSeccion('MES', 'Ruta mensual', porPeriodo.MES)}
+                          {renderSeccion('QUINCENA', 'Ruta quincenal', porPeriodo.QUINCENA)}
+                          {renderSeccion('SEMANA', 'Ruta semanal', porPeriodo.SEMANA)}
+                          {renderSeccion('DIA', 'Ruta del día', porPeriodo.DIA)}
                         </>
                       )
                     })()}

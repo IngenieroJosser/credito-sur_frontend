@@ -113,6 +113,12 @@ const DetalleRutaPage = () => {
   const [historialRutas, setHistorialRutas] = useState<Record<string, HistorialDia> | null>(null)
   const [selectedHistoryDate, setSelectedHistoryDate] = useState<string | null>(null)
 
+  const [gruposColapsados, setGruposColapsados] = useState<Record<string, boolean>>({})
+  const toggleGrupo = useCallback(
+    (key: string) => setGruposColapsados((prev) => ({ ...prev, [key]: !prev[key] })),
+    [],
+  )
+
   const historyDates = useMemo(() => {
     if (!historialRutas) return [];
     return Object.keys(historialRutas).sort((a, b) => b.localeCompare(a));
@@ -847,39 +853,48 @@ const DetalleRutaPage = () => {
                 }).map(([key, label]) => {
                     const visitas = visitasAgrupadas[key as keyof typeof visitasAgrupadas];
                     if (visitas.length === 0) return null;
+                    const estaColapsado = !!gruposColapsados[key];
                     
                     return (
                         <div key={key} className="space-y-4">
-                            <div className="flex items-center gap-4">
+                            <button
+                              type="button"
+                              onClick={() => toggleGrupo(key)}
+                              className="w-full flex items-center gap-4 group"
+                            >
                                 <div className="h-px flex-1 bg-slate-200"></div>
-                                <span className="text-[11px] font-black text-[#08557f] uppercase tracking-[0.25em] bg-blue-50/50 px-4 py-1.5 rounded-full border border-blue-100 shadow-sm">
+                                <span className="flex items-center gap-2 text-[11px] font-black text-[#08557f] uppercase tracking-[0.25em] bg-blue-50/50 px-4 py-1.5 rounded-full border border-blue-100 shadow-sm whitespace-nowrap select-none group-hover:bg-blue-100/60 transition-colors">
                                     {label}
+                                    <span className="ml-1 bg-blue-600 text-white text-[9px] px-2 py-0.5 rounded-full">{visitas.length}</span>
+                                    <ChevronDown className={`h-3 w-3 transition-transform duration-200 ${estaColapsado ? '' : 'rotate-180'}`} />
                                 </span>
                                 <div className="h-px flex-1 bg-slate-200"></div>
-                            </div>
+                            </button>
 
-                            <div className="space-y-4">
-                                {visitas.map((visita) => (
-                                    <StaticVisitaItem
-                                        key={visita.id}
-                                        visita={visita}
-                                        allowClick={false}
-                                        onVerCliente={handleAbrirClienteInfo}
-                                        getEstadoClasses={getEstadoClasses}
-                                        getPrioridadColor={getPrioridadColor}
-                                    >
-                                        <div className="pt-2">
-                                            <button
-                                                onClick={(e) => { e.stopPropagation(); handleAbrirEstadoCuenta(visita); }}
-                                                className="w-full flex items-center justify-center gap-2 p-2.5 rounded-xl bg-white text-[#08557f] border border-[#08557f]/20 hover:bg-blue-50 transition-all shadow-sm active:scale-95"
-                                            >
-                                                <FileTextIcon className="h-4 w-4" />
-                                                <span className="text-[10px] font-black uppercase tracking-widest">Estado de Cuenta</span>
-                                            </button>
-                                        </div>
-                                    </StaticVisitaItem>
-                                ))}
-                            </div>
+                            {!estaColapsado && (
+                              <div className="space-y-4">
+                                  {visitas.map((visita) => (
+                                      <StaticVisitaItem
+                                          key={visita.id}
+                                          visita={visita}
+                                          allowClick={false}
+                                          onVerCliente={handleAbrirClienteInfo}
+                                          getEstadoClasses={getEstadoClasses}
+                                          getPrioridadColor={getPrioridadColor}
+                                      >
+                                          <div className="pt-2">
+                                              <button
+                                                  onClick={(e) => { e.stopPropagation(); handleAbrirEstadoCuenta(visita); }}
+                                                  className="w-full flex items-center justify-center gap-2 p-2.5 rounded-xl bg-white text-[#08557f] border border-[#08557f]/20 hover:bg-blue-50 transition-all shadow-sm active:scale-95"
+                                              >
+                                                  <FileTextIcon className="h-4 w-4" />
+                                                  <span className="text-[10px] font-black uppercase tracking-widest">Estado de Cuenta</span>
+                                              </button>
+                                          </div>
+                                      </StaticVisitaItem>
+                                  ))}
+                              </div>
+                            )}
                         </div>
                     )
                 })}

@@ -58,6 +58,7 @@ import { obtenerSaldoDisponibleRuta } from '@/services/contabilidad-service'
 import { HistorialDia } from '@/lib/types/cobranza'
 import { exportService } from '@/services/export-service'
 import { toast } from 'sonner'
+import { useRealtimeData } from '@/hooks/useRealtimeData'
 
 interface GastoRuta {
   id: string
@@ -79,6 +80,7 @@ type RutaClientLoadedProps = {
   rutaCompletada: boolean;
   setRutaCompletada: React.Dispatch<React.SetStateAction<boolean>>;
   currentUser: any;
+  onRutaRefresh?: () => Promise<void> | void;
 };
 
 const RutaClientLoaded = ({
@@ -88,6 +90,7 @@ const RutaClientLoaded = ({
   rutaCompletada,
   setRutaCompletada,
   currentUser,
+  onRutaRefresh,
 }: RutaClientLoadedProps) => {
   const { showNotification } = useNotification()
   const router = useRouter()
@@ -1032,13 +1035,7 @@ const RutaClientLoaded = ({
               // ========================= VISTA VISITAS ACTUALES =========================
               <>
                   <div className="flex flex-col gap-6 animate-in fade-in duration-300">
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 pb-4">
-                        <div className="flex items-center gap-3">
-                            <h3 className="font-bold text-slate-900 text-xl flex items-center gap-3">
-                                Visitas de la Ruta
-                                <span className="bg-blue-600 text-white text-xs px-2.5 py-1 rounded-full shadow-sm">{totalMostradas}</span>
-                            </h3>
-                        </div>
+                    <div className="flex items-center justify-end">
                     </div>
 
                     {/* Leyenda de Riesgos Simplificada */}
@@ -1186,9 +1183,35 @@ const RutaClientLoaded = ({
           visita={pagoVisita.visita}
           tipo={pagoVisita.tipo}
           onClose={() => setPagoVisita(null)}
-          onConfirm={(monto, metodo, comprobante) => {
-            alert(`Registrar ${pagoVisita.tipo}: $${monto} - ${metodo}`)
-            setPagoVisita(null)
+          onConfirm={async (monto, metodo) => {
+            try {
+              if (!pagoVisita?.visita?.clienteId || !pagoVisita?.visita?.prestamoId) {
+                showNotification('error', 'No se pudo registrar el pago: falta cliente o préstamo', 'Error');
+                return;
+              }
+
+              await pagosService.registrarPago({
+                clienteId: pagoVisita.visita.clienteId,
+                prestamoId: pagoVisita.visita.prestamoId,
+                cobradorId: initialRuta.cobradorId,
+                montoTotal: monto,
+                metodoPago: metodo,
+              } as any);
+
+              showNotification('success', `${pagoVisita.tipo === 'ABONO' ? 'Abono' : 'Pago'} registrado correctamente`, 'Éxito');
+              setPagoVisita(null);
+
+              // Refrescar estadísticas/avance diario
+              try {
+                await onRutaRefresh?.();
+              } catch {}
+
+              // Refrescar data derivada en UI
+              router.refresh();
+            } catch (e) {
+              console.error('Error registrando pago/abono:', e);
+              showNotification('error', 'No se pudo registrar el pago/abono', 'Error');
+            }
           }}
         />
       )}
@@ -1337,6 +1360,19 @@ const RutaClient = ({ initialRuta: initialRutaProp, rutaId }: RutaClientProps) =
   const [loadingRuta, setLoadingRuta] = useState(!initialRutaProp && !!rutaId)
   const [rutaCompletada, setRutaCompletada] = useState(!!initialRutaProp?.activa)
 
+  const refreshRuta = useCallback(async () => {
+    if (!rutaId) return;
+    try {
+      const ruta = await rutasService.obtenerRutaPorId(rutaId);
+      setRutaData(ruta as any);
+      setRutaCompletada(!!(ruta as any)?.activa);
+    } catch (e) {
+      console.error('Error refrescando ruta:', e);
+    }
+  }, [rutaId]);
+
+  useRealtimeData(['pagos_actualizados', 'rutas_actualizadas'], refreshRuta)
+
   useEffect(() => {
     if (rutaData || !rutaId) return
 
@@ -1397,6 +1433,7 @@ const RutaClient = ({ initialRuta: initialRutaProp, rutaId }: RutaClientProps) =
       rutaCompletada={rutaCompletada}
       setRutaCompletada={setRutaCompletada}
       currentUser={currentUser}
+      onRutaRefresh={refreshRuta}
     />
   )
 }
