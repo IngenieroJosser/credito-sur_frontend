@@ -223,6 +223,7 @@ export const permisosPorRol: Record<Rol, ModuloPermiso[]> = {
 
   SUPERVISOR: [
     { id: 'dashboard', nombre: 'Dashboard', icono: 'LayoutDashboard', path: '/supervisor', roles: ['SUPERVISOR'] },
+    { id: 'revisiones', nombre: 'Revisiones', icono: 'ShieldCheck', path: '/supervisor/revisiones', roles: ['SUPERVISOR'], isNew: true },
     {
       id: 'supervision',
       nombre: 'Supervisión',
@@ -797,6 +798,7 @@ export const tieneAcceso = (rol: Rol, path: string, permisos?: string[]): boolea
       '/revisiones': 'revisiones',
       '/admin/revisiones': 'revisiones',
       '/coordinador/revisiones': 'revisiones',
+      '/supervisor/revisiones': 'revisiones',
       '/conflictos': 'conflictos-sinc',
       '/admin/conflictos': 'conflictos-sinc',
       '/coordinador/conflictos': 'conflictos-sinc',

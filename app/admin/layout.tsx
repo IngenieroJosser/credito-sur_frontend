@@ -155,7 +155,7 @@ export default function AdminLayout({
 
   // Polling de revisiones pendientes cada 30 segundos (solo roles con acceso)
   useEffect(() => {
-    const ROLES_CON_REVISIONES = ['SUPER_ADMINISTRADOR', 'ADMIN', 'COORDINADOR']
+    const ROLES_CON_REVISIONES = ['SUPER_ADMINISTRADOR', 'ADMIN', 'COORDINADOR', 'SUPERVISOR']
     if (!user?.rol || !ROLES_CON_REVISIONES.includes(user.rol)) return
 
     const fetchPending = async () => {
@@ -172,7 +172,7 @@ export default function AdminLayout({
 
   // Tiempo real: cuando el backend emite eventos de aprobaciones/clientes/préstamos, refrescamos el badge al instante
   useEffect(() => {
-    const ROLES_CON_REVISIONES = ['SUPER_ADMINISTRADOR', 'ADMIN', 'COORDINADOR']
+    const ROLES_CON_REVISIONES = ['SUPER_ADMINISTRADOR', 'ADMIN', 'COORDINADOR', 'SUPERVISOR']
     if (!user?.rol || !ROLES_CON_REVISIONES.includes(user.rol)) return
     if (!socket) return
 

@@ -569,7 +569,7 @@ export default function RevisionesPage() {
         isOpen={prorrogaModalOpen}
         onClose={() => { setProrrogaModalOpen(false); setSelectedProrroga(null) }}
         data={selectedProrroga}
-        canApprove={canReviewRejected || userRol === 'COORDINADOR'}
+        canApprove={canReviewRejected || userRol === 'COORDINADOR' || userRol === 'SUPERVISOR'}
         isProcessing={!!processingId}
         onApprove={(id) => {
           setProrrogaModalOpen(false)
