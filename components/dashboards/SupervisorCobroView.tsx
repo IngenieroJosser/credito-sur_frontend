@@ -619,16 +619,24 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
                     0,
                   )
 
+                  let ultimoPagoDate = 0;
+                  pagosCalc.forEach((p: any) => {
+                     const d = new Date(p.fechaPago || p.creadoEn).getTime();
+                     if (!isNaN(d) && d > ultimoPagoDate) ultimoPagoDate = d;
+                  });
+
                   return {
                     ...v,
                     recaudadoDelDia: totalHoy,
                     recaudadoTotalClient: totalHistorico,
+                    fechaUltimoPago: ultimoPagoDate,
                   }
                 } catch {
                   return {
                     ...v,
                     recaudadoDelDia: 0,
                     recaudadoTotalClient: 0,
+                    fechaUltimoPago: 0,
                   }
                 }
               }),
@@ -654,7 +662,16 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
               estado: ajustarEstadoConPago(v),
             }))
 
-            finales.sort((a: any, b: any) => a.ordenVisita - b.ordenVisita)
+            finales.sort((a: any, b: any) => {
+              if (a.estado === 'pagado' && b.estado !== 'pagado') return 1;
+              if (a.estado !== 'pagado' && b.estado === 'pagado') return -1;
+              
+              if (a.fechaUltimoPago !== b.fechaUltimoPago) {
+                return a.fechaUltimoPago - b.fechaUltimoPago;
+              }
+              
+              return a.ordenVisita - b.ordenVisita;
+            });
 
             setVisitasBase(finales)
             setVisitasOrden(finales.map((v: any) => v.id))

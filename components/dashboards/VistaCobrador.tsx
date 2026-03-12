@@ -617,15 +617,34 @@ const VistaCobrador = () => {
                 return sum + Number(p.montoTotal || 0);
               }, 0);
 
-              return { ...v, recaudadoDelDia: totalHoy, recaudadoTotalClient: totalHistorico, recaudadoPeriodo: totalPeriodo };
+              let ultimoPagoDate = 0;
+              pagosCalc.forEach((p: any) => {
+                 const d = new Date(p.fechaPago || p.creadoEn).getTime();
+                 if (!isNaN(d) && d > ultimoPagoDate) ultimoPagoDate = d;
+              });
+
+              return { ...v, recaudadoDelDia: totalHoy, recaudadoTotalClient: totalHistorico, recaudadoPeriodo: totalPeriodo, fechaUltimoPago: ultimoPagoDate };
             } catch {
-              return { ...v, recaudadoDelDia: 0, recaudadoTotalClient: 0, recaudadoPeriodo: 0 };
+              return { ...v, recaudadoDelDia: 0, recaudadoTotalClient: 0, recaudadoPeriodo: 0, fechaUltimoPago: 0 };
             }
           }));
 
           // Ordenar y guardar
-          withRecaudo.sort((a, b) => a.ordenVisita - b.ordenVisita);
           const finales = withRecaudo.map(v => ({ ...v, estado: ajustarEstadoConPago(v) }));
+          finales.sort((a: any, b: any) => {
+            // 1. Los "pagados" van al final
+            if (a.estado === 'pagado' && b.estado !== 'pagado') return 1;
+            if (a.estado !== 'pagado' && b.estado === 'pagado') return -1;
+            
+            // 2. Ordenar por fechaUltimoPago (más antigua primero, es decir, el que más tiempo lleva sin pagar va arriba)
+            if (a.fechaUltimoPago !== b.fechaUltimoPago) {
+              return a.fechaUltimoPago - b.fechaUltimoPago;
+            }
+            
+            // 3. Fallback a ordenVisita
+            return a.ordenVisita - b.ordenVisita;
+          });
+          
           setVisitasBase(finales);
           setVisitasSelectorFallback(finales);
           setVisitasOrden(finales.map(v => v.id));
