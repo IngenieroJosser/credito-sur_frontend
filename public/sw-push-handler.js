@@ -87,7 +87,7 @@ self.addEventListener('push', function(event) {
   if (event.data) {
     try {
       const data = event.data.json();
-      const tipo = data.tipo || data.type || 'SISTEMA';
+      const tipo = data.tipo || data.type || data.data?.tipo || data.data?.type || 'SISTEMA';
       const config = NOTIFICATION_CONFIGS[tipo] || NOTIFICATION_CONFIGS.SISTEMA;
 
       notificationData = {
@@ -97,7 +97,7 @@ self.addEventListener('push', function(event) {
         badge: data.badge || config.badge,
         tag: data.tag || `credisur-${tipo.toLowerCase()}-${Date.now()}`,
         data: {
-          url: data.url || data.link || '/',
+          url: data.url || data.link || data.data?.url || data.data?.link || '/',
           tipo: tipo,
           ...data.data,
         },

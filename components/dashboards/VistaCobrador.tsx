@@ -80,6 +80,7 @@ import type { RouteDetailResponse } from '@/services/reportes-coordinador-servic
 import { clientesService, Cliente } from '@/services/clientes-service'
 import { exportService } from '@/services/export-service'
 import NuevoClienteModal from '@/components/clientes/NuevoClienteModal'
+import RutaProvisionalModal from '@/components/dashboards/shared/RutaProvisionalModal'
 import { VisitaRuta, EstadoVisita, PeriodoRuta, HistorialDia } from '@/lib/types/cobranza'
 import { StaticVisitaItem, SortableVisita, Portal, MODAL_Z_INDEX, SeleccionClienteModal } from '@/components/dashboards/shared/CobradorElements'
 import EstadoCuentaModal from '@/components/cobranza/EstadoCuentaModal'
@@ -157,6 +158,8 @@ const VistaCobrador = () => {
   const [activeId, setActiveId] = useState<string | null>(null)
   const [accionPendiente, setAccionPendiente] = useState<'PAGO' | 'ABONO' | 'REPROGRAMAR' | 'CUENTA' | null>(null)
   const [showClientSelector, setShowClientSelector] = useState(false)
+  const [showRutaProvisional, setShowRutaProvisional] = useState(false)
+  const [refreshTrigger, setRefreshTrigger] = useState(0)
 
   // Nuevos estados para la refactorización
   const formatFechaCorta = (iso: string | undefined | null) => {
@@ -545,7 +548,7 @@ const VistaCobrador = () => {
         const visitasMapeadasRaw: VisitaRuta[] = asignaciones.flatMap((asig: any) => {
            const cliente = asig.cliente || {};
            const prestamosActivos: any[] = (cliente.prestamos || []).filter(
-             (p: any) => p.estado === 'ACTIVO' || p.estado === 'EN_MORA'
+             (p: any) => p.estado === 'ACTIVO' || p.estado === 'EN_MORA' || p.estado === 'PAGADO'
            );
 
            // Si no tiene préstamos activos, mostrar entrada vacía
@@ -580,6 +583,10 @@ const VistaCobrador = () => {
                prestamoId: prestamo?.id,
                tipoPrestamo: esArticulo ? 'ARTICULO' : 'EFECTIVO',
                articuloNombre: esArticulo ? (prestamo?.articulo || prestamo?.descripcionArticulo || undefined) : undefined,
+               cuotaActual: proximaCuota.numeroCuota,
+               cuotasTotales: prestamo?.cantidadCuotas,
+               enProrroga: proximaCuota.estado === 'PRORROGADA' || !!proximaCuota.fechaVencimientoProrroga,
+               fechaProrroga: proximaCuota.fechaVencimientoProrroga,
              } as VisitaRuta;
            });
         });
@@ -608,7 +615,9 @@ const VistaCobrador = () => {
                     return { 
                       ...v, 
                       montoCuota: montoReal > 0 ? montoReal : v.montoCuota,
-                      proximaVisita: pendiente.fechaVencimiento || v.proximaVisita
+                      proximaVisita: pendiente.fechaVencimiento || v.proximaVisita,
+                      cuotaActual: pendiente.numeroCuota,
+                      cuotasTotales: cuotas.length,
                     };
                 }
                 
@@ -698,13 +707,13 @@ const VistaCobrador = () => {
             if (a.estado === 'pagado' && b.estado !== 'pagado') return 1;
             if (a.estado !== 'pagado' && b.estado === 'pagado') return -1;
             
-            // 2. Ordenar por fechaUltimoPago (más antigua primero, es decir, el que más tiempo lleva sin pagar va arriba)
-            if (a.fechaUltimoPago !== b.fechaUltimoPago) {
-              return a.fechaUltimoPago - b.fechaUltimoPago;
+            // 2. Respetar el orden asignado manualmente (ordenVisita)
+            if (a.ordenVisita !== b.ordenVisita) {
+              return a.ordenVisita - b.ordenVisita;
             }
             
-            // 3. Fallback a ordenVisita
-            return a.ordenVisita - b.ordenVisita;
+            // 3. Fallback a fechaUltimoPago (más antigua primero)
+            return a.fechaUltimoPago - b.fechaUltimoPago;
           });
           
           setVisitasBase(finales);
@@ -811,7 +820,7 @@ const VistaCobrador = () => {
     };
 
     cargarDatosRuta();
-  }, [userSession?.id]);
+  }, [userSession?.id, refreshTrigger]);
 
 
 
@@ -1229,7 +1238,7 @@ const VistaCobrador = () => {
     const filtradas = visitasBase
       .filter(v => !userSession?.id || v.cobradorId === userSession.id)
       .filter(v => {
-        // Si ya está completamente pagado, ocultar siempre
+        // Al pagar la cuota, desaparece de la ruta hasta el próximo vencimiento
         if (v.estado === 'pagado') return false;
 
         const montoCuota = Number(v.montoCuota || 0);
@@ -1414,14 +1423,9 @@ const VistaCobrador = () => {
     }
   }, [visitaReprogramar, userSession?.id])
 
-  const handleDragEnd = useCallback(async (event: DragEndEvent) => {
-    const { active, over } = event
-    setActiveId(null)
-
-    if (!over || active.id === over.id) return
-
-    const newOrder = arrayMove(visitasOrden, visitasOrden.indexOf(active.id as string), visitasOrden.indexOf(over.id as string))
+  const handleGuardarOrdenProvisional = useCallback(async (newOrder: string[]) => {
     setVisitasOrden(newOrder)
+    setShowRutaProvisional(false)
 
     // NUEVA FUNCIONALIDAD: Guardar orden en backend
     try {
@@ -1438,11 +1442,13 @@ const VistaCobrador = () => {
         }).filter(item => item.clienteId);
 
         await rutasService.actualizarOrdenClientes(rutas[0].id, ordenData);
+        toast.success('Orden de ruta actualizado exitosamente');
+        setRefreshTrigger(prev => prev + 1);
       }
     } catch (error) {
       console.error('Error al guardar orden:', error);
     }
-  }, [visitasOrden, visitasBase, userSession?.id])
+  }, [visitasBase, userSession?.id])
 
   const handleCrearCredito = useCallback(async (data: any) => {
     try {
@@ -2162,6 +2168,13 @@ const VistaCobrador = () => {
                     )}
                     PDF
                   </button>
+                  <button
+                    onClick={() => setShowRutaProvisional(true)}
+                    className="px-4 py-2 bg-blue-100 text-[#08557f] border border-blue-200 hover:bg-blue-200 rounded-xl flex items-center gap-2 font-bold shadow-sm transition-colors"
+                  >
+                    <Search className="h-4 w-4" />
+                    <span className="hidden md:inline">Ruta Provisional</span>
+                  </button>
                   <button 
                     onClick={() => {
                       setShowHistory(false)
@@ -2294,7 +2307,7 @@ const VistaCobrador = () => {
                 sensors={sensors}
                 collisionDetection={closestCenter}
                 onDragStart={handleDragStart}
-                onDragEnd={handleDragEnd}
+                onDragEnd={() => {}}
                 onDragCancel={handleDragCancel}
               >
                 <SortableContext
@@ -2652,7 +2665,7 @@ const VistaCobrador = () => {
                                   onSelect={(id) => setVisitaSeleccionada(id === visitaSeleccionada ? null : id)}
                                   onVerCliente={handleAbrirClienteInfo}
                                   getEstadoClasses={getEstadoClasses}
-                                  disableSort={rutaCompletada}
+                                  disableSort={true}
                                   isSelected={visita.id === visitaSeleccionada}
                                 >
                                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1">
@@ -2819,6 +2832,25 @@ const VistaCobrador = () => {
               setVisitaPagoSeleccionada(null)
             }}
             onConfirm={handleRegistrarPago}
+          />
+        )}
+
+        {showRutaProvisional && (
+          <RutaProvisionalModal
+            visitas={visitasCobrador.filter(v => {
+              const pending = ['pendiente', 'en_mora'].includes(v.estado);
+              if (!pending) return false;
+              if (!v.proximaVisita) return true;
+              const d = new Date(v.proximaVisita);
+              const hoy = new Date();
+              hoy.setHours(0, 0, 0, 0);
+              d.setHours(0, 0, 0, 0);
+              return d.getTime() <= hoy.getTime();
+            })}
+            initialOrder={visitasOrden}
+            onSave={handleGuardarOrdenProvisional}
+            onClose={() => setShowRutaProvisional(false)}
+            getEstadoClasses={getEstadoClasses}
           />
         )}
 
