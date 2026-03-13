@@ -572,7 +572,13 @@ export default function AdminLayout({
                   {navigation.map((item) => {
                     const isActive = pathname === item.href || pathname?.startsWith(`${item.href}/`)
                     const hasSubmenu = item.submodulos && item.submodulos.length > 0
-                    const isOpen = (item.id ? openMenus[item.id] : undefined) ?? (hasSubmenu && item.submodulos?.some(sub => pathname === sub.href))
+                    const isSubRouteActive = !!(
+                      hasSubmenu &&
+                      item.submodulos?.some(
+                        (sub) => pathname === sub.href || pathname?.startsWith(`${sub.href}/`),
+                      )
+                    )
+                    const isOpen = isSubRouteActive || ((item.id ? openMenus[item.id] : undefined) ?? false)
 
                     if (hasSubmenu && item.id) {
                       return (

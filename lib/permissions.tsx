@@ -195,7 +195,18 @@ export const permisosPorRol: Record<Rol, ModuloPermiso[]> = {
         { id: 'clientes', nombre: 'Clientes', icono: 'Users', path: '/coordinador/clientes', roles: ['COORDINADOR'] },
         { id: 'cuentas-mora', nombre: 'Cuentas en mora', icono: 'AlertCircle', path: '/cuentas-mora', roles: ['COORDINADOR'], isNew: true },
         { id: 'cuentas-vencidas', nombre: 'Cuentas vencidas', icono: 'FileX2', path: '/cuentas-vencidas', roles: ['COORDINADOR'] },
+        { id: 'archivados', nombre: 'Archivados', icono: 'Archive', path: '/coordinador/archivados', roles: ['COORDINADOR'] },
         { id: 'articulos', nombre: 'Artículos (Catálogo)', icono: 'Package', path: '/articulos', roles: ['COORDINADOR'] },
+      ]
+    },
+    {
+      id: 'finanzas',
+      nombre: 'Finanzas',
+      icono: 'PieChart',
+      path: '#',
+      roles: ['COORDINADOR'],
+      submodulos: [
+        { id: 'pagos-historial', nombre: 'Historial de pagos', icono: 'Banknote', path: '/pagos/historial', roles: ['COORDINADOR'], isNew: true },
       ]
     },
     {

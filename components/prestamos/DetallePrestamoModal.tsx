@@ -10,9 +10,10 @@ import { offlineStore } from '@/lib/offline/offlineDb';
 interface DetallePrestamoModalProps {
   id: string;
   onClose: () => void;
+  includeArchived?: boolean;
 }
 
-export default function DetallePrestamoModal({ id, onClose }: DetallePrestamoModalProps) {
+export default function DetallePrestamoModal({ id, onClose, includeArchived = false }: DetallePrestamoModalProps) {
   const [prestamo, setPrestamo] = useState<PrestamoDetalle | null>(null);
   const [loading, setLoading] = useState(true);
   const [mounted, setMounted] = useState(false);
@@ -34,7 +35,9 @@ export default function DetallePrestamoModal({ id, onClose }: DetallePrestamoMod
     const fetchPrestamo = async () => {
       setLoading(true);
       try {
-        const data = await prestamosService.obtenerPrestamoPorId(id);
+        const data = includeArchived
+          ? await prestamosService.obtenerPrestamoArchivadoPorId(id)
+          : await prestamosService.obtenerPrestamoPorId(id);
         const cuotasData = await prestamosService.obtenerCuotas(id).catch(() => []);
         
         const principal = Number(data.monto || 0);
@@ -168,7 +171,7 @@ export default function DetallePrestamoModal({ id, onClose }: DetallePrestamoMod
     };
 
     fetchPrestamo();
-  }, [id]);
+  }, [id, includeArchived]);
 
   if (!mounted) return null;
 

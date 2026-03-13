@@ -49,6 +49,7 @@ import SelectCategoria from '@/components/ui/SelectCategoria'
 import AnimacionCarga from '@/components/ui/AnimacionCarga'
 import { usePermission } from '@/hooks/usePermission'
 import { useRouter } from 'next/navigation'
+import IngresoMercanciaModal from '@/components/articulos/IngresoMercanciaModal'
 
 // Interfaces
 interface PrecioCuota {
@@ -172,6 +173,7 @@ export default function ArticulosContent() {
   const [showEditarModal, setShowEditarModal] = useState(false)
   const [showDetalleModal, setShowDetalleModal] = useState(false)
   const [showEliminarModal, setShowEliminarModal] = useState(false)
+  const [showIngresoMercanciaModal, setShowIngresoMercanciaModal] = useState(false)
   const [articuloSeleccionado, setArticuloSeleccionado] = useState<Articulo | null>(null)
 
   const [formData, setFormData] = useState({
@@ -210,10 +212,11 @@ export default function ArticulosContent() {
 
   const deltaInventarioPorcentaje = (() => {
     const baseField = (statsBase as any)?.totalValorInventario ?? statsBase?.valorTotalInventario
-    if (!statsBase || !baseField || Number(baseField) === 0) return 0
+    if (!statsBase || baseField == null || Number(baseField) === 0) return null
     const base = Number(baseField)
     const actual = Number(valorInventario)
-    return Math.round(((actual - base) / base) * 100)
+    const pct = Math.round(((actual - base) / base) * 100)
+    return pct === 0 ? null : pct
   })()
 
   const handleEliminar = (articulo: Articulo) => {
@@ -364,15 +367,27 @@ export default function ArticulosContent() {
                 {headerDescription}
               </p>
             </div>
-            {puedeCrear && (
-              <button
-                type="button"
-                onClick={openNuevo}
-                className="inline-flex items-center gap-2 px-6 py-2.5 bg-white border border-slate-300 text-slate-700 rounded-xl hover:border-slate-400 hover:bg-slate-50 transition-all duration-200 shadow-sm font-bold text-sm group"
-              >
-                <Plus className="w-4 h-4 text-slate-500 group-hover:text-slate-900 transition-colors" />
-                <span>Nuevo Artículo</span>
-              </button>
+            {!esReadOnly && (
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => setShowIngresoMercanciaModal(true)}
+                  className="inline-flex items-center gap-2 px-6 py-2.5 bg-white border border-slate-300 text-slate-700 rounded-xl hover:border-slate-400 hover:bg-slate-50 transition-all duration-200 shadow-sm font-bold text-sm group"
+                >
+                  <Plus className="w-4 h-4 text-slate-500 group-hover:text-slate-900 transition-colors" />
+                  <span>Ingreso de mercancía</span>
+                </button>
+                {puedeCrear && (
+                  <button
+                    type="button"
+                    onClick={openNuevo}
+                    className="inline-flex items-center gap-2 px-6 py-2.5 bg-white border border-slate-300 text-slate-700 rounded-xl hover:border-slate-400 hover:bg-slate-50 transition-all duration-200 shadow-sm font-bold text-sm group"
+                  >
+                    <Plus className="w-4 h-4 text-slate-500 group-hover:text-slate-900 transition-colors" />
+                    <span>Nuevo Artículo</span>
+                  </button>
+                )}
+              </div>
             )}
         </header>
 
@@ -425,12 +440,14 @@ export default function ArticulosContent() {
                 <div className="p-3 bg-emerald-50 text-emerald-600 rounded-xl group-hover:scale-110 transition-transform duration-300">
                   <DollarSign className="w-6 h-6" />
                 </div>
-                <span className={`flex items-center text-xs font-bold px-2 py-1 rounded-lg ${
-                  deltaInventarioPorcentaje >= 0 ? 'text-emerald-600 bg-emerald-50' : 'text-rose-600 bg-rose-50'
-                }`}>
-                  <TrendingUp className={`w-3 h-3 mr-1 ${deltaInventarioPorcentaje < 0 ? 'rotate-180' : ''}`} />
-                  {deltaInventarioPorcentaje >= 0 ? `+${deltaInventarioPorcentaje}%` : `${deltaInventarioPorcentaje}%`}
-                </span>
+                {deltaInventarioPorcentaje != null && (
+                  <span className={`flex items-center text-xs font-bold px-2 py-1 rounded-lg ${
+                    deltaInventarioPorcentaje >= 0 ? 'text-emerald-600 bg-emerald-50' : 'text-rose-600 bg-rose-50'
+                  }`}>
+                    <TrendingUp className={`w-3 h-3 mr-1 ${deltaInventarioPorcentaje < 0 ? 'rotate-180' : ''}`} />
+                    {deltaInventarioPorcentaje >= 0 ? `+${deltaInventarioPorcentaje}%` : `${deltaInventarioPorcentaje}%`}
+                  </span>
+                )}
               </div>
               <p className="text-sm font-medium text-slate-500">Valor Inventario</p>
               <h3 className="text-2xl font-bold text-slate-900 mt-1">{formatCurrency(valorInventario)}</h3>
@@ -875,15 +892,17 @@ export default function ArticulosContent() {
                     placeholder="0"
                   />
                 </div>
-                <div className="md:col-span-2 space-y-2">
-                  <label className="text-sm font-bold text-slate-700">Descripción</label>
-                  <textarea
-                    value={formData.descripcion}
-                    onChange={(e) => setFormData((p) => ({ ...p, descripcion: e.target.value }))}
-                    className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-900 resize-none h-24"
-                    placeholder="Detalles adicionales..."
-                  />
-                </div>
+                {showEditarModal && (
+                  <div className="md:col-span-2 space-y-2">
+                    <label className="text-sm font-bold text-slate-700">Descripción</label>
+                    <textarea
+                      value={formData.descripcion}
+                      onChange={(e) => setFormData((p) => ({ ...p, descripcion: e.target.value }))}
+                      className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-900 resize-none h-24"
+                      placeholder="Detalles adicionales..."
+                    />
+                  </div>
+                )}
               </div>
 
               <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
@@ -1129,6 +1148,16 @@ export default function ArticulosContent() {
           </div>
         </div>
       )}
+
+      <IngresoMercanciaModal
+        isOpen={showIngresoMercanciaModal}
+        onClose={() => setShowIngresoMercanciaModal(false)}
+        articulos={articulos.map((a) => ({ id: a.id, nombre: a.nombre, codigo: a.codigo, stock: a.stock }))}
+        onSuccess={() => {
+          fetchArticulos()
+          fetchStats()
+        }}
+      />
     </div>
   )
 }

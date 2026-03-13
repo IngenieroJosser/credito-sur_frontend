@@ -181,7 +181,26 @@ export const inventarioService = {
       }
       throw error;
     }
-  }
+  },
+
+  /**
+   * Obtener productos archivados
+   */
+  async obtenerProductosArchivados(): Promise<Producto[]> {
+    return apiRequest<Producto[]>('GET', '/inventory/archived');
+  },
+
+  /**
+   * Restaurar un producto archivado
+   */
+  async restaurarProducto(id: string): Promise<Producto> {
+    return apiRequest<Producto>('PATCH', `/inventory/${id}/restore`, {});
+  },
+
+  /**
+   * Ocultar un producto archivado
+   */
+  async ocultarProductoArchivado(id: string): Promise<Producto> {
+    return apiRequest<Producto>('PATCH', `/inventory/${id}/hide-archived`, {});
+  },
 };
-
-

@@ -268,11 +268,11 @@ const UserManagementPage = () => {
   const availableModules = React.useMemo(() => {
     if (!selectedUser) return [];
 
-    // Usamos los módulos del SUPER_ADMINISTRADOR como base para la lista de permisos disponibles
-    const superAdminModules = permisosPorRol["SUPER_ADMINISTRADOR"];
+    // Catálogo completo: unión de módulos de todos los roles (evita que falten módulos en el modal)
+    const allRoleModules = Object.values(permisosPorRol).flat();
     const flattenedModules: any[] = [];
 
-    superAdminModules.forEach((module) => {
+    allRoleModules.forEach((module) => {
       if (module.submodulos && module.submodulos.length > 0) {
         module.submodulos.forEach((sub) => {
           flattenedModules.push({
@@ -294,7 +294,24 @@ const UserManagementPage = () => {
       }
     });
 
-    return flattenedModules;
+    const byId = new Map<string, any>();
+    flattenedModules.forEach((m) => {
+      const existing = byId.get(m.id);
+      if (!existing) {
+        byId.set(m.id, m);
+        return;
+      }
+
+      // Merge roles/categories if needed
+      const mergedRoles = Array.from(new Set([...(existing.roles || []), ...(m.roles || [])]));
+      byId.set(m.id, {
+        ...existing,
+        roles: mergedRoles,
+        category: existing.category || m.category,
+      });
+    });
+
+    return Array.from(byId.values());
   }, [selectedUser]);
 
   useEffect(() => {

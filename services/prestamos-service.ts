@@ -102,6 +102,10 @@ export const prestamosService = {
     return apiRequest<Prestamo>('GET', `/loans/${id}`);
   },
 
+  async obtenerPrestamoArchivadoPorId(id: string): Promise<Prestamo> {
+    return apiRequest<Prestamo>('GET', `/loans/${id}/archived`);
+  },
+
   /**
    * Restaurar un préstamo eliminado
    */
