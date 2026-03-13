@@ -641,6 +641,10 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
                   prestamoId: prestamo?.id,
                   tipoPrestamo: esArticulo ? 'ARTICULO' : 'EFECTIVO',
                   articuloNombre: esArticulo ? (prestamo?.articulo || prestamo?.descripcionArticulo || undefined) : undefined,
+                  cuotaActual: proximaCuota.numeroCuota,
+                  cuotasTotales: prestamo?.cantidadCuotas,
+                  enProrroga: proximaCuota.estado === 'PRORROGADA' || !!proximaCuota.fechaVencimientoProrroga,
+                  fechaProrroga: proximaCuota.fechaVencimientoProrroga,
                 } as any
               });
             });
@@ -658,12 +662,18 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
                         pendiente.montoCapital + pendiente.montoInteres ||
                         0,
                     )
-                    return {
-                      ...v,
-                      montoCuota: montoReal > 0 ? montoReal : v.montoCuota,
-                      proximaVisita:
-                        pendiente.fechaVencimiento || v.proximaVisita,
-                    }
+                      return {
+                        ...v,
+                        montoCuota: montoReal > 0 ? montoReal : v.montoCuota,
+                        proximaVisita: (pendiente.estado === 'PRORROGADA' && pendiente.fechaVencimientoProrroga)
+                          ? pendiente.fechaVencimientoProrroga
+                          : (pendiente.fechaVencimiento || v.proximaVisita),
+                        cuotaActual: pendiente.numeroCuota,
+                        cuotasTotales: cuotas.length,
+                        enProrroga: pendiente.estado === 'PRORROGADA' || !!pendiente.fechaVencimientoProrroga,
+                        fechaProrroga: pendiente.fechaVencimientoProrroga || undefined,
+                        fechaOriginalVencimiento: pendiente.fechaVencimiento || undefined,
+                      }
                   }
 
                   const p = await prestamosService.obtenerPrestamoPorId(
@@ -817,13 +827,16 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
 
   // Filtrar y ordenar visitas
   const visitasCobrador = useMemo(() => {
-    const buscadas = (visitasBase || []).filter(v =>
+    const searched = (visitasBase || []).filter(v =>
       v.cliente.toLowerCase().includes(searchQuery.toLowerCase()) ||
       v.direccion.toLowerCase().includes(searchQuery.toLowerCase())
     )
 
+    // Al pagar la cuota, desaparece de la ruta até el próximo vencimiento
+    const filtered = searched.filter(v => v.estado !== 'pagado');
+
     const priority: Record<string, number> = { MES: 0, QUINCENA: 1, SEMANA: 2, DIA: 3 }
-    const sorted = buscadas.sort((a, b) => {
+    const sorted = filtered.sort((a, b) => {
       const pA = priority[a.periodoRuta] ?? 99
       const pB = priority[b.periodoRuta] ?? 99
       if (pA !== pB) return pA - pB

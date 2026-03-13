@@ -301,7 +301,10 @@ const DetalleRutaPage = () => {
                        return 'DIA';
                     })(),
                     clienteId: cliente.id,
-                    prestamoId: prestamoActivo.id
+                    prestamoId: prestamoActivo.id,
+                    cuotasTotales: prestamoActivo.cantidadCuotas,
+                    tipoPrestamo: prestamoActivo.tipo === 'ARTICULO' ? 'ARTICULO' : 'EFECTIVO',
+                    articuloNombre: prestamoActivo.tipo === 'ARTICULO' ? (prestamoActivo.articulo || 'Artículo') : 'Préstamo',
                    };
                 });
                 
@@ -318,7 +321,14 @@ const DetalleRutaPage = () => {
                            return { 
                              ...v, 
                              montoCuota: montoReal > 0 ? montoReal : v.montoCuota,
-                             proximaVisita: pendiente.fechaVencimiento || v.proximaVisita 
+                             proximaVisita: (pendiente.estado === 'PRORROGADA' && pendiente.fechaVencimientoProrroga) 
+                               ? pendiente.fechaVencimientoProrroga 
+                               : (pendiente.fechaVencimiento || v.proximaVisita),
+                             cuotaActual: pendiente.numeroCuota,
+                             cuotasTotales: cuotas.length,
+                             enProrroga: pendiente.estado === 'PRORROGADA' || !!pendiente.fechaVencimientoProrroga,
+                             fechaProrroga: pendiente.fechaVencimientoProrroga || undefined,
+                             fechaOriginalVencimiento: pendiente.fechaVencimiento || undefined,
                            };
                        }
                        

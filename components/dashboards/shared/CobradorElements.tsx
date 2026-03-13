@@ -327,9 +327,7 @@ export function SortableItem({
 
   const style = { transform: CSS.Transform.toString(transform), transition }
 
-  const grip = disableSort ? (
-    <GripVertical className="h-4 w-4 text-slate-200 shrink-0" />
-  ) : (
+  const grip = disableSort ? null : (
     <div
       className="cursor-grab active:cursor-grabbing shrink-0 touch-none"
       {...attributes}

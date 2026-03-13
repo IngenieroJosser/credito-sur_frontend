@@ -6,6 +6,8 @@ import { syncManager } from '@/lib/offline/syncManager';
 import { startOfflineTimer, stopOfflineTimer } from '@/lib/offline/offlineAnalytics';
 import { renewOfflineSession, hasValidOfflineSession, shouldShowExpirationWarning, getOfflineSessionDaysRemaining } from '@/lib/auth/offlineAuth';
 import { checkRealConnectivity } from '@/lib/offline/connectivity';
+import { subscribeToPush } from '@/lib/push/pushNotifications';
+import { savePushSubscription } from '@/lib/push/pushService';
 
 export default function ServiceWorkerRegister() {
   useEffect(() => {
@@ -61,6 +63,23 @@ export default function ServiceWorkerRegister() {
           tag: 'offline-session-expiring',
         });
       }
+    }
+
+    // Sincronizar suscripción push si ya tenemos permiso (Silenciosamente)
+    if (token && "Notification" in window && Notification.permission === "granted") {
+      const syncPush = async () => {
+        try {
+          const sub = await subscribeToPush();
+          if (sub) {
+            await savePushSubscription(sub);
+            console.log('[Push] Suscripción sincronizada automáticamente');
+          }
+        } catch (err) {
+          console.warn('[Push] Error en sincronización automática:', err);
+        }
+      };
+      // Pequeño delay para no interferir con la carga inicial
+      setTimeout(syncPush, 5000);
     }
 
     // Auto-sync cuando vuelve la conexión (confirmado con ping real)
