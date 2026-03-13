@@ -39,6 +39,11 @@ export interface RegistroAuditoriaPaginado {
   totalPaginas: number;
 }
 
+export interface ArchivadoOcultoKey {
+  entidad: string;
+  entidadId: string;
+}
+
 export const auditoriaService = {
   /**
    * Obtener todos los registros de auditoria (hasta 100, sin paginar)
@@ -66,6 +71,14 @@ export const auditoriaService = {
    */
   async crear(data: CrearAuditoriaDto): Promise<RegistroAuditoria> {
     return apiRequest<RegistroAuditoria>('POST', '/audit', data);
-  }
+  },
+
+  async obtenerOcultosArchivados(): Promise<ArchivadoOcultoKey[]> {
+    return apiRequest<ArchivadoOcultoKey[]>('GET', '/audit/hidden-archived');
+  },
+
+  async ocultarArchivado(entidad: string, entidadId: string) {
+    return apiRequest('POST', '/audit/hide-archived', { entidad, entidadId });
+  },
 };
 

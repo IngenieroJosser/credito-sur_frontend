@@ -148,13 +148,40 @@ export default function PagoDetalleModal({
   if (!isOpen) return null
 
   // ── Datos combinados: API primero, metadata como fallback ─────────────────
-  const monto             = pago?.montoTotal            ?? metadata.monto            ?? 0
-  const capitalRec        = metadata.capitalRecuperado  ?? 0
-  const interesRec        = metadata.interesRecuperado  ?? 0
-  const saldoAnterior     = metadata.saldoAnterior      ?? 0
-  const saldoNuevo        = metadata.saldoNuevo         ?? 0
-  const cuotasAfectadas   = metadata.cuotasAfectadas    ?? 0
-  const quedoPagado       = metadata.prestamoQuedaPagado ?? false
+  const monto = pago?.montoTotal ?? metadata.monto ?? 0
+
+  const computedCapital = (pago?.detalles ?? []).reduce((s: number, d: any) => s + Number(d.montoCapital || 0), 0)
+  const computedInteres = (pago?.detalles ?? []).reduce((s: number, d: any) => s + Number(d.montoInteres || 0), 0)
+  const computedCuotasAfectadas = (pago?.detalles ?? []).length
+
+  const computedSaldoNuevo = pago?.prestamo?.saldoPendiente != null
+    ? Number(pago.prestamo.saldoPendiente)
+    : null
+  const computedSaldoAnterior = computedSaldoNuevo != null
+    ? computedSaldoNuevo + Number(monto || 0)
+    : null
+  const computedQuedoPagado = computedSaldoNuevo != null
+    ? computedSaldoNuevo <= 0
+    : false
+
+  const capitalRec = metadata.capitalRecuperado != null
+    ? metadata.capitalRecuperado
+    : computedCapital
+  const interesRec = metadata.interesRecuperado != null
+    ? metadata.interesRecuperado
+    : computedInteres
+  const saldoAnterior = metadata.saldoAnterior != null
+    ? metadata.saldoAnterior
+    : (computedSaldoAnterior ?? 0)
+  const saldoNuevo = metadata.saldoNuevo != null
+    ? metadata.saldoNuevo
+    : (computedSaldoNuevo ?? 0)
+  const cuotasAfectadas = metadata.cuotasAfectadas != null
+    ? metadata.cuotasAfectadas
+    : computedCuotasAfectadas
+  const quedoPagado = metadata.prestamoQuedaPagado != null
+    ? metadata.prestamoQuedaPagado
+    : computedQuedoPagado
   const metodoPago        = pago?.metodoPago ?? metadata.metodoPago ?? 'EFECTIVO'
   const esTransferencia   = metodoPago === 'TRANSFERENCIA'
   const numeroPago        = pago?.numeroPago ?? metadata.numeroPago       ?? '—'

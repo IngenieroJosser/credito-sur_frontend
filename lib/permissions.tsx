@@ -86,7 +86,7 @@ export const permisosPorRol: Record<Rol, ModuloPermiso[]> = {
       roles: ['SUPER_ADMINISTRADOR'],
       submodulos: [
         { id: 'contable', nombre: 'Movimientos', icono: 'Calculator', path: '/contable', roles: ['SUPER_ADMINISTRADOR', 'CONTADOR'] },
-        { id: 'pagos-historial', nombre: 'Historial de pagos', icono: 'Receipt', path: '/admin/pagos/historial', roles: ['SUPER_ADMINISTRADOR', 'CONTADOR'], isNew: true },
+        { id: 'pagos-historial', nombre: 'Historial de pagos', icono: 'Banknote', path: '/pagos/historial', roles: ['SUPER_ADMINISTRADOR', 'CONTADOR'], isNew: true },
         { id: 'arqueo', nombre: 'Arqueo de Caja', icono: 'History', path: '/contable/cierre-caja', roles: ['SUPER_ADMINISTRADOR', 'CONTADOR'], isNew: true },
         { id: 'reportes-financieros', nombre: 'Reportes financieros', icono: 'BarChart3', path: '/admin/reportes/financieros', roles: ['SUPER_ADMINISTRADOR', 'CONTADOR'] },
       ]
@@ -153,7 +153,7 @@ export const permisosPorRol: Record<Rol, ModuloPermiso[]> = {
       roles: ['SUPER_ADMINISTRADOR', 'ADMIN'],
       submodulos: [
         { id: 'contable', nombre: 'Movimientos', icono: 'Calculator', path: '/contable', roles: ['SUPER_ADMINISTRADOR', 'ADMIN', 'CONTADOR'] },
-        { id: 'pagos-historial', nombre: 'Historial de pagos', icono: 'Receipt', path: '/admin/pagos/historial', roles: ['SUPER_ADMINISTRADOR', 'ADMIN', 'CONTADOR'], isNew: true },
+        { id: 'pagos-historial', nombre: 'Historial de pagos', icono: 'Banknote', path: '/pagos/historial', roles: ['SUPER_ADMINISTRADOR', 'ADMIN', 'CONTADOR'], isNew: true },
         { id: 'arqueo', nombre: 'Arqueo de Caja', icono: 'History', path: '/contable/cierre-caja', roles: ['SUPER_ADMINISTRADOR', 'ADMIN'], isNew: true },
         { id: 'reportes-financieros', nombre: 'Reportes financieros', icono: 'BarChart3', path: '/admin/reportes/financieros', roles: ['SUPER_ADMINISTRADOR', 'ADMIN', 'CONTADOR'], isNew: true },
       ]
@@ -195,7 +195,18 @@ export const permisosPorRol: Record<Rol, ModuloPermiso[]> = {
         { id: 'clientes', nombre: 'Clientes', icono: 'Users', path: '/coordinador/clientes', roles: ['COORDINADOR'] },
         { id: 'cuentas-mora', nombre: 'Cuentas en mora', icono: 'AlertCircle', path: '/cuentas-mora', roles: ['COORDINADOR'], isNew: true },
         { id: 'cuentas-vencidas', nombre: 'Cuentas vencidas', icono: 'FileX2', path: '/cuentas-vencidas', roles: ['COORDINADOR'] },
+        { id: 'archivados', nombre: 'Archivados', icono: 'Archive', path: '/coordinador/archivados', roles: ['COORDINADOR'] },
         { id: 'articulos', nombre: 'Artículos (Catálogo)', icono: 'Package', path: '/articulos', roles: ['COORDINADOR'] },
+      ]
+    },
+    {
+      id: 'finanzas',
+      nombre: 'Finanzas',
+      icono: 'PieChart',
+      path: '#',
+      roles: ['COORDINADOR'],
+      submodulos: [
+        { id: 'pagos-historial', nombre: 'Historial de pagos', icono: 'Banknote', path: '/pagos/historial', roles: ['COORDINADOR'], isNew: true },
       ]
     },
     {
@@ -255,7 +266,7 @@ export const permisosPorRol: Record<Rol, ModuloPermiso[]> = {
       roles: ['CONTADOR'],
       submodulos: [
         { id: 'contable', nombre: 'Movimientos', icono: 'Calculator', path: '/contable', roles: ['CONTADOR'] },
-        { id: 'pagos-historial', nombre: 'Historial de pagos', icono: 'Receipt', path: '/admin/pagos/historial', roles: ['CONTADOR'], isNew: true },
+        { id: 'pagos-historial', nombre: 'Historial de pagos', icono: 'Banknote', path: '/pagos/historial', roles: ['CONTADOR'], isNew: true },
         { id: 'arqueo', nombre: 'Arqueo de Caja', icono: 'Landmark', path: '/contable/cierre-caja', roles: ['CONTADOR'], isNew: true },
       ]
     },
@@ -657,6 +668,7 @@ export const obtenerModulos = (rol: Rol, sidebarData?: SidebarModulo[]): ModuloP
 
     const OVERRIDES: Record<string, string> = {
       '/admin/sistema/backups': `/${rolePrefix}/backups`,
+      '/admin/pagos/historial': '/admin/pagos/historial',
     };
     if (OVERRIDES[rawPath]) return OVERRIDES[rawPath];
 
@@ -718,7 +730,35 @@ export const obtenerModulos = (rol: Rol, sidebarData?: SidebarModulo[]): ModuloP
     const next = [...modulos];
     const insertAt = dashboardIndex >= 0 ? dashboardIndex + 1 : 0;
     next.splice(insertAt, 0, curatedRevisiones);
-    return next;
+    const withRevisiones = next;
+
+    // Si el sidebar viene dinámico desde el backend puede venir incompleto. Aseguramos submódulos curados críticos.
+    // Caso real: "Historial de pagos" no aparece en el aside si el backend no lo incluye.
+    const needsPagosHistorial = !withRevisiones.some(
+      (m) => m.id === 'pagos-historial' || (m.submodulos?.some((s) => s.id === 'pagos-historial') ?? false),
+    );
+    if (!needsPagosHistorial) return withRevisiones;
+
+    const curatedFinanzas = curated.find((m) => m.id === 'finanzas');
+    if (!curatedFinanzas) return withRevisiones;
+
+    const finanzasIndex = withRevisiones.findIndex((m) => m.id === 'finanzas');
+    if (finanzasIndex < 0) {
+      return [...withRevisiones, curatedFinanzas];
+    }
+
+    const existing = withRevisiones[finanzasIndex];
+    const existingSubs = existing.submodulos ?? [];
+    const curatedSubs = curatedFinanzas.submodulos ?? [];
+    const mergedSubs = [...existingSubs];
+    curatedSubs.forEach((s) => {
+      if (!mergedSubs.some((e) => e.id === s.id)) mergedSubs.push(s);
+    });
+
+    const mergedFinanzas = { ...existing, submodulos: mergedSubs };
+    const out = [...withRevisiones];
+    out[finanzasIndex] = mergedFinanzas;
+    return out;
   };
 
   if (sidebarData && sidebarData.length > 0) {

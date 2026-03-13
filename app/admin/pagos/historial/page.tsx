@@ -14,8 +14,7 @@ import {
   Download,
   AlertCircle,
   LayoutGrid,
-  List,
-  Eye
+  List
 } from 'lucide-react'
 import { formatCurrency, cn } from '@/lib/utils'
 import { ExportButton } from '@/components/ui/ExportButton'
@@ -26,10 +25,12 @@ import { toast } from 'sonner'
 import { useRouter, useSearchParams, usePathname } from 'next/navigation'
 import { TimeFilter, TimeFilterPeriod } from '@/components/ui/TimeFilter'
 import AnimacionCarga from '@/components/ui/AnimacionCarga'
+import PagoDetalleModal from '@/components/dashboards/shared/PagoDetalleModal'
 
 type EstadoPago = 'completado' | 'pendiente' | 'fallido' | 'en_revision'
 
 interface Pago {
+  pagoId: string
   id: string
   fecha: string
   cliente: string
@@ -46,18 +47,27 @@ const HistorialPagosPage = () => {
   const searchParams = useSearchParams()
   const period = (searchParams.get('period') as TimeFilterPeriod) || 'today'
 
+  const formatFechaPago = (fechaRaw: string) => {
+    const d = new Date(fechaRaw)
+    if (Number.isNaN(d.getTime())) return fechaRaw
+    const fecha = d.toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' })
+    const hora = d.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: true })
+    return `${fecha} • ${hora}`
+  }
+
   const handlePeriodChange = (newPeriod: TimeFilterPeriod) => {
     const params = new URLSearchParams(searchParams.toString())
     params.set('period', newPeriod)
     router.replace(`${pathname}?${params.toString()}`, { scroll: false })
   }
 
-  const [estadoFiltro, setEstadoFiltro] = useState<EstadoPago | 'todos'>('todos')
   const [busqueda, setBusqueda] = useState('')
   const [paginaActual, setPaginaActual] = useState(1)
   const [vista, setVista] = useState<'grid' | 'list'>('list')
   const [isLoading, setIsLoading] = useState(true)
   const [pagos, setPagos] = useState<Pago[]>([])
+  const [showDetallePago, setShowDetallePago] = useState(false)
+  const [detallePagoId, setDetallePagoId] = useState<string | null>(null)
 
   const handleExportExcel = async () => {
     try {
@@ -83,6 +93,7 @@ const HistorialPagosPage = () => {
         const resp = await pagosService.obtenerPagos()
         const data = resp?.pagos || resp || []
         const mapped: Pago[] = (Array.isArray(data) ? data : []).map((p: any) => ({
+          pagoId: p.id,
           id: p.numeroPago || p.id,
           fecha: p.fechaPago || p.creadoEn || '',
           cliente: p.cliente ? `${p.cliente.nombres} ${p.cliente.apellidos}` : (p.clienteId || ''),
@@ -101,6 +112,7 @@ const HistorialPagosPage = () => {
           const pagosOffline: Pago[] = offQueue
             .filter((q: any) => q.type === 'pago')
             .map((q: any) => ({
+              pagoId: q.data?.pagoId || q.data?.id || q.id,
               id: q.id,
               fecha: q.createdAt || new Date().toISOString(),
               cliente: q.description || '',
@@ -118,6 +130,11 @@ const HistorialPagosPage = () => {
     }, [])
 
   useEffect(() => { loadPagos() }, [loadPagos])
+
+  // Si cambian filtros/búsqueda, volvemos a la página 1 para evitar páginas vacías
+  useEffect(() => {
+    setPaginaActual(1)
+  }, [busqueda, period])
 
   // Tiempo real: escucha nuevos pagos registrados
   useRealtimeData(['pagos_actualizados', 'prestamos_actualizados'], loadPagos)
@@ -157,8 +174,6 @@ const HistorialPagosPage = () => {
   const { start, end } = getDateRangeForPeriod(period)
 
   const pagosFiltrados = pagos.filter((pago) => {
-    if (estadoFiltro !== 'todos' && pago.estado !== estadoFiltro) return false
-
     if (pago.fecha) {
       const fechaPago = new Date(pago.fecha)
       if (!Number.isNaN(fechaPago.getTime())) {
@@ -177,43 +192,80 @@ const HistorialPagosPage = () => {
     return true
   })
 
+  const ITEMS_PER_PAGE = 10
+  const totalPages = Math.max(1, Math.ceil(pagosFiltrados.length / ITEMS_PER_PAGE))
+  const paginaSegura = Math.min(Math.max(1, paginaActual), totalPages)
+  const startIdx = (paginaSegura - 1) * ITEMS_PER_PAGE
+  const endIdx = startIdx + ITEMS_PER_PAGE
+  const pagosPaginados = pagosFiltrados.slice(startIdx, endIdx)
+
+  const openDetallePago = (pagoId: string) => {
+    if (!pagoId) return
+    setDetallePagoId(pagoId)
+    setShowDetallePago(true)
+  }
+
+  const Paginador = () => (
+    <div className="flex items-center justify-between border-t border-slate-100 px-6 py-4 bg-slate-50/50">
+      <div className="text-xs font-medium text-slate-500">
+        Mostrando <span className="font-bold text-slate-900">{pagosPaginados.length}</span> de{' '}
+        <span className="font-bold text-slate-900">{pagosFiltrados.length}</span>
+      </div>
+      <div className="flex items-center gap-2">
+        <button
+          onClick={() => setPaginaActual((prev) => Math.max(1, prev - 1))}
+          disabled={paginaSegura === 1}
+          className="p-2 rounded-xl border border-slate-200 bg-white text-slate-600 disabled:opacity-30 disabled:cursor-not-allowed hover:bg-slate-50 transition-all"
+        >
+          <ChevronLeft className="h-4 w-4" />
+        </button>
+        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest px-2">
+          Página {paginaSegura} de {totalPages}
+        </span>
+        <button
+          onClick={() => setPaginaActual((prev) => Math.min(totalPages, prev + 1))}
+          disabled={paginaSegura >= totalPages}
+          className="p-2 rounded-xl border border-slate-200 bg-white text-slate-600 disabled:opacity-30 disabled:cursor-not-allowed hover:bg-slate-50 transition-all"
+        >
+          <ChevronRight className="h-4 w-4" />
+        </button>
+      </div>
+    </div>
+  )
+
   return (
     <div className="min-h-screen bg-slate-50 relative">
       {/* Fondo arquitectónico */}
       <div className="fixed inset-0 pointer-events-none">
         <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px]"></div>
-        <div className="absolute left-0 right-0 top-0 -z-10 m-auto h-[310px] w-[310px] rounded-full bg-sky-500 opacity-20 blur-[100px]"></div>
+        <div className="absolute left-0 right-0 top-0 -z-10 m-auto h-[310px] w-[310px] rounded-full bg-primary opacity-20 blur-[100px]"></div>
       </div>
 
-      {/* Header Sticky */}
-      <div className="sticky top-0 z-50 w-full border-b border-slate-200 bg-white/80 backdrop-blur-xl supports-[backdrop-filter]:bg-white/60">
-        <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <header className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between animate-in fade-in slide-in-from-top-4 duration-500">
-            <div>
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-slate-100 text-xs text-slate-600 tracking-wide font-bold border border-slate-200 mb-2">
-                <Wallet className="h-3.5 w-3.5" />
-                <span>Historial de pagos</span>
-              </div>
-              <h1 className="text-3xl md:text-4xl font-bold text-primary tracking-tight">
-                Seguimiento de <span className="text-slate-700">Cuotas</span>
-              </h1>
-              <p className="text-slate-500 mt-2 font-medium text-sm max-w-2xl">
-                Visualiza pagos registrados por cliente, cobrador y ruta.
-              </p>
+      <div className="relative z-10 w-full p-4 md:p-8 space-y-6 md:space-y-8">
+        <header className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between mb-8">
+          <div className="space-y-2">
+            <div className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-600 ring-1 ring-slate-200">
+              <Wallet className="h-3.5 w-3.5" />
+              <span>Historial de pagos</span>
             </div>
-            <div className="flex gap-3">
-              <TimeFilter activePeriod={period} onPeriodChange={handlePeriodChange} />
-              <ExportButton 
-                label="Exportar Reporte" 
-                onExportExcel={handleExportExcel} 
-                onExportPDF={handleExportPDF} 
-              />
-            </div>
-          </header>
-        </div>
-      </div>
+            <h1 className="text-4xl md:text-5xl font-bold tracking-tight">
+              <span className="text-blue-600">Historial </span><span className="text-orange-500">de Pagos</span>
+            </h1>
+            <p className="text-base text-slate-500 max-w-xl font-medium">
+              Visualiza pagos registrados por cliente, cobrador y ruta.
+            </p>
+          </div>
 
-      <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+          <div className="flex items-start gap-3">
+            <TimeFilter activePeriod={period} onPeriodChange={handlePeriodChange} />
+            <ExportButton 
+              label="Exportar" 
+              onExportExcel={handleExportExcel} 
+              onExportPDF={handleExportPDF} 
+            />
+          </div>
+        </header>
+
         <section className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-700">
           <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
             <div className="flex flex-1 gap-3">
@@ -258,53 +310,6 @@ const HistorialPagosPage = () => {
                 </button>
               </div>
             </div>
-
-            <div className="flex flex-wrap items-center gap-2">
-              <button
-                onClick={() => setEstadoFiltro('todos')}
-                className={cn(
-                  "rounded-full px-4 py-1.5 border text-xs font-bold transition-all",
-                  estadoFiltro === 'todos'
-                    ? "border-primary bg-primary text-white shadow-lg shadow-primary/20"
-                    : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50 hover:border-slate-300"
-                )}
-              >
-                Todos
-              </button>
-              <button
-                onClick={() => setEstadoFiltro('completado')}
-                className={cn(
-                  "rounded-full px-4 py-1.5 border text-xs font-bold transition-all",
-                  estadoFiltro === 'completado'
-                    ? "border-emerald-500 bg-emerald-500 text-white shadow-lg shadow-emerald-500/20"
-                    : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50 hover:border-slate-300"
-                )}
-              >
-                Completado
-              </button>
-              <button
-                onClick={() => setEstadoFiltro('pendiente')}
-                className={cn(
-                  "rounded-full px-4 py-1.5 border text-xs font-bold transition-all",
-                  estadoFiltro === 'pendiente'
-                    ? "border-amber-500 bg-amber-500 text-white shadow-lg shadow-amber-500/20"
-                    : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50 hover:border-slate-300"
-                )}
-              >
-                Pendiente
-              </button>
-              <button
-                onClick={() => setEstadoFiltro('en_revision')}
-                className={cn(
-                  "rounded-full px-4 py-1.5 border text-xs font-bold transition-all",
-                  estadoFiltro === 'en_revision'
-                    ? "border-sky-500 bg-sky-500 text-white shadow-lg shadow-sky-500/20"
-                    : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50 hover:border-slate-300"
-                )}
-              >
-                En revisión
-              </button>
-            </div>
           </div>
 
           {vista === 'list' ? (
@@ -333,14 +338,16 @@ const HistorialPagosPage = () => {
                       <th className="px-6 py-4 text-left bg-slate-50/30">Monto</th>
                       <th className="px-6 py-4 text-left bg-slate-50/30">Método</th>
                       <th className="px-6 py-4 text-left bg-slate-50/30">Estado</th>
-                      <th className="px-6 py-4 text-right bg-slate-50/30">Acciones</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
-                    {pagosFiltrados.map((pago) => (
+                    {pagosPaginados.map((pago) => (
                       <tr
                         key={pago.id}
                         className="hover:bg-slate-50/80 transition-colors group"
+                        onClick={() => openDetallePago(pago.pagoId)}
+                        role="button"
+                        tabIndex={0}
                       >
                         <td className="px-6 py-4 align-middle">
                           <div className="flex flex-col">
@@ -348,7 +355,7 @@ const HistorialPagosPage = () => {
                               {pago.id}
                             </span>
                             <span className="text-[11px] text-slate-400 font-medium">
-                              {pago.fecha}
+                              {formatFechaPago(pago.fecha)}
                             </span>
                           </div>
                         </td>
@@ -377,7 +384,7 @@ const HistorialPagosPage = () => {
                           </div>
                         </td>
                         <td className="px-6 py-4 align-middle">
-                          <span className="text-sm font-bold text-slate-900 font-mono">
+                          <span className="text-sm font-black tracking-tight text-slate-900">
                             {formatCurrency(pago.monto)}
                           </span>
                         </td>
@@ -401,14 +408,6 @@ const HistorialPagosPage = () => {
                             </span>
                           </span>
                         </td>
-                        <td className="px-6 py-4 align-middle text-right">
-                          <button 
-                            className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                            title="Ver Detalle"
-                          >
-                            <Eye className="h-4 w-4" />
-                          </button>
-                        </td>
                       </tr>
                     ))}
                     {pagosFiltrados.length === 0 && (
@@ -431,37 +430,17 @@ const HistorialPagosPage = () => {
                 </table>
               </div>
 
-              <div className="flex items-center justify-between border-t border-slate-100 px-6 py-4 bg-slate-50/50">
-                <div className="text-xs font-medium text-slate-500">
-                  Mostrando <span className="font-bold text-slate-900">{pagosFiltrados.length}</span> registros
-                </div>
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() =>
-                      setPaginaActual((prev) => Math.max(1, prev - 1))
-                    }
-                    disabled={paginaActual === 1}
-                    className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-500 hover:border-slate-300 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm"
-                  >
-                    <ChevronLeft className="h-4 w-4" />
-                  </button>
-                  <span className="text-xs font-bold text-slate-700 px-2">Página {paginaActual}</span>
-                  <button
-                    onClick={() => setPaginaActual((prev) => prev + 1)}
-                    className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-500 hover:border-slate-300 hover:bg-slate-50 transition-all shadow-sm"
-                  >
-                    <ChevronRight className="h-4 w-4" />
-                  </button>
-                </div>
-              </div>
+              <Paginador />
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {pagosFiltrados.map((pago) => (
-                <div 
-                  key={pago.id} 
-                  className="bg-white border border-slate-200 rounded-2xl p-5 hover:shadow-[0_8px_30px_rgb(0,0,0,0.12)] hover:border-slate-300 transition-all group relative overflow-hidden"
-                >
+            <div className="bg-white/0">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {pagosPaginados.map((pago) => (
+                  <div 
+                    key={pago.id} 
+                    className="bg-white border border-slate-200 rounded-2xl p-5 hover:shadow-[0_8px_30px_rgb(0,0,0,0.12)] hover:border-slate-300 transition-all group relative overflow-hidden cursor-pointer"
+                    onClick={() => openDetallePago(pago.pagoId)}
+                  >
                   <div className="absolute top-0 right-0 w-24 h-24 bg-slate-50 rounded-bl-full -mr-4 -mt-4 transition-transform group-hover:scale-110" />
                   
                   <div className="relative flex justify-between items-start mb-4">
@@ -494,7 +473,7 @@ const HistorialPagosPage = () => {
                   <div className="relative space-y-3 mb-5">
                     <div className="flex items-center justify-between text-sm">
                       <span className="text-slate-500 font-medium">Fecha</span>
-                      <span className="font-bold text-slate-900">{pago.fecha}</span>
+                      <span className="font-bold text-slate-900">{formatFechaPago(pago.fecha)}</span>
                     </div>
                     <div className="flex items-center justify-between text-sm">
                       <span className="text-slate-500 font-medium">Cobrador</span>
@@ -515,30 +494,46 @@ const HistorialPagosPage = () => {
                   <div className="relative pt-4 border-t border-slate-100 flex items-center justify-between">
                     <div>
                       <p className="text-[10px] text-slate-400 uppercase tracking-wider font-bold">Monto</p>
-                      <p className="text-lg font-bold text-slate-900 font-mono">
+                      <p className="text-lg font-black tracking-tight text-slate-900">
                         {formatCurrency(pago.monto)}
                       </p>
                     </div>
-                    <button className="p-2 rounded-lg hover:bg-blue-50 text-slate-400 hover:text-blue-600 transition-colors border border-transparent hover:border-blue-100">
+                    <div className="p-2 rounded-lg text-slate-300 border border-transparent">
                       <ChevronRight className="h-5 w-5" />
-                    </button>
+                    </div>
                   </div>
-                </div>
-              ))}
-              
-              {pagosFiltrados.length === 0 && (
-                <div className="col-span-full flex flex-col items-center justify-center py-12 text-center bg-white rounded-2xl border border-slate-200 border-dashed">
-                  <div className="w-12 h-12 rounded-full bg-slate-50 flex items-center justify-center mb-3">
-                    <Search className="h-6 w-6 text-slate-300" />
                   </div>
-                  <p className="text-sm text-slate-500 font-bold">
-                    No se encontraron pagos con estos filtros
-                  </p>
+                ))}
+                
+                {pagosFiltrados.length === 0 && (
+                  <div className="col-span-full flex flex-col items-center justify-center py-12 text-center bg-white rounded-2xl border border-slate-200 border-dashed">
+                    <div className="w-12 h-12 rounded-full bg-slate-50 flex items-center justify-center mb-3">
+                      <Search className="h-6 w-6 text-slate-300" />
+                    </div>
+                    <p className="text-sm text-slate-500 font-bold">
+                      No se encontraron pagos con estos filtros
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              {pagosFiltrados.length > 0 && (
+                <div className="mt-4 bg-white border border-slate-200 rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden">
+                  <Paginador />
                 </div>
               )}
             </div>
           )}
         </section>
+
+        <PagoDetalleModal
+          isOpen={showDetallePago}
+          onClose={() => {
+            setShowDetallePago(false)
+            setDetallePagoId(null)
+          }}
+          metadata={{ pagoId: detallePagoId || undefined }}
+        />
       </div>
     </div>
   )
