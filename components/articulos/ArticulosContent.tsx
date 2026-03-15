@@ -101,7 +101,7 @@ export default function ArticulosContent() {
   const [categorias, setCategorias] = useState<Categoria[]>([])
   const [statsBase, setStatsBase] = useState<EstadisticasInventario | null>(null)
   const { showNotification } = useNotification()
-  const { unreadCount } = useNotificaciones()
+  const { unreadCount, socket } = useNotificaciones()
   const router = useRouter()
   const [loading, setLoading] = useState(true)
 
@@ -120,6 +120,23 @@ export default function ArticulosContent() {
     }
     cargar()
   }, [])
+
+  useEffect(() => {
+    if (!socket) return
+
+    const handleUpdate = () => {
+      fetchArticulos()
+      if (!esReadOnly) {
+        fetchStats()
+      }
+    }
+
+    socket.on('inventario_actualizado', handleUpdate)
+
+    return () => {
+      socket.off('inventario_actualizado', handleUpdate)
+    }
+  }, [socket, esReadOnly])
 
   const fetchArticulos = async () => {
     try {
