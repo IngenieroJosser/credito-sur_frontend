@@ -34,8 +34,7 @@ export default function NuevoClienteModal({ onClose, onClienteCreado, cliente = 
     correo: cliente?.correo || '',
     direccion: cliente?.direccion || '',
     referencia: cliente?.referencia || '',
-    enListaNegra: cliente?.enListaNegra || false,
-    nivelRiesgo: cliente?.nivelRiesgo || 'VERDE',
+    enListaNegra: (cliente as any)?.enListaNegra || false,
   });
 
   const [archivosCargados, setArchivosCargados] = useState<{
@@ -169,10 +168,9 @@ export default function NuevoClienteModal({ onClose, onClienteCreado, cliente = 
       correo: formulario.correo || undefined,
       direccion: formulario.direccion || undefined,
       referencia: formulario.referencia || undefined,
+      enListaNegra: formulario.enListaNegra,
       creadoPorId: currentUser?.id || undefined, 
       archivos: archivos.length > 0 ? archivos : undefined,
-      enListaNegra: esEdicion ? formulario.enListaNegra : undefined,
-      nivelRiesgo: esEdicion ? formulario.nivelRiesgo : (formulario.nivelRiesgo as any),
     };
 
     try {
@@ -357,38 +355,30 @@ export default function NuevoClienteModal({ onClose, onClienteCreado, cliente = 
                   onChange={(e) => setFormulario(prev => ({ ...prev, referencia: e.target.value }))}
                   className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-[#08557f] focus:ring-0 font-medium text-slate-900 placeholder:text-slate-400 resize-none"
                   rows={3}
+                  placeholder="Punto de referencia / observaciones"
                   required
                 />
               </div>
 
               {esEdicion && (
-                <div className="space-y-4 border-t border-slate-200 pt-6">
-                  <div className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl border border-slate-200">
-                    <div>
-                      <h4 className="font-bold text-slate-900">Lista Negra</h4>
-                      <p className="text-xs text-slate-500">Bloquea al cliente para nuevos créditos</p>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const newEnListaNegra = !formulario.enListaNegra;
-                        setFormulario(prev => ({ 
-                          ...prev, 
-                          enListaNegra: newEnListaNegra,
-                          nivelRiesgo: newEnListaNegra ? 'LISTA_NEGRA' : (prev.nivelRiesgo === 'LISTA_NEGRA' ? 'VERDE' : prev.nivelRiesgo)
-                        }));
-                      }}
-                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${
-                        formulario.enListaNegra ? 'bg-red-500' : 'bg-slate-300'
-                      }`}
-                    >
-                      <span
-                        className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                          formulario.enListaNegra ? 'translate-x-6' : 'translate-x-1'
-                        }`}
-                      />
-                    </button>
+                <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-bold text-slate-700">Lista Negra</p>
+                    <p className="text-xs text-slate-500">Activa o desactiva la restricción para este cliente</p>
                   </div>
+                  <button
+                    type="button"
+                    onClick={() => setFormulario(prev => ({ ...prev, enListaNegra: !prev.enListaNegra }))}
+                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${
+                      formulario.enListaNegra ? 'bg-rose-500' : 'bg-slate-300'
+                    }`}
+                  >
+                    <span
+                      className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                        formulario.enListaNegra ? 'translate-x-6' : 'translate-x-1'
+                      }`}
+                    />
+                  </button>
                 </div>
               )}
 
