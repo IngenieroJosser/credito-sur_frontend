@@ -8,10 +8,13 @@ const API_BASE = rawBase.replace(/\/$/, '').endsWith('/api-credisur')
 /**
  * Generic export service that downloads files from backend endpoints.
  * Handles authentication, blob response, and triggers browser download.
+ * 
+ * NOTE: The backend uses the global prefix 'api-credisur' only (no 'api/v1').
+ * All endpoint paths must be relative to that prefix, e.g. 'loans/export'.
  */
 export const exportService = {
   /**
-   * Download a file from a backend export endpoint
+   * Download a file from a backend GET export endpoint
    */
   async downloadFile(
     endpoint: string,
@@ -212,6 +215,7 @@ export const exportService = {
 
   /**
    * Download article credit contract PDF
+   * Endpoint: GET /api-credisur/loans/:id/contrato
    */
   async exportContrato(loanId: string): Promise<void> {
     await this.downloadFile(`loans/${loanId}/contrato`, {}, `contrato.pdf`);
@@ -219,8 +223,7 @@ export const exportService = {
 
   /**
    * Exportar listado de clientes en Excel o PDF.
-   * Endpoint: GET /clients/export?format=excel|pdf
-   * Soporta filtros opcionales: nivelRiesgo, ruta, search
+   * Endpoint: GET /api-credisur/clients/export?format=excel|pdf
    */
   async exportClientes(
     format: 'excel' | 'pdf',
@@ -231,8 +234,7 @@ export const exportService = {
     if (filters.ruta) params.ruta = filters.ruta;
     if (filters.search) params.search = filters.search;
     const ext = format === 'excel' ? 'xlsx' : 'pdf';
-    await this.downloadFile('api/v1/clients/export', params, `clientes.${ext}`);
+    await this.downloadFile('clients/export', params, `clientes.${ext}`);
   },
 
 };
-

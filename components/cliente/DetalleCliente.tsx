@@ -25,6 +25,8 @@ import {
 import { formatCurrency, resolveMediaUrl } from "@/lib/utils";
 import { ExportButton } from "@/components/ui/ExportButton";
 import DetallePrestamoModal from "@/components/prestamos/DetallePrestamoModal";
+import PagoDetalleModal from "@/components/dashboards/shared/PagoDetalleModal";
+
 
 // Interfaces alineadas con Prisma y el Dominio
 export type NivelRiesgo = "VERDE" | "AMARILLO" | "ROJO" | "LISTA_NEGRA";
@@ -94,6 +96,7 @@ export interface Pago {
   estado: "confirmado" | "pendiente" | "anulado";
   referencia?: string;
   icono: React.ReactNode;
+  archivos?: any[];
 }
 
 export interface Comentario {
@@ -129,6 +132,7 @@ const ClienteDetalleElegante: React.FC<ClienteDetalleProps> = ({
   const [isNoteModalOpen, setIsNoteModalOpen] = useState(false);
   const [newNote, setNewNote] = useState("");
   const [idPrestamoAVer, setIdPrestamoAVer] = useState<string | null>(null);
+  const [pagoADetalle, setPagoADetalle] = useState<Pago | null>(null);
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
   const [isZoomed, setIsZoomed] = useState(false);
 
@@ -742,7 +746,10 @@ const ClienteDetalleElegante: React.FC<ClienteDetalleProps> = ({
                             Monto
                           </p>
                         </div>
-                        <button className="p-2 text-slate-400 hover:text-slate-900 transition-colors">
+                        <button
+                          onClick={() => setPagoADetalle(pago)}
+                          className="p-2 text-slate-400 hover:text-slate-900 transition-colors"
+                        >
                           <ExternalLink className="w-5 h-5" />
                         </button>
                       </div>
@@ -1080,6 +1087,26 @@ const ClienteDetalleElegante: React.FC<ClienteDetalleProps> = ({
         <DetallePrestamoModal
           id={idPrestamoAVer}
           onClose={() => setIdPrestamoAVer(null)}
+        />
+      )}
+
+      {pagoADetalle && (
+        <PagoDetalleModal
+          isOpen={!!pagoADetalle}
+          onClose={() => setPagoADetalle(null)}
+          metadata={{
+            pagoId: pagoADetalle.id,
+            numeroPago: pagoADetalle.referencia,
+            metodoPago: pagoADetalle.metodo,
+            monto: pagoADetalle.monto,
+            archivos: pagoADetalle.archivos,
+            cliente: `${cliente.nombres} ${cliente.apellidos}`,
+            clienteId: cliente.id,
+            clienteDni: cliente.dni,
+            tieneComprobante: (pagoADetalle.archivos || []).some(
+              (a) => a.tipoContenido === "COMPROBANTE_TRANSFERENCIA",
+            ),
+          }}
         />
       )}
     </div>
