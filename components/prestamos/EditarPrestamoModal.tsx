@@ -257,6 +257,18 @@ export default function EditarPrestamoModal({ id, onClose, onSuccess }: EditarPr
 
       await prestamosService.actualizarPrestamo(id, payload as any);
       showNotification('success', 'El crédito ha sido actualizado correctamente', 'Éxito');
+      
+      // Intentar descargar contrato si es artículo a cuotas tras la edición
+      if (isArticle) {
+        try {
+          // Re-importar exportService si no está disponible o usar el importado
+          const { exportService } = await import('@/services/export-service');
+          await exportService.exportContrato(id);
+        } catch (err) {
+          console.error('Error al descargar contrato tras edición:', err);
+        }
+      }
+
       try {
         refreshNotificaciones();
       } catch {}
