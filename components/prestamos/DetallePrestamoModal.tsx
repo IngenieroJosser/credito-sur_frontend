@@ -94,6 +94,7 @@ export default function DetallePrestamoModal({ id, onClose, includeArchived = fa
           frecuencia: data.frecuenciaPago || data.frecuencia || 'SEMANAL',
           fechaInicio: data.fechaInicio || '',
           fechaPrimerCobro: data.fechaPrimerCobro || undefined,
+          fechaProximoPago: data.proximoPago || undefined,
           fechaVencimiento: data.fechaFin || data.fechaVencimiento || '',
           estado: data.estado || 'ACTIVO',
           tipoAmortizacion: (data.tipoAmortizacion || 'INTERES_SIMPLE') as 'INTERES_SIMPLE' | 'FRANCESA',

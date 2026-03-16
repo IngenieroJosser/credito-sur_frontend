@@ -38,6 +38,7 @@ export interface PrestamoDetalle {
   frecuencia: string;
   fechaInicio: string;
   fechaPrimerCobro?: string;
+  fechaProximoPago?: string;
   fechaVencimiento: string;
   estado: 'ACTIVO' | 'PAGADO' | 'EN_MORA' | 'PENDIENTE' | 'PENDIENTE_APROBACION' | string;
   tipoAmortizacion?: 'FRANCESA' | 'INTERES_SIMPLE';
@@ -272,6 +273,27 @@ export default function DetallePrestamo({ prestamo }: DetallePrestamoProps) {
                 </div>
              </div>
           </div>
+
+          {/* Fecha Primer Cobro / Próximo Pago */}
+          {(prestamo.fechaPrimerCobro || prestamo.fechaProximoPago) && (
+            <div className="bg-blue-50/50 p-5 rounded-2xl border border-blue-100 shadow-sm flex flex-col justify-center gap-1 h-24">
+              <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600">
+                    <Clock className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <span className="text-[10px] font-black text-blue-600/70 uppercase tracking-widest block">
+                      {prestamo.estado === 'PENDIENTE_APROBACION' || prestamo.estado === 'BORRADOR' 
+                        ? 'Primer Cobro' 
+                        : 'Próximo Pago'}
+                    </span>
+                    <span className="text-lg font-bold text-blue-900 block leading-none mt-1">
+                      {formatDate(prestamo.fechaProximoPago || prestamo.fechaPrimerCobro)}
+                    </span>
+                  </div>
+              </div>
+            </div>
+          )}
 
           {/* Fecha Vencimiento */}
           <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm flex flex-col justify-center gap-1 h-24">
