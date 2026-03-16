@@ -100,6 +100,21 @@ const ListadoPrestamosElegante = () => {
   const [prestamoAEliminar, setPrestamoAEliminar] = useState<string | null>(null);
   const [idPrestamoDetalle, setIdPrestamoDetalle] = useState<string | null>(null);
   const { socket } = useNotificaciones();
+  
+  // Estado local para búsqueda debounced
+  const [searchValue, setSearchValue] = useState(filtros.busqueda);
+
+  // Debounce para la búsqueda
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (searchValue !== filtros.busqueda) {
+        setFiltros(prev => ({ ...prev, busqueda: searchValue }));
+        setPaginaActual(1);
+      }
+    }, 500); // 500ms de espera
+
+    return () => clearTimeout(timer);
+  }, [searchValue, filtros.busqueda]);
 
   const loadPrestamos = useCallback(async () => {
     try {
@@ -438,12 +453,8 @@ const ListadoPrestamosElegante = () => {
               type="text"
               placeholder="Buscar por cliente, ID o producto..."
               className="w-full pl-11 pr-4 py-2.5 rounded-xl border border-slate-200 bg-white text-sm font-medium text-slate-900 focus:ring-2 focus:ring-slate-900/10 focus:border-slate-900/20 transition-all placeholder:text-slate-400"
-              value={filtros.busqueda}
-              onChange={(e) => {
-                setFiltros(prev => ({ ...prev, busqueda: e.target.value }));
-                setPaginaActual(1); // Resetear a primera página al buscar
-              }}
-              disabled={cargando}
+              defaultValue={searchValue}
+              onChange={(e) => setSearchValue(e.target.value)}
             />
           </div>
           
@@ -602,7 +613,7 @@ const ListadoPrestamosElegante = () => {
                           >
                             <FileDown className="h-4 w-4" />
                           </button>
-                          {can('CREDITOS_DELETE') || can('LOANS_DELETE') || canForPath(baseRoute) ? (
+                          {(can('CREDITOS_DELETE') || can('LOANS_DELETE') || canForPath(baseRoute)) && prestamo.estado !== 'PENDIENTE_APROBACION' ? (
                             <button 
                               onClick={() => setPrestamoAEliminar(prestamo.id)}
                               className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all"
@@ -758,7 +769,7 @@ const ListadoPrestamosElegante = () => {
                   >
                     <FileDown className="h-4 w-4" />
                   </button>
-                  {can('CREDITOS_DELETE') || can('LOANS_DELETE') || canForPath(baseRoute) ? (
+                  {(can('CREDITOS_DELETE') || can('LOANS_DELETE') || canForPath(baseRoute)) && prestamo.estado !== 'PENDIENTE_APROBACION' ? (
                     <button 
                       onClick={() => setPrestamoAEliminar(prestamo.id)}
                       className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all"
@@ -838,10 +849,10 @@ const ListadoPrestamosElegante = () => {
             const token = localStorage.getItem('token');
             let userId = '';
             if (token) {
-              try {
+            try {
                 const payload = JSON.parse(atob(token.split('.')[1]));
                 userId = payload.sub || payload.id || '';
-              } catch { /* ignore */ }
+            } catch { /* ignore */ }
             }
 
             const isArticulo = String(data.creditType || '').toLowerCase() === 'articulo';
@@ -902,13 +913,31 @@ const ListadoPrestamosElegante = () => {
               backendData.notas = 'Venta de artículo de contado';
             }
 
-            console.log('[CREAR_PRESTAMO_PAYLOAD]', backendData);
             const response = await prestamosService.crearPrestamo(backendData);
             console.log('[CREDITO_CREADO] Respuesta del backend:', response);
             
             showNotification('success', 'El crédito ha sido creado exitosamente', 'Crédito Creado');
             setShowCrearCreditoModal(false);
             
+            // Intentar descargar automáticamente el PDF del contrato si es artículo a cuotas
+            if (isArticulo && !esContado) {
+              try {
+                // response puede venir estructurado de varias formas, intentamos extraer el ID
+                const loanId = response?.data?.id || response?.id || (response?.prestamo && response?.prestamo?.id) || response?.data?.prestamo?.id;
+                console.log('ID rescatado para contrato:', loanId);
+                
+                if (loanId) {
+                  const exportService = (await import('../../services/export-service')).exportService;
+                  await exportService.exportContrato(loanId);
+                } else {
+                  console.warn('No se pudo determinar el ID del préstamo creado para la descarga del PDF.');
+                }
+              } catch (err) {
+                console.error('Error al intentar descargar el contrato automáticamente', err);
+                showNotification('warning', 'Crédito creado. Error al descargar PDF automáticamente.', 'Aviso de PDF');
+              }
+            }
+
             // Esperar un momento para que la BD se actualice antes de refrescar
             await new Promise(resolve => setTimeout(resolve, 300));
             

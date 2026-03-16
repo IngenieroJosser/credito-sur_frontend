@@ -1479,7 +1479,7 @@ const VistaCobrador = () => {
         payload.precioProductoId = data.precioProductoId;
       }
 
-      await prestamosService.crearPrestamo(payload)
+      const prestamo = await prestamosService.crearPrestamo(payload)
       
       setModalAlerta({
         titulo: 'Crédito Creado',
@@ -1487,6 +1487,15 @@ const VistaCobrador = () => {
         tipo: 'exito'
       })
       setShowCreditModal(false)
+
+      // Descarga inmediata del contrato si es ARTICULO
+      if (isArticulo && prestamo?.id) {
+        try {
+          await exportService.exportContrato(prestamo.id)
+        } catch (err) {
+          console.error('Error al descargar contrato:', err)
+        }
+      }
       
       // Refrescar datos
       if (rutaActual?.id) {

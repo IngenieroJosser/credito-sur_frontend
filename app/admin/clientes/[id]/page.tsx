@@ -126,6 +126,7 @@ export default function ClienteDetallePage() {
       estado: 'confirmado',
       referencia: p.numeroPago,
       icono: <DollarSign className="w-5 h-5" />,
+      archivos: p.archivos || [],
     } as Pago;
   });
 

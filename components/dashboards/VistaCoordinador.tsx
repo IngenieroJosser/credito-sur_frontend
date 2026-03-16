@@ -32,6 +32,9 @@ import { formatErrorForComponent } from '@/lib/api/api';
 import { offlineStore } from '@/lib/offline/offlineDb';
 import { TimeFilter, TimeFilterPeriod } from '@/components/ui/TimeFilter';
 import CrearCreditoModal from '@/components/dashboards/shared/CrearCreditoModal';
+import { prestamosService } from '@/services/prestamos-service';
+import { exportService } from '@/services/export-service';
+import { toast } from 'sonner';
 
 interface Usuario {
   id?: string
@@ -805,9 +808,52 @@ const VistaCoordinador = () => {
       <CrearCreditoModal
         isOpen={showCrearCreditoModal}
         onClose={() => setShowCrearCreditoModal(false)}
-        onConfirm={(data) => {
-          console.log('Crédito creado:', data);
-          setShowCrearCreditoModal(false);
+        onConfirm={async (data) => {
+          try {
+            const isArticulo = data.creditType === 'articulo'
+            const payload: any = {
+              clienteId: data.clienteCreditoId,
+              monto: data.monto || 0,
+              frecuenciaPago: data.frecuenciaPago || 'DIARIO',
+              fechaInicio: data.fechaInicio || new Date().toISOString(),
+              fechaPrimerCobro: data.fechaPrimerCobro,
+              tipoInteres: data.tipoInteres || 'INTERES_SIMPLE',
+              cuotas: data.cuotas || data.cantidadCuotas || 0,
+              tasaInteres: data.tasaInteres || 10,
+              tasaInteresMora: 2,
+              plazoMeses: data.plazoMeses || 1,
+              creadoPorId: user?.id || '',
+              notas: data.notas || '',
+              tipoPrestamo: isArticulo ? 'ARTICULO' : 'EFECTIVO',
+            }
+
+            if (isArticulo) {
+              payload.productoId = data.articuloId
+              payload.precioProductoId = data.precioProductoId
+              payload.cuotaInicial = data.cuotaInicialArticulo || 0
+            }
+
+            const prestamo = await prestamosService.crearPrestamo(payload)
+            
+            toast.success('Crédito Creado', {
+              description: 'El crédito ha sido registrado exitosamente.'
+            })
+            setShowCrearCreditoModal(false)
+
+            if (isArticulo && prestamo?.id) {
+              try {
+                await exportService.exportContrato(prestamo.id)
+              } catch (err) {
+                console.error('Error al descargar contrato:', err)
+              }
+            }
+            
+            loadDashboardData()
+          } catch (error: any) {
+            toast.error('Error al crear crédito', {
+              description: error?.message || 'Ocurrió un error inesperado.'
+            })
+          }
         }}
       />
 

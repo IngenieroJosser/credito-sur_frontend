@@ -68,6 +68,7 @@ export interface PagoDetalleModalProps {
     saldoAnterior?: number
     prestamoQuedaPagado?: boolean
     cuotasAfectadas?: number
+    archivos?: any[]
   }
 }
 
@@ -200,7 +201,7 @@ export default function PagoDetalleModal({
       })
     : '—'
 
-  const comprobantes = (pago?.archivos ?? []).filter(
+  const comprobantes = (pago?.archivos ?? metadata.archivos ?? []).filter(
     a => a.tipoContenido === 'COMPROBANTE_TRANSFERENCIA'
   )
 

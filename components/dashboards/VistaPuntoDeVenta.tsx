@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   ShoppingBag,
@@ -26,11 +26,13 @@ import {
 import { formatCurrency, cn } from '@/lib/utils'
 import { prestamosService } from '@/services/prestamos-service'
 import { clientesService, Cliente } from '@/services/clientes-service'
+import { exportService } from '@/services/export-service'
 import FloatingActionMenu, { FabAction } from '@/components/dashboards/shared/FloatingActionMenu'
 import NuevoClienteModal from '@/components/clientes/NuevoClienteModal'
 import CrearCreditoModal from '@/components/dashboards/shared/CrearCreditoModal'
 import ClientePortalModal from '@/components/cliente/ClientePortalModal'
 import ArticulosContent from '@/components/articulos/ArticulosContent'
+import { toast } from 'sonner'
 
 interface VentaReciente {
   id: string
@@ -120,6 +122,18 @@ export default function VistaPuntoDeVenta() {
   const [loadingClientes, setLoadingClientes] = useState(false)
   const [clientesSearch, setClientesSearch] = useState('')
   const [clientesPage, setClientesPage] = useState(1)
+  const [userSession, setUserSession] = useState<any>(null)
+
+  useEffect(() => {
+    const userData = localStorage.getItem('user')
+    if (userData) {
+      try {
+        setUserSession(JSON.parse(userData))
+      } catch (e) {
+        console.error('Error parsing user data:', e)
+      }
+    }
+  }, [])
 
   // ─── Ventas: filtered + paginated ───
   const ventasFiltradas = useMemo(() => {
@@ -252,6 +266,53 @@ export default function VistaPuntoDeVenta() {
     },
   ]
 
+  const handleCrearCredito = async (data: any) => {
+    try {
+      const isArticulo = data.creditType === 'articulo'
+
+      const payload: any = {
+        clienteId: data.clienteCreditoId,
+        monto: data.monto,
+        frecuenciaPago: data.frecuenciaPago,
+        fechaInicio: data.fechaInicio,
+        fechaPrimerCobro: data.fechaPrimerCobro,
+        tipoInteres: data.tipoInteres,
+        cuotas: data.cuotas || data.cantidadCuotas || 0,
+        tasaInteres: data.tasaInteres || 10,
+        tasaInteresMora: 2,
+        plazoMeses: data.plazoMeses || 1,
+        creadoPorId: userSession?.id || '',
+        notas: data.notas,
+        tipoPrestamo: isArticulo ? 'ARTICULO' : 'EFECTIVO',
+        ...(isArticulo && {
+          articuloId: data.articuloId,
+          precioProductoId: data.precioProductoId,
+          cuotaInicial: data.cuotaInicialArticulo || 0,
+          productoId: data.articuloId,
+        })
+      };
+
+      const prestamo = await prestamosService.crearPrestamo(payload);
+      
+      toast.success('Crédito creado', {
+        description: 'El crédito ha sido registrado exitosamente.'
+      });
+      setShowCreditoModal(false);
+
+      if (isArticulo && prestamo?.id) {
+        try {
+          await exportService.exportContrato(prestamo.id);
+        } catch (err) {
+          console.error('Error al descargar contrato:', err);
+        }
+      }
+    } catch (error: any) {
+      toast.error('Error al crear crédito', {
+        description: error?.message || 'Ocurrió un error inesperado.'
+      });
+    }
+  }
+
   return (
     <div className="relative">
       {/* Contenido principal: reutiliza la vista de artículos */}
@@ -264,10 +325,7 @@ export default function VistaPuntoDeVenta() {
       <CrearCreditoModal
         isOpen={showCreditoModal}
         onClose={() => setShowCreditoModal(false)}
-        onConfirm={(data) => {
-          console.log('Crédito creado:', data)
-          setShowCreditoModal(false)
-        }}
+        onConfirm={handleCrearCredito}
         defaultCreditType="articulo"
         hideTypeSelector
       />

@@ -178,6 +178,7 @@ export default function CreacionCreditoArticulo({
     }
 
     const totalFinanciadoBruto = articulosSeleccionados.reduce((sum, item) => {
+      if (!item.opcionesCuotas || item.opcionesCuotas.length === 0) return sum + (item.precioBase * item.cantidad);
       const opcion = item.opcionesCuotas.find(o => o.numeroCuotas === numeroCuotas);
       const precioItemTotal = opcion ? opcion.precioTotal : (item.opcionesCuotas[0]?.precioTotal || item.precioBase); 
       return sum + (precioItemTotal * item.cantidad);
@@ -287,7 +288,7 @@ export default function CreacionCreditoArticulo({
         clienteId: clienteId,
         tipoPrestamo: 'ARTICULO',
         productoId: articulo.id,
-        precioProductoId: opcionPlan?.id,
+        precioProductoId: opcionPlan ? opcionPlan.id : undefined,
         monto: resumenFinanciero.totalFinanciadoBruto,
         tasaInteres: esContado ? 0 : 0,
         tasaInteresMora: 2.0,
@@ -298,16 +299,20 @@ export default function CreacionCreditoArticulo({
         creadoPorId: creadorId,
         cuotaInicial: cuotaInicial,
         notas: `${esContado ? 'Venta de contado' : 'Crédito de artículo'}: ${articulosSeleccionados.map(a => `${a.nombre} (x${a.cantidad})`).join(', ')}`,
-        tipoAmortizacion: TipoAmortizacion.INTERES_SIMPLE
+        tipoAmortizacion: TipoAmortizacion.INTERES_SIMPLE,
+        esContado
       };
 
       const creado = await prestamosService.crearPrestamo(payload as any);
 
       try {
-        const loanId = creado?.id;
+        const loanId = creado?.data?.id || creado?.id || (creado?.prestamo && creado?.prestamo?.id) || creado?.data?.prestamo?.id;
+        console.log('ID rescatado para el PDF: ', loanId);
         const esOffline = Boolean(creado?.esOffline) || String(loanId || '').startsWith('temp-loan-');
-        if (loanId && !esOffline) {
+        if (loanId && !esOffline && !esContado) {
           await exportService.exportContrato(String(loanId));
+        } else if (!esContado) {
+          console.warn('No se encontró el id del prestamo para imprimir contrato.');
         }
       } catch (err) {
         console.error('Error exportando contrato automáticamente:', err);
@@ -403,7 +408,7 @@ export default function CreacionCreditoArticulo({
                       <input 
                         type="text"
                         placeholder="Buscar cliente..."
-                        value={busquedaCliente}
+                        defaultValue={busquedaCliente}
                         onChange={(e) => setBusquedaCliente(e.target.value)}
                         className="w-full pl-10 pr-4 py-2 rounded-xl border border-slate-200 bg-white text-sm font-medium focus:ring-2 focus:ring-blue-500/20"
                       />
@@ -475,7 +480,7 @@ export default function CreacionCreditoArticulo({
                           <input 
                             type="text"
                             placeholder="Buscar artículos..."
-                            value={busquedaProducto}
+                            defaultValue={busquedaProducto}
                             onChange={(e) => setBusquedaProducto(e.target.value)}
                             className="buscador-3d-input"
                           />
@@ -587,17 +592,37 @@ export default function CreacionCreditoArticulo({
                     <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
                       <h3 className="font-bold text-slate-900 mb-6 flex items-center gap-2">
                         <Calendar className="w-4 h-4 text-blue-600" />
-                        Condiciones del Crédito
+                        Condiciones
                       </h3>
                       
                       <div className="space-y-4">
                         <div className="space-y-2">
-                          <label className="text-xs font-bold text-slate-700 uppercase">Plazo (Meses)</label>
-                          <select
-                            value={numeroCuotas}
-                            onChange={(e) => setNumeroCuotas(Number(e.target.value))}
-                            className="w-full px-4 py-2.5 rounded-xl border-slate-200 bg-slate-50 font-medium text-slate-900 focus:ring-2 focus:ring-blue-500/20"
-                          >
+                          <label className="text-xs font-bold text-slate-700 uppercase">Modalidad de Venta</label>
+                          <div className="flex gap-4">
+                             <button
+                               onClick={() => setEsContado(false)}
+                               className={`flex-1 py-3 px-4 rounded-xl border-2 font-bold transition-all ${!esContado ? 'border-blue-600 bg-blue-50 text-blue-700' : 'border-slate-200 bg-white text-slate-500 hover:border-slate-300'}`}
+                             >
+                               Crédito a Cuotas
+                             </button>
+                             <button
+                               onClick={() => setEsContado(true)}
+                               className={`flex-1 py-3 px-4 rounded-xl border-2 font-bold transition-all ${esContado ? 'border-emerald-600 bg-emerald-50 text-emerald-700' : 'border-slate-200 bg-white text-slate-500 hover:border-slate-300'}`}
+                             >
+                               Venta de Contado
+                             </button>
+                          </div>
+                        </div>
+
+                        {!esContado && (
+                          <>
+                            <div className="space-y-2">
+                              <label className="text-xs font-bold text-slate-700 uppercase">Plazo (Meses)</label>
+                              <select
+                                value={numeroCuotas}
+                                onChange={(e) => setNumeroCuotas(Number(e.target.value))}
+                                className="w-full px-4 py-2.5 rounded-xl border-slate-200 bg-slate-50 font-medium text-slate-900 focus:ring-2 focus:ring-blue-500/20"
+                              >
                             {opcionesMesesDisponibles.length > 0 ? (
                                 opcionesMesesDisponibles.map(m => (
                                     <option key={m} value={m}>
@@ -637,6 +662,8 @@ export default function CreacionCreditoArticulo({
                             />
                           </div>
                         </div>
+                      </>
+                    )}
    
                         <div className="space-y-2">
                           <label className="text-xs font-bold text-slate-700 uppercase">Fecha del Crédito</label>
