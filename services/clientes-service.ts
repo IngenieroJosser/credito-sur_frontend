@@ -48,6 +48,8 @@ export interface CrearClienteDto {
   rutaId?: string;
   observaciones?: string;
   categoriaId?: string;
+  enListaNegra?: boolean;
+  razonListaNegra?: string;
   archivos?: {
     tipoContenido: string;
     tipoArchivo: string;
@@ -69,6 +71,7 @@ export interface ActualizarClienteDto {
   puntaje?: number;
   dni?: string; // Permitir dni si es editable
   enListaNegra?: boolean;
+  razonListaNegra?: string;
   rutaId?: string;
   categoriaId?: string;
   observaciones?: string;
