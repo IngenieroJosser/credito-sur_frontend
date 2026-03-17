@@ -277,19 +277,15 @@ export default function PagoModal({
                 {metodoPago === 'TRANSFERENCIA' && (
                   <div className="pt-2 animate-in slide-in-from-top-2 duration-200">
                     <label className="block text-sm font-bold text-slate-700 mb-2">Comprobante (Obligatorio)</label>
-                    <div className="rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50/50 p-4 hover:bg-slate-50 transition-colors">
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2">
-                            <p className="text-sm font-bold text-slate-900">Sube el comprobante</p>
-                            {comprobanteTransferencia && (
-                              <span className="inline-flex items-center rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-bold text-[#08557f] border border-blue-100">
-                                ADJUNTO
-                              </span>
-                            )}
-                          </div>
-                          <p className="text-xs text-slate-500">Imagen o PDF.</p>
-                        </div>
+                    <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                      <div className="flex items-center justify-between mb-3">
+                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-2">
+                          <CheckCircle2 className="w-4 h-4 text-blue-500" />
+                          Imagen del comprobante
+                        </label>
+                        {comprobanteTransferencia && (
+                          <span className="text-[9px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-100 uppercase tracking-widest animate-in fade-in zoom-in duration-300">Archivo cargado</span>
+                        )}
                         {comprobanteTransferencia && (
                           <button
                             type="button"
@@ -323,7 +319,7 @@ export default function PagoModal({
                       <div className="mt-3">
                         <input
                           type="file"
-                          accept="image/*,application/pdf"
+                          accept="image/*"
                           onChange={(e) => setComprobanteTransferencia(e.target.files?.[0] || null)}
                           className="w-full text-xs text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
                           required

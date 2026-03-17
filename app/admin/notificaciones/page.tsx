@@ -129,6 +129,13 @@ export default function NotificacionesPage() {
           const entidadId = n.entidadId ?? raw.entidadId
           const entidad: string = raw.entidad || ''
 
+          // Asegurar que las notificaciones tengan el tipo correcto basado en la entidad para los filtros
+          let tipoFinal = n.tipo;
+          if (entidad === 'PAGO' || entidad === 'Pago') tipoFinal = 'PAGO';
+          if (entidad === 'CLIENTE' || entidad === 'Cliente') tipoFinal = 'CLIENTE';
+          if (entidad === 'Prestamo' || entidad === 'PRESTAMO') tipoFinal = 'PRESTAMO';
+          if (entidad === 'GASTO' || entidad === 'Gasto') tipoFinal = 'GASTO';
+
           let approvalType: string | undefined = metadata.tipoAprobacion as string | undefined
 
           if (!approvalType && (n.tipo === 'APROBACION' || entidad === 'Aprobacion')) {
@@ -180,6 +187,7 @@ export default function NotificacionesPage() {
 
           return {
             ...n,
+            tipo: tipoFinal as any,
             link,
             fecha,
             rutaId,

@@ -81,6 +81,7 @@ export interface CrearPagoDto {
   metodoPago?: MetodoPago;
   numeroReferencia?: string;
   notas?: string;
+  comprobante?: File | null;
 }
 
 export const pagosService = {
@@ -115,7 +116,27 @@ export const pagosService = {
    */
   async registrarPago(data: CrearPagoDto): Promise<ResultadoPago> {
     try {
-       return await apiRequest<ResultadoPago>('POST', '/payments', data);
+      // Si hay un comprobante, debemos usar FormData para el envío de archivos
+      if (data.comprobante || data.metodoPago === MetodoPago.TRANSFERENCIA) {
+        const formData = new FormData();
+        formData.append('prestamoId', data.prestamoId);
+        formData.append('clienteId', data.clienteId);
+        formData.append('cobradorId', data.cobradorId);
+        formData.append('montoTotal', data.montoTotal.toString());
+        formData.append('metodoPago', data.metodoPago || '');
+        if (data.numeroReferencia) formData.append('numeroReferencia', data.numeroReferencia);
+        if (data.notas) formData.append('notas', data.notas);
+        if (data.fechaPago) formData.append('fechaPago', data.fechaPago);
+        
+        if (data.comprobante) {
+          formData.append('comprobante', data.comprobante);
+        }
+        
+        return await apiRequest<ResultadoPago>('POST', '/payments', formData);
+      }
+
+      // Si es efectivo sin archivos, envío JSON normal
+      return await apiRequest<ResultadoPago>('POST', '/payments', data);
     } catch (error: any) {
        if (
         (typeof navigator !== 'undefined' && !navigator.onLine) ||
