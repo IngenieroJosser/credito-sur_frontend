@@ -60,9 +60,9 @@ export default function CreacionCreditoArticulo({
      }
   }, [initialClienteId]);
 
-  const [frecuenciaPago, setFrecuenciaPago] = useState<FrecuenciaPago>('QUINCENAL');
+  const [frecuenciaPago, setFrecuenciaPago] = useState<FrecuenciaPago>('DIARIO');
   const [cuotaInicial, setCuotaInicial] = useState<number>(0);
-  const [fechaInicio, setFechaInicio] = useState<string>(new Date().toISOString().split('T')[0]);
+  const [fechaInicio, setFechaInicio] = useState<string>(new Date().toLocaleDateString('en-CA'));
   
   // Estados UI Auxiliares
   const [busquedaCliente, setBusquedaCliente] = useState('');

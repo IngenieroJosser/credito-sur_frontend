@@ -465,7 +465,6 @@ export default function PagoDetalleModal({
                       const mime    = (archivo.tipoArchivo || '').toLowerCase()
                       const ext     = (fullUrl.split('.').pop() || '').toLowerCase()
                       const isImage = mime.startsWith('image/') || /(jpg|jpeg|png|gif|webp)$/i.test(ext)
-                      const isPdf   = mime === 'application/pdf' || ext === 'pdf'
 
                       return (
                         <div
@@ -502,14 +501,14 @@ export default function PagoDetalleModal({
                             </button>
                           )}
 
-                          {/* Vista previa PDF */}
-                          {isPdf && (
-                            <div className="flex flex-col items-center gap-3 p-6">
-                              <div className="w-14 h-14 rounded-2xl bg-slate-100 flex items-center justify-center border border-slate-200">
+                          {/* Archivo genérico (si no es imagen, se muestra link) */}
+                          {!isImage && (
+                            <div className="p-6 flex flex-col items-center gap-3">
+                               <div className="w-14 h-14 rounded-2xl bg-slate-100 flex items-center justify-center border border-slate-200">
                                 <FileImage className="h-7 w-7 text-slate-400" />
                               </div>
-                              <p className="text-xs text-slate-500 font-medium text-center">
-                                {archivo.nombreOriginal || 'comprobante.pdf'}
+                              <p className="text-xs text-slate-500 font-medium text-center break-all">
+                                {archivo.nombreOriginal || 'Archivo adjunto'}
                               </p>
                               <a
                                 href={fullUrl}
@@ -517,14 +516,9 @@ export default function PagoDetalleModal({
                                 rel="noopener noreferrer"
                                 className="px-5 py-2 rounded-xl bg-slate-900 text-white text-[11px] font-black uppercase tracking-widest hover:bg-slate-800 transition-colors"
                               >
-                                Ver PDF
+                                Descargar / Ver
                               </a>
                             </div>
-                          )}
-
-                          {/* Archivo genérico */}
-                          {!isImage && !isPdf && (
-                            <div className="p-4 text-xs text-slate-500 break-all">{url}</div>
                           )}
 
                           {/* Metadata del archivo */}

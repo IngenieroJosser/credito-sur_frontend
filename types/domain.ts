@@ -48,6 +48,9 @@ export interface Cliente {
   foto?: string | null;
   creadoEn: string;
   actualizadoEn: string;
+  enListaNegra?: boolean;
+  razonListaNegra?: string | null;
+  fechaListaNegra?: string | null;
   eliminadoEn?: string | null;
   // Campos extendidos del backend
   archivos?: { id: string; url?: string; path?: string; ruta?: string; tipoArchivo?: string }[];

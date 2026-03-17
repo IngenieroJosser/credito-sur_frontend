@@ -2722,32 +2722,20 @@ const RutaClientLoaded = ({
 
           onClose={() => setPagoVisita(null)}
 
-          onConfirm={async (monto, metodo) => {
-
+          onConfirm={async (monto, metodo, comprobante) => {
             try {
-
               if (!pagoVisita?.visita?.clienteId || !pagoVisita?.visita?.prestamoId) {
-
                 showNotification('error', 'No se pudo registrar el pago: falta cliente o préstamo', 'Error');
-
                 return;
-
               }
 
-
-
               await pagosService.registrarPago({
-
                 clienteId: pagoVisita.visita.clienteId,
-
                 prestamoId: pagoVisita.visita.prestamoId,
-
                 cobradorId: initialRuta.cobradorId,
-
                 montoTotal: monto,
-
                 metodoPago: metodo,
-
+                comprobante: comprobante,
               } as any);
 
 

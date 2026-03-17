@@ -44,6 +44,7 @@ export interface CrearClienteDto {
   referencia?: string;
   nivelRiesgo?: NivelRiesgo;
   puntaje?: number;
+  enListaNegra?: boolean;
   creadoPorId?: string;
   rutaId?: string;
   observaciones?: string;

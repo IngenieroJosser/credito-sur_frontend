@@ -23,7 +23,8 @@ interface FormularioPrestamo {
   montoTotal: number; // monto
   proposito: string; // tipoPrestamo (mapeado o libre)
   tasaInteres: number; // tasaInteres
-  duracionMeses: number; // duracionMeses
+  duracionMeses: number; // plazoMeses
+  cantidadCuotas: number; // cantidad de pagos
   frecuenciaPago: FrecuenciaPago; // frecuenciaPago
   tipoInteres: TipoAmortizacion;
   fechaInicio: string; // fechaInicio
@@ -46,7 +47,7 @@ interface CuotaCalculada {
 }
 
 const calcularCuotasYResumen = (form: FormularioPrestamo) => {
-  if (!form.clienteId || form.montoTotal <= 0 || form.duracionMeses <= 0) {
+  if (!form.clienteId || form.montoTotal <= 0 || (form.duracionMeses <= 0 && form.cantidadCuotas <= 0)) {
     return {
       cuotas: [] as CuotaCalculada[],
       resumenPrestamo: {
@@ -77,14 +78,20 @@ const calcularCuotasYResumen = (form: FormularioPrestamo) => {
     MENSUAL: 1
   };
 
-  const cuotasTotales = Math.ceil(form.duracionMeses * factorFrecuencia[form.frecuenciaPago]);
-  const tasaPeriodo = tasaMensual / factorFrecuencia[form.frecuenciaPago];
+  // Priorizar cantidadCuotas si el usuario la ingresó, si no calcular desde duracionMeses
+  const cuotasTotales = form.cantidadCuotas > 0 
+    ? form.cantidadCuotas 
+    : Math.ceil(form.duracionMeses * factorFrecuencia[form.frecuenciaPago]);
+  
+  // Para el cálculo de tasa de periodo, seguimos usando duracionMeses si es posible
+  const mesesCalculo = form.duracionMeses > 0 ? form.duracionMeses : (cuotasTotales / factorFrecuencia[form.frecuenciaPago]);
+  const tasaPeriodo = tasaMensual / (cuotasTotales / mesesCalculo);
 
   let cuotaFija = 0;
   let totalInteres = 0;
 
   if (form.tipoInteres === TipoAmortizacion.INTERES_SIMPLE) {
-    const interesTotalCalculado = montoFinanciado * tasaMensual * form.duracionMeses;
+    const interesTotalCalculado = montoFinanciado * tasaMensual * mesesCalculo;
     const totalPagarCalculado = montoFinanciado + interesTotalCalculado;
     cuotaFija = totalPagarCalculado / cuotasTotales;
   } else {
@@ -95,7 +102,8 @@ const calcularCuotasYResumen = (form: FormularioPrestamo) => {
     }
   }
 
-  const fechaPago = new Date(form.fechaInicio);
+  const [year, month, day] = form.fechaInicio.split('-').map(Number);
+  const fechaPago = new Date(year, month - 1, day);
 
   for (let i = 1; i <= cuotasTotales; i++) {
     let capital = 0;
@@ -205,16 +213,33 @@ const CreacionPrestamoElegante = ({ initialClienteId, isModal }: { initialClient
     montoTotal: 0,
     proposito: 'PERSONAL',
     tasaInteres: 5.0,
-    duracionMeses: 0,
-    frecuenciaPago: FrecuenciaPago.QUINCENAL,
-    tipoInteres: TipoAmortizacion.FRANCESA,
-    fechaInicio: new Date().toISOString().split('T')[0],
+    duracionMeses: 1,
+    cantidadCuotas: 0,
+    frecuenciaPago: FrecuenciaPago.DIARIO,
+    tipoInteres: TipoAmortizacion.INTERES_SIMPLE,
+    fechaInicio: new Date().toLocaleDateString('en-CA'),
     tasaInteresMora: 2.0,
     cuotaInicial: 0,
     gastosAdministrativos: 10000,
     comision: 1.0,
     observaciones: ''
   });
+
+  // Efecto para sugerir cantidad de cuotas según plazo y frecuencia
+  useEffect(() => {
+    const factorFrecuencia = {
+      DIARIO: 30,
+      SEMANAL: 4.33,
+      QUINCENAL: 2,
+      MENSUAL: 1
+    };
+    
+    // Solo sugerimos si el usuario no ha puesto una cantidad manual o si cambia el plazo/frecuencia
+    // Para simplificar, siempre sugerimos al cambiar plazo o frecuencia, pero el usuario puede sobreescribir
+    const sugerencia = Math.ceil(form.duracionMeses * factorFrecuencia[form.frecuenciaPago]);
+    setForm(prev => ({ ...prev, cantidadCuotas: sugerencia }));
+    setCuotasCantidadInput(sugerencia.toString());
+  }, [form.duracionMeses, form.frecuenciaPago]);
 
   // If initialClienteId is provided, move to step 2 automatically if we are in step 1
   useEffect(() => {
@@ -224,7 +249,8 @@ const CreacionPrestamoElegante = ({ initialClienteId, isModal }: { initialClient
   }, [initialClienteId]);
 
   const [montoTotalInput, setMontoTotalInput] = useState('')
-  const [cuotasInput, setCuotasInput] = useState('')
+  const [plazoMesesInput, setPlazoMesesInput] = useState('1')
+  const [cuotasCantidadInput, setCuotasCantidadInput] = useState('')
 
   const { resumenPrestamo } = useMemo(() => calcularCuotasYResumen(form), [form]);
 
@@ -284,6 +310,7 @@ const CreacionPrestamoElegante = ({ initialClienteId, isModal }: { initialClient
         tasaInteres: form.tasaInteres,
         tasaInteresMora: form.tasaInteresMora,
         plazoMeses: form.duracionMeses,
+        cantidadCuotas: form.cantidadCuotas,
         frecuenciaPago: form.frecuenciaPago,
         fechaInicio: form.fechaInicio,
         creadoPorId: creadorId,
@@ -359,17 +386,30 @@ const CreacionPrestamoElegante = ({ initialClienteId, isModal }: { initialClient
     setForm(prev => ({ ...prev, montoTotal: value }))
   };
 
-  const handleCuotasChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handlePlazoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const raw = e.target.value
     const digits = raw.replace(/\D/g, '')
     if (!digits) {
-      setCuotasInput('')
+      setPlazoMesesInput('')
       setForm(prev => ({ ...prev, duracionMeses: 0 }))
       return
     }
 
-    setCuotasInput(digits)
+    setPlazoMesesInput(digits)
     setForm(prev => ({ ...prev, duracionMeses: Number(digits) }))
+  }
+
+  const handleCantidadCuotasChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const raw = e.target.value
+    const digits = raw.replace(/\D/g, '')
+    if (!digits) {
+      setCuotasCantidadInput('')
+      setForm(prev => ({ ...prev, cantidadCuotas: 0 }))
+      return
+    }
+
+    setCuotasCantidadInput(digits)
+    setForm(prev => ({ ...prev, cantidadCuotas: Number(digits) }))
   }
 
   return (
@@ -547,7 +587,7 @@ const CreacionPrestamoElegante = ({ initialClienteId, isModal }: { initialClient
                   </div>
 
                   <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-6">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                       <div className="space-y-3">
                         <label className="text-sm font-bold text-slate-700 flex items-center gap-2">
                           <DollarSign className="w-4 h-4 text-slate-400" />
@@ -570,18 +610,38 @@ const CreacionPrestamoElegante = ({ initialClienteId, isModal }: { initialClient
                       <div className="space-y-3">
                         <label className="text-sm font-bold text-slate-700 flex items-center gap-2">
                           <Clock className="w-4 h-4 text-slate-400" />
-                          Cuotas
+                          Plazo (en Meses)
                         </label>
                         <div className="relative">
                            <input
                             type="text"
                             inputMode="numeric"
                             name="duracionMeses"
-                            value={cuotasInput}
-                            onChange={handleCuotasChange}
-                            className="w-full pl-4 pr-4 py-3 rounded-xl border-slate-200 bg-slate-50 text-xl font-bold text-slate-900 focus:ring-2 focus:ring-slate-900/10 transition-all"
-                            placeholder="6"
+                            value={plazoMesesInput}
+                            onChange={handlePlazoChange}
+                            className="w-full pl-4 pr-16 py-3 rounded-xl border-slate-200 bg-slate-50 text-xl font-bold text-slate-900 focus:ring-2 focus:ring-slate-900/10 transition-all"
+                            placeholder="1"
                           />
+                          <span className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 font-medium">Meses</span>
+                        </div>
+                      </div>
+
+                      <div className="space-y-3">
+                        <label className="text-sm font-bold text-slate-700 flex items-center gap-2">
+                          <CheckCircle className="w-4 h-4 text-slate-400" />
+                          Número de Cuotas
+                        </label>
+                        <div className="relative">
+                           <input
+                            type="text"
+                            inputMode="numeric"
+                            name="cantidadCuotas"
+                            value={cuotasCantidadInput}
+                            onChange={handleCantidadCuotasChange}
+                            className="w-full pl-4 pr-16 py-3 rounded-xl border-slate-200 bg-slate-50 text-xl font-bold text-slate-900 focus:ring-2 focus:ring-blue-500/20 transition-all border-blue-100"
+                            placeholder="30"
+                          />
+                          <span className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 font-medium">Pagos</span>
                         </div>
                       </div>
                     </div>

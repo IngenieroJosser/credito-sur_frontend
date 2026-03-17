@@ -169,7 +169,7 @@ export default function PagoModal({ visita, tipo, onClose, onConfirm }: PagoModa
                             </span>
                           )}
                         </div>
-                        <p className="text-xs text-slate-500">Imagen o PDF. Recomendado: foto clara del recibo.</p>
+                        <p className="text-xs text-slate-500">Solo imágenes (JPG, PNG, WEBP). La foto debe ser clara.</p>
                       </div>
                       {comprobanteTransferencia && (
                         <button
@@ -206,7 +206,7 @@ export default function PagoModal({ visita, tipo, onClose, onConfirm }: PagoModa
                     <div className="mt-3">
                       <input
                         type="file"
-                        accept="image/*,application/pdf"
+                        accept="image/*"
                         onChange={handleFileChange}
                         className="w-full text-sm text-slate-600 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-black file:bg-blue-50 file:text-[#08557f] hover:file:bg-blue-100 transition-all cursor-pointer"
                         required

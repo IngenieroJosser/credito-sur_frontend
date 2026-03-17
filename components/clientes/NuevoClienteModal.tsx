@@ -34,7 +34,7 @@ export default function NuevoClienteModal({ onClose, onClienteCreado, cliente = 
     correo: cliente?.correo || '',
     direccion: cliente?.direccion || '',
     referencia: cliente?.referencia || '',
-
+    enListaNegra: (cliente as any)?.enListaNegra || false,
   });
 
   const [archivosCargados, setArchivosCargados] = useState<{
@@ -168,6 +168,7 @@ export default function NuevoClienteModal({ onClose, onClienteCreado, cliente = 
       correo: formulario.correo || undefined,
       direccion: formulario.direccion || undefined,
       referencia: formulario.referencia || undefined,
+      enListaNegra: formulario.enListaNegra,
       creadoPorId: currentUser?.id || undefined, 
       archivos: archivos.length > 0 ? archivos : undefined,
     };
@@ -358,6 +359,28 @@ export default function NuevoClienteModal({ onClose, onClienteCreado, cliente = 
                   required
                 />
               </div>
+
+              {esEdicion && (
+                <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-bold text-slate-700">Lista Negra</p>
+                    <p className="text-xs text-slate-500">Activa o desactiva la restricción para este cliente</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setFormulario(prev => ({ ...prev, enListaNegra: !prev.enListaNegra }))}
+                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${
+                      formulario.enListaNegra ? 'bg-rose-500' : 'bg-slate-300'
+                    }`}
+                  >
+                    <span
+                      className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                        formulario.enListaNegra ? 'translate-x-6' : 'translate-x-1'
+                      }`}
+                    />
+                  </button>
+                </div>
+              )}
 
               {/* Sección de Fotos */}
               <div className="space-y-4 border-t border-slate-200 pt-6">

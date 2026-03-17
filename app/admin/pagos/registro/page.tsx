@@ -26,12 +26,14 @@ import {
   ChevronRight,
   Search,
   Loader2,
+  Image as ImageIcon,
 } from 'lucide-react'
 import { formatCOPInputValue, formatCurrency, parseCOPInputToNumber, cn } from '@/lib/utils'
 import { pagosService, CrearPagoDto } from '@/services/pagos-service'
 import { prestamosService } from '@/services/prestamos-service'
 import { MetodoPago } from '@/types/enums'
 import { toast } from 'sonner'
+import Image from 'next/image'
 
 interface ResumenCuota {
   capital: number
@@ -66,6 +68,19 @@ const RegistroPagoPage = () => {
   const [comentarios, setComentarios] = useState('')
   const [esAbonoParcial, setEsAbonoParcial] = useState(false)
   const [estadoEnvio, setEstadoEnvio] = useState<'idle' | 'enviando' | 'exito' | 'error'>('idle')
+  const [comprobante, setComprobante] = useState<File | null>(null)
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null)
+
+  // Preview de imagen
+  useEffect(() => {
+    if (!comprobante) {
+      setPreviewUrl(null)
+      return
+    }
+    const url = URL.createObjectURL(comprobante)
+    setPreviewUrl(url)
+    return () => URL.revokeObjectURL(url)
+  }, [comprobante])
 
   // Desglose estimado del pago (se actualiza cuando se carga el préstamo)
   const resumenCuota: ResumenCuota = {
@@ -126,6 +141,11 @@ const RegistroPagoPage = () => {
       return
     }
 
+    if (metodoPago === MetodoPago.TRANSFERENCIA && !comprobante) {
+      toast.error('El comprobante es obligatorio para transferencias.')
+      return
+    }
+
     setEstadoEnvio('enviando')
 
     // Obtener el usuario activo para el cobradorId
@@ -134,7 +154,7 @@ const RegistroPagoPage = () => {
       const userData = localStorage.getItem('user')
       if (userData) {
         const user = JSON.parse(userData)
-        cobradorId = cobradorId || user.id || ''
+        cobradorId = user.id || cobradorId || ''
       }
     } catch { /* no-op */ }
 
@@ -145,15 +165,17 @@ const RegistroPagoPage = () => {
       montoTotal: parseCOPInputToNumber(monto),
       metodoPago: metodoPago,
       notas: comentarios || undefined,
+      comprobante: comprobante,
     }
 
     try {
       await pagosService.registrarPago(dto)
       setEstadoEnvio('exito')
       toast.success('¡Pago registrado correctamente!')
-    } catch {
+    } catch (error: any) {
       setEstadoEnvio('error')
-      toast.error('Error al registrar el pago. Intente nuevamente.')
+      const msg = error.response?.data?.message || error.message || 'Error al registrar el pago'
+      toast.error(msg)
     }
   }
 
@@ -390,17 +412,73 @@ const RegistroPagoPage = () => {
                     </div>
 
                     {/* Abono parcial */}
-                    <label className="flex items-center gap-3 cursor-pointer group">
-                      <input
-                        type="checkbox"
-                        checked={esAbonoParcial}
-                        onChange={e => setEsAbonoParcial(e.target.checked)}
-                        className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
-                      />
-                      <span className="text-sm font-medium text-slate-700 group-hover:text-slate-900 transition-colors">
-                        Registrar como abono parcial
-                      </span>
-                    </label>
+                    <div className="space-y-6">
+                      {metodoPago === MetodoPago.TRANSFERENCIA && (
+                        <div className="space-y-4 animate-in slide-in-from-top-2 duration-200">
+                          <label className="text-sm font-bold text-slate-700 flex items-center gap-2">
+                            <ImageIcon className="w-4 h-4 text-slate-500" />
+                            Comprobante de Transferencia (Obligatorio)
+                          </label>
+                          <div className="bg-slate-50 p-6 rounded-2xl border-2 border-dashed border-slate-200 hover:border-blue-400 hover:bg-blue-50/30 transition-all group">
+                            {previewUrl ? (
+                              <div className="space-y-4">
+                                <div className="relative h-64 w-full rounded-xl overflow-hidden border border-slate-200 shadow-sm">
+                                  <Image
+                                    src={previewUrl}
+                                    alt="Vista previa comprobante"
+                                    fill
+                                    className="object-contain bg-white"
+                                    unoptimized
+                                  />
+                                </div>
+                                <div className="flex justify-center">
+                                  <button
+                                    type="button"
+                                    onClick={() => setComprobante(null)}
+                                    className="px-4 py-2 bg-rose-50 text-rose-600 text-xs font-bold rounded-xl border border-rose-100 hover:bg-rose-100 transition-colors"
+                                  >
+                                    Quitar Comprobante
+                                  </button>
+                                </div>
+                              </div>
+                            ) : (
+                              <div className="flex flex-col items-center justify-center py-4">
+                                <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
+                                  <ImageIcon className="w-6 h-6 text-blue-600" />
+                                </div>
+                                <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-1">Subir Imagen</p>
+                                <p className="text-[10px] text-slate-400 mb-4">PNG, JPG o WEBP hasta 10MB</p>
+                                <input
+                                  type="file"
+                                  accept="image/*"
+                                  onChange={e => setComprobante(e.target.files?.[0] || null)}
+                                  className="hidden"
+                                  id="comprobante-upload"
+                                />
+                                <label
+                                  htmlFor="comprobante-upload"
+                                  className="px-6 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-700 hover:bg-slate-50 cursor-pointer shadow-sm active:scale-95 transition-all"
+                                >
+                                  Seleccionar Archivo
+                                </label>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
+
+                      <label className="flex items-center gap-3 cursor-pointer group">
+                        <input
+                          type="checkbox"
+                          checked={esAbonoParcial}
+                          onChange={e => setEsAbonoParcial(e.target.checked)}
+                          className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                        />
+                        <span className="text-sm font-medium text-slate-700 group-hover:text-slate-900 transition-colors">
+                          Registrar como abono parcial
+                        </span>
+                      </label>
+                    </div>
 
                     {/* Observaciones */}
                     <div className="space-y-2">
