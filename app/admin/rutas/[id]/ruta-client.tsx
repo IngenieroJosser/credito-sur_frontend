@@ -2658,19 +2658,31 @@ const RutaClientLoaded = ({
       {visitaReprogramar && (
 
         <ReprogramarModal
-
             visita={visitaReprogramar}
-
             onClose={() => setVisitaReprogramar(null)}
-
-            onConfirm={(fecha, motivo) => {
-
-                alert(`Reprogramar para: ${fecha} - ${motivo}`)
-
-                setVisitaReprogramar(null)
-
+            onConfirm={async (fecha, motivo) => {
+                try {
+                  if (!visitaReprogramar?.prestamoId) {
+                    showNotification('error', 'Falta el ID del préstamo para reprogramar', 'Error');
+                    return;
+                  }
+                  
+                  await prestamosService.reprogramarPrestamo(visitaReprogramar.prestamoId, {
+                    fecha,
+                    motivo,
+                    cobradorId: currentUser?.id || '',
+                  });
+                  
+                  showNotification('success', 'Solicitud de reprogramación enviada correctamente', 'Éxito');
+                  setVisitaReprogramar(null);
+                  
+                  try { await onRutaRefresh?.(); } catch {}
+                  router.refresh();
+                } catch (e: any) {
+                  console.error('Error reprogramando:', e);
+                  showNotification('error', e?.message || 'Error al solicitar reprogramación', 'Error');
+                }
             }}
-
         />
 
       )}
