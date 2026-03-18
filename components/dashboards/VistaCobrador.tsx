@@ -444,44 +444,24 @@ const VistaCobrador = () => {
     }
   }, [])
 
-  useEffect(() => {
-    if (!socket) return;
-
-    const handler = async () => {
-      if (rutaActual?.id) {
-        await cargarEstadisticasRuta(rutaActual.id);
-      }
-
-      if (showMisClientes && userSession?.id) {
-        await cargarMisCreditosAsignados(userSession.id)
-      }
-    };
-
-    socket.on('pagos_actualizados', handler);
-    socket.on('prestamos_actualizados', handler);
-    socket.on('rutas_actualizadas', handler);
-    socket.on('dashboards_actualizados', handler);
-
-    return () => {
-      socket.off('pagos_actualizados', handler);
-      socket.off('prestamos_actualizados', handler);
-      socket.off('rutas_actualizadas', handler);
-      socket.off('dashboards_actualizados', handler);
-    };
-  }, [socket, rutaActual?.id, cargarEstadisticasRuta, showMisClientes, userSession?.id, cargarMisCreditosAsignados]);
+  // WebSocket handler – se declara DESPUÉS de cargarDatosRuta (ver abajo)
+  // para evitar referencia forward. El useEffect del socket está al final
+  // del bloque de cargas.
 
   useEffect(() => {
     if (!showMisClientes || !userSession?.id) return
     cargarMisCreditosAsignados(userSession.id)
   }, [showMisClientes, userSession?.id, cargarMisCreditosAsignados])
 
-  // Cargar visitas reales desde el backend cuando el usuario está disponible
-  useEffect(() => {
+  // ---------------------------------------------------------------------------
+  // cargarDatosRuta – función estable (useCallback) que carga la lista completa
+  // de visitas/cuotas desde el backend. Está separada del useEffect para poder
+  // ser invocada también desde el handler de WebSocket.
+  // ---------------------------------------------------------------------------
+  const cargarDatosRuta = useCallback(async (silent = false) => {
     if (!userSession?.id) return;
-
-    const cargarDatosRuta = async () => {
       try {
-        setIsLoading(true);
+        if (!silent) setIsLoading(true);
         // 1. Obtener la ruta asignada al cobrador
         const rutas = await rutasService.obtenerRutas({ cobradorId: userSession.id, limit: 1 });
         const rutaResumen = rutas[0]; 
@@ -527,7 +507,8 @@ const VistaCobrador = () => {
 
         // 4. Mapear asignaciones a Visitas
         // *** IMPORTANTE: cada crédito activo genera una entrada independiente ***
-        // Un cliente con crédito diario + semanal aparece como 2 filas separadas
+        // Un cliente con crédito diario + semanal aparece como 2 filas separadas.
+        // Los créditos PENDIENTE_APROBACION se muestran pero con botones deshabilitados.
         const asignaciones = (rutaCompleta as any).asignaciones || (rutaCompleta as any).asignacionesRuta || [];
 
         const toPeriodo = (f: string): PeriodoRuta => {
@@ -547,16 +528,18 @@ const VistaCobrador = () => {
         let globalIdx = 0;
         const visitasMapeadasRaw: VisitaRuta[] = asignaciones.flatMap((asig: any) => {
            const cliente = asig.cliente || {};
+           // Incluir también préstamos en PENDIENTE_APROBACION (se mostrarán deshabilitados)
            const prestamosActivos: any[] = (cliente.prestamos || []).filter(
-             (p: any) => p.estado === 'ACTIVO' || p.estado === 'EN_MORA' || p.estado === 'PAGADO'
+             (p: any) => p.estado === 'ACTIVO' || p.estado === 'EN_MORA' || p.estado === 'PAGADO' || p.estado === 'PENDIENTE_APROBACION'
            );
 
-           // Si no tiene préstamos activos, mostrar entrada vacía
+           // Si no tiene préstamos, mostrar entrada vacía
            const lista = prestamosActivos.length > 0 ? prestamosActivos : [null];
 
            return lista.map((prestamo: any) => {
              const proximaCuota = prestamo?.proximaCuota || {};
              const esArticulo = prestamo?.tipo === 'ARTICULO' || prestamo?.tipoPrestamo === 'ARTICULO';
+             const esPendienteAprobacion = prestamo?.estado === 'PENDIENTE_APROBACION';
              const idx = globalIdx++;
 
              let estado: EstadoVisita = 'pendiente';
@@ -587,15 +570,26 @@ const VistaCobrador = () => {
                cuotasTotales: prestamo?.cantidadCuotas,
                enProrroga: proximaCuota.estado === 'PRORROGADA' || !!proximaCuota.fechaVencimientoProrroga,
                fechaProrroga: proximaCuota.fechaVencimientoProrroga,
+               // Flag para deshabilitar botones mientras el crédito no esté aprobado
+               pendienteAprobacion: esPendienteAprobacion,
              } as VisitaRuta;
            });
         });
 
-        // Deduplicar: un cliente con múltiples asignaciones en la ruta generaría tarjetas
-        // repetidas. Conservamos solo la primera ocurrencia por prestamoId (o clienteId si
-        // no tiene préstamo activo).
+        // Deduplicación en dos pasadas:
+        // 1a pasada: recolectar todos los clienteId que tienen al menos 1 prestamoId real.
+        // 2a pasada: eliminar entradas sin prestamoId cuyo cliente ya tiene entrada con prestamoId.
+        // Esto resuelve el caso: cliente aparece como entrada vacía (PENDIENTE sin pasar filtro)
+        // y al aprobarse el crédito reaparece con prestamoId → sin esta lógica habría duplicado.
+        const clientesConPrestamo = new Set<string>();
+        visitasMapeadasRaw.forEach(v => {
+          if (v.prestamoId && v.clienteId) clientesConPrestamo.add(v.clienteId);
+        });
+
         const seenIds = new Set<string>();
         const visitasMapeadas: VisitaRuta[] = visitasMapeadasRaw.filter(v => {
+          // Descartar entrada vacía (sin préstamo) si el cliente ya tiene entrada con préstamo real
+          if (!v.prestamoId && v.clienteId && clientesConPrestamo.has(v.clienteId)) return false;
           const clave = v.prestamoId ? `prestamo-${v.prestamoId}` : `cliente-${v.clienteId}`;
           if (seenIds.has(clave)) return false;
           seenIds.add(clave);
@@ -817,10 +811,52 @@ const VistaCobrador = () => {
       } finally {
         setIsLoading(false);
       }
+  }, [userSession?.id, periodoCards]);
+
+  // Cargar visitas al montar y cuando cambie el usuario o el trigger manual (refreshTrigger)
+  useEffect(() => {
+    cargarDatosRuta();
+  }, [cargarDatosRuta, refreshTrigger]);
+
+  // ---------------------------------------------------------------------------
+  // WebSocket: suscripcion a eventos de tiempo real.
+  // Ubicado DESPUÉS de cargarDatosRuta para evitar referencia forward.
+  // ---------------------------------------------------------------------------
+  useEffect(() => {
+    if (!socket) return;
+
+    // Handler ligero: actualiza KPIs y misCreditos sin recargar la lista principal
+    const handlerKpi = async () => {
+      if (rutaActual?.id) {
+        await cargarEstadisticasRuta(rutaActual.id);
+      }
+      if (showMisClientes && userSession?.id) {
+        await cargarMisCreditosAsignados(userSession.id);
+      }
     };
 
-    cargarDatosRuta();
-  }, [userSession?.id, refreshTrigger]);
+    // Handler completo: recarga visitas/cuotas (silent=true para no mostrar spinner)
+    const handlerFull = async () => {
+      await cargarDatosRuta(true);
+      if (showMisClientes && userSession?.id) {
+        await cargarMisCreditosAsignados(userSession.id);
+      }
+    };
+
+    // pagos y prestamos requieren recarga completa (cuotas pueden cambiar de monto)
+    socket.on('pagos_actualizados', handlerFull);
+    socket.on('prestamos_actualizados', handlerFull);
+    // rutas y dashboard solo necesitan actualizar KPIs (no cambian las cuotas)
+    socket.on('rutas_actualizadas', handlerKpi);
+    socket.on('dashboards_actualizados', handlerKpi);
+
+    return () => {
+      socket.off('pagos_actualizados', handlerFull);
+      socket.off('prestamos_actualizados', handlerFull);
+      socket.off('rutas_actualizadas', handlerKpi);
+      socket.off('dashboards_actualizados', handlerKpi);
+    };
+  }, [socket, rutaActual?.id, cargarEstadisticasRuta, cargarDatosRuta, showMisClientes, userSession?.id, cargarMisCreditosAsignados]);
 
 
 

@@ -206,6 +206,14 @@ function VisitaCardContent({
         </div>
       </div>
 
+      {/* Fila 2b: Banner "Pendiente de aprobación" */}
+      {visita.pendienteAprobacion && (
+        <div className="mt-2 flex items-center gap-1.5 px-2 py-1.5 rounded-lg border border-amber-200 bg-amber-50 text-amber-700 text-[9px] font-black uppercase tracking-wide">
+          <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse shrink-0" />
+          Crédito pendiente de aprobación — cobro deshabilitado
+        </div>
+      )}
+
       {/* Fila 3: dirección + teléfono */}
       {(visita.direccion || visita.telefono) && (
         <div className="mt-1.5 flex items-center gap-1 text-[10px] text-slate-400 font-medium leading-none flex-wrap">

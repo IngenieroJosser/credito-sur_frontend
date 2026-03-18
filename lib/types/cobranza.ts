@@ -31,6 +31,8 @@ export interface VisitaRuta {
   // Detalle de cuotas
   cuotaActual?: number
   cuotasTotales?: number
+  // Crédito pendiente de aprobación: el cliente aparece en la ruta pero aún no se puede cobrar
+  pendienteAprobacion?: boolean
 }
 
 export interface HistorialDia {
