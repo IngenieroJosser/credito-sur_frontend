@@ -2617,17 +2617,11 @@ const RutaClientLoaded = ({
       )}
 
       {/* Modal de Pago/Abono */}
-
       {pagoVisita && (
-
         <PagoModal
-
           visita={pagoVisita.visita}
-
           tipo={pagoVisita.tipo}
-
           onClose={() => setPagoVisita(null)}
-
           onConfirm={async (monto, metodo, comprobante) => {
             try {
               if (!pagoVisita?.visita?.clienteId || !pagoVisita?.visita?.prestamoId) {
@@ -2644,40 +2638,21 @@ const RutaClientLoaded = ({
                 comprobante: comprobante,
               } as any);
 
-
-
               showNotification('success', `${pagoVisita.tipo === 'ABONO' ? 'Abono' : 'Pago'} registrado correctamente`, 'Éxito');
-
               setPagoVisita(null);
 
-
-
-              // Refrescar estadísticas/avance diario
-
+              // Refrescar estadísticas
               try {
-
                 await onRutaRefresh?.();
-
               } catch {}
 
-
-
-              // Refrescar data derivada en UI
-
               router.refresh();
-
-            } catch (e) {
-
-              console.error('Error registrando pago/abono:', e);
-
+            } catch (error) {
+              console.error('Error registrando pago/abono:', error);
               showNotification('error', 'No se pudo registrar el pago/abono', 'Error');
-
             }
-
           }}
-
         />
-
       )}
 
       {visitaReprogramar && (

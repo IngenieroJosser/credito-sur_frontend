@@ -132,6 +132,13 @@ export const pagosService = {
           formData.append('comprobante', data.comprobante);
         }
         
+        console.log('[pagosService.registrarPago] FormData keys:', Array.from((formData as any).keys()));
+        console.log('[pagosService.registrarPago] Comprobante:', data.comprobante ? {
+          name: data.comprobante.name,
+          size: data.comprobante.size,
+          type: data.comprobante.type
+        } : 'No hay comprobante');
+
         return await apiRequest<ResultadoPago>('POST', '/payments', formData);
       }
 
