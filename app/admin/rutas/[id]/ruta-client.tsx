@@ -2839,47 +2839,30 @@ const RutaClientLoaded = ({
 
             try {
 
-              const payload = {
-
-                ...data,
-
-                creadoPorId: currentUser?.id || ''
-
+              const esContado = Boolean((data as any).ventaContado);
+              const payload: any = {
+                clienteId: data.clienteCreditoId,
+                tipoPrestamo: data.creditType === 'prestamo' ? 'EFECTIVO' : 'ARTICULO',
+                monto: data.monto || 0,
+                tasaInteres: esContado ? 0 : (data.tasaInteres || 0),
+                tasaInteresMora: 2.0,
+                plazoMeses: data.plazoMeses || 1,
+                cantidadCuotas: data.cantidadCuotas || data.cuotas || data.cuotasTotales || 0,
+                cuotas: data.cuotas || data.cantidadCuotas || data.cuotasTotales || 0,
+                frecuenciaPago: esContado ? 'MENSUAL' : (data.frecuenciaPago || 'DIARIO'),
+                fechaInicio: data.fechaInicio || new Date().toISOString(),
+                creadoPorId: currentUser?.id,
+                cuotaInicial: data.cuotaInicialArticulo || 0,
+                notas: esContado ? 'Venta de artículo de contado' : (data.notas || ''),
+                tipoAmortizacion: data.tipoInteres || 'INTERES_SIMPLE'
               };
 
-              
-
-              if (data.creditType === 'prestamo') {
-
-                await prestamosService.crearPrestamo({
-
-                  ...data,
-
-                  clienteId: data.clienteCreditoId,
-
-                  tipoPrestamo: 'EFECTIVO',
-
-                  tasaInteresMora: 2.0,
-
-                  creadoPorId: currentUser?.id || ''
-
-                } as any);
-
-              } else {
-
-                await creditosService.crearCredito({
-
-                  ...data,
-
-                  clienteId: data.clienteCreditoId,
-
-                  creadoPorId: currentUser?.id || ''
-
-                } as any);
-
+              if (data.creditType === 'articulo') {
+                payload.productoId = data.articuloId;
+                payload.precioProductoId = esContado ? undefined : data.precioProductoId;
               }
 
-
+              await prestamosService.crearPrestamo(payload);
 
               // Asignar cliente a la ruta automáticamente si estamos en el detalle de una ruta
 
