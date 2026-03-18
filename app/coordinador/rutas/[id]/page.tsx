@@ -47,6 +47,7 @@ import { useNotification } from '@/components/providers/NotificationProvider'
 import { useAuth } from '@/hooks/useAuth'
 import { prestamosService } from '@/services/prestamos-service'
 import { pagosService } from '@/services/pagos-service'
+import { exportService } from '@/services/export-service'
 import { obtenerSaldoDisponibleRuta } from '@/services/contabilidad-service'
 import { HistorialDia } from '@/lib/types/cobranza'
 import { useRealtimeData } from '@/hooks/useRealtimeData'
@@ -1201,8 +1202,11 @@ const DetalleRutaPage = () => {
                 fechaInicio: data.fechaInicio || new Date().toISOString(),
                 creadoPorId: currentUser?.id,
                 cuotaInicial: data.cuotaInicialArticulo || 0,
-                notas: esContado ? 'Venta de artículo de contado' : (data.notas || ''),
-                tipoAmortizacion: data.tipoInteres || 'INTERES_SIMPLE'
+                notas: data.creditType === 'articulo' 
+                  ? `${esContado ? 'Venta de contado' : 'Crédito de artículo'}: ${data.articuloNombre || ''}`
+                  : (data.notas || ''),
+                tipoAmortizacion: data.tipoInteres || 'INTERES_SIMPLE',
+                esContado: esContado
               };
 
               if (data.creditType === 'articulo') {
@@ -1210,7 +1214,15 @@ const DetalleRutaPage = () => {
                 payload.precioProductoId = esContado ? undefined : data.precioProductoId;
               }
 
-              await prestamosService.crearPrestamo(payload);
+              const prestamo = await prestamosService.crearPrestamo(payload);
+              
+              if (data.creditType === 'articulo' && prestamo?.id && !esContado) {
+                try {
+                  await exportService.exportContrato(prestamo.id);
+                } catch (err) {
+                  console.error('Error generando contrato:', err);
+                }
+              }
 
               // Asignar cliente a la ruta automáticamente
               if (rutaActual?.id) {

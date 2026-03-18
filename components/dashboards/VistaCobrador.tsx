@@ -1490,14 +1490,15 @@ const VistaCobrador = () => {
     try {
       setIsLoadingAction(true)
       
+      const esContado = Boolean((data as any).ventaContado);
       const isArticulo = data.creditType === 'articulo';
-      const freq = data.frecuenciaPago || 'DIARIO';
+      const freq = esContado ? 'MENSUAL' : (data.frecuenciaPago || 'DIARIO');
 
       const payload: any = {
         clienteId: data.clienteCreditoId,
         tipoPrestamo: isArticulo ? 'ARTICULO' : 'EFECTIVO',
         monto: data.monto || 0,
-        tasaInteres: data.tasaInteres || 0,
+        tasaInteres: esContado ? 0 : (data.tasaInteres || 0),
         tasaInteresMora: 2, 
         plazoMeses: data.plazoMeses || 1,
         cantidadCuotas: data.cantidadCuotas || data.cuotas || data.cuotasTotales || (isArticulo ? data.numCuotas : 0),
@@ -1506,13 +1507,16 @@ const VistaCobrador = () => {
         fechaInicio: data.fechaInicio || new Date().toISOString(),
         creadoPorId: userSession?.id,
         cuotaInicial: data.cuotaInicialArticulo || 0,
-        notas: data.notas || '',
-        tipoAmortizacion: isArticulo ? 'INTERES_SIMPLE' : (data.tipoInteres || 'INTERES_SIMPLE')
+        notas: isArticulo
+          ? `${esContado ? 'Venta de contado' : 'Crédito de artículo'}: ${data.articuloNombre || ''}`
+          : (data.notas || ''),
+        tipoAmortizacion: isArticulo ? 'INTERES_SIMPLE' : (data.tipoInteres || 'INTERES_SIMPLE'),
+        esContado: esContado
       }
 
       if (isArticulo) {
         payload.productoId = data.articuloId;
-        payload.precioProductoId = data.precioProductoId;
+        payload.precioProductoId = esContado ? undefined : data.precioProductoId;
       }
 
       const prestamo = await prestamosService.crearPrestamo(payload)

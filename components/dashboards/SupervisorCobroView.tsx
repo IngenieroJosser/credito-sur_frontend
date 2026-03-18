@@ -1027,35 +1027,48 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
     console.log(`Registra pago de ${montoPagado} para visita ${visitaId} (${metodo})`, comprobante)
     setShowPaymentModal(false)
   }, [])
-
   const handleCrearCredito = useCallback(async (data: any) => {
     try {
       setIsLoading(true)
       
       const esContado = Boolean((data as any).ventaContado)
+      const isArticulo = data.creditType === 'articulo'
+      const freq = esContado ? 'MENSUAL' : (data.frecuenciaPago || 'DIARIO')
+
       const payload: any = {
         clienteId: data.clienteCreditoId,
-        tipoPrestamo: data.creditType === 'prestamo' ? 'EFECTIVO' : 'ARTICULO',
+        tipoPrestamo: isArticulo ? 'ARTICULO' : 'EFECTIVO',
         monto: data.monto || 0,
         tasaInteres: esContado ? 0 : (data.tasaInteres || 0),
         tasaInteresMora: 2, 
         plazoMeses: data.plazoMeses || 1,
-        cantidadCuotas: data.cantidadCuotas || data.cuotas || data.cuotasTotales || 0,
-        cuotas: data.cuotas || data.cantidadCuotas || 0,
-        frecuenciaPago: esContado ? 'MENSUAL' : (data.frecuenciaPago || 'DIARIO'),
+        cantidadCuotas: data.cantidadCuotas || data.cuotas || data.cuotasTotales || (isArticulo ? data.numCuotas : 0),
+        cuotas: data.cuotas || data.cantidadCuotas || (isArticulo ? data.numCuotas : 0),
+        frecuenciaPago: freq,
         fechaInicio: data.fechaInicio || new Date().toISOString(),
         creadoPorId: userSession?.id,
         cuotaInicial: data.cuotaInicialArticulo || 0,
-        notas: esContado ? 'Venta de artículo de contado' : (data.notas || ''),
-        tipoAmortizacion: data.tipoInteres || TipoAmortizacion.INTERES_SIMPLE
+        notas: isArticulo
+          ? `${esContado ? 'Venta de contado' : 'Crédito de artículo'}: ${data.articuloNombre || ''}`
+          : (data.notas || ''),
+        tipoAmortizacion: isArticulo ? 'INTERES_SIMPLE' : (data.tipoInteres || 'INTERES_SIMPLE'),
+        esContado: esContado
       }
 
-      if (data.creditType === 'articulo') {
+      if (isArticulo) {
         payload.productoId = data.articuloId
         payload.precioProductoId = esContado ? undefined : data.precioProductoId
       }
 
-      await prestamosService.crearPrestamo(payload)
+      const prestamo = await prestamosService.crearPrestamo(payload)
+
+      if (isArticulo && prestamo?.id && !esContado) {
+        try {
+          await exportService.exportContrato(prestamo.id)
+        } catch (err) {
+          console.error('Error al descargar contrato:', err)
+        }
+      }
       
       // Asignar cliente a la ruta automáticamente si estamos en una ruta específica
       if (rutaId) {

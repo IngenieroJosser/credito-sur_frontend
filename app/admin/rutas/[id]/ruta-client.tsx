@@ -2853,8 +2853,11 @@ const RutaClientLoaded = ({
                 fechaInicio: data.fechaInicio || new Date().toISOString(),
                 creadoPorId: currentUser?.id,
                 cuotaInicial: data.cuotaInicialArticulo || 0,
-                notas: esContado ? 'Venta de artículo de contado' : (data.notas || ''),
-                tipoAmortizacion: data.tipoInteres || 'INTERES_SIMPLE'
+                notas: data.creditType === 'articulo' 
+                  ? `${esContado ? 'Venta de contado' : 'Crédito de artículo'}: ${data.articuloNombre || ''}`
+                  : (data.notas || ''),
+                tipoAmortizacion: data.tipoInteres || 'INTERES_SIMPLE',
+                esContado: esContado
               };
 
               if (data.creditType === 'articulo') {
@@ -2862,7 +2865,15 @@ const RutaClientLoaded = ({
                 payload.precioProductoId = esContado ? undefined : data.precioProductoId;
               }
 
-              await prestamosService.crearPrestamo(payload);
+              const prestamo = await prestamosService.crearPrestamo(payload);
+              
+              if (data.creditType === 'articulo' && prestamo?.id && !esContado) {
+                try {
+                  await exportService.exportContrato(prestamo.id);
+                } catch (err) {
+                  console.error('Error generando contrato:', err);
+                }
+              }
 
               // Asignar cliente a la ruta automáticamente si estamos en el detalle de una ruta
 
