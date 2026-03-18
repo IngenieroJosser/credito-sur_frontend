@@ -48,7 +48,8 @@ import {
   X,
   AlertTriangle,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  ArrowRightLeft
 } from 'lucide-react'
 
 import { formatCOPInputValue, formatCurrency, formatMilesCOP, parseCOPInputToNumber, cn } from '@/lib/utils'
@@ -542,6 +543,29 @@ const ModuloContableContent = () => {
     setShowRegistrarMovimientoModal(true)
   }
 
+  const openRegistrarTransferencia = () => {
+    // Buscamos el ID real de la caja principal para el admin
+    const cajaPrincipal = cajas.find(c => c.tipo === 'PRINCIPAL');
+    const defaultCaja = (userRole === 'ADMIN' || userRole === 'SUPER_ADMINISTRADOR') 
+        ? (cajaPrincipal?.id || '') 
+        : (cajas.find(c => c.tipo === 'RUTA')?.id || '')
+    
+    setMovimientoForm({
+      tipo: 'INGRESO',
+      categoria: 'TRANSFERENCIA', // Pre-seleccionamos que es transferencia
+      categoriaId: '',
+      montoInput: '',
+      concepto: 'Transferencia entre cajas manual',
+      referencia: '',
+      cajaId: defaultCaja,
+      origen: 'COBRADOR', // Esto activa el selector de caja origen/destino en el modal
+      estado: 'PENDIENTE',
+      responsableId: '',
+      cajaOrigenId: '',
+    })
+    setShowRegistrarMovimientoModal(true)
+  }
+
   const handleRegistrarMovimiento = async () => {
     const monto = parseCOPInputToNumber(movimientoForm.montoInput)
     if (monto <= 0) {
@@ -815,9 +839,19 @@ const ModuloContableContent = () => {
           <section className="space-y-8">
             <div className="rounded-2xl bg-white/80 backdrop-blur-sm border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden">
             <div className="p-5 border-b border-slate-100 space-y-4">
-              <div>
-                <h1 className="text-3xl font-black text-slate-900 tracking-tight">Panel Contable</h1>
-                <p className="text-slate-500 mt-1 font-medium">Control total de movimientos, cajas y cierres.</p>
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div>
+                  <h1 className="text-3xl font-black text-slate-900 tracking-tight">Panel Contable</h1>
+                  <p className="text-slate-500 mt-1 font-medium">Control total de movimientos, cajas y cierres.</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={openRegistrarTransferencia}
+                  className="inline-flex items-center gap-2 rounded-2xl bg-orange-500 px-5 py-2.5 text-sm font-bold text-white hover:bg-orange-600 transition-all shadow-lg shadow-orange-500/20 active:scale-95"
+                >
+                  <ArrowRightLeft className="h-4 w-4" />
+                  Transferir fondos
+                </button>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
