@@ -222,6 +222,10 @@ const RutaClientLoaded = ({
 
   const [showCrearCreditoPrompt, setShowCrearCreditoPrompt] = useState(false)
 
+  const [isExportingPdf, setIsExportingPdf] = useState(false)
+
+
+
   // Estados para filtros y historial (Portados de VistaCobrador)
 
   const [periodoRutaFiltro, setPeriodoRutaFiltro] = useState<'TODOS' | 'DIA' | 'SEMANA' | 'QUINCENA' | 'MES'>('TODOS')
@@ -979,7 +983,7 @@ const RutaClientLoaded = ({
 
   // Agrupar visitas por frecuencia de pago
 
-  const { visitasAgrupadas, totalMostradas, exportarRutaDiariaCSV } = useMemo(() => {
+  const { visitasAgrupadas, totalMostradas, exportarRutaDiariaCSV, exportarRutaDiariaPDF } = useMemo(() => {
 
     const hoy = new Date();
 
@@ -1057,14 +1061,47 @@ const RutaClientLoaded = ({
 
   
 
+    const exportarRutaDiariaPDF = async () => {
+
+      try {
+
+        await exportService.exportOperationalReport('pdf', {
+
+          rutaId: initialRuta.id,
+
+          startDate: new Date().toISOString().split('T')[0],
+
+        } as any);
+
+      } catch (e) {
+
+        toast.error('No se pudo exportar el reporte de ruta a PDF');
+
+        console.error('Error exportando ruta PDF:', e);
+
+      }
+
+    }
+
+
+
     const isTodayOrMora = (dateStr: string) => {
+
       if (!dateStr) return true;
+
       const d = new Date(dateStr);
+
       const hoy = new Date();
+
       hoy.setHours(0, 0, 0, 0);
+
       d.setHours(0, 0, 0, 0);
+
       return d.getTime() <= hoy.getTime();
+
     };
+
+
 
     const filterByDate = (v: any) => searchQuery || v.estado === 'en_mora' || isTodayOrMora(v.proximaVisita);
 
@@ -1081,7 +1118,9 @@ const RutaClientLoaded = ({
 
     return { visitasAgrupadas: agrupar, totalMostradas: filtradas.length,
 
-      exportarRutaDiariaCSV
+      exportarRutaDiariaCSV,
+
+      exportarRutaDiariaPDF
 
     };
 
@@ -1659,7 +1698,6 @@ const RutaClientLoaded = ({
 
                     <div className="flex gap-2 overflow-x-auto pb-1 items-center">
 
-                      
 
                       {(
 
@@ -1973,24 +2011,441 @@ const RutaClientLoaded = ({
 
                                                     return filtradas.map((v: any) => (
 
-                                                                                              <StaticVisitaItem
+                                                      <StaticVisitaItem key={v.id} visita={v} allowClick={false} onVerCliente={handleAbrirClienteInfo} getEstadoClasses={getEstadoClasses} getPrioridadColor={getPrioridadColor} />
+
+                                                    ));
+
+                                                  })()
+
+                                                  }
+
+                                                </div>
+
+                                              )}
+
+                                            </div>
+
+                                          );
+
+                                        })}
+
+                                      </div>
+
+                                    )}
+
+                                  </div>
+
+                                );
+
+                              })}
+
+                            </div>
+
+                          );
+
+                        })()}
+
+
+
+                        {/* === VISTA DÍAS === */}
+
+                        {historyViewMode === 'DAYS' && historyDates.map(date => {
+
+                             const data = (historialRutas as Record<string, HistorialDia>)[date];
+
+                             const isExpanded = selectedHistoryDate === date;
+
+                             const [y, m, d] = date.split('-');
+
+                             const dateObj = new Date(parseInt(y), parseInt(m)-1, parseInt(d));
+
+                             const dayName = dateObj.toLocaleDateString('es-CO', { weekday: 'long', day: 'numeric', month: 'long' });
+
+                             const isCompleted = data.visitas.length > 0 && (data.resumen.efectividad >= 95 || data.visitas.every((v: any) => v.estado === 'pagado'));
+
+                             return (
+
+                               <div key={date} className={`rounded-2xl border transition-all overflow-hidden bg-white border-slate-200 ${isExpanded ? 'ring-1 ring-slate-300 shadow-md' : 'shadow-sm'}`}>
+
+                                 <div className="p-4 flex items-center justify-between cursor-pointer hover:bg-slate-50 transition-colors" onClick={async () => { if (!isExpanded && !data.loaded) { await cargarHistorialFecha(date); } setSelectedHistoryDate(isExpanded ? null : date); }}>
+
+                                   <div className="flex items-center gap-3">
+
+                                      <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-xs shadow-sm ${isExpanded ? 'bg-[#08557f] text-white' : 'bg-slate-100 text-slate-600'}`}>{d}</div>
+
+                                      <div>
+
+                                         <div className="font-bold text-slate-900 capitalize flex items-center gap-2">{dayName}{isCompleted && <span className="text-[10px] bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full font-bold uppercase border border-emerald-200">Completada</span>}</div>
+
+                                         <div className="text-xs text-slate-500">Recaudo: <b>${data.resumen.recaudo.toLocaleString('es-CO')}</b></div>
+
+                                      </div>
+
+                                   </div>
+
+                                   <div className="flex items-center gap-3">
+
+                                      <div className={`px-2 py-1 rounded-lg text-[10px] font-bold ${data.resumen.efectividad >= 90 ? 'bg-emerald-50 text-emerald-700' : 'bg-orange-50 text-orange-700'}`}>{data.resumen.efectividad}%</div>
+
+                                      <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+
+                                   </div>
+
+                                 </div>
+
+                                 {isExpanded && (
+
+                                    <div className="border-t border-slate-100 bg-white p-4 space-y-4 animate-in slide-in-from-top-2 duration-200">
+
+                                       <div className="grid grid-cols-3 gap-2">
+
+                                          <div className="bg-slate-50 p-2 rounded-xl border border-slate-100 text-center"><div className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter">Recaudo</div><div className="text-xs font-black text-slate-700">${data.resumen.recaudo.toLocaleString('es-CO')}</div></div>
+
+                                          <div className="bg-slate-50 p-2 rounded-xl border border-slate-100 text-center"><div className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter">Gastos</div><div className="text-xs font-black text-rose-600">${data.resumen.gastos.toLocaleString('es-CO')}</div></div>
+
+                                          <div className="bg-slate-50 p-2 rounded-xl border border-slate-100 text-center"><div className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter">Visitados</div><div className="text-xs font-black text-blue-600">{data.resumen.visitados}/{data.resumen.total}</div></div>
+
+                                       </div>
+
+                                       <div className="space-y-3">
+
+                                          <div className="flex justify-between text-[10px] font-bold text-slate-500 uppercase px-1"><span>Clientes Gestionados</span><span>Estado</span></div>
+
+                                           {!data.loaded ? (
+
+                                             <div className="flex flex-col items-center justify-center py-8 text-slate-400"><Loader2 className="w-6 h-6 animate-spin mb-2 opacity-20" /><span className="text-xs font-medium">Cargando detalles...</span></div>
+
+                                           ) : (() => {
+
+                                             const filtradas = historyFrecuenciaFiltro === 'TODOS'
+
+                                               ? data.visitas
+
+                                               : data.visitas.filter((v: any) => v.periodoRuta === historyFrecuenciaFiltro);
+
+                                             if (filtradas.length === 0) return (
+
+                                               <div className="flex flex-col items-center justify-center py-10 bg-slate-50 rounded-2xl border border-dashed border-slate-200"><History className="w-8 h-8 text-slate-300 mb-2 opacity-30" /><span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest text-center px-4">No hay visitas {historyFrecuenciaFiltro !== 'TODOS' ? `con frecuencia ${historyFrecuenciaFiltro.toLowerCase()}` : ''} para este dia</span></div>
+
+                                             );
+
+                                             return filtradas.map((v: any) => (
+
+                                               <StaticVisitaItem key={v.id} visita={v} allowClick={false} onVerCliente={handleAbrirClienteInfo} getEstadoClasses={getEstadoClasses} getPrioridadColor={getPrioridadColor} />
+
+                                             ));
+
+                                           })()}
+
+                                        </div>
+
+                                    </div>
+
+                                 )}
+
+                               </div>
+
+                             );
+
+                        })}
+
+
+
+                      </div>
+
+                   ) : (
+
+                     <div className="bg-white rounded-2xl border border-slate-200 p-12 text-center">
+
+                         <History className="w-12 h-12 text-slate-200 mx-auto mb-4" />
+
+                         <p className="font-bold text-slate-400">No hay información de historial disponible.</p>
+
+                     </div>
+
+                   )}
+
+                </div>
+
+              </div>
+
+            ) : showMisClientes ? (
+
+              <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-300">
+
+                <div className="flex items-center justify-between px-1">
+
+                  <h3 className="font-bold text-slate-900 text-lg">Mis clientes</h3>
+
+                  <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest bg-slate-100 px-3 py-1 rounded-full">
+
+                    {loadingMisCreditos ? 'Cargando' : `${misCreditos.length} créditos`}
+
+                  </div>
+
+                </div>
+
+
+
+                {loadingMisCreditos ? (
+
+                  <div className="flex flex-col items-center justify-center py-10 text-slate-400">
+
+                    <Loader2 className="w-6 h-6 animate-spin mb-2 opacity-20" />
+
+                    <span className="text-xs font-medium">Cargando clientes...</span>
+
+                  </div>
+
+                ) : (() => {
+
+                  const filtradas = misCreditos.filter((v) =>
+
+                    v.cliente.toLowerCase().includes(searchQuery.toLowerCase()) ||
+
+                    v.direccion.toLowerCase().includes(searchQuery.toLowerCase()),
+
+                  )
+
+
+
+                  if (filtradas.length === 0) {
+
+                    return (
+
+                      <div className="bg-white rounded-2xl border border-slate-200 p-12 text-center">
+
+                        <User className="w-12 h-12 text-slate-200 mx-auto mb-4" />
+
+                        <p className="font-bold text-slate-400">No hay créditos asignados para este cobrador.</p>
+
+                      </div>
+
+                    )
+
+                  }
+
+
+
+                  return (
+
+                    <div className="space-y-4">
+
+                      {filtradas.map((visita) => (
+
+                        <StaticVisitaItem
+
+                          key={visita.id}
+
+                          visita={visita}
+
+                          allowClick={false}
+
+                          onVerCliente={handleAbrirClienteInfo}
+
+                          getEstadoClasses={getEstadoClasses}
+
+                          getPrioridadColor={getPrioridadColor}
+
+                        >
+
+                          <div className="flex flex-wrap gap-1.5 pt-2">
+
+                            <button
+
+                              onClick={(e) => {
+
+                                e.stopPropagation();
+
+                                handleAbrirAbono(visita);
+
+                              }}
+
+                              className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 transition-all font-bold text-[11px] shadow-sm active:scale-95"
+
+                            >
+
+                              <Wallet className="h-3.5 w-3.5" />
+
+                              Abono
+
+                            </button>
+
+                            <button
+
+                              onClick={(e) => {
+
+                                e.stopPropagation();
+
+                                handleAbrirEstadoCuenta(visita);
+
+                              }}
+
+                              className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-white text-slate-700 border border-slate-200 hover:bg-slate-50 transition-all font-bold text-[11px] shadow-sm active:scale-95"
+
+                            >
+
+                              <FileTextIcon className="h-3.5 w-3.5 text-slate-400" />
+
+                              Estado
+
+                            </button>
+
+                          </div>
+
+                        </StaticVisitaItem>
+
+                      ))}
+
+                    </div>
+
+                  )
+
+                })()}
+
+              </div>
+
+            ) : (
+
+              // ========================= VISTA VISITAS ACTUALES =========================
+
+              <>
+
+                  <div className="flex flex-col gap-6 animate-in fade-in duration-300">
+
+                    <div className="flex items-center justify-end">
+
+                    </div>
+
+
+
+                    {/* Leyenda de Riesgos Simplificada */}
+
+                    <div className="flex flex-wrap gap-2 text-[10px] font-black text-slate-600 bg-white p-3 rounded-xl border border-slate-200 shadow-sm uppercase tracking-tighter">
+
+                        <div className="flex items-center gap-1.5 px-2 py-1 bg-emerald-50 rounded-lg border border-emerald-500/20">
+
+                            <div className="w-2 h-2 rounded-full bg-emerald-500"></div> 
+
+                            <span>Mínimo</span>
+
+                        </div>
+
+                        <div className="flex items-center gap-1.5 px-2 py-1 bg-blue-50 rounded-lg border border-blue-500/20">
+
+                            <div className="w-2 h-2 rounded-full bg-blue-500"></div> 
+
+                            <span>Leve</span>
+
+                        </div>
+
+                        <div className="flex items-center gap-1.5 px-2 py-1 bg-yellow-50 rounded-lg border border-yellow-500/20">
+
+                            <div className="w-2 h-2 rounded-full bg-yellow-500"></div> 
+
+                            <span>Precaución</span>
+
+                        </div>
+
+                        <div className="flex items-center gap-1.5 px-2 py-1 bg-amber-50 rounded-lg border border-amber-500/20">
+
+                            <div className="w-2 h-2 rounded-full bg-amber-500"></div> 
+
+                            <span>Moderado</span>
+
+                        </div>
+
+                        <div className="flex items-center gap-1.5 px-2 py-1 bg-rose-50 rounded-lg border border-rose-500/20">
+
+                            <div className="w-2 h-2 rounded-full bg-rose-500"></div> 
+
+                            <span>Crítico</span>
+
+                        </div>
+
+                    </div>
+
+                  </div>
+
+
+
+                  {/* LISTA DE VISITAS AGRUPADA POR FRECUENCIA — Colapsables */}
+
+                  <div className="space-y-10">
+
+                    {Object.entries({
+                        MES: 'Mensual',
+                        QUINCENA: 'Quincenal',
+                        SEMANA: 'Semanal',
+                        DIA: 'Diario'
+                    }).map(([key, label]) => {
+
+                        const visitas = visitasAgrupadas[key as keyof typeof visitasAgrupadas];
+
+                        if (visitas.length === 0) return null;
+
+                        const estaColapsado = !!gruposColapsados[key];
+
+
+
+                        return (
+
+                            <div key={key} className="space-y-4">
+
+                                {/* Separador clicable — mismo look de antes + chevron */}
+
+                                <button
+
+                                  type="button"
+
+                                  onClick={() => toggleGrupo(key)}
+
+                                  className="w-full flex items-center gap-4 group"
+
+                                >
+
+                                    <div className="h-px flex-1 bg-slate-200" />
+
+                                    <span className="flex items-center gap-2 text-[11px] font-black text-[#08557f] uppercase tracking-[0.25em] bg-blue-50/50 px-4 py-1.5 rounded-full border border-blue-100 shadow-sm whitespace-nowrap select-none group-hover:bg-blue-100/60 transition-colors">
+
+                                        {label}
+
+                                        <ChevronDown className={`h-3 w-3 transition-transform duration-200 ${estaColapsado ? '' : 'rotate-180'}`} />
+
+                                    </span>
+
+                                    <div className="h-px flex-1 bg-slate-200" />
+
+                                </button>
+
+
+
+                                {/* Visitas — se ocultan si está colapsado */}
+
+                                {!estaColapsado && (
+
+                                  <div className="space-y-4 animate-in slide-in-from-top-2 duration-150">
+
+                                    {visitas.map((visita) => (
+
+                                        <StaticVisitaItem
+
                                             key={visita.id}
+
                                             visita={visita}
+
                                             allowClick={false}
+
                                             onVerCliente={handleAbrirClienteInfo}
                                             getEstadoClasses={getEstadoClasses}
                                             getPrioridadColor={getPrioridadColor}
-<<<<<<< HEAD
-                                         actions={
-=======
-                                            actions={
->>>>>>> d43688064f18a1901abd7507d9fe298ee279faa3
-                                              <>
+                                        >
+                                            <div className="flex flex-wrap gap-1.5 pt-2">
                                                 <button
                                                     onClick={(e) => { e.stopPropagation(); if (visita.pendienteAprobacion) return; handleAbrirPago(visita); }}
                                                     disabled={visita.pendienteAprobacion}
                                                     title={visita.pendienteAprobacion ? 'Crédito pendiente de aprobación' : 'Registrar Pago'}
-                                                    className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-lg transition-all font-bold text-[11px] ${visita.pendienteAprobacion ? 'bg-slate-50 text-slate-300 border border-slate-100 opacity-50 cursor-not-allowed' : 'bg-blue-600 text-white hover:bg-blue-700 active:scale-95 shadow-sm'}`}
+                                                    className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-lg transition-all font-bold text-[11px] shadow-sm ${visita.pendienteAprobacion ? 'bg-slate-50 text-slate-300 border border-slate-100 opacity-50 cursor-not-allowed' : 'bg-blue-600 text-white hover:bg-blue-700 active:scale-95'}`}
                                                 >
                                                     <DollarSign className="h-3.5 w-3.5" />
                                                     Pago
@@ -1999,34 +2454,52 @@ const RutaClientLoaded = ({
                                                     onClick={(e) => { e.stopPropagation(); if (visita.pendienteAprobacion) return; handleAbrirAbono(visita); }}
                                                     disabled={visita.pendienteAprobacion}
                                                     title={visita.pendienteAprobacion ? 'Crédito pendiente de aprobación' : 'Registrar Abono'}
-                                                    className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-lg transition-all font-bold text-[11px] ${visita.pendienteAprobacion ? 'bg-slate-50 text-slate-300 border border-slate-100 opacity-50 cursor-not-allowed' : 'bg-emerald-600 text-white hover:bg-emerald-700 active:scale-95 shadow-sm'}`}
+                                                    className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-lg transition-all font-bold text-[11px] shadow-sm ${visita.pendienteAprobacion ? 'bg-slate-50 text-slate-300 border border-slate-100 opacity-50 cursor-not-allowed' : 'bg-emerald-600 text-white hover:bg-emerald-700 active:scale-95'}`}
                                                 >
                                                     <Wallet className="h-3.5 w-3.5" />
                                                     Abono
                                                 </button>
                                                 <button
                                                     onClick={(e) => { e.stopPropagation(); handleAbrirEstadoCuenta(visita); }}
-                                                    className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-white text-slate-600 border border-slate-200 hover:bg-slate-50 transition-all shadow-sm active:scale-95 font-bold text-[11px]"
+                                                    className="flex flex-col items-center justify-center p-2 rounded-xl bg-white text-slate-700 border border-slate-200 hover:bg-slate-50 transition-all shadow-sm active:scale-95"
+
                                                 >
+
                                                     <FileTextIcon className="h-3.5 w-3.5 text-slate-400" />
+
                                                     Estado
+
                                                 </button>
+
                                                 <button
+
                                                     onClick={(e) => { 
+
                                                       e.stopPropagation(); 
+
                                                       const isProrrogaVencida = visita.enProrroga && visita.fechaProrroga && new Date(visita.fechaProrroga).getTime() < Date.now();
+
                                                       if (!visita.enProrroga || isProrrogaVencida) setVisitaReprogramar(visita); 
+
                                                     }}
+
                                                     disabled={!!visita.enProrroga && !(visita.fechaProrroga && new Date(visita.fechaProrroga).getTime() < Date.now())}
+
                                                     title={visita.enProrroga && !(visita.fechaProrroga && new Date(visita.fechaProrroga).getTime() < Date.now()) ? 'No se puede reprogramar con prorroga activa' : 'Solicitar reprogramacion'}
-                                                    className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-lg transition-all font-bold text-[11px] ${visita.enProrroga && !(visita.fechaProrroga && new Date(visita.fechaProrroga).getTime() < Date.now()) ? 'bg-slate-50 text-slate-300 border border-slate-100 opacity-50 cursor-not-allowed' : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50 active:scale-95 shadow-sm'}`}
+
+                                                    className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border transition-all font-bold text-[11px] shadow-sm ${visita.enProrroga && !(visita.fechaProrroga && new Date(visita.fechaProrroga).getTime() < Date.now()) ? 'bg-slate-50 text-slate-300 border-slate-100 opacity-50 cursor-not-allowed' : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50 active:scale-95'}`}
+
                                                 >
+
                                                     <Calendar className="h-3.5 w-3.5 text-slate-400" />
+
                                                     Repro.
+
                                                 </button>
-                                              </>
-                                            }
-                                        />
+
+                                            </div>
+
+                                        </StaticVisitaItem>
 
                                     ))}
 
@@ -2144,31 +2617,19 @@ const RutaClientLoaded = ({
       {visitaReprogramar && (
 
         <ReprogramarModal
+
             visita={visitaReprogramar}
+
             onClose={() => setVisitaReprogramar(null)}
-            onConfirm={async (fecha, motivo) => {
-                try {
-                  if (!visitaReprogramar?.prestamoId) {
-                    showNotification('error', 'Falta el ID del préstamo para reprogramar', 'Error');
-                    return;
-                  }
-                  
-                  await prestamosService.reprogramarPrestamo(visitaReprogramar.prestamoId, {
-                    fecha,
-                    motivo,
-                    cobradorId: currentUser?.id || '',
-                  });
-                  
-                  showNotification('success', 'Solicitud de reprogramación enviada correctamente', 'Éxito');
-                  setVisitaReprogramar(null);
-                  
-                  try { await onRutaRefresh?.(); } catch {}
-                  router.refresh();
-                } catch (e: any) {
-                  console.error('Error reprogramando:', e);
-                  showNotification('error', e?.message || 'Error al solicitar reprogramación', 'Error');
-                }
+
+            onConfirm={(fecha, motivo) => {
+
+                alert(`Reprogramar para: ${fecha} - ${motivo}`)
+
+                setVisitaReprogramar(null)
+
             }}
+
         />
 
       )}
@@ -2325,41 +2786,47 @@ const RutaClientLoaded = ({
 
             try {
 
-              const esContado = Boolean((data as any).ventaContado);
-              const payload: any = {
-                clienteId: data.clienteCreditoId,
-                tipoPrestamo: data.creditType === 'prestamo' ? 'EFECTIVO' : 'ARTICULO',
-                monto: data.monto || 0,
-                tasaInteres: esContado ? 0 : (data.tasaInteres || 0),
-                tasaInteresMora: 2.0,
-                plazoMeses: data.plazoMeses || 1,
-                cantidadCuotas: data.cantidadCuotas || data.cuotas || data.cuotasTotales || 0,
-                cuotas: data.cuotas || data.cantidadCuotas || data.cuotasTotales || 0,
-                frecuenciaPago: esContado ? 'MENSUAL' : (data.frecuenciaPago || 'DIARIO'),
-                fechaInicio: data.fechaInicio || new Date().toISOString(),
-                creadoPorId: currentUser?.id,
-                cuotaInicial: data.cuotaInicialArticulo || 0,
-                notas: data.creditType === 'articulo' 
-                  ? `${esContado ? 'Venta de contado' : 'Crédito de artículo'}: ${data.articuloNombre || ''}`
-                  : (data.notas || ''),
-                tipoAmortizacion: data.tipoInteres || 'INTERES_SIMPLE',
-                esContado: esContado
+              const payload = {
+
+                ...data,
+
+                creadoPorId: currentUser?.id || ''
+
               };
 
-              if (data.creditType === 'articulo') {
-                payload.productoId = data.articuloId;
-                payload.precioProductoId = esContado ? undefined : data.precioProductoId;
+              
+
+              if (data.creditType === 'prestamo') {
+
+                await prestamosService.crearPrestamo({
+
+                  ...data,
+
+                  clienteId: data.clienteCreditoId,
+
+                  tipoPrestamo: 'EFECTIVO',
+
+                  tasaInteresMora: 2.0,
+
+                  creadoPorId: currentUser?.id || ''
+
+                } as any);
+
+              } else {
+
+                await creditosService.crearCredito({
+
+                  ...data,
+
+                  clienteId: data.clienteCreditoId,
+
+                  creadoPorId: currentUser?.id || ''
+
+                } as any);
+
               }
 
-              const prestamo = await prestamosService.crearPrestamo(payload);
-              
-              if (data.creditType === 'articulo' && prestamo?.id && !esContado) {
-                try {
-                  await exportService.exportContrato(prestamo.id);
-                } catch (err) {
-                  console.error('Error generando contrato:', err);
-                }
-              }
+
 
               // Asignar cliente a la ruta automáticamente si estamos en el detalle de una ruta
 
