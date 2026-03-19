@@ -913,110 +913,23 @@ const DetalleRutaPage = () => {
                                       </div>
                                     ) : (
                                       data.visitas.map((v: any) => (
-                                        <StaticVisitaItem
-                                            key={v.id}
-                                            visita={v}
-                                            allowClick={false}
-                                            onVerCliente={handleAbrirClienteInfo}
-                                            getEstadoClasses={getEstadoClasses}
-                                            getPrioridadColor={getPrioridadColor}
-                                        />
-                                      ))
-                                    )}
-                                 </div>
-                              </div>
-                           )}
-                         </div>
-                       )
-                    })}
-                 </div>
-              ) : (
-                <div className="bg-white rounded-2xl border border-slate-200 p-12 text-center">
-                    <History className="w-12 h-12 text-slate-200 mx-auto mb-4" />
-                    <p className="font-bold text-slate-400">No hay información de historial disponible.</p>
-                </div>
-              )}
-           </div>
-        ) : (
-
-         <div>
-              <div className="flex flex-col gap-4 mb-4">
-                <div className="flex items-center justify-between">
-                  <h3 className="font-bold text-slate-900 text-lg">Visitas del Día</h3>
-                </div>
-                
-                 <div className="flex flex-wrap gap-3 text-xs font-bold text-slate-600 bg-white p-3 rounded-xl border border-slate-200 shadow-sm">
-                    <div className="flex items-center gap-2 px-2 py-1 bg-emerald-50 rounded-lg border border-emerald-500/20 text-emerald-700">
-                        <div className="w-2h-2 rounded-full bg-emerald-500"></div> 
-                        <span>Mínimo</span>
-                    </div>
-                    <div className="flex items-center gap-2 px-2 py-1 bg-blue-50 rounded-lg border border-blue-500/20 text-blue-700">
-                        <div className="w-2 h-2 rounded-full bg-blue-500"></div> 
-                        <span>Leve</span>
-                    </div>
-                    <div className="flex items-center gap-2 px-2 py-1 bg-yellow-50 rounded-lg border border-yellow-500/20 text-yellow-700">
-                        <div className="w-2 h-2 rounded-full bg-yellow-500"></div> 
-                        <span>Precaución</span>
-                    </div>
-                    <div className="flex items-center gap-2 px-2 py-1 bg-orange-50 rounded-lg border border-orange-500/20 text-orange-700">
-                        <div className="w-2 h-2 rounded-full bg-orange-500"></div> 
-                        <span>Moderado</span>
-                    </div>
-                    <div className="flex items-center gap-2 px-2 py-1 bg-red-50 rounded-lg border border-red-500/20 text-red-700">
-                        <div className="w-2 h-2 rounded-full bg-red-500"></div> 
-                        <span>Crítico</span>
-                    </div>
-                 </div>
-              </div>
-
-              <div className="space-y-10">
-                {Object.entries({
-                    MES: 'Mensual',
-                    QUINCENA: 'Quincenal',
-                    SEMANA: 'Semanal',
-                    DIA: 'Diario'
-                }).map(([key, label]) => {
-                    const visitas = visitasAgrupadas[key as keyof typeof visitasAgrupadas];
-                    if (visitas.length === 0) return null;
-                    const estaColapsado = !!gruposColapsados[key];
-                    
-                    return (
-                        <div key={key} className="space-y-4">
-                            <button
-                              type="button"
-                              onClick={() => toggleGrupo(key)}
-                              className="w-full flex items-center gap-4 group"
-                            >
-                                <div className="h-px flex-1 bg-slate-200"></div>
-                                <span className="flex items-center gap-2 text-[11px] font-black text-[#08557f] uppercase tracking-[0.25em] bg-blue-50/50 px-4 py-1.5 rounded-full border border-blue-100 shadow-sm whitespace-nowrap select-none group-hover:bg-blue-100/60 transition-colors">
-                                    {label}
-                                    <span className="ml-1 bg-blue-600 text-white text-[9px] px-2 py-0.5 rounded-full">{visitas.length}</span>
-                                    <ChevronDown className={`h-3 w-3 transition-transform duration-200 ${estaColapsado ? '' : 'rotate-180'}`} />
-                                </span>
-                                <div className="h-px flex-1 bg-slate-200"></div>
-                            </button>
-
-                            {!estaColapsado && (
-                              <div className="space-y-4">
-                                  {visitas.map((visita) => (
-                                      <StaticVisitaItem
+                                                                              <StaticVisitaItem
                                           key={visita.id}
                                           visita={visita}
                                           allowClick={false}
                                           onVerCliente={handleAbrirClienteInfo}
                                           getEstadoClasses={getEstadoClasses}
                                           getPrioridadColor={getPrioridadColor}
-                                      >
-                                          <div className="pt-2">
-                                              <button
-                                                  onClick={(e) => { e.stopPropagation(); handleAbrirEstadoCuenta(visita); }}
-                                                  className="w-full flex items-center justify-center gap-2 p-2.5 rounded-xl bg-white text-[#08557f] border border-[#08557f]/20 hover:bg-blue-50 transition-all shadow-sm active:scale-95"
-                                              >
-                                                  <FileTextIcon className="h-4 w-4" />
-                                                  <span className="text-[10px] font-black uppercase tracking-widest">Estado de Cuenta</span>
-                                              </button>
-                                          </div>
-                                      </StaticVisitaItem>
+                                          actions={
+                                            <button
+                                                onClick={(e) => { e.stopPropagation(); handleAbrirEstadoCuenta(visita); }}
+                                                className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-white text-[#08557f] border border-[#08557f]/20 hover:bg-blue-50 transition-all shadow-sm active:scale-95 font-bold text-[11px]"
+                                            >
+                                                <FileTextIcon className="h-3.5 w-3.5" />
+                                                Estado
+                                            </button>
+                                          }
+                                      />
                                   ))}
                               </div>
                             )}

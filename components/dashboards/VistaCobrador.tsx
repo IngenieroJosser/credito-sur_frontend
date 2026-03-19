@@ -2611,33 +2611,34 @@ const VistaCobrador = () => {
                                 onSelect={() => {}}
                                 onVerCliente={handleAbrirClienteInfo}
                                 getEstadoClasses={getEstadoClasses}
-                              >
-                                <div className="grid grid-cols-2 gap-2 pt-1">
-                                  <button
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      setVisitaPagoSeleccionada(visita);
-                                      setPagoInitialIsAbono(true);
-                                      setShowPaymentModal(true);
-                                    }}
-                                    className="flex flex-col items-center justify-center p-2 rounded-xl bg-emerald-600 text-white hover:bg-emerald-700 transition-all shadow-sm active:scale-95"
-                                  >
-                                    <Wallet className="h-4 w-4 mb-1" />
-                                    <span className="text-[9px] font-bold uppercase">Abono</span>
-                                  </button>
-                                  <button
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      setVisitaEstadoCuentaSeleccionada(visita);
-                                      setShowEstadoCuentaModal(true);
-                                    }}
-                                    className="flex flex-col items-center justify-center p-2 rounded-xl bg-white text-slate-700 border border-slate-200 hover:bg-slate-50 transition-all shadow-sm active:scale-95"
-                                  >
-                                    <FileTextIcon className="h-4 w-4 mb-1 text-slate-400" />
-                                    <span className="text-[9px] font-bold uppercase">Estado</span>
-                                  </button>
-                                </div>
-                              </StaticVisitaItem>
+                                actions={
+                                  <>
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setVisitaPagoSeleccionada(visita);
+                                        setPagoInitialIsAbono(true);
+                                        setShowPaymentModal(true);
+                                      }}
+                                      className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 transition-all active:scale-95 text-[11px] font-bold"
+                                    >
+                                      <Wallet className="h-3.5 w-3.5" />
+                                      Abono
+                                    </button>
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setVisitaEstadoCuentaSeleccionada(visita);
+                                        setShowEstadoCuentaModal(true);
+                                      }}
+                                      className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-white text-slate-600 border border-slate-200 hover:bg-slate-50 transition-all active:scale-95 text-[11px] font-bold"
+                                    >
+                                      <FileTextIcon className="h-3.5 w-3.5 text-slate-400" />
+                                      Estado
+                                    </button>
+                                  </>
+                                }
+                              />
                             ))}
                           </div>
                         )
@@ -2692,56 +2693,57 @@ const VistaCobrador = () => {
                                   getEstadoClasses={getEstadoClasses}
                                   disableSort={true}
                                   isSelected={visita.id === visitaSeleccionada}
-                                >
-                                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1">
-                                    <button
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        setVisitaPagoSeleccionada(visita);
-                                        setPagoInitialIsAbono(false);
-                                        setShowPaymentModal(true);
-                                      }}
-                                      className="flex flex-col items-center justify-center p-2 rounded-xl bg-blue-600 text-white hover:bg-blue-700 transition-all shadow-sm active:scale-95"
-                                    >
-                                      <DollarSign className="h-4 w-4 mb-1" />
-                                      <span className="text-[9px] font-bold uppercase">Pago</span>
-                                    </button>
-                                    <button
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        setVisitaPagoSeleccionada(visita);
-                                        setPagoInitialIsAbono(true);
-                                        setShowPaymentModal(true);
-                                      }}
-                                      className="flex flex-col items-center justify-center p-2 rounded-xl bg-emerald-600 text-white hover:bg-emerald-700 transition-all shadow-sm active:scale-95"
-                                    >
-                                      <Wallet className="h-4 w-4 mb-1" />
-                                      <span className="text-[9px] font-bold uppercase">Abono</span>
-                                    </button>
-                                    <button
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        setVisitaEstadoCuentaSeleccionada(visita);
-                                        setShowEstadoCuentaModal(true);
-                                      }}
-                                      className="flex flex-col items-center justify-center p-2 rounded-xl bg-white text-slate-700 border border-slate-200 hover:bg-slate-50 transition-all shadow-sm active:scale-95"
-                                    >
-                                      <FileTextIcon className="h-4 w-4 mb-1 text-slate-400" />
-                                      <span className="text-[9px] font-bold uppercase">Estado</span>
-                                    </button>
-                                    <button
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        setVisitaReprogramar(visita);
-                                        setShowReprogramModal(true);
-                                      }}
-                                      className="flex flex-col items-center justify-center p-2 rounded-xl bg-white text-slate-700 border border-slate-200 hover:bg-slate-50 transition-all shadow-sm active:scale-95"
-                                    >
-                                      <Calendar className="h-4 w-4 mb-1 text-slate-400" />
-                                      <span className="text-[9px] font-bold uppercase">Repro.</span>
-                                    </button>
-                                  </div>
-                                </SortableVisita>
+                                  actions={
+                                    <>
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setVisitaPagoSeleccionada(visita);
+                                          setPagoInitialIsAbono(false);
+                                          setShowPaymentModal(true);
+                                        }}
+                                        className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-all active:scale-95 text-[11px] font-bold"
+                                      >
+                                        <DollarSign className="h-3.5 w-3.5" />
+                                        Pago
+                                      </button>
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setVisitaPagoSeleccionada(visita);
+                                          setPagoInitialIsAbono(true);
+                                          setShowPaymentModal(true);
+                                        }}
+                                        className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 transition-all active:scale-95 text-[11px] font-bold"
+                                      >
+                                        <Wallet className="h-3.5 w-3.5" />
+                                        Abono
+                                      </button>
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setVisitaEstadoCuentaSeleccionada(visita);
+                                          setShowEstadoCuentaModal(true);
+                                        }}
+                                        className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-white text-slate-600 border border-slate-200 hover:bg-slate-50 transition-all active:scale-95 text-[11px] font-bold"
+                                      >
+                                        <FileTextIcon className="h-3.5 w-3.5 text-slate-400" />
+                                        Estado
+                                      </button>
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setVisitaReprogramar(visita);
+                                          setShowReprogramModal(true);
+                                        }}
+                                        className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-white text-slate-600 border border-slate-200 hover:bg-slate-50 transition-all active:scale-95 text-[11px] font-bold"
+                                      >
+                                        <Calendar className="h-3.5 w-3.5 text-slate-400" />
+                                        Repro.
+                                      </button>
+                                    </>
+                                  }
+                                />
                               ))}
                             </div>
                           )}
