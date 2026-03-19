@@ -999,24 +999,23 @@ const DetalleRutaPage = () => {
                             {!estaColapsado && (
                               <div className="space-y-4">
                                   {visitas.map((visita) => (
-                                      <StaticVisitaItem
+                                                                            <StaticVisitaItem
                                           key={visita.id}
                                           visita={visita}
                                           allowClick={false}
                                           onVerCliente={handleAbrirClienteInfo}
                                           getEstadoClasses={getEstadoClasses}
                                           getPrioridadColor={getPrioridadColor}
-                                      >
-                                          <div className="pt-2">
-                                              <button
-                                                  onClick={(e) => { e.stopPropagation(); handleAbrirEstadoCuenta(visita); }}
-                                                  className="w-full flex items-center justify-center gap-2 p-2.5 rounded-xl bg-white text-[#08557f] border border-[#08557f]/20 hover:bg-blue-50 transition-all shadow-sm active:scale-95"
-                                              >
-                                                  <FileTextIcon className="h-4 w-4" />
-                                                  <span className="text-[10px] font-black uppercase tracking-widest">Estado de Cuenta</span>
-                                              </button>
-                                          </div>
-                                      </StaticVisitaItem>
+                                          actions={
+                                            <button
+                                                onClick={(e) => { e.stopPropagation(); handleAbrirEstadoCuenta(visita); }}
+                                                className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-white text-[#08557f] border border-[#08557f]/20 hover:bg-blue-50 transition-all shadow-sm active:scale-95 font-bold text-[11px]"
+                                            >
+                                                <FileTextIcon className="h-3.5 w-3.5" />
+                                                Estado
+                                            </button>
+                                          }
+                                      />
                                   ))}
                               </div>
                             )}

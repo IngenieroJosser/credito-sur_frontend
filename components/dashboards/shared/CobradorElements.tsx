@@ -132,12 +132,14 @@ function VisitaCardContent({
   onVerCliente,
   getEstadoClasses,
   grip,
+  actions,
   children,
 }: {
   visita: VisitaRuta
   onVerCliente: (v: VisitaRuta) => void
   getEstadoClasses: (e: EstadoVisita) => string
   grip?: ReactNode
+  actions?: ReactNode
   children?: ReactNode
 }) {
   return (
@@ -147,24 +149,24 @@ function VisitaCardContent({
         {grip}
 
         {/* Nombre (ocupa todo el espacio disponible) */}
-        <p className="flex-1 min-w-0 text-sm font-black text-slate-900 leading-snug break-words">
+        <p className="flex-1 min-w-0 text-xs font-black text-slate-900 leading-snug break-words">
           {visita.cliente}
         </p>
 
         {/* Botón ver detalles */}
         <button
           onClick={(e) => { e.stopPropagation(); onVerCliente(visita) }}
-          className="p-2 bg-slate-100/60 rounded-lg hover:bg-white text-slate-400 hover:text-[#08557f] transition-all border border-transparent hover:border-slate-200 shrink-0 active:scale-95"
+          className="p-1.5 bg-slate-100/60 rounded-lg hover:bg-white text-slate-400 hover:text-[#08557f] transition-all border border-transparent hover:border-slate-200 shrink-0 active:scale-95"
           title="Ver expediente del cliente"
         >
-          <Eye className="w-4 h-4" />
+          <Eye className="w-3.5 h-3.5" />
         </button>
       </div>
 
-      {/* Fila 2: badges izquierda + KPIs derecha */}
-      <div className="mt-2 flex items-center justify-between gap-2 flex-wrap">
+      {/* Fila 2: badges | botones de acción (centro) | KPIs */}
+      <div className="mt-1 flex items-center gap-1.5">
         {/* Badges */}
-        <div className="flex items-center gap-1 flex-wrap">
+        <div className="flex items-center gap-1 flex-wrap shrink-0">
           {/* Dot semáforo */}
           <span
             title={nivelTitle(visita.nivelRiesgo)}
@@ -186,8 +188,15 @@ function VisitaCardContent({
           </span>
         </div>
 
+        {/* Botones de acción centrados */}
+        {actions && (
+          <div className="flex-1 flex items-center justify-center gap-1 flex-wrap">
+            {actions}
+          </div>
+        )}
+
         {/* KPIs: cuota · saldo · período */}
-        <div className="flex items-center gap-1.5 shrink-0">
+        <div className="flex items-center gap-1.5 shrink-0 ml-auto">
           <div className="text-center">
             <div className="text-[8px] font-bold text-slate-400 uppercase leading-none mb-0.5">Cuota</div>
             <div className="text-[11px] font-black text-slate-800 tabular-nums">{formatMontoCorto(visita.montoCuota)}</div>
@@ -208,7 +217,7 @@ function VisitaCardContent({
 
       {/* Fila 2b: Banner "Pendiente de aprobación" */}
       {visita.pendienteAprobacion && (
-        <div className="mt-2 flex items-center gap-1.5 px-2 py-1.5 rounded-lg border border-amber-200 bg-amber-50 text-amber-700 text-[9px] font-black uppercase tracking-wide">
+        <div className="mt-1 flex items-center gap-1.5 px-2 py-1 rounded-lg border border-amber-200 bg-amber-50 text-amber-700 text-[9px] font-black uppercase tracking-wide">
           <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse shrink-0" />
           Crédito pendiente de aprobación — cobro deshabilitado
         </div>
@@ -216,7 +225,7 @@ function VisitaCardContent({
 
       {/* Fila 3: dirección + teléfono */}
       {(visita.direccion || visita.telefono) && (
-        <div className="mt-1.5 flex items-center gap-1 text-[10px] text-slate-400 font-medium leading-none flex-wrap">
+        <div className="mt-1 flex items-center gap-1 text-[10px] text-slate-400 font-medium leading-none flex-wrap">
           {visita.direccion && (
             <>
               <MapPin className="w-3 h-3 shrink-0" />
@@ -245,7 +254,7 @@ function VisitaCardContent({
               ? 'bg-amber-50 border-amber-200 text-amber-700'
               : 'bg-blue-50 border-blue-200 text-blue-700'
         return (
-          <div className={`mt-1.5 flex items-center gap-1.5 px-2 py-1 rounded-lg border text-[9px] font-black uppercase tracking-wide ${color}`}>
+          <div className={`mt-1 flex items-center gap-1.5 px-2 py-1 rounded-lg border text-[9px] font-black uppercase tracking-wide ${color}`}>
             <Timer className="w-3 h-3 shrink-0" />
             {diasRestantes === null
               ? 'En prórroga activa'
@@ -258,9 +267,9 @@ function VisitaCardContent({
         )
       })()}
 
-      {/* Fila 5: botones de acción (children) */}
+      {/* Fila extra: children (fallback para contenido adicional) */}
       {children && (
-        <div className="mt-2 pt-2 border-t border-slate-100">
+        <div className="mt-1 pt-1 border-t border-slate-100">
           {children}
         </div>
       )}
@@ -278,6 +287,7 @@ export function StaticVisitaItem({
   getPrioridadColor,
   isSelected,
   allowClick = true,
+  actions,
   children,
 }: {
   visita: VisitaRuta
@@ -287,12 +297,13 @@ export function StaticVisitaItem({
   getPrioridadColor?: (prioridad: 'alta' | 'media' | 'baja') => string
   isSelected?: boolean
   allowClick?: boolean
+  actions?: ReactNode
   children?: ReactNode
 }) {
   return (
     <div
       onClick={() => allowClick && onSelect && onSelect(visita.id)}
-      className={`relative z-10 w-full rounded-xl px-3 py-2.5 transition-all bg-white border-2 ${
+      className={`relative z-10 w-full rounded-xl px-2.5 py-1.5 transition-all bg-white border-2 ${
         allowClick ? 'cursor-pointer hover:shadow-md active:scale-[0.99]' : 'cursor-default'
       } ${borderColor(visita.nivelRiesgo, !!isSelected)}`}
     >
@@ -300,6 +311,7 @@ export function StaticVisitaItem({
         visita={visita}
         onVerCliente={onVerCliente}
         getEstadoClasses={getEstadoClasses}
+        actions={actions}
       >
         {children}
       </VisitaCardContent>
@@ -316,6 +328,7 @@ export function SortableItem({
   getEstadoClasses,
   getPrioridadColor,
   isSelected,
+  actions,
   children,
   disableSort,
 }: {
@@ -325,6 +338,7 @@ export function SortableItem({
   getEstadoClasses: (estado: EstadoVisita) => string
   getPrioridadColor?: (prioridad: 'alta' | 'media' | 'baja') => string
   isSelected?: boolean
+  actions?: ReactNode
   children?: ReactNode
   disableSort?: boolean
 }) {
@@ -349,13 +363,14 @@ export function SortableItem({
     <div
       ref={setNodeRef}
       style={style}
-      className={`relative z-10 w-full rounded-xl px-3 py-2.5 transition-all bg-white border-2 ${borderColor(visita.nivelRiesgo, !!isSelected)}`}
+      className={`relative z-10 w-full rounded-xl px-2.5 py-1.5 transition-all bg-white border-2 ${borderColor(visita.nivelRiesgo, !!isSelected)}`}
     >
       <VisitaCardContent
         visita={visita}
         onVerCliente={onVerCliente}
         getEstadoClasses={getEstadoClasses}
         grip={grip}
+        actions={actions}
       >
         {children}
       </VisitaCardContent>
@@ -372,6 +387,7 @@ export function SortableVisita({
   getEstadoClasses,
   getPrioridadColor,
   isSelected,
+  actions,
   children,
   disableSort,
 }: {
@@ -381,6 +397,7 @@ export function SortableVisita({
   getEstadoClasses: (estado: EstadoVisita) => string
   getPrioridadColor?: (prioridad: 'alta' | 'media' | 'baja') => string
   isSelected?: boolean
+  actions?: ReactNode
   children?: ReactNode
   disableSort?: boolean
 }) {
@@ -393,6 +410,7 @@ export function SortableVisita({
       getPrioridadColor={getPrioridadColor}
       isSelected={isSelected}
       disableSort={disableSort}
+      actions={actions}
     >
       {children}
     </SortableItem>
