@@ -15,6 +15,10 @@ export interface Cliente {
   telefono: string;
   direccion: string | null;
   referencia: string | null;
+  referencia1Nombre: string | null;
+  referencia1Telefono: string | null;
+  referencia2Nombre: string | null;
+  referencia2Telefono: string | null;
   nivelRiesgo: NivelRiesgo;
   puntaje: number;
   enListaNegra: boolean;
@@ -42,6 +46,10 @@ export interface CrearClienteDto {
   direccion?: string;
   correo?: string;
   referencia?: string;
+  referencia1Nombre?: string;
+  referencia1Telefono?: string;
+  referencia2Nombre?: string;
+  referencia2Telefono?: string;
   nivelRiesgo?: NivelRiesgo;
   puntaje?: number;
   enListaNegra?: boolean;
@@ -66,6 +74,10 @@ export interface ActualizarClienteDto {
   correo?: string;
   direccion?: string;
   referencia?: string;
+  referencia1Nombre?: string;
+  referencia1Telefono?: string;
+  referencia2Nombre?: string;
+  referencia2Telefono?: string;
   nivelRiesgo?: NivelRiesgo;
   puntaje?: number;
   dni?: string; // Permitir dni si es editable

@@ -54,6 +54,10 @@ export interface Cliente {
   telefono: string;
   direccion: string | null;
   referencia: string | null;
+  referencia1Nombre?: string | null;
+  referencia1Telefono?: string | null;
+  referencia2Nombre?: string | null;
+  referencia2Telefono?: string | null;
   nivelRiesgo: NivelRiesgo;
   puntaje: number;
   enListaNegra: boolean;
@@ -371,6 +375,50 @@ const ClienteDetalleElegante: React.FC<ClienteDetalleProps> = ({
               </div>
             </div>
           </div>
+
+          {/* Referencias personales */}
+          {(cliente.referencia1Nombre || cliente.referencia2Nombre) && (
+            <div className="mt-4 p-5 bg-white/80 backdrop-blur-sm rounded-2xl border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)]">
+              <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3 flex items-center gap-1.5">
+                <User className="w-3.5 h-3.5" />
+                Referencias Personales
+              </p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {cliente.referencia1Nombre && (
+                  <div className="flex items-start gap-3 p-3 bg-slate-50 rounded-xl border border-slate-100">
+                    <div className="w-7 h-7 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
+                      <span className="text-[10px] font-black text-blue-700">R1</span>
+                    </div>
+                    <div>
+                      <p className="font-bold text-slate-700 text-sm">{cliente.referencia1Nombre}</p>
+                      {cliente.referencia1Telefono && (
+                        <p className="text-xs text-slate-500 flex items-center gap-1 mt-0.5">
+                          <Phone className="w-3 h-3" />
+                          {cliente.referencia1Telefono}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                )}
+                {cliente.referencia2Nombre && (
+                  <div className="flex items-start gap-3 p-3 bg-slate-50 rounded-xl border border-slate-100">
+                    <div className="w-7 h-7 rounded-full bg-orange-100 flex items-center justify-center flex-shrink-0">
+                      <span className="text-[10px] font-black text-orange-700">R2</span>
+                    </div>
+                    <div>
+                      <p className="font-bold text-slate-700 text-sm">{cliente.referencia2Nombre}</p>
+                      {cliente.referencia2Telefono && (
+                        <p className="text-xs text-slate-500 flex items-center gap-1 mt-0.5">
+                          <Phone className="w-3 h-3" />
+                          {cliente.referencia2Telefono}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Métricas principales */}
