@@ -1459,32 +1459,8 @@ const VistaCobrador = () => {
     }
   }, [visitaReprogramar, userSession?.id])
 
-  const handleGuardarOrdenProvisional = useCallback(async (newOrder: string[]) => {
-    setVisitasOrden(newOrder)
-    setShowRutaProvisional(false)
-
-    // NUEVA FUNCIONALIDAD: Guardar orden en backend
-    try {
-      const rutas = await rutasService.obtenerRutas({ cobradorId: userSession?.id, limit: 1 });
-      if (rutas[0]) {
-        const ordenData = newOrder.map((id, index) => {
-          const visita = visitasBase.find(v => v.id === id);
-          // Extraer clienteId del id de asignación o usar el id de la visita
-          const clienteId = (visita as any)?.clienteId || visita?.id.split('-')[1] || '';
-          return {
-            clienteId,
-            orden: index + 1,
-          };
-        }).filter(item => item.clienteId);
-
-        await rutasService.actualizarOrdenClientes(rutas[0].id, ordenData);
-        toast.success('Orden de ruta actualizado exitosamente');
-        setRefreshTrigger(prev => prev + 1);
-      }
-    } catch (error) {
-      console.error('Error al guardar orden:', error);
-    }
-  }, [visitasBase, userSession?.id])
+  // La exportación de ruta provisional ahora se maneja dentro del modal (genera un .txt)
+  // No se guarda orden en el backend.
 
   const handleCrearCredito = useCallback(async (data: any) => {
     try {
@@ -2897,7 +2873,6 @@ const VistaCobrador = () => {
               return d.getTime() <= hoy.getTime();
             })}
             initialOrder={visitasOrden}
-            onSave={handleGuardarOrdenProvisional}
             onClose={() => setShowRutaProvisional(false)}
             getEstadoClasses={getEstadoClasses}
           />
