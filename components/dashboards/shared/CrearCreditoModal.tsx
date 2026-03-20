@@ -570,73 +570,40 @@ export default function CrearCreditoModal({ isOpen, onClose, onConfirm, defaultC
               {!(creditType === 'articulo' && esContado) && (
                 <div>
                   <label className="block text-sm font-bold text-slate-700 mb-2">Fecha Primer Cobro</label>
-                  {frecuenciaPago === 'QUINCENAL' ? (
-                    <div className="space-y-2">
-                      <div className="inline-flex items-center gap-2">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const now = new Date();
-                            const y = now.getFullYear();
-                            const m = now.getMonth();
-                            const d15 = new Date(y, m, 15);
-                            setFechaPrimerCobro(d15.toISOString().split('T')[0]);
-                          }}
-                          className={`px-3 py-2 rounded-lg border text-xs font-bold uppercase tracking-widest ${new Date(fechaPrimerCobro).getDate() === 15 ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'}`}
-                        >
-                          Día 15
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const now = new Date();
-                            const y = now.getFullYear();
-                            const m = now.getMonth();
-                            const lastDay = new Date(y, m + 1, 0).getDate();
-                            const d30 = new Date(y, m, Math.min(30, lastDay));
-                            setFechaPrimerCobro(d30.toISOString().split('T')[0]);
-                          }}
-                          className={`px-3 py-2 rounded-lg border text-xs font-bold uppercase tracking-widest ${new Date(fechaPrimerCobro).getDate() >= 28 ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'}`}
-                        >
-                          Día 30
-                        </button>
-                      </div>
-                      <input 
-                        type="date"
-                        value={fechaPrimerCobro}
-                        readOnly
-                        className="w-full px-4 py-3 bg-slate-100 border border-slate-200 rounded-xl font-medium text-slate-500 cursor-not-allowed"
-                      />
-                    </div>
-                  ) : (() => {
-                    const esDomingoPrimerCobro = frecuenciaPago === 'DIARIO' && fechaPrimerCobro
+                  {(() => {
+                    const diaSeleccionado = fechaPrimerCobro
+                      ? new Date(fechaPrimerCobro + 'T12:00:00').getDate()
+                      : 0
+                    const esQuincenaInvalida = frecuenciaPago === 'QUINCENAL' && !!fechaPrimerCobro && diaSeleccionado !== 15 && diaSeleccionado !== 30
+                    const esDomingoInvalido = frecuenciaPago === 'DIARIO' && !!fechaPrimerCobro
                       ? new Date(fechaPrimerCobro + 'T12:00:00').getDay() === 0
                       : false
+                    const inputInvalido = esQuincenaInvalida || esDomingoInvalido
                     return (
                       <div className="space-y-1">
                         <input
                           type="date"
                           value={fechaPrimerCobro}
-                          onChange={(e) => {
-                            const val = e.target.value
-                            if (frecuenciaPago === 'DIARIO' && val) {
-                              const dia = new Date(val + 'T12:00:00').getDay()
-                              if (dia === 0) {
-                                setFechaPrimerCobro(val) // Permitir mostrar pero bloquear submit
-                                return
-                              }
-                            }
-                            setFechaPrimerCobro(val)
-                          }}
+                          onChange={(e) => setFechaPrimerCobro(e.target.value)}
                           className={`w-full px-4 py-3 border rounded-xl focus:ring-0 font-medium text-slate-900 transition-colors ${
-                            esDomingoPrimerCobro
+                            inputInvalido
                               ? 'border-red-400 bg-red-50 focus:border-red-500'
                               : 'bg-slate-50 border-slate-200 focus:border-[#08557f]'
                           }`}
                         />
-                        {esDomingoPrimerCobro && (
+                        {esQuincenaInvalida && (
+                          <p className="text-xs text-red-600 font-semibold flex items-center gap-1">
+                            <span>⚠</span> Los créditos quincenales solo cobran el día <strong>15</strong> o el día <strong>30</strong>.
+                          </p>
+                        )}
+                        {esDomingoInvalido && (
                           <p className="text-xs text-red-600 font-semibold flex items-center gap-1">
                             <span>⚠</span> Los créditos diarios no se cobran los domingos. Elige otro día.
+                          </p>
+                        )}
+                        {fechaPrimerCobro && !inputInvalido && frecuenciaPago === 'QUINCENAL' && (
+                          <p className="text-xs text-emerald-600 font-semibold flex items-center gap-1">
+                            <span>✓</span> Fecha válida — día {diaSeleccionado}
                           </p>
                         )}
                       </div>
@@ -731,7 +698,13 @@ export default function CrearCreditoModal({ isOpen, onClose, onConfirm, defaultC
                       setIsSubmitting(false)
                     }
                   }}
-                  disabled={isSubmitting || !clienteCreditoId || (creditType === 'prestamo' ? !montoPrestamoInput : !calculoCreditoArticulo) || (frecuenciaPago === 'DIARIO' && fechaPrimerCobro ? new Date(fechaPrimerCobro + 'T12:00:00').getDay() === 0 : false)}
+                  disabled={
+                    isSubmitting ||
+                    !clienteCreditoId ||
+                    (creditType === 'prestamo' ? !montoPrestamoInput : !calculoCreditoArticulo) ||
+                    (frecuenciaPago === 'DIARIO' && fechaPrimerCobro ? new Date(fechaPrimerCobro + 'T12:00:00').getDay() === 0 : false) ||
+                    (frecuenciaPago === 'QUINCENAL' && fechaPrimerCobro ? (() => { const d = new Date(fechaPrimerCobro + 'T12:00:00').getDate(); return d !== 15 && d !== 30 })() : false)
+                  }
                   className="flex-1 bg-slate-900 text-white font-bold py-4 rounded-2xl shadow-xl shadow-slate-200 hover:bg-slate-800 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed uppercase tracking-widest text-xs"
                 >
                   {isSubmitting ? (
