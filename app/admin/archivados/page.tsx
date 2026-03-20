@@ -1,7 +1,8 @@
 'use client'
 
 import { Archive, Search, Filter, RefreshCw, RotateCcw, Trash2, Eye } from 'lucide-react'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
+import { useRealtimeData } from '@/hooks/useRealtimeData'
 import { createPortal } from 'react-dom'
 import { cn } from '@/lib/utils'
 import { auditoriaService } from '@/services/auditoria-service'
@@ -96,6 +97,11 @@ export default function ArchivadosPage() {
     // Carga inicial
     fetchItems();
   }, [])
+
+  // Tiempo real: cuando se archive/elimine algo vía otro módulo, actualizar lista
+  useRealtimeData(['prestamos_actualizados', 'clientes_actualizados'], () => {
+    if ((window as any).refreshArchivados) (window as any).refreshArchivados()
+  })
 
   const handleRestore = async () => {
     if (!selectedItem) return

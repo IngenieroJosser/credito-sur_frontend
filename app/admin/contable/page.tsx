@@ -19,11 +19,12 @@ import { logger } from '@/lib/logger'
  * - Categorización: Movimientos tipificados para facilitar reportes P&L (Ganancias y Pérdidas).
  */
 
-import React, { useState, Suspense, useEffect } from 'react'
+import React, { useState, Suspense, useEffect, useCallback } from 'react'
 import { createPortal } from 'react-dom'
 import { useNotification } from '@/components/providers/NotificationProvider'
 import { Rol } from '@/lib/permissions'
 import { exportService } from '@/services/export-service'
+import { useRealtimeData } from '@/hooks/useRealtimeData'
 
 import {
   DollarSign,
@@ -403,6 +404,9 @@ const ModuloContableContent = () => {
   useEffect(() => {
     fetchData();
   }, []);
+
+  // Tiempo real: refrescar módulo contable cuando haya nuevos pagos
+  useRealtimeData(['pagos_actualizados', 'prestamos_actualizados'], fetchData)
 
   // Cargar usuarios solo cuando el rol está disponible y es admin
   useEffect(() => {

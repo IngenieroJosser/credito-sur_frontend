@@ -1,4 +1,5 @@
 'use client'
+import { useRealtimeData } from '@/hooks/useRealtimeData'
 
 /**
  * Redirige al coordinador a la vista de revisiones centralizada en /admin/revisiones

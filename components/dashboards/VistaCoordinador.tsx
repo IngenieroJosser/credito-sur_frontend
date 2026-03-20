@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
+import { useRealtimeData } from '@/hooks/useRealtimeData'
 import { 
   Bell, 
   Clock, 
@@ -176,6 +177,9 @@ const VistaCoordinador = () => {
     setRefreshing(true)
     loadDashboardData()
   }
+
+  // Tiempo real: refrescar cuando haya pagos, créditos o cambios de rutas
+  useRealtimeData(['pagos_actualizados', 'prestamos_actualizados', 'rutas_actualizadas', 'dashboards_actualizados'], loadDashboardData)
 
   const handleApprove = async (id: string, type: string) => {
     try {
