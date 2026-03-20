@@ -77,7 +77,10 @@ export default function CrearCreditoModal({ isOpen, onClose, onConfirm, defaultC
         if (!fechaPrimerCobro) {
           const now = new Date()
           const tzAdjusted = new Date(now.getTime() - now.getTimezoneOffset() * 60000)
-          setFechaPrimerCobro(tzAdjusted.toISOString().split('T')[0])
+          // Si es domingo y la frecuencia es diaria, avanzar al lunes
+          let fechaBase = new Date(tzAdjusted)
+          if (fechaBase.getDay() === 0) fechaBase.setDate(fechaBase.getDate() + 1)
+          setFechaPrimerCobro(fechaBase.toISOString().split('T')[0])
         }
         Promise.all([
           clientesService.obtenerTodos(),
@@ -334,6 +337,13 @@ export default function CrearCreditoModal({ isOpen, onClose, onConfirm, defaultC
                              const target = new Date(y, day <= 15 ? m : m + 1, 15);
                              const iso = target.toISOString().split('T')[0];
                              setFechaPrimerCobro(iso);
+                           } else if (val === 'DIARIO') {
+                             // Ajustar fecha si ya seleccionada es domingo
+                             const fechaActual = new Date(fechaPrimerCobro + 'T12:00:00')
+                             if (fechaActual.getDay() === 0) {
+                               fechaActual.setDate(fechaActual.getDate() + 1)
+                               setFechaPrimerCobro(fechaActual.toISOString().split('T')[0])
+                             }
                            } else {
                              const now = new Date()
                              const tzAdjusted = new Date(now.getTime() - now.getTimezoneOffset() * 60000)
@@ -598,14 +608,40 @@ export default function CrearCreditoModal({ isOpen, onClose, onConfirm, defaultC
                         className="w-full px-4 py-3 bg-slate-100 border border-slate-200 rounded-xl font-medium text-slate-500 cursor-not-allowed"
                       />
                     </div>
-                  ) : (
-                    <input 
-                      type="date"
-                      value={fechaPrimerCobro}
-                      onChange={(e) => setFechaPrimerCobro(e.target.value)}
-                      className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-[#08557f] focus:ring-0 font-medium text-slate-900"
-                    />
-                  )}
+                  ) : (() => {
+                    const esDomingoPrimerCobro = frecuenciaPago === 'DIARIO' && fechaPrimerCobro
+                      ? new Date(fechaPrimerCobro + 'T12:00:00').getDay() === 0
+                      : false
+                    return (
+                      <div className="space-y-1">
+                        <input
+                          type="date"
+                          value={fechaPrimerCobro}
+                          onChange={(e) => {
+                            const val = e.target.value
+                            if (frecuenciaPago === 'DIARIO' && val) {
+                              const dia = new Date(val + 'T12:00:00').getDay()
+                              if (dia === 0) {
+                                setFechaPrimerCobro(val) // Permitir mostrar pero bloquear submit
+                                return
+                              }
+                            }
+                            setFechaPrimerCobro(val)
+                          }}
+                          className={`w-full px-4 py-3 border rounded-xl focus:ring-0 font-medium text-slate-900 transition-colors ${
+                            esDomingoPrimerCobro
+                              ? 'border-red-400 bg-red-50 focus:border-red-500'
+                              : 'bg-slate-50 border-slate-200 focus:border-[#08557f]'
+                          }`}
+                        />
+                        {esDomingoPrimerCobro && (
+                          <p className="text-xs text-red-600 font-semibold flex items-center gap-1">
+                            <span>⚠</span> Los créditos diarios no se cobran los domingos. Elige otro día.
+                          </p>
+                        )}
+                      </div>
+                    )
+                  })()}
                 </div>
               )}
 
@@ -695,7 +731,7 @@ export default function CrearCreditoModal({ isOpen, onClose, onConfirm, defaultC
                       setIsSubmitting(false)
                     }
                   }}
-                  disabled={isSubmitting || !clienteCreditoId || (creditType === 'prestamo' ? !montoPrestamoInput : !calculoCreditoArticulo)}
+                  disabled={isSubmitting || !clienteCreditoId || (creditType === 'prestamo' ? !montoPrestamoInput : !calculoCreditoArticulo) || (frecuenciaPago === 'DIARIO' && fechaPrimerCobro ? new Date(fechaPrimerCobro + 'T12:00:00').getDay() === 0 : false)}
                   className="flex-1 bg-slate-900 text-white font-bold py-4 rounded-2xl shadow-xl shadow-slate-200 hover:bg-slate-800 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed uppercase tracking-widest text-xs"
                 >
                   {isSubmitting ? (
