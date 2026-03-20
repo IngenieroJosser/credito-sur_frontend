@@ -33,6 +33,13 @@ export default function ReprogramarModal({ visita, onClose, onConfirm }: Reprogr
 
   const manana = new Date(hoy)
   manana.setDate(manana.getDate() + 1)
+  // Si el crédito es DIARIO, saltar domingos en la fecha por defecto
+  const esDiario = visita.periodoRuta === 'DIA'
+  if (esDiario) {
+    while (manana.getDay() === 0) {
+      manana.setDate(manana.getDate() + 1)
+    }
+  }
   const mananaStr = manana.toISOString().split('T')[0]
 
   const [reprogramFecha, setReprogramFecha] = useState(mananaStr)
@@ -46,7 +53,11 @@ export default function ReprogramarModal({ visita, onClose, onConfirm }: Reprogr
   const excedeLimite = reprogramFecha ? diasSeleccionados > limite : false
   const fechaAnteriorHoy = reprogramFecha ? diasSeleccionados < 0 : false
 
-  const canSubmit = reprogramFecha && !excedeLimite && !fechaAnteriorHoy && !isSubmitting
+  const esDomingo = reprogramFecha
+    ? new Date(reprogramFecha + 'T12:00:00').getDay() === 0
+    : false
+
+  const canSubmit = reprogramFecha && !excedeLimite && !fechaAnteriorHoy && !isSubmitting && !(esDiario && esDomingo)
 
   const handleGuardar = async () => {
     if (!canSubmit) return
@@ -119,9 +130,20 @@ export default function ReprogramarModal({ visita, onClose, onConfirm }: Reprogr
                 value={reprogramFecha}
                 min={minFechaStr}
                 max={maxFechaStr}
-                onChange={(e) => setReprogramFecha(e.target.value)}
+                onChange={(e) => {
+                  const val = e.target.value
+                  if (esDiario && val) {
+                    // Si selecciona domingo, omitir
+                    const dia = new Date(val + 'T12:00:00').getDay()
+                    if (dia === 0) {
+                      setReprogramFecha(val) // se muestra pero se bloquea con validación
+                      return
+                    }
+                  }
+                  setReprogramFecha(val)
+                }}
                 className={`w-full px-4 py-3 border rounded-xl focus:ring-0 font-medium text-slate-900 transition-colors ${
-                  excedeLimite || fechaAnteriorHoy
+                  excedeLimite || fechaAnteriorHoy || (esDiario && esDomingo)
                     ? 'border-red-400 bg-red-50 focus:border-red-500'
                     : 'border-slate-200 bg-slate-50 focus:border-orange-500'
                 }`}
@@ -138,7 +160,13 @@ export default function ReprogramarModal({ visita, onClose, onConfirm }: Reprogr
                   La fecha no puede ser anterior a hoy
                 </div>
               )}
-              {reprogramFecha && !excedeLimite && !fechaAnteriorHoy && (
+              {esDiario && esDomingo && (
+                <div className="flex items-center gap-1.5 mt-2 text-red-600 text-xs font-semibold">
+                  <AlertTriangle className="w-3.5 h-3.5" />
+                  Los créditos diarios no se cobran los domingos. Elige otro día.
+                </div>
+              )}
+              {reprogramFecha && !excedeLimite && !fechaAnteriorHoy && !(esDiario && esDomingo) && (
                 <div className="flex items-center gap-1.5 mt-2 text-emerald-600 text-xs font-semibold">
                   <CheckCircle2 className="w-3.5 h-3.5" />
                   {diasSeleccionados === 0 ? 'Para hoy' : `En ${diasSeleccionados} día${diasSeleccionados !== 1 ? 's' : ''}`}
