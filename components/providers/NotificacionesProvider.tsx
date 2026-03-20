@@ -1,6 +1,6 @@
 'use client'
 
-import React, { createContext, useContext, useEffect, useState } from 'react'
+import React, { createContext, useContext, useEffect, useState, useRef } from 'react'
 import { io, Socket } from 'socket.io-client'
 import { Notificacion, notificacionesService } from '@/services/notificaciones-service'
 import { toast } from 'sonner'
@@ -12,6 +12,7 @@ interface NotificacionesContextProps {
   unreadCount: number;
   showDropdown: boolean;
   setShowDropdown: (val: boolean) => void;
+  isBellRinging: boolean;
   marcarComoLeida: (id: string) => void;
   marcarTodasComoLeidas: () => void;
   refreshNotificaciones: () => void;
@@ -23,6 +24,7 @@ const NotificacionesContext = createContext<NotificacionesContextProps>({
   unreadCount: 0,
   showDropdown: false,
   setShowDropdown: () => {},
+  isBellRinging: false,
   marcarComoLeida: () => {},
   marcarTodasComoLeidas: () => {},
   refreshNotificaciones: () => {},
@@ -34,7 +36,9 @@ export function NotificacionesProvider({ children }: { children: React.ReactNode
   const [socket, setSocket] = useState<Socket | null>(null)
   const [notificaciones, setNotificaciones] = useState<Notificacion[]>([])
   const [showDropdown, setShowDropdown] = useState(false)
-  
+  const [isBellRinging, setIsBellRinging] = useState(false)
+  const bellTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
   const fetchNotificaciones = async () => {
     try {
       const data = await notificacionesService.obtenerTodas()
@@ -42,6 +46,13 @@ export function NotificacionesProvider({ children }: { children: React.ReactNode
     } catch (e) {
       console.error('Error fetching notifications:', e)
     }
+  }
+
+  /** Activa la animación de la campanita por 1.5s */
+  const ringBell = () => {
+    setIsBellRinging(true)
+    if (bellTimerRef.current) clearTimeout(bellTimerRef.current)
+    bellTimerRef.current = setTimeout(() => setIsBellRinging(false), 1500)
   }
 
   useEffect(() => {
@@ -80,7 +91,7 @@ export function NotificacionesProvider({ children }: { children: React.ReactNode
     let hasLoggedError = false;
 
     newSocket.on('connect', () => {
-      hasLoggedError = false; // Reset error flag on successful connect
+      hasLoggedError = false;
       console.log(`[Socket] Conectado con ID: ${newSocket.id}`);
       if (currentUserId) {
         newSocket.emit('register', { userId: currentUserId })
@@ -88,7 +99,6 @@ export function NotificacionesProvider({ children }: { children: React.ReactNode
     })
 
     newSocket.on('connect_error', (error) => {
-      // Evitar spam en la consola durante desconexiones temporales (ej. reinicios del backend)
       if (!hasLoggedError) {
         console.warn(`[Socket] Desconectado o esperando backend... (${error.message})`);
         hasLoggedError = true;
@@ -119,11 +129,11 @@ export function NotificacionesProvider({ children }: { children: React.ReactNode
         fecha: formatFecha((notificacion as any).creadoEn || notificacion.fecha)
       };
       setNotificaciones(prev => [formattedNotif, ...prev])
+
+      // 🔔 Animar campanita — NO abrir el dropdown automáticamente
+      ringBell()
       
-      // En lugar de toast, abrimos el dropdown
-      setShowDropdown(true)
-      
-      // Añadir toast al llegar una notificacion para que el cobrador tenga confirmación visual clara en pantalla
+      // Toast de confirmación visual
       const isSuccess = ['EXITO', 'APROBADA'].some(k => notificacion.tipo?.includes(k) || notificacion.titulo?.toUpperCase().includes(k));
       const isError = ['RECHAZADA', 'ERROR', 'FRACASO'].some(k => notificacion.tipo?.includes(k) || notificacion.titulo?.toUpperCase().includes(k));
       
@@ -147,7 +157,9 @@ export function NotificacionesProvider({ children }: { children: React.ReactNode
         fecha: formatFecha((notificacion as any).creadoEn || notificacion.fecha)
       };
       setNotificaciones(prev => [formattedNotif, ...prev])
-      setShowDropdown(true)
+
+      // 🔔 Animar campanita — NO abrir el dropdown automáticamente
+      ringBell()
       
       toast.info(notificacion.titulo, { description: notificacion.mensaje, duration: 5000 });
 
@@ -159,6 +171,7 @@ export function NotificacionesProvider({ children }: { children: React.ReactNode
 
     return () => {
       newSocket.disconnect()
+      if (bellTimerRef.current) clearTimeout(bellTimerRef.current)
     }
   }, [])
 
@@ -198,6 +211,7 @@ export function NotificacionesProvider({ children }: { children: React.ReactNode
       unreadCount,
       showDropdown,
       setShowDropdown,
+      isBellRinging,
       marcarComoLeida,
       marcarTodasComoLeidas,
       refreshNotificaciones

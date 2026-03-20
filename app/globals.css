@@ -89,3 +89,23 @@ body {
   color: #94a3b8;
   font-weight: 500;
 }
+
+/* ── Animación campanita de notificaciones ─────────────── */
+@keyframes bell-ring {
+  0%   { transform: rotate(0deg); }
+  10%  { transform: rotate(18deg); }
+  20%  { transform: rotate(-16deg); }
+  30%  { transform: rotate(14deg); }
+  40%  { transform: rotate(-12deg); }
+  50%  { transform: rotate(9deg); }
+  60%  { transform: rotate(-7deg); }
+  70%  { transform: rotate(5deg); }
+  80%  { transform: rotate(-3deg); }
+  90%  { transform: rotate(2deg); }
+  100% { transform: rotate(0deg); }
+}
+
+.bell-ringing {
+  animation: bell-ring 0.6s ease-in-out;
+  transform-origin: top center;
+}
