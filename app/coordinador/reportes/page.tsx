@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
+import { useRealtimeData } from '@/hooks/useRealtimeData'
 import { useRouter, useSearchParams, usePathname } from 'next/navigation'
 import { BarChart3, Eye, Loader2 } from 'lucide-react'
 import { formatCurrency, cn } from '@/lib/utils'
@@ -80,11 +81,20 @@ const ReportesCoordinador = () => {
     return () => clearTimeout(timer)
   }, [])
 
+  const recargarReporte = useCallback(() => {
+    if (mounted) fetchOperationalReport({ period, routeId })
+  }, [mounted, period, routeId, fetchOperationalReport])
+
   useEffect(() => {
     if (mounted) {
       fetchOperationalReport({ period, routeId })
     }
   }, [period, routeId, mounted])
+
+  useRealtimeData(
+    ['dashboards_actualizados', 'pagos_actualizados', 'prestamos_actualizados'],
+    recargarReporte,
+  )
 
   if (error && mounted) {
     return (

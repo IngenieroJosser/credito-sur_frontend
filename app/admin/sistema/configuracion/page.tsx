@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
+import { useRealtimeData } from '@/hooks/useRealtimeData'
 import { Settings, CreditCard, Bell, Shield, Users, Database, Wallet, Calculator, CheckCircle } from 'lucide-react'
 import { configuracionService, ConfiguracionSistema } from '@/services/configuracion-service'
 import { Toaster, toast } from 'sonner'
@@ -13,11 +14,7 @@ const ConfiguracionSistemaPage = () => {
     autoAprobarCreditos: false,
   });
 
-  useEffect(() => {
-    fetchConfig();
-  }, []);
-
-  const fetchConfig = async () => {
+  const fetchConfig = useCallback(async () => {
     try {
       const data = await configuracionService.getConfiguracion();
       setConfig(data);
@@ -26,7 +23,12 @@ const ConfiguracionSistemaPage = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [])
+
+  useEffect(() => { fetchConfig() }, [fetchConfig])
+
+  // Tiempo real: si otro superadmin cambia la config, se refleja aquí
+  useRealtimeData(['dashboards_actualizados'], fetchConfig)
 
   const updateConfig = async (key: keyof ConfiguracionSistema, value: boolean | number) => {
     const originalConfig = { ...config };

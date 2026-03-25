@@ -23,7 +23,8 @@
  * - Para conectar API real: Reemplazar `ARTICULOS_MOCK` y `rendimientoRutas` con llamadas fetch/axios.
  */
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
+import { useRealtimeData } from '@/hooks/useRealtimeData'
 import { useRouter, useSearchParams, usePathname } from 'next/navigation'
 import { BarChart3, Calendar, TrendingUp, Users, FilePlus, DollarSign, MapPin, Eye } from 'lucide-react'
 import { formatCurrency, cn } from '@/lib/utils'
@@ -32,7 +33,6 @@ import FiltroRuta from '@/components/filtros/FiltroRuta'
 import { TimeFilter, TimeFilterPeriod } from '@/components/ui/TimeFilter'
 import type { RoutePerformance } from '@/services/reportes-coordinador-service'
 import { useReportesCoordinador } from '@/hooks/useReportesCoordinador'
-import { useNotificaciones } from '@/components/providers/NotificacionesProvider'
 import { toast } from 'sonner'
 
 const ReportesOperativosPage = () => {
@@ -51,7 +51,7 @@ const ReportesOperativosPage = () => {
       exportReport
   } = useReportesCoordinador()
 
-  const { socket } = useNotificaciones()
+
 
   const handlePeriodChange = (newPeriod: TimeFilterPeriod) => {
     const params = new URLSearchParams(searchParams.toString())
@@ -137,23 +137,16 @@ const ReportesOperativosPage = () => {
     }
   }, [period, filterRuta, mounted, fetchOperationalReport]);
 
-  useEffect(() => {
-    if (!socket) return;
+  const handleRealtimeRefresh = useCallback(() => {
+    if (!mounted) return;
+    fetchOperationalReport({ period, routeId: filterRuta || undefined })
+      .catch(err => console.error('Error loading report (rt):', err))
+  }, [mounted, period, filterRuta, fetchOperationalReport])
 
-    const handler = () => {
-      if (!mounted) return;
-      fetchOperationalReport({
-        period,
-        routeId: filterRuta || undefined
-      }).catch(err => console.error("Error loading report (rt):", err));
-    };
-
-    socket.on('dashboards_actualizados', handler);
-
-    return () => {
-      socket.off('dashboards_actualizados', handler);
-    };
-  }, [socket, period, filterRuta, mounted, fetchOperationalReport]);
+  useRealtimeData(
+    ['dashboards_actualizados', 'pagos_actualizados', 'prestamos_actualizados'],
+    handleRealtimeRefresh,
+  )
 
 
   if (!mounted) {

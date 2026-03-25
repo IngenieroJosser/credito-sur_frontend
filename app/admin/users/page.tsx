@@ -2,6 +2,7 @@
 import { logger } from '@/lib/logger'
 
 import React, { useState, useEffect } from "react";
+import { useRealtimeData } from '@/hooks/useRealtimeData';
 import { createPortal } from "react-dom";
 
 import { useNotification } from "@/components/providers/NotificationProvider";
@@ -137,19 +138,7 @@ const UserManagementPage = () => {
     }
   }, [authLoading, currentUser]);
 
-  useEffect(() => {
-    if (!socket) return;
-
-    const handler = () => {
-      fetchUsers();
-    };
-
-    socket.on("usuarios_actualizados", handler);
-
-    return () => {
-      socket.off("usuarios_actualizados", handler);
-    };
-  }, [socket]);
+  useRealtimeData(['usuarios_actualizados'], fetchUsers)
   const [searchTerm, setSearchTerm] = useState("");
   const [filterRole, setFilterRole] = useState("all");
   const [filterStatus] = useState("all");

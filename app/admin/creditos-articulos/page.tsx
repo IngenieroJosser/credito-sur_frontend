@@ -1,7 +1,8 @@
 'use client'
 import { logger } from '@/lib/logger'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
+import { useRealtimeData } from '@/hooks/useRealtimeData'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { 
@@ -40,48 +41,51 @@ export default function CreditosArticulosPage() {
   const [paginaActual, setPaginaActual] = useState(1)
   const [itemsPorPagina] = useState(8)
 
-  useEffect(() => {
-    const loadData = async () => {
-      setIsLoading(true)
-      try {
-        const response = await loansService.getLoans({ limit: 100 })
-        const prestamos = (response?.prestamos || []).map((p: any) => ({
-          id: p.id || p.numeroPrestamo,
-          cliente: p.cliente || '',
-          clienteId: p.clienteId || '',
-          producto: p.producto || p.tipoPrestamo || '',
-          montoTotal: p.montoTotal || 0,
-          montoPagado: p.montoPagado || 0,
-          montoPendiente: p.montoPendiente || 0,
-          cuotasTotales: p.cuotasTotales || 0,
-          cuotasPagadas: p.cuotasPagadas || 0,
-          cuotasPendientes: (p.cuotasTotales || 0) - (p.cuotasPagadas || 0),
-          fechaInicio: p.fechaInicio || '',
-          fechaVencimiento: p.fechaFin || p.fechaVencimiento || '',
-          proximoPago: p.proximoPago || '',
-          estado: p.estado || 'ACTIVO',
-          tasaInteres: p.tasaInteres || 0,
-          diasMora: p.diasMora || 0,
-          moraAcumulada: p.moraAcumulada || 0,
-          riesgo: p.riesgo || 'VERDE',
-          ruta: p.ruta || '',
-          tipoProducto: p.tipoProducto || 'electrodomestico',
-        }))
-        // Filtrar solo créditos de artículos (no efectivo)
-        const creditosArticulos = prestamos.filter((p: Prestamo) => 
-          p.tipoProducto !== 'efectivo'
-        )
-        setCreditos(creditosArticulos)
-      } catch (err) {
-        console.error('Error cargando créditos de artículos:', err)
-        setCreditos([])
-      } finally {
-        setIsLoading(false)
-      }
+  const loadData = useCallback(async () => {
+    setIsLoading(true)
+    try {
+      const response = await loansService.getLoans({ limit: 100 })
+      const prestamos = (response?.prestamos || []).map((p: any) => ({
+        id: p.id || p.numeroPrestamo,
+        cliente: p.cliente || '',
+        clienteId: p.clienteId || '',
+        producto: p.producto || p.tipoPrestamo || '',
+        montoTotal: p.montoTotal || 0,
+        montoPagado: p.montoPagado || 0,
+        montoPendiente: p.montoPendiente || 0,
+        cuotasTotales: p.cuotasTotales || 0,
+        cuotasPagadas: p.cuotasPagadas || 0,
+        cuotasPendientes: (p.cuotasTotales || 0) - (p.cuotasPagadas || 0),
+        fechaInicio: p.fechaInicio || '',
+        fechaVencimiento: p.fechaFin || p.fechaVencimiento || '',
+        proximoPago: p.proximoPago || '',
+        estado: p.estado || 'ACTIVO',
+        tasaInteres: p.tasaInteres || 0,
+        diasMora: p.diasMora || 0,
+        moraAcumulada: p.moraAcumulada || 0,
+        riesgo: p.riesgo || 'VERDE',
+        ruta: p.ruta || '',
+        tipoProducto: p.tipoProducto || 'electrodomestico',
+      }))
+      const creditosArticulos = prestamos.filter((p: Prestamo) =>
+        p.tipoProducto !== 'efectivo'
+      )
+      setCreditos(creditosArticulos)
+    } catch (err) {
+      console.error('Error cargando créditos de artículos:', err)
+      setCreditos([])
+    } finally {
+      setIsLoading(false)
     }
-    
-    loadData()
   }, [])
+
+  useEffect(() => { loadData() }, [loadData])
+
+  // Tiempo real: refrescar cuando se creen/actualicen préstamos o pagos
+  useRealtimeData(
+    ['prestamos_actualizados', 'pagos_actualizados', 'clientes_actualizados'],
+    loadData,
+  )
 
   const getEstadoColor = (estado: EstadoPrestamo) => {
     switch(estado) {

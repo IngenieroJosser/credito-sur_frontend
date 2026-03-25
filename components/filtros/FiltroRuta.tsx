@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
+import { useRealtimeData } from '@/hooks/useRealtimeData'
 import { cn } from '@/lib/utils'
 import { routesService } from '@/services/routes-service'
 import { offlineStore } from '@/lib/offline/offlineDb'
@@ -32,36 +33,35 @@ export default function FiltroRuta({
   const [rutas, setRutas] = useState<RutaOption[]>([])
   const [loading, setLoading] = useState(true)
 
-  useEffect(() => {
-    const fetchRutas = async () => {
-      setLoading(true)
+  const fetchRutas = useCallback(async () => {
+    setLoading(true)
+    try {
+      const response = await routesService.getAll({ limit: 100 })
+      const rutasData: RutaOption[] = (response?.data || []).map((r: any) => ({
+        id: r.id,
+        nombre: r.nombre,
+        codigo: r.codigo,
+        cobrador: r.cobrador || (r.cobrador_ ? `${r.cobrador_.nombres} ${r.cobrador_.apellidos}` : undefined),
+      }))
+      setRutas(rutasData)
+      offlineStore.saveMany('rutas', rutasData.map(r => ({ ...r, zona: '', activa: true, cobradorId: '', supervisorId: null }))).catch(() => {})
+    } catch (err) {
+      console.error('Error cargando rutas:', err)
       try {
-        const response = await routesService.getAll({ limit: 100 })
-        const rutasData: RutaOption[] = (response?.data || []).map((r: any) => ({
-          id: r.id,
-          nombre: r.nombre,
-          codigo: r.codigo,
-          cobrador: r.cobrador || (r.cobrador_ ? `${r.cobrador_.nombres} ${r.cobrador_.apellidos}` : undefined),
-        }))
-        setRutas(rutasData)
-        // Guardar en IndexedDB para uso offline
-        offlineStore.saveMany('rutas', rutasData.map(r => ({ ...r, zona: '', activa: true, cobradorId: '', supervisorId: null }))).catch(() => {})
-      } catch (err) {
-        console.error('Error cargando rutas:', err)
-        // Fallback offline: cargar de IndexedDB
-        try {
-          const offlineRutas = await offlineStore.getAll<any>('rutas')
-          setRutas(offlineRutas.map((r: any) => ({ id: r.id, nombre: r.nombre, codigo: r.codigo })))
-        } catch {
-          setRutas([])
-        }
-      } finally {
-        setLoading(false)
+        const offlineRutas = await offlineStore.getAll<any>('rutas')
+        setRutas(offlineRutas.map((r: any) => ({ id: r.id, nombre: r.nombre, codigo: r.codigo })))
+      } catch {
+        setRutas([])
       }
+    } finally {
+      setLoading(false)
     }
-
-    fetchRutas()
   }, [])
+
+  useEffect(() => { fetchRutas() }, [fetchRutas])
+
+  // Se re-carga el listado de rutas cuando se crean/modifican rutas en tiempo real
+  useRealtimeData(['dashboards_actualizados'], fetchRutas)
 
   return (
     <div className={cn('flex flex-col gap-3', className)}>

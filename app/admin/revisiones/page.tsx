@@ -18,6 +18,7 @@
  */
 
 import { useState, useEffect, useCallback } from 'react'
+import { useRealtimeData } from '@/hooks/useRealtimeData'
 import {
   ShieldCheck,
   Users,
@@ -43,7 +44,7 @@ import { aprobacionesService, type Aprobacion, type PendingResponse, type Supera
 import { prestamosService } from '@/services/prestamos-service'
 import { TipoAprobacion } from '@/types/enums'
 import { toast } from 'sonner'
-import { useNotificaciones } from '@/components/providers/NotificacionesProvider'
+
 import NotificacionDetalleModal from '@/components/dashboards/shared/NotificacionDetalleModal'
 import ProrrogaDetalleModal, { type ProrrogaData } from '@/components/revisiones/ProrrogaDetalleModal'
 import ReprogramacionDetalleModal, { type ReprogramacionData } from '@/components/revisiones/ReprogramacionDetalleModal'
@@ -216,7 +217,7 @@ export default function RevisionesPage() {
   const [reprogramacionModalOpen, setReprogramacionModalOpen] = useState(false)
   const [selectedReprogramacion, setSelectedReprogramacion] = useState<ReprogramacionData | null>(null)
 
-  const { socket } = useNotificaciones()
+
 
   const canReviewRejected = userRol === 'SUPER_ADMINISTRADOR' || userRol === 'ADMIN'
 
@@ -254,20 +255,10 @@ export default function RevisionesPage() {
     if (userRol) loadData()
   }, [userRol, loadData])
 
-  useEffect(() => {
-    if (!socket) return
-    const handler = () => { loadData() }
-    socket.on('aprobaciones_actualizadas', handler)
-    socket.on('clientes_actualizados', handler)
-    socket.on('prestamos_actualizados', handler)
-    socket.on('dashboards_actualizados', handler)
-    return () => {
-      socket.off('aprobaciones_actualizadas', handler)
-      socket.off('clientes_actualizados', handler)
-      socket.off('prestamos_actualizados', handler)
-      socket.off('dashboards_actualizados', handler)
-    }
-  }, [socket, loadData])
+  useRealtimeData(
+    ['aprobaciones_actualizadas', 'clientes_actualizados', 'prestamos_actualizados', 'dashboards_actualizados'],
+    loadData,
+  )
 
   // Helper para detectar si un item corresponde a una prorroga o gestion vencida
   const isProrrogaOrVencida = (item: Aprobacion) => {

@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo, useEffect, useCallback } from 'react'
+import { useRealtimeData } from '@/hooks/useRealtimeData'
 import { useRouter } from 'next/navigation'
 import {
   ShoppingBag,
@@ -239,6 +240,12 @@ export default function VistaPuntoDeVenta() {
     setShowClientesModal(true)
     fetchClientes()
   }
+
+  // Tiempo real: refrescar lista de ventas y clientes cuando haya nuevos préstamos o clientes
+  useRealtimeData(['prestamos_actualizados', 'clientes_actualizados'], useCallback(() => {
+    fetchVentasRecientes()
+    fetchClientes()
+  }, []))
 
   const fabActions: FabAction[] = [
     {

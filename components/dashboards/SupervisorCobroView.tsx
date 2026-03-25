@@ -8,6 +8,7 @@
  */
 
 import { useState, useEffect, useMemo, useCallback } from 'react'
+import { useRealtimeData } from '@/hooks/useRealtimeData'
 import {
   MapPin,
   RefreshCw,
@@ -695,38 +696,23 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
   }, [rutaId]);
 
   // ---------------------------------------------------------------------------
-  // WebSocket: suscripción a eventos en tiempo real.
-  // Ubicado DESPUÉS de cargarVisitasRuta para evitar forward reference.
+  // WebSocket: suscripción a eventos en tiempo real via useRealtimeData.
   // ---------------------------------------------------------------------------
-  useEffect(() => {
-    if (!socket) return;
 
-    // Handler completo: recarga visitas/cuotas (cuotas cambian al registrar pagos)
-    const handlerFull = async () => {
-      await cargarVisitasRuta();
-      if (showMisClientes) {
-        cargarMisCreditos();
-      }
-    };
+  // Handler completo: recarga visitas/cuotas al registrar pagos o nuevos préstamos
+  const handlerFull = useCallback(async () => {
+    await cargarVisitasRuta();
+    if (showMisClientes) cargarMisCreditos();
+  }, [cargarVisitasRuta, showMisClientes, cargarMisCreditos])
 
-    // Handler ligero: solo KPIs (eventos de dashboard no requieren recargar cuotas)
-    const handlerKpi = () => {
-      cargarEstadisticasRuta();
-      if (showMisClientes) {
-        cargarMisCreditos();
-      }
-    };
+  // Handler ligero: solo refresca KPIs (dashboards no cambian cuotas)
+  const handlerKpi = useCallback(() => {
+    cargarEstadisticasRuta();
+    if (showMisClientes) cargarMisCreditos();
+  }, [cargarEstadisticasRuta, showMisClientes, cargarMisCreditos])
 
-    socket.on('pagos_actualizados', handlerFull);
-    socket.on('prestamos_actualizados', handlerFull);
-    socket.on('dashboards_actualizados', handlerKpi);
-
-    return () => {
-      socket.off('pagos_actualizados', handlerFull);
-      socket.off('prestamos_actualizados', handlerFull);
-      socket.off('dashboards_actualizados', handlerKpi);
-    };
-  }, [socket, cargarVisitasRuta, cargarEstadisticasRuta, showMisClientes, cargarMisCreditos]);
+  useRealtimeData(['pagos_actualizados', 'prestamos_actualizados'], handlerFull)
+  useRealtimeData(['dashboards_actualizados'], handlerKpi)
 
   // Cargar datos del usuario y ruta (sesión + KPIs + visitas)
   useEffect(() => {

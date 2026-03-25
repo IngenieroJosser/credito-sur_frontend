@@ -22,6 +22,7 @@
  */
 
 import { useState, useEffect, useMemo, useCallback } from 'react'
+import { useRealtimeData } from '@/hooks/useRealtimeData'
 import {
   MapPin,
   RefreshCw,
@@ -819,44 +820,25 @@ const VistaCobrador = () => {
   }, [cargarDatosRuta, refreshTrigger]);
 
   // ---------------------------------------------------------------------------
-  // WebSocket: suscripcion a eventos de tiempo real.
-  // Ubicado DESPUÉS de cargarDatosRuta para evitar referencia forward.
+  // WebSocket: suscripción a eventos de tiempo real via useRealtimeData.
   // ---------------------------------------------------------------------------
-  useEffect(() => {
-    if (!socket) return;
 
-    // Handler ligero: actualiza KPIs y misCreditos sin recargar la lista principal
-    const handlerKpi = async () => {
-      if (rutaActual?.id) {
-        await cargarEstadisticasRuta(rutaActual.id);
-      }
-      if (showMisClientes && userSession?.id) {
-        await cargarMisCreditosAsignados(userSession.id);
-      }
-    };
+  // Handler completo: recarga visitas/cuotas (pagos y préstamos cambian montos)
+  const handlerFull = useCallback(async () => {
+    await cargarDatosRuta(true);
+    if (showMisClientes && userSession?.id) {
+      await cargarMisCreditosAsignados(userSession.id);
+    }
+  }, [cargarDatosRuta, showMisClientes, userSession?.id, cargarMisCreditosAsignados])
 
-    // Handler completo: recarga visitas/cuotas (silent=true para no mostrar spinner)
-    const handlerFull = async () => {
-      await cargarDatosRuta(true);
-      if (showMisClientes && userSession?.id) {
-        await cargarMisCreditosAsignados(userSession.id);
-      }
-    };
+  // Handler ligero: actualiza KPIs sin recargar la lista principal
+  const handlerKpi = useCallback(async () => {
+    if (rutaActual?.id) await cargarEstadisticasRuta(rutaActual.id);
+    if (showMisClientes && userSession?.id) await cargarMisCreditosAsignados(userSession.id);
+  }, [rutaActual?.id, cargarEstadisticasRuta, showMisClientes, userSession?.id, cargarMisCreditosAsignados])
 
-    // pagos y prestamos requieren recarga completa (cuotas pueden cambiar de monto)
-    socket.on('pagos_actualizados', handlerFull);
-    socket.on('prestamos_actualizados', handlerFull);
-    // rutas y dashboard solo necesitan actualizar KPIs (no cambian las cuotas)
-    socket.on('rutas_actualizadas', handlerKpi);
-    socket.on('dashboards_actualizados', handlerKpi);
-
-    return () => {
-      socket.off('pagos_actualizados', handlerFull);
-      socket.off('prestamos_actualizados', handlerFull);
-      socket.off('rutas_actualizadas', handlerKpi);
-      socket.off('dashboards_actualizados', handlerKpi);
-    };
-  }, [socket, rutaActual?.id, cargarEstadisticasRuta, cargarDatosRuta, showMisClientes, userSession?.id, cargarMisCreditosAsignados]);
+  useRealtimeData(['pagos_actualizados', 'prestamos_actualizados'], handlerFull)
+  useRealtimeData(['rutas_actualizadas', 'dashboards_actualizados'], handlerKpi)
 
 
 

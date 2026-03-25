@@ -1,7 +1,8 @@
 'use client'
 
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useCallback } from 'react'
 import { useMemo } from 'react'
+import { useRealtimeData } from '@/hooks/useRealtimeData'
 import { 
   Shield, 
   Search, 
@@ -60,45 +61,50 @@ const AuditoriaSistemaPage = () => {
     return 'INFORMATIVO'
   }
 
-  useEffect(() => {
-    ;(async () => {
-      try {
-        setLoading(true)
-        setError(null)
-        const [registrosResp, rutasResp] = await Promise.all([
-          auditoriaService.obtenerRegistrosPaginados(pagina, LIMITE),
-          routesService.getAll({ limit: 1000 })
-        ])
-        const rutasList = rutasResp?.data || []
-        setRutas(rutasList)
-        // Soporte tanto respuesta paginada como lista plana
-        const registros = (registrosResp as any).registros ?? registrosResp
-        const total = (registrosResp as any).total ?? registros.length
-        const totPag = (registrosResp as any).totalPaginas ?? 1
-        setTotalRegistros(total)
-        setTotalPaginas(totPag)
-        const rutaMap = new Map<string, string>()
-        rutasList.forEach((r: Route) => rutaMap.set(r.id, r.nombre))
-        const items: LogItem[] = registros.map((r: RegistroAuditoria) => ({
-          id: r.id,
-          usuario: r.usuario ? `${r.usuario.nombres} ${r.usuario.apellidos}` : r.usuarioId,
-          rol: r.usuario?.rol || 'DESCONOCIDO',
-          accion: r.accion,
-          modulo: r.entidad,
-          detalle: r.endpoint ? `${r.endpoint}` : r.entidadId,
-          fecha: r.creadoEn,
-          ip: r.direccionIP || '',
-          nivel: deriveNivel(r.accion),
-          rutaNombre: r.entidad?.toLowerCase() === 'ruta' ? (rutaMap.get(r.entidadId) || '') : ''
-        }))
-        setLogs(items)
-      } catch (e: any) {
-        setError('No se pudo cargar auditoría')
-      } finally {
-        setLoading(false)
-      }
-    })()
+  const cargarDatos = useCallback(async () => {
+    try {
+      setLoading(true)
+      setError(null)
+      const [registrosResp, rutasResp] = await Promise.all([
+        auditoriaService.obtenerRegistrosPaginados(pagina, LIMITE),
+        routesService.getAll({ limit: 1000 })
+      ])
+      const rutasList = rutasResp?.data || []
+      setRutas(rutasList)
+      const registros = (registrosResp as any).registros ?? registrosResp
+      const total = (registrosResp as any).total ?? registros.length
+      const totPag = (registrosResp as any).totalPaginas ?? 1
+      setTotalRegistros(total)
+      setTotalPaginas(totPag)
+      const rutaMap = new Map<string, string>()
+      rutasList.forEach((r: Route) => rutaMap.set(r.id, r.nombre))
+      const items: LogItem[] = registros.map((r: RegistroAuditoria) => ({
+        id: r.id,
+        usuario: r.usuario ? `${r.usuario.nombres} ${r.usuario.apellidos}` : r.usuarioId,
+        rol: r.usuario?.rol || 'DESCONOCIDO',
+        accion: r.accion,
+        modulo: r.entidad,
+        detalle: r.endpoint ? `${r.endpoint}` : r.entidadId,
+        fecha: r.creadoEn,
+        ip: r.direccionIP || '',
+        nivel: deriveNivel(r.accion),
+        rutaNombre: r.entidad?.toLowerCase() === 'ruta' ? (rutaMap.get(r.entidadId) || '') : ''
+      }))
+      setLogs(items)
+    } catch (e: any) {
+      setError('No se pudo cargar auditoria')
+    } finally {
+      setLoading(false)
+    }
   }, [pagina])
+
+  useEffect(() => { cargarDatos() }, [cargarDatos])
+
+  // Tiempo real: refrescar log cuando haya actividad en el sistema
+  useRealtimeData(
+    ['usuarios_actualizados', 'prestamos_actualizados', 'pagos_actualizados', 'clientes_actualizados', 'dashboards_actualizados'],
+    cargarDatos,
+  )
 
   const handleExportExcel = async () => {
     try {
