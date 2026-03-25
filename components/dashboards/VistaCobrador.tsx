@@ -1766,28 +1766,40 @@ const VistaCobrador = () => {
     }
   }, [visitaPagoSeleccionada, pagoInitialIsAbono, userSession?.id])
 
-  const confirmarFinalizarRuta = useCallback(() => {
+  const confirmarFinalizarRuta = useCallback(async () => {
     const meta = rutaStats.meta || 1;
     const recaudo = rutaStats.recaudo || 0;
-    const clientesFaltantes = visitasBase.filter(v => v.estado === 'pendiente' || v.estado === 'en_mora').length;
     const efectividad = Math.round((recaudo / meta) * 100);
+
+    // Clientes que hoy tenían cuota pero NO pagaron
+    const toLocalKey = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    const hoyStr = toLocalKey(new Date());
+    const clientesFaltantes = visitasBase.filter(v => {
+      const propDateStr = v.proximaVisita ? (v.proximaVisita.includes('T') ? v.proximaVisita.split('T')[0] : v.proximaVisita) : '';
+      const eraDehoy = propDateStr === hoyStr;
+      return eraDehoy && (v.estado === 'pendiente' || v.estado === 'en_mora');
+    }).length;
 
     socket?.emit('ruta_completada_emit', {
       rutaNombre: rutaActual?.nombre || 'Mi Ruta',
       cobradorNombre: userSession?.nombres || 'El Cobrador',
-      recaudo: recaudo,
-      efectividad: efectividad,
-      clientesFaltantes: clientesFaltantes
+      recaudo,
+      efectividad,
+      clientesFaltantes
     });
 
-    setRutaCompletada(true)
-    setCoordinadorToast('Se ha cerrado el día de manera exitosa y se alertó a la oficina.')
-    setShowConfirmCompleteModal(false)
-    window.setTimeout(() => setCoordinadorToast(null), 4000)
+    setRutaCompletada(true);
+    setShowConfirmCompleteModal(false);
+
+    const mensajeCierre = clientesFaltantes > 0
+      ? `Ruta cerrada. Faltaron ${clientesFaltantes} cliente${clientesFaltantes > 1 ? 's' : ''} por cobrar hoy. Se alertó a la oficina.`
+      : 'Se ha cerrado el día de manera exitosa y se alertó a la oficina.';
+    setCoordinadorToast(mensajeCierre);
+    window.setTimeout(() => setCoordinadorToast(null), 5000);
   }, [socket, rutaActual, userSession, rutaStats, visitasBase])
 
   const handleCompletarRuta = useCallback(() => {
-    setShowConfirmCompleteModal(true)
+    setShowConfirmCompleteModal(true);
   }, [])
 
 
@@ -3025,54 +3037,86 @@ const VistaCobrador = () => {
           }}
         />
 
-        {showConfirmCompleteModal && (
+        {showConfirmCompleteModal && (() => {
+          const toLocalKey = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+          const hoyStr = toLocalKey(new Date());
+          const clientesFaltantesHoy = visitasBase.filter(v => {
+            const propDateStr = v.proximaVisita ? (v.proximaVisita.includes('T') ? v.proximaVisita.split('T')[0] : v.proximaVisita) : '';
+            return propDateStr === hoyStr && (v.estado === 'pendiente' || v.estado === 'en_mora');
+          }).length;
+          const metaV = rutaStats.meta || 0;
+          const recaudoV = rutaStats.recaudo || 0;
+          const porcentaje = metaV > 0 ? Math.round((recaudoV / metaV) * 100) : 0;
+          const alCien = porcentaje >= 100;
+          const descuadre = recaudoV < metaV;
+          return (
           <Portal>
-            <div 
+            <div
               className="fixed inset-0 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200"
               style={{ zIndex: MODAL_Z_INDEX }}
             >
              <div className="bg-white rounded-3xl p-6 shadow-2xl w-full max-w-sm border border-slate-100 animate-in zoom-in-95 duration-200">
                 <div className="flex flex-col items-center text-center gap-4">
-                   <div className="w-16 h-16 bg-orange-50 rounded-full flex items-center justify-center text-orange-500 mb-2 border border-orange-100">
-                      <AlertTriangle className="h-8 w-8" />
+                   <div className={`w-16 h-16 rounded-full flex items-center justify-center mb-2 border ${alCien ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-orange-50 text-orange-500 border-orange-100'}`}>
+                      {alCien ? <CheckCircle2 className="h-8 w-8" /> : <AlertTriangle className="h-8 w-8" />}
                    </div>
                    <div>
                      <h3 className="text-xl font-black text-slate-900 tracking-tight mb-2">¿Finalizar Ruta del Día?</h3>
-                     <p className="text-slate-500 text-sm font-medium leading-relaxed mb-4">
+                     <p className="text-slate-500 text-sm font-medium leading-relaxed">
                         Al marcar la ruta como completada se reportará tu rendimiento a la oficina.
                      </p>
-                     
-                     <div className="bg-slate-50 border border-slate-100 rounded-2xl p-4 text-left grid grid-cols-2 gap-3">
-                        <div>
-                          <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Meta</p>
-                          <p className="text-sm font-black text-slate-900">${(rutaStats.meta || 0).toLocaleString('es-CO')}</p>
-                        </div>
-                        <div>
-                          <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Recaudado</p>
-                          <p className="text-sm font-black text-emerald-600">${(rutaStats.recaudo || 0).toLocaleString('es-CO')}</p>
-                        </div>
-                        <div>
-                          <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Efectividad</p>
-                          <p className={`text-sm font-black ${(rutaStats.recaudo / (rutaStats.meta || 1)) >= 1 ? 'text-emerald-600' : 'text-orange-600'}`}>
-                             {Math.round(((rutaStats.recaudo || 0) / (rutaStats.meta || 1)) * 100)}%
-                          </p>
-                        </div>
-                        <div>
-                          <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Pendientes</p>
-                          <p className="text-sm font-black text-slate-900 text-slate-400">
-                            {visitasBase.filter(v => v.estado === 'pendiente' || v.estado === 'en_mora').length} clientes
-                          </p>
-                        </div>
-                     </div>
                    </div>
-                   <div className="flex gap-3 w-full mt-4">
-                      <button 
+
+                   {/* Descuadre warning */}
+                   {descuadre && (
+                     <div className="w-full flex items-start gap-2 p-3 bg-red-50 border border-red-100 rounded-2xl text-left">
+                       <XCircle className="h-4 w-4 text-red-500 shrink-0 mt-0.5" />
+                       <div>
+                         <p className="text-xs font-black text-red-700 uppercase tracking-wide">Posible Descuadre</p>
+                         <p className="text-[11px] text-red-600 font-medium mt-0.5">
+                           Recaudaste {formatCurrency(recaudoV)} de {formatCurrency(metaV)} esperados. Asegúrate que el superadmin haya recolectado el dinero antes de cerrar.
+                         </p>
+                       </div>
+                     </div>
+                   )}
+
+                   {clientesFaltantesHoy > 0 && (
+                     <div className="w-full flex items-start gap-2 p-3 bg-amber-50 border border-amber-100 rounded-2xl text-left">
+                       <Info className="h-4 w-4 text-amber-500 shrink-0 mt-0.5" />
+                       <p className="text-[11px] text-amber-700 font-bold">
+                         Faltaron <span className="text-amber-900 text-sm font-black">{clientesFaltantesHoy}</span> cliente{clientesFaltantesHoy > 1 ? 's' : ''} por cobrar hoy.
+                       </p>
+                     </div>
+                   )}
+
+                   <div className="bg-slate-50 border border-slate-100 rounded-2xl p-4 text-left grid grid-cols-2 gap-3 w-full">
+                      <div>
+                        <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Meta</p>
+                        <p className="text-sm font-black text-slate-900">{formatCurrency(metaV)}</p>
+                      </div>
+                      <div>
+                        <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Recaudado</p>
+                        <p className={`text-sm font-black ${alCien ? 'text-emerald-600' : 'text-orange-600'}`}>{formatCurrency(recaudoV)}</p>
+                      </div>
+                      <div>
+                        <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Efectividad</p>
+                        <p className={`text-sm font-black ${alCien ? 'text-emerald-600' : 'text-orange-600'}`}>{porcentaje}%</p>
+                      </div>
+                      <div>
+                        <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Pendientes Hoy</p>
+                        <p className={`text-sm font-black ${clientesFaltantesHoy > 0 ? 'text-amber-600' : 'text-emerald-600'}`}>
+                          {clientesFaltantesHoy > 0 ? `${clientesFaltantesHoy} clientes` : '✓ Todos'}
+                        </p>
+                      </div>
+                   </div>
+                   <div className="flex gap-3 w-full mt-2">
+                      <button
                         onClick={() => setShowConfirmCompleteModal(false)}
                         className="flex-1 py-3.5 text-slate-600 font-bold bg-slate-50 hover:bg-slate-100 rounded-2xl transition-all active:scale-95 border border-slate-200"
                       >
                         Cancelar
                       </button>
-                      <button 
+                      <button
                         onClick={confirmarFinalizarRuta}
                         className="flex-1 py-3.5 text-white font-bold bg-slate-900 hover:bg-slate-800 rounded-2xl transition-all shadow-xl shadow-slate-900/20 active:scale-95"
                       >
@@ -3082,8 +3126,9 @@ const VistaCobrador = () => {
                 </div>
              </div>
           </div>
-        </Portal>
-      )}
+          </Portal>
+        );
+      })()}
 
         {/* Modal de Alerta usando ConfirmModal */}
         {modalAlerta && (

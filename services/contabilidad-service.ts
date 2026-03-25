@@ -215,6 +215,22 @@ export async function consolidarCaja(cajaId: string, monto?: number) {
   }
 }
 
+export async function getDesglosePagosCaja(cajaId: string, fecha?: string): Promise<{
+  efectivo: number;
+  transferencia: number;
+  total: number;
+  cajaNombre?: string;
+  fecha?: string | null;
+}> {
+  try {
+    const params = fecha ? `?fecha=${fecha}` : '';
+    return await apiRequest('GET', `/accounting/cajas/${cajaId}/desglose-pagos${params}`);
+  } catch (error) {
+    console.error('Error fetching desglose pagos caja:', error);
+    return { efectivo: 0, transferencia: 0, total: 0 };
+  }
+}
+
 // =====================
 // TRANSACCIONES
 // =====================

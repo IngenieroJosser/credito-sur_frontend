@@ -2,7 +2,7 @@
 
 import React, { ReactNode } from 'react'
 import { createPortal } from 'react-dom'
-import { MapPin, Eye, Phone, GripVertical, XCircle, ChevronDown, Timer } from 'lucide-react'
+import { MapPin, Eye, Phone, GripVertical, XCircle, ChevronDown, Timer, CheckCircle2 } from 'lucide-react'
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { VisitaRuta, EstadoVisita } from '@/lib/types/cobranza'
@@ -266,6 +266,16 @@ function VisitaCardContent({
           </div>
         )
       })()}
+
+      {/* Fila extra: monto pagado hoy (visible en historial) */}
+      {(visita as any).recaudadoDelDia > 0 && (
+        <div className="mt-1 flex items-center gap-1 px-2 py-0.5 rounded-lg bg-emerald-50 border border-emerald-100 w-fit">
+          <CheckCircle2 className="w-3 h-3 text-emerald-500 shrink-0" />
+          <span className="text-[9px] font-black text-emerald-700 uppercase tracking-wide">
+            Pagó hoy: {formatMontoCorto((visita as any).recaudadoDelDia)}
+          </span>
+        </div>
+      )}
 
       {/* Fila extra: children (fallback para contenido adicional) */}
       {children && (
