@@ -63,6 +63,7 @@ export const permisosPorRol: Record<Rol, ModuloPermiso[]> = {
       submodulos: [
         { id: 'gestion-creditos', nombre: 'Créditos', icono: 'CreditCard', path: '/admin/creditos', roles: ['SUPER_ADMINISTRADOR', 'COORDINADOR'] },
         { id: 'rutas', nombre: 'Rutas', icono: 'Route', path: '/admin/rutas', roles: ['SUPER_ADMINISTRADOR', 'COORDINADOR'] },
+        { id: 'seguimiento-pdv', nombre: 'Punto de Venta', icono: 'ShoppingBag', path: '/admin/operaciones/punto-de-venta', roles: ['SUPER_ADMINISTRADOR'], isNew: true },
       ]
     },
     {
@@ -130,6 +131,7 @@ export const permisosPorRol: Record<Rol, ModuloPermiso[]> = {
       submodulos: [
         { id: 'gestion-creditos', nombre: 'Créditos', icono: 'CreditCard', path: '/admin/creditos', roles: ['SUPER_ADMINISTRADOR', 'ADMIN', 'COORDINADOR'] },
         { id: 'rutas', nombre: 'Rutas', icono: 'Route', path: '/admin/rutas', roles: ['SUPER_ADMINISTRADOR', 'ADMIN', 'COORDINADOR'] },
+        { id: 'seguimiento-pdv', nombre: 'Punto de Venta', icono: 'ShoppingBag', path: '/admin/operaciones/punto-de-venta', roles: ['SUPER_ADMINISTRADOR', 'ADMIN'], isNew: true },
       ]
     },
     {
@@ -217,6 +219,7 @@ export const permisosPorRol: Record<Rol, ModuloPermiso[]> = {
       roles: ['COORDINADOR'],
       submodulos: [
         { id: 'rutas', nombre: 'Rutas', icono: 'Route', path: '/coordinador/rutas', roles: ['COORDINADOR'] },
+        { id: 'seguimiento-pdv', nombre: 'Punto de Venta', icono: 'ShoppingBag', path: '/admin/operaciones/punto-de-venta', roles: ['COORDINADOR'], isNew: true },
       ]
     },
     {
@@ -449,6 +452,7 @@ const ACTION_ICON_MAP: Record<string, string> = {
   'creditos-articulos': 'ShoppingBag',
   'revisiones': 'ShieldCheck',
   'conflictos-sinc': 'AlertTriangle',
+  'seguimiento-pdv': 'ShoppingBag',
 };
 
 const normalizePermissionId = (id: string) => {
