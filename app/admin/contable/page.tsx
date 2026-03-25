@@ -340,7 +340,9 @@ const ModuloContableContent = () => {
       }
 
       // 3. Traemos los números totales (Resumen histórico completo)
-      const resumen = await getResumenFinanciero('2020-01-01');
+      // Pasamos fechaFin = hoy para forzar el rango desde 2020 hasta el día actual
+      const fechaHoy = new Date().toISOString().split('T')[0];
+      const resumen = await getResumenFinanciero('2020-01-01', fechaHoy);
       if (resumen) {
         setResumenData({
           ingresosHoy: resumen.ingresosHoy,
