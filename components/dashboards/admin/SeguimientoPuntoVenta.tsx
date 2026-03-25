@@ -300,29 +300,7 @@ export default function SeguimientoPuntoVenta() {
             </div>
           </div>
           <div className="flex items-center gap-3">
-            {/* Badge En vivo */}
-            <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-emerald-50 border border-emerald-100 rounded-xl">
-              <span className="relative flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
-              </span>
-              <Wifi className="h-3.5 w-3.5 text-emerald-600" />
-              <span className="text-xs font-bold text-emerald-700">En vivo</span>
-              {lastUpdate && (
-                <span className="text-[10px] text-emerald-500 font-medium">
-                  · {lastUpdate.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
-                </span>
-              )}
-            </div>
-            {/* Botón actualizar manual */}
-            <button
-              onClick={handleRefresh}
-              disabled={refreshing}
-              className="flex items-center gap-2 px-4 py-2 bg-slate-900 text-white text-sm font-bold rounded-xl hover:bg-slate-800 transition-all active:scale-95 disabled:opacity-60"
-            >
-              <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
-              {refreshing ? 'Actualizando…' : 'Actualizar'}
-            </button>
+            {/* Removido badge En vivo y botón Actualizar a petición del usuario */}
           </div>
         </div>
       </div>

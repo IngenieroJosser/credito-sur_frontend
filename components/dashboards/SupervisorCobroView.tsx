@@ -145,6 +145,7 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
   const [showClientSelector, setShowClientSelector] = useState(false)
   const [pendingAction, setPendingAction] = useState<'CUENTA' | 'AGENDAR' | 'PAGO' | 'ABONO' | null>(null)
 
+  const [showConfirmCompleteModal, setShowConfirmCompleteModal] = useState(false)
   const [rutaCompletada, setRutaCompletada] = useState(false)
   const [coordinadorToast, setCoordinadorToast] = useState<string | null>(null)
 
@@ -1079,10 +1080,35 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
   }, [userSession?.id])
 
   const handleCompletarRuta = useCallback(() => {
+    const recaudo = rutaStats.recaudo || 0
+    const meta = rutaStats.meta || 0
+    const efectividad = meta > 0 ? Math.round((recaudo / meta) * 100) : 0
+
+    // Contar clientes pendientes reales (sin filtro de fecha — mismo fix que VistaCobrador)
+    const clientesFaltantes = visitasBase.filter(v =>
+      v.estado === 'pendiente' || v.estado === 'en_mora'
+    ).length
+
+    // Emitir evento de cierre con datos completos (guarda en BD + notifica coordinadores)
+    socket?.emit('ruta_completada_emit', {
+      rutaNombre: userSession?.rutaAsignada || rutaId || 'Mi Ruta',
+      cobradorNombre: `${userSession?.nombres || ''} ${userSession?.apellidos || ''}`.trim() || 'Supervisor',
+      recaudo,
+      meta,
+      efectividad,
+      clientesFaltantes,
+      rutaId: rutaInfo?.id || rutaId || undefined,
+    })
+
     setRutaCompletada(true)
-    setCoordinadorToast('Se notificó al coordinador: ruta diaria marcada como completada.')
-    window.setTimeout(() => setCoordinadorToast(null), 4000)
-  }, [])
+    setShowConfirmCompleteModal(false)
+
+    const mensajeCierre = clientesFaltantes > 0
+      ? `Ruta cerrada. Faltaron ${clientesFaltantes} cliente${clientesFaltantes > 1 ? 's' : ''} por cobrar. Se alertó a la oficina.`
+      : 'Ruta del día completada exitosamente. Se notificó al coordinador.'
+    setCoordinadorToast(mensajeCierre)
+    window.setTimeout(() => setCoordinadorToast(null), 5000)
+  }, [socket, rutaId, rutaInfo, rutaStats, visitasBase, userSession])
 
   const handleAbrirClienteInfo = useCallback((visita: VisitaRuta) => {
     if (visita.estado === 'en_mora') {
@@ -1358,11 +1384,11 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
 
                   <button
                     type="button"
-                    onClick={handleCompletarRuta}
+                    onClick={() => setShowConfirmCompleteModal(true)}
                     disabled={rutaCompletada}
                     className={`px-4 py-2 border rounded-xl flex items-center gap-2 font-bold shadow-sm transition-colors ${
                       rutaCompletada
-                        ? 'bg-emerald-50 text-emerald-700 border-emerald-200 opacity-70'
+                        ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
                         : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
                     }`}
                   >
@@ -1383,7 +1409,7 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
                               return (
                                 <button
                                   onClick={() => {
-                                    if (esPendiente) return;
+                                    if (esPendiente || rutaCompletada) return;
                                     if (visitaSeleccionada) {
                                       const v = visitasCobrador.find(v => v.id === visitaSeleccionada);
                                       if (v) { setVisitaPagoSeleccionadaId(v.id); setPagoInitialIsAbono(false); setShowPaymentModal(true); }
@@ -1391,11 +1417,11 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
                                       setVisitaPagoSeleccionadaId(null); setShowPaymentModal(true); setPagoInitialIsAbono(false);
                                     }
                                   }}
-                                  disabled={!!esPendiente}
+                                  disabled={!!esPendiente || rutaCompletada}
                                   title={esPendiente ? 'El crédito aún está en aprobación' : 'Registrar pago'}
                                   className={`flex-1 min-w-[max-content] px-4 py-3 rounded-xl flex items-center justify-center gap-2 font-bold shadow-sm transition-all ${
-                                    esPendiente
-                                      ? 'bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed opacity-60'
+                                    esPendiente || rutaCompletada
+                                      ? 'bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed'
                                       : 'bg-[#08557f]/5 text-[#08557f] border border-[#08557f]/10 active:scale-95'
                                   }`}
                                 >
@@ -1410,7 +1436,7 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
                               return (
                                 <button
                                   onClick={() => {
-                                    if (esPendiente) return;
+                                    if (esPendiente || rutaCompletada) return;
                                     if (visitaSeleccionada) {
                                       const v = visitasCobrador.find(v => v.id === visitaSeleccionada);
                                       if (v) { setVisitaPagoSeleccionadaId(v.id); setPagoInitialIsAbono(true); setShowPaymentModal(true); }
@@ -1418,11 +1444,11 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
                                       setVisitaPagoSeleccionadaId(null); setShowPaymentModal(true); setPagoInitialIsAbono(true);
                                     }
                                   }}
-                                  disabled={!!esPendiente}
+                                  disabled={!!esPendiente || rutaCompletada}
                                   title={esPendiente ? 'El crédito aún está en aprobación' : 'Registrar abono'}
                                   className={`flex-1 min-w-[max-content] px-4 py-3 rounded-xl flex items-center justify-center gap-2 font-bold shadow-sm transition-all ${
-                                    esPendiente
-                                      ? 'bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed opacity-60'
+                                    esPendiente || rutaCompletada
+                                      ? 'bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed'
                                       : 'bg-orange-50 text-orange-700 border border-orange-200 active:scale-95'
                                   }`}
                                 >
@@ -1433,6 +1459,7 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
                           </>
                         )}
                         <button onClick={() => { 
+                           if (rutaCompletada) return;
                            if (visitaSeleccionada) {
                               const v = visitasCobrador.find(v => v.id === visitaSeleccionada);
                               setVisitaEstadoCuentaSeleccionada(v || null);
@@ -1441,10 +1468,13 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
                               setPendingAction('CUENTA');
                               setShowClientSelector(true);
                            }
-                        }} className="flex-1 min-w-[max-content] bg-white text-slate-700 border border-slate-200 px-4 py-3 rounded-xl flex items-center justify-center gap-2 font-bold shadow-sm active:scale-95 transition-all hover:bg-slate-50">
+                        }} 
+                        disabled={rutaCompletada}
+                        className={`flex-1 min-w-[max-content] bg-white text-slate-700 border border-slate-200 px-4 py-3 rounded-xl flex items-center justify-center gap-2 font-bold shadow-sm transition-all ${rutaCompletada ? 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed' : 'active:scale-95 hover:bg-slate-50'}`}>
                             <FileTextIcon className="h-5 w-5 text-slate-400" /> Cuenta
                         </button>
                         <button onClick={() => { 
+                           if (rutaCompletada) return;
                            if (visitaSeleccionada) {
                               const v = visitasCobrador.find(v => v.id === visitaSeleccionada);
                               setVisitaReprogramar(v || null);
@@ -1453,7 +1483,9 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
                               setPendingAction('AGENDAR');
                               setShowClientSelector(true);
                            }
-                        }} className="flex-1 min-w-[max-content] bg-white text-slate-700 border border-slate-200 px-4 py-3 rounded-xl flex items-center justify-center gap-2 font-bold shadow-sm active:scale-95 transition-all hover:bg-slate-50">
+                        }} 
+                        disabled={rutaCompletada}
+                        className={`flex-1 min-w-[max-content] bg-white text-slate-700 border border-slate-200 px-4 py-3 rounded-xl flex items-center justify-center gap-2 font-bold shadow-sm transition-all ${rutaCompletada ? 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed' : 'active:scale-95 hover:bg-slate-50'}`}>
                             <Calendar className="h-5 w-5 text-slate-400" /> Agendar
                         </button>
                 </div>
@@ -1901,11 +1933,13 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
                                         <button
                                           onClick={(e) => {
                                             e.stopPropagation()
+                                            if (rutaCompletada) return
                                             setVisitaPagoSeleccionadaId(visita.id)
                                             setPagoInitialIsAbono(false)
                                             setShowPaymentModal(true)
                                           }}
-                                          className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-all active:scale-95 text-[11px] font-bold"
+                                          disabled={rutaCompletada}
+                                          className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-lg transition-all active:scale-95 text-[11px] font-bold ${rutaCompletada ? 'bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed' : 'bg-blue-600 text-white hover:bg-blue-700'}`}
                                         >
                                           <DollarSign className="h-3.5 w-3.5" />
                                           Pago
@@ -1913,11 +1947,13 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
                                         <button
                                           onClick={(e) => {
                                             e.stopPropagation()
+                                            if (rutaCompletada) return
                                             setVisitaPagoSeleccionadaId(visita.id)
                                             setPagoInitialIsAbono(true)
                                             setShowPaymentModal(true)
                                           }}
-                                          className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 transition-all active:scale-95 text-[11px] font-bold"
+                                          disabled={rutaCompletada}
+                                          className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-lg transition-all active:scale-95 text-[11px] font-bold ${rutaCompletada ? 'bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed' : 'bg-emerald-600 text-white hover:bg-emerald-700'}`}
                                         >
                                           <Wallet className="h-3.5 w-3.5" />
                                           Abono
@@ -1925,10 +1961,12 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
                                         <button
                                           onClick={(e) => {
                                             e.stopPropagation()
+                                            if (rutaCompletada) return
                                             setVisitaEstadoCuentaSeleccionada(visita)
                                             setShowEstadoCuentaModal(true)
                                           }}
-                                          className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-white text-slate-600 border border-slate-200 hover:bg-slate-50 transition-all active:scale-95 text-[11px] font-bold"
+                                          disabled={rutaCompletada}
+                                          className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border transition-all active:scale-95 text-[11px] font-bold ${rutaCompletada ? 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'}`}
                                         >
                                           <FileTextIcon className="h-3.5 w-3.5 text-slate-400" />
                                           Estado
@@ -1936,10 +1974,12 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
                                         <button
                                           onClick={(e) => {
                                             e.stopPropagation()
+                                            if (rutaCompletada) return
                                             setVisitaReprogramar(visita)
                                             setShowReprogramModal(true)
                                           }}
-                                          className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-white text-slate-600 border border-slate-200 hover:bg-slate-50 transition-all active:scale-95 text-[11px] font-bold"
+                                          disabled={rutaCompletada}
+                                          className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border transition-all active:scale-95 text-[11px] font-bold ${rutaCompletada ? 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'}`}
                                         >
                                           <Calendar className="h-3.5 w-3.5 text-slate-400" />
                                           Repro.
@@ -2231,25 +2271,30 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
 
 
 
-        {showMoraModal && visitaMoraSeleccionada && moraCuenta && (
-          <DetalleMoraModal
-            cuenta={moraCuenta}
-            onClose={() => {
-              setShowMoraModal(false)
-              setVisitaMoraSeleccionada(null)
-              setMoraCuenta(null)
-            }}
-          />
-        )}
+
+
 
         {/* Floating Action Button (FAB) - siempre visible para supervisor */}
         <FloatingActionMenu actions={[
-            { label: 'Crear Crédito', icon: <CreditCard className="h-5 w-5" />, onClick: () => setShowCreditModal(true) },
-            { label: 'Nuevo Cliente', icon: <UserPlus className="h-5 w-5" />, onClick: () => setShowNewClientModal(true) },
-            { label: 'Registrar abono', icon: <RefreshCw className="h-5 w-5" />, color: 'orange', onClick: () => { setPendingAction('ABONO'); setShowClientSelector(true); } },
-            { label: 'Registrar pago', icon: <DollarSign className="h-5 w-5" />, onClick: () => { setPendingAction('PAGO'); setShowClientSelector(true); } },
-            { label: 'Gastos', icon: <ReceiptText className="h-5 w-5" />, color: 'rose', onClick: () => setShowGastoModal(true) },
+            { label: 'Crear Crédito', icon: <CreditCard className="h-5 w-5" />, onClick: () => { if(rutaCompletada) return; setShowCreditModal(true); } },
+            { label: 'Nuevo Cliente', icon: <UserPlus className="h-5 w-5" />, onClick: () => { if(rutaCompletada) return; setShowNewClientModal(true); } },
+            { label: 'Registrar abono', icon: <RefreshCw className="h-5 w-5" />, color: 'orange', onClick: () => { if(rutaCompletada) return; setPendingAction('ABONO'); setShowClientSelector(true); } },
+            { label: 'Registrar pago', icon: <DollarSign className="h-5 w-5" />, onClick: () => { if(rutaCompletada) return; setPendingAction('PAGO'); setShowClientSelector(true); } },
+            { label: 'Gastos', icon: <ReceiptText className="h-5 w-5" />, color: 'rose', onClick: () => { if(rutaCompletada) return; setShowGastoModal(true); } },
           ] as FabAction[]} />
+
+        {showConfirmCompleteModal && (
+          <ConfirmModal
+            isOpen={showConfirmCompleteModal}
+            onClose={() => setShowConfirmCompleteModal(false)}
+            onConfirm={handleCompletarRuta}
+            title="¿Finalizar ruta supervisada?"
+            message="Al confirmar, se enviará el reporte de rendimiento y clientes pendientes a la oficina central. Esta acción bloqueará la modificación de créditos y pagos por el resto del día."
+            confirmText="Sí, Finalizar Ruta"
+            cancelText="No, Volver"
+            variant="danger"
+          />
+        )}
 
         {/* Modal de Alerta */}
         {modalAlerta && (

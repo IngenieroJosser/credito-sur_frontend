@@ -721,48 +721,47 @@ export const obtenerModulos = (rol: Rol, sidebarData?: SidebarModulo[]): ModuloP
     if (rol !== 'SUPER_ADMINISTRADOR' && rol !== 'ADMIN' && rol !== 'COORDINADOR' && rol !== 'SUPERVISOR') return modulos;
 
     const curated = obtenerModulosPorRol(rol);
-    const curatedRevisiones = curated.find((m) => m.id === 'revisiones');
-    if (!curatedRevisiones) return modulos;
+    let result = [...modulos];
 
-    const hasRevisiones = modulos.some(
-      (m) => m.id === 'revisiones' || String(m.path || '').includes('/revisiones'),
-    );
+    // Fusionar de forma inteligente los módulos curados críticos sobre el dinámico
+    curated.forEach((curatedMod) => {
+      // Intentar encontrar el módulo principal (ej. "operaciones", "finanzas")
+      const existingIdx = result.findIndex(m => m.id === curatedMod.id || m.nombre === curatedMod.nombre);
+      
+      // Casos especiales de posicionamiento
+      if (curatedMod.id === 'revisiones' && existingIdx < 0) {
+        const dashboardIndex = result.findIndex((m) => m.id === 'dashboard');
+        const insertAt = dashboardIndex >= 0 ? dashboardIndex + 1 : 0;
+        result.splice(insertAt, 0, curatedMod);
+        return;
+      }
 
-    if (hasRevisiones) return modulos;
+      if (existingIdx < 0) {
+        // Empujar todo el módulo si no existe y tiene elementos (Ej. Todo "operaciones" falta)
+        if (curatedMod.submodulos && curatedMod.submodulos.length > 0) {
+            result.push(curatedMod);
+        } else if (curatedMod.isNew) {
+            result.push(curatedMod);
+        }
+      } else {
+        // Si el módulo ya existe, combinar los submódulos que falten
+        const existingMod = result[existingIdx];
+        const curatedSubs = curatedMod.submodulos || [];
+        const existingSubs = existingMod.submodulos || [];
+        const mergedSubs = [...existingSubs];
+        
+        curatedSubs.forEach((s) => {
+          if (!mergedSubs.some((e) => e.id === s.id || e.path === s.path)) {
+            mergedSubs.push(s);
+          }
+        });
 
-    const dashboardIndex = modulos.findIndex((m) => m.id === 'dashboard');
-    const next = [...modulos];
-    const insertAt = dashboardIndex >= 0 ? dashboardIndex + 1 : 0;
-    next.splice(insertAt, 0, curatedRevisiones);
-    const withRevisiones = next;
-
-    // Si el sidebar viene dinámico desde el backend puede venir incompleto. Aseguramos submódulos curados críticos.
-    // Caso real: "Historial de pagos" no aparece en el aside si el backend no lo incluye.
-    const needsPagosHistorial = !withRevisiones.some(
-      (m) => m.id === 'pagos-historial' || (m.submodulos?.some((s) => s.id === 'pagos-historial') ?? false),
-    );
-    if (!needsPagosHistorial) return withRevisiones;
-
-    const curatedFinanzas = curated.find((m) => m.id === 'finanzas');
-    if (!curatedFinanzas) return withRevisiones;
-
-    const finanzasIndex = withRevisiones.findIndex((m) => m.id === 'finanzas');
-    if (finanzasIndex < 0) {
-      return [...withRevisiones, curatedFinanzas];
-    }
-
-    const existing = withRevisiones[finanzasIndex];
-    const existingSubs = existing.submodulos ?? [];
-    const curatedSubs = curatedFinanzas.submodulos ?? [];
-    const mergedSubs = [...existingSubs];
-    curatedSubs.forEach((s) => {
-      if (!mergedSubs.some((e) => e.id === s.id)) mergedSubs.push(s);
+        // Actualizar el módulo con los submódulos combinados
+        result[existingIdx] = { ...existingMod, submodulos: mergedSubs };
+      }
     });
 
-    const mergedFinanzas = { ...existing, submodulos: mergedSubs };
-    const out = [...withRevisiones];
-    out[finanzasIndex] = mergedFinanzas;
-    return out;
+    return result;
   };
 
   if (sidebarData && sidebarData.length > 0) {

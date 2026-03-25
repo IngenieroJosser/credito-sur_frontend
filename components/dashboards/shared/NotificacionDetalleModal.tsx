@@ -24,6 +24,7 @@ import { articulosService } from '@/services/articulos-service'
 import ConfirmApproveModal from '@/components/ui/ConfirmApproveModal'
 import ConfirmRejectModal from '@/components/ui/ConfirmRejectModal'
 import PagoDetalleModal from '@/components/dashboards/shared/PagoDetalleModal'
+import CierreRutaNotifModal from '@/components/dashboards/shared/CierreRutaNotifModal'
 
 export interface NotificacionDetalleModalProps {
   isOpen: boolean
@@ -310,6 +311,22 @@ export default function NotificacionDetalleModal({
   }, [editedDetails?.plazoMeses, editedDetails?.frecuenciaPago, notificacion, autoCuotas])
 
   if (!isOpen || !notificacion) return null
+
+  // ── Detección de notificaciones de Cierre de Ruta (modal especializado) ──
+  const esCierreRuta = (
+    (notificacion.titulo || '').toLowerCase().includes('cierre de ruta') ||
+    (notificacion.titulo || '').toLowerCase().includes('ruta completo') ||
+    (notificacion.titulo || '').toLowerCase().includes('ruta completada')
+  )
+  if (esCierreRuta) {
+    return (
+      <CierreRutaNotifModal
+        isOpen={isOpen}
+        onClose={onClose}
+        notificacion={notificacion}
+      />
+    )
+  }
 
   const { tipo, titulo, mensaje, fecha, solicitante, estado, approvalType } = notificacion
   

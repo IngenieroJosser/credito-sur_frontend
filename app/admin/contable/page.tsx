@@ -67,6 +67,7 @@ import {
   type Transaccion as ApiTransaccion,
   type ResumenFinanciero as ApiResumen,
   getHistorialCierres,
+  consolidarCaja,
   obtenerSaldoDisponibleRuta,
   type SaldoDisponibleRuta
 } from '@/services/contabilidad-service'
@@ -392,7 +393,11 @@ const ModuloContableContent = () => {
              saldoSistema: Number(c.saldoSistema),
              saldoReal: Number(c.saldoReal),
              diferencia: Number(c.diferencia),
-             estado: c.estado || (Number(c.diferencia) === 0 ? 'CUADRADA' : 'DESCUADRADA')
+             estado: c.estado || (Number(c.diferencia) === 0 ? 'CUADRADA' : 'DESCUADRADA'),
+             tipo: c.tipo || 'CONSOLIDACION',
+             efectividad: c.efectividad,
+             clientesFaltantes: c.clientesFaltantes,
+             cajaId: c.cajaId,
         })));
       }
     } catch (error) {
@@ -2025,7 +2030,63 @@ const ModuloContableContent = () => {
                  </div>
               </div>
 
+              {/* ── Historial de Cierres de Ruta (solo cajas tipo RUTA) ── */}
+              {cajaSeleccionada?.tipo === 'RUTA' && (() => {
+                const cierresDeEstaRuta = historialCierres.filter(
+                  (c: any) => c.tipo === 'CIERRE_RUTA' && c.cajaId === cajaSeleccionada.id
+                )
+                if (cierresDeEstaRuta.length === 0) return null
+                return (
+                  <div className="px-6 pb-4">
+                    <div className="rounded-2xl border border-slate-100 bg-slate-50 overflow-hidden">
+                      <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
+                        <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Historial de Cierres del Cobrador</p>
+                        <span className="text-[10px] font-bold text-slate-400">{cierresDeEstaRuta.length} cierre(s)</span>
+                      </div>
+                      <div className="divide-y divide-slate-100 max-h-48 overflow-y-auto">
+                        {cierresDeEstaRuta.map((c: any) => {
+                          const esDescuadre = c.estado === 'DESCUADRADA'
+                          return (
+                            <div key={c.id} className="px-4 py-3 flex items-center justify-between gap-3">
+                              <div className="min-w-0">
+                                <p className="text-[10px] font-black text-slate-700">
+                                  {new Date(c.fecha).toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                                </p>
+                                <p className="text-[9px] text-slate-500 font-medium truncate">{c.responsable}</p>
+                                {c.clientesFaltantes > 0 && (
+                                  <p className="text-[9px] text-amber-600 font-bold">{c.clientesFaltantes} cliente{c.clientesFaltantes > 1 ? 's' : ''} sin cobrar</p>
+                                )}
+                              </div>
+                              <div className="shrink-0 text-right space-y-1">
+                                <div className={cn(
+                                  "inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[8px] font-black uppercase border",
+                                  esDescuadre
+                                    ? "bg-red-50 text-red-600 border-red-100"
+                                    : "bg-emerald-50 text-emerald-600 border-emerald-100"
+                                )}>
+                                  {esDescuadre ? <AlertTriangle className="h-2.5 w-2.5" /> : <CheckCircle2 className="h-2.5 w-2.5" />}
+                                  {esDescuadre ? 'Descuadre' : 'Cuadrada'}
+                                </div>
+                                <p className="text-[10px] font-black text-slate-700">
+                                  {formatCurrency(c.saldoReal)} <span className="text-slate-400 font-medium">/ {formatCurrency(c.saldoSistema)}</span>
+                                </p>
+                                {c.efectividad != null && (
+                                  <p className={cn("text-[9px] font-bold", c.efectividad >= 100 ? "text-emerald-600" : c.efectividad >= 75 ? "text-blue-600" : "text-amber-600")}>
+                                    {c.efectividad}% META
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  </div>
+                )
+              })()}
+
               <div className="p-6 border-t border-slate-100 bg-slate-50/50 flex justify-end">
+
                 <button
                   onClick={() => {
                     setShowVerCajaModal(false)

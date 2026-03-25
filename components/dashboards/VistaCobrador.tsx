@@ -1753,21 +1753,20 @@ const VistaCobrador = () => {
     const recaudo = rutaStats.recaudo || 0;
     const efectividad = Math.round((recaudo / meta) * 100);
 
-    // Clientes que hoy tenían cuota pero NO pagaron
-    const toLocalKey = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-    const hoyStr = toLocalKey(new Date());
-    const clientesFaltantes = visitasBase.filter(v => {
-      const propDateStr = v.proximaVisita ? (v.proximaVisita.includes('T') ? v.proximaVisita.split('T')[0] : v.proximaVisita) : '';
-      const eraDehoy = propDateStr === hoyStr;
-      return eraDehoy && (v.estado === 'pendiente' || v.estado === 'en_mora');
-    }).length;
+    // Contamos todos los pendientes/mora sin filtrar por fecha
+    // (el mismo fix del modal — muchos tienen proximaVisita='9999-12-31')
+    const clientesFaltantes = visitasBase.filter(v =>
+      v.estado === 'pendiente' || v.estado === 'en_mora'
+    ).length;
 
     socket?.emit('ruta_completada_emit', {
       rutaNombre: rutaActual?.nombre || 'Mi Ruta',
       cobradorNombre: userSession?.nombres || 'El Cobrador',
       recaudo,
+      meta,
       efectividad,
-      clientesFaltantes
+      clientesFaltantes,
+      rutaId: rutaActual?.id || undefined,
     });
 
     setRutaCompletada(true);
@@ -1789,13 +1788,10 @@ const VistaCobrador = () => {
 
 
   const handleAbrirClienteInfo = useCallback((visita: VisitaRuta) => {
-    if (visita.estado === 'en_mora') {
-      setVisitaMoraSeleccionada(visita)
-      setShowMoraModal(true)
-    } else {
-      setVisitaClienteSeleccionada(visita)
-      setShowClienteInfoModal(true)
-    }
+    // El cobrador siempre abre el modal de info del cliente (para pagos)
+    // El modal de mora es solo para roles de gestión interna (admin/supervisor)
+    setVisitaClienteSeleccionada(visita)
+    setShowClienteInfoModal(true)
   }, [])
 
   // Cargar recaudado del cliente en el día desde backend
@@ -2220,7 +2216,7 @@ const VistaCobrador = () => {
                     disabled={rutaCompletada}
                     className={`px-4 py-2 border rounded-xl flex items-center gap-2 font-bold shadow-sm transition-colors ${
                       rutaCompletada
-                        ? 'bg-emerald-50 text-emerald-700 border-emerald-200 opacity-70'
+                        ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
                         : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
                     }`}
                   >
@@ -2668,11 +2664,13 @@ const VistaCobrador = () => {
                                       <button
                                         onClick={(e) => {
                                           e.stopPropagation();
+                                          if (rutaCompletada) return;
                                           setVisitaPagoSeleccionada(visita);
                                           setPagoInitialIsAbono(false);
                                           setShowPaymentModal(true);
                                         }}
-                                        className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-all active:scale-95 text-[11px] font-bold"
+                                        disabled={rutaCompletada}
+                                        className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-lg transition-all active:scale-95 text-[11px] font-bold ${rutaCompletada ? 'bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed' : 'bg-blue-600 text-white hover:bg-blue-700'}`}
                                       >
                                         <DollarSign className="h-3.5 w-3.5" />
                                         Pago
@@ -2680,11 +2678,13 @@ const VistaCobrador = () => {
                                       <button
                                         onClick={(e) => {
                                           e.stopPropagation();
+                                          if (rutaCompletada) return;
                                           setVisitaPagoSeleccionada(visita);
                                           setPagoInitialIsAbono(true);
                                           setShowPaymentModal(true);
                                         }}
-                                        className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 transition-all active:scale-95 text-[11px] font-bold"
+                                        disabled={rutaCompletada}
+                                        className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-lg transition-all active:scale-95 text-[11px] font-bold ${rutaCompletada ? 'bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed' : 'bg-emerald-600 text-white hover:bg-emerald-700'}`}
                                       >
                                         <Wallet className="h-3.5 w-3.5" />
                                         Abono
@@ -2692,10 +2692,12 @@ const VistaCobrador = () => {
                                       <button
                                         onClick={(e) => {
                                           e.stopPropagation();
+                                          if (rutaCompletada) return;
                                           setVisitaEstadoCuentaSeleccionada(visita);
                                           setShowEstadoCuentaModal(true);
                                         }}
-                                        className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-white text-slate-600 border border-slate-200 hover:bg-slate-50 transition-all active:scale-95 text-[11px] font-bold"
+                                        disabled={rutaCompletada}
+                                        className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border transition-all active:scale-95 text-[11px] font-bold ${rutaCompletada ? 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'}`}
                                       >
                                         <FileTextIcon className="h-3.5 w-3.5 text-slate-400" />
                                         Estado
@@ -2703,10 +2705,12 @@ const VistaCobrador = () => {
                                       <button
                                         onClick={(e) => {
                                           e.stopPropagation();
+                                          if (rutaCompletada) return;
                                           setVisitaReprogramar(visita);
                                           setShowReprogramModal(true);
                                         }}
-                                        className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-white text-slate-600 border border-slate-200 hover:bg-slate-50 transition-all active:scale-95 text-[11px] font-bold"
+                                        disabled={rutaCompletada}
+                                        className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border transition-all active:scale-95 text-[11px] font-bold ${rutaCompletada ? 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'}`}
                                       >
                                         <Calendar className="h-3.5 w-3.5 text-slate-400" />
                                         Repro.
@@ -2794,13 +2798,13 @@ const VistaCobrador = () => {
 
         {/* Floating Action Buttons */}
         <FloatingActionMenu actions={[
-          { label: 'Crear Crédito', icon: <CreditCard className="h-5 w-5" />, onClick: () => setShowCreditModal(true) },
-          { label: 'Nuevo Cliente', icon: <UserPlus className="h-5 w-5" />, onClick: () => setShowNewClientModal(true) },
-          { label: 'Registrar abono', icon: <RefreshCw className="h-5 w-5" />, color: 'orange', onClick: () => { setAccionPendiente('ABONO'); setShowClientSelector(true); } },
-          { label: 'Registrar pago', icon: <DollarSign className="h-5 w-5" />, onClick: () => { setAccionPendiente('PAGO'); setShowClientSelector(true); } },
+          { label: 'Crear Crédito', icon: <CreditCard className="h-5 w-5" />, onClick: () => { if(rutaCompletada) return; setShowCreditModal(true); } },
+          { label: 'Nuevo Cliente', icon: <UserPlus className="h-5 w-5" />, onClick: () => { if(rutaCompletada) return; setShowNewClientModal(true); } },
+          { label: 'Registrar abono', icon: <RefreshCw className="h-5 w-5" />, color: 'orange', onClick: () => { if(rutaCompletada) return; setAccionPendiente('ABONO'); setShowClientSelector(true); } },
+          { label: 'Registrar pago', icon: <DollarSign className="h-5 w-5" />, onClick: () => { if(rutaCompletada) return; setAccionPendiente('PAGO'); setShowClientSelector(true); } },
           { label: 'Solicitudes', icon: <ClipboardList className="h-5 w-5" />, onClick: () => router.push('/cobranzas/solicitudes') },
-          { label: 'Pedir Base', icon: <Wallet className="h-5 w-5" />, color: 'emerald', onClick: () => setShowBaseModal(true) },
-          { label: 'Gastos', icon: <ReceiptText className="h-5 w-5" />, color: 'rose', onClick: () => setShowGastoModal(true) },
+          { label: 'Pedir Base', icon: <Wallet className="h-5 w-5" />, color: 'emerald', onClick: () => { if(rutaCompletada) return; setShowBaseModal(true); } },
+          { label: 'Gastos', icon: <ReceiptText className="h-5 w-5" />, color: 'rose', onClick: () => { if(rutaCompletada) return; setShowGastoModal(true); } },
         ] as FabAction[]} />
 
 
@@ -2867,16 +2871,6 @@ const VistaCobrador = () => {
         )}
 
 
-        {showMoraModal && visitaMoraSeleccionada && moraCuenta && (
-          <DetalleMoraModal
-            cuenta={moraCuenta}
-            onClose={() => {
-              setShowMoraModal(false)
-              setVisitaMoraSeleccionada(null)
-              setMoraCuenta(null)
-            }}
-          />
-        )}
 
         {showEstadoCuentaModal && visitaEstadoCuentaSeleccionada && (
           <EstadoCuentaModal
@@ -3022,15 +3016,18 @@ const VistaCobrador = () => {
         {showConfirmCompleteModal && (() => {
           const toLocalKey = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
           const hoyStr = toLocalKey(new Date());
-          const clientesFaltantesHoy = visitasBase.filter(v => {
-            const propDateStr = v.proximaVisita ? (v.proximaVisita.includes('T') ? v.proximaVisita.split('T')[0] : v.proximaVisita) : '';
-            return propDateStr === hoyStr && (v.estado === 'pendiente' || v.estado === 'en_mora');
-          }).length;
+          // Contamos TODOS los pendientes/mora sin filtrar por fecha
+          // (muchos tienen proximaVisita='9999-12-31' y no coincidirían con hoy)
+          const clientesFaltantesHoy = visitasBase.filter(v =>
+            v.estado === 'pendiente' || v.estado === 'en_mora'
+          ).length;
           const metaV = rutaStats.meta || 0;
           const recaudoV = rutaStats.recaudo || 0;
           const porcentaje = metaV > 0 ? Math.round((recaudoV / metaV) * 100) : 0;
           const alCien = porcentaje >= 100;
           const descuadre = recaudoV < metaV;
+          // Todos pendientes = ningún cliente de la ruta fue cobrado
+          const todosPendientes = clientesFaltantesHoy > 0 && clientesFaltantesHoy === visitasBase.length;
           return (
           <Portal>
             <div
@@ -3063,10 +3060,14 @@ const VistaCobrador = () => {
                    )}
 
                    {clientesFaltantesHoy > 0 && (
-                     <div className="w-full flex items-start gap-2 p-3 bg-amber-50 border border-amber-100 rounded-2xl text-left">
-                       <Info className="h-4 w-4 text-amber-500 shrink-0 mt-0.5" />
-                       <p className="text-[11px] text-amber-700 font-bold">
-                         Faltaron <span className="text-amber-900 text-sm font-black">{clientesFaltantesHoy}</span> cliente{clientesFaltantesHoy > 1 ? 's' : ''} por cobrar hoy.
+                     <div className={`w-full flex items-start gap-2 p-3 rounded-2xl text-left border ${todosPendientes ? 'bg-red-50 border-red-200' : 'bg-amber-50 border-amber-100'}`}>
+                       {todosPendientes
+                         ? <XCircle className="h-4 w-4 text-red-500 shrink-0 mt-0.5" />
+                         : <Info className="h-4 w-4 text-amber-500 shrink-0 mt-0.5" />}
+                       <p className={`text-[11px] font-bold ${todosPendientes ? 'text-red-700' : 'text-amber-700'}`}>
+                         {todosPendientes
+                           ? <><span className="text-red-900 text-sm font-black">Ningún</span> cliente fue cobrado hoy. Sin recaudo en la jornada.</>  
+                           : <>Faltaron <span className="text-amber-900 text-sm font-black">{clientesFaltantesHoy}</span> cliente{clientesFaltantesHoy > 1 ? 's' : ''} por cobrar hoy.</>}
                        </p>
                      </div>
                    )}
@@ -3086,8 +3087,18 @@ const VistaCobrador = () => {
                       </div>
                       <div>
                         <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Pendientes Hoy</p>
-                        <p className={`text-sm font-black ${clientesFaltantesHoy > 0 ? 'text-amber-600' : 'text-emerald-600'}`}>
-                          {clientesFaltantesHoy > 0 ? `${clientesFaltantesHoy} clientes` : '✓ Todos'}
+                        <p className={`text-sm font-black ${
+                          clientesFaltantesHoy === 0
+                            ? 'text-emerald-600'
+                            : todosPendientes
+                              ? 'text-red-600'
+                              : 'text-amber-600'
+                        }`}>
+                          {clientesFaltantesHoy === 0
+                            ? 'Ninguno'
+                            : todosPendientes
+                              ? `✗ ${clientesFaltantesHoy} sin cobrar`
+                              : `${clientesFaltantesHoy} clientes`}
                         </p>
                       </div>
                    </div>

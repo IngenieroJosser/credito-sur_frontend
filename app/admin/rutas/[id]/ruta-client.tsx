@@ -2442,27 +2442,27 @@ const RutaClientLoaded = ({
                                         >
                                             <div className="flex flex-wrap gap-1.5 pt-2">
                                                 <button
-                                                    onClick={(e) => { e.stopPropagation(); if (visita.pendienteAprobacion) return; handleAbrirPago(visita); }}
-                                                    disabled={visita.pendienteAprobacion}
-                                                    title={visita.pendienteAprobacion ? 'Crédito pendiente de aprobación' : 'Registrar Pago'}
-                                                    className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-lg transition-all font-bold text-[11px] shadow-sm ${visita.pendienteAprobacion ? 'bg-slate-50 text-slate-300 border border-slate-100 opacity-50 cursor-not-allowed' : 'bg-blue-600 text-white hover:bg-blue-700 active:scale-95'}`}
+                                                    onClick={(e) => { e.stopPropagation(); if (visita.pendienteAprobacion || rutaCompletada) return; handleAbrirPago(visita); }}
+                                                    disabled={visita.pendienteAprobacion || rutaCompletada}
+                                                    title={visita.pendienteAprobacion ? 'Crédito pendiente de aprobación' : rutaCompletada ? 'Ruta completada' : 'Registrar Pago'}
+                                                    className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-lg transition-all font-bold text-[11px] shadow-sm ${visita.pendienteAprobacion || rutaCompletada ? 'bg-slate-50 text-slate-300 border border-slate-100 opacity-50 cursor-not-allowed' : 'bg-blue-600 text-white hover:bg-blue-700 active:scale-95'}`}
                                                 >
                                                     <DollarSign className="h-3.5 w-3.5" />
                                                     Pago
                                                 </button>
                                                 <button
-                                                    onClick={(e) => { e.stopPropagation(); if (visita.pendienteAprobacion) return; handleAbrirAbono(visita); }}
-                                                    disabled={visita.pendienteAprobacion}
-                                                    title={visita.pendienteAprobacion ? 'Crédito pendiente de aprobación' : 'Registrar Abono'}
-                                                    className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-lg transition-all font-bold text-[11px] shadow-sm ${visita.pendienteAprobacion ? 'bg-slate-50 text-slate-300 border border-slate-100 opacity-50 cursor-not-allowed' : 'bg-emerald-600 text-white hover:bg-emerald-700 active:scale-95'}`}
+                                                    onClick={(e) => { e.stopPropagation(); if (visita.pendienteAprobacion || rutaCompletada) return; handleAbrirAbono(visita); }}
+                                                    disabled={visita.pendienteAprobacion || rutaCompletada}
+                                                    title={visita.pendienteAprobacion ? 'Crédito pendiente de aprobación' : rutaCompletada ? 'Ruta completada' : 'Registrar Abono'}
+                                                    className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-lg transition-all font-bold text-[11px] shadow-sm ${visita.pendienteAprobacion || rutaCompletada ? 'bg-slate-50 text-slate-300 border border-slate-100 opacity-50 cursor-not-allowed' : 'bg-emerald-600 text-white hover:bg-emerald-700 active:scale-95'}`}
                                                 >
                                                     <Wallet className="h-3.5 w-3.5" />
                                                     Abono
                                                 </button>
                                                 <button
-                                                    onClick={(e) => { e.stopPropagation(); handleAbrirEstadoCuenta(visita); }}
-                                                    className="flex flex-col items-center justify-center p-2 rounded-xl bg-white text-slate-700 border border-slate-200 hover:bg-slate-50 transition-all shadow-sm active:scale-95"
-
+                                                    onClick={(e) => { e.stopPropagation(); if(rutaCompletada) return; handleAbrirEstadoCuenta(visita); }}
+                                                    disabled={rutaCompletada}
+                                                    className={`flex flex-col items-center justify-center p-2 rounded-xl transition-all shadow-sm active:scale-95 border ${rutaCompletada ? 'bg-slate-50 text-slate-300 border-slate-100 opacity-50 cursor-not-allowed' : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'}`}
                                                 >
 
                                                     <FileTextIcon className="h-3.5 w-3.5 text-slate-400" />
@@ -2476,6 +2476,7 @@ const RutaClientLoaded = ({
                                                     onClick={(e) => { 
 
                                                       e.stopPropagation(); 
+                                                      if (rutaCompletada) return;
 
                                                       const isProrrogaVencida = visita.enProrroga && visita.fechaProrroga && new Date(visita.fechaProrroga).getTime() < Date.now();
 
@@ -2483,11 +2484,11 @@ const RutaClientLoaded = ({
 
                                                     }}
 
-                                                    disabled={!!visita.enProrroga && !(visita.fechaProrroga && new Date(visita.fechaProrroga).getTime() < Date.now())}
+                                                    disabled={rutaCompletada || (!!visita.enProrroga && !(visita.fechaProrroga && new Date(visita.fechaProrroga).getTime() < Date.now()))}
 
-                                                    title={visita.enProrroga && !(visita.fechaProrroga && new Date(visita.fechaProrroga).getTime() < Date.now()) ? 'No se puede reprogramar con prorroga activa' : 'Solicitar reprogramacion'}
+                                                    title={rutaCompletada ? 'Ruta completada' : visita.enProrroga && !(visita.fechaProrroga && new Date(visita.fechaProrroga).getTime() < Date.now()) ? 'No se puede reprogramar con prorroga activa' : 'Solicitar reprogramacion'}
 
-                                                    className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border transition-all font-bold text-[11px] shadow-sm ${visita.enProrroga && !(visita.fechaProrroga && new Date(visita.fechaProrroga).getTime() < Date.now()) ? 'bg-slate-50 text-slate-300 border-slate-100 opacity-50 cursor-not-allowed' : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50 active:scale-95'}`}
+                                                    className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border transition-all font-bold text-[11px] shadow-sm ${rutaCompletada || (visita.enProrroga && !(visita.fechaProrroga && new Date(visita.fechaProrroga).getTime() < Date.now())) ? 'bg-slate-50 text-slate-300 border-slate-100 opacity-50 cursor-not-allowed' : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50 active:scale-95'}`}
 
                                                 >
 
