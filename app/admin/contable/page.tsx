@@ -265,6 +265,36 @@ const ModuloContableContent = () => {
     }
   }
 
+  // Carga movimientos globales filtrados por tipo (INGRESO o EGRESO) para el historial sem filtro de caja
+  const loadMovimientosGlobalPorTipo = async (tipo: 'INGRESO' | 'EGRESO', fechaInicio?: string, fechaFin?: string) => {
+    try {
+      const params: any = { tipo, limit: 500 }
+      if (fechaInicio) params.fechaInicio = fechaInicio
+      if (fechaFin) params.fechaFin = fechaFin
+      const resp = await getTransacciones(params)
+      if (resp && Array.isArray(resp.data)) {
+        setMovimientosModalGlobal(resp.data.map(t => ({
+          id: t.id,
+          numero: t.numero,
+          fecha: t.fecha,
+          concepto: t.descripcion,
+          tipo: t.tipo,
+          monto: t.monto,
+          categoria: t.categoria || 'GENERAL',
+          responsable: t.responsable,
+          origen: (t as any).origen || 'EMPRESA',
+          estado: (t.estado as any) || 'APROBADO',
+          cajaId: (t as any).cajaId,
+          cajaOrigenId: (t as any).cajaOrigenId
+        })))
+      } else {
+        setMovimientosModalGlobal([])
+      }
+    } catch {
+      setMovimientosModalGlobal([])
+    }
+  }
+
   const handleExportExcel = async () => {
     try {
       await exportService.exportAccounting('excel')
@@ -303,6 +333,8 @@ const ModuloContableContent = () => {
 
   const [movimientos, setMovimientos] = useState<MovimientoContable[]>([])
   const [movimientosDetalle, setMovimientosDetalle] = useState<MovimientoContable[]>([])
+  // Movimientos globales filtrados por tipo (para el historial de ingresos/egresos sin caja seleccionada)
+  const [movimientosModalGlobal, setMovimientosModalGlobal] = useState<MovimientoContable[]>([])
 
   // --- CARGA DE DATOS (REUSABLE) ---
   const fetchData = async () => {
@@ -414,6 +446,20 @@ const ModuloContableContent = () => {
 
   // Tiempo real: refrescar módulo contable cuando haya nuevos pagos
   useRealtimeData(['pagos_actualizados', 'prestamos_actualizados'], fetchData)
+
+  // Cargar movimientos globales por tipo cuando se abre el modal de historial
+  useEffect(() => {
+    if (showDetalleModal && !cajaSeleccionada) {
+      if (detalleTipo === 'INGRESOS') {
+        loadMovimientosGlobalPorTipo('INGRESO', fechaInicioModal || undefined, fechaFinModal || undefined)
+      } else if (detalleTipo === 'EGRESOS') {
+        loadMovimientosGlobalPorTipo('EGRESO', fechaInicioModal || undefined, fechaFinModal || undefined)
+      }
+    } else if (!showDetalleModal) {
+      setMovimientosModalGlobal([])
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [detalleTipo, showDetalleModal, fechaInicioModal, fechaFinModal, cajaSeleccionada])
 
   // Cargar usuarios solo cuando el rol está disponible y es admin
   useEffect(() => {
@@ -1890,12 +1936,17 @@ const ModuloContableContent = () => {
                  <h4 className="text-xs font-bold text-slate-500 uppercase mb-3 flex items-center gap-2">
                     <BarChart3 className="w-3.5 h-3.5" />
                     Rendimiento
+                    <span className="ml-auto text-[9px] font-bold text-blue-500 bg-blue-50 border border-blue-100 px-2 py-0.5 rounded-full">HOY</span>
                  </h4>
                  
                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       {/* Recaudado */}
                       <div 
                         onClick={async () => {
+                            // Pre-filtrar con la fecha de hoy para que coincida con el rendimiento mostrado
+                            const hoy = new Date().toISOString().split('T')[0];
+                            setFechaInicioModal(hoy);
+                            setFechaFinModal(hoy);
                             setDetalleTipo('INGRESOS');
                             await loadMovimientosDetalle();
                             setShowDetalleModal(true);
@@ -2103,7 +2154,7 @@ const ModuloContableContent = () => {
         
         {/* Modal de Detalle */}
         {showDetalleModal && renderInPortal(
-          <div className="fixed inset-0 z-[2147483647] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm" onClick={() => { setShowDetalleModal(false); setMovimientosDetalle([]); }}>
+          <div className="fixed inset-0 z-[2147483647] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm" onClick={() => { setShowDetalleModal(false); setMovimientosDetalle([]); setFechaInicioModal(''); setFechaFinModal(''); }}>
             <div className="w-full max-w-2xl rounded-2xl bg-white border border-slate-200 shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200 flex flex-col max-h-[90vh]" onClick={(e) => e.stopPropagation()}>
               {/* Modal Header */}
               <div className="p-6 border-b border-slate-100 flex items-center justify-between shrink-0">
@@ -2117,7 +2168,7 @@ const ModuloContableContent = () => {
                     </p>
                 </div>
                 <button
-                  onClick={() => { setShowDetalleModal(false); setMovimientosDetalle([]); }}
+                  onClick={() => { setShowDetalleModal(false); setMovimientosDetalle([]); setFechaInicioModal(''); setFechaFinModal(''); }}
                   className="p-2 rounded-2xl hover:bg-slate-100 text-slate-500 transition-colors"
                 >
                   <XCircle className="h-6 w-6" />
@@ -2153,7 +2204,7 @@ const ModuloContableContent = () => {
                                </span>
                                <span className={cn("text-3xl font-black tracking-tight", detalleTipo === 'INGRESOS' ? "text-emerald-800" : "text-red-800")}>
                                  {(() => {
-                                    const source = movimientosDetalle.length ? movimientosDetalle : movimientos
+                                    const source = movimientosDetalle.length ? movimientosDetalle : (!cajaSeleccionada && movimientosModalGlobal.length ? movimientosModalGlobal : movimientos)
                                     const filtered = source
                                         .filter(m => {
                                             if (!cajaSeleccionada && m.categoria === 'CONSOLIDACION') return false;
@@ -2253,7 +2304,7 @@ const ModuloContableContent = () => {
                               {detalleTipo === 'CIERRES' 
                                  ? historialCierres.length 
                                  : (() => {
-                                      const base = movimientosDetalle.length ? movimientosDetalle : movimientos;
+                                      const base = movimientosDetalle.length ? movimientosDetalle : (!cajaSeleccionada && movimientosModalGlobal.length ? movimientosModalGlobal : movimientos);
                                       const filtrados = base
                                         .filter(m => {
                                           if (!cajaSeleccionada && m.categoria === 'CONSOLIDACION') return false;
@@ -2341,7 +2392,7 @@ const ModuloContableContent = () => {
                            </div>
                        ) : (
                          <>
-                          {(movimientosDetalle.length ? movimientosDetalle : movimientos)
+                          {(movimientosDetalle.length ? movimientosDetalle : (!cajaSeleccionada && movimientosModalGlobal.length ? movimientosModalGlobal : movimientos))
                             .filter(m => {
                               if (!cajaSeleccionada && m.categoria === 'CONSOLIDACION') return false;
                               let isIngreso = false;
@@ -2589,4 +2640,5 @@ const ModuloContablePage = () => {
 }
 
 export default ModuloContablePage
+
 
