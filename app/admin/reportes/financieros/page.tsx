@@ -133,7 +133,7 @@ const ReportesFinancierosPage = () => {
       ])
       const totalIngresosPeriodo = ingSumRes.data.reduce((acc, t) => acc + (t.monto || 0), 0)
       const totalEgresosPeriodo = egreSumRes.data.reduce((acc, t) => acc + (t.monto || 0), 0)
-      const utilidadPeriodo = Math.max(0, totalIngresosPeriodo - totalEgresosPeriodo)
+      const utilidadPeriodo = totalIngresosPeriodo - totalEgresosPeriodo
       const margenPeriodo = totalIngresosPeriodo > 0 ? (utilidadPeriodo / totalIngresosPeriodo) * 100 : 0
       setSummary({
         ingresos: totalIngresosPeriodo,
@@ -229,7 +229,7 @@ const ReportesFinancierosPage = () => {
             mes: labels[idx],
             ingresos: v.ingresos,
             egresos: v.egresos,
-            utilidad: Math.max(0, v.ingresos - v.egresos),
+            utilidad: v.ingresos - v.egresos,
             fecha: d.toISOString()
           }
         })
@@ -237,7 +237,7 @@ const ReportesFinancierosPage = () => {
 
         const totalIngresos7 = Object.values(dias).reduce((acc, v) => acc + v.ingresos, 0)
         const totalEgresos7 = Object.values(dias).reduce((acc, v) => acc + v.egresos, 0)
-        const utilidad7 = Math.max(0, totalIngresos7 - totalEgresos7)
+        const utilidad7 = totalIngresos7 - totalEgresos7
         const margen7 = totalIngresos7 > 0 ? (utilidad7 / totalIngresos7) * 100 : 0
         setSummary({
           ingresos: totalIngresos7,
@@ -300,7 +300,7 @@ const ReportesFinancierosPage = () => {
               mes: label,
               ingresos: v?.ingresos || 0,
               egresos: v?.egresos || 0,
-              utilidad: Math.max(0, (v?.ingresos || 0) - (v?.egresos || 0)),
+              utilidad: (v?.ingresos || 0) - (v?.egresos || 0),
               fecha: v?.fecha || d.toISOString()
             }
           })
@@ -334,7 +334,7 @@ const ReportesFinancierosPage = () => {
               mes: m.label,
               ingresos: v.ingresos,
               egresos: v.egresos,
-              utilidad: Math.max(0, v.ingresos - v.egresos),
+              utilidad: v.ingresos - v.egresos,
               yearMonth: m.key
             }
           })
