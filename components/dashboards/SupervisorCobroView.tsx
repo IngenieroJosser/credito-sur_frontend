@@ -840,14 +840,23 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
     if (!fecha || !motivo) return
 
     try {
-      // Enviar solicitud al backend — queda pendiente de aprobación del supervisor
-      if (visitaReprogramar.prestamoId && cuotaId) {
-        await prestamosService.solicitarReprogramacionCuota({
-          prestamoId: visitaReprogramar.prestamoId,
-          cuotaId,
-          nuevaFecha: fecha,
-          motivo,
-        })
+      // Enviar solicitud al backend — queda pendiente de aprobación del supervisor/admin o se autoaprueba
+      if (visitaReprogramar.prestamoId) {
+        if (cuotaId) {
+          await prestamosService.solicitarReprogramacionCuota({
+            prestamoId: visitaReprogramar.prestamoId,
+            cuotaId,
+            nuevaFecha: fecha,
+            motivo,
+          })
+        } else {
+          // Fallback al endpoint principal (el backend detectará la cuota automáticamente)
+          await prestamosService.reprogramarPrestamo(visitaReprogramar.prestamoId, {
+            fecha,
+            motivo,
+            cobradorId: userSession?.id || ''
+          })
+        }
       }
 
       // Marcar localmente como reprogramado (UI feedback)
