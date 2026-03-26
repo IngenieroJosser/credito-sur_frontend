@@ -265,6 +265,36 @@ const ModuloContableContent = () => {
     }
   }
 
+  // Carga movimientos globales filtrados por tipo (INGRESO o EGRESO) para el historial sem filtro de caja
+  const loadMovimientosGlobalPorTipo = async (tipo: 'INGRESO' | 'EGRESO', fechaInicio?: string, fechaFin?: string) => {
+    try {
+      const params: any = { tipo, limit: 500 }
+      if (fechaInicio) params.fechaInicio = fechaInicio
+      if (fechaFin) params.fechaFin = fechaFin
+      const resp = await getTransacciones(params)
+      if (resp && Array.isArray(resp.data)) {
+        setMovimientosModalGlobal(resp.data.map(t => ({
+          id: t.id,
+          numero: t.numero,
+          fecha: t.fecha,
+          concepto: t.descripcion,
+          tipo: t.tipo,
+          monto: t.monto,
+          categoria: t.categoria || 'GENERAL',
+          responsable: t.responsable,
+          origen: (t as any).origen || 'EMPRESA',
+          estado: (t.estado as any) || 'APROBADO',
+          cajaId: (t as any).cajaId,
+          cajaOrigenId: (t as any).cajaOrigenId
+        })))
+      } else {
+        setMovimientosModalGlobal([])
+      }
+    } catch {
+      setMovimientosModalGlobal([])
+    }
+  }
+
   const handleExportExcel = async () => {
     try {
       await exportService.exportAccounting('excel')
@@ -303,6 +333,8 @@ const ModuloContableContent = () => {
 
   const [movimientos, setMovimientos] = useState<MovimientoContable[]>([])
   const [movimientosDetalle, setMovimientosDetalle] = useState<MovimientoContable[]>([])
+  // Movimientos globales filtrados por tipo (para el historial de ingresos/egresos sin caja seleccionada)
+  const [movimientosModalGlobal, setMovimientosModalGlobal] = useState<MovimientoContable[]>([])
 
   // --- CARGA DE DATOS (REUSABLE) ---
   const fetchData = async () => {
@@ -414,6 +446,20 @@ const ModuloContableContent = () => {
 
   // Tiempo real: refrescar módulo contable cuando haya nuevos pagos
   useRealtimeData(['pagos_actualizados', 'prestamos_actualizados'], fetchData)
+
+  // Cargar movimientos globales por tipo cuando se abre el modal de historial
+  useEffect(() => {
+    if (showDetalleModal && !cajaSeleccionada) {
+      if (detalleTipo === 'INGRESOS') {
+        loadMovimientosGlobalPorTipo('INGRESO', fechaInicioModal || undefined, fechaFinModal || undefined)
+      } else if (detalleTipo === 'EGRESOS') {
+        loadMovimientosGlobalPorTipo('EGRESO', fechaInicioModal || undefined, fechaFinModal || undefined)
+      }
+    } else if (!showDetalleModal) {
+      setMovimientosModalGlobal([])
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [detalleTipo, showDetalleModal, fechaInicioModal, fechaFinModal, cajaSeleccionada])
 
   // Cargar usuarios solo cuando el rol está disponible y es admin
   useEffect(() => {
@@ -2153,7 +2199,7 @@ const ModuloContableContent = () => {
                                </span>
                                <span className={cn("text-3xl font-black tracking-tight", detalleTipo === 'INGRESOS' ? "text-emerald-800" : "text-red-800")}>
                                  {(() => {
-                                    const source = movimientosDetalle.length ? movimientosDetalle : movimientos
+                                    const source = movimientosDetalle.length ? movimientosDetalle : (!cajaSeleccionada && movimientosModalGlobal.length ? movimientosModalGlobal : movimientos)
                                     const filtered = source
                                         .filter(m => {
                                             if (!cajaSeleccionada && m.categoria === 'CONSOLIDACION') return false;
@@ -2253,7 +2299,7 @@ const ModuloContableContent = () => {
                               {detalleTipo === 'CIERRES' 
                                  ? historialCierres.length 
                                  : (() => {
-                                      const base = movimientosDetalle.length ? movimientosDetalle : movimientos;
+                                      const base = movimientosDetalle.length ? movimientosDetalle : (!cajaSeleccionada && movimientosModalGlobal.length ? movimientosModalGlobal : movimientos);
                                       const filtrados = base
                                         .filter(m => {
                                           if (!cajaSeleccionada && m.categoria === 'CONSOLIDACION') return false;
@@ -2341,7 +2387,7 @@ const ModuloContableContent = () => {
                            </div>
                        ) : (
                          <>
-                          {(movimientosDetalle.length ? movimientosDetalle : movimientos)
+                          {(movimientosDetalle.length ? movimientosDetalle : (!cajaSeleccionada && movimientosModalGlobal.length ? movimientosModalGlobal : movimientos))
                             .filter(m => {
                               if (!cajaSeleccionada && m.categoria === 'CONSOLIDACION') return false;
                               let isIngreso = false;
