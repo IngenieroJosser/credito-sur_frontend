@@ -39,6 +39,7 @@ import {
   User,
   CreditCard,
   TrendingDown,
+  TrendingUp,
 } from 'lucide-react'
 import { Portal } from '@/components/dashboards/shared/CobradorElements'
 import { formatCurrency, resolveMediaUrl } from '@/lib/utils'
@@ -344,7 +345,31 @@ export default function PagoDetalleModal({
               )}
             </div>
 
-            {/* ── 3. Datos del pago ───────────────────────────────────────────── */}
+            {/* ── 3. Ganancia / Utilidad ──────────────────────────────────────── */}
+            {interesRec > 0 && (
+              <div className="bg-gradient-to-br from-emerald-50 to-green-50 rounded-2xl border border-emerald-100 p-5">
+                <div className="flex items-center gap-2 mb-3 pb-2 border-b border-emerald-100">
+                  <TrendingUp className="h-4 w-4 text-emerald-600" />
+                  <p className="text-[10px] font-black uppercase tracking-widest text-emerald-700">
+                    Ganancia / Utilidad
+                  </p>
+                </div>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-[10px] text-emerald-600 font-bold uppercase mb-1">Interés Recaudado</p>
+                    <p className="text-3xl font-black text-emerald-700 tabular-nums">{formatCurrency(interesRec)}</p>
+                    <p className="text-[10px] text-emerald-500 font-medium mt-1">
+                      {capitalRec > 0 ? `${((interesRec / (capitalRec + interesRec)) * 100).toFixed(1)}% del pago total` : ''}
+                    </p>
+                  </div>
+                  <div className="w-14 h-14 rounded-2xl bg-emerald-100 border border-emerald-200 flex items-center justify-center">
+                    <TrendingUp className="h-7 w-7 text-emerald-600" />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* ── 4. Datos del pago ───────────────────────────────────────────── */}
             <div className="bg-white rounded-2xl border border-slate-100 p-5">
               <div className="flex items-center gap-2 mb-3 pb-2 border-b border-slate-100">
                 <Hash className="h-4 w-4 text-slate-400" />
@@ -373,7 +398,7 @@ export default function PagoDetalleModal({
               <DataFila label="Cobrador" value={cobrador} />
             </div>
 
-            {/* ── 4. Cliente ──────────────────────────────────────────────────── */}
+            {/* ── 5. Cliente ──────────────────────────────────────────────────── */}
             <div className="bg-white rounded-2xl border border-slate-100 p-5">
               <div className="flex items-center gap-2 mb-3 pb-2 border-b border-slate-100">
                 <User className="h-4 w-4 text-slate-400" />
@@ -385,7 +410,7 @@ export default function PagoDetalleModal({
               <DataFila label="CC"     value={clienteDni} />
             </div>
 
-            {/* ── 5. Detalle por cuotas (solo si disponible desde API) ─────────── */}
+            {/* ── 6. Detalle por cuotas (solo si disponible desde API) ─────────── */}
             {pago?.detalles && pago.detalles.length > 0 && (
               <div className="bg-white rounded-2xl border border-slate-100 p-5">
                 <div className="flex items-center gap-2 mb-3 pb-2 border-b border-slate-100">
@@ -423,7 +448,7 @@ export default function PagoDetalleModal({
               </div>
             )}
 
-            {/* ── 6. Comprobante de transferencia ─────────────────────────────── */}
+            {/* ── 7. Comprobante de transferencia ─────────────────────────────── */}
             {esTransferencia && (
               <div className="bg-white rounded-2xl border border-slate-100 p-5">
                 <div className="flex items-center justify-between mb-3 pb-2 border-b border-slate-100">

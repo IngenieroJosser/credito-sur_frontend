@@ -47,6 +47,7 @@ import { useNotification } from '@/components/providers/NotificationProvider'
 import { useAuth } from '@/hooks/useAuth'
 import { prestamosService } from '@/services/prestamos-service'
 import { pagosService } from '@/services/pagos-service'
+import { exportService } from '@/services/export-service'
 import { obtenerSaldoDisponibleRuta } from '@/services/contabilidad-service'
 import { HistorialDia } from '@/lib/types/cobranza'
 import { useRealtimeData } from '@/hooks/useRealtimeData'
@@ -186,9 +187,14 @@ const DetalleRutaPage = () => {
     cargarMisCreditos()
   }, [showMisClientes, cargarMisCreditos])
 
+  // Tiempo real: recarga visitas COMPLETAS cuando se registran pagos/préstamos,
+  // para que las cuotas de todos los clientes se reflejen sin recargar la página.
   useRealtimeData(['pagos_actualizados', 'prestamos_actualizados', 'rutas_actualizadas'], async () => {
+    // Recargar la lista principal de visitas (cuotas pueden haber cambiado)
+    await cargarRuta();
+    // Recargar misCreditos solo si el panel está abierto
     if (showMisClientes) {
-      await cargarMisCreditos()
+      await cargarMisCreditos();
     }
   })
 
@@ -250,188 +256,188 @@ const DetalleRutaPage = () => {
     setClienteDetalle(visita);
   }, [setClienteDetalle]);
 
-  // Cargar datos reales
-  useEffect(() => {
-    const cargarRuta = async () => {
-        if (!rutaId || rutaId === 'Desconocida') return;
-        try {
-            const ruta = await rutasService.obtenerRutaPorId(rutaId);
-            if (ruta && ruta.asignaciones) {
-                const visitas = ruta.asignaciones.map((asig: any, index: number) => {
-                   const cliente = asig.cliente || {};
-                   const prestamos = cliente.prestamos || [];
-                   const prestamoActivo = prestamos.find((p: any) => p.estado === 'ACTIVO' || p.estado === 'EN_MORA') || prestamos[0] || {};
+  // ---------------------------------------------------------------------------
+  // cargarRuta – carga visitas completas y KPIs desde el backend.
+  // useCallback estable para ser reutilizado en el hook de tiempo real.
+  // ---------------------------------------------------------------------------
+  const cargarRuta = useCallback(async () => {
+    if (!rutaId || rutaId === 'Desconocida') return;
+    try {
+        const ruta = await rutasService.obtenerRutaPorId(rutaId);
+        if (ruta && ruta.asignaciones) {
+            const visitas = ruta.asignaciones.map((asig: any, index: number) => {
+               const cliente = asig.cliente || {};
+               const prestamos = cliente.prestamos || [];
+               const prestamoActivo = prestamos.find((p: any) => p.estado === 'ACTIVO' || p.estado === 'EN_MORA') || prestamos[0] || {};
+               
+               const proximaCuota = prestamoActivo.proximaCuota || {}; 
+               const saldoTotal = asig.cliente?.prestamos?.reduce((sum: number, p: any) => sum + Number(p.saldoPendiente || 0), 0) || 0;
+
+               let estado: EstadoVisita = 'pendiente';
+               if (proximaCuota.estado === 'VENCIDA') estado = 'en_mora';
+               else if (proximaCuota.estado === 'PAGADA') estado = 'pagado';
+               else if (!prestamoActivo.id) estado = 'pendiente';
+
+               return {
+                id: asig.id || `asig-${index}`,
+                cliente: `${cliente.nombres || ''} ${cliente.apellidos || ''}`.trim() || 'Cliente Sin Nombre',
+                direccion: cliente.direccion || 'Sin dirección registrada',
+                telefono: cliente.telefono || '',
+                horaSugerida: asig.horaSugerida || '08:00 AM',
+                montoCuota: Number(proximaCuota.monto || 0),
+                saldoTotal: Number(saldoTotal),
+                estado: estado,
+                proximaVisita: proximaCuota.fechaVencimiento || '9999-12-31T00:00:00.000Z',
+                targetVencimiento: proximaCuota.fechaVencimiento || undefined,
+                ordenVisita: asig.ordenVisita || index + 1,
+                prioridad: (asig.prioridad?.toLowerCase()) || (estado === 'en_mora' ? 'alta' : 'media'),
+                nivelRiesgo: (() => {
+                   const r = cliente.nivelRiesgo || 'VERDE';
+                   if (r === 'VERDE') return 'bajo';
+                   if (r === 'AMARILLO') return 'precaucion' as any;
+                   if (r === 'ROJO') return 'moderado';
+                   if (r === 'LISTA_NEGRA') return 'critico';
+                   return 'bajo';
+                })(),
+                cobradorId: ruta.cobradorId,
+                periodoRuta: (() => {
+                   const f = prestamoActivo.frecuenciaPago || 'DIARIO';
+                   if (f === 'DIARIO') return 'DIA';
+                   if (f === 'SEMANAL') return 'SEMANA';
+                   if (f === 'QUINCENAL') return 'QUINCENA';
+                   if (f === 'MENSUAL') return 'MES';
+                   return 'DIA';
+                })(),
+                clienteId: cliente.id,
+                prestamoId: prestamoActivo.id,
+                cuotasTotales: prestamoActivo.cantidadCuotas,
+                tipoPrestamo: prestamoActivo.tipo === 'ARTICULO' ? 'ARTICULO' : 'EFECTIVO',
+                articuloNombre: prestamoActivo.tipo === 'ARTICULO' ? (prestamoActivo.articulo || 'Artículo') : 'Préstamo',
+               };
+            });
+            
+            // Enriquecer con cuotas
+            const visitasEnriquecidas = await Promise.all(visitas.map(async (v: any) => {
+                if (!v.prestamoId) return v;
+                try {
+                   const cuotas = await prestamosService.obtenerCuotas(v.prestamoId);
+                   const pendiente = cuotas.find(c => c.estado !== 'PAGADA');
                    
-                   const proximaCuota = prestamoActivo.proximaCuota || {}; 
-                   const saldoTotal = asig.cliente?.prestamos?.reduce((sum: number, p: any) => sum + Number(p.saldoPendiente || 0), 0) || 0;
-
-                   let estado: EstadoVisita = 'pendiente';
-                   if (proximaCuota.estado === 'VENCIDA') estado = 'en_mora';
-                   else if (proximaCuota.estado === 'PAGADA') estado = 'pagado';
-                   else if (!prestamoActivo.id) estado = 'pendiente';
-
-                   return {
-                    id: asig.id || `asig-${index}`,
-                    cliente: `${cliente.nombres || ''} ${cliente.apellidos || ''}`.trim() || 'Cliente Sin Nombre',
-                    direccion: cliente.direccion || 'Sin dirección registrada',
-                    telefono: cliente.telefono || '',
-                    horaSugerida: asig.horaSugerida || '08:00 AM',
-                    montoCuota: Number(proximaCuota.monto || 0),
-                    saldoTotal: Number(saldoTotal),
-                    estado: estado,
-                    proximaVisita: proximaCuota.fechaVencimiento || '9999-12-31T00:00:00.000Z',
-                    targetVencimiento: proximaCuota.fechaVencimiento || undefined,
-                    ordenVisita: asig.ordenVisita || index + 1,
-                    prioridad: (asig.prioridad?.toLowerCase()) || (estado === 'en_mora' ? 'alta' : 'media'),
-                    nivelRiesgo: (() => {
-                       const r = cliente.nivelRiesgo || 'VERDE';
-                       if (r === 'VERDE') return 'bajo';
-                       if (r === 'AMARILLO') return 'precaucion' as any;
-                       if (r === 'ROJO') return 'moderado';
-                       if (r === 'LISTA_NEGRA') return 'critico';
-                       return 'bajo';
-                    })(),
-                    cobradorId: ruta.cobradorId,
-                    periodoRuta: (() => {
-                       const f = prestamoActivo.frecuenciaPago || 'DIARIO';
-                       if (f === 'DIARIO') return 'DIA';
-                       if (f === 'SEMANAL') return 'SEMANA';
-                       if (f === 'QUINCENAL') return 'QUINCENA';
-                       if (f === 'MENSUAL') return 'MES';
-                       return 'DIA';
-                    })(),
-                    clienteId: cliente.id,
-                    prestamoId: prestamoActivo.id,
-                    cuotasTotales: prestamoActivo.cantidadCuotas,
-                    tipoPrestamo: prestamoActivo.tipo === 'ARTICULO' ? 'ARTICULO' : 'EFECTIVO',
-                    articuloNombre: prestamoActivo.tipo === 'ARTICULO' ? (prestamoActivo.articulo || 'Artículo') : 'Préstamo',
-                   };
-                });
-                
-                // Enriquecer con cuotas
-                const visitasEnriquecidas = await Promise.all(visitas.map(async (v: any) => {
-                    if (!v.prestamoId) return v;
-                    try {
-                       const cuotas = await prestamosService.obtenerCuotas(v.prestamoId);
-                       const pendiente = cuotas.find(c => c.estado !== 'PAGADA');
-                       
-                       if (pendiente) {
-                           const montoReal = Number(pendiente.monto || (pendiente.montoCapital + pendiente.montoInteres) || 0);
-                           // Actualizamos monto Y fecha para que el filtro de ruta funcione
-                           return { 
-                             ...v, 
-                             montoCuota: montoReal > 0 ? montoReal : v.montoCuota,
-                             proximaVisita: (pendiente.estado === 'PRORROGADA' && pendiente.fechaVencimientoProrroga) 
-                               ? pendiente.fechaVencimientoProrroga 
-                               : (pendiente.fechaVencimiento || v.proximaVisita),
-                             cuotaActual: pendiente.numeroCuota,
-                             cuotasTotales: cuotas.length,
-                             enProrroga: pendiente.estado === 'PRORROGADA' || !!pendiente.fechaVencimientoProrroga,
-                             fechaProrroga: pendiente.fechaVencimientoProrroga || undefined,
-                             fechaOriginalVencimiento: pendiente.fechaVencimiento || undefined,
-                           };
-                       }
-                       
-                       const p = await prestamosService.obtenerPrestamoPorId(v.prestamoId);
-                       const proxima = (p.proximaCuota ?? {}) as any;
-                       const montoP = Number(proxima.monto || p.montoCuota || p.valorCuota || 0);
-                       
+                   if (pendiente) {
+                       const montoReal = Number(pendiente.monto || (pendiente.montoCapital + pendiente.montoInteres) || 0);
                        return { 
                          ...v, 
-                         montoCuota: montoP > 0 ? montoP : v.montoCuota,
-                         proximaVisita: proxima.fechaVencimiento || v.proximaVisita
+                         montoCuota: montoReal > 0 ? montoReal : v.montoCuota,
+                         proximaVisita: (pendiente.estado === 'PRORROGADA' && pendiente.fechaVencimientoProrroga) 
+                           ? pendiente.fechaVencimientoProrroga 
+                           : (pendiente.fechaVencimiento || v.proximaVisita),
+                         cuotaActual: pendiente.numeroCuota,
+                         cuotasTotales: cuotas.length,
+                         enProrroga: pendiente.estado === 'PRORROGADA' || !!pendiente.fechaVencimientoProrroga,
+                         fechaProrroga: pendiente.fechaVencimientoProrroga || undefined,
+                         fechaOriginalVencimiento: pendiente.fechaVencimiento || undefined,
                        };
-                    } catch (e) {
-                       return v;
-                    }
-                }));
-
-                // Enriquecer recaudo
-                const toLocalKey = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-                const hoyStr = toLocalKey(new Date());
-
-                const withRecaudo = await Promise.all(visitasEnriquecidas.map(async (v: any) => {
-                  if (!v.clienteId) return { ...v, recaudadoDelDia: 0, recaudadoTotalClient: 0 };
-                  try {
-                    const pagosResp = await pagosService.obtenerPagos({ clienteId: v.clienteId, limit: 100 });
-                    const pagosCalc = (pagosResp?.pagos || []);
-                    
-                    const totalHoy = pagosCalc.reduce((sum: number, p: any) => {
-                      const raw = p.fechaPago || p.creadoEn;
-                      const f = raw ? (raw.includes('T') ? raw.split('T')[0] : raw) : '';
-                      return f === hoyStr ? sum + Number(p.montoTotal || 0) : sum;
-                    }, 0);
-                    
-                    const totalHistorico = pagosCalc.reduce((sum: number, p: any) => {
-                      return sum + Number(p.montoTotal || 0);
-                    }, 0);
-
-                    return { ...v, recaudadoDelDia: totalHoy, recaudadoTotalClient: totalHistorico };
-                  } catch {
-                    return { ...v, recaudadoDelDia: 0, recaudadoTotalClient: 0 };
-                  }
-                }));
-
-                withRecaudo.sort((a, b) => a.ordenVisita - b.ordenVisita);
-
-                const ajustarEstadoConPago = (v: any): EstadoVisita => {
-                  if (Number(v.saldoTotal || 0) <= 0) return 'pagado';
-                  
-                  // CRÍTICO: Si hoy ya pagó la cuota, es PAGADO sin importar la fecha de proximaVisita
-                  const saldoHoy = Number(v.recaudadoDelDia || 0);
-                  const cuota = Number(v.montoCuota || 0);
-                  
-                  if (saldoHoy >= (cuota - 1) && saldoHoy > 0) return 'pagado';
-
-                  const proximaC = v.proximaVisita ? (v.proximaVisita.includes('T') ? v.proximaVisita.split('T')[0] : v.proximaVisita) : '';
-                  
-                  if (proximaC === hoyStr && saldoHoy >= (cuota - 1)) return 'pagado';
-                  
-                  return v.estado;
+                   }
+                   
+                   const p = await prestamosService.obtenerPrestamoPorId(v.prestamoId);
+                   const proxima = (p.proximaCuota ?? {}) as any;
+                   const montoP = Number(proxima.monto || p.montoCuota || p.valorCuota || 0);
+                   
+                   return { 
+                     ...v, 
+                     montoCuota: montoP > 0 ? montoP : v.montoCuota,
+                     proximaVisita: proxima.fechaVencimiento || v.proximaVisita
+                   };
+                } catch (e) {
+                   return v;
                 }
+            }));
 
-                const finales = withRecaudo.map(v => ({ ...v, estado: ajustarEstadoConPago(v) }));
+            // Enriquecer recaudo
+            const toLocalKey = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+            const hoyStr = toLocalKey(new Date());
 
-                const cobranzaDia = finales.reduce((acc: number, curr: any) => acc + (curr.recaudadoDelDia || 0), 0)
-                const metaDia = finales.reduce((acc: number, curr: any) => acc + (curr.montoCuota || 0), 0)
-                const progresoAvance = metaDia > 0 ? (cobranzaDia / metaDia) * 100 : 0
+            const withRecaudo = await Promise.all(visitasEnriquecidas.map(async (v: any) => {
+              if (!v.clienteId) return { ...v, recaudadoDelDia: 0, recaudadoTotalClient: 0 };
+              try {
+                const pagosResp = await pagosService.obtenerPagos({ clienteId: v.clienteId, limit: 100 });
+                const pagosCalc = (pagosResp?.pagos || []);
+                
+                const totalHoy = pagosCalc.reduce((sum: number, p: any) => {
+                  const raw = p.fechaPago || p.creadoEn;
+                  const f = raw ? (raw.includes('T') ? raw.split('T')[0] : raw) : '';
+                  return f === hoyStr ? sum + Number(p.montoTotal || 0) : sum;
+                }, 0);
+                
+                const totalHistorico = pagosCalc.reduce((sum: number, p: any) => {
+                  return sum + Number(p.montoTotal || 0);
+                }, 0);
 
-                const rExtra = ruta as any;
-                setRutaActual({ 
-                  id: ruta.id,
-                  nombre: ruta.nombre, 
-                  activa: ruta.activa,
-                  codigo: rExtra.codigo,
-                  cobrador: rExtra.cobrador?.nombres ? `${rExtra.cobrador.nombres} ${rExtra.cobrador.apellidos || ''}` : rExtra.cobrador || 'Desconocido',
-                  cobradorId: ruta.cobradorId,
-                  nivelRiesgo: rExtra.nivelRiesgo || 'VERDE',
-                  estadisticas: rExtra.estadisticas || {
-                    cobranzaDelDia: cobranzaDia,
-                    metaDelDia: metaDia,
-                    avanceDiario: progresoAvance > 100 ? 100 : progresoAvance,
-                  }
-                });
+                return { ...v, recaudadoDelDia: totalHoy, recaudadoTotalClient: totalHistorico };
+              } catch {
+                return { ...v, recaudadoDelDia: 0, recaudadoTotalClient: 0 };
+              }
+            }));
 
-                setVisitasCobrador(finales);
-                setClientes(finales.map((v: any) => ({
-                    id: v.id,
-                    nombre: v.cliente,
-                    direccion: v.direccion,
-                    telefono: v.telefono,
-                    cuota: v.montoCuota,
-                    saldoPendiente: v.saldoTotal,
-                    diasMora: 0,
-                    estadoVisita: 'PENDIENTE',
-                })));
+            withRecaudo.sort((a, b) => a.ordenVisita - b.ordenVisita);
+
+            const ajustarEstadoConPago = (v: any): EstadoVisita => {
+              if (Number(v.saldoTotal || 0) <= 0) return 'pagado';
+              const saldoHoy = Number(v.recaudadoDelDia || 0);
+              const cuota = Number(v.montoCuota || 0);
+              if (saldoHoy >= (cuota - 1) && saldoHoy > 0) return 'pagado';
+              const proximaC = v.proximaVisita ? (v.proximaVisita.includes('T') ? v.proximaVisita.split('T')[0] : v.proximaVisita) : '';
+              if (proximaC === hoyStr && saldoHoy >= (cuota - 1)) return 'pagado';
+              return v.estado;
             }
-        } catch (error) {
-            console.error('Error cargando ruta', error);
-        } finally {
-            setIsLoading(false);
+
+            const finales = withRecaudo.map(v => ({ ...v, estado: ajustarEstadoConPago(v) }));
+
+            const cobranzaDia = finales.reduce((acc: number, curr: any) => acc + (curr.recaudadoDelDia || 0), 0)
+            const metaDia = finales.reduce((acc: number, curr: any) => acc + (curr.montoCuota || 0), 0)
+            const progresoAvance = metaDia > 0 ? (cobranzaDia / metaDia) * 100 : 0
+
+            const rExtra = ruta as any;
+            setRutaActual({ 
+              id: ruta.id,
+              nombre: ruta.nombre, 
+              activa: ruta.activa,
+              codigo: rExtra.codigo,
+              cobrador: rExtra.cobrador?.nombres ? `${rExtra.cobrador.nombres} ${rExtra.cobrador.apellidos || ''}` : rExtra.cobrador || 'Desconocido',
+              cobradorId: ruta.cobradorId,
+              nivelRiesgo: rExtra.nivelRiesgo || 'VERDE',
+              estadisticas: rExtra.estadisticas || {
+                cobranzaDelDia: cobranzaDia,
+                metaDelDia: metaDia,
+                avanceDiario: progresoAvance > 100 ? 100 : progresoAvance,
+              }
+            });
+
+            setVisitasCobrador(finales);
+            setClientes(finales.map((v: any) => ({
+                id: v.id,
+                nombre: v.cliente,
+                direccion: v.direccion,
+                telefono: v.telefono,
+                cuota: v.montoCuota,
+                saldoPendiente: v.saldoTotal,
+                diasMora: 0,
+                estadoVisita: 'PENDIENTE',
+            })));
         }
-    };
-    cargarRuta();
+    } catch (error) {
+        console.error('Error cargando ruta', error);
+    }
   }, [rutaId]);
+
+  // Cargar datos al montar
+  useEffect(() => {
+    const inicializar = async () => {
+      await cargarRuta();
+      setIsLoading(false);
+    };
+    inicializar();
+  }, [cargarRuta]);
 
   // Prefill historial keys for últimos 30 días (lazy fetch per día al expandir)
   useEffect(() => {
@@ -993,24 +999,23 @@ const DetalleRutaPage = () => {
                             {!estaColapsado && (
                               <div className="space-y-4">
                                   {visitas.map((visita) => (
-                                      <StaticVisitaItem
+                                                                            <StaticVisitaItem
                                           key={visita.id}
                                           visita={visita}
                                           allowClick={false}
                                           onVerCliente={handleAbrirClienteInfo}
                                           getEstadoClasses={getEstadoClasses}
                                           getPrioridadColor={getPrioridadColor}
-                                      >
-                                          <div className="pt-2">
-                                              <button
-                                                  onClick={(e) => { e.stopPropagation(); handleAbrirEstadoCuenta(visita); }}
-                                                  className="w-full flex items-center justify-center gap-2 p-2.5 rounded-xl bg-white text-[#08557f] border border-[#08557f]/20 hover:bg-blue-50 transition-all shadow-sm active:scale-95"
-                                              >
-                                                  <FileTextIcon className="h-4 w-4" />
-                                                  <span className="text-[10px] font-black uppercase tracking-widest">Estado de Cuenta</span>
-                                              </button>
-                                          </div>
-                                      </StaticVisitaItem>
+                                          actions={
+                                            <button
+                                                onClick={(e) => { e.stopPropagation(); handleAbrirEstadoCuenta(visita); }}
+                                                className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-white text-[#08557f] border border-[#08557f]/20 hover:bg-blue-50 transition-all shadow-sm active:scale-95 font-bold text-[11px]"
+                                            >
+                                                <FileTextIcon className="h-3.5 w-3.5" />
+                                                Estado
+                                            </button>
+                                          }
+                                      />
                                   ))}
                               </div>
                             )}
@@ -1127,8 +1132,29 @@ const DetalleRutaPage = () => {
         <ReprogramarModal
             visita={visitaReprogramar}
             onClose={() => setVisitaReprogramar(null)}
-            onConfirm={(fecha, motivo) => {
-                setVisitaReprogramar(null)
+            onConfirm={async (fecha, motivo) => {
+                try {
+                  if (!visitaReprogramar?.prestamoId) {
+                    showNotification('error', 'Falta el ID del préstamo para reprogramar', 'Error');
+                    return;
+                  }
+                  
+                  await prestamosService.reprogramarPrestamo(visitaReprogramar.prestamoId, {
+                    fecha,
+                    motivo,
+                    cobradorId: currentUser?.id || '',
+                  });
+                  
+                  showNotification('success', 'Solicitud de reprogramación enviada correctamente', 'Éxito');
+                  setVisitaReprogramar(null);
+                  
+                  setTimeout(() => {
+                    window.location.reload();
+                  }, 1500);
+                } catch (e: any) {
+                  console.error('Error reprogramando:', e);
+                  showNotification('error', e?.message || 'Error al solicitar reprogramación', 'Error');
+                }
             }}
         />
       )}
@@ -1161,25 +1187,40 @@ const DetalleRutaPage = () => {
           }}
           onConfirm={async (data: any) => {
             try {
-              const payload = {
-                ...data,
-                creadoPorId: currentUser?.id || ''
+              const esContado = Boolean((data as any).ventaContado);
+              const payload: any = {
+                clienteId: data.clienteCreditoId,
+                tipoPrestamo: data.creditType === 'prestamo' ? 'EFECTIVO' : 'ARTICULO',
+                monto: data.monto || 0,
+                tasaInteres: esContado ? 0 : (data.tasaInteres || 0),
+                tasaInteresMora: 2.0,
+                plazoMeses: data.plazoMeses || 1,
+                cantidadCuotas: data.cantidadCuotas || data.cuotas || data.cuotasTotales || 0,
+                cuotas: data.cuotas || data.cantidadCuotas || data.cuotasTotales || 0,
+                frecuenciaPago: esContado ? 'MENSUAL' : (data.frecuenciaPago || 'DIARIO'),
+                fechaInicio: data.fechaInicio || new Date().toISOString(),
+                creadoPorId: currentUser?.id,
+                cuotaInicial: data.cuotaInicialArticulo || 0,
+                notas: data.creditType === 'articulo' 
+                  ? `${esContado ? 'Venta de contado' : 'Crédito de artículo'}: ${data.articuloNombre || ''}`
+                  : (data.notas || ''),
+                tipoAmortizacion: data.tipoInteres || 'INTERES_SIMPLE',
+                esContado: esContado
               };
+
+              if (data.creditType === 'articulo') {
+                payload.productoId = data.articuloId;
+                payload.precioProductoId = esContado ? undefined : data.precioProductoId;
+              }
+
+              const prestamo = await prestamosService.crearPrestamo(payload);
               
-              if (data.creditType === 'prestamo') {
-                await prestamosService.crearPrestamo({
-                  clienteId: data.clienteCreditoId,
-                  tipoPrestamo: 'EFECTIVO',
-                  monto: data.monto,
-                  tasaInteres: data.tasaInteres,
-                  tasaInteresMora: 2.0,
-                  plazoMeses: data.cuotasTotales,
-                  frecuenciaPago: data.frecuenciaPago,
-                  fechaInicio: data.fechaInicio,
-                  creadoPorId: currentUser?.id || ''
-                } as any);
-              } else {
-                await creditosService.crearCredito(payload as any);
+              if (data.creditType === 'articulo' && prestamo?.id && !esContado) {
+                try {
+                  await exportService.exportContrato(prestamo.id);
+                } catch (err) {
+                  console.error('Error generando contrato:', err);
+                }
               }
 
               // Asignar cliente a la ruta automáticamente

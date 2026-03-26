@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
+import { useRealtimeData } from '@/hooks/useRealtimeData'
 import { useParams } from 'next/navigation';
 import { ChevronLeft, BarChart3, Smartphone, DollarSign, Loader2 } from 'lucide-react';
 import ClienteDetalleElegante, { Cliente, Prestamo, Pago, Comentario } from '@/components/cliente/DetalleCliente';
@@ -131,6 +132,9 @@ export default function ClienteDetallePage() {
   });
 
   const comentarios: Comentario[] = []; // Por ahora vacío hasta implementar backend
+
+  // Tiempo real: refrescar automáticamente cuando haya cambios
+  useRealtimeData(['pagos_actualizados', 'clientes_actualizados'], () => { typeof window !== 'undefined' && window.location.reload() })
 
   return (
     <div className="min-h-screen bg-slate-50 relative">

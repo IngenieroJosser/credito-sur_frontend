@@ -1,7 +1,8 @@
 'use client'
 
 import { User, Lock, Phone, Calendar, Clock, FileText, CheckCircle2, X, Eye, EyeOff, ChevronLeft, Loader2, AlertCircle } from 'lucide-react'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
+import { useRealtimeData } from '@/hooks/useRealtimeData'
 import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
 import { usuariosService, type Usuario } from '@/services/usuarios-service'
@@ -47,99 +48,84 @@ const PerfilUsuarioPage = () => {
     return () => cancelAnimationFrame(handle)
   }, [])
 
-  useEffect(() => {
-    const loadUserData = async () => {
-      try {
-        setIsLoading(true)
-
-        // 1. Intentar obtener perfil desde /auth/perfil (siempre disponible para el usuario autenticado)
-        const perfil = await obtenerPerfil()
-
-        // 2. Intentar obtener datos extendidos desde /usuarios/:id (tiene creadoEn, ultimoIngreso, etc.)
-        let fullUser: Usuario | null = null
-        if (perfil.id) {
-          try {
-            fullUser = await usuariosService.obtenerPorId(perfil.id)
-          } catch {
-            // Si falla (permisos, etc.), usamos solo los datos del perfil
-          }
-        }
-
-        // 3. Construir el usuario final: datos extendidos si están disponibles, sino datos del perfil
-        setBackendUser(fullUser || {
-          id: perfil.id,
-          correo: perfil.correo || '',
-          nombres: perfil.nombres,
-          apellidos: perfil.apellidos,
-
-          telefono: perfil.telefono || null,
-          rol: perfil.rol as any,
-          estado: (perfil.estado || 'ACTIVO') as any,
-          ultimoIngreso: null,
-          intentosFallidos: 0,
-          debeCambiarContrasena: false,
-          creadoEn: '',
-          actualizadoEn: '',
-          eliminadoEn: null,
-          permisos: perfil.permisos,
-        })
-
-        // Sincronizar localStorage con los datos frescos del servidor para el navbar/layout
-        const cachedUser = localStorage.getItem('user')
-        if (cachedUser && (fullUser || perfil)) {
-          try {
-            const parsed = JSON.parse(cachedUser)
-            const updated = {
-              ...parsed,
-              nombres: fullUser?.nombres || perfil.nombres,
-              apellidos: fullUser?.apellidos || perfil.apellidos,
-              correo: fullUser?.correo || perfil.correo || parsed.correo,
-              telefono: fullUser?.telefono || perfil.telefono || parsed.telefono,
-              rol: fullUser?.rol || perfil.rol || parsed.rol,
-            }
-            localStorage.setItem('user', JSON.stringify(updated))
-            // Disparar evento para que AdminLayout y useAuth se actualicen
-            window.dispatchEvent(new Event('userUpdated'))
-          } catch (e) {
-            console.error('Error sincronizando profile sync:', e)
-          }
-        }
-
-        setError(null)
-      } catch (err) {
-        console.error('Error cargando perfil:', err)
-        // Fallback: intentar desde localStorage
-        try {
-          const userStr = localStorage.getItem('user')
-          if (userStr) {
-            const local = JSON.parse(userStr)
-            setBackendUser({
-              id: local.id || '',
-              correo: local.correo || '',
-              nombres: local.nombres || '',
-              apellidos: local.apellidos || '',
-              telefono: local.telefono || null,
-              rol: local.rol || 'USUARIO',
-              estado: local.estado || 'ACTIVO',
-              ultimoIngreso: null,
-              intentosFallidos: 0,
-              debeCambiarContrasena: false,
-              creadoEn: local.creadoEn || '',
-              actualizadoEn: '',
-              eliminadoEn: null,
-            } as Usuario)
-            setError(null)
-            return
-          }
-        } catch { /* ignore */ }
-        setError('No se pudo cargar la información del perfil.')
-      } finally {
-        setIsLoading(false)
+  const loadUserData = useCallback(async () => {
+    try {
+      setIsLoading(true)
+      const perfil = await obtenerPerfil()
+      let fullUser: Usuario | null = null
+      if (perfil.id) {
+        try { fullUser = await usuariosService.obtenerPorId(perfil.id) } catch {}
       }
+      setBackendUser(fullUser || {
+        id: perfil.id,
+        correo: perfil.correo || '',
+        nombres: perfil.nombres,
+        apellidos: perfil.apellidos,
+        telefono: perfil.telefono || null,
+        rol: perfil.rol as any,
+        estado: (perfil.estado || 'ACTIVO') as any,
+        ultimoIngreso: null,
+        intentosFallidos: 0,
+        debeCambiarContrasena: false,
+        creadoEn: '',
+        actualizadoEn: '',
+        eliminadoEn: null,
+        permisos: perfil.permisos,
+      })
+      const cachedUser = localStorage.getItem('user')
+      if (cachedUser && (fullUser || perfil)) {
+        try {
+          const parsed = JSON.parse(cachedUser)
+          const updated = {
+            ...parsed,
+            nombres: fullUser?.nombres || perfil.nombres,
+            apellidos: fullUser?.apellidos || perfil.apellidos,
+            correo: fullUser?.correo || perfil.correo || parsed.correo,
+            telefono: fullUser?.telefono || perfil.telefono || parsed.telefono,
+            rol: fullUser?.rol || perfil.rol || parsed.rol,
+          }
+          localStorage.setItem('user', JSON.stringify(updated))
+          window.dispatchEvent(new Event('userUpdated'))
+        } catch (e) {
+          console.error('Error sincronizando profile sync:', e)
+        }
+      }
+      setError(null)
+    } catch (err) {
+      console.error('Error cargando perfil:', err)
+      try {
+        const userStr = localStorage.getItem('user')
+        if (userStr) {
+          const local = JSON.parse(userStr)
+          setBackendUser({
+            id: local.id || '',
+            correo: local.correo || '',
+            nombres: local.nombres || '',
+            apellidos: local.apellidos || '',
+            telefono: local.telefono || null,
+            rol: local.rol || 'USUARIO',
+            estado: local.estado || 'ACTIVO',
+            ultimoIngreso: null,
+            intentosFallidos: 0,
+            debeCambiarContrasena: false,
+            creadoEn: local.creadoEn || '',
+            actualizadoEn: '',
+            eliminadoEn: null,
+          } as Usuario)
+          setError(null)
+          return
+        }
+      } catch { /* ignore */ }
+      setError('No se pudo cargar la información del perfil.')
+    } finally {
+      setIsLoading(false)
     }
-
-    loadUserData()
   }, [])
+
+  useEffect(() => { loadUserData() }, [loadUserData])
+
+  // Tiempo real: si el admin actualiza este usuario desde otro panel, se refleja aquí
+  useRealtimeData(['usuarios_actualizados'], loadUserData)
 
   const handleOpenPasswordModal = () => {
     setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' })

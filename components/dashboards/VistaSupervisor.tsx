@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { useState, type ReactNode, useMemo, useEffect, useCallback } from 'react'
+import { useRealtimeData } from '@/hooks/useRealtimeData'
 
 import {
   AlertCircle,
@@ -113,6 +114,9 @@ const VistaSupervisor = () => {
   useEffect(() => {
     loadDashboardData()
   }, [loadDashboardData])
+
+  // Tiempo real: refrescar cuando pagos, préstamos o rutas cambien
+  useRealtimeData(['pagos_actualizados', 'prestamos_actualizados', 'rutas_actualizadas', 'dashboards_actualizados'], loadDashboardData)
 
   const handlePagoConfirm = (data: {
     clienteId: string;

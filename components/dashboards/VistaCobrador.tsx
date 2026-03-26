@@ -22,6 +22,7 @@
  */
 
 import { useState, useEffect, useMemo, useCallback } from 'react'
+import { useRealtimeData } from '@/hooks/useRealtimeData'
 import {
   MapPin,
   RefreshCw,
@@ -269,7 +270,7 @@ const VistaCobrador = () => {
   const [isLoadingAction, setIsLoadingAction] = useState(false) // New state for actions
 
   const [creditosPendientes, setCreditosPendientes] = useState<any[]>([]);
-  const [isExportingPdf, setIsExportingPdf] = useState(false)
+  
 
   const router = useRouter();
 
@@ -444,44 +445,24 @@ const VistaCobrador = () => {
     }
   }, [])
 
-  useEffect(() => {
-    if (!socket) return;
-
-    const handler = async () => {
-      if (rutaActual?.id) {
-        await cargarEstadisticasRuta(rutaActual.id);
-      }
-
-      if (showMisClientes && userSession?.id) {
-        await cargarMisCreditosAsignados(userSession.id)
-      }
-    };
-
-    socket.on('pagos_actualizados', handler);
-    socket.on('prestamos_actualizados', handler);
-    socket.on('rutas_actualizadas', handler);
-    socket.on('dashboards_actualizados', handler);
-
-    return () => {
-      socket.off('pagos_actualizados', handler);
-      socket.off('prestamos_actualizados', handler);
-      socket.off('rutas_actualizadas', handler);
-      socket.off('dashboards_actualizados', handler);
-    };
-  }, [socket, rutaActual?.id, cargarEstadisticasRuta, showMisClientes, userSession?.id, cargarMisCreditosAsignados]);
+  // WebSocket handler – se declara DESPUÉS de cargarDatosRuta (ver abajo)
+  // para evitar referencia forward. El useEffect del socket está al final
+  // del bloque de cargas.
 
   useEffect(() => {
     if (!showMisClientes || !userSession?.id) return
     cargarMisCreditosAsignados(userSession.id)
   }, [showMisClientes, userSession?.id, cargarMisCreditosAsignados])
 
-  // Cargar visitas reales desde el backend cuando el usuario está disponible
-  useEffect(() => {
+  // ---------------------------------------------------------------------------
+  // cargarDatosRuta – función estable (useCallback) que carga la lista completa
+  // de visitas/cuotas desde el backend. Está separada del useEffect para poder
+  // ser invocada también desde el handler de WebSocket.
+  // ---------------------------------------------------------------------------
+  const cargarDatosRuta = useCallback(async (silent = false) => {
     if (!userSession?.id) return;
-
-    const cargarDatosRuta = async () => {
       try {
-        setIsLoading(true);
+        if (!silent) setIsLoading(true);
         // 1. Obtener la ruta asignada al cobrador
         const rutas = await rutasService.obtenerRutas({ cobradorId: userSession.id, limit: 1 });
         const rutaResumen = rutas[0]; 
@@ -527,7 +508,8 @@ const VistaCobrador = () => {
 
         // 4. Mapear asignaciones a Visitas
         // *** IMPORTANTE: cada crédito activo genera una entrada independiente ***
-        // Un cliente con crédito diario + semanal aparece como 2 filas separadas
+        // Un cliente con crédito diario + semanal aparece como 2 filas separadas.
+        // Los créditos PENDIENTE_APROBACION se muestran pero con botones deshabilitados.
         const asignaciones = (rutaCompleta as any).asignaciones || (rutaCompleta as any).asignacionesRuta || [];
 
         const toPeriodo = (f: string): PeriodoRuta => {
@@ -547,16 +529,18 @@ const VistaCobrador = () => {
         let globalIdx = 0;
         const visitasMapeadasRaw: VisitaRuta[] = asignaciones.flatMap((asig: any) => {
            const cliente = asig.cliente || {};
+           // Incluir también préstamos en PENDIENTE_APROBACION (se mostrarán deshabilitados)
            const prestamosActivos: any[] = (cliente.prestamos || []).filter(
-             (p: any) => p.estado === 'ACTIVO' || p.estado === 'EN_MORA' || p.estado === 'PAGADO'
+             (p: any) => p.estado === 'ACTIVO' || p.estado === 'EN_MORA' || p.estado === 'PAGADO' || p.estado === 'PENDIENTE_APROBACION'
            );
 
-           // Si no tiene préstamos activos, mostrar entrada vacía
+           // Si no tiene préstamos, mostrar entrada vacía
            const lista = prestamosActivos.length > 0 ? prestamosActivos : [null];
 
            return lista.map((prestamo: any) => {
              const proximaCuota = prestamo?.proximaCuota || {};
              const esArticulo = prestamo?.tipo === 'ARTICULO' || prestamo?.tipoPrestamo === 'ARTICULO';
+             const esPendienteAprobacion = prestamo?.estado === 'PENDIENTE_APROBACION';
              const idx = globalIdx++;
 
              let estado: EstadoVisita = 'pendiente';
@@ -587,15 +571,26 @@ const VistaCobrador = () => {
                cuotasTotales: prestamo?.cantidadCuotas,
                enProrroga: proximaCuota.estado === 'PRORROGADA' || !!proximaCuota.fechaVencimientoProrroga,
                fechaProrroga: proximaCuota.fechaVencimientoProrroga,
+               // Flag para deshabilitar botones mientras el crédito no esté aprobado
+               pendienteAprobacion: esPendienteAprobacion,
              } as VisitaRuta;
            });
         });
 
-        // Deduplicar: un cliente con múltiples asignaciones en la ruta generaría tarjetas
-        // repetidas. Conservamos solo la primera ocurrencia por prestamoId (o clienteId si
-        // no tiene préstamo activo).
+        // Deduplicación en dos pasadas:
+        // 1a pasada: recolectar todos los clienteId que tienen al menos 1 prestamoId real.
+        // 2a pasada: eliminar entradas sin prestamoId cuyo cliente ya tiene entrada con prestamoId.
+        // Esto resuelve el caso: cliente aparece como entrada vacía (PENDIENTE sin pasar filtro)
+        // y al aprobarse el crédito reaparece con prestamoId → sin esta lógica habría duplicado.
+        const clientesConPrestamo = new Set<string>();
+        visitasMapeadasRaw.forEach(v => {
+          if (v.prestamoId && v.clienteId) clientesConPrestamo.add(v.clienteId);
+        });
+
         const seenIds = new Set<string>();
         const visitasMapeadas: VisitaRuta[] = visitasMapeadasRaw.filter(v => {
+          // Descartar entrada vacía (sin préstamo) si el cliente ya tiene entrada con préstamo real
+          if (!v.prestamoId && v.clienteId && clientesConPrestamo.has(v.clienteId)) return false;
           const clave = v.prestamoId ? `prestamo-${v.prestamoId}` : `cliente-${v.clienteId}`;
           if (seenIds.has(clave)) return false;
           seenIds.add(clave);
@@ -817,10 +812,33 @@ const VistaCobrador = () => {
       } finally {
         setIsLoading(false);
       }
-    };
+  }, [userSession?.id, periodoCards]);
 
+  // Cargar visitas al montar y cuando cambie el usuario o el trigger manual (refreshTrigger)
+  useEffect(() => {
     cargarDatosRuta();
-  }, [userSession?.id, refreshTrigger]);
+  }, [cargarDatosRuta, refreshTrigger]);
+
+  // ---------------------------------------------------------------------------
+  // WebSocket: suscripción a eventos de tiempo real via useRealtimeData.
+  // ---------------------------------------------------------------------------
+
+  // Handler completo: recarga visitas/cuotas (pagos y préstamos cambian montos)
+  const handlerFull = useCallback(async () => {
+    await cargarDatosRuta(true);
+    if (showMisClientes && userSession?.id) {
+      await cargarMisCreditosAsignados(userSession.id);
+    }
+  }, [cargarDatosRuta, showMisClientes, userSession?.id, cargarMisCreditosAsignados])
+
+  // Handler ligero: actualiza KPIs sin recargar la lista principal
+  const handlerKpi = useCallback(async () => {
+    if (rutaActual?.id) await cargarEstadisticasRuta(rutaActual.id);
+    if (showMisClientes && userSession?.id) await cargarMisCreditosAsignados(userSession.id);
+  }, [rutaActual?.id, cargarEstadisticasRuta, showMisClientes, userSession?.id, cargarMisCreditosAsignados])
+
+  useRealtimeData(['pagos_actualizados', 'prestamos_actualizados'], handlerFull)
+  useRealtimeData(['rutas_actualizadas', 'dashboards_actualizados'], handlerKpi)
 
 
 
@@ -1281,17 +1299,7 @@ const VistaCobrador = () => {
 
   const visitasSelector = visitasCobrador.length > 0 ? visitasCobrador : visitasSelectorFallback
 
-  const handleExportarRutaPdf = useCallback(async () => {
-    if (!rutaActual?.id) return
-    setIsExportingPdf(true)
-    try {
-      await exportService.exportRutaCobrador('pdf', rutaActual.id)
-    } catch (err) {
-      setModalAlerta({ titulo: 'Error', mensaje: 'No se pudo generar el PDF. Intente de nuevo.', tipo: 'error' })
-    } finally {
-      setIsExportingPdf(false)
-    }
-  }, [rutaActual?.id, rutaActual?.nombre])
+  
 
   const operacionesCobrador = useMemo(() => 
     operacionesCaja.filter(op => op.cobradorId === 'CB-001'), // Temporal
@@ -1423,45 +1431,22 @@ const VistaCobrador = () => {
     }
   }, [visitaReprogramar, userSession?.id])
 
-  const handleGuardarOrdenProvisional = useCallback(async (newOrder: string[]) => {
-    setVisitasOrden(newOrder)
-    setShowRutaProvisional(false)
-
-    // NUEVA FUNCIONALIDAD: Guardar orden en backend
-    try {
-      const rutas = await rutasService.obtenerRutas({ cobradorId: userSession?.id, limit: 1 });
-      if (rutas[0]) {
-        const ordenData = newOrder.map((id, index) => {
-          const visita = visitasBase.find(v => v.id === id);
-          // Extraer clienteId del id de asignación o usar el id de la visita
-          const clienteId = (visita as any)?.clienteId || visita?.id.split('-')[1] || '';
-          return {
-            clienteId,
-            orden: index + 1,
-          };
-        }).filter(item => item.clienteId);
-
-        await rutasService.actualizarOrdenClientes(rutas[0].id, ordenData);
-        toast.success('Orden de ruta actualizado exitosamente');
-        setRefreshTrigger(prev => prev + 1);
-      }
-    } catch (error) {
-      console.error('Error al guardar orden:', error);
-    }
-  }, [visitasBase, userSession?.id])
+  // La exportación de ruta provisional ahora se maneja dentro del modal (genera un .txt)
+  // No se guarda orden en el backend.
 
   const handleCrearCredito = useCallback(async (data: any) => {
     try {
       setIsLoadingAction(true)
       
+      const esContado = Boolean((data as any).ventaContado);
       const isArticulo = data.creditType === 'articulo';
-      const freq = data.frecuenciaPago || 'DIARIO';
+      const freq = esContado ? 'MENSUAL' : (data.frecuenciaPago || 'DIARIO');
 
       const payload: any = {
         clienteId: data.clienteCreditoId,
         tipoPrestamo: isArticulo ? 'ARTICULO' : 'EFECTIVO',
         monto: data.monto || 0,
-        tasaInteres: data.tasaInteres || 0,
+        tasaInteres: esContado ? 0 : (data.tasaInteres || 0),
         tasaInteresMora: 2, 
         plazoMeses: data.plazoMeses || 1,
         cantidadCuotas: data.cantidadCuotas || data.cuotas || data.cuotasTotales || (isArticulo ? data.numCuotas : 0),
@@ -1470,13 +1455,16 @@ const VistaCobrador = () => {
         fechaInicio: data.fechaInicio || new Date().toISOString(),
         creadoPorId: userSession?.id,
         cuotaInicial: data.cuotaInicialArticulo || 0,
-        notas: data.notas || '',
-        tipoAmortizacion: isArticulo ? 'INTERES_SIMPLE' : (data.tipoInteres || 'INTERES_SIMPLE')
+        notas: isArticulo
+          ? `${esContado ? 'Venta de contado' : 'Crédito de artículo'}: ${data.articuloNombre || ''}`
+          : (data.notas || ''),
+        tipoAmortizacion: isArticulo ? 'INTERES_SIMPLE' : (data.tipoInteres || 'INTERES_SIMPLE'),
+        esContado: esContado
       }
 
       if (isArticulo) {
         payload.productoId = data.articuloId;
-        payload.precioProductoId = data.precioProductoId;
+        payload.precioProductoId = esContado ? undefined : data.precioProductoId;
       }
 
       const prestamo = await prestamosService.crearPrestamo(payload)
@@ -1760,28 +1748,39 @@ const VistaCobrador = () => {
     }
   }, [visitaPagoSeleccionada, pagoInitialIsAbono, userSession?.id])
 
-  const confirmarFinalizarRuta = useCallback(() => {
+  const confirmarFinalizarRuta = useCallback(async () => {
     const meta = rutaStats.meta || 1;
     const recaudo = rutaStats.recaudo || 0;
-    const clientesFaltantes = visitasBase.filter(v => v.estado === 'pendiente' || v.estado === 'en_mora').length;
     const efectividad = Math.round((recaudo / meta) * 100);
+
+    // Contamos todos los pendientes/mora sin filtrar por fecha
+    // (el mismo fix del modal — muchos tienen proximaVisita='9999-12-31')
+    const clientesFaltantes = visitasBase.filter(v =>
+      v.estado === 'pendiente' || v.estado === 'en_mora'
+    ).length;
 
     socket?.emit('ruta_completada_emit', {
       rutaNombre: rutaActual?.nombre || 'Mi Ruta',
       cobradorNombre: userSession?.nombres || 'El Cobrador',
-      recaudo: recaudo,
-      efectividad: efectividad,
-      clientesFaltantes: clientesFaltantes
+      recaudo,
+      meta,
+      efectividad,
+      clientesFaltantes,
+      rutaId: rutaActual?.id || undefined,
     });
 
-    setRutaCompletada(true)
-    setCoordinadorToast('Se ha cerrado el día de manera exitosa y se alertó a la oficina.')
-    setShowConfirmCompleteModal(false)
-    window.setTimeout(() => setCoordinadorToast(null), 4000)
+    setRutaCompletada(true);
+    setShowConfirmCompleteModal(false);
+
+    const mensajeCierre = clientesFaltantes > 0
+      ? `Ruta cerrada. Faltaron ${clientesFaltantes} cliente${clientesFaltantes > 1 ? 's' : ''} por cobrar hoy. Se alertó a la oficina.`
+      : 'Se ha cerrado el día de manera exitosa y se alertó a la oficina.';
+    setCoordinadorToast(mensajeCierre);
+    window.setTimeout(() => setCoordinadorToast(null), 5000);
   }, [socket, rutaActual, userSession, rutaStats, visitasBase])
 
   const handleCompletarRuta = useCallback(() => {
-    setShowConfirmCompleteModal(true)
+    setShowConfirmCompleteModal(true);
   }, [])
 
 
@@ -1789,13 +1788,10 @@ const VistaCobrador = () => {
 
 
   const handleAbrirClienteInfo = useCallback((visita: VisitaRuta) => {
-    if (visita.estado === 'en_mora') {
-      setVisitaMoraSeleccionada(visita)
-      setShowMoraModal(true)
-    } else {
-      setVisitaClienteSeleccionada(visita)
-      setShowClienteInfoModal(true)
-    }
+    // El cobrador siempre abre el modal de info del cliente (para pagos)
+    // El modal de mora es solo para roles de gestión interna (admin/supervisor)
+    setVisitaClienteSeleccionada(visita)
+    setShowClienteInfoModal(true)
   }, [])
 
   // Cargar recaudado del cliente en el día desde backend
@@ -2164,20 +2160,6 @@ const VistaCobrador = () => {
             <div className="mt-4 border-t border-slate-100 pt-4 flex flex-wrap items-center gap-2 overflow-x-auto pb-1">
 
                   <button
-                    type="button"
-                    onClick={handleExportarRutaPdf}
-                    disabled={!rutaActual?.id || isExportingPdf}
-                    className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold rounded-xl border border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                    title="Exportar ruta como PDF"
-                  >
-                    {isExportingPdf ? (
-                      <span className="w-3 h-3 border-2 border-rose-600 border-t-transparent rounded-full animate-spin" />
-                    ) : (
-                      <FileDown className="w-3 h-3" />
-                    )}
-                    PDF
-                  </button>
-                  <button
                     onClick={() => setShowRutaProvisional(true)}
                     className="px-4 py-2 bg-blue-100 text-[#08557f] border border-blue-200 hover:bg-blue-200 rounded-xl flex items-center gap-2 font-bold shadow-sm transition-colors"
                   >
@@ -2234,7 +2216,7 @@ const VistaCobrador = () => {
                     disabled={rutaCompletada}
                     className={`px-4 py-2 border rounded-xl flex items-center gap-2 font-bold shadow-sm transition-colors ${
                       rutaCompletada
-                        ? 'bg-emerald-50 text-emerald-700 border-emerald-200 opacity-70'
+                        ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
                         : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
                     }`}
                   >
@@ -2595,33 +2577,34 @@ const VistaCobrador = () => {
                                 onSelect={() => {}}
                                 onVerCliente={handleAbrirClienteInfo}
                                 getEstadoClasses={getEstadoClasses}
-                              >
-                                <div className="grid grid-cols-2 gap-2 pt-1">
-                                  <button
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      setVisitaPagoSeleccionada(visita);
-                                      setPagoInitialIsAbono(true);
-                                      setShowPaymentModal(true);
-                                    }}
-                                    className="flex flex-col items-center justify-center p-2 rounded-xl bg-emerald-600 text-white hover:bg-emerald-700 transition-all shadow-sm active:scale-95"
-                                  >
-                                    <Wallet className="h-4 w-4 mb-1" />
-                                    <span className="text-[9px] font-bold uppercase">Abono</span>
-                                  </button>
-                                  <button
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      setVisitaEstadoCuentaSeleccionada(visita);
-                                      setShowEstadoCuentaModal(true);
-                                    }}
-                                    className="flex flex-col items-center justify-center p-2 rounded-xl bg-white text-slate-700 border border-slate-200 hover:bg-slate-50 transition-all shadow-sm active:scale-95"
-                                  >
-                                    <FileTextIcon className="h-4 w-4 mb-1 text-slate-400" />
-                                    <span className="text-[9px] font-bold uppercase">Estado</span>
-                                  </button>
-                                </div>
-                              </StaticVisitaItem>
+                                actions={
+                                  <>
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setVisitaPagoSeleccionada(visita);
+                                        setPagoInitialIsAbono(true);
+                                        setShowPaymentModal(true);
+                                      }}
+                                      className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 transition-all active:scale-95 text-[11px] font-bold"
+                                    >
+                                      <Wallet className="h-3.5 w-3.5" />
+                                      Abono
+                                    </button>
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setVisitaEstadoCuentaSeleccionada(visita);
+                                        setShowEstadoCuentaModal(true);
+                                      }}
+                                      className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-white text-slate-600 border border-slate-200 hover:bg-slate-50 transition-all active:scale-95 text-[11px] font-bold"
+                                    >
+                                      <FileTextIcon className="h-3.5 w-3.5 text-slate-400" />
+                                      Estado
+                                    </button>
+                                  </>
+                                }
+                              />
                             ))}
                           </div>
                         )
@@ -2676,56 +2659,65 @@ const VistaCobrador = () => {
                                   getEstadoClasses={getEstadoClasses}
                                   disableSort={true}
                                   isSelected={visita.id === visitaSeleccionada}
-                                >
-                                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1">
-                                    <button
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        setVisitaPagoSeleccionada(visita);
-                                        setPagoInitialIsAbono(false);
-                                        setShowPaymentModal(true);
-                                      }}
-                                      className="flex flex-col items-center justify-center p-2 rounded-xl bg-blue-600 text-white hover:bg-blue-700 transition-all shadow-sm active:scale-95"
-                                    >
-                                      <DollarSign className="h-4 w-4 mb-1" />
-                                      <span className="text-[9px] font-bold uppercase">Pago</span>
-                                    </button>
-                                    <button
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        setVisitaPagoSeleccionada(visita);
-                                        setPagoInitialIsAbono(true);
-                                        setShowPaymentModal(true);
-                                      }}
-                                      className="flex flex-col items-center justify-center p-2 rounded-xl bg-emerald-600 text-white hover:bg-emerald-700 transition-all shadow-sm active:scale-95"
-                                    >
-                                      <Wallet className="h-4 w-4 mb-1" />
-                                      <span className="text-[9px] font-bold uppercase">Abono</span>
-                                    </button>
-                                    <button
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        setVisitaEstadoCuentaSeleccionada(visita);
-                                        setShowEstadoCuentaModal(true);
-                                      }}
-                                      className="flex flex-col items-center justify-center p-2 rounded-xl bg-white text-slate-700 border border-slate-200 hover:bg-slate-50 transition-all shadow-sm active:scale-95"
-                                    >
-                                      <FileTextIcon className="h-4 w-4 mb-1 text-slate-400" />
-                                      <span className="text-[9px] font-bold uppercase">Estado</span>
-                                    </button>
-                                    <button
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        setVisitaReprogramar(visita);
-                                        setShowReprogramModal(true);
-                                      }}
-                                      className="flex flex-col items-center justify-center p-2 rounded-xl bg-white text-slate-700 border border-slate-200 hover:bg-slate-50 transition-all shadow-sm active:scale-95"
-                                    >
-                                      <Calendar className="h-4 w-4 mb-1 text-slate-400" />
-                                      <span className="text-[9px] font-bold uppercase">Repro.</span>
-                                    </button>
-                                  </div>
-                                </SortableVisita>
+                                  actions={
+                                    <>
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          if (rutaCompletada) return;
+                                          setVisitaPagoSeleccionada(visita);
+                                          setPagoInitialIsAbono(false);
+                                          setShowPaymentModal(true);
+                                        }}
+                                        disabled={rutaCompletada}
+                                        className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-lg transition-all active:scale-95 text-[11px] font-bold ${rutaCompletada ? 'bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed' : 'bg-blue-600 text-white hover:bg-blue-700'}`}
+                                      >
+                                        <DollarSign className="h-3.5 w-3.5" />
+                                        Pago
+                                      </button>
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          if (rutaCompletada) return;
+                                          setVisitaPagoSeleccionada(visita);
+                                          setPagoInitialIsAbono(true);
+                                          setShowPaymentModal(true);
+                                        }}
+                                        disabled={rutaCompletada}
+                                        className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-lg transition-all active:scale-95 text-[11px] font-bold ${rutaCompletada ? 'bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed' : 'bg-emerald-600 text-white hover:bg-emerald-700'}`}
+                                      >
+                                        <Wallet className="h-3.5 w-3.5" />
+                                        Abono
+                                      </button>
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          if (rutaCompletada) return;
+                                          setVisitaEstadoCuentaSeleccionada(visita);
+                                          setShowEstadoCuentaModal(true);
+                                        }}
+                                        disabled={rutaCompletada}
+                                        className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border transition-all active:scale-95 text-[11px] font-bold ${rutaCompletada ? 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'}`}
+                                      >
+                                        <FileTextIcon className="h-3.5 w-3.5 text-slate-400" />
+                                        Estado
+                                      </button>
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          if (rutaCompletada) return;
+                                          setVisitaReprogramar(visita);
+                                          setShowReprogramModal(true);
+                                        }}
+                                        disabled={rutaCompletada}
+                                        className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border transition-all active:scale-95 text-[11px] font-bold ${rutaCompletada ? 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'}`}
+                                      >
+                                        <Calendar className="h-3.5 w-3.5 text-slate-400" />
+                                        Repro.
+                                      </button>
+                                    </>
+                                  }
+                                />
                               ))}
                             </div>
                           )}
@@ -2806,13 +2798,13 @@ const VistaCobrador = () => {
 
         {/* Floating Action Buttons */}
         <FloatingActionMenu actions={[
-          { label: 'Crear Crédito', icon: <CreditCard className="h-5 w-5" />, onClick: () => setShowCreditModal(true) },
-          { label: 'Nuevo Cliente', icon: <UserPlus className="h-5 w-5" />, onClick: () => setShowNewClientModal(true) },
-          { label: 'Registrar abono', icon: <RefreshCw className="h-5 w-5" />, color: 'orange', onClick: () => { setAccionPendiente('ABONO'); setShowClientSelector(true); } },
-          { label: 'Registrar pago', icon: <DollarSign className="h-5 w-5" />, onClick: () => { setAccionPendiente('PAGO'); setShowClientSelector(true); } },
+          { label: 'Crear Crédito', icon: <CreditCard className="h-5 w-5" />, onClick: () => { if(rutaCompletada) return; setShowCreditModal(true); } },
+          { label: 'Nuevo Cliente', icon: <UserPlus className="h-5 w-5" />, onClick: () => { if(rutaCompletada) return; setShowNewClientModal(true); } },
+          { label: 'Registrar abono', icon: <RefreshCw className="h-5 w-5" />, color: 'orange', onClick: () => { if(rutaCompletada) return; setAccionPendiente('ABONO'); setShowClientSelector(true); } },
+          { label: 'Registrar pago', icon: <DollarSign className="h-5 w-5" />, onClick: () => { if(rutaCompletada) return; setAccionPendiente('PAGO'); setShowClientSelector(true); } },
           { label: 'Solicitudes', icon: <ClipboardList className="h-5 w-5" />, onClick: () => router.push('/cobranzas/solicitudes') },
-          { label: 'Pedir Base', icon: <Wallet className="h-5 w-5" />, color: 'emerald', onClick: () => setShowBaseModal(true) },
-          { label: 'Gastos', icon: <ReceiptText className="h-5 w-5" />, color: 'rose', onClick: () => setShowGastoModal(true) },
+          { label: 'Pedir Base', icon: <Wallet className="h-5 w-5" />, color: 'emerald', onClick: () => { if(rutaCompletada) return; setShowBaseModal(true); } },
+          { label: 'Gastos', icon: <ReceiptText className="h-5 w-5" />, color: 'rose', onClick: () => { if(rutaCompletada) return; setShowGastoModal(true); } },
         ] as FabAction[]} />
 
 
@@ -2857,7 +2849,6 @@ const VistaCobrador = () => {
               return d.getTime() <= hoy.getTime();
             })}
             initialOrder={visitasOrden}
-            onSave={handleGuardarOrdenProvisional}
             onClose={() => setShowRutaProvisional(false)}
             getEstadoClasses={getEstadoClasses}
           />
@@ -2880,16 +2871,6 @@ const VistaCobrador = () => {
         )}
 
 
-        {showMoraModal && visitaMoraSeleccionada && moraCuenta && (
-          <DetalleMoraModal
-            cuenta={moraCuenta}
-            onClose={() => {
-              setShowMoraModal(false)
-              setVisitaMoraSeleccionada(null)
-              setMoraCuenta(null)
-            }}
-          />
-        )}
 
         {showEstadoCuentaModal && visitaEstadoCuentaSeleccionada && (
           <EstadoCuentaModal
@@ -3032,54 +3013,103 @@ const VistaCobrador = () => {
           }}
         />
 
-        {showConfirmCompleteModal && (
+        {showConfirmCompleteModal && (() => {
+          const toLocalKey = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+          const hoyStr = toLocalKey(new Date());
+          // Contamos TODOS los pendientes/mora sin filtrar por fecha
+          // (muchos tienen proximaVisita='9999-12-31' y no coincidirían con hoy)
+          const clientesFaltantesHoy = visitasBase.filter(v =>
+            v.estado === 'pendiente' || v.estado === 'en_mora'
+          ).length;
+          const metaV = rutaStats.meta || 0;
+          const recaudoV = rutaStats.recaudo || 0;
+          const porcentaje = metaV > 0 ? Math.round((recaudoV / metaV) * 100) : 0;
+          const alCien = porcentaje >= 100;
+          const descuadre = recaudoV < metaV;
+          // Todos pendientes = ningún cliente de la ruta fue cobrado
+          const todosPendientes = clientesFaltantesHoy > 0 && clientesFaltantesHoy === visitasBase.length;
+          return (
           <Portal>
-            <div 
+            <div
               className="fixed inset-0 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200"
               style={{ zIndex: MODAL_Z_INDEX }}
             >
              <div className="bg-white rounded-3xl p-6 shadow-2xl w-full max-w-sm border border-slate-100 animate-in zoom-in-95 duration-200">
                 <div className="flex flex-col items-center text-center gap-4">
-                   <div className="w-16 h-16 bg-orange-50 rounded-full flex items-center justify-center text-orange-500 mb-2 border border-orange-100">
-                      <AlertTriangle className="h-8 w-8" />
+                   <div className={`w-16 h-16 rounded-full flex items-center justify-center mb-2 border ${alCien ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-orange-50 text-orange-500 border-orange-100'}`}>
+                      {alCien ? <CheckCircle2 className="h-8 w-8" /> : <AlertTriangle className="h-8 w-8" />}
                    </div>
                    <div>
                      <h3 className="text-xl font-black text-slate-900 tracking-tight mb-2">¿Finalizar Ruta del Día?</h3>
-                     <p className="text-slate-500 text-sm font-medium leading-relaxed mb-4">
+                     <p className="text-slate-500 text-sm font-medium leading-relaxed">
                         Al marcar la ruta como completada se reportará tu rendimiento a la oficina.
                      </p>
-                     
-                     <div className="bg-slate-50 border border-slate-100 rounded-2xl p-4 text-left grid grid-cols-2 gap-3">
-                        <div>
-                          <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Meta</p>
-                          <p className="text-sm font-black text-slate-900">${(rutaStats.meta || 0).toLocaleString('es-CO')}</p>
-                        </div>
-                        <div>
-                          <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Recaudado</p>
-                          <p className="text-sm font-black text-emerald-600">${(rutaStats.recaudo || 0).toLocaleString('es-CO')}</p>
-                        </div>
-                        <div>
-                          <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Efectividad</p>
-                          <p className={`text-sm font-black ${(rutaStats.recaudo / (rutaStats.meta || 1)) >= 1 ? 'text-emerald-600' : 'text-orange-600'}`}>
-                             {Math.round(((rutaStats.recaudo || 0) / (rutaStats.meta || 1)) * 100)}%
-                          </p>
-                        </div>
-                        <div>
-                          <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Pendientes</p>
-                          <p className="text-sm font-black text-slate-900 text-slate-400">
-                            {visitasBase.filter(v => v.estado === 'pendiente' || v.estado === 'en_mora').length} clientes
-                          </p>
-                        </div>
-                     </div>
                    </div>
-                   <div className="flex gap-3 w-full mt-4">
-                      <button 
+
+                   {/* Descuadre warning */}
+                   {descuadre && (
+                     <div className="w-full flex items-start gap-2 p-3 bg-red-50 border border-red-100 rounded-2xl text-left">
+                       <XCircle className="h-4 w-4 text-red-500 shrink-0 mt-0.5" />
+                       <div>
+                         <p className="text-xs font-black text-red-700 uppercase tracking-wide">Posible Descuadre</p>
+                         <p className="text-[11px] text-red-600 font-medium mt-0.5">
+                           Recaudaste {formatCurrency(recaudoV)} de {formatCurrency(metaV)} esperados. Asegúrate que el superadmin haya recolectado el dinero antes de cerrar.
+                         </p>
+                       </div>
+                     </div>
+                   )}
+
+                   {clientesFaltantesHoy > 0 && (
+                     <div className={`w-full flex items-start gap-2 p-3 rounded-2xl text-left border ${todosPendientes ? 'bg-red-50 border-red-200' : 'bg-amber-50 border-amber-100'}`}>
+                       {todosPendientes
+                         ? <XCircle className="h-4 w-4 text-red-500 shrink-0 mt-0.5" />
+                         : <Info className="h-4 w-4 text-amber-500 shrink-0 mt-0.5" />}
+                       <p className={`text-[11px] font-bold ${todosPendientes ? 'text-red-700' : 'text-amber-700'}`}>
+                         {todosPendientes
+                           ? <><span className="text-red-900 text-sm font-black">Ningún</span> cliente fue cobrado hoy. Sin recaudo en la jornada.</>  
+                           : <>Faltaron <span className="text-amber-900 text-sm font-black">{clientesFaltantesHoy}</span> cliente{clientesFaltantesHoy > 1 ? 's' : ''} por cobrar hoy.</>}
+                       </p>
+                     </div>
+                   )}
+
+                   <div className="bg-slate-50 border border-slate-100 rounded-2xl p-4 text-left grid grid-cols-2 gap-3 w-full">
+                      <div>
+                        <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Meta</p>
+                        <p className="text-sm font-black text-slate-900">{formatCurrency(metaV)}</p>
+                      </div>
+                      <div>
+                        <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Recaudado</p>
+                        <p className={`text-sm font-black ${alCien ? 'text-emerald-600' : 'text-orange-600'}`}>{formatCurrency(recaudoV)}</p>
+                      </div>
+                      <div>
+                        <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Efectividad</p>
+                        <p className={`text-sm font-black ${alCien ? 'text-emerald-600' : 'text-orange-600'}`}>{porcentaje}%</p>
+                      </div>
+                      <div>
+                        <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Pendientes Hoy</p>
+                        <p className={`text-sm font-black ${
+                          clientesFaltantesHoy === 0
+                            ? 'text-emerald-600'
+                            : todosPendientes
+                              ? 'text-red-600'
+                              : 'text-amber-600'
+                        }`}>
+                          {clientesFaltantesHoy === 0
+                            ? 'Ninguno'
+                            : todosPendientes
+                              ? `✗ ${clientesFaltantesHoy} sin cobrar`
+                              : `${clientesFaltantesHoy} clientes`}
+                        </p>
+                      </div>
+                   </div>
+                   <div className="flex gap-3 w-full mt-2">
+                      <button
                         onClick={() => setShowConfirmCompleteModal(false)}
                         className="flex-1 py-3.5 text-slate-600 font-bold bg-slate-50 hover:bg-slate-100 rounded-2xl transition-all active:scale-95 border border-slate-200"
                       >
                         Cancelar
                       </button>
-                      <button 
+                      <button
                         onClick={confirmarFinalizarRuta}
                         className="flex-1 py-3.5 text-white font-bold bg-slate-900 hover:bg-slate-800 rounded-2xl transition-all shadow-xl shadow-slate-900/20 active:scale-95"
                       >
@@ -3089,8 +3119,9 @@ const VistaCobrador = () => {
                 </div>
              </div>
           </div>
-        </Portal>
-      )}
+          </Portal>
+        );
+      })()}
 
         {/* Modal de Alerta usando ConfirmModal */}
         {modalAlerta && (

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { DashboardClient } from '@/app/admin/dashboard-client';
 import { TimeFilterPeriod } from '@/components/ui/TimeFilter';
@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { dashboardService } from '@/services/dashboard-coordinador-service';
 import { prestamosService } from '@/services/prestamos-service';
+import { useRealtimeData } from '@/hooks/useRealtimeData';
 
 interface UserData {
   id: string;
@@ -103,39 +104,37 @@ export default function CoordinadorPage() {
     shouldRedirect: null,
   });
 
-  useEffect(() => {
+  const initializeDashboard = useCallback(async () => {
     let isMounted = true;
+    const userStr = localStorage.getItem('user');
 
-    const initializeDashboard = async () => {
-      const userStr = localStorage.getItem('user');
+    if (!userStr) {
+      router.replace('/login');
+      return;
+    }
 
-      if (!userStr) {
-        router.replace('/login');
+    try {
+      const parsedUser = JSON.parse(userStr) as UserData;
+
+      if (parsedUser.rol !== 'COORDINADOR') {
+        const ROLE_REDIRECT_MAP: Record<string, string> = {
+          SUPER_ADMINISTRADOR: '/admin',
+          ADMIN: '/admin',
+          SUPERVISOR: '/supervisor',
+          COBRADOR: '/cobranzas',
+          CONTADOR: '/contador/contable',
+          PUNTO_DE_VENTA: '/punto-de-venta',
+        };
+        if (isMounted) {
+          setState({
+            isLoading: false,
+            userData: parsedUser,
+            dashboardData: null,
+            shouldRedirect: ROLE_REDIRECT_MAP[parsedUser.rol] || '/login',
+          });
+        }
         return;
       }
-
-      try {
-        const parsedUser = JSON.parse(userStr) as UserData;
-
-        if (parsedUser.rol !== 'COORDINADOR') {
-          const ROLE_REDIRECT_MAP: Record<string, string> = {
-            SUPER_ADMINISTRADOR: '/admin',
-            ADMIN: '/admin',
-            SUPERVISOR: '/supervisor',
-            COBRADOR: '/cobranzas',
-            CONTADOR: '/contador/contable',
-            PUNTO_DE_VENTA: '/punto-de-venta',
-          };
-          if (isMounted) {
-            setState({
-              isLoading: false,
-              userData: parsedUser,
-              dashboardData: null,
-              shouldRedirect: ROLE_REDIRECT_MAP[parsedUser.rol] || '/login',
-            });
-          }
-          return;
-        }
 
         const [backendData, prestamosData] = await Promise.allSettled([
           dashboardService.getDashboardData(TIME_FILTER_MAP[period]),
@@ -287,14 +286,16 @@ export default function CoordinadorPage() {
         localStorage.removeItem('user');
         router.replace('/login');
       }
-    };
-
-    initializeDashboard();
-
-    return () => {
       isMounted = false;
-    };
-  }, [router, period]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [router, period])
+
+  useEffect(() => {
+    initializeDashboard();
+  }, [initializeDashboard]);
+
+  // Tiempo real: refrescar dashboard cuando pagos o préstamos cambien
+  useRealtimeData(['pagos_actualizados', 'prestamos_actualizados', 'rutas_actualizadas'], initializeDashboard)
 
   useEffect(() => {
     if (state.shouldRedirect) {

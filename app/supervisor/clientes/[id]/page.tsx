@@ -3,6 +3,7 @@
 import { logger } from '@/lib/logger'
 
 import React, { useEffect, useState, type ReactNode } from 'react'
+import { useRealtimeData } from '@/hooks/useRealtimeData'
 import { createPortal } from 'react-dom'
 import { useParams, useRouter } from 'next/navigation'
 import {
@@ -272,6 +273,9 @@ export default function ClienteDetalleSupervisorPage() {
       comprobanteDomicilio: null,
     })
   }
+
+  // Tiempo real: refrescar automáticamente cuando haya cambios
+  useRealtimeData(['pagos_actualizados', 'clientes_actualizados'], () => { typeof window !== 'undefined' && window.location.reload() })
 
   return (
     <div className="min-h-screen bg-slate-50 relative">

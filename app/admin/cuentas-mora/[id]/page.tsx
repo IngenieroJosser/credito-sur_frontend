@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
+import { useRealtimeData } from '@/hooks/useRealtimeData'
 import Link from 'next/link'
 import { 
   ChevronLeft, 
@@ -125,6 +126,9 @@ export default function DetalleCuentaMoraPage({ params }: { params: Promise<{ id
       </div>
     );
   }
+
+  // Tiempo real: refrescar automáticamente cuando haya cambios
+  useRealtimeData(['pagos_actualizados'], () => { typeof window !== 'undefined' && window.location.reload() })
 
   return (
     <div className="min-h-screen bg-slate-50 relative pb-8">

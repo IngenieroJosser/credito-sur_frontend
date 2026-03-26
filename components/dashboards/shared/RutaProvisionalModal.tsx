@@ -1,8 +1,8 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
-import { Portal, StaticVisitaItem, SortableVisita } from '@/components/dashboards/shared/CobradorElements'
-import { X, GripVertical, CheckCircle2 } from 'lucide-react'
+import { Portal, SortableVisita } from '@/components/dashboards/shared/CobradorElements'
+import { X, GripVertical, Download } from 'lucide-react'
 import {
   DndContext,
   closestCenter,
@@ -26,7 +26,6 @@ import { formatCurrency } from '@/lib/utils'
 interface RutaProvisionalModalProps {
   visitas: VisitaRuta[]
   initialOrder: string[]
-  onSave: (newOrder: string[]) => void
   onClose: () => void
   getEstadoClasses: (e: EstadoVisita) => string
 }
@@ -34,32 +33,22 @@ interface RutaProvisionalModalProps {
 export default function RutaProvisionalModal({
   visitas,
   initialOrder,
-  onSave,
   onClose,
-  getEstadoClasses
+  getEstadoClasses,
 }: RutaProvisionalModalProps) {
   const [orden, setOrden] = useState<string[]>([])
   const [activeId, setActiveId] = useState<string | null>(null)
 
   useEffect(() => {
-    // Only include IDs that exist in the passed visitas array for today
     const validIds = visitas.map(v => v.id)
     const filteredOrder = initialOrder.filter(id => validIds.includes(id))
-    
-    // Add any missing IDs that might be in visitas but not in initialOrder yet
     const missingIds = validIds.filter(id => !filteredOrder.includes(id))
     setOrden([...filteredOrder, ...missingIds])
   }, [initialOrder, visitas])
 
   const sensors = useSensors(
-    useSensor(PointerSensor, {
-      activationConstraint: {
-        distance: 8,
-      },
-    }),
-    useSensor(KeyboardSensor, {
-      coordinateGetter: sortableKeyboardCoordinates,
-    })
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   )
 
   const handleDragStart = (event: DragStartEvent) => {
@@ -69,16 +58,52 @@ export default function RutaProvisionalModal({
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event
     setActiveId(null)
-
     if (!over || active.id === over.id) return
-
     const oldIndex = orden.indexOf(active.id as string)
     const newIndex = orden.indexOf(over.id as string)
-    
     setOrden(arrayMove(orden, oldIndex, newIndex))
   }
 
   const activeVisita = activeId ? visitas.find(v => v.id === activeId) : null
+
+  const handleExportarTxt = () => {
+    const hoy = new Date().toLocaleDateString('es-CO', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+    })
+
+    const lineas: string[] = [
+      `RUTA PROVISIONAL – ${hoy}`,
+      `${'='.repeat(48)}`,
+      '',
+    ]
+
+    orden.forEach((id, index) => {
+      const v = visitas.find(v => v.id === id)
+      if (!v) return
+      lineas.push(`${index + 1}. ${v.cliente}`)
+      lineas.push(`   Dirección : ${v.direccion || '—'}`)
+      lineas.push(`   Teléfono  : ${v.telefono || '—'}`)
+      lineas.push(`   Cuota     : ${formatCurrency(v.montoCuota)}`)
+      lineas.push('')
+    })
+
+    lineas.push(`${'='.repeat(48)}`)
+    lineas.push(`Total clientes: ${orden.length}`)
+
+    const contenido = lineas.join('\n')
+    const blob = new Blob([contenido], { type: 'text/plain;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `ruta-provisional-${hoy.replace(/\//g, '-')}.txt`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+    onClose()
+  }
 
   return (
     <Portal>
@@ -88,8 +113,8 @@ export default function RutaProvisionalModal({
           <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50 shrink-0">
             <div>
               <h3 className="font-bold text-lg text-slate-900">Ruta Provisional</h3>
-              <p className="text-xs text-slate-500 mt-1 flex flex-col">
-                <span>Arrastre los clientes para definir el orden sugerido de hoy.</span>
+              <p className="text-xs text-slate-500 mt-1">
+                Ordena los clientes y exporta la ruta como archivo de texto.
               </p>
             </div>
             <button
@@ -99,8 +124,8 @@ export default function RutaProvisionalModal({
               <X className="h-5 w-5" />
             </button>
           </div>
-          
-          {/* Main List Area */}
+
+          {/* List */}
           <div className="p-6 overflow-y-auto flex-1 bg-slate-50/30">
             {visitas.length === 0 ? (
               <div className="text-center py-12 text-slate-400">
@@ -151,7 +176,7 @@ export default function RutaProvisionalModal({
             )}
           </div>
 
-          {/* Footer Actions */}
+          {/* Footer */}
           <div className="p-6 border-t border-slate-100 bg-white shrink-0 flex gap-3">
             <button
               onClick={onClose}
@@ -160,11 +185,12 @@ export default function RutaProvisionalModal({
               Cancelar
             </button>
             <button
-              onClick={() => onSave(orden)}
-              className="flex-1 px-4 py-3 text-sm font-bold text-white bg-[#08557f] hover:bg-[#07476a] rounded-xl transition-colors shadow-md flex justify-center items-center gap-2"
+              onClick={handleExportarTxt}
+              disabled={visitas.length === 0}
+              className="flex-1 px-4 py-3 text-sm font-bold text-white bg-[#08557f] hover:bg-[#07476a] rounded-xl transition-colors shadow-md flex justify-center items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              <CheckCircle2 className="w-4 h-4" />
-              Guardar Orden
+              <Download className="w-4 h-4" />
+              Exportar Ruta (.txt)
             </button>
           </div>
         </div>

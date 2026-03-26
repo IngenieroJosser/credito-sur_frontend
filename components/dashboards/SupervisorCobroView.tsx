@@ -8,6 +8,7 @@
  */
 
 import { useState, useEffect, useMemo, useCallback } from 'react'
+import { useRealtimeData } from '@/hooks/useRealtimeData'
 import {
   MapPin,
   RefreshCw,
@@ -129,7 +130,7 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
   const [selectedHistoryMonth, setSelectedHistoryMonth] = useState<string | null>(null)
   const [historyViewMode, setHistoryViewMode] = useState<'DAYS' | 'MONTHS'>('DAYS')
 
-  const [isExportingPdf, setIsExportingPdf] = useState(false)
+  
 
   const [misCreditos, setMisCreditos] = useState<VisitaRuta[]>([])
   const [loadingMisCreditos, setLoadingMisCreditos] = useState(false)
@@ -144,6 +145,7 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
   const [showClientSelector, setShowClientSelector] = useState(false)
   const [pendingAction, setPendingAction] = useState<'CUENTA' | 'AGENDAR' | 'PAGO' | 'ABONO' | null>(null)
 
+  const [showConfirmCompleteModal, setShowConfirmCompleteModal] = useState(false)
   const [rutaCompletada, setRutaCompletada] = useState(false)
   const [coordinadorToast, setCoordinadorToast] = useState<string | null>(null)
 
@@ -489,42 +491,231 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
     }
   }, [showHistory, rutaId, historialRutas, cargarHistorialFecha]);
 
-  useEffect(() => {
-    if (!socket) return;
+  // WebSocket useEffect queda declarado DESPUÉS de cargarVisitasRuta (ver abajo)
 
-    const handlerPagos = () => {
-      cargarEstadisticasRuta();
-      if (showMisClientes) {
-        cargarMisCreditos()
+  // ---------------------------------------------------------------------------
+  // cargarVisitasRuta – carga y enriquece la lista de visitas desde el backend.
+  // Es un useCallback estable para poder ser invocado tanto desde el useEffect
+  // de montaje como desde el handler del WebSocket (tiempo real).
+  // ---------------------------------------------------------------------------
+  const cargarVisitasRuta = useCallback(async () => {
+    if (!rutaId) return;
+    try {
+      const ruta = await rutasService.obtenerRutaPorId(rutaId)
+      setRutaInfo({ id: ruta.id, cobradorId: ruta.cobradorId });
+
+      if (ruta && ruta.asignaciones) {
+        const toPeriodo = (f: string): PeriodoRuta => {
+          if (f === 'SEMANAL') return 'SEMANA';
+          if (f === 'QUINCENAL') return 'QUINCENA';
+          if (f === 'MENSUAL') return 'MES';
+          return 'DIA';
+        };
+
+        const toNivel = (r: string) => {
+          if (r === 'AMARILLO') return 'precaucion' as any;
+          if (r === 'ROJO') return 'moderado';
+          if (r === 'LISTA_NEGRA') return 'critico';
+          return 'bajo';
+        };
+
+        let gIdx = 0;
+        const visitasRaw = ruta.asignaciones.flatMap((asig: any) => {
+          const cliente = asig.cliente || {}
+          // Incluir PENDIENTE_APROBACION: se mostrarán con botones deshabilitados
+          const prestamosActivos: any[] = (cliente.prestamos || []).filter(
+            (p: any) => p.estado === 'ACTIVO' || p.estado === 'EN_MORA' || p.estado === 'PENDIENTE_APROBACION'
+          );
+          const lista = prestamosActivos.length > 0 ? prestamosActivos : [null];
+
+          return lista.map((prestamo: any) => {
+            const proximaCuota = prestamo?.proximaCuota || {}
+            const esArticulo = prestamo?.tipo === 'ARTICULO' || prestamo?.tipoPrestamo === 'ARTICULO'
+            const esPendienteAprobacion = prestamo?.estado === 'PENDIENTE_APROBACION'
+            const idx = gIdx++
+
+            let estado: EstadoVisita = 'pendiente'
+            if (proximaCuota.estado === 'VENCIDA') estado = 'en_mora'
+            else if (proximaCuota.estado === 'PAGADA') estado = 'pagado'
+            else if (!prestamo?.id) estado = 'pendiente'
+
+            return {
+              id: prestamo ? `${asig.id}-${prestamo.id}` : (asig.id || `asig-${idx}`),
+              cliente: `${cliente.nombres || ''} ${cliente.apellidos || ''}`.trim() || 'Cliente Sin Nombre',
+              direccion: cliente.direccion || 'Sin dirección registrada',
+              telefono: cliente.telefono || '',
+              horaSugerida: asig.horaSugerida || '08:00 AM',
+              montoCuota: Number(proximaCuota.monto || 0),
+              saldoTotal: Number(prestamo?.saldoPendiente || 0),
+              estado,
+              proximaVisita: proximaCuota.fechaVencimiento || '9999-12-31T00:00:00.000Z',
+              targetVencimiento: proximaCuota.fechaVencimiento || undefined,
+              ordenVisita: asig.ordenVisita || idx + 1,
+              prioridad: (asig.prioridad?.toLowerCase() as 'alta' | 'media' | 'baja') || (estado === 'en_mora' ? 'alta' : 'media'),
+              nivelRiesgo: toNivel(cliente.nivelRiesgo || 'VERDE'),
+              cobradorId: ruta.cobradorId,
+              periodoRuta: toPeriodo(prestamo?.frecuenciaPago || 'DIARIO'),
+              clienteId: cliente.id,
+              prestamoId: prestamo?.id,
+              tipoPrestamo: esArticulo ? 'ARTICULO' : 'EFECTIVO',
+              articuloNombre: esArticulo ? (prestamo?.articulo || prestamo?.descripcionArticulo || undefined) : undefined,
+              cuotaActual: proximaCuota.numeroCuota,
+              cuotasTotales: prestamo?.cantidadCuotas,
+              enProrroga: proximaCuota.estado === 'PRORROGADA' || !!proximaCuota.fechaVencimientoProrroga,
+              fechaProrroga: proximaCuota.fechaVencimientoProrroga,
+              // Deshabilitar botones mientras el crédito no esté aprobado
+              pendienteAprobacion: esPendienteAprobacion,
+            } as any
+          });
+        });
+
+        // Deduplicación en 2 pasadas:
+        // 1º: detectar clientes que ya tienen al menos un préstamo real (no sólo entrada vacía)
+        // 2º: eliminar entradas sin prestamoId si el mismo cliente tiene entrada con prestamoId
+        // Evita el duplicado al aprobar un crédito creado dentro de la ruta.
+        const clientesConPrestamo = new Set<string>();
+        visitasRaw.forEach((v: any) => {
+          if (v.prestamoId && v.clienteId) clientesConPrestamo.add(v.clienteId);
+        });
+        const seenIds = new Set<string>();
+        const visitas = visitasRaw.filter((v: any) => {
+          if (!v.prestamoId && v.clienteId && clientesConPrestamo.has(v.clienteId)) return false;
+          const clave = v.prestamoId ? `prestamo-${v.prestamoId}` : `cliente-${v.clienteId}`;
+          if (seenIds.has(clave)) return false;
+          seenIds.add(clave);
+          return true;
+        });
+
+        const visitasEnriquecidas = await Promise.all(
+          visitas.map(async (v: any) => {
+            if (!v.prestamoId) return v
+            try {
+              const cuotas = await prestamosService.obtenerCuotas(v.prestamoId)
+              const pendiente = cuotas.find((c: any) => c.estado !== 'PAGADA')
+
+              if (pendiente) {
+                const montoReal = Number(
+                  pendiente.monto ||
+                    pendiente.montoCapital + pendiente.montoInteres ||
+                    0,
+                )
+                return {
+                  ...v,
+                  montoCuota: montoReal > 0 ? montoReal : v.montoCuota,
+                  proximaVisita: (pendiente.estado === 'PRORROGADA' && pendiente.fechaVencimientoProrroga)
+                    ? pendiente.fechaVencimientoProrroga
+                    : (pendiente.fechaVencimiento || v.proximaVisita),
+                  cuotaActual: pendiente.numeroCuota,
+                  cuotasTotales: cuotas.length,
+                  enProrroga: pendiente.estado === 'PRORROGADA' || !!pendiente.fechaVencimientoProrroga,
+                  fechaProrroga: pendiente.fechaVencimientoProrroga || undefined,
+                  fechaOriginalVencimiento: pendiente.fechaVencimiento || undefined,
+                }
+              }
+
+              const p = await prestamosService.obtenerPrestamoPorId(v.prestamoId)
+              const proxima = (p.proximaCuota ?? {}) as Partial<typeof p.cuotas extends (infer C)[] | undefined ? C : Record<string, unknown>>
+              const montoP = Number(
+                (proxima as any).monto ||
+                  p.montoCuota ||
+                  (p as any).valorCuota ||
+                  0,
+              )
+
+              return {
+                ...v,
+                montoCuota: montoP > 0 ? montoP : v.montoCuota,
+                proximaVisita: (proxima as any).fechaVencimiento || v.proximaVisita,
+              }
+            } catch {
+              return v
+            }
+          }),
+        )
+
+        const toLocalKey = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+        const hoyStr = toLocalKey(new Date())
+
+        const withRecaudo = await Promise.all(
+          visitasEnriquecidas.map(async (v: any) => {
+            if (!v.clienteId) {
+              return { ...v, recaudadoDelDia: 0, recaudadoTotalClient: 0 }
+            }
+            try {
+              const pagosResp = await pagosService.obtenerPagos({ clienteId: v.clienteId, limit: 100 })
+              const pagosCalc = pagosResp?.pagos || []
+
+              const totalHoy = pagosCalc.reduce((sum: number, p: any) => {
+                const raw = p.fechaPago || p.creadoEn;
+                const f = raw ? (raw.includes('T') ? raw.split('T')[0] : raw) : '';
+                return f === hoyStr ? sum + Number(p.montoTotal || 0) : sum
+              }, 0)
+
+              const totalHistorico = pagosCalc.reduce(
+                (sum: number, p: any) => sum + Number(p.montoTotal || 0),
+                0,
+              )
+
+              let ultimoPagoDate = 0;
+              pagosCalc.forEach((p: any) => {
+                const d = new Date(p.fechaPago || p.creadoEn).getTime();
+                if (!isNaN(d) && d > ultimoPagoDate) ultimoPagoDate = d;
+              });
+
+              return { ...v, recaudadoDelDia: totalHoy, recaudadoTotalClient: totalHistorico, fechaUltimoPago: ultimoPagoDate }
+            } catch {
+              return { ...v, recaudadoDelDia: 0, recaudadoTotalClient: 0, fechaUltimoPago: 0 }
+            }
+          }),
+        )
+
+        const ajustarEstadoConPago = (v: any): EstadoVisita => {
+          if (Number(v.saldoTotal || 0) <= 0) return 'pagado'
+          const saldoHoy = Number(v.recaudadoDelDia || 0)
+          const cuota = Number(v.montoCuota || 0)
+          if (saldoHoy >= cuota - 1 && saldoHoy > 0) return 'pagado'
+          const proximoC = v.proximaVisita ? (v.proximaVisita.includes('T') ? v.proximaVisita.split('T')[0] : v.proximaVisita) : '';
+          if (proximoC === hoyStr && saldoHoy >= cuota - 1) return 'pagado'
+          return v.estado
+        }
+
+        const finales = withRecaudo.map((v: any) => ({ ...v, estado: ajustarEstadoConPago(v) }))
+
+        finales.sort((a: any, b: any) => {
+          if (a.estado === 'pagado' && b.estado !== 'pagado') return 1;
+          if (a.estado !== 'pagado' && b.estado === 'pagado') return -1;
+          if (a.fechaUltimoPago !== b.fechaUltimoPago) return a.fechaUltimoPago - b.fechaUltimoPago;
+          return a.ordenVisita - b.ordenVisita;
+        });
+
+        setVisitasBase(finales)
+        setVisitasOrden(finales.map((v: any) => v.id))
       }
-    };
+    } catch (error) {
+      console.error('Error al cargar visitas de ruta (supervisor):', error);
+    }
+  }, [rutaId]);
 
-    const handlerPrestamos = () => {
-      cargarEstadisticasRuta();
-      if (showMisClientes) {
-        cargarMisCreditos()
-      }
-    };
+  // ---------------------------------------------------------------------------
+  // WebSocket: suscripción a eventos en tiempo real via useRealtimeData.
+  // ---------------------------------------------------------------------------
 
-    const handlerDash = () => {
-      cargarEstadisticasRuta();
-      if (showMisClientes) {
-        cargarMisCreditos()
-      }
-    };
+  // Handler completo: recarga visitas/cuotas al registrar pagos o nuevos préstamos
+  const handlerFull = useCallback(async () => {
+    await cargarVisitasRuta();
+    if (showMisClientes) cargarMisCreditos();
+  }, [cargarVisitasRuta, showMisClientes, cargarMisCreditos])
 
-    socket.on('pagos_actualizados', handlerPagos);
-    socket.on('prestamos_actualizados', handlerPrestamos);
-    socket.on('dashboards_actualizados', handlerDash);
+  // Handler ligero: solo refresca KPIs (dashboards no cambian cuotas)
+  const handlerKpi = useCallback(() => {
+    cargarEstadisticasRuta();
+    if (showMisClientes) cargarMisCreditos();
+  }, [cargarEstadisticasRuta, showMisClientes, cargarMisCreditos])
 
-    return () => {
-      socket.off('pagos_actualizados', handlerPagos);
-      socket.off('prestamos_actualizados', handlerPrestamos);
-      socket.off('dashboards_actualizados', handlerDash);
-    };
-  }, [socket, cargarEstadisticasRuta, showMisClientes, cargarMisCreditos]);
+  useRealtimeData(['pagos_actualizados', 'prestamos_actualizados'], handlerFull)
+  useRealtimeData(['dashboards_actualizados'], handlerKpi)
 
-  // Cargar datos del usuario y ruta
+  // Cargar datos del usuario y ruta (sesión + KPIs + visitas)
   useEffect(() => {
     const cargarDatos = async () => {
       try {
@@ -539,19 +730,18 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
         if (userData) {
           setUserSession(JSON.parse(userData));
         } else {
-             try {
-               const perfil = await obtenerPerfil();
-               localStorage.setItem('user', JSON.stringify(perfil));
-               setUserSession(perfil);
-             } catch (error: any) {
-               console.warn('Error al obtener perfil en supervisor:', error);
-               if (error?.statusCode === 401) router.replace('/login');
-             }
+          try {
+            const perfil = await obtenerPerfil();
+            localStorage.setItem('user', JSON.stringify(perfil));
+            setUserSession(perfil);
+          } catch (error: any) {
+            console.warn('Error al obtener perfil en supervisor:', error);
+            if (error?.statusCode === 401) router.replace('/login');
+          }
         }
 
         if (rutaId) {
           const ruta = await rutasService.obtenerRutaPorId(rutaId)
-          setRutaInfo({ id: ruta.id, cobradorId: ruta.cobradorId });
 
           try {
             const est: any = (ruta as any).estadisticas || {}
@@ -587,214 +777,18 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
             })
           }
 
-          if (ruta && ruta.asignaciones) {
-            const toPeriodo = (f: string): PeriodoRuta => {
-              if (f === 'SEMANAL') return 'SEMANA';
-              if (f === 'QUINCENAL') return 'QUINCENA';
-              if (f === 'MENSUAL') return 'MES';
-              return 'DIA';
-            };
-
-            const toNivel = (r: string) => {
-              if (r === 'AMARILLO') return 'precaucion' as any;
-              if (r === 'ROJO') return 'moderado';
-              if (r === 'LISTA_NEGRA') return 'critico';
-              return 'bajo';
-            };
-
-            let gIdx = 0;
-            // *** Expandir cada crédito activo en su propia entrada de visita ***
-            const visitas = ruta.asignaciones.flatMap((asig: any) => {
-              const cliente = asig.cliente || {}
-              const prestamosActivos: any[] = (cliente.prestamos || []).filter(
-                (p: any) => p.estado === 'ACTIVO' || p.estado === 'EN_MORA'
-              );
-              const lista = prestamosActivos.length > 0 ? prestamosActivos : [null];
-
-              return lista.map((prestamo: any) => {
-                const proximaCuota = prestamo?.proximaCuota || {}
-                const esArticulo = prestamo?.tipo === 'ARTICULO' || prestamo?.tipoPrestamo === 'ARTICULO'
-                const idx = gIdx++
-
-                let estado: EstadoVisita = 'pendiente'
-                if (proximaCuota.estado === 'VENCIDA') estado = 'en_mora'
-                else if (proximaCuota.estado === 'PAGADA') estado = 'pagado'
-                else if (!prestamo?.id) estado = 'pendiente'
-
-                return {
-                  id: prestamo ? `${asig.id}-${prestamo.id}` : (asig.id || `asig-${idx}`),
-                  cliente: `${cliente.nombres || ''} ${cliente.apellidos || ''}`.trim() || 'Cliente Sin Nombre',
-                  direccion: cliente.direccion || 'Sin dirección registrada',
-                  telefono: cliente.telefono || '',
-                  horaSugerida: asig.horaSugerida || '08:00 AM',
-                  montoCuota: Number(proximaCuota.monto || 0),
-                  saldoTotal: Number(prestamo?.saldoPendiente || 0),
-                  estado,
-                  proximaVisita: proximaCuota.fechaVencimiento || '9999-12-31T00:00:00.000Z',
-                  targetVencimiento: proximaCuota.fechaVencimiento || undefined,
-                  ordenVisita: asig.ordenVisita || idx + 1,
-                  prioridad: (asig.prioridad?.toLowerCase() as 'alta' | 'media' | 'baja') || (estado === 'en_mora' ? 'alta' : 'media'),
-                  nivelRiesgo: toNivel(cliente.nivelRiesgo || 'VERDE'),
-                  cobradorId: ruta.cobradorId,
-                  periodoRuta: toPeriodo(prestamo?.frecuenciaPago || 'DIARIO'),
-                  clienteId: cliente.id,
-                  prestamoId: prestamo?.id,
-                  tipoPrestamo: esArticulo ? 'ARTICULO' : 'EFECTIVO',
-                  articuloNombre: esArticulo ? (prestamo?.articulo || prestamo?.descripcionArticulo || undefined) : undefined,
-                  cuotaActual: proximaCuota.numeroCuota,
-                  cuotasTotales: prestamo?.cantidadCuotas,
-                  enProrroga: proximaCuota.estado === 'PRORROGADA' || !!proximaCuota.fechaVencimientoProrroga,
-                  fechaProrroga: proximaCuota.fechaVencimientoProrroga,
-                } as any
-              });
-            });
-
-            const visitasEnriquecidas = await Promise.all(
-              visitas.map(async (v: any) => {
-                if (!v.prestamoId) return v
-                try {
-                  const cuotas = await prestamosService.obtenerCuotas(v.prestamoId)
-                  const pendiente = cuotas.find((c: any) => c.estado !== 'PAGADA')
-
-                  if (pendiente) {
-                    const montoReal = Number(
-                      pendiente.monto ||
-                        pendiente.montoCapital + pendiente.montoInteres ||
-                        0,
-                    )
-                      return {
-                        ...v,
-                        montoCuota: montoReal > 0 ? montoReal : v.montoCuota,
-                        proximaVisita: (pendiente.estado === 'PRORROGADA' && pendiente.fechaVencimientoProrroga)
-                          ? pendiente.fechaVencimientoProrroga
-                          : (pendiente.fechaVencimiento || v.proximaVisita),
-                        cuotaActual: pendiente.numeroCuota,
-                        cuotasTotales: cuotas.length,
-                        enProrroga: pendiente.estado === 'PRORROGADA' || !!pendiente.fechaVencimientoProrroga,
-                        fechaProrroga: pendiente.fechaVencimientoProrroga || undefined,
-                        fechaOriginalVencimiento: pendiente.fechaVencimiento || undefined,
-                      }
-                  }
-
-                  const p = await prestamosService.obtenerPrestamoPorId(
-                    v.prestamoId,
-                  )
-                  const proxima = (p.proximaCuota ?? {}) as Partial<typeof p.cuotas extends (infer C)[] | undefined ? C : Record<string, unknown>>
-                  const montoP = Number(
-                    (proxima as any).monto ||
-                      p.montoCuota ||
-                      (p as any).valorCuota ||
-                      0,
-                  )
-
-                  return {
-                    ...v,
-                    montoCuota: montoP > 0 ? montoP : v.montoCuota,
-                    proximaVisita: (proxima as any).fechaVencimiento || v.proximaVisita,
-                  }
-                } catch {
-                  return v
-                }
-              }),
-            )
-
-            const toLocalKey = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-            const hoyStr = toLocalKey(new Date())
-
-            const withRecaudo = await Promise.all(
-              visitasEnriquecidas.map(async (v: any) => {
-                if (!v.clienteId) {
-                  return {
-                    ...v,
-                    recaudadoDelDia: 0,
-                    recaudadoTotalClient: 0,
-                  }
-                }
-                try {
-                  const pagosResp = await pagosService.obtenerPagos({
-                    clienteId: v.clienteId,
-                    limit: 100,
-                  })
-                  const pagosCalc = pagosResp?.pagos || []
-
-                  const totalHoy = pagosCalc.reduce((sum: number, p: any) => {
-                    const raw = p.fechaPago || p.creadoEn;
-                    const f = raw ? (raw.includes('T') ? raw.split('T')[0] : raw) : '';
-                    return f === hoyStr ? sum + Number(p.montoTotal || 0) : sum
-                  }, 0)
-
-                  const totalHistorico = pagosCalc.reduce(
-                    (sum: number, p: any) => sum + Number(p.montoTotal || 0),
-                    0,
-                  )
-
-                  let ultimoPagoDate = 0;
-                  pagosCalc.forEach((p: any) => {
-                     const d = new Date(p.fechaPago || p.creadoEn).getTime();
-                     if (!isNaN(d) && d > ultimoPagoDate) ultimoPagoDate = d;
-                  });
-
-                  return {
-                    ...v,
-                    recaudadoDelDia: totalHoy,
-                    recaudadoTotalClient: totalHistorico,
-                    fechaUltimoPago: ultimoPagoDate,
-                  }
-                } catch {
-                  return {
-                    ...v,
-                    recaudadoDelDia: 0,
-                    recaudadoTotalClient: 0,
-                    fechaUltimoPago: 0,
-                  }
-                }
-              }),
-            )
-
-            const ajustarEstadoConPago = (v: any): EstadoVisita => {
-              if (Number(v.saldoTotal || 0) <= 0) return 'pagado'
-
-              const saldoHoy = Number(v.recaudadoDelDia || 0)
-              const cuota = Number(v.montoCuota || 0)
-
-              if (saldoHoy >= cuota - 1 && saldoHoy > 0) return 'pagado'
-
-              const proximoC = v.proximaVisita ? (v.proximaVisita.includes('T') ? v.proximaVisita.split('T')[0] : v.proximaVisita) : '';
-
-              if (proximoC === hoyStr && saldoHoy >= cuota - 1) return 'pagado'
-
-              return v.estado
-            }
-
-            const finales = withRecaudo.map((v: any) => ({
-              ...v,
-              estado: ajustarEstadoConPago(v),
-            }))
-
-            finales.sort((a: any, b: any) => {
-              if (a.estado === 'pagado' && b.estado !== 'pagado') return 1;
-              if (a.estado !== 'pagado' && b.estado === 'pagado') return -1;
-              
-              if (a.fechaUltimoPago !== b.fechaUltimoPago) {
-                return a.fechaUltimoPago - b.fechaUltimoPago;
-              }
-              
-              return a.ordenVisita - b.ordenVisita;
-            });
-
-            setVisitasBase(finales)
-            setVisitasOrden(finales.map((v: any) => v.id))
-          }
+          // Carga de visitas delegada al useCallback reutilizable
+          await cargarVisitasRuta();
         }
       } catch (error) {
-        console.error('Error al cargar datos:', error);
+        console.error('Error al cargar datos de supervisor:', error);
       } finally {
         setIsLoading(false);
       }
     };
 
     cargarDatos();
-  }, [router, rutaId, periodoCards]);
+  }, [router, rutaId, periodoCards, cargarVisitasRuta]);
 
   useEffect(() => {
     cargarEstadisticasRuta()
@@ -812,17 +806,7 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
     }),
   )
 
-  const handleExportarRutaPdf = useCallback(async () => {
-    if (!rutaId) return
-    setIsExportingPdf(true)
-    try {
-      await exportService.exportRutaCobrador('pdf', rutaId)
-    } catch {
-      setModalAlerta({ titulo: 'Error', mensaje: 'No se pudo generar el PDF. Intente de nuevo.', tipo: 'error' })
-    } finally {
-      setIsExportingPdf(false)
-    }
-  }, [rutaId])
+  
 
 
   // Filtrar y ordenar visitas
@@ -856,14 +840,23 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
     if (!fecha || !motivo) return
 
     try {
-      // Enviar solicitud al backend — queda pendiente de aprobación del supervisor
-      if (visitaReprogramar.prestamoId && cuotaId) {
-        await prestamosService.solicitarReprogramacionCuota({
-          prestamoId: visitaReprogramar.prestamoId,
-          cuotaId,
-          nuevaFecha: fecha,
-          motivo,
-        })
+      // Enviar solicitud al backend — queda pendiente de aprobación del supervisor/admin o se autoaprueba
+      if (visitaReprogramar.prestamoId) {
+        if (cuotaId) {
+          await prestamosService.solicitarReprogramacionCuota({
+            prestamoId: visitaReprogramar.prestamoId,
+            cuotaId,
+            nuevaFecha: fecha,
+            motivo,
+          })
+        } else {
+          // Fallback al endpoint principal (el backend detectará la cuota automáticamente)
+          await prestamosService.reprogramarPrestamo(visitaReprogramar.prestamoId, {
+            fecha,
+            motivo,
+            cobradorId: userSession?.id || ''
+          })
+        }
       }
 
       // Marcar localmente como reprogramado (UI feedback)
@@ -1020,35 +1013,48 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
     console.log(`Registra pago de ${montoPagado} para visita ${visitaId} (${metodo})`, comprobante)
     setShowPaymentModal(false)
   }, [])
-
   const handleCrearCredito = useCallback(async (data: any) => {
     try {
       setIsLoading(true)
       
       const esContado = Boolean((data as any).ventaContado)
+      const isArticulo = data.creditType === 'articulo'
+      const freq = esContado ? 'MENSUAL' : (data.frecuenciaPago || 'DIARIO')
+
       const payload: any = {
         clienteId: data.clienteCreditoId,
-        tipoPrestamo: data.creditType === 'prestamo' ? 'EFECTIVO' : 'ARTICULO',
+        tipoPrestamo: isArticulo ? 'ARTICULO' : 'EFECTIVO',
         monto: data.monto || 0,
         tasaInteres: esContado ? 0 : (data.tasaInteres || 0),
         tasaInteresMora: 2, 
         plazoMeses: data.plazoMeses || 1,
-        cantidadCuotas: data.cantidadCuotas || data.cuotas || data.cuotasTotales || 0,
-        cuotas: data.cuotas || data.cantidadCuotas || 0,
-        frecuenciaPago: esContado ? 'MENSUAL' : (data.frecuenciaPago || 'DIARIO'),
+        cantidadCuotas: data.cantidadCuotas || data.cuotas || data.cuotasTotales || (isArticulo ? data.numCuotas : 0),
+        cuotas: data.cuotas || data.cantidadCuotas || (isArticulo ? data.numCuotas : 0),
+        frecuenciaPago: freq,
         fechaInicio: data.fechaInicio || new Date().toISOString(),
         creadoPorId: userSession?.id,
         cuotaInicial: data.cuotaInicialArticulo || 0,
-        notas: esContado ? 'Venta de artículo de contado' : (data.notas || ''),
-        tipoAmortizacion: data.tipoInteres || TipoAmortizacion.INTERES_SIMPLE
+        notas: isArticulo
+          ? `${esContado ? 'Venta de contado' : 'Crédito de artículo'}: ${data.articuloNombre || ''}`
+          : (data.notas || ''),
+        tipoAmortizacion: isArticulo ? 'INTERES_SIMPLE' : (data.tipoInteres || 'INTERES_SIMPLE'),
+        esContado: esContado
       }
 
-      if (data.creditType === 'articulo') {
+      if (isArticulo) {
         payload.productoId = data.articuloId
         payload.precioProductoId = esContado ? undefined : data.precioProductoId
       }
 
-      await prestamosService.crearPrestamo(payload)
+      const prestamo = await prestamosService.crearPrestamo(payload)
+
+      if (isArticulo && prestamo?.id && !esContado) {
+        try {
+          await exportService.exportContrato(prestamo.id)
+        } catch (err) {
+          console.error('Error al descargar contrato:', err)
+        }
+      }
       
       // Asignar cliente a la ruta automáticamente si estamos en una ruta específica
       if (rutaId) {
@@ -1083,10 +1089,35 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
   }, [userSession?.id])
 
   const handleCompletarRuta = useCallback(() => {
+    const recaudo = rutaStats.recaudo || 0
+    const meta = rutaStats.meta || 0
+    const efectividad = meta > 0 ? Math.round((recaudo / meta) * 100) : 0
+
+    // Contar clientes pendientes reales (sin filtro de fecha — mismo fix que VistaCobrador)
+    const clientesFaltantes = visitasBase.filter(v =>
+      v.estado === 'pendiente' || v.estado === 'en_mora'
+    ).length
+
+    // Emitir evento de cierre con datos completos (guarda en BD + notifica coordinadores)
+    socket?.emit('ruta_completada_emit', {
+      rutaNombre: userSession?.rutaAsignada || rutaId || 'Mi Ruta',
+      cobradorNombre: `${userSession?.nombres || ''} ${userSession?.apellidos || ''}`.trim() || 'Supervisor',
+      recaudo,
+      meta,
+      efectividad,
+      clientesFaltantes,
+      rutaId: rutaInfo?.id || rutaId || undefined,
+    })
+
     setRutaCompletada(true)
-    setCoordinadorToast('Se notificó al coordinador: ruta diaria marcada como completada.')
-    window.setTimeout(() => setCoordinadorToast(null), 4000)
-  }, [])
+    setShowConfirmCompleteModal(false)
+
+    const mensajeCierre = clientesFaltantes > 0
+      ? `Ruta cerrada. Faltaron ${clientesFaltantes} cliente${clientesFaltantes > 1 ? 's' : ''} por cobrar. Se alertó a la oficina.`
+      : 'Ruta del día completada exitosamente. Se notificó al coordinador.'
+    setCoordinadorToast(mensajeCierre)
+    window.setTimeout(() => setCoordinadorToast(null), 5000)
+  }, [socket, rutaId, rutaInfo, rutaStats, visitasBase, userSession])
 
   const handleAbrirClienteInfo = useCallback((visita: VisitaRuta) => {
     if (visita.estado === 'en_mora') {
@@ -1316,20 +1347,6 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
 
             <div className="mt-4 border-t border-slate-100 pt-4 flex flex-wrap items-center gap-2 overflow-x-auto pb-1">
 
-                  <button
-                    type="button"
-                    onClick={handleExportarRutaPdf}
-                    disabled={!rutaId || isExportingPdf}
-                    className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold rounded-xl border border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                    title="Exportar ruta como PDF"
-                  >
-                    {isExportingPdf ? (
-                      <span className="w-3 h-3 border-2 border-rose-600 border-t-transparent rounded-full animate-spin" />
-                    ) : (
-                      <FileDown className="w-3 h-3" />
-                    )}
-                    PDF
-                  </button>
                   <button 
                     onClick={() => {
                       setShowHistory(false)
@@ -1376,11 +1393,11 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
 
                   <button
                     type="button"
-                    onClick={handleCompletarRuta}
+                    onClick={() => setShowConfirmCompleteModal(true)}
                     disabled={rutaCompletada}
                     className={`px-4 py-2 border rounded-xl flex items-center gap-2 font-bold shadow-sm transition-colors ${
                       rutaCompletada
-                        ? 'bg-emerald-50 text-emerald-700 border-emerald-200 opacity-70'
+                        ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
                         : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
                     }`}
                   >
@@ -1394,41 +1411,64 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
                 <div className="flex items-center gap-2 overflow-x-auto pb-2 no-scrollbar">
                         {!isReadOnly && (
                           <>
-                            <button onClick={() => { 
-                              if (visitaSeleccionada) {
-                                 const v = visitasCobrador.find(v => v.id === visitaSeleccionada);
-                                 if (v) {
-                                   setVisitaPagoSeleccionadaId(v.id);
-                                   setPagoInitialIsAbono(false);
-                                   setShowPaymentModal(true);
-                                 }
-                              } else {
-                                 setVisitaPagoSeleccionadaId(null);
-                                 setShowPaymentModal(true);
-                                 setPagoInitialIsAbono(false); 
-                              }
-                            }} className="flex-1 min-w-[max-content] bg-[#08557f]/5 text-[#08557f] border border-[#08557f]/10 px-4 py-3 rounded-xl flex items-center justify-center gap-2 font-bold shadow-sm active:scale-95 transition-all">
-                                <DollarSign className="h-5 w-5" /> Pagar
-                            </button>
-                            <button onClick={() => { 
-                               if (visitaSeleccionada) {
-                                 const v = visitasCobrador.find(v => v.id === visitaSeleccionada);
-                                 if (v) {
-                                   setVisitaPagoSeleccionadaId(v.id);
-                                   setPagoInitialIsAbono(true);
-                                   setShowPaymentModal(true);
-                                 }
-                               } else {
-                                   setVisitaPagoSeleccionadaId(null); 
-                                   setShowPaymentModal(true); 
-                                   setPagoInitialIsAbono(true);
-                               }
-                            }} className="flex-1 min-w-[max-content] bg-orange-50 text-orange-700 border border-orange-200 px-4 py-3 rounded-xl flex items-center justify-center gap-2 font-bold shadow-sm active:scale-95 transition-all">
-                                <RefreshCw className="h-5 w-5" /> Abonar
-                            </button>
+                            {/* Botón Pagar — deshabilitado si el crédito está pendiente de aprobación */}
+                            {(() => {
+                              const visitaActual = visitaSeleccionada ? visitasCobrador.find(v => v.id === visitaSeleccionada) : null;
+                              const esPendiente = visitaActual?.pendienteAprobacion;
+                              return (
+                                <button
+                                  onClick={() => {
+                                    if (esPendiente || rutaCompletada) return;
+                                    if (visitaSeleccionada) {
+                                      const v = visitasCobrador.find(v => v.id === visitaSeleccionada);
+                                      if (v) { setVisitaPagoSeleccionadaId(v.id); setPagoInitialIsAbono(false); setShowPaymentModal(true); }
+                                    } else {
+                                      setVisitaPagoSeleccionadaId(null); setShowPaymentModal(true); setPagoInitialIsAbono(false);
+                                    }
+                                  }}
+                                  disabled={!!esPendiente || rutaCompletada}
+                                  title={esPendiente ? 'El crédito aún está en aprobación' : 'Registrar pago'}
+                                  className={`flex-1 min-w-[max-content] px-4 py-3 rounded-xl flex items-center justify-center gap-2 font-bold shadow-sm transition-all ${
+                                    esPendiente || rutaCompletada
+                                      ? 'bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed'
+                                      : 'bg-[#08557f]/5 text-[#08557f] border border-[#08557f]/10 active:scale-95'
+                                  }`}
+                                >
+                                  <DollarSign className="h-5 w-5" /> Pagar
+                                </button>
+                              );
+                            })()}
+                            {/* Botón Abonar — deshabilitado si el crédito está pendiente de aprobación */}
+                            {(() => {
+                              const visitaActual = visitaSeleccionada ? visitasCobrador.find(v => v.id === visitaSeleccionada) : null;
+                              const esPendiente = visitaActual?.pendienteAprobacion;
+                              return (
+                                <button
+                                  onClick={() => {
+                                    if (esPendiente || rutaCompletada) return;
+                                    if (visitaSeleccionada) {
+                                      const v = visitasCobrador.find(v => v.id === visitaSeleccionada);
+                                      if (v) { setVisitaPagoSeleccionadaId(v.id); setPagoInitialIsAbono(true); setShowPaymentModal(true); }
+                                    } else {
+                                      setVisitaPagoSeleccionadaId(null); setShowPaymentModal(true); setPagoInitialIsAbono(true);
+                                    }
+                                  }}
+                                  disabled={!!esPendiente || rutaCompletada}
+                                  title={esPendiente ? 'El crédito aún está en aprobación' : 'Registrar abono'}
+                                  className={`flex-1 min-w-[max-content] px-4 py-3 rounded-xl flex items-center justify-center gap-2 font-bold shadow-sm transition-all ${
+                                    esPendiente || rutaCompletada
+                                      ? 'bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed'
+                                      : 'bg-orange-50 text-orange-700 border border-orange-200 active:scale-95'
+                                  }`}
+                                >
+                                  <RefreshCw className="h-5 w-5" /> Abonar
+                                </button>
+                              );
+                            })()}
                           </>
                         )}
                         <button onClick={() => { 
+                           if (rutaCompletada) return;
                            if (visitaSeleccionada) {
                               const v = visitasCobrador.find(v => v.id === visitaSeleccionada);
                               setVisitaEstadoCuentaSeleccionada(v || null);
@@ -1437,10 +1477,13 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
                               setPendingAction('CUENTA');
                               setShowClientSelector(true);
                            }
-                        }} className="flex-1 min-w-[max-content] bg-white text-slate-700 border border-slate-200 px-4 py-3 rounded-xl flex items-center justify-center gap-2 font-bold shadow-sm active:scale-95 transition-all hover:bg-slate-50">
+                        }} 
+                        disabled={rutaCompletada}
+                        className={`flex-1 min-w-[max-content] bg-white text-slate-700 border border-slate-200 px-4 py-3 rounded-xl flex items-center justify-center gap-2 font-bold shadow-sm transition-all ${rutaCompletada ? 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed' : 'active:scale-95 hover:bg-slate-50'}`}>
                             <FileTextIcon className="h-5 w-5 text-slate-400" /> Cuenta
                         </button>
                         <button onClick={() => { 
+                           if (rutaCompletada) return;
                            if (visitaSeleccionada) {
                               const v = visitasCobrador.find(v => v.id === visitaSeleccionada);
                               setVisitaReprogramar(v || null);
@@ -1449,7 +1492,9 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
                               setPendingAction('AGENDAR');
                               setShowClientSelector(true);
                            }
-                        }} className="flex-1 min-w-[max-content] bg-white text-slate-700 border border-slate-200 px-4 py-3 rounded-xl flex items-center justify-center gap-2 font-bold shadow-sm active:scale-95 transition-all hover:bg-slate-50">
+                        }} 
+                        disabled={rutaCompletada}
+                        className={`flex-1 min-w-[max-content] bg-white text-slate-700 border border-slate-200 px-4 py-3 rounded-xl flex items-center justify-center gap-2 font-bold shadow-sm transition-all ${rutaCompletada ? 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed' : 'active:scale-95 hover:bg-slate-50'}`}>
                             <Calendar className="h-5 w-5 text-slate-400" /> Agendar
                         </button>
                 </div>
@@ -1814,33 +1859,34 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
                                   }}
                                   getEstadoClasses={getEstadoClasses}
                                   getPrioridadColor={getPrioridadColor}
-                                >
-                                  <div className="grid grid-cols-2 gap-2 pt-1">
-                                    <button
-                                      onClick={(e) => {
-                                        e.stopPropagation()
-                                        setVisitaPagoSeleccionadaId(visita.id)
-                                        setPagoInitialIsAbono(true)
-                                        setShowPaymentModal(true)
-                                      }}
-                                      className="flex flex-col items-center justify-center p-2 rounded-xl bg-emerald-600 text-white hover:bg-emerald-700 transition-all shadow-sm active:scale-95"
-                                    >
-                                      <Wallet className="h-4 w-4 mb-1" />
-                                      <span className="text-[9px] font-bold uppercase">Abono</span>
-                                    </button>
-                                    <button
-                                      onClick={(e) => {
-                                        e.stopPropagation()
-                                        setVisitaEstadoCuentaSeleccionada(visita)
-                                        setShowEstadoCuentaModal(true)
-                                      }}
-                                      className="flex flex-col items-center justify-center p-2 rounded-xl bg-white text-slate-700 border border-slate-200 hover:bg-slate-50 transition-all shadow-sm active:scale-95"
-                                    >
-                                      <FileTextIcon className="h-4 w-4 mb-1 text-slate-400" />
-                                      <span className="text-[9px] font-bold uppercase">Estado</span>
-                                    </button>
-                                  </div>
-                                </StaticVisitaItem>
+                                  actions={
+                                    <>
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation()
+                                          setVisitaPagoSeleccionadaId(visita.id)
+                                          setPagoInitialIsAbono(true)
+                                          setShowPaymentModal(true)
+                                        }}
+                                        className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 transition-all active:scale-95 text-[11px] font-bold"
+                                      >
+                                        <Wallet className="h-3.5 w-3.5" />
+                                        Abono
+                                      </button>
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation()
+                                          setVisitaEstadoCuentaSeleccionada(visita)
+                                          setShowEstadoCuentaModal(true)
+                                        }}
+                                        className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-white text-slate-600 border border-slate-200 hover:bg-slate-50 transition-all active:scale-95 text-[11px] font-bold"
+                                      >
+                                        <FileTextIcon className="h-3.5 w-3.5 text-slate-400" />
+                                        Estado
+                                      </button>
+                                    </>
+                                  }
+                                />
                               ))}
                             </div>
                           </div>
@@ -1891,64 +1937,65 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
                                     getEstadoClasses={getEstadoClasses}
                                     disableSort={rutaCompletada || !isPersonal}
                                     isSelected={visita.id === visitaSeleccionada}
-                                  >
-                                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1">
-                                      <button
-                                        onClick={(e) => {
-                                          e.stopPropagation()
-                                          setVisitaPagoSeleccionadaId(visita.id)
-                                          setPagoInitialIsAbono(false)
-                                          setShowPaymentModal(true)
-                                        }}
-                                        className="flex flex-col items-center justify-center p-2 rounded-xl bg-blue-600 text-white hover:bg-blue-700 transition-all shadow-sm active:scale-95"
-                                      >
-                                        <DollarSign className="h-4 w-4 mb-1" />
-                                        <span className="text-[9px] font-bold uppercase">
+                                    actions={
+                                      <>
+                                        <button
+                                          onClick={(e) => {
+                                            e.stopPropagation()
+                                            if (rutaCompletada) return
+                                            setVisitaPagoSeleccionadaId(visita.id)
+                                            setPagoInitialIsAbono(false)
+                                            setShowPaymentModal(true)
+                                          }}
+                                          disabled={rutaCompletada}
+                                          className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-lg transition-all active:scale-95 text-[11px] font-bold ${rutaCompletada ? 'bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed' : 'bg-blue-600 text-white hover:bg-blue-700'}`}
+                                        >
+                                          <DollarSign className="h-3.5 w-3.5" />
                                           Pago
-                                        </span>
-                                      </button>
-                                      <button
-                                        onClick={(e) => {
-                                          e.stopPropagation()
-                                          setVisitaPagoSeleccionadaId(visita.id)
-                                          setPagoInitialIsAbono(true)
-                                          setShowPaymentModal(true)
-                                        }}
-                                        className="flex flex-col items-center justify-center p-2 rounded-xl bg-emerald-600 text-white hover:bg-emerald-700 transition-all shadow-sm active:scale-95"
-                                      >
-                                        <Wallet className="h-4 w-4 mb-1" />
-                                        <span className="text-[9px] font-bold uppercase">
+                                        </button>
+                                        <button
+                                          onClick={(e) => {
+                                            e.stopPropagation()
+                                            if (rutaCompletada) return
+                                            setVisitaPagoSeleccionadaId(visita.id)
+                                            setPagoInitialIsAbono(true)
+                                            setShowPaymentModal(true)
+                                          }}
+                                          disabled={rutaCompletada}
+                                          className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-lg transition-all active:scale-95 text-[11px] font-bold ${rutaCompletada ? 'bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed' : 'bg-emerald-600 text-white hover:bg-emerald-700'}`}
+                                        >
+                                          <Wallet className="h-3.5 w-3.5" />
                                           Abono
-                                        </span>
-                                      </button>
-                                      <button
-                                        onClick={(e) => {
-                                          e.stopPropagation()
-                                          setVisitaEstadoCuentaSeleccionada(visita)
-                                          setShowEstadoCuentaModal(true)
-                                        }}
-                                        className="flex flex-col items-center justify-center p-2 rounded-xl bg-white text-slate-700 border border-slate-200 hover:bg-slate-50 transition-all shadow-sm active:scale-95"
-                                      >
-                                        <FileTextIcon className="h-4 w-4 mb-1 text-slate-400" />
-                                        <span className="text-[9px] font-bold uppercase">
+                                        </button>
+                                        <button
+                                          onClick={(e) => {
+                                            e.stopPropagation()
+                                            if (rutaCompletada) return
+                                            setVisitaEstadoCuentaSeleccionada(visita)
+                                            setShowEstadoCuentaModal(true)
+                                          }}
+                                          disabled={rutaCompletada}
+                                          className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border transition-all active:scale-95 text-[11px] font-bold ${rutaCompletada ? 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'}`}
+                                        >
+                                          <FileTextIcon className="h-3.5 w-3.5 text-slate-400" />
                                           Estado
-                                        </span>
-                                      </button>
-                                      <button
-                                        onClick={(e) => {
-                                          e.stopPropagation()
-                                          setVisitaReprogramar(visita)
-                                          setShowReprogramModal(true)
-                                        }}
-                                        className="flex flex-col items-center justify-center p-2 rounded-xl bg-white text-slate-700 border border-slate-200 hover:bg-slate-50 transition-all shadow-sm active:scale-95"
-                                      >
-                                        <Calendar className="h-4 w-4 mb-1 text-slate-400" />
-                                        <span className="text-[9px] font-bold uppercase">
+                                        </button>
+                                        <button
+                                          onClick={(e) => {
+                                            e.stopPropagation()
+                                            if (rutaCompletada) return
+                                            setVisitaReprogramar(visita)
+                                            setShowReprogramModal(true)
+                                          }}
+                                          disabled={rutaCompletada}
+                                          className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border transition-all active:scale-95 text-[11px] font-bold ${rutaCompletada ? 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'}`}
+                                        >
+                                          <Calendar className="h-3.5 w-3.5 text-slate-400" />
                                           Repro.
-                                        </span>
-                                      </button>
-                                    </div>
-                                  </SortableVisita>
+                                        </button>
+                                      </>
+                                    }
+                                  />
                                 ))}
                               </div>
                             )}
@@ -2233,25 +2280,30 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
 
 
 
-        {showMoraModal && visitaMoraSeleccionada && moraCuenta && (
-          <DetalleMoraModal
-            cuenta={moraCuenta}
-            onClose={() => {
-              setShowMoraModal(false)
-              setVisitaMoraSeleccionada(null)
-              setMoraCuenta(null)
-            }}
-          />
-        )}
+
+
 
         {/* Floating Action Button (FAB) - siempre visible para supervisor */}
         <FloatingActionMenu actions={[
-            { label: 'Crear Crédito', icon: <CreditCard className="h-5 w-5" />, onClick: () => setShowCreditModal(true) },
-            { label: 'Nuevo Cliente', icon: <UserPlus className="h-5 w-5" />, onClick: () => setShowNewClientModal(true) },
-            { label: 'Registrar abono', icon: <RefreshCw className="h-5 w-5" />, color: 'orange', onClick: () => { setPendingAction('ABONO'); setShowClientSelector(true); } },
-            { label: 'Registrar pago', icon: <DollarSign className="h-5 w-5" />, onClick: () => { setPendingAction('PAGO'); setShowClientSelector(true); } },
-            { label: 'Gastos', icon: <ReceiptText className="h-5 w-5" />, color: 'rose', onClick: () => setShowGastoModal(true) },
+            { label: 'Crear Crédito', icon: <CreditCard className="h-5 w-5" />, onClick: () => { if(rutaCompletada) return; setShowCreditModal(true); } },
+            { label: 'Nuevo Cliente', icon: <UserPlus className="h-5 w-5" />, onClick: () => { if(rutaCompletada) return; setShowNewClientModal(true); } },
+            { label: 'Registrar abono', icon: <RefreshCw className="h-5 w-5" />, color: 'orange', onClick: () => { if(rutaCompletada) return; setPendingAction('ABONO'); setShowClientSelector(true); } },
+            { label: 'Registrar pago', icon: <DollarSign className="h-5 w-5" />, onClick: () => { if(rutaCompletada) return; setPendingAction('PAGO'); setShowClientSelector(true); } },
+            { label: 'Gastos', icon: <ReceiptText className="h-5 w-5" />, color: 'rose', onClick: () => { if(rutaCompletada) return; setShowGastoModal(true); } },
           ] as FabAction[]} />
+
+        {showConfirmCompleteModal && (
+          <ConfirmModal
+            isOpen={showConfirmCompleteModal}
+            onClose={() => setShowConfirmCompleteModal(false)}
+            onConfirm={handleCompletarRuta}
+            title="¿Finalizar ruta supervisada?"
+            message="Al confirmar, se enviará el reporte de rendimiento y clientes pendientes a la oficina central. Esta acción bloqueará la modificación de créditos y pagos por el resto del día."
+            confirmText="Sí, Finalizar Ruta"
+            cancelText="No, Volver"
+            variant="danger"
+          />
+        )}
 
         {/* Modal de Alerta */}
         {modalAlerta && (

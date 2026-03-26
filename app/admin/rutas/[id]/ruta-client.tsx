@@ -704,183 +704,106 @@ const RutaClientLoaded = ({
 
     }
 
-  }, [showHistory, rutaId, historialRutas, cargarHistorialFecha]);
-
-
-
-  // Map ALL asignaciones from backend to visits UI model
-
-  // Un cliente con 2 créditos (diario + semanal) genera 2 entradas separadas
-
-  const [visitasCobrador, setVisitasCobrador] = useState<VisitaRuta[]>(() => {
-
-      const asignaciones = initialRuta?.asignaciones || initialRuta?.asignacionesRuta;
-
-      if (!asignaciones || !Array.isArray(asignaciones)) return [];
-
-
-
-      const toPeriodo = (f: string) => {
-
-        if (f === 'SEMANAL') return 'SEMANA';
-
-        if (f === 'QUINCENAL') return 'QUINCENA';
-
-        if (f === 'MENSUAL') return 'MES';
-
-        return 'DIA';
-
-      };
-
-
-
-      const toNivelRiesgo = (r: string) => {
-
-        if (r === 'AMARILLO') return 'precaucion' as any;
-
-        if (r === 'ROJO') return 'moderado';
-
-        if (r === 'LISTA_NEGRA') return 'critico';
-
-        return 'bajo';
-
-      };
-
-
-
-      let globalIndex = 0;
-
-      const idsProcesados = new Set<string>();
-
-
-
-      return (asignaciones as any[]).flatMap((asig: any) => {
-
-        if (!asig.cliente) return [];
-
-
-
-        const prestamosActivos: any[] = (asig.cliente?.prestamos || []).filter(
-          (p: any) => p.estado === 'ACTIVO' || p.estado === 'EN_MORA' || p.estado === 'PAGADO'
-        );
-
-
-
-        // Si no tiene préstamos activos, igual mostramos la entrada vacía
-
-        const lista = prestamosActivos.length > 0 ? prestamosActivos : [null];
-
-
-
-        return lista.flatMap((prestamo: any) => {
-
-          const idx = globalIndex++;
-
-          // Generar una clave única para este par cliente-préstamo
-
-          const uniqueKey = prestamo ? `loan-${prestamo.id}` : `client-${asig.cliente.id}`;
-
-          
-
-          if (idsProcesados.has(uniqueKey)) return [];
-
-          idsProcesados.add(uniqueKey);
-
-
-
-          const proximaCuota = prestamo?.cuotas?.[0];
-
-          const esArticulo = prestamo?.tipo === 'ARTICULO' || prestamo?.tipoPrestamo === 'ARTICULO';
-
-
-
-          // Detectar prórroga: por estado de cuota O por extensiones del préstamo
-
-          const cuotaEnProrroga = proximaCuota?.estado === 'PRORROGADA';
-
-          const extension = prestamo?.extensiones?.[0];
-
-          const hayProrroga = cuotaEnProrroga || !!extension;
-
-
-
-          // Fecha de prórroga: de la cuota o de la extensión
-
-          const fechaProrrogaFecha =
-
-            (cuotaEnProrroga && proximaCuota?.fechaVencimientoProrroga)
-
-              ? proximaCuota.fechaVencimientoProrroga
-
-              : extension?.nuevaFechaVencimiento ?? null;
-
-
-
-          // Fecha efectiva de cobro
-
-          const fechaEfectiva = fechaProrrogaFecha
-
-            ?? proximaCuota?.fechaVencimiento
-
-            ?? new Date().toISOString().split('T')[0];
-
-
-
-          return [{
-
-            id: prestamo ? `${asig.id}-${prestamo.id}` : (asig.id || `temp-${idx}`),
-
-            cliente: `${asig.cliente?.nombres || ''} ${asig.cliente?.apellidos || ''}`.trim() || 'Cliente Desconocido',
-
-            direccion: asig.cliente?.direccion || 'Sin dirección registrada',
-
-            telefono: asig.cliente?.telefono || '',
-
-            horaSugerida: asig.horaSugerida || '08:00 AM',
-
-            montoCuota: Number(proximaCuota?.monto || 0),
-
-            saldoTotal: Number(prestamo?.saldoPendiente || 0),
-
-            estado: (hayProrroga ? 'en_prorroga' : (asig.estado?.toLowerCase() || 'pendiente')) as any,
-
-            proximaVisita: fechaEfectiva,
-
-            ordenVisita: asig.ordenVisita || idx + 1,
-
-            prioridad: (asig.prioridad?.toLowerCase() as any) || 'media',
-
-            cobradorId: initialRuta.cobradorId || '',
-
-            periodoRuta: toPeriodo(prestamo?.frecuenciaPago || 'DIARIO') as any,
-
-            nivelRiesgo: toNivelRiesgo(asig.cliente?.nivelRiesgo || 'VERDE') as any,
-
-            clienteId: asig.cliente?.id || '',
-
-            prestamoId: prestamo?.id || '',
-
-            tipoPrestamo: esArticulo ? 'ARTICULO' : 'EFECTIVO',
-
-            articuloNombre: esArticulo ? (prestamo?.articulo || prestamo?.descripcionArticulo || undefined) : undefined,
-
-            enProrroga: hayProrroga,
-
-            fechaProrroga: fechaProrrogaFecha ?? undefined,
-
-            fechaOriginalVencimiento: cuotaEnProrroga ? (proximaCuota?.fechaVencimiento || undefined) : undefined,
-
-            cuotaActual: proximaCuota?.numeroCuota,
-
-            cuotasTotales: prestamo?.cantidadCuotas
-
-          }];
-
-        });
-
+  }, [showHistory, rutaId, historialRutas, cargarHistorialFecha]);  // === Mapeo de asignaciones a modelo de UI (VisitaRuta) ===
+  // === Mapeo de asignaciones a modelo de UI (VisitaRuta) ===
+  const mapearAsignacionesAVisitas = useCallback((data: any) => {
+    const asignaciones = data?.asignaciones || data?.asignacionesRuta;
+    if (!asignaciones || !Array.isArray(asignaciones)) return [];
+
+    const toPeriodo = (f: string) => {
+      if (f === 'SEMANAL') return 'SEMANA';
+      if (f === 'QUINCENAL') return 'QUINCENA';
+      if (f === 'MENSUAL') return 'MES';
+      return 'DIA';
+    };
+
+    const toNivelRiesgo = (r: string) => {
+      if (r === 'AMARILLO') return 'precaucion' as any;
+      if (r === 'ROJO') return 'moderado';
+      if (r === 'LISTA_NEGRA') return 'critico';
+      return 'bajo';
+    };
+
+    let globalIndex = 0;
+    const idsProcesados = new Set<string>();
+
+    const firstPass = (asignaciones as any[]).flatMap((asig: any) => {
+      if (!asig.cliente) return [];
+
+      const prestamosValidos: any[] = (asig.cliente?.prestamos || []).filter(
+        (p: any) => p.estado === 'ACTIVO' || p.estado === 'EN_MORA' || p.estado === 'PAGADO' || p.estado === 'PENDIENTE_APROBACION'
+      );
+
+      const lista = prestamosValidos.length > 0 ? prestamosValidos : [null];
+
+      return lista.flatMap((prestamo: any) => {
+        const idx = globalIndex++;
+        const uniqueKey = prestamo ? `loan-${prestamo.id}` : `client-${asig.cliente.id}`;
+        
+        if (idsProcesados.has(uniqueKey)) return [];
+        idsProcesados.add(uniqueKey);
+
+        const proximaCuota = prestamo?.cuotas?.[0];
+        const esArticulo = prestamo?.tipo === 'ARTICULO' || prestamo?.tipoPrestamo === 'ARTICULO';
+        const esPendienteAprobacion = prestamo?.estado === 'PENDIENTE_APROBACION';
+
+        const cuotaEnProrroga = proximaCuota?.estado === 'PRORROGADA';
+        const extension = prestamo?.extensiones?.[0];
+        const hayProrroga = cuotaEnProrroga || !!extension;
+
+        const fechaProrrogaFecha =
+          (cuotaEnProrroga && proximaCuota?.fechaVencimientoProrroga)
+            ? proximaCuota.fechaVencimientoProrroga
+            : extension?.nuevaFechaVencimiento ?? null;
+
+        const fechaEfectiva = fechaProrrogaFecha
+          ?? proximaCuota?.fechaVencimiento
+          ?? new Date().toISOString().split('T')[0];
+
+        return [{
+          id: prestamo ? `${asig.id}-${prestamo.id}` : (asig.id || `temp-${idx}`),
+          cliente: `${asig.cliente?.nombres || ''} ${asig.cliente?.apellidos || ''}`.trim() || 'Cliente Desconocido',
+          direccion: asig.cliente?.direccion || 'Sin dirección registrada',
+          telefono: asig.cliente?.telefono || '',
+          horaSugerida: asig.horaSugerida || '08:00 AM',
+          montoCuota: Number(proximaCuota?.monto || (prestamo?.montoCuota) || 0),
+          saldoTotal: Number(prestamo?.saldoPendiente || (prestamo?.monto) || 0),
+          estado: (esPendienteAprobacion ? 'pendiente' : (hayProrroga ? 'en_prorroga' : (asig.estado?.toLowerCase() || 'pendiente'))) as any,
+          proximaVisita: fechaEfectiva,
+          ordenVisita: asig.ordenVisita || idx + 1,
+          prioridad: (asig.prioridad?.toLowerCase() as any) || 'media',
+          cobradorId: initialRuta?.cobradorId || '',
+          periodoRuta: toPeriodo(prestamo?.frecuenciaPago || 'DIARIO') as any,
+          nivelRiesgo: toNivelRiesgo(asig.cliente?.nivelRiesgo || 'VERDE') as any,
+          clienteId: asig.cliente?.id || '',
+          prestamoId: prestamo?.id || '',
+          tipoPrestamo: (esArticulo ? 'ARTICULO' : 'EFECTIVO') as any,
+          articuloNombre: esArticulo ? (prestamo?.articulo || prestamo?.descripcionArticulo || undefined) : undefined,
+          enProrroga: hayProrroga,
+          fechaProrroga: fechaProrrogaFecha ?? undefined,
+          fechaOriginalVencimiento: cuotaEnProrroga ? (proximaCuota?.fechaVencimiento || undefined) : undefined,
+          cuotaActual: proximaCuota?.numeroCuota,
+          cuotasTotales: prestamo?.cantidadCuotas,
+          pendienteAprobacion: esPendienteAprobacion
+        }];
       });
+    });
 
-  });
+    const clientesConPrestamo = new Set(firstPass.filter(v => v.prestamoId).map(v => v.clienteId));
+    return firstPass.filter(v => {
+      if (!v.prestamoId && clientesConPrestamo.has(v.clienteId)) return false;
+      return true;
+    }) as VisitaRuta[];
+  }, [initialRuta?.cobradorId]);
+
+  const [visitasCobrador, setVisitasCobrador] = useState<VisitaRuta[]>(() => mapearAsignacionesAVisitas(initialRuta));
+
+  // Mantener visitas actualizadas cuando cambian los datos de la ruta (WebSocket)
+  useEffect(() => {
+    if (rutaData) {
+      setVisitasCobrador(mapearAsignacionesAVisitas(rutaData));
+    }
+  }, [rutaData, mapearAsignacionesAVisitas]);
 
 
 
@@ -1775,47 +1698,6 @@ const RutaClientLoaded = ({
 
                     <div className="flex gap-2 overflow-x-auto pb-1 items-center">
 
-                      <button
-
-                        type="button"
-
-                        onClick={async () => {
-
-                          setIsExportingPdf(true)
-
-                          try {
-
-                            await exportService.exportRutaCobrador('pdf', initialRuta.id)
-
-                          } finally {
-
-                            setIsExportingPdf(false)
-
-                          }
-
-                        }}
-
-                        disabled={isExportingPdf}
-
-                        className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold rounded-xl border border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-
-                        title="Exportar ruta como PDF"
-
-                      >
-
-                        {isExportingPdf ? (
-
-                          <span className="w-3 h-3 border-2 border-rose-600 border-t-transparent rounded-full animate-spin" />
-
-                        ) : (
-
-                          <FileDown className="w-3 h-3" />
-
-                        )}
-
-                        PDF
-
-                      </button>
 
                       {(
 
@@ -2367,7 +2249,7 @@ const RutaClientLoaded = ({
 
                         >
 
-                          <div className="grid grid-cols-2 gap-2 pt-1">
+                          <div className="flex flex-wrap gap-1.5 pt-2">
 
                             <button
 
@@ -2379,13 +2261,13 @@ const RutaClientLoaded = ({
 
                               }}
 
-                              className="flex flex-col items-center justify-center p-2 rounded-xl bg-emerald-600 text-white hover:bg-emerald-700 transition-all shadow-sm active:scale-95"
+                              className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 transition-all font-bold text-[11px] shadow-sm active:scale-95"
 
                             >
 
-                              <Wallet className="h-4 w-4 mb-1" />
+                              <Wallet className="h-3.5 w-3.5" />
 
-                              <span className="text-[9px] font-bold uppercase">Abono</span>
+                              Abono
 
                             </button>
 
@@ -2399,13 +2281,13 @@ const RutaClientLoaded = ({
 
                               }}
 
-                              className="flex flex-col items-center justify-center p-2 rounded-xl bg-white text-slate-700 border border-slate-200 hover:bg-slate-50 transition-all shadow-sm active:scale-95"
+                              className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-white text-slate-700 border border-slate-200 hover:bg-slate-50 transition-all font-bold text-[11px] shadow-sm active:scale-95"
 
                             >
 
-                              <FileTextIcon className="h-4 w-4 mb-1 text-slate-400" />
+                              <FileTextIcon className="h-3.5 w-3.5 text-slate-400" />
 
-                              <span className="text-[9px] font-bold uppercase">Estado</span>
+                              Estado
 
                             </button>
 
@@ -2555,54 +2437,37 @@ const RutaClientLoaded = ({
                                             allowClick={false}
 
                                             onVerCliente={handleAbrirClienteInfo}
-
                                             getEstadoClasses={getEstadoClasses}
-
                                             getPrioridadColor={getPrioridadColor}
-
                                         >
-
-                                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1">
-
+                                            <div className="flex flex-wrap gap-1.5 pt-2">
                                                 <button
-
-                                                    onClick={(e) => { e.stopPropagation(); handleAbrirPago(visita); }}
-
-                                                    className="flex flex-col items-center justify-center p-2 rounded-xl bg-blue-600 text-white hover:bg-blue-700 transition-all shadow-sm active:scale-95"
-
+                                                    onClick={(e) => { e.stopPropagation(); if (visita.pendienteAprobacion || rutaCompletada) return; handleAbrirPago(visita); }}
+                                                    disabled={visita.pendienteAprobacion || rutaCompletada}
+                                                    title={visita.pendienteAprobacion ? 'Crédito pendiente de aprobación' : rutaCompletada ? 'Ruta completada' : 'Registrar Pago'}
+                                                    className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-lg transition-all font-bold text-[11px] shadow-sm ${visita.pendienteAprobacion || rutaCompletada ? 'bg-slate-50 text-slate-300 border border-slate-100 opacity-50 cursor-not-allowed' : 'bg-blue-600 text-white hover:bg-blue-700 active:scale-95'}`}
                                                 >
-
-                                                    <DollarSign className="h-4 w-4 mb-1" />
-
-                                                    <span className="text-[9px] font-bold uppercase">Pago</span>
-
+                                                    <DollarSign className="h-3.5 w-3.5" />
+                                                    Pago
                                                 </button>
-
                                                 <button
-
-                                                    onClick={(e) => { e.stopPropagation(); handleAbrirAbono(visita); }}
-
-                                                    className="flex flex-col items-center justify-center p-2 rounded-xl bg-emerald-600 text-white hover:bg-emerald-700 transition-all shadow-sm active:scale-95"
-
+                                                    onClick={(e) => { e.stopPropagation(); if (visita.pendienteAprobacion || rutaCompletada) return; handleAbrirAbono(visita); }}
+                                                    disabled={visita.pendienteAprobacion || rutaCompletada}
+                                                    title={visita.pendienteAprobacion ? 'Crédito pendiente de aprobación' : rutaCompletada ? 'Ruta completada' : 'Registrar Abono'}
+                                                    className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-lg transition-all font-bold text-[11px] shadow-sm ${visita.pendienteAprobacion || rutaCompletada ? 'bg-slate-50 text-slate-300 border border-slate-100 opacity-50 cursor-not-allowed' : 'bg-emerald-600 text-white hover:bg-emerald-700 active:scale-95'}`}
                                                 >
-
-                                                    <Wallet className="h-4 w-4 mb-1" />
-
-                                                    <span className="text-[9px] font-bold uppercase">Abono</span>
-
+                                                    <Wallet className="h-3.5 w-3.5" />
+                                                    Abono
                                                 </button>
-
                                                 <button
-
-                                                    onClick={(e) => { e.stopPropagation(); handleAbrirEstadoCuenta(visita); }}
-
-                                                    className="flex flex-col items-center justify-center p-2 rounded-xl bg-white text-slate-700 border border-slate-200 hover:bg-slate-50 transition-all shadow-sm active:scale-95"
-
+                                                    onClick={(e) => { e.stopPropagation(); if(rutaCompletada) return; handleAbrirEstadoCuenta(visita); }}
+                                                    disabled={rutaCompletada}
+                                                    className={`flex flex-col items-center justify-center p-2 rounded-xl transition-all shadow-sm active:scale-95 border ${rutaCompletada ? 'bg-slate-50 text-slate-300 border-slate-100 opacity-50 cursor-not-allowed' : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'}`}
                                                 >
 
-                                                    <FileTextIcon className="h-4 w-4 mb-1 text-slate-400" />
+                                                    <FileTextIcon className="h-3.5 w-3.5 text-slate-400" />
 
-                                                    <span className="text-[9px] font-bold uppercase">Estado</span>
+                                                    Estado
 
                                                 </button>
 
@@ -2611,6 +2476,7 @@ const RutaClientLoaded = ({
                                                     onClick={(e) => { 
 
                                                       e.stopPropagation(); 
+                                                      if (rutaCompletada) return;
 
                                                       const isProrrogaVencida = visita.enProrroga && visita.fechaProrroga && new Date(visita.fechaProrroga).getTime() < Date.now();
 
@@ -2618,17 +2484,17 @@ const RutaClientLoaded = ({
 
                                                     }}
 
-                                                    disabled={!!visita.enProrroga && !(visita.fechaProrroga && new Date(visita.fechaProrroga).getTime() < Date.now())}
+                                                    disabled={rutaCompletada || (!!visita.enProrroga && !(visita.fechaProrroga && new Date(visita.fechaProrroga).getTime() < Date.now()))}
 
-                                                    title={visita.enProrroga && !(visita.fechaProrroga && new Date(visita.fechaProrroga).getTime() < Date.now()) ? 'No se puede reprogramar con prorroga activa' : 'Solicitar reprogramacion'}
+                                                    title={rutaCompletada ? 'Ruta completada' : visita.enProrroga && !(visita.fechaProrroga && new Date(visita.fechaProrroga).getTime() < Date.now()) ? 'No se puede reprogramar con prorroga activa' : 'Solicitar reprogramacion'}
 
-                                                    className={`flex flex-col items-center justify-center p-2 rounded-xl border transition-all shadow-sm ${visita.enProrroga && !(visita.fechaProrroga && new Date(visita.fechaProrroga).getTime() < Date.now()) ? 'bg-slate-50 text-slate-300 border-slate-100 opacity-50 cursor-not-allowed' : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50 active:scale-95'}`}
+                                                    className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border transition-all font-bold text-[11px] shadow-sm ${rutaCompletada || (visita.enProrroga && !(visita.fechaProrroga && new Date(visita.fechaProrroga).getTime() < Date.now())) ? 'bg-slate-50 text-slate-300 border-slate-100 opacity-50 cursor-not-allowed' : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50 active:scale-95'}`}
 
                                                 >
 
-                                                    <Calendar className="h-4 w-4 mb-1 text-slate-400" />
+                                                    <Calendar className="h-3.5 w-3.5 text-slate-400" />
 
-                                                    <span className="text-[9px] font-bold uppercase">Repro.</span>
+                                                    Repro.
 
                                                 </button>
 
@@ -2711,17 +2577,11 @@ const RutaClientLoaded = ({
       )}
 
       {/* Modal de Pago/Abono */}
-
       {pagoVisita && (
-
         <PagoModal
-
           visita={pagoVisita.visita}
-
           tipo={pagoVisita.tipo}
-
           onClose={() => setPagoVisita(null)}
-
           onConfirm={async (monto, metodo, comprobante) => {
             try {
               if (!pagoVisita?.visita?.clienteId || !pagoVisita?.visita?.prestamoId) {
@@ -2738,40 +2598,21 @@ const RutaClientLoaded = ({
                 comprobante: comprobante,
               } as any);
 
-
-
               showNotification('success', `${pagoVisita.tipo === 'ABONO' ? 'Abono' : 'Pago'} registrado correctamente`, 'Éxito');
-
               setPagoVisita(null);
 
-
-
-              // Refrescar estadísticas/avance diario
-
+              // Refrescar estadísticas
               try {
-
                 await onRutaRefresh?.();
-
               } catch {}
 
-
-
-              // Refrescar data derivada en UI
-
               router.refresh();
-
-            } catch (e) {
-
-              console.error('Error registrando pago/abono:', e);
-
+            } catch (error) {
+              console.error('Error registrando pago/abono:', error);
               showNotification('error', 'No se pudo registrar el pago/abono', 'Error');
-
             }
-
           }}
-
         />
-
       )}
 
       {visitaReprogramar && (

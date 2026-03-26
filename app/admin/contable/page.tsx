@@ -19,11 +19,12 @@ import { logger } from '@/lib/logger'
  * - Categorización: Movimientos tipificados para facilitar reportes P&L (Ganancias y Pérdidas).
  */
 
-import React, { useState, Suspense, useEffect } from 'react'
+import React, { useState, Suspense, useEffect, useCallback } from 'react'
 import { createPortal } from 'react-dom'
 import { useNotification } from '@/components/providers/NotificationProvider'
 import { Rol } from '@/lib/permissions'
 import { exportService } from '@/services/export-service'
+import { useRealtimeData } from '@/hooks/useRealtimeData'
 
 import {
   DollarSign,
@@ -48,7 +49,8 @@ import {
   X,
   AlertTriangle,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  ArrowRightLeft
 } from 'lucide-react'
 
 import { formatCOPInputValue, formatCurrency, formatMilesCOP, parseCOPInputToNumber, cn } from '@/lib/utils'
@@ -65,6 +67,7 @@ import {
   type Transaccion as ApiTransaccion,
   type ResumenFinanciero as ApiResumen,
   getHistorialCierres,
+  consolidarCaja,
   obtenerSaldoDisponibleRuta,
   type SaldoDisponibleRuta
 } from '@/services/contabilidad-service'
@@ -338,7 +341,9 @@ const ModuloContableContent = () => {
       }
 
       // 3. Traemos los números totales (Resumen histórico completo)
-      const resumen = await getResumenFinanciero('2020-01-01');
+      // Pasamos fechaFin = hoy para forzar el rango desde 2020 hasta el día actual
+      const fechaHoy = new Date().toISOString().split('T')[0];
+      const resumen = await getResumenFinanciero('2020-01-01', fechaHoy);
       if (resumen) {
         setResumenData({
           ingresosHoy: resumen.ingresosHoy,
@@ -388,7 +393,11 @@ const ModuloContableContent = () => {
              saldoSistema: Number(c.saldoSistema),
              saldoReal: Number(c.saldoReal),
              diferencia: Number(c.diferencia),
-             estado: c.estado || (Number(c.diferencia) === 0 ? 'CUADRADA' : 'DESCUADRADA')
+             estado: c.estado || (Number(c.diferencia) === 0 ? 'CUADRADA' : 'DESCUADRADA'),
+             tipo: c.tipo || 'CONSOLIDACION',
+             efectividad: c.efectividad,
+             clientesFaltantes: c.clientesFaltantes,
+             cajaId: c.cajaId,
         })));
       }
     } catch (error) {
@@ -402,6 +411,9 @@ const ModuloContableContent = () => {
   useEffect(() => {
     fetchData();
   }, []);
+
+  // Tiempo real: refrescar módulo contable cuando haya nuevos pagos
+  useRealtimeData(['pagos_actualizados', 'prestamos_actualizados'], fetchData)
 
   // Cargar usuarios solo cuando el rol está disponible y es admin
   useEffect(() => {
@@ -535,6 +547,29 @@ const ModuloContableContent = () => {
       referencia: '',
       cajaId: defaultCaja,
       origen: 'EMPRESA',
+      estado: 'PENDIENTE',
+      responsableId: '',
+      cajaOrigenId: '',
+    })
+    setShowRegistrarMovimientoModal(true)
+  }
+
+  const openRegistrarTransferencia = () => {
+    // Buscamos el ID real de la caja principal para el admin
+    const cajaPrincipal = cajas.find(c => c.tipo === 'PRINCIPAL');
+    const defaultCaja = (userRole === 'ADMIN' || userRole === 'SUPER_ADMINISTRADOR') 
+        ? (cajaPrincipal?.id || '') 
+        : (cajas.find(c => c.tipo === 'RUTA')?.id || '')
+    
+    setMovimientoForm({
+      tipo: 'INGRESO',
+      categoria: 'TRANSFERENCIA', // Pre-seleccionamos que es transferencia
+      categoriaId: '',
+      montoInput: '',
+      concepto: 'Transferencia entre cajas manual',
+      referencia: '',
+      cajaId: defaultCaja,
+      origen: 'COBRADOR', // Esto activa el selector de caja origen/destino en el modal
       estado: 'PENDIENTE',
       responsableId: '',
       cajaOrigenId: '',
@@ -815,9 +850,19 @@ const ModuloContableContent = () => {
           <section className="space-y-8">
             <div className="rounded-2xl bg-white/80 backdrop-blur-sm border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden">
             <div className="p-5 border-b border-slate-100 space-y-4">
-              <div>
-                <h1 className="text-3xl font-black text-slate-900 tracking-tight">Panel Contable</h1>
-                <p className="text-slate-500 mt-1 font-medium">Control total de movimientos, cajas y cierres.</p>
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div>
+                  <h1 className="text-3xl font-black text-slate-900 tracking-tight">Panel Contable</h1>
+                  <p className="text-slate-500 mt-1 font-medium">Control total de movimientos, cajas y cierres.</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={openRegistrarTransferencia}
+                  className="inline-flex items-center gap-2 rounded-2xl bg-orange-500 px-5 py-2.5 text-sm font-bold text-white hover:bg-orange-600 transition-all shadow-lg shadow-orange-500/20 active:scale-95"
+                >
+                  <ArrowRightLeft className="h-4 w-4" />
+                  Transferir fondos
+                </button>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -1985,7 +2030,63 @@ const ModuloContableContent = () => {
                  </div>
               </div>
 
+              {/* ── Historial de Cierres de Ruta (solo cajas tipo RUTA) ── */}
+              {cajaSeleccionada?.tipo === 'RUTA' && (() => {
+                const cierresDeEstaRuta = historialCierres.filter(
+                  (c: any) => c.tipo === 'CIERRE_RUTA' && c.cajaId === cajaSeleccionada.id
+                )
+                if (cierresDeEstaRuta.length === 0) return null
+                return (
+                  <div className="px-6 pb-4">
+                    <div className="rounded-2xl border border-slate-100 bg-slate-50 overflow-hidden">
+                      <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
+                        <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Historial de Cierres del Cobrador</p>
+                        <span className="text-[10px] font-bold text-slate-400">{cierresDeEstaRuta.length} cierre(s)</span>
+                      </div>
+                      <div className="divide-y divide-slate-100 max-h-48 overflow-y-auto">
+                        {cierresDeEstaRuta.map((c: any) => {
+                          const esDescuadre = c.estado === 'DESCUADRADA'
+                          return (
+                            <div key={c.id} className="px-4 py-3 flex items-center justify-between gap-3">
+                              <div className="min-w-0">
+                                <p className="text-[10px] font-black text-slate-700">
+                                  {new Date(c.fecha).toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                                </p>
+                                <p className="text-[9px] text-slate-500 font-medium truncate">{c.responsable}</p>
+                                {c.clientesFaltantes > 0 && (
+                                  <p className="text-[9px] text-amber-600 font-bold">{c.clientesFaltantes} cliente{c.clientesFaltantes > 1 ? 's' : ''} sin cobrar</p>
+                                )}
+                              </div>
+                              <div className="shrink-0 text-right space-y-1">
+                                <div className={cn(
+                                  "inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[8px] font-black uppercase border",
+                                  esDescuadre
+                                    ? "bg-red-50 text-red-600 border-red-100"
+                                    : "bg-emerald-50 text-emerald-600 border-emerald-100"
+                                )}>
+                                  {esDescuadre ? <AlertTriangle className="h-2.5 w-2.5" /> : <CheckCircle2 className="h-2.5 w-2.5" />}
+                                  {esDescuadre ? 'Descuadre' : 'Cuadrada'}
+                                </div>
+                                <p className="text-[10px] font-black text-slate-700">
+                                  {formatCurrency(c.saldoReal)} <span className="text-slate-400 font-medium">/ {formatCurrency(c.saldoSistema)}</span>
+                                </p>
+                                {c.efectividad != null && (
+                                  <p className={cn("text-[9px] font-bold", c.efectividad >= 100 ? "text-emerald-600" : c.efectividad >= 75 ? "text-blue-600" : "text-amber-600")}>
+                                    {c.efectividad}% META
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  </div>
+                )
+              })()}
+
               <div className="p-6 border-t border-slate-100 bg-slate-50/50 flex justify-end">
+
                 <button
                   onClick={() => {
                     setShowVerCajaModal(false)

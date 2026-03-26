@@ -1,7 +1,8 @@
 'use client'
 import { logger } from '@/lib/logger'
 
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
+import { useRealtimeData } from '@/hooks/useRealtimeData';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { DashboardClient } from './dashboard-client';
 import { Rol } from '@/lib/permissions';
@@ -434,6 +435,47 @@ export default function DashboardPage() {
         isMounted = false;
     };
   }, [router, period]); // Agregado period a las dependencias para recargar cuando cambia
+
+  // Función liviana de refresco para eventos RT (no resetea dashboardData, evita parpadeos)
+  const refreshDashboard = useCallback(async () => {
+    if (!state.userData) return
+    try {
+      const { fechaInicio, fechaFin } = calculateDatesFromPeriod(period)
+      const [backendData, resumenFinanciero] = await Promise.allSettled([
+        dashboardService.getDashboardData(TIME_FILTER_MAP[period]),
+        getResumenFinanciero(fechaInicio, fechaFin),
+      ])
+      const dashboard = backendData.status === 'fulfilled' ? backendData.value : null
+      const resumen = resumenFinanciero.status === 'fulfilled' ? resumenFinanciero.value : null
+      if (!dashboard) return
+      const capitalPrestado = Number(dashboard?.metrics?.capitalPrestado ?? 0)
+      const recaudo = Number(dashboard?.metrics?.recaudo ?? 0)
+      const moraCount = Number(dashboard?.metrics?.delinquentAccounts ?? 0)
+      const moraMonto = (dashboard?.delinquentAccounts || []).reduce((acc: number, item: any) => acc + Number(item.amountDue || 0), 0)
+      const moraPercent = capitalPrestado > 0 && moraMonto > 0 ? ((moraMonto / capitalPrestado) * 100).toFixed(1) : moraCount > 0 ? '> 0' : '0'
+      const gastosPeriodo = resumen?.egresosHoy || 0
+      const utilidadPeriodo = resumen?.gananciaNeta || 0
+      const mainMetrics: MetricItem[] = [
+        { title: `Capital Prestado (${PERIOD_LABEL[period]})`, value: capitalPrestado, isCurrency: true, change: null, icon: <CreditCard className="h-4 w-4" />, color: '#3b82f6' },
+        { title: `Recaudo (${PERIOD_LABEL[period]})`, value: recaudo, subValue: recaudo > 0 ? `${formatCurrency(recaudo)} cobrado` : 'Sin pagos en el período', isCurrency: true, change: period === 'today' ? (resumen?.porcentajeIngresosVsAyer || null) : null, icon: <Target className="h-4 w-4" />, color: '#8b5cf6' },
+        { title: 'Cartera en Mora', value: moraMonto, subValue: `${moraPercent}% del capital · ${moraCount} cuentas en mora`, isCurrency: true, change: null, icon: <AlertCircle className="h-4 w-4" />, color: '#f43f5e' },
+        { title: `Gastos (${PERIOD_LABEL[period]})`, value: gastosPeriodo, subValue: `Utilidad: ${formatCurrency(utilidadPeriodo)}`, isCurrency: true, change: period === 'today' ? (resumen?.porcentajeEgresosVsAyer || null) : null, icon: <Banknote className="h-4 w-4" />, color: '#f59e0b' },
+      ]
+      const chartData = (dashboard?.trend || []).map((t) => ({ label: t.label, value: t.value, target: t.target }))
+      const topCollectors = (dashboard?.topCollectors || []).map(c => ({ name: c.name, collected: c.collected, efficiency: c.efficiency, trend: c.trend }))
+      setState(prev => prev.dashboardData ? ({
+        ...prev,
+        dashboardData: { ...prev.dashboardData, mainMetrics, chartData, topCollectors }
+      }) : prev)
+    } catch {
+      // Silencioso: el refresco RT no debe interrumpir la vista actual
+    }
+  }, [state.userData, period])
+
+  useRealtimeData(
+    ['dashboards_actualizados', 'pagos_actualizados', 'prestamos_actualizados'],
+    refreshDashboard,
+  )
 
   useEffect(() => {
     if (state.shouldRedirect) {

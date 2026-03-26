@@ -352,9 +352,9 @@ export const prestamosService = {
    * Reprogramar la próxima cuota de un préstamo
    */
   async reprogramarPrestamo(prestamoId: string, data: { fecha: string; motivo: string; cobradorId: string }): Promise<any> {
-    const payload = { prestamoId, nuevaFecha: data.fecha, motivo: data.motivo, solicitadoPorId: data.cobradorId };
+    const payload = { nuevaFecha: data.fecha, motivo: data.motivo, solicitadoPorId: data.cobradorId };
     try {
-      return await apiRequest('POST', `/loans/solicitar-reprogramacion`, payload);
+      return await apiRequest('POST', `/loans/${prestamoId}/reprogramacion`, payload);
     } catch (error: any) {
       if (
         (typeof navigator !== 'undefined' && !navigator.onLine) ||
@@ -364,8 +364,8 @@ export const prestamosService = {
       ) {
         logger.log('[Offline Mode] Guardando reprogramacion de prestamo en cola...');
         await syncService.enqueueOperation(
-          'prestamo_reprograr',
-          `/loans/solicitar-reprogramacion`,
+          'prestamo_reprogramar',
+          `/loans/${prestamoId}/reprogramacion`,
           'POST',
           payload,
           `Reprogramar préstamo ID: ${prestamoId}`
@@ -427,7 +427,12 @@ export const prestamosService = {
     nuevaFecha: string;
     motivo: string;
   }): Promise<any> {
-    return apiRequest('POST', '/loans/solicitar-reprogramacion', data);
+    const payload = { 
+      cuotaId: data.cuotaId, 
+      nuevaFecha: data.nuevaFecha, 
+      motivo: data.motivo 
+    };
+    return apiRequest('POST', `/loans/${data.prestamoId}/reprogramacion`, payload);
   },
 
   /**

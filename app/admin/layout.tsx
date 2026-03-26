@@ -89,7 +89,7 @@ export default function AdminLayout({
   const [authChecked, setAuthChecked] = useState(false)
   
   // Proveedor global WebSocket
-  const { socket, notificaciones, unreadCount, showDropdown: showNotifications, setShowDropdown: setShowNotifications, marcarTodasComoLeidas, marcarComoLeida } = useNotificaciones();
+  const { socket, notificaciones, unreadCount, showDropdown: showNotifications, setShowDropdown: setShowNotifications, isBellRinging, marcarTodasComoLeidas, marcarComoLeida } = useNotificaciones();
   
   const [isLoadingNotificaciones, setIsLoadingNotificaciones] = useState(false)
   
@@ -430,7 +430,7 @@ export default function AdminLayout({
                     onClick={() => setShowNotifications(!showNotifications)}
                     className="p-2.5 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all relative group"
                   >
-                    <Bell className="h-5 w-5" />
+                    <Bell className={`h-5 w-5 transition-transform ${isBellRinging ? 'bell-ringing' : ''}`} />
                     {unreadCount > 0 && (
                       <span className="absolute top-2 right-2 w-2.5 h-2.5 bg-orange-500 border-2 border-white rounded-full animate-pulse" />
                     )}

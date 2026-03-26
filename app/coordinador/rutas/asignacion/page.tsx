@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
+import { useRealtimeData } from '@/hooks/useRealtimeData'
 import {
   Users,
   User,
@@ -36,37 +37,39 @@ const AsignacionCobradoresPage = () => {
   const [rutas, setRutas] = useState<RutaAsignable[]>([])
   const [loadingData, setLoadingData] = useState(true)
 
-  useEffect(() => {
-    const loadData = async () => {
-      setLoadingData(true)
-      try {
-        const [cobradoresRes, rutasRes] = await Promise.all([
-          rutasService.obtenerCobradores().catch(() => []),
-          rutasService.obtenerRutas().catch(() => ({ data: [] })),
-        ])
-        setCobradores((cobradoresRes as any[]).map((c: any) => ({
-          id: c.id,
-          nombre: c.nombre || `${c.nombres || ''} ${c.apellidos || ''}`.trim(),
-          rutasAsignadas: c.rutasAsignadas || 0,
-          clientesTotales: c.clientesTotales || 0,
-          capacidadMaxima: c.capacidadMaxima || 120,
-        })))
-        const rutasList = (rutasRes as any)?.data || rutasRes || []
-        setRutas((rutasList as any[]).map((r: any) => ({
-          id: r.id,
-          nombre: r.nombre || '',
-          codigo: r.codigo || '',
-          clientes: r.totalClientes || r.clientes || 0,
-          cobradorActual: r.cobrador ? `${r.cobrador.nombres || ''} ${r.cobrador.apellidos || ''}`.trim() : 'Sin asignar',
-        })))
-      } catch (err) {
-        console.error('Error cargando datos de asignación:', err)
-      } finally {
-        setLoadingData(false)
-      }
+  const loadData = useCallback(async () => {
+    setLoadingData(true)
+    try {
+      const [cobradoresRes, rutasRes] = await Promise.all([
+        rutasService.obtenerCobradores().catch(() => []),
+        rutasService.obtenerRutas().catch(() => ({ data: [] })),
+      ])
+      setCobradores((cobradoresRes as any[]).map((c: any) => ({
+        id: c.id,
+        nombre: c.nombre || `${c.nombres || ''} ${c.apellidos || ''}`.trim(),
+        rutasAsignadas: c.rutasAsignadas || 0,
+        clientesTotales: c.clientesTotales || 0,
+        capacidadMaxima: c.capacidadMaxima || 120,
+      })))
+      const rutasList = (rutasRes as any)?.data || rutasRes || []
+      setRutas((rutasList as any[]).map((r: any) => ({
+        id: r.id,
+        nombre: r.nombre || '',
+        codigo: r.codigo || '',
+        clientes: r.totalClientes || r.clientes || 0,
+        cobradorActual: r.cobrador ? `${r.cobrador.nombres || ''} ${r.cobrador.apellidos || ''}`.trim() : 'Sin asignar',
+      })))
+    } catch (err) {
+      console.error('Error cargando datos de asignación:', err)
+    } finally {
+      setLoadingData(false)
     }
-    loadData()
   }, [])
+
+  useEffect(() => { loadData() }, [loadData])
+
+  // Tiempo real: refrescar cuando cambien rutas o cobradores
+  useRealtimeData(['dashboards_actualizados', 'usuarios_actualizados'], loadData)
 
   const capacidadUsada = (cobrador: Cobrador) =>
     Math.round((cobrador.clientesTotales / cobrador.capacidadMaxima) * 100)

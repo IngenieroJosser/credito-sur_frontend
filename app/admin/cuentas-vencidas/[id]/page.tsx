@@ -1,6 +1,7 @@
 'use client';
 
 import { use, useState, useEffect } from 'react';
+import { useRealtimeData } from '@/hooks/useRealtimeData'
 import { ChevronLeft, Archive, Scale, FileText, User } from 'lucide-react';
 import Link from 'next/link';
 import { formatCurrency } from '@/lib/utils';
@@ -49,6 +50,9 @@ export default function DetalleCuentaVencidaPage({
       </div>
     );
   }
+
+  // Tiempo real: refrescar automáticamente cuando haya cambios
+  useRealtimeData(['pagos_actualizados'], () => { typeof window !== 'undefined' && window.location.reload() })
 
   return (
     <div className="min-h-screen bg-slate-50 relative pb-12">

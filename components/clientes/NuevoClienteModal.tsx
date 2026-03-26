@@ -34,6 +34,10 @@ export default function NuevoClienteModal({ onClose, onClienteCreado, cliente = 
     correo: cliente?.correo || '',
     direccion: cliente?.direccion || '',
     referencia: cliente?.referencia || '',
+    referencia1Nombre: (cliente as any)?.referencia1Nombre || '',
+    referencia1Telefono: (cliente as any)?.referencia1Telefono || '',
+    referencia2Nombre: (cliente as any)?.referencia2Nombre || '',
+    referencia2Telefono: (cliente as any)?.referencia2Telefono || '',
     enListaNegra: (cliente as any)?.enListaNegra || false,
   });
 
@@ -168,6 +172,10 @@ export default function NuevoClienteModal({ onClose, onClienteCreado, cliente = 
       correo: formulario.correo || undefined,
       direccion: formulario.direccion || undefined,
       referencia: formulario.referencia || undefined,
+      referencia1Nombre: formulario.referencia1Nombre || undefined,
+      referencia1Telefono: formulario.referencia1Telefono || undefined,
+      referencia2Nombre: formulario.referencia2Nombre || undefined,
+      referencia2Telefono: formulario.referencia2Telefono || undefined,
       enListaNegra: formulario.enListaNegra,
       creadoPorId: currentUser?.id || undefined, 
       archivos: archivos.length > 0 ? archivos : undefined,
@@ -348,16 +356,73 @@ export default function NuevoClienteModal({ onClose, onClienteCreado, cliente = 
                 />
               </div>
 
-              <div>
-                <label className="block text-sm font-bold text-slate-700 mb-2">Referencia</label>
-                <textarea
-                  value={formulario.referencia}
-                  onChange={(e) => setFormulario(prev => ({ ...prev, referencia: e.target.value }))}
-                  className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-[#08557f] focus:ring-0 font-medium text-slate-900 placeholder:text-slate-400 resize-none"
-                  rows={3}
-                  placeholder="Punto de referencia / observaciones"
-                  required
-                />
+              <div className="border-t border-slate-100 pt-4">
+                <label className="block text-sm font-bold text-slate-700 mb-1">Referencias Personales</label>
+                <p className="text-xs text-slate-400 mb-4">Complete el nombre completo y teléfono de cada referencia</p>
+
+                {/* Referencia 1 */}
+                <div className="mb-4">
+                  <p className="text-xs font-black text-slate-500 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                    <span className="w-5 h-5 rounded-full bg-blue-100 text-blue-700 text-[10px] font-black flex items-center justify-center">1</span>
+                    Referencia Personal 1
+                  </p>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-bold text-slate-500 mb-1">Nombre Completo *</label>
+                      <input
+                        value={formulario.referencia1Nombre}
+                        onChange={(e) => setFormulario(prev => ({ ...prev, referencia1Nombre: e.target.value }))}
+                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-[#08557f] focus:ring-0 font-medium text-slate-900 placeholder:text-slate-400"
+                        placeholder="Ej: María López"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-slate-500 mb-1">Teléfono *</label>
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        value={formulario.referencia1Telefono}
+                        onChange={(e) => setFormulario(prev => ({ ...prev, referencia1Telefono: e.target.value.replace(/\D/g, '') }))}
+                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-[#08557f] focus:ring-0 font-medium text-slate-900 placeholder:text-slate-400"
+                        placeholder="Ej: 3001234567"
+                        required
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Referencia 2 */}
+                <div>
+                  <p className="text-xs font-black text-slate-500 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                    <span className="w-5 h-5 rounded-full bg-orange-100 text-orange-700 text-[10px] font-black flex items-center justify-center">2</span>
+                    Referencia Personal 2
+                  </p>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-bold text-slate-500 mb-1">Nombre Completo *</label>
+                      <input
+                        value={formulario.referencia2Nombre}
+                        onChange={(e) => setFormulario(prev => ({ ...prev, referencia2Nombre: e.target.value }))}
+                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-[#08557f] focus:ring-0 font-medium text-slate-900 placeholder:text-slate-400"
+                        placeholder="Ej: Carlos Martínez"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-slate-500 mb-1">Teléfono *</label>
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        value={formulario.referencia2Telefono}
+                        onChange={(e) => setFormulario(prev => ({ ...prev, referencia2Telefono: e.target.value.replace(/\D/g, '') }))}
+                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-[#08557f] focus:ring-0 font-medium text-slate-900 placeholder:text-slate-400"
+                        placeholder="Ej: 3109876543"
+                        required
+                      />
+                    </div>
+                  </div>
+                </div>
               </div>
 
               {esEdicion && (
