@@ -1936,12 +1936,17 @@ const ModuloContableContent = () => {
                  <h4 className="text-xs font-bold text-slate-500 uppercase mb-3 flex items-center gap-2">
                     <BarChart3 className="w-3.5 h-3.5" />
                     Rendimiento
+                    <span className="ml-auto text-[9px] font-bold text-blue-500 bg-blue-50 border border-blue-100 px-2 py-0.5 rounded-full">HOY</span>
                  </h4>
                  
                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       {/* Recaudado */}
                       <div 
                         onClick={async () => {
+                            // Pre-filtrar con la fecha de hoy para que coincida con el rendimiento mostrado
+                            const hoy = new Date().toISOString().split('T')[0];
+                            setFechaInicioModal(hoy);
+                            setFechaFinModal(hoy);
                             setDetalleTipo('INGRESOS');
                             await loadMovimientosDetalle();
                             setShowDetalleModal(true);
@@ -2149,7 +2154,7 @@ const ModuloContableContent = () => {
         
         {/* Modal de Detalle */}
         {showDetalleModal && renderInPortal(
-          <div className="fixed inset-0 z-[2147483647] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm" onClick={() => { setShowDetalleModal(false); setMovimientosDetalle([]); }}>
+          <div className="fixed inset-0 z-[2147483647] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm" onClick={() => { setShowDetalleModal(false); setMovimientosDetalle([]); setFechaInicioModal(''); setFechaFinModal(''); }}>
             <div className="w-full max-w-2xl rounded-2xl bg-white border border-slate-200 shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200 flex flex-col max-h-[90vh]" onClick={(e) => e.stopPropagation()}>
               {/* Modal Header */}
               <div className="p-6 border-b border-slate-100 flex items-center justify-between shrink-0">
@@ -2163,7 +2168,7 @@ const ModuloContableContent = () => {
                     </p>
                 </div>
                 <button
-                  onClick={() => { setShowDetalleModal(false); setMovimientosDetalle([]); }}
+                  onClick={() => { setShowDetalleModal(false); setMovimientosDetalle([]); setFechaInicioModal(''); setFechaFinModal(''); }}
                   className="p-2 rounded-2xl hover:bg-slate-100 text-slate-500 transition-colors"
                 >
                   <XCircle className="h-6 w-6" />
@@ -2635,4 +2640,5 @@ const ModuloContablePage = () => {
 }
 
 export default ModuloContablePage
+
 
