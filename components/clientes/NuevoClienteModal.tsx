@@ -179,16 +179,6 @@ export default function NuevoClienteModal({ onClose, onClienteCreado, cliente = 
       creadoPorId: currentUser?.id || undefined,
     };
 
-    // Convert empty strings to undefined for optional fields
-    if (payload.correo === '') payload.correo = undefined;
-    if (payload.direccion === '') payload.direccion = undefined;
-    if (payload.referencia === '') payload.referencia = undefined;
-    if (payload.referencia1Nombre === '') payload.referencia1Nombre = undefined;
-    if (payload.referencia1Telefono === '') payload.referencia1Telefono = undefined;
-    if (payload.referencia2Nombre === '') payload.referencia2Nombre = undefined;
-    if (payload.referencia2Telefono === '') payload.referencia2Telefono = undefined;
-
-    // Only add archivos field if there are actual files
     if (archivos.length > 0) {
       payload.archivos = archivos;
     }
