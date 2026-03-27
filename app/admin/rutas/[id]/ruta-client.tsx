@@ -1200,29 +1200,40 @@ const RutaClientLoaded = ({
 
   }
 
-  
+
+  const [rutaActivadaHoy, setRutaActivadaHoy] = useState(false)
+  const [loadingActivacionHoy, setLoadingActivacionHoy] = useState(false)
+
+  const refreshActivacionHoy = useCallback(async () => {
+    if (!initialRuta?.id) return
+    try {
+      const resp = await routesService.getActivacionHoy(initialRuta.id)
+      setRutaActivadaHoy(Boolean(resp?.activadaHoy))
+    } catch (e) {
+      // ignore
+    }
+  }, [initialRuta?.id])
+
+  useEffect(() => {
+    refreshActivacionHoy()
+  }, [refreshActivacionHoy])
 
   const handleActivarRuta = async () => {
-
-    if (!initialRuta) return;
-
+    if (!initialRuta?.id) return
     try {
-
-      await routesService.toggleActive(initialRuta.id);
-
-      setRutaCompletada(!rutaCompletada);
-
-      showNotification('success', `Ruta ${rutaCompletada ? 'activada' : 'desactivada'} correctamente`, 'Éxito');
-
+      setLoadingActivacionHoy(true)
+      const resp = await routesService.activarHoy(initialRuta.id)
+      setRutaActivadaHoy(Boolean(resp?.activadaHoy))
+      showNotification('success', resp?.message || 'Ruta activada para hoy correctamente', 'Éxito')
     } catch (error) {
-
-      console.error('Error toggling route:', error);
-
-      showNotification('error', 'No se pudo cambiar el estado de la ruta', 'Error');
-
+      console.error('Error activando ruta del día:', error)
+      showNotification('error', 'No se pudo activar la ruta para hoy', 'Error')
+    } finally {
+      setLoadingActivacionHoy(false)
     }
-
   }
+
+  const rutaOperable = rutaActivadaHoy && !rutaCompletada
 
 
 
@@ -1622,13 +1633,19 @@ const RutaClientLoaded = ({
 
                       onClick={handleActivarRuta}
 
-                      className="px-4 py-2 border rounded-xl flex items-center gap-2 font-bold shadow-sm bg-white text-slate-700 border-slate-200 hover:bg-slate-50 transition-colors"
+                      disabled={loadingActivacionHoy || rutaActivadaHoy}
+
+                      className={`px-4 py-2 border rounded-xl flex items-center gap-2 font-bold shadow-sm transition-colors ${
+                        loadingActivacionHoy || rutaActivadaHoy
+                          ? 'bg-emerald-50 text-emerald-700 border-emerald-200 cursor-not-allowed'
+                          : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+                      }`}
 
                     >
 
                       <CheckCircle2 className="h-4 w-4" />
 
-                      <span className="hidden md:inline">Activar Ruta</span>
+                      <span className="hidden md:inline">{rutaActivadaHoy ? 'Ruta activada hoy' : (loadingActivacionHoy ? 'Activando...' : 'Activar Ruta')}</span>
 
                     </button>
 
@@ -1642,9 +1659,11 @@ const RutaClientLoaded = ({
 
                         <button
 
-                        onClick={() => setShowNewClientModal(true)}
+                        onClick={() => { if (!rutaOperable) return; setShowNewClientModal(true) }}
 
-                        className="px-4 py-2 border rounded-xl flex items-center gap-2 font-bold shadow-sm bg-white text-slate-700 border-slate-200 hover:bg-slate-50 transition-colors"
+                        disabled={!rutaOperable}
+
+                        className={`px-4 py-2 border rounded-xl flex items-center gap-2 font-bold shadow-sm transition-colors ${!rutaOperable ? 'bg-slate-50 text-slate-300 border-slate-100 opacity-50 cursor-not-allowed' : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'}`}
 
                         >
 
@@ -1660,13 +1679,17 @@ const RutaClientLoaded = ({
 
                         onClick={() => {
 
+                            if (!rutaOperable) return
+
                             setSelectedClienteForCredito(null)
 
                             setShowCrearCreditoModal(true)
 
                         }}
 
-                        className="px-4 py-2 border rounded-xl flex items-center gap-2 font-bold shadow-sm bg-white text-slate-700 border-slate-200 hover:bg-slate-50 transition-colors"
+                        disabled={!rutaOperable}
+
+                        className={`px-4 py-2 border rounded-xl flex items-center gap-2 font-bold shadow-sm transition-colors ${!rutaOperable ? 'bg-slate-50 text-slate-300 border-slate-100 opacity-50 cursor-not-allowed' : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'}`}
 
                         >
 
@@ -2442,27 +2465,27 @@ const RutaClientLoaded = ({
                                             actions={
                                               <>
                                                 <button
-                                                  onClick={(e) => { e.stopPropagation(); if (visita.pendienteAprobacion || rutaCompletada) return; handleAbrirPago(visita); }}
-                                                  disabled={visita.pendienteAprobacion || rutaCompletada}
-                                                  title={visita.pendienteAprobacion ? 'Crédito pendiente de aprobación' : rutaCompletada ? 'Ruta completada' : 'Registrar Pago'}
-                                                  className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-lg transition-all font-bold text-[11px] shadow-sm ${visita.pendienteAprobacion || rutaCompletada ? 'bg-slate-50 text-slate-300 border border-slate-100 opacity-50 cursor-not-allowed' : 'bg-blue-600 text-white hover:bg-blue-700 active:scale-95'}`}
+                                                  onClick={(e) => { e.stopPropagation(); if (visita.pendienteAprobacion || !rutaOperable) return; handleAbrirPago(visita); }}
+                                                  disabled={visita.pendienteAprobacion || !rutaOperable}
+                                                  title={visita.pendienteAprobacion ? 'Crédito pendiente de aprobación' : !rutaOperable ? (rutaCompletada ? 'Ruta completada' : 'Ruta pendiente de activación') : 'Registrar Pago'}
+                                                  className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-lg transition-all font-bold text-[11px] shadow-sm ${visita.pendienteAprobacion || !rutaOperable ? 'bg-slate-50 text-slate-300 border border-slate-100 opacity-50 cursor-not-allowed' : 'bg-blue-600 text-white hover:bg-blue-700 active:scale-95'}`}
                                                 >
                                                   <DollarSign className="h-3.5 w-3.5" />
                                                   Pago
                                                 </button>
                                                 <button
-                                                  onClick={(e) => { e.stopPropagation(); if (visita.pendienteAprobacion || rutaCompletada) return; handleAbrirAbono(visita); }}
-                                                  disabled={visita.pendienteAprobacion || rutaCompletada}
-                                                  title={visita.pendienteAprobacion ? 'Crédito pendiente de aprobación' : rutaCompletada ? 'Ruta completada' : 'Registrar Abono'}
-                                                  className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-lg transition-all font-bold text-[11px] shadow-sm ${visita.pendienteAprobacion || rutaCompletada ? 'bg-slate-50 text-slate-300 border border-slate-100 opacity-50 cursor-not-allowed' : 'bg-emerald-600 text-white hover:bg-emerald-700 active:scale-95'}`}
+                                                  onClick={(e) => { e.stopPropagation(); if (visita.pendienteAprobacion || !rutaOperable) return; handleAbrirAbono(visita); }}
+                                                  disabled={visita.pendienteAprobacion || !rutaOperable}
+                                                  title={visita.pendienteAprobacion ? 'Crédito pendiente de aprobación' : !rutaOperable ? (rutaCompletada ? 'Ruta completada' : 'Ruta pendiente de activación') : 'Registrar Abono'}
+                                                  className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-lg transition-all font-bold text-[11px] shadow-sm ${visita.pendienteAprobacion || !rutaOperable ? 'bg-slate-50 text-slate-300 border border-slate-100 opacity-50 cursor-not-allowed' : 'bg-emerald-600 text-white hover:bg-emerald-700 active:scale-95'}`}
                                                 >
                                                   <Wallet className="h-3.5 w-3.5" />
                                                   Abono
                                                 </button>
                                                 <button
-                                                  onClick={(e) => { e.stopPropagation(); if(rutaCompletada) return; handleAbrirEstadoCuenta(visita); }}
-                                                  disabled={rutaCompletada}
-                                                  className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-lg transition-all font-bold text-[11px] shadow-sm border ${rutaCompletada ? 'bg-slate-50 text-slate-300 border-slate-100 opacity-50 cursor-not-allowed' : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50 active:scale-95'}`}
+                                                  onClick={(e) => { e.stopPropagation(); if(!rutaOperable) return; handleAbrirEstadoCuenta(visita); }}
+                                                  disabled={!rutaOperable}
+                                                  className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-lg transition-all font-bold text-[11px] shadow-sm border ${!rutaOperable ? 'bg-slate-50 text-slate-300 border-slate-100 opacity-50 cursor-not-allowed' : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50 active:scale-95'}`}
                                                 >
                                                   <FileTextIcon className="h-3.5 w-3.5 text-slate-400" />
                                                   Estado
@@ -2470,13 +2493,13 @@ const RutaClientLoaded = ({
                                                 <button
                                                   onClick={(e) => { 
                                                     e.stopPropagation(); 
-                                                    if (rutaCompletada) return;
+                                                    if (!rutaOperable) return;
                                                     const isProrrogaVencida = visita.enProrroga && visita.fechaProrroga && new Date(visita.fechaProrroga).getTime() < Date.now();
                                                     if (!visita.enProrroga || isProrrogaVencida) setVisitaReprogramar(visita); 
                                                   }}
-                                                  disabled={rutaCompletada || (!!visita.enProrroga && !(visita.fechaProrroga && new Date(visita.fechaProrroga).getTime() < Date.now()))}
-                                                  title={rutaCompletada ? 'Ruta completada' : visita.enProrroga && !(visita.fechaProrroga && new Date(visita.fechaProrroga).getTime() < Date.now()) ? 'No se puede reprogramar con prorroga activa' : 'Solicitar reprogramacion'}
-                                                  className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border transition-all font-bold text-[11px] shadow-sm ${rutaCompletada || (visita.enProrroga && !(visita.fechaProrroga && new Date(visita.fechaProrroga).getTime() < Date.now())) ? 'bg-slate-50 text-slate-300 border-slate-100 opacity-50 cursor-not-allowed' : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50 active:scale-95'}`}
+                                                  disabled={!rutaOperable || (!!visita.enProrroga && !(visita.fechaProrroga && new Date(visita.fechaProrroga).getTime() < Date.now()))}
+                                                  title={!rutaOperable ? (rutaCompletada ? 'Ruta completada' : 'Ruta pendiente de activación') : (visita.enProrroga && !(visita.fechaProrroga && new Date(visita.fechaProrroga).getTime() < Date.now()) ? 'No se puede reprogramar con prorroga activa' : 'Solicitar reprogramacion')}
+                                                  className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border transition-all font-bold text-[11px] shadow-sm ${!rutaOperable || (visita.enProrroga && !(visita.fechaProrroga && new Date(visita.fechaProrroga).getTime() < Date.now())) ? 'bg-slate-50 text-slate-300 border-slate-100 opacity-50 cursor-not-allowed' : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50 active:scale-95'}`}
                                                 >
                                                   <Calendar className="h-3.5 w-3.5 text-slate-400" />
                                                   Repro.

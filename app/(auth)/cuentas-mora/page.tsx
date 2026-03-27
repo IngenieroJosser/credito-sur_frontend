@@ -125,6 +125,13 @@ function diasRestantesGracia(fechaVencimiento?: string): number | null {
   return Math.ceil((limite.getTime() - hoy.getTime()) / (1000 * 60 * 60 * 24))
 }
 
+function diasRestantesHasta(fecha?: string): number | null {
+  if (!fecha) return null
+  const hoy = new Date(); hoy.setHours(0, 0, 0, 0)
+  const limite = new Date(fecha); limite.setHours(0, 0, 0, 0)
+  return Math.ceil((limite.getTime() - hoy.getTime()) / (1000 * 60 * 60 * 24))
+}
+
 function GracePeriodBadge({ fechaVencimiento, montoMora, fechaProrroga, diasProrroga, tieneProrroga }: {
   fechaVencimiento?: string
   montoMora: number
@@ -134,7 +141,7 @@ function GracePeriodBadge({ fechaVencimiento, montoMora, fechaProrroga, diasPror
 }) {
   // Prioridad 1: mostrar plazo de prorroga aprobada
   if (tieneProrroga && fechaProrroga) {
-    const dias = diasProrroga ?? Math.ceil((new Date(fechaProrroga).getTime() - Date.now()) / (1000 * 60 * 60 * 24))
+    const dias = diasProrroga ?? diasRestantesHasta(fechaProrroga) ?? 0
     if (dias < 0) {
       return (
         <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-rose-100 border border-rose-200 text-rose-700 text-[10px] font-black">

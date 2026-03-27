@@ -244,9 +244,12 @@ function VisitaCardContent({
 
       {/* Fila 4: prórroga activa */}
       {visita.enProrroga && (() => {
-        const diasRestantes = visita.fechaProrroga
-          ? Math.ceil((new Date(visita.fechaProrroga).getTime() - Date.now()) / (1000 * 60 * 60 * 24))
-          : null
+        const diasRestantes = (() => {
+          if (!visita.fechaProrroga) return null
+          const hoy = new Date(); hoy.setHours(0, 0, 0, 0)
+          const limite = new Date(visita.fechaProrroga); limite.setHours(0, 0, 0, 0)
+          return Math.ceil((limite.getTime() - hoy.getTime()) / (1000 * 60 * 60 * 24))
+        })()
         const color =
           diasRestantes === null || diasRestantes < 0
             ? 'bg-rose-50 border-rose-200 text-rose-700'

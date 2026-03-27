@@ -74,7 +74,8 @@ import { RolUsuario } from '@/lib/types/autenticacion-type'
 import { obtenerPerfil } from '@/services/autenticacion-service'
 import { formatCurrency, resolveMediaUrl } from '@/lib/utils'
 import { rutasService, Ruta } from '@/services/rutas-service'
-import { registrarGasto, solicitarBase, obtenerSaldoDisponibleRuta } from '@/services/contabilidad-service'
+import { registrarGasto, solicitarBase, obtenerSaldoDisponibleRuta, getRutaCierreHoy } from '@/services/contabilidad-service'
+import { routesService as routesApi } from '@/services/routes-service'
 import { prestamosService } from '@/services/prestamos-service'
 import { reportesCoordinadorService } from '@/services/reportes-coordinador-service'
 import type { RouteDetailResponse } from '@/services/reportes-coordinador-service'
@@ -100,7 +101,6 @@ import { TipoAmortizacion } from '@/types/enums'
 import { useNotificaciones } from '@/components/providers/NotificacionesProvider'
 import { Bell } from 'lucide-react'
 import { toast } from 'sonner'
-import { getRutaCierreHoy } from '@/services/contabilidad-service'
 
 interface OperacionCaja {
   id: string
@@ -263,6 +263,7 @@ const VistaCobrador = () => {
   const [rutaActual, setRutaActual] = useState<Ruta | null>(null)
 
   const [rutaCompletada, setRutaCompletada] = useState(false)
+  const [rutaActivadaHoy, setRutaActivadaHoy] = useState(false)
   const [coordinadorToast, setCoordinadorToast] = useState<string | null>(null)
   const [showConfirmCompleteModal, setShowConfirmCompleteModal] = useState(false)
   const [modalAlerta, setModalAlerta] = useState<{titulo: string, mensaje: string, tipo: 'exito' | 'error' | 'info'} | null>(null)
@@ -465,6 +466,28 @@ const VistaCobrador = () => {
       cancelled = true
     }
   }, [rutaActual?.id])
+
+  useEffect(() => {
+    let cancelled = false
+    const rutaId = rutaActual?.id
+    if (!rutaId) return
+
+    ;(async () => {
+      try {
+        const resp = await routesApi.getActivacionHoy(rutaId)
+        if (cancelled) return
+        setRutaActivadaHoy(Boolean(resp?.activadaHoy))
+      } catch {
+        // ignore
+      }
+    })()
+
+    return () => {
+      cancelled = true
+    }
+  }, [rutaActual?.id])
+
+  const rutaOperable = rutaActivadaHoy && !rutaCompletada
 
   // WebSocket handler – se declara DESPUÉS de cargarDatosRuta (ver abajo)
   // para evitar referencia forward. El useEffect del socket está al final
@@ -1379,9 +1402,9 @@ const VistaCobrador = () => {
 
   // Handlers para drag & drop
   const handleDragStart = useCallback((event: DragStartEvent) => {
-    if (rutaCompletada) return
+    if (!rutaOperable) return
     setActiveId(event.active.id as string)
-  }, [rutaCompletada])
+  }, [rutaOperable])
 
 
 
@@ -2233,15 +2256,15 @@ const VistaCobrador = () => {
                   <button
                     type="button"
                     onClick={handleCompletarRuta}
-                    disabled={rutaCompletada}
+                    disabled={!rutaOperable}
                     className={`px-4 py-2 border rounded-xl flex items-center gap-2 font-bold shadow-sm transition-colors ${
-                      rutaCompletada
+                      !rutaOperable
                         ? 'bg-emerald-100 text-emerald-800 border-emerald-200 cursor-not-allowed'
                         : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
                     }`}
                   >
                     <CheckCircle2 className="h-4 w-4" />
-                    <span className="hidden md:inline">{rutaCompletada ? 'Ruta ya completada hoy' : 'Completar ruta'}</span>
+                    <span className="hidden md:inline">{rutaCompletada ? 'Ruta ya completada hoy' : (!rutaActivadaHoy ? 'Ruta pendiente de activación' : 'Completar ruta')}</span>
                   </button>
 
             </div>
@@ -2547,7 +2570,8 @@ const VistaCobrador = () => {
                                                           <StaticVisitaItem
                                                             key={visita.id}
                                                             visita={visita}
-                                                            onSelect={() => {}} onVerCliente={handleAbrirClienteInfo}
+                                                            onSelect={() => {}}
+                                                            onVerCliente={handleAbrirClienteInfo}
                                                             getEstadoClasses={getEstadoClasses}
                                                           />
                                                         ))
@@ -2602,11 +2626,13 @@ const VistaCobrador = () => {
                                     <button
                                       onClick={(e) => {
                                         e.stopPropagation();
+                                        if (!rutaOperable) return
                                         setVisitaPagoSeleccionada(visita);
                                         setPagoInitialIsAbono(true);
                                         setShowPaymentModal(true);
                                       }}
-                                      className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 transition-all active:scale-95 text-[11px] font-bold"
+                                      disabled={!rutaOperable}
+                                      className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-lg transition-all active:scale-95 text-[11px] font-bold ${!rutaOperable ? 'bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed' : 'bg-emerald-600 text-white hover:bg-emerald-700'}`}
                                     >
                                       <Wallet className="h-3.5 w-3.5" />
                                       Abono
@@ -2614,10 +2640,12 @@ const VistaCobrador = () => {
                                     <button
                                       onClick={(e) => {
                                         e.stopPropagation();
+                                        if (!rutaOperable) return
                                         setVisitaEstadoCuentaSeleccionada(visita);
                                         setShowEstadoCuentaModal(true);
                                       }}
-                                      className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-white text-slate-600 border border-slate-200 hover:bg-slate-50 transition-all active:scale-95 text-[11px] font-bold"
+                                      disabled={!rutaOperable}
+                                      className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-lg transition-all active:scale-95 text-[11px] font-bold ${!rutaOperable ? 'bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed' : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'}`}
                                     >
                                       <FileTextIcon className="h-3.5 w-3.5 text-slate-400" />
                                       Estado
@@ -2684,13 +2712,13 @@ const VistaCobrador = () => {
                                       <button
                                         onClick={(e) => {
                                           e.stopPropagation();
-                                          if (rutaCompletada) return;
+                                          if (!rutaOperable) return;
                                           setVisitaPagoSeleccionada(visita);
                                           setPagoInitialIsAbono(false);
                                           setShowPaymentModal(true);
                                         }}
-                                        disabled={rutaCompletada}
-                                        className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-lg transition-all active:scale-95 text-[11px] font-bold ${rutaCompletada ? 'bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed' : 'bg-blue-600 text-white hover:bg-blue-700'}`}
+                                        disabled={!rutaOperable}
+                                        className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-lg transition-all active:scale-95 text-[11px] font-bold ${!rutaOperable ? 'bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed' : 'bg-blue-600 text-white hover:bg-blue-700'}`}
                                       >
                                         <DollarSign className="h-3.5 w-3.5" />
                                         Pago
@@ -2698,13 +2726,13 @@ const VistaCobrador = () => {
                                       <button
                                         onClick={(e) => {
                                           e.stopPropagation();
-                                          if (rutaCompletada) return;
+                                          if (!rutaOperable) return;
                                           setVisitaPagoSeleccionada(visita);
                                           setPagoInitialIsAbono(true);
                                           setShowPaymentModal(true);
                                         }}
-                                        disabled={rutaCompletada}
-                                        className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-lg transition-all active:scale-95 text-[11px] font-bold ${rutaCompletada ? 'bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed' : 'bg-emerald-600 text-white hover:bg-emerald-700'}`}
+                                        disabled={!rutaOperable}
+                                        className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-lg transition-all active:scale-95 text-[11px] font-bold ${!rutaOperable ? 'bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed' : 'bg-emerald-600 text-white hover:bg-emerald-700'}`}
                                       >
                                         <Wallet className="h-3.5 w-3.5" />
                                         Abono
@@ -2712,12 +2740,12 @@ const VistaCobrador = () => {
                                       <button
                                         onClick={(e) => {
                                           e.stopPropagation();
-                                          if (rutaCompletada) return;
+                                          if (!rutaOperable) return;
                                           setVisitaEstadoCuentaSeleccionada(visita);
                                           setShowEstadoCuentaModal(true);
                                         }}
-                                        disabled={rutaCompletada}
-                                        className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border transition-all active:scale-95 text-[11px] font-bold ${rutaCompletada ? 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'}`}
+                                        disabled={!rutaOperable}
+                                        className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border transition-all active:scale-95 text-[11px] font-bold ${!rutaOperable ? 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'}`}
                                       >
                                         <FileTextIcon className="h-3.5 w-3.5 text-slate-400" />
                                         Estado
@@ -2725,12 +2753,12 @@ const VistaCobrador = () => {
                                       <button
                                         onClick={(e) => {
                                           e.stopPropagation();
-                                          if (rutaCompletada) return;
+                                          if (!rutaOperable) return;
                                           setVisitaReprogramar(visita);
                                           setShowReprogramModal(true);
                                         }}
-                                        disabled={rutaCompletada}
-                                        className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border transition-all active:scale-95 text-[11px] font-bold ${rutaCompletada ? 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'}`}
+                                        disabled={!rutaOperable}
+                                        className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border transition-all active:scale-95 text-[11px] font-bold ${!rutaOperable ? 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'}`}
                                       >
                                         <Calendar className="h-3.5 w-3.5 text-slate-400" />
                                         Repro.
@@ -2818,13 +2846,13 @@ const VistaCobrador = () => {
 
         {/* Floating Action Buttons */}
         <FloatingActionMenu actions={[
-          { label: 'Crear Crédito', icon: <CreditCard className="h-5 w-5" />, onClick: () => { if(rutaCompletada) return; setShowCreditModal(true); } },
-          { label: 'Nuevo Cliente', icon: <UserPlus className="h-5 w-5" />, onClick: () => { if(rutaCompletada) return; setShowNewClientModal(true); } },
-          { label: 'Registrar abono', icon: <RefreshCw className="h-5 w-5" />, color: 'orange', onClick: () => { if(rutaCompletada) return; setAccionPendiente('ABONO'); setShowClientSelector(true); } },
-          { label: 'Registrar pago', icon: <DollarSign className="h-5 w-5" />, onClick: () => { if(rutaCompletada) return; setAccionPendiente('PAGO'); setShowClientSelector(true); } },
+          { label: 'Crear Crédito', icon: <CreditCard className="h-5 w-5" />, onClick: () => { if(!rutaOperable) return; setShowCreditModal(true); } },
+          { label: 'Nuevo Cliente', icon: <UserPlus className="h-5 w-5" />, onClick: () => { if(!rutaOperable) return; setShowNewClientModal(true); } },
+          { label: 'Registrar abono', icon: <RefreshCw className="h-5 w-5" />, color: 'orange', onClick: () => { if(!rutaOperable) return; setAccionPendiente('ABONO'); setShowClientSelector(true); } },
+          { label: 'Registrar pago', icon: <DollarSign className="h-5 w-5" />, onClick: () => { if(!rutaOperable) return; setAccionPendiente('PAGO'); setShowClientSelector(true); } },
           { label: 'Solicitudes', icon: <ClipboardList className="h-5 w-5" />, onClick: () => router.push('/cobranzas/solicitudes') },
-          { label: 'Pedir Base', icon: <Wallet className="h-5 w-5" />, color: 'emerald', onClick: () => { if(rutaCompletada) return; setShowBaseModal(true); } },
-          { label: 'Gastos', icon: <ReceiptText className="h-5 w-5" />, color: 'rose', onClick: () => { if(rutaCompletada) return; setShowGastoModal(true); } },
+          { label: 'Pedir Base', icon: <Wallet className="h-5 w-5" />, color: 'emerald', onClick: () => { if(!rutaOperable) return; setShowBaseModal(true); } },
+          { label: 'Gastos', icon: <ReceiptText className="h-5 w-5" />, color: 'rose', onClick: () => { if(!rutaOperable) return; setShowGastoModal(true); } },
         ] as FabAction[]} />
 
 

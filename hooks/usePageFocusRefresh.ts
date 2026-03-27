@@ -19,7 +19,10 @@ export function usePageFocusRefresh(
   const { socket } = useNotificaciones()
   const lastRefreshRef = useRef<number>(0)
   const refreshRef = useRef(onRefresh)
-  refreshRef.current = onRefresh
+
+  useEffect(() => {
+    refreshRef.current = onRefresh
+  }, [onRefresh])
 
   const maybeRefresh = useCallback(() => {
     const now = Date.now()
