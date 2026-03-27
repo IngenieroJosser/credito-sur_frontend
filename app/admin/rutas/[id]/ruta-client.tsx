@@ -1214,7 +1214,7 @@ const RutaClientLoaded = ({
 
       setRutaCompletada(!rutaCompletada);
 
-      showNotification('success', `Ruta ${!rutaCompletada ? 'activada' : 'desactivada'} correctamente`, 'Éxito');
+      showNotification('success', `Ruta ${rutaCompletada ? 'activada' : 'desactivada'} correctamente`, 'Éxito');
 
     } catch (error) {
 
@@ -2901,7 +2901,7 @@ const RutaClient = ({ initialRuta: initialRutaProp, rutaId }: RutaClientProps) =
 
   const [loadingRuta, setLoadingRuta] = useState(!initialRutaProp && !!rutaId)
 
-  const [rutaCompletada, setRutaCompletada] = useState(!!initialRutaProp?.activa)
+  const [rutaCompletada, setRutaCompletada] = useState(!initialRutaProp?.activa)
 
 
 
@@ -2915,7 +2915,7 @@ const RutaClient = ({ initialRuta: initialRutaProp, rutaId }: RutaClientProps) =
 
       setRutaData(ruta as any);
 
-      setRutaCompletada(!!(ruta as any)?.activa);
+      setRutaCompletada(!(ruta as any)?.activa);
 
     } catch (e) {
 
@@ -2951,7 +2951,7 @@ const RutaClient = ({ initialRuta: initialRutaProp, rutaId }: RutaClientProps) =
 
         setRutaData(ruta as any)
 
-        setRutaCompletada(!!(ruta as any)?.activa)
+        setRutaCompletada(!(ruta as any)?.activa)
 
       } catch (e) {
 
