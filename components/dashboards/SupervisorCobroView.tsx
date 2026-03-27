@@ -276,10 +276,19 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
   const cargarEstadisticasRuta = useCallback(async () => {
     if (!rutaId) return
     try {
+      let metaBackend = 0
+      try {
+        const ruta = await rutasService.obtenerRutaPorId(rutaId)
+        const est: any = (ruta as any)?.estadisticas || {}
+        metaBackend = Number(est.metaDelDia ?? 0)
+      } catch {
+        metaBackend = 0
+      }
+
       const { inicio, fin } = getDatesByPeriod(periodoCards)
       const saldo = await obtenerSaldoDisponibleRuta(rutaId, undefined, inicio, fin)
       setRutaStats((prev) => {
-        const meta = prev.meta
+        const meta = Math.max(Number(prev.meta || 0), Number(metaBackend || 0))
         const cobranza = Number(
           (saldo as any)?.cobranzaDelDia ??
             (saldo as any)?.recaudoDelDia ??
