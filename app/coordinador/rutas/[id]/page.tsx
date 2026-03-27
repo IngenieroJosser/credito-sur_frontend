@@ -1237,6 +1237,9 @@ const DetalleRutaPage = () => {
               }
               
               showNotification('success', 'Crédito creado (Pendiente de Aprobación) y cliente vinculado a la ruta', 'Operación completada');
+              try {
+                await cargarRuta();
+              } catch {}
               setShowNuevoCreditoModal(false);
               setSelectedClienteForCredito(null);
             } catch (error) {

@@ -1260,9 +1260,11 @@ const RutaClientLoaded = ({
 
 
 
-  const { estadisticas, nivelRiesgo } = initialRuta;
+  const estadisticas = (rutaData as any)?.estadisticas || initialRuta.estadisticas;
 
-  const porcentajeProgreso = estadisticas.avanceDiario || 0;
+  const nivelRiesgo = (rutaData as any)?.nivelRiesgo || initialRuta.nivelRiesgo;
+
+  const porcentajeProgreso = estadisticas?.avanceDiario || 0;
 
 
 
@@ -2894,6 +2896,12 @@ const RutaClientLoaded = ({
               
 
               showNotification('success', 'Crédito creado (Pendiente de Aprobación) y cliente vinculado a la ruta', 'Operación completada');
+
+              try {
+
+                await onRutaRefresh?.();
+
+              } catch {}
 
               setShowCrearCreditoModal(false);
 

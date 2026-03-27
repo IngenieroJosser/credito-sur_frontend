@@ -724,10 +724,10 @@ const VistaCobrador = () => {
           const recaudadoCalculado = withRecaudo.reduce((sum, v) => sum + Number(v.recaudadoDelDia || 0), 0);
           setRutaStats(prev => ({
             ...prev,
-            meta: prev.meta > 0 ? prev.meta : metaCalculada,
+            meta: Math.max(Number(prev.meta || 0), Number(metaCalculada || 0)),
             recaudo: prev.recaudo > 0 ? prev.recaudo : recaudadoCalculado,
-            eficiencia: (prev.meta > 0 ? prev.meta : metaCalculada) > 0
-              ? parseFloat((((prev.recaudo > 0 ? prev.recaudo : recaudadoCalculado) / (prev.meta > 0 ? prev.meta : metaCalculada)) * 100).toFixed(1))
+            eficiencia: Math.max(Number(prev.meta || 0), Number(metaCalculada || 0)) > 0
+              ? parseFloat((((prev.recaudo > 0 ? prev.recaudo : recaudadoCalculado) / Math.max(Number(prev.meta || 0), Number(metaCalculada || 0))) * 100).toFixed(1))
               : prev.eficiencia
           }));
         } catch {
@@ -1718,10 +1718,10 @@ const VistaCobrador = () => {
             const recaudadoCalculado = enriquecidas.reduce((sum, v) => sum + Number(v.recaudadoDelDia || 0), 0);
             setRutaStats(prev => ({
               ...prev,
-              meta: prev.meta > 0 ? prev.meta : metaCalculada,
+              meta: Math.max(Number(prev.meta || 0), Number(metaCalculada || 0)),
               recaudo: prev.recaudo > 0 ? prev.recaudo : recaudadoCalculado,
-              eficiencia: (prev.meta > 0 ? prev.meta : metaCalculada) > 0 
-                ? parseFloat((((prev.recaudo > 0 ? prev.recaudo : recaudadoCalculado) / (prev.meta > 0 ? prev.meta : metaCalculada)) * 100).toFixed(1))
+              eficiencia: Math.max(Number(prev.meta || 0), Number(metaCalculada || 0)) > 0 
+                ? parseFloat((((prev.recaudo > 0 ? prev.recaudo : recaudadoCalculado) / Math.max(Number(prev.meta || 0), Number(metaCalculada || 0))) * 100).toFixed(1))
                 : prev.eficiencia
             }));
           } catch {
