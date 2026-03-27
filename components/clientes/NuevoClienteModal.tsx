@@ -144,7 +144,6 @@ export default function NuevoClienteModal({ onClose, onClienteCreado, cliente = 
           nombreOriginal: (upload as any).originalName || upload.filename,
           nombreAlmacenamiento: (upload as any).publicId || upload.filename,
           ruta: (upload as any).publicId || upload.filename,
-          url: upload.path,
           tamanoBytes: upload.size,
         });
       } else if (esEdicion && archivosOriginales[map.key as keyof typeof archivosOriginales]) {
@@ -177,9 +176,22 @@ export default function NuevoClienteModal({ onClose, onClienteCreado, cliente = 
       referencia2Nombre: formulario.referencia2Nombre || undefined,
       referencia2Telefono: formulario.referencia2Telefono || undefined,
       enListaNegra: formulario.enListaNegra,
-      creadoPorId: currentUser?.id || undefined, 
-      archivos: archivos.length > 0 ? archivos : undefined,
+      creadoPorId: currentUser?.id || undefined,
     };
+
+    // Convert empty strings to undefined for optional fields
+    if (payload.correo === '') payload.correo = undefined;
+    if (payload.direccion === '') payload.direccion = undefined;
+    if (payload.referencia === '') payload.referencia = undefined;
+    if (payload.referencia1Nombre === '') payload.referencia1Nombre = undefined;
+    if (payload.referencia1Telefono === '') payload.referencia1Telefono = undefined;
+    if (payload.referencia2Nombre === '') payload.referencia2Nombre = undefined;
+    if (payload.referencia2Telefono === '') payload.referencia2Telefono = undefined;
+
+    // Only add archivos field if there are actual files
+    if (archivos.length > 0) {
+      payload.archivos = archivos;
+    }
 
     try {
       let resultado: Cliente;
