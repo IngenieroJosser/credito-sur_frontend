@@ -219,7 +219,6 @@ export const permisosPorRol: Record<Rol, ModuloPermiso[]> = {
       roles: ['COORDINADOR'],
       submodulos: [
         { id: 'rutas', nombre: 'Rutas', icono: 'Route', path: '/coordinador/rutas', roles: ['COORDINADOR'] },
-        { id: 'seguimiento-pdv', nombre: 'Punto de Venta', icono: 'ShoppingBag', path: '/admin/operaciones/punto-de-venta', roles: ['COORDINADOR'], isNew: true },
       ]
     },
     {
