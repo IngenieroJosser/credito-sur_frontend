@@ -2439,67 +2439,51 @@ const RutaClientLoaded = ({
                                             onVerCliente={handleAbrirClienteInfo}
                                             getEstadoClasses={getEstadoClasses}
                                             getPrioridadColor={getPrioridadColor}
+                                            actions={
+                                              <>
+                                                <button
+                                                  onClick={(e) => { e.stopPropagation(); if (visita.pendienteAprobacion || rutaCompletada) return; handleAbrirPago(visita); }}
+                                                  disabled={visita.pendienteAprobacion || rutaCompletada}
+                                                  title={visita.pendienteAprobacion ? 'Crédito pendiente de aprobación' : rutaCompletada ? 'Ruta completada' : 'Registrar Pago'}
+                                                  className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-lg transition-all font-bold text-[11px] shadow-sm ${visita.pendienteAprobacion || rutaCompletada ? 'bg-slate-50 text-slate-300 border border-slate-100 opacity-50 cursor-not-allowed' : 'bg-blue-600 text-white hover:bg-blue-700 active:scale-95'}`}
+                                                >
+                                                  <DollarSign className="h-3.5 w-3.5" />
+                                                  Pago
+                                                </button>
+                                                <button
+                                                  onClick={(e) => { e.stopPropagation(); if (visita.pendienteAprobacion || rutaCompletada) return; handleAbrirAbono(visita); }}
+                                                  disabled={visita.pendienteAprobacion || rutaCompletada}
+                                                  title={visita.pendienteAprobacion ? 'Crédito pendiente de aprobación' : rutaCompletada ? 'Ruta completada' : 'Registrar Abono'}
+                                                  className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-lg transition-all font-bold text-[11px] shadow-sm ${visita.pendienteAprobacion || rutaCompletada ? 'bg-slate-50 text-slate-300 border border-slate-100 opacity-50 cursor-not-allowed' : 'bg-emerald-600 text-white hover:bg-emerald-700 active:scale-95'}`}
+                                                >
+                                                  <Wallet className="h-3.5 w-3.5" />
+                                                  Abono
+                                                </button>
+                                                <button
+                                                  onClick={(e) => { e.stopPropagation(); if(rutaCompletada) return; handleAbrirEstadoCuenta(visita); }}
+                                                  disabled={rutaCompletada}
+                                                  className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-lg transition-all font-bold text-[11px] shadow-sm border ${rutaCompletada ? 'bg-slate-50 text-slate-300 border-slate-100 opacity-50 cursor-not-allowed' : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50 active:scale-95'}`}
+                                                >
+                                                  <FileTextIcon className="h-3.5 w-3.5 text-slate-400" />
+                                                  Estado
+                                                </button>
+                                                <button
+                                                  onClick={(e) => { 
+                                                    e.stopPropagation(); 
+                                                    if (rutaCompletada) return;
+                                                    const isProrrogaVencida = visita.enProrroga && visita.fechaProrroga && new Date(visita.fechaProrroga).getTime() < Date.now();
+                                                    if (!visita.enProrroga || isProrrogaVencida) setVisitaReprogramar(visita); 
+                                                  }}
+                                                  disabled={rutaCompletada || (!!visita.enProrroga && !(visita.fechaProrroga && new Date(visita.fechaProrroga).getTime() < Date.now()))}
+                                                  title={rutaCompletada ? 'Ruta completada' : visita.enProrroga && !(visita.fechaProrroga && new Date(visita.fechaProrroga).getTime() < Date.now()) ? 'No se puede reprogramar con prorroga activa' : 'Solicitar reprogramacion'}
+                                                  className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border transition-all font-bold text-[11px] shadow-sm ${rutaCompletada || (visita.enProrroga && !(visita.fechaProrroga && new Date(visita.fechaProrroga).getTime() < Date.now())) ? 'bg-slate-50 text-slate-300 border-slate-100 opacity-50 cursor-not-allowed' : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50 active:scale-95'}`}
+                                                >
+                                                  <Calendar className="h-3.5 w-3.5 text-slate-400" />
+                                                  Repro.
+                                                </button>
+                                              </>
+                                            }
                                         >
-                                            <div className="flex flex-wrap gap-1.5 pt-2">
-                                                <button
-                                                    onClick={(e) => { e.stopPropagation(); if (visita.pendienteAprobacion || rutaCompletada) return; handleAbrirPago(visita); }}
-                                                    disabled={visita.pendienteAprobacion || rutaCompletada}
-                                                    title={visita.pendienteAprobacion ? 'Crédito pendiente de aprobación' : rutaCompletada ? 'Ruta completada' : 'Registrar Pago'}
-                                                    className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-lg transition-all font-bold text-[11px] shadow-sm ${visita.pendienteAprobacion || rutaCompletada ? 'bg-slate-50 text-slate-300 border border-slate-100 opacity-50 cursor-not-allowed' : 'bg-blue-600 text-white hover:bg-blue-700 active:scale-95'}`}
-                                                >
-                                                    <DollarSign className="h-3.5 w-3.5" />
-                                                    Pago
-                                                </button>
-                                                <button
-                                                    onClick={(e) => { e.stopPropagation(); if (visita.pendienteAprobacion || rutaCompletada) return; handleAbrirAbono(visita); }}
-                                                    disabled={visita.pendienteAprobacion || rutaCompletada}
-                                                    title={visita.pendienteAprobacion ? 'Crédito pendiente de aprobación' : rutaCompletada ? 'Ruta completada' : 'Registrar Abono'}
-                                                    className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-lg transition-all font-bold text-[11px] shadow-sm ${visita.pendienteAprobacion || rutaCompletada ? 'bg-slate-50 text-slate-300 border border-slate-100 opacity-50 cursor-not-allowed' : 'bg-emerald-600 text-white hover:bg-emerald-700 active:scale-95'}`}
-                                                >
-                                                    <Wallet className="h-3.5 w-3.5" />
-                                                    Abono
-                                                </button>
-                                                <button
-                                                    onClick={(e) => { e.stopPropagation(); if(rutaCompletada) return; handleAbrirEstadoCuenta(visita); }}
-                                                    disabled={rutaCompletada}
-                                                    className={`flex flex-col items-center justify-center p-2 rounded-xl transition-all shadow-sm active:scale-95 border ${rutaCompletada ? 'bg-slate-50 text-slate-300 border-slate-100 opacity-50 cursor-not-allowed' : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'}`}
-                                                >
-
-                                                    <FileTextIcon className="h-3.5 w-3.5 text-slate-400" />
-
-                                                    Estado
-
-                                                </button>
-
-                                                <button
-
-                                                    onClick={(e) => { 
-
-                                                      e.stopPropagation(); 
-                                                      if (rutaCompletada) return;
-
-                                                      const isProrrogaVencida = visita.enProrroga && visita.fechaProrroga && new Date(visita.fechaProrroga).getTime() < Date.now();
-
-                                                      if (!visita.enProrroga || isProrrogaVencida) setVisitaReprogramar(visita); 
-
-                                                    }}
-
-                                                    disabled={rutaCompletada || (!!visita.enProrroga && !(visita.fechaProrroga && new Date(visita.fechaProrroga).getTime() < Date.now()))}
-
-                                                    title={rutaCompletada ? 'Ruta completada' : visita.enProrroga && !(visita.fechaProrroga && new Date(visita.fechaProrroga).getTime() < Date.now()) ? 'No se puede reprogramar con prorroga activa' : 'Solicitar reprogramacion'}
-
-                                                    className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border transition-all font-bold text-[11px] shadow-sm ${rutaCompletada || (visita.enProrroga && !(visita.fechaProrroga && new Date(visita.fechaProrroga).getTime() < Date.now())) ? 'bg-slate-50 text-slate-300 border-slate-100 opacity-50 cursor-not-allowed' : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50 active:scale-95'}`}
-
-                                                >
-
-                                                    <Calendar className="h-3.5 w-3.5 text-slate-400" />
-
-                                                    Repro.
-
-                                                </button>
-
-                                            </div>
-
                                         </StaticVisitaItem>
 
                                     ))}
@@ -2623,11 +2607,63 @@ const RutaClientLoaded = ({
 
             onClose={() => setVisitaReprogramar(null)}
 
-            onConfirm={(fecha, motivo) => {
+            onConfirm={async (fecha, motivo, cuotaId) => {
 
-                alert(`Reprogramar para: ${fecha} - ${motivo}`)
+              if (!visitaReprogramar) return;
+              if (!fecha || !motivo) return;
+
+              const formatearFechaISO = (iso: string) => {
+                const [yyyy, mm, dd] = iso.split('-')
+                if (!yyyy || !mm || !dd) return iso
+                return `${dd}/${mm}`
+              }
+
+              try {
+                if (!visitaReprogramar?.prestamoId) {
+                  toast.error('La visita seleccionada no tiene un préstamo asociado.')
+                  return;
+                }
+
+                if (cuotaId) {
+                  await prestamosService.solicitarReprogramacionCuota({
+                    prestamoId: visitaReprogramar.prestamoId,
+                    cuotaId,
+                    nuevaFecha: fecha,
+                    motivo,
+                  } as any)
+                } else {
+                  await prestamosService.reprogramarPrestamo(visitaReprogramar.prestamoId, {
+                    fecha,
+                    motivo,
+                    cobradorId: currentUser?.id || '',
+                  } as any)
+                }
+
+                setVisitasCobrador((prev) =>
+                  prev.map((v) => {
+                    if (v.id !== visitaReprogramar.id) return v
+                    return {
+                      ...v,
+                      estado: 'reprogramado' as any,
+                      proximaVisita: formatearFechaISO(fecha),
+                    }
+                  })
+                )
+
+                toast.success('Solicitud de reprogramación enviada exitosamente', {
+                  description: `La cuota será revisada para reprogramarse al ${formatearFechaISO(fecha)}`,
+                })
 
                 setVisitaReprogramar(null)
+
+                try {
+                  await onRutaRefresh?.();
+                } catch {}
+
+              } catch (error: any) {
+                console.error('Error reprogramando cuota (ruta admin):', error)
+                toast.error(error?.message || 'No se pudo realizar la reprogramación.')
+              }
 
             }}
 
