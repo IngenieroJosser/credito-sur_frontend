@@ -102,8 +102,6 @@ import ConfirmModal from '@/components/ui/ConfirmModal'
 
 import CrearCreditoModal from '@/components/dashboards/shared/CrearCreditoModal'
 
-import { creditosService } from '@/services/creditos-service'
-
 import { prestamosService } from '@/services/prestamos-service'
 
 import { pagosService } from '@/services/pagos-service'
@@ -2825,45 +2823,36 @@ const RutaClientLoaded = ({
 
             try {
 
-              const payload = {
+              const esContado = Boolean((data as any).ventaContado)
+              const isArticulo = data.creditType === 'articulo'
+              const freq = esContado ? 'MENSUAL' : (data.frecuenciaPago || 'DIARIO')
 
-                ...data,
-
-                creadoPorId: currentUser?.id || ''
-
-              };
-
-              
-
-              if (data.creditType === 'prestamo') {
-
-                await prestamosService.crearPrestamo({
-
-                  ...data,
-
-                  clienteId: data.clienteCreditoId,
-
-                  tipoPrestamo: 'EFECTIVO',
-
-                  tasaInteresMora: 2.0,
-
-                  creadoPorId: currentUser?.id || ''
-
-                } as any);
-
-              } else {
-
-                await creditosService.crearCredito({
-
-                  ...data,
-
-                  clienteId: data.clienteCreditoId,
-
-                  creadoPorId: currentUser?.id || ''
-
-                } as any);
-
+              const payload: any = {
+                clienteId: data.clienteCreditoId,
+                tipoPrestamo: isArticulo ? 'ARTICULO' : 'EFECTIVO',
+                monto: data.monto || 0,
+                tasaInteres: esContado ? 0 : (data.tasaInteres || 0),
+                tasaInteresMora: 2.0,
+                plazoMeses: data.plazoMeses || 1,
+                cantidadCuotas: data.cantidadCuotas || data.cuotas || data.cuotasTotales || (isArticulo ? data.numCuotas : 0),
+                cuotas: data.cuotas || data.cantidadCuotas || (isArticulo ? data.numCuotas : 0),
+                frecuenciaPago: freq,
+                fechaInicio: data.fechaInicio || new Date().toISOString(),
+                creadoPorId: currentUser?.id || '',
+                cuotaInicial: data.cuotaInicialArticulo || 0,
+                notas: isArticulo
+                  ? `${esContado ? 'Venta de contado' : 'Crédito de artículo'}: ${data.articuloNombre || ''}`
+                  : (data.notas || ''),
+                tipoAmortizacion: isArticulo ? 'INTERES_SIMPLE' : (data.tipoInteres || 'INTERES_SIMPLE'),
+                esContado: esContado,
               }
+
+              if (isArticulo) {
+                payload.productoId = data.articuloId
+                payload.precioProductoId = esContado ? undefined : data.precioProductoId
+              }
+
+              await prestamosService.crearPrestamo(payload)
 
 
 

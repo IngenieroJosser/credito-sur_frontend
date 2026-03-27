@@ -100,6 +100,7 @@ import { TipoAmortizacion } from '@/types/enums'
 import { useNotificaciones } from '@/components/providers/NotificacionesProvider'
 import { Bell } from 'lucide-react'
 import { toast } from 'sonner'
+import { getRutaCierreHoy } from '@/services/contabilidad-service'
 
 interface OperacionCaja {
   id: string
@@ -444,6 +445,26 @@ const VistaCobrador = () => {
       setLoadingMisCreditos(false)
     }
   }, [])
+
+  useEffect(() => {
+    let cancelled = false
+    const rutaId = rutaActual?.id
+    if (!rutaId) return
+
+    ;(async () => {
+      try {
+        const resp = await getRutaCierreHoy(rutaId)
+        if (cancelled) return
+        if (resp?.cerradaHoy) setRutaCompletada(true)
+      } catch {
+        // ignore
+      }
+    })()
+
+    return () => {
+      cancelled = true
+    }
+  }, [rutaActual?.id])
 
   // WebSocket handler – se declara DESPUÉS de cargarDatosRuta (ver abajo)
   // para evitar referencia forward. El useEffect del socket está al final
@@ -2158,7 +2179,6 @@ const VistaCobrador = () => {
               </div>
 
             <div className="mt-4 border-t border-slate-100 pt-4 flex flex-wrap items-center gap-2 overflow-x-auto pb-1">
-
                   <button
                     onClick={() => setShowRutaProvisional(true)}
                     className="px-4 py-2 bg-blue-100 text-[#08557f] border border-blue-200 hover:bg-blue-200 rounded-xl flex items-center gap-2 font-bold shadow-sm transition-colors"
@@ -2216,16 +2236,15 @@ const VistaCobrador = () => {
                     disabled={rutaCompletada}
                     className={`px-4 py-2 border rounded-xl flex items-center gap-2 font-bold shadow-sm transition-colors ${
                       rutaCompletada
-                        ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                        : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+                        ? 'bg-emerald-100 text-emerald-800 border-emerald-200 cursor-not-allowed'
+                        : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
                     }`}
                   >
                     <CheckCircle2 className="h-4 w-4" />
-                    <span className="hidden md:inline">Completar ruta</span>
+                    <span className="hidden md:inline">{rutaCompletada ? 'Ruta ya completada hoy' : 'Completar ruta'}</span>
                   </button>
-            </div>
-            </div>
 
+            </div>
 
               {!showHistory && !showMisClientes && (
                 <div className="mt-4 pt-4 border-t border-slate-200">
@@ -2257,6 +2276,7 @@ const VistaCobrador = () => {
                   </div>
                 </div>
               )}
+            </div>
             {/* Lista de visitas */}
             <div>
               <div className="flex flex-col gap-4 mb-4">

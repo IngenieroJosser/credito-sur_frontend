@@ -72,6 +72,7 @@ import { obtenerSaldoDisponibleRuta } from '@/services/contabilidad-service'
 import { exportService } from '@/services/export-service'
 import { useNotificaciones } from '@/components/providers/NotificacionesProvider'
 import { toast } from 'sonner'
+import { getRutaCierreHoy } from '@/services/contabilidad-service'
 
 interface UserSession {
   id: string
@@ -1000,6 +1001,25 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
     }
     cargarDetalleMora()
   }, [showMoraModal, visitaMoraSeleccionada, userSession])
+  useEffect(() => {
+    let cancelled = false
+    const rutaIdToCheck = (rutaInfo as any)?.id || rutaId
+    if (!rutaIdToCheck) return
+
+    ;(async () => {
+      try {
+        const resp = await getRutaCierreHoy(rutaIdToCheck)
+        if (cancelled) return
+        if (resp?.cerradaHoy) setRutaCompletada(true)
+      } catch {
+        // ignore
+      }
+    })()
+
+    return () => {
+      cancelled = true
+    }
+  }, [rutaId, (rutaInfo as any)?.id])
   const handleDragCancel = useCallback(() => {
     setActiveId(null)
   }, [])
@@ -1411,7 +1431,7 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
                     }`}
                   >
                     <CheckCircle2 className="h-4 w-4" />
-                    <span className="hidden md:inline">Completar ruta</span>
+                    <span className="hidden md:inline">{rutaCompletada ? 'Ruta ya completada hoy' : 'Completar ruta'}</span>
                   </button>
             </div>
             </div>
