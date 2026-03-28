@@ -209,7 +209,7 @@ const ModuloContableContent = () => {
 
   // Formularios controlados
   const [crearCajaForm, setCrearCajaForm] = useState({
-    tipo: 'RUTA' as Caja['tipo'],
+    tipo: 'PRINCIPAL' as Caja['tipo'],
     nombre: '',
     rutaId: '',
     responsableId: '',
@@ -864,11 +864,23 @@ const ModuloContableContent = () => {
                 <Zap className="h-4 w-4" />
               </div>
             </div>
-            <div className="text-2xl font-bold text-slate-900 tracking-tight">
-              {formatCurrency(resumenData.utilidadNeta)}
+            <div className="flex items-center gap-2">
+              <div className="text-2xl font-bold text-slate-900 tracking-tight">
+                {formatCurrency(Math.abs(Number(resumenData.utilidadNeta || 0)))}
+              </div>
+              <span
+                className={cn(
+                  'text-[10px] font-black px-2 py-1 rounded-full border',
+                  Number(resumenData.utilidadNeta || 0) < 0
+                    ? 'bg-rose-50 text-rose-700 border-rose-200'
+                    : 'bg-emerald-50 text-emerald-700 border-emerald-200',
+                )}
+              >
+                {Number(resumenData.utilidadNeta || 0) < 0 ? 'PÉRDIDA' : 'GANANCIA'}
+              </span>
             </div>
             <div className="mt-2 text-xs text-slate-500 font-medium">
-              Utilidad Operativa
+              Utilidad operativa
             </div>
           </div>
 
@@ -1191,38 +1203,22 @@ const ModuloContableContent = () => {
               </div>
 
               <div className="p-6 space-y-5">
-                <div className="grid grid-cols-2 gap-3">
-                  {userRole === 'SUPER_ADMINISTRADOR' && (
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setCrearCajaForm((p) => ({
-                          ...p,
-                          tipo: 'PRINCIPAL',
-                          rutaId: '',
-                        }))
-                      }
-                      className={cn(
-                        'px-4 py-3 rounded-2xl border text-sm font-bold transition-colors',
-                        crearCajaForm.tipo === 'PRINCIPAL'
-                          ? 'bg-blue-600 text-white border-blue-600'
-                          : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
-                      )}
-                    >
-                      Caja Principal
-                    </button>
-                  )}
+                <div className="grid grid-cols-1 gap-3">
                   <button
                     type="button"
-                    onClick={() => setCrearCajaForm((p) => ({ ...p, tipo: 'RUTA' }))}
+                    onClick={() =>
+                      setCrearCajaForm((p) => ({
+                        ...p,
+                        tipo: 'PRINCIPAL',
+                        rutaId: '',
+                      }))
+                    }
                     className={cn(
                       'px-4 py-3 rounded-2xl border text-sm font-bold transition-colors w-full',
-                      crearCajaForm.tipo === 'RUTA' || userRole !== 'SUPER_ADMINISTRADOR'
-                        ? 'bg-blue-600 text-white border-blue-600'
-                        : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+                      'bg-blue-600 text-white border-blue-600'
                     )}
                   >
-                    Caja por Ruta
+                    Caja Principal
                   </button>
                 </div>
 
@@ -1252,32 +1248,6 @@ const ModuloContableContent = () => {
                       ))}
                     </select>
                   </div>
-
-                  {crearCajaForm.tipo === 'RUTA' && (
-                    <div className="space-y-2 md:col-span-2">
-                      <label className="text-sm font-bold text-slate-700">Ruta</label>
-                      <select
-                        value={crearCajaForm.rutaId}
-                        onChange={(e) =>
-                          setCrearCajaForm((p) => ({
-                            ...p,
-                            rutaId: e.target.value,
-                          }))
-                        }
-                        className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-900"
-                      >
-                        <option value="">Seleccionar ruta...</option>
-                        {(Array.isArray(rutasDisponibles) ? rutasDisponibles : []).map((r) => {
-                          const responsableNombre = usuariosList.find(u => u.id === r.cobradorId)?.nombres || 'Sin asignar';
-                          return (
-                            <option key={r.id} value={r.id}>
-                                {r.nombre} • {responsableNombre}
-                            </option>
-                          )
-                        })}
-                      </select>
-                    </div>
-                  )}
 
                   <div className="space-y-2 md:col-span-2">
                     <label className="text-sm font-bold text-slate-700">Saldo inicial</label>

@@ -696,6 +696,12 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
         finales.sort((a: any, b: any) => {
           if (a.estado === 'pagado' && b.estado !== 'pagado') return 1;
           if (a.estado !== 'pagado' && b.estado === 'pagado') return -1;
+
+          // Créditos diarios: mantener siempre el orden manual (drag&drop)
+          if (a.periodoRuta === 'DIA' && b.periodoRuta === 'DIA') {
+            return a.ordenVisita - b.ordenVisita;
+          }
+
           if (a.fechaUltimoPago !== b.fechaUltimoPago) return a.fechaUltimoPago - b.fechaUltimoPago;
           return a.ordenVisita - b.ordenVisita;
         });
@@ -1060,10 +1066,52 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
     return '#94a3b8'
   }, [])
 
-  const handleRegistrarPago = useCallback((visitaId: string, montoPagado: number, metodo: 'EFECTIVO' | 'TRANSFERENCIA', comprobante: File | null) => {
-    console.log(`Registra pago de ${montoPagado} para visita ${visitaId} (${metodo})`, comprobante)
-    setShowPaymentModal(false)
-  }, [])
+  const handleRegistrarPago = useCallback(async (visitaId: string, montoPagado: number, metodo: 'EFECTIVO' | 'TRANSFERENCIA', comprobante: File | null) => {
+    const visita = visitasBase.find(v => v.id === visitaId)
+    if (!visita?.prestamoId || !visita?.clienteId) {
+      toast.error('No se pudo registrar el pago: visita inválida')
+      return
+    }
+    if (!userSession?.id) {
+      toast.error('No se pudo registrar el pago: sesión inválida')
+      return
+    }
+
+    try {
+      setIsLoading(true)
+      await prestamosService.registrarPago({
+        prestamoId: visita.prestamoId,
+        clienteId: visita.clienteId,
+        monto: montoPagado,
+        metodoPago: metodo,
+        comprobante,
+        esAbono: pagoInitialIsAbono,
+        cobradorId: userSession.id,
+      })
+
+      // Marcar como pagado si completó la cuota del período (para que desaparezca del diario)
+      setVisitasBase(prev => prev.map(v => {
+        if (v.id !== visitaId) return v
+        const montoCuotaPrev = Number(v.montoCuota || 0)
+        const recPrev = Number((v as any).recaudadoDelDia || 0)
+        const recNuevo = recPrev + Number(montoPagado || 0)
+        const cuotaCompletada = montoCuotaPrev > 0 && recNuevo >= (montoCuotaPrev - 1)
+        return {
+          ...v,
+          recaudadoDelDia: recNuevo,
+          estado: cuotaCompletada ? 'pagado' : v.estado,
+        } as any
+      }))
+
+      toast.success('Pago registrado')
+      setShowPaymentModal(false)
+    } catch (e) {
+      console.error('Error registrando pago (SupervisorCobroView):', e)
+      toast.error('No se pudo registrar el pago')
+    } finally {
+      setIsLoading(false)
+    }
+  }, [visitasBase, userSession?.id, pagoInitialIsAbono])
   const handleCrearCredito = useCallback(async (data: any) => {
     try {
       setIsLoading(true)
@@ -2227,7 +2275,8 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
             setVisitaPagoSeleccionadaId(null)
           }}
           onConfirm={(data) => {
-            handleRegistrarPago(data.clienteId, data.monto, 'EFECTIVO', data.comprobante)
+            if (!visitaPagoSeleccionadaId) return
+            handleRegistrarPago(visitaPagoSeleccionadaId, data.monto, 'EFECTIVO', data.comprobante)
           }}
           initialIsAbono={pagoInitialIsAbono}
           initialVisita={visitaPagoSeleccionadaId ? visitasCobrador.find(v => v.id === visitaPagoSeleccionadaId) : undefined}

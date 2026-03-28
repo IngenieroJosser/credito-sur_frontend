@@ -750,8 +750,13 @@ const VistaCobrador = () => {
             if (a.ordenVisita !== b.ordenVisita) {
               return a.ordenVisita - b.ordenVisita;
             }
-            
-            // 3. Fallback a fechaUltimoPago (más antigua primero)
+
+            // Créditos diarios: mantener siempre el orden manual (drag&drop)
+            if (a.periodoRuta === 'DIA' && b.periodoRuta === 'DIA') {
+              return 0;
+            }
+
+            // 3. Fallback a fechaUltimoPago (más antigua primero) — solo no diarios
             return a.fechaUltimoPago - b.fechaUltimoPago;
           });
           
@@ -1085,9 +1090,14 @@ const VistaCobrador = () => {
           for (const p of pagosData) {
             const raw = p.fechaPago || p.creadoEn;
             if (!raw) continue;
-            // Manejar compatibilidad TimeZone local vs UTC asegurando el día correcto
-            const dStr = typeof raw === 'string' ? raw.split('T')[0] : new Date(raw).toISOString().split('T')[0];
-            const pk = dStr;
+
+            const pk = (() => {
+              if (typeof raw === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw;
+              const d = new Date(raw);
+              if (isNaN(d.getTime())) return '';
+              return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+            })();
+            if (!pk) continue;
             const cobradorMatch = userSession?.id ? (p.cobradorId === userSession.id) : true;
             if (next[pk] && !next[pk].loaded && cobradorMatch) {
                next[pk].resumen.recaudo += Number(p.montoTotal || 0);
@@ -1589,17 +1599,21 @@ const VistaCobrador = () => {
       })
 
       // Actualizar estado local (optimista) para reflejar pago
+      // Regla: si con el pago completó la cuota del período, la visita se marca como 'pagado'
+      // para que desaparezca del listado diario.
       setVisitasBase(prev => prev.map(v => {
-        if (v.id === visitaPagoSeleccionada.id) {
-           const nuevoSaldo = Math.max(0, v.saldoTotal - monto);
-           return {
-              ...v,
-              saldoTotal: nuevoSaldo,
-              estado: nuevoSaldo <= 0 ? 'pagado' : 'pendiente', // Lógica simplificada
-              montoCuota: nuevoSaldo <= 0 ? 0 : v.montoCuota
-           }
+        if (v.id !== visitaPagoSeleccionada.id) return v
+
+        const montoCuotaPrev = Number(v.montoCuota || 0)
+        const recaudadoPrev = Number(v.recaudadoDelDia || 0)
+        const recaudadoNuevo = recaudadoPrev + Number(monto || 0)
+        const cuotaCompletada = montoCuotaPrev > 0 && recaudadoNuevo >= (montoCuotaPrev - 1)
+
+        return {
+          ...v,
+          recaudadoDelDia: recaudadoNuevo,
+          estado: cuotaCompletada ? 'pagado' : v.estado,
         }
-        return v
       }))
 
       // Sincronizar inmediatamente la visita con la próxima cuota real del préstamo
@@ -1611,13 +1625,15 @@ const VistaCobrador = () => {
           if (v.id !== visitaPagoSeleccionada.id) return v;
           const nuevoRecaudoDia = Number(v.recaudadoDelDia || 0) + Number(monto || 0);
           const nuevoRecaudoTotalClient = Number(v.recaudadoTotalClient || 0) + Number(monto || 0);
+          const cuotaPrev = Number(v.montoCuota || 0);
+          const cuotaCompletada = cuotaPrev > 0 && nuevoRecaudoDia >= (cuotaPrev - 1);
           if (proxima) {
             const nuevoEstado: EstadoVisita = (proxima.estado as any) === 'ATRASADA' ? 'en_mora' : 'pendiente';
             return {
               ...v,
               proximaVisita: proxima.fechaVencimiento || v.proximaVisita,
               montoCuota: Number(proxima.monto || v.montoCuota),
-              estado: nuevoEstado,
+              estado: cuotaCompletada ? 'pagado' : nuevoEstado,
               recaudadoDelDia: nuevoRecaudoDia,
               recaudadoTotalClient: nuevoRecaudoTotalClient
             };

@@ -29,11 +29,13 @@ export default function DetalleReporteOperativoPage({
       setLoading(true);
       try {
         const data = await reportesCoordinadorService.getRouteDetail(id, 'today');
+        const hoyD = new Date();
+        const hoy = `${hoyD.getFullYear()}-${String(hoyD.getMonth() + 1).padStart(2, '0')}-${String(hoyD.getDate()).padStart(2, '0')}`;
         setReporte({
           id,
           ruta: data.ruta?.nombre || '',
           cobrador: data.ruta?.cobrador ? `${data.ruta.cobrador.nombres} ${data.ruta.cobrador.apellidos}` : '',
-          fecha: data.periodo?.inicio || new Date().toISOString().split('T')[0],
+          fecha: data.periodo?.inicio || hoy,
           meta: 0,
           recaudado: data.estadisticas?.totalRecaudado || 0,
           eficiencia: data.estadisticas?.totalRecaudado && data.estadisticas?.totalClientes ? Math.round((data.estadisticas.totalPagos / data.estadisticas.totalClientes) * 100) : 0,

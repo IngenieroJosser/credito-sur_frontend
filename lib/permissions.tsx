@@ -763,14 +763,58 @@ export const obtenerModulos = (rol: Rol, sidebarData?: SidebarModulo[]): ModuloP
     return result;
   };
 
+  const ensureStableIds = (modulos: ModuloPermiso[]): ModuloPermiso[] => {
+    const stableId = (m: ModuloPermiso, parentId?: string) => {
+      if (m.id) return m.id;
+      const base = String(m.path || m.nombre || '').trim();
+      const norm = base
+        .toLowerCase()
+        .replace(/^\/+/, '')
+        .replace(/[^a-z0-9]+/g, '-');
+      return `${parentId ? `${parentId}-` : ''}${norm || 'modulo'}`;
+    };
+
+    return modulos.map((m) => {
+      const id = stableId(m);
+      if (!m.submodulos || m.submodulos.length === 0) return { ...m, id };
+      return {
+        ...m,
+        id,
+        submodulos: m.submodulos.map((s) => ({ ...s, id: stableId(s, id) })),
+      };
+    });
+  };
+
+  const dedupeArticulos = (modulos: ModuloPermiso[]): ModuloPermiso[] => {
+    const normalizePath = (p?: string | null) => (p ? p.split('?')[0]?.split('#')[0] : p) || '';
+    let hasAdminArticulos = false;
+    for (const m of modulos) {
+      if (normalizePath(m.path) === '/admin/articulos') hasAdminArticulos = true;
+      for (const s of m.submodulos || []) {
+        if (normalizePath(s.path) === '/admin/articulos') hasAdminArticulos = true;
+      }
+    }
+    if (!hasAdminArticulos) return modulos;
+
+    const filterOut = (p?: string | null) => normalizePath(p) === '/articulos';
+    return modulos
+      .filter((m) => !filterOut(m.path))
+      .map((m) => {
+        if (!m.submodulos || m.submodulos.length === 0) return m;
+        const subs = m.submodulos.filter((s) => !filterOut(s.path));
+        return { ...m, submodulos: subs };
+      })
+      .filter((m) => m.path !== '#' || (m.submodulos && m.submodulos.length > 0));
+  };
+
   if (sidebarData && sidebarData.length > 0) {
     const dynamic = filterForFloatingButtons(applyAliases(buildSidebarFromApi(sidebarData)));
-    return ensureCuratedAdminModules(dynamic);
+    return ensureStableIds(dedupeArticulos(ensureCuratedAdminModules(dynamic)));
   }
   if (ROLES_CONOCIDOS.includes(rol)) {
-    return ensureCuratedAdminModules(filterForFloatingButtons(applyAliases(obtenerModulosPorRol(rol))));
+    return ensureStableIds(dedupeArticulos(ensureCuratedAdminModules(filterForFloatingButtons(applyAliases(obtenerModulosPorRol(rol))))));
   }
-  return ensureCuratedAdminModules(filterForFloatingButtons(applyAliases(buildSidebarFromApi(sidebarData || []))));
+  return ensureStableIds(dedupeArticulos(ensureCuratedAdminModules(filterForFloatingButtons(applyAliases(buildSidebarFromApi(sidebarData || []))))));
 };
 
 // Verificar si un usuario tiene acceso a una ruta

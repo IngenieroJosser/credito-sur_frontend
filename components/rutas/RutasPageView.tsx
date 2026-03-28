@@ -389,10 +389,11 @@ export const RutasPageView = ({
       ])
       const saldo = saldoResp?.recaudoDelDia ?? saldoResp?.saldoDisponible ?? 0
       setSaldoDisponibleRecolectar(saldo)
-      const cajaRuta = cajasResp.find(c => c.rutaId === ruta.id) ||
-                       cajasResp.find(c => c.tipo === 'RUTA') ||
-                       (saldoResp && (saldoResp as any).cajaId ? cajasResp.find(c => c.id === (saldoResp as any).cajaId) : null)
-      setCajaRutaIdRecolectar((saldoResp as any)?.cajaId || cajaRuta?.id || null)
+      const cajaIdBackend = (saldoResp as any)?.cajaId as (string | undefined)
+      const cajaRuta = cajaIdBackend
+        ? cajasResp.find(c => c.id === cajaIdBackend)
+        : cajasResp.find(c => c.rutaId === ruta.id)
+      setCajaRutaIdRecolectar(cajaRuta?.id || null)
     } catch (e) {
       console.error('Error cargando saldo:', e)
       setErrorRecolectar('No se pudo cargar el saldo de la ruta')

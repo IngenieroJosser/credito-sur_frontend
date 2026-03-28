@@ -608,7 +608,7 @@ const DetalleRutaPage = () => {
 
   useEffect(() => {
     if (!showHistory || !rutaId) return;
-    const hoy = new Date().toISOString().split('T')[0];
+    const hoy = getLocalIsoKey(new Date());
     const existing = (historialRutas || {})[hoy];
     if (!existing || (!existing.loaded)) {
       cargarHistorialFecha(hoy);
