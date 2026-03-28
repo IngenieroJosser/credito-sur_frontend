@@ -387,7 +387,7 @@ export const RutasPageView = ({
         obtenerSaldoDisponibleRuta(ruta.id),
         getCajas(),
       ])
-      const saldo = saldoResp?.recaudoDelDia ?? saldoResp?.saldoDisponible ?? 0
+      const saldo = saldoResp?.saldoCaja ?? saldoResp?.saldoDisponible ?? 0
       setSaldoDisponibleRecolectar(saldo)
       const cajaIdBackend = (saldoResp as any)?.cajaId as (string | undefined)
       const cajaRuta = cajaIdBackend
@@ -414,6 +414,7 @@ export const RutasPageView = ({
       await consolidarCaja(cajaRutaIdRecolectar, monto)
       setShowRecolectarModal(false)
       showNotification('success', `Se recolectaron ${monto.toLocaleString('es-CO', { style: 'currency', currency: 'COP' })} de la ruta hacia Caja de Oficina`, 'Recoleccion exitosa')
+      await fetchRutas()
     } catch (e: any) {
       setErrorRecolectar(e?.message || 'No se pudo recolectar. Intenta de nuevo.')
     } finally {
