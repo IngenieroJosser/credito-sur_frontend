@@ -207,6 +207,22 @@ const ModuloContableContent = () => {
   const [cajas, setCajas] = useState<Caja[]>([])
   const [isLoading, setIsLoading] = useState(true)
 
+  const fetchTransaccionesAll = useCallback(
+    async (params: Parameters<typeof getTransacciones>[0]) => {
+      const first = await getTransacciones({ ...params, page: 1, limit: params?.limit ?? 500 })
+      const data = [...(first?.data || [])]
+      const totalPages = Number(first?.meta?.totalPages || 1)
+
+      for (let page = 2; page <= totalPages; page++) {
+        const resp = await getTransacciones({ ...params, page, limit: params?.limit ?? 500 })
+        if (resp?.data?.length) data.push(...resp.data)
+      }
+
+      return data
+    },
+    [],
+  )
+
   // Formularios controlados
   const [crearCajaForm, setCrearCajaForm] = useState({
     tipo: 'PRINCIPAL' as Caja['tipo'],
@@ -393,8 +409,25 @@ const ModuloContableContent = () => {
       const fechaHoy = new Date().toISOString().split('T')[0];
       const resumen = await getResumenFinanciero('2020-01-01', fechaHoy);
       if (resumen) {
+        const ingresosPagos = await (async () => {
+          const trans = await fetchTransaccionesAll({
+            tipo: 'INGRESO',
+            fechaInicio: '2020-01-01',
+            fechaFin: fechaHoy,
+            limit: 500,
+          })
+
+          return trans
+            .filter((t: any) => String(t?.estado || '').toUpperCase() === 'APROBADO')
+            .filter((t: any) => {
+              const cat = String(t?.categoria || '').toUpperCase()
+              return cat === 'PAGO' || cat === 'ABONO'
+            })
+            .reduce((acc: number, t: any) => acc + Number(t?.monto || 0), 0)
+        })()
+
         setResumenData({
-          ingresosHoy: resumen.ingresosHoy,
+          ingresosHoy: ingresosPagos,
           egresosHoy: resumen.egresosHoy,
           utilidadNeta: resumen.gananciaNeta,
           capitalEnCalle: resumen.capitalEnCalle,
@@ -778,23 +811,6 @@ const ModuloContableContent = () => {
             </div>
           </div>
 
-          {(['ADMIN', 'SUPER_ADMINISTRADOR', 'CONTADOR', 'COORDINADOR'] as any[]).includes(userRole) && 
-            !isLoading && 
-            resumenData.consolidacionesHoy > 0 &&
-            resumenData.rutasPendientesConsolidacion === 0 && 
-            resumenData.rutasAbiertas === 0 && (
-            <button
-              type="button"
-              onClick={() => {
-                toast.success('Cierre de operación realizado con éxito. El reporte diario ha sido generado.')
-                // Aquí iría la llamada al backend para consolidar el día
-              }}
-              className="px-6 py-2.5 rounded-xl font-bold text-sm transition-all shadow-lg flex items-center gap-2 relative z-10 bg-emerald-600 text-white hover:bg-emerald-700 shadow-emerald-500/20 active:scale-95 animate-in zoom-in duration-300"
-            >
-              <CheckCircle2 className="h-4 w-4" />
-              Cierre Total de Operación
-            </button>
-          )}
         </div>
 
         {/* Tarjetas de Resumen Minimalistas */}
@@ -2167,27 +2183,18 @@ const ModuloContableContent = () => {
                                         .filter(m => {
                                             if (!cajaSeleccionada && m.categoria === 'CONSOLIDACION') return false;
                                             if (detalleTipo === 'INGRESOS') {
-                                                if (m.tipo === 'INGRESO') return true;
-                                                if (m.tipo === 'EGRESO') return false;
-                                                if (m.tipo === 'TRANSFERENCIA') {
-                                                    const concepto = m.concepto.toUpperCase();
-                                                    const esSalida = concepto.includes('SALIDA') || 
-                                                                   concepto.includes('ENVIADA A') || 
-                                                                   concepto.includes('EGRESO');
-                                                    return !esSalida;
+                                                if (m.tipo === 'INGRESO') {
+                                                  const categoria = String(m.categoria || '').toUpperCase();
+                                                  return categoria === 'PAGO' || categoria === 'ABONO';
                                                 }
+                                                return false;
                                             } else {
                                                 if (m.tipo === 'EGRESO') return true;
-                                                if (m.tipo === 'INGRESO') return false;
-                                                if (m.tipo === 'TRANSFERENCIA') {
-                                                    const concepto = m.concepto.toUpperCase();
-                                                    const esSalida = concepto.includes('SALIDA') || 
-                                                                   concepto.includes('ENVIADA A') || 
-                                                                   concepto.includes('EGRESO');
-                                                    return esSalida;
-                                                }
+                                                return false;
                                             }
-                                            return false;
+                                        })
+                                        .filter(m => {
+                                            return String(m.estado || '').toUpperCase() === 'APROBADO';
                                         })
                                         .filter(m => {
                                             if (!cajaSeleccionada) return true;
@@ -2268,29 +2275,17 @@ const ModuloContableContent = () => {
                                           if (!cajaSeleccionada && m.categoria === 'CONSOLIDACION') return false;
                                           if (detalleTipo === 'INGRESOS') {
                                             if (m.tipo === 'INGRESO') {
-                                              if (m.categoria === 'SOLICITUD_BASE' || m.categoria === 'SOLICITUD_BASE_EFECTIVO') return false;
-                                              return true;
+                                              const categoria = String(m.categoria || '').toUpperCase();
+                                              return categoria === 'PAGO' || categoria === 'ABONO';
                                             }
-                                            if (m.tipo === 'EGRESO') return false;
-                                            if (m.tipo === 'TRANSFERENCIA') {
-                                              const concepto = m.concepto.toUpperCase();
-                                              const esSalida = concepto.includes('SALIDA') || 
-                                                               concepto.includes('ENVIADA A') || 
-                                                               concepto.includes('EGRESO');
-                                              return !esSalida;
-                                            }
+                                            return false;
                                           } else {
                                             if (m.tipo === 'EGRESO') return true;
-                                            if (m.tipo === 'INGRESO') return false;
-                                            if (m.tipo === 'TRANSFERENCIA') {
-                                              const concepto = m.concepto.toUpperCase();
-                                              const esSalida = concepto.includes('SALIDA') || 
-                                                               concepto.includes('ENVIADA A') || 
-                                                               concepto.includes('EGRESO');
-                                              return esSalida;
-                                            }
+                                            return false;
                                           }
-                                          return false;
+                                        })
+                                        .filter(m => {
+                                          return String(m.estado || '').toUpperCase() === 'APROBADO';
                                         })
                                         .filter(m => {
                                           if (!cajaSeleccionada) return true;
@@ -2353,24 +2348,14 @@ const ModuloContableContent = () => {
                           {(movimientosDetalle.length ? movimientosDetalle : (!cajaSeleccionada && movimientosModalGlobal.length ? movimientosModalGlobal : movimientos))
                             .filter(m => {
                               if (!cajaSeleccionada && m.categoria === 'CONSOLIDACION') return false;
-                              let isIngreso = false;
-
-                              if (m.tipo === 'INGRESO') {
-                                if (m.categoria === 'SOLICITUD_BASE' || m.categoria === 'SOLICITUD_BASE_EFECTIVO') return false;
-                                isIngreso = true;
-                              } else if (m.tipo === 'EGRESO') {
-                                isIngreso = false;
-                              } else if (m.tipo === 'TRANSFERENCIA') {
-                                const concepto = m.concepto.toUpperCase();
-                                const esSalida = concepto.includes('SALIDA') || 
-                                                 concepto.includes('ENVIADA A') || 
-                                                 concepto.includes('EGRESO');
-                                isIngreso = !esSalida;
+                              if (detalleTipo === 'INGRESOS') {
+                                if (m.tipo !== 'INGRESO') return false;
+                                const categoria = String(m.categoria || '').toUpperCase();
+                                return categoria === 'PAGO' || categoria === 'ABONO';
                               }
-                              
-                              if (detalleTipo === 'INGRESOS') return isIngreso;
-                              return !isIngreso;
+                              return m.tipo === 'EGRESO';
                             })
+                            .filter(m => String(m.estado || '').toUpperCase() === 'APROBADO')
                             .filter(m => {
                               if (cajaSeleccionada) {
                                 return m.cajaId === cajaSeleccionada.id;
