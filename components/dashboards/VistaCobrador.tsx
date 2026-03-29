@@ -2560,6 +2560,12 @@ const VistaCobrador = () => {
 
   const visitasCobrador = useMemo(() => {
 
+    const pagosEnriquecidos = (visitasBase || []).some(v => v.recaudadoTotalClient !== undefined)
+
+    if (!showHistory && !showMisClientes && (visitasBase || []).length > 0 && !pagosEnriquecidos) {
+      return []
+    }
+
     // Calcular inicio del período actual según frecuencia del crédito
 
     const getInicioPeriodoStr = (periodo: string): string => {
@@ -2642,9 +2648,9 @@ const VistaCobrador = () => {
 
 
 
-        // Para diarios: si ya pagó algo hoy, no mostrar de nuevo
+        // Para diarios: ocultar solo si completó la cuota de HOY
 
-        if (v.periodoRuta === 'DIA' && Number(v.recaudadoDelDia || 0) > 0) return false;
+        if (v.periodoRuta === 'DIA' && montoCuota > 0 && Number(v.recaudadoDelDia || 0) >= (montoCuota - 1)) return false;
 
 
 
@@ -3378,6 +3384,8 @@ const VistaCobrador = () => {
 
             const prestamoActivo = prestamos.find((p: any) => p.estado === 'ACTIVO' || p.estado === 'VENCIDO') || prestamos[0] || {};
 
+            const visitaId = prestamoActivo?.id ? `${asig.id}-${prestamoActivo.id}` : (asig.id || `asig-${index}`);
+
             const proximaCuota = prestamoActivo.proximaCuota || null;
 
             const saldoTotal = Number(prestamoActivo.saldoPendiente || 0);
@@ -3386,7 +3394,7 @@ const VistaCobrador = () => {
 
             // Buscar la visita previa para conservar datos cuando el backend no los trae
 
-            const visitaPrevia = visitasBase.find(vb => vb.id === (asig.id || `asig-${index}`));
+            const visitaPrevia = visitasBase.find(vb => vb.id === visitaId);
 
 
 
@@ -3422,7 +3430,7 @@ const VistaCobrador = () => {
 
             return {
 
-              id: asig.id || `asig-${index}`,
+              id: visitaId,
 
               cliente: `${cliente.nombres || ''} ${cliente.apellidos || ''}`.trim() || 'Cliente Sin Nombre',
 

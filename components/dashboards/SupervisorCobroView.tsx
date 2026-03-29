@@ -1660,19 +1660,32 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
 
   const visitasCobrador = useMemo(() => {
 
+    const pagosEnriquecidos = (visitasBase || []).some(v => (v as any).recaudadoTotalClient !== undefined)
+
+    if (!showHistory && !showMisClientes && (visitasBase || []).length > 0 && !pagosEnriquecidos) {
+      return []
+    }
+
     const searched = (visitasBase || []).filter(v =>
-
       v.cliente.toLowerCase().includes(searchQuery.toLowerCase()) ||
-
       v.direccion.toLowerCase().includes(searchQuery.toLowerCase())
-
     )
 
 
 
     // Al pagar la cuota, desaparece de la ruta até el próximo vencimiento
 
-    const filtered = searched.filter(v => v.estado !== 'pagado');
+    const filtered = searched.filter(v => {
+
+      if (v.estado === 'pagado') return false
+
+      const montoCuota = Number(v.montoCuota || 0)
+
+      if (v.periodoRuta === 'DIA' && montoCuota > 0 && Number(v.recaudadoDelDia || 0) >= (montoCuota - 1)) return false
+
+      return true
+
+    })
 
 
 
