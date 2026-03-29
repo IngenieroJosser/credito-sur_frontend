@@ -946,17 +946,40 @@ const RutaClientLoaded = ({
 
   const { visitasAgrupadas, totalMostradas, exportarRutaDiariaCSV, exportarRutaDiariaPDF } = useMemo(() => {
 
+    const pagosEnriquecidos = visitasCobrador.some(v => v.recaudadoTotalClient !== undefined)
+
+    if (!showHistory && !showMisClientes && !pagosEnriquecidos) {
+      return {
+        visitasAgrupadas: { MES: [], QUINCENA: [], SEMANA: [], DIA: [] },
+        totalMostradas: 0,
+        exportarRutaDiariaCSV: async () => {},
+        exportarRutaDiariaPDF: async () => {},
+      }
+    }
+
     const hoy = new Date();
 
     hoy.setHours(0, 0, 0, 0);
 
 
 
-    let filtradas = visitasCobrador.filter(v => 
-      (v.cliente.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      v.direccion.toLowerCase().includes(searchQuery.toLowerCase())) &&
-      v.estado !== 'pagado'
-    );
+    let filtradas = visitasCobrador.filter(v => {
+
+      const matches =
+        v.cliente.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        v.direccion.toLowerCase().includes(searchQuery.toLowerCase())
+
+      if (!matches) return false
+
+      if (v.estado === 'pagado') return false
+
+      const montoCuota = Number(v.montoCuota || 0)
+
+      if (v.periodoRuta === 'DIA' && montoCuota > 0 && Number(v.recaudadoDelDia || 0) >= (montoCuota - 1)) return false
+
+      return true
+
+    });
 
 
 
