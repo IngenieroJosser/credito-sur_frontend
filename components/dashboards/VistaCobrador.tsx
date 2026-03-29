@@ -553,18 +553,75 @@ const VistaCobrador = () => {
   const router = useRouter();
 
 
-
   // Datos base - se cargan desde el backend
 
   const [visitasBase, setVisitasBase] = useState<VisitaRuta[]>([])
-
+  
   const [visitasSelectorFallback, setVisitasSelectorFallback] = useState<VisitaRuta[]>([])
-
-
 
   const [visitasOrden, setVisitasOrden] = useState<string[]>([])
 
+  const metaCalculada = useMemo(() => {
 
+    const { inicio, fin } = getDatesByPeriod(periodoCards)
+
+    const ini = new Date(inicio)
+
+    const fi = new Date(fin)
+
+    ini.setHours(0, 0, 0, 0)
+
+    fi.setHours(0, 0, 0, 0)
+
+    const toDateOnly = (raw: string) => {
+      if (!raw) return null
+      const d = new Date(raw)
+      if (isNaN(d.getTime())) return null
+      d.setHours(0, 0, 0, 0)
+      return d
+    }
+
+    const inRange = (raw: string) => {
+      const d = toDateOnly(raw)
+      if (!d) return false
+      return d.getTime() >= ini.getTime() && d.getTime() <= fi.getTime()
+    }
+
+    return (visitasBase || []).reduce((sum, v: any) => {
+
+      const cuota = Number(v.montoCuota || 0)
+
+      if (!cuota || cuota <= 0) return sum
+
+      const vence = v.targetVencimiento || v.proximaVisita
+
+      const esMora = v.estado === 'en_mora'
+
+      if (esMora || (vence && inRange(vence))) return sum + cuota
+
+      return sum
+
+    }, 0)
+
+  }, [visitasBase, periodoCards])
+
+  useEffect(() => {
+
+    setRutaStats(prev => {
+
+      const meta = Number(metaCalculada || 0)
+
+      const recaudo = Number(prev.recaudo || 0)
+
+      const eficiencia = meta > 0 ? Math.round((recaudo / meta) * 100) : 0
+
+      if (Number(prev.meta || 0) === meta && prev.eficiencia === eficiencia) return prev
+
+      return { ...prev, meta, eficiencia }
+
+    })
+
+  }, [metaCalculada])
 
   const [operacionesCaja, setOperacionesCaja] = useState<OperacionCaja[]>([])
 
