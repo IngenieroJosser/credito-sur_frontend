@@ -12,331 +12,489 @@
 
  * Adaptación de VistaCobrador para que el Supervisor pueda gestionar rutas.
 
- */
 
+ */
 
 
 import { useState, useEffect, useMemo, useCallback } from 'react'
 
+
 import { useRealtimeData } from '@/hooks/useRealtimeData'
 
+
 import {
+
 
   MapPin,
 
+
   RefreshCw,
+
 
   CheckCircle2,
 
+
   History,
+
 
   UserPlus,
 
+
   Receipt,
+
 
   DollarSign,
 
+
   ChevronDown,
+
 
   X,
 
+
   CreditCard,
+
 
   GripVertical,
 
+
   Calendar,
+
 
   Search,
 
+
   FileText as FileTextIcon,
+
 
   User,
 
+
   Target,
+
 
   ReceiptText,
 
+
   AlertTriangle,
+
 
   Wallet,
 
+
   FileDown,
+
 
 } from 'lucide-react'
 
+
 import ConfirmModal from '@/components/ui/ConfirmModal'
 
+
 import {
+
 
   DndContext,
 
+
   closestCenter,
+
 
   KeyboardSensor,
 
+
   PointerSensor,
+
 
   useSensor,
 
+
   useSensors,
+
 
   DragEndEvent,
 
+
   DragStartEvent,
+
 
   DragOverlay,
 
+
 } from '@dnd-kit/core'
+
 
 import {
 
+
   arrayMove,
+
 
   SortableContext,
 
+
   sortableKeyboardCoordinates,
+
 
   verticalListSortingStrategy,
 
+
 } from '@dnd-kit/sortable'
+
 
 import { useRouter } from 'next/navigation'
 
+
 import { RolUsuario } from '@/lib/types/autenticacion-type'
+
 
 import { obtenerPerfil } from '@/services/autenticacion-service'
 
+
 import { formatCurrency } from '@/lib/utils'
+
 
 import NuevoClienteModal from '@/components/clientes/NuevoClienteModal'
 
+
 import { VisitaRuta, EstadoVisita, PeriodoRuta, HistorialDia } from '@/lib/types/cobranza'
+
 
 import { StaticVisitaItem, SortableVisita, Portal, MODAL_Z_INDEX, SeleccionClienteModal } from '@/components/dashboards/shared/CobradorElements'
 
+
 import { rutasService } from '@/services/rutas-service'
+
 
 import { TipoAmortizacion } from '@/types/enums'
 
+
 import EstadoCuentaModal from '@/components/cobranza/EstadoCuentaModal'
+
 
 import PagoModal from '@/components/dashboards/shared/PagoModal'
 
+
 import CrearCreditoModal from '@/components/dashboards/shared/CrearCreditoModal'
+
 
 import ReprogramarModal from '@/components/cobranza/ReprogramarModal'
 
+
 import GastoModal from '@/components/dashboards/shared/GastoModal'
+
 
 import BaseModal from '@/components/dashboards/shared/BaseModal'
 
+
 import DetalleMoraModal from '@/components/cobranza/DetalleMoraModal'
+
 
 import FloatingActionMenu, { FabAction } from '@/components/dashboards/shared/FloatingActionMenu'
 
+
 import { prestamosService } from '@/services/prestamos-service'
+
 
 import { pagosService } from '@/services/pagos-service'
 
+
 import { obtenerSaldoDisponibleRuta, getRutaCierreHoy } from '@/services/contabilidad-service'
+
 
 import { routesService as routesApi } from '@/services/routes-service'
 
+
 import { exportService } from '@/services/export-service'
 
+
 import { useNotificaciones } from '@/components/providers/NotificacionesProvider'
+
 
 import { toast } from 'sonner'
 
 
+/**
+
+
+ * UserSession es la información del usuario que se almacena en el contexto de la aplicación.
+
+
+ */
+
 
 interface UserSession {
 
+
   id: string
+
 
   nombres: string
 
+
   apellidos: string
+
 
   correo?: string
 
+
   telefono?: string
+
 
   rol: RolUsuario
 
+
   rutaAsignada?: string
+
 
   zona?: string
 
+
   metaDiaria?: number
 
+
   avatar?: string
+
 
 }
 
 
-
 const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
+
 
   const { socket } = useNotificaciones()
 
+
   const [userSession, setUserSession] = useState<UserSession | null>(null)
+
 
   const [visitaSeleccionada, setVisitaSeleccionada] = useState<string | null>(null)
 
+
   const [showPaymentModal, setShowPaymentModal] = useState(false)
+
 
   const [pagoInitialIsAbono, setPagoInitialIsAbono] = useState(false)
 
+
   const [visitaPagoSeleccionadaId, setVisitaPagoSeleccionadaId] = useState<string | null>(null)
 
+
   
+
 
   const [showClienteInfoModal, setShowClienteInfoModal] = useState(false)
 
+
   const [visitaClienteSeleccionada, setVisitaClienteSeleccionada] = useState<VisitaRuta | null>(null)
+
 
   const [showEstadoCuentaModal, setShowEstadoCuentaModal] = useState(false)
 
+
   const [visitaEstadoCuentaSeleccionada, setVisitaEstadoCuentaSeleccionada] = useState<VisitaRuta | null>(null)
 
+
   
+
 
   const [showMoraModal, setShowMoraModal] = useState(false)
 
+
   const [visitaMoraSeleccionada, setVisitaMoraSeleccionada] = useState<VisitaRuta | null>(null)
+
 
   const [moraCuenta, setMoraCuenta] = useState<{
 
+
     id: string
+
 
     numeroPrestamo: string
 
+
     cliente: { nombre: string; documento: string; telefono: string; direccion: string }
+
 
     diasMora: number
 
+
     montoMora: number
+
 
     montoTotalDeuda: number
 
+
     cuotasVencidas: number
+
 
     ruta: string
 
+
     cobrador: string
+
 
     nivelRiesgo: string
 
+
   } | null>(null)
+
 
   const [showNewClientModal, setShowNewClientModal] = useState(false)
 
+
   const [showReprogramModal, setShowReprogramModal] = useState(false)
+
 
   const [visitaReprogramar, setVisitaReprogramar] = useState<VisitaRuta | null>(null)
 
+
   const [showGastoModal, setShowGastoModal] = useState(false)
+
 
   const [showBaseModal, setShowBaseModal] = useState(false)
 
+
   const [activeId, setActiveId] = useState<string | null>(null)
+
 
   
 
+
   const [showCreditModal, setShowCreditModal] = useState(false)
+
 
   const [isFabOpen, setIsFabOpen] = useState(false)
 
+
   const [searchQuery, setSearchQuery] = useState('')
+
 
   const [showHistory, setShowHistory] = useState(false)
 
+
   const [showMisClientes, setShowMisClientes] = useState(false)
+
 
   const [periodoRutaFiltro, setPeriodoRutaFiltro] = useState<PeriodoRuta | 'TODOS'>('TODOS')
 
+
   const [selectedHistoryDate, setSelectedHistoryDate] = useState<string | null>(null)
 
+
   const [selectedHistoryMonth, setSelectedHistoryMonth] = useState<string | null>(null)
+
 
   const [historyViewMode, setHistoryViewMode] = useState<'DAYS' | 'MONTHS'>('DAYS')
 
 
-
   
-
 
 
   const [misCreditos, setMisCreditos] = useState<VisitaRuta[]>([])
 
+
   const [loadingMisCreditos, setLoadingMisCreditos] = useState(false)
 
+
+  
 
 
   const [gruposColapsados, setGruposColapsados] = useState<Record<string, boolean>>({})
 
+
   const toggleGrupo = useCallback(
+
 
     (key: string) => setGruposColapsados((prev) => ({ ...prev, [key]: !prev[key] })),
 
+
     [],
+
 
   )
 
 
+  
+
 
   // Selector de cliente para acciones globales
 
+
   const [showClientSelector, setShowClientSelector] = useState(false)
+
 
   const [pendingAction, setPendingAction] = useState<'CUENTA' | 'AGENDAR' | 'PAGO' | 'ABONO' | null>(null)
 
 
+  
+
 
   const [showConfirmCompleteModal, setShowConfirmCompleteModal] = useState(false)
 
+
   const [rutaCompletada, setRutaCompletada] = useState(false)
+
 
   const [rutaActivadaHoy, setRutaActivadaHoy] = useState(false)
 
+
   const rutaOperable = rutaActivadaHoy && !rutaCompletada
+
 
   const [coordinadorToast, setCoordinadorToast] = useState<string | null>(null)
 
 
+  
+
 
   const [modalAlerta, setModalAlerta] = useState<{titulo: string, mensaje: string, tipo: 'exito' | 'error' | 'info'} | null>(null)
+
 
   const [isLoading, setIsLoading] = useState(true)
 
 
+  
+
 
   // El supervisor puede gestionar pagos en CUALQUIER ruta (propia o de un cobrador)
 
+
   // isPersonal solo controla si puede reordenar la lista (drag & drop)
+
 
   const isPersonal = rutaId === 'RT-SUP' || rutaId === 'SUP-001' || !rutaId
 
+
   const isReadOnly = false  // El supervisor/admin siempre puede registrar pagos
+
 
   const [periodoCards, setPeriodoCards] = useState<'HOY' | 'SEM' | 'MES' | 'AÑO'>('HOY')
 
+
   const [rutaStats, setRutaStats] = useState<{
+
 
     recaudo: number
 
+
     meta: number
+
 
     eficiencia: number
 
+
     gastos: number
+
 
     base: number
 
+
   }>({ recaudo: 0, meta: 0, eficiencia: 0, gastos: 0, base: 0 })
 
+
   const router = useRouter();
+
 
   const [rutaInfo, setRutaInfo] = useState<{ id: string; cobradorId: string } | null>(null);
 
@@ -551,6 +709,70 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
     return { inicio: inicio.toISOString(), fin: fin.toISOString() };
 
   };
+
+
+
+  const metaCalculada = useMemo(() => {
+
+    const { inicio, fin } = getDatesByPeriod(periodoCards)
+
+    const ini = new Date(inicio)
+
+    const fi = new Date(fin)
+
+    ini.setHours(0, 0, 0, 0)
+
+    fi.setHours(0, 0, 0, 0)
+
+    const toDateOnly = (raw: string) => {
+      if (!raw) return null
+      const d = new Date(raw)
+      if (isNaN(d.getTime())) return null
+      d.setHours(0, 0, 0, 0)
+      return d
+    }
+
+    const inRange = (raw: string) => {
+      const d = toDateOnly(raw)
+      if (!d) return false
+      return d.getTime() >= ini.getTime() && d.getTime() <= fi.getTime()
+    }
+
+    return (visitasBase || []).reduce((sum, v: any) => {
+
+      const cuota = Number(v.montoCuota || 0)
+
+      if (!cuota || cuota <= 0) return sum
+
+      const vence = v.targetVencimiento || v.proximaVisita
+
+      const esMora = v.estado === 'en_mora'
+
+      if (esMora || (vence && inRange(vence))) return sum + cuota
+
+      return sum
+
+    }, 0)
+
+  }, [visitasBase, periodoCards])
+
+  useEffect(() => {
+
+    setRutaStats(prev => {
+
+      const meta = Number(metaCalculada || 0)
+
+      const recaudo = Number(prev.recaudo || 0)
+
+      const eficiencia = meta > 0 ? Math.round((recaudo / meta) * 100) : 0
+
+      if (Number(prev.meta || 0) === meta && prev.eficiencia === eficiencia) return prev
+
+      return { ...prev, meta, eficiencia }
+
+    })
+
+  }, [metaCalculada])
 
 
 
