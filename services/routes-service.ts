@@ -162,6 +162,20 @@ export const routesService = {
     return apiRequest<Route>('PATCH', `/routes/${id}/toggle-active`);
   },
 
+  async getActivacionHoy(id: string) {
+    return apiRequest<{ rutaId: string; activadaHoy: boolean; activacionId: string | null; fechaActivacion: string | null; activadaPorId: string | null }>(
+      'GET',
+      `/routes/${id}/activacion-hoy`,
+    );
+  },
+
+  async activarHoy(id: string) {
+    return apiRequest<{ rutaId: string; activadaHoy: boolean; message?: string }>(
+      'POST',
+      `/routes/${id}/activar-hoy`,
+    );
+  },
+
   // Obtener estadísticas
   async getStatistics() {
     return apiRequest<RouteStatistics>('GET', '/routes/statistics', undefined, { cacheTTL: 30000 });

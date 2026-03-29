@@ -19,7 +19,7 @@ import { logger } from '@/lib/logger'
  * - Categorización: Movimientos tipificados para facilitar reportes P&L (Ganancias y Pérdidas).
  */
 
-import React, { useState, Suspense, useEffect, useCallback } from 'react'
+import React, { useState, Suspense, useEffect, useCallback, useMemo } from 'react'
 import { createPortal } from 'react-dom'
 import { useNotification } from '@/components/providers/NotificationProvider'
 import { Rol } from '@/lib/permissions'
@@ -83,10 +83,12 @@ import Link from 'next/link'
 // Una caja puede ser la PRINCIPAL (Caja fuerte de la oficina) o DE RUTA (La billetera del cobrador).
 interface Caja {
   id: string
+  codigo?: string
   nombre: string
   tipo: 'PRINCIPAL' | 'RUTA'
   rutaId?: string // Si es de tipo RUTA, aquí guardamos a cuál pertenece
   responsable: string // Quién responde por la plata
+  responsableId?: string
   saldo: number
   estado: 'ABIERTA' | 'CERRADA'
   recaudoEsperado?: number
@@ -205,16 +207,29 @@ const ModuloContableContent = () => {
   const [cajas, setCajas] = useState<Caja[]>([])
   const [isLoading, setIsLoading] = useState(true)
 
-  const [currentPageCajas, setCurrentPageCajas] = useState(0)
-
   // Formularios controlados
   const [crearCajaForm, setCrearCajaForm] = useState({
-    tipo: 'RUTA' as Caja['tipo'],
+    tipo: 'PRINCIPAL' as Caja['tipo'],
     nombre: '',
     rutaId: '',
     responsableId: '',
     saldoInicialInput: '',
   })
+
+  const cajasOrdenadas = useMemo(() => {
+    const prioridadCodigo: Record<string, number> = {
+      'CAJA-PRINCIPAL': 0,
+      'CAJA-BANCO': 1,
+      'CAJA-OFICINA': 2,
+    }
+
+    return [...cajas].sort((a, b) => {
+      const pa = a.codigo ? (prioridadCodigo[a.codigo] ?? 99) : 99
+      const pb = b.codigo ? (prioridadCodigo[b.codigo] ?? 99) : 99
+      if (pa !== pb) return pa - pb
+      return a.nombre.localeCompare(b.nombre)
+    })
+  }, [cajas])
 
   const [editarCajaForm, setEditarCajaForm] = useState({
     nombre: '',
@@ -361,6 +376,7 @@ const ModuloContableContent = () => {
       if (cajasData && Array.isArray(cajasData)) {
         setCajas(cajasData.map(c => ({
           id: c.id,
+          codigo: c.codigo,
           nombre: c.nombre,
           tipo: c.tipo,
           rutaId: c.rutaId,
@@ -578,8 +594,9 @@ const ModuloContableContent = () => {
   }
 
   const openRegistrarMovimiento = () => {
-    // Buscamos el ID real de la caja principal para el admin
-    const cajaPrincipal = cajas.find(c => c.tipo === 'PRINCIPAL');
+    // Buscamos el ID real de la caja principal para el admin.
+    // Importante: Caja Banco también puede ser PRINCIPAL. Preferimos CAJA-PRINCIPAL si existe.
+    const cajaPrincipal = cajas.find((c: any) => c.codigo === 'CAJA-PRINCIPAL') || cajas.find(c => c.tipo === 'PRINCIPAL');
     const defaultCaja = (userRole === 'ADMIN' || userRole === 'SUPER_ADMINISTRADOR') 
         ? (cajaPrincipal?.id || '') 
         : (cajas.find(c => c.tipo === 'RUTA')?.id || '')
@@ -601,8 +618,9 @@ const ModuloContableContent = () => {
   }
 
   const openRegistrarTransferencia = () => {
-    // Buscamos el ID real de la caja principal para el admin
-    const cajaPrincipal = cajas.find(c => c.tipo === 'PRINCIPAL');
+    // Buscamos el ID real de la caja principal para el admin.
+    // Importante: Caja Banco también puede ser PRINCIPAL. Preferimos CAJA-PRINCIPAL si existe.
+    const cajaPrincipal = cajas.find((c: any) => c.codigo === 'CAJA-PRINCIPAL') || cajas.find(c => c.tipo === 'PRINCIPAL');
     const defaultCaja = (userRole === 'ADMIN' || userRole === 'SUPER_ADMINISTRADOR') 
         ? (cajaPrincipal?.id || '') 
         : (cajas.find(c => c.tipo === 'RUTA')?.id || '')
@@ -846,11 +864,23 @@ const ModuloContableContent = () => {
                 <Zap className="h-4 w-4" />
               </div>
             </div>
-            <div className="text-2xl font-bold text-slate-900 tracking-tight">
-              {formatCurrency(resumenData.utilidadNeta)}
+            <div className="flex items-center gap-2">
+              <div className="text-2xl font-bold text-slate-900 tracking-tight">
+                {formatCurrency(Math.abs(Number(resumenData.utilidadNeta || 0)))}
+              </div>
+              <span
+                className={cn(
+                  'text-[10px] font-black px-2 py-1 rounded-full border',
+                  Number(resumenData.utilidadNeta || 0) < 0
+                    ? 'bg-rose-50 text-rose-700 border-rose-200'
+                    : 'bg-emerald-50 text-emerald-700 border-emerald-200',
+                )}
+              >
+                {Number(resumenData.utilidadNeta || 0) < 0 ? 'PÉRDIDA' : 'GANANCIA'}
+              </span>
             </div>
             <div className="mt-2 text-xs text-slate-500 font-medium">
-              Utilidad Operativa
+              Utilidad operativa
             </div>
           </div>
 
@@ -907,7 +937,7 @@ const ModuloContableContent = () => {
                   className="inline-flex items-center gap-2 rounded-2xl bg-orange-500 px-5 py-2.5 text-sm font-bold text-white hover:bg-orange-600 transition-all shadow-lg shadow-orange-500/20 active:scale-95"
                 >
                   <ArrowRightLeft className="h-4 w-4" />
-                  Transferir fondos
+                  Movimientos
                 </button>
               </div>
 
@@ -1076,10 +1106,8 @@ const ModuloContableContent = () => {
                 Crear
               </button>
             </div>
-            <div className="divide-y divide-slate-100">
-              {cajas
-                .filter(c => (['ADMIN', 'SUPER_ADMINISTRADOR', 'CONTADOR', 'COORDINADOR'] as any[]).includes(userRole) || c.tipo !== 'PRINCIPAL')
-                .slice(currentPageCajas * 3, (currentPageCajas + 1) * 3).map((c) => (
+            <div className="divide-y divide-slate-100 max-h-[520px] overflow-y-auto">
+              {cajasOrdenadas.map((c) => (
                 <div
                   key={c.id}
                   className="w-full text-left p-5 hover:bg-slate-50 transition-colors border-b border-slate-100 last:border-0"
@@ -1151,31 +1179,6 @@ const ModuloContableContent = () => {
                 </div>
               ))}
             </div>
-
-            {/* Controles de Paginación para Cajas */}
-            {cajas.filter(c => (['ADMIN', 'SUPER_ADMINISTRADOR', 'CONTADOR', 'COORDINADOR'] as any[]).includes(userRole) || c.tipo !== 'PRINCIPAL').length > 3 && (
-                <div className="p-4 border-t border-slate-100 bg-slate-50/20 flex items-center justify-between">
-                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-                        Página {currentPageCajas + 1} de {Math.ceil(cajas.filter(c => (['ADMIN', 'SUPER_ADMINISTRADOR', 'CONTADOR', 'COORDINADOR'] as any[]).includes(userRole) || c.tipo !== 'PRINCIPAL').length / 3)}
-                    </span>
-                    <div className="flex gap-2">
-                        <button 
-                            onClick={() => setCurrentPageCajas(p => Math.max(0, p - 1))}
-                            disabled={currentPageCajas === 0}
-                            className="p-2 rounded-xl border border-slate-200 bg-white text-slate-600 disabled:opacity-30 hover:bg-slate-50 transition-all"
-                        >
-                            <ChevronLeft className="h-4 w-4" />
-                        </button>
-                        <button 
-                            onClick={() => setCurrentPageCajas(p => (p + 1) * 3 < cajas.filter(c => (['ADMIN', 'SUPER_ADMINISTRADOR', 'CONTADOR', 'COORDINADOR'] as any[]).includes(userRole) || c.tipo !== 'PRINCIPAL').length ? p + 1 : p)}
-                            disabled={(currentPageCajas + 1) * 3 >= cajas.filter(c => (['ADMIN', 'SUPER_ADMINISTRADOR', 'CONTADOR', 'COORDINADOR'] as any[]).includes(userRole) || c.tipo !== 'PRINCIPAL').length}
-                            className="p-2 rounded-xl border border-slate-200 bg-white text-slate-600 disabled:opacity-30 hover:bg-slate-50 transition-all"
-                        >
-                            <ChevronRight className="h-4 w-4" />
-                        </button>
-                    </div>
-                </div>
-            )}
           </div>
         </section>
         </div>
@@ -1200,38 +1203,22 @@ const ModuloContableContent = () => {
               </div>
 
               <div className="p-6 space-y-5">
-                <div className="grid grid-cols-2 gap-3">
-                  {userRole === 'SUPER_ADMINISTRADOR' && (
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setCrearCajaForm((p) => ({
-                          ...p,
-                          tipo: 'PRINCIPAL',
-                          rutaId: '',
-                        }))
-                      }
-                      className={cn(
-                        'px-4 py-3 rounded-2xl border text-sm font-bold transition-colors',
-                        crearCajaForm.tipo === 'PRINCIPAL'
-                          ? 'bg-blue-600 text-white border-blue-600'
-                          : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
-                      )}
-                    >
-                      Caja Principal
-                    </button>
-                  )}
+                <div className="grid grid-cols-1 gap-3">
                   <button
                     type="button"
-                    onClick={() => setCrearCajaForm((p) => ({ ...p, tipo: 'RUTA' }))}
+                    onClick={() =>
+                      setCrearCajaForm((p) => ({
+                        ...p,
+                        tipo: 'PRINCIPAL',
+                        rutaId: '',
+                      }))
+                    }
                     className={cn(
                       'px-4 py-3 rounded-2xl border text-sm font-bold transition-colors w-full',
-                      crearCajaForm.tipo === 'RUTA' || userRole !== 'SUPER_ADMINISTRADOR'
-                        ? 'bg-blue-600 text-white border-blue-600'
-                        : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+                      'bg-blue-600 text-white border-blue-600'
                     )}
                   >
-                    Caja por Ruta
+                    Caja Principal
                   </button>
                 </div>
 
@@ -1261,32 +1248,6 @@ const ModuloContableContent = () => {
                       ))}
                     </select>
                   </div>
-
-                  {crearCajaForm.tipo === 'RUTA' && (
-                    <div className="space-y-2 md:col-span-2">
-                      <label className="text-sm font-bold text-slate-700">Ruta</label>
-                      <select
-                        value={crearCajaForm.rutaId}
-                        onChange={(e) =>
-                          setCrearCajaForm((p) => ({
-                            ...p,
-                            rutaId: e.target.value,
-                          }))
-                        }
-                        className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-900"
-                      >
-                        <option value="">Seleccionar ruta...</option>
-                        {(Array.isArray(rutasDisponibles) ? rutasDisponibles : []).map((r) => {
-                          const responsableNombre = usuariosList.find(u => u.id === r.cobradorId)?.nombres || 'Sin asignar';
-                          return (
-                            <option key={r.id} value={r.id}>
-                                {r.nombre} • {responsableNombre}
-                            </option>
-                          )
-                        })}
-                      </select>
-                    </div>
-                  )}
 
                   <div className="space-y-2 md:col-span-2">
                     <label className="text-sm font-bold text-slate-700">Saldo inicial</label>
@@ -1530,13 +1491,7 @@ const ModuloContableContent = () => {
                           className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-slate-200 bg-slate-50/50 text-sm font-semibold text-slate-700 focus:bg-white transition-all shadow-sm"
                         >
                           <option value="">Seleccionar caja destino...</option>
-                          {cajas
-                            .filter(c => {
-                                if (c.tipo === 'PRINCIPAL') {
-                                    return userRole === 'ADMIN' || userRole === 'SUPER_ADMINISTRADOR' || userRole === 'CONTADOR'
-                                }
-                                return true
-                            })
+                          {cajasOrdenadas
                             .map(c => (
                               <option key={c.id} value={c.id}>{c.nombre} (Saldo: {formatCurrency(c.saldo)})</option>
                           ))}
@@ -1582,10 +1537,13 @@ const ModuloContableContent = () => {
                           className="w-full px-4 py-2.5 rounded-xl border border-orange-200 bg-white text-sm font-bold text-slate-900 shadow-sm focus:ring-2 focus:ring-orange-200 transition-all font-mono"
                       >
                           <option value="">--- SELECCIONAR CAJA ---</option>
-                          {cajas
-                            .filter(c => c.id !== movimientoForm.cajaId)
+                          {cajasOrdenadas
                             .map(c => (
-                            <option key={c.id} value={c.id}>{c.nombre} (Saldo: {formatCurrency(c.saldo)})</option>
+                            <option key={c.id} value={c.id} disabled={c.id === movimientoForm.cajaId}>
+                              {c.nombre}
+                              {c.id === movimientoForm.cajaId ? ' (Seleccionada como destino)' : ''}
+                              {` (Saldo: ${formatCurrency(c.saldo)})`}
+                            </option>
                           ))}
                       </select>
                     </div>

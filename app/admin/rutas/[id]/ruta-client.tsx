@@ -102,8 +102,6 @@ import ConfirmModal from '@/components/ui/ConfirmModal'
 
 import CrearCreditoModal from '@/components/dashboards/shared/CrearCreditoModal'
 
-import { creditosService } from '@/services/creditos-service'
-
 import { prestamosService } from '@/services/prestamos-service'
 
 import { pagosService } from '@/services/pagos-service'
@@ -276,7 +274,9 @@ const RutaClientLoaded = ({
 
     const hoy = new Date();
 
-    const toKey = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    const toLocalKeyFromDate = (d: Date) => {
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    };
 
     const prefill: Record<string, HistorialDia> = {};
 
@@ -286,7 +286,7 @@ const RutaClientLoaded = ({
 
         d.setDate(hoy.getDate() - i);
 
-        prefill[toKey(d)] = {
+        prefill[toLocalKeyFromDate(d)] = {
 
             resumen: { recaudo: 0, gastos: 0, efectividad: 0, visitados: 0, total: 0 },
 
@@ -309,6 +309,18 @@ const RutaClientLoaded = ({
         const pagosResp = await pagosService.obtenerPagos({ limit: 5000 });
 
         const pagosData = (pagosResp as any)?.pagos || pagosResp || [];
+
+        const toLocalKeyFromRaw = (raw: any): string => {
+          if (!raw) return '';
+
+          // Si ya viene como YYYY-MM-DD, respetarlo.
+          if (typeof raw === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw;
+
+          // Para timestamps ISO (incluye Z), convertir a Date y tomar la fecha LOCAL.
+          const d = new Date(raw);
+          if (isNaN(d.getTime())) return '';
+          return toLocalKeyFromDate(d);
+        };
 
         setHistorialRutas((prev: any) => {
 
@@ -336,9 +348,8 @@ const RutaClientLoaded = ({
 
             if (!raw) continue;
 
-            const dStr = typeof raw === 'string' ? raw.split('T')[0] : new Date(raw).toISOString().split('T')[0];
-
-            const pk = dStr;
+            const pk = toLocalKeyFromRaw(raw);
+            if (!pk) continue;
 
             const cobradorMatch = initialRuta?.cobradorId ? (p.cobradorId === initialRuta.cobradorId) : true;
 
@@ -404,12 +415,16 @@ const RutaClientLoaded = ({
 
       
 
-      const toKey = (raw: string) => {
+      const toKey = (raw: any) => {
+        if (!raw) return '';
 
-        if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw;
+        // Si ya viene como YYYY-MM-DD, respetarlo.
+        if (typeof raw === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw;
 
-        try { const d2 = new Date(raw); return `${d2.getFullYear()}-${String(d2.getMonth()+1).padStart(2,'0')}-${String(d2.getDate()).padStart(2,'0')}`; } catch { return ''; }
-
+        // Si viene con hora/zona, convertir a fecha LOCAL.
+        const d = new Date(raw);
+        if (isNaN(d.getTime())) return '';
+        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
       };
 
 
@@ -444,130 +459,76 @@ const RutaClientLoaded = ({
 
 
 
-      const existentes = new Set<string>();
+      const prestamosProcesados = new Set<string>();
+      const clientesEnRuta = new Set<string>();
 
       const visitas: VisitaRuta[] = (visitasResp?.visitas || []).reduce((acc: VisitaRuta[], item: any, index: number) => {
-
         const cliente = item.cliente || {};
+        if (cliente.id) clientesEnRuta.add(cliente.id);
 
-        
-
-        // Evitar duplicados si el backend llegara a enviarlos
-
-        if (cliente.id && existentes.has(cliente.id)) return acc;
-
-        if (cliente.id) existentes.add(cliente.id);
-
-
-
-        const prestamos = item.prestamos || [];
-
-        const prestamoActivo = prestamos.find((p: any) => p.estado === 'ACTIVO' || p.estado === 'EN_MORA' || p.estado === 'PAGADO') || prestamos[0] || {};
-
-        const proximaCuota = prestamoActivo?.proximaCuota || {};
-
-        const saldoTotalToken = Number(prestamoActivo?.saldoPendiente || 0);
-
-        
+        const prestamos = Array.isArray(item.prestamos) ? item.prestamos : [];
+        const prestamosValidos = prestamos.filter((p: any) => p && (p.estado === 'ACTIVO' || p.estado === 'EN_MORA' || p.estado === 'PAGADO' || p.estado === 'PENDIENTE_APROBACION'));
+        const lista = prestamosValidos.length > 0 ? prestamosValidos : [null];
 
         const recDia = cliente.id ? (recaudadoPorCliente[cliente.id] || 0) : 0;
 
-        const montoCuota = Number(proximaCuota?.monto || 0);
+        for (const prestamo of lista) {
+          const prestamoId = prestamo?.id ? String(prestamo.id) : '';
+          const uniqueKey = prestamoId ? `loan-${prestamoId}` : `client-${cliente.id || index}`;
+          if (prestamosProcesados.has(uniqueKey)) continue;
+          prestamosProcesados.add(uniqueKey);
 
-        
+          const proximaCuota = prestamo?.proximaCuota || {};
+          const montoCuota = Number(proximaCuota?.monto || 0);
+          const saldoTotalToken = Number(prestamo?.saldoPendiente || 0);
 
-        let estado: EstadoVisita = 'pendiente';
-
-        if (proximaCuota?.estado === 'PAGADA' || (recDia > 0 && recDia >= (montoCuota - 1)) || saldoTotalToken <= 0) {
-
+          let estado: EstadoVisita = 'pendiente';
+          if (proximaCuota?.estado === 'PAGADA' || (recDia > 0 && montoCuota > 0 && recDia >= (montoCuota - 1)) || saldoTotalToken <= 0) {
             estado = 'pagado';
-
-        } else if (proximaCuota?.estado === 'VENCIDA') {
-
+          } else if (proximaCuota?.estado === 'VENCIDA') {
             estado = 'en_mora';
+          }
 
+          const f = prestamo?.frecuenciaPago || 'DIARIO';
+          const periodoRuta = (f === 'DIARIO') ? 'DIA' : (f === 'SEMANAL') ? 'SEMANA' : (f === 'QUINCENAL') ? 'QUINCENA' : (f === 'MENSUAL') ? 'MES' : 'DIA';
+          const esArticulo = prestamo?.tipo === 'ARTICULO' || prestamo?.tipoPrestamo === 'ARTICULO';
+
+          acc.push({
+            id: prestamoId ? `${item.asignacionId || `hist-${fechaClave}-${index}`}-${prestamoId}` : (item.asignacionId || `hist-${fechaClave}-${index}`),
+            cliente: `${cliente.nombres || ''} ${cliente.apellidos || ''}`.trim() || 'Cliente Sin Nombre',
+            direccion: cliente.direccion || 'Sin dirección registrada',
+            telefono: cliente.telefono || '',
+            horaSugerida: '08:00 AM',
+            montoCuota,
+            saldoTotal: saldoTotalToken,
+            estado,
+            proximaVisita: proximaCuota?.fechaVencimiento || fechaClave,
+            ordenVisita: item.ordenVisita || index + 1,
+            prioridad: (cliente.nivelRiesgo === 'ROJO' ? 'alta' : 'media'),
+            nivelRiesgo: (() => {
+              const r = cliente.nivelRiesgo || 'VERDE';
+              if (r === 'VERDE') return 'bajo';
+              if (r === 'AMARILLO') return 'leve';
+              if (r === 'ROJO') return 'moderado';
+              if (r === 'LISTA_NEGRA') return 'critico';
+              return 'bajo';
+            })(),
+            cobradorId: '',
+            periodoRuta: periodoRuta as any,
+            clienteId: cliente.id || '',
+            prestamoId,
+            tipoPrestamo: (esArticulo ? 'ARTICULO' : 'EFECTIVO') as any,
+            articuloNombre: esArticulo ? (prestamo?.articulo || prestamo?.descripcionArticulo || undefined) : undefined,
+            recaudadoDelDia: recDia,
+            recaudadoTotalClient: recDia,
+            cuotaActual: proximaCuota?.numeroCuota,
+            cuotasTotales: prestamo?.cantidadCuotas,
+            enProrroga: proximaCuota?.enProrroga,
+            fechaProrroga: proximaCuota?.fechaVencimiento,
+          } as any);
         }
 
-
-
-        acc.push({
-
-          id: item.asignacionId || `hist-${fechaClave}-${index}`,
-
-          cliente: `${cliente.nombres || ''} ${cliente.apellidos || ''}`.trim() || 'Cliente Sin Nombre',
-
-          direccion: cliente.direccion || 'Sin dirección registrada',
-
-          telefono: cliente.telefono || '',
-
-          horaSugerida: '08:00 AM',
-
-          montoCuota,
-
-          saldoTotal: saldoTotalToken,
-
-          estado,
-
-          proximaVisita: proximaCuota?.fechaVencimiento || fechaClave,
-
-          ordenVisita: item.ordenVisita || index + 1,
-
-          prioridad: (cliente.nivelRiesgo === 'ROJO' ? 'alta' : 'media'),
-
-          nivelRiesgo: (() => {
-
-            const r = cliente.nivelRiesgo || 'VERDE';
-
-            if (r === 'VERDE') return 'bajo';
-
-            if (r === 'AMARILLO') return 'leve';
-
-            if (r === 'ROJO') return 'moderado';
-
-            if (r === 'LISTA_NEGRA') return 'critico';
-
-            return 'bajo';
-
-          })(),
-
-          cobradorId: '',
-
-          periodoRuta: (() => {
-
-            const f = prestamoActivo?.frecuenciaPago || 'DIARIO';
-
-            if (f === 'DIARIO') return 'DIA';
-
-            if (f === 'SEMANAL') return 'SEMANA';
-
-            if (f === 'QUINCENAL') return 'QUINCENA';
-
-            if (f === 'MENSUAL') return 'MES';
-
-            return 'DIA';
-
-          })() as any,
-
-          clienteId: cliente.id || '',
-
-          recaudadoDelDia: recDia,
-
-          recaudadoTotalClient: recDia,
-
-          cuotaActual: proximaCuota?.numeroCuota,
-
-          cuotasTotales: prestamoActivo?.cantidadCuotas,
-
-          enProrroga: proximaCuota?.enProrroga,
-
-          fechaProrroga: proximaCuota?.fechaVencimiento
-
-        });
-
-
-
         return acc;
-
       }, []);
 
 
@@ -576,7 +537,7 @@ const RutaClientLoaded = ({
 
         const cid = p.clienteId || (p.cliente?.id);
 
-        if (!cid || existentes.has(cid)) return [];
+        if (!cid || clientesEnRuta.has(cid)) return [];
 
         return [{
 
@@ -694,8 +655,8 @@ const RutaClientLoaded = ({
 
     if (!showHistory || !initialRuta?.id) return;
 
-    const hoy = new Date().toISOString().split('T')[0];
-
+    const hoyD = new Date();
+    const hoy = `${hoyD.getFullYear()}-${String(hoyD.getMonth() + 1).padStart(2, '0')}-${String(hoyD.getDate()).padStart(2, '0')}`;
     const existing = (historialRutas || {})[hoy];
 
     if (!existing || (!existing.loaded)) {
@@ -1202,29 +1163,40 @@ const RutaClientLoaded = ({
 
   }
 
-  
+
+  const [rutaActivadaHoy, setRutaActivadaHoy] = useState(false)
+  const [loadingActivacionHoy, setLoadingActivacionHoy] = useState(false)
+
+  const refreshActivacionHoy = useCallback(async () => {
+    if (!initialRuta?.id) return
+    try {
+      const resp = await routesService.getActivacionHoy(initialRuta.id)
+      setRutaActivadaHoy(Boolean(resp?.activadaHoy))
+    } catch (e) {
+      // ignore
+    }
+  }, [initialRuta?.id])
+
+  useEffect(() => {
+    refreshActivacionHoy()
+  }, [refreshActivacionHoy])
 
   const handleActivarRuta = async () => {
-
-    if (!initialRuta) return;
-
+    if (!initialRuta?.id) return
     try {
-
-      await routesService.toggleActive(initialRuta.id);
-
-      setRutaCompletada(!rutaCompletada);
-
-      showNotification('success', `Ruta ${rutaCompletada ? 'activada' : 'desactivada'} correctamente`, 'Éxito');
-
+      setLoadingActivacionHoy(true)
+      const resp = await routesService.activarHoy(initialRuta.id)
+      setRutaActivadaHoy(Boolean(resp?.activadaHoy))
+      showNotification('success', resp?.message || 'Ruta activada para hoy correctamente', 'Éxito')
     } catch (error) {
-
-      console.error('Error toggling route:', error);
-
-      showNotification('error', 'No se pudo cambiar el estado de la ruta', 'Error');
-
+      console.error('Error activando ruta del día:', error)
+      showNotification('error', 'No se pudo activar la ruta para hoy', 'Error')
+    } finally {
+      setLoadingActivacionHoy(false)
     }
-
   }
+
+  const rutaOperable = rutaActivadaHoy && !rutaCompletada
 
 
 
@@ -1470,7 +1442,7 @@ const RutaClientLoaded = ({
 
             <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm flex flex-col justify-between">
 
-               <div className="flex justify-between items-end mb-4">
+              <div className="flex items-start justify-between">
 
                 <div>
 
@@ -1482,15 +1454,43 @@ const RutaClientLoaded = ({
 
                 </div>
 
-              </div>
+                <div className="h-10 w-10 rounded-xl bg-emerald-50 border border-emerald-100 flex items-center justify-center">
 
-              <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
+                  <DollarSign className="h-5 w-5 text-emerald-600" />
 
-                <div className="h-full bg-blue-600 rounded-full transition-all duration-500" style={{ width: `${porcentajeProgreso}%` }} />
+                </div>
 
               </div>
 
             </div>
+
+            {(currentUser?.rol === 'SUPER_ADMINISTRADOR' || currentUser?.rol === 'ADMIN') && (
+
+              <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm flex flex-col justify-between">
+
+                <div className="flex items-start justify-between">
+
+                  <div>
+
+                    <p className="text-slate-500 text-xs font-bold uppercase tracking-wider mb-1">Efectivo Entregado</p>
+
+                    <div className="text-3xl font-bold text-slate-900">{formatCurrency(Number((estadisticas as any)?.efectivoEntregado || 0))}</div>
+
+                    <p className="text-xs text-slate-400 mt-1">Total recolectado de esta ruta</p>
+
+                  </div>
+
+                  <div className="h-10 w-10 rounded-xl bg-indigo-50 border border-indigo-100 flex items-center justify-center">
+
+                    <Wallet className="h-5 w-5 text-indigo-600" />
+
+                  </div>
+
+                </div>
+
+              </div>
+
+            )}
 
           </div>
 
@@ -1624,13 +1624,19 @@ const RutaClientLoaded = ({
 
                       onClick={handleActivarRuta}
 
-                      className="px-4 py-2 border rounded-xl flex items-center gap-2 font-bold shadow-sm bg-white text-slate-700 border-slate-200 hover:bg-slate-50 transition-colors"
+                      disabled={loadingActivacionHoy || rutaActivadaHoy}
+
+                      className={`px-4 py-2 border rounded-xl flex items-center gap-2 font-bold shadow-sm transition-colors ${
+                        loadingActivacionHoy || rutaActivadaHoy
+                          ? 'bg-emerald-50 text-emerald-700 border-emerald-200 cursor-not-allowed'
+                          : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+                      }`}
 
                     >
 
                       <CheckCircle2 className="h-4 w-4" />
 
-                      <span className="hidden md:inline">Activar Ruta</span>
+                      <span className="hidden md:inline">{rutaActivadaHoy ? 'Ruta activada hoy' : (loadingActivacionHoy ? 'Activando...' : 'Activar Ruta')}</span>
 
                     </button>
 
@@ -1644,9 +1650,11 @@ const RutaClientLoaded = ({
 
                         <button
 
-                        onClick={() => setShowNewClientModal(true)}
+                        onClick={() => { if (!rutaOperable) return; setShowNewClientModal(true) }}
 
-                        className="px-4 py-2 border rounded-xl flex items-center gap-2 font-bold shadow-sm bg-white text-slate-700 border-slate-200 hover:bg-slate-50 transition-colors"
+                        disabled={!rutaOperable}
+
+                        className={`px-4 py-2 border rounded-xl flex items-center gap-2 font-bold shadow-sm transition-colors ${!rutaOperable ? 'bg-slate-50 text-slate-300 border-slate-100 opacity-50 cursor-not-allowed' : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'}`}
 
                         >
 
@@ -1662,13 +1670,17 @@ const RutaClientLoaded = ({
 
                         onClick={() => {
 
+                            if (!rutaOperable) return
+
                             setSelectedClienteForCredito(null)
 
                             setShowCrearCreditoModal(true)
 
                         }}
 
-                        className="px-4 py-2 border rounded-xl flex items-center gap-2 font-bold shadow-sm bg-white text-slate-700 border-slate-200 hover:bg-slate-50 transition-colors"
+                        disabled={!rutaOperable}
+
+                        className={`px-4 py-2 border rounded-xl flex items-center gap-2 font-bold shadow-sm transition-colors ${!rutaOperable ? 'bg-slate-50 text-slate-300 border-slate-100 opacity-50 cursor-not-allowed' : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'}`}
 
                         >
 
@@ -2444,27 +2456,27 @@ const RutaClientLoaded = ({
                                             actions={
                                               <>
                                                 <button
-                                                  onClick={(e) => { e.stopPropagation(); if (visita.pendienteAprobacion || rutaCompletada) return; handleAbrirPago(visita); }}
-                                                  disabled={visita.pendienteAprobacion || rutaCompletada}
-                                                  title={visita.pendienteAprobacion ? 'Crédito pendiente de aprobación' : rutaCompletada ? 'Ruta completada' : 'Registrar Pago'}
-                                                  className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-lg transition-all font-bold text-[11px] shadow-sm ${visita.pendienteAprobacion || rutaCompletada ? 'bg-slate-50 text-slate-300 border border-slate-100 opacity-50 cursor-not-allowed' : 'bg-blue-600 text-white hover:bg-blue-700 active:scale-95'}`}
+                                                  onClick={(e) => { e.stopPropagation(); if (visita.pendienteAprobacion || !rutaOperable) return; handleAbrirPago(visita); }}
+                                                  disabled={visita.pendienteAprobacion || !rutaOperable}
+                                                  title={visita.pendienteAprobacion ? 'Crédito pendiente de aprobación' : !rutaOperable ? (rutaCompletada ? 'Ruta completada' : 'Ruta pendiente de activación') : 'Registrar Pago'}
+                                                  className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-lg transition-all font-bold text-[11px] shadow-sm ${visita.pendienteAprobacion || !rutaOperable ? 'bg-slate-50 text-slate-300 border border-slate-100 opacity-50 cursor-not-allowed' : 'bg-blue-600 text-white hover:bg-blue-700 active:scale-95'}`}
                                                 >
                                                   <DollarSign className="h-3.5 w-3.5" />
                                                   Pago
                                                 </button>
                                                 <button
-                                                  onClick={(e) => { e.stopPropagation(); if (visita.pendienteAprobacion || rutaCompletada) return; handleAbrirAbono(visita); }}
-                                                  disabled={visita.pendienteAprobacion || rutaCompletada}
-                                                  title={visita.pendienteAprobacion ? 'Crédito pendiente de aprobación' : rutaCompletada ? 'Ruta completada' : 'Registrar Abono'}
-                                                  className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-lg transition-all font-bold text-[11px] shadow-sm ${visita.pendienteAprobacion || rutaCompletada ? 'bg-slate-50 text-slate-300 border border-slate-100 opacity-50 cursor-not-allowed' : 'bg-emerald-600 text-white hover:bg-emerald-700 active:scale-95'}`}
+                                                  onClick={(e) => { e.stopPropagation(); if (visita.pendienteAprobacion || !rutaOperable) return; handleAbrirAbono(visita); }}
+                                                  disabled={visita.pendienteAprobacion || !rutaOperable}
+                                                  title={visita.pendienteAprobacion ? 'Crédito pendiente de aprobación' : !rutaOperable ? (rutaCompletada ? 'Ruta completada' : 'Ruta pendiente de activación') : 'Registrar Abono'}
+                                                  className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-lg transition-all font-bold text-[11px] shadow-sm ${visita.pendienteAprobacion || !rutaOperable ? 'bg-slate-50 text-slate-300 border border-slate-100 opacity-50 cursor-not-allowed' : 'bg-emerald-600 text-white hover:bg-emerald-700 active:scale-95'}`}
                                                 >
                                                   <Wallet className="h-3.5 w-3.5" />
                                                   Abono
                                                 </button>
                                                 <button
-                                                  onClick={(e) => { e.stopPropagation(); if(rutaCompletada) return; handleAbrirEstadoCuenta(visita); }}
-                                                  disabled={rutaCompletada}
-                                                  className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-lg transition-all font-bold text-[11px] shadow-sm border ${rutaCompletada ? 'bg-slate-50 text-slate-300 border-slate-100 opacity-50 cursor-not-allowed' : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50 active:scale-95'}`}
+                                                  onClick={(e) => { e.stopPropagation(); if(!rutaOperable) return; handleAbrirEstadoCuenta(visita); }}
+                                                  disabled={!rutaOperable}
+                                                  className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-lg transition-all font-bold text-[11px] shadow-sm border ${!rutaOperable ? 'bg-slate-50 text-slate-300 border-slate-100 opacity-50 cursor-not-allowed' : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50 active:scale-95'}`}
                                                 >
                                                   <FileTextIcon className="h-3.5 w-3.5 text-slate-400" />
                                                   Estado
@@ -2472,13 +2484,13 @@ const RutaClientLoaded = ({
                                                 <button
                                                   onClick={(e) => { 
                                                     e.stopPropagation(); 
-                                                    if (rutaCompletada) return;
+                                                    if (!rutaOperable) return;
                                                     const isProrrogaVencida = visita.enProrroga && visita.fechaProrroga && new Date(visita.fechaProrroga).getTime() < Date.now();
                                                     if (!visita.enProrroga || isProrrogaVencida) setVisitaReprogramar(visita); 
                                                   }}
-                                                  disabled={rutaCompletada || (!!visita.enProrroga && !(visita.fechaProrroga && new Date(visita.fechaProrroga).getTime() < Date.now()))}
-                                                  title={rutaCompletada ? 'Ruta completada' : visita.enProrroga && !(visita.fechaProrroga && new Date(visita.fechaProrroga).getTime() < Date.now()) ? 'No se puede reprogramar con prorroga activa' : 'Solicitar reprogramacion'}
-                                                  className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border transition-all font-bold text-[11px] shadow-sm ${rutaCompletada || (visita.enProrroga && !(visita.fechaProrroga && new Date(visita.fechaProrroga).getTime() < Date.now())) ? 'bg-slate-50 text-slate-300 border-slate-100 opacity-50 cursor-not-allowed' : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50 active:scale-95'}`}
+                                                  disabled={!rutaOperable || (!!visita.enProrroga && !(visita.fechaProrroga && new Date(visita.fechaProrroga).getTime() < Date.now()))}
+                                                  title={!rutaOperable ? (rutaCompletada ? 'Ruta completada' : 'Ruta pendiente de activación') : (visita.enProrroga && !(visita.fechaProrroga && new Date(visita.fechaProrroga).getTime() < Date.now()) ? 'No se puede reprogramar con prorroga activa' : 'Solicitar reprogramacion')}
+                                                  className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border transition-all font-bold text-[11px] shadow-sm ${!rutaOperable || (visita.enProrroga && !(visita.fechaProrroga && new Date(visita.fechaProrroga).getTime() < Date.now())) ? 'bg-slate-50 text-slate-300 border-slate-100 opacity-50 cursor-not-allowed' : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50 active:scale-95'}`}
                                                 >
                                                   <Calendar className="h-3.5 w-3.5 text-slate-400" />
                                                   Repro.
@@ -2825,45 +2837,36 @@ const RutaClientLoaded = ({
 
             try {
 
-              const payload = {
+              const esContado = Boolean((data as any).ventaContado)
+              const isArticulo = data.creditType === 'articulo'
+              const freq = esContado ? 'MENSUAL' : (data.frecuenciaPago || 'DIARIO')
 
-                ...data,
-
-                creadoPorId: currentUser?.id || ''
-
-              };
-
-              
-
-              if (data.creditType === 'prestamo') {
-
-                await prestamosService.crearPrestamo({
-
-                  ...data,
-
-                  clienteId: data.clienteCreditoId,
-
-                  tipoPrestamo: 'EFECTIVO',
-
-                  tasaInteresMora: 2.0,
-
-                  creadoPorId: currentUser?.id || ''
-
-                } as any);
-
-              } else {
-
-                await creditosService.crearCredito({
-
-                  ...data,
-
-                  clienteId: data.clienteCreditoId,
-
-                  creadoPorId: currentUser?.id || ''
-
-                } as any);
-
+              const payload: any = {
+                clienteId: data.clienteCreditoId,
+                tipoPrestamo: isArticulo ? 'ARTICULO' : 'EFECTIVO',
+                monto: data.monto || 0,
+                tasaInteres: esContado ? 0 : (data.tasaInteres || 0),
+                tasaInteresMora: 2.0,
+                plazoMeses: data.plazoMeses || 1,
+                cantidadCuotas: data.cantidadCuotas || data.cuotas || data.cuotasTotales || (isArticulo ? data.numCuotas : 0),
+                cuotas: data.cuotas || data.cantidadCuotas || (isArticulo ? data.numCuotas : 0),
+                frecuenciaPago: freq,
+                fechaInicio: data.fechaInicio || new Date().toISOString(),
+                creadoPorId: currentUser?.id || '',
+                cuotaInicial: data.cuotaInicialArticulo || 0,
+                notas: isArticulo
+                  ? `${esContado ? 'Venta de contado' : 'Crédito de artículo'}: ${data.articuloNombre || ''}`
+                  : (data.notas || ''),
+                tipoAmortizacion: isArticulo ? 'INTERES_SIMPLE' : (data.tipoInteres || 'INTERES_SIMPLE'),
+                esContado: esContado,
               }
+
+              if (isArticulo) {
+                payload.productoId = data.articuloId
+                payload.precioProductoId = esContado ? undefined : data.precioProductoId
+              }
+
+              await prestamosService.crearPrestamo(payload)
 
 
 

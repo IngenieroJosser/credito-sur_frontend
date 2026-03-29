@@ -39,6 +39,7 @@ import FloatingActionMenu, { FabAction } from '@/components/dashboards/shared/Fl
 import { prestamosService } from '@/services/prestamos-service'
 import { exportService } from '@/services/export-service'
 import { toast } from 'sonner'
+import { useAuth } from '@/hooks/useAuth'
 
 
 interface MetricCard {
@@ -71,6 +72,7 @@ interface CollectorPerformance {
 }
 
 const VistaSupervisor = () => {
+  const { user } = useAuth()
   const [timeFilter, setTimeFilter] = useState<TimeFilterPeriod>('month')
   const currentDate = new Date()
 
@@ -132,26 +134,33 @@ const VistaSupervisor = () => {
 
   const handleCreditoConfirm = async (data: any) => {
     try {
-      const isArticulo = data.creditType === 'articulo';
+      const d: any = data as any
+      const esContado = Boolean((data as any).ventaContado)
+      const isArticulo = data.creditType === 'articulo'
+      const freq = esContado ? 'MENSUAL' : (data.frecuenciaPago || 'DIARIO')
       const payload: any = {
         clienteId: data.clienteCreditoId,
+        tipoPrestamo: isArticulo ? 'ARTICULO' : 'EFECTIVO',
         monto: data.monto || 0,
-        frecuenciaPago: data.frecuenciaPago || 'DIARIO',
-        fechaInicio: data.fechaInicio || new Date().toISOString(),
-        fechaPrimerCobro: data.fechaPrimerCobro,
-        tipoInteres: data.tipoInteres || 'INTERES_SIMPLE',
-        cuotas: data.cuotas || data.cantidadCuotas || 0,
-        tasaInteres: data.tasaInteres || 10,
+        tasaInteres: esContado ? 0 : (data.tasaInteres || 0),
         tasaInteresMora: 2,
         plazoMeses: data.plazoMeses || 1,
-        creadoPorId: '',
-        notas: data.notas || '',
-        tipoPrestamo: isArticulo ? 'ARTICULO' : 'EFECTIVO',
+        cantidadCuotas: data.cantidadCuotas || data.cuotas || data.cuotasTotales || (isArticulo ? data.numCuotas : 0),
+        cuotas: data.cuotas || data.cantidadCuotas || data.cuotasTotales || (isArticulo ? data.numCuotas : 0),
+        frecuenciaPago: freq,
+        fechaInicio: data.fechaInicio || new Date().toISOString(),
+        fechaPrimerCobro: data.fechaPrimerCobro,
+        creadoPorId: user?.id || '',
+        cuotaInicial: data.cuotaInicialArticulo || 0,
+        notas: isArticulo
+          ? `${esContado ? 'Venta de contado' : 'Crédito de artículo'}: ${d.articuloNombre || ''}`
+          : (data.notas || ''),
+        tipoAmortizacion: isArticulo ? 'INTERES_SIMPLE' : (data.tipoInteres || 'INTERES_SIMPLE'),
+        esContado: esContado,
       };
       if (isArticulo) {
         payload.productoId = data.articuloId;
-        payload.precioProductoId = data.precioProductoId;
-        payload.cuotaInicial = data.cuotaInicialArticulo || 0;
+        payload.precioProductoId = esContado ? undefined : data.precioProductoId;
       }
       const prestamo = await prestamosService.crearPrestamo(payload);
       toast.success('Crédito Creado', { description: 'El crédito ha sido registrado exitosamente.' });

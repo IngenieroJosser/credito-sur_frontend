@@ -434,6 +434,10 @@ export async function obtenerSaldoDisponibleRuta(
   return apiRequest<SaldoDisponibleRuta>('GET', `/accounting/rutas/${rutaId}/saldo-disponible${qs ? `?${qs}` : ''}`);
 }
 
+export async function getRutaCierreHoy(rutaId: string): Promise<{ rutaId: string; cerradaHoy: boolean; cierreId: string | null; fechaCierre: string | null }> {
+  return apiRequest('GET', `/accounting/rutas/${rutaId}/cierre-hoy`);
+}
+
 export async function registrarGasto(data: {
   descripcion: string
   valor: number

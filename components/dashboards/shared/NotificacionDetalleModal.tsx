@@ -519,43 +519,19 @@ export default function NotificacionDetalleModal({
           <div className="grid grid-cols-2 gap-x-4 gap-y-4">
             <div className="col-span-2">
               <label className="text-[10px] text-slate-400 uppercase font-black block mb-1">Nombre Completo</label>
-              {isEditingMode ? (
-                <input 
-                  value={editedDetails?.cliente || safeMeta?.cliente || ''}
-                  onChange={(e) => setEditedDetails({...editedDetails, cliente: e.target.value})}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-sm font-black text-slate-900 outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500"
-                />
-              ) : (
-                <p className="text-base font-black text-slate-900">
-                  {editedDetails?.cliente || 
-                   safeMeta?.cliente || 
-                   (mensaje?.includes('para ') ? mensaje.split('para ')[1].split(' por')[0] : 'N/A')}
-                </p>
-              )}
+              <p className="text-base font-black text-slate-900">
+                {editedDetails?.cliente || 
+                 safeMeta?.cliente || 
+                 (mensaje?.includes('para ') ? mensaje.split('para ')[1].split(' por')[0] : 'N/A')}
+              </p>
             </div>
             <div>
               <label className="text-[10px] text-slate-400 uppercase font-black block mb-1">Cédula</label>
-              {isEditingMode ? (
-                <input 
-                  value={editedDetails?.cedula || safeMeta?.cedula || ''}
-                  onChange={(e) => setEditedDetails({...editedDetails, cedula: e.target.value})}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-sm font-black text-slate-900 outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500"
-                />
-              ) : (
-                <p className="text-sm font-black text-slate-800">{editedDetails?.cedula || safeMeta?.cedula || editedDetails?.dni || safeMeta?.dni || 'N/A'}</p>
-              )}
+              <p className="text-sm font-black text-slate-800">{editedDetails?.cedula || safeMeta?.cedula || editedDetails?.dni || safeMeta?.dni || 'N/A'}</p>
             </div>
             <div>
               <label className="text-[10px] text-slate-400 uppercase font-black block mb-1">Teléfono</label>
-              {isEditingMode ? (
-                <input 
-                  value={editedDetails?.telefono || safeMeta?.telefono || ''}
-                  onChange={(e) => setEditedDetails({...editedDetails, telefono: e.target.value})}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-sm font-black text-slate-900 outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500"
-                />
-              ) : (
-                <p className="text-sm font-black text-slate-800">{editedDetails?.telefono || safeMeta?.telefono || editedDetails?.phone || safeMeta?.phone || 'N/A'}</p>
-              )}
+              <p className="text-sm font-black text-slate-800">{editedDetails?.telefono || safeMeta?.telefono || editedDetails?.phone || safeMeta?.phone || 'N/A'}</p>
             </div>
           </div>
         </div>
@@ -866,7 +842,8 @@ export default function NotificacionDetalleModal({
                             const it = Number(editedDetails?.interesTotal || safeMeta?.interesTotal || 0);
                             const tasa = Number(editedDetails?.tasaInteres || safeMeta?.tasaInteres || Number(editedDetails?.porcentaje || safeMeta?.porcentaje || 0));
                             const meses = Number(editedDetails?.plazoMeses || safeMeta?.plazoMeses || 1);
-                            const total = isArticle ? m : (mt > 0 ? mt : (it > 0 ? m + it : m + ((m * tasa * meses) / 100)));
+                            const mesesInteres = Math.max(1, meses);
+                            const total = isArticle ? m : (mt > 0 ? mt : (it > 0 ? m + it : m + ((m * tasa * mesesInteres) / 100)));
                             const val = total / c;
                             return formatCurrency(isNaN(val) ? 0 : val);
                           })()}
@@ -881,10 +858,11 @@ export default function NotificacionDetalleModal({
                             const it = Number(editedDetails?.interesTotal || safeMeta?.interesTotal || 0);
                             const tasa = Number(editedDetails?.tasaInteres || safeMeta?.tasaInteres || Number(editedDetails?.porcentaje || safeMeta?.porcentaje || 0));
                             const meses = Number(editedDetails?.plazoMeses || safeMeta?.plazoMeses || 1);
+                            const mesesInteres = Math.max(1, meses);
                             const va = Number(editedDetails?.valorArticulo ?? safeMeta?.valorArticulo ?? 0);
                             const ci = Number(editedDetails?.cuotaInicial ?? safeMeta?.cuotaInicial ?? 0);
                             const totalArticulo = va > 0 ? va : (m + ci);
-                            const val = isArticle ? totalArticulo : (mt > 0 ? mt : (it > 0 ? m + it : m + ((m * tasa * meses) / 100)));
+                            const val = isArticle ? totalArticulo : (mt > 0 ? mt : (it > 0 ? m + it : m + ((m * tasa * mesesInteres) / 100)));
                             return formatCurrency(isNaN(val) ? 0 : val);
                           })()}
                         </p>

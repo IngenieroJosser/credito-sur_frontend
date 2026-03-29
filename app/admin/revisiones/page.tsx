@@ -221,6 +221,15 @@ export default function RevisionesPage() {
 
   const canReviewRejected = userRol === 'SUPER_ADMINISTRADOR' || userRol === 'ADMIN'
 
+  const closeAllDetailModals = () => {
+    setIsDetailModalOpen(false)
+    setSelectedItem(null)
+    setProrrogaModalOpen(false)
+    setSelectedProrroga(null)
+    setReprogramacionModalOpen(false)
+    setSelectedReprogramacion(null)
+  }
+
   const loadData = useCallback(async () => {
     setLoading(true)
     try {
@@ -327,6 +336,7 @@ export default function RevisionesPage() {
   }
 
   const handleAprobar = (item: Aprobacion) => {
+    closeAllDetailModals()
     setConfirmModal({ isOpen: true, type: 'APPROVE', item })
   }
 
@@ -354,6 +364,7 @@ export default function RevisionesPage() {
   }
 
   const handleRechazar = (item: Aprobacion) => {
+    closeAllDetailModals()
     setConfirmModal({ isOpen: true, type: 'REJECT', item })
   }
 

@@ -23,7 +23,7 @@
  * - PUNTO_DE_VENTA: Solo lectura (catálogo de consulta)
  */
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import {
   Package,
   Search,
@@ -98,6 +98,7 @@ export default function ArticulosContent() {
 
   const [articulos, setArticulos] = useState<Articulo[]>([])
   const [busqueda, setBusqueda] = useState('')
+  const [stockSort, setStockSort] = useState<'asc' | 'desc' | null>(null)
   const [categorias, setCategorias] = useState<Categoria[]>([])
   const [statsBase, setStatsBase] = useState<EstadisticasInventario | null>(null)
   const { showNotification } = useNotification()
@@ -220,6 +221,15 @@ export default function ArticulosContent() {
       a.categoria.toLowerCase().includes(q)
     )
   })
+
+  const articulosOrdenados = useMemo(() => {
+    const lista = [...articulosFiltrados]
+    if (!stockSort) return lista
+    return lista.sort((a, b) => {
+      const diff = Number(a.stock || 0) - Number(b.stock || 0)
+      return stockSort === 'asc' ? diff : -diff
+    })
+  }, [articulosFiltrados, stockSort])
 
   const totalArticulos = articulosFiltrados.length
   const enStock = articulosFiltrados.filter(a => a.stock > 0).length
@@ -518,12 +528,26 @@ export default function ArticulosContent() {
                   {esReadOnly && (
                     <th className="px-6 py-4 text-right text-xs font-bold text-slate-500 uppercase tracking-wider">Valor Inventario</th>
                   )}
-                  <th className="px-6 py-4 text-center text-xs font-bold text-slate-500 uppercase tracking-wider">Stock</th>
+                  <th className="px-6 py-4 text-center text-xs font-bold text-slate-500 uppercase tracking-wider">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setStockSort((prev) => (prev === 'asc' ? 'desc' : prev === 'desc' ? null : 'asc'))
+                      }
+                      className="inline-flex items-center justify-center gap-2 w-full hover:text-slate-700"
+                      title="Ordenar por stock"
+                    >
+                      Stock
+                      <span className="text-[10px] font-black text-slate-400">
+                        {stockSort === 'asc' ? '▲' : stockSort === 'desc' ? '▼' : ''}
+                      </span>
+                    </button>
+                  </th>
                   <th className="px-6 py-4 text-right text-xs font-bold text-slate-500 uppercase tracking-wider">Acciones</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {articulosFiltrados.map((articulo) => (
+                {articulosOrdenados.map((articulo) => (
                   <tr key={articulo.id} className="hover:bg-slate-50/50 transition-colors group">
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center gap-3">
@@ -649,7 +673,7 @@ export default function ArticulosContent() {
 
         {/* Vista de Cards - Móvil */}
         <div className="md:hidden space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-500 delay-300">
-          {articulosFiltrados.map((articulo) => (
+          {articulosOrdenados.map((articulo) => (
             <div
               key={articulo.id}
               className="bg-white rounded-2xl border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-4 hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all"

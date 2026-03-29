@@ -387,12 +387,13 @@ export const RutasPageView = ({
         obtenerSaldoDisponibleRuta(ruta.id),
         getCajas(),
       ])
-      const saldo = saldoResp?.recaudoDelDia ?? saldoResp?.saldoDisponible ?? 0
+      const saldo = saldoResp?.saldoCaja ?? saldoResp?.saldoDisponible ?? 0
       setSaldoDisponibleRecolectar(saldo)
-      const cajaRuta = cajasResp.find(c => c.rutaId === ruta.id) ||
-                       cajasResp.find(c => c.tipo === 'RUTA') ||
-                       (saldoResp && (saldoResp as any).cajaId ? cajasResp.find(c => c.id === (saldoResp as any).cajaId) : null)
-      setCajaRutaIdRecolectar((saldoResp as any)?.cajaId || cajaRuta?.id || null)
+      const cajaIdBackend = (saldoResp as any)?.cajaId as (string | undefined)
+      const cajaRuta = cajaIdBackend
+        ? cajasResp.find(c => c.id === cajaIdBackend)
+        : cajasResp.find(c => c.rutaId === ruta.id)
+      setCajaRutaIdRecolectar(cajaRuta?.id || null)
     } catch (e) {
       console.error('Error cargando saldo:', e)
       setErrorRecolectar('No se pudo cargar el saldo de la ruta')
@@ -413,6 +414,7 @@ export const RutasPageView = ({
       await consolidarCaja(cajaRutaIdRecolectar, monto)
       setShowRecolectarModal(false)
       showNotification('success', `Se recolectaron ${monto.toLocaleString('es-CO', { style: 'currency', currency: 'COP' })} de la ruta hacia Caja de Oficina`, 'Recoleccion exitosa')
+      await fetchRutas()
     } catch (e: any) {
       setErrorRecolectar(e?.message || 'No se pudo recolectar. Intenta de nuevo.')
     } finally {
