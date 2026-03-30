@@ -10,6 +10,8 @@ import {
 } from 'lucide-react'
 import { formatCurrency } from '@/lib/utils'
 import { useOffline } from '@/hooks/useOffline'
+import { usePermission } from '@/hooks/usePermission'
+import { apiRequest } from '@/lib/api/api'
 import { offlineQueue } from '@/lib/offline/offlineQueue'
 import { offlineStore } from '@/lib/offline/offlineDb'
 import { syncManager } from '@/lib/offline/syncManager'
@@ -18,11 +20,60 @@ import ListaConflictos from '@/components/conflictos/ListaConflictos'
 
 const SyncStatusPage = () => {
   const { isOnline, pendingOps, failedOps, isSyncing, syncNow, downloadForOffline } = useOffline()
+  const { rol } = usePermission()
   const [clientTime, setClientTime] = useState<string>('')
   const [queueItems, setQueueItems] = useState<OfflineQueueItem[]>([])
   const [syncMeta, setSyncMeta] = useState<Record<string, SyncMeta | undefined>>({})
   const [recordCounts, setRecordCounts] = useState<Record<string, number>>({})
   const [lastSyncResult, setLastSyncResult] = useState<string | null>(null)
+  const [serverQueueCounts, setServerQueueCounts] = useState<Record<string, number> | null>(null)
+  const [serverQueueJobs, setServerQueueJobs] = useState<
+    Array<{
+      id: string
+      name: string
+      state: 'failed' | 'delayed' | 'active' | 'waiting'
+      timestamp: number
+      processedOn: number | null
+      finishedOn: number | null
+      attemptsMade: number
+      failedReason: string | null
+      stacktrace?: string[]
+      data?: any
+      model?: string | null
+      action?: string | null
+    }>
+  >([])
+  const [expandedServerJobId, setExpandedServerJobId] = useState<string | null>(null)
+
+  const bullBoardUrl = (() => {
+    const rawBase = process.env.NEXT_PUBLIC_BASE_URL ||
+      (process.env.NODE_ENV === 'production'
+        ? 'https://credito-sur-backend.onrender.com'
+        : 'http://127.0.0.1:3001')
+
+    const normalized = rawBase.replace(/\/$/, '')
+    const base = normalized.endsWith('/api-credisur') ? normalized : `${normalized}/api-credisur`
+    return `${base}/configuracion/colas`
+  })()
+
+  const loadServerQueueStatus = useCallback(async () => {
+    if (rol !== 'SUPER_ADMINISTRADOR') {
+      setServerQueueCounts(null)
+      setServerQueueJobs([])
+      return
+    }
+
+    try {
+      const res = await apiRequest<{ counts: Record<string, number>; jobs?: any[] }>('GET', '/configuracion/colas/status', undefined, {
+        cacheTTL: 0,
+      })
+      setServerQueueCounts(res?.counts || null)
+      setServerQueueJobs(Array.isArray(res?.jobs) ? (res.jobs as any) : [])
+    } catch {
+      setServerQueueCounts(null)
+      setServerQueueJobs([])
+    }
+  }, [rol])
 
   const loadData = useCallback(async () => {
     const [items, cMeta, pMeta, rMeta, cCount, pCount, cuCount, rCount] = await Promise.all([
@@ -54,6 +105,12 @@ const SyncStatusPage = () => {
     const interval = setInterval(loadData, 10_000)
     return () => clearInterval(interval)
   }, [loadData, pendingOps, failedOps])
+
+  useEffect(() => {
+    loadServerQueueStatus()
+    const interval = setInterval(loadServerQueueStatus, 5_000)
+    return () => clearInterval(interval)
+  }, [loadServerQueueStatus])
 
   const handleSyncNow = async () => {
     const result = await syncNow()
@@ -99,6 +156,162 @@ const SyncStatusPage = () => {
     const diffHrs = Math.floor(diffMin / 60)
     if (diffHrs < 24) return `Hace ${diffHrs}h`
     return d.toLocaleDateString('es-CO', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })
+  }
+
+  const renderServerQueuePanel = () => {
+    if (rol !== 'SUPER_ADMINISTRADOR') return null
+
+    return (
+      <div className="p-4 rounded-xl bg-slate-50 border border-slate-200">
+        <div className="flex items-center justify-between">
+          <span className="text-xs font-black text-slate-700 uppercase tracking-wider">Cola del Servidor (BullMQ)</span>
+          <button
+            onClick={() => window.open(bullBoardUrl, '_blank', 'noopener,noreferrer')}
+            className="text-[11px] font-bold text-slate-500 hover:text-slate-700"
+            title="Abrir Bull Board"
+          >
+            Ver detalles
+          </button>
+        </div>
+
+        <div className="grid grid-cols-4 gap-2 mt-2">
+          <div className="bg-white border border-slate-200 rounded-lg p-2 text-center">
+            <div className="text-sm font-black text-slate-900">{serverQueueCounts?.waiting ?? '-'}</div>
+            <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Waiting</div>
+          </div>
+          <div className="bg-white border border-slate-200 rounded-lg p-2 text-center">
+            <div className="text-sm font-black text-slate-900">{serverQueueCounts?.active ?? '-'}</div>
+            <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Active</div>
+          </div>
+          <div className="bg-white border border-slate-200 rounded-lg p-2 text-center">
+            <div className="text-sm font-black text-slate-900">{serverQueueCounts?.delayed ?? '-'}</div>
+            <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Delayed</div>
+          </div>
+          <div className="bg-white border border-slate-200 rounded-lg p-2 text-center">
+            <div className="text-sm font-black text-slate-900">{serverQueueCounts?.failed ?? '-'}</div>
+            <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Failed</div>
+          </div>
+        </div>
+
+        <div className="mt-3 overflow-x-auto">
+          <table className="w-full text-xs">
+            <thead>
+              <tr className="text-slate-500">
+                <th className="text-left font-black uppercase tracking-wider py-2 pr-2">Estado</th>
+                <th className="text-left font-black uppercase tracking-wider py-2 pr-2">Job</th>
+                <th className="text-right font-black uppercase tracking-wider py-2 pr-2">Intentos</th>
+                <th className="text-right font-black uppercase tracking-wider py-2">Fecha</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-200">
+              {(serverQueueJobs || [])
+                .slice(0, 6)
+                .flatMap((j) => {
+                  const stateClass =
+                    j.state === 'failed'
+                      ? 'bg-rose-100 text-rose-700 border-rose-200'
+                      : j.state === 'delayed'
+                        ? 'bg-amber-100 text-amber-700 border-amber-200'
+                        : j.state === 'active'
+                          ? 'bg-sky-100 text-sky-700 border-sky-200'
+                          : 'bg-slate-100 text-slate-700 border-slate-200'
+
+                  const stateLabel =
+                    j.state === 'failed'
+                      ? 'FAILED'
+                      : j.state === 'delayed'
+                        ? 'DELAYED'
+                        : j.state === 'active'
+                          ? 'ACTIVE'
+                          : 'WAITING'
+
+                  const isExpanded = expandedServerJobId === String(j.id)
+
+                  const baseRow = (
+                    <tr
+                      key={`${j.state}-${j.id}`}
+                      className="text-slate-700 hover:bg-white/60 cursor-pointer"
+                      onClick={() =>
+                        setExpandedServerJobId((prev) => (prev === String(j.id) ? null : String(j.id)))
+                      }
+                      title="Click para ver detalle"
+                    >
+                      <td className="py-2 pr-2 align-top">
+                        <span className={`px-2 py-0.5 rounded-md border font-black ${stateClass}`}>{stateLabel}</span>
+                      </td>
+                      <td className="py-2 pr-2 align-top">
+                        <div className="font-bold text-slate-900">#{String(j.id)}</div>
+                        {(j.model || j.action) && (
+                          <div className="text-[10px] text-slate-500 font-black uppercase tracking-wider">
+                            {j.model || '—'} {j.action ? `/${j.action}` : ''}
+                          </div>
+                        )}
+                        {j.failedReason ? (
+                          <div className="text-[10px] text-rose-600 truncate max-w-[380px]" title={j.failedReason}>
+                            {j.failedReason}
+                          </div>
+                        ) : (
+                          <div className="text-[10px] text-slate-400 truncate max-w-[380px]" title={j.name}>
+                            {j.name}
+                          </div>
+                        )}
+                      </td>
+                      <td className="py-2 pr-2 text-right font-black text-slate-900 align-top">{j.attemptsMade ?? '-'}</td>
+                      <td className="py-2 text-right text-slate-500 font-bold align-top">
+                        {j.timestamp
+                          ? new Date(j.timestamp).toLocaleTimeString('es-CO', {
+                              hour: '2-digit',
+                              minute: '2-digit',
+                              hour12: true,
+                            })
+                          : '-'}
+                      </td>
+                    </tr>
+                  )
+
+                  const expandedRow = isExpanded ? (
+                    <tr key={`${j.state}-${j.id}-expanded`}>
+                      <td colSpan={4} className="pb-3">
+                        <div className="mt-2 rounded-lg border border-slate-200 bg-white p-3">
+                          {j.failedReason && (
+                            <div className="text-[11px] font-bold text-rose-700 mb-2 whitespace-pre-wrap">
+                              {j.failedReason}
+                            </div>
+                          )}
+
+                          {Array.isArray(j.stacktrace) && j.stacktrace.length > 0 && (
+                            <div className="mb-2">
+                              <div className="text-[10px] font-black text-slate-500 uppercase tracking-wider mb-1">Stacktrace</div>
+                              <pre className="text-[10px] text-slate-700 whitespace-pre-wrap">{j.stacktrace.join('\n')}</pre>
+                            </div>
+                          )}
+
+                          {typeof j.data !== 'undefined' && (
+                            <div>
+                              <div className="text-[10px] font-black text-slate-500 uppercase tracking-wider mb-1">Payload</div>
+                              <pre className="text-[10px] text-slate-800 bg-slate-50 border border-slate-200 rounded-md p-2 overflow-x-auto">
+                                {JSON.stringify(j.data, null, 2)}
+                              </pre>
+                            </div>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ) : null
+
+                  return expandedRow ? [baseRow, expandedRow] : [baseRow]
+                })}
+
+              {(serverQueueJobs || []).length === 0 && (
+                <tr>
+                  <td colSpan={4} className="py-3 text-center text-slate-400 font-bold">Sin eventos recientes</td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -251,84 +464,88 @@ const SyncStatusPage = () => {
                   </div>
                   <h3 className="text-sm font-bold text-slate-700 mb-1">¡Todo sincronizado!</h3>
                   <p className="text-xs text-slate-500">No hay operaciones pendientes en la cola.</p>
+                  <div className="mt-6 text-left">{renderServerQueuePanel()}</div>
                 </div>
               ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left">
-                    <thead>
-                      <tr className="bg-slate-50/50">
-                        <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-wider">ID / Fecha</th>
-                        <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-wider">Operación</th>
-                        <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-wider text-right">Monto</th>
-                        <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-wider">Estado</th>
-                        <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-wider text-center">Acciones</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100">
-                      {queueItems.map((item) => (
-                        <tr key={item.id} className="hover:bg-slate-50/50 transition-colors">
-                          <td className="px-6 py-4">
-                            <div className="flex flex-col">
-                              <span className="text-sm font-bold text-slate-900">{item.id.slice(0, 16)}</span>
-                              <span className="text-xs font-medium text-slate-400">
-                                {new Date(item.createdAt).toLocaleString('es-CO', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: 'short' })}
-                              </span>
-                            </div>
-                          </td>
-                          <td className="px-6 py-4">
-                            <div className="flex flex-col">
-                              <span className="text-sm font-bold text-slate-700">{item.description}</span>
-                              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{item.type}</span>
-                            </div>
-                          </td>
-                          <td className="px-6 py-4 text-right">
-                            <span className="text-sm font-bold text-slate-900">
-                              {item.amount ? formatCurrency(item.amount) : '-'}
-                            </span>
-                          </td>
-                          <td className="px-6 py-4">
-                            <div className="flex items-center gap-2">
-                              {item.status === 'pending' && <Clock className="w-4 h-4 text-amber-500" />}
-                              {item.status === 'syncing' && <RefreshCw className="w-4 h-4 text-sky-500 animate-spin" />}
-                              {item.status === 'failed' && <AlertTriangle className="w-4 h-4 text-rose-500" />}
-                              <div>
-                                <span className={`text-xs font-bold uppercase tracking-wider ${
-                                  item.status === 'pending' ? 'text-amber-600' :
-                                  item.status === 'syncing' ? 'text-blue-600' :
-                                  'text-rose-600'
-                                }`}>
-                                  {item.status === 'pending' ? 'Pendiente' : item.status === 'syncing' ? 'Enviando' : 'Fallido'}
-                                </span>
-                                {item.lastError && (
-                                  <p className="text-[10px] text-rose-500 truncate max-w-[200px]">{item.lastError}</p>
-                                )}
-                              </div>
-                            </div>
-                          </td>
-                          <td className="px-6 py-4 text-center">
-                            <div className="flex items-center justify-center gap-1">
-                              {item.status === 'failed' && (
-                                <button 
-                                  onClick={() => handleRetry(item.id)}
-                                  className="p-2 hover:bg-blue-50 text-blue-600 rounded-lg transition-colors"
-                                  title="Reintentar"
-                                >
-                                  <RefreshCw className="w-4 h-4" />
-                                </button>
-                              )}
-                              <button 
-                                onClick={() => handleRemove(item.id)}
-                                className="p-2 hover:bg-rose-50 text-rose-400 hover:text-rose-600 rounded-lg transition-colors"
-                                title="Eliminar"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </button>
-                            </div>
-                          </td>
+                <div className="p-4 md:p-6">
+                  <div className="mb-4">{renderServerQueuePanel()}</div>
+                  <div className="overflow-x-auto -mx-4 md:-mx-6">
+                    <table className="w-full text-left">
+                      <thead>
+                        <tr className="bg-slate-50/50">
+                          <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-wider">ID / Fecha</th>
+                          <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-wider">Operación</th>
+                          <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-wider text-right">Monto</th>
+                          <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-wider">Estado</th>
+                          <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-wider text-center">Acciones</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {queueItems.map((item) => (
+                          <tr key={item.id} className="hover:bg-slate-50/50 transition-colors">
+                            <td className="px-6 py-4">
+                              <div className="flex flex-col">
+                                <span className="text-sm font-bold text-slate-900">{item.id.slice(0, 16)}</span>
+                                <span className="text-xs font-medium text-slate-400">
+                                  {new Date(item.createdAt).toLocaleString('es-CO', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: 'short' })}
+                                </span>
+                              </div>
+                            </td>
+                            <td className="px-6 py-4">
+                              <div className="flex flex-col">
+                                <span className="text-sm font-bold text-slate-700">{item.description}</span>
+                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{item.type}</span>
+                              </div>
+                            </td>
+                            <td className="px-6 py-4 text-right">
+                              <span className="text-sm font-bold text-slate-900">
+                                {item.amount ? formatCurrency(item.amount) : '-'}
+                              </span>
+                            </td>
+                            <td className="px-6 py-4">
+                              <div className="flex items-center gap-2">
+                                {item.status === 'pending' && <Clock className="w-4 h-4 text-amber-500" />}
+                                {item.status === 'syncing' && <RefreshCw className="w-4 h-4 text-sky-500 animate-spin" />}
+                                {item.status === 'failed' && <AlertTriangle className="w-4 h-4 text-rose-500" />}
+                                <div>
+                                  <span className={`text-xs font-bold uppercase tracking-wider ${
+                                    item.status === 'pending' ? 'text-amber-600' :
+                                    item.status === 'syncing' ? 'text-blue-600' :
+                                    'text-rose-600'
+                                  }`}>
+                                    {item.status === 'pending' ? 'Pendiente' : item.status === 'syncing' ? 'Enviando' : 'Fallido'}
+                                  </span>
+                                  {item.lastError && (
+                                    <p className="text-[10px] text-rose-500 truncate max-w-[200px]">{item.lastError}</p>
+                                  )}
+                                </div>
+                              </div>
+                            </td>
+                            <td className="px-6 py-4 text-center">
+                              <div className="flex items-center justify-center gap-1">
+                                {item.status === 'failed' && (
+                                  <button 
+                                    onClick={() => handleRetry(item.id)}
+                                    className="p-2 hover:bg-blue-50 text-blue-600 rounded-lg transition-colors"
+                                    title="Reintentar"
+                                  >
+                                    <RefreshCw className="w-4 h-4" />
+                                  </button>
+                                )}
+                                <button 
+                                  onClick={() => handleRemove(item.id)}
+                                  className="p-2 hover:bg-rose-50 text-rose-400 hover:text-rose-600 rounded-lg transition-colors"
+                                  title="Eliminar"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
               )}
             </div>
