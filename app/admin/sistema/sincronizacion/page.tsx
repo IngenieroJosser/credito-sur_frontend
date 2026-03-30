@@ -10,6 +10,7 @@ import {
 } from 'lucide-react'
 import { formatCurrency } from '@/lib/utils'
 import { useOffline } from '@/hooks/useOffline'
+import { usePermission } from '@/hooks/usePermission'
 import { offlineQueue } from '@/lib/offline/offlineQueue'
 import { offlineStore } from '@/lib/offline/offlineDb'
 import { syncManager } from '@/lib/offline/syncManager'
@@ -18,11 +19,23 @@ import ListaConflictos from '@/components/conflictos/ListaConflictos'
 
 const SyncStatusPage = () => {
   const { isOnline, pendingOps, failedOps, isSyncing, syncNow, downloadForOffline } = useOffline()
+  const { rol } = usePermission()
   const [clientTime, setClientTime] = useState<string>('')
   const [queueItems, setQueueItems] = useState<OfflineQueueItem[]>([])
   const [syncMeta, setSyncMeta] = useState<Record<string, SyncMeta | undefined>>({})
   const [recordCounts, setRecordCounts] = useState<Record<string, number>>({})
   const [lastSyncResult, setLastSyncResult] = useState<string | null>(null)
+
+  const bullBoardUrl = (() => {
+    const rawBase = process.env.NEXT_PUBLIC_BASE_URL ||
+      (process.env.NODE_ENV === 'production'
+        ? 'https://credito-sur-backend.onrender.com'
+        : 'http://127.0.0.1:3001')
+
+    const normalized = rawBase.replace(/\/$/, '')
+    const base = normalized.endsWith('/api-credisur') ? normalized : `${normalized}/api-credisur`
+    return `${base}/configuracion/colas`
+  })()
 
   const loadData = useCallback(async () => {
     const [items, cMeta, pMeta, rMeta, cCount, pCount, cuCount, rCount] = await Promise.all([
@@ -129,6 +142,17 @@ const SyncStatusPage = () => {
               <Clock className="w-4 h-4 text-slate-400" />
               <span className="text-sm font-bold text-slate-700" suppressHydrationWarning>{clientTime}</span>
             </div>
+            {rol === 'SUPER_ADMINISTRADOR' && (
+              <button
+                onClick={() => window.open(bullBoardUrl, '_blank', 'noopener,noreferrer')}
+                className="inline-flex items-center gap-2 px-5 py-2.5 bg-white border border-slate-200 text-slate-700 rounded-xl hover:bg-slate-50 transition-all font-bold text-sm shadow-sm active:scale-95"
+                title="Abrir monitoreo de colas (Bull Board)"
+              >
+                <Database className="w-4 h-4" />
+                <span className="hidden sm:inline">Bull Board</span>
+                <span className="sm:hidden">Colas</span>
+              </button>
+            )}
             <button 
               onClick={handleDownload}
               disabled={isSyncing || !isOnline}
