@@ -53,7 +53,8 @@ import {
   ArrowRightLeft
 } from 'lucide-react'
 
-import { formatCOPInputValue, formatCurrency, formatMilesCOP, parseCOPInputToNumber, cn } from '@/lib/utils'
+import { formatCOPInputValue, formatCurrency, parseCOPInputToNumber, cn, formatMilesCOP } from '@/lib/utils'
+import MoneyAmount from '@/components/contable/MoneyAmount'
 import { ExportButton } from '@/components/ui/ExportButton'
 import FiltroRuta from '@/components/filtros/FiltroRuta'
 import { 
@@ -190,7 +191,7 @@ const ModuloContableContent = () => {
   const [movimientoSeleccionado, setMovimientoSeleccionado] = useState<MovimientoContable | null>(null)
 
   const [showDetalleModal, setShowDetalleModal] = useState(false)
-  const [detalleTipo, setDetalleTipo] = useState<'INGRESOS' | 'EGRESOS' | 'CIERRES' | null>(null)
+  const [detalleTipo, setDetalleTipo] = useState<'INGRESOS' | 'EGRESOS' | 'CIERRES' | 'CIERRES_RUTA' | null>(null)
 
   // Estados para Paginación de Listas Locales (Máximo 3 por vista)
   const [currentPageMovimientos, setCurrentPageMovimientos] = useState(0)
@@ -262,6 +263,36 @@ const ModuloContableContent = () => {
   // Filtros para el modal de detalles (Histórico)
   const [fechaInicioModal, setFechaInicioModal] = useState<string>('')
   const [fechaFinModal, setFechaFinModal] = useState<string>('')
+
+  const getDefaultDetalleModalRange = (tipo: 'INGRESOS' | 'EGRESOS') => {
+    const hoy = new Date().toISOString().split('T')[0]
+
+    const base = movimientos
+      .filter((m) => {
+        if (!cajaSeleccionada && m.categoria === 'CONSOLIDACION') return false
+
+        if (tipo === 'INGRESOS') {
+          if (m.tipo !== 'INGRESO') return false
+          const categoria = String(m.categoria || '').toUpperCase()
+          return categoria === 'PAGO' || categoria === 'ABONO'
+        }
+
+        return m.tipo === 'EGRESO'
+      })
+      .filter((m) => String(m.estado || '').toUpperCase() === 'APROBADO')
+      .filter((m) => {
+        if (!cajaSeleccionada) return true
+        return m.cajaId === cajaSeleccionada.id
+      })
+
+    let min: string | null = null
+    for (const m of base) {
+      const d = new Date(m.fecha).toISOString().split('T')[0]
+      if (!min || d < min) min = d
+    }
+
+    return { inicio: min ?? hoy, fin: hoy }
+  }
 
   const loadMovimientosDetalle = async () => {
     if (!cajaSeleccionada) {
@@ -780,37 +811,28 @@ const ModuloContableContent = () => {
         </header>
 
         {/* Banner Informativo - Elegant Compact Version */}
-        <div className="bg-white rounded-2xl p-4 shadow-lg shadow-slate-200/60 flex flex-col md:flex-row items-center justify-between gap-4 border border-blue-50 animate-in fade-in slide-in-from-top-4 duration-700 relative overflow-hidden group">
-          <div className="absolute right-0 top-0 w-24 h-24 bg-blue-50/50 rounded-full -mr-12 -mt-12 opacity-50 group-hover:scale-110 transition-transform duration-1000"></div>
-          
-          <div className="flex items-center gap-4 relative z-10">
-            <div className="bg-blue-600 p-2.5 rounded-xl shadow-md shadow-blue-600/20 ring-4 ring-blue-50 shrink-0">
-              <Zap className="h-4 w-4 text-white" />
-            </div>
-            <div>
-              <p className="text-sm font-extrabold text-slate-900 tracking-tight">Gestión de Cierre Automático</p>
-              <p className="text-xs text-slate-500 font-medium leading-tight">Las cajas de ruta se consolidarán al finalizar los recorridos.</p>
-            </div>
-          </div>
+        <div className="flex justify-end">
+          <div className="inline-flex w-fit bg-white rounded-2xl p-4 shadow-lg shadow-slate-200/60 flex-col md:flex-row items-center justify-end gap-4 border border-blue-50 animate-in fade-in slide-in-from-top-4 duration-700 relative overflow-hidden group">
+            <div className="absolute right-0 top-0 w-24 h-24 bg-blue-50/50 rounded-full -mr-12 -mt-12 opacity-50 group-hover:scale-110 transition-transform duration-1000"></div>
 
-          <div className="flex items-center gap-3 px-4 py-2 bg-slate-50 rounded-xl border border-slate-100 relative z-10">
-            <div className="flex flex-col items-end">
-              <span className="text-[9px] font-bold text-orange-500 uppercase tracking-widest">Estado</span>
-              <span className="text-xs font-black text-slate-900 flex items-center gap-1.5 mt-0.5">
-                <Clock className="h-3 w-3 text-blue-600" />
-                {resumenData.rutasAbiertas > 0 ? `FALTAN ${resumenData.rutasAbiertas} RUTAS` : 'TODAS LAS RUTAS CERRADAS'}
-              </span>
+            <div className="flex items-center gap-3 px-4 py-2 bg-slate-50 rounded-xl border border-slate-100 relative z-10">
+              <div className="flex flex-col items-end">
+                <span className="text-[9px] font-bold text-orange-500 uppercase tracking-widest">Estado</span>
+                <span className="text-xs font-black text-slate-900 flex items-center gap-1.5 mt-0.5">
+                  <Clock className="h-3 w-3 text-blue-600" />
+                  {resumenData.rutasAbiertas > 0 ? `FALTAN ${resumenData.rutasAbiertas} RUTAS` : 'TODAS LAS RUTAS CERRADAS'}
+                </span>
+              </div>
+              <div className="h-6 w-10 rounded-full border-2 border-slate-200 flex items-center justify-center text-[10px] font-black text-blue-600 shadow-inner shrink-0">
+                 <div 
+                   className="absolute inset-0 border-2 border-blue-600 rounded-full" 
+                   style={{ clipPath: `inset(${100 - resumenData.porcentajeCierre}% 0 0 0)` }}
+                 ></div>
+                 {resumenData.porcentajeCierre}%
+              </div>
             </div>
-            <div className="h-6 w-[1px] bg-slate-200 mx-1"></div>
-            <div className="relative w-10 h-10 rounded-full border-2 border-slate-200 flex items-center justify-center text-[10px] font-black text-blue-600 shadow-inner shrink-0">
-               <div 
-                 className="absolute inset-0 border-2 border-blue-600 rounded-full" 
-                 style={{ clipPath: `inset(${100 - resumenData.porcentajeCierre}% 0 0 0)` }}
-               ></div>
-               {resumenData.porcentajeCierre}%
-            </div>
-          </div>
 
+          </div>
         </div>
 
         {/* Tarjetas de Resumen Minimalistas */}
@@ -830,7 +852,7 @@ const ModuloContableContent = () => {
               </div>
             </div>
             <div className="text-2xl font-bold text-slate-900 tracking-tight">
-              {formatCurrency(resumenData.ingresosHoy)}
+              <MoneyAmount value={resumenData.ingresosHoy} amountClassName="text-2xl font-bold text-slate-900 tracking-tight" />
             </div>
             {resumenData.porcentajeIngresosVsAyer != null && resumenData.porcentajeIngresosVsAyer !== 0 && (
               <div className={cn(
@@ -857,7 +879,7 @@ const ModuloContableContent = () => {
               </div>
             </div>
             <div className="text-2xl font-bold text-slate-900 tracking-tight">
-              {formatCurrency(resumenData.egresosHoy)}
+              <MoneyAmount value={resumenData.egresosHoy} meaning="expense" amountClassName="text-2xl font-bold text-slate-900 tracking-tight" />
             </div>
             {resumenData.porcentajeEgresosVsAyer != null && resumenData.porcentajeEgresosVsAyer !== 0 && (
               <div className={cn(
@@ -880,20 +902,8 @@ const ModuloContableContent = () => {
                 <Zap className="h-4 w-4" />
               </div>
             </div>
-            <div className="flex items-center gap-2">
-              <div className="text-2xl font-bold text-slate-900 tracking-tight">
-                {formatCurrency(Math.abs(Number(resumenData.utilidadNeta || 0)))}
-              </div>
-              <span
-                className={cn(
-                  'text-[10px] font-black px-2 py-1 rounded-full border',
-                  Number(resumenData.utilidadNeta || 0) < 0
-                    ? 'bg-rose-50 text-rose-700 border-rose-200'
-                    : 'bg-emerald-50 text-emerald-700 border-emerald-200',
-                )}
-              >
-                {Number(resumenData.utilidadNeta || 0) < 0 ? 'PÉRDIDA' : 'GANANCIA'}
-              </span>
+            <div className="text-2xl font-bold text-slate-900 tracking-tight">
+              <MoneyAmount value={resumenData.utilidadNeta} amountClassName="text-2xl font-bold text-slate-900" />
             </div>
             <div className="mt-2 text-xs text-slate-500 font-medium">
               Utilidad operativa
@@ -911,10 +921,11 @@ const ModuloContableContent = () => {
               </div>
             </div>
             <div className="text-2xl font-bold text-slate-900 tracking-tight">
-              {formatCurrency(resumenData.capitalEnCalle)}
-            </div>
-            <div className="mt-2 text-xs text-slate-500 font-medium">
-              Colocación Hoy
+              <MoneyAmount
+                value={resumenData.capitalEnCalle}
+                showBadge={false}
+                amountClassName="text-2xl font-bold text-slate-900 tracking-tight"
+              />
             </div>
           </div>
 
@@ -1056,12 +1067,14 @@ const ModuloContableContent = () => {
                   </div>
                   <div className="flex items-center gap-3 pl-4 shrink-0">
                      <div className="text-right">
-                        <div className={cn(
-                           "text-sm font-black tracking-tight",
-                           isIngreso ? "text-emerald-700" : "text-rose-700"
-                        )}>
-                           {isIngreso ? '+' : '-'}{formatCurrency(m.monto)}
-                        </div>
+                        <MoneyAmount
+                          value={m.monto}
+                          meaning={isIngreso ? 'signed' : 'expense'}
+                          amountClassName={cn(
+                            'text-sm font-black tracking-tight',
+                            isIngreso ? 'text-emerald-700' : 'text-rose-700',
+                          )}
+                        />
                      </div>
                      <button
                        onClick={() => {
@@ -1142,7 +1155,7 @@ const ModuloContableContent = () => {
                       )}
                       {c.recaudoEsperado && (
                         <div className="mt-2 flex items-center gap-3">
-                           <div className="text-[10px] font-bold text-slate-400 uppercase">Goal: {formatCurrency(c.recaudoEsperado)}</div>
+                           <div className="text-[10px] font-bold text-slate-400 uppercase">Goal: <MoneyAmount value={c.recaudoEsperado} amountClassName="text-[10px] font-bold text-slate-400 uppercase" /></div>
                            <div className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded">{c.eficiencia}% Efficiency</div>
                         </div>
                       )}
@@ -1156,7 +1169,7 @@ const ModuloContableContent = () => {
                       )}>
                         {c.estado}
                       </div>
-                      <div className="text-sm font-extrabold text-slate-900">{formatCurrency(c.saldo)}</div>
+                      <MoneyAmount value={c.saldo} amountClassName="text-sm font-extrabold text-slate-900" />
                       <div className="flex gap-2">
 
                         <button 
@@ -1509,7 +1522,7 @@ const ModuloContableContent = () => {
                           <option value="">Seleccionar caja destino...</option>
                           {cajasOrdenadas
                             .map(c => (
-                              <option key={c.id} value={c.id}>{c.nombre} (Saldo: {formatCurrency(c.saldo)})</option>
+                              <option key={c.id} value={c.id}>{c.nombre} (Saldo: {formatCurrency(Math.abs(Number(c.saldo || 0)))})</option>
                           ))}
                         </select>
                     </div>
@@ -1558,7 +1571,7 @@ const ModuloContableContent = () => {
                             <option key={c.id} value={c.id} disabled={c.id === movimientoForm.cajaId}>
                               {c.nombre}
                               {c.id === movimientoForm.cajaId ? ' (Seleccionada como destino)' : ''}
-                              {` (Saldo: ${formatCurrency(c.saldo)})`}
+                              {` (Saldo: ${formatCurrency(Math.abs(Number(c.saldo || 0)))})`}
                             </option>
                           ))}
                       </select>
@@ -1690,8 +1703,8 @@ const ModuloContableContent = () => {
             <div className="w-full max-w-lg rounded-2xl bg-white border border-slate-200 shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200" onClick={(e) => e.stopPropagation()}>
               <div className="p-6 border-b border-slate-100 flex items-center justify-between">
                 <div>
-                    <h3 className="text-lg font-bold text-slate-900">Detalle de Movimiento</h3>
-                    {/* ID Oculto por solicitud del usuario */}
+                  <h3 className="text-lg font-bold text-slate-900">Detalle de Movimiento</h3>
+                  {/* ID Oculto por solicitud del usuario */}
                 </div>
                 <button
                   onClick={() => setShowVerMovimientoModal(false)}
@@ -1700,133 +1713,130 @@ const ModuloContableContent = () => {
                   <XCircle className="h-5 w-5" />
                 </button>
               </div>
-              
+
               <div className="p-6 space-y-5">
-                 {/* Bloque Principal: Monto y Tipo */}
-                 <div className="flex justify-between items-center bg-slate-50 p-4 rounded-xl border border-slate-100">
-                    <div>
-                        <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Monto Operación</div>
-                        <div className="text-2xl font-black text-slate-900">{formatCurrency(movimientoSeleccionado.monto)}</div>
+                <div className="flex justify-between items-center bg-slate-50 p-4 rounded-xl border border-slate-100">
+                  <div>
+                    <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Monto Operación</div>
+                    <MoneyAmount value={movimientoSeleccionado.monto} amountClassName="text-2xl font-black text-slate-900" />
+                  </div>
+                  <div className="text-right">
+                    <div className={cn(
+                      "inline-flex items-center px-3 py-1 rounded-full text-xs font-bold border",
+                      movimientoSeleccionado.tipo === 'INGRESO'
+                        ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                        : "bg-rose-50 text-rose-700 border-rose-200",
+                    )}>
+                      {movimientoSeleccionado.tipo}
                     </div>
-                    <div className="text-right">
-                        <div className={cn(
-                            "inline-flex items-center px-3 py-1 rounded-full text-xs font-bold border",
-                            movimientoSeleccionado.tipo === 'INGRESO' ? "bg-emerald-50 text-emerald-700 border-emerald-200" : "bg-rose-50 text-rose-700 border-rose-200"
-                        )}>
-                            {movimientoSeleccionado.tipo}
-                        </div>
-                    </div>
-                 </div>
+                  </div>
+                </div>
 
-                 {/* Detalles en Grid */}
-                 <div className="grid grid-cols-2 gap-y-5 gap-x-4">
-                    <div>
-                        <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Fecha Registro</div>
-                        <div className="font-semibold text-slate-900 text-sm">{new Date(movimientoSeleccionado.fecha).toLocaleString('es-CO')}</div>
-                    </div>
-                    <div>
-                        <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Estado</div>
-                        <div className="font-semibold text-slate-900 text-sm">{movimientoSeleccionado.estado}</div>
-                    </div>
-                    
-                    <div>
-                        <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Categoría</div>
-                        <div className="font-semibold text-slate-900 text-sm bg-slate-100 px-2 py-0.5 rounded w-fit">
-                           {movimientoSeleccionado.categoria}
-                        </div>
-                    </div>
-                    <div>
-                        <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">
-                            {movimientoSeleccionado.tipo === 'TRANSFERENCIA' || movimientoSeleccionado.categoria === 'CONSOLIDACION' 
-                                ? (movimientoSeleccionado.tipo === 'INGRESO' ? 'Recibido De' : 'Enviado A')
-                                : 'Origen'}
-                        </div>
-                        <div className="font-semibold text-slate-900 text-sm">
-                            {(() => {
-                                // Intentar extraer la caja de la descripción si es transferencia
-                                if (movimientoSeleccionado.tipo === 'TRANSFERENCIA' || movimientoSeleccionado.categoria === 'CONSOLIDACION') {
-                                    const desc = movimientoSeleccionado.concepto;
-                                    // Patrones comunes según accounting.service.ts
-                                    // "Salida hacia [Caja]: ..."
-                                    // "Entrada desde [Caja]: ..."
-                                    // "Consolidación hacia [Caja]..."
-                                    // "Consolidación desde [Caja]..."
-                                    
-                                    const matchHacia = desc.match(/(?:hacia|a)\s+(.*?)(?::|\(|\)|$)/i);
-                                    const matchDesde = desc.match(/(?:desde|de)\s+(.*?)(?::|\(|\)|$)/i);
-                                    
-                                    if (movimientoSeleccionado.tipo === 'EGRESO' || desc.includes('Salida') || desc.includes('hacia')) {
-                                        if (matchHacia && matchHacia[1]) return matchHacia[1].trim();
-                                    }
-                                    if (movimientoSeleccionado.tipo === 'INGRESO' || desc.includes('Entrada') || desc.includes('desde')) {
-                                        if (matchDesde && matchDesde[1]) return matchDesde[1].trim();
-                                    }
-                                }
-                                return movimientoSeleccionado.origen;
-                            })()}
-                        </div>
-                    </div>
-                 </div>
+                <div className="grid grid-cols-2 gap-y-5 gap-x-4">
+                  <div>
+                    <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Fecha Registro</div>
+                    <div className="font-semibold text-slate-900 text-sm">{new Date(movimientoSeleccionado.fecha).toLocaleString('es-CO')}</div>
+                  </div>
+                  <div>
+                    <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Estado</div>
+                    <div className="font-semibold text-slate-900 text-sm">{movimientoSeleccionado.estado}</div>
+                  </div>
 
-                 {/* Bloque de Responsable */}
-                 <div className="pt-4 border-t border-slate-100">
-                     <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Responsable</div>
-                     <div className="font-bold text-slate-900 flex items-center gap-2">
-                        <div className="w-6 h-6 rounded-full bg-slate-200 flex items-center justify-center text-[10px] text-slate-600">
-                            {movimientoSeleccionado.responsable.charAt(0)}
-                        </div>
-                        {movimientoSeleccionado.responsable}
-                     </div>
-                 </div>
-
-                 {/* Bloque de Concepto */}
-                 <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
-                    <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Concepto / Descripción</div>
-                    <div className="font-medium text-slate-800 text-sm leading-relaxed">
-                        {(() => {
-                            let conceptoMostrar = movimientoSeleccionado.concepto
-                                .replace(/^Entrada desde .*?: |^Salida hacia .*?: |^Consolidación .*?: /i, '')
-                                .replace(/^Transferencia enviada a .*?: |^Transferencia recibida de .*?: /i, '')
-                                .replace(/\(Entrada\)|\(Salida\)/gi, '')
-                                .trim();
-                            
-                            // Si es una transferencia/consolidación, mejorar el texto
-                            if (movimientoSeleccionado.tipo === 'TRANSFERENCIA' || movimientoSeleccionado.categoria === 'CONSOLIDACION') {
-                                // Determinamos si visualmente es un ingreso o egreso para este modal
-                                const isIngreso = movimientoSeleccionado.tipo === 'INGRESO' || 
-                                    (movimientoSeleccionado.categoria.includes('INGRESO') || movimientoSeleccionado.concepto.includes('Entrada') || movimientoSeleccionado.concepto.includes('recibida'));
-                                    
-                                if (isIngreso) {
-                                     const origen = movimientoSeleccionado.concepto.match(/desde (.*?)[:\(]/i)?.[1] || movimientoSeleccionado.concepto.match(/de (.*?)($|[:\(])/i)?.[1] || 'Caja Origen';
-                                     conceptoMostrar = `Ingreso de: ${origen}`;
-                                } else {
-                                     const destino = movimientoSeleccionado.concepto.match(/hacia (.*?)[:\(]/i)?.[1] || movimientoSeleccionado.concepto.match(/a (.*?)($|[:\(])/i)?.[1] || 'Caja Destino';
-                                     conceptoMostrar = `Egreso a: ${destino}`;
-                                }
-                                conceptoMostrar = conceptoMostrar.replace('Caja Caja', 'Caja');
-                            }
-                            
-                            if (conceptoMostrar.includes('undefined') || conceptoMostrar.length < 5) {
-                                conceptoMostrar = movimientoSeleccionado.concepto
-                                    .replace(/^Entrada desde .*?: |^Salida hacia .*?: |^Consolidación .*?: /i, '')
-                                    .replace(/^Transferencia enviada a .*?: |^Transferencia recibida de .*?: /i, '')
-                                    .trim();
-                            }
-                            
-                            return conceptoMostrar;
-                        })()}
+                  <div>
+                    <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Categoría</div>
+                    <div className="font-semibold text-slate-900 text-sm bg-slate-100 px-2 py-0.5 rounded w-fit">
+                      {movimientoSeleccionado.categoria}
                     </div>
-                 </div>
+                  </div>
+                  <div>
+                    <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">
+                      {movimientoSeleccionado.tipo === 'TRANSFERENCIA' || movimientoSeleccionado.categoria === 'CONSOLIDACION'
+                        ? (movimientoSeleccionado.tipo === 'INGRESO' ? 'Recibido De' : 'Enviado A')
+                        : 'Origen'}
+                    </div>
+                    <div className="font-semibold text-slate-900 text-sm">
+                      {(() => {
+                        if (movimientoSeleccionado.tipo === 'TRANSFERENCIA' || movimientoSeleccionado.categoria === 'CONSOLIDACION') {
+                          const desc = movimientoSeleccionado.concepto
+                          const matchHacia = desc.match(/(?:hacia|a)\s+(.*?)(?::|\(|\)|$)/i)
+                          const matchDesde = desc.match(/(?:desde|de)\s+(.*?)(?::|\(|\)|$)/i)
+                          if (movimientoSeleccionado.tipo === 'EGRESO' || desc.includes('Salida') || desc.includes('hacia')) {
+                            if (matchHacia && matchHacia[1]) return matchHacia[1].trim()
+                          }
+                          if (movimientoSeleccionado.tipo === 'INGRESO' || desc.includes('Entrada') || desc.includes('desde')) {
+                            if (matchDesde && matchDesde[1]) return matchDesde[1].trim()
+                          }
+                        }
+                        return movimientoSeleccionado.origen
+                      })()}
+                    </div>
+                  </div>
+                </div>
 
-                 {/* Bloque de Referencia (Condicional) */}
-                 {movimientoSeleccionado.referencia && (
-                     <div>
-                        <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Referencia Externa</div>
-                        <div className="font-mono text-slate-700 text-sm bg-slate-50 px-2 py-1 rounded border border-slate-100 w-fit">
-                            {movimientoSeleccionado.referencia}
-                        </div>
-                     </div>
-                 )}
+                <div className="pt-4 border-t border-slate-100">
+                  <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Responsable</div>
+                  <div className="font-bold text-slate-900 flex items-center gap-2">
+                    <div className="w-6 h-6 rounded-full bg-slate-200 flex items-center justify-center text-[10px] text-slate-600">
+                      {movimientoSeleccionado.responsable.charAt(0)}
+                    </div>
+                    {movimientoSeleccionado.responsable}
+                  </div>
+                </div>
+
+                <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
+                  <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Concepto / Descripción</div>
+                  <div className="font-medium text-slate-800 text-sm leading-relaxed">
+                    {(() => {
+                      let conceptoMostrar = movimientoSeleccionado.concepto
+                        .replace(/^Entrada desde .*?: |^Salida hacia .*?: |^Consolidación .*?: /i, '')
+                        .replace(/^Transferencia enviada a .*?: |^Transferencia recibida de .*?: /i, '')
+                        .replace(/\(Entrada\)|\(Salida\)/gi, '')
+                        .trim()
+
+                      if (movimientoSeleccionado.tipo === 'TRANSFERENCIA' || movimientoSeleccionado.categoria === 'CONSOLIDACION') {
+                        const isIngreso =
+                          movimientoSeleccionado.tipo === 'INGRESO' ||
+                          movimientoSeleccionado.categoria.includes('INGRESO') ||
+                          movimientoSeleccionado.concepto.includes('Entrada') ||
+                          movimientoSeleccionado.concepto.includes('recibida')
+
+                        if (isIngreso) {
+                          const origen =
+                            movimientoSeleccionado.concepto.match(/desde (.*?)[:\(]/i)?.[1] ||
+                            movimientoSeleccionado.concepto.match(/de (.*?)($|[:\(])/i)?.[1] ||
+                            'Caja Origen'
+                          conceptoMostrar = `Ingreso de: ${origen}`
+                        } else {
+                          const destino =
+                            movimientoSeleccionado.concepto.match(/hacia (.*?)[:\(]/i)?.[1] ||
+                            movimientoSeleccionado.concepto.match(/a (.*?)($|[:\(])/i)?.[1] ||
+                            'Caja Destino'
+                          conceptoMostrar = `Egreso a: ${destino}`
+                        }
+
+                        conceptoMostrar = conceptoMostrar.replace('Caja Caja', 'Caja')
+                      }
+
+                      if (conceptoMostrar.includes('undefined') || conceptoMostrar.length < 5) {
+                        conceptoMostrar = movimientoSeleccionado.concepto
+                          .replace(/^Entrada desde .*?: |^Salida hacia .*?: |^Consolidación .*?: /i, '')
+                          .replace(/^Transferencia enviada a .*?: |^Transferencia recibida de .*?: /i, '')
+                          .trim()
+                      }
+
+                      return conceptoMostrar
+                    })()}
+                  </div>
+                </div>
+
+                {movimientoSeleccionado.referencia && (
+                  <div>
+                    <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Referencia Externa</div>
+                    <div className="font-mono text-slate-700 text-sm bg-slate-50 px-2 py-1 rounded border border-slate-100 w-fit">
+                      {movimientoSeleccionado.referencia}
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div className="p-6 border-t border-slate-100 bg-slate-50/50 flex justify-end">
@@ -1860,7 +1870,12 @@ const ModuloContableContent = () => {
               <div className="p-6 space-y-6">
                 <div className="flex flex-col items-center justify-center py-4 bg-slate-50 rounded-2xl border border-slate-100 mb-6">
                     <div className="text-slate-500 text-sm font-bold uppercase mb-1">Saldo Actual</div>
-                    <div className="text-4xl font-extrabold text-slate-900">{formatCurrency(cajaSeleccionada.saldo)}</div>
+                    <MoneyAmount
+                      value={cajaSeleccionada.saldo}
+                      className="text-4xl font-extrabold"
+                      amountClassName="text-4xl font-extrabold text-slate-900"
+                      badgeClassName="text-[10px] px-3 py-1 tracking-widest"
+                    />
                 </div>
 
                 <div className="grid grid-cols-2 gap-6">
@@ -1917,10 +1932,9 @@ const ModuloContableContent = () => {
                       {/* Recaudado */}
                       <div 
                         onClick={async () => {
-                            // Pre-filtrar con la fecha de hoy para que coincida con el rendimiento mostrado
-                            const hoy = new Date().toISOString().split('T')[0];
-                            setFechaInicioModal(hoy);
-                            setFechaFinModal(hoy);
+                            const { inicio, fin } = getDefaultDetalleModalRange('INGRESOS')
+                            setFechaInicioModal(inicio)
+                            setFechaFinModal(fin)
                             setDetalleTipo('INGRESOS');
                             await loadMovimientosDetalle();
                             setShowDetalleModal(true);
@@ -1942,10 +1956,21 @@ const ModuloContableContent = () => {
                                       saldoRutaSeleccionada.recaudoDelDia ||
                                       saldoRutaSeleccionada.saldoCaja ||
                                       cajaSeleccionada.saldo;
-                                    return formatCurrency(valor);
+                                    return (
+                                      <MoneyAmount
+                                        value={valor}
+                                        amountClassName="text-lg font-extrabold text-emerald-800"
+                                      />
+                                    )
                                   }
                                   if (cajaSeleccionada.saldo) {
-                                    return formatCurrency(cajaSeleccionada.saldo);
+                                    const valor = Number(cajaSeleccionada.saldo || 0)
+                                    return (
+                                      <MoneyAmount
+                                        value={valor}
+                                        amountClassName="text-lg font-extrabold text-emerald-800"
+                                      />
+                                    )
                                   }
                                 }
                                 const ingresos = movimientos
@@ -1962,7 +1987,12 @@ const ModuloContableContent = () => {
                                     return true;
                                   })
                                   .reduce((acc, m) => acc + m.monto, 0);
-                                return formatCurrency(ingresos);
+                                return (
+                                  <MoneyAmount
+                                    value={ingresos}
+                                    amountClassName="text-lg font-extrabold text-emerald-800"
+                                  />
+                                )
                              })()}
                          </div>
                       </div>
@@ -1970,6 +2000,9 @@ const ModuloContableContent = () => {
                       {/* Gastado/Invertido */}
                       <div 
                         onClick={async () => {
+                            const { inicio, fin } = getDefaultDetalleModalRange('EGRESOS')
+                            setFechaInicioModal(inicio)
+                            setFechaFinModal(fin)
                             setDetalleTipo('EGRESOS');
                             await loadMovimientosDetalle();
                             setShowDetalleModal(true);
@@ -1987,7 +2020,14 @@ const ModuloContableContent = () => {
                              {(() => {
                                 if (cajaSeleccionada?.tipo === 'RUTA' && saldoRutaSeleccionada) {
                                   // Los egresos de una ruta incluyen gastos operativos y desembolsos
-                                  return formatCurrency(saldoRutaSeleccionada.gastosDelDia + (saldoRutaSeleccionada.desembolsos || 0));
+                                  const valor = saldoRutaSeleccionada.gastosDelDia + (saldoRutaSeleccionada.desembolsos || 0);
+                                  return (
+                                    <MoneyAmount
+                                      value={valor}
+                                      meaning="expense"
+                                      amountClassName="text-lg font-extrabold text-rose-800"
+                                    />
+                                  )
                                 }
                                 const egresos = movimientos
                                   .filter(m => (m.tipo === 'EGRESO' || m.tipo === 'TRANSFERENCIA'))
@@ -2002,11 +2042,44 @@ const ModuloContableContent = () => {
                                     return true;
                                   })
                                   .reduce((acc, m) => acc + m.monto, 0);
-                                return formatCurrency(egresos);
+                                return (
+                                  <MoneyAmount
+                                    value={egresos}
+                                    meaning="expense"
+                                    amountClassName="text-lg font-extrabold text-rose-800"
+                                  />
+                                )
                              })()}
                          </div>
                       </div>
                  </div>
+
+                 {cajaSeleccionada?.tipo === 'RUTA' && (
+                   <div className="mt-4">
+                     <div
+                       onClick={async () => {
+                         setDetalleTipo('CIERRES_RUTA')
+                         setFechaInicioModal('')
+                         setFechaFinModal('')
+                         setMovimientosDetalle([])
+                         setShowDetalleModal(true)
+                       }}
+                       className="bg-slate-50 p-4 rounded-2xl border border-slate-200 cursor-pointer hover:bg-slate-100 transition-colors group"
+                     >
+                       <div className="text-[10px] font-bold text-slate-600 uppercase mb-1 flex items-center gap-1 justify-between">
+                         <div className="flex items-center gap-1">
+                           <History className="w-3 h-3" />
+                           Cierres de Ruta
+                         </div>
+                         <ArrowUpRight className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" />
+                       </div>
+                       <div className="font-extrabold text-slate-900 text-lg">
+                         {historialCierres.filter((c: any) => c.tipo === 'CIERRE_RUTA' && c.cajaId === cajaSeleccionada.id).length}
+                         <span className="text-slate-400 font-bold text-sm"> registro(s)</span>
+                       </div>
+                     </div>
+                   </div>
+                 )}
 
                  <div className="mt-4 p-4 bg-slate-50 rounded-2xl border border-slate-100">
                       <div className="flex justify-between items-center mb-2">
@@ -2018,10 +2091,35 @@ const ModuloContableContent = () => {
                                 if (cajaSeleccionada?.tipo === 'RUTA' && saldoRutaSeleccionada) {
                                   // La utilidad diaria operativa: lo recaudado menos los gastos
                                   const valor = saldoRutaSeleccionada.recaudoDelDia - saldoRutaSeleccionada.gastosDelDia;
-                                  return formatCurrency(valor);
+                                  return (
+                                    <div className="flex items-center gap-2">
+                                      <span>{formatCurrency(Math.abs(Number(valor || 0)))}</span>
+                                      <span className={cn(
+                                        "px-2 py-0.5 rounded-full text-[9px] font-black uppercase border",
+                                        Number(valor || 0) < 0
+                                          ? "bg-red-50 text-red-700 border-red-100"
+                                          : "bg-emerald-50 text-emerald-700 border-emerald-100",
+                                      )}>
+                                        {Number(valor || 0) < 0 ? 'PÉRDIDA' : 'GANANCIA'}
+                                      </span>
+                                    </div>
+                                  )
                                 }
                               if (cajaSeleccionada?.saldo) {
-                                return formatCurrency(cajaSeleccionada.saldo);
+                                const valor = Number(cajaSeleccionada.saldo || 0)
+                                return (
+                                  <div className="flex items-center gap-2">
+                                    <span>{formatCurrency(Math.abs(valor))}</span>
+                                    <span className={cn(
+                                      "px-2 py-0.5 rounded-full text-[9px] font-black uppercase border",
+                                      valor < 0
+                                        ? "bg-red-50 text-red-700 border-red-100"
+                                        : "bg-emerald-50 text-emerald-700 border-emerald-100",
+                                    )}>
+                                      {valor < 0 ? 'PÉRDIDA' : 'GANANCIA'}
+                                    </span>
+                                  </div>
+                                )
                               }
                             const ingresos = movimientos
                               .filter(m => (m.tipo === 'INGRESO' || m.tipo === 'TRANSFERENCIA'))
@@ -2049,7 +2147,20 @@ const ModuloContableContent = () => {
                               })
                               .reduce((acc, m) => acc + m.monto, 0);
 
-                            return formatCurrency(ingresos - egresos);
+                            const valor = ingresos - egresos
+                            return (
+                              <div className="flex items-center gap-2">
+                                <span>{formatCurrency(Math.abs(Number(valor || 0)))}</span>
+                                <span className={cn(
+                                  "px-2 py-0.5 rounded-full text-[9px] font-black uppercase border",
+                                  Number(valor || 0) < 0
+                                    ? "bg-red-50 text-red-700 border-red-100"
+                                    : "bg-emerald-50 text-emerald-700 border-emerald-100",
+                                )}>
+                                  {Number(valor || 0) < 0 ? 'PÉRDIDA' : 'GANANCIA'}
+                                </span>
+                              </div>
+                            )
                           })()}
                       </div>
                  </div>
@@ -2134,7 +2245,13 @@ const ModuloContableContent = () => {
               <div className="p-6 border-b border-slate-100 flex items-center justify-between shrink-0">
                 <div>
                    <h3 className="text-lg font-bold text-slate-900">
-                      {detalleTipo === 'INGRESOS' ? 'Historial de Ingresos' : 'Historial de Egresos'}
+                      {detalleTipo === 'INGRESOS'
+                        ? 'Historial de Ingresos'
+                        : detalleTipo === 'EGRESOS'
+                          ? 'Historial de Egresos'
+                          : detalleTipo === 'CIERRES_RUTA'
+                            ? 'Historial de Cierres de Ruta'
+                            : 'Historial de Cierres'}
                    </h3>
                     <p className="text-xs font-bold text-blue-600 mt-1 uppercase tracking-widest flex items-center gap-1.5">
                        <History className="w-3.5 h-3.5" />
@@ -2167,6 +2284,24 @@ const ModuloContableContent = () => {
                                 <History className="w-6 h-6"/>
                             </div>
                         </div>
+                    ) : detalleTipo === 'CIERRES_RUTA' ? (
+                      <div className="rounded-xl border p-5 flex justify-between items-center transition-colors shadow-sm border-slate-200 bg-slate-50/50">
+                        <div className="flex flex-col">
+                          <span className="text-xs font-bold uppercase tracking-wider mb-1 text-slate-600">
+                            Cierres Registrados
+                          </span>
+                          <span className="text-3xl font-black tracking-tight text-slate-900">
+                            {(() => {
+                              const cajaId = cajaSeleccionada?.id
+                              if (!cajaId) return 0
+                              return historialCierres.filter((c: any) => c.tipo === 'CIERRE_RUTA' && c.cajaId === cajaId).length
+                            })()} registros
+                          </span>
+                        </div>
+                        <div className="p-4 rounded-full border shadow-sm bg-white border-slate-200 text-slate-700">
+                          <History className="w-6 h-6" />
+                        </div>
+                      </div>
                     ) : (
                         <div className={cn(
                           "rounded-xl border p-5 flex justify-between items-center transition-colors shadow-sm",
@@ -2238,7 +2373,7 @@ const ModuloContableContent = () => {
 
                     {/* Lista de Movimientos / Arqueos */}
                     <div className="space-y-3">
-                      {detalleTipo !== 'CIERRES' && (
+                      {detalleTipo !== 'CIERRES' && detalleTipo !== 'CIERRES_RUTA' && (
                         <div className="flex gap-2 mb-4 bg-slate-50 p-2 rounded-xl">
                             <div className="flex-1">
                                 <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1">Desde</label>
@@ -2263,11 +2398,21 @@ const ModuloContableContent = () => {
 
                       <div className="flex items-center justify-between pb-2 border-b border-slate-100">
                            <h4 className="text-sm font-bold text-slate-700">
-                             {detalleTipo === 'CIERRES' ? 'Listado de Consolidaciones' : 'Historial de Movimientos'}
+                             {detalleTipo === 'CIERRES' 
+                       ? 'Listado de Consolidaciones'
+                               : detalleTipo === 'CIERRES_RUTA'
+                                 ? 'Listado de Cierres de Ruta'
+                                 : 'Historial de Movimientos'}
                            </h4>
                            <span className="text-xs font-medium text-slate-400">
-                              {detalleTipo === 'CIERRES' 
-                                 ? historialCierres.length 
+                              {detalleTipo === 'CIERRES'
+                                 ? historialCierres.length
+                                 : detalleTipo === 'CIERRES_RUTA'
+                                   ? (() => {
+                                        const cajaId = cajaSeleccionada?.id
+                                        if (!cajaId) return 0
+                                        return historialCierres.filter((c: any) => c.tipo === 'CIERRE_RUTA' && c.cajaId === cajaId).length
+                                      })()
                                  : (() => {
                                       const base = movimientosDetalle.length ? movimientosDetalle : (!cajaSeleccionada && movimientosModalGlobal.length ? movimientosModalGlobal : movimientos);
                                       const filtrados = base
@@ -2301,7 +2446,7 @@ const ModuloContableContent = () => {
                                           return true;
                                         });
                                       return filtrados.length;
-                                    })()} {detalleTipo === 'CIERRES' ? 'consolidaciones' : 'registros'}
+                                    })()} {detalleTipo === 'CIERRES' ? 'consolidaciones' : detalleTipo === 'CIERRES_RUTA' ? 'cierres' : 'registros'}
                            </span>
                        </div>
                        
@@ -2343,6 +2488,79 @@ const ModuloContableContent = () => {
                                    <div className="py-10 text-center text-slate-400 font-bold text-sm">No hay arqueos en el historial</div>
                                )}
                            </div>
+                       ) : detalleTipo === 'CIERRES_RUTA' ? (
+                         <div className="space-y-3">
+                           {(() => {
+                             const cajaId = cajaSeleccionada?.id
+                             if (!cajaId) return null
+                             const cierresDeEstaRuta = historialCierres
+                               .filter((c: any) => c.tipo === 'CIERRE_RUTA' && c.cajaId === cajaId)
+                               .sort((a: any, b: any) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime())
+                             if (cierresDeEstaRuta.length === 0) {
+                               return (
+                                 <div className="py-10 text-center text-slate-400 font-bold text-sm">
+                                   No hay cierres de ruta registrados
+                                 </div>
+                               )
+                             }
+                             return cierresDeEstaRuta.map((c: any) => {
+                               const esDescuadre = c.estado === 'DESCUADRADA'
+                               return (
+                                 <div
+                                   key={c.id}
+                                   className="p-4 border border-slate-200 bg-white rounded-xl hover:bg-slate-50 transition-all flex items-center justify-between gap-4"
+                                 >
+                                   <div className="flex flex-col min-w-0">
+                                     <span className="text-xs font-black text-slate-900 uppercase">
+                                       {new Date(c.fecha).toLocaleDateString('es-CO', { day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                                     </span>
+                                     <span className="text-[10px] font-bold text-slate-500 truncate">{c.responsable}</span>
+                                     {c.clientesFaltantes > 0 && (
+                                       <span className="text-[10px] font-bold text-amber-700">
+                                         {c.clientesFaltantes} cliente{c.clientesFaltantes > 1 ? 's' : ''} sin cobrar
+                                       </span>
+                                     )}
+                                   </div>
+                                   <div className="flex items-center gap-4 shrink-0">
+                                     <span
+                                       className={cn(
+                                         "px-2 py-0.5 rounded text-[8px] font-black uppercase border",
+                                         esDescuadre
+                                           ? "bg-red-50 text-red-600 border-red-100"
+                                           : "bg-emerald-50 text-emerald-600 border-emerald-100",
+                                       )}
+                                     >
+                                       {esDescuadre ? 'DESCUADRE' : 'CUADRADA'}
+                                     </span>
+                                     <div className="text-right">
+                                       <div className="text-[10px] font-bold text-slate-400 uppercase leading-none mb-1 text-right">
+                                         Recaudo / Meta
+                                       </div>
+                                       <div className="text-sm font-black text-slate-900 leading-none text-right">
+                                         {formatCurrency(Number(c.saldoReal))}
+                                         <span className="text-slate-400 font-bold"> / {formatCurrency(Number(c.saldoSistema))}</span>
+                                       </div>
+                                       {c.efectividad != null && (
+                                         <div
+                                           className={cn(
+                                             "text-[10px] font-bold mt-1",
+                                             c.efectividad >= 100
+                                               ? "text-emerald-700"
+                                               : c.efectividad >= 75
+                                                 ? "text-blue-700"
+                                                 : "text-amber-700",
+                                           )}
+                                         >
+                                           {c.efectividad}% META
+                                         </div>
+                                       )}
+                                     </div>
+                                   </div>
+                                 </div>
+                               )
+                             })
+                           })()}
+                         </div>
                        ) : (
                          <>
                           {(movimientosDetalle.length ? movimientosDetalle : (!cajaSeleccionada && movimientosModalGlobal.length ? movimientosModalGlobal : movimientos))

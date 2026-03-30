@@ -4,6 +4,7 @@ import React, { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { ArrowLeft, CheckCircle2, AlertCircle, Calculator, Wallet, Receipt, Eye } from 'lucide-react'
 import { formatCOPInputValue, formatCurrency, parseCOPInputToNumber, cn } from '@/lib/utils'
+import MoneyAmount from '@/components/contable/MoneyAmount'
 import { getResumenFinanciero, getHistorialCierres, getHistorialCierresFiltrado, getCajas, consolidarCaja, registrarArqueo } from '@/services/contabilidad-service'
 import { Portal, MODAL_Z_INDEX } from '@/components/dashboards/shared/CobradorElements'
 
@@ -152,15 +153,19 @@ export default function CierreCajaPage() {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
                 <div className="text-xs font-bold text-slate-500 uppercase mb-1">Saldo Sistema</div>
-                <div className="text-xl font-bold text-slate-900">{formatCurrency(saldoSistema)}</div>
+                <div className="text-xl font-bold text-slate-900">
+                  <MoneyAmount value={saldoSistema} amountClassName="text-xl font-bold text-slate-900" />
+                </div>
               </div>
               <div className="bg-emerald-50 p-4 rounded-2xl border border-emerald-100 shadow-sm">
                 <div className="text-xs font-bold text-emerald-600 uppercase mb-1">Ingresos Hoy</div>
-                <div className="text-xl font-bold text-slate-900">+{formatCurrency(ingresosHoy)}</div>
+                <div className="text-xl font-bold text-slate-900">+{formatCurrency(Math.abs(Number(ingresosHoy || 0)))}</div>
               </div>
               <div className="bg-rose-50 p-4 rounded-2xl border border-rose-100 shadow-sm">
                 <div className="text-xs font-bold text-rose-600 uppercase mb-1">Egresos Hoy</div>
-                <div className="text-xl font-bold text-slate-900">{formatCurrency(egresosHoy)}</div>
+                <div className="text-xl font-bold text-slate-900">
+                  <MoneyAmount value={egresosHoy} meaning="expense" amountClassName="text-xl font-bold text-slate-900" />
+                </div>
               </div>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -291,11 +296,11 @@ export default function CierreCajaPage() {
                 </div>
                 <div className="flex justify-between items-center py-3 border-b border-slate-100">
                   <span className="text-slate-500 font-medium">Saldo Sistema</span>
-                  <span className="font-bold text-slate-900">{formatCurrency(saldoSistema)}</span>
+                  <span className="font-bold text-slate-900">{formatCurrency(Math.abs(Number(saldoSistema || 0)))}</span>
                 </div>
                 <div className="flex justify-between items-center py-3 border-b border-slate-100">
                   <span className="text-slate-500 font-medium">Efectivo Reportado</span>
-                  <span className="font-bold text-slate-900">{formatCurrency(Number(form.efectivoReal))}</span>
+                  <span className="font-bold text-slate-900">{formatCurrency(Math.abs(Number(form.efectivoReal)))}</span>
                 </div>
                 <div className="flex justify-between items-center py-3">
                   <span className="text-slate-500 font-medium">Diferencia</span>
@@ -305,7 +310,7 @@ export default function CierreCajaPage() {
                       ? "bg-emerald-100 text-emerald-700" 
                       : "bg-rose-100 text-rose-700"
                   )}>
-                    {formatCurrency(diferencia)}
+                    <MoneyAmount value={diferencia} amountClassName="font-bold" />
                   </span>
                 </div>
                 
@@ -432,7 +437,17 @@ export default function CierreCajaPage() {
                     </div>
                     <div className={cn("rounded-xl px-3 py-2 border shadow-sm", stats.difTotal === 0 ? "bg-slate-50 border-slate-200" : stats.difTotal > 0 ? "bg-emerald-50 border-emerald-100" : "bg-rose-50 border-rose-100")}>
                       <div className={cn("text-[10px] font-bold uppercase", stats.difTotal === 0 ? "text-slate-500" : stats.difTotal > 0 ? "text-emerald-600" : "text-rose-600")}>Dif. Neta</div>
-                      <div className={cn("text-sm font-black", stats.difTotal === 0 ? "text-slate-800" : stats.difTotal > 0 ? "text-emerald-800" : "text-rose-800")}>{formatCurrency(stats.difTotal)}</div>
+                      <MoneyAmount
+                        value={stats.difTotal}
+                        amountClassName={cn(
+                          'text-sm font-black',
+                          stats.difTotal === 0
+                            ? 'text-slate-800'
+                            : stats.difTotal > 0
+                              ? 'text-emerald-800'
+                              : 'text-rose-800',
+                        )}
+                      />
                     </div>
                   </div>
                 </div>
@@ -510,15 +525,27 @@ export default function CierreCajaPage() {
                 <div className="grid grid-cols-3 gap-4">
                   <div className="bg-slate-50 border border-slate-100 rounded-xl px-3 py-3 text-right">
                     <div className="text-[10px] font-bold text-slate-500 uppercase">Sistema</div>
-                    <div className="text-lg font-black text-slate-900">{formatCurrency(selectedCierre.saldoSistema ?? 0)}</div>
+                    <div className="text-lg font-black text-slate-900">
+                      <MoneyAmount value={selectedCierre.saldoSistema ?? 0} amountClassName="text-lg font-black text-slate-900" />
+                    </div>
                   </div>
                   <div className="bg-slate-50 border border-slate-100 rounded-xl px-3 py-3 text-right">
                     <div className="text-[10px] font-bold text-slate-500 uppercase">Real</div>
-                    <div className="text-lg font-black text-slate-900">{formatCurrency(selectedCierre.saldoReal ?? 0)}</div>
+                    <div className="text-lg font-black text-slate-900">
+                      <MoneyAmount value={selectedCierre.saldoReal ?? 0} amountClassName="text-lg font-black text-slate-900" />
+                    </div>
                   </div>
                   <div className={cn("rounded-xl px-3 py-3 text-right border", (Number(selectedCierre.diferencia || 0) === 0) ? "bg-emerald-50 border-emerald-100" : "bg-rose-50 border-rose-100")}>
                     <div className={cn("text-[10px] font-bold uppercase", (Number(selectedCierre.diferencia || 0) === 0) ? "text-emerald-600" : "text-rose-600")}>Diferencia</div>
-                    <div className={cn("text-lg font-black", (Number(selectedCierre.diferencia || 0) === 0) ? "text-emerald-800" : "text-rose-800")}>{formatCurrency(selectedCierre.diferencia ?? 0)}</div>
+                    <div className="flex items-center justify-end">
+                      <MoneyAmount
+                        value={selectedCierre.diferencia ?? 0}
+                        amountClassName={cn(
+                          'text-lg font-black',
+                          Number(selectedCierre.diferencia || 0) === 0 ? 'text-emerald-800' : 'text-rose-800',
+                        )}
+                      />
+                    </div>
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-4">

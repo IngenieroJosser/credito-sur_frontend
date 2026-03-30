@@ -16,7 +16,8 @@ import {
   Printer,
   Download
 } from 'lucide-react'
-import { formatCurrency, cn } from '@/lib/utils'
+import { cn } from '@/lib/utils'
+import MoneyAmount from '@/components/contable/MoneyAmount'
 import { getTransacciones } from '@/services/contabilidad-service'
 
 interface MovimientoDetalle {
@@ -134,7 +135,13 @@ export default function DetalleMovimientoPage({ params }: { params: Promise<{ id
               "text-4xl font-bold tracking-tight mb-2",
               movimiento.tipo === 'INGRESO' ? "text-emerald-600" : "text-rose-600"
             )}>
-              {movimiento.tipo === 'INGRESO' ? '+' : '-'}{formatCurrency(movimiento.monto)}
+              <MoneyAmount
+                value={movimiento.monto}
+                amountClassName={cn(
+                  'text-4xl font-bold tracking-tight',
+                  movimiento.tipo === 'INGRESO' ? 'text-emerald-600' : 'text-rose-600',
+                )}
+              />
             </div>
             <p className="text-lg font-medium text-slate-900">{movimiento.concepto}</p>
           </div>

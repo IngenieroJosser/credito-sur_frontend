@@ -3,7 +3,7 @@
 import { use, useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { 
+import {
   ArrowLeft, 
   Receipt, 
   Printer, 
@@ -14,6 +14,7 @@ import {
   Wallet
 } from 'lucide-react'
 import { formatCurrency, cn } from '@/lib/utils'
+import MoneyAmount from '@/components/contable/MoneyAmount'
 import { getHistorialCierres } from '@/services/contabilidad-service'
 
 interface CierreDetalle {
@@ -117,11 +118,15 @@ export default function DetalleCierrePage({ params }: { params: Promise<{ id: st
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
                 <div className="text-xs font-bold text-slate-500 uppercase mb-2">Saldo Sistema</div>
-                <div className="text-2xl font-bold text-black">{formatCurrency(cierre.saldoSistema)}</div>
+                <div className="text-2xl font-bold text-black">
+                  <MoneyAmount value={cierre.saldoSistema} amountClassName="text-2xl font-bold text-black" />
+                </div>
             </div>
             <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
                 <div className="text-xs font-bold text-slate-500 uppercase mb-2">Saldo Real</div>
-                <div className="text-2xl font-bold text-black">{formatCurrency(cierre.saldoReal)}</div>
+                <div className="text-2xl font-bold text-black">
+                  <MoneyAmount value={cierre.saldoReal} amountClassName="text-2xl font-bold text-black" />
+                </div>
             </div>
             <div className={cn(
                 "p-6 rounded-2xl border shadow-sm",
@@ -132,7 +137,7 @@ export default function DetalleCierrePage({ params }: { params: Promise<{ id: st
                     cierre.diferencia === 0 ? "text-emerald-600" : "text-rose-600"
                 )}>Diferencia</div>
                 <div className="text-2xl font-bold text-black">
-                    {cierre.diferencia > 0 ? '+' : ''}{formatCurrency(cierre.diferencia)}
+                    <MoneyAmount value={cierre.diferencia} amountClassName="text-2xl font-bold text-black" />
                 </div>
             </div>
         </div>

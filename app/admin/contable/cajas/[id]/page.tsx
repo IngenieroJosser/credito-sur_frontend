@@ -5,6 +5,7 @@ import { use, useMemo, useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { ArrowLeft, Wallet, TrendingUp, TrendingDown, Calendar, User, DollarSign, CheckCircle, AlertCircle, XCircle, ArrowDownLeft, ArrowUpRight, ChevronLeft, ChevronRight, CheckCircle2, X } from 'lucide-react'
 import { formatCOPInputValue, formatCurrency, parseCOPInputToNumber } from '@/lib/utils'
+import MoneyAmount from '@/components/contable/MoneyAmount'
 import { useNotification } from '@/components/providers/NotificationProvider'
 import { getCajaById, getTransacciones } from '@/services/contabilidad-service'
 import { usuariosService } from '@/services/usuarios-service'
@@ -226,7 +227,7 @@ export default function DetalleCajaPage({ params }: { params: Promise<{ id: stri
               </div>
               <div className="text-right">
                 <p className="text-sm text-slate-500 mb-1">Saldo Actual</p>
-                <p className="text-3xl font-bold text-slate-900">{formatCurrency(caja.saldoActual)}</p>
+                <MoneyAmount value={caja.saldoActual} amountClassName="text-3xl font-bold text-slate-900" />
               </div>
             </div>
 
@@ -238,7 +239,7 @@ export default function DetalleCajaPage({ params }: { params: Promise<{ id: stri
                   </div>
                   <span className="text-sm font-medium text-green-700">Ingresos Hoy</span>
                 </div>
-                <p className="text-2xl font-bold text-slate-900">{formatCurrency(caja.ingresosDia)}</p>
+                <MoneyAmount value={caja.ingresosDia} amountClassName="text-2xl font-bold text-slate-900" />
               </div>
               <div className="p-4 bg-red-50 rounded-xl border border-red-100">
                 <div className="flex items-center gap-2 mb-2">
@@ -247,7 +248,7 @@ export default function DetalleCajaPage({ params }: { params: Promise<{ id: stri
                   </div>
                   <span className="text-sm font-medium text-red-700">Egresos Hoy</span>
                 </div>
-                <p className="text-2xl font-bold text-slate-900">{formatCurrency(caja.egresosDia)}</p>
+                <MoneyAmount value={caja.egresosDia} meaning="expense" amountClassName="text-2xl font-bold text-slate-900" />
               </div>
             </div>
           </div>
@@ -268,7 +269,7 @@ export default function DetalleCajaPage({ params }: { params: Promise<{ id: stri
                   <DollarSign className="h-5 w-5 text-slate-400" />
                   <div>
                     <p className="text-sm font-medium text-slate-900">Saldo Inicial</p>
-                    <p className="text-sm text-slate-500">{formatCurrency(caja.saldoInicial)}</p>
+                    <MoneyAmount value={caja.saldoInicial} amountClassName="text-sm text-slate-500" />
                   </div>
                 </div>
               </div>
@@ -315,7 +316,11 @@ export default function DetalleCajaPage({ params }: { params: Promise<{ id: stri
                   </div>
                 </div>
                 <div className="font-bold text-slate-900">
-                  {mov.tipo === 'INGRESO' ? '+' : '-'}{formatCurrency(mov.monto)}
+                  <MoneyAmount
+                    value={mov.monto}
+                    meaning={mov.tipo === 'EGRESO' ? 'expense' : 'signed'}
+                    amountClassName="font-bold text-slate-900"
+                  />
                 </div>
               </div>
             ))}
