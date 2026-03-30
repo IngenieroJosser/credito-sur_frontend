@@ -69,7 +69,7 @@ apiClient.interceptors.response.use(
           return Promise.reject(localError);
         }
 
-        console.error('El servidor de contingencia también es inaccesible. Modo Offline estricto activado.');
+        logger.warn('El servidor de contingencia también es inaccesible. Se mantiene el estado offline.');
         return Promise.reject(localError);
       }
     }
