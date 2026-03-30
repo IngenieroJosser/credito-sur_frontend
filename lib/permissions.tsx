@@ -187,18 +187,28 @@ export const permisosPorRol: Record<Rol, ModuloPermiso[]> = {
     { id: 'dashboard', nombre: 'Dashboard', icono: 'LayoutDashboard', path: '/coordinador', roles: ['COORDINADOR'] },
     { id: 'revisiones', nombre: 'Revisiones', icono: 'ShieldCheck', path: '/coordinador/revisiones', roles: ['COORDINADOR'], isNew: true },
     {
-      id: 'gestion',
-      nombre: 'Gestión',
+      id: 'operaciones',
+      nombre: 'Operaciones',
       icono: 'Briefcase',
       path: '#',
       roles: ['COORDINADOR'],
       submodulos: [
         { id: 'gestion-creditos', nombre: 'Créditos', icono: 'CreditCard', path: '/coordinador/creditos', roles: ['COORDINADOR'] },
+        { id: 'rutas', nombre: 'Rutas', icono: 'Route', path: '/coordinador/rutas', roles: ['COORDINADOR'] },
+      ]
+    },
+    {
+      id: 'gestion-clientes',
+      nombre: 'Gestión Clientes',
+      icono: 'Users',
+      path: '#',
+      roles: ['COORDINADOR'],
+      submodulos: [
         { id: 'clientes', nombre: 'Clientes', icono: 'Users', path: '/coordinador/clientes', roles: ['COORDINADOR'] },
         { id: 'cuentas-mora', nombre: 'Cuentas en mora', icono: 'AlertCircle', path: '/cuentas-mora', roles: ['COORDINADOR'], isNew: true },
         { id: 'cuentas-vencidas', nombre: 'Cuentas vencidas', icono: 'FileX2', path: '/cuentas-vencidas', roles: ['COORDINADOR'] },
         { id: 'archivados', nombre: 'Archivados', icono: 'Archive', path: '/coordinador/archivados', roles: ['COORDINADOR'] },
-        { id: 'articulos', nombre: 'Artículos (Catálogo)', icono: 'Package', path: '/articulos', roles: ['COORDINADOR'] },
+        { id: 'articulos', nombre: 'Artículos (Inventario)', icono: 'Package', path: '/articulos', roles: ['COORDINADOR'] },
       ]
     },
     {
@@ -209,16 +219,6 @@ export const permisosPorRol: Record<Rol, ModuloPermiso[]> = {
       roles: ['COORDINADOR'],
       submodulos: [
         { id: 'pagos-historial', nombre: 'Historial de pagos', icono: 'Banknote', path: '/pagos/historial', roles: ['COORDINADOR'], isNew: true },
-      ]
-    },
-    {
-      id: 'operaciones',
-      nombre: 'Operaciones',
-      icono: 'Settings',
-      path: '#',
-      roles: ['COORDINADOR'],
-      submodulos: [
-        { id: 'rutas', nombre: 'Rutas', icono: 'Route', path: '/coordinador/rutas', roles: ['COORDINADOR'] },
       ]
     },
     {
@@ -238,14 +238,23 @@ export const permisosPorRol: Record<Rol, ModuloPermiso[]> = {
     { id: 'dashboard', nombre: 'Dashboard', icono: 'LayoutDashboard', path: '/supervisor', roles: ['SUPERVISOR'] },
     { id: 'revisiones', nombre: 'Revisiones', icono: 'ShieldCheck', path: '/supervisor/revisiones', roles: ['SUPERVISOR'], isNew: true },
     {
-      id: 'supervision',
-      nombre: 'Supervisión',
-      icono: 'Eye',
+      id: 'operaciones',
+      nombre: 'Operaciones',
+      icono: 'Briefcase',
+      path: '#',
+      roles: ['SUPERVISOR'],
+      submodulos: [
+        { id: 'rutas', nombre: 'Rutas', icono: 'Route', path: '/supervisor/rutas', roles: ['SUPERVISOR'] },
+      ]
+    },
+    {
+      id: 'gestion-clientes',
+      nombre: 'Gestión Clientes',
+      icono: 'Users',
       path: '#',
       roles: ['SUPERVISOR'],
       submodulos: [
         { id: 'clientes', nombre: 'Clientes', icono: 'Users', path: '/supervisor/clientes', roles: ['SUPERVISOR'] },
-        { id: 'rutas', nombre: 'Rutas', icono: 'Route', path: '/supervisor/rutas', roles: ['SUPERVISOR'] },
       ]
     },
     { id: 'reportes-operativos', nombre: 'Reportes operativos', icono: 'ClipboardList', path: '/supervisor/reportes/operativos', roles: ['SUPERVISOR'] },
@@ -260,6 +269,18 @@ export const permisosPorRol: Record<Rol, ModuloPermiso[]> = {
   ],
 
   CONTADOR: [
+    { id: 'dashboard', nombre: 'Dashboard', icono: 'LayoutDashboard', path: '/contable', roles: ['CONTADOR'] },
+    {
+      id: 'gestion-clientes',
+      nombre: 'Gestión Clientes',
+      icono: 'Users',
+      path: '#',
+      roles: ['CONTADOR'],
+      submodulos: [
+        { id: 'cuentas-mora', nombre: 'Cuentas en mora', icono: 'AlertCircle', path: '/cuentas-mora', roles: ['CONTADOR'], isNew: true },
+        { id: 'cuentas-vencidas', nombre: 'Cuentas vencidas', icono: 'FileX2', path: '/cuentas-vencidas', roles: ['CONTADOR'] },
+      ]
+    },
     {
       id: 'finanzas',
       nombre: 'Finanzas',
@@ -270,19 +291,17 @@ export const permisosPorRol: Record<Rol, ModuloPermiso[]> = {
         { id: 'contable', nombre: 'Movimientos', icono: 'Calculator', path: '/contable', roles: ['CONTADOR'] },
         { id: 'pagos-historial', nombre: 'Historial de pagos', icono: 'Banknote', path: '/pagos/historial', roles: ['CONTADOR'], isNew: true },
         { id: 'arqueo', nombre: 'Arqueo de Caja', icono: 'Landmark', path: '/contable/cierre-caja', roles: ['CONTADOR'], isNew: true },
+        { id: 'reportes-financieros', nombre: 'Reportes financieros', icono: 'BarChart3', path: '/reportes/financieros', roles: ['CONTADOR'], isNew: true },
       ]
     },
-    { id: 'articulos', nombre: 'Artículos (Inventario)', icono: 'Package', path: '/articulos', roles: ['CONTADOR'] },
     {
-      id: 'reportes',
-      nombre: 'Reportes',
-      icono: 'ClipboardList',
+      id: 'administracion',
+      nombre: 'Administración',
+      icono: 'Shield',
       path: '#',
       roles: ['CONTADOR'],
       submodulos: [
-        { id: 'cuentas-mora', nombre: 'Cuentas en mora', icono: 'AlertCircle', path: '/cuentas-mora', roles: ['CONTADOR'], isNew: true },
-        { id: 'cuentas-vencidas', nombre: 'Cuentas vencidas', icono: 'FileX2', path: '/cuentas-vencidas', roles: ['CONTADOR'] },
-        { id: 'reportes-financieros', nombre: 'Reportes financieros', icono: 'BarChart3', path: '/reportes/financieros', roles: ['CONTADOR'], isNew: true },
+        { id: 'articulos', nombre: 'Artículos (Inventario)', icono: 'Package', path: '/articulos', roles: ['CONTADOR'] },
       ]
     },
   ],
