@@ -1,8 +1,9 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Database, Cloud, RefreshCw, HardDrive, ShieldCheck, Clock } from 'lucide-react'
+import { Database, Cloud, RefreshCw, HardDrive, ShieldCheck, Clock, Download } from 'lucide-react'
 import { apiRequest } from '@/lib/api/api'
+import { exportService } from '@/services/export-service'
 
 type BackupEstado = 'EXITOSO' | 'FALLIDO' | 'EN_PROCESO'
 type BackupTipo = 'MANUAL' | 'PROGRAMADO'
@@ -21,8 +22,10 @@ type BackupRun = {
 }
 
 const BackupsSistemaPage = () => {
+
   const [status, setStatus] = useState<{ lastRun: BackupRun | null } | null>(null)
   const [history, setHistory] = useState<BackupRun[]>([])
+  const [page, setPage] = useState(1)
   const [loading, setLoading] = useState(true)
   const [running, setRunning] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -70,11 +73,46 @@ const BackupsSistemaPage = () => {
     }
   }, [])
 
+  const pageSize = 5
+  const totalPages = useMemo(() => {
+    const total = history.length
+    return Math.max(1, Math.ceil(total / pageSize))
+  }, [history.length])
+
+  const pagedHistory = useMemo(() => {
+    const safePage = Math.min(Math.max(1, page), totalPages)
+    const start = (safePage - 1) * pageSize
+    return history.slice(start, start + pageSize)
+  }, [history, page, totalPages])
+
   useEffect(() => {
     loadAll()
     const interval = setInterval(loadAll, 30_000)
     return () => clearInterval(interval)
   }, [loadAll])
+
+  useEffect(() => {
+    setPage(1)
+  }, [history.length])
+
+  const downloadArtifact = useCallback(async (id: string, type: 'dump' | 'xlsx') => {
+    const ext = type === 'xlsx' ? 'xlsx' : 'dump'
+    setError(null)
+    try {
+      await exportService.downloadFile(`backup/${id}/download`, { type }, `backup_${id}.${ext}`)
+    } catch (e: any) {
+      const status = e?.response?.status
+      if (status === 404) {
+        setError(
+          type === 'dump'
+            ? 'El dump no está disponible. Para descargarlo, el servidor debe tener pg_dump configurado y el backup debe generar el archivo.'
+            : 'El Excel no está disponible. Si el backup está EN_PROCESO espera a que termine; si falla, revisa el detalle del error y vuelve a ejecutar.',
+        )
+        return
+      }
+      setError(e?.message || 'No se pudo descargar el archivo')
+    }
+  }, [])
 
   const runBackup = useCallback(async () => {
     setRunning(true)
@@ -203,10 +241,11 @@ const BackupsSistemaPage = () => {
                   <th className="px-6 py-4 font-bold tracking-wider">Tipo</th>
                   <th className="px-6 py-4 font-bold tracking-wider">Destino</th>
                   <th className="px-6 py-4 font-bold tracking-wider">Estado</th>
+                  <th className="px-6 py-4 font-bold tracking-wider">Descargas</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {history.map((r) => {
+                {pagedHistory.map((r) => {
                   const estadoClass =
                     r.estado === 'EXITOSO'
                       ? 'bg-emerald-50 text-emerald-700 border-emerald-100'
@@ -214,6 +253,8 @@ const BackupsSistemaPage = () => {
                         ? 'bg-rose-50 text-rose-700 border-rose-100'
                         : 'bg-amber-50 text-amber-700 border-amber-100'
                   const tipoLabel = r.tipo === 'MANUAL' ? 'Manual' : 'Programado'
+                  const canDownloadDump = r.estado === 'EXITOSO'
+                  const canDownloadExcel = r.estado !== 'EN_PROCESO'
                   return (
                     <tr key={r.id} className="hover:bg-slate-50/50 transition-colors">
                       <td className="px-6 py-4 text-slate-900 font-medium">{formatDateTime(r.finishedAt || r.startedAt)}</td>
@@ -222,18 +263,66 @@ const BackupsSistemaPage = () => {
                       <td className="px-6 py-4">
                         <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold border ${estadoClass}`}>{r.estado}</span>
                       </td>
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => downloadArtifact(r.id, 'dump')}
+                            disabled={!canDownloadDump}
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-50 hover:text-slate-900 hover:border-slate-300 transition-all disabled:opacity-50 disabled:hover:bg-transparent disabled:hover:text-slate-600 disabled:hover:border-slate-200"
+                          >
+                            <Download className="h-3.5 w-3.5" />
+                            Dump
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => downloadArtifact(r.id, 'xlsx')}
+                            disabled={!canDownloadExcel}
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-50 hover:text-slate-900 hover:border-slate-300 transition-all disabled:opacity-50 disabled:hover:bg-transparent disabled:hover:text-slate-600 disabled:hover:border-slate-200"
+                          >
+                            <Download className="h-3.5 w-3.5" />
+                            Excel
+                          </button>
+                        </div>
+                      </td>
                     </tr>
                   )
                 })}
 
                 {!loading && history.length === 0 && (
                   <tr>
-                    <td colSpan={4} className="px-6 py-6 text-center text-slate-400 font-bold">Sin historial</td>
+                    <td colSpan={5} className="px-6 py-6 text-center text-slate-400 font-bold">Sin historial</td>
                   </tr>
                 )}
               </tbody>
             </table>
           </div>
+
+          {!loading && history.length > 0 && (
+            <div className="p-4 border-t border-slate-100 flex items-center justify-between">
+              <div className="text-xs font-bold text-slate-500">
+                Página {Math.min(page, totalPages)} de {totalPages}
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  disabled={page <= 1}
+                  className="px-3 py-1.5 rounded-lg border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-50 hover:text-slate-900 hover:border-slate-300 transition-all disabled:opacity-50 disabled:hover:bg-transparent disabled:hover:text-slate-600 disabled:hover:border-slate-200"
+                >
+                  Anterior
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                  disabled={page >= totalPages}
+                  className="px-3 py-1.5 rounded-lg border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-50 hover:text-slate-900 hover:border-slate-300 transition-all disabled:opacity-50 disabled:hover:bg-transparent disabled:hover:text-slate-600 disabled:hover:border-slate-200"
+                >
+                  Siguiente
+                </button>
+              </div>
+            </div>
+          )}
         </section>
 
         {/* Vista de Cards - Móvil */}
@@ -250,7 +339,7 @@ const BackupsSistemaPage = () => {
             </div>
           )}
 
-          {history.map((r) => {
+          {pagedHistory.map((r) => {
             const estadoClass =
               r.estado === 'EXITOSO'
                 ? 'bg-emerald-50 text-emerald-700 border-emerald-100'
@@ -258,6 +347,9 @@ const BackupsSistemaPage = () => {
                   ? 'bg-rose-50 text-rose-700 border-rose-100'
                   : 'bg-amber-50 text-amber-700 border-amber-100'
             const tipoLabel = r.tipo === 'MANUAL' ? 'Manual' : 'Programado'
+            const canDownloadDump = r.estado === 'EXITOSO'
+            const canDownloadExcel = r.estado !== 'EN_PROCESO'
+
             return (
               <div key={r.id} className="bg-white rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-slate-100 p-4">
                 <div className="flex items-start justify-between mb-3 pb-3 border-b border-slate-100">
@@ -277,6 +369,27 @@ const BackupsSistemaPage = () => {
                     <div className="text-sm font-medium text-slate-600">Local</div>
                   </div>
                 </div>
+
+                <div className="mt-4 grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => downloadArtifact(r.id, 'dump')}
+                    disabled={!canDownloadDump}
+                    className="py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-50 hover:text-slate-900 hover:border-slate-300 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:hover:bg-transparent disabled:hover:text-slate-600 disabled:hover:border-slate-200"
+                  >
+                    <Download className="h-4 w-4" />
+                    Dump
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => downloadArtifact(r.id, 'xlsx')}
+                    disabled={!canDownloadExcel}
+                    className="py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-50 hover:text-slate-900 hover:border-slate-300 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:hover:bg-transparent disabled:hover:text-slate-600 disabled:hover:border-slate-200"
+                  >
+                    <Download className="h-4 w-4" />
+                    Excel
+                  </button>
+                </div>
               </div>
             )
           })}
@@ -286,7 +399,34 @@ const BackupsSistemaPage = () => {
               Sin historial
             </div>
           )}
+
+          {!loading && history.length > 0 && (
+            <div className="bg-white rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-slate-100 p-4 flex items-center justify-between">
+              <div className="text-xs font-bold text-slate-500">
+                Página {Math.min(page, totalPages)} de {totalPages}
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  disabled={page <= 1}
+                  className="px-3 py-1.5 rounded-lg border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-50 hover:text-slate-900 hover:border-slate-300 transition-all disabled:opacity-50 disabled:hover:bg-transparent disabled:hover:text-slate-600 disabled:hover:border-slate-200"
+                >
+                  Anterior
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                  disabled={page >= totalPages}
+                  className="px-3 py-1.5 rounded-lg border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-50 hover:text-slate-900 hover:border-slate-300 transition-all disabled:opacity-50 disabled:hover:bg-transparent disabled:hover:text-slate-600 disabled:hover:border-slate-200"
+                >
+                  Siguiente
+                </button>
+              </div>
+            </div>
+          )}
         </section>
+
       </div>
     </div>
   )
