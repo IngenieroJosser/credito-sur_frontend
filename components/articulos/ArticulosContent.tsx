@@ -98,6 +98,7 @@ export default function ArticulosContent() {
   const [articulos, setArticulos] = useState<Articulo[]>([])
   const [busqueda, setBusqueda] = useState('')
   const [stockSort, setStockSort] = useState<'asc' | 'desc' | null>(null)
+  const [page, setPage] = useState(1)
   const [categorias, setCategorias] = useState<Categoria[]>([])
   const [statsBase, setStatsBase] = useState<EstadisticasInventario | null>(null)
   const { showNotification } = useNotification()
@@ -228,6 +229,31 @@ export default function ArticulosContent() {
       return stockSort === 'asc' ? diff : -diff
     })
   }, [articulosFiltrados, stockSort])
+
+  const pageSize = 10
+  const totalPages = useMemo(() => {
+    return Math.max(1, Math.ceil(articulosOrdenados.length / pageSize))
+  }, [articulosOrdenados.length])
+
+  useEffect(() => {
+    setPage(1)
+  }, [busqueda, stockSort, articulos.length])
+
+  const pagedArticulos = useMemo(() => {
+    const safePage = Math.min(Math.max(1, page), totalPages)
+    const start = (safePage - 1) * pageSize
+    return articulosOrdenados.slice(start, start + pageSize)
+  }, [articulosOrdenados, page, totalPages])
+
+  const showingFrom = useMemo(() => {
+    if (articulosOrdenados.length === 0) return 0
+    return (Math.min(Math.max(1, page), totalPages) - 1) * pageSize + 1
+  }, [articulosOrdenados.length, page, totalPages])
+
+  const showingTo = useMemo(() => {
+    if (articulosOrdenados.length === 0) return 0
+    return Math.min(articulosOrdenados.length, Math.min(Math.max(1, page), totalPages) * pageSize)
+  }, [articulosOrdenados.length, page, totalPages])
 
   const totalArticulos = articulosFiltrados.length
   const enStock = articulosFiltrados.filter(a => a.stock > 0).length
@@ -545,7 +571,7 @@ export default function ArticulosContent() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {articulosOrdenados.map((articulo) => (
+                {pagedArticulos.map((articulo) => (
                   <tr key={articulo.id} className="hover:bg-slate-50/50 transition-colors group">
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center gap-3">
@@ -656,13 +682,21 @@ export default function ArticulosContent() {
           {/* Pagination */}
           <div className="px-6 py-4 border-t border-slate-100 bg-slate-50/30 flex items-center justify-between">
             <div className="text-sm text-slate-500">
-              Mostrando <span className="font-medium text-slate-900">1</span> a <span className="font-medium text-slate-900">{articulosFiltrados.length}</span> de <span className="font-medium text-slate-900">{articulos.length}</span> resultados
+              Mostrando <span className="font-medium text-slate-900">{showingFrom}</span> a <span className="font-medium text-slate-900">{showingTo}</span> de <span className="font-medium text-slate-900">{articulosOrdenados.length}</span> resultados
             </div>
             <div className="flex gap-2">
-              <button className="px-3 py-1 text-sm border border-slate-200 rounded-lg hover:bg-slate-50 disabled:opacity-50 text-slate-600" disabled>
+              <button
+                className="px-3 py-1 text-sm border border-slate-200 rounded-lg hover:bg-slate-50 disabled:opacity-50 text-slate-600"
+                disabled={page <= 1}
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+              >
                 Anterior
               </button>
-              <button className="px-3 py-1 text-sm border border-slate-200 rounded-lg hover:bg-slate-50 text-slate-600">
+              <button
+                className="px-3 py-1 text-sm border border-slate-200 rounded-lg hover:bg-slate-50 disabled:opacity-50 text-slate-600"
+                disabled={page >= totalPages}
+                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              >
                 Siguiente
               </button>
             </div>
@@ -671,7 +705,7 @@ export default function ArticulosContent() {
 
         {/* Vista de Cards - Móvil */}
         <div className="md:hidden space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-500 delay-300">
-          {articulosOrdenados.map((articulo) => (
+          {pagedArticulos.map((articulo) => (
             <div
               key={articulo.id}
               className="bg-white rounded-2xl border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-4 hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all"
@@ -774,17 +808,20 @@ export default function ArticulosContent() {
           <div className="bg-white rounded-2xl border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-4">
             <div className="flex flex-col sm:flex-row justify-between items-center gap-3 text-xs text-slate-500 font-medium">
               <span className="text-center">
-                Mostrando 1 a {articulosFiltrados.length} de {articulos.length}
+                Mostrando {showingFrom} a {showingTo} de {articulosOrdenados.length}
               </span>
               <div className="flex gap-2 w-full sm:w-auto">
                 <button 
-                  disabled
+                  disabled={page <= 1}
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
                   className="flex-1 sm:flex-none px-4 py-2 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed font-bold text-slate-700"
                 >
                   Anterior
                 </button>
                 <button 
-                  className="flex-1 sm:flex-none px-4 py-2 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 font-bold text-slate-700"
+                  disabled={page >= totalPages}
+                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                  className="flex-1 sm:flex-none px-4 py-2 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed font-bold text-slate-700"
                 >
                   Siguiente
                 </button>
