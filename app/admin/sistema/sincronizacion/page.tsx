@@ -57,7 +57,7 @@ const SyncStatusPage = () => {
   })()
 
   const loadServerQueueStatus = useCallback(async () => {
-    if (rol !== 'SUPER_ADMINISTRADOR') {
+    if (rol !== 'SUPER_ADMINISTRADOR' || !isOnline) {
       setServerQueueCounts(null)
       setServerQueueJobs([])
       return
@@ -73,7 +73,7 @@ const SyncStatusPage = () => {
       setServerQueueCounts(null)
       setServerQueueJobs([])
     }
-  }, [rol])
+  }, [isOnline, rol])
 
   const loadData = useCallback(async () => {
     const [items, cMeta, pMeta, rMeta, cCount, pCount, cuCount, rCount] = await Promise.all([
@@ -107,10 +107,11 @@ const SyncStatusPage = () => {
   }, [loadData, pendingOps, failedOps])
 
   useEffect(() => {
+    if (!isOnline) return
     loadServerQueueStatus()
     const interval = setInterval(loadServerQueueStatus, 5_000)
     return () => clearInterval(interval)
-  }, [loadServerQueueStatus])
+  }, [isOnline, loadServerQueueStatus])
 
   const handleSyncNow = async () => {
     const result = await syncNow()

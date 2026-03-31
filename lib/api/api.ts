@@ -117,17 +117,19 @@ export const apiRequest = async <T>(
         message: errorMessage,
         error: err.message || err.code || 'Network Error'
       };
-      
-      console.error('[API] Error de red completo:', {
-        code: err.code,
-        message: err.message,
-        config: {
-          url: err.config?.url,
-          baseURL: err.config?.baseURL,
-          method: err.config?.method,
-        },
-        error: networkError
-      });
+
+      if (process.env.NODE_ENV !== 'production') {
+        logger.warn('[API] Error de red completo:', {
+          code: err.code,
+          message: err.message,
+          config: {
+            url: err.config?.url,
+            baseURL: err.config?.baseURL,
+            method: err.config?.method,
+          },
+          error: networkError,
+        });
+      }
       
       throw networkError;
     }
