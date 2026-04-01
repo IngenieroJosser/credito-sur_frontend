@@ -18,7 +18,7 @@ import {
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import MoneyAmount from '@/components/contable/MoneyAmount'
-import { getTransacciones } from '@/services/contabilidad-service'
+import { getTransaccionById } from '@/services/contabilidad-service'
 
 interface MovimientoDetalle {
   id: string; fecha: string; concepto: string; tipo: string;
@@ -36,23 +36,24 @@ export default function DetalleMovimientoPage({ params }: { params: Promise<{ id
     const fetchMovimiento = async () => {
       setLoading(true)
       try {
-        const res = await getTransacciones({ limit: 200 })
-        const found: any = res.data.find((t: any) => t.id === id)
-        if (found) {
-          setMovimiento({
-            id: found.id,
-            fecha: found.fecha || '',
-            concepto: found.descripcion || '',
-            tipo: found.tipo || 'EGRESO',
-            monto: found.monto || 0,
-            categoria: found.categoria || '',
-            responsable: found.responsable || '',
-            referencia: found.numero || '',
-            estado: found.estado || 'APROBADO',
-            caja: found.caja || '',
-            creadoPor: found.responsable || '',
-          })
+        const found: any = await getTransaccionById(id)
+        if (!found) {
+          setMovimiento(null)
+          return
         }
+        setMovimiento({
+          id: found.id,
+          fecha: found.fecha || '',
+          concepto: found.descripcion || '',
+          tipo: found.tipo || 'EGRESO',
+          monto: found.monto || 0,
+          categoria: found.categoria || '',
+          responsable: found.responsable || '',
+          referencia: found.numero || '',
+          estado: found.estado || 'APROBADO',
+          caja: found.caja || '',
+          creadoPor: found.responsable || '',
+        })
       } catch (err) {
         console.error('Error cargando movimiento:', err)
       } finally {
@@ -191,7 +192,7 @@ export default function DetalleMovimientoPage({ params }: { params: Promise<{ id
               <div>
                 <div className="text-xs font-bold text-slate-500 uppercase mb-1">Registro</div>
                 <div className="text-sm text-slate-600">
-                  Registrado por <span className="font-bold">{movimiento.creadoPor}</span> en {movimiento.caja}
+                  <span className="font-bold">{movimiento.creadoPor}</span> · {movimiento.caja}
                 </div>
               </div>
             </div>

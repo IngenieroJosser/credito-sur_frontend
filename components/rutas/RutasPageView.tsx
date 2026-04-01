@@ -347,11 +347,8 @@ export const RutasPageView = ({
       
       // Refresh list client-side to ensure UI updates immediately
       try {
-        const response = await routesService.getAll({ limit: 100 });
-        setRutasList(response.data as unknown as Ruta[]);
+        await fetchRutas();
       } catch (e) { /* Error refreshing routes */ }
-
-      router.refresh(); // Recargar datos del servidor (como backup)
     } catch (error: any) {
       const errorMessage = error.response?.data?.message || 'No se pudo guardar la ruta';
       showNotification('error', Array.isArray(errorMessage) ? errorMessage.join(', ') : errorMessage, 'Error');
@@ -364,12 +361,10 @@ export const RutasPageView = ({
       
       // Update local state optimistic or fetch
       try {
-         const response = await routesService.getAll({ limit: 100 });
-         setRutasList(response.data as unknown as Ruta[]);
+         await fetchRutas();
       } catch (e) { /* Error loading routes */ }
 
       showNotification('success', 'Estado de la ruta actualizado', 'Éxito');
-      router.refresh();
     } catch (error) {
       showNotification('error', 'No se pudo cambiar el estado', 'Error');
     }
@@ -450,7 +445,9 @@ export const RutasPageView = ({
       setClienteAMover(null);
       setRutaDestinoId('');
       
-      router.refresh();
+      try {
+        await fetchRutas();
+      } catch {}
     } catch (error) {
       showNotification('error', 'No se pudo mover el cliente', 'Error');
     }
@@ -486,7 +483,9 @@ export const RutasPageView = ({
       setIsAddingCliente(false);
       setClienteSearch('');
       
-      router.refresh();
+      try {
+        await fetchRutas();
+      } catch {}
     } catch (error) {
       showNotification('error', 'No se pudo asignar el cliente', 'Error');
     }
@@ -1806,7 +1805,9 @@ export const RutasPageView = ({
             
             showNotification('success', 'Crédito creado exitosamente', 'Operación completada');
             setShowCrearCreditoModal(false);
-            router.refresh();
+            try {
+              await fetchRutas();
+            } catch {}
           } catch (error) {
             console.error('Error al crear crédito:', error);
             showNotification('error', 'No se pudo crear el crédito', 'Error');

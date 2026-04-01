@@ -39,6 +39,7 @@ interface CrearCreditoModalProps {
     numCuotas?: number
     cuotaInicialArticulo?: number
     notas?: string
+    ventaContado?: boolean
   }) => void | Promise<void>
   defaultClienteId?: string
   defaultCreditType?: 'prestamo' | 'articulo'
@@ -74,14 +75,14 @@ export default function CrearCreditoModal({ isOpen, onClose, onConfirm, defaultC
   useEffect(() => {
     if (isOpen) {
         if (defaultClienteId) setClienteCreditoId(defaultClienteId)
-        if (!fechaPrimerCobro) {
           const now = new Date()
           const tzAdjusted = new Date(now.getTime() - now.getTimezoneOffset() * 60000)
-          // Si es domingo y la frecuencia es diaria, avanzar al lunes
           let fechaBase = new Date(tzAdjusted)
+          // Sugerir siempre el día siguiente
+          fechaBase.setDate(fechaBase.getDate() + 1)
+          // Si cae domingo y es diario, saltar al lunes
           if (fechaBase.getDay() === 0) fechaBase.setDate(fechaBase.getDate() + 1)
           setFechaPrimerCobro(fechaBase.toISOString().split('T')[0])
-        }
         Promise.all([
           clientesService.obtenerTodos(),
           articulosService.obtenerArticulos()

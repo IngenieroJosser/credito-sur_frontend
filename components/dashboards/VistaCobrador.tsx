@@ -575,10 +575,11 @@ const VistaCobrador = () => {
 
     const toDateOnly = (raw: string) => {
       if (!raw) return null
-      const d = new Date(raw)
-      if (isNaN(d.getTime())) return null
-      d.setHours(0, 0, 0, 0)
-      return d
+      // Extraer YYYY-MM-DD ignorando la zona horaria (Z) para construir una fecha local
+      const str = raw.includes('T') ? raw.split('T')[0] : raw
+      const [year, month, day] = str.split('-').map(Number)
+      if (!year || !month || !day) return null
+      return new Date(year, month - 1, day, 0, 0, 0, 0)
     }
 
     const inRange = (raw: string) => {
@@ -885,7 +886,7 @@ const VistaCobrador = () => {
 
           saldoTotal: Number(p?.saldoPendiente || 0),
 
-          estado: 'pendiente' as EstadoVisita,
+          estado: (prox?.estado === 'VENCIDA' ? 'en_mora' : prox?.estado === 'PAGADA' ? 'pagado' : 'pendiente') as EstadoVisita,
 
           proximaVisita: row?.prestamo?.fechaEfectiva || prox?.fechaVencimiento || new Date().toISOString().split('T')[0],
 
@@ -1223,7 +1224,11 @@ const VistaCobrador = () => {
 
            return lista.map((prestamo: any) => {
 
-             const proximaCuota = prestamo?.proximaCuota || {};
+             // findOne (obtenerRutaPorId) devuelve cuotas[] ya acumuladas por el backend.
+             // listarCreditosAsignadosACobrador usa el campo proximaCuota.
+             // Soportamos ambos formatos con fallback.
+             const cuota0 = prestamo?.cuotas?.[0] || prestamo?.proximaCuota || null;
+             const proximaCuota = cuota0 || {};
 
              const esArticulo = prestamo?.tipo === 'ARTICULO' || prestamo?.tipoPrestamo === 'ARTICULO';
 
@@ -1469,7 +1474,9 @@ const VistaCobrador = () => {
 
             try {
 
-              const pagosResp = await pagosService.obtenerPagos({ clienteId: v.clienteId, limit: 100 });
+              const pagosResp = v.prestamoId
+                ? await pagosService.obtenerPagos({ prestamoId: v.prestamoId, limit: 100 })
+                : await pagosService.obtenerPagos({ clienteId: v.clienteId, limit: 100 });
 
               const pagosCalc = (pagosResp?.pagos || []);
 
@@ -1543,13 +1550,10 @@ const VistaCobrador = () => {
 
           finales.sort((a: any, b: any) => {
 
-            // 1. Los "pagados" van al final
-
-            if (a.estado === 'pagado' && b.estado !== 'pagado') return 1;
-
-            if (a.estado !== 'pagado' && b.estado === 'pagado') return -1;
-
+            // Se elimina el descarte de "pagados" al final para que
+            // los cobradores no pierdan de vista al cliente tras un pago.
             
+
 
             // 2. Respetar el orden asignado manualmente (ordenVisita)
 
@@ -1590,13 +1594,10 @@ const VistaCobrador = () => {
           // Fallback KPIs si backend vino en cero
 
           const metaCalculada = withRecaudo.reduce((sum, v) => {
-
             const propDateStr = v.proximaVisita ? (v.proximaVisita.includes('T') ? v.proximaVisita.split('T')[0] : v.proximaVisita) : '';
-
             const sameDay = propDateStr === hoyStr;
-
-            return sameDay ? sum + Number(v.montoCuota || 0) : sum;
-
+            const pagoHoy = Number(v.recaudadoDelDia || 0) > 0;
+            return (sameDay || pagoHoy) ? sum + Math.max(Number(v.montoCuota || 0), Number(v.recaudadoDelDia || 0)) : sum;
           }, 0);
 
           const recaudadoCalculado = withRecaudo.reduce((sum, v) => sum + Number(v.recaudadoDelDia || 0), 0);
@@ -1803,24 +1804,88 @@ const VistaCobrador = () => {
 
 
 
-  // Handler completo: recarga visitas/cuotas (pagos y préstamos cambian montos)
+  // Handler completo: update focalizado con fallback a recarga completa
+  const handlerFull = useCallback(async (payload?: any) => {
+    const prestamoId = payload?.prestamoId || payload?.metadata?.prestamoId;
+    const clienteId = payload?.clienteId || payload?.metadata?.clienteId;
+    
+    if (prestamoId) {
+      const existeEnVisitas = visitasBase.some((v: any) => v?.prestamoId === prestamoId);
+      if (!existeEnVisitas) {
+        await cargarDatosRuta(true);
 
-  const handlerFull = useCallback(async () => {
+        if (showMisClientes && userSession?.id) {
+          await cargarMisCreditosAsignados(userSession.id);
+        }
+
+        return;
+      }
+      try {
+        const p = await prestamosService.obtenerPrestamoPorId(prestamoId);
+        const cuotas = await prestamosService.obtenerCuotas(prestamoId);
+        const prox = cuotas.find((c: any) => c.estado !== 'PAGADA');
+        
+        let totalHoy = 0;
+        if (prestamoId || clienteId) {
+           const { pagosService } = await import('@/services/pagos-service');
+           const pagosResp = prestamoId
+             ? await pagosService.obtenerPagos({ prestamoId, limit: 1000 })
+             : await pagosService.obtenerPagos({ clienteId, limit: 1000 });
+           const pagosCalc = (pagosResp?.pagos || []);
+           const toLocalKey = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+           const hoyStr = toLocalKey(new Date());
+           totalHoy = pagosCalc.reduce((sum: number, pg: any) => {
+             const raw = pg.fechaPago || pg.creadoEn;
+             if (!raw) return sum;
+             const d = new Date(raw);
+             if (isNaN(d.getTime())) return sum;
+             return toLocalKey(d) === hoyStr ? sum + Number(pg.montoTotal || 0) : sum;
+           }, 0);
+        }
+
+        setVisitasBase((prev) => {
+          const nuevas = prev.map(v => {
+            if (v.prestamoId === prestamoId) {
+              let nuevoEstado: EstadoVisita = 'pendiente';
+              if (prox?.estado === 'VENCIDA' || (prox as any)?.estado === 'ATRASADA') nuevoEstado = 'en_mora';
+              else if (!prox) nuevoEstado = 'pagado';
+              
+              const baseV: any = {
+                ...v,
+                estado: nuevoEstado,
+                montoCuota: prox ? Number(prox.monto || (prox.montoCapital + prox.montoInteres)) : 0,
+                proximaVisita: prox?.fechaVencimiento || v.proximaVisita,
+                cuotaActual: prox?.numeroCuota || v.cuotaActual,
+                saldoTotal: Number(p.saldoPendiente || 0),
+                recaudadoDelDia: totalHoy,
+              };
+
+              baseV.estado = ajustarEstadoConPago(baseV as any) as any;
+              return baseV;
+            }
+            return v;
+          });
+
+          return nuevas;
+        });
+        
+        if (rutaActual?.id) {
+          cargarEstadisticasRuta(rutaActual.id);
+        }
+        return; // Evita recarga completa
+      } catch (error) {
+        console.error("Fallo update focalizado via socket, haciendo recarga completa", error);
+      }
+    }
 
     await cargarDatosRuta(true);
 
     if (showMisClientes && userSession?.id) {
-
       await cargarMisCreditosAsignados(userSession.id);
-
     }
+  }, [cargarDatosRuta, showMisClientes, userSession?.id, cargarMisCreditosAsignados, rutaActual?.id, cargarEstadisticasRuta, visitasBase])
 
-  }, [cargarDatosRuta, showMisClientes, userSession?.id, cargarMisCreditosAsignados])
-
-
-
-  // Handler ligero: actualiza KPIs sin recargar la lista principal
-
+// ...
   const handlerKpi = useCallback(async () => {
 
     if (rutaActual?.id) await cargarEstadisticasRuta(rutaActual.id);
@@ -2452,11 +2517,10 @@ const VistaCobrador = () => {
         clienteId,
 
         prestamoId: prestamoActivo?.id,
-
+        cuotaActual: proximaCuota?.numeroCuota,
+        cuotasTotales: prestamoActivo?.cantidadCuotas,
         recaudadoDelDia: recDia,
-
         recaudadoTotalClient: recDia
-
       };
 
     });
@@ -3311,7 +3375,10 @@ const VistaCobrador = () => {
 
           if (v.id !== visitaPagoSeleccionada.id) return v;
 
-          const nuevoRecaudoDia = Number(v.recaudadoDelDia || 0) + Number(monto || 0);
+          // IMPORTANT: No volver a sumar 'monto' aquí.
+          // Ya se aplicó en el update optimista inmediatamente después de registrar el pago.
+          // Si lo sumamos otra vez, se duplica el recaudo del día y puede marcar la cuota como completada.
+          const nuevoRecaudoDia = Number(v.recaudadoDelDia || 0);
 
           const nuevoRecaudoTotalClient = Number(v.recaudadoTotalClient || 0) + Number(monto || 0);
 
@@ -3685,23 +3752,42 @@ const VistaCobrador = () => {
 
   const confirmarFinalizarRuta = useCallback(async () => {
 
-    const meta = rutaStats.meta || 1;
+    const toLocalKey = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+    const hoyStr = toLocalKey(new Date())
 
-    const recaudo = rutaStats.recaudo || 0;
+    const ajustarEstadoConPago = (v: any): EstadoVisita => {
+      if (Number(v.saldoTotal || 0) <= 0) return 'pagado'
+      const pagadoHoy = Number(v.recaudadoDelDia || 0)
+      const cuota = Number(v.montoCuota || 0)
+      if (pagadoHoy >= cuota - 1 && pagadoHoy > 0) return 'pagado'
+      const prox = v.proximaVisita ? (v.proximaVisita.includes('T') ? v.proximaVisita.split('T')[0] : v.proximaVisita) : ''
+      if (prox === hoyStr && pagadoHoy >= cuota - 1) return 'pagado'
+      return v.estado
+    }
 
-    const efectividad = Math.round((recaudo / meta) * 100);
+    const debeCobrarHoyOMora = (v: any) => {
+      if (v.estado === 'en_mora') return true
+      const prox = v.targetVencimiento || v.proximaVisita
+      const proxKey = prox ? (String(prox).includes('T') ? String(prox).split('T')[0] : String(prox)) : ''
+      return proxKey === hoyStr
+    }
 
+    const visitasHoy = (visitasBase || [])
+      .map((v: any) => ({ ...v, estado: ajustarEstadoConPago(v) }))
+      .filter((v: any) => debeCobrarHoyOMora(v))
 
+    const clientesFaltantes = visitasHoy.filter((v: any) => v.estado !== 'pagado').length
 
-    // Contamos todos los pendientes/mora sin filtrar por fecha
+    // Meta del día: preferimos calcularla desde la misma lista que se usa para cierre,
+    // para evitar inconsistencias cuando rutaStats no está actualizado o viene en 0.
+    const metaCalculada = visitasHoy.reduce((sum: number, v: any) => sum + Number(v.montoCuota || 0), 0)
+    const meta = Number(rutaStats.meta || 0) > 0 ? Number(rutaStats.meta || 0) : metaCalculada
 
-    // (el mismo fix del modal — muchos tienen proximaVisita='9999-12-31')
+    // Recaudo del día: mismo criterio (fallback si rutaStats ya viene con valor).
+    const recaudoCalculado = visitasHoy.reduce((sum: number, v: any) => sum + Number(v.recaudadoDelDia || 0), 0)
+    const recaudo = Number(rutaStats.recaudo || 0) > 0 ? Number(rutaStats.recaudo || 0) : recaudoCalculado
 
-    const clientesFaltantes = visitasBase.filter(v =>
-
-      v.estado === 'pendiente' || v.estado === 'en_mora'
-
-    ).length;
+    const efectividad = meta > 0 ? Math.round((recaudo / meta) * 100) : 0
 
 
 
@@ -5420,19 +5506,14 @@ const VistaCobrador = () => {
 
 
                       const isTodayOrMora = (dateStr: string) => {
-
                         if (!dateStr) return true;
-
-                        const d = new Date(dateStr);
-
+                        const f = dateStr.includes('T') ? dateStr.split('T')[0] : dateStr;
+                        const [year, month, day] = f.split('-').map(Number);
+                        if (!year || !month || !day) return true;
+                        const d = new Date(year, month - 1, day, 0, 0, 0, 0);
                         const hoy = new Date();
-
                         hoy.setHours(0, 0, 0, 0);
-
-                        d.setHours(0, 0, 0, 0);
-
                         return d.getTime() <= hoy.getTime();
-
                       };
 
 
@@ -5879,14 +5960,12 @@ const VistaCobrador = () => {
 
               if (!v.proximaVisita) return true;
 
-              const d = new Date(v.proximaVisita);
-
+              const f = v.proximaVisita.includes('T') ? v.proximaVisita.split('T')[0] : v.proximaVisita;
+              const [year, month, day] = f.split('-').map(Number);
+              if (!year || !month || !day) return true;
+              const d = new Date(year, month - 1, day, 0, 0, 0, 0);
               const hoy = new Date();
-
               hoy.setHours(0, 0, 0, 0);
-
-              d.setHours(0, 0, 0, 0);
-
               return d.getTime() <= hoy.getTime();
 
             })}
@@ -6064,17 +6143,13 @@ const VistaCobrador = () => {
               setIsLoadingAction(true)
 
               await registrarGasto({
-
                 descripcion: data.descripcion,
-
                 valor: data.valor,
-
                 comprobante: data.comprobante,
-
                 rutaId: rutaActual.id,
-
-                cobradorId: userSession.id
-
+                cobradorId: userSession.id,
+                ...(data.categoriaId ? { categoriaId: data.categoriaId } : {}),
+                ...(data.esPersonal !== undefined ? { esPersonal: data.esPersonal } : {})
               })
 
               // Sincronizar KPI de gastos con valor real desde backend
@@ -6104,13 +6179,9 @@ const VistaCobrador = () => {
               }
 
               setModalAlerta({
-
                 titulo: 'Éxito',
-
-                mensaje: 'Gasto registrado correctamente. Se notificó al coordinador para aprobación.',
-
+                mensaje: data.esPersonal ? 'Gasto personal registrado y enviado para aprobación.' : 'Gasto operativo registrado y descontado de la ruta.',
                 tipo: 'exito'
-
               })
 
               setShowGastoModal(false)
@@ -6227,19 +6298,35 @@ const VistaCobrador = () => {
 
           const hoyStr = toLocalKey(new Date());
 
-          // Contamos TODOS los pendientes/mora sin filtrar por fecha
+          const ajustarEstadoConPago = (v: any): EstadoVisita => {
+            if (Number(v.saldoTotal || 0) <= 0) return 'pagado'
+            const pagadoHoy = Number(v.recaudadoDelDia || 0)
+            const cuota = Number(v.montoCuota || 0)
+            if (pagadoHoy >= cuota - 1 && pagadoHoy > 0) return 'pagado'
+            const prox = v.proximaVisita ? (v.proximaVisita.includes('T') ? v.proximaVisita.split('T')[0] : v.proximaVisita) : ''
+            if (prox === hoyStr && pagadoHoy >= cuota - 1) return 'pagado'
+            return v.estado
+          }
 
-          // (muchos tienen proximaVisita='9999-12-31' y no coincidirían con hoy)
+          const debeCobrarHoyOMora = (v: any) => {
+            if (Number(v.recaudadoDelDia || 0) > 0) return true;
+            if (v.estado === 'en_mora') return true
+            const prox = v.targetVencimiento || v.proximaVisita
+            const proxKey = prox ? (String(prox).includes('T') ? String(prox).split('T')[0] : String(prox)) : ''
+            return proxKey === hoyStr
+          }
 
-          const clientesFaltantesHoy = visitasBase.filter(v =>
+          const visitasHoy = (visitasBase || [])
+            .map((v: any) => ({ ...v, estado: ajustarEstadoConPago(v) }))
+            .filter((v: any) => debeCobrarHoyOMora(v))
 
-            v.estado === 'pendiente' || v.estado === 'en_mora'
+          const clientesFaltantesHoy = visitasHoy.filter(v => v.estado === 'pendiente' || v.estado === 'en_mora').length;
 
-          ).length;
+          const metaV = Number(rutaStats.meta || 0);
 
-          const metaV = rutaStats.meta || 0;
-
-          const recaudoV = rutaStats.recaudo || 0;
+          const recaudoV = Number(rutaStats.recaudo || 0) > 0
+            ? Number(rutaStats.recaudo || 0)
+            : visitasHoy.reduce((sum: number, v: any) => sum + Number(v.recaudadoDelDia || 0), 0);
 
           const porcentaje = metaV > 0 ? Math.round((recaudoV / metaV) * 100) : 0;
 
@@ -6249,7 +6336,7 @@ const VistaCobrador = () => {
 
           // Todos pendientes = ningún cliente de la ruta fue cobrado
 
-          const todosPendientes = clientesFaltantesHoy > 0 && clientesFaltantesHoy === visitasBase.length;
+          const todosPendientes = clientesFaltantesHoy > 0 && clientesFaltantesHoy === visitasHoy.length;
 
           return (
 

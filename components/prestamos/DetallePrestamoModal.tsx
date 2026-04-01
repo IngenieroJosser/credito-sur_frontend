@@ -5,6 +5,7 @@ import { createPortal } from 'react-dom';
 import { X, Loader2 } from 'lucide-react';
 import DetallePrestamo, { PrestamoDetalle } from '@/components/prestamos/DetallePrestamo';
 import { prestamosService } from '@/services/prestamos-service';
+import { getLoanAmounts } from '@/lib/loan-calculations';
 import { offlineStore } from '@/lib/offline/offlineDb';
 
 interface DetallePrestamoModalProps {
@@ -43,15 +44,20 @@ export default function DetallePrestamoModal({ id, onClose, includeArchived = fa
         const principal = Number(data.monto || 0);
         const tasa = Number(data.tasaInteres || 0);
         const meses = Number(data.plazoMeses || 0);
-        const cuotaInicial = Number(data.cuotaInicial || 0);
         let interesTotal = Number(data.interesTotal || 0);
-
         if (interesTotal === 0 && tasa > 0 && meses > 0) {
           interesTotal = (principal * tasa * meses) / 100;
         }
 
-        const isArticle = (data.tipoPrestamo || '').toUpperCase() === 'ARTICULO';
-        const montoTotal = isArticle ? (principal + cuotaInicial) : (principal + interesTotal);
+        const amounts = getLoanAmounts({
+          tipoPrestamo: data.tipoPrestamo,
+          monto: principal,
+          cuotaInicial: data.cuotaInicial,
+          interesTotal,
+        });
+
+        const isArticle = amounts.isArticulo;
+        const montoTotal = amounts.totalContrato;
         const saldoPendiente = Number(data.saldoPendiente || 0);
 
         const rawFotos = Array.isArray(data.fotos)
@@ -99,7 +105,7 @@ export default function DetallePrestamoModal({ id, onClose, includeArchived = fa
           estado: data.estado || 'ACTIVO',
           tipoAmortizacion: (data.tipoAmortizacion || 'INTERES_SIMPLE') as 'INTERES_SIMPLE' | 'FRANCESA',
           tipoPrestamo: (typeof data.tipoPrestamo === 'string' ? data.tipoPrestamo : '').toUpperCase(),
-          cuotaInicial: cuotaInicial,
+          cuotaInicial: amounts.cuotaInicial,
           producto: typeof data.producto === 'string' ? data.producto : ((data.producto as any)?.nombre || data.tipoPrestamo || 'Préstamo'),
           productoInfo: data.producto ? {
             marca: (data.producto as any).marca,

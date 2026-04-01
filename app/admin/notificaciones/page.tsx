@@ -136,6 +136,20 @@ export default function NotificacionesPage() {
           if (entidad === 'Prestamo' || entidad === 'PRESTAMO') tipoFinal = 'PRESTAMO';
           if (entidad === 'GASTO' || entidad === 'Gasto') tipoFinal = 'GASTO';
 
+          // Normalizar MORA: a veces el backend la emite como SISTEMA.
+          // Usamos señales robustas: metadata.tipo, metadata.tipoAprobacion, o texto.
+          const metaTipo = String(metadata.tipo || '').toUpperCase()
+          const metaTipoAprobacion = String(metadata.tipoAprobacion || '').toUpperCase()
+          const texto = `${String(n.titulo || '')} ${String(n.mensaje || '')}`.toLowerCase()
+          const pareceMora =
+            metaTipo === 'ASIGNAR_MORA' ||
+            metaTipoAprobacion === 'ASIGNAR_MORA' ||
+            ('montoInteres' in metadata) ||
+            texto.includes('mora') ||
+            texto.includes('interés de mora') ||
+            texto.includes('interes de mora')
+          if (tipoFinal === 'SISTEMA' && pareceMora) tipoFinal = 'MORA'
+
           let approvalType: string | undefined = metadata.tipoAprobacion as string | undefined
 
           if (!approvalType && (n.tipo === 'APROBACION' || entidad === 'Aprobacion')) {

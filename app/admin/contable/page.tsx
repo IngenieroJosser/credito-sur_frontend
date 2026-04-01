@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 import { logger } from '@/lib/logger'
 
 /**
@@ -78,6 +78,7 @@ import { rutasService, type Ruta as ApiRuta } from '@/services/rutas-service'
 import SelectCategoria from '@/components/ui/SelectCategoria'
 import AnimacionCarga from '@/components/ui/AnimacionCarga'
 import Link from 'next/link'
+import DeudorasCobradorCard from '@/components/contable/DeudorasCobradorCard'
 
 // --- TIPOS DE DATOS ---
 // Definimos la estructura de nuestras "Cajas".
@@ -125,17 +126,22 @@ interface MovimientoContable {
   rutaId?: string
   cajaId: string
   cajaOrigenId?: string
+  tipoReferencia?: string
+  referenciaId?: string
 }
 
 // Resumen general para los indicadores de arriba (KPIs)
 interface ResumenFinanciero {
   ingresosHoy: number
   egresosHoy: number
+  cuotaInicialHoy: number
   utilidadNeta: number
+  deudaCobradorHoy?: number
   capitalEnCalle: number // Dinero prestado que aún no ha regresado
   cajaActual: number // Dinero disponible ya mismo
   porcentajeIngresosVsAyer: number | null
   porcentajeEgresosVsAyer: number | null
+  porcentajeCuotaInicialVsAyer?: number | null
   esIngresoPositivo: boolean
   esEgresoPositivo: boolean
   rutasTotales: number
@@ -317,7 +323,9 @@ const ModuloContableContent = () => {
           origen: (t as any).origen || 'EMPRESA',
           estado: (t.estado as any) || 'APROBADO',
           cajaId: (t as any).cajaId,
-          cajaOrigenId: (t as any).cajaOrigenId
+          cajaOrigenId: (t as any).cajaOrigenId,
+          tipoReferencia: (t as any).tipoReferencia,
+          referenciaId: (t as any).referenciaId
         })))
       } else {
         setMovimientosDetalle([])
@@ -347,7 +355,9 @@ const ModuloContableContent = () => {
           origen: (t as any).origen || 'EMPRESA',
           estado: (t.estado as any) || 'APROBADO',
           cajaId: (t as any).cajaId,
-          cajaOrigenId: (t as any).cajaOrigenId
+          cajaOrigenId: (t as any).cajaOrigenId,
+          tipoReferencia: (t as any).tipoReferencia,
+          referenciaId: (t as any).referenciaId
         })))
       } else {
         setMovimientosModalGlobal([])
@@ -379,11 +389,13 @@ const ModuloContableContent = () => {
   const [resumenData, setResumenData] = useState<ResumenFinanciero>({
     ingresosHoy: 0,
     egresosHoy: 0,
+    cuotaInicialHoy: 0,
     utilidadNeta: 0,
     capitalEnCalle: 0,
     cajaActual: 0,
     porcentajeIngresosVsAyer: null,
     porcentajeEgresosVsAyer: null,
+    porcentajeCuotaInicialVsAyer: null,
     esIngresoPositivo: true,
     esEgresoPositivo: true,
     rutasTotales: 0,
@@ -440,31 +452,36 @@ const ModuloContableContent = () => {
       const fechaHoy = new Date().toISOString().split('T')[0];
       const resumen = await getResumenFinanciero('2020-01-01', fechaHoy);
       if (resumen) {
-        const ingresosPagos = await (async () => {
-          const trans = await fetchTransaccionesAll({
-            tipo: 'INGRESO',
-            fechaInicio: '2020-01-01',
-            fechaFin: fechaHoy,
-            limit: 500,
-          })
-
-          return trans
-            .filter((t: any) => String(t?.estado || '').toUpperCase() === 'APROBADO')
-            .filter((t: any) => {
-              const cat = String(t?.categoria || '').toUpperCase()
-              return cat === 'PAGO' || cat === 'ABONO'
+        const ingresosPagos = typeof (resumen as any).cobranzaHoy === 'number'
+          ? Number((resumen as any).cobranzaHoy || 0)
+          : await (async () => {
+            const trans = await fetchTransaccionesAll({
+              tipo: 'INGRESO',
+              fechaInicio: '2020-01-01',
+              fechaFin: fechaHoy,
+              limit: 500,
             })
-            .reduce((acc: number, t: any) => acc + Number(t?.monto || 0), 0)
-        })()
+
+            return trans
+              .filter((t: any) => String(t?.estado || '').toUpperCase() === 'APROBADO')
+              .filter((t: any) => {
+                const cat = String(t?.categoria || '').toUpperCase()
+                return cat === 'PAGO' || cat === 'ABONO'
+              })
+              .reduce((acc: number, t: any) => acc + Number(t?.monto || 0), 0)
+          })()
 
         setResumenData({
           ingresosHoy: ingresosPagos,
           egresosHoy: resumen.egresosHoy,
-          utilidadNeta: resumen.gananciaNeta,
+          cuotaInicialHoy: Number((resumen as any).cuotaInicialHoy || 0),
+          utilidadNeta: Number((resumen as any).utilidadReal ?? resumen.gananciaNeta ?? 0),
+          deudaCobradorHoy: Number((resumen as any).deudaCobradorHoy ?? 0),
           capitalEnCalle: resumen.capitalEnCalle,
           cajaActual: resumen.saldoCajas,
           porcentajeIngresosVsAyer: resumen.porcentajeIngresosVsAyer ?? null,
           porcentajeEgresosVsAyer: resumen.porcentajeEgresosVsAyer ?? null,
+          porcentajeCuotaInicialVsAyer: (resumen as any).porcentajeCuotaInicialVsAyer ?? null,
           esIngresoPositivo: resumen.esIngresoPositivo ?? true,
           esEgresoPositivo: resumen.esEgresoPositivo ?? true,
           rutasTotales: resumen.rutasTotales || 0,
@@ -490,7 +507,9 @@ const ModuloContableContent = () => {
           origen: (t as any).origen || 'EMPRESA',
           estado: (t.estado as any) || 'APROBADO',
           cajaId: (t as any).cajaId,
-          cajaOrigenId: (t as any).cajaOrigenId
+          cajaOrigenId: (t as any).cajaOrigenId,
+          tipoReferencia: (t as any).tipoReferencia,
+          referenciaId: (t as any).referenciaId
         })));
       }
 
@@ -510,6 +529,7 @@ const ModuloContableContent = () => {
              efectividad: c.efectividad,
              clientesFaltantes: c.clientesFaltantes,
              cajaId: c.cajaId,
+             deudaFisica: Number(c.deudaFisica || 0),
         })));
       }
     } catch (error) {
@@ -574,7 +594,16 @@ const ModuloContableContent = () => {
     
     // Movimientos recientes (global) ahora muestra solo TRANSFERENCIA entre cajas.
     // Aun así dejamos el filtro para consistencia visual.
-    const cumpleTipo = filtroTipo === 'TODOS' || mov.tipo === filtroTipo;
+    let cumpleTipo = filtroTipo === 'TODOS';
+    if (!cumpleTipo) {
+      if (filtroTipo === 'DEUDA_COBRADOR' as any) {
+        cumpleTipo = mov.tipoReferencia === 'DEUDA_COBRADOR';
+      } else if (filtroTipo === 'TRANSFERENCIA') {
+        cumpleTipo = mov.tipo === 'TRANSFERENCIA' && mov.tipoReferencia !== 'DEUDA_COBRADOR';
+      } else {
+        cumpleTipo = mov.tipo === filtroTipo;
+      }
+    }
 
     const cumpleOrigen = filtroOrigen === 'TODOS' || mov.origen === filtroOrigen
     const cumpleEstado = filtroEstado === 'TODOS' || mov.estado === filtroEstado
@@ -720,25 +749,27 @@ const ModuloContableContent = () => {
     // if (!movimientoForm.responsableId) { ... } // Removed validation as per request
 
     try {
-      // Si tenemos categoriaId del SelectCategoria, la usamos.
-      // Actualmente apiCreateTransaccion espera una descripción combinada o solo descripción.
-      // Vamos a mandar la categoría como parte de la descripción si el backend no soporta campo 'categoriaId' separado aún.
-      // Ojo: Si tu backend ya soporta 'categoriaId', añádelo a la llamada.
-      
-      const categoriaTexto = movimientoForm.categoria || 'GENERAL';
+      const tipoReferencia = (movimientoForm.categoriaId || movimientoForm.categoria || '').trim() || undefined;
+      const referenciaId = movimientoForm.referencia?.trim() ? movimientoForm.referencia.trim() : undefined;
 
       // Usar apiCreateTransaccion con los datos del form
       // Si es EGRESO con cobrador, invertimos los roles: 
       // La oficina (cajaId) es el origen y el cobrador (cajaOrigenId) es el destino.
       const isEgresoConsolidacion = movimientoForm.tipo === 'EGRESO' && movimientoForm.origen === 'COBRADOR';
       
+      const tipoEnvio = movimientoForm.origen === 'COBRADOR'
+        ? 'TRANSFERENCIA'
+        : (movimientoForm.tipo as any)
+
       await apiCreateTransaccion({
         cajaId: isEgresoConsolidacion ? movimientoForm.cajaOrigenId : movimientoForm.cajaId,
-        tipo: movimientoForm.tipo as any,
+        tipo: tipoEnvio,
         monto: monto,
         // Eliminamos la lógica mágica de descripción automática para transferencias manuales
         // para que el usuario siempre vea lo que escribió o un default claro.
         descripcion: movimientoForm.concepto || (movimientoForm.origen === 'COBRADOR' ? (movimientoForm.tipo === 'INGRESO' ? 'Consolidación de Ruta (Entrada)' : 'Entrega de Base a Ruta (Salida)') : 'Movimiento de Caja'),
+        tipoReferencia,
+        referenciaId,
         cajaOrigenId: isEgresoConsolidacion ? movimientoForm.cajaId : (movimientoForm.origen === 'COBRADOR' ? movimientoForm.cajaOrigenId : undefined)
       })
       
@@ -746,9 +777,14 @@ const ModuloContableContent = () => {
       setShowRegistrarMovimientoModal(false)
 
       showNotification('success', 'El movimiento contable ha sido registrado', 'Movimiento Registrado')
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error creating transaccion:', error)
-      showNotification('error', 'No se pudo registrar el movimiento', 'Error')
+      const msg =
+        error?.message ||
+        error?.response?.message ||
+        (Array.isArray(error?.response?.message) ? error.response.message.join(', ') : undefined) ||
+        'No se pudo registrar el movimiento'
+      showNotification('error', String(msg), 'Error')
     }
   }
 
@@ -836,7 +872,7 @@ const ModuloContableContent = () => {
         </div>
 
         {/* Tarjetas de Resumen Minimalistas */}
-        <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6">
+        <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-6">
           {/* Ingresos */}
           {/* Ingresos */}
           <div 
@@ -892,11 +928,11 @@ const ModuloContableContent = () => {
             )}
           </div>
 
-          {/* Ganancia */}
+          {/* Ganancia / Utilidad Operativa */}
           <div className="group relative overflow-hidden rounded-2xl bg-white/80 backdrop-blur-sm p-6 border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] transition-all">
             <div className="flex items-center justify-between mb-4">
               <div className="text-xs font-bold uppercase tracking-wider text-slate-500">
-                Ganancia Neta
+                Utilidad Operativa
               </div>
               <div className="flex h-8 w-8 items-center justify-center rounded-full bg-indigo-50 text-indigo-600 border border-indigo-100">
                 <Zap className="h-4 w-4" />
@@ -907,6 +943,33 @@ const ModuloContableContent = () => {
             </div>
             <div className="mt-2 text-xs text-slate-500 font-medium">
               Utilidad operativa
+            </div>
+          </div>
+
+          {/* Cuota Inicial (NO es ingreso) */}
+          <div className="group relative overflow-hidden rounded-2xl bg-white/80 backdrop-blur-sm p-6 border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] transition-all">
+            <div className="flex items-center justify-between mb-4">
+              <div className="text-xs font-bold uppercase tracking-wider text-slate-500">
+                Cuotas Iniciales
+              </div>
+              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-amber-50 text-amber-700 border border-amber-100">
+                <CreditCard className="h-4 w-4" />
+              </div>
+            </div>
+            <div className="text-2xl font-bold text-slate-900 tracking-tight">
+              <MoneyAmount value={resumenData.cuotaInicialHoy || 0} amountClassName="text-2xl font-bold text-slate-900 tracking-tight" />
+            </div>
+            {resumenData.porcentajeCuotaInicialVsAyer != null && resumenData.porcentajeCuotaInicialVsAyer !== 0 && (
+              <div className={cn(
+                "mt-2 flex items-center text-xs font-bold w-fit px-2 py-1 rounded-full",
+                resumenData.porcentajeCuotaInicialVsAyer > 0 ? "text-emerald-600 bg-emerald-50" : "text-rose-600 bg-rose-50",
+              )}>
+                {resumenData.porcentajeCuotaInicialVsAyer > 0 ? <ArrowUpRight className="mr-1 h-3 w-3" /> : <TrendingDown className="mr-1 h-3 w-3" />}
+                {resumenData.porcentajeCuotaInicialVsAyer > 0 ? '+' : ''}{resumenData.porcentajeCuotaInicialVsAyer}% vs Ayer
+              </div>
+            )}
+            <div className="mt-2 text-xs text-slate-500 font-medium">
+              Abono a capital (no ingreso)
             </div>
           </div>
 
@@ -977,6 +1040,7 @@ const ModuloContableContent = () => {
                     className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-xs font-bold text-slate-700 shadow-sm focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 outline-none transition-all"
                   >
                     <option value="TRANSFERENCIA">Transferencias entre cajas</option>
+                    <option value="DEUDA_COBRADOR">Deudas de Cobradores</option>
                     <option value="TODOS">Todos</option>
                   </select>
                 </div>
@@ -1038,6 +1102,15 @@ const ModuloContableContent = () => {
                     .replace(/^Transferencia enviada a .*?: |^Transferencia recibida de .*?: /i, '')
                     .replace(/\(Entrada\)|\(Salida\)/gi, '')
                     .trim();
+                
+                let montoMostrar = Number(m.monto || 0);
+                if (m.tipoReferencia === 'DEUDA_COBRADOR') {
+                  const matches = m.concepto.match(/\$?([\d.,]+)/);
+                  if (matches && matches[1]) {
+                    montoMostrar = parseFloat(matches[1].replace(/\./g, '').replace(',', '.'));
+                  }
+                  isIngreso = false;
+                }
 
                 return (
                 <div key={m.id} className="w-full text-left p-4 hover:bg-slate-50 transition-colors flex items-center justify-between group">
@@ -1068,7 +1141,7 @@ const ModuloContableContent = () => {
                   <div className="flex items-center gap-3 pl-4 shrink-0">
                      <div className="text-right">
                         <MoneyAmount
-                          value={m.monto}
+                          value={montoMostrar}
                           meaning={isIngreso ? 'signed' : 'expense'}
                           amountClassName={cn(
                             'text-sm font-black tracking-tight',
@@ -1186,7 +1259,48 @@ const ModuloContableContent = () => {
                                 setSaldoRutaSeleccionada(null)
                               }
                             } else {
-                              setSaldoRutaSeleccionada(null)
+                              try {
+                                 const now = new Date()
+                                 const localIso = new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString()
+                                 const hoyClave = localIso.split('T')[0]
+                                 
+                                 const params = { cajaId: c.id, fechaInicio: hoyClave, limit: 500 };
+                                 const resp = await getTransacciones(params);
+                                 if (resp && Array.isArray(resp.data)) {
+                                   const ingresos = resp.data
+                                     .filter((m: any) => m.tipo === 'INGRESO' || m.tipo === 'TRANSFERENCIA')
+                                     .filter((m: any) => {
+                                        if (m.tipo === 'TRANSFERENCIA') {
+                                           const concepto = String(m.descripcion || '').toUpperCase();
+                                           return !(concepto.includes('SALIDA') || concepto.includes('ENVIADA A') || concepto.includes('EGRESO'));
+                                        }
+                                        return true;
+                                     })
+                                     .reduce((acc: number, m: any) => acc + Number(m.monto), 0);
+
+                                   const egresos = resp.data
+                                     .filter((m: any) => m.tipo === 'EGRESO' || m.tipo === 'TRANSFERENCIA')
+                                     .filter((m: any) => {
+                                        if (m.tipo === 'TRANSFERENCIA') {
+                                           const concepto = String(m.descripcion || '').toUpperCase();
+                                           return concepto.includes('SALIDA') || concepto.includes('ENVIADA A') || concepto.includes('EGRESO');
+                                        }
+                                        return true;
+                                     })
+                                     .reduce((acc: number, m: any) => acc + Number(m.monto), 0);
+
+                                   setSaldoRutaSeleccionada({
+                                      recaudoDelDia: ingresos,
+                                      gastosDelDia: egresos,
+                                      desembolsos: 0,
+                                      saldoCaja: Number(c.saldo) || 0
+                                   } as any);
+                                 } else {
+                                   setSaldoRutaSeleccionada(null)
+                                 }
+                              } catch (err) {
+                                setSaldoRutaSeleccionada(null)
+                              }
                             }
                             setShowVerCajaModal(true)
                           }}
@@ -1614,24 +1728,7 @@ const ModuloContableContent = () => {
                   </div>
                 </div>
 
-                {/* Responsables */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border-t border-slate-100 pt-4">
-                    <div className="space-y-1.5">
-                        <label className="text-xs font-bold text-slate-500 uppercase ml-1">
-                            {movimientoForm.tipo === 'INGRESO' ? 'Recibido Por ' : 'Registrado Por'}
-                        </label>
-                        <select
-                          value={movimientoForm.responsableId}
-                          onChange={(e) => setMovimientoForm((p) => ({ ...p, responsableId: e.target.value }))}
-                          className="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-slate-50/50 text-sm font-medium text-slate-700"
-                        >
-                            <option value="">Seleccionar...</option>
-                            {usuariosList.map(u => (
-                                <option key={u.id} value={u.id}>{u.nombres} {u.apellidos}</option>
-                            ))}
-                        </select>
-                    </div>
-                </div>
+
 
                 {/* Alerta de fondos insuficientes */}
                 {(() => {
@@ -1950,49 +2047,32 @@ const ModuloContableContent = () => {
                          </div>
                          <div className="font-extrabold text-emerald-800 text-lg">
                              {(() => {
-                                if (cajaSeleccionada?.tipo === 'RUTA') {
-                                  if (saldoRutaSeleccionada) {
-                                    const valor =
-                                      saldoRutaSeleccionada.recaudoDelDia ||
-                                      saldoRutaSeleccionada.saldoCaja ||
-                                      cajaSeleccionada.saldo;
-                                    return (
-                                      <MoneyAmount
-                                        value={valor}
-                                        amountClassName="text-lg font-extrabold text-emerald-800"
-                                      />
-                                    )
-                                  }
-                                  if (cajaSeleccionada.saldo) {
-                                    const valor = Number(cajaSeleccionada.saldo || 0)
-                                    return (
-                                      <MoneyAmount
-                                        value={valor}
-                                        amountClassName="text-lg font-extrabold text-emerald-800"
-                                      />
-                                    )
-                                  }
-                                }
-                                const ingresos = movimientos
-                                  .filter(m => (m.tipo === 'INGRESO' || m.tipo === 'TRANSFERENCIA'))
-                                  .filter(m => {
-                                    if (m.cajaId !== cajaSeleccionada?.id) return false;
-                                    if (m.tipo === 'TRANSFERENCIA') {
-                                      const concepto = m.concepto.toUpperCase();
-                                      const esSalida = concepto.includes('SALIDA') || 
-                                                     concepto.includes('ENVIADA A') || 
-                                                     concepto.includes('EGRESO');
-                                      return !esSalida;
-                                    }
-                                    return true;
-                                  })
-                                  .reduce((acc, m) => acc + m.monto, 0);
-                                return (
-                                  <MoneyAmount
-                                    value={ingresos}
-                                    amountClassName="text-lg font-extrabold text-emerald-800"
-                                  />
-                                )
+                                 if (saldoRutaSeleccionada) {
+                                   const valor =
+                                     saldoRutaSeleccionada.recaudoDelDia ||
+                                     saldoRutaSeleccionada.saldoCaja ||
+                                     cajaSeleccionada?.saldo || 0;
+                                   return (
+                                     <MoneyAmount
+                                       value={valor}
+                                       amountClassName="text-lg font-extrabold text-emerald-800"
+                                     />
+                                   )
+                                 }
+                                 
+                                 if (cajaSeleccionada?.saldo) {
+                                   const valor = Number(cajaSeleccionada.saldo || 0)
+                                   return (
+                                     <MoneyAmount
+                                       value={valor}
+                                       amountClassName="text-lg font-extrabold text-emerald-800"
+                                     />
+                                   )
+                                 }
+                                 
+                                 return (
+                                    <div className="text-emerald-700 font-semibold text-xs mt-1">Ver Historial ➔</div>
+                                 )
                              })()}
                          </div>
                       </div>
@@ -2018,7 +2098,7 @@ const ModuloContableContent = () => {
                          </div>
                          <div className="font-extrabold text-rose-800 text-lg">
                              {(() => {
-                                if (cajaSeleccionada?.tipo === 'RUTA' && saldoRutaSeleccionada) {
+                                if (saldoRutaSeleccionada) {
                                   // Los egresos de una ruta incluyen gastos operativos y desembolsos
                                   const valor = saldoRutaSeleccionada.gastosDelDia + (saldoRutaSeleccionada.desembolsos || 0);
                                   return (
@@ -2029,25 +2109,8 @@ const ModuloContableContent = () => {
                                     />
                                   )
                                 }
-                                const egresos = movimientos
-                                  .filter(m => (m.tipo === 'EGRESO' || m.tipo === 'TRANSFERENCIA'))
-                                  .filter(m => {
-                                    if (m.cajaId !== cajaSeleccionada?.id) return false;
-                                    if (m.tipo === 'TRANSFERENCIA') {
-                                      const concepto = m.concepto.toUpperCase();
-                                      return concepto.includes('SALIDA') || 
-                                             concepto.includes('ENVIADA A') || 
-                                             concepto.includes('EGRESO');
-                                    }
-                                    return true;
-                                  })
-                                  .reduce((acc, m) => acc + m.monto, 0);
                                 return (
-                                  <MoneyAmount
-                                    value={egresos}
-                                    meaning="expense"
-                                    amountClassName="text-lg font-extrabold text-rose-800"
-                                  />
+                                    <div className="text-rose-700 font-semibold text-xs mt-1">Ver Historial ➔</div>
                                 )
                              })()}
                          </div>
@@ -2105,121 +2168,18 @@ const ModuloContableContent = () => {
                                     </div>
                                   )
                                 }
-                              if (cajaSeleccionada?.saldo) {
-                                const valor = Number(cajaSeleccionada.saldo || 0)
+                                // Las cajas principales no generan utilidad por sí mismas, solo almacenan saldos y transferencias.
                                 return (
                                   <div className="flex items-center gap-2">
-                                    <span>{formatCurrency(Math.abs(valor))}</span>
-                                    <span className={cn(
-                                      "px-2 py-0.5 rounded-full text-[9px] font-black uppercase border",
-                                      valor < 0
-                                        ? "bg-red-50 text-red-700 border-red-100"
-                                        : "bg-emerald-50 text-emerald-700 border-emerald-100",
-                                    )}>
-                                      {valor < 0 ? 'PÉRDIDA' : 'GANANCIA'}
-                                    </span>
+                                     <span className="text-slate-400 font-bold text-sm">No aplica a esta caja</span>
                                   </div>
                                 )
-                              }
-                            const ingresos = movimientos
-                              .filter(m => (m.tipo === 'INGRESO' || m.tipo === 'TRANSFERENCIA'))
-                              .filter(m => {
-                                if (m.cajaId !== cajaSeleccionada?.id) return false;
-                                if (m.tipo === 'TRANSFERENCIA') {
-                                  const concepto = m.concepto.toUpperCase();
-                                  const esSalida = concepto.includes('SALIDA') || 
-                                                 concepto.includes('ENVIADA A') || 
-                                                 concepto.includes('EGRESO');
-                                  return !esSalida;
-                                }
-                                return true;
-                              })
-                              .reduce((acc, m) => acc + m.monto, 0);
-
-                            const egresos = movimientos
-                              .filter(m => (m.tipo === 'EGRESO' || m.tipo === 'TRANSFERENCIA'))
-                              .filter(m => {
-                                if (m.cajaId !== cajaSeleccionada?.id) return false;
-                                if (m.tipo === 'TRANSFERENCIA') {
-                                  return (m.id && (m.id as any).includes('TRX-OUT')) || (m.concepto && m.concepto.includes('Salida') && !m.concepto.startsWith('Entrada'));
-                                }
-                                return true;
-                              })
-                              .reduce((acc, m) => acc + m.monto, 0);
-
-                            const valor = ingresos - egresos
-                            return (
-                              <div className="flex items-center gap-2">
-                                <span>{formatCurrency(Math.abs(Number(valor || 0)))}</span>
-                                <span className={cn(
-                                  "px-2 py-0.5 rounded-full text-[9px] font-black uppercase border",
-                                  Number(valor || 0) < 0
-                                    ? "bg-red-50 text-red-700 border-red-100"
-                                    : "bg-emerald-50 text-emerald-700 border-emerald-100",
-                                )}>
-                                  {Number(valor || 0) < 0 ? 'PÉRDIDA' : 'GANANCIA'}
-                                </span>
-                              </div>
-                            )
                           })()}
                       </div>
                  </div>
               </div>
 
-              {/* ── Historial de Cierres de Ruta (solo cajas tipo RUTA) ── */}
-              {cajaSeleccionada?.tipo === 'RUTA' && (() => {
-                const cierresDeEstaRuta = historialCierres.filter(
-                  (c: any) => c.tipo === 'CIERRE_RUTA' && c.cajaId === cajaSeleccionada.id
-                )
-                if (cierresDeEstaRuta.length === 0) return null
-                return (
-                  <div className="px-6 pb-4">
-                    <div className="rounded-2xl border border-slate-100 bg-slate-50 overflow-hidden">
-                      <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
-                        <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Historial de Cierres del Cobrador</p>
-                        <span className="text-[10px] font-bold text-slate-400">{cierresDeEstaRuta.length} cierre(s)</span>
-                      </div>
-                      <div className="divide-y divide-slate-100 max-h-48 overflow-y-auto">
-                        {cierresDeEstaRuta.map((c: any) => {
-                          const esDescuadre = c.estado === 'DESCUADRADA'
-                          return (
-                            <div key={c.id} className="px-4 py-3 flex items-center justify-between gap-3">
-                              <div className="min-w-0">
-                                <p className="text-[10px] font-black text-slate-700">
-                                  {new Date(c.fecha).toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
-                                </p>
-                                <p className="text-[9px] text-slate-500 font-medium truncate">{c.responsable}</p>
-                                {c.clientesFaltantes > 0 && (
-                                  <p className="text-[9px] text-amber-600 font-bold">{c.clientesFaltantes} cliente{c.clientesFaltantes > 1 ? 's' : ''} sin cobrar</p>
-                                )}
-                              </div>
-                              <div className="shrink-0 text-right space-y-1">
-                                <div className={cn(
-                                  "inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[8px] font-black uppercase border",
-                                  esDescuadre
-                                    ? "bg-red-50 text-red-600 border-red-100"
-                                    : "bg-emerald-50 text-emerald-600 border-emerald-100"
-                                )}>
-                                  {esDescuadre ? <AlertTriangle className="h-2.5 w-2.5" /> : <CheckCircle2 className="h-2.5 w-2.5" />}
-                                  {esDescuadre ? 'Descuadre' : 'Cuadrada'}
-                                </div>
-                                <p className="text-[10px] font-black text-slate-700">
-                                  {formatCurrency(c.saldoReal)} <span className="text-slate-400 font-medium">/ {formatCurrency(c.saldoSistema)}</span>
-                                </p>
-                                {c.efectividad != null && (
-                                  <p className={cn("text-[9px] font-bold", c.efectividad >= 100 ? "text-emerald-600" : c.efectividad >= 75 ? "text-blue-600" : "text-amber-600")}>
-                                    {c.efectividad}% META
-                                  </p>
-                                )}
-                              </div>
-                            </div>
-                          )
-                        })}
-                      </div>
-                    </div>
-                  </div>
-                )
-              })()}
+
 
               <div className="p-6 border-t border-slate-100 bg-slate-50/50 flex justify-end">
 
@@ -2317,23 +2277,27 @@ const ModuloContableContent = () => {
                                     const filtered = source
                                         .filter(m => {
                                             if (!cajaSeleccionada && m.categoria === 'CONSOLIDACION') return false;
+                                            return true;
+                                        })
+                                        .filter(m => {
                                             if (detalleTipo === 'INGRESOS') {
-                                                if (m.tipo === 'INGRESO') {
-                                                  const categoria = String(m.categoria || '').toUpperCase();
-                                                  return categoria === 'PAGO' || categoria === 'ABONO';
-                                                }
-                                                return false;
+                                              if (m.tipo === 'INGRESO') {
+                                                const cat = String(m.categoria || '').toUpperCase();
+                                                return cat === 'PAGO' || cat === 'ABONO' || cat === 'CUOTA_INICIAL';
+                                              }
+                                              if (m.tipo === 'TRANSFERENCIA') {
+                                                const conc = String((m as any).descripcion || m.concepto || '').toUpperCase();
+                                                return !(conc.includes('SALIDA') || conc.includes('ENVIADA A') || conc.includes('EGRESO'));
+                                              }
+                                              return false;
                                             } else {
-                                                if (m.tipo === 'EGRESO') return true;
-                                                return false;
+                                              if (m.tipo === 'EGRESO') return true;
+                                              if (m.tipo === 'TRANSFERENCIA') {
+                                                const conc = String((m as any).descripcion || m.concepto || '').toUpperCase();
+                                                return conc.includes('SALIDA') || conc.includes('ENVIADA A') || conc.includes('EGRESO');
+                                              }
+                                              return false;
                                             }
-                                        })
-                                        .filter(m => {
-                                            return String(m.estado || '').toUpperCase() === 'APROBADO';
-                                        })
-                                        .filter(m => {
-                                            if (!cajaSeleccionada) return true;
-                                            return m.cajaId === cajaSeleccionada.id;
                                         })
                                         .filter(m => {
                                             if (fechaInicioModal || fechaFinModal) {
@@ -2421,7 +2385,7 @@ const ModuloContableContent = () => {
                                           if (detalleTipo === 'INGRESOS') {
                                             if (m.tipo === 'INGRESO') {
                                               const categoria = String(m.categoria || '').toUpperCase();
-                                              return categoria === 'PAGO' || categoria === 'ABONO';
+                                              return categoria === 'PAGO' || categoria === 'ABONO' || categoria === 'CUOTA_INICIAL';
                                             }
                                             return false;
                                           } else {
@@ -2567,11 +2531,23 @@ const ModuloContableContent = () => {
                             .filter(m => {
                               if (!cajaSeleccionada && m.categoria === 'CONSOLIDACION') return false;
                               if (detalleTipo === 'INGRESOS') {
-                                if (m.tipo !== 'INGRESO') return false;
-                                const categoria = String(m.categoria || '').toUpperCase();
-                                return categoria === 'PAGO' || categoria === 'ABONO';
+                                if (m.tipo === 'INGRESO') {
+                                  const cat = String(m.categoria || '').toUpperCase();
+                                  return cat === 'PAGO' || cat === 'ABONO' || cat === 'CUOTA_INICIAL';
+                                }
+                                if (m.tipo === 'TRANSFERENCIA') {
+                                  const conc = String((m as any).descripcion || m.concepto || '').toUpperCase();
+                                  return !(conc.includes('SALIDA') || conc.includes('ENVIADA A') || conc.includes('EGRESO'));
+                                }
+                                return false;
+                              } else {
+                                if (m.tipo === 'EGRESO') return true;
+                                if (m.tipo === 'TRANSFERENCIA') {
+                                  const conc = String((m as any).descripcion || m.concepto || '').toUpperCase();
+                                  return conc.includes('SALIDA') || conc.includes('ENVIADA A') || conc.includes('EGRESO');
+                                }
+                                return false;
                               }
-                              return m.tipo === 'EGRESO';
                             })
                             .filter(m => String(m.estado || '').toUpperCase() === 'APROBADO')
                             .filter(m => {
@@ -2786,6 +2762,14 @@ const ModuloContableContent = () => {
         )}
 
       </div>
+
+      {/* =============================================
+          DEUDAS DE COBRADORES — Tarjeta al fondo
+      ============================================= */}
+      <div className="px-6 pb-8">
+        <DeudorasCobradorCard />
+      </div>
+
     </div>
   )
 }

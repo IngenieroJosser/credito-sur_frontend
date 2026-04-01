@@ -608,11 +608,8 @@ const RutaClientLoaded = ({
 
 
       setHistorialRutas((prev: any) => ({
-
         ...(prev || {}),
-
-        [fechaClave]: { resumen, visitas: gestionadas, loaded: true }
-
+        [fechaClave]: { resumen, visitas: todasVisitas, loaded: true }
       }));
 
     } catch (e) {
@@ -697,57 +694,79 @@ const RutaClientLoaded = ({
 
       const lista = prestamosValidos.length > 0 ? prestamosValidos : [null];
 
-      return lista.flatMap((prestamo: any) => {
-        const idx = globalIndex++;
-        const uniqueKey = prestamo ? `loan-${prestamo.id}` : `client-${asig.cliente.id}`;
-        
-        if (idsProcesados.has(uniqueKey)) return [];
-        idsProcesados.add(uniqueKey);
+        const toDateKey = (dateStr: string | null) => {
+          if (!dateStr) return '';
+          return dateStr.includes('T') ? dateStr.split('T')[0] : dateStr;
+        };
+        const hoyKey = new Date().toISOString().split('T')[0];
 
-        const proximaCuota = prestamo?.cuotas?.[0];
-        const esArticulo = prestamo?.tipo === 'ARTICULO' || prestamo?.tipoPrestamo === 'ARTICULO';
-        const esPendienteAprobacion = prestamo?.estado === 'PENDIENTE_APROBACION';
+        return lista.flatMap((prestamo: any) => {
+          const idx = globalIndex++;
+          const uniqueKey = prestamo ? `loan-${prestamo.id}` : `client-${asig.cliente.id}`;
+          
+          if (idsProcesados.has(uniqueKey)) return [];
+          idsProcesados.add(uniqueKey);
 
-        const cuotaEnProrroga = proximaCuota?.estado === 'PRORROGADA';
-        const extension = prestamo?.extensiones?.[0];
-        const hayProrroga = cuotaEnProrroga || !!extension;
+          const proximaCuota = prestamo?.cuotas?.[0];
+          const esArticulo = prestamo?.tipo === 'ARTICULO' || prestamo?.tipoPrestamo === 'ARTICULO';
+          const esPendienteAprobacion = prestamo?.estado === 'PENDIENTE_APROBACION';
 
-        const fechaProrrogaFecha =
-          (cuotaEnProrroga && proximaCuota?.fechaVencimientoProrroga)
-            ? proximaCuota.fechaVencimientoProrroga
-            : extension?.nuevaFechaVencimiento ?? null;
+          let montoAcumulado = 0;
+          let esMoraAtrasada = false;
+          if (prestamo?.cuotas && Array.isArray(prestamo.cuotas)) {
+            for (const c of prestamo.cuotas) {
+              if (!c.fechaVencimiento) continue;
+              const cuotaKey = toDateKey(c.fechaVencimiento);
+              if (cuotaKey && cuotaKey <= hoyKey) {
+                montoAcumulado += Number(c.monto || 0);
+                if (cuotaKey < hoyKey) esMoraAtrasada = true;
+              }
+            }
+          }
 
-        const fechaEfectiva = fechaProrrogaFecha
-          ?? proximaCuota?.fechaVencimiento
-          ?? new Date().toISOString().split('T')[0];
 
-        return [{
-          id: prestamo ? `${asig.id}-${prestamo.id}` : (asig.id || `temp-${idx}`),
-          cliente: `${asig.cliente?.nombres || ''} ${asig.cliente?.apellidos || ''}`.trim() || 'Cliente Desconocido',
-          direccion: asig.cliente?.direccion || 'Sin dirección registrada',
-          telefono: asig.cliente?.telefono || '',
-          horaSugerida: asig.horaSugerida || '08:00 AM',
-          montoCuota: Number(proximaCuota?.monto || (prestamo?.montoCuota) || 0),
-          saldoTotal: Number(prestamo?.saldoPendiente || (prestamo?.monto) || 0),
-          estado: (esPendienteAprobacion ? 'pendiente' : (hayProrroga ? 'en_prorroga' : (asig.estado?.toLowerCase() || 'pendiente'))) as any,
-          proximaVisita: fechaEfectiva,
-          ordenVisita: asig.ordenVisita || idx + 1,
-          prioridad: (asig.prioridad?.toLowerCase() as any) || 'media',
-          cobradorId: initialRuta?.cobradorId || '',
-          periodoRuta: toPeriodo(prestamo?.frecuenciaPago || 'DIARIO') as any,
-          nivelRiesgo: toNivelRiesgo(asig.cliente?.nivelRiesgo || 'VERDE') as any,
-          clienteId: asig.cliente?.id || '',
-          prestamoId: prestamo?.id || '',
-          tipoPrestamo: (esArticulo ? 'ARTICULO' : 'EFECTIVO') as any,
-          articuloNombre: esArticulo ? (prestamo?.articulo || prestamo?.descripcionArticulo || undefined) : undefined,
-          enProrroga: hayProrroga,
-          fechaProrroga: fechaProrrogaFecha ?? undefined,
-          fechaOriginalVencimiento: cuotaEnProrroga ? (proximaCuota?.fechaVencimiento || undefined) : undefined,
-          cuotaActual: proximaCuota?.numeroCuota,
-          cuotasTotales: prestamo?.cantidadCuotas,
-          pendienteAprobacion: esPendienteAprobacion
-        }];
-      });
+          const cuotaEnProrroga = proximaCuota?.estado === 'PRORROGADA';
+          const extension = prestamo?.extensiones?.[0];
+          const hayProrroga = cuotaEnProrroga || !!extension;
+
+          const fechaProrrogaFecha =
+            (cuotaEnProrroga && proximaCuota?.fechaVencimientoProrroga)
+              ? proximaCuota.fechaVencimientoProrroga
+              : extension?.nuevaFechaVencimiento ?? null;
+
+          const fechaEfectiva = fechaProrrogaFecha
+            ?? proximaCuota?.fechaVencimiento
+            ?? new Date().toISOString().split('T')[0];
+
+          const montoFinal = montoAcumulado > 0 ? montoAcumulado : Number(proximaCuota?.monto || (prestamo?.montoCuota) || 0);
+
+          return [{
+            id: prestamo ? `${asig.id}-${prestamo.id}` : (asig.id || `temp-${idx}`),
+            cliente: `${asig.cliente?.nombres || ''} ${asig.cliente?.apellidos || ''}`.trim() || 'Cliente Desconocido',
+            direccion: asig.cliente?.direccion || 'Sin dirección registrada',
+            telefono: asig.cliente?.telefono || '',
+            horaSugerida: asig.horaSugerida || '08:00 AM',
+            montoCuota: montoFinal,
+            saldoTotal: Number(prestamo?.saldoPendiente || (prestamo?.monto) || 0),
+            estado: (esPendienteAprobacion ? 'pendiente' : (esMoraAtrasada ? 'en_mora' : (hayProrroga ? 'en_prorroga' : (asig.estado?.toLowerCase() || 'pendiente')))) as any,
+            proximaVisita: fechaEfectiva,
+            ordenVisita: asig.ordenVisita || idx + 1,
+            prioridad: (asig.prioridad?.toLowerCase() as any) || 'media',
+            cobradorId: initialRuta?.cobradorId || '',
+            periodoRuta: toPeriodo(prestamo?.frecuenciaPago || 'DIARIO') as any,
+            nivelRiesgo: toNivelRiesgo(asig.cliente?.nivelRiesgo || 'VERDE') as any,
+            clienteId: asig.cliente?.id || '',
+            prestamoId: prestamo?.id || '',
+            tipoPrestamo: (esArticulo ? 'ARTICULO' : 'EFECTIVO') as any,
+            articuloNombre: esArticulo ? (prestamo?.articulo || prestamo?.descripcionArticulo || undefined) : undefined,
+            enProrroga: hayProrroga,
+            fechaProrroga: fechaProrrogaFecha ?? undefined,
+            fechaOriginalVencimiento: cuotaEnProrroga ? (proximaCuota?.fechaVencimiento || undefined) : undefined,
+            cuotaActual: proximaCuota?.numeroCuota,
+            cuotasTotales: prestamo?.cantidadCuotas,
+            pendienteAprobacion: esPendienteAprobacion
+          }];
+        });
     });
 
     const clientesConPrestamo = new Set(firstPass.filter(v => v.prestamoId).map(v => v.clienteId));
@@ -1070,19 +1089,14 @@ const RutaClientLoaded = ({
 
 
     const isTodayOrMora = (dateStr: string) => {
-
       if (!dateStr) return true;
-
-      const d = new Date(dateStr);
-
+      const f = dateStr.includes('T') ? dateStr.split('T')[0] : dateStr;
+      const [year, month, day] = f.split('-').map(Number);
+      if (!year || !month || !day) return true;
+      const d = new Date(year, month - 1, day, 0, 0, 0, 0);
       const hoy = new Date();
-
       hoy.setHours(0, 0, 0, 0);
-
-      d.setHours(0, 0, 0, 0);
-
       return d.getTime() <= hoy.getTime();
-
     };
 
 
@@ -2626,8 +2640,6 @@ const RutaClientLoaded = ({
               try {
                 await onRutaRefresh?.();
               } catch {}
-
-              router.refresh();
             } catch (error) {
               console.error('Error registrando pago/abono:', error);
               showNotification('error', 'No se pudo registrar el pago/abono', 'Error');

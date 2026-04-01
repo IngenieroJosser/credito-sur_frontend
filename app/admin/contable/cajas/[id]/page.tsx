@@ -7,7 +7,7 @@ import { ArrowLeft, Wallet, TrendingUp, TrendingDown, Calendar, User, DollarSign
 import { formatCOPInputValue, formatCurrency, parseCOPInputToNumber } from '@/lib/utils'
 import MoneyAmount from '@/components/contable/MoneyAmount'
 import { useNotification } from '@/components/providers/NotificationProvider'
-import { getCajaById, getTransacciones } from '@/services/contabilidad-service'
+import { createTransaccion, getCajaById, getTransacciones } from '@/services/contabilidad-service'
 import { usuariosService } from '@/services/usuarios-service'
 
 interface CajaDetalle {
@@ -38,49 +38,6 @@ export default function DetalleCajaPage({ params }: { params: Promise<{ id: stri
     saldoInicialInput: '',
   })
 
-  useEffect(() => {
-    const fetchCaja = async () => {
-      setLoadingCaja(true)
-      try {
-        const cajaData = await getCajaById(id)
-        const txRes = await getTransacciones({ cajaId: id, limit: 50 })
-        const ingresos = txRes.data.filter(t => t.tipo === 'INGRESO').reduce((s, t) => s + t.monto, 0)
-        const egresos = txRes.data.filter(t => t.tipo === 'EGRESO').reduce((s, t) => s + t.monto, 0)
-        setCaja({
-          id: cajaData?.id || id,
-          nombre: cajaData?.nombre || '',
-          responsable: cajaData?.responsable || '',
-          tipo: cajaData?.tipo || 'PRINCIPAL',
-          estado: cajaData?.estado || 'ABIERTA',
-          saldoActual: cajaData?.saldo || 0,
-          saldoInicial: 0,
-          ingresosDia: ingresos,
-          egresosDia: egresos,
-          fechaApertura: cajaData?.ultimaActualizacion || '',
-          movimientos: txRes.data.map(t => ({
-            id: t.id,
-            tipo: t.tipo,
-            concepto: t.descripcion,
-            monto: t.monto,
-            hora: new Date(t.fecha).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' }),
-            usuario: t.responsable,
-          })),
-        })
-        setEditForm({ nombre: cajaData?.nombre || '', responsable: cajaData?.responsable || '', saldoInicialInput: '' })
-        try {
-          const users = await usuariosService.obtenerTodos()
-          setUsuariosAutorizados((users as any[]).map((u: any) => ({ id: u.id, nombre: `${u.nombres} ${u.apellidos}`, rol: u.rol })))
-        } catch { /* ignore */ }
-      } catch (err) {
-        console.error('Error cargando caja:', err)
-        setCaja(null)
-      } finally {
-        setLoadingCaja(false)
-      }
-    }
-    fetchCaja()
-  }, [id])
-
   const [movimientoForm, setMovimientoForm] = useState({
     tipo: 'INGRESO' as 'INGRESO' | 'EGRESO',
     categoria: '',
@@ -90,6 +47,90 @@ export default function DetalleCajaPage({ params }: { params: Promise<{ id: stri
   })
 
   const { showNotification } = useNotification()
+
+  const fetchCaja = async () => {
+    setLoadingCaja(true)
+    try {
+      const cajaData = await getCajaById(id)
+      const txRes = await getTransacciones({ cajaId: id, limit: 50 })
+      const ingresos = txRes.data.filter(t => t.tipo === 'INGRESO').reduce((s, t) => s + t.monto, 0)
+      const egresos = txRes.data.filter(t => t.tipo === 'EGRESO').reduce((s, t) => s + t.monto, 0)
+      setCaja({
+        id: cajaData?.id || id,
+        nombre: cajaData?.nombre || '',
+        responsable: cajaData?.responsable || '',
+        tipo: cajaData?.tipo || 'PRINCIPAL',
+        estado: cajaData?.estado || 'ABIERTA',
+        saldoActual: cajaData?.saldo || 0,
+        saldoInicial: 0,
+        ingresosDia: ingresos,
+        egresosDia: egresos,
+        fechaApertura: cajaData?.ultimaActualizacion || '',
+        movimientos: txRes.data.map(t => ({
+          id: t.id,
+          tipo: t.tipo,
+          concepto: t.descripcion,
+          monto: t.monto,
+          hora: new Date(t.fecha).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' }),
+          usuario: t.responsable,
+        })),
+      })
+      setEditForm({ nombre: cajaData?.nombre || '', responsable: cajaData?.responsable || '', saldoInicialInput: '' })
+      try {
+        const users = await usuariosService.obtenerTodos()
+        setUsuariosAutorizados((users as any[]).map((u: any) => ({ id: u.id, nombre: `${u.nombres} ${u.apellidos}`, rol: u.rol })))
+      } catch { /* ignore */ }
+    } catch (err) {
+      console.error('Error cargando caja:', err)
+      setCaja(null)
+    } finally {
+      setLoadingCaja(false)
+    }
+  }
+
+  useEffect(() => {
+    fetchCaja()
+  }, [id])
+
+  const handleRegistrarMovimiento = async () => {
+    const monto = parseCOPInputToNumber(movimientoForm.montoInput)
+    if (monto <= 0) {
+      showNotification('error', 'El monto debe ser mayor a 0', 'Validación')
+      return
+    }
+    if (!movimientoForm.concepto.trim()) {
+      showNotification('error', 'Debe ingresar un concepto', 'Validación')
+      return
+    }
+    if (!movimientoForm.categoria) {
+      showNotification('error', 'Debe seleccionar una categoría', 'Validación')
+      return
+    }
+
+    try {
+      await createTransaccion({
+        cajaId: id,
+        tipo: movimientoForm.tipo as any,
+        monto,
+        descripcion: movimientoForm.concepto,
+        tipoReferencia: movimientoForm.categoria,
+        referenciaId: movimientoForm.referencia?.trim() ? movimientoForm.referencia.trim() : undefined,
+      })
+
+      showNotification('success', 'Movimiento registrado correctamente', 'Éxito')
+      setShowRegistrarMovimientoModal(false)
+      setMovimientoForm({ tipo: 'INGRESO', categoria: '', montoInput: '', concepto: '', referencia: '' })
+      await fetchCaja()
+    } catch (error: any) {
+      console.error('Error registrando movimiento:', error)
+      const msg =
+        error?.message ||
+        error?.response?.message ||
+        (Array.isArray(error?.response?.message) ? error.response.message.join(', ') : undefined) ||
+        'No se pudo registrar el movimiento'
+      showNotification('error', String(msg), 'Error')
+    }
+  }
 
   const [categoriasIngreso, setCategoriasIngreso] = useState([
     { id: 'APORTE_CAPITAL', label: 'Aporte de Capital' },
@@ -411,7 +452,7 @@ export default function DetalleCajaPage({ params }: { params: Promise<{ id: stri
                   </div>
                 </div>
                 <p className="text-xs text-slate-500 font-medium">
-                  Este modal es solo frontend (mock). No persiste cambios en base de datos.
+                  El movimiento se registrará en esta caja.
                 </p>
               </div>
 
@@ -587,7 +628,7 @@ export default function DetalleCajaPage({ params }: { params: Promise<{ id: stri
                     !movimientoForm.concepto.trim() ||
                     !movimientoForm.categoria
                   }
-                  onClick={() => setShowRegistrarMovimientoModal(false)}
+                  onClick={handleRegistrarMovimiento}
                   className="px-6 py-3 rounded-xl bg-slate-900 text-white text-sm font-bold hover:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed"
                 >
                   Guardar

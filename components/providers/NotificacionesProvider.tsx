@@ -5,6 +5,7 @@ import { io, Socket } from 'socket.io-client'
 import { Notificacion, notificacionesService } from '@/services/notificaciones-service'
 import { toast } from 'sonner'
 import { showLocalNotification } from '@/lib/push/pushNotifications'
+import { refreshSesion } from '@/services/autenticacion-service'
 
 interface NotificacionesContextProps {
   socket: Socket | null;
@@ -95,6 +96,40 @@ export function NotificacionesProvider({ children }: { children: React.ReactNode
       console.log(`[Socket] Conectado con ID: ${newSocket.id}`);
       if (currentUserId) {
         newSocket.emit('register', { userId: currentUserId })
+      }
+    })
+
+    // Cuando un admin actualiza permisos de un usuario, el backend emite usuarios_actualizados.
+    // Si aplica a este usuario, refrescamos sesión (token + permisos + sidebar) sin requerir re-login.
+    newSocket.on('usuarios_actualizados', async (payload: any) => {
+      try {
+        if (!currentUserId) return;
+        if (payload?.accion !== 'PERMISOS_ACTUALIZADOS') return;
+        if (payload?.usuarioId && String(payload.usuarioId) !== String(currentUserId)) return;
+
+        const refreshed = await refreshSesion();
+        if (refreshed?.access_token) {
+          localStorage.setItem('token', refreshed.access_token);
+        }
+
+        if (refreshed?.usuario) {
+          const existingRaw = localStorage.getItem('user');
+          let existing: any = null;
+          try {
+            existing = existingRaw ? JSON.parse(existingRaw) : null;
+          } catch {
+            existing = null;
+          }
+          const mergedUser = {
+            ...(existing || {}),
+            ...refreshed.usuario,
+          };
+          localStorage.setItem('user', JSON.stringify(mergedUser));
+        }
+
+        window.dispatchEvent(new Event('userUpdated'));
+      } catch (e) {
+        // No interrumpir la app si falla el refresh; el cambio se aplicará en el próximo login.
       }
     })
 

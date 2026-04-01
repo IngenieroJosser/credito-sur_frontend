@@ -248,6 +248,16 @@ export const permisosPorRol: Record<Rol, ModuloPermiso[]> = {
       ]
     },
     {
+      id: 'finanzas',
+      nombre: 'Finanzas',
+      icono: 'PieChart',
+      path: '#',
+      roles: ['SUPERVISOR'],
+      submodulos: [
+        { id: 'contable', nombre: 'Movimientos', icono: 'Calculator', path: '/contable', roles: ['SUPERVISOR'] },
+      ]
+    },
+    {
       id: 'gestion-clientes',
       nombre: 'Gestión Clientes',
       icono: 'Users',

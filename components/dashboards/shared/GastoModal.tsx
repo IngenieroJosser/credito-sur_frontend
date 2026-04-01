@@ -12,7 +12,7 @@ import { rutasService } from '@/services/rutas-service'
 interface GastoModalProps {
   isOpen: boolean
   onClose: () => void
-  onConfirm: (data: { descripcion: string; valor: number; comprobante: File | null }) => void | Promise<void>
+  onConfirm: (data: { descripcion: string; valor: number; comprobante: File | null; categoriaId?: string; esPersonal?: boolean }) => void | Promise<void>
   cobradorId?: string
   rutaId?: string
   recaudoDia?: number
@@ -23,10 +23,12 @@ export default function GastoModal({ isOpen, onClose, onConfirm, cobradorId, rut
   const [descripcion, setDescripcion] = useState('')
   const [valorInput, setValorInput] = useState('')
   const [comprobante, setComprobante] = useState<File | null>(null)
+  const [categoriaId, setCategoriaId] = useState('')
   const [saldoInfo, setSaldoInfo] = useState<SaldoDisponibleRuta | null>(null)
   const [loadingSaldo, setLoadingSaldo] = useState(false)
   const [errorSaldo, setErrorSaldo] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [esPersonal, setEsPersonal] = useState(false)
 
   // Cargar saldo disponible al abrir el modal
   useEffect(() => {
@@ -102,7 +104,7 @@ export default function GastoModal({ isOpen, onClose, onConfirm, cobradorId, rut
     
     setIsSubmitting(true)
     try {
-      await onConfirm({ descripcion, valor, comprobante })
+      await onConfirm({ descripcion, valor, comprobante, categoriaId, esPersonal })
       handleReset()
     } catch (error) {
       console.error('Error al registrar gasto:', error)
@@ -115,6 +117,8 @@ export default function GastoModal({ isOpen, onClose, onConfirm, cobradorId, rut
     setDescripcion('')
     setValorInput('')
     setComprobante(null)
+    setCategoriaId('')
+    setEsPersonal(false)
     onClose()
   }
 
@@ -186,7 +190,15 @@ export default function GastoModal({ isOpen, onClose, onConfirm, cobradorId, rut
               </div>
             )}
 
-
+            <div className="space-y-2 relative z-50">
+               <SelectCategoria 
+                 value={categoriaId} 
+                 onChange={setCategoriaId}
+                 tipo="GASTO"
+                 label="Categoría de Gasto"
+                 placeholder="Seleccionar..."
+               />
+            </div>
 
             <div className="space-y-2">
               <label className="text-sm font-bold text-slate-700">Descripción</label>
@@ -236,15 +248,40 @@ export default function GastoModal({ isOpen, onClose, onConfirm, cobradorId, rut
                </div>
             </div>
 
-            <div className="p-3 bg-blue-50 rounded-xl flex items-start gap-3 border border-blue-100">
-              <div className="p-1.5 bg-blue-100 rounded-lg text-blue-600 mt-0.5">
-                <Banknote className="h-4 w-4" />
-              </div>
-              <div className="text-[10px] text-blue-800 leading-tight">
-                <p className="font-bold mb-0.5 uppercase tracking-wider">Aviso</p>
-                <p>Este gasto requiere aprobación del coordinador antes de descargar del recaudo.</p>
-              </div>
+            <div className="flex items-center gap-3 p-3 bg-slate-50 border border-slate-200 rounded-xl mt-4">
+              <input
+                type="checkbox"
+                id="esPersonalCheck"
+                checked={esPersonal}
+                onChange={(e) => setEsPersonal(e.target.checked)}
+                className="w-5 h-5 text-rose-600 rounded border-slate-300 focus:ring-rose-500 cursor-pointer"
+              />
+              <label htmlFor="esPersonalCheck" className="text-sm font-bold text-slate-700 select-none cursor-pointer flex-1">
+                Es Gasto Personal (Adelanto de nómina / Prestamo)
+              </label>
             </div>
+
+            {esPersonal ? (
+              <div className="p-3 bg-blue-50 rounded-xl flex items-start gap-3 border border-blue-100 mt-2">
+                <div className="p-1.5 bg-blue-100 rounded-lg text-blue-600 mt-0.5">
+                  <Banknote className="h-4 w-4" />
+                </div>
+                <div className="text-[10px] text-blue-800 leading-tight">
+                  <p className="font-bold mb-0.5 uppercase tracking-wider">Aviso de Aprobación</p>
+                  <p>Este gasto requiere aprobación del coordinador antes de descargar del recaudo.</p>
+                </div>
+              </div>
+            ) : (
+              <div className="p-3 bg-amber-50 rounded-xl flex items-start gap-3 border border-amber-100 mt-2">
+                <div className="p-1.5 bg-amber-100 rounded-lg text-amber-600 mt-0.5">
+                  <AlertCircle className="h-4 w-4" />
+                </div>
+                <div className="text-[10px] text-amber-800 leading-tight">
+                  <p className="font-bold mb-0.5 uppercase tracking-wider">Gasto Operativo Directo</p>
+                  <p>Este gasto se descontará de la ruta inmediatamente.</p>
+                </div>
+              </div>
+            )}
 
             <div className="flex gap-3 pt-2">
               <button

@@ -70,24 +70,34 @@ export default function NotificacionDetalleModal({
         ? JSON.parse(notificacion.detalles) 
         : (notificacion.detalles || {})
         
+      // Combined: los datos de detalles (datosSolicitud del backend) tienen prioridad máxima
       const combined = { ...meta, ...metaDetalles, ...dets }
-      
-      // Intentar extraer cédula/teléfono/monto del mensaje si no están en metadata
+
+      // ── Valores financieros: tomar DIRECTAMENTE del backend, sin derivaciones ──
+      const cuotaInicialDirecta = Number(combined.cuotaInicial ?? 0);
+      const valorArticuloDirecto = Number(combined.valorArticulo ?? 0);
+      const montoDirecto = Number(combined.monto ?? 0);
+
+      // Solo inferir si realmente faltan (registros muy antiguos)
+      const cuotaInicialFinal =
+        cuotaInicialDirecta > 0
+          ? cuotaInicialDirecta
+          : valorArticuloDirecto > 0 && montoDirecto > 0 && valorArticuloDirecto > montoDirecto
+          ? valorArticuloDirecto - montoDirecto
+          : 0;
+
+      const valorArticuloFinal =
+        valorArticuloDirecto > 0
+          ? valorArticuloDirecto
+          : montoDirecto > 0 && cuotaInicialFinal > 0
+          ? montoDirecto + cuotaInicialFinal
+          : montoDirecto;
+
+      // Extraer cédula del mensaje si no está en metadata (solo para cliente info)
       const msg = notificacion.mensaje || ''
-      
-      // Extraer cédula del mensaje: 7 a 10 dígitos seguidos
       const cedulaFromMsg = msg.match(/(\d{7,10})/)?.[1]
-      
-      // Extraer monto del mensaje: "$ 1.550.000,00" -> 1550000
-      const montoMatch = msg.match(/(?:\$|COP)\s?([\d\.,]+)/i)
-      let montoFromMsg = 0
-      if (montoMatch && montoMatch[1]) {
-        // Eliminar puntos de miles y manejar decimales con coma
-        const cleanMonto = montoMatch[1].split(',')[0].replace(/\./g, '')
-        montoFromMsg = Number(cleanMonto) || 0
-      }
-      
-      // Extraer artículo del mensaje de forma más precisa
+
+      // Extraer artículo del mensaje
       let articuloFromMsg = ''
       if (msg.toLowerCase().includes('artículo') || msg.toLowerCase().includes('articulo')) {
         const artMatch = msg.match(/(?:artículo|articulo)\s+(?:["']?([^"']+)["']?|(\w+))/i)
@@ -98,24 +108,18 @@ export default function NotificacionDetalleModal({
         }
       }
 
-      const baseCuotaInicial = Number(combined.cuotaInicial ?? 0);
-      const baseValorArticulo = (Number(combined.valorArticulo) || 0) || (montoFromMsg || 0) || (Number(combined.monto || 0) + baseCuotaInicial) || 0;
-      const baseMonto = Number(combined.monto || 0);
-      const derivedCuotaInicial =
-        baseCuotaInicial > 0
-          ? baseCuotaInicial
-          : baseValorArticulo > 0 && baseMonto > 0 && baseValorArticulo > baseMonto
-          ? baseValorArticulo - baseMonto
-          : 0;
-
       const initialVal = {
         ...combined,
+        // Financiero: siempre del backend
+        monto: montoDirecto,
+        valorArticulo: valorArticuloFinal,
+        cuotaInicial: cuotaInicialFinal,
+        // Plazo y cuotas: del backend, sin recalcular
         plazoMeses: Number(combined.plazoMeses || combined.plajeMeses || 1),
-        tipoAmortizacion: combined.tipoAmortizacion || 'INTERES_SIMPLE',
-        fechaInicio: combined.fechaInicio || new Date().toISOString().split('T')[0],
         cuotas: (() => {
            const val = Number(combined.cantidadCuotas || combined.cuotas || combined.numCuotas || 0);
            if (val > 0) return val;
+           // Solo calcular si no hay ningún valor explícito del backend
            const meses = Number(combined.plazoMeses || combined.plajeMeses || 0);
            if (meses === 0) return 0;
            const freq = combined.frecuenciaPago || combined.frecuencia || 'DIARIO';
@@ -125,20 +129,30 @@ export default function NotificacionDetalleModal({
            if (freq === 'MENSUAL') return Math.ceil(meses);
            return Math.ceil(meses * 4);
         })(),
+        // Frecuencia: del backend directamente
         frecuenciaPago: combined.frecuenciaPago || combined.frecuencia || 'DIARIO',
-        articulo: combined.articulo || combined.articuloNombre || articuloFromMsg || ((notificacion.titulo + notificacion.mensaje).toLowerCase().includes('artículo') || (notificacion.titulo + notificacion.mensaje).toLowerCase().includes('articulo') ? 'Artículo por definir' : 'N/A'),
-        cuotaInicial: derivedCuotaInicial,
-        valorArticulo: baseValorArticulo,
-        monto: baseMonto,
+        // Fecha: del backend directamente
+        fechaInicio: combined.fechaInicio || combined.fecha || new Date().toISOString().split('T')[0],
+        tipoAmortizacion: combined.tipoAmortizacion || 'INTERES_SIMPLE',
+        articulo: combined.articulo || combined.articuloNombre || articuloFromMsg || (
+          (notificacion.titulo + notificacion.mensaje).toLowerCase().includes('artículo') ||
+          (notificacion.titulo + notificacion.mensaje).toLowerCase().includes('articulo')
+            ? 'Artículo por definir' : 'N/A'
+        ),
         cedula: String(combined.cedula || combined.dni || cedulaFromMsg || ''),
         telefono: String(combined.telefono || combined.phone || ''),
-        notas: String(
-          combined.notas ??
-            combined.observaciones ??
-            combined.comentarios ??
-            combined.nota ??
-            ''
-        ),
+        notas: (() => {
+          const rawNotas = String(combined.notas ?? combined.observaciones ?? combined.comentarios ?? combined.nota ?? '');
+          // Filtrar prefijos automáticos generados por el sistema
+          const prefijos = ['Crédito de artículo:', 'Venta de contado:', 'Venta de artículo de contado'];
+          for (const prefijo of prefijos) {
+            if (rawNotas.toLowerCase().startsWith(prefijo.toLowerCase())) {
+              const idx = rawNotas.indexOf('. ');
+              return idx !== -1 ? rawNotas.slice(idx + 2).trim() : '';
+            }
+          }
+          return rawNotas;
+        })(),
         garantia: String(combined.garantia ?? ''),
       }
       
@@ -156,17 +170,28 @@ export default function NotificacionDetalleModal({
 
       let initialEsContado = false
       if (isArticleEff) {
-        const cuotasRaw = Number(combined.cuotas || combined.numCuotas || combined.cantidadCuotas || 0)
-        const mesesRaw = Number(combined.plazoMeses || combined.plajeMeses || 0)
-        const porcentajeRaw = Number(combined.porcentaje ?? 0)
-        const notasRaw = String((combined.notas || combined.garantia || '') ?? '').toLowerCase()
-        const ventaFlag = (combined as any).ventaContado || (combined as any).esContado
-        if (ventaFlag) {
-          initialEsContado = true
-        } else if (notasRaw.includes('venta de contado') || notasRaw.includes('venta de artículo de contado') || notasRaw.includes('venta de articulo de contado')) {
-          initialEsContado = true
-        } else if (!isNaN(cuotasRaw) && !isNaN(mesesRaw) && cuotasRaw === 1 && mesesRaw <= 1 && porcentajeRaw === 0) {
-          initialEsContado = true
+        // PRIORIDAD 1: Flag explícito del backend (incluso false debe respetarse)
+        const ventaFlag = (combined as any).esContado ?? (combined as any).ventaContado
+        
+        if (ventaFlag !== undefined && ventaFlag !== null) {
+          initialEsContado = !!ventaFlag
+        } else {
+          // PRIORIDAD 2: Deducción por valores (solo si no hay flag explícito)
+          const cuotasRaw = Number(combined.cantidadCuotas || combined.cuotas || combined.numCuotas || 0)
+          const mesesRaw = Number(combined.plazoMeses || combined.plajeMeses || 0)
+          const porcentajeRaw = Number(combined.porcentaje ?? 0)
+          
+          // Si hay más de 1 cuota, definitivamente NO es de contado
+          if (cuotasRaw > 1) {
+            initialEsContado = false
+          } else {
+            const notasRaw = String((combined.notas || combined.garantia || '') ?? '').toLowerCase()
+            if (notasRaw.includes('venta de contado') || notasRaw.includes('venta de artículo de contado') || notasRaw.includes('venta de articulo de contado')) {
+              initialEsContado = true
+            } else if (!isNaN(cuotasRaw) && !isNaN(mesesRaw) && cuotasRaw <= 1 && mesesRaw <= 1 && porcentajeRaw === 0) {
+              initialEsContado = true
+            }
+          }
         }
       }
 
@@ -238,6 +263,9 @@ export default function NotificacionDetalleModal({
   }, [isOpen, notificacion, editedDetails?.plazoMeses])
 
   React.useEffect(() => {
+    // Solo recalcular valorArticulo/monto si el usuario está editando activamente.
+    // Al abrir el modal, NO sobreescribir los valores que ya vienen del backend.
+    if (!isEditingMode) return
     const meta = typeof notificacion?.metadata === 'string'
       ? JSON.parse(notificacion!.metadata as any)
       : (notificacion?.metadata || {})
@@ -273,9 +301,12 @@ export default function NotificacionDetalleModal({
         monto: aFinanciar
       }))
     }
-  }, [articuloData, planIndex, esContado])
+  }, [articuloData, planIndex, esContado, isEditingMode])
 
   React.useEffect(() => {
+    // Este efecto solo recalcula cuotas cuando el usuario está editando activamente.
+    // Si el modal acaba de abrirse y el usuario no ha editado nada, no sobreescribimos.
+    if (!isEditingMode || !autoCuotas) return
     const meta = typeof notificacion?.metadata === 'string'
       ? JSON.parse(notificacion!.metadata as any)
       : (notificacion?.metadata || {})
@@ -294,21 +325,20 @@ export default function NotificacionDetalleModal({
       mensajeEff.includes('articulo')
     )
     if (!isArticleEff) return
-    const meses = Number(editedDetails?.plazoMeses || dets?.plazoMeses || meta?.plazoMeses || 0)
-    const freq = editedDetails?.frecuenciaPago || dets?.frecuenciaPago || meta?.frecuenciaPago || 'DIARIO'
+    const meses = Number(editedDetails?.plazoMeses || 0)
+    const freq = editedDetails?.frecuenciaPago || 'DIARIO'
     let c = 0
     if (meses > 0) {
-      if (freq === 'DIARIO') c = meses * 30
-      else if (freq === 'SEMANAL') c = meses * 4
-      else if (freq === 'QUINCENAL') c = meses * 2
-      else if (freq === 'MENSUAL') c = meses
-      else c = meses * 4
+      if (freq === 'DIARIO') c = Math.ceil(meses * 30)
+      else if (freq === 'SEMANAL') c = Math.ceil(meses * 4)
+      else if (freq === 'QUINCENAL') c = Math.ceil(meses * 2)
+      else if (freq === 'MENSUAL') c = Math.ceil(meses)
+      else c = Math.ceil(meses * 4)
     }
-    const current = Number(editedDetails?.cuotas || editedDetails?.numCuotas || dets?.cuotas || meta?.cuotas || 0)
-    if (c > 0 && c !== current && autoCuotas) {
-      setEditedDetails({ ...editedDetails, cuotas: c })
+    if (c > 0) {
+      setEditedDetails((prev: any) => ({ ...prev, cuotas: c }))
     }
-  }, [editedDetails?.plazoMeses, editedDetails?.frecuenciaPago, notificacion, autoCuotas])
+  }, [editedDetails?.plazoMeses, editedDetails?.frecuenciaPago, isEditingMode])
 
   if (!isOpen || !notificacion) return null
 
@@ -805,21 +835,54 @@ export default function NotificacionDetalleModal({
                       </div>
                     )}
                     <div>
-                      <label className="text-[10px] text-blue-600 uppercase font-black block mb-1">Fecha Inicio</label>
-                      <p className="text-base font-black text-slate-900">{editedDetails?.fechaInicio ? new Date(editedDetails.fechaInicio).toLocaleDateString() : 'N/A'}</p>
+                    <label className="text-[10px] text-blue-600 uppercase font-black block mb-1">Fecha Inicio</label>
+                      <p className="text-base font-black text-slate-900">
+                        {(() => {
+                          // Priorizar editedDetails, luego safeMeta (ambos incluyen la data del backend)
+                          const dateStr =
+                            editedDetails?.fechaInicio ||
+                            editedDetails?.fecha ||
+                            safeMeta?.fechaInicio ||
+                            safeMeta?.fecha ||
+                            safeMetaDetalles?.fechaInicio;
+                          if (!dateStr || dateStr === 'N/A') return 'N/A';
+                          try {
+                            // ISO completo: 2026-04-01T05:00:00.000Z
+                            if (typeof dateStr === 'string' && dateStr.includes('T')) {
+                              const d = new Date(dateStr);
+                              if (!isNaN(d.getTime())) {
+                                // Ajustar a UTC para evitar off-by-one por zona horaria
+                                return new Date(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()).toLocaleDateString('es-CO');
+                              }
+                            }
+                            // Formato YYYY-MM-DD
+                            if (typeof dateStr === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+                              return new Date(dateStr + 'T12:00:00').toLocaleDateString('es-CO');
+                            }
+                            // Cualquier otro formato
+                            const d = new Date(dateStr);
+                            if (!isNaN(d.getTime())) return d.toLocaleDateString('es-CO');
+                          } catch (e) {
+                            return String(dateStr);
+                          }
+                          // Si es un string válido (ej. "01/04/2026") que date no pudo entender, devuélvelo tal cual.
+                          if (typeof dateStr === 'string' && dateStr.trim() !== '') return dateStr;
+                          return 'N/A';
+                        })()}
+                      </p>
                     </div>
                     <div className="col-span-2">
-                      <label className="text-[10px] text-blue-600 uppercase font-black block mb-1">Notas / Observaciones</label>
+                            <label className="text-[10px] text-blue-600 uppercase font-black block mb-1">Notas / Observaciones</label>
                       {isEditingMode ? (
                         <textarea 
-                          value={editedDetails?.notas || safeMetaDetalles?.notas || safeMeta?.notas || ''}
+                          value={editedDetails?.notas ?? safeMeta?.notas ?? ''}
                           onChange={(e) => setEditedDetails({ ...editedDetails, notas: e.target.value })}
                           className="w-full bg-white border border-blue-200 text-slate-900 rounded-xl px-4 py-2 text-xs font-medium outline-none focus:ring-2 focus:ring-blue-500/20 min-h-[60px]"
                           placeholder="Notas adicionales..."
                         />
                       ) : (
                         <p className="text-xs text-slate-600 italic">
-                          {editedDetails?.notas || safeMetaDetalles?.notas || safeMeta?.notas || 'Sin notas registradas.'}
+                          {editedDetails?.notas || safeMeta?.notas || 'Sin notas registradas.'}
                         </p>
                       )}
                     </div>
@@ -844,7 +907,7 @@ export default function NotificacionDetalleModal({
                             const meses = Number(editedDetails?.plazoMeses || safeMeta?.plazoMeses || 1);
                             const mesesInteres = Math.max(1, meses);
                             const total = isArticle ? m : (mt > 0 ? mt : (it > 0 ? m + it : m + ((m * tasa * mesesInteres) / 100)));
-                            const val = total / c;
+                            const val = Math.ceil(total / c);
                             return formatCurrency(isNaN(val) ? 0 : val);
                           })()}
                         </p>
@@ -967,9 +1030,11 @@ export default function NotificacionDetalleModal({
                       <span className="text-slate-600 font-medium">Referencia:</span>
                       <span className="font-bold text-slate-900">{editedDetails?.referencia}</span>
                     </div>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-slate-600 font-medium">Correo:</span>
-                      <span className="font-bold text-slate-900">{editedDetails?.correo}</span>
+                    <div className="flex justify-between text-sm gap-2">
+                      <span className="text-slate-600 font-medium whitespace-nowrap">Correo:</span>
+                      <span className="font-bold text-slate-900 break-all text-right">
+                        {editedDetails?.correo || 'No registrado'}
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -1042,12 +1107,21 @@ export default function NotificacionDetalleModal({
                     </div>
                     <div className="text-right">
                       <p className="text-[9px] text-slate-400 uppercase font-bold mb-0.5">Fecha</p>
-                      <p className="text-[10px] font-bold text-slate-600">
+                      <p className="text-[10px] font-black text-slate-700">
                         {(() => {
                           const raw = safeMeta.fechaRevision || notificacion?.revisadoEn || notificacion?.actualizadoEn || notificacion?.creadoEn
-                          if (!raw || raw === 'N/A') return fecha || '—'
+                          if (!raw || raw === 'N/A' || raw === '—') return fecha || '—'
                           try {
-                            return new Date(raw).toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+                            const d = new Date(raw);
+                            if (isNaN(d.getTime())) return fecha || '—';
+                            return d.toLocaleString('es-CO', { 
+                              day: '2-digit', 
+                              month: 'short', 
+                              year: 'numeric',
+                              hour: '2-digit',
+                              minute: '2-digit',
+                              hour12: true
+                            });
                           } catch { return fecha || '—' }
                         })()}
                       </p>
@@ -1079,7 +1153,7 @@ export default function NotificacionDetalleModal({
                 </button>
                 <button 
                   onClick={() => setShowApproveModal(true)}
-                  className="flex-1 py-4 bg-slate-900 text-white font-black text-[11px] uppercase tracking-widest rounded-2xl hover:bg-slate-800 shadow-xl shadow-slate-900/20 transition-all border border-slate-700"
+                  className="flex-1 py-4 bg-emerald-600 text-white font-black text-[11px] uppercase tracking-widest rounded-2xl hover:bg-emerald-700 shadow-xl shadow-emerald-600/20 transition-all border border-emerald-500"
                 >
                   Aprobar Ahora
                 </button>

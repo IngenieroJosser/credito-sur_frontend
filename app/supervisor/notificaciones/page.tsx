@@ -49,6 +49,26 @@ export default function NotificacionesSupervisorPage() {
 
   // --- LÓGICA DE FILTRADO ---
   const notificaciones = (globalNotifs as Notificacion[])
+    .map((n) => {
+      const raw: any = n as any
+      const metadata = raw?.metadata || {}
+      const metaTipo = String(metadata.tipo || '').toUpperCase()
+      const metaTipoAprobacion = String(metadata.tipoAprobacion || '').toUpperCase()
+      const texto = `${String(n.titulo || '')} ${String(n.mensaje || '')}`.toLowerCase()
+      const pareceMora =
+        metaTipo === 'ASIGNAR_MORA' ||
+        metaTipoAprobacion === 'ASIGNAR_MORA' ||
+        ('montoInteres' in metadata) ||
+        texto.includes('mora') ||
+        texto.includes('interés de mora') ||
+        texto.includes('interes de mora')
+
+      if (n.tipo === 'SISTEMA' && pareceMora) {
+        return { ...(n as any), tipo: 'MORA' } as any
+      }
+
+      return n
+    })
     .filter((n) => {
       if (filter === 'TODAS') return true;
       if (filter === 'NO_LEIDAS') return !n.leida;

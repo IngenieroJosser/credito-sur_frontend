@@ -56,8 +56,15 @@ export default function DetalleReporteFinancieroPage() {
           getTransacciones({ tipo: 'EGRESO', fechaInicio, fechaFin, limit: 2000 })
         ])
 
-        const totalIngresos = ingRes.data.reduce((acc, t) => acc + (t.monto || 0), 0)
-        const totalEgresos = egreRes.data.reduce((acc, t) => acc + (t.monto || 0), 0)
+        const totalIngresos = ingRes.data
+          .filter((t: any) => {
+            const cat = String(t?.categoria || '').toUpperCase()
+            return cat === 'PAGO' || cat === 'ABONO'
+          })
+          .reduce((acc, t) => acc + (t.monto || 0), 0)
+        const totalEgresos = egreRes.data
+          .filter((t: any) => String(t?.categoria || '').toUpperCase() !== 'DEUDA_COBRADOR')
+          .reduce((acc, t) => acc + (t.monto || 0), 0)
         const utilidadCalc = Math.max(0, totalIngresos - totalEgresos)
         const margenCalc = totalIngresos > 0 ? (utilidadCalc / totalIngresos) * 100 : 0
 
@@ -67,12 +74,19 @@ export default function DetalleReporteFinancieroPage() {
         setMargen(margenCalc)
 
         const agrupados: Record<string, { label: string; valor: number; tipo: 'INGRESO' | 'EGRESO' }> = {}
-        ingRes.data.forEach(t => {
+        ingRes.data
+          .filter((t: any) => {
+            const cat = String(t?.categoria || '').toUpperCase()
+            return cat === 'PAGO' || cat === 'ABONO'
+          })
+          .forEach(t => {
           const cat = t.categoria || 'OTROS_INGRESOS'
           if (!agrupados[cat]) agrupados[cat] = { label: cat.replace(/_/g, ' '), valor: 0, tipo: 'INGRESO' }
           agrupados[cat].valor += t.monto || 0
         })
-        egreRes.data.forEach(t => {
+        egreRes.data
+          .filter((t: any) => String(t?.categoria || '').toUpperCase() !== 'DEUDA_COBRADOR')
+          .forEach(t => {
           const cat = t.categoria || 'OTROS_EGRESOS'
           if (!agrupados[cat]) agrupados[cat] = { label: cat.replace(/_/g, ' '), valor: 0, tipo: 'EGRESO' }
           agrupados[cat].valor += t.monto || 0

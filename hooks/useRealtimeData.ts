@@ -11,15 +11,15 @@ import { useNotificaciones } from '@/components/providers/NotificacionesProvider
  */
 export function useRealtimeData(
   events: string[],
-  onRefresh: () => void | Promise<void>,
+  onRefresh: (...args: any[]) => void | Promise<void>,
 ) {
   const { socket } = useNotificaciones()
   // Ref estable para no re-suscribir si onRefresh cambia de referencia
   const refreshRef = useRef(onRefresh)
   refreshRef.current = onRefresh
 
-  const stableHandler = useCallback(() => {
-    refreshRef.current()
+  const stableHandler = useCallback((...args: any[]) => {
+    refreshRef.current(...args)
   }, [])
 
   useEffect(() => {

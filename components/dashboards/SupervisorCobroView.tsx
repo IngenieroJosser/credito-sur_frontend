@@ -199,7 +199,7 @@ import { prestamosService } from '@/services/prestamos-service'
 import { pagosService } from '@/services/pagos-service'
 
 
-import { obtenerSaldoDisponibleRuta, getRutaCierreHoy } from '@/services/contabilidad-service'
+import { obtenerSaldoDisponibleRuta, getRutaCierreHoy, registrarGasto } from '@/services/contabilidad-service'
 
 
 import { routesService as routesApi } from '@/services/routes-service'
@@ -546,64 +546,64 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
 
         }
 
+        const toDateKey = (dateStr: string | null) => {
+          if (!dateStr) return '';
+          return dateStr.includes('T') ? dateStr.split('T')[0] : dateStr;
+        };
+
+        const hoy = new Date();
+        const hoyKey = hoy.toISOString().split('T')[0];
+        
+        let montoAcumulado = 0;
+        let esMoraAtrasada = false;
+        
+        if (p?.cuotas && Array.isArray(p.cuotas)) {
+          for (const cuota of p.cuotas) {
+            if (!cuota.fechaVencimiento) continue;
+            const cuotaKey = toDateKey(cuota.fechaVencimiento);
+            if (cuotaKey && cuotaKey <= hoyKey) {
+              montoAcumulado += Number(cuota.monto || 0);
+              if (cuotaKey < hoyKey) esMoraAtrasada = true;
+            }
+          }
+        }
+
+        const montoFinal = montoAcumulado > 0 ? montoAcumulado : Number(prox?.monto || 0);
+        let estadoFinal = 'pendiente';
+        if (esMoraAtrasada || prox?.estado === 'VENCIDA') estadoFinal = 'en_mora';
+        else if (prox?.estado === 'PAGADA') estadoFinal = 'pagado';
+
         return {
-
           id: `${row?.asignacionId || 'asig'}-${p?.id || idx}`,
-
           cliente: `${c?.nombres || ''} ${c?.apellidos || ''}`.trim() || 'Cliente',
-
           direccion: c?.direccion || 'Sin dirección registrada',
-
           telefono: c?.telefono || '',
-
           horaSugerida: '08:00 AM',
-
-          montoCuota: Number(prox?.monto || 0),
-
+          montoCuota: montoFinal,
           saldoTotal: Number(p?.saldoPendiente || 0),
-
-          estado: 'pendiente' as any,
-
+          estado: estadoFinal as any,
           proximaVisita:
-
             row?.prestamo?.fechaEfectiva ||
-
             prox?.fechaVencimiento ||
-
             new Date().toISOString().split('T')[0],
-
           ordenVisita: Number(row?.ordenVisita || idx + 1),
-
           prioridad: 'media' as any,
-
           nivelRiesgo: toNivel(c?.nivelRiesgo || 'VERDE') as any,
-
           cobradorId,
-
           periodoRuta: (() => {
-
             const f = p?.frecuenciaPago || 'DIARIO'
-
             if (f === 'DIARIO') return 'DIA'
-
             if (f === 'SEMANAL') return 'SEMANA'
-
             if (f === 'QUINCENAL') return 'QUINCENA'
-
             if (f === 'MENSUAL') return 'MES'
-
             return 'DIA'
-
           })() as any,
-
           clienteId: c?.id || '',
-
           prestamoId: p?.id || '',
-
           tipoPrestamo: esArticulo ? 'ARTICULO' : 'EFECTIVO',
-
           articuloNombre: esArticulo ? (p?.articulo || 'Artículo') : 'Préstamo',
-
+          cuotaActual: prox?.numeroCuota,
+          cuotasTotales: p?.cantidadCuotas,
         } as any
 
       })
@@ -1662,13 +1662,88 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
 
   // Handler completo: recarga visitas/cuotas al registrar pagos o nuevos préstamos
 
-  const handlerFull = useCallback(async () => {
+  const handlerFull = useCallback(async (payload?: any) => {
+
+    const prestamoId = payload?.prestamoId || payload?.metadata?.prestamoId;
+    const clienteId = payload?.clienteId || payload?.metadata?.clienteId;
+
+    if (prestamoId) {
+      const existeEnVisitas = visitasBase.some((v: any) => v?.prestamoId === prestamoId);
+      if (existeEnVisitas) {
+        try {
+          const p = await prestamosService.obtenerPrestamoPorId(prestamoId);
+          const cuotas = await prestamosService.obtenerCuotas(prestamoId);
+          const prox = cuotas.find((c: any) => c.estado !== 'PAGADA');
+
+          let totalHoy = 0;
+          if (prestamoId || clienteId) {
+            const pagosResp = prestamoId
+              ? await pagosService.obtenerPagos({ prestamoId, limit: 1000 })
+              : await pagosService.obtenerPagos({ clienteId, limit: 1000 });
+
+            const pagosCalc = (pagosResp?.pagos || []);
+            const toLocalKey = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+            const hoyStr = toLocalKey(new Date());
+
+            totalHoy = pagosCalc.reduce((sum: number, pg: any) => {
+              const raw = pg.fechaPago || pg.creadoEn;
+              if (!raw) return sum;
+              const d = new Date(raw);
+              if (isNaN(d.getTime())) return sum;
+              return toLocalKey(d) === hoyStr ? sum + Number(pg.montoTotal || 0) : sum;
+            }, 0);
+          }
+
+          setVisitasBase((prev: any) => prev.map((v: any) => {
+            if (v?.prestamoId !== prestamoId) return v;
+
+            let nuevoEstado: any = 'pendiente';
+            if (prox?.estado === 'VENCIDA' || (prox as any)?.estado === 'ATRASADA') nuevoEstado = 'en_mora';
+            else if (!prox) nuevoEstado = 'pagado';
+
+            const baseV: any = {
+              ...v,
+              estado: nuevoEstado,
+              montoCuota: prox ? Number(prox.monto || (prox.montoCapital + prox.montoInteres)) : 0,
+              proximaVisita: prox?.fechaVencimiento || v.proximaVisita,
+              cuotaActual: prox?.numeroCuota || v.cuotaActual,
+              saldoTotal: Number(p?.saldoPendiente || 0),
+              recaudadoDelDia: totalHoy,
+            };
+
+            try {
+              const toLocalKey = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+              const hoyStr = toLocalKey(new Date());
+              if (Number(baseV.saldoTotal || 0) <= 0) baseV.estado = 'pagado';
+              else {
+                const saldoHoy = Number(baseV.recaudadoDelDia || 0);
+                const cuota = Number(baseV.montoCuota || 0);
+                if (saldoHoy >= cuota - 1 && saldoHoy > 0) baseV.estado = 'pagado';
+                else {
+                  const raw = baseV.proximaVisita;
+                  const d = raw ? new Date(raw) : null;
+                  const key = d && !isNaN(d.getTime()) ? toLocalKey(d) : (typeof raw === 'string' ? (raw.includes('T') ? raw.split('T')[0] : raw) : '');
+                  if (key === hoyStr && saldoHoy >= cuota - 1) baseV.estado = 'pagado';
+                }
+              }
+            } catch {}
+            return baseV;
+          }));
+
+          cargarEstadisticasRuta();
+          if (showMisClientes) await cargarMisCreditos();
+          return;
+        } catch (e) {
+          // Fallback a recarga completa
+        }
+      }
+    }
 
     await cargarVisitasRuta();
 
-    if (showMisClientes) cargarMisCreditos();
+    if (showMisClientes) await cargarMisCreditos();
 
-  }, [cargarVisitasRuta, showMisClientes, cargarMisCreditos])
+  }, [cargarVisitasRuta, showMisClientes, cargarMisCreditos, visitasBase, cargarEstadisticasRuta])
 
 
 
@@ -2621,13 +2696,33 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
 
 
 
-    // Contar clientes pendientes reales (sin filtro de fecha — mismo fix que VistaCobrador)
+    // Contar clientes pendientes reales: solo los que se debían cobrar hoy (o están en mora)
+    // y ajustando estado según pagos del día.
+    const toLocalKey = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+    const hoyStr = toLocalKey(new Date())
 
-    const clientesFaltantes = visitasBase.filter(v =>
+    const ajustarEstadoConPago = (v: any) => {
+      if (Number(v.saldoTotal || 0) <= 0) return 'pagado'
+      const pagadoHoy = Number((v as any).recaudadoDelDia || 0)
+      const cuota = Number(v.montoCuota || 0)
+      if (pagadoHoy >= cuota - 1 && pagadoHoy > 0) return 'pagado'
+      const prox = v.proximaVisita ? (String(v.proximaVisita).includes('T') ? String(v.proximaVisita).split('T')[0] : String(v.proximaVisita)) : ''
+      if (prox === hoyStr && pagadoHoy >= cuota - 1) return 'pagado'
+      return v.estado
+    }
 
-      v.estado === 'pendiente' || v.estado === 'en_mora'
+    const debeCobrarHoyOMora = (v: any) => {
+      if (v.estado === 'en_mora') return true
+      const prox = (v as any).targetVencimiento || v.proximaVisita
+      const proxKey = prox ? (String(prox).includes('T') ? String(prox).split('T')[0] : String(prox)) : ''
+      return proxKey === hoyStr
+    }
 
-    ).length
+    const visitasHoy = (visitasBase || [])
+      .map((v: any) => ({ ...v, estado: ajustarEstadoConPago(v) }))
+      .filter((v: any) => debeCobrarHoyOMora(v))
+
+    const clientesFaltantes = visitasHoy.filter((v: any) => v.estado === 'pendiente' || v.estado === 'en_mora').length
 
 
 
@@ -4881,12 +4976,48 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
 
           onClose={() => setShowGastoModal(false)}
 
-          onConfirm={(data) => {
+          onConfirm={async (data) => {
+            if (!rutaId) return
 
-            console.log('Gasto registrado:', data)
+            const cobradorIdReal = (rutaInfo as any)?.cobradorId || userSession?.id || ''
+            if (!cobradorIdReal) {
+              toast.error('No se pudo registrar el gasto: falta cobrador')
+              return
+            }
 
-            setShowGastoModal(false)
+            try {
+              setIsLoading(true)
 
+              await registrarGasto({
+                descripcion: data.descripcion,
+                valor: data.valor,
+                comprobante: data.comprobante,
+                rutaId: rutaId as string,
+                cobradorId: cobradorIdReal,
+                ...(data.categoriaId ? { categoriaId: data.categoriaId } : {}),
+              })
+
+              try {
+                const now = new Date()
+                const hoyClave = new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().split('T')[0]
+                const saldo = await obtenerSaldoDisponibleRuta(rutaId as string, hoyClave)
+                setRutaStats((prev: any) => ({
+                  ...prev,
+                  gastos: Number((saldo as any)?.gastosDelDia ?? prev.gastos),
+                }))
+              } catch {
+                setRutaStats((prev: any) => ({ ...prev, gastos: Number(prev?.gastos || 0) + Number(data.valor || 0) }))
+              }
+
+              toast.success('Gasto registrado. Se envió a aprobación.')
+              setShowGastoModal(false)
+            } catch (e: any) {
+              console.error('Error al registrar gasto (SupervisorCobroView):', e)
+              const msg = e?.message || 'No se pudo registrar el gasto'
+              setModalAlerta({ titulo: 'Error', mensaje: msg, tipo: 'error' })
+            } finally {
+              setIsLoading(false)
+            }
           }}
 
         />

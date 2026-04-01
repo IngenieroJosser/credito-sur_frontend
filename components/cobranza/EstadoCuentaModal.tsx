@@ -6,6 +6,7 @@ import { VisitaRuta } from '@/lib/types/cobranza'
 import { formatMilesCOP } from '@/lib/utils'
 import { Portal, MODAL_Z_INDEX } from '@/components/dashboards/shared/CobradorElements'
 import { prestamosService } from '@/services/prestamos-service'
+import { getLoanAmounts } from '@/lib/loan-calculations'
 
 interface EstadoCuentaModalProps {
   visita: VisitaRuta
@@ -99,7 +100,14 @@ export default function EstadoCuentaModal({ visita, onClose }: EstadoCuentaModal
     const pagadas = cuotas.filter((c: any) => c.estado === 'PAGADA');
     const proxima = cuotas.find((c: any) => c.estado === 'PENDIENTE' || c.estado === 'ATRASADA' || c.estado === 'PARCIAL');
 
-    const totalD = Number(loanData.monto || 0) + Number(loanData.interesTotal || 0);
+    const amounts = getLoanAmounts({
+      tipoPrestamo: loanData.tipoPrestamo,
+      monto: loanData.monto,
+      cuotaInicial: loanData.cuotaInicial,
+      interesTotal: loanData.interesTotal,
+    });
+
+    const totalD = amounts.totalFinanciado;
     const pagadoD = Number(loanData.totalPagado || 0);
 
     return {
@@ -109,6 +117,7 @@ export default function EstadoCuentaModal({ visita, onClose }: EstadoCuentaModal
       nextPaymentAmount: proxima ? Number(proxima.monto || 0) : 0,
       totalPaid: pagadoD,
       totalValue: totalD,
+      articleValue: amounts.totalContrato,
       installmentsPaid: pagadas.length,
       installmentsTotal: cuotas.length,
       saldoRestante: Number(loanData.saldoPendiente || 0)
@@ -218,7 +227,7 @@ export default function EstadoCuentaModal({ visita, onClose }: EstadoCuentaModal
                         </div>
                         <div className="text-right">
                             <div className="text-[10px] font-bold text-[#08557f] uppercase tracking-widest mb-1">Valor Total</div>
-                            <div className="text-xl font-black text-slate-900">${formatMilesCOP(info.totalValue)}</div>
+                            <div className="text-xl font-black text-slate-900">${formatMilesCOP(isArticle ? info.articleValue : info.totalValue)}</div>
                         </div>
                     </div>
 

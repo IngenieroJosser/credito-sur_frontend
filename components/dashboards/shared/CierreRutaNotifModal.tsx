@@ -72,10 +72,11 @@ export default function CierreRutaNotifModal({
   const colors = getEfectividadColor()
 
   const getEfectividadLabel = () => {
-    if (excelente) return { label: 'Meta Superada', icon: <CheckCircle2 className="h-4 w-4" /> }
+    if (efectividad > 100) return { label: 'Meta Superada', icon: <CheckCircle2 className="h-4 w-4" /> }
+    if (efectividad === 100) return { label: 'Meta Alcanzada', icon: <CheckCircle2 className="h-4 w-4" /> }
     if (bueno) return { label: 'Buen Rendimiento', icon: <TrendingUp className="h-4 w-4" /> }
     if (regular) return { label: 'Rendimiento Regular', icon: <AlertTriangle className="h-4 w-4" /> }
-    return { label: 'Por debajo de la Meta', icon: <TrendingDown className="h-4 w-4" /> }
+    return { label: 'Bajo Rendimiento', icon: <TrendingDown className="h-4 w-4" /> }
   }
 
   const badgeInfo = getEfectividadLabel()
@@ -178,9 +179,14 @@ export default function CierreRutaNotifModal({
                   style={{ width: `${barWidth}%` }}
                 />
               </div>
-              {excelente && (
-                <p className="text-[10px] text-emerald-700 font-bold mt-2">
-                  🎉 ¡Superó la meta del día!
+              {efectividad > 100 && (
+                <p className="text-[10px] text-emerald-700 font-bold mt-2 font-black uppercase tracking-widest">
+                  ¡Meta del día superada!
+                </p>
+              )}
+              {efectividad === 100 && (
+                <p className="text-[10px] text-emerald-700 font-bold mt-2 font-black uppercase tracking-widest">
+                  ¡Meta del día alcanzada!
                 </p>
               )}
             </div>

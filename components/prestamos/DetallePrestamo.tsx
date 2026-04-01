@@ -77,6 +77,8 @@ export default function DetallePrestamo({ prestamo }: DetallePrestamoProps) {
   // Estados de asignación de mora removidos: acción se realiza desde Cuentas en Mora
 
   const isArticle = prestamo.tipoPrestamo?.toUpperCase() === 'ARTICULO';
+  const cuotaInicialNum = Number(prestamo.cuotaInicial || 0);
+  const valorArticuloTotal = isArticle ? Number(prestamo.montoPrestamo || 0) + cuotaInicialNum : Number(prestamo.montoPrestamo || 0);
 
   const getEstadoColor = (estado: string) => {
     switch (estado) {
@@ -202,9 +204,16 @@ export default function DetallePrestamo({ prestamo }: DetallePrestamoProps) {
         </h3>
         <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
           <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm flex flex-col justify-between h-28">
-             <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{isArticle ? 'Monto Financiado' : 'Monto Prestado'}</span>
-             <p className="text-2xl font-bold text-slate-900 tracking-tight">{formatCurrency(prestamo.montoPrestamo)}</p>
+             <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{isArticle ? 'Valor del Artículo' : 'Monto Prestado'}</span>
+             <p className="text-2xl font-bold text-slate-900 tracking-tight">{formatCurrency(isArticle ? valorArticuloTotal : prestamo.montoPrestamo)}</p>
           </div>
+
+          {isArticle && (
+            <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm flex flex-col justify-between h-28">
+              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">A Financiar</span>
+              <p className="text-2xl font-bold text-slate-900 tracking-tight">{formatCurrency(prestamo.montoPrestamo)}</p>
+            </div>
+          )}
 
           <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm flex flex-col justify-between h-28">
              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Tipo de Interés</span>
@@ -233,7 +242,7 @@ export default function DetallePrestamo({ prestamo }: DetallePrestamoProps) {
           {/* Interés Total */}
           <div className="bg-amber-50/50 p-5 rounded-2xl border border-amber-100 shadow-sm flex flex-col justify-between h-28">
              <span className="text-[10px] font-black text-amber-600/70 uppercase tracking-widest">Interés Total</span>
-             <p className="text-2xl font-bold text-amber-700 tracking-tight">{formatCurrency(isArticle ? 0 : (prestamo.interesTotal || 0))}</p>
+             <p className="text-2xl font-bold text-amber-700 tracking-tight">{formatCurrency(prestamo.interesTotal || 0)}</p>
           </div>
 
           {/* Capital Pagado */}
@@ -245,7 +254,7 @@ export default function DetallePrestamo({ prestamo }: DetallePrestamoProps) {
           {/* Interés Pagado */}
           <div className="bg-violet-50/50 p-5 rounded-2xl border border-violet-100 shadow-sm flex flex-col justify-between h-28">
              <span className="text-[10px] font-black text-violet-600/70 uppercase tracking-widest">Interés Pagado</span>
-             <p className="text-2xl font-bold text-violet-700 tracking-tight">{formatCurrency(isArticle ? 0 : (prestamo.interesPagado || 0))}</p>
+             <p className="text-2xl font-bold text-violet-700 tracking-tight">{formatCurrency(prestamo.interesPagado || 0)}</p>
           </div>
 
           {/* Frecuencia (now Row 2) */}

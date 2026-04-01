@@ -5,7 +5,9 @@ import React, { useState, useEffect } from "react";
 import { useRealtimeData } from '@/hooks/useRealtimeData';
 import { createPortal } from "react-dom";
 
-import { useNotification } from "@/components/providers/NotificationProvider";
+import { useNotification } from '@/components/providers/NotificationProvider'
+import { permisosPorRol } from '@/lib/permissions'
+import { refreshSesion } from '@/services/autenticacion-service'
 import { useNotificaciones } from "@/components/providers/NotificacionesProvider";
 import { usuariosService } from "@/services/usuarios-service";
 import { RolUsuario, EstadoUsuario } from "@/types/enums";
@@ -47,7 +49,7 @@ import {
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
 import { usePermission } from "@/hooks/usePermission";
-import { permisosPorRol } from "@/lib/permissions";
+ 
 
 // Tipos importados de enums
 // type RolUsuario = ... (Removed)
@@ -956,6 +958,37 @@ const UserManagementPage = () => {
         selectedUser.id,
         selectedPermissions,
       );
+
+      // Si el usuario editado es el mismo que tiene la sesión, refrescar token/permisos/sidebar
+      // para evitar que el menú quede desactualizado hasta el próximo login.
+      if (currentUser && selectedUser.id === currentUser.id) {
+        try {
+          const refreshed = await refreshSesion();
+          if (refreshed?.access_token) {
+            localStorage.setItem('token', refreshed.access_token);
+          }
+
+          if (refreshed?.usuario) {
+            const existingRaw = localStorage.getItem('user');
+            let existing: any = null;
+            try {
+              existing = existingRaw ? JSON.parse(existingRaw) : null;
+            } catch {
+              existing = null;
+            }
+
+            const mergedUser = {
+              ...(existing || {}),
+              ...refreshed.usuario,
+            };
+            localStorage.setItem('user', JSON.stringify(mergedUser));
+          }
+
+          window.dispatchEvent(new Event('userUpdated'));
+        } catch {
+          // Si falla el refresh, no bloqueamos la UX: los permisos quedan guardados y se aplicarán al re-login.
+        }
+      }
 
       const updatedUsers = users.map((user) => {
         if (user.id === selectedUser.id) {

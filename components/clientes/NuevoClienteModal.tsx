@@ -240,9 +240,9 @@ export default function NuevoClienteModal({ onClose, onClienteCreado, cliente = 
       }
 
       if (error?.statusCode === 409) {
-        showNotification('warning', error.message || 'El cliente ya existe.', 'Conflicto');
+        showNotification('warning', error.message || `Ya existe un cliente con el documento: ${formulario.dni}`, 'Conflicto de Datos');
       } else {
-        showNotification('error', error.message || 'No se pudo guardar el cliente', 'Error');
+        showNotification('error', error.message || 'No se pudo procesar la solicitud del cliente', 'Error Interno');
       }
     } finally {
       setIsSubmitting(false);
