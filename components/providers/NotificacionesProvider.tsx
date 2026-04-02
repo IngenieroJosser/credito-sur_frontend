@@ -157,28 +157,30 @@ export function NotificacionesProvider({ children }: { children: React.ReactNode
       });
     };
 
-    // Escuchar nuevas notificaciones directas
-    newSocket.on('nueva_notificacion', (notificacion: Notificacion) => {
+    // Helper compartido: procesa y muestra una notificación entrante
+    const handleIncomingNotification = (notificacion: Notificacion, forceInfo = false) => {
       const formattedNotif = {
         ...notificacion,
-        fecha: formatFecha((notificacion as any).creadoEn || notificacion.fecha)
+        fecha: formatFecha((notificacion as any).creadoEn || notificacion.fecha),
       };
-      setNotificaciones(prev => [formattedNotif, ...prev])
+      setNotificaciones(prev => [formattedNotif, ...prev]);
+      ringBell();
 
-      // 🔔 Animar campanita — NO abrir el dropdown automáticamente
-      ringBell()
-      
-      // Toast de confirmación visual
-      const isSuccess = ['EXITO', 'APROBADA'].some(k => notificacion.tipo?.includes(k) || notificacion.titulo?.toUpperCase().includes(k));
-      const isError = ['RECHAZADA', 'ERROR', 'FRACASO'].some(k => notificacion.tipo?.includes(k) || notificacion.titulo?.toUpperCase().includes(k));
-      
-      if (isSuccess) toast.success(notificacion.titulo, { description: notificacion.mensaje, duration: 8000 });
-      else if (isError) toast.error(notificacion.titulo, { description: notificacion.mensaje, duration: 8000 });
-      else toast.info(notificacion.titulo, { description: notificacion.mensaje, duration: 5000 });
+      if (!forceInfo) {
+        const isSuccess = ['EXITO', 'APROBADA'].some(k => notificacion.tipo?.includes(k) || notificacion.titulo?.toUpperCase().includes(k));
+        const isError = ['RECHAZADA', 'ERROR', 'FRACASO'].some(k => notificacion.tipo?.includes(k) || notificacion.titulo?.toUpperCase().includes(k));
+        if (isSuccess) toast.success(notificacion.titulo, { description: notificacion.mensaje, duration: 8000 });
+        else if (isError) toast.error(notificacion.titulo, { description: notificacion.mensaje, duration: 8000 });
+        else toast.info(notificacion.titulo, { description: notificacion.mensaje, duration: 5000 });
+      } else {
+        toast.info(notificacion.titulo, { description: notificacion.mensaje, duration: 5000 });
+      }
 
-      // Mostrar Push Notification local
-      showLocalNotification(notificacion.titulo, { body: notificacion.mensaje })
-    })
+      showLocalNotification(notificacion.titulo, { body: notificacion.mensaje });
+    };
+
+    // Escuchar nuevas notificaciones directas
+    newSocket.on('nueva_notificacion', (notificacion: Notificacion) => handleIncomingNotification(notificacion))
 
     // Escuchar cambios de estado (ej. se marcaron como leídas en otra pestaña)
     newSocket.on('notificaciones_actualizadas', () => {
@@ -186,21 +188,7 @@ export function NotificacionesProvider({ children }: { children: React.ReactNode
     })
 
     // Escuchar notificaciones globales (para todos los usuarios)
-    newSocket.on('nueva_notificacion_global', (notificacion: Notificacion) => {
-      const formattedNotif = {
-        ...notificacion,
-        fecha: formatFecha((notificacion as any).creadoEn || notificacion.fecha)
-      };
-      setNotificaciones(prev => [formattedNotif, ...prev])
-
-      // 🔔 Animar campanita — NO abrir el dropdown automáticamente
-      ringBell()
-      
-      toast.info(notificacion.titulo, { description: notificacion.mensaje, duration: 5000 });
-
-      // Mostrar Push Notification local global
-      showLocalNotification(notificacion.titulo, { body: notificacion.mensaje })
-    })
+    newSocket.on('nueva_notificacion_global', (notificacion: Notificacion) => handleIncomingNotification(notificacion, true))
 
     setSocket(newSocket)
 
