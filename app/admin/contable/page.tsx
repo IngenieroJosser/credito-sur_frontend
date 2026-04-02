@@ -1,4 +1,4 @@
-﻿'use client'
+'use client'
 import { logger } from '@/lib/logger'
 
 /**
@@ -157,6 +157,26 @@ type RutaResumen = {
   responsable: string
 }
 
+// ─── Helper: mapea ApiTransaccion → MovimientoContable ───────────────────────
+// Centraliza la lógica que antes estaba duplicada 3 veces en fetchData,
+// loadMovimientosDetalle y loadMovimientosGlobalPorTipo.
+const mapTransaccion = (t: ApiTransaccion): MovimientoContable => ({
+  id: t.id,
+  numero: t.numero,
+  fecha: t.fecha,
+  concepto: t.descripcion,
+  tipo: t.tipo,
+  monto: t.monto,
+  categoria: t.categoria || 'GENERAL',
+  responsable: t.responsable,
+  origen: (t as any).origen || 'EMPRESA',
+  estado: (t.estado as any) || 'APROBADO',
+  cajaId: (t as any).cajaId,
+  cajaOrigenId: (t as any).cajaOrigenId,
+  tipoReferencia: (t as any).tipoReferencia,
+  referenciaId: (t as any).referenciaId,
+})
+
 const ModuloContableContent = () => {
   // --- AUTENTICACIÓN Y PERMISOS ---
   // Identificamos quién está usando el módulo para mostrar/ocultar botones sensibles
@@ -311,22 +331,7 @@ const ModuloContableContent = () => {
       if (fechaFinModal) params.fechaFin = fechaFinModal
       const resp = await getTransacciones(params)
       if (resp && Array.isArray(resp.data)) {
-        setMovimientosDetalle(resp.data.map(t => ({
-          id: t.id,
-          numero: t.numero,
-          fecha: t.fecha,
-          concepto: t.descripcion,
-          tipo: t.tipo,
-          monto: t.monto,
-          categoria: t.categoria || 'GENERAL',
-          responsable: t.responsable,
-          origen: (t as any).origen || 'EMPRESA',
-          estado: (t.estado as any) || 'APROBADO',
-          cajaId: (t as any).cajaId,
-          cajaOrigenId: (t as any).cajaOrigenId,
-          tipoReferencia: (t as any).tipoReferencia,
-          referenciaId: (t as any).referenciaId
-        })))
+        setMovimientosDetalle(resp.data.map(mapTransaccion))
       } else {
         setMovimientosDetalle([])
       }
@@ -343,22 +348,7 @@ const ModuloContableContent = () => {
       if (fechaFin) params.fechaFin = fechaFin
       const resp = await getTransacciones(params)
       if (resp && Array.isArray(resp.data)) {
-        setMovimientosModalGlobal(resp.data.map(t => ({
-          id: t.id,
-          numero: t.numero,
-          fecha: t.fecha,
-          concepto: t.descripcion,
-          tipo: t.tipo,
-          monto: t.monto,
-          categoria: t.categoria || 'GENERAL',
-          responsable: t.responsable,
-          origen: (t as any).origen || 'EMPRESA',
-          estado: (t.estado as any) || 'APROBADO',
-          cajaId: (t as any).cajaId,
-          cajaOrigenId: (t as any).cajaOrigenId,
-          tipoReferencia: (t as any).tipoReferencia,
-          referenciaId: (t as any).referenciaId
-        })))
+        setMovimientosModalGlobal(resp.data.map(mapTransaccion))
       } else {
         setMovimientosModalGlobal([])
       }
@@ -495,22 +485,7 @@ const ModuloContableContent = () => {
       // 4. Traemos la lista de movimientos recientes
       const transaccionesResp = await getTransacciones({ limit: 50 });
       if (transaccionesResp && transaccionesResp.data) {
-        setMovimientos(transaccionesResp.data.map(t => ({
-          id: t.id,
-          numero: t.numero, // Mapeamos el número de transacción real (TRX-IN/OUT)
-          fecha: t.fecha,
-          concepto: t.descripcion,
-          tipo: t.tipo,
-          monto: t.monto,
-          categoria: t.categoria || 'GENERAL',
-          responsable: t.responsable,
-          origen: (t as any).origen || 'EMPRESA',
-          estado: (t.estado as any) || 'APROBADO',
-          cajaId: (t as any).cajaId,
-          cajaOrigenId: (t as any).cajaOrigenId,
-          tipoReferencia: (t as any).tipoReferencia,
-          referenciaId: (t as any).referenciaId
-        })));
+        setMovimientos(transaccionesResp.data.map(mapTransaccion));
       }
 
       // 5. Historial de Cierres (Real)
