@@ -305,6 +305,15 @@ export async function createTransaccion(data: {
   }
 }
 
+export async function getTransaccionById(id: string): Promise<Transaccion | null> {
+  try {
+    return await apiRequest<Transaccion>('GET', `/accounting/transacciones/${id}`);
+  } catch (error) {
+    console.error('Error fetching transaccion by id:', error);
+    return null;
+  }
+}
+
 // =====================
 // RESUMEN FINANCIERO
 // =====================
