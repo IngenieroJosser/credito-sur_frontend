@@ -4,6 +4,7 @@ import React, { createContext, useContext, useEffect, useState, useRef } from 'r
 import { io, Socket } from 'socket.io-client'
 import { Notificacion, notificacionesService } from '@/services/notificaciones-service'
 import { toast } from 'sonner'
+import { formatShortDateTime } from "@/lib/utils/format";
 import { showLocalNotification } from '@/lib/push/pushNotifications'
 import { refreshSesion } from '@/services/autenticacion-service'
 
@@ -146,22 +147,11 @@ export function NotificacionesProvider({ children }: { children: React.ReactNode
       }
     })
 
-    const formatFecha = (fechaRaw?: any) => {
-      if (!fechaRaw) return 'Fecha desconocida';
-      return new Date(fechaRaw).toLocaleString('es-CO', {
-        day: '2-digit',
-        month: '2-digit',
-        year: '2-digit',
-        hour: '2-digit',
-        minute: '2-digit',
-      });
-    };
-
     // Helper compartido: procesa y muestra una notificación entrante
     const handleIncomingNotification = (notificacion: Notificacion, forceInfo = false) => {
       const formattedNotif = {
         ...notificacion,
-        fecha: formatFecha((notificacion as any).creadoEn || notificacion.fecha),
+        fecha: formatShortDateTime((notificacion as any).creadoEn || notificacion.fecha, 'Fecha desconocida'),
       };
       setNotificaciones(prev => [formattedNotif, ...prev]);
       ringBell();

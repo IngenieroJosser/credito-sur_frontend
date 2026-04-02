@@ -200,7 +200,7 @@ import { pagosService } from '@/services/pagos-service'
 import { TipoAmortizacion } from '@/types/enums'
 
 import { useNotificaciones } from '@/components/providers/NotificacionesProvider'
-
+import { formatShortDateTime, formatShortDate } from '@/lib/utils/format'
 import { Bell } from 'lucide-react'
 
 import { toast } from 'sonner'
@@ -331,51 +331,8 @@ const VistaCobrador = () => {
 
   // Nuevos estados para la refactorización
 
-  const formatFechaCorta = (iso: string | undefined | null) => {
+  // Se eliminan funciones locales de fecha en favor de utilidades centralizadas
 
-    if (!iso) return 'Sin fecha';
-
-    const d = new Date(iso);
-
-    if (isNaN(d.getTime())) {
-
-      const parts = String(iso).split('-');
-
-      if (parts.length >= 3) return `${parts[2].slice(0,2)}/${parts[1]}/${parts[0]}`;
-
-      return String(iso);
-
-    }
-
-    const dd = String(d.getUTCDate()).padStart(2, '0');
-
-    const mm = String(d.getUTCMonth() + 1).padStart(2, '0');
-
-    const yyyy = d.getUTCFullYear();
-
-    return `${dd}/${mm}/${yyyy}`;
-
-  }
-
-  const formatFechaLargaUTC = (iso: string | undefined | null) => {
-
-    if (!iso) return '---';
-
-    const d = new Date(iso);
-
-    if (isNaN(d.getTime())) return '---';
-
-    const meses = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
-
-    const dd = d.getUTCDate();
-
-    const mes = meses[d.getUTCMonth()];
-
-    const yyyy = d.getUTCFullYear();
-
-    return `${dd} de ${mes} de ${yyyy}`;
-
-  }
 
   const ajustarEstadoConPago = (v: VisitaRuta): EstadoVisita => {
 
@@ -5750,7 +5707,7 @@ const VistaCobrador = () => {
 
             recaudadoHoy={recaudadoClienteHoy}
 
-            formatFechaLargaUTC={formatFechaLargaUTC}
+            formatFechaLargaUTC={formatShortDate}
 
             onClose={() => {
 

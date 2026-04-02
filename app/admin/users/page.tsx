@@ -12,6 +12,7 @@ import { useNotificaciones } from "@/components/providers/NotificacionesProvider
 import { usuariosService } from "@/services/usuarios-service";
 import { RolUsuario, EstadoUsuario } from "@/types/enums";
 import { apiRequest } from "@/lib/api/api";
+import { formatShortDateTime, formatShortDate } from "@/lib/utils/format";
 
 import {
   Search,
@@ -112,13 +113,8 @@ const UserManagementPage = () => {
         telefono: u.telefono || "",
         rol: u.rol as RolUsuario,
         estado: u.estado as EstadoUsuario,
-        fechaCreacion: new Date(u.creadoEn).toLocaleDateString("es-CO"),
-        ultimoAcceso: u.ultimoIngreso
-          ? new Date(u.ultimoIngreso).toLocaleString("es-CO", {
-              dateStyle: "short",
-              timeStyle: "short",
-            })
-          : "Nunca",
+        fechaCreacion: formatShortDate(u.creadoEn),
+        ultimoAcceso: formatShortDateTime(u.ultimoIngreso),
         permisos: u.permisos || [],
       }));
       setUsers(mappedUsers);
@@ -503,6 +499,81 @@ const UserManagementPage = () => {
     logger.log("[EDIT_MODAL] Modal abierto, SearchTerm después:", searchTerm);
   };
 
+  const fetchAuditForUser = async (user: User) => {
+    try {
+      setTimelineLoading(true);
+      const params = new URLSearchParams();
+      params.set("page", "1");
+      params.set("limit", `${timelineLimit}`);
+      if (filtroFechaInicio)
+        params.set("startDate", new Date(filtroFechaInicio).toISOString());
+      if (filtroFechaFin)
+        params.set("endDate", new Date(filtroFechaFin).toISOString());
+      const audit = await apiRequest<any[]>(
+        "GET",
+        `/audit/user/${user.id}?${params.toString()}`,
+      );
+      const roleFilters: Record<RolUsuario, string[]> = {
+        [RolUsuario.SUPER_ADMINISTRADOR]: [],
+        [RolUsuario.ADMIN]: [],
+        [RolUsuario.COORDINADOR]: ["ruta", "reporte", "prestamo", "cliente"],
+        [RolUsuario.SUPERVISOR]: ["ruta", "cliente", "visita"],
+        [RolUsuario.COBRADOR]: ["pago", "visita", "gasto", "ruta"],
+        [RolUsuario.CONTADOR]: [
+          "transaccion",
+          "arqueo",
+          "cierre",
+          "gasto",
+          "caja",
+        ],
+        [RolUsuario.PUNTO_DE_VENTA]: ["articulo", "prestamo", "cliente"],
+      } as any;
+      const permissionEntityMap: Record<string, string[]> = {
+        usuarios: ["usuario"],
+        auditoria: ["audit", "registro", "log"],
+        clientes: ["cliente"],
+        rutas: ["ruta", "visita", "pago"],
+        "reportes-operativos": ["reporte"],
+        "prestamos-dinero": ["prestamo", "solicitud", "pago"],
+        contable: ["transaccion", "arqueo", "cierre", "gasto", "caja"],
+        tesoreria: ["caja", "transaccion"],
+        articulos: ["inventario", "articulo"],
+        notificaciones: ["notificacion"],
+      };
+      const allowedModules =
+        (selectedPermissions && selectedPermissions.length > 0)
+          ? selectedPermissions
+          : (availableModules || [])
+              .filter((m: any) => (m.roles || []).includes(user.rol))
+              .map((m: any) => m.id);
+      const permissionFilters = allowedModules.flatMap(
+        (id: string) => permissionEntityMap[id] || [],
+      );
+      const filtros = (
+        permissionFilters.length > 0
+          ? permissionFilters
+          : roleFilters[user.rol] || []
+      ).map((s) => s.toLowerCase());
+      const filtrados = filtros.length
+        ? (audit || []).filter((a: any) =>
+            filtros.some((f) => (a.entidad || "").toLowerCase().includes(f)),
+          )
+        : audit || [];
+      const timeline = filtrados.slice(0, timelineLimit).map((a: any) => ({
+        time: formatShortDateTime(a.creadoEn),
+        action: a.action || a.accion,
+        detail: `${a.entidad} ${a.entidadId || ""}`.trim(),
+        type: "neutral" as const,
+      }));
+      setDetalle((d) => ({ ...d, actividadReciente: timeline }));
+      setTimelinePage(1);
+    } catch (e) {
+      console.error("Error cargando auditoría del usuario:", e);
+    } finally {
+      setTimelineLoading(false);
+    }
+  };
+
   const handleOpenDetailModal = (user: User) => {
     setSelectedUser(user);
     setIsDetailModalOpen(true);
@@ -535,10 +606,7 @@ const UserManagementPage = () => {
           const meta = Number(resumenRuta?.rendimientoRutas?.[0]?.meta || 0);
           const porcentaje = meta > 0 ? Math.round((recaudo / meta) * 100) : 0;
           const pagos = (detalleRuta?.pagosRecientes || []).map((p: any) => ({
-            time: new Date(p.fecha).toLocaleString("es-CO", {
-              dateStyle: "short",
-              timeStyle: "short",
-            }),
+            time: formatShortDateTime(p.fecha),
             action: "Pago registrado",
             detail: `Cliente: ${p.cliente}`,
             amount: `+$${Number(p.monto).toLocaleString("es-CO")}`,
@@ -583,84 +651,7 @@ const UserManagementPage = () => {
         }
       })();
     }
-    // Historial del usuario (auditoría)
-    (async () => {
-      try {
-        setTimelineLoading(true);
-        const params = new URLSearchParams();
-        params.set("page", "1");
-        params.set("limit", `${timelineLimit}`);
-        if (filtroFechaInicio)
-          params.set("startDate", new Date(filtroFechaInicio).toISOString());
-        if (filtroFechaFin)
-          params.set("endDate", new Date(filtroFechaFin).toISOString());
-        const audit = await apiRequest<any[]>(
-          "GET",
-          `/audit/user/${user.id}?${params.toString()}`,
-        );
-        const roleFilters: Record<RolUsuario, string[]> = {
-          [RolUsuario.SUPER_ADMINISTRADOR]: [],
-          [RolUsuario.ADMIN]: [],
-          [RolUsuario.COORDINADOR]: ["ruta", "reporte", "prestamo", "cliente"],
-          [RolUsuario.SUPERVISOR]: ["ruta", "cliente", "visita"],
-          [RolUsuario.COBRADOR]: ["pago", "visita", "gasto", "ruta"],
-          [RolUsuario.CONTADOR]: [
-            "transaccion",
-            "arqueo",
-            "cierre",
-            "gasto",
-            "caja",
-          ],
-          [RolUsuario.PUNTO_DE_VENTA]: ["articulo", "prestamo", "cliente"],
-        } as any;
-        const permissionEntityMap: Record<string, string[]> = {
-          usuarios: ["usuario"],
-          auditoria: ["audit", "registro", "log"],
-          clientes: ["cliente"],
-          rutas: ["ruta", "visita", "pago"],
-          "reportes-operativos": ["reporte"],
-          "prestamos-dinero": ["prestamo", "solicitud", "pago"],
-          contable: ["transaccion", "arqueo", "cierre", "gasto", "caja"],
-          tesoreria: ["caja", "transaccion"],
-          articulos: ["inventario", "articulo"],
-          notificaciones: ["notificacion"],
-        };
-        const allowedModules =
-          selectedPermissions && selectedPermissions.length > 0
-            ? selectedPermissions
-            : (availableModules || [])
-                .filter((m: any) => (m.roles || []).includes(user.rol))
-                .map((m: any) => m.id);
-        const permissionFilters = allowedModules.flatMap(
-          (id: string) => permissionEntityMap[id] || [],
-        );
-        const filtros = (
-          permissionFilters.length > 0
-            ? permissionFilters
-            : roleFilters[user.rol] || []
-        ).map((s) => s.toLowerCase());
-        const filtrados = filtros.length
-          ? (audit || []).filter((a: any) =>
-              filtros.some((f) => (a.entidad || "").toLowerCase().includes(f)),
-            )
-          : audit || [];
-        const timeline = filtrados.slice(0, timelineLimit).map((a: any) => ({
-          time: new Date(a.creadoEn).toLocaleString("es-CO", {
-            dateStyle: "short",
-            timeStyle: "short",
-          }),
-          action: a.accion,
-          detail: `${a.entidad} ${a.entidadId || ""}`.trim(),
-          type: "neutral" as const,
-        }));
-        setDetalle((d) => ({ ...d, actividadReciente: timeline }));
-        setTimelinePage(1);
-      } catch (e) {
-        console.error("Error cargando auditoría del usuario:", e);
-      } finally {
-        setTimelineLoading(false);
-      }
-    })();
+    fetchAuditForUser(user);
     // Resumen general para otros roles
     if (user.rol !== RolUsuario.COBRADOR) {
       (async () => {
@@ -2407,55 +2398,8 @@ const UserManagementPage = () => {
                                   className="text-[10px] font-bold text-blue-700 bg-blue-50 px-2 py-1 rounded-md border border-blue-200 hover:bg-blue-100"
                                   onClick={async () => {
                                     if (!selectedUser) return;
-                                    setTimelineLoading(true);
-                                    try {
-                                      const params = new URLSearchParams();
-                                      params.set("page", "1");
-                                      params.set("limit", `${timelineLimit}`);
-                                      if (filtroFechaInicio)
-                                        params.set(
-                                          "startDate",
-                                          new Date(
-                                            filtroFechaInicio,
-                                          ).toISOString(),
-                                        );
-                                      if (filtroFechaFin)
-                                        params.set(
-                                          "endDate",
-                                          new Date(
-                                            filtroFechaFin,
-                                          ).toISOString(),
-                                        );
-                                      const audit = await apiRequest<any[]>(
-                                        "GET",
-                                        `/audit/user/${selectedUser.id}?${params.toString()}`,
-                                      );
-                                      const filtrados = (audit || []).filter(
-                                        (a: any) => a.entidad && a.accion,
-                                      );
-                                      const timeline = filtrados
-                                        .slice(0, timelineLimit)
-                                        .map((a: any) => ({
-                                          time: new Date(
-                                            a.creadoEn,
-                                          ).toLocaleString("es-CO", {
-                                            dateStyle: "short",
-                                            timeStyle: "short",
-                                          }),
-                                          action: a.accion,
-                                          detail:
-                                            `${a.entidad} ${a.entidadId || ""}`.trim(),
-                                          type: "neutral" as const,
-                                        }));
-                                      setDetalle((d) => ({
-                                        ...d,
-                                        actividadReciente: timeline,
-                                      }));
-                                      setTimelinePage(1);
-                                      setTimelineCount(timelineLimit);
-                                    } finally {
-                                      setTimelineLoading(false);
-                                    }
+                                    await fetchAuditForUser(selectedUser);
+                                    setTimelineCount(timelineLimit);
                                   }}
                                 >
                                   Aplicar

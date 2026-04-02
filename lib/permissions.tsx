@@ -1,43 +1,6 @@
-/**
- * JERARQUÍA DE ROLES DEL SISTEMA
- * 
- * 1. SUPER_ADMINISTRADOR (Rol Protegido - Máximo Nivel)
- *    - Acceso TOTAL al sistema sin restricciones
- *    - Módulos exclusivos: Sistema (Configuración, Backups, Sincronización)
- *    - Módulos exclusivos: Administración (Usuarios, Roles, Auditoría)
- *    - Acceso total a operaciones, finanzas y gestión
- * 
- * 2. ADMIN (Administrador General)
- *    - Acceso a todas las operaciones y finanzas
- *    - NO tiene acceso a módulos de Sistema
- *    - NO puede gestionar usuarios ni roles
- *    - Puede ver auditoría pero no modificarla
- * 
- * 3. COORDINADOR
- *    - Gestión de créditos, clientes, rutas
- *    - Revisiones operativas
- *    - Reportes operativos
- * 
- * 4. SUPERVISOR
- *    - Supervisión de cobradores y rutas
- *    - Reportes operativos
- * 
- * 5. COBRADOR
- *    - Gestión de cobranzas en campo
- *    - Solicitudes de crédito y clientes
- * 
- * 6. CONTADOR
- *    - Módulos financieros y contables
- *    - Tesorería, inventario, reportes financieros
- * 
- * 7. PUNTO_DE_VENTA
- *    - Ventas de artículos (crédito y contado)
- *    - Catálogo de artículos (solo lectura)
- *    - Registro de clientes
- */
-export type Rol = string;
-
 import type { SidebarModulo } from '@/lib/types/autenticacion-type';
+
+export type Rol = string;
 
 export interface ModuloPermiso {
   id: string;
@@ -46,325 +9,231 @@ export interface ModuloPermiso {
   path: string;
   roles: Rol[];
   submodulos?: ModuloPermiso[];
-  isNew?: boolean; // Indicador de funcionalidad nueva
+  isNew?: boolean;
 }
 
-// Configuración completa de permisos por rol
+// Plantillas de módulos para evitar duplicación masiva de código (SonarQube Refactor)
+const T = {
+  DASHBOARD: (role: Rol, path: string) => ({ id: 'dashboard', nombre: 'Dashboard', icono: 'LayoutDashboard', path, roles: [role] }),
+  REVISIONES: (role: Rol, path: string) => ({ id: 'revisiones', nombre: 'Revisiones', icono: 'ShieldCheck', path, roles: [role], isNew: true }),
+  
+  // Operaciones
+  CREDITOS: (role: Rol, path: string) => ({ id: 'gestion-creditos', nombre: 'Créditos', icono: 'CreditCard', path, roles: [role] }),
+  RUTAS: (role: Rol, path: string) => ({ id: 'rutas', nombre: 'Rutas', icono: 'Route', path, roles: [role] }),
+  PDV_FOLLOW: (role: Rol, path: string) => ({ id: 'seguimiento-pdv', nombre: 'Punto de Venta', icono: 'ShoppingBag', path, roles: [role], isNew: true }),
+  
+  // Gestión Clientes
+  CLIENTES: (role: Rol, path: string) => ({ id: 'clientes', nombre: 'Clientes', icono: 'Users', path, roles: [role] }),
+  MORA: (role: Rol, path: string) => ({ id: 'cuentas-mora', nombre: 'Cuentas en mora', icono: 'AlertCircle', path, roles: [role], isNew: true }),
+  VENCIDAS: (role: Rol, path: string) => ({ id: 'cuentas-vencidas', nombre: 'Cuentas vencidas', icono: 'FileX2', path, roles: [role] }),
+  ARCHIVADOS: (role: Rol, path: string) => ({ id: 'archivados', nombre: 'Archivados', icono: 'Archive', path, roles: [role] }),
+  
+  // Finanzas
+  MOVIMIENTOS: (role: Rol, path: string) => ({ id: 'contable', nombre: 'Movimientos', icono: 'Calculator', path, roles: [role] }),
+  PAGOS_HIST: (role: Rol, path: string) => ({ id: 'pagos-historial', nombre: 'Historial de pagos', icono: 'Banknote', path, roles: [role], isNew: true }),
+  ARQUEO: (role: Rol, path: string) => ({ id: 'arqueo', nombre: 'Arqueo de Caja', icono: 'History', path, roles: [role], isNew: true }),
+  REP_FINAN: (role: Rol, path: string) => ({ id: 'reportes-financieros', nombre: 'Reportes financieros', icono: 'BarChart3', path, roles: [role] }),
+  
+  // Administración
+  USUARIOS: (role: Rol, path: string) => ({ id: 'usuarios', nombre: 'Gestionar Usuarios', icono: 'User', path, roles: [role] }),
+  AUDITORIA: (role: Rol, path: string) => ({ id: 'auditoria', nombre: 'Auditoría', icono: 'FileText', path, roles: [role], isNew: true }),
+  
+  // Sistema
+  CONFIG: (role: Rol, path: string) => ({ id: 'configuracion', nombre: 'Configuración', icono: 'Settings', path, roles: [role] }),
+  BACKUP: (role: Rol, path: string) => ({ id: 'backups', nombre: 'Backups', icono: 'HardDrive', path, roles: [role], isNew: true }),
+  SYNC: (role: Rol, path: string) => ({ id: 'sincronizacion', nombre: 'Sincronización', icono: 'RefreshCw', path, roles: [role], isNew: true }),
+  
+  // Otros
+  REP_OPER: (role: Rol, path: string) => ({ id: 'reportes-operativos', nombre: 'Reportes operativos', icono: 'ClipboardList', path, roles: [role] }),
+  INVENTARIO: (role: Rol, path: string) => ({ id: 'articulos', nombre: 'Artículos (Inventario)', icono: 'Package', path, roles: [role] }),
+  NOTIF: (role: Rol, path: string) => ({ id: 'notificaciones', nombre: 'Notificaciones', icono: 'Bell', path, roles: [role] }),
+  SOLICITUDES: (role: Rol, path: string) => ({ id: 'solicitudes', nombre: 'Solicitudes', icono: 'ClipboardList', path, roles: [role] }),
+  PRESTAMO_DINERO: (role: Rol, path: string) => ({ id: 'prestamos-dinero', nombre: 'Solicitar Crédito', icono: 'CreditCard', path, roles: [role] }),
+  CRED_ART: (role: Rol, path: string) => ({ id: 'creditos-articulos', nombre: 'Créditos Artículos', icono: 'ShoppingBag', path, roles: [role] }),
+};
+
 export const permisosPorRol: Record<Rol, ModuloPermiso[]> = {
   SUPER_ADMINISTRADOR: [
-    { id: 'dashboard', nombre: 'Dashboard', icono: 'LayoutDashboard', path: '/admin', roles: ['SUPER_ADMINISTRADOR', 'COORDINADOR', 'SUPERVISOR', 'COBRADOR', 'CONTADOR'] },
-    { id: 'revisiones', nombre: 'Revisiones', icono: 'ShieldCheck', path: '/admin/revisiones', roles: ['SUPER_ADMINISTRADOR'], isNew: true },
+    T.DASHBOARD('SUPER_ADMINISTRADOR', '/admin'),
+    T.REVISIONES('SUPER_ADMINISTRADOR', '/admin/revisiones'),
     { 
-      id: 'operaciones', 
-      nombre: 'Operaciones', 
-      icono: 'Briefcase', 
-      path: '#', 
-      roles: ['SUPER_ADMINISTRADOR'],
+      id: 'operaciones', nombre: 'Operaciones', icono: 'Briefcase', path: '#', roles: ['SUPER_ADMINISTRADOR'],
       submodulos: [
-        { id: 'gestion-creditos', nombre: 'Créditos', icono: 'CreditCard', path: '/admin/creditos', roles: ['SUPER_ADMINISTRADOR', 'COORDINADOR'] },
-        { id: 'rutas', nombre: 'Rutas', icono: 'Route', path: '/admin/rutas', roles: ['SUPER_ADMINISTRADOR', 'COORDINADOR'] },
-        { id: 'seguimiento-pdv', nombre: 'Punto de Venta', icono: 'ShoppingBag', path: '/admin/operaciones/punto-de-venta', roles: ['SUPER_ADMINISTRADOR'], isNew: true },
+        T.CREDITOS('SUPER_ADMINISTRADOR', '/admin/creditos'),
+        T.RUTAS('SUPER_ADMINISTRADOR', '/admin/rutas'),
+        T.PDV_FOLLOW('SUPER_ADMINISTRADOR', '/admin/operaciones/punto-de-venta'),
       ]
     },
     {
-      id: 'gestion-clientes',
-      nombre: 'Gestión Clientes',
-      icono: 'Users',
-      path: '#',
-      roles: ['SUPER_ADMINISTRADOR'],
+      id: 'gestion-clientes', nombre: 'Gestión Clientes', icono: 'Users', path: '#', roles: ['SUPER_ADMINISTRADOR'],
       submodulos: [
-        { id: 'clientes', nombre: 'Clientes', icono: 'Users', path: '/admin/clientes', roles: ['SUPER_ADMINISTRADOR', 'ADMIN', 'COORDINADOR', 'COBRADOR'] },
-        { id: 'cuentas-mora', nombre: 'Cuentas en mora', icono: 'AlertCircle', path: '/admin/cuentas-mora', roles: ['SUPER_ADMINISTRADOR', 'ADMIN', 'COORDINADOR', 'SUPERVISOR', 'CONTADOR'], isNew: true },
-        { id: 'cuentas-vencidas', nombre: 'Cuentas vencidas', icono: 'FileX2', path: '/admin/cuentas-vencidas', roles: ['SUPER_ADMINISTRADOR', 'ADMIN'] },
-        { id: 'archivados', nombre: 'Archivados', icono: 'Archive', path: '/admin/archivados', roles: ['SUPER_ADMINISTRADOR', 'ADMIN'] },
+        T.CLIENTES('SUPER_ADMINISTRADOR', '/admin/clientes'),
+        T.MORA('SUPER_ADMINISTRADOR', '/admin/cuentas-mora'),
+        T.VENCIDAS('SUPER_ADMINISTRADOR', '/admin/cuentas-vencidas'),
+        T.ARCHIVADOS('SUPER_ADMINISTRADOR', '/admin/archivados'),
       ]
     },
     {
-      id: 'finanzas',
-      nombre: 'Finanzas',
-      icono: 'PieChart',
-      path: '#',
-      roles: ['SUPER_ADMINISTRADOR'],
+      id: 'finanzas', nombre: 'Finanzas', icono: 'PieChart', path: '#', roles: ['SUPER_ADMINISTRADOR'],
       submodulos: [
-        { id: 'contable', nombre: 'Movimientos', icono: 'Calculator', path: '/contable', roles: ['SUPER_ADMINISTRADOR', 'CONTADOR'] },
-        { id: 'pagos-historial', nombre: 'Historial de pagos', icono: 'Banknote', path: '/pagos/historial', roles: ['SUPER_ADMINISTRADOR', 'CONTADOR'], isNew: true },
-        { id: 'arqueo', nombre: 'Arqueo de Caja', icono: 'History', path: '/contable/cierre-caja', roles: ['SUPER_ADMINISTRADOR', 'CONTADOR'], isNew: true },
-        { id: 'reportes-financieros', nombre: 'Reportes financieros', icono: 'BarChart3', path: '/admin/reportes/financieros', roles: ['SUPER_ADMINISTRADOR', 'CONTADOR'] },
+        T.MOVIMIENTOS('SUPER_ADMINISTRADOR', '/contable'),
+        T.PAGOS_HIST('SUPER_ADMINISTRADOR', '/pagos/historial'),
+        T.ARQUEO('SUPER_ADMINISTRADOR', '/contable/cierre-caja'),
+        T.REP_FINAN('SUPER_ADMINISTRADOR', '/admin/reportes/financieros'),
       ]
     },
     {
-      id: 'administracion',
-      nombre: 'Administración',
-      icono: 'Shield',
-      path: '#',
-      roles: ['SUPER_ADMINISTRADOR'],
+      id: 'administracion', nombre: 'Administración', icono: 'Shield', path: '#', roles: ['SUPER_ADMINISTRADOR'],
       submodulos: [
-        { id: 'articulos', nombre: 'Artículos (Inventario)', icono: 'Package', path: '/admin/articulos', roles: ['SUPER_ADMINISTRADOR', 'COORDINADOR', 'CONTADOR'] },
-        { id: 'usuarios', nombre: 'Usuarios', icono: 'User', path: '/admin/users', roles: ['SUPER_ADMINISTRADOR'] },
-        { id: 'auditoria', nombre: 'Auditoría', icono: 'FileText', path: '/admin/auditoria', roles: ['SUPER_ADMINISTRADOR'] },
-      ] // Fin submodulos administracion
-    },
-    {
-      id: 'sistema',
-      nombre: 'Sistema',
-      icono: 'Settings',
-      path: '#',
-      roles: ['SUPER_ADMINISTRADOR'],
-      submodulos: [
-        { id: 'configuracion', nombre: 'Configuración', icono: 'Settings', path: '/sistema/configuracion', roles: ['SUPER_ADMINISTRADOR'] },
-        { id: 'sincronizacion', nombre: 'Sincronización', icono: 'RefreshCw', path: '/sistema/sincronizacion', roles: ['SUPER_ADMINISTRADOR'] },
-        { id: 'backups', nombre: 'Backups', icono: 'HardDrive', path: '/sistema/backups', roles: ['SUPER_ADMINISTRADOR'] },
+        T.USUARIOS('SUPER_ADMINISTRADOR', '/admin/users'),
+        T.AUDITORIA('SUPER_ADMINISTRADOR', '/admin/auditoria'),
+        T.INVENTARIO('SUPER_ADMINISTRADOR', '/admin/articulos'),
       ]
     },
-    { id: 'reportes-operativos', nombre: 'Reportes operativos', icono: 'ClipboardList', path: '/admin/reportes/operativos', roles: ['SUPER_ADMINISTRADOR', 'COORDINADOR', 'SUPERVISOR'] },
+    {
+      id: 'sistema', nombre: 'Sistema', icono: 'Settings', path: '#', roles: ['SUPER_ADMINISTRADOR'],
+      submodulos: [
+        T.CONFIG('SUPER_ADMINISTRADOR', '/admin/sistema/configuracion'),
+        T.SYNC('SUPER_ADMINISTRADOR', '/admin/sistema/sincronizacion'),
+        T.BACKUP('SUPER_ADMINISTRADOR', '/admin/sistema/backups'),
+      ]
+    },
+    T.REP_OPER('SUPER_ADMINISTRADOR', '/admin/reportes/operativos'),
   ],
-
   ADMIN: [
-    { id: 'dashboard', nombre: 'Dashboard', icono: 'LayoutDashboard', path: '/admin', roles: ['SUPER_ADMINISTRADOR', 'ADMIN'] },
-    { id: 'revisiones', nombre: 'Revisiones', icono: 'ShieldCheck', path: '/admin/revisiones', roles: ['SUPER_ADMINISTRADOR', 'ADMIN'], isNew: true },
+    T.DASHBOARD('ADMIN', '/admin'),
+    T.REVISIONES('ADMIN', '/admin/revisiones'),
     { 
-      id: 'operaciones', 
-      nombre: 'Operaciones', 
-      icono: 'Briefcase', 
-      path: '#', 
-      roles: ['SUPER_ADMINISTRADOR', 'ADMIN'],
+      id: 'operaciones', nombre: 'Operaciones', icono: 'Briefcase', path: '#', roles: ['ADMIN'],
       submodulos: [
-        { id: 'gestion-creditos', nombre: 'Créditos', icono: 'CreditCard', path: '/admin/creditos', roles: ['SUPER_ADMINISTRADOR', 'ADMIN', 'COORDINADOR'] },
-        { id: 'rutas', nombre: 'Rutas', icono: 'Route', path: '/admin/rutas', roles: ['SUPER_ADMINISTRADOR', 'ADMIN', 'COORDINADOR'] },
-        { id: 'seguimiento-pdv', nombre: 'Punto de Venta', icono: 'ShoppingBag', path: '/admin/operaciones/punto-de-venta', roles: ['SUPER_ADMINISTRADOR', 'ADMIN'], isNew: true },
+        T.CREDITOS('ADMIN', '/admin/creditos'),
+        T.RUTAS('ADMIN', '/admin/rutas'),
       ]
     },
     {
-      id: 'gestion-clientes',
-      nombre: 'Gestión Clientes',
-      icono: 'Users',
-      path: '#',
-      roles: ['SUPER_ADMINISTRADOR', 'ADMIN'],
+      id: 'gestion-clientes', nombre: 'Gestión Clientes', icono: 'Users', path: '#', roles: ['ADMIN'],
       submodulos: [
-        { id: 'clientes', nombre: 'Clientes', icono: 'Users', path: '/admin/clientes', roles: ['SUPER_ADMINISTRADOR', 'ADMIN', 'COORDINADOR', 'COBRADOR'] },
-        { id: 'cuentas-mora', nombre: 'Cuentas en mora', icono: 'AlertCircle', path: '/admin/cuentas-mora', roles: ['SUPER_ADMINISTRADOR', 'ADMIN', 'COORDINADOR', 'CONTADOR'], isNew: true },
-        { id: 'cuentas-vencidas', nombre: 'Cuentas vencidas', icono: 'FileX2', path: '/admin/cuentas-vencidas', roles: ['SUPER_ADMINISTRADOR', 'ADMIN'] },
-        { id: 'archivados', nombre: 'Archivados', icono: 'Archive', path: '/admin/archivados', roles: ['SUPER_ADMINISTRADOR', 'ADMIN'] },
+        T.CLIENTES('ADMIN', '/admin/clientes'),
+        T.MORA('ADMIN', '/admin/cuentas-mora'),
+        T.VENCIDAS('ADMIN', '/admin/cuentas-vencidas'),
+        T.ARCHIVADOS('ADMIN', '/admin/archivados'),
       ]
     },
     {
-      id: 'finanzas',
-      nombre: 'Finanzas',
-      icono: 'PieChart',
-      path: '#',
-      roles: ['SUPER_ADMINISTRADOR', 'ADMIN'],
+      id: 'finanzas', nombre: 'Finanzas', icono: 'PieChart', path: '#', roles: ['ADMIN'],
       submodulos: [
-        { id: 'contable', nombre: 'Movimientos', icono: 'Calculator', path: '/contable', roles: ['SUPER_ADMINISTRADOR', 'ADMIN', 'CONTADOR'] },
-        { id: 'pagos-historial', nombre: 'Historial de pagos', icono: 'Banknote', path: '/pagos/historial', roles: ['SUPER_ADMINISTRADOR', 'ADMIN', 'CONTADOR'], isNew: true },
-        { id: 'arqueo', nombre: 'Arqueo de Caja', icono: 'History', path: '/contable/cierre-caja', roles: ['SUPER_ADMINISTRADOR', 'ADMIN'], isNew: true },
-        { id: 'reportes-financieros', nombre: 'Reportes financieros', icono: 'BarChart3', path: '/admin/reportes/financieros', roles: ['SUPER_ADMINISTRADOR', 'ADMIN', 'CONTADOR'], isNew: true },
+        T.MOVIMIENTOS('ADMIN', '/contable'),
+        T.PAGOS_HIST('ADMIN', '/pagos/historial'),
+        T.ARQUEO('ADMIN', '/contable/cierre-caja'),
+        T.REP_FINAN('ADMIN', '/admin/reportes/financieros'),
       ]
     },
     {
-      id: 'administracion',
-      nombre: 'Administración',
-      icono: 'Shield',
-      path: '#',
-      roles: ['SUPER_ADMINISTRADOR', 'ADMIN'],
+      id: 'administracion', nombre: 'Administración', icono: 'Shield', path: '#', roles: ['ADMIN'],
       submodulos: [
-        { id: 'articulos', nombre: 'Artículos (Inventario)', icono: 'Package', path: '/admin/articulos', roles: ['SUPER_ADMINISTRADOR', 'ADMIN', 'COORDINADOR', 'CONTADOR'] },
+        T.INVENTARIO('ADMIN', '/admin/articulos'),
       ]
     },
     {
-      id: 'sistema',
-      nombre: 'Sistema',
-      icono: 'Settings',
-      path: '#',
-      roles: ['ADMIN'],
+      id: 'sistema', nombre: 'Sistema', icono: 'Settings', path: '#', roles: ['ADMIN'],
       submodulos: [
-        { id: 'sincronizacion', nombre: 'Sincronización', icono: 'RefreshCw', path: '/sistema/sincronizacion', roles: ['ADMIN'], isNew: true },
+        T.SYNC('ADMIN', '/sistema/sincronizacion'),
       ]
     },
-    { id: 'reportes-operativos', nombre: 'Reportes operativos', icono: 'ClipboardList', path: '/admin/reportes/operativos', roles: ['SUPER_ADMINISTRADOR', 'ADMIN', 'COORDINADOR', 'SUPERVISOR'] },
+    T.REP_OPER('ADMIN', '/admin/reportes/operativos'),
   ],
-
   COORDINADOR: [
-    { id: 'dashboard', nombre: 'Dashboard', icono: 'LayoutDashboard', path: '/coordinador', roles: ['COORDINADOR'] },
-    { id: 'revisiones', nombre: 'Revisiones', icono: 'ShieldCheck', path: '/coordinador/revisiones', roles: ['COORDINADOR'], isNew: true },
+    T.DASHBOARD('COORDINADOR', '/coordinador'),
+    T.REVISIONES('COORDINADOR', '/coordinador/revisiones'),
     {
-      id: 'operaciones',
-      nombre: 'Operaciones',
-      icono: 'Briefcase',
-      path: '#',
-      roles: ['COORDINADOR'],
+      id: 'operaciones', nombre: 'Operaciones', icono: 'Briefcase', path: '#', roles: ['COORDINADOR'],
       submodulos: [
-        { id: 'gestion-creditos', nombre: 'Créditos', icono: 'CreditCard', path: '/coordinador/creditos', roles: ['COORDINADOR'] },
-        { id: 'rutas', nombre: 'Rutas', icono: 'Route', path: '/coordinador/rutas', roles: ['COORDINADOR'] },
+        T.CREDITOS('COORDINADOR', '/coordinador/creditos'),
+        T.RUTAS('COORDINADOR', '/coordinador/rutas'),
       ]
     },
     {
-      id: 'gestion-clientes',
-      nombre: 'Gestión Clientes',
-      icono: 'Users',
-      path: '#',
-      roles: ['COORDINADOR'],
+      id: 'gestion-clientes', nombre: 'Gestión Clientes', icono: 'Users', path: '#', roles: ['COORDINADOR'],
       submodulos: [
-        { id: 'clientes', nombre: 'Clientes', icono: 'Users', path: '/coordinador/clientes', roles: ['COORDINADOR'] },
-        { id: 'cuentas-mora', nombre: 'Cuentas en mora', icono: 'AlertCircle', path: '/cuentas-mora', roles: ['COORDINADOR'], isNew: true },
-        { id: 'cuentas-vencidas', nombre: 'Cuentas vencidas', icono: 'FileX2', path: '/cuentas-vencidas', roles: ['COORDINADOR'] },
-        { id: 'archivados', nombre: 'Archivados', icono: 'Archive', path: '/coordinador/archivados', roles: ['COORDINADOR'] },
-        { id: 'articulos', nombre: 'Artículos (Inventario)', icono: 'Package', path: '/articulos', roles: ['COORDINADOR'] },
+        T.CLIENTES('COORDINADOR', '/coordinador/clientes'),
+        T.MORA('COORDINADOR', '/cuentas-mora'),
+        T.VENCIDAS('COORDINADOR', '/cuentas-vencidas'),
+        T.ARCHIVADOS('COORDINADOR', '/coordinador/archivados'),
+        T.INVENTARIO('COORDINADOR', '/articulos'),
       ]
     },
     {
-      id: 'finanzas',
-      nombre: 'Finanzas',
-      icono: 'PieChart',
-      path: '#',
-      roles: ['COORDINADOR'],
-      submodulos: [
-        { id: 'pagos-historial', nombre: 'Historial de pagos', icono: 'Banknote', path: '/pagos/historial', roles: ['COORDINADOR'], isNew: true },
-      ]
+      id: 'finanzas', nombre: 'Finanzas', icono: 'PieChart', path: '#', roles: ['COORDINADOR'],
+      submodulos: [ T.PAGOS_HIST('COORDINADOR', '/pagos/historial') ]
     },
     {
-      id: 'sistema',
-      nombre: 'Sistema',
-      icono: 'Settings',
-      path: '#',
-      roles: ['COORDINADOR'],
-      submodulos: [
-        { id: 'sincronizacion', nombre: 'Sincronización', icono: 'RefreshCw', path: '/sistema/sincronizacion', roles: ['COORDINADOR'], isNew: true },
-      ]
+      id: 'sistema', nombre: 'Sistema', icono: 'Settings', path: '#', roles: ['COORDINADOR'],
+      submodulos: [ T.SYNC('COORDINADOR', '/sistema/sincronizacion') ]
     },
-    { id: 'reportes-operativos', nombre: 'Reportes operativos', icono: 'ClipboardList', path: '/coordinador/reportes', roles: ['COORDINADOR'] },
+    T.REP_OPER('COORDINADOR', '/coordinador/reportes'),
   ],
-
   SUPERVISOR: [
-    { id: 'dashboard', nombre: 'Dashboard', icono: 'LayoutDashboard', path: '/supervisor', roles: ['SUPERVISOR'] },
-    { id: 'revisiones', nombre: 'Revisiones', icono: 'ShieldCheck', path: '/supervisor/revisiones', roles: ['SUPERVISOR'], isNew: true },
+    T.DASHBOARD('SUPERVISOR', '/supervisor'),
+    T.REVISIONES('SUPERVISOR', '/supervisor/revisiones'),
     {
-      id: 'operaciones',
-      nombre: 'Operaciones',
-      icono: 'Briefcase',
-      path: '#',
-      roles: ['SUPERVISOR'],
-      submodulos: [
-        { id: 'rutas', nombre: 'Rutas', icono: 'Route', path: '/supervisor/rutas', roles: ['SUPERVISOR'] },
-      ]
+      id: 'operaciones', nombre: 'Operaciones', icono: 'Briefcase', path: '#', roles: ['SUPERVISOR'],
+      submodulos: [ T.RUTAS('SUPERVISOR', '/supervisor/rutas') ]
     },
     {
-      id: 'finanzas',
-      nombre: 'Finanzas',
-      icono: 'PieChart',
-      path: '#',
-      roles: ['SUPERVISOR'],
-      submodulos: [
-        { id: 'contable', nombre: 'Movimientos', icono: 'Calculator', path: '/contable', roles: ['SUPERVISOR'] },
-      ]
+      id: 'finanzas', nombre: 'Finanzas', icono: 'PieChart', path: '#', roles: ['SUPERVISOR'],
+      submodulos: [ T.MOVIMIENTOS('SUPERVISOR', '/contable') ]
     },
     {
-      id: 'gestion-clientes',
-      nombre: 'Gestión Clientes',
-      icono: 'Users',
-      path: '#',
-      roles: ['SUPERVISOR'],
-      submodulos: [
-        { id: 'clientes', nombre: 'Clientes', icono: 'Users', path: '/supervisor/clientes', roles: ['SUPERVISOR'] },
-      ]
+      id: 'gestion-clientes', nombre: 'Gestión Clientes', icono: 'Users', path: '#', roles: ['SUPERVISOR'],
+      submodulos: [ T.CLIENTES('SUPERVISOR', '/supervisor/clientes') ]
     },
-    { id: 'reportes-operativos', nombre: 'Reportes operativos', icono: 'ClipboardList', path: '/supervisor/reportes/operativos', roles: ['SUPERVISOR'] },
+    T.REP_OPER('SUPERVISOR', '/supervisor/reportes/operativos'),
   ],
-
   COBRADOR: [
-    { id: 'dashboard', nombre: 'Dashboard', icono: 'LayoutDashboard', path: '/cobranzas', roles: ['COBRADOR'] },
-    { id: 'prestamos-dinero', nombre: 'Solicitar Crédito', icono: 'CreditCard', path: '/cobranzas/prestamos/nuevo', roles: ['COBRADOR'] },
-    { id: 'clientes', nombre: 'Nuevo Cliente', icono: 'Users', path: '/cobranzas/clientes/nuevo', roles: ['COBRADOR'] },
-    { id: 'notificaciones', nombre: 'Notificaciones', icono: 'Bell', path: '/cobranzas/notificaciones', roles: ['COBRADOR'] },
-    { id: 'solicitudes', nombre: 'Solicitudes', icono: 'ClipboardList', path: '/cobranzas/solicitudes', roles: ['COBRADOR'] },
+    T.DASHBOARD('COBRADOR', '/cobranzas'),
+    T.PRESTAMO_DINERO('COBRADOR', '/cobranzas/prestamos/nuevo'),
+    T.CLIENTES('COBRADOR', '/cobranzas/clientes/nuevo'),
+    T.NOTIF('COBRADOR', '/cobranzas/notificaciones'),
+    T.SOLICITUDES('COBRADOR', '/cobranzas/solicitudes'),
   ],
-
   CONTADOR: [
-    { id: 'dashboard', nombre: 'Dashboard', icono: 'LayoutDashboard', path: '/contable', roles: ['CONTADOR'] },
+    T.DASHBOARD('CONTADOR', '/contable'),
     {
-      id: 'gestion-clientes',
-      nombre: 'Gestión Clientes',
-      icono: 'Users',
-      path: '#',
-      roles: ['CONTADOR'],
+      id: 'gestion-clientes', nombre: 'Gestión Clientes', icono: 'Users', path: '#', roles: ['CONTADOR'],
       submodulos: [
-        { id: 'cuentas-mora', nombre: 'Cuentas en mora', icono: 'AlertCircle', path: '/cuentas-mora', roles: ['CONTADOR'], isNew: true },
-        { id: 'cuentas-vencidas', nombre: 'Cuentas vencidas', icono: 'FileX2', path: '/cuentas-vencidas', roles: ['CONTADOR'] },
+        T.MORA('CONTADOR', '/cuentas-mora'),
+        T.VENCIDAS('CONTADOR', '/cuentas-vencidas'),
       ]
     },
     {
-      id: 'finanzas',
-      nombre: 'Finanzas',
-      icono: 'PieChart',
-      path: '#',
-      roles: ['CONTADOR'],
+      id: 'finanzas', nombre: 'Finanzas', icono: 'PieChart', path: '#', roles: ['CONTADOR'],
       submodulos: [
-        { id: 'contable', nombre: 'Movimientos', icono: 'Calculator', path: '/contable', roles: ['CONTADOR'] },
-        { id: 'pagos-historial', nombre: 'Historial de pagos', icono: 'Banknote', path: '/pagos/historial', roles: ['CONTADOR'], isNew: true },
-        { id: 'arqueo', nombre: 'Arqueo de Caja', icono: 'Landmark', path: '/contable/cierre-caja', roles: ['CONTADOR'], isNew: true },
-        { id: 'reportes-financieros', nombre: 'Reportes financieros', icono: 'BarChart3', path: '/reportes/financieros', roles: ['CONTADOR'], isNew: true },
+        T.MOVIMIENTOS('CONTADOR', '/contable'),
+        T.PAGOS_HIST('CONTADOR', '/pagos/historial'),
+        T.ARQUEO('CONTADOR', '/contable/cierre-caja'),
+        T.REP_FINAN('CONTADOR', '/reportes/financieros'),
       ]
     },
     {
-      id: 'administracion',
-      nombre: 'Administración',
-      icono: 'Shield',
-      path: '#',
-      roles: ['CONTADOR'],
-      submodulos: [
-        { id: 'articulos', nombre: 'Artículos (Inventario)', icono: 'Package', path: '/articulos', roles: ['CONTADOR'] },
-      ]
+      id: 'administracion', nombre: 'Administración', icono: 'Shield', path: '#', roles: ['CONTADOR'],
+      submodulos: [ T.INVENTARIO('CONTADOR', '/articulos') ]
     },
   ],
-
   PUNTO_DE_VENTA: [
-    { id: 'dashboard', nombre: 'Dashboard', icono: 'LayoutDashboard', path: '/punto-de-venta', roles: ['PUNTO_DE_VENTA'] },
-    { id: 'creditos-articulos', nombre: 'Créditos Artículos', icono: 'ShoppingBag', path: '/creditos-articulos', roles: ['PUNTO_DE_VENTA'] },
-    { id: 'articulos', nombre: 'Catálogo', icono: 'Package', path: '/articulos', roles: ['PUNTO_DE_VENTA'] },
+    T.DASHBOARD('PUNTO_DE_VENTA', '/punto-de-venta'),
+    T.CRED_ART('PUNTO_DE_VENTA', '/creditos-articulos'),
+    T.INVENTARIO('PUNTO_DE_VENTA', '/articulos'),
   ],
 };
 
-// Configuración de roles conocidos
-const ROLES_CONOCIDOS = ['SUPER_ADMINISTRADOR', 'ADMIN', 'COORDINADOR', 'SUPERVISOR', 'COBRADOR', 'CONTADOR', 'PUNTO_DE_VENTA'];
+const ROLES_CONOCIDOS = Object.keys(permisosPorRol);
 
-// Mapa de iconos de Lucide React
 import {
-  Eye,
-  Home,
-  LayoutDashboard,
-  Bell,
-  CreditCard,
-  ShoppingBag,
-  ShieldCheck,
-  Banknote,
-  Users,
-  AlertCircle,
-  Route,
-  Package,
-  PieChart,
-  User,
-  Archive,
-  Shield,
-  Settings,
-  CheckCircle2,
-  Receipt,
-  Wallet,
-  Map as MapIcon,
-  HardDrive,
-  Landmark,
-  History,
-  ClipboardList,
-  Briefcase,
-  Calculator,
-  BarChart3,
-  Key,
-  FileText,
-  FileX2,
-  RefreshCw,
-  UserCircle,
-  AlertTriangle,
-  // Agregar más iconos según necesites
+  Eye, Home, LayoutDashboard, Bell, CreditCard, ShoppingBag, ShieldCheck, Banknote, Users, AlertCircle,
+  Route, Package, PieChart, User, Archive, Shield, Settings, CheckCircle2, Receipt, Wallet, Map as MapIcon,
+  HardDrive, Landmark, History, ClipboardList, Briefcase, Calculator, BarChart3, Key, FileText, FileX2,
+  RefreshCw, UserCircle, AlertTriangle
 } from 'lucide-react';
-
 
 export const iconosMap: Record<string, React.ReactNode> = {
   'Eye': <Eye className="h-4 w-4" />,
@@ -412,174 +281,48 @@ export const getIconComponent = (iconName: string): React.ReactNode => {
 };
 
 export const obtenerModulosPorRol = (rol: Rol): ModuloPermiso[] => {
-  return permisosPorRol[rol as keyof typeof permisosPorRol] || [];
+  return permisosPorRol[rol] || [];
 };
 
-// ... (rest of the code remains the same)
 const ACTION_ICON_MAP: Record<string, string> = {
-  // Base action ids
-  dashboard: 'LayoutDashboard',
-  role: 'Shield',
-  roles: 'Shield',
-  user: 'User',
-  users: 'User',
-  usuario: 'User',
-  usuarios: 'User',
-  audit: 'FileText',
-  auditoria: 'FileText',
-  backup: 'HardDrive',
-  backups: 'HardDrive',
-  // Dynamic action ids seen from backend (snake_case)
-  'late-fee': 'AlertCircle',
-  'late-fee-manage': 'AlertCircle',
-  cash: 'Landmark',
-  'cash-manage': 'Landmark',
-  cost: 'Calculator',
-  cost_manage: 'Calculator',
-  expense: 'Wallet',
-  expense_manage: 'Wallet',
-  report: 'ClipboardList',
-  report_view: 'ClipboardList',
-  'report-financial': 'BarChart3',
-  client: 'Users',
-  clients: 'Users',
-  cliente: 'Users',
-  clientes: 'Users',
-  loan: 'CreditCard',
-  loans: 'CreditCard',
-  prestamo: 'CreditCard',
-  prestamos: 'CreditCard',
-  payment: 'Receipt',
-  payments: 'Receipt',
-  pago: 'Receipt',
-  pagos: 'Receipt',
-  route: 'Route',
-  routes: 'Route',
-  accounting: 'Calculator',
-  contable: 'Calculator',
-  contabilidad: 'Calculator',
-  'gestion-creditos': 'CreditCard',
-  creditos: 'CreditCard',
-  rutas: 'Route',
-  'cuentas-mora': 'AlertCircle',
-  mora: 'AlertCircle',
-  'cuentas-vencidas': 'FileX2',
-  vencidas: 'FileX2',
-  archivados: 'Archive',
-  articulos: 'Package',
-  inventario: 'Package',
-  'reportes-financieros': 'BarChart3',
-  'reportes-operativos': 'ClipboardList',
-  reportes: 'ClipboardList',
-  configuracion: 'Settings',
-  sistema: 'Settings',
-  sincronizacion: 'RefreshCw',
-  notificaciones: 'Bell',
-  solicitudes: 'ClipboardList',
-  'prestamos-dinero': 'CreditCard',
-  'creditos-articulos': 'ShoppingBag',
-  'revisiones': 'ShieldCheck',
-  'conflictos-sinc': 'AlertTriangle',
-  'seguimiento-pdv': 'ShoppingBag',
+  dashboard: 'LayoutDashboard', role: 'Shield', roles: 'Shield', user: 'User', users: 'User', usuario: 'User', usuarios: 'User',
+  audit: 'FileText', auditoria: 'FileText', backup: 'HardDrive', backups: 'HardDrive', 
+  'late-fee': 'AlertCircle', 'late-fee-manage': 'AlertCircle', cash: 'Landmark', 'cash-manage': 'Landmark',
+  cost: 'Calculator', cost_manage: 'Calculator', expense: 'Wallet', expense_manage: 'Wallet',
+  report: 'ClipboardList', report_view: 'ClipboardList', 'report-financial': 'BarChart3',
+  client: 'Users', clients: 'Users', cliente: 'Users', clientes: 'Users',
+  loan: 'CreditCard', loans: 'CreditCard', prestamo: 'CreditCard', prestamos: 'CreditCard',
+  payment: 'Receipt', payments: 'Receipt', pago: 'Receipt', pagos: 'Receipt',
+  route: 'Route', routes: 'Route', accounting: 'Calculator', contable: 'Calculator', contabilidad: 'Calculator',
+  'gestion-creditos': 'CreditCard', creditos: 'CreditCard', rutas: 'Route',
+  'cuentas-mora': 'AlertCircle', mora: 'AlertCircle', 'cuentas-vencidas': 'FileX2', vencidas: 'FileX2',
+  archivados: 'Archive', articulos: 'Package', inventario: 'Package', 'reportes-financieros': 'BarChart3',
+  'reportes-operativos': 'ClipboardList', reportes: 'ClipboardList', configuracion: 'Settings',
+  sistema: 'Settings', sincronizacion: 'RefreshCw', notificaciones: 'Bell', solicitudes: 'ClipboardList',
+  'prestamos-dinero': 'CreditCard', 'creditos-articulos': 'ShoppingBag', 'revisiones': 'ShieldCheck',
+  'conflictos-sinc': 'AlertTriangle', 'seguimiento-pdv': 'ShoppingBag',
 };
 
-const normalizePermissionId = (id: string) => {
-  return String(id || '')
-    .trim()
-    .toLowerCase()
-    .replace(/\s+/g, '-')
-    .replace(/_/g, '-')
-    .replace(/[^a-z0-9-]/g, '')
-}
+const normalizePermissionId = (id: string) => String(id || '').trim().toLowerCase().replace(/\s+/g, '-').replace(/_/g, '-').replace(/[^a-z0-9-]/g, '');
 
 const isCuentasVencidas = (id?: string | null, ruta?: string | null) => {
-  const key = normalizePermissionId(String(id || ''))
-  const r = String(ruta || '').toLowerCase()
-  return (
-    key === 'cuentas-vencidas' ||
-    key === 'cuentas-vencidas-view' ||
-    key === 'cuentas-vencidas-ver' ||
-    key.startsWith('cuentas-vencidas') ||
-    r.includes('cuentas-vencidas')
-  )
-}
+  const key = normalizePermissionId(String(id || ''));
+  const r = String(ruta || '').toLowerCase();
+  return key.startsWith('cuentas-vencidas') || r.includes('cuentas-vencidas');
+};
 
 const inferIconName = (id: string, iconFromApi?: string | null) => {
   if (isCuentasVencidas(id)) return 'FileX2';
   if (iconFromApi) return iconFromApi;
   const key = normalizePermissionId(id);
   const base = key.split('-')[0] || '';
-  const inferred = ACTION_ICON_MAP[key] || (base ? ACTION_ICON_MAP[base] : undefined) || ACTION_ICON_MAP[id];
-  if (!inferred && process.env.NODE_ENV !== 'production') {
-    console.warn('[sidebar] icon fallback Eye for action id:', id);
-  }
-  return inferred || 'Eye';
+  return ACTION_ICON_MAP[key] || (base ? ACTION_ICON_MAP[base] : undefined) || ACTION_ICON_MAP[id] || 'Eye';
 };
 
 export const buildSidebarFromApi = (sidebarData: SidebarModulo[]): ModuloPermiso[] => {
   if (!sidebarData || sidebarData.length === 0) return [];
-
-  // El dropdown de Cobranza NO debe existir en el aside
-  // Créditos de Artículos tampoco debe aparecer porque el modal de créditos ya permite elegir el tipo
-  const EXCLUDED_SIDEBAR_ROUTES = new Set<string>(['/cobranzas/notificaciones', '/cobranzas/solicitudes', '/creditos-articulos']);
+  const EXCLUDED_SIDEBAR_ROUTES = new Set(['/cobranzas/notificaciones', '/cobranzas/solicitudes', '/creditos-articulos']);
   const EXCLUDED_SIDEBAR_ROUTE_PREFIXES = ['/cobranzas'];
-
-  const isGranularActionId = (rawId: string) => {
-    const id = String(rawId || '').toLowerCase();
-    return /_(view|ver|create|crear|edit|editar|delete|eliminar|approve|aprobar|manage|gestionar|registrar|exportar|cierre)$/.test(id);
-  };
-
-  const isVerbLikeName = (rawName: string) => {
-    const n = String(rawName || '').trim().toLowerCase();
-    return /^(ver|crear|editar|eliminar|aprobar|gestionar|registrar|exportar)\b/.test(n);
-  };
-
-  const getItemScore = (item: SidebarModulo['items'][number]) => {
-    let score = 0;
-    if (item.ruta && item.ruta !== '#') score += 10;
-    if (!isGranularActionId(item.id)) score += 5;
-    if (!isVerbLikeName(item.nombre)) score += 3;
-    if (item.icono) score += 1;
-    return score;
-  };
-
-  const getCleanNameForRoute = (ruta: string) => {
-    const r = ruta.split('?')[0]?.split('#')[0] || ruta;
-    const ROUTE_LABELS: Record<string, string> = {
-      '/admin/clientes': 'Clientes',
-      '/coordinador/clientes': 'Clientes',
-      '/supervisor/clientes': 'Clientes',
-      '/admin/creditos': 'Créditos',
-      '/coordinador/creditos': 'Créditos',
-      '/admin/rutas': 'Rutas',
-      '/coordinador/rutas': 'Rutas',
-      '/supervisor/rutas': 'Rutas',
-      '/contable': 'Movimientos',
-      '/contable/cierre-caja': 'Arqueo de Caja',
-      '/articulos': 'Artículos',
-      '/reportes/financieros': 'Reportes Financieros',
-      '/admin/users': 'Usuarios',
-      '/admin/auditoria': 'Auditoría',
-      '/admin/sistema/configuracion': 'Configuración',
-      '/admin/sistema/sincronizacion': 'Sincronización',
-      '/admin/sistema/backups': 'Backups',
-      '/admin/reportes/operativos': 'Reportes Operativos',
-      '/admin/pagos/historial': 'Historial de pagos',
-      '/admin/pagos/registro': 'Registro de pagos',
-    };
-
-    return ROUTE_LABELS[r];
-  };
-
-  const getGroupKey = (rawModulo: string) => {
-    const m = String(rawModulo || '').toLowerCase();
-    if (m.includes('sistema') || m.includes('config') || m.includes('backup') || m.includes('sincron')) return 'sistema';
-    if (m.includes('admin') || m.includes('usuario') || m.includes('rol') || m.includes('auditor')) return 'administracion';
-    if (m.includes('finan') || m.includes('contab') || m.includes('caja') || m.includes('tesor') || m.includes('cash')) return 'finanzas';
-    if (m.includes('report')) return 'reportes';
-    if (m.includes('cliente') || m.includes('mora') || m.includes('vencid')) return 'gestion-clientes';
-    return 'operaciones';
-  };
 
   const GROUP_META: Record<string, { id: string; nombre: string; icono: string }> = {
     'gestion-clientes': { id: 'gestion-clientes', nombre: 'Gestión Clientes', icono: 'Users' },
@@ -593,375 +336,86 @@ export const buildSidebarFromApi = (sidebarData: SidebarModulo[]): ModuloPermiso
   const grouped = new Map<string, ModuloPermiso>();
   const topLevel = new Map<string, ModuloPermiso>();
 
-  for (const grupo of sidebarData) {
-    const groupKey = getGroupKey(grupo.modulo);
-    const meta = GROUP_META[groupKey] || GROUP_META.operaciones;
+  sidebarData.forEach(grupo => {
+    const groupKey = ((m: string) => {
+      const ml = m.toLowerCase();
+      if (ml.includes('sistema') || ml.includes('config')) return 'sistema';
+      if (ml.includes('admin') || ml.includes('usuario')) return 'administracion';
+      if (ml.includes('finan') || ml.includes('contab')) return 'finanzas';
+      if (ml.includes('report')) return 'reportes';
+      if (ml.includes('cliente') || ml.includes('mora')) return 'gestion-clientes';
+      return 'operaciones';
+    })(grupo.modulo);
+
+    const meta = GROUP_META[groupKey as keyof typeof GROUP_META] || GROUP_META.operaciones;
     const items = grupo.items || [];
 
     if (items.length === 1 && (items[0]?.id === 'dashboard' || items[0]?.ruta === '/admin')) {
-      const item = items[0];
-      topLevel.set('dashboard', {
-        id: 'dashboard',
-        nombre: item.nombre || 'Dashboard',
-        icono: inferIconName(item.id, item.icono) || 'LayoutDashboard',
-        path: item.ruta || '/admin',
-        roles: [],
-      });
-      continue;
+      topLevel.set('dashboard', { id: 'dashboard', nombre: items[0].nombre || 'Dashboard', icono: inferIconName(items[0].id, items[0].icono), path: items[0].ruta || '/admin', roles: [] });
+      return;
     }
 
-    const byRoute = new Map<string, SidebarModulo['items'][number]>();
-    for (const item of items) {
+    const current = grouped.get(meta.id) || { ...meta, path: '#', roles: [], submodulos: [] };
+    items.forEach(item => {
       const ruta = item.ruta?.trim();
-      if (!ruta || ruta === '#') continue;
-      if (EXCLUDED_SIDEBAR_ROUTE_PREFIXES.some((p) => ruta.startsWith(`${p}/`) || ruta === p)) continue;
-      if (EXCLUDED_SIDEBAR_ROUTES.has(ruta)) continue;
-
-      const existingItem = byRoute.get(ruta);
-      if (!existingItem || getItemScore(item) > getItemScore(existingItem)) {
-        byRoute.set(ruta, item);
+      if (!ruta || ruta === '#' || EXCLUDED_SIDEBAR_ROUTE_PREFIXES.some(p => ruta.startsWith(`${p}/`)) || EXCLUDED_SIDEBAR_ROUTES.has(ruta)) return;
+      if (!current.submodulos!.some(s => s.path === ruta)) {
+        current.submodulos!.push({ id: item.id, nombre: item.nombre, icono: inferIconName(item.id, item.icono), path: ruta, roles: [] });
       }
-    }
-
-    const existing = grouped.get(meta.id);
-    const current: ModuloPermiso = existing || {
-      id: meta.id,
-      nombre: meta.nombre,
-      icono: meta.icono,
-      path: '#',
-      roles: [],
-      submodulos: [],
-    };
-
-    for (const item of byRoute.values()) {
-      const cleanName = item.ruta ? getCleanNameForRoute(item.ruta) : undefined;
-      const displayName =
-        cleanName ||
-        (isVerbLikeName(item.nombre)
-          ? String(item.nombre || '').replace(/^(ver|crear|editar|eliminar|aprobar|gestionar|registrar|exportar)\s+/i, '')
-          : item.nombre);
-
-      const sub: ModuloPermiso = {
-        id: item.id,
-        nombre: displayName,
-        icono: isCuentasVencidas(item.id, item.ruta) ? 'FileX2' : inferIconName(item.id, item.icono),
-        path: item.ruta || '#',
-        roles: [],
-      };
-
-      const subs = current.submodulos || [];
-      if (!subs.some((s) => s.path === sub.path)) {
-        subs.push(sub);
-        current.submodulos = subs;
-      }
-    }
-
-    if (current.submodulos && current.submodulos.length > 0) {
-      grouped.set(meta.id, current);
-    }
-  }
+    });
+    if (current.submodulos!.length > 0) grouped.set(meta.id, current);
+  });
 
   const order = ['dashboard', 'gestion-clientes', 'operaciones', 'finanzas', 'reportes', 'administracion', 'sistema'];
   const result: ModuloPermiso[] = [];
-  const dashboard = topLevel.get('dashboard');
-  if (dashboard) result.push(dashboard);
-
-  for (const key of order) {
-    if (key === 'dashboard') continue;
-    const meta = GROUP_META[key];
-    const mod = meta ? grouped.get(meta.id) : undefined;
-    if (mod && mod.submodulos && mod.submodulos.length > 0) result.push(mod);
-  }
-
-  for (const mod of grouped.values()) {
-    if (!result.some((r) => r.id === mod.id) && mod.submodulos && mod.submodulos.length > 0) result.push(mod);
-  }
-
+  if (topLevel.has('dashboard')) result.push(topLevel.get('dashboard')!);
+  order.forEach(key => {
+    const mod = grouped.get(key);
+    if (mod) result.push(mod);
+  });
   return result;
 };
 
-// Obtener módulos: roles conocidos usan config estática curada, roles nuevos usan sidebar dinámico del backend
 export const obtenerModulos = (rol: Rol, sidebarData?: SidebarModulo[]): ModuloPermiso[] => {
-  const getRolePrefix = (r: Rol): string | null => {
-    if (r === 'SUPER_ADMINISTRADOR' || r === 'ADMIN') return null;
-    if (r === 'COBRADOR') return 'cobranzas';
-    if (r === 'COORDINADOR') return 'coordinador';
-    if (r === 'SUPERVISOR') return 'supervisor';
-    if (r === 'CONTADOR') return 'contador';
-    if (r === 'PUNTO_DE_VENTA') return 'punto-de-venta';
-    return null;
+  const getRolePrefix = (r: Rol) => ({ COBRADOR: 'cobranzas', COORDINADOR: 'coordinador', SUPERVISOR: 'supervisor', CONTADOR: 'contador', PUNTO_DE_VENTA: 'punto-de-venta' } as any)[r] || null;
+  const aliasPath = (p: string) => {
+    if (!p || p === '#') return p;
+    const prefix = getRolePrefix(rol);
+    if (!prefix) return p;
+    if (p === '/admin/sistema/backups') return `/${prefix}/backups`;
+    if (p === '/admin/pagos/historial') return '/admin/pagos/historial';
+    if (p === '/admin') return `/${prefix}`;
+    return p.startsWith('/admin/') ? `/${prefix}${p.slice(6)}` : p;
   };
 
-  const aliasPathForRole = (rawPath: string | undefined | null): string | undefined | null => {
-    if (!rawPath || rawPath === '#') return rawPath;
+  const applyAliases = (mods: ModuloPermiso[]): ModuloPermiso[] => mods.map(m => ({ ...m, path: aliasPath(m.path), submodulos: m.submodulos?.map(s => ({ ...s, path: aliasPath(s.path) })) }));
 
-    const rolePrefix = getRolePrefix(rol);
-    if (!rolePrefix) return rawPath;
-
-    const OVERRIDES: Record<string, string> = {
-      '/admin/sistema/backups': `/${rolePrefix}/backups`,
-      '/admin/pagos/historial': '/admin/pagos/historial',
-    };
-    if (OVERRIDES[rawPath]) return OVERRIDES[rawPath];
-
-    if (rawPath === '/admin') return `/${rolePrefix}`;
-    if (rawPath.startsWith('/admin/')) return `/${rolePrefix}${rawPath.slice('/admin'.length)}`;
-
-    return rawPath;
-  };
-
-  const applyAliases = (modulos: ModuloPermiso[]): ModuloPermiso[] => {
-    return modulos.map((m) => {
-      if (!m.submodulos || m.submodulos.length === 0) {
-        return { ...m, path: aliasPathForRole(m.path) as any };
-      }
-      return {
-        ...m,
-        path: aliasPathForRole(m.path) as any,
-        submodulos: m.submodulos.map((s) => ({ ...s, path: aliasPathForRole(s.path) as any })),
-      };
-    });
-  };
-
-  const filterForFloatingButtons = (modulos: ModuloPermiso[]) => {
-    if (rol !== 'PUNTO_DE_VENTA') return modulos;
-
-    const HIDDEN_PATHS = new Set<string>([
-      '/creditos-articulos',
-      '/articulos',
-      '/admin/clientes',
-      '/punto-de-venta/clientes',
-    ]);
-
-    return modulos
-      .filter((m) => !HIDDEN_PATHS.has(m.path || ''))
-      .map((m) => {
-        if (!m.submodulos || m.submodulos.length === 0) return m;
-        return {
-          ...m,
-          submodulos: m.submodulos.filter((s) => !HIDDEN_PATHS.has(s.path || '')),
-        };
-      })
-      .filter((m) => m.path !== '#' || (m.submodulos && m.submodulos.length > 0));
-  };
-
-  const ensureCuratedAdminModules = (modulos: ModuloPermiso[]): ModuloPermiso[] => {
-    if (rol !== 'SUPER_ADMINISTRADOR' && rol !== 'ADMIN' && rol !== 'COORDINADOR' && rol !== 'SUPERVISOR') return modulos;
-
+  const ensureCurated = (mods: ModuloPermiso[]): ModuloPermiso[] => {
+    if (!['SUPER_ADMINISTRADOR', 'ADMIN', 'COORDINADOR', 'SUPERVISOR'].includes(rol)) return mods;
     const curated = obtenerModulosPorRol(rol);
-    let result = [...modulos];
-
-    // Fusionar de forma inteligente los módulos curados críticos sobre el dinámico
-    curated.forEach((curatedMod) => {
-      // Intentar encontrar el módulo principal (ej. "operaciones", "finanzas")
-      const existingIdx = result.findIndex(m => m.id === curatedMod.id || m.nombre === curatedMod.nombre);
-      
-      // Casos especiales de posicionamiento
-      if (curatedMod.id === 'revisiones' && existingIdx < 0) {
-        const dashboardIndex = result.findIndex((m) => m.id === 'dashboard');
-        const insertAt = dashboardIndex >= 0 ? dashboardIndex + 1 : 0;
-        result.splice(insertAt, 0, curatedMod);
-        return;
-      }
-
-      if (existingIdx < 0) {
-        // Empujar todo el módulo si no existe y tiene elementos (Ej. Todo "operaciones" falta)
-        if (curatedMod.submodulos && curatedMod.submodulos.length > 0) {
-            result.push(curatedMod);
-        } else if (curatedMod.isNew) {
-            result.push(curatedMod);
-        }
-      } else {
-        // Si el módulo ya existe, combinar los submódulos que falten
-        const existingMod = result[existingIdx];
-        const curatedSubs = curatedMod.submodulos || [];
-        const existingSubs = existingMod.submodulos || [];
-        const mergedSubs = [...existingSubs];
-        
-        curatedSubs.forEach((s) => {
-          if (!mergedSubs.some((e) => e.id === s.id || e.path === s.path)) {
-            mergedSubs.push(s);
-          }
-        });
-
-        // Actualizar el módulo con los submódulos combinados
-        result[existingIdx] = { ...existingMod, submodulos: mergedSubs };
-      }
+    const res = [...mods];
+    curated.forEach(cm => {
+      const idx = res.findIndex(m => m.id === cm.id || m.nombre === cm.nombre);
+      if (idx < 0) { if (cm.id === 'revisiones') res.splice(1, 0, cm); else res.push(cm); }
+      else { res[idx].submodulos = [...(res[idx].submodulos || [])]; cm.submodulos?.forEach(cs => { if (!res[idx].submodulos!.some(es => es.id === cs.id || es.path === cs.path)) res[idx].submodulos!.push(cs); }); }
     });
-
-    return result;
+    return res;
   };
 
-  const ensureStableIds = (modulos: ModuloPermiso[]): ModuloPermiso[] => {
-    const stableId = (m: ModuloPermiso, parentId?: string) => {
-      if (m.id) return m.id;
-      const base = String(m.path || m.nombre || '').trim();
-      const norm = base
-        .toLowerCase()
-        .replace(/^\/+/, '')
-        .replace(/[^a-z0-9]+/g, '-');
-      return `${parentId ? `${parentId}-` : ''}${norm || 'modulo'}`;
-    };
-
-    return modulos.map((m) => {
-      const id = stableId(m);
-      if (!m.submodulos || m.submodulos.length === 0) return { ...m, id };
-      return {
-        ...m,
-        id,
-        submodulos: m.submodulos.map((s) => ({ ...s, id: stableId(s, id) })),
-      };
-    });
-  };
-
-  const dedupeArticulos = (modulos: ModuloPermiso[]): ModuloPermiso[] => {
-    const normalizePath = (p?: string | null) => (p ? p.split('?')[0]?.split('#')[0] : p) || '';
-    let hasAdminArticulos = false;
-    for (const m of modulos) {
-      if (normalizePath(m.path) === '/admin/articulos') hasAdminArticulos = true;
-      for (const s of m.submodulos || []) {
-        if (normalizePath(s.path) === '/admin/articulos') hasAdminArticulos = true;
-      }
-    }
-    if (!hasAdminArticulos) return modulos;
-
-    const filterOut = (p?: string | null) => normalizePath(p) === '/articulos';
-    return modulos
-      .filter((m) => !filterOut(m.path))
-      .map((m) => {
-        if (!m.submodulos || m.submodulos.length === 0) return m;
-        const subs = m.submodulos.filter((s) => !filterOut(s.path));
-        return { ...m, submodulos: subs };
-      })
-      .filter((m) => m.path !== '#' || (m.submodulos && m.submodulos.length > 0));
-  };
-
-  if (sidebarData && sidebarData.length > 0) {
-    const dynamic = filterForFloatingButtons(applyAliases(buildSidebarFromApi(sidebarData)));
-    return ensureStableIds(dedupeArticulos(ensureCuratedAdminModules(dynamic)));
-  }
-  if (ROLES_CONOCIDOS.includes(rol)) {
-    return ensureStableIds(dedupeArticulos(ensureCuratedAdminModules(filterForFloatingButtons(applyAliases(obtenerModulosPorRol(rol))))));
-  }
-  return ensureStableIds(dedupeArticulos(ensureCuratedAdminModules(filterForFloatingButtons(applyAliases(buildSidebarFromApi(sidebarData || []))))));
+  const base = sidebarData?.length ? buildSidebarFromApi(sidebarData) : (ROLES_CONOCIDOS.includes(rol) ? obtenerModulosPorRol(rol) : []);
+  return ensureCurated(applyAliases(base));
 };
 
-// Verificar si un usuario tiene acceso a una ruta
 export const tieneAcceso = (rol: Rol, path: string, permisos?: string[]): boolean => {
-  const normalizado = path.split('?')[0]?.split('#')[0] ?? path;
-
-  // Rutas unificadas accesibles para todos los roles autenticados
-  if (normalizado === '/perfil') return true;
-  if (normalizado === '/notificaciones') return true;
-
-  // Si tenemos permisos dinámicos, usarlos para verificar acceso
-  if (permisos && permisos.length > 0) {
-    // SUPER_ADMINISTRADOR tiene acceso total
+  const norm = path.split('?')[0]?.split('#')[0] ?? path;
+  if (['/perfil', '/notificaciones'].includes(norm)) return true;
+  if (permisos?.length) {
     if (rol === 'SUPER_ADMINISTRADOR') return true;
-
-    // Verificar si algún permiso tiene una ruta que coincida
-    // Los permisos son acciones como 'dashboard', 'clientes', 'contable', etc.
-    // Necesitamos mapear la ruta a una acción conocida
-    const rutaAAccion: Record<string, string> = {
-      '/admin': 'dashboard',
-      '/coordinador': 'dashboard',
-      '/supervisor': 'dashboard',
-      '/cobranzas': 'dashboard',
-      '/contable': 'contable',
-      '/creditos': 'gestion-creditos',
-      '/admin/creditos': 'gestion-creditos',
-      '/coordinador/creditos': 'gestion-creditos',
-      '/rutas': 'rutas',
-      '/admin/rutas': 'rutas',
-      '/coordinador/rutas': 'rutas',
-      '/supervisor/rutas': 'rutas',
-      '/clientes': 'clientes',
-      '/admin/clientes': 'clientes',
-      '/coordinador/clientes': 'clientes',
-      '/supervisor/clientes': 'clientes',
-      '/cobranzas/clientes': 'clientes',
-      '/cuentas-mora': 'cuentas-mora',
-      '/cuentas-vencidas': 'cuentas-vencidas',
-      '/archivados': 'archivados',
-      '/admin/archivados': 'archivados',
-      '/contable/cierre-caja': 'arqueo',
-      '/articulos': 'articulos',
-      '/reportes/financieros': 'reportes-financieros',
-      '/users': 'usuarios',
-      '/admin/users': 'usuarios',
-      '/auditoria': 'auditoria',
-      '/admin/auditoria': 'auditoria',
-      '/sistema/configuracion': 'configuracion',
-      '/admin/sistema/configuracion': 'configuracion',
-      '/sistema/sincronizacion': 'sincronizacion',
-      '/admin/sistema/sincronizacion': 'sincronizacion',
-      '/sistema/backups': 'backups',
-      '/admin/sistema/backups': 'backups',
-      '/reportes/operativos': 'reportes-operativos',
-      '/admin/reportes/operativos': 'reportes-operativos',
-      '/coordinador/reportes': 'reportes-operativos',
-      '/supervisor/reportes/operativos': 'reportes-operativos',
-      '/pagos': 'pagos',
-      '/admin/pagos': 'pagos',
-      '/prestamos': 'prestamos',
-      '/admin/prestamos': 'prestamos',
-      '/cobranzas/prestamos/nuevo': 'prestamos-dinero',
-      '/cobranzas/notificaciones': 'notificaciones',
-      '/cobranzas/solicitudes': 'solicitudes',
-      '/creditos-articulos': 'creditos-articulos',
-      '/punto-de-venta': 'dashboard',
-      '/revisiones': 'revisiones',
-      '/admin/revisiones': 'revisiones',
-      '/coordinador/revisiones': 'revisiones',
-      '/supervisor/revisiones': 'revisiones',
-      '/conflictos': 'conflictos-sinc',
-      '/admin/conflictos': 'conflictos-sinc',
-      '/coordinador/conflictos': 'conflictos-sinc',
-    };
-
-    // Match exacto
-    const accion = rutaAAccion[normalizado];
-    if (accion && permisos.includes(accion)) return true;
-
-    // Match por prefijo (para sub-rutas dinámicas como /admin/rutas/[id])
-    for (const [ruta, acc] of Object.entries(rutaAAccion)) {
-      if (ruta !== '/' && normalizado.startsWith(`${ruta}/`) && permisos.includes(acc)) return true;
-    }
-
-    // Excepciones legacy: notificaciones y perfil con prefijo de rol
-    if (normalizado.endsWith('/notificaciones') || normalizado.endsWith('/perfil')) return true;
-
-    return false;
+    const map: Record<string, string> = { '/admin': 'dashboard', '/contable': 'contable', '/creditos': 'gestion-creditos', '/rutas': 'rutas', '/clientes': 'clientes', '/users': 'usuarios', '/sistema/configuracion': 'configuracion' };
+    if (map[norm] && permisos.includes(map[norm])) return true;
+    return Object.entries(map).some(([r, a]) => norm.startsWith(`${r}/`) && permisos.includes(a));
   }
-
-  // Fallback estático (para roles que aún no tienen permisos dinámicos)
-  const modulos = permisosPorRol[rol as keyof typeof permisosPorRol];
-  if (!modulos) return false;
-
-  const rutasPermitidas = modulos
-    .flatMap((m) => [m.path, ...(m.submodulos?.map((s) => s.path) ?? [])])
-    .filter((p): p is string => Boolean(p) && p !== '#');
-
-  // /creditos-articulos accesible para SUPER_ADMIN/ADMIN aunque no esté en su sidebar
-  if (normalizado.startsWith('/creditos-articulos') && (rol === 'SUPER_ADMINISTRADOR' || rol === 'ADMIN')) return true;
-
-  // Excepciones Globales: Permitir acceso a Notificaciones y Perfil role-prefixed
-  const prefijoRol = rol === 'COBRADOR' ? '/cobranzas' : 
-                    rol === 'CONTADOR' ? '/contador' : 
-                    rol === 'PUNTO_DE_VENTA' ? '/punto-de-venta' :
-                    rol === 'SUPER_ADMINISTRADOR' || rol === 'ADMIN' ? '/admin' :
-                    rol === 'COORDINADOR' ? '/coordinador' : '/supervisor';
-
-  if (normalizado.endsWith('/notificaciones') || normalizado.endsWith('/perfil')) {
-    return normalizado.startsWith(prefijoRol);
-  }
-
-  if (rol === 'CONTADOR' && normalizado === '/contador/notificaciones') return true;
-
-  if (rutasPermitidas.includes(normalizado)) return true;
-
-  return rutasPermitidas.some((base) => {
-    if (base === '/admin' || base === '/cobranzas' || base === '/contador' || base === '/') return false;
-    return normalizado.startsWith(`${base}/`);
-  });
+  const modulos = obtenerModulosPorRol(rol);
+  const allowed = modulos.flatMap(m => [m.path, ...(m.submodulos?.map(s => s.path) || [])]).filter(p => p && p !== '#');
+  return allowed.includes(norm) || allowed.some(a => a !== '/' && norm.startsWith(`${a}/`));
 };

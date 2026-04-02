@@ -14,7 +14,7 @@
  Ôùï (pwa)   URL: /sw.js
  Ôùï (pwa)   Scope: /
  Ôùï (pwa) Custom runtimeCaching array found, using it instead of the default one.
-Ô£ô Compiled successfully in 12.7s
+Ô£ô Compiled successfully in 12.0s
   Running TypeScript ...
   Collecting page data using 15 workers ...
   Generating static pages using 15 workers (0/111) ...
@@ -41,7 +41,7 @@
     at eX (C:\Users\ACER\Desktop\Creditos del Sur\credito-sur_frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:5:42563)
   Generating static pages using 15 workers (55/111) 
   Generating static pages using 15 workers (83/111) 
-Ô£ô Generating static pages using 15 workers (111/111) in 1665.7ms
+Ô£ô Generating static pages using 15 workers (111/111) in 1671.8ms
   Finalizing page optimization ...
   Collecting build traces ...
 
