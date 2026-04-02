@@ -46,3 +46,49 @@ export interface HistorialDia {
   visitas: VisitaRuta[];
   loaded?: boolean;
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Helpers de mapeo centralizados
+// Usarlos en lugar de duplicar la lógica inline en cada componente
+// ─────────────────────────────────────────────────────────────────────────────
+
+type NivelRiesgoBackend = 'VERDE' | 'AMARILLO' | 'ROJO' | 'LISTA_NEGRA' | string
+type NivelRiesgoFrontend = 'bajo' | 'leve' | 'precaucion' | 'moderado' | 'critico'
+
+/**
+ * Convierte el nivel de riesgo del backend al formato del frontend.
+ * Centraliza la lógica duplicada en VistaCobrador, SupervisorCobroView,
+ * ruta-client y coordinador/rutas.
+ */
+export const mapNivelRiesgo = (nivel?: NivelRiesgoBackend | null): NivelRiesgoFrontend => {
+  switch (nivel) {
+    case 'VERDE':       return 'bajo'
+    case 'AMARILLO':    return 'precaucion'
+    case 'ROJO':        return 'moderado'
+    case 'LISTA_NEGRA': return 'critico'
+    default:            return 'bajo'
+  }
+}
+
+type FrecuenciaPago = 'DIARIO' | 'SEMANAL' | 'QUINCENAL' | 'MENSUAL' | string
+
+/**
+ * Convierte la frecuencia de pago del backend al PeriodoRuta del frontend.
+ * Centraliza la lógica duplicada en VistaCobrador, SupervisorCobroView,
+ * ruta-client y coordinador/rutas.
+ */
+export const mapFrecuenciaToPeriodo = (frecuencia?: FrecuenciaPago | null): PeriodoRuta => {
+  switch (frecuencia) {
+    case 'DIARIO':    return 'DIA'
+    case 'SEMANAL':   return 'SEMANA'
+    case 'QUINCENAL': return 'QUINCENA'
+    case 'MENSUAL':   return 'MES'
+    // Acepta también el valor ya convertido (idempotente)
+    case 'DIA':       return 'DIA'
+    case 'SEMANA':    return 'SEMANA'
+    case 'QUINCENA':  return 'QUINCENA'
+    case 'MES':       return 'MES'
+    default:          return 'DIA'
+  }
+}
+

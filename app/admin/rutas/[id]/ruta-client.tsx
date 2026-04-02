@@ -110,7 +110,7 @@ import { FrecuenciaPago } from '@/types/enums'
 
 import { obtenerSaldoDisponibleRuta } from '@/services/contabilidad-service'
 
-import { HistorialDia } from '@/lib/types/cobranza'
+import { HistorialDia, mapNivelRiesgo, mapFrecuenciaToPeriodo } from '@/lib/types/cobranza'
 
 import { exportService } from '@/services/export-service'
 

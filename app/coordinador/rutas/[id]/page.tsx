@@ -62,7 +62,7 @@ import { Cliente, clientesService } from '@/services/clientes-service'
 
 import { rutasService } from '@/services/rutas-service'
 
-import { EstadoVisita, VisitaRuta } from '@/lib/types/cobranza'
+import { EstadoVisita, VisitaRuta, HistorialDia, mapNivelRiesgo, mapFrecuenciaToPeriodo } from '@/lib/types/cobranza'
 
 import {
 
@@ -100,7 +100,7 @@ import { exportService } from '@/services/export-service'
 
 import { obtenerSaldoDisponibleRuta } from '@/services/contabilidad-service'
 
-import { HistorialDia } from '@/lib/types/cobranza'
+
 
 import { useRealtimeData } from '@/hooks/useRealtimeData'
 

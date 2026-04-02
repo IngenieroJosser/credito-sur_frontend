@@ -168,7 +168,7 @@ import NuevoClienteModal from '@/components/clientes/NuevoClienteModal'
 
 import RutaProvisionalModal from '@/components/dashboards/shared/RutaProvisionalModal'
 
-import { VisitaRuta, EstadoVisita, PeriodoRuta, HistorialDia } from '@/lib/types/cobranza'
+import { VisitaRuta, EstadoVisita, PeriodoRuta, HistorialDia, mapNivelRiesgo, mapFrecuenciaToPeriodo } from '@/lib/types/cobranza'
 
 import { StaticVisitaItem, SortableVisita, Portal, MODAL_Z_INDEX, SeleccionClienteModal } from '@/components/dashboards/shared/CobradorElements'
 
