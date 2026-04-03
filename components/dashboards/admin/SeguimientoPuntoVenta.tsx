@@ -48,19 +48,22 @@ interface VentaPdv {
   cuotasPagadas: number
   frecuencia: string
   tasaInteres: number
-  estado: 'ACTIVO' | 'PENDIENTE' | 'COMPLETADO' | 'PENDIENTE_APROBACION'
+  estado: 'ACTIVO' | 'PENDIENTE' | 'COMPLETADO' | 'PENDIENTE_APROBACION' | 'EN_MORA' | 'PAGADO'
   fechaVenta: string
   fechaPrimerCobro: string
   fechaUltimoPago?: string
   vendedor: string
+  vendedorId: string
+  vendedorRol: string
+  esVentaPdv: boolean
   observaciones?: string
   pagadoHoy: number
 }
 
 interface KpiHoy {
-  ventasHoy: number
-  montoVentasHoy: number
-  cobranzaHoy: number
+  ventas: number
+  montoVentas: number
+  cuotaInicial: number
   carteraTotal: number
   clientesActivos: number
 }
@@ -79,16 +82,52 @@ const fmtDate = (s: string | undefined) => {
 const toLocalKey = (d: Date) =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 
-const estadoCfg = (estado: VentaPdv['estado']) => {
+const estadoCfg = (estado: string) => {
   switch (estado) {
     case 'ACTIVO': return { label: 'Activo', bg: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-emerald-200', dot: 'bg-emerald-500' }
     case 'PENDIENTE': return { label: 'Pendiente', bg: 'bg-amber-50', text: 'text-amber-700', border: 'border-amber-200', dot: 'bg-amber-400' }
     case 'PENDIENTE_APROBACION': return { label: 'En Aprobación', bg: 'bg-blue-50', text: 'text-blue-700', border: 'border-blue-200', dot: 'bg-blue-400' }
-    case 'COMPLETADO': return { label: 'Completado', bg: 'bg-slate-50', text: 'text-slate-500', border: 'border-slate-200', dot: 'bg-slate-400' }
+    case 'COMPLETADO':
+    case 'PAGADO': return { label: 'Completado', bg: 'bg-slate-50', text: 'text-slate-500', border: 'border-slate-200', dot: 'bg-slate-400' }
+    case 'EN_MORA': return { label: 'En Mora', bg: 'bg-rose-50', text: 'text-rose-700', border: 'border-rose-200', dot: 'bg-rose-500' }
+    default: return { label: (estado || 'Desconocido').replace(/_/g, ' '), bg: 'bg-slate-50', text: 'text-slate-500', border: 'border-slate-200', dot: 'bg-slate-400' }
   }
 }
 
 const PER_PAGE = 10
+
+type Periodo = 'HOY' | 'SEM' | 'MES' | 'AÑO'
+
+const getDatesByPeriod = (period: Periodo) => {
+  const hoy = new Date()
+  let inicio = new Date(hoy)
+  const fin = new Date(hoy)
+  switch (period) {
+    case 'HOY':
+      inicio.setHours(0, 0, 0, 0)
+      fin.setHours(23, 59, 59, 999)
+      break
+    case 'SEM': {
+      const day = hoy.getDay()
+      const diff = hoy.getDate() - day + (day === 0 ? -6 : 1)
+      inicio.setDate(diff)
+      inicio.setHours(0, 0, 0, 0)
+      fin.setHours(23, 59, 59, 999)
+      break
+    }
+    case 'MES':
+      inicio.setDate(1)
+      inicio.setHours(0, 0, 0, 0)
+      fin.setHours(23, 59, 59, 999)
+      break
+    case 'AÑO':
+      inicio.setMonth(0, 1)
+      inicio.setHours(0, 0, 0, 0)
+      fin.setHours(23, 59, 59, 999)
+      break
+  }
+  return { inicio: toLocalKey(inicio), fin: toLocalKey(fin) }
+}
 
 // ─── Componente Principal ─────────────────────────────────────────────────────
 
@@ -96,13 +135,14 @@ export default function SeguimientoPuntoVenta() {
   const [ventas, setVentas] = useState<VentaPdv[]>([])
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
-  const [kpis, setKpis] = useState<KpiHoy>({ ventasHoy: 0, montoVentasHoy: 0, cobranzaHoy: 0, carteraTotal: 0, clientesActivos: 0 })
 
   // Filtros
   const [search, setSearch] = useState('')
   const [filtroEstado, setFiltroEstado] = useState<string>('TODOS')
   const [filtroFechaDesde, setFiltroFechaDesde] = useState('')
   const [filtroFechaHasta, setFiltroFechaHasta] = useState('')
+  const [filtroVendedor, setFiltroVendedor] = useState<string>('TODOS')
+  const [periodoVentas, setPeriodoVentas] = useState<Periodo | 'TODOS'>('TODOS')
   const [page, setPage] = useState(1)
 
   // Detalle
@@ -167,29 +207,32 @@ export default function SeguimientoPuntoVenta() {
             fechaVenta: c.creadoEn || '',
             fechaPrimerCobro: c.fechaInicio || '',
             fechaUltimoPago,
-            vendedor: c.vendedor || 'Punto de Venta',
+            vendedor: c.vendedor || c.creadoPorNombre || 'Punto de Venta',
+            vendedorId: c.creadoPorId || '',
+            vendedorRol: String(c.creadoPorRol || c.vendedorRol || '').toUpperCase(),
+            esVentaPdv: String(c.creadoPorRol || c.vendedorRol || '').toUpperCase() === 'PUNTO_DE_VENTA',
             observaciones: c.observaciones,
             pagadoHoy,
           }
         })
       )
 
-      setVentas(enriched)
+      // Solo mantener los que fueron creados por PUNTO_DE_VENTA
+      const soloVentasPdv = enriched.filter(v => 
+        v.vendedorRol === 'PUNTO_DE_VENTA' || v.esVentaPdv
+      )
 
-      // 3. Calcular KPIs
-      const activos = enriched.filter(v => v.estado === 'ACTIVO' || v.estado === 'PENDIENTE')
-      const ventasDeHoy = enriched.filter(v => {
-        const f = v.fechaVenta.includes('T') ? v.fechaVenta.split('T')[0] : v.fechaVenta
-        return f === hoyStr
-      })
+      setVentas(soloVentasPdv)
 
-      setKpis({
-        ventasHoy: ventasDeHoy.length,
-        montoVentasHoy: ventasDeHoy.reduce((s, v) => s + v.montoTotal, 0),
-        cobranzaHoy: enriched.reduce((s, v) => s + v.pagadoHoy, 0),
-        carteraTotal: activos.reduce((s, v) => s + v.saldoPendiente, 0),
-        clientesActivos: activos.length,
-      })
+      // Log de depuración: ver qué campos envía el backend
+      if (soloVentasPdv.length > 0) {
+        console.log('[SeguimientoPdv] Ejemplo de venta:', {
+          vendedor: soloVentasPdv[0].vendedor,
+          vendedorId: soloVentasPdv[0].vendedorId,
+          vendedorRol: soloVentasPdv[0].vendedorRol,
+        })
+      }
+
     } catch (err) {
       console.error('[SeguimientoPdv] Error cargando datos:', err)
     }
@@ -246,6 +289,15 @@ export default function SeguimientoPuntoVenta() {
 
   // ─── Filtros y paginación ─────────────────────────────────────────────────
 
+  // Vendedores únicos (para el selector)
+  const vendedoresUnicos = useMemo(() => {
+    const seen = new Set<string>()
+    return ventas
+      .filter(v => v.vendedor && v.vendedor !== 'Punto de Venta')
+      .filter(v => { if (seen.has(v.vendedorId || v.vendedor)) return false; seen.add(v.vendedorId || v.vendedor); return true })
+      .map(v => ({ id: v.vendedorId || v.vendedor, nombre: v.vendedor }))
+  }, [ventas])
+
   const ventasFiltradas = useMemo(() => {
     let result = ventas
     if (search.trim()) {
@@ -260,6 +312,9 @@ export default function SeguimientoPuntoVenta() {
     if (filtroEstado !== 'TODOS') {
       result = result.filter(v => v.estado === filtroEstado)
     }
+    if (filtroVendedor !== 'TODOS') {
+      result = result.filter(v => (v.vendedorId || v.vendedor) === filtroVendedor)
+    }
     if (filtroFechaDesde) {
       result = result.filter(v => {
         const f = v.fechaVenta.includes('T') ? v.fechaVenta.split('T')[0] : v.fechaVenta
@@ -272,24 +327,49 @@ export default function SeguimientoPuntoVenta() {
         return f <= filtroFechaHasta
       })
     }
+    // Filtro por periodo (Hoy/Sem/Mes/Año) — ignora si hay fechas manuales
+    if (periodoVentas !== 'TODOS' && !filtroFechaDesde && !filtroFechaHasta) {
+      const { inicio, fin } = getDatesByPeriod(periodoVentas)
+      result = result.filter(v => {
+        const f = v.fechaVenta.includes('T') ? v.fechaVenta.split('T')[0] : v.fechaVenta
+        return f >= inicio && f <= fin
+      })
+    }
     return result
-  }, [ventas, search, filtroEstado, filtroFechaDesde, filtroFechaHasta])
+  }, [ventas, search, filtroEstado, filtroVendedor, filtroFechaDesde, filtroFechaHasta, periodoVentas])
 
   const totalPages = Math.max(1, Math.ceil(ventasFiltradas.length / PER_PAGE))
   const ventasPaginadas = ventasFiltradas.slice((page - 1) * PER_PAGE, page * PER_PAGE)
 
   const resetFiltros = () => {
-    setSearch(''); setFiltroEstado('TODOS')
-    setFiltroFechaDesde(''); setFiltroFechaHasta(''); setPage(1)
+    setSearch(''); setFiltroEstado('TODOS'); setFiltroVendedor('TODOS')
+    setFiltroFechaDesde(''); setFiltroFechaHasta(''); setPeriodoVentas('TODOS'); setPage(1)
   }
+
+  // ─── KPIs reactivos — derivados del conjunto filtrado ───────────────────────
+  const kpis = useMemo(() => {
+    const activos = ventasFiltradas.filter(v =>
+      v.estado === 'ACTIVO' ||
+      v.estado === 'PENDIENTE' ||
+      v.estado === 'EN_MORA' ||
+      v.estado === 'PENDIENTE_APROBACION'
+    )
+    return {
+      ventas: ventasFiltradas.length,
+      montoVentas: ventasFiltradas.reduce((s, v) => s + v.montoTotal, 0),
+      cuotaInicial: ventasFiltradas.reduce((s, v) => s + v.cuotaInicial, 0),
+      carteraTotal: activos.reduce((s, v) => s + v.saldoPendiente, 0),
+      clientesActivos: activos.length,
+    }
+  }, [ventasFiltradas])
 
   // ─── Render ───────────────────────────────────────────────────────────────
 
   return (
     <div className="min-h-screen bg-slate-50">
       {/* ── Header ─────────────────────────────────────────────── */}
-      <div className="bg-white border-b border-slate-100 px-6 py-5 sticky top-16 z-10">
-        <div className="max-w-7xl mx-auto flex items-center justify-between gap-4 flex-wrap">
+      <div className="bg-white border-b border-slate-100 px-6 py-5 sticky top-16 z-10 w-full">
+        <div className="mx-auto flex items-center justify-between gap-4 flex-wrap">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-orange-500 to-rose-500 flex items-center justify-center shadow-lg shadow-orange-500/20">
               <ShoppingBag className="h-5 w-5 text-white" />
@@ -305,7 +385,7 @@ export default function SeguimientoPuntoVenta() {
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-6 py-6 space-y-6">
+      <div className="px-6 py-6 space-y-6 w-full">
 
         {/* ── KPIs del día ───────────────────────────────────────── */}
         {loading ? (
@@ -317,11 +397,11 @@ export default function SeguimientoPuntoVenta() {
         ) : (
           <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
             {[
-              { label: 'Ventas hoy', value: kpis.ventasHoy.toString(), icon: ShoppingBag, color: 'text-orange-600', bg: 'bg-orange-50', border: 'border-orange-100', raw: false },
-              { label: 'Monto vendido hoy', value: formatCurrency(kpis.montoVentasHoy), icon: TrendingUp, color: 'text-blue-600', bg: 'bg-blue-50', border: 'border-blue-100', raw: false },
-              { label: 'Cobranza del día', value: formatCurrency(kpis.cobranzaHoy), icon: Banknote, color: 'text-emerald-600', bg: 'bg-emerald-50', border: 'border-emerald-100', raw: false },
-              { label: 'Cartera activa', value: formatCurrency(kpis.carteraTotal), icon: BarChart3, color: 'text-purple-600', bg: 'bg-purple-50', border: 'border-purple-100', raw: false },
-              { label: 'Clientes activos', value: kpis.clientesActivos.toString(), icon: Users, color: 'text-slate-600', bg: 'bg-slate-100', border: 'border-slate-200', raw: false },
+              { label: `Ventas ${periodoVentas === 'TODOS' ? 'totales' : periodoVentas.toLowerCase()}`, value: kpis.ventas.toString(), icon: ShoppingBag, color: 'text-orange-600', bg: 'bg-orange-50', border: 'border-orange-100' },
+              { label: `Monto ${periodoVentas === 'TODOS' ? 'total' : periodoVentas.toLowerCase()}`, value: formatCurrency(kpis.montoVentas), icon: TrendingUp, color: 'text-blue-600', bg: 'bg-blue-50', border: 'border-blue-100' },
+              { label: 'Cuota inicial', value: formatCurrency(kpis.cuotaInicial), icon: CreditCard, color: 'text-emerald-600', bg: 'bg-emerald-50', border: 'border-emerald-100' },
+              { label: 'Cartera activa', value: formatCurrency(kpis.carteraTotal), icon: BarChart3, color: 'text-purple-600', bg: 'bg-purple-50', border: 'border-purple-100' },
+              { label: 'Créditos activos', value: kpis.clientesActivos.toString(), icon: Users, color: 'text-slate-600', bg: 'bg-slate-100', border: 'border-slate-200' },
             ].map((kpi, i) => (
               <div key={i} className="bg-white rounded-2xl border border-slate-100 p-4 shadow-sm hover:shadow-md transition-shadow">
                 <div className="flex items-center gap-2 mb-2">
@@ -337,8 +417,28 @@ export default function SeguimientoPuntoVenta() {
         )}
 
         {/* ── Filtros ─────────────────────────────────────────────── */}
-        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4">
-          <div className="flex flex-wrap gap-3 items-end">
+        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 space-y-3">
+          {/* Botones Periodo */}
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Periodo de venta</span>
+            <div className="flex gap-1 ml-auto">
+              {(['TODOS', 'HOY', 'SEM', 'MES', 'AÑO'] as const).map(p => (
+                <button
+                  key={p}
+                  onClick={() => { setPeriodoVentas(p); setFiltroFechaDesde(''); setFiltroFechaHasta(''); setPage(1) }}
+                  className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all ${
+                    periodoVentas === p
+                      ? 'bg-orange-500 text-white shadow-sm shadow-orange-500/30'
+                      : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
+                  }`}
+                >
+                  {p === 'TODOS' ? 'Todo' : p}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="flex flex-wrap gap-3 items-center">
             {/* Buscador */}
             <div className="flex-1 min-w-48 relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
@@ -367,6 +467,23 @@ export default function SeguimientoPuntoVenta() {
               </select>
             </div>
 
+            {/* Vendedor PDV */}
+            {vendedoresUnicos.length > 1 && (
+              <div className="flex items-center gap-1.5 bg-orange-50 border border-orange-200 rounded-xl px-3 py-2">
+                <Users className="h-3.5 w-3.5 text-orange-500" />
+                <select
+                  value={filtroVendedor}
+                  onChange={e => { setFiltroVendedor(e.target.value); setPage(1) }}
+                  className="text-sm font-bold text-orange-700 bg-transparent border-none outline-none cursor-pointer"
+                >
+                  <option value="TODOS">Todos los vendedores</option>
+                  {vendedoresUnicos.map(v => (
+                    <option key={v.id} value={v.id}>{v.nombre}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+
             {/* Fechas */}
             <input
               type="date"
@@ -384,7 +501,7 @@ export default function SeguimientoPuntoVenta() {
             />
 
             {/* Reset */}
-            {(search || filtroEstado !== 'TODOS' || filtroFechaDesde || filtroFechaHasta) && (
+            {(search || filtroEstado !== 'TODOS' || filtroVendedor !== 'TODOS' || filtroFechaDesde || filtroFechaHasta || periodoVentas !== 'TODOS') && (
               <button
                 onClick={resetFiltros}
                 className="flex items-center gap-1.5 px-3 py-2.5 text-sm font-bold text-rose-600 bg-rose-50 border border-rose-100 rounded-xl hover:bg-rose-100 transition-colors"
