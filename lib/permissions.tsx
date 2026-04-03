@@ -219,7 +219,6 @@ export const permisosPorRol: Record<Rol, ModuloPermiso[]> = {
     },
   ],
   PUNTO_DE_VENTA: [
-    T.DASHBOARD('PUNTO_DE_VENTA', '/punto-de-venta'),
     T.CRED_ART('PUNTO_DE_VENTA', '/creditos-articulos'),
     T.INVENTARIO('PUNTO_DE_VENTA', '/articulos'),
   ],

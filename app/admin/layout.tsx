@@ -280,6 +280,11 @@ export default function AdminLayout({
               ]
             }
             
+            // Filtro de seguridad para PUNTO_DE_VENTA (ocultar por defecto)
+            if (parsedUser.rol === 'PUNTO_DE_VENTA') {
+              navItems = navItems.filter(item => item.id !== 'dashboard' && item.id !== 'gestion-clientes');
+            }
+            
             setNavigation(navItems)
           }
         }

@@ -400,7 +400,7 @@ export default function VistaPuntoDeVenta() {
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
                   <input
                     type="text"
-                    placeholder="Buscar por nombre, apellido o DNI..."
+                    placeholder="Buscar por nombre, apellido o CC..."
                     value={clientesSearch}
                     onChange={(e) => { setClientesSearch(e.target.value); setClientesPage(1) }}
                     className="w-full pl-9 pr-3 py-2 text-xs text-slate-900 bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 font-medium placeholder:text-slate-400"
@@ -426,18 +426,31 @@ export default function VistaPuntoDeVenta() {
               ) : (
                 <div className="divide-y divide-slate-100">
                   {clientesPaginados.map((cliente) => {
-                    const riesgoStyle = getRiesgoStyle(cliente.nivelRiesgo || 'VERDE')
+                    const tieneMora = (cliente.montoMora ?? 0) > 0 || (cliente.diasMora ?? 0) > 0;
+                    const riesgoReal = tieneMora ? 'ROJO' : (cliente.nivelRiesgo || 'VERDE');
+                    const riesgoStyle = getRiesgoStyle(riesgoReal);
                     return (
                       <div key={cliente.id} className="px-6 py-3 hover:bg-slate-50/80 transition-colors group flex items-center justify-between gap-3">
                         <div className="flex items-center gap-3 flex-1 min-w-0">
-                          <div className="w-9 h-9 rounded-lg bg-emerald-50 border border-emerald-200 flex items-center justify-center flex-shrink-0">
-                            <span className="text-[10px] font-black text-emerald-600">
+                          <div className={cn(
+                            "w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 border",
+                            tieneMora ? "bg-rose-50 border-rose-200" : "bg-emerald-50 border-emerald-200"
+                          )}>
+                            <span className={cn(
+                              "text-[10px] font-black",
+                              tieneMora ? "text-rose-600" : "text-emerald-600"
+                            )}>
                               {(cliente.nombres[0] || '') + (cliente.apellidos[0] || '')}
                             </span>
                           </div>
                           <div className="min-w-0">
                             <p className="text-sm font-bold text-slate-900 truncate">{cliente.nombres} {cliente.apellidos}</p>
-                            <p className="text-[11px] text-slate-500 truncate font-mono">CC: {cliente.dni}</p>
+                            <div className="flex items-center gap-2">
+                              <p className="text-[11px] text-slate-500 truncate font-mono">CC: {cliente.dni}</p>
+                              {tieneMora && (
+                                <span className="text-[9px] font-black text-rose-600 animate-pulse uppercase">¡En Mora!</span>
+                              )}
+                            </div>
                           </div>
                         </div>
 
@@ -447,7 +460,7 @@ export default function VistaPuntoDeVenta() {
                             riesgoStyle.bg, riesgoStyle.text, riesgoStyle.border
                           )}>
                             <span className={cn('w-1.5 h-1.5 rounded-full', riesgoStyle.dot)} />
-                            {cliente.nivelRiesgo || 'VERDE'}
+                            {tieneMora ? 'EN MORA' : (cliente.nivelRiesgo || 'VERDE')}
                           </div>
                           <button
                             onClick={(e) => { e.stopPropagation(); setShowClienteDetalle(cliente.id) }}
