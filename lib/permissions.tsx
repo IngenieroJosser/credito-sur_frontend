@@ -156,19 +156,19 @@ export const permisosPorRol: Record<Rol, ModuloPermiso[]> = {
       id: 'gestion-clientes', nombre: 'Gestión Clientes', icono: 'Users', path: '#', roles: ['COORDINADOR'],
       submodulos: [
         T.CLIENTES('COORDINADOR', '/coordinador/clientes'),
-        T.MORA('COORDINADOR', '/cuentas-mora'),
-        T.VENCIDAS('COORDINADOR', '/cuentas-vencidas'),
+        T.MORA('COORDINADOR', '/coordinador/cuentas-mora'),
+        T.VENCIDAS('COORDINADOR', '/coordinador/cuentas-vencidas'),
         T.ARCHIVADOS('COORDINADOR', '/coordinador/archivados'),
-        T.INVENTARIO('COORDINADOR', '/articulos'),
+        T.INVENTARIO('COORDINADOR', '/coordinador/articulos'),
       ]
     },
     {
       id: 'finanzas', nombre: 'Finanzas', icono: 'PieChart', path: '#', roles: ['COORDINADOR'],
-      submodulos: [ T.PAGOS_HIST('COORDINADOR', '/pagos/historial') ]
+      submodulos: [ T.PAGOS_HIST('COORDINADOR', '/coordinador/pagos/historial') ]
     },
     {
       id: 'sistema', nombre: 'Sistema', icono: 'Settings', path: '#', roles: ['COORDINADOR'],
-      submodulos: [ T.SYNC('COORDINADOR', '/sistema/sincronizacion') ]
+      submodulos: [ T.SYNC('COORDINADOR', '/coordinador/sistema/sincronizacion') ]
     },
     T.REP_OPER('COORDINADOR', '/coordinador/reportes'),
   ],
@@ -180,14 +180,13 @@ export const permisosPorRol: Record<Rol, ModuloPermiso[]> = {
       submodulos: [ T.RUTAS('SUPERVISOR', '/supervisor/rutas') ]
     },
     {
-      id: 'finanzas', nombre: 'Finanzas', icono: 'PieChart', path: '#', roles: ['SUPERVISOR'],
-      submodulos: [ T.MOVIMIENTOS('SUPERVISOR', '/contable') ]
-    },
-    {
       id: 'gestion-clientes', nombre: 'Gestión Clientes', icono: 'Users', path: '#', roles: ['SUPERVISOR'],
-      submodulos: [ T.CLIENTES('SUPERVISOR', '/supervisor/clientes') ]
-    },
-    T.REP_OPER('SUPERVISOR', '/supervisor/reportes/operativos'),
+      submodulos: [ 
+        T.CLIENTES('SUPERVISOR', '/supervisor/clientes'),
+        T.MORA('SUPERVISOR', '/supervisor/cuentas-mora'),
+        T.VENCIDAS('SUPERVISOR', '/supervisor/cuentas-vencidas')
+      ]
+    }
   ],
   COBRADOR: [
     T.DASHBOARD('COBRADOR', '/cobranzas'),
@@ -197,26 +196,26 @@ export const permisosPorRol: Record<Rol, ModuloPermiso[]> = {
     T.SOLICITUDES('COBRADOR', '/cobranzas/solicitudes'),
   ],
   CONTADOR: [
-    T.DASHBOARD('CONTADOR', '/contable'),
+    T.DASHBOARD('CONTADOR', '/contador'),
     {
       id: 'gestion-clientes', nombre: 'Gestión Clientes', icono: 'Users', path: '#', roles: ['CONTADOR'],
       submodulos: [
-        T.MORA('CONTADOR', '/cuentas-mora'),
-        T.VENCIDAS('CONTADOR', '/cuentas-vencidas'),
+        T.MORA('CONTADOR', '/contador/cuentas-mora'),
+        T.VENCIDAS('CONTADOR', '/contador/cuentas-vencidas'),
       ]
     },
     {
       id: 'finanzas', nombre: 'Finanzas', icono: 'PieChart', path: '#', roles: ['CONTADOR'],
       submodulos: [
-        T.MOVIMIENTOS('CONTADOR', '/contable'),
-        T.PAGOS_HIST('CONTADOR', '/pagos/historial'),
-        T.ARQUEO('CONTADOR', '/contable/cierre-caja'),
-        T.REP_FINAN('CONTADOR', '/reportes/financieros'),
+        T.MOVIMIENTOS('CONTADOR', '/contador/contable'),
+        T.PAGOS_HIST('CONTADOR', '/contador/pagos/historial'),
+        T.ARQUEO('CONTADOR', '/contador/contable/cierre-caja'),
+        T.REP_FINAN('CONTADOR', '/contador/reportes/financieros'),
       ]
     },
     {
       id: 'administracion', nombre: 'Administración', icono: 'Shield', path: '#', roles: ['CONTADOR'],
-      submodulos: [ T.INVENTARIO('CONTADOR', '/articulos') ]
+      submodulos: [ T.INVENTARIO('CONTADOR', '/contador/articulos') ]
     },
   ],
   PUNTO_DE_VENTA: [
@@ -390,11 +389,18 @@ export const obtenerModulos = (rol: Rol, sidebarData?: SidebarModulo[]): ModuloP
 
   const applyAliases = (mods: ModuloPermiso[]): ModuloPermiso[] => mods.map(m => ({ ...m, path: aliasPath(m.path), submodulos: m.submodulos?.map(s => ({ ...s, path: aliasPath(s.path) })) }));
 
+  const BLOCKED_MODULES_BY_ROLE: Partial<Record<string, Set<string>>> = {
+    SUPERVISOR: new Set(['reportes', 'reportes-operativos', 'reportes-financieros', 'finanzas']),
+  };
+
   const ensureCurated = (mods: ModuloPermiso[]): ModuloPermiso[] => {
-    if (!['SUPER_ADMINISTRADOR', 'ADMIN', 'COORDINADOR', 'SUPERVISOR'].includes(rol)) return mods;
+    const blocked = BLOCKED_MODULES_BY_ROLE[rol];
+    const filtered = blocked ? mods.filter(m => !blocked.has(m.id)) : mods;
+    if (!['SUPER_ADMINISTRADOR', 'ADMIN', 'COORDINADOR', 'SUPERVISOR'].includes(rol)) return filtered;
     const curated = obtenerModulosPorRol(rol);
-    const res = [...mods];
+    const res = [...filtered];
     curated.forEach(cm => {
+      if (blocked?.has(cm.id)) return;
       const idx = res.findIndex(m => m.id === cm.id || m.nombre === cm.nombre);
       if (idx < 0) { if (cm.id === 'revisiones') res.splice(1, 0, cm); else res.push(cm); }
       else { res[idx].submodulos = [...(res[idx].submodulos || [])]; cm.submodulos?.forEach(cs => { if (!res[idx].submodulos!.some(es => es.id === cs.id || es.path === cs.path)) res[idx].submodulos!.push(cs); }); }
@@ -407,15 +413,35 @@ export const obtenerModulos = (rol: Rol, sidebarData?: SidebarModulo[]): ModuloP
 };
 
 export const tieneAcceso = (rol: Rol, path: string, permisos?: string[]): boolean => {
+  if (!rol) return false;
   const norm = path.split('?')[0]?.split('#')[0] ?? path;
-  if (['/perfil', '/notificaciones'].includes(norm)) return true;
+  if (['/perfil', '/notificaciones', '/perfil/notificaciones'].includes(norm)) return true;
+  if (rol === 'SUPER_ADMINISTRADOR') return true;
+
+  // 1. Prioridad Absoluta: Si el módulo está en la lista del rol, TIENE ACCESO.
+  const modulos = obtenerModulosPorRol(rol);
+  const allowed = modulos.flatMap(m => [m.path, ...(m.submodulos?.map(s => s.path) || [])]).filter(p => !!p && p !== '#');
+  
+  if (allowed.includes(norm) || allowed.some(a => a !== '/' && (norm + '/').startsWith(a + '/'))) {
+    return true;
+  }
+
+  // 2. Fallback: Verificación por permisos granulares (para componentes o rutas no mapeadas estáticamente)
   if (permisos?.length) {
-    if (rol === 'SUPER_ADMINISTRADOR') return true;
-    const map: Record<string, string> = { '/admin': 'dashboard', '/contable': 'contable', '/creditos': 'gestion-creditos', '/rutas': 'rutas', '/clientes': 'clientes', '/users': 'usuarios', '/sistema/configuracion': 'configuracion' };
+    const map: Record<string, string> = { 
+      '/admin': 'dashboard', '/contable': 'contable', '/creditos': 'gestion-creditos', 
+      '/rutas': 'rutas', '/clientes': 'clientes', '/users': 'usuarios', 
+      '/sistema/configuracion': 'configuracion',
+      '/cuentas-mora': 'CUENTAS_MORA_VIEW',
+      '/cuentas-vencidas': 'CUENTAS_VENCIDAS_VIEW'
+    };
+    
+    const cleanNorm = norm.replace(/^\/(admin|supervisor|coordinador|contador)\//, '/');
+    if (map[cleanNorm] && permisos.includes(map[cleanNorm])) return true;
     if (map[norm] && permisos.includes(map[norm])) return true;
+    
     return Object.entries(map).some(([r, a]) => norm.startsWith(`${r}/`) && permisos.includes(a));
   }
-  const modulos = obtenerModulosPorRol(rol);
-  const allowed = modulos.flatMap(m => [m.path, ...(m.submodulos?.map(s => s.path) || [])]).filter(p => p && p !== '#');
-  return allowed.includes(norm) || allowed.some(a => a !== '/' && norm.startsWith(`${a}/`));
+
+  return false;
 };

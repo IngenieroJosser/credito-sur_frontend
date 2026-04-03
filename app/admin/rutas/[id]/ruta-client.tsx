@@ -7,61 +7,35 @@ import { logger } from '@/lib/logger'
 import { useState, useCallback, useMemo, useEffect } from 'react'
 
 import {
-
   CheckCircle2,
-
   X,
-
   XCircle,
-
   Search,
-
   Filter,
-
   Wallet,
-
   DollarSign,
-
   Calendar,
-
   FileText as FileTextIcon,
-
   ArrowLeft as ArrowLeftIcon,
-
   ChevronRight,
-
   TrendingUp,
-
   Sparkles,
-
   MapPin,
-
   AlertCircle,
-
   UserPlus,
-
   Plus,
-
   User,
-
   Phone,
-
   CreditCard,
-
   Fingerprint,
-
   CalendarDays,
-
   Star,
-
   History,
-
   Loader2,
-
   ChevronDown,
-
-  FileDown
-
+  FileDown,
+  Eye,
+  Shield
 } from 'lucide-react'
 
 
@@ -117,6 +91,8 @@ import { exportService } from '@/services/export-service'
 import { toast } from 'sonner'
 
 import { useRealtimeData } from '@/hooks/useRealtimeData'
+import ClienteInfoModal from '@/components/cobranza/ClienteInfoModal'
+import { formatShortDate } from '@/lib/utils/format'
 
 
 
@@ -478,14 +454,32 @@ const RutaClientLoaded = ({
           if (prestamosProcesados.has(uniqueKey)) continue;
           prestamosProcesados.add(uniqueKey);
 
-          const proximaCuota = prestamo?.proximaCuota || {};
+          const cuotasPrestamo = Array.isArray(prestamo?.cuotas) ? prestamo.cuotas : [];
+          const hoyClaveKey = new Date().toISOString().split('T')[0];
+          
+          // Buscar la primera no pagada hoy o futura
+          const cuotaProgr = cuotasPrestamo.find((c: any) => 
+            (c.estado !== 'PAGADA' && c.estado !== 'ANULADA') && 
+            (c.fechaVencimiento && c.fechaVencimiento.split('T')[0] >= hoyClaveKey)
+          );
+
+          // Si no hay hoy/futuro, tomamos la más antigua sin pagar
+          const proximaCuota = cuotaProgr || cuotasPrestamo.find((c: any) => (c.estado !== 'PAGADA' && c.estado !== 'ANULADA')) || prestamo?.proximaCuota || {};
           const montoCuota = Number(proximaCuota?.monto || 0);
           const saldoTotalToken = Number(prestamo?.saldoPendiente || 0);
+
+          // El estado de mora depende de si existe ALGUNA cuota vencida en el plan respecto a hoy
+          const hayAlgunaMoraMapped = cuotasPrestamo.some((c: any) => {
+             if (c.estado === 'VENCIDA' || c.estado === 'ATRASADA') return true;
+             if (c.estado === 'PAGADA' || c.estado === 'ANULADA') return false;
+             const dO = c.fechaVencimiento?.split('T')[0];
+             return dO && dO < hoyClaveKey;
+          });
 
           let estado: EstadoVisita = 'pendiente';
           if (proximaCuota?.estado === 'PAGADA' || (recDia > 0 && montoCuota > 0 && recDia >= (montoCuota - 1)) || saldoTotalToken <= 0) {
             estado = 'pagado';
-          } else if (proximaCuota?.estado === 'VENCIDA') {
+          } else if (hayAlgunaMoraMapped) {
             estado = 'en_mora';
           }
 
@@ -1013,29 +1007,22 @@ const RutaClientLoaded = ({
 
 
     filtradas.sort((a: any, b: any) => {
-
       // 1. Los "pagados" van al final
-
       if (a.estado === 'pagado' && b.estado !== 'pagado') return 1;
-
       if (a.estado !== 'pagado' && b.estado === 'pagado') return -1;
-
       
-
-      // 2. Ordenar por fechaUltimoPago (más antigua primero, es decir, el que más tiempo lleva sin pagar va arriba)
-
-      if (a.fechaUltimoPago !== b.fechaUltimoPago) {
-
-        return (a.fechaUltimoPago || 0) - (b.fechaUltimoPago || 0);
-
+      // 2. Créditos diarios: Mantener el orden manual (ordenVisita)
+      if (a.periodoRuta === 'DIA' && b.periodoRuta === 'DIA') {
+        return a.ordenVisita - b.ordenVisita;
       }
 
-      
+      // 3. Otros periodos: Ordenar por última fecha de pago (más antiguo arriba)
+      if (a.fechaUltimoPago !== b.fechaUltimoPago) {
+        return (a.fechaUltimoPago || 0) - (b.fechaUltimoPago || 0);
+      }
 
-      // 3. Fallback a ordenVisita
-
+      // 4. Fallback final al orden manual
       return a.ordenVisita - b.ordenVisita;
-
     });
 
 
@@ -1284,119 +1271,132 @@ const RutaClientLoaded = ({
 
 
   const cargarMisCreditos = useCallback(async () => {
-
     if (!initialRuta?.cobradorId) return
-
     try {
-
       setLoadingMisCreditos(true)
-
       const resp = await rutasService.obtenerCreditosAsignadosACobrador(initialRuta.cobradorId)
-
       const raw = (resp as any)?.data
-
       const filas = Array.isArray(raw) ? raw : []
-
       if (!Array.isArray(raw)) {
-
         console.warn('Mis clientes: respuesta inesperada en obtenerCreditosAsignadosACobrador', resp)
-
       }
 
-      const mapped: VisitaRuta[] = filas.map((row: any, idx: number) => {
-
+      // Enriquecer cada préstamo con cuotas reales para cálculo de mora del administrador
+      const mapped = await Promise.all(filas.map(async (row: any, idx: number) => {
         const c = row?.cliente || {}
-
         const p = row?.prestamo || {}
-
-        const prox = p?.proximaCuota || null
-
-        const esArticulo = p?.tipo === 'ARTICULO'
+        
+        let cuotaActual = 1;
+        let cuotasTotales = Number(p.cantidadCuotas || 0);
+        let montoCuota = Number(p.montoCuota || 0);
+        let proximaVisitaV = p.fechaEfectiva || (new Date().toISOString().split('T')[0]);
+        let estadoCalculado: EstadoVisita = 'pendiente';
+        let ultimoPagoDate = 0;
 
         const toNivel = (nivel: string) => {
-
           if (nivel === 'VERDE') return 'bajo'
-
           if (nivel === 'AMARILLO') return 'precaucion'
-
           if (nivel === 'ROJO') return 'moderado'
-
           if (nivel === 'LISTA_NEGRA') return 'critico'
-
           return 'bajo'
+        }
 
+        const esArticulo = p?.tipo === 'ARTICULO' || p?.tipoPrestamo === 'ARTICULO';
+
+        if (p.id) {
+          try {
+            // 1. Consultar cuotas
+            const rawCuotas = await prestamosService.obtenerCuotas(p.id);
+            const cuotas = rawCuotas.sort((a, b) => 
+               new Date(a.fechaVencimiento).getTime() - new Date(b.fechaVencimiento).getTime()
+            );
+
+            // 2. Consultar pagos para obtener fecha de último
+            try {
+              const { pagosService } = await import('@/services/pagos-service');
+              const resPagos = await pagosService.obtenerPagos({ prestamoId: p.id });
+              if (resPagos && Array.isArray(resPagos.pagos)) {
+                resPagos.pagos.forEach((pg: any) => {
+                  const d = new Date(pg.fechaPago || pg.creadoEn).getTime();
+                  if (!isNaN(d) && d > ultimoPagoDate) ultimoPagoDate = d;
+                });
+              }
+            } catch (ep) { /* ignore */ }
+
+            const pendiente = cuotas.find(cuo => cuo.estado !== 'PAGADA');
+            if (pendiente) {
+              cuotaActual = pendiente.numeroCuota;
+              montoCuota = Number(pendiente.monto || (pendiente.montoCapital + pendiente.montoInteres) || 0);
+              proximaVisitaV = pendiente.fechaVencimiento;
+
+              const hoy = new Date();
+              hoy.setHours(0,0,0,0);
+              const dateOnly = pendiente.fechaVencimiento.split('T')[0];
+              const [y, m, d] = dateOnly.split('-').map(Number);
+              const vtoDate = new Date(y, m-1, d, 0, 0, 0, 0);
+              
+              if (vtoDate.getTime() < hoy.getTime() || pendiente.estado === 'VENCIDA') {
+                 estadoCalculado = 'en_mora';
+              } else {
+                 estadoCalculado = 'pendiente';
+              }
+            } else {
+               estadoCalculado = 'pagado';
+            }
+            cuotasTotales = cuotas.length;
+          } catch (e) {
+            console.warn('Error enriqueciendo Mis Clientes (Admin):', e);
+          }
         }
 
         return {
-
           id: `${row?.asignacionId || 'asig'}-${p?.id || idx}`,
-
           cliente: `${c?.nombres || ''} ${c?.apellidos || ''}`.trim() || 'Cliente',
-
           direccion: c?.direccion || 'Sin dirección registrada',
-
           telefono: c?.telefono || '',
-
           horaSugerida: '08:00 AM',
-
-          montoCuota: Number(prox?.monto || 0),
-
+          montoCuota,
           saldoTotal: Number(p?.saldoPendiente || 0),
-
-          estado: 'pendiente' as any,
-
-          proximaVisita: row?.prestamo?.fechaEfectiva || prox?.fechaVencimiento || new Date().toISOString().split('T')[0],
-
+          estado: estadoCalculado,
+          proximaVisita: proximaVisitaV,
           ordenVisita: Number(row?.ordenVisita || idx + 1),
-
           prioridad: 'media' as any,
-
           nivelRiesgo: toNivel(c?.nivelRiesgo || 'VERDE') as any,
-
           cobradorId: initialRuta.cobradorId,
-
           periodoRuta: (() => {
-
             const f = p?.frecuenciaPago || 'DIARIO'
-
             if (f === 'DIARIO') return 'DIA'
-
             if (f === 'SEMANAL') return 'SEMANA'
-
             if (f === 'QUINCENAL') return 'QUINCENA'
-
             if (f === 'MENSUAL') return 'MES'
-
             return 'DIA'
-
           })() as any,
-
           clienteId: c?.id || '',
-
           prestamoId: p?.id || '',
-
           tipoPrestamo: esArticulo ? 'ARTICULO' : 'EFECTIVO',
-
           articuloNombre: esArticulo ? (p?.articulo || 'Artículo') : 'Préstamo',
+          cuotaActual,
+          cuotasTotales,
+          fechaUltimoPago: ultimoPagoDate
+        } as VisitaRuta
+      }))
 
-        } as any
+      // Ordenar: Pagados final, Diarios por ordenVisita, resto por fechaUltimoPago
+      const finales = mapped.sort((a: any, b: any) => {
+        if (a.estado === 'pagado' && b.estado !== 'pagado') return 1;
+        if (a.estado !== 'pagado' && b.estado === 'pagado') return -1;
+        if (a.periodoRuta === 'DIA' && b.periodoRuta === 'DIA') return a.ordenVisita - b.ordenVisita;
+        if (a.fechaUltimoPago !== b.fechaUltimoPago) return a.fechaUltimoPago - b.fechaUltimoPago;
+        return a.ordenVisita - b.ordenVisita;
+      });
 
-      })
-
-      setMisCreditos(mapped)
-
+      setMisCreditos(finales)
     } catch (e: any) {
-
       console.error('Error cargando mis clientes (ruta admin):', e)
-
       toast.error('No se pudieron cargar los clientes asignados.')
-
     } finally {
-
       setLoadingMisCreditos(false)
-
     }
-
   }, [initialRuta?.cobradorId])
 
 
@@ -2279,77 +2279,62 @@ const RutaClientLoaded = ({
 
 
                   return (
-
-                    <div className="space-y-4">
-
+                    <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
                       {filtradas.map((visita) => (
-
                         <StaticVisitaItem
-
                           key={visita.id}
-
                           visita={visita}
-
                           allowClick={false}
-
                           onVerCliente={handleAbrirClienteInfo}
-
                           getEstadoClasses={getEstadoClasses}
-
                           getPrioridadColor={getPrioridadColor}
-
-                        >
-
-                          <div className="flex flex-wrap gap-1.5 pt-2">
-
-                            <button
-
-                              onClick={(e) => {
-
-                                e.stopPropagation();
-
-                                handleAbrirAbono(visita);
-
-                              }}
-
-                              className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 transition-all font-bold text-[11px] shadow-sm active:scale-95"
-
-                            >
-
-                              <Wallet className="h-3.5 w-3.5" />
-
-                              Abono
-
-                            </button>
-
-                            <button
-
-                              onClick={(e) => {
-
-                                e.stopPropagation();
-
-                                handleAbrirEstadoCuenta(visita);
-
-                              }}
-
-                              className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-white text-slate-700 border border-slate-200 hover:bg-slate-50 transition-all font-bold text-[11px] shadow-sm active:scale-95"
-
-                            >
-
-                              <FileTextIcon className="h-3.5 w-3.5 text-slate-400" />
-
-                              Estado
-
-                            </button>
-
-                          </div>
-
-                        </StaticVisitaItem>
-
+                          actions={
+                            <>
+                              <button
+                                onClick={(e) => { e.stopPropagation(); if (visita.pendienteAprobacion || !rutaOperable) return; handleAbrirPago(visita); }}
+                                disabled={visita.pendienteAprobacion || !rutaOperable}
+                                title={visita.pendienteAprobacion ? 'Crédito pendiente de aprobación' : !rutaOperable ? (rutaCompletada ? 'Ruta completada' : 'Ruta pendiente de activación') : 'Registrar Pago'}
+                                className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-lg transition-all font-bold text-[11px] shadow-sm ${visita.pendienteAprobacion || !rutaOperable ? 'bg-slate-50 text-slate-300 border border-slate-100 opacity-50 cursor-not-allowed' : 'bg-blue-600 text-white hover:bg-blue-700 active:scale-95'}`}
+                              >
+                                <DollarSign className="h-3.5 w-3.5" />
+                                Pago
+                              </button>
+                              <button
+                                onClick={(e) => { e.stopPropagation(); if (visita.pendienteAprobacion || !rutaOperable) return; handleAbrirAbono(visita); }}
+                                disabled={visita.pendienteAprobacion || !rutaOperable}
+                                title={visita.pendienteAprobacion ? 'Crédito pendiente de aprobación' : !rutaOperable ? (rutaCompletada ? 'Ruta completada' : 'Ruta pendiente de activación') : 'Registrar Abono'}
+                                className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-lg transition-all font-bold text-[11px] shadow-sm ${visita.pendienteAprobacion || !rutaOperable ? 'bg-slate-50 text-slate-300 border border-slate-100 opacity-50 cursor-not-allowed' : 'bg-emerald-600 text-white hover:bg-emerald-700 active:scale-95'}`}
+                              >
+                                <Wallet className="h-3.5 w-3.5" />
+                                Abono
+                              </button>
+                              <button
+                                onClick={(e) => { e.stopPropagation(); if(!rutaOperable) return; handleAbrirEstadoCuenta(visita); }}
+                                disabled={!rutaOperable}
+                                className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-lg transition-all font-bold text-[11px] shadow-sm border ${!rutaOperable ? 'bg-slate-50 text-slate-300 border-slate-100 opacity-50 cursor-not-allowed' : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50 active:scale-95'}`}
+                              >
+                                <FileTextIcon className="h-3.5 w-3.5 text-slate-400" />
+                                Estado
+                              </button>
+                              <button
+                                onClick={(e) => { 
+                                  e.stopPropagation(); 
+                                  if (!rutaOperable) return;
+                                  const isProrrogaVencida = visita.enProrroga && visita.fechaProrroga && new Date(visita.fechaProrroga).getTime() < Date.now();
+                                  if (!visita.enProrroga || isProrrogaVencida) setVisitaReprogramar(visita); 
+                                }}
+                                disabled={!rutaOperable || (!!visita.enProrroga && !(visita.fechaProrroga && new Date(visita.fechaProrroga).getTime() < Date.now()))}
+                                title={!rutaOperable ? (rutaCompletada ? 'Ruta completada' : 'Ruta pendiente de activación') : (visita.enProrroga && !(visita.fechaProrroga && new Date(visita.fechaProrroga).getTime() < Date.now()) ? 'No se puede reprogramar con prorroga activa' : 'Solicitar reprogramacion')}
+                                className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border transition-all font-bold text-[11px] shadow-sm ${!rutaOperable || (visita.enProrroga && !(visita.fechaProrroga && new Date(visita.fechaProrroga).getTime() < Date.now())) ? 'bg-slate-50 text-slate-300 border-slate-100 opacity-50 cursor-not-allowed' : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50 active:scale-95'}`}
+                              >
+                                <Calendar className="h-3.5 w-3.5 text-slate-400" />
+                                Repro.
+                              </button>
+                            </>
+                          }
+                        />
                       ))}
-
                     </div>
-
                   )
 
                 })()}
@@ -2751,15 +2736,14 @@ const RutaClientLoaded = ({
       
 
       {detalleVisita && (
-
-        <ClienteDetalleModal
-
+        <ClienteInfoModal
           visita={detalleVisita}
-
           onClose={() => setDetalleVisita(null)}
-
+          nextPagoMonto={detalleVisita.montoCuota}
+          nextPagoFecha={detalleVisita.proximaVisita}
+          recaudadoHoy={0} // Valor estático en modo auditoría admin
+          formatFechaLargaUTC={formatShortDate}
         />
-
       )}
 
       
@@ -3154,455 +3138,22 @@ const RutaClient = ({ initialRuta: initialRutaProp, rutaId }: RutaClientProps) =
  */
 
 function formatDateUTC(dateStr: string) {
-
   if (!dateStr) return '---'
-
-  const date = new Date(dateStr)
-
-  const day = date.getUTCDate()
-
-  const monthNames = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"]
-
-  const month = monthNames[date.getUTCMonth()]
-
-  const year = date.getUTCFullYear()
-
-  return `${day} de ${month} de ${year}`
-
-}
-
-
-
-function ClienteDetalleModal({ visita, onClose }: { visita: VisitaRuta; onClose: () => void }) {
-
-  const [loading, setLoading] = useState(true)
-
-  const [clienteCompleto, setClienteCompleto] = useState<any>(null)
-
-
-
-  useEffect(() => {
-
-    async function loadInfo() {
-
-      try {
-
-        setLoading(true)
-
-        if (visita.clienteId) {
-
-          const res: any = await clientesService.obtenerPorId(visita.clienteId)
-
-          // Calcular score dinámico igual que getAllClients en el backend
-
-          let score = res.puntaje || 100
-
-          const prestamosEnMora = (res.prestamos || []).filter((p: any) => p.estado === 'EN_MORA')
-
-          const prestamosActivos = (res.prestamos || []).filter((p: any) => p.estado === 'ACTIVO')
-
-          if (prestamosEnMora.length > 0) {
-
-            score -= 20
-
-          } else if (prestamosActivos.length > 0) {
-
-            score += 5
-
-          }
-
-          // Ajuste por último pago
-
-          const pagos = res.pagos || []
-
-          if (pagos.length > 0) {
-
-            const diasDesdeUltimoPago = Math.floor(
-
-              (Date.now() - new Date(pagos[0].fechaPago).getTime()) / (1000 * 60 * 60 * 24)
-
-            )
-
-            if (diasDesdeUltimoPago > 30) score -= 10
-
-            else if (diasDesdeUltimoPago <= 7) score += 5
-
-          }
-
-          score = Math.max(0, Math.min(100, score))
-
-          setClienteCompleto({ ...res, score })
-
-        }
-
-      } catch (e) {
-
-        console.error("Error al cargar detalle del cliente", e)
-
-      } finally {
-
-        setLoading(false)
-
-      }
-
-    }
-
-    loadInfo()
-
-  }, [visita.clienteId])
-
-
-
-  const r = visita.nivelRiesgo;
-
-  const riesgoColor = 
-
-    r === 'bajo' ? 'text-emerald-600 bg-emerald-50' :
-
-    r === 'leve' ? 'text-blue-600 bg-blue-50' :
-
-    r === 'moderado' ? 'text-orange-600 bg-orange-50' :
-
-    r === 'critico' ? 'text-red-600 bg-red-50' : 'text-slate-400 bg-slate-50';
-
-
-
-  const riesgoLabel = 
-
-    r === 'bajo' ? 'Peligro Mínimo' :
-
-    r === 'leve' ? 'Leve Retraso' :
-
-    r === 'moderado' ? 'Riesgo Moderado' :
-
-    r === 'critico' ? 'Alto Riesgo' : 'Riesgo Desconocido';
-
-
-
-  // Contar préstamos activos (no pagados ni cancelados)
-
-  const prestamosActivosCount = useMemo(() => {
-
-    if (!clienteCompleto?.prestamos) return 0;
-
-    return clienteCompleto.prestamos.filter((p: any) => 
-
-      p.estado !== 'PAGADO' && p.estado !== 'CANCELADO' && p.estado !== 'RECHAZADO'
-
-    ).length;
-
-  }, [clienteCompleto]);
-
-
-
-  return (
-
-    <div 
-
-      className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md animate-in fade-in duration-300"
-
-      onClick={onClose}
-
-    >
-
-      <div 
-
-        className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-sm overflow-hidden animate-in zoom-in-95 duration-300 border border-slate-100 flex flex-col max-h-[90vh]"
-
-        onClick={(e) => e.stopPropagation()}
-
-      >
-
-        
-
-        {/* Header Compacto */}
-
-        <div className="px-8 pt-8 pb-4 flex justify-between items-center">
-
-          <div>
-
-            <h3 className="font-black text-2xl text-slate-900 tracking-tight">Expediente</h3>
-
-            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em]">Detalle Administrativo</p>
-
-          </div>
-
-          <button onClick={onClose} className="p-2 bg-slate-50 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-full transition-all group">
-
-            <XCircle className="h-7 w-7 group-active:scale-90" />
-
-          </button>
-
-        </div>
-
-        
-
-        <div className="px-8 pb-8 space-y-6 overflow-y-auto custom-scrollbar">
-
-           {loading ? (
-
-             <div className="py-20 flex flex-col items-center justify-center gap-4">
-
-                <Loader2 className="w-10 h-10 text-[#08557f] animate-spin" />
-
-                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Sincronizando...</p>
-
-             </div>
-
-           ) : (
-
-             <>
-
-               {/* Perfil Header */}
-
-               <div className="text-center space-y-3">
-
-                 <div className="w-20 h-20 bg-slate-50 rounded-3xl mx-auto flex items-center justify-center text-slate-200 border border-slate-100">
-
-                   <User className="w-10 h-10" />
-
-                 </div>
-
-                 <div>
-
-                    <h4 className="text-xl font-black text-slate-900">{visita.cliente}</h4>
-
-                    <div className="flex justify-center gap-2 mt-1">
-
-                       <span className={`${riesgoColor} text-[9px] font-black px-3 py-1 rounded-full uppercase border border-current/10`}>
-
-                         {riesgoLabel}
-
-                       </span>
-
-                    </div>
-
-                 </div>
-
-               </div>
-
-
-
-               {/* Información DINÁMICA */}
-
-               <div className="grid grid-cols-2 gap-3">
-
-                  <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100">
-
-                     <div className="flex items-center gap-1.5 mb-1 text-slate-400">
-
-                        <Fingerprint className="w-3 h-3" />
-
-                        <span className="text-[9px] font-black uppercase">Cédula</span>
-
-                     </div>
-
-                     <p className="text-sm font-black text-slate-900">{clienteCompleto?.dni || '---'}</p>
-
-                  </div>
-
-                   <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100">
-
-                      <div className="flex items-center gap-1.5 mb-2 text-slate-400">
-
-                         <Star className="w-3 h-3" />
-
-                         <span className="text-[9px] font-black uppercase">Score Crediticio</span>
-
-                      </div>
-
-                      <div className="flex items-center justify-between mb-1">
-
-                        <span className={`text-xl font-black ${
-
-                          ((clienteCompleto?.score ?? clienteCompleto?.puntaje) || 0) >= 80 ? 'text-emerald-600' :
-
-                          ((clienteCompleto?.score ?? clienteCompleto?.puntaje) || 0) >= 60 ? 'text-amber-500' :
-
-                          ((clienteCompleto?.score ?? clienteCompleto?.puntaje) || 0) >= 40 ? 'text-amber-600' :
-
-                          'text-rose-600'
-
-                        }`}>{clienteCompleto?.score ?? clienteCompleto?.puntaje ?? '—'}<span className="text-xs font-bold text-slate-400">/100</span></span>
-
-                        <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full border ${
-
-                          ((clienteCompleto?.score ?? clienteCompleto?.puntaje) || 0) >= 80 ? 'text-emerald-700 bg-emerald-50 border-emerald-200' :
-
-                          ((clienteCompleto?.score ?? clienteCompleto?.puntaje) || 0) >= 60 ? 'text-amber-600 bg-amber-50 border-amber-200' :
-
-                          ((clienteCompleto?.score ?? clienteCompleto?.puntaje) || 0) >= 40 ? 'text-amber-700 bg-amber-50 border-amber-200' :
-
-                          'text-rose-700 bg-rose-50 border-rose-200'
-
-                        }`}>
-
-                          {((clienteCompleto?.score ?? clienteCompleto?.puntaje) || 0) >= 80 ? 'Bueno' :
-
-                           ((clienteCompleto?.score ?? clienteCompleto?.puntaje) || 0) >= 60 ? 'Regular' :
-
-                           ((clienteCompleto?.score ?? clienteCompleto?.puntaje) || 0) >= 40 ? 'Precaución' : 'Bajo'}
-
-                        </span>
-
-                      </div>
-
-                      {/* ScoreMeter — igual al del listado de clientes */}
-
-                      <div className="relative pt-2">
-
-                        <div className="h-1.5 bg-slate-200 rounded-full overflow-hidden">
-
-                          <div
-
-                            className={`h-full rounded-full transition-all duration-300 ${
-
-                              ((clienteCompleto?.score ?? clienteCompleto?.puntaje) || 0) >= 80 ? 'bg-emerald-500' :
-
-                              ((clienteCompleto?.score ?? clienteCompleto?.puntaje) || 0) >= 60 ? 'bg-amber-500' :
-
-                              ((clienteCompleto?.score ?? clienteCompleto?.puntaje) || 0) >= 40 ? 'bg-amber-600' :
-
-                              'bg-rose-500'
-
-                            }`}
-
-                            style={{ width: `${Math.min(100, (clienteCompleto?.score ?? clienteCompleto?.puntaje) || 0)}%` }}
-
-                          />
-
-                        </div>
-
-                        <div className="flex justify-between text-[9px] text-slate-400 mt-1 font-bold">
-
-                          <span>0</span><span>50</span><span>100</span>
-
-                        </div>
-
-                      </div>
-
-                   </div>
-
-                  <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100">
-
-                     <div className="flex items-center gap-1.5 mb-1 text-slate-400">
-
-                        <CalendarDays className="w-3 h-3" />
-
-                        <span className="text-[9px] font-black uppercase">Miembro Desde</span>
-
-                     </div>
-
-                     <p className="text-sm font-black text-slate-900 uppercase">
-
-                       {clienteCompleto?.creadoEn ? formatDateUTC(clienteCompleto.creadoEn) : '---'}
-
-                     </p>
-
-                  </div>
-
-                  <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100">
-
-                     <div className="flex items-center gap-1.5 mb-1 text-slate-400">
-
-                        <History className="w-3 h-3" />
-
-                        <span className="text-[9px] font-black uppercase">Préstamos</span>
-
-                     </div>
-
-                     <p className="text-sm font-black text-[#08557f]">{prestamosActivosCount} Activos</p>
-
-                  </div>
-
-               </div>
-
-
-
-               {/* Contacto Alternativo */}
-
-               <div className="p-5 rounded-3xl bg-blue-50 border border-blue-100">
-
-                  <h5 className="text-[10px] font-black text-[#08557f] uppercase tracking-widest mb-3">Referencias / Contacto</h5>
-
-                  <div className="space-y-4">
-
-                     <div className="flex items-center gap-3">
-
-                        <div className="w-8 h-8 bg-white rounded-xl flex items-center justify-center text-[#08557f] shadow-sm">
-
-                          <Phone className="w-4 h-4" />
-
-                        </div>
-
-                        <div>
-
-                          <p className="text-[9px] font-bold text-blue-400 uppercase">WhatsApp / Tel</p>
-
-                          <p className="text-sm font-black text-slate-900">{clienteCompleto?.telefono || visita.telefono}</p>
-
-                        </div>
-
-                     </div>
-
-                     <div className="flex items-start gap-3">
-
-                        <div className="w-8 h-8 bg-white rounded-xl flex items-center justify-center text-[#08557f] shadow-sm">
-
-                          <MapPin className="w-4 h-4" />
-
-                        </div>
-
-                        <div>
-
-                          <p className="text-[9px] font-bold text-blue-400 uppercase">Referencia de Ubicación</p>
-
-                          <p className="text-xs font-bold text-slate-700 leading-tight">
-
-                            {clienteCompleto?.referencia || "Sin referencias adicionales registradas."}
-
-                          </p>
-
-                        </div>
-
-                     </div>
-
-                  </div>
-
-               </div>
-
-
-
-               {/* Botón Cerrar */}
-
-               <div className="pt-2">
-
-                  <button 
-
-                    onClick={onClose} 
-
-                    className="w-full py-5 bg-[#08557f] hover:bg-[#063a58] text-white font-black rounded-2xl shadow-xl shadow-blue-900/20 transition-all active:scale-[0.97] uppercase tracking-[0.15em] text-xs"
-
-                  >
-
-                     Cerrar Expediente
-
-                  </button>
-
-               </div>
-
-             </>
-
-           )}
-
-        </div>
-
-      </div>
-
-    </div>
-
-  )
-
+  try {
+    const dateOnly = dateStr.includes('T') ? dateStr.split('T')[0] : dateStr;
+    const [y, m, d] = dateOnly.split('-').map(Number);
+    const date = new Date(y, m-1, d, 0, 0, 0, 0); 
+    
+    if (isNaN(date.getTime())) return '---';
+
+    const day = date.getDate()
+    const monthNames = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"]
+    const month = monthNames[date.getMonth()]
+    const year = date.getFullYear()
+    return `${day} de ${month} de ${year}`
+  } catch {
+    return '---'
+  }
 }
 
 

@@ -87,6 +87,7 @@ export interface Prestamo {
   tasaInteres: number;
   diasMora?: number;
   moraAcumulada?: number;
+  cuotasVencidas?: number;
   icono: React.ReactNode;
   categoria: string;
 }
@@ -213,8 +214,12 @@ const ClienteDetalleElegante: React.FC<ClienteDetalleProps> = ({
     const prestamosEnMora = prestamos.filter((p) =>
       esPrestamoEnMora(p.estado),
     ).length;
-    const totalMora = prestamos.reduce(
+    const totalMoraInteres = prestamos.reduce(
       (sum, p) => sum + (p.moraAcumulada || 0),
+      0,
+    );
+    const totalCuotasVencidas = prestamos.reduce(
+      (sum, p) => sum + (p.cuotasVencidas || 0),
       0,
     );
 
@@ -224,7 +229,8 @@ const ClienteDetalleElegante: React.FC<ClienteDetalleProps> = ({
       totalPendiente,
       prestamosActivos,
       prestamosEnMora,
-      totalMora,
+      totalMoraInteres,
+      totalCuotasVencidas
     };
   };
 
@@ -524,7 +530,7 @@ const ClienteDetalleElegante: React.FC<ClienteDetalleProps> = ({
                     Mora Acumulada
                   </p>
                   <p className="text-3xl font-bold text-red-600 mt-2">
-                    {formatCurrency(totales.totalMora)}
+                    {formatCurrency(totales.totalMoraInteres)}
                   </p>
                 </div>
                 <div className="p-3 rounded-xl bg-red-50 border border-red-100">
@@ -532,7 +538,7 @@ const ClienteDetalleElegante: React.FC<ClienteDetalleProps> = ({
                 </div>
               </div>
               <div className="text-xs font-medium text-slate-500">
-                {totales.prestamosEnMora} préstamos con retraso
+                {totales.totalCuotasVencidas} cuotas con retraso
               </div>
             </div>
           </div>

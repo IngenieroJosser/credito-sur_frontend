@@ -118,14 +118,10 @@ export default function AdminLayout({
 
   // Abre o cierra los submenús del sidebar
   const toggleMenu = (id: string) => {
-    setOpenMenus(prev => {
-      // Si ya estaba abierto o si es la ruta actual, invertimos el estado
-      const isCurrentlyOpen = prev[id] ?? navigation.find(n => n.id === id)?.submodulos?.some(s => pathname === s.href) ?? false
-      return {
-        ...prev,
-        [id]: !isCurrentlyOpen
-      }
-    })
+    setOpenMenus(prev => ({
+      ...prev,
+      [id]: !prev[id]
+    }))
   }
   
   // Marca un módulo nuevo como "visto" para que deje de brillar

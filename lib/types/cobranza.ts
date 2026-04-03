@@ -33,6 +33,7 @@ export interface VisitaRuta {
   cuotasTotales?: number
   // Crédito pendiente de aprobación: el cliente aparece en la ruta pero aún no se puede cobrar
   pendienteAprobacion?: boolean
+  fechaUltimoPago?: number      // Timestamp del último pago realizado para ordenamiento rápido
 }
 
 export interface HistorialDia {

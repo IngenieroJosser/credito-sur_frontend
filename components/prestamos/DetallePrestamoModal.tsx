@@ -183,7 +183,7 @@ export default function DetallePrestamoModal({ id, onClose, includeArchived = fa
   if (!mounted) return null;
 
   return createPortal(
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={handleClose}>
+    <div className="fixed inset-0 z-[2147483620] flex items-center justify-center p-4" onClick={handleClose}>
       {/* Backdrop */}
       <div className={`fixed inset-0 bg-slate-900/50 backdrop-blur-sm transition-opacity duration-200 ${visible ? 'opacity-100' : 'opacity-0'}`} />
 

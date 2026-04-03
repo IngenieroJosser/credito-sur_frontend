@@ -98,7 +98,13 @@ export const RutasPageView = ({
   const puedeEditar = can('RUTAS_EDIT') || canForPath(rutasBasePath || '/admin/rutas')
   const [busqueda, setBusqueda] = useState('')
   const [estadoFiltro, setEstadoFiltro] = useState('TODAS')
-  const [vista, setVista] = useState<'grid' | 'list'>('grid')
+  const [vista, setVista] = useState<'grid' | 'list'>(() => {
+    const p = (rutasBasePath || '').toLowerCase()
+    if (p.includes('/coordinador') || p.includes('/admin') || p.includes('/supervisor')) {
+      return 'list'
+    }
+    return 'grid'
+  })
   // const [loading, setLoading]... removed unused
   const { showNotification } = useNotification();
   const [showModal, setShowModal] = useState(false)
@@ -526,8 +532,8 @@ export const RutasPageView = ({
   const cobranzaTotal = displayRutas.reduce((acc, curr) => acc + curr.cobranzaDelDia, 0)
   const porcentajeAvance = objetivoTotal > 0 ? (cobranzaTotal / objetivoTotal) * 100 : 0
 
-  // Force list view for Coordinador and Admin
-  if ((rutasBasePath.includes('/coordinador') || rutasBasePath.includes('/admin')) && vista !== 'list') {
+  // Force list view for Coordinador, Admin and Supervisor
+  if ((rutasBasePath.includes('/coordinador') || rutasBasePath.includes('/admin') || rutasBasePath.includes('/supervisor')) && vista !== 'list') {
     setVista('list')
   }
 

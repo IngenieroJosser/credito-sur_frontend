@@ -2,46 +2,64 @@
 
 import { usePermission } from '@/hooks/usePermission'
 import { usePathname } from 'next/navigation'
+import { useAuth } from '@/hooks/useAuth'
 import { Shield } from 'lucide-react'
 
 /**
  * ============================================================================
  * COMPONENTE DE PROTECCIÓN POR PERMISOS (PERMISSION-BASED ACCESS)
  * ============================================================================
- * 
- * @description
- * Envuelve una página y verifica si el usuario tiene el permiso requerido.
- * Si no lo tiene, muestra un mensaje de acceso denegado.
- * 
- * Estrategia de acceso (en orden):
- * 1. Si can(permiso) → acceso por permiso granular del backend
- * 2. Si canForPath(pathname) → acceso por rol (fallback mientras se migra el backend)
- * 3. Si ninguno → acceso denegado
- * 
- * @usage
- * <ProtectedPage permiso="CUENTAS_VENCIDAS_VIEW">
- *   <MiContenido />
- * </ProtectedPage>
- * 
- * @param permiso - Código del permiso requerido (ej: 'CREDITOS_VIEW')
- * @param children - Contenido a renderizar si tiene acceso
- * @param fallback - Componente alternativo si no tiene acceso (opcional)
+ *
+ * Estrategia de acceso (en orden de prioridad):
+ * 1. Mientras carga auth → muestra spinner (evita falsos bloqueos)
+ * 2. Si rol === SUPER_ADMINISTRADOR → siempre tiene acceso
+ * 3. Si `roles` incluye el rol actual → tiene acceso por rol autorizado
+ * 4. Si can(permiso) → tiene acceso por permiso granular del backend
+ * 5. Si canForPath(pathname) → tiene acceso por ruta definida en permissions.tsx
+ * 6. Si ninguno → bloqueo con mensaje de acceso restringido
+ *
+ * @param permiso   Código del permiso granular (ej: 'CUENTAS_MORA_VIEW')
+ * @param roles     Lista de roles que tienen acceso directo sin permiso granular
+ * @param children  Contenido a renderizar si tiene acceso
+ * @param fallback  Componente alternativo si no tiene acceso (opcional)
  */
 interface ProtectedPageProps {
   permiso: string
+  roles?: string[]
   children: React.ReactNode
   fallback?: React.ReactNode
 }
 
-export default function ProtectedPage({ permiso, children, fallback }: ProtectedPageProps) {
+export default function ProtectedPage({ permiso, roles, children, fallback }: ProtectedPageProps) {
+  const { loading } = useAuth()
   const { can, canForPath, rol } = usePermission()
   const pathname = usePathname()
 
-  // Acceso: permiso granular del backend O acceso por rol en permissions.tsx
-  const tieneAccesoPermiso = can(permiso)
-  const tieneAccesoRuta = pathname ? canForPath(pathname) : false
+  // CRÍTICO: Mientras auth carga, no bloquear. Evita el falso "Acceso restringido"
+  // que ocurre porque rol === null hasta que localStorage se lee en el cliente.
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-8 h-8 border-2 border-slate-300 border-t-slate-700 rounded-full animate-spin" />
+          <span className="text-sm text-slate-400 font-medium">Verificando acceso...</span>
+        </div>
+      </div>
+    )
+  }
 
-  if (!tieneAccesoPermiso && !tieneAccesoRuta) {
+  const tienePorRolSuperAdmin = rol === 'SUPER_ADMINISTRADOR'
+  const tienePorRolAutorizado = roles && rol ? roles.includes(rol) : false
+  const tienePorPermisoGranular = can(permiso)
+  const tienePorRuta = pathname ? canForPath(pathname) : false
+
+  const tieneAcceso =
+    tienePorRolSuperAdmin ||
+    tienePorRolAutorizado ||
+    tienePorPermisoGranular ||
+    tienePorRuta
+
+  if (!tieneAcceso) {
     if (fallback) return <>{fallback}</>
 
     return (
@@ -52,7 +70,7 @@ export default function ProtectedPage({ permiso, children, fallback }: Protected
           </div>
           <h2 className="text-2xl font-bold text-slate-900 mb-2">Acceso restringido</h2>
           <p className="text-slate-500 font-medium mb-4">
-            No tienes permisos para acceder a este módulo. 
+            No tienes permisos para acceder a este módulo.
             Contacta a tu administrador si necesitas acceso.
           </p>
           <div className="text-xs text-slate-400 bg-slate-100 px-3 py-2 rounded-lg inline-block">

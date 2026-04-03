@@ -68,19 +68,57 @@ export default function ClienteInfoModal({
   const [loadingFotos, setLoadingFotos] = useState(false)
   const [fotoExpandida, setFotoExpandida] = useState<string | null>(null)
 
-  // Carga los archivos del cliente desde el backend al abrir el modal
+  const [nextPagoCalculado, setNextPagoCalculado] = useState<{ monto: number | null, fecha: string | null } | null>(null)
+
+  // Carga los archivos del cliente y la próxima cuota real desde el backend al abrir el modal
   useEffect(() => {
-    if (!visita.clienteId) return
+    setNextPagoCalculado(null) // Resetear antes de cargar
+    if (!visita.clienteId) {
+      console.warn('[ClienteInfoModal] No se recibió clienteId en el objeto visita:', visita)
+      return
+    }
     setLoadingFotos(true)
     clientesService
       .obtenerPorId(visita.clienteId)
       .then((cliente: any) => {
+        if (!cliente) throw new Error('Cliente no devuelto por el servidor')
         const files: ArchivoCliente[] = cliente?.archivos || []
         setArchivos(files)
+
+        // Buscar el préstamo actual que estamos visualizando
+        const prestamos = cliente?.prestamos || []
+        const prestamoIdMatch = (visita as any).prestamoId || (visita as any).id?.split('-')[1]
+        
+        const miPrestamo = prestamos.find((p: any) => 
+          (prestamoIdMatch && String(p.id) === String(prestamoIdMatch)) || 
+          p.estado === 'ACTIVO' || p.estado === 'EN_MORA'
+        )
+
+        if (miPrestamo) {
+           const cuotasList = Array.isArray(miPrestamo.cuotas) ? miPrestamo.cuotas : []
+           const hoyKey = new Date().toISOString().split('T')[0]
+           
+           // Buscar la primera hoy o futura
+           const cuotaFutura = cuotasList.find((c: any) => 
+             (c.estado !== 'PAGADA' && c.estado !== 'ANULADA') && 
+             (c.fechaVencimiento && c.fechaVencimiento.split('T')[0] >= hoyKey)
+           )
+
+           const finalCuota = cuotaFutura || cuotasList.find((c: any) => (c.estado !== 'PAGADA' && c.estado !== 'ANULADA'))
+           if (finalCuota) {
+              setNextPagoCalculado({
+                monto: Number(finalCuota.monto || 0),
+                fecha: finalCuota.fechaVencimiento
+              })
+           }
+        }
       })
-      .catch(() => setArchivos([]))
+      .catch((err) => {
+         console.error('[ClienteInfoModal] Error cargando info extra:', err)
+         setArchivos([])
+      })
       .finally(() => setLoadingFotos(false))
-  }, [visita.clienteId])
+  }, [visita.clienteId, (visita as any).prestamoId])
 
   // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -279,13 +317,15 @@ export default function ClienteInfoModal({
                   <div>
                     <p className="text-[10px] text-slate-500 font-black uppercase mb-0.5">Cuota Proyectada</p>
                     <p className="text-slate-900 font-black text-lg">
-                      {formatCurrency(nextPagoMonto ?? visita.montoCuota ?? 0)}
+                      {formatCurrency(nextPagoCalculado?.monto ?? nextPagoMonto ?? visita.montoCuota ?? 0)}
                     </p>
                   </div>
-                  {nextPagoFecha && (
+                  {(nextPagoCalculado?.fecha || nextPagoFecha) && (
                     <div className="text-right">
                       <p className="text-[10px] text-slate-500 font-black uppercase mb-0.5">Próxima Fecha</p>
-                      <p className="text-[#08557f] font-bold text-sm">{formatFechaLargaUTC(nextPagoFecha)}</p>
+                      <p className="text-[#08557f] font-bold text-sm">
+                        {formatFechaLargaUTC(nextPagoCalculado?.fecha ?? nextPagoFecha ?? '')}
+                      </p>
                     </div>
                   )}
                 </div>

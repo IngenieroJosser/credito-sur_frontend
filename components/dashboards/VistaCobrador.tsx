@@ -200,7 +200,7 @@ import { pagosService } from '@/services/pagos-service'
 import { TipoAmortizacion } from '@/types/enums'
 
 import { useNotificaciones } from '@/components/providers/NotificacionesProvider'
-import { formatShortDateTime, formatShortDate } from '@/lib/utils/format'
+import { formatShortDateTime, formatShortDate, getLocalDateKey } from '@/lib/utils/format'
 import { Bell } from 'lucide-react'
 
 import { toast } from 'sonner'
@@ -543,7 +543,8 @@ const VistaCobrador = () => {
     const inRange = (raw: string) => {
       const d = toDateOnly(raw)
       if (!d) return false
-      return d.getTime() >= ini.getTime() && d.getTime() <= fi.getTime()
+      // Para la meta diaria/semanal etc, incluimos todo lo vencido hasta el final del periodo
+      return d.getTime() <= fi.getTime()
     }
 
     return (visitasBase || []).reduce((sum, v: any) => {
@@ -568,7 +569,7 @@ const VistaCobrador = () => {
 
     setRutaStats(prev => {
 
-      const meta = Number(metaCalculada || 0)
+      const meta = Number(metaCalculada || prev.meta || 0)
 
       const recaudo = Number(prev.recaudo || 0)
 
@@ -792,109 +793,112 @@ const VistaCobrador = () => {
 
 
 
-      const mapped: VisitaRuta[] = filas.map((row: any, idx: number) => {
-
+      const mapped: VisitaRuta[] = await Promise.all(filas.map(async (row: any, idx: number) => {
         const c = row?.cliente || {}
-
         const p = row?.prestamo || {}
-
         const prox = p?.proximaCuota || null
-
-
-
+        const esArticulo = p?.tipo === 'ARTICULO';
         const toNivel = (nivel: string) => {
+          if (nivel === 'VERDE')   return 'bajo';
+          if (nivel === 'AMARILLO') return 'precaucion';
+          if (nivel === 'ROJO')    return 'moderado';
+          if (nivel === 'LISTA_NEGRA') return 'critico';
+          return 'bajo';
+        };
 
-          if (nivel === 'VERDE') return 'bajo'
+        const nombreCredito = esArticulo ? (p?.articulo || 'Artículo') : 'Préstamo';
+        let cuotaActual = prox?.numeroCuota;
+        let cuotasTotales = p?.cantidadCuotas;
+        let montoCuota = Number(prox?.monto || 0);
+        let proximaVisitaV = null;
+        let estadoCalculado = (prox?.estado === 'VENCIDA' ? 'en_mora' : 'pendiente') as EstadoVisita;
+        let ultimoPagoDate = 0;
 
-          if (nivel === 'AMARILLO') return 'precaucion'
+        if (p?.id) {
+          try {
+            const rawCuotas = await prestamosService.obtenerCuotas(p.id);
+            const cuotas = rawCuotas.sort((a, b) => 
+               new Date(a.fechaVencimiento).getTime() - new Date(b.fechaVencimiento).getTime()
+            );
 
-          if (nivel === 'ROJO') return 'moderado'
+            // Obtener fecha de último pago
+            try {
+               const { pagosService } = await import('@/services/pagos-service');
+               const resPag = await pagosService.obtenerPagos({ prestamoId: p.id });
+               if (resPag && Array.isArray(resPag.pagos)) {
+                 resPag.pagos.forEach((pg: any) => {
+                   const d = new Date(pg.fechaPago || pg.creadoEn).getTime();
+                   if (!isNaN(d) && d > ultimoPagoDate) ultimoPagoDate = d;
+                 });
+               }
+            } catch (ep) { /* ignore */ }
 
-          if (nivel === 'LISTA_NEGRA') return 'critico'
+            const pendiente = cuotas.find(cuo => cuo.estado !== 'PAGADA');
+            if (pendiente) {
+              cuotaActual = pendiente.numeroCuota;
+              montoCuota = Number(pendiente.monto || (pendiente.montoCapital + pendiente.montoInteres) || 0);
+              proximaVisitaV = pendiente.fechaVencimiento;
 
-          return 'bajo'
-
+              const hoy = new Date();
+              hoy.setHours(0,0,0,0);
+              const dateOnly = pendiente.fechaVencimiento.split('T')[0];
+              const [y, m, d] = dateOnly.split('-').map(Number);
+              const vtoDate = new Date(y, m-1, d, 0, 0, 0, 0);
+              
+              if (vtoDate.getTime() < hoy.getTime() || pendiente.estado === 'VENCIDA') {
+                 estadoCalculado = 'en_mora';
+              } else {
+                 estadoCalculado = 'pendiente';
+              }
+            } else {
+              estadoCalculado = 'pagado';
+            }
+            cuotasTotales = cuotas.length;
+          } catch (e) {
+            console.warn('Error enriqueciendo Mis Clientes (Cobrador):', e);
+          }
         }
 
-
-
-        const esArticulo = p?.tipo === 'ARTICULO'
-
-        const nombreCredito = esArticulo
-
-          ? (p?.articulo || 'Artículo')
-
-          : 'Préstamo'
-
-
-
         return {
-
           id: `${row?.asignacionId || 'asig'}-${p?.id || idx}`,
-
           cliente: `${c?.nombres || ''} ${c?.apellidos || ''}`.trim() || 'Cliente',
-
           direccion: c?.direccion || 'Sin dirección registrada',
-
           telefono: c?.telefono || '',
-
           horaSugerida: '08:00 AM',
-
-          montoCuota: Number(prox?.monto || 0),
-
+          montoCuota,
           saldoTotal: Number(p?.saldoPendiente || 0),
-
-          estado: (prox?.estado === 'VENCIDA' ? 'en_mora' : prox?.estado === 'PAGADA' ? 'pagado' : 'pendiente') as EstadoVisita,
-
-          proximaVisita: row?.prestamo?.fechaEfectiva || prox?.fechaVencimiento || new Date().toISOString().split('T')[0],
-
+          estado: estadoCalculado,
+          proximaVisita: proximaVisitaV || row?.prestamo?.fechaEfectiva || prox?.fechaVencimiento || new Date().toISOString().split('T')[0],
           ordenVisita: Number(row?.ordenVisita || idx + 1),
-
           prioridad: 'media' as any,
-
           nivelRiesgo: toNivel(c?.nivelRiesgo || 'VERDE') as any,
-
           cobradorId,
-
-          periodoRuta: (() => {
-
-            const f = p?.frecuenciaPago || 'DIARIO'
-
-            if (f === 'DIARIO') return 'DIA'
-
-            if (f === 'SEMANAL') return 'SEMANA'
-
-            if (f === 'QUINCENAL') return 'QUINCENA'
-
-            if (f === 'MENSUAL') return 'MES'
-
-            return 'DIA'
-
-          })() as any,
-
+          periodoRuta: (p?.frecuenciaPago || 'DIA') as any,
           clienteId: c?.id || '',
-
           prestamoId: p?.id || '',
-
           tipoPrestamo: esArticulo ? 'ARTICULO' : 'EFECTIVO',
-
           articuloNombre: nombreCredito,
-
           enProrroga: !!prox?.enProrroga,
-
           fechaProrroga: prox?.fechaVencimientoProrroga || undefined,
+          cuotaActual,
+          cuotasTotales,
+          recaudadoDelDia: 0,
+          recaudadoTotalClient: 0,
+          fechaUltimoPago: ultimoPagoDate
+        } as any;
+      }));
 
-          cuotaActual: prox?.numeroCuota,
+      const finales = mapped.sort((a, b) => {
+        if (a.estado === 'pagado' && b.estado !== 'pagado') return 1;
+        if (a.estado !== 'pagado' && b.estado === 'pagado') return -1;
+        if (a.periodoRuta === 'DIA' && b.periodoRuta === 'DIA') return a.ordenVisita - b.ordenVisita;
+        if (a.fechaUltimoPago !== b.fechaUltimoPago) {
+          return (a.fechaUltimoPago || 0) - (b.fechaUltimoPago || 0);
+        }
+        return (a.ordenVisita || 0) - (b.ordenVisita || 0);
+      });
 
-          cuotasTotales: p?.cantidadCuotas,
-
-        } as any
-
-      })
-
-
-
-      setMisCreditos(mapped)
+      setMisCreditos(finales)
 
     } catch (e: any) {
 
@@ -1188,6 +1192,18 @@ const VistaCobrador = () => {
              const cuota0 = prestamo?.cuotas?.[0] || prestamo?.proximaCuota || null;
              const proximaCuota = cuota0 || {};
 
+             const hoyIso = new Date().toISOString().split('T')[0];
+             const cuotasList = Array.isArray(prestamo?.cuotas) ? prestamo.cuotas : [];
+
+             const montoTotalVencido = cuotasList.reduce((acc: number, c: any) => {
+               const vStr = c.fechaVencimiento?.split('T')[0];
+               const isVencida = c.estado === 'VENCIDA' || c.estado === 'ATRASADA' || (vStr && vStr < hoyIso);
+               if (isVencida && c.estado !== 'PAGADA' && c.estado !== 'ANULADA') {
+                 return acc + Number(c.monto || 0);
+               }
+               return acc;
+             }, 0);
+
              const esArticulo = prestamo?.tipo === 'ARTICULO' || prestamo?.tipoPrestamo === 'ARTICULO';
 
              const esPendienteAprobacion = prestamo?.estado === 'PENDIENTE_APROBACION';
@@ -1216,7 +1232,7 @@ const VistaCobrador = () => {
 
                horaSugerida: asig.horaSugerida || '08:00 AM',
 
-               montoCuota: Number(proximaCuota.monto || 0),
+               montoCuota: montoTotalVencido > 0 ? montoTotalVencido : Number(proximaCuota.monto || 0),
 
                saldoTotal: Number(prestamo?.saldoPendiente || 0),
 
@@ -1313,32 +1329,40 @@ const VistaCobrador = () => {
              try {
 
                 // 1. Consultar cuotas reales para obtener la pendiente exacta
+                const rawCuotas = await prestamosService.obtenerCuotas(v.prestamoId);
+                const cuotas = rawCuotas.sort((a, b) => 
+                  new Date(a.fechaVencimiento).getTime() - new Date(b.fechaVencimiento).getTime()
+                );
 
-                const cuotas = await prestamosService.obtenerCuotas(v.prestamoId);
+                 const pendiente = cuotas.find(c => c.estado !== 'PAGADA');
+                 
+                 if (pendiente) {
+                     const hoyIso = new Date().toISOString().split('T')[0];
+                     const cuotasVencidasList = cuotas.filter((c: any) => {
+                       if (c.estado === 'PAGADA' || c.estado === 'ANULADA') return false;
+                       if (c.estado === 'VENCIDA' || c.estado === 'ATRASADA') return true;
+                       const dO = c.fechaVencimiento?.split('T')[0];
+                       return dO && dO < hoyIso;
+                     });
 
-                const pendiente = cuotas.find(c => c.estado !== 'PAGADA');
+                     const totalVencido = cuotasVencidasList.reduce((sum: number, c: any) => sum + Number(c.monto || 0), 0);
+                     const montoReal = Number(pendiente.monto || (pendiente.montoCapital + pendiente.montoInteres) || 0);
+                     
+                     // La meta del día es la suma de todo lo vencido + la cuota que toca hoy (si hay)
+                     const sameDay = pendiente.fechaVencimiento?.split('T')[0] === hoyIso;
+                     const metaCorrecta = totalVencido + (sameDay ? montoReal : 0);
 
-                
+                     const esMora = cuotasVencidasList.length > 0;
 
-                if (pendiente) {
-
-                    const montoReal = Number(pendiente.monto || (pendiente.montoCapital + pendiente.montoInteres) || 0);
-
-                    return { 
-
-                      ...v, 
-
-                      montoCuota: montoReal > 0 ? montoReal : v.montoCuota,
-
-                      proximaVisita: pendiente.fechaVencimiento || v.proximaVisita,
-
-                      cuotaActual: pendiente.numeroCuota,
-
-                      cuotasTotales: cuotas.length,
-
-                    };
-
-                }
+                     return { 
+                       ...v, 
+                       montoCuota: metaCorrecta > 0 ? metaCorrecta : v.montoCuota,
+                       proximaVisita: pendiente.fechaVencimiento || v.proximaVisita,
+                       cuotaActual: pendiente.numeroCuota,
+                       cuotasTotales: cuotas.length,
+                       estado: (esMora ? 'en_mora' : 'pendiente') as EstadoVisita
+                     };
+                 }
 
                 
 
@@ -1507,73 +1531,54 @@ const VistaCobrador = () => {
           const finales = withRecaudo.map(v => ({ ...v, estado: ajustarEstadoConPago(v) }));
 
           finales.sort((a: any, b: any) => {
-
-            // Se elimina el descarte de "pagados" al final para que
-            // los cobradores no pierdan de vista al cliente tras un pago.
-            
-
-
-            // 2. Respetar el orden asignado manualmente (ordenVisita)
-
-            if (a.ordenVisita !== b.ordenVisita) {
-
-              return a.ordenVisita - b.ordenVisita;
-
-            }
-
-
-
-            // Créditos diarios: mantener siempre el orden manual (drag&drop)
-
-            if (a.periodoRuta === 'DIA' && b.periodoRuta === 'DIA') {
-
-              return 0;
-
-            }
-
-
-
-            // 3. Fallback a fechaUltimoPago (más antigua primero) — solo no diarios
-
-            return a.fechaUltimoPago - b.fechaUltimoPago;
-
+            if (a.estado === 'pagado' && b.estado !== 'pagado') return 1;
+            if (a.estado !== 'pagado' && b.estado === 'pagado') return -1;
+            if (a.periodoRuta === 'DIA' && b.periodoRuta === 'DIA') return a.ordenVisita - b.ordenVisita;
+            if (a.fechaUltimoPago !== b.fechaUltimoPago) return (a.fechaUltimoPago || 0) - (b.fechaUltimoPago || 0);
+            return a.ordenVisita - b.ordenVisita;
           });
 
           
 
-          setVisitasBase(finales);
 
-          setVisitasSelectorFallback(finales);
 
-          setVisitasOrden(finales.map(v => v.id));
+
+          
+
+          
+
+          // Filtrar: Solo mostrar lo que se debe cobrar hoy, lo pagado hoy, o lo pendiente de aprobación.
+          // Esto evita que créditos semanales futuros aparezcan en la ruta diaria.
+          const finalesFiltrados = finales.filter(v => 
+            (v.montoCuota || 0) > 0 || 
+            (v.recaudadoDelDia || 0) > 0 || 
+            v.estado === 'pagado' || 
+            v.pendienteAprobacion
+          );
+          setVisitasBase(finalesFiltrados);
+          setVisitasSelectorFallback(finalesFiltrados);
+          setVisitasOrden(finalesFiltrados.map(v => v.id));
 
 
 
           // Fallback KPIs si backend vino en cero
-
-          const metaCalculada = withRecaudo.reduce((sum, v) => {
+          const metaCalculadaRuta = withRecaudo.reduce((sum, v) => {
             const propDateStr = v.proximaVisita ? (v.proximaVisita.includes('T') ? v.proximaVisita.split('T')[0] : v.proximaVisita) : '';
             const sameDay = propDateStr === hoyStr;
             const pagoHoy = Number(v.recaudadoDelDia || 0) > 0;
-            return (sameDay || pagoHoy) ? sum + Math.max(Number(v.montoCuota || 0), Number(v.recaudadoDelDia || 0)) : sum;
+            const esMora = v.estado === 'en_mora';
+            return (sameDay || pagoHoy || esMora) ? sum + Math.max(Number(v.montoCuota || 0), Number(v.recaudadoDelDia || 0)) : sum;
           }, 0);
 
           const recaudadoCalculado = withRecaudo.reduce((sum, v) => sum + Number(v.recaudadoDelDia || 0), 0);
 
           setRutaStats(prev => ({
-
             ...prev,
-
-            meta: Math.max(Number(prev.meta || 0), Number(metaCalculada || 0)),
-
+            meta: Math.max(Number(prev.meta || 0), Number(metaCalculadaRuta || 0)),
             recaudo: prev.recaudo > 0 ? prev.recaudo : recaudadoCalculado,
-
-            eficiencia: Math.max(Number(prev.meta || 0), Number(metaCalculada || 0)) > 0
-
-              ? parseFloat((((prev.recaudo > 0 ? prev.recaudo : recaudadoCalculado) / Math.max(Number(prev.meta || 0), Number(metaCalculada || 0))) * 100).toFixed(1))
-
+            eficiencia: Math.max(Number(prev.meta || 0), Number(metaCalculadaRuta || 0)) > 0
+              ? parseFloat((((prev.recaudo > 0 ? prev.recaudo : recaudadoCalculado) / Math.max(Number(prev.meta || 0), Number(metaCalculadaRuta || 0))) * 100).toFixed(1))
               : prev.eficiencia
-
           }));
 
         } catch {
@@ -2638,7 +2643,9 @@ const VistaCobrador = () => {
   // Filtrar y ordenar visitas
 
   const visitasCobrador = useMemo(() => {
-
+    // Si no estamos en historial ni en mis clientes, y tenemos datos pero no están enriquecidos con recaudado,
+    // devolvemos vacío como medida de seguridad para la ruta activa.
+    // Pero en 'Mis Clientes' (showMisClientes) queremos verlos SIEMPRE.
     const pagosEnriquecidos = (visitasBase || []).some(v => v.recaudadoTotalClient !== undefined)
 
     if (!showHistory && !showMisClientes && (visitasBase || []).length > 0 && !pagosEnriquecidos) {
@@ -2910,12 +2917,51 @@ const VistaCobrador = () => {
   // Handlers para drag & drop
 
   const handleDragStart = useCallback((event: DragStartEvent) => {
-
     if (!rutaOperable) return
-
     setActiveId(event.active.id as string)
-
   }, [rutaOperable])
+
+  const handleDragEnd = useCallback(async (event: DragEndEvent) => {
+    const { active, over } = event
+    if (over && active.id !== over.id) {
+       // 1. Obtener y actualizar orden localmente para feedback inmediato
+       const ids = [...visitasOrden];
+       const oldIndex = ids.indexOf(active.id as string);
+       const newIndex = ids.indexOf(over.id as string);
+
+       if (oldIndex !== -1 && newIndex !== -1) {
+          const newOrden = arrayMove(ids, oldIndex, newIndex);
+          setVisitasOrden(newOrden);
+
+          // 2. Persistir si es el dueño de la ruta
+          const isOwner = userSession?.rol === 'COBRADOR';
+          if (isOwner && rutaActual?.id) {
+             try {
+                // Generar lista única de clientes en su nuevo orden
+                const clienteIdsOrdenados: string[] = [];
+                newOrden.forEach(itemId => {
+                   const v = visitasBase.find(vis => vis.id === itemId);
+                   if (v?.clienteId && !clienteIdsOrdenados.includes(v.clienteId)) {
+                      clienteIdsOrdenados.push(v.clienteId);
+                   }
+                });
+
+                const dto = clienteIdsOrdenados.map((cid, index) => ({
+                   clienteId: cid,
+                   orden: index + 1
+                }));
+
+                await rutasService.actualizarOrdenClientes(rutaActual.id, dto);
+                toast.success('Orden de ruta sincronizado');
+             } catch (error) {
+                console.error('Error guardando reordenamiento:', error);
+                toast.error('No se pudo guardar el orden en el servidor');
+             }
+          }
+       }
+    }
+    setActiveId(null)
+  }, [visitasOrden, visitasBase, userSession, rutaActual]);
 
 
 
@@ -3464,40 +3510,41 @@ const VistaCobrador = () => {
 
             const prestamos = cliente.prestamos || [];
 
-            const prestamoActivo = prestamos.find((p: any) => p.estado === 'ACTIVO' || p.estado === 'VENCIDO') || prestamos[0] || {};
+            const prestamoActivo = prestamos.find((p: any) => p.estado === 'ACTIVO' || p.estado === 'EN_MORA' || p.estado === 'VENCIDO') || prestamos[0] || {};
+            const cuotasListV = Array.isArray(prestamoActivo?.cuotas) ? prestamoActivo.cuotas : [];
+            const hoyKeyCurrent = new Date().toISOString().split('T')[0];
+            
+            // Buscar la próxima REAL hoy o futura (que no esté pagada)
+            const cuotaFuture = cuotasListV.find((c: any) => 
+               (c.estado !== 'PAGADA' && c.estado !== 'ANULADA') && 
+               (c.fechaVencimiento && c.fechaVencimiento.split('T')[0] >= hoyKeyCurrent)
+            );
 
-            const visitaId = prestamoActivo?.id ? `${asig.id}-${prestamoActivo.id}` : (asig.id || `asig-${index}`);
-
-            const proximaCuota = prestamoActivo.proximaCuota || null;
-
+            const proximaCuota = cuotaFuture || cuotasListV.find((c: any) => (c.estado !== 'PAGADA' && c.estado !== 'ANULADA')) || prestamoActivo.proximaCuota || null;
             const saldoTotal = Number(prestamoActivo.saldoPendiente || 0);
 
-
-
             // Buscar la visita previa para conservar datos cuando el backend no los trae
-
-            const visitaPrevia = visitasBase.find(vb => vb.id === visitaId);
-
-
+            const visitaId = prestamoActivo?.id ? `${asig.id}-${prestamoActivo.id}` : (asig.id || `asig-${index}`);
+            const visitaPrevia = (visitasBase || []).find(vb => vb.id === visitaId);
 
             let estado: EstadoVisita = 'pendiente';
 
-            if (proximaCuota?.estado === 'VENCIDA' || proximaCuota?.estado === 'ATRASADA') estado = 'en_mora';
+            // El estado de mora depende de si existe ALGUNA cuota vencida en el plan
+            const hayAlgunaMoraReal = cuotasListV.some((c: any) => {
+               if (c.estado === 'VENCIDA' || c.estado === 'ATRASADA') return true;
+               if (c.estado === 'PAGADA' || c.estado === 'ANULADA') return false;
+               const dO = c.fechaVencimiento?.split('T')[0];
+               return dO && dO < hoyKeyCurrent;
+            });
 
+            if (hayAlgunaMoraReal) estado = 'en_mora';
             else if (proximaCuota?.estado === 'PAGADA') {
-
-              // Si no hay mas cuotas pendientes, marcar como pagado
-
+              // Si no hay mas cuotas pendientes en ningún préstamo, marcar como pagado
               const hayPendientes = prestamos.some((p: any) =>
-
-                (p.cuotas || []).some((c: any) => c.estado === 'PENDIENTE' || c.estado === 'PARCIAL')
-
+                (p.cuotas || []).some((c: any) => c.estado === 'PENDIENTE' || c.estado === 'PARCIAL' || c.estado === 'ATRASADA' || c.estado === 'VENCIDA')
               );
-
               estado = hayPendientes ? 'pendiente' : 'pagado';
-
             }
-
             else if (!prestamoActivo.id) estado = visitaPrevia?.estado || 'pendiente';
 
 
@@ -3633,13 +3680,10 @@ const VistaCobrador = () => {
             // Actualizar KPIs si faltan valores
 
             const metaCalculada = enriquecidas.reduce((sum, v) => {
-
               const propDateStr = v.proximaVisita ? (v.proximaVisita.includes('T') ? v.proximaVisita.split('T')[0] : v.proximaVisita) : '';
-
-              const sameDay = propDateStr === hoyStr;
-
-              return sameDay ? sum + Number(v.montoCuota || 0) : sum;
-
+              // Considerar tanto lo de hoy como lo vencido (todo lo que el cobrador DEBERÍA cobrar hoy)
+              const sameDayOrPast = propDateStr && propDateStr <= hoyStr;
+              return sameDayOrPast ? sum + Number(v.montoCuota || 0) : sum;
             }, 0);
 
             const recaudadoCalculado = enriquecidas.reduce((sum, v) => sum + Number(v.recaudadoDelDia || 0), 0);
@@ -3952,13 +3996,21 @@ const VistaCobrador = () => {
         }
 
         if (detalle?.cuotas && Array.isArray(detalle.cuotas)) {
+          const hoyClaveLocal = getLocalDateKey(new Date());
+          
+          // Buscar la primera cuota que NO esté pagada y que sea HOY o FUTURA
+          const proximaFutura = detalle.cuotas.find((c: any) => 
+            (c.estado !== 'PAGADA' && c.estado !== 'ANULADA') && 
+            (c.fechaVencimiento && c.fechaVencimiento.split('T')[0] >= hoyClaveLocal)
+          );
 
-          const proxima = detalle.cuotas.find((c: any) => c.estado === 'PENDIENTE' || c.estado === 'ATRASADA' || c.estado === 'PARCIAL');
+          // Si no hay cuotas futuras, tomamos la más antigua sin pagar (mora)
+          const proxima = proximaFutura || detalle.cuotas.find((c: any) => 
+            c.estado === 'PENDIENTE' || c.estado === 'ATRASADA' || c.estado === 'PARCIAL' || c.estado === 'VENCIDA'
+          );
 
           setNextPagoFecha(proxima?.fechaVencimiento || null);
-
           setNextPagoMonto(proxima ? Number(proxima.monto || 0) : null);
-
         } else {
 
           setNextPagoFecha(null);
@@ -4661,17 +4713,11 @@ const VistaCobrador = () => {
 
 
               <DndContext
-
                 sensors={sensors}
-
                 collisionDetection={closestCenter}
-
                 onDragStart={handleDragStart}
-
-                onDragEnd={() => {}}
-
+                onDragEnd={handleDragEnd}
                 onDragCancel={handleDragCancel}
-
               >
 
                 <SortableContext
@@ -5380,19 +5426,12 @@ const VistaCobrador = () => {
                               {visitas.map((visita) => (
 
                                 <SortableVisita
-
                                   key={visita.id}
-
                                   visita={visita}
-
                                   onSelect={(id) => setVisitaSeleccionada(id === visitaSeleccionada ? null : id)}
-
                                   onVerCliente={handleAbrirClienteInfo}
-
                                   getEstadoClasses={getEstadoClasses}
-
-                                  disableSort={true}
-
+                                  disableSort={key !== 'DIA' || !rutaOperable}
                                   isSelected={visita.id === visitaSeleccionada}
 
                                   actions={
@@ -6144,14 +6183,14 @@ const VistaCobrador = () => {
           <Portal>
 
             <div
-
               className="fixed inset-0 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200"
-
               style={{ zIndex: MODAL_Z_INDEX }}
-
+              onClick={() => setShowConfirmCompleteModal(false)}
             >
-
-             <div className="bg-white rounded-3xl p-6 shadow-2xl w-full max-w-sm border border-slate-100 animate-in zoom-in-95 duration-200">
+             <div 
+               className="bg-white rounded-3xl p-6 shadow-2xl w-full max-w-sm border border-slate-100 animate-in zoom-in-95 duration-200"
+               onClick={(e) => e.stopPropagation()}
+             >
 
                 <div className="flex flex-col items-center text-center gap-4">
 
