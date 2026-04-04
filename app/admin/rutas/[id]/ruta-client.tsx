@@ -862,8 +862,15 @@ const RutaClientLoaded = ({
             const pendiente = cuotas.find((c: any) => c.estado !== 'PAGADA');
 
             if (pendiente) {
+              const hoyKey = new Date().toISOString().split('T')[0];
+              const vencidas = cuotas.filter((c: any) => 
+                (c.estado === 'VENCIDA' || c.estado === 'ATRASADA') || 
+                (!(c.estado === 'PAGADA' || c.estado === 'ANULADA') && c.fechaVencimiento && c.fechaVencimiento.split('T')[0] < hoyKey)
+              );
+              const totalVencido = vencidas.reduce((sum: number, c: any) => sum + Number(c.monto || 0), 0);
+              const montoReal = Number(pendiente.monto || (pendiente.montoCapital + pendiente.montoInteres) || 0);
 
-               montoCuotaReal = Number(pendiente.monto || (pendiente.montoCapital + pendiente.montoInteres) || 0);
+              montoCuotaReal = totalVencido + (pendiente?.fechaVencimiento?.split('T')[0] === hoyKey ? montoReal : 0);
 
                const esProrroga = pendiente.estado === 'PRORROGADA'
 

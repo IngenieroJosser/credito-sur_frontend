@@ -851,7 +851,13 @@ const ModuloContableContent = () => {
           {/* Ingresos */}
           {/* Ingresos */}
           <div 
-            onClick={() => { setDetalleTipo('INGRESOS'); setShowDetalleModal(true); }}
+            onClick={() => { 
+                const hoy = new Date().toISOString().split('T')[0];
+                setFechaInicioModal(hoy);
+                setFechaFinModal(hoy);
+                setDetalleTipo('INGRESOS'); 
+                setShowDetalleModal(true); 
+            }}
             className="cursor-pointer group relative overflow-hidden rounded-2xl bg-white/80 backdrop-blur-sm p-6 border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all"
           >
             <div className="flex items-center justify-between mb-4">
@@ -878,7 +884,13 @@ const ModuloContableContent = () => {
 
           {/* Egresos */}
           <div 
-            onClick={() => { setDetalleTipo('EGRESOS'); setShowDetalleModal(true); }}
+            onClick={() => { 
+                const hoy = new Date().toISOString().split('T')[0];
+                setFechaInicioModal(hoy);
+                setFechaFinModal(hoy);
+                setDetalleTipo('EGRESOS'); 
+                setShowDetalleModal(true); 
+            }}
             className="cursor-pointer group relative overflow-hidden rounded-2xl bg-white/80 backdrop-blur-sm p-6 border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all"
           >
             <div className="flex items-center justify-between mb-4">
@@ -2256,10 +2268,7 @@ const ModuloContableContent = () => {
                                         })
                                         .filter(m => {
                                             if (detalleTipo === 'INGRESOS') {
-                                              if (m.tipo === 'INGRESO') {
-                                                const cat = String(m.categoria || '').toUpperCase();
-                                                return cat === 'PAGO' || cat === 'ABONO' || cat === 'CUOTA_INICIAL';
-                                              }
+                                              if (m.tipo === 'INGRESO') return true;
                                               if (m.tipo === 'TRANSFERENCIA') {
                                                 const conc = String((m as any).descripcion || m.concepto || '').toUpperCase();
                                                 return !(conc.includes('SALIDA') || conc.includes('ENVIADA A') || conc.includes('EGRESO'));

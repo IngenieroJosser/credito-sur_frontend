@@ -48,7 +48,7 @@ interface VentaPdv {
   cuotasPagadas: number
   frecuencia: string
   tasaInteres: number
-  estado: 'ACTIVO' | 'PENDIENTE' | 'COMPLETADO' | 'PENDIENTE_APROBACION' | 'EN_MORA' | 'PAGADO'
+  estado: 'ACTIVO' | 'PENDIENTE' | 'COMPLETADO' | 'PENDIENTE_APROBACION' | 'EN_MORA' | 'PAGADO' | 'RECHAZADO'
   fechaVenta: string
   fechaPrimerCobro: string
   fechaUltimoPago?: string
@@ -348,16 +348,22 @@ export default function SeguimientoPuntoVenta() {
 
   // ─── KPIs reactivos — derivados del conjunto filtrado ───────────────────────
   const kpis = useMemo(() => {
+    // Filtrar solo los créditos que ya han sido desembolsados o aprobados (que afectan capital real)
+    const ventasEfectivas = ventasFiltradas.filter(v => 
+      v.estado !== 'PENDIENTE_APROBACION' && 
+      v.estado !== 'RECHAZADO'
+    )
+    
     const activos = ventasFiltradas.filter(v =>
       v.estado === 'ACTIVO' ||
       v.estado === 'PENDIENTE' ||
-      v.estado === 'EN_MORA' ||
-      v.estado === 'PENDIENTE_APROBACION'
+      v.estado === 'EN_MORA'
     )
+
     return {
-      ventas: ventasFiltradas.length,
-      montoVentas: ventasFiltradas.reduce((s, v) => s + v.montoTotal, 0),
-      cuotaInicial: ventasFiltradas.reduce((s, v) => s + v.cuotaInicial, 0),
+      ventas: ventasEfectivas.length,
+      montoVentas: ventasEfectivas.reduce((s, v) => s + v.montoTotal, 0),
+      cuotaInicial: ventasFiltradas.reduce((s, v) => s + v.cuotaInicial, 0), 
       carteraTotal: activos.reduce((s, v) => s + v.saldoPendiente, 0),
       clientesActivos: activos.length,
     }
