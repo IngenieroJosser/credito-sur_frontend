@@ -285,6 +285,26 @@ const ClienteDetalleElegante: React.FC<ClienteDetalleProps> = ({
     }
   };
 
+  const formatFechaHoraBogota = (fechaStr: string) => {
+    if (!fechaStr || fechaStr === '---') return fechaStr;
+    try {
+      const d = new Date(fechaStr);
+      if (Number.isNaN(d.getTime())) return fechaStr;
+      return new Intl.DateTimeFormat('es-CO', {
+        timeZone: 'America/Bogota',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: true,
+      }).format(d);
+    } catch {
+      return fechaStr;
+    }
+  };
+
   return (
     <div className="min-h-screen bg-slate-50 p-4 md:p-8 relative">
       <div className="fixed inset-0 pointer-events-none">
@@ -777,7 +797,7 @@ const ClienteDetalleElegante: React.FC<ClienteDetalleProps> = ({
                             </span>
                           </div>
                           <div className="flex items-center gap-4 text-sm text-slate-500 font-medium">
-                            <span>{pago.fecha}</span>
+                            <span>{formatFechaHoraBogota(pago.fecha)}</span>
                             <span className="px-2 py-0.5 bg-slate-100 text-slate-600 text-xs rounded-md font-bold border border-slate-200">
                               Cuota {pago.cuota}
                             </span>

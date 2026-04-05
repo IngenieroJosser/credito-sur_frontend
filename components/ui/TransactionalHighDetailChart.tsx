@@ -29,18 +29,46 @@ interface FinancialDetailChartProps {
   type?: 'single' | 'double';
 }
 
+const formatBogotaTime = (value: unknown): string | null => {
+  if (typeof value !== 'string' || value.trim().length === 0) return null;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return new Intl.DateTimeFormat('es-CO', {
+    timeZone: 'America/Bogota',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: true,
+  }).format(date);
+};
+
+const formatBogotaDateTime = (value: unknown): string | null => {
+  if (typeof value !== 'string' || value.trim().length === 0) return null;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return new Intl.DateTimeFormat('es-CO', {
+    timeZone: 'America/Bogota',
+    year: 'numeric',
+    month: 'short',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: true,
+  }).format(date);
+};
+
 const CustomTooltip = ({ active, payload }: any) => {
   if (active && payload && payload.length) {
     const d = payload[0].payload;
     const hasTarget = typeof d.target === 'number' && d.target > 0;
     const eficiencia = hasTarget ? d.value / d.target : undefined;
+    const tooltipTime = formatBogotaTime(d.time) ?? formatBogotaDateTime(d.time);
     return (
       <div className="bg-white/95 backdrop-blur-md p-5 rounded-3xl shadow-[0_20px_50px_rgba(0,0,0,0.12)] border border-slate-100 min-w-[220px] pointer-events-none animate-in fade-in zoom-in duration-300 relative z-[9999]">
         <div className="flex items-center justify-between mb-4 border-b border-slate-100 pb-3">
           <p className="text-[11px] font-black uppercase tracking-widest text-slate-400">{d.label}</p>
           {d.time && (
             <span className="text-[10px] font-black tabular-nums bg-blue-50 text-blue-600 px-2.5 py-1 rounded-full border border-blue-100">
-              {d.time}
+              {tooltipTime ?? d.time}
             </span>
           )}
         </div>
