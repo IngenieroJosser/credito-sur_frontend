@@ -7,61 +7,35 @@ import { logger } from '@/lib/logger'
 import { useState, useCallback, useMemo, useEffect } from 'react'
 
 import {
-
   CheckCircle2,
-
   X,
-
   XCircle,
-
   Search,
-
   Filter,
-
   Wallet,
-
   DollarSign,
-
   Calendar,
-
   FileText as FileTextIcon,
-
   ArrowLeft as ArrowLeftIcon,
-
   ChevronRight,
-
   TrendingUp,
-
   Sparkles,
-
   MapPin,
-
   AlertCircle,
-
   UserPlus,
-
   Plus,
-
   User,
-
   Phone,
-
   CreditCard,
-
   Fingerprint,
-
   CalendarDays,
-
   Star,
-
   History,
-
   Loader2,
-
   ChevronDown,
-
-  FileDown
-
+  FileDown,
+  Eye,
+  Shield
 } from 'lucide-react'
 
 
@@ -110,13 +84,15 @@ import { FrecuenciaPago } from '@/types/enums'
 
 import { obtenerSaldoDisponibleRuta } from '@/services/contabilidad-service'
 
-import { HistorialDia } from '@/lib/types/cobranza'
+import { HistorialDia, mapNivelRiesgo, mapFrecuenciaToPeriodo } from '@/lib/types/cobranza'
 
 import { exportService } from '@/services/export-service'
 
 import { toast } from 'sonner'
 
 import { useRealtimeData } from '@/hooks/useRealtimeData'
+import ClienteInfoModal from '@/components/cobranza/ClienteInfoModal'
+import { formatShortDate } from '@/lib/utils/format'
 
 
 
@@ -478,14 +454,32 @@ const RutaClientLoaded = ({
           if (prestamosProcesados.has(uniqueKey)) continue;
           prestamosProcesados.add(uniqueKey);
 
-          const proximaCuota = prestamo?.proximaCuota || {};
+          const cuotasPrestamo = Array.isArray(prestamo?.cuotas) ? prestamo.cuotas : [];
+          const hoyClaveKey = new Date().toISOString().split('T')[0];
+          
+          // Buscar la primera no pagada hoy o futura
+          const cuotaProgr = cuotasPrestamo.find((c: any) => 
+            (c.estado !== 'PAGADA' && c.estado !== 'ANULADA') && 
+            (c.fechaVencimiento && c.fechaVencimiento.split('T')[0] >= hoyClaveKey)
+          );
+
+          // Si no hay hoy/futuro, tomamos la más antigua sin pagar
+          const proximaCuota = cuotaProgr || cuotasPrestamo.find((c: any) => (c.estado !== 'PAGADA' && c.estado !== 'ANULADA')) || prestamo?.proximaCuota || {};
           const montoCuota = Number(proximaCuota?.monto || 0);
           const saldoTotalToken = Number(prestamo?.saldoPendiente || 0);
+
+          // El estado de mora depende de si existe ALGUNA cuota vencida en el plan respecto a hoy
+          const hayAlgunaMoraMapped = cuotasPrestamo.some((c: any) => {
+             if (c.estado === 'VENCIDA' || c.estado === 'ATRASADA') return true;
+             if (c.estado === 'PAGADA' || c.estado === 'ANULADA') return false;
+             const dO = c.fechaVencimiento?.split('T')[0];
+             return dO && dO < hoyClaveKey;
+          });
 
           let estado: EstadoVisita = 'pendiente';
           if (proximaCuota?.estado === 'PAGADA' || (recDia > 0 && montoCuota > 0 && recDia >= (montoCuota - 1)) || saldoTotalToken <= 0) {
             estado = 'pagado';
-          } else if (proximaCuota?.estado === 'VENCIDA') {
+          } else if (hayAlgunaMoraMapped) {
             estado = 'en_mora';
           }
 
@@ -608,11 +602,8 @@ const RutaClientLoaded = ({
 
 
       setHistorialRutas((prev: any) => ({
-
         ...(prev || {}),
-
-        [fechaClave]: { resumen, visitas: gestionadas, loaded: true }
-
+        [fechaClave]: { resumen, visitas: todasVisitas, loaded: true }
       }));
 
     } catch (e) {
@@ -697,57 +688,80 @@ const RutaClientLoaded = ({
 
       const lista = prestamosValidos.length > 0 ? prestamosValidos : [null];
 
-      return lista.flatMap((prestamo: any) => {
-        const idx = globalIndex++;
-        const uniqueKey = prestamo ? `loan-${prestamo.id}` : `client-${asig.cliente.id}`;
-        
-        if (idsProcesados.has(uniqueKey)) return [];
-        idsProcesados.add(uniqueKey);
+        const toDateKey = (dateStr: string | null) => {
+          if (!dateStr) return '';
+          return dateStr.includes('T') ? dateStr.split('T')[0] : dateStr;
+        };
+        const hoyKey = new Date().toISOString().split('T')[0];
 
-        const proximaCuota = prestamo?.cuotas?.[0];
-        const esArticulo = prestamo?.tipo === 'ARTICULO' || prestamo?.tipoPrestamo === 'ARTICULO';
-        const esPendienteAprobacion = prestamo?.estado === 'PENDIENTE_APROBACION';
+        return lista.flatMap((prestamo: any) => {
+          const idx = globalIndex++;
+          const uniqueKey = prestamo ? `loan-${prestamo.id}` : `client-${asig.cliente.id}`;
+          
+          if (idsProcesados.has(uniqueKey)) return [];
+          idsProcesados.add(uniqueKey);
 
-        const cuotaEnProrroga = proximaCuota?.estado === 'PRORROGADA';
-        const extension = prestamo?.extensiones?.[0];
-        const hayProrroga = cuotaEnProrroga || !!extension;
+          const cuotas = Array.isArray(prestamo?.cuotas) ? prestamo.cuotas : [];
+          const proximaCuota = cuotas.find((c: any) => toDateKey(c.fechaVencimiento) === hoyKey) || cuotas.find((c: any) => c.estado !== 'PAGADA') || cuotas[0] || {};
+          const esArticulo = prestamo?.tipo === 'ARTICULO' || prestamo?.tipoPrestamo === 'ARTICULO';
+          const esPendienteAprobacion = prestamo?.estado === 'PENDIENTE_APROBACION';
 
-        const fechaProrrogaFecha =
-          (cuotaEnProrroga && proximaCuota?.fechaVencimientoProrroga)
-            ? proximaCuota.fechaVencimientoProrroga
-            : extension?.nuevaFechaVencimiento ?? null;
+          let montoAcumulado = 0;
+          let esMoraAtrasada = false;
+          if (prestamo?.cuotas && Array.isArray(prestamo.cuotas)) {
+            for (const c of prestamo.cuotas) {
+              if (!c.fechaVencimiento || c.estado === 'PAGADA') continue;
+              const cuotaKey = toDateKey(c.fechaVencimiento);
+              if (cuotaKey && cuotaKey <= hoyKey) {
+                montoAcumulado += Number(c.monto || 0);
+                if (cuotaKey < hoyKey) esMoraAtrasada = true;
+              }
+            }
+          }
 
-        const fechaEfectiva = fechaProrrogaFecha
-          ?? proximaCuota?.fechaVencimiento
-          ?? new Date().toISOString().split('T')[0];
 
-        return [{
-          id: prestamo ? `${asig.id}-${prestamo.id}` : (asig.id || `temp-${idx}`),
-          cliente: `${asig.cliente?.nombres || ''} ${asig.cliente?.apellidos || ''}`.trim() || 'Cliente Desconocido',
-          direccion: asig.cliente?.direccion || 'Sin dirección registrada',
-          telefono: asig.cliente?.telefono || '',
-          horaSugerida: asig.horaSugerida || '08:00 AM',
-          montoCuota: Number(proximaCuota?.monto || (prestamo?.montoCuota) || 0),
-          saldoTotal: Number(prestamo?.saldoPendiente || (prestamo?.monto) || 0),
-          estado: (esPendienteAprobacion ? 'pendiente' : (hayProrroga ? 'en_prorroga' : (asig.estado?.toLowerCase() || 'pendiente'))) as any,
-          proximaVisita: fechaEfectiva,
-          ordenVisita: asig.ordenVisita || idx + 1,
-          prioridad: (asig.prioridad?.toLowerCase() as any) || 'media',
-          cobradorId: initialRuta?.cobradorId || '',
-          periodoRuta: toPeriodo(prestamo?.frecuenciaPago || 'DIARIO') as any,
-          nivelRiesgo: toNivelRiesgo(asig.cliente?.nivelRiesgo || 'VERDE') as any,
-          clienteId: asig.cliente?.id || '',
-          prestamoId: prestamo?.id || '',
-          tipoPrestamo: (esArticulo ? 'ARTICULO' : 'EFECTIVO') as any,
-          articuloNombre: esArticulo ? (prestamo?.articulo || prestamo?.descripcionArticulo || undefined) : undefined,
-          enProrroga: hayProrroga,
-          fechaProrroga: fechaProrrogaFecha ?? undefined,
-          fechaOriginalVencimiento: cuotaEnProrroga ? (proximaCuota?.fechaVencimiento || undefined) : undefined,
-          cuotaActual: proximaCuota?.numeroCuota,
-          cuotasTotales: prestamo?.cantidadCuotas,
-          pendienteAprobacion: esPendienteAprobacion
-        }];
-      });
+          const cuotaEnProrroga = proximaCuota?.estado === 'PRORROGADA';
+          const extension = prestamo?.extensiones?.[0];
+          const hayProrroga = cuotaEnProrroga || !!extension;
+
+          const fechaProrrogaFecha =
+            (cuotaEnProrroga && proximaCuota?.fechaVencimientoProrroga)
+              ? proximaCuota.fechaVencimientoProrroga
+              : extension?.nuevaFechaVencimiento ?? null;
+
+          const fechaEfectiva = fechaProrrogaFecha
+            ?? proximaCuota?.fechaVencimiento
+            ?? new Date().toISOString().split('T')[0];
+
+          const montoFinal = montoAcumulado > 0 ? montoAcumulado : Number(proximaCuota?.monto || (prestamo?.montoCuota) || 0);
+
+          return [{
+            id: prestamo ? `${asig.id}-${prestamo.id}` : (asig.id || `temp-${idx}`),
+            cliente: `${asig.cliente?.nombres || ''} ${asig.cliente?.apellidos || ''}`.trim() || 'Cliente Desconocido',
+            direccion: asig.cliente?.direccion || 'Sin dirección registrada',
+            telefono: asig.cliente?.telefono || '',
+            horaSugerida: asig.horaSugerida || '08:00 AM',
+            montoCuota: montoFinal,
+            saldoTotal: Number(prestamo?.saldoPendiente || (prestamo?.monto) || 0),
+            estado: (esPendienteAprobacion ? 'pendiente' : (esMoraAtrasada ? 'en_mora' : (hayProrroga ? 'en_prorroga' : (asig.estado?.toLowerCase() || 'pendiente')))) as any,
+            proximaVisita: fechaEfectiva,
+            ordenVisita: asig.ordenVisita || idx + 1,
+            prioridad: (asig.prioridad?.toLowerCase() as any) || 'media',
+            cobradorId: initialRuta?.cobradorId || '',
+            periodoRuta: toPeriodo(prestamo?.frecuenciaPago || 'DIARIO') as any,
+            nivelRiesgo: toNivelRiesgo(asig.cliente?.nivelRiesgo || 'VERDE') as any,
+            clienteId: asig.cliente?.id || '',
+            prestamoId: prestamo?.id || '',
+            tipoPrestamo: (esArticulo ? 'ARTICULO' : 'EFECTIVO') as any,
+            articuloNombre: esArticulo ? (prestamo?.articulo || prestamo?.descripcionArticulo || undefined) : undefined,
+            enProrroga: hayProrroga,
+            fechaProrroga: fechaProrrogaFecha ?? undefined,
+            fechaOriginalVencimiento: cuotaEnProrroga ? (proximaCuota?.fechaVencimiento || undefined) : undefined,
+            cuotaActual: proximaCuota?.numeroCuota,
+            cuotasTotales: prestamo?.cantidadCuotas,
+            pendienteAprobacion: esPendienteAprobacion
+          }];
+        });
     });
 
     const clientesConPrestamo = new Set(firstPass.filter(v => v.prestamoId).map(v => v.clienteId));
@@ -785,153 +799,91 @@ const RutaClientLoaded = ({
 
 
     const enriquecerConPagos = async () => {
-
-      const toLocalKey = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-
-      const hoyStr = toLocalKey(new Date());
-
-
+      const hoyBogota = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Bogota' });
+      
+      // 1. Obtener todos los pagos recientes de forma masiva para evitar N peticiones API
+      const pagosRecientesResp = await pagosService.obtenerPagos({ limit: 1000 });
+      const todosPagos = (pagosRecientesResp as any)?.pagos || pagosRecientesResp || [];
 
       const actualizadas = await Promise.all(visitasCobrador.map(async (v: any) => {
-
-        if (!v.clienteId) return { ...v, recaudadoDelDia: 0, recaudadoTotalClient: 0 };
+        if (!v.clienteId || !v.prestamoId) return { ...v, recaudadoDelDia: 0, recaudadoTotalClient: 0 };
 
         try {
-
-          // 1. Obtener Recaudos
-
-          const pagosResp = await pagosService.obtenerPagos({ clienteId: v.clienteId, limit: 100 });
-
-          const pagosCalc = (pagosResp?.pagos || []);
-
+          // Filtrar en memoria los pagos que pertenecen a este préstamo
+          const pagosPrestamo = todosPagos.filter((p: any) => p.prestamoId === v.prestamoId);
           
-
-          const totalHoy = pagosCalc.reduce((sum: number, p: any) => {
-
-            const raw = p.fechaPago || p.creadoEn;
-
-            const f = raw ? (raw.includes('T') ? raw.split('T')[0] : raw) : '';
-
-            return f === hoyStr ? sum + Number(p.montoTotal || 0) : sum;
-
+          const totalHoy = pagosPrestamo.reduce((sum: number, p: any) => {
+            const rawDate = p.fechaPago || p.creadoEn;
+            if (!rawDate) return sum;
+            
+            let pDateStr = '';
+            if (typeof rawDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(rawDate)) {
+              pDateStr = rawDate;
+            } else {
+              pDateStr = new Date(rawDate).toLocaleDateString('en-CA', { timeZone: 'America/Bogota' });
+            }
+            
+            return pDateStr === hoyBogota ? sum + Number(p.montoTotal || 0) : sum;
           }, 0);
 
+          const totalHistorico = pagosPrestamo.reduce((sum: number, p: any) => sum + Number(p.montoTotal || 0), 0);
           
-
-          const totalHistorico = pagosCalc.reduce((sum: number, p: any) => sum + Number(p.montoTotal || 0), 0);
-
-
-
           let ultimoPagoDate = 0;
-
-          pagosCalc.forEach((p: any) => {
-
+          pagosPrestamo.forEach((p: any) => {
             const d = new Date(p.fechaPago || p.creadoEn).getTime();
-
             if (!isNaN(d) && d > ultimoPagoDate) ultimoPagoDate = d;
-
           });
 
-          
-
           // 2. Obtener Cuotas para actualizar fecha y monto real
-
           let montoCuotaReal = v.montoCuota;
-
           let fechaReal = v.proximaVisita;
 
-          
+          const cuotas = await prestamosService.obtenerCuotas(v.prestamoId);
+          const pendiente = cuotas.find((c: any) => c.estado !== 'PAGADA');
 
-          if (v.prestamoId) {
-
-            const cuotas = await prestamosService.obtenerCuotas(v.prestamoId);
-
-            const pendiente = cuotas.find((c: any) => c.estado !== 'PAGADA');
-
-            if (pendiente) {
-
-               montoCuotaReal = Number(pendiente.monto || (pendiente.montoCapital + pendiente.montoInteres) || 0);
-
-               const esProrroga = pendiente.estado === 'PRORROGADA'
-
-               fechaReal = (esProrroga && pendiente.fechaVencimientoProrroga)
-
-                 ? pendiente.fechaVencimientoProrroga
-
-                 : (pendiente.fechaVencimiento || v.proximaVisita);
-
-               // Actualizar número de cuota
-
-               v.cuotaActual = pendiente.numeroCuota;
-
-               v.cuotasTotales = cuotas.length; // Assuming cuotas.length gives total number of installments
-
-               // Propagar prórroga al estado de la visita
-
-               if (esProrroga) {
-
-                 (v as any).enProrroga = true;
-
-                 (v as any).fechaProrroga = pendiente.fechaVencimientoProrroga || undefined;
-
-                 (v as any).fechaOriginalVencimiento = pendiente.fechaVencimiento || undefined;
-
-               }
-
-            }
-
+          if (pendiente) {
+            const vencidas = cuotas.filter((c: any) => 
+               (c.estado === 'VENCIDA' || c.estado === 'ATRASADA') || 
+               (!(c.estado === 'PAGADA' || c.estado === 'ANULADA') && c.fechaVencimiento && 
+                new Date(c.fechaVencimiento).toLocaleDateString('en-CA', { timeZone: 'America/Bogota' }) < hoyBogota)
+            );
+            const totalVencido = vencidas.reduce((sum: number, c: any) => sum + Number(c.monto || 0), 0);
+            const isHoyPend = new Date(pendiente.fechaVencimiento).toLocaleDateString('en-CA', { timeZone: 'America/Bogota' }) === hoyBogota;
+            montoCuotaReal = totalVencido + (isHoyPend ? Number(pendiente.monto || 0) : 0);
+            fechaReal = (pendiente.estado === 'PRORROGADA' && pendiente.fechaVencimientoProrroga)
+               ? pendiente.fechaVencimientoProrroga
+               : (pendiente.fechaVencimiento || v.proximaVisita);
+            
+            v.cuotaActual = pendiente.numeroCuota;
+            v.cuotasTotales = cuotas.length;
           }
-
-
 
           // 3. Determinar Estado Final
-
           let nuevoEstado = v.estado;
-
           const cuotaComparar = montoCuotaReal > 0 ? montoCuotaReal : v.montoCuota;
-
           const cobroSuficiente = totalHoy >= (cuotaComparar - 1);
-
           
-
-          if (Number(v.saldoTotal || 0) <= 0 || (cobroSuficiente && totalHoy > 0)) {
-
+          // Regla de Oro: Cualquier pago hoy = pagado (oculta de ruta activa)
+          if (Number(v.saldoTotal || 0) <= 0 || totalHoy > 0 || v.estado === 'pagado') {
             nuevoEstado = 'pagado';
-
           }
 
-
-
           return { 
-
             ...v, 
-
             recaudadoDelDia: totalHoy, 
-
             recaudadoTotalClient: totalHistorico, 
-
             fechaUltimoPago: ultimoPagoDate,
-
             montoCuota: cuotaComparar,
-
             proximaVisita: fechaReal,
-
             estado: nuevoEstado 
-
           };
-
         } catch (error) {
-
           console.error("Error en enriquecerConPagos (Admin):", error);
-
           return { ...v, recaudadoDelDia: 0, recaudadoTotalClient: 0, fechaUltimoPago: 0 };
-
         }
-
       }));
 
       setVisitasCobrador(actualizadas);
-
     };
 
 
@@ -945,6 +897,28 @@ const RutaClientLoaded = ({
   // Agrupar visitas por frecuencia de pago
 
   const { visitasAgrupadas, totalMostradas, exportarRutaDiariaCSV, exportarRutaDiariaPDF } = useMemo(() => {
+    if (!visitasCobrador) return {
+      visitasAgrupadas: { MES: [], QUINCENA: [], SEMANA: [], DIA: [] },
+      totalMostradas: 0,
+      exportarRutaDiariaCSV: async () => {},
+      exportarRutaDiariaPDF: async () => {},
+    };
+
+    const isTodayOrMora = (dateStr: string) => {
+      if (!dateStr) return true;
+      const f = dateStr.includes('T') ? dateStr.split('T')[0] : dateStr;
+      const [year, month, day] = f.split('-').map(Number);
+      if (!year || !month || !day) return true;
+      const d = new Date(year, month - 1, day, 0, 0, 0, 0);
+      const hoy = new Date();
+      hoy.setHours(0, 0, 0, 0);
+      return d.getTime() <= hoy.getTime();
+    };
+
+    const filterByDate = (v: any) => {
+      if (searchQuery || showMisClientes) return true;
+      return v.estado === 'en_mora' || isTodayOrMora(v.proximaVisita);
+    };
 
     const pagosEnriquecidos = visitasCobrador.some(v => v.recaudadoTotalClient !== undefined)
 
@@ -957,158 +931,82 @@ const RutaClientLoaded = ({
       }
     }
 
-    const hoy = new Date();
-
-    hoy.setHours(0, 0, 0, 0);
-
-
-
     let filtradas = visitasCobrador.filter(v => {
-
-      const matches =
+      const matchesSearch =
         v.cliente.toLowerCase().includes(searchQuery.toLowerCase()) ||
         v.direccion.toLowerCase().includes(searchQuery.toLowerCase())
 
-      if (!matches) return false
+      if (!matchesSearch) return false
 
-      if (v.estado === 'pagado') return false
+      if (searchQuery || showMisClientes) return true
 
-      const montoCuota = Number(v.montoCuota || 0)
+      // Regla de Oro: Si ya tiene recaudo registrado hoy o está marcado como pagado, desaparece de la ruta activa
+      if (v.estado === 'pagado' || Number(v.recaudadoDelDia || 0) > 0) return false;
 
-      if (v.periodoRuta === 'DIA' && montoCuota > 0 && Number(v.recaudadoDelDia || 0) >= (montoCuota - 1)) return false
+      // Mostrar si tiene cuota/monto exigible para hoy o está en mora
+      const esExigibleHoy = (v.montoCuota || 0) > 0 || isTodayOrMora(v.proximaVisita);
+      if (esExigibleHoy) return true;
 
-      return true
-
+      return v.periodoRuta === 'DIA'; // Por defecto los diarios siempre se muestran si no se han filtrado por lo anterior
     });
-
-
-
-    // Aplicar filtro de periodo
 
     if (periodoRutaFiltro !== 'TODOS') {
-
         filtradas = filtradas.filter(v => v.periodoRuta === periodoRutaFiltro);
-
     }
-
-
 
     filtradas.sort((a: any, b: any) => {
-
-      // 1. Los "pagados" van al final
-
       if (a.estado === 'pagado' && b.estado !== 'pagado') return 1;
-
       if (a.estado !== 'pagado' && b.estado === 'pagado') return -1;
-
       
-
-      // 2. Ordenar por fechaUltimoPago (más antigua primero, es decir, el que más tiempo lleva sin pagar va arriba)
+      if (a.periodoRuta === 'DIA' && b.periodoRuta === 'DIA') {
+        return a.ordenVisita - b.ordenVisita;
+      }
 
       if (a.fechaUltimoPago !== b.fechaUltimoPago) {
-
         return (a.fechaUltimoPago || 0) - (b.fechaUltimoPago || 0);
-
       }
-
-      
-
-      // 3. Fallback a ordenVisita
 
       return a.ordenVisita - b.ordenVisita;
-
     });
 
-
-
     const exportarRutaDiariaCSV = async () => {
-
       try {
-
         await exportService.exportOperationalReport('excel', {
-
           rutaId: initialRuta.id,
-
           startDate: new Date().toISOString().split('T')[0],
-
         } as any);
-
       } catch (e) {
-
         toast.error('No se pudo exportar el reporte de ruta a Excel');
-
         console.error('Error exportando ruta CSV:', e);
-
       }
-
     }
-
-  
 
     const exportarRutaDiariaPDF = async () => {
-
       try {
-
         await exportService.exportOperationalReport('pdf', {
-
           rutaId: initialRuta.id,
-
           startDate: new Date().toISOString().split('T')[0],
-
         } as any);
-
       } catch (e) {
-
         toast.error('No se pudo exportar el reporte de ruta a PDF');
-
         console.error('Error exportando ruta PDF:', e);
-
       }
-
     }
-
-
-
-    const isTodayOrMora = (dateStr: string) => {
-
-      if (!dateStr) return true;
-
-      const d = new Date(dateStr);
-
-      const hoy = new Date();
-
-      hoy.setHours(0, 0, 0, 0);
-
-      d.setHours(0, 0, 0, 0);
-
-      return d.getTime() <= hoy.getTime();
-
-    };
-
-
-
-    const filterByDate = (v: any) => searchQuery || v.estado === 'en_mora' || isTodayOrMora(v.proximaVisita);
-
-
 
     const agrupar = {
-      MES: filtradas.filter(v => v.periodoRuta === 'MES' && filterByDate(v) && v.estado !== 'pagado'),
-      QUINCENA: filtradas.filter(v => v.periodoRuta === 'QUINCENA' && filterByDate(v) && v.estado !== 'pagado'),
-      SEMANA: filtradas.filter(v => v.periodoRuta === 'SEMANA' && filterByDate(v) && v.estado !== 'pagado'),
-      DIA: filtradas.filter(v => v.periodoRuta === 'DIA' && filterByDate(v) && v.estado !== 'pagado'),
+      MES: filtradas.filter(v => v.periodoRuta === 'MES'),
+      QUINCENA: filtradas.filter(v => v.periodoRuta === 'QUINCENA'),
+      SEMANA: filtradas.filter(v => v.periodoRuta === 'SEMANA'),
+      DIA: filtradas.filter(v => v.periodoRuta === 'DIA'),
     }
 
-
-
-    return { visitasAgrupadas: agrupar, totalMostradas: filtradas.length,
-
+    return { 
+      visitasAgrupadas: agrupar, 
+      totalMostradas: filtradas.length,
       exportarRutaDiariaCSV,
-
       exportarRutaDiariaPDF
-
     };
-
-  }, [visitasCobrador, searchQuery, periodoRutaFiltro]);
+  }, [visitasCobrador, searchQuery, periodoRutaFiltro, showHistory, showMisClientes, initialRuta?.id]);
 
 
 
@@ -1270,119 +1168,132 @@ const RutaClientLoaded = ({
 
 
   const cargarMisCreditos = useCallback(async () => {
-
     if (!initialRuta?.cobradorId) return
-
     try {
-
       setLoadingMisCreditos(true)
-
       const resp = await rutasService.obtenerCreditosAsignadosACobrador(initialRuta.cobradorId)
-
       const raw = (resp as any)?.data
-
       const filas = Array.isArray(raw) ? raw : []
-
       if (!Array.isArray(raw)) {
-
         console.warn('Mis clientes: respuesta inesperada en obtenerCreditosAsignadosACobrador', resp)
-
       }
 
-      const mapped: VisitaRuta[] = filas.map((row: any, idx: number) => {
-
+      // Enriquecer cada préstamo con cuotas reales para cálculo de mora del administrador
+      const mapped = await Promise.all(filas.map(async (row: any, idx: number) => {
         const c = row?.cliente || {}
-
         const p = row?.prestamo || {}
-
-        const prox = p?.proximaCuota || null
-
-        const esArticulo = p?.tipo === 'ARTICULO'
+        
+        let cuotaActual = 1;
+        let cuotasTotales = Number(p.cantidadCuotas || 0);
+        let montoCuota = Number(p.montoCuota || 0);
+        let proximaVisitaV = p.fechaEfectiva || (new Date().toISOString().split('T')[0]);
+        let estadoCalculado: EstadoVisita = 'pendiente';
+        let ultimoPagoDate = 0;
 
         const toNivel = (nivel: string) => {
-
           if (nivel === 'VERDE') return 'bajo'
-
           if (nivel === 'AMARILLO') return 'precaucion'
-
           if (nivel === 'ROJO') return 'moderado'
-
           if (nivel === 'LISTA_NEGRA') return 'critico'
-
           return 'bajo'
+        }
 
+        const esArticulo = p?.tipo === 'ARTICULO' || p?.tipoPrestamo === 'ARTICULO';
+
+        if (p.id) {
+          try {
+            // 1. Consultar cuotas
+            const rawCuotas = await prestamosService.obtenerCuotas(p.id);
+            const cuotas = rawCuotas.sort((a, b) => 
+               new Date(a.fechaVencimiento).getTime() - new Date(b.fechaVencimiento).getTime()
+            );
+
+            // 2. Consultar pagos para obtener fecha de último
+            try {
+              const { pagosService } = await import('@/services/pagos-service');
+              const resPagos = await pagosService.obtenerPagos({ prestamoId: p.id });
+              if (resPagos && Array.isArray(resPagos.pagos)) {
+                resPagos.pagos.forEach((pg: any) => {
+                  const d = new Date(pg.fechaPago || pg.creadoEn).getTime();
+                  if (!isNaN(d) && d > ultimoPagoDate) ultimoPagoDate = d;
+                });
+              }
+            } catch (ep) { /* ignore */ }
+
+            const pendiente = cuotas.find(cuo => cuo.estado !== 'PAGADA');
+            if (pendiente) {
+              cuotaActual = pendiente.numeroCuota;
+              montoCuota = Number(pendiente.monto || (pendiente.montoCapital + pendiente.montoInteres) || 0);
+              proximaVisitaV = pendiente.fechaVencimiento;
+
+              const hoy = new Date();
+              hoy.setHours(0,0,0,0);
+              const dateOnly = pendiente.fechaVencimiento.split('T')[0];
+              const [y, m, d] = dateOnly.split('-').map(Number);
+              const vtoDate = new Date(y, m-1, d, 0, 0, 0, 0);
+              
+              if (vtoDate.getTime() < hoy.getTime() || pendiente.estado === 'VENCIDA') {
+                 estadoCalculado = 'en_mora';
+              } else {
+                 estadoCalculado = 'pendiente';
+              }
+            } else {
+               estadoCalculado = 'pagado';
+            }
+            cuotasTotales = cuotas.length;
+          } catch (e) {
+            console.warn('Error enriqueciendo Mis Clientes (Admin):', e);
+          }
         }
 
         return {
-
           id: `${row?.asignacionId || 'asig'}-${p?.id || idx}`,
-
           cliente: `${c?.nombres || ''} ${c?.apellidos || ''}`.trim() || 'Cliente',
-
           direccion: c?.direccion || 'Sin dirección registrada',
-
           telefono: c?.telefono || '',
-
           horaSugerida: '08:00 AM',
-
-          montoCuota: Number(prox?.monto || 0),
-
+          montoCuota,
           saldoTotal: Number(p?.saldoPendiente || 0),
-
-          estado: 'pendiente' as any,
-
-          proximaVisita: row?.prestamo?.fechaEfectiva || prox?.fechaVencimiento || new Date().toISOString().split('T')[0],
-
+          estado: estadoCalculado,
+          proximaVisita: proximaVisitaV,
           ordenVisita: Number(row?.ordenVisita || idx + 1),
-
           prioridad: 'media' as any,
-
           nivelRiesgo: toNivel(c?.nivelRiesgo || 'VERDE') as any,
-
           cobradorId: initialRuta.cobradorId,
-
           periodoRuta: (() => {
-
             const f = p?.frecuenciaPago || 'DIARIO'
-
             if (f === 'DIARIO') return 'DIA'
-
             if (f === 'SEMANAL') return 'SEMANA'
-
             if (f === 'QUINCENAL') return 'QUINCENA'
-
             if (f === 'MENSUAL') return 'MES'
-
             return 'DIA'
-
           })() as any,
-
           clienteId: c?.id || '',
-
           prestamoId: p?.id || '',
-
           tipoPrestamo: esArticulo ? 'ARTICULO' : 'EFECTIVO',
-
           articuloNombre: esArticulo ? (p?.articulo || 'Artículo') : 'Préstamo',
+          cuotaActual,
+          cuotasTotales,
+          fechaUltimoPago: ultimoPagoDate
+        } as VisitaRuta
+      }))
 
-        } as any
+      // Ordenar: Pagados final, Diarios por ordenVisita, resto por fechaUltimoPago
+      const finales = mapped.sort((a: any, b: any) => {
+        if (a.estado === 'pagado' && b.estado !== 'pagado') return 1;
+        if (a.estado !== 'pagado' && b.estado === 'pagado') return -1;
+        if (a.periodoRuta === 'DIA' && b.periodoRuta === 'DIA') return a.ordenVisita - b.ordenVisita;
+        if (a.fechaUltimoPago !== b.fechaUltimoPago) return a.fechaUltimoPago - b.fechaUltimoPago;
+        return a.ordenVisita - b.ordenVisita;
+      });
 
-      })
-
-      setMisCreditos(mapped)
-
+      setMisCreditos(finales)
     } catch (e: any) {
-
       console.error('Error cargando mis clientes (ruta admin):', e)
-
       toast.error('No se pudieron cargar los clientes asignados.')
-
     } finally {
-
       setLoadingMisCreditos(false)
-
     }
-
   }, [initialRuta?.cobradorId])
 
 
@@ -2265,77 +2176,62 @@ const RutaClientLoaded = ({
 
 
                   return (
-
-                    <div className="space-y-4">
-
+                    <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
                       {filtradas.map((visita) => (
-
                         <StaticVisitaItem
-
                           key={visita.id}
-
                           visita={visita}
-
                           allowClick={false}
-
                           onVerCliente={handleAbrirClienteInfo}
-
                           getEstadoClasses={getEstadoClasses}
-
                           getPrioridadColor={getPrioridadColor}
-
-                        >
-
-                          <div className="flex flex-wrap gap-1.5 pt-2">
-
-                            <button
-
-                              onClick={(e) => {
-
-                                e.stopPropagation();
-
-                                handleAbrirAbono(visita);
-
-                              }}
-
-                              className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 transition-all font-bold text-[11px] shadow-sm active:scale-95"
-
-                            >
-
-                              <Wallet className="h-3.5 w-3.5" />
-
-                              Abono
-
-                            </button>
-
-                            <button
-
-                              onClick={(e) => {
-
-                                e.stopPropagation();
-
-                                handleAbrirEstadoCuenta(visita);
-
-                              }}
-
-                              className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-white text-slate-700 border border-slate-200 hover:bg-slate-50 transition-all font-bold text-[11px] shadow-sm active:scale-95"
-
-                            >
-
-                              <FileTextIcon className="h-3.5 w-3.5 text-slate-400" />
-
-                              Estado
-
-                            </button>
-
-                          </div>
-
-                        </StaticVisitaItem>
-
+                          actions={
+                            <>
+                              <button
+                                onClick={(e) => { e.stopPropagation(); if (visita.pendienteAprobacion || !rutaOperable) return; handleAbrirPago(visita); }}
+                                disabled={visita.pendienteAprobacion || !rutaOperable}
+                                title={visita.pendienteAprobacion ? 'Crédito pendiente de aprobación' : !rutaOperable ? (rutaCompletada ? 'Ruta completada' : 'Ruta pendiente de activación') : 'Registrar Pago'}
+                                className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-lg transition-all font-bold text-[11px] shadow-sm ${visita.pendienteAprobacion || !rutaOperable ? 'bg-slate-50 text-slate-300 border border-slate-100 opacity-50 cursor-not-allowed' : 'bg-blue-600 text-white hover:bg-blue-700 active:scale-95'}`}
+                              >
+                                <DollarSign className="h-3.5 w-3.5" />
+                                Pago
+                              </button>
+                              <button
+                                onClick={(e) => { e.stopPropagation(); if (visita.pendienteAprobacion || !rutaOperable) return; handleAbrirAbono(visita); }}
+                                disabled={visita.pendienteAprobacion || !rutaOperable}
+                                title={visita.pendienteAprobacion ? 'Crédito pendiente de aprobación' : !rutaOperable ? (rutaCompletada ? 'Ruta completada' : 'Ruta pendiente de activación') : 'Registrar Abono'}
+                                className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-lg transition-all font-bold text-[11px] shadow-sm ${visita.pendienteAprobacion || !rutaOperable ? 'bg-slate-50 text-slate-300 border border-slate-100 opacity-50 cursor-not-allowed' : 'bg-emerald-600 text-white hover:bg-emerald-700 active:scale-95'}`}
+                              >
+                                <Wallet className="h-3.5 w-3.5" />
+                                Abono
+                              </button>
+                              <button
+                                onClick={(e) => { e.stopPropagation(); if(!rutaOperable) return; handleAbrirEstadoCuenta(visita); }}
+                                disabled={!rutaOperable}
+                                className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-lg transition-all font-bold text-[11px] shadow-sm border ${!rutaOperable ? 'bg-slate-50 text-slate-300 border-slate-100 opacity-50 cursor-not-allowed' : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50 active:scale-95'}`}
+                              >
+                                <FileTextIcon className="h-3.5 w-3.5 text-slate-400" />
+                                Estado
+                              </button>
+                              <button
+                                onClick={(e) => { 
+                                  e.stopPropagation(); 
+                                  if (!rutaOperable) return;
+                                  const isProrrogaVencida = visita.enProrroga && visita.fechaProrroga && new Date(visita.fechaProrroga).getTime() < Date.now();
+                                  if (!visita.enProrroga || isProrrogaVencida) setVisitaReprogramar(visita); 
+                                }}
+                                disabled={!rutaOperable || (!!visita.enProrroga && !(visita.fechaProrroga && new Date(visita.fechaProrroga).getTime() < Date.now()))}
+                                title={!rutaOperable ? (rutaCompletada ? 'Ruta completada' : 'Ruta pendiente de activación') : (visita.enProrroga && !(visita.fechaProrroga && new Date(visita.fechaProrroga).getTime() < Date.now()) ? 'No se puede reprogramar con prorroga activa' : 'Solicitar reprogramacion')}
+                                className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border transition-all font-bold text-[11px] shadow-sm ${!rutaOperable || (visita.enProrroga && !(visita.fechaProrroga && new Date(visita.fechaProrroga).getTime() < Date.now())) ? 'bg-slate-50 text-slate-300 border-slate-100 opacity-50 cursor-not-allowed' : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50 active:scale-95'}`}
+                              >
+                                <Calendar className="h-3.5 w-3.5 text-slate-400" />
+                                Repro.
+                              </button>
+                            </>
+                          }
+                        />
                       ))}
-
                     </div>
-
                   )
 
                 })()}
@@ -2626,8 +2522,6 @@ const RutaClientLoaded = ({
               try {
                 await onRutaRefresh?.();
               } catch {}
-
-              router.refresh();
             } catch (error) {
               console.error('Error registrando pago/abono:', error);
               showNotification('error', 'No se pudo registrar el pago/abono', 'Error');
@@ -2739,15 +2633,14 @@ const RutaClientLoaded = ({
       
 
       {detalleVisita && (
-
-        <ClienteDetalleModal
-
+        <ClienteInfoModal
           visita={detalleVisita}
-
           onClose={() => setDetalleVisita(null)}
-
+          nextPagoMonto={detalleVisita.montoCuota}
+          nextPagoFecha={detalleVisita.proximaVisita}
+          recaudadoHoy={0} // Valor estático en modo auditoría admin
+          formatFechaLargaUTC={formatShortDate}
         />
-
       )}
 
       
@@ -3142,455 +3035,22 @@ const RutaClient = ({ initialRuta: initialRutaProp, rutaId }: RutaClientProps) =
  */
 
 function formatDateUTC(dateStr: string) {
-
   if (!dateStr) return '---'
-
-  const date = new Date(dateStr)
-
-  const day = date.getUTCDate()
-
-  const monthNames = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"]
-
-  const month = monthNames[date.getUTCMonth()]
-
-  const year = date.getUTCFullYear()
-
-  return `${day} de ${month} de ${year}`
-
-}
-
-
-
-function ClienteDetalleModal({ visita, onClose }: { visita: VisitaRuta; onClose: () => void }) {
-
-  const [loading, setLoading] = useState(true)
-
-  const [clienteCompleto, setClienteCompleto] = useState<any>(null)
-
-
-
-  useEffect(() => {
-
-    async function loadInfo() {
-
-      try {
-
-        setLoading(true)
-
-        if (visita.clienteId) {
-
-          const res: any = await clientesService.obtenerPorId(visita.clienteId)
-
-          // Calcular score dinámico igual que getAllClients en el backend
-
-          let score = res.puntaje || 100
-
-          const prestamosEnMora = (res.prestamos || []).filter((p: any) => p.estado === 'EN_MORA')
-
-          const prestamosActivos = (res.prestamos || []).filter((p: any) => p.estado === 'ACTIVO')
-
-          if (prestamosEnMora.length > 0) {
-
-            score -= 20
-
-          } else if (prestamosActivos.length > 0) {
-
-            score += 5
-
-          }
-
-          // Ajuste por último pago
-
-          const pagos = res.pagos || []
-
-          if (pagos.length > 0) {
-
-            const diasDesdeUltimoPago = Math.floor(
-
-              (Date.now() - new Date(pagos[0].fechaPago).getTime()) / (1000 * 60 * 60 * 24)
-
-            )
-
-            if (diasDesdeUltimoPago > 30) score -= 10
-
-            else if (diasDesdeUltimoPago <= 7) score += 5
-
-          }
-
-          score = Math.max(0, Math.min(100, score))
-
-          setClienteCompleto({ ...res, score })
-
-        }
-
-      } catch (e) {
-
-        console.error("Error al cargar detalle del cliente", e)
-
-      } finally {
-
-        setLoading(false)
-
-      }
-
-    }
-
-    loadInfo()
-
-  }, [visita.clienteId])
-
-
-
-  const r = visita.nivelRiesgo;
-
-  const riesgoColor = 
-
-    r === 'bajo' ? 'text-emerald-600 bg-emerald-50' :
-
-    r === 'leve' ? 'text-blue-600 bg-blue-50' :
-
-    r === 'moderado' ? 'text-orange-600 bg-orange-50' :
-
-    r === 'critico' ? 'text-red-600 bg-red-50' : 'text-slate-400 bg-slate-50';
-
-
-
-  const riesgoLabel = 
-
-    r === 'bajo' ? 'Peligro Mínimo' :
-
-    r === 'leve' ? 'Leve Retraso' :
-
-    r === 'moderado' ? 'Riesgo Moderado' :
-
-    r === 'critico' ? 'Alto Riesgo' : 'Riesgo Desconocido';
-
-
-
-  // Contar préstamos activos (no pagados ni cancelados)
-
-  const prestamosActivosCount = useMemo(() => {
-
-    if (!clienteCompleto?.prestamos) return 0;
-
-    return clienteCompleto.prestamos.filter((p: any) => 
-
-      p.estado !== 'PAGADO' && p.estado !== 'CANCELADO' && p.estado !== 'RECHAZADO'
-
-    ).length;
-
-  }, [clienteCompleto]);
-
-
-
-  return (
-
-    <div 
-
-      className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md animate-in fade-in duration-300"
-
-      onClick={onClose}
-
-    >
-
-      <div 
-
-        className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-sm overflow-hidden animate-in zoom-in-95 duration-300 border border-slate-100 flex flex-col max-h-[90vh]"
-
-        onClick={(e) => e.stopPropagation()}
-
-      >
-
-        
-
-        {/* Header Compacto */}
-
-        <div className="px-8 pt-8 pb-4 flex justify-between items-center">
-
-          <div>
-
-            <h3 className="font-black text-2xl text-slate-900 tracking-tight">Expediente</h3>
-
-            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em]">Detalle Administrativo</p>
-
-          </div>
-
-          <button onClick={onClose} className="p-2 bg-slate-50 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-full transition-all group">
-
-            <XCircle className="h-7 w-7 group-active:scale-90" />
-
-          </button>
-
-        </div>
-
-        
-
-        <div className="px-8 pb-8 space-y-6 overflow-y-auto custom-scrollbar">
-
-           {loading ? (
-
-             <div className="py-20 flex flex-col items-center justify-center gap-4">
-
-                <Loader2 className="w-10 h-10 text-[#08557f] animate-spin" />
-
-                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Sincronizando...</p>
-
-             </div>
-
-           ) : (
-
-             <>
-
-               {/* Perfil Header */}
-
-               <div className="text-center space-y-3">
-
-                 <div className="w-20 h-20 bg-slate-50 rounded-3xl mx-auto flex items-center justify-center text-slate-200 border border-slate-100">
-
-                   <User className="w-10 h-10" />
-
-                 </div>
-
-                 <div>
-
-                    <h4 className="text-xl font-black text-slate-900">{visita.cliente}</h4>
-
-                    <div className="flex justify-center gap-2 mt-1">
-
-                       <span className={`${riesgoColor} text-[9px] font-black px-3 py-1 rounded-full uppercase border border-current/10`}>
-
-                         {riesgoLabel}
-
-                       </span>
-
-                    </div>
-
-                 </div>
-
-               </div>
-
-
-
-               {/* Información DINÁMICA */}
-
-               <div className="grid grid-cols-2 gap-3">
-
-                  <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100">
-
-                     <div className="flex items-center gap-1.5 mb-1 text-slate-400">
-
-                        <Fingerprint className="w-3 h-3" />
-
-                        <span className="text-[9px] font-black uppercase">Cédula</span>
-
-                     </div>
-
-                     <p className="text-sm font-black text-slate-900">{clienteCompleto?.dni || '---'}</p>
-
-                  </div>
-
-                   <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100">
-
-                      <div className="flex items-center gap-1.5 mb-2 text-slate-400">
-
-                         <Star className="w-3 h-3" />
-
-                         <span className="text-[9px] font-black uppercase">Score Crediticio</span>
-
-                      </div>
-
-                      <div className="flex items-center justify-between mb-1">
-
-                        <span className={`text-xl font-black ${
-
-                          ((clienteCompleto?.score ?? clienteCompleto?.puntaje) || 0) >= 80 ? 'text-emerald-600' :
-
-                          ((clienteCompleto?.score ?? clienteCompleto?.puntaje) || 0) >= 60 ? 'text-amber-500' :
-
-                          ((clienteCompleto?.score ?? clienteCompleto?.puntaje) || 0) >= 40 ? 'text-amber-600' :
-
-                          'text-rose-600'
-
-                        }`}>{clienteCompleto?.score ?? clienteCompleto?.puntaje ?? '—'}<span className="text-xs font-bold text-slate-400">/100</span></span>
-
-                        <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full border ${
-
-                          ((clienteCompleto?.score ?? clienteCompleto?.puntaje) || 0) >= 80 ? 'text-emerald-700 bg-emerald-50 border-emerald-200' :
-
-                          ((clienteCompleto?.score ?? clienteCompleto?.puntaje) || 0) >= 60 ? 'text-amber-600 bg-amber-50 border-amber-200' :
-
-                          ((clienteCompleto?.score ?? clienteCompleto?.puntaje) || 0) >= 40 ? 'text-amber-700 bg-amber-50 border-amber-200' :
-
-                          'text-rose-700 bg-rose-50 border-rose-200'
-
-                        }`}>
-
-                          {((clienteCompleto?.score ?? clienteCompleto?.puntaje) || 0) >= 80 ? 'Bueno' :
-
-                           ((clienteCompleto?.score ?? clienteCompleto?.puntaje) || 0) >= 60 ? 'Regular' :
-
-                           ((clienteCompleto?.score ?? clienteCompleto?.puntaje) || 0) >= 40 ? 'Precaución' : 'Bajo'}
-
-                        </span>
-
-                      </div>
-
-                      {/* ScoreMeter — igual al del listado de clientes */}
-
-                      <div className="relative pt-2">
-
-                        <div className="h-1.5 bg-slate-200 rounded-full overflow-hidden">
-
-                          <div
-
-                            className={`h-full rounded-full transition-all duration-300 ${
-
-                              ((clienteCompleto?.score ?? clienteCompleto?.puntaje) || 0) >= 80 ? 'bg-emerald-500' :
-
-                              ((clienteCompleto?.score ?? clienteCompleto?.puntaje) || 0) >= 60 ? 'bg-amber-500' :
-
-                              ((clienteCompleto?.score ?? clienteCompleto?.puntaje) || 0) >= 40 ? 'bg-amber-600' :
-
-                              'bg-rose-500'
-
-                            }`}
-
-                            style={{ width: `${Math.min(100, (clienteCompleto?.score ?? clienteCompleto?.puntaje) || 0)}%` }}
-
-                          />
-
-                        </div>
-
-                        <div className="flex justify-between text-[9px] text-slate-400 mt-1 font-bold">
-
-                          <span>0</span><span>50</span><span>100</span>
-
-                        </div>
-
-                      </div>
-
-                   </div>
-
-                  <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100">
-
-                     <div className="flex items-center gap-1.5 mb-1 text-slate-400">
-
-                        <CalendarDays className="w-3 h-3" />
-
-                        <span className="text-[9px] font-black uppercase">Miembro Desde</span>
-
-                     </div>
-
-                     <p className="text-sm font-black text-slate-900 uppercase">
-
-                       {clienteCompleto?.creadoEn ? formatDateUTC(clienteCompleto.creadoEn) : '---'}
-
-                     </p>
-
-                  </div>
-
-                  <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100">
-
-                     <div className="flex items-center gap-1.5 mb-1 text-slate-400">
-
-                        <History className="w-3 h-3" />
-
-                        <span className="text-[9px] font-black uppercase">Préstamos</span>
-
-                     </div>
-
-                     <p className="text-sm font-black text-[#08557f]">{prestamosActivosCount} Activos</p>
-
-                  </div>
-
-               </div>
-
-
-
-               {/* Contacto Alternativo */}
-
-               <div className="p-5 rounded-3xl bg-blue-50 border border-blue-100">
-
-                  <h5 className="text-[10px] font-black text-[#08557f] uppercase tracking-widest mb-3">Referencias / Contacto</h5>
-
-                  <div className="space-y-4">
-
-                     <div className="flex items-center gap-3">
-
-                        <div className="w-8 h-8 bg-white rounded-xl flex items-center justify-center text-[#08557f] shadow-sm">
-
-                          <Phone className="w-4 h-4" />
-
-                        </div>
-
-                        <div>
-
-                          <p className="text-[9px] font-bold text-blue-400 uppercase">WhatsApp / Tel</p>
-
-                          <p className="text-sm font-black text-slate-900">{clienteCompleto?.telefono || visita.telefono}</p>
-
-                        </div>
-
-                     </div>
-
-                     <div className="flex items-start gap-3">
-
-                        <div className="w-8 h-8 bg-white rounded-xl flex items-center justify-center text-[#08557f] shadow-sm">
-
-                          <MapPin className="w-4 h-4" />
-
-                        </div>
-
-                        <div>
-
-                          <p className="text-[9px] font-bold text-blue-400 uppercase">Referencia de Ubicación</p>
-
-                          <p className="text-xs font-bold text-slate-700 leading-tight">
-
-                            {clienteCompleto?.referencia || "Sin referencias adicionales registradas."}
-
-                          </p>
-
-                        </div>
-
-                     </div>
-
-                  </div>
-
-               </div>
-
-
-
-               {/* Botón Cerrar */}
-
-               <div className="pt-2">
-
-                  <button 
-
-                    onClick={onClose} 
-
-                    className="w-full py-5 bg-[#08557f] hover:bg-[#063a58] text-white font-black rounded-2xl shadow-xl shadow-blue-900/20 transition-all active:scale-[0.97] uppercase tracking-[0.15em] text-xs"
-
-                  >
-
-                     Cerrar Expediente
-
-                  </button>
-
-               </div>
-
-             </>
-
-           )}
-
-        </div>
-
-      </div>
-
-    </div>
-
-  )
-
+  try {
+    const dateOnly = dateStr.includes('T') ? dateStr.split('T')[0] : dateStr;
+    const [y, m, d] = dateOnly.split('-').map(Number);
+    const date = new Date(y, m-1, d, 0, 0, 0, 0); 
+    
+    if (isNaN(date.getTime())) return '---';
+
+    const day = date.getDate()
+    const monthNames = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"]
+    const month = monthNames[date.getMonth()]
+    const year = date.getFullYear()
+    return `${day} de ${month} de ${year}`
+  } catch {
+    return '---'
+  }
 }
 
 

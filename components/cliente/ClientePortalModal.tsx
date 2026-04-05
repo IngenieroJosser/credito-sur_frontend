@@ -83,6 +83,20 @@ export default function ClientePortalModal({ clientId, onClose, rolUsuario = 'co
                     const montoTotal = principal + interesTotal;
                     const saldoPendiente = Number(p.saldoPendiente || 0);
 
+                    const cuotasVencidas = cuotas.filter((c: any) => c.estado === 'VENCIDA' || c.estado === 'VENCIDO').length;
+                    const moraAcumulada = cuotas.reduce((sum: number, c: any) => sum + Number(c.montoInteresMora || 0), 0);
+                    
+                    // Calcular días de mora si tiene cuotas vencidas
+                    let mayorMora = 0;
+                    if (cuotasVencidas > 0) {
+                      const hoy = new Date();
+                      const fechasVencidas = cuotas
+                        .filter((c: any) => c.estado === 'VENCIDA' || c.estado === 'VENCIDO')
+                        .map((c: any) => new Date(c.fechaVencimiento));
+                      const masAntigua = new Date(Math.min(...fechasVencidas.map((d: Date) => d.getTime())));
+                      mayorMora = Math.max(0, Math.ceil((hoy.getTime() - masAntigua.getTime()) / (1000 * 60 * 60 * 24)));
+                    }
+
                     return {
                         id: p.id,
                         producto: p.tipoPrestamo === 'ARTICULO' ? (p.producto?.nombre || 'Artículo') : 'Préstamo Efectivo',
@@ -99,7 +113,10 @@ export default function ClientePortalModal({ clientId, onClose, rolUsuario = 'co
                         tasaInteres: tasa,
                         frecuencia: p.frecuenciaPago || 'SEMANAL',
                         icono: <Smartphone className="w-5 h-5" />,
-                        categoria: p.tipoPrestamo || 'General'
+                        categoria: p.tipoPrestamo || 'General',
+                        cuotasVencidas,
+                        moraAcumulada,
+                        diasMora: mayorMora
                     };
                 }));
                 

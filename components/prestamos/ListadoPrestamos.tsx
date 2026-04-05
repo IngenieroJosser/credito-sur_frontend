@@ -856,10 +856,7 @@ const ListadoPrestamosElegante = () => {
             }
 
             const isArticulo = String(data.creditType || '').toLowerCase() === 'articulo';
-            const esContado = isArticulo && (
-              (data.numCuotas !== undefined && data.numCuotas === 1) ||
-              (data.plazoMeses !== undefined && data.plazoMeses === 1)
-            );
+            const esContado = isArticulo && !!data.ventaContado;
             const freq = esContado ? 'MENSUAL' : (data.frecuenciaPago || 'DIARIO');
 
             // Si es artículo, usamos lo que ya calculó el modal

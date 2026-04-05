@@ -1,0 +1,211 @@
+
+> creditos-sur_frontend@0.1.0 build
+> next build --webpack
+
+Ôû▓ Next.js 16.1.6 (webpack)
+- Environments: .env.local
+
+ÔÜá The "middleware" file convention is deprecated. Please use "proxy" instead. Learn more: https://nextjs.org/docs/messages/middleware-to-proxy
+  Creating an optimized production build ...
+ Ô£ô (pwa) Compiling for server...
+ Ô£ô (pwa) Compiling for server...
+ Ô£ô (pwa) Compiling for client (static)...
+ Ôùï (pwa) Service worker: C:\Users\ACER\Desktop\Creditos del Sur\credito-sur_frontend\public\sw.js
+ Ôùï (pwa)   URL: /sw.js
+ Ôùï (pwa)   Scope: /
+ Ôùï (pwa) Custom runtimeCaching array found, using it instead of the default one.
+Ô£ô Compiled successfully in 12.0s
+  Running TypeScript ...
+  Collecting page data using 15 workers ...
+  Generating static pages using 15 workers (0/111) ...
+  Generating static pages using 15 workers (27/111) 
+[SSR] Error fetching clients: Error: Dynamic server usage: Route /admin/clientes couldn't be rendered statically because it used `cookies`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error
+    at w (C:\Users\ACER\Desktop\Creditos del Sur\credito-sur_frontend\.next\server\chunks\3445.js:12:9381)
+    at n (C:\Users\ACER\Desktop\Creditos del Sur\credito-sur_frontend\.next\server\chunks\8165.js:1:8029)
+    at f (C:\Users\ACER\Desktop\Creditos del Sur\credito-sur_frontend\.next\server\chunks\7570.js:1:45895)
+    at h (C:\Users\ACER\Desktop\Creditos del Sur\credito-sur_frontend\.next\server\app\admin\clientes\page.js:2:8818)
+    at stringify (<anonymous>) {
+  description: "Route /admin/clientes couldn't be rendered statically because it used `cookies`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error",
+  digest: 'DYNAMIC_SERVER_USAGE'
+}
+[SSR] Error stack: Error: Dynamic server usage: Route /admin/clientes couldn't be rendered statically because it used `cookies`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error
+    at w (C:\Users\ACER\Desktop\Creditos del Sur\credito-sur_frontend\.next\server\chunks\3445.js:12:9381)
+    at n (C:\Users\ACER\Desktop\Creditos del Sur\credito-sur_frontend\.next\server\chunks\8165.js:1:8029)
+    at f (C:\Users\ACER\Desktop\Creditos del Sur\credito-sur_frontend\.next\server\chunks\7570.js:1:45895)
+    at h (C:\Users\ACER\Desktop\Creditos del Sur\credito-sur_frontend\.next\server\app\admin\clientes\page.js:2:8818)
+    at eC (C:\Users\ACER\Desktop\Creditos del Sur\credito-sur_frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:5:27271)
+    at e (C:\Users\ACER\Desktop\Creditos del Sur\credito-sur_frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:5:31386)
+    at eU (C:\Users\ACER\Desktop\Creditos del Sur\credito-sur_frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:5:33391)
+    at Array.toJSON (C:\Users\ACER\Desktop\Creditos del Sur\credito-sur_frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:5:28929)
+    at stringify (<anonymous>)
+    at eX (C:\Users\ACER\Desktop\Creditos del Sur\credito-sur_frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:5:42563)
+  Generating static pages using 15 workers (55/111) 
+  Generating static pages using 15 workers (83/111) 
+Ô£ô Generating static pages using 15 workers (111/111) in 1671.8ms
+  Finalizing page optimization ...
+  Collecting build traces ...
+
+Route (app)
+Ôöî Ôùï /
+Ôö£ Ôùï /_not-found
+Ôö£ Ôùï /admin
+Ôö£ Ôùï /admin/aprobaciones
+Ôö£ Ôùï /admin/archivados
+Ôö£ Ôùï /admin/articulos
+Ôö£ ãÆ /admin/articulos/[id]
+Ôö£ ãÆ /admin/articulos/[id]/editar
+Ôö£ Ôùï /admin/articulos/nuevo
+Ôö£ Ôùï /admin/auditoria
+Ôö£ ãÆ /admin/clientes
+Ôö£ ãÆ /admin/clientes/[id]
+Ôö£ ãÆ /admin/clientes/[id]/editar
+Ôö£ Ôùï /admin/clientes/nuevo
+Ôö£ Ôùï /admin/contable
+Ôö£ ãÆ /admin/contable/cajas/[id]
+Ôö£ ãÆ /admin/contable/cajas/[id]/editar
+Ôö£ Ôùï /admin/contable/cierre-caja
+Ôö£ ãÆ /admin/contable/historial/[id]
+Ôö£ ãÆ /admin/contable/movimientos/[id]
+Ôö£ Ôùï /admin/contable/movimientos/nuevo
+Ôö£ Ôùï /admin/creditos
+Ôö£ Ôùï /admin/creditos-articulos
+Ôö£ ãÆ /admin/creditos-articulos/[id]
+Ôö£ ãÆ /admin/creditos-articulos/[id]/editar
+Ôö£ Ôùï /admin/creditos-articulos/nuevo
+Ôö£ Ôùï /admin/creditos/nuevo
+Ôö£ Ôùï /admin/cuentas-mora
+Ôö£ ãÆ /admin/cuentas-mora/[id]
+Ôö£ Ôùï /admin/cuentas-vencidas
+Ôö£ ãÆ /admin/cuentas-vencidas/[id]
+Ôö£ Ôùï /admin/notificaciones
+Ôö£ Ôùï /admin/operaciones/punto-de-venta
+Ôö£ Ôùï /admin/pagos/historial
+Ôö£ ãÆ /admin/pagos/registrar/[clienteId]
+Ôö£ Ôùï /admin/pagos/registro
+Ôö£ Ôùï /admin/perfil
+Ôö£ Ôùï /admin/prestamos
+Ôö£ ãÆ /admin/prestamos/[id]
+Ôö£ ãÆ /admin/prestamos/[id]/editar
+Ôö£ Ôùï /admin/prestamos/nuevo
+Ôö£ Ôùï /admin/reportes/financieros
+Ôö£ ãÆ /admin/reportes/financieros/detalle/[id]
+Ôö£ Ôùï /admin/reportes/operativos
+Ôö£ Ôùï /admin/revisiones
+Ôö£ ãÆ /admin/rutas
+Ôö£ ãÆ /admin/rutas/[id]
+Ôö£ Ôùï /admin/rutas/asignacion
+Ôö£ Ôùï /admin/rutas/nueva
+Ôö£ Ôùï /admin/sistema/backups
+Ôö£ Ôùï /admin/sistema/configuracion
+Ôö£ Ôùï /admin/sistema/sincronizacion
+Ôö£ Ôùï /admin/solicitudes
+Ôö£ Ôùï /admin/users
+Ôö£ ãÆ /admin/users/[id]
+Ôö£ ãÆ /admin/users/[id]/editar
+Ôö£ Ôùï /admin/users/nuevo
+Ôö£ ãÆ /api/ping
+Ôö£ Ôùï /articulos
+Ôö£ Ôùï /auditoria
+Ôö£ Ôùï /cobranzas
+Ôö£ Ôùï /cobranzas/auditoria
+Ôö£ Ôùï /cobranzas/backups
+Ôö£ Ôùï /cobranzas/clientes/nuevo
+Ôö£ Ôùï /cobranzas/notificaciones
+Ôö£ Ôùï /cobranzas/perfil
+Ôö£ Ôùï /cobranzas/prestamos/nuevo
+Ôö£ Ôùï /cobranzas/solicitudes
+Ôö£ Ôùï /contable
+Ôö£ ãÆ /contable/cajas/[id]
+Ôö£ ãÆ /contable/cajas/[id]/editar
+Ôö£ Ôùï /contable/cierre-caja
+Ôö£ ãÆ /contable/historial/[id]
+Ôö£ ãÆ /contable/movimientos/[id]
+Ôö£ Ôùï /contador
+Ôö£ Ôùï /contador/articulos
+Ôö£ Ôùï /contador/backups
+Ôö£ Ôùï /contador/contable
+Ôö£ ãÆ /contador/contable/cajas/[id]
+Ôö£ Ôùï /contador/contable/cierre-caja
+Ôö£ ãÆ /contador/contable/historial/[id]
+Ôö£ ãÆ /contador/contable/movimientos/[id]
+Ôö£ Ôùï /contador/cuentas-mora
+Ôö£ Ôùï /contador/cuentas-vencidas
+Ôö£ ãÆ /contador/cuentas-vencidas/[id]
+Ôö£ Ôùï /contador/notificaciones
+Ôö£ Ôùï /contador/reportes/financieros
+Ôö£ ãÆ /contador/reportes/financieros/detalle/[id]
+Ôö£ Ôùï /contingencia
+Ôö£ Ôùï /coordinador
+Ôö£ Ôùï /coordinador/aprobaciones
+Ôö£ Ôùï /coordinador/archivados
+Ôö£ Ôùï /coordinador/articulos
+Ôö£ Ôùï /coordinador/backups
+Ôö£ ãÆ /coordinador/clientes
+Ôö£ ãÆ /coordinador/clientes/[id]
+Ôö£ Ôùï /coordinador/creditos
+Ôö£ ãÆ /coordinador/creditos/[id]
+Ôö£ ãÆ /coordinador/creditos/[id]/editar
+Ôö£ Ôùï /coordinador/creditos/nuevo
+Ôö£ Ôùï /coordinador/cuentas-mora
+Ôö£ ãÆ /coordinador/cuentas-mora/[id]
+Ôö£ Ôùï /coordinador/cuentas-vencidas
+Ôö£ ãÆ /coordinador/cuentas-vencidas/[id]
+Ôö£ Ôùï /coordinador/notificaciones
+Ôö£ Ôùï /coordinador/perfil
+Ôö£ Ôùï /coordinador/reportes
+Ôö£ Ôùï /coordinador/reportes/ [id]
+Ôö£ ãÆ /coordinador/reportes/[id]
+Ôö£ Ôùï /coordinador/revisiones
+Ôö£ Ôùï /coordinador/rutas
+Ôö£ ãÆ /coordinador/rutas/[id]
+Ôö£ ãÆ /coordinador/rutas/[id]/editar
+Ôö£ Ôùï /coordinador/rutas/asignacion
+Ôö£ Ôùï /coordinador/rutas/nueva
+Ôö£ Ôùï /coordinador/sistema/sincronizacion
+Ôö£ Ôùï /creditos-articulos
+Ôö£ ãÆ /creditos-articulos/[id]
+Ôö£ ãÆ /creditos-articulos/[id]/editar
+Ôö£ Ôùï /creditos-articulos/nuevo
+Ôö£ Ôùï /cuentas-mora
+Ôö£ Ôùï /cuentas-vencidas
+Ôö£ Ôùï /login
+Ôö£ Ôùï /notificaciones
+Ôö£ Ôùï /offline
+Ôö£ Ôùï /pagos/historial
+Ôö£ Ôùï /perfil
+Ôö£ Ôùï /punto-de-venta
+Ôö£ Ôùï /punto-de-venta/backups
+Ôö£ Ôùï /punto-de-venta/notificaciones
+Ôö£ Ôùï /punto-de-venta/perfil
+Ôö£ Ôùï /recuperar-contrasena
+Ôö£ Ôùï /reportes/financieros
+Ôö£ ãÆ /reportes/financieros/detalle/[id]
+Ôö£ Ôùï /supervisor
+Ôö£ Ôùï /supervisor/auditoria
+Ôö£ Ôùï /supervisor/backups
+Ôö£ Ôùï /supervisor/clientes
+Ôö£ ãÆ /supervisor/clientes/[id]
+Ôö£ ãÆ /supervisor/clientes/[id]/editar
+Ôö£ Ôùï /supervisor/clientes/nuevo
+Ôö£ Ôùï /supervisor/creditos-articulos/nuevo
+Ôö£ Ôùï /supervisor/creditos/nuevo
+Ôö£ Ôùï /supervisor/cuentas-mora
+Ôö£ ãÆ /supervisor/cuentas-mora/[id]
+Ôö£ Ôùï /supervisor/cuentas-vencidas
+Ôö£ ãÆ /supervisor/cuentas-vencidas/[id]
+Ôö£ Ôùï /supervisor/notificaciones
+Ôö£ ãÆ /supervisor/pagos/registrar/[clienteId]
+Ôö£ Ôùï /supervisor/perfil
+Ôö£ Ôùï /supervisor/prestamos/nuevo
+Ôö£ Ôùï /supervisor/reportes/operativos
+Ôö£ Ôùï /supervisor/revisiones
+Ôö£ Ôùï /supervisor/rutas
+Ôö£ ãÆ /supervisor/rutas/[id]
+Ôöö Ôùï /test
+
+
+ãÆ Proxy (Middleware)
+
+Ôùï  (Static)   prerendered as static content
+ãÆ  (Dynamic)  server-rendered on demand
+

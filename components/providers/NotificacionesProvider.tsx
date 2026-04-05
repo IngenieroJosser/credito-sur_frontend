@@ -4,7 +4,9 @@ import React, { createContext, useContext, useEffect, useState, useRef } from 'r
 import { io, Socket } from 'socket.io-client'
 import { Notificacion, notificacionesService } from '@/services/notificaciones-service'
 import { toast } from 'sonner'
+import { formatShortDateTime } from "@/lib/utils/format";
 import { showLocalNotification } from '@/lib/push/pushNotifications'
+import { refreshSesion } from '@/services/autenticacion-service'
 
 interface NotificacionesContextProps {
   socket: Socket | null;
@@ -98,6 +100,40 @@ export function NotificacionesProvider({ children }: { children: React.ReactNode
       }
     })
 
+    // Cuando un admin actualiza permisos de un usuario, el backend emite usuarios_actualizados.
+    // Si aplica a este usuario, refrescamos sesión (token + permisos + sidebar) sin requerir re-login.
+    newSocket.on('usuarios_actualizados', async (payload: any) => {
+      try {
+        if (!currentUserId) return;
+        if (payload?.accion !== 'PERMISOS_ACTUALIZADOS') return;
+        if (payload?.usuarioId && String(payload.usuarioId) !== String(currentUserId)) return;
+
+        const refreshed = await refreshSesion();
+        if (refreshed?.access_token) {
+          localStorage.setItem('token', refreshed.access_token);
+        }
+
+        if (refreshed?.usuario) {
+          const existingRaw = localStorage.getItem('user');
+          let existing: any = null;
+          try {
+            existing = existingRaw ? JSON.parse(existingRaw) : null;
+          } catch {
+            existing = null;
+          }
+          const mergedUser = {
+            ...(existing || {}),
+            ...refreshed.usuario,
+          };
+          localStorage.setItem('user', JSON.stringify(mergedUser));
+        }
+
+        window.dispatchEvent(new Event('userUpdated'));
+      } catch (e) {
+        // No interrumpir la app si falla el refresh; el cambio se aplicará en el próximo login.
+      }
+    })
+
     newSocket.on('connect_error', (error) => {
       if (!hasLoggedError) {
         console.warn(`[Socket] Desconectado o esperando backend... (${error.message})`);
@@ -111,39 +147,30 @@ export function NotificacionesProvider({ children }: { children: React.ReactNode
       }
     })
 
-    const formatFecha = (fechaRaw?: any) => {
-      if (!fechaRaw) return 'Fecha desconocida';
-      return new Date(fechaRaw).toLocaleString('es-CO', {
-        day: '2-digit',
-        month: '2-digit',
-        year: '2-digit',
-        hour: '2-digit',
-        minute: '2-digit',
-      });
+    // Helper compartido: procesa y muestra una notificación entrante
+    const handleIncomingNotification = (notificacion: Notificacion, forceInfo = false) => {
+      const formattedNotif = {
+        ...notificacion,
+        fecha: formatShortDateTime((notificacion as any).creadoEn || notificacion.fecha, 'Fecha desconocida'),
+      };
+      setNotificaciones(prev => [formattedNotif, ...prev]);
+      ringBell();
+
+      if (!forceInfo) {
+        const isSuccess = ['EXITO', 'APROBADA'].some(k => notificacion.tipo?.includes(k) || notificacion.titulo?.toUpperCase().includes(k));
+        const isError = ['RECHAZADA', 'ERROR', 'FRACASO'].some(k => notificacion.tipo?.includes(k) || notificacion.titulo?.toUpperCase().includes(k));
+        if (isSuccess) toast.success(notificacion.titulo, { description: notificacion.mensaje, duration: 8000 });
+        else if (isError) toast.error(notificacion.titulo, { description: notificacion.mensaje, duration: 8000 });
+        else toast.info(notificacion.titulo, { description: notificacion.mensaje, duration: 5000 });
+      } else {
+        toast.info(notificacion.titulo, { description: notificacion.mensaje, duration: 5000 });
+      }
+
+      showLocalNotification(notificacion.titulo, { body: notificacion.mensaje });
     };
 
     // Escuchar nuevas notificaciones directas
-    newSocket.on('nueva_notificacion', (notificacion: Notificacion) => {
-      const formattedNotif = {
-        ...notificacion,
-        fecha: formatFecha((notificacion as any).creadoEn || notificacion.fecha)
-      };
-      setNotificaciones(prev => [formattedNotif, ...prev])
-
-      // 🔔 Animar campanita — NO abrir el dropdown automáticamente
-      ringBell()
-      
-      // Toast de confirmación visual
-      const isSuccess = ['EXITO', 'APROBADA'].some(k => notificacion.tipo?.includes(k) || notificacion.titulo?.toUpperCase().includes(k));
-      const isError = ['RECHAZADA', 'ERROR', 'FRACASO'].some(k => notificacion.tipo?.includes(k) || notificacion.titulo?.toUpperCase().includes(k));
-      
-      if (isSuccess) toast.success(notificacion.titulo, { description: notificacion.mensaje, duration: 8000 });
-      else if (isError) toast.error(notificacion.titulo, { description: notificacion.mensaje, duration: 8000 });
-      else toast.info(notificacion.titulo, { description: notificacion.mensaje, duration: 5000 });
-
-      // Mostrar Push Notification local
-      showLocalNotification(notificacion.titulo, { body: notificacion.mensaje })
-    })
+    newSocket.on('nueva_notificacion', (notificacion: Notificacion) => handleIncomingNotification(notificacion))
 
     // Escuchar cambios de estado (ej. se marcaron como leídas en otra pestaña)
     newSocket.on('notificaciones_actualizadas', () => {
@@ -151,21 +178,7 @@ export function NotificacionesProvider({ children }: { children: React.ReactNode
     })
 
     // Escuchar notificaciones globales (para todos los usuarios)
-    newSocket.on('nueva_notificacion_global', (notificacion: Notificacion) => {
-      const formattedNotif = {
-        ...notificacion,
-        fecha: formatFecha((notificacion as any).creadoEn || notificacion.fecha)
-      };
-      setNotificaciones(prev => [formattedNotif, ...prev])
-
-      // 🔔 Animar campanita — NO abrir el dropdown automáticamente
-      ringBell()
-      
-      toast.info(notificacion.titulo, { description: notificacion.mensaje, duration: 5000 });
-
-      // Mostrar Push Notification local global
-      showLocalNotification(notificacion.titulo, { body: notificacion.mensaje })
-    })
+    newSocket.on('nueva_notificacion_global', (notificacion: Notificacion) => handleIncomingNotification(notificacion, true))
 
     setSocket(newSocket)
 

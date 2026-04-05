@@ -254,9 +254,11 @@ export default function DashboardPage() {
         const moraPercent = capitalPrestado > 0 && moraMonto > 0
           ? ((moraMonto / capitalPrestado) * 100).toFixed(1)
           : moraCount > 0 ? '> 0' : '0';
-        // Gastos del período (viene del resumen financiero con fechas del período)
+        // Gastos operativos del período (excluye DEUDA_COBRADOR)
         const gastosPeriodo = resumen?.egresosHoy || 0;
-        const utilidadPeriodo = resumen?.gananciaNeta || 0;
+        const utilidadPeriodo = typeof (resumen as any)?.utilidadReal === 'number'
+          ? Number((resumen as any).utilidadReal || 0)
+          : (resumen?.gananciaNeta || 0);
 
         const mainMetrics: MetricItem[] = [
           {

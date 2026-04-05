@@ -126,12 +126,19 @@ const calcularCuotasYResumen = (form: FormularioPrestamo) => {
 
     if (form.frecuenciaPago === 'DIARIO') {
       fechaPago.setDate(fechaPago.getDate() + 1);
+      // Exceptuar domingos: si cae domingo (0), saltar al lunes
+      if (fechaPago.getDay() === 0) {
+        fechaPago.setDate(fechaPago.getDate() + 1);
+      }
     } else if (form.frecuenciaPago === 'SEMANAL') {
       fechaPago.setDate(fechaPago.getDate() + 7);
+      if (fechaPago.getDay() === 0) fechaPago.setDate(fechaPago.getDate() - 1);
     } else if (form.frecuenciaPago === 'QUINCENAL') {
       fechaPago.setDate(fechaPago.getDate() + 15);
+      if (fechaPago.getDay() === 0) fechaPago.setDate(fechaPago.getDate() - 1);
     } else { 
       fechaPago.setMonth(fechaPago.getMonth() + 1);
+      if (fechaPago.getDay() === 0) fechaPago.setDate(fechaPago.getDate() + 1);
     }
 
     cuotasCalculadas.push({

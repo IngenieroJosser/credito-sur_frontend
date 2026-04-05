@@ -31,6 +31,17 @@ export async function obtenerPerfil() {
   return await apiRequest<UserProfile>('GET', `/auth/perfil`);
 }
 
+export async function refreshSesion() {
+  const response = await apiRequest<AuthResponse>('GET', `/auth/refresh`);
+
+  // Cachear sesión para uso offline
+  if (response.access_token && response.usuario) {
+    cacheSession(response.access_token, response.usuario);
+  }
+
+  return response;
+}
+
 export async function cerrarSesion() {
   if (typeof window !== "undefined") {
     localStorage.removeItem('token');

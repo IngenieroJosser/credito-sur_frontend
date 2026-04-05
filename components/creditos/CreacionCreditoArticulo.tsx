@@ -74,6 +74,7 @@ export default function CreacionCreditoArticulo({
   const [listaArticulos, setListaArticulos] = useState<Articulo[]>([]);
   const [loadingDatos, setLoadingDatos] = useState(true);
   const [esContado, setEsContado] = useState(false);
+  const [notasInput, setNotasInput] = useState('');
 
   // Cargar datos iniciales
   React.useEffect(() => {
@@ -298,7 +299,7 @@ export default function CreacionCreditoArticulo({
         fechaInicio: fechaInicio,
         creadoPorId: creadorId,
         cuotaInicial: cuotaInicial,
-        notas: `${esContado ? 'Venta de contado' : 'Crédito de artículo'}: ${articulosSeleccionados.map(a => `${a.nombre} (x${a.cantidad})`).join(', ')}`,
+        notas: `${esContado ? 'Venta de contado' : 'Crédito de artículo'}: ${articulosSeleccionados.map(a => `${a.nombre} (x${a.cantidad})`).join(', ')}${notasInput ? `. ${notasInput}` : ''}`,
         tipoAmortizacion: TipoAmortizacion.INTERES_SIMPLE,
         esContado
       };
@@ -311,7 +312,7 @@ export default function CreacionCreditoArticulo({
         const esOffline = Boolean(creado?.esOffline) || String(loanId || '').startsWith('temp-loan-');
         if (loanId && !esOffline && !esContado) {
           await exportService.exportContrato(String(loanId));
-        } else if (!esContado) {
+        } else if (!esOffline && !esContado) {
           console.warn('No se encontró el id del prestamo para imprimir contrato.');
         }
       } catch (err) {
@@ -775,7 +776,7 @@ export default function CreacionCreditoArticulo({
                           </div>
                        </div>
 
-                       <div className="space-y-4">
+                        <div className="space-y-4">
                           <h4 className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-4">Detalle del Crédito</h4>
                           <div className="space-y-3 text-sm">
                              <div className="flex justify-between items-center">
@@ -790,6 +791,18 @@ export default function CreacionCreditoArticulo({
                                 <span className="text-slate-500">Total a Pagar</span>
                                 <span className="font-bold text-emerald-600">{formatCurrency(resumenFinanciero.totalFinanciadoBruto)}</span>
                              </div>
+                             
+                             <div className="pt-3 border-t border-slate-100 flex flex-col gap-2">
+                                <label className="text-xs font-bold text-slate-500 uppercase">Observaciones adicionales</label>
+                                <textarea 
+                                  value={notasInput}
+                                  onChange={(e) => setNotasInput(e.target.value)}
+                                  className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:ring-2 focus:ring-blue-500/20 resize-none"
+                                  rows={3}
+                                  placeholder="Ej: Entrega inmediata, cliente preferencial..."
+                                />
+                             </div>
+
                              <div className="pt-3 border-t border-slate-100 mt-2">
                                 <p className="text-xs text-slate-400 leading-relaxed">
                                    Al confirmar, se generará el plan de pagos y se notificará al cliente.

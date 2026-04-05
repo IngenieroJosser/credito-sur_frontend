@@ -305,6 +305,15 @@ export async function createTransaccion(data: {
   }
 }
 
+export async function getTransaccionById(id: string): Promise<Transaccion | null> {
+  try {
+    return await apiRequest<Transaccion>('GET', `/accounting/transacciones/${id}`);
+  } catch (error) {
+    console.error('Error fetching transaccion by id:', error);
+    return null;
+  }
+}
+
 // =====================
 // RESUMEN FINANCIERO
 // =====================
@@ -514,4 +523,41 @@ export async function solicitarBase(data: {
   }
 }
 
+// =====================================================
+// DEUDAS DE COBRADORES
+// =====================================================
 
+export type DeudaCobrador = {
+  cobradorId: string;
+  nombreCobrador: string;
+  rol: string;
+  totalDeuda: number;
+  gastosPersonales: number;
+  descuadres: number;
+  totalEventos: number;
+};
+
+export async function getDeudoresCobrador(): Promise<DeudaCobrador[]> {
+  try {
+    return await apiRequest<DeudaCobrador[]>('GET', '/accounting/deudas-cobradores');
+  } catch (error) {
+    logger.error('Error fetching deudas cobrador:', error);
+    return [];
+  }
+}
+
+export async function registrarAbonoDeudaCobrador(
+  cobradorId: string,
+  monto: number,
+  nota: string
+): Promise<Transaccion | null> {
+  try {
+    return await apiRequest<Transaccion>('POST', `/accounting/deudas-cobradores/${cobradorId}/abono`, {
+      monto,
+      nota
+    });
+  } catch (error) {
+    logger.error('Error al registrar el abono:', error);
+    throw error;
+  }
+}

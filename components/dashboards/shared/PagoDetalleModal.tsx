@@ -211,7 +211,7 @@ export default function PagoDetalleModal({
     <Portal>
       {/* Backdrop — mismo estilo que NotificacionDetalleModal */}
       <div
-        className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-200"
+        className="fixed inset-0 z-[2147483640] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-200"
         onClick={handleClose}
       >
         {/* Panel — mismo estilo border-radius que el resto del sistema */}
@@ -584,7 +584,7 @@ export default function PagoDetalleModal({
       {/* ── Lightbox de imagen expandida ──────────────────────────────────────── */}
       {imgExpanded && (
         <div
-          className="fixed inset-0 z-[120] flex items-center justify-center bg-slate-900/80 backdrop-blur-sm"
+          className="fixed inset-0 z-[2147483630] flex items-center justify-center bg-slate-900/80 backdrop-blur-sm"
           onClick={() => setImgExpanded(false)}
         >
           <img

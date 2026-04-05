@@ -118,14 +118,10 @@ export default function AdminLayout({
 
   // Abre o cierra los submenús del sidebar
   const toggleMenu = (id: string) => {
-    setOpenMenus(prev => {
-      // Si ya estaba abierto o si es la ruta actual, invertimos el estado
-      const isCurrentlyOpen = prev[id] ?? navigation.find(n => n.id === id)?.submodulos?.some(s => pathname === s.href) ?? false
-      return {
-        ...prev,
-        [id]: !isCurrentlyOpen
-      }
-    })
+    setOpenMenus(prev => ({
+      ...prev,
+      [id]: !prev[id]
+    }))
   }
   
   // Marca un módulo nuevo como "visto" para que deje de brillar
@@ -251,7 +247,7 @@ export default function AdminLayout({
             const modulos = obtenerModulos(parsedUser.rol, (parsedUser as any).sidebar)
             
             // Transformamos los módulos de permisos a items de navegación visual
-            const navItems = modulos.map(modulo => ({
+            let navItems = modulos.map(modulo => ({
               name: modulo.nombre,
               href: modulo.path,
               icon: getIconComponent(modulo.icono),
@@ -265,6 +261,29 @@ export default function AdminLayout({
                 icon: getIconComponent(sub.icono)
               }))
             }))
+
+            // Fix: si el usuario tiene permiso de contable pero el menú no lo trae (sidebar dinámico ausente), agregar Movimientos.
+            const permisosUser = Array.isArray((parsedUser as any).permisos) ? (parsedUser as any).permisos : []
+            const hasContablePerm = permisosUser.includes('contable') || permisosUser.includes('CONTABLE_VIEW')
+            const hasMovimientos = navItems.some((n) => n?.href === '/contable' || n?.submodulos?.some((s: any) => s?.href === '/contable'))
+            if (hasContablePerm && !hasMovimientos) {
+              navItems = [
+                ...navItems,
+                {
+                  name: 'Movimientos',
+                  href: '/contable',
+                  icon: getIconComponent('Calculator'),
+                  id: 'contable',
+                  isNew: true,
+                  submodulos: undefined,
+                },
+              ]
+            }
+            
+            // Filtro de seguridad para PUNTO_DE_VENTA (ocultar por defecto)
+            if (parsedUser.rol === 'PUNTO_DE_VENTA') {
+              navItems = navItems.filter(item => item.id !== 'dashboard' && item.id !== 'gestion-clientes');
+            }
             
             setNavigation(navItems)
           }

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useNotification } from '@/components/providers/NotificationProvider';
 import { clientesService, Cliente } from '@/services/clientes-service';
 import { ClienteAdmin } from '@/lib/clientes-data';
@@ -47,9 +47,16 @@ type NivelRiesgo = 'VERDE' | 'AMARILLO' | 'ROJO' | 'LISTA_NEGRA';
 interface ClientesFeatureProps {
   initialClientes: ClienteAdmin[];
   basePath?: string;
+  defaultFilterRiesgo?: string;
+  defaultFilterEstado?: 'GENERAL' | 'MORA' | 'VENCIDAS';
 }
 
-export default function ClientesFeature({ initialClientes, basePath = '/admin/clientes' }: ClientesFeatureProps) {
+export default function ClientesFeature({ 
+  initialClientes, 
+  basePath = '/admin/clientes',
+  defaultFilterRiesgo = 'all',
+  defaultFilterEstado = 'GENERAL'
+}: ClientesFeatureProps) {
   const { can, canForPath } = usePermission();
   
   // Verificación de permisos más robusta
@@ -104,7 +111,8 @@ export default function ClientesFeature({ initialClientes, basePath = '/admin/cl
   usePageFocusRefresh(refetch);
 
   const [searchTerm, setSearchTerm] = useState('');
-  const [filterRiesgo, setFilterRiesgo] = useState<string>('all');
+  const [filterRiesgo, setFilterRiesgo] = useState<string>(defaultFilterRiesgo);
+  const [filterEstadoCuenta, setFilterEstadoCuenta] = useState<'GENERAL' | 'MORA' | 'VENCIDAS'>(defaultFilterEstado);
   const [filterRuta, setFilterRuta] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 8;
@@ -190,6 +198,12 @@ export default function ClientesFeature({ initialClientes, basePath = '/admin/cl
     totalMora: clientes.reduce((sum, c) => sum + (c.montoMora ?? 0), 0)
   };
 
+  const esMora = (cliente: ClienteAdmin) => (cliente.montoMora ?? 0) > 0 || (cliente.diasMora ?? 0) > 0;
+  const esVencida = (cliente: ClienteAdmin) => (cliente.diasMora ?? 0) >= 30;
+
+  const totalClientesMora = useMemo(() => clientes.filter(esMora).length, [clientes]);
+  const totalClientesVencidas = useMemo(() => clientes.filter(esVencida).length, [clientes]);
+
   const filteredClientes = clientes.filter(cliente => {
     const matchesSearch = 
       `${cliente.nombres || ''} ${cliente.apellidos || ''}`.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -197,7 +211,12 @@ export default function ClientesFeature({ initialClientes, basePath = '/admin/cl
       (cliente.correo && cliente.correo.toLowerCase().includes(searchTerm.toLowerCase()));
     const matchesRiesgo = filterRiesgo === 'all' || cliente.nivelRiesgo === filterRiesgo;
     const matchesRuta = !filterRuta || filterRuta === '' || cliente.rutaId === filterRuta;
-    return matchesSearch && matchesRiesgo && matchesRuta;
+    const matchesEstado = 
+      filterEstadoCuenta === 'GENERAL' ? true :
+      filterEstadoCuenta === 'MORA' ? esMora(cliente) :
+      esVencida(cliente);
+
+    return matchesSearch && matchesRiesgo && matchesRuta && matchesEstado;
   });
 
   const totalPages = Math.ceil(filteredClientes.length / itemsPerPage);
@@ -316,14 +335,65 @@ export default function ClientesFeature({ initialClientes, basePath = '/admin/cl
 
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white/80 backdrop-blur-sm p-4 rounded-2xl border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)]">
           <div className="flex flex-col gap-4 md:flex-row md:items-center">
-            <div className="bg-slate-50 p-2 rounded-xl border border-slate-200 w-full md:w-auto">
-                <FiltroRuta 
-                    onRutaChange={setFilterRuta} 
-                    selectedRutaId={filterRuta}
-                    layout="wrap"
-                    showAllOption={true}
-                    hideLabel={true}
-                />
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <Filter className="h-3.5 w-3.5 text-slate-400 shrink-0 mr-1" />
+              <div className="flex items-center gap-1.5 bg-slate-100/50 p-1 rounded-xl border border-slate-200">
+                {[
+                  { id: 'GENERAL' as const, label: `Todos (${stats.total})` },
+                  { id: 'MORA' as const, label: `Mora (${totalClientesMora})` },
+                  { id: 'VENCIDAS' as const, label: `Vencidas (${totalClientesVencidas})` },
+                ].map((filtro) => (
+                  <button
+                    key={filtro.id}
+                    onClick={() => {
+                      setFilterEstadoCuenta(filtro.id);
+                      setCurrentPage(1);
+                    }}
+                    className={`px-3 py-1.5 text-[10px] font-bold rounded-lg transition-all whitespace-nowrap ${
+                      filterEstadoCuenta === filtro.id 
+                        ? 'bg-white text-primary shadow-sm' 
+                        : 'text-slate-500 hover:text-slate-700'
+                    }`}
+                  >
+                    {filtro.label}
+                  </button>
+                ))}
+              </div>
+
+              <div className="h-4 w-px bg-slate-200 mx-1 md:block hidden" />
+
+              {[
+                { id: 'all', label: 'Riesgo: Todos' },
+                { id: 'VERDE', label: 'Al Día' },
+                { id: 'AMARILLO', label: 'Riesgo' },
+                { id: 'ROJO', label: 'Rojo' },
+                { id: 'LISTA_NEGRA', label: 'Lista Negra' }
+              ].map((filtro) => (
+                <button
+                  key={filtro.id}
+                  onClick={() => {
+                    setFilterRiesgo(filtro.id);
+                    setCurrentPage(1);
+                  }}
+                  className={`px-3 py-1.5 text-[11px] font-bold rounded-xl transition-all whitespace-nowrap ${
+                    filterRiesgo === filtro.id 
+                      ? 'bg-primary text-white shadow-md shadow-primary/20' 
+                      : 'bg-slate-100/50 text-slate-600 hover:bg-slate-200/70 border border-slate-200'
+                  }`}
+                >
+                  {filtro.label}
+                </button>
+              ))}
+
+              <div className="h-4 w-px bg-slate-200 mx-1 md:block hidden" />
+
+              <FiltroRuta 
+                  onRutaChange={setFilterRuta} 
+                  selectedRutaId={filterRuta}
+                  layout="wrap"
+                  showAllOption={true}
+                  hideLabel={true}
+              />
             </div>
 
             <div className="flex items-center gap-1.5 flex-wrap">

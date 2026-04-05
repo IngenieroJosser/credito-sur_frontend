@@ -62,7 +62,7 @@ import { Cliente, clientesService } from '@/services/clientes-service'
 
 import { rutasService } from '@/services/rutas-service'
 
-import { EstadoVisita, VisitaRuta } from '@/lib/types/cobranza'
+import { EstadoVisita, VisitaRuta, HistorialDia, mapNivelRiesgo, mapFrecuenciaToPeriodo } from '@/lib/types/cobranza'
 
 import {
 
@@ -100,7 +100,7 @@ import { exportService } from '@/services/export-service'
 
 import { obtenerSaldoDisponibleRuta } from '@/services/contabilidad-service'
 
-import { HistorialDia } from '@/lib/types/cobranza'
+
 
 import { useRealtimeData } from '@/hooks/useRealtimeData'
 
@@ -1271,19 +1271,14 @@ const DetalleRutaPage = () => {
 
 
     const isTodayOrMora = (dateStr: string) => {
-
       if (!dateStr) return true;
-
-      const d = new Date(dateStr);
-
+      const f = dateStr.includes('T') ? dateStr.split('T')[0] : dateStr;
+      const [year, month, day] = f.split('-').map(Number);
+      if (!year || !month || !day) return true;
+      const d = new Date(year, month - 1, day, 0, 0, 0, 0);
       const hoy = new Date();
-
       hoy.setHours(0, 0, 0, 0);
-
-      d.setHours(0, 0, 0, 0);
-
       return d.getTime() <= hoy.getTime();
-
     };
 
 
@@ -2296,13 +2291,12 @@ const DetalleRutaPage = () => {
 
                   setVisitaReprogramar(null);
 
-                  
-
-                  setTimeout(() => {
-
-                    window.location.reload();
-
-                  }, 1500);
+                  try {
+                    await cargarRuta();
+                    if (showMisClientes) {
+                      await cargarMisCreditos();
+                    }
+                  } catch {}
 
                 } catch (e: any) {
 

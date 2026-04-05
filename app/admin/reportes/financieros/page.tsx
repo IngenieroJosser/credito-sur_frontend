@@ -131,8 +131,15 @@ const ReportesFinancierosPage = () => {
         getTransacciones({ tipo: 'INGRESO', fechaInicio: startDate, fechaFin: endDate, limit: 10000 }),
         getTransacciones({ tipo: 'EGRESO', fechaInicio: startDate, fechaFin: endDate, limit: 10000 })
       ])
-      const totalIngresosPeriodo = ingSumRes.data.reduce((acc, t) => acc + (t.monto || 0), 0)
-      const totalEgresosPeriodo = egreSumRes.data.reduce((acc, t) => acc + (t.monto || 0), 0)
+      const totalIngresosPeriodo = ingSumRes.data
+        .filter((t: any) => {
+          const cat = String(t?.categoria || '').toUpperCase()
+          return cat === 'PAGO' || cat === 'ABONO'
+        })
+        .reduce((acc, t) => acc + (t.monto || 0), 0)
+      const totalEgresosPeriodo = egreSumRes.data
+        .filter((t: any) => String(t?.categoria || '').toUpperCase() !== 'DEUDA_COBRADOR')
+        .reduce((acc, t) => acc + (t.monto || 0), 0)
       const utilidadPeriodo = totalIngresosPeriodo - totalEgresosPeriodo
       const margenPeriodo = totalIngresosPeriodo > 0 ? (utilidadPeriodo / totalIngresosPeriodo) * 100 : 0
       setSummary({
@@ -172,8 +179,15 @@ const ReportesFinancierosPage = () => {
           getTransacciones({ tipo: 'INGRESO', fechaInicio: prevStart.toISOString(), fechaFin: prevEnd.toISOString(), limit: 10000 }),
           getTransacciones({ tipo: 'EGRESO', fechaInicio: prevStart.toISOString(), fechaFin: prevEnd.toISOString(), limit: 10000 })
         ])
-        const prevIng = prevIngRes.data.reduce((acc, t) => acc + (t.monto || 0), 0)
-        const prevEgr = prevEgreRes.data.reduce((acc, t) => acc + (t.monto || 0), 0)
+        const prevIng = prevIngRes.data
+          .filter((t: any) => {
+            const cat = String(t?.categoria || '').toUpperCase()
+            return cat === 'PAGO' || cat === 'ABONO'
+          })
+          .reduce((acc, t) => acc + (t.monto || 0), 0)
+        const prevEgr = prevEgreRes.data
+          .filter((t: any) => String(t?.categoria || '').toUpperCase() !== 'DEUDA_COBRADOR')
+          .reduce((acc, t) => acc + (t.monto || 0), 0)
         const ingresosPerc = prevIng > 0 ? ((totalIngresosPeriodo - prevIng) / prevIng) * 100 : (totalIngresosPeriodo > 0 ? 100 : 0)
         const egresosPerc = prevEgr > 0 ? ((totalEgresosPeriodo - prevEgr) / prevEgr) * 100 : (totalEgresosPeriodo > 0 ? 100 : 0)
         setTrendIngresos(Number(ingresosPerc.toFixed(1)))

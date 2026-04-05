@@ -465,12 +465,25 @@ export default function RevisionesPage() {
             subtitulo: `CC: ${datos.dni || 'N/A'} • Tel: ${datos.telefono || 'N/A'}`,
             monto: null,
           }
-        case 'NUEVO_PRESTAMO':
+        case 'NUEVO_PRESTAMO': {
+          const isArticulo = datos.tipo === 'ARTICULO' || datos.tipoPrestamo === 'ARTICULO';
+          const valorTotal = Number(datos.valorArticulo || 0) || Number(item.montoSolicitud || 0);
+          const cuotaInicial = Number(datos.cuotaInicial || 0);
+          // "A financiar" = valorTotal - cuotaInicial, o datos.monto si está disponible
+          const aFinanciar = datos.monto != null && Number(datos.monto) > 0
+            ? Number(datos.monto)
+            : Math.max(0, valorTotal - cuotaInicial);
+          const numCuotas = datos.cantidadCuotas || datos.cuotas || datos.numCuotas || '?';
+          const freqLabel = datos.frecuenciaPago ? ` ${datos.frecuenciaPago}` : '';
           return {
             titulo: datos.cliente || 'Crédito nuevo',
-            subtitulo: `${(datos.tipo === 'ARTICULO' || datos.tipoPrestamo === 'ARTICULO') ? `Artículo: ${datos.articulo || 'N/A'}` : 'Efectivo'} • ${datos.cuotas || datos.numCuotas || '?'} cuotas`,
-            monto: Number(datos.monto || datos.valorArticulo || item.montoSolicitud || 0),
+            subtitulo: `${isArticulo ? `Artículo: ${datos.articulo || 'N/A'}` : 'Efectivo'} • ${numCuotas} cuotas${freqLabel}`,
+            monto: isArticulo ? valorTotal : aFinanciar,
+            labelMonto: isArticulo ? 'Valor total' : undefined,
+            montoSecundario: isArticulo ? aFinanciar : undefined,
+            labelSecundario: isArticulo ? 'A financiar' : undefined,
           }
+        }
         case 'REPROGRAMACION_CUOTA': {
           const frecLabel: Record<string,string> = { SEMANAL:'Semanal', QUINCENAL:'Quincenal', MENSUAL:'Mensual', DIARIO:'Diario' }
           const fechaOrig = datos.fechaVencimientoOriginal ? new Date(datos.fechaVencimientoOriginal).toLocaleDateString('es-CO',{day:'2-digit',month:'short'}) : '?'
@@ -505,7 +518,19 @@ export default function RevisionesPage() {
                 <p className="text-xs text-slate-500 mt-0.5">{resumen.subtitulo}</p>
               </div>
             </div>
-            {resumen.monto !== null && <div className="text-right font-black text-slate-900">{formatCurrency(resumen.monto)}</div>}
+            {resumen.monto !== null && (
+              <div className="text-right flex flex-col items-end justify-center">
+                {resumen.labelMonto && <span className="text-[9px] font-bold text-slate-400 tracking-wider uppercase mb-0.5">{resumen.labelMonto}</span>}
+                <div className="font-black text-slate-900 leading-none">{formatCurrency(resumen.monto)}</div>
+                
+                {resumen.montoSecundario ? (
+                  <div className="mt-1.5 flex flex-col items-end">
+                    <span className="text-[9px] font-bold text-slate-400 tracking-wider uppercase mb-0.5">{resumen.labelSecundario}</span>
+                    <div className="text-xs font-bold text-blue-600 leading-none bg-blue-50 px-2 py-0.5 rounded-md border border-blue-100">{formatCurrency(resumen.montoSecundario)}</div>
+                  </div>
+                ) : null}
+              </div>
+            )}
           </div>
 
           <div className="flex items-center gap-3 mb-4 text-[11px] font-bold text-slate-400">

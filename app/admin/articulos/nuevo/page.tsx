@@ -16,6 +16,22 @@ import {
 } from 'lucide-react'
 import { formatCOPInputValue, formatCurrency, parseCOPInputToNumber } from '@/lib/utils'
 import SelectCategoria from '@/components/ui/SelectCategoria'
+import { inventarioService } from '@/services/inventario-service'
+
+/** Decodifica entidades HTML escapadas (ej: &amp; → &) */
+const decodeHtmlEntities = (text: string): string => {
+  if (typeof document !== 'undefined') {
+    const txt = document.createElement('textarea')
+    txt.innerHTML = text
+    return txt.value
+  }
+  return text
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+}
 
 // Types
 interface PrecioCuota {
@@ -42,22 +58,35 @@ export default function NuevoArticuloPage() {
   })
   const [nuevaCuota, setNuevaCuota] = useState({ meses: 1, precio: '' })
 
+  const [saveError, setSaveError] = useState<string | null>(null)
+
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
-    const payload = {
-      ...formData,
-      categoria: formData.categoria || 'General',
-      categoriaId: formData.categoriaId || undefined,
-      costo: parseCOPInputToNumber(formData.costo),
-      stock: Number(formData.stock || '0'),
-      stockMinimo: Number(formData.stockMinimo || '0'),
+    setSaveError(null)
+    try {
+      const payload = {
+        codigo: decodeHtmlEntities(formData.codigo.trim()),
+        nombre: decodeHtmlEntities(formData.nombre.trim()),
+        descripcion: formData.descripcion ? decodeHtmlEntities(formData.descripcion.trim()) : undefined,
+        categoria: formData.categoria ? decodeHtmlEntities(formData.categoria) : 'General',
+        categoriaId: formData.categoriaId || undefined,
+        marca: formData.marca ? decodeHtmlEntities(formData.marca.trim()) : undefined,
+        modelo: formData.modelo ? decodeHtmlEntities(formData.modelo.trim()) : undefined,
+        costo: parseCOPInputToNumber(formData.costo),
+        stock: Number(formData.stock || '0'),
+        stockMinimo: Number(formData.stockMinimo || '0'),
+        precios: formData.precios,
+      }
+      logger.log('Guardar artículo:', payload)
+      await inventarioService.crearProducto(payload)
+      router.push('/admin/articulos')
+    } catch (err: any) {
+      logger.error('Error creando artículo:', err)
+      setSaveError(err?.message || 'No se pudo guardar el artículo. Verifica los datos e intenta nuevamente.')
+    } finally {
+      setLoading(false)
     }
-    logger.log('Guardar artículo:', payload)
-    // Simular guardado
-    await new Promise(resolve => setTimeout(resolve, 1000))
-    setLoading(false)
-    router.push('/articulos')
   }
 
   const addPrecioCuota = () => {
@@ -371,6 +400,14 @@ export default function NuevoArticuloPage() {
             </div>
           </div>
 
+          {/* Error de guardado */}
+          {saveError && (
+            <div className="flex items-center gap-3 p-4 rounded-xl bg-rose-50 border border-rose-200">
+              <AlertCircle className="h-5 w-5 text-rose-600 shrink-0" />
+              <p className="text-sm font-bold text-rose-700">{saveError}</p>
+            </div>
+          )}
+
           {/* Action Buttons */}
           <div className="flex items-center justify-end gap-4 pt-6 border-t border-slate-200">
             <button
@@ -381,7 +418,7 @@ export default function NuevoArticuloPage() {
               Cancelar
             </button>
             <button
-              onClick={handleSave}
+              type="submit"
               disabled={loading}
               className="flex items-center px-8 py-2.5 text-sm font-bold text-white bg-blue-600 rounded-xl hover:bg-blue-700 transition-all shadow-lg shadow-blue-600/20 disabled:opacity-50"
             >

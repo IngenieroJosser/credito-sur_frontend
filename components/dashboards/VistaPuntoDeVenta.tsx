@@ -81,11 +81,17 @@ const formatTime = (dateStr: string) => {
   } catch { return '' }
 }
 
-const getEstadoConfig = (estado: VentaReciente['estado']) => {
+const getEstadoConfig = (estado: string) => {
   switch (estado) {
     case 'ACTIVO': return { label: 'Activo', bg: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-emerald-200', dot: 'bg-emerald-500' }
-    case 'PENDIENTE': return { label: 'Pendiente', bg: 'bg-amber-50', text: 'text-amber-700', border: 'border-amber-200', dot: 'bg-amber-500' }
-    case 'COMPLETADO': return { label: 'Completado', bg: 'bg-slate-50', text: 'text-slate-600', border: 'border-slate-200', dot: 'bg-slate-400' }
+    case 'PENDIENTE': 
+    case 'PENDIENTE_APROBACION': 
+      return { label: 'Pendiente', bg: 'bg-amber-50', text: 'text-amber-700', border: 'border-amber-200', dot: 'bg-amber-500' }
+    case 'COMPLETADO':
+    case 'PAGADO':
+      return { label: 'Completado', bg: 'bg-blue-50', text: 'text-blue-700', border: 'border-blue-200', dot: 'bg-blue-500' }
+    case 'EN_MORA': return { label: 'En Mora', bg: 'bg-rose-50', text: 'text-rose-700', border: 'border-rose-200', dot: 'bg-rose-500' }
+    default: return { label: (estado || 'Sin estado').replace('_', ' '), bg: 'bg-slate-50', text: 'text-slate-600', border: 'border-slate-200', dot: 'bg-slate-400' }
   }
 }
 
@@ -161,15 +167,16 @@ export default function VistaPuntoDeVenta() {
     if (!clientesSearch.trim()) return clientes
     const q = clientesSearch.toLowerCase()
     return clientes.filter(c =>
-      `${c.nombres} ${c.apellidos}`.toLowerCase().includes(q) ||
-      c.dni.toLowerCase().includes(q) ||
-      c.telefono.includes(q) ||
-      (c.correo || '').toLowerCase().includes(q)
+      c.nombres.toLowerCase().includes(q) ||
+      c.apellidos.toLowerCase().includes(q) ||
+      c.dni.toLowerCase().includes(q)
     )
   }, [clientes, clientesSearch])
 
   const clientesTotalPages = Math.max(1, Math.ceil(clientesFiltrados.length / CLIENTES_PER_PAGE))
   const clientesPaginados = clientesFiltrados.slice((clientesPage - 1) * CLIENTES_PER_PAGE, clientesPage * CLIENTES_PER_PAGE)
+
+
 
   // ─── Fetch functions ───
   const fetchVentasRecientes = async () => {
@@ -222,14 +229,16 @@ export default function VistaPuntoDeVenta() {
     setClientesPage(1)
     setClientesSearch('')
     try {
-      const data = await clientesService.obtenerTodos()
-      setClientes(data)
+      const data = await clientesService.obtenerClientes()
+      setClientes(data || [])
     } catch {
       setClientes([])
     } finally {
       setLoadingClientes(false)
     }
   }
+
+
 
   const handleOpenVentas = () => {
     setShowVentasModal(true)
@@ -241,10 +250,11 @@ export default function VistaPuntoDeVenta() {
     fetchClientes()
   }
 
-  // Tiempo real: refrescar lista de ventas y clientes cuando haya nuevos préstamos o clientes
+
+
+  // Tiempo real: refrescar lista de ventas cuando haya nuevos préstamos o clientes
   useRealtimeData(['prestamos_actualizados', 'clientes_actualizados'], useCallback(() => {
     fetchVentasRecientes()
-    fetchClientes()
   }, []))
 
   const fabActions: FabAction[] = [
@@ -256,20 +266,20 @@ export default function VistaPuntoDeVenta() {
     {
       label: 'Nuevo Cliente',
       icon: <UserPlus className="h-5 w-5" />,
-      color: 'emerald',
+      color: 'blue',
       onClick: () => setShowNewClientModal(true),
+    },
+    {
+      label: 'Clientes Registrados',
+      icon: <Users className="h-5 w-5" />,
+      color: 'emerald',
+      onClick: handleOpenClientes,
     },
     {
       label: 'Ventas Recientes',
       icon: <Clock className="h-5 w-5" />,
       color: 'orange',
       onClick: handleOpenVentas,
-    },
-    {
-      label: 'Clientes Registrados',
-      icon: <Users className="h-5 w-5" />,
-      color: 'blue',
-      onClick: handleOpenClientes,
     },
   ]
 
@@ -349,10 +359,160 @@ export default function VistaPuntoDeVenta() {
           onClose={() => setShowNewClientModal(false)}
           onClienteCreado={() => {
             setShowNewClientModal(false)
+            fetchClientes()
           }}
         />
       )}
 
+      {/* Modal Lista de Clientes */}
+      {showClientesModal && (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-200"
+          onClick={() => setShowClientesModal(false)}
+        >
+          <div
+            className="w-full max-w-2xl rounded-2xl bg-white border border-slate-200 shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200 flex flex-col max-h-[92vh]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="px-6 py-4 border-b border-slate-100 bg-gradient-to-r from-slate-50 to-white flex-shrink-0">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="font-bold text-slate-900 flex items-center gap-2 text-lg">
+                    <div className="w-8 h-8 rounded-lg bg-emerald-100 flex items-center justify-center">
+                      <Users className="h-4 w-4 text-emerald-600" />
+                    </div>
+                    Clientes Registrados
+                  </h3>
+                  <p className="text-xs text-slate-500 mt-1 ml-10">Directorio completo de clientes en el sistema</p>
+                </div>
+                <button
+                  onClick={() => setShowClientesModal(false)}
+                  className="p-2 rounded-xl hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+
+              {/* Search */}
+              {!loadingClientes && (
+                <div className="mt-4 relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
+                  <input
+                    type="text"
+                    placeholder="Buscar por nombre, apellido o CC..."
+                    value={clientesSearch}
+                    onChange={(e) => { setClientesSearch(e.target.value); setClientesPage(1) }}
+                    className="w-full pl-9 pr-3 py-2 text-xs text-slate-900 bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 font-medium placeholder:text-slate-400"
+                  />
+                </div>
+              )}
+            </div>
+
+            {/* List */}
+            <div className="flex-1 overflow-y-auto">
+              {loadingClientes ? (
+                <div className="p-10 text-center">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+                  <p className="mt-3 text-sm text-slate-400">Cargando clientes...</p>
+                </div>
+              ) : clientesFiltrados.length === 0 ? (
+                <div className="p-10 text-center">
+                  <Users className="h-10 w-10 text-slate-300 mx-auto mb-3" />
+                  <p className="text-sm text-slate-400 font-medium">
+                    {clientesSearch ? 'No se encontraron resultados' : 'No hay clientes registrados'}
+                  </p>
+                </div>
+              ) : (
+                <div className="divide-y divide-slate-100">
+                  {clientesPaginados.map((cliente) => {
+                    const tieneMora = (cliente.montoMora ?? 0) > 0 || (cliente.diasMora ?? 0) > 0;
+                    const riesgoReal = tieneMora ? 'ROJO' : (cliente.nivelRiesgo || 'VERDE');
+                    const riesgoStyle = getRiesgoStyle(riesgoReal);
+                    return (
+                      <div key={cliente.id} className="px-6 py-3 hover:bg-slate-50/80 transition-colors group flex items-center justify-between gap-3">
+                        <div className="flex items-center gap-3 flex-1 min-w-0">
+                          <div className={cn(
+                            "w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 border",
+                            tieneMora ? "bg-rose-50 border-rose-200" : "bg-emerald-50 border-emerald-200"
+                          )}>
+                            <span className={cn(
+                              "text-[10px] font-black",
+                              tieneMora ? "text-rose-600" : "text-emerald-600"
+                            )}>
+                              {(cliente.nombres[0] || '') + (cliente.apellidos[0] || '')}
+                            </span>
+                          </div>
+                          <div className="min-w-0">
+                            <p className="text-sm font-bold text-slate-900 truncate">{cliente.nombres} {cliente.apellidos}</p>
+                            <div className="flex items-center gap-2">
+                              <p className="text-[11px] text-slate-500 truncate font-mono">CC: {cliente.dni}</p>
+                              {tieneMora && (
+                                <span className="text-[9px] font-black text-rose-600 animate-pulse uppercase">¡En Mora!</span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-3 flex-shrink-0">
+                          <div className={cn(
+                            'inline-flex items-center gap-1 text-[9px] font-bold px-2 py-0.5 rounded-full border w-24 justify-center',
+                            riesgoStyle.bg, riesgoStyle.text, riesgoStyle.border
+                          )}>
+                            <span className={cn('w-1.5 h-1.5 rounded-full', riesgoStyle.dot)} />
+                            {tieneMora ? 'EN MORA' : (cliente.nivelRiesgo || 'VERDE')}
+                          </div>
+                          <button
+                            onClick={(e) => { e.stopPropagation(); setShowClienteDetalle(cliente.id) }}
+                            className="p-1.5 rounded-lg hover:bg-blue-50 text-slate-400 hover:text-blue-600 transition-colors"
+                            title="Ver perfil completo"
+                          >
+                            <Eye className="h-4 w-4" />
+                          </button>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* Footer: Paginator */}
+            {clientesFiltrados.length > 0 && (
+              <div className="px-6 py-3 border-t border-slate-100 bg-slate-50/50 flex items-center justify-between flex-shrink-0">
+                <span className="text-[10px] text-slate-400 font-medium">
+                  {(clientesPage - 1) * CLIENTES_PER_PAGE + 1}-{Math.min(clientesPage * CLIENTES_PER_PAGE, clientesFiltrados.length)} de {clientesFiltrados.length}
+                </span>
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => setClientesPage(p => Math.max(1, p - 1))}
+                    disabled={clientesPage === 1}
+                    className="p-1.5 rounded-lg hover:bg-white border border-transparent hover:border-slate-200 text-slate-500 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                  </button>
+                  <span className="text-xs font-bold text-slate-700 px-2">{clientesPage} / {clientesTotalPages}</span>
+                  <button
+                    onClick={() => setClientesPage(p => Math.min(clientesTotalPages, p + 1))}
+                    disabled={clientesPage === clientesTotalPages}
+                    className="p-1.5 rounded-lg hover:bg-white border border-transparent hover:border-slate-200 text-slate-500 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Modal Detalle de Cliente */}
+      {showClienteDetalle && (
+        <ClientePortalModal
+          clientId={showClienteDetalle}
+          onClose={() => setShowClienteDetalle(null)}
+        />
+      )}
       {/* MODAL: VENTAS RECIENTES (con filtros, buscador, paginador, detalle) */}
       {showVentasModal && (
         <div
@@ -479,10 +639,12 @@ export default function VistaPuntoDeVenta() {
                           <p className="text-sm font-black text-slate-900 w-24 text-right">{formatCurrency(venta.monto)}</p>
                           <div className={cn(
                             'inline-flex items-center gap-1 text-[9px] font-bold px-2 py-0.5 rounded-full border w-20 justify-center',
-                            estadoCfg.bg, estadoCfg.text, estadoCfg.border
+                            estadoCfg?.bg || 'bg-slate-50', 
+                            estadoCfg?.text || 'text-slate-600', 
+                            estadoCfg?.border || 'border-slate-200'
                           )}>
-                            <span className={cn('w-1.5 h-1.5 rounded-full', estadoCfg.dot)} />
-                            {estadoCfg.label}
+                            <span className={cn('w-1.5 h-1.5 rounded-full', estadoCfg?.dot || 'bg-slate-400')} />
+                            {estadoCfg?.label || venta.estado}
                           </div>
                           <button
                             onClick={(e) => { e.stopPropagation(); setShowVentaDetalle(venta) }}
@@ -553,9 +715,9 @@ export default function VistaPuntoDeVenta() {
                   <span className="text-[10px] text-slate-400 font-mono ml-6">{v.id}</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <div className={cn('inline-flex items-center gap-1.5 text-xs font-bold px-2.5 py-1 rounded-full border', cfg.bg, cfg.text, cfg.border)}>
-                    <span className={cn('w-2 h-2 rounded-full', cfg.dot)} />
-                    {cfg.label}
+                  <div className={cn('inline-flex items-center gap-1.5 text-xs font-bold px-2.5 py-1 rounded-full border', cfg?.bg || 'bg-slate-50', cfg?.text || 'text-slate-600', cfg?.border || 'border-slate-200')}>
+                    <span className={cn('w-2 h-2 rounded-full', cfg?.dot || 'bg-slate-400')} />
+                    {cfg?.label || v.estado}
                   </div>
                   <button onClick={() => setShowVentaDetalle(null)} className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors">
                     <X className="h-5 w-5" />
@@ -705,295 +867,7 @@ export default function VistaPuntoDeVenta() {
         )
       })()}
 
-      {/* MODAL: CLIENTES REGISTRADOS (con buscador, paginador, ojo detalle) */}
-      {showClientesModal && (
-        <div
-          className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-200"
-          onClick={() => setShowClientesModal(false)}
-        >
-          <div
-            className="w-full max-w-2xl rounded-2xl bg-white border border-slate-200 shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200 flex flex-col max-h-[92vh]"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* Header */}
-            <div className="px-6 py-4 border-b border-slate-100 bg-gradient-to-r from-slate-50 to-white flex-shrink-0">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="font-bold text-slate-900 flex items-center gap-2 text-lg">
-                    <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center">
-                      <Users className="h-4 w-4 text-blue-600" />
-                    </div>
-                    Clientes Registrados
-                  </h3>
-                  <p className="text-xs text-slate-500 mt-1 ml-10">Directorio de clientes del sistema</p>
-                </div>
-                <button
-                  onClick={() => setShowClientesModal(false)}
-                  className="p-2 rounded-xl hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors"
-                >
-                  <X className="h-5 w-5" />
-                </button>
-              </div>
 
-              {/* Search */}
-              {!loadingClientes && (
-                <div className="mt-3 relative">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
-                  <input
-                    type="text"
-                    placeholder="Buscar por nombre, cédula, teléfono o correo..."
-                    value={clientesSearch}
-                    onChange={(e) => { setClientesSearch(e.target.value); setClientesPage(1) }}
-                    className="w-full pl-9 pr-3 py-2 text-xs text-slate-900 bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 font-medium placeholder:text-slate-400"
-                  />
-                </div>
-              )}
-            </div>
-
-            {/* List */}
-            <div className="flex-1 overflow-y-auto">
-              {loadingClientes ? (
-                <div className="p-10 text-center">
-                  <Loader2 className="h-8 w-8 text-blue-600 mx-auto animate-spin" />
-                  <p className="mt-3 text-sm text-slate-400">Cargando clientes...</p>
-                </div>
-              ) : clientesFiltrados.length === 0 ? (
-                <div className="p-10 text-center">
-                  <Users className="h-10 w-10 text-slate-300 mx-auto mb-3" />
-                  <p className="text-sm text-slate-400 font-medium">
-                    {clientesSearch ? 'No se encontraron clientes' : 'No hay clientes registrados'}
-                  </p>
-                </div>
-              ) : (
-                <div className="divide-y divide-slate-100">
-                  {clientesPaginados.map((cliente) => {
-                    const riesgo = getRiesgoStyle(cliente.nivelRiesgo)
-                    const tieneMora = (cliente.montoMora && cliente.montoMora > 0) || (cliente.diasMora && cliente.diasMora > 0)
-                    const enListaNegra = cliente.enListaNegra
-                    const esRiesgoso = cliente.nivelRiesgo === 'ROJO' || cliente.nivelRiesgo === 'LISTA_NEGRA' || enListaNegra
-                    return (
-                      <div key={cliente.id} className={cn(
-                        'px-6 py-4 hover:bg-slate-50/80 transition-colors group',
-                        enListaNegra && 'bg-rose-50/30'
-                      )}>
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-3 flex-1 min-w-0">
-                            <div className={cn(
-                              'w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 border relative',
-                              riesgo.bg, riesgo.border
-                            )}>
-                              <span className={cn('text-xs font-black', riesgo.text)}>
-                                {cliente.nombres.charAt(0)}{cliente.apellidos.charAt(0)}
-                              </span>
-                              {esRiesgoso && (
-                                <div className="absolute -top-1 -right-1 w-4 h-4 bg-rose-500 rounded-full flex items-center justify-center">
-                                  <Shield className="h-2.5 w-2.5 text-white" />
-                                </div>
-                              )}
-                            </div>
-                            <div className="min-w-0 flex-1">
-                              <div className="flex items-center gap-2">
-                                <p className="text-sm font-bold text-slate-900 truncate">{cliente.nombres} {cliente.apellidos}</p>
-                                <div className={cn(
-                                  'inline-flex items-center gap-1 text-[9px] font-bold px-1.5 py-0.5 rounded-full border flex-shrink-0',
-                                  riesgo.bg, riesgo.text, riesgo.border
-                                )}>
-                                  <span className={cn('w-1.5 h-1.5 rounded-full', riesgo.dot)} />
-                                  {cliente.nivelRiesgo}
-                                </div>
-                                {enListaNegra && (
-                                  <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-slate-900 text-white flex-shrink-0">
-                                    LISTA NEGRA
-                                  </span>
-                                )}
-                              </div>
-                              <div className="flex items-center gap-3 mt-0.5">
-                                <span className="text-[11px] text-slate-500 font-mono">CC: {cliente.dni}</span>
-                                <span className="inline-flex items-center gap-1 text-[11px] text-slate-500">
-                                  <Phone className="h-3 w-3" /> {cliente.telefono}
-                                </span>
-                                {cliente.correo && (
-                                  <span className="inline-flex items-center gap-1 text-[11px] text-slate-500 truncate">
-                                    <Mail className="h-3 w-3" /> {cliente.correo}
-                                  </span>
-                                )}
-                              </div>
-
-                              {/* Score + Mora + Préstamos activos indicator */}
-                              <div className="flex items-center gap-2 mt-1.5 flex-wrap">
-                                {/* Puntaje */}
-                                <span className={cn(
-                                  'inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full border',
-                                  cliente.puntaje >= 70 ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
-                                  cliente.puntaje >= 40 ? 'bg-amber-50 text-amber-700 border-amber-200' :
-                                  'bg-rose-50 text-rose-700 border-rose-200'
-                                )}>
-                                  Score: {cliente.puntaje}
-                                </span>
-
-                                {/* Préstamos activos */}
-                                {(cliente.prestamosActivos !== undefined && cliente.prestamosActivos > 0) && (
-                                  <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200">
-                                    {cliente.prestamosActivos} crédito{cliente.prestamosActivos > 1 ? 's' : ''} activo{cliente.prestamosActivos > 1 ? 's' : ''}
-                                  </span>
-                                )}
-
-                                {/* Mora warning */}
-                                {tieneMora && (
-                                  <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-rose-100 text-rose-700 border border-rose-200 animate-pulse">
-                                    ⚠ EN MORA
-                                    {cliente.diasMora ? ` · ${cliente.diasMora} días` : ''}
-                                    {cliente.montoMora ? ` · ${formatCurrency(cliente.montoMora)}` : ''}
-                                  </span>
-                                )}
-                              </div>
-
-                              {/* Blacklist reason */}
-                              {enListaNegra && cliente.razonListaNegra && (
-                                <div className="mt-1 text-[10px] text-rose-600 font-medium bg-rose-50 px-2 py-1 rounded-md border border-rose-100">
-                                  Razón: {cliente.razonListaNegra}
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                          <button
-                            onClick={(e) => { e.stopPropagation(); setShowClienteDetalle(cliente.id) }}
-                            className="p-2 rounded-lg hover:bg-blue-50 text-slate-400 hover:text-blue-600 transition-colors flex-shrink-0"
-                            title="Ver expediente"
-                          >
-                            <Eye className="h-4.5 w-4.5" />
-                          </button>
-                        </div>
-                      </div>
-                    )
-                  })}
-                </div>
-              )}
-            </div>
-
-            {/* Footer: Paginator */}
-            {clientesFiltrados.length > 0 && (
-              <div className="px-6 py-3 border-t border-slate-100 bg-slate-50/50 flex items-center justify-between flex-shrink-0">
-                <span className="text-[10px] text-slate-400 font-medium">
-                  {(clientesPage - 1) * CLIENTES_PER_PAGE + 1}-{Math.min(clientesPage * CLIENTES_PER_PAGE, clientesFiltrados.length)} de {clientesFiltrados.length}
-                </span>
-                <div className="flex items-center gap-1">
-                  <button
-                    onClick={() => setClientesPage(p => Math.max(1, p - 1))}
-                    disabled={clientesPage === 1}
-                    className="p-1.5 rounded-lg hover:bg-white border border-transparent hover:border-slate-200 text-slate-500 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
-                  >
-                    <ChevronLeft className="h-4 w-4" />
-                  </button>
-                  <span className="text-xs font-bold text-slate-700 px-2">{clientesPage} / {clientesTotalPages}</span>
-                  <button
-                    onClick={() => setClientesPage(p => Math.min(clientesTotalPages, p + 1))}
-                    disabled={clientesPage === clientesTotalPages}
-                    className="p-1.5 rounded-lg hover:bg-white border border-transparent hover:border-slate-200 text-slate-500 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
-                  >
-                    <ChevronRight className="h-4 w-4" />
-                  </button>
-                </div>
-                <span className="text-[10px] text-slate-400 font-medium">{clientesFiltrados.length} clientes</span>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* MODAL: DETALLE CLIENTE (reutiliza ClientePortalModal solo para IDs reales) */}
-      {showClienteDetalle && !showClienteDetalle.startsWith('mock-') && (
-        <ClientePortalModal
-          clientId={showClienteDetalle}
-          onClose={() => setShowClienteDetalle(null)}
-          rolUsuario="admin"
-        />
-      )}
-
-      {/* MODAL: DETALLE CLIENTE MOCK (inline) */}
-      {showClienteDetalle && showClienteDetalle.startsWith('mock-') && (() => {
-        const c = clientes.find(cl => cl.id === showClienteDetalle)
-        if (!c) return null
-        const riesgo = getRiesgoStyle(c.nivelRiesgo)
-        return (
-          <div
-            className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-200"
-            onClick={() => setShowClienteDetalle(null)}
-          >
-            <div
-              className="w-full max-w-md rounded-2xl bg-white border border-slate-200 shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200 max-h-[85vh] flex flex-col"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-gradient-to-r from-blue-50 to-white flex-shrink-0">
-                <h3 className="font-bold text-slate-900 flex items-center gap-2">
-                  <Users className="h-4 w-4 text-blue-600" />
-                  Perfil del Cliente
-                </h3>
-                <button onClick={() => setShowClienteDetalle(null)} className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors">
-                  <X className="h-5 w-5" />
-                </button>
-              </div>
-              <div className="p-6 space-y-4 overflow-y-auto flex-1">
-                <div className="flex items-center gap-3">
-                  <div className={cn('w-12 h-12 rounded-xl flex items-center justify-center border', riesgo.bg, riesgo.border)}>
-                    <span className={cn('text-sm font-black', riesgo.text)}>{c.nombres.charAt(0)}{c.apellidos.charAt(0)}</span>
-                  </div>
-                  <div>
-                    <p className="font-bold text-slate-900">{c.nombres} {c.apellidos}</p>
-                    <div className={cn('inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full border mt-0.5', riesgo.bg, riesgo.text, riesgo.border)}>
-                      <span className={cn('w-1.5 h-1.5 rounded-full', riesgo.dot)} /> {c.nivelRiesgo} · Puntaje: {c.puntaje}
-                    </div>
-                  </div>
-                </div>
-                <div className="space-y-1.5">
-                  <div className="flex items-center justify-between text-sm bg-slate-50 rounded-lg px-3 py-2 border border-slate-100">
-                    <span className="text-slate-500">Cédula</span>
-                    <span className="font-bold text-slate-900 font-mono">{c.dni}</span>
-                  </div>
-                  <div className="flex items-center justify-between text-sm bg-slate-50 rounded-lg px-3 py-2 border border-slate-100">
-                    <span className="text-slate-500 flex items-center gap-1"><Phone className="h-3.5 w-3.5" /> Teléfono</span>
-                    <span className="font-bold text-slate-900">{c.telefono}</span>
-                  </div>
-                  {c.correo && (
-                    <div className="flex items-center justify-between text-sm bg-slate-50 rounded-lg px-3 py-2 border border-slate-100">
-                      <span className="text-slate-500 flex items-center gap-1"><Mail className="h-3.5 w-3.5" /> Correo</span>
-                      <span className="font-bold text-slate-900">{c.correo}</span>
-                    </div>
-                  )}
-                  {c.direccion && (
-                    <div className="flex items-center justify-between text-sm bg-slate-50 rounded-lg px-3 py-2 border border-slate-100">
-                      <span className="text-slate-500 flex items-center gap-1"><MapPin className="h-3.5 w-3.5" /> Dirección</span>
-                      <span className="font-bold text-slate-900 text-right max-w-[60%]">{c.direccion}</span>
-                    </div>
-                  )}
-                  {c.referencia && (
-                    <div className="flex items-center justify-between text-sm bg-slate-50 rounded-lg px-3 py-2 border border-slate-100">
-                      <span className="text-slate-500">Referencia</span>
-                      <span className="font-bold text-slate-900">{c.referencia}</span>
-                    </div>
-                  )}
-                </div>
-                {(c.prestamosActivos !== undefined || c.montoTotal !== undefined) && (
-                  <div className="grid grid-cols-2 gap-2">
-                    <div className="bg-blue-50 rounded-xl p-3 border border-blue-100 text-center">
-                      <p className="text-[9px] font-bold text-blue-400 uppercase">Préstamos Activos</p>
-                      <p className="text-lg font-black text-blue-900">{c.prestamosActivos ?? 0}</p>
-                    </div>
-                    <div className="bg-emerald-50 rounded-xl p-3 border border-emerald-100 text-center">
-                      <p className="text-[9px] font-bold text-emerald-400 uppercase">Monto Total</p>
-                      <p className="text-lg font-black text-emerald-900">{formatCurrency(c.montoTotal ?? 0)}</p>
-                    </div>
-                  </div>
-                )}
-                <div className="flex items-center justify-between text-[11px] text-slate-400 pt-1">
-                  <span>Registrado: {formatDateShort(c.creadoEn)}</span>
-                  <span>Actualizado: {formatDateShort(c.actualizadoEn)}</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        )
-      })()}
     </div>
   )
 }

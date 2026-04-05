@@ -22,10 +22,10 @@ export function Portal({ children }: { children: ReactNode }) {
 function formatMontoCorto(amount: number): string {
   const abs = Math.abs(amount)
   if (abs >= 1_000_000_000) {
-    return `$${(amount / 1_000_000_000).toLocaleString('es-CO', { maximumFractionDigits: 1 })}B`
+    return `$${(amount / 1_000_000_000).toLocaleString('es-CO', { maximumFractionDigits: 2 })}B`
   }
   if (abs >= 1_000_000) {
-    return `$${(amount / 1_000_000).toLocaleString('es-CO', { maximumFractionDigits: 1 })}M`
+    return `$${(amount / 1_000_000).toLocaleString('es-CO', { maximumFractionDigits: 2 })}M`
   }
   return `$${new Intl.NumberFormat('es-CO', { maximumFractionDigits: 0 }).format(amount)}`
 }
