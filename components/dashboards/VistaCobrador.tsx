@@ -797,6 +797,12 @@ const VistaCobrador = () => {
               } else {
                  estadoCalculado = 'pendiente';
               }
+
+              // Si ya pagó la cuota de hoy, forzar estado pagado
+              const cuotaHoy = cuotas.find(c => c.estado === 'PAGADA' && c.fechaVencimiento?.split('T')[0] === hoy.toISOString().split('T')[0]);
+              if (cuotaHoy) {
+                estadoCalculado = 'pagado';
+              }
             } else {
               estadoCalculado = 'pagado';
             }
@@ -815,7 +821,7 @@ const VistaCobrador = () => {
           montoCuota,
           saldoTotal: Number(p?.saldoPendiente || 0),
           estado: estadoCalculado,
-          proximaVisita: proximaVisitaV || row?.prestamo?.fechaEfectiva || prox?.fechaVencimiento || new Date().toISOString().split('T')[0],
+          proximaVisita: proximaVisitaV || row?.prestamo?.fechaEfectiva || prox?.fechaVencimiento || new Date().toLocaleDateString('en-CA', { timeZone: 'America/Bogota' }),
           ordenVisita: Number(row?.ordenVisita || idx + 1),
           prioridad: 'media' as any,
           nivelRiesgo: toNivel(c?.nivelRiesgo || 'VERDE') as any,
@@ -1122,14 +1128,14 @@ const VistaCobrador = () => {
              // Soportamos ambos formatos con fallback.
              const cuota0 = prestamo?.cuotas?.[0] || prestamo?.proximaCuota || null;
              const proximaCuota = cuota0 || {};
-
-             const hoyIso = new Date().toISOString().split('T')[0];
+             const hoyBogota = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Bogota' });
              const cuotasList = Array.isArray(prestamo?.cuotas) ? prestamo.cuotas : [];
 
              const montoTotalVencido = cuotasList.reduce((acc: number, c: any) => {
                const vStr = c.fechaVencimiento?.split('T')[0];
-               const isVencida = c.estado === 'VENCIDA' || c.estado === 'ATRASADA' || (vStr && vStr < hoyIso);
-               if (isVencida && c.estado !== 'PAGADA' && c.estado !== 'ANULADA') {
+               if (!vStr) return acc;
+               const isVencida = (c.estado === 'VENCIDA' || c.estado === 'ATRASADA' || (vStr < hoyBogota)) && c.estado !== 'PAGADA';
+               if (isVencida && c.estado !== 'ANULADA') {
                  return acc + Number(c.monto || 0);
                }
                return acc;
@@ -1144,10 +1150,18 @@ const VistaCobrador = () => {
 
 
              let estado: EstadoVisita = 'pendiente';
-
-             if (proximaCuota.estado === 'VENCIDA') estado = 'en_mora';
-
-             else if (proximaCuota.estado === 'PAGADA') estado = 'pagado';
+             const cuotaHoy = cuotasList.find((c: any) => {
+               const cDate = c.fechaVencimiento?.split('T')[0];
+               return c.estado === 'PAGADA' && cDate === hoyBogota;
+             });
+             
+             if (cuotaHoy) {
+               estado = 'pagado';
+             } else if (proximaCuota.estado === 'VENCIDA' || (montoTotalVencido > 0)) {
+               estado = 'en_mora';
+             } else if (proximaCuota.estado === 'PAGADA') {
+               estado = 'pagado';
+             }
 
 
 
@@ -1163,7 +1177,7 @@ const VistaCobrador = () => {
 
                horaSugerida: asig.horaSugerida || '08:00 AM',
 
-               montoCuota: montoTotalVencido > 0 ? montoTotalVencido : Number(proximaCuota.monto || 0),
+               montoCuota: Number(proximaCuota.monto || prestamo?.montoCuota || prestamo?.valorCuota || 0),
 
                saldoTotal: Number(prestamo?.saldoPendiente || 0),
 
@@ -1268,34 +1282,35 @@ const VistaCobrador = () => {
                  const pendiente = cuotas.find(c => c.estado !== 'PAGADA');
                  
                  if (pendiente || cuotas.some(c => c.estado === 'PAGADA')) {
-                     const hoyIso = new Date().toISOString().split('T')[0];
+                     const hoyBogota = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Bogota' });
                      const cuotasVencidasList = cuotas.filter((c: any) => {
                        if (c.estado === 'ANULADA') return false;
+                       const vDate = c.fechaVencimiento?.split('T')[0];
                        if (c.estado === 'PAGADA') {
-                         return c.fechaPago && c.fechaPago.split('T')[0] === hoyIso;
+                         const pDate = c.fechaPago ? c.fechaPago.split('T')[0] : '';
+                         return pDate === hoyBogota;
                        }
                        if (c.estado === 'VENCIDA' || c.estado === 'ATRASADA') return true;
-                       const dO = c.fechaVencimiento?.split('T')[0];
-                       return dO && dO < hoyIso;
+                       return vDate && vDate < hoyBogota;
                      });
 
-                     const totalVencido = cuotasVencidasList.reduce((sum: number, c: any) => sum + Number(c.monto || 0), 0);
                      const montoReal = pendiente ? Number(pendiente.monto || (pendiente.montoCapital + pendiente.montoInteres) || 0) : 0;
                      
-                     // La meta del día es la suma de todo lo vencido + la cuota que toca hoy (si hay)
-                     const sameDay = pendiente?.fechaVencimiento?.split('T')[0] === hoyIso;
-                     const metaCorrecta = totalVencido + (sameDay ? montoReal : 0);
-
                      const esMora = cuotasVencidasList.some(c => c.estado === 'VENCIDA');
+                     const yaPagadoHoy = cuotas.some((c: any) => {
+                        if (c.estado !== 'PAGADA') return false;
+                        const pDate = c.fechaPago ? c.fechaPago.split('T')[0] : '';
+                        return pDate === hoyBogota;
+                      });
 
-                     return { 
-                       ...v, 
-                       montoCuota: metaCorrecta > 0 ? metaCorrecta : v.montoCuota,
-                       proximaVisita: pendiente?.fechaVencimiento || v.proximaVisita,
-                       cuotaActual: pendiente?.numeroCuota,
-                       cuotasTotales: cuotas.length,
-                       estado: (esMora ? 'en_mora' : 'pendiente') as EstadoVisita
-                     };
+                      return { 
+                        ...v, 
+                        montoCuota: (montoReal > 0) ? montoReal : v.montoCuota,
+                        proximaVisita: pendiente?.fechaVencimiento || v.proximaVisita,
+                        cuotaActual: pendiente?.numeroCuota,
+                        cuotasTotales: cuotas.length,
+                        estado: (yaPagadoHoy ? 'pagado' : (esMora ? 'en_mora' : 'pendiente')) as EstadoVisita
+                      };
                  }
 
                 
@@ -1331,74 +1346,49 @@ const VistaCobrador = () => {
 
 
         // Enriquecer con recaudado total, del día y del período actual por cliente
-
         try {
+          const hoyBogota = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Bogota' });
+          
+          // Obtener todos los pagos de hoy masivamente para evitar desfases en el mapa de saldo
+          const pagosRecientesResp = await pagosService.obtenerPagos({ limit: 1000 });
+          const pagosRecientes = (pagosRecientesResp as any)?.pagos || pagosRecientesResp || [];
+          
+          const recaudosHoyMap: Record<string, number> = {};
+          pagosRecientes.forEach((p: any) => {
+             const rd = p.fechaPago || p.creadoEn;
+             if (!rd) return;
+             
+             // Comparación robusta: si ya es YYYY-MM-DD, comparar directo. Si es ISO, convertir a Bogotá.
+             let pStr = '';
+             if (typeof rd === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(rd)) {
+               pStr = rd;
+             } else {
+               pStr = new Date(rd).toLocaleDateString('en-CA', { timeZone: 'America/Bogota' });
+             }
 
-          const toLocalKey = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-
-          const hoyStr = toLocalKey(new Date());
-
-
-
-          // Función para obtener la fecha de inicio del período según frecuencia
-
-          const getInicioPeriodoStr = (periodo: string): string => {
-
-            const hoy = new Date();
-
-            hoy.setHours(0, 0, 0, 0);
-
-            if (periodo === 'SEMANA' || periodo === 'SEMANAL') {
-
-              const day = hoy.getDay();
-
-              const diff = day === 0 ? -6 : 1 - day;
-
-              const lunes = new Date(hoy);
-
-              lunes.setDate(hoy.getDate() + diff);
-
-              return toLocalKey(lunes);
-
-            } else if (periodo === 'QUINCENA' || periodo === 'QUINCENAL') {
-
-              const q = new Date(hoy);
-
-              q.setDate(hoy.getDate() <= 15 ? 1 : 16);
-
-              return toLocalKey(q);
-
-            } else if (periodo === 'MES' || periodo === 'MENSUAL') {
-
-              const m = new Date(hoy);
-
-              m.setDate(1);
-
-              return toLocalKey(m);
-
-            }
-
-            return hoyStr; // DIA
-
-          };
-
-
-
-          const recaudosMap = (saldo as any)?.recaudosPorReferencia || {};
+             if (pStr === hoyBogota && p.prestamoId) {
+                recaudosHoyMap[p.prestamoId] = (recaudosHoyMap[p.prestamoId] || 0) + Number(p.montoTotal || 0);
+             }
+          });
 
           const withRecaudo = visitasEnriquecidas.map((v) => {
             if (!v.clienteId) return { ...v, recaudadoDelDia: 0, recaudadoTotalClient: 0, recaudadoPeriodo: 0 };
             
-            // Usar el recaudo calculado por el backend para hoy
-            const recHoy = v.prestamoId ? (recaudosMap[v.prestamoId] || 0) : 0;
+            const recHoy = v.prestamoId ? (recaudosHoyMap[v.prestamoId] || 0) : 0;
             
+            // Regla de Oro: Si ya recibimos dinero hoy, el estado debe ser 'pagado' para propósitos de la ruta
+            let estadoFinal = v.estado;
+            if (recHoy > 0 || v.estado === 'pagado') {
+              estadoFinal = 'pagado';
+            }
+
             return { 
               ...v, 
               recaudadoDelDia: recHoy,
-              // Mantener cálculo histórico simple o delegar a futuro
               recaudadoTotalClient: v.recaudadoTotalClient || 0,
               recaudadoPeriodo: v.recaudadoPeriodo || 0,
-              fechaUltimoPago: recHoy > 0 ? new Date().getTime() : (v.fechaUltimoPago || 0)
+              fechaUltimoPago: recHoy > 0 ? new Date().getTime() : (v.fechaUltimoPago || 0),
+              estado: estadoFinal
             };
           });
 
@@ -1420,10 +1410,11 @@ const VistaCobrador = () => {
 
           // Filtrar: Solo mostrar lo que se debe cobrar hoy, lo pagado hoy, o lo pendiente de aprobación.
           const finalesFiltrados = finales.filter(v => 
-            (v.montoCuota || 0) > 0 || 
-            (v.recaudadoDelDia || 0) > 0 || 
+            (Number(v.montoCuota) > 0) || 
+            (Number(v.recaudadoDelDia) > 0) || 
             v.estado === 'pagado' || 
-            v.pendienteAprobacion
+            v.pendienteAprobacion ||
+            v.periodoRuta === 'DIA'
           );
           setVisitasBase(finalesFiltrados);
           setVisitasSelectorFallback(finalesFiltrados);
@@ -2561,49 +2552,11 @@ const VistaCobrador = () => {
 
       .filter(v => {
 
-        // Al pagar la cuota, desaparece de la ruta hasta el próximo vencimiento
+        // Los clientes desaparecen de la ruta activa si ya tienen un pago registrado hoy
+        if (v.estado === 'pagado' || Number(v.recaudadoDelDia || 0) > 0) return false;
 
-        if (v.estado === 'pagado') return false;
-
-
-
-        const montoCuota = Number(v.montoCuota || 0);
-
-        // Usar recaudadoPeriodo si existe, si no caer al recaudadoDelDia
-
-        const recaudadoPeriodo = Number(v.recaudadoPeriodo ?? v.recaudadoDelDia ?? 0);
-
-
-
-        // Si ya pagó la cuota completa en este período → no mostrar hasta el próximo
-
-        if (montoCuota > 0 && recaudadoPeriodo >= montoCuota - 1) return false;
-
-
-
-        // Para diarios: ocultar solo si completó la cuota de HOY
-
-        if (v.periodoRuta === 'DIA' && montoCuota > 0 && Number(v.recaudadoDelDia || 0) >= (montoCuota - 1)) return false;
-
-
-
-        // Clientes en mora: mostrar si no han pagado suficiente en el período
-
-        if (v.estado === 'en_mora') return true;
-
-
-
-        // Clientes pendientes: mostrar solo si la cuota vence hoy o antes
-
-        const d = new Date(v.proximaVisita);
-
-        if (isNaN(d.getTime())) return false;
-
-        const dLocal = new Date(d);
-
-        dLocal.setHours(0, 0, 0, 0);
-
-        return dLocal <= hoyLocal;
+        // Por defecto, mostrar todo lo que llegó hasta aquí (ya filtrado en cargarDatosRuta)
+        return true;
 
       })
 
@@ -3359,7 +3312,7 @@ const VistaCobrador = () => {
 
             const prestamoActivo = prestamos.find((p: any) => p.estado === 'ACTIVO' || p.estado === 'EN_MORA' || p.estado === 'VENCIDO') || prestamos[0] || {};
             const cuotasListV = Array.isArray(prestamoActivo?.cuotas) ? prestamoActivo.cuotas : [];
-            const hoyKeyCurrent = new Date().toISOString().split('T')[0];
+            const hoyKeyCurrent = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Bogota' });
             
             // Buscar la próxima REAL hoy o futura (que no esté pagada)
             const cuotaFuture = cuotasListV.find((c: any) => 
@@ -3497,13 +3450,11 @@ const VistaCobrador = () => {
                 const pagosCalc = (pagosResp?.pagos || []);
 
                 const totalHoy = pagosCalc.reduce((sum: number, p: any) => {
-
                   const raw = p.fechaPago || p.creadoEn;
-
-                  const f = raw ? (raw.includes('T') ? raw.split('T')[0] : raw) : '';
-
-                  return f === hoyStr ? sum + Number(p.montoTotal || 0) : sum;
-
+                  if (!raw) return sum;
+                  // Convertir siempre a la fecha local de Bogotá antes de comparar
+                  const dStr = new Date(raw).toLocaleDateString('en-CA', { timeZone: 'America/Bogota' });
+                  return dStr === hoyStr ? sum + Number(p.montoTotal || 0) : sum;
                 }, 0);
 
                 const totalHistorico = pagosCalc.reduce((sum: number, p: any) => sum + Number(p.montoTotal || 0), 0);
@@ -5195,37 +5146,20 @@ const VistaCobrador = () => {
 
 
 
-                      const noPagadas = visitasCobrador.filter(v => v.estado !== 'pagado')
-
-
-
                       const isTodayOrMora = (dateStr: string) => {
                         if (!dateStr) return true;
-                        const f = dateStr.includes('T') ? dateStr.split('T')[0] : dateStr;
-                        const [year, month, day] = f.split('-').map(Number);
-                        if (!year || !month || !day) return true;
-                        const d = new Date(year, month - 1, day, 0, 0, 0, 0);
-                        const hoy = new Date();
-                        hoy.setHours(0, 0, 0, 0);
-                        return d.getTime() <= hoy.getTime();
+                        const hoyBogota = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Bogota' });
+                        const fDateBogota = new Date(dateStr).toLocaleDateString('en-CA', { timeZone: 'America/Bogota' });
+                        return fDateBogota <= hoyBogota;
                       };
 
-
-
-                      const filterByDate = (v: any) => searchQuery || isTodayOrMora(v.proximaVisita);
-
-
+                      const filterByDate = (v: any) => searchQuery || Number(v.montoCuota) > 0 || isTodayOrMora(v.proximaVisita);
 
                       const porPeriodo = {
-
-                        DIA: noPagadas.filter(v => v.periodoRuta === 'DIA' && filterByDate(v)),
-
-                        SEMANA: noPagadas.filter(v => v.periodoRuta === 'SEMANA' && filterByDate(v)),
-
-                        QUINCENA: noPagadas.filter(v => v.periodoRuta === 'QUINCENA' && filterByDate(v)),
-
-                        MES: noPagadas.filter(v => v.periodoRuta === 'MES' && filterByDate(v)),
-
+                        DIA: visitasCobrador.filter(v => v.periodoRuta === 'DIA' && filterByDate(v)),
+                        SEMANA: visitasCobrador.filter(v => v.periodoRuta === 'SEMANA' && filterByDate(v)),
+                        QUINCENA: visitasCobrador.filter(v => v.periodoRuta === 'QUINCENA' && filterByDate(v)),
+                        MES: visitasCobrador.filter(v => v.periodoRuta === 'MES' && filterByDate(v)),
                       }
 
 
@@ -5501,51 +5435,6 @@ const VistaCobrador = () => {
 
               </DndContext>
 
-
-
-             {/* Visitas Completadas */}
-
-              {!showHistory && visitasCobrador.some(v => v.estado === 'pagado') && (
-
-                <div className="mt-8">
-
-                  <h3 className="font-bold text-slate-900 flex items-center gap-2 mb-4 opacity-50">
-
-                    <CheckCircle2 className="h-5 w-5" />
-
-                    Completadas
-
-                  </h3>
-
-                  <div className="relative z-10 pointer-events-auto space-y-3 opacity-60 grayscale hover:opacity-100 hover:grayscale-0 transition-all">
-
-                    {visitasCobrador
-
-                      .filter(v => v.estado === 'pagado' && (periodoRutaFiltro === 'TODOS' || v.periodoRuta === periodoRutaFiltro))
-
-                      .map((visita) => (
-
-                        <StaticVisitaItem
-
-                          key={visita.id}
-
-                          visita={visita}
-
-                          onSelect={(id) => setVisitaSeleccionada(id === visitaSeleccionada ? null : id)}
-
-                          onVerCliente={handleAbrirClienteInfo}
-
-                          getEstadoClasses={getEstadoClasses}
-
-                        />
-
-                      ))}
-
-                  </div>
-
-                </div>
-
-              )}
 
             </div>
 

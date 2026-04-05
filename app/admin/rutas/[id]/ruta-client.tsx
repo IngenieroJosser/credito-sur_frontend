@@ -701,7 +701,8 @@ const RutaClientLoaded = ({
           if (idsProcesados.has(uniqueKey)) return [];
           idsProcesados.add(uniqueKey);
 
-          const proximaCuota = prestamo?.cuotas?.[0];
+          const cuotas = Array.isArray(prestamo?.cuotas) ? prestamo.cuotas : [];
+          const proximaCuota = cuotas.find((c: any) => toDateKey(c.fechaVencimiento) === hoyKey) || cuotas.find((c: any) => c.estado !== 'PAGADA') || cuotas[0] || {};
           const esArticulo = prestamo?.tipo === 'ARTICULO' || prestamo?.tipoPrestamo === 'ARTICULO';
           const esPendienteAprobacion = prestamo?.estado === 'PENDIENTE_APROBACION';
 
@@ -709,7 +710,7 @@ const RutaClientLoaded = ({
           let esMoraAtrasada = false;
           if (prestamo?.cuotas && Array.isArray(prestamo.cuotas)) {
             for (const c of prestamo.cuotas) {
-              if (!c.fechaVencimiento) continue;
+              if (!c.fechaVencimiento || c.estado === 'PAGADA') continue;
               const cuotaKey = toDateKey(c.fechaVencimiento);
               if (cuotaKey && cuotaKey <= hoyKey) {
                 montoAcumulado += Number(c.monto || 0);
@@ -798,160 +799,91 @@ const RutaClientLoaded = ({
 
 
     const enriquecerConPagos = async () => {
-
-      const toLocalKey = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-
-      const hoyStr = toLocalKey(new Date());
-
-
+      const hoyBogota = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Bogota' });
+      
+      // 1. Obtener todos los pagos recientes de forma masiva para evitar N peticiones API
+      const pagosRecientesResp = await pagosService.obtenerPagos({ limit: 1000 });
+      const todosPagos = (pagosRecientesResp as any)?.pagos || pagosRecientesResp || [];
 
       const actualizadas = await Promise.all(visitasCobrador.map(async (v: any) => {
-
-        if (!v.clienteId) return { ...v, recaudadoDelDia: 0, recaudadoTotalClient: 0 };
+        if (!v.clienteId || !v.prestamoId) return { ...v, recaudadoDelDia: 0, recaudadoTotalClient: 0 };
 
         try {
-
-          // 1. Obtener Recaudos
-
-          const pagosResp = await pagosService.obtenerPagos({ clienteId: v.clienteId, limit: 100 });
-
-          const pagosCalc = (pagosResp?.pagos || []);
-
+          // Filtrar en memoria los pagos que pertenecen a este préstamo
+          const pagosPrestamo = todosPagos.filter((p: any) => p.prestamoId === v.prestamoId);
           
-
-          const totalHoy = pagosCalc.reduce((sum: number, p: any) => {
-
-            const raw = p.fechaPago || p.creadoEn;
-
-            const f = raw ? (raw.includes('T') ? raw.split('T')[0] : raw) : '';
-
-            return f === hoyStr ? sum + Number(p.montoTotal || 0) : sum;
-
+          const totalHoy = pagosPrestamo.reduce((sum: number, p: any) => {
+            const rawDate = p.fechaPago || p.creadoEn;
+            if (!rawDate) return sum;
+            
+            let pDateStr = '';
+            if (typeof rawDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(rawDate)) {
+              pDateStr = rawDate;
+            } else {
+              pDateStr = new Date(rawDate).toLocaleDateString('en-CA', { timeZone: 'America/Bogota' });
+            }
+            
+            return pDateStr === hoyBogota ? sum + Number(p.montoTotal || 0) : sum;
           }, 0);
 
+          const totalHistorico = pagosPrestamo.reduce((sum: number, p: any) => sum + Number(p.montoTotal || 0), 0);
           
-
-          const totalHistorico = pagosCalc.reduce((sum: number, p: any) => sum + Number(p.montoTotal || 0), 0);
-
-
-
           let ultimoPagoDate = 0;
-
-          pagosCalc.forEach((p: any) => {
-
+          pagosPrestamo.forEach((p: any) => {
             const d = new Date(p.fechaPago || p.creadoEn).getTime();
-
             if (!isNaN(d) && d > ultimoPagoDate) ultimoPagoDate = d;
-
           });
 
-          
-
           // 2. Obtener Cuotas para actualizar fecha y monto real
-
           let montoCuotaReal = v.montoCuota;
-
           let fechaReal = v.proximaVisita;
 
-          
+          const cuotas = await prestamosService.obtenerCuotas(v.prestamoId);
+          const pendiente = cuotas.find((c: any) => c.estado !== 'PAGADA');
 
-          if (v.prestamoId) {
-
-            const cuotas = await prestamosService.obtenerCuotas(v.prestamoId);
-
-            const pendiente = cuotas.find((c: any) => c.estado !== 'PAGADA');
-
-            if (pendiente) {
-              const hoyKey = new Date().toISOString().split('T')[0];
-              const vencidas = cuotas.filter((c: any) => 
-                (c.estado === 'VENCIDA' || c.estado === 'ATRASADA') || 
-                (!(c.estado === 'PAGADA' || c.estado === 'ANULADA') && c.fechaVencimiento && c.fechaVencimiento.split('T')[0] < hoyKey)
-              );
-              const totalVencido = vencidas.reduce((sum: number, c: any) => sum + Number(c.monto || 0), 0);
-              const montoReal = Number(pendiente.monto || (pendiente.montoCapital + pendiente.montoInteres) || 0);
-
-              montoCuotaReal = totalVencido + (pendiente?.fechaVencimiento?.split('T')[0] === hoyKey ? montoReal : 0);
-
-               const esProrroga = pendiente.estado === 'PRORROGADA'
-
-               fechaReal = (esProrroga && pendiente.fechaVencimientoProrroga)
-
-                 ? pendiente.fechaVencimientoProrroga
-
-                 : (pendiente.fechaVencimiento || v.proximaVisita);
-
-               // Actualizar número de cuota
-
-               v.cuotaActual = pendiente.numeroCuota;
-
-               v.cuotasTotales = cuotas.length; // Assuming cuotas.length gives total number of installments
-
-               // Propagar prórroga al estado de la visita
-
-               if (esProrroga) {
-
-                 (v as any).enProrroga = true;
-
-                 (v as any).fechaProrroga = pendiente.fechaVencimientoProrroga || undefined;
-
-                 (v as any).fechaOriginalVencimiento = pendiente.fechaVencimiento || undefined;
-
-               }
-
-            }
-
+          if (pendiente) {
+            const vencidas = cuotas.filter((c: any) => 
+               (c.estado === 'VENCIDA' || c.estado === 'ATRASADA') || 
+               (!(c.estado === 'PAGADA' || c.estado === 'ANULADA') && c.fechaVencimiento && 
+                new Date(c.fechaVencimiento).toLocaleDateString('en-CA', { timeZone: 'America/Bogota' }) < hoyBogota)
+            );
+            const totalVencido = vencidas.reduce((sum: number, c: any) => sum + Number(c.monto || 0), 0);
+            const isHoyPend = new Date(pendiente.fechaVencimiento).toLocaleDateString('en-CA', { timeZone: 'America/Bogota' }) === hoyBogota;
+            montoCuotaReal = totalVencido + (isHoyPend ? Number(pendiente.monto || 0) : 0);
+            fechaReal = (pendiente.estado === 'PRORROGADA' && pendiente.fechaVencimientoProrroga)
+               ? pendiente.fechaVencimientoProrroga
+               : (pendiente.fechaVencimiento || v.proximaVisita);
+            
+            v.cuotaActual = pendiente.numeroCuota;
+            v.cuotasTotales = cuotas.length;
           }
-
-
 
           // 3. Determinar Estado Final
-
           let nuevoEstado = v.estado;
-
           const cuotaComparar = montoCuotaReal > 0 ? montoCuotaReal : v.montoCuota;
-
           const cobroSuficiente = totalHoy >= (cuotaComparar - 1);
-
           
-
-          if (Number(v.saldoTotal || 0) <= 0 || (cobroSuficiente && totalHoy > 0)) {
-
+          // Regla de Oro: Cualquier pago hoy = pagado (oculta de ruta activa)
+          if (Number(v.saldoTotal || 0) <= 0 || totalHoy > 0 || v.estado === 'pagado') {
             nuevoEstado = 'pagado';
-
           }
 
-
-
           return { 
-
             ...v, 
-
             recaudadoDelDia: totalHoy, 
-
             recaudadoTotalClient: totalHistorico, 
-
             fechaUltimoPago: ultimoPagoDate,
-
             montoCuota: cuotaComparar,
-
             proximaVisita: fechaReal,
-
             estado: nuevoEstado 
-
           };
-
         } catch (error) {
-
           console.error("Error en enriquecerConPagos (Admin):", error);
-
           return { ...v, recaudadoDelDia: 0, recaudadoTotalClient: 0, fechaUltimoPago: 0 };
-
         }
-
       }));
 
       setVisitasCobrador(actualizadas);
-
     };
 
 
@@ -965,122 +897,12 @@ const RutaClientLoaded = ({
   // Agrupar visitas por frecuencia de pago
 
   const { visitasAgrupadas, totalMostradas, exportarRutaDiariaCSV, exportarRutaDiariaPDF } = useMemo(() => {
-
-    const pagosEnriquecidos = visitasCobrador.some(v => v.recaudadoTotalClient !== undefined)
-
-    if (!showHistory && !showMisClientes && !pagosEnriquecidos) {
-      return {
-        visitasAgrupadas: { MES: [], QUINCENA: [], SEMANA: [], DIA: [] },
-        totalMostradas: 0,
-        exportarRutaDiariaCSV: async () => {},
-        exportarRutaDiariaPDF: async () => {},
-      }
-    }
-
-    const hoy = new Date();
-
-    hoy.setHours(0, 0, 0, 0);
-
-
-
-    let filtradas = visitasCobrador.filter(v => {
-
-      const matches =
-        v.cliente.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        v.direccion.toLowerCase().includes(searchQuery.toLowerCase())
-
-      if (!matches) return false
-
-      if (v.estado === 'pagado') return false
-
-      const montoCuota = Number(v.montoCuota || 0)
-
-      if (v.periodoRuta === 'DIA' && montoCuota > 0 && Number(v.recaudadoDelDia || 0) >= (montoCuota - 1)) return false
-
-      return true
-
-    });
-
-
-
-    // Aplicar filtro de periodo
-
-    if (periodoRutaFiltro !== 'TODOS') {
-
-        filtradas = filtradas.filter(v => v.periodoRuta === periodoRutaFiltro);
-
-    }
-
-
-
-    filtradas.sort((a: any, b: any) => {
-      // 1. Los "pagados" van al final
-      if (a.estado === 'pagado' && b.estado !== 'pagado') return 1;
-      if (a.estado !== 'pagado' && b.estado === 'pagado') return -1;
-      
-      // 2. Créditos diarios: Mantener el orden manual (ordenVisita)
-      if (a.periodoRuta === 'DIA' && b.periodoRuta === 'DIA') {
-        return a.ordenVisita - b.ordenVisita;
-      }
-
-      // 3. Otros periodos: Ordenar por última fecha de pago (más antiguo arriba)
-      if (a.fechaUltimoPago !== b.fechaUltimoPago) {
-        return (a.fechaUltimoPago || 0) - (b.fechaUltimoPago || 0);
-      }
-
-      // 4. Fallback final al orden manual
-      return a.ordenVisita - b.ordenVisita;
-    });
-
-
-
-    const exportarRutaDiariaCSV = async () => {
-
-      try {
-
-        await exportService.exportOperationalReport('excel', {
-
-          rutaId: initialRuta.id,
-
-          startDate: new Date().toISOString().split('T')[0],
-
-        } as any);
-
-      } catch (e) {
-
-        toast.error('No se pudo exportar el reporte de ruta a Excel');
-
-        console.error('Error exportando ruta CSV:', e);
-
-      }
-
-    }
-
-  
-
-    const exportarRutaDiariaPDF = async () => {
-
-      try {
-
-        await exportService.exportOperationalReport('pdf', {
-
-          rutaId: initialRuta.id,
-
-          startDate: new Date().toISOString().split('T')[0],
-
-        } as any);
-
-      } catch (e) {
-
-        toast.error('No se pudo exportar el reporte de ruta a PDF');
-
-        console.error('Error exportando ruta PDF:', e);
-
-      }
-
-    }
-
-
+    if (!visitasCobrador) return {
+      visitasAgrupadas: { MES: [], QUINCENA: [], SEMANA: [], DIA: [] },
+      totalMostradas: 0,
+      exportarRutaDiariaCSV: async () => {},
+      exportarRutaDiariaPDF: async () => {},
+    };
 
     const isTodayOrMora = (dateStr: string) => {
       if (!dateStr) return true;
@@ -1093,30 +915,98 @@ const RutaClientLoaded = ({
       return d.getTime() <= hoy.getTime();
     };
 
-
-
-    const filterByDate = (v: any) => searchQuery || v.estado === 'en_mora' || isTodayOrMora(v.proximaVisita);
-
-
-
-    const agrupar = {
-      MES: filtradas.filter(v => v.periodoRuta === 'MES' && filterByDate(v) && v.estado !== 'pagado'),
-      QUINCENA: filtradas.filter(v => v.periodoRuta === 'QUINCENA' && filterByDate(v) && v.estado !== 'pagado'),
-      SEMANA: filtradas.filter(v => v.periodoRuta === 'SEMANA' && filterByDate(v) && v.estado !== 'pagado'),
-      DIA: filtradas.filter(v => v.periodoRuta === 'DIA' && filterByDate(v) && v.estado !== 'pagado'),
-    }
-
-
-
-    return { visitasAgrupadas: agrupar, totalMostradas: filtradas.length,
-
-      exportarRutaDiariaCSV,
-
-      exportarRutaDiariaPDF
-
+    const filterByDate = (v: any) => {
+      if (searchQuery || showMisClientes) return true;
+      return v.estado === 'en_mora' || isTodayOrMora(v.proximaVisita);
     };
 
-  }, [visitasCobrador, searchQuery, periodoRutaFiltro]);
+    const pagosEnriquecidos = visitasCobrador.some(v => v.recaudadoTotalClient !== undefined)
+
+    if (!showHistory && !showMisClientes && !pagosEnriquecidos) {
+      return {
+        visitasAgrupadas: { MES: [], QUINCENA: [], SEMANA: [], DIA: [] },
+        totalMostradas: 0,
+        exportarRutaDiariaCSV: async () => {},
+        exportarRutaDiariaPDF: async () => {},
+      }
+    }
+
+    let filtradas = visitasCobrador.filter(v => {
+      const matchesSearch =
+        v.cliente.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        v.direccion.toLowerCase().includes(searchQuery.toLowerCase())
+
+      if (!matchesSearch) return false
+
+      if (searchQuery || showMisClientes) return true
+
+      // Regla de Oro: Si ya tiene recaudo registrado hoy o está marcado como pagado, desaparece de la ruta activa
+      if (v.estado === 'pagado' || Number(v.recaudadoDelDia || 0) > 0) return false;
+
+      // Mostrar si tiene cuota/monto exigible para hoy o está en mora
+      const esExigibleHoy = (v.montoCuota || 0) > 0 || isTodayOrMora(v.proximaVisita);
+      if (esExigibleHoy) return true;
+
+      return v.periodoRuta === 'DIA'; // Por defecto los diarios siempre se muestran si no se han filtrado por lo anterior
+    });
+
+    if (periodoRutaFiltro !== 'TODOS') {
+        filtradas = filtradas.filter(v => v.periodoRuta === periodoRutaFiltro);
+    }
+
+    filtradas.sort((a: any, b: any) => {
+      if (a.estado === 'pagado' && b.estado !== 'pagado') return 1;
+      if (a.estado !== 'pagado' && b.estado === 'pagado') return -1;
+      
+      if (a.periodoRuta === 'DIA' && b.periodoRuta === 'DIA') {
+        return a.ordenVisita - b.ordenVisita;
+      }
+
+      if (a.fechaUltimoPago !== b.fechaUltimoPago) {
+        return (a.fechaUltimoPago || 0) - (b.fechaUltimoPago || 0);
+      }
+
+      return a.ordenVisita - b.ordenVisita;
+    });
+
+    const exportarRutaDiariaCSV = async () => {
+      try {
+        await exportService.exportOperationalReport('excel', {
+          rutaId: initialRuta.id,
+          startDate: new Date().toISOString().split('T')[0],
+        } as any);
+      } catch (e) {
+        toast.error('No se pudo exportar el reporte de ruta a Excel');
+        console.error('Error exportando ruta CSV:', e);
+      }
+    }
+
+    const exportarRutaDiariaPDF = async () => {
+      try {
+        await exportService.exportOperationalReport('pdf', {
+          rutaId: initialRuta.id,
+          startDate: new Date().toISOString().split('T')[0],
+        } as any);
+      } catch (e) {
+        toast.error('No se pudo exportar el reporte de ruta a PDF');
+        console.error('Error exportando ruta PDF:', e);
+      }
+    }
+
+    const agrupar = {
+      MES: filtradas.filter(v => v.periodoRuta === 'MES'),
+      QUINCENA: filtradas.filter(v => v.periodoRuta === 'QUINCENA'),
+      SEMANA: filtradas.filter(v => v.periodoRuta === 'SEMANA'),
+      DIA: filtradas.filter(v => v.periodoRuta === 'DIA'),
+    }
+
+    return { 
+      visitasAgrupadas: agrupar, 
+      totalMostradas: filtradas.length,
+      exportarRutaDiariaCSV,
+      exportarRutaDiariaPDF
+    };
+  }, [visitasCobrador, searchQuery, periodoRutaFiltro, showHistory, showMisClientes, initialRuta?.id]);
 
 
 
