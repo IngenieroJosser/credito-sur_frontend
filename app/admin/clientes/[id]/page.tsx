@@ -134,7 +134,11 @@ export default function ClienteDetallePage() {
   const comentarios: Comentario[] = []; // Por ahora vacío hasta implementar backend
 
   // Tiempo real: refrescar automáticamente cuando haya cambios
-  useRealtimeData(['pagos_actualizados', 'clientes_actualizados'], () => { typeof window !== 'undefined' && window.location.reload() })
+  useRealtimeData(['pagos_actualizados', 'clientes_actualizados'], () => {
+    if (typeof window !== 'undefined') {
+      window.location.reload()
+    }
+  })
 
   return (
     <div className="min-h-screen bg-slate-50 relative">

@@ -42,6 +42,7 @@ import {
   type DecisionCastigoRequest
 } from '@/services/vencidas-service'
 import { exportService } from '@/services/export-service'
+import { toBogotaDateTimeOffsetIso } from '@/lib/rutas-core'
 import { toast } from 'sonner'
 import { offlineStore } from '@/lib/offline/offlineDb'
 
@@ -122,7 +123,7 @@ function CuentasVencidasContent() {
               id: p.id, numeroPrestamo: p.numeroPrestamo || p.id,
               cliente: { nombre: cli ? `${cli.nombres} ${cli.apellidos}` : '', documento: cli?.dni || '' },
               fechaVencimiento: p.fechaFin || '',
-              diasVencidos: diasVencidosDesde(p.fechaFin || new Date().toISOString()),
+              diasVencidos: diasVencidosDesde(p.fechaFin || toBogotaDateTimeOffsetIso(new Date())),
               saldoPendiente: p.saldoPendiente || 0, montoOriginal: p.monto || 0,
               ruta: '', nivelRiesgo: 'ROJO' as NivelRiesgo, estado: p.estado,
             } as any

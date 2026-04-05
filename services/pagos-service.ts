@@ -2,6 +2,7 @@ import { logger } from '@/lib/logger'
 import { apiRequest } from '@/lib/api/api';
 import { syncService } from '@/lib/offline/syncService';
 import { MetodoPago } from '@/types/enums';
+import { toBogotaDateTimeOffsetIso } from '@/lib/rutas-core'
 
 export type { MetodoPago };
 
@@ -170,13 +171,13 @@ export const pagosService = {
                 clienteId: data.clienteId,
                 prestamoId: data.prestamoId,
                 cobradorId: data.cobradorId,
-                fechaPago: new Date().toISOString(),
+                fechaPago: toBogotaDateTimeOffsetIso(new Date()),
                 montoTotal: data.montoTotal,
                 metodoPago: data.metodoPago || MetodoPago.EFECTIVO,
                 numeroReferencia: data.numeroReferencia || null,
                 notas: data.notas || 'Pago registrado offline',
-                creadoEn: new Date().toISOString(),
-                actualizadoEn: new Date().toISOString(),
+                creadoEn: toBogotaDateTimeOffsetIso(new Date()),
+                actualizadoEn: toBogotaDateTimeOffsetIso(new Date()),
             } as any,
             descomposicion: {
                 montoTotal: data.montoTotal,

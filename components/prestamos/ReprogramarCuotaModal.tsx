@@ -1,8 +1,9 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { X, Calendar, AlertCircle, CheckCircle2, DollarSign } from 'lucide-react';
-import { formatCurrency, formatCOPInputValue, parseCOPInputToNumber } from '@/lib/utils';
+import { X, Calendar, AlertCircle, CheckCircle2, Loader2, DollarSign } from 'lucide-react';
+import { formatCOPInputValue, formatCurrency, parseCOPInputToNumber } from '@/lib/utils';
+import { getBogotaDateKey } from '@/lib/rutas-core';
 
 type FrecuenciaPago = 'DIARIO' | 'SEMANAL' | 'QUINCENAL' | 'MENSUAL';
 
@@ -226,8 +227,8 @@ export default function ReprogramarCuotaModal({
                 type="date"
                 value={nuevaFecha}
                 onChange={(e) => setNuevaFecha(e.target.value)}
-                min={new Date().toISOString().split('T')[0]}
-                max={fechaLimite.toISOString().split('T')[0]}
+                min={getBogotaDateKey(new Date())}
+                max={getBogotaDateKey(fechaLimite)}
                 className="w-full px-4 py-3 rounded-xl border-2 border-slate-200 bg-white font-bold text-slate-900 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
                 required
               />

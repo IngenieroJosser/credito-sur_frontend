@@ -15,8 +15,9 @@ import { useState, useEffect } from 'react'
 import { X, User, MapPin, Phone, Camera, AlertCircle, Loader2 } from 'lucide-react'
 import { VisitaRuta } from '@/lib/types/cobranza'
 import { resolveMediaUrl, formatCurrency } from '@/lib/utils'
-import { Portal, MODAL_Z_INDEX } from '@/components/dashboards/shared/CobradorElements'
+import Portal, { MODAL_Z_INDEX } from '@/components/ui/Portal'
 import { clientesService } from '@/services/clientes-service'
+import { getBogotaDateKey } from '@/lib/rutas-core'
 
 // ── Tipos ──────────────────────────────────────────────────────────────────────
 
@@ -96,7 +97,7 @@ export default function ClienteInfoModal({
 
         if (miPrestamo) {
            const cuotasList = Array.isArray(miPrestamo.cuotas) ? miPrestamo.cuotas : []
-           const hoyKey = new Date().toISOString().split('T')[0]
+           const hoyKey = getBogotaDateKey(new Date())
            
            // Buscar la primera hoy o futura
            const cuotaFutura = cuotasList.find((c: any) => 

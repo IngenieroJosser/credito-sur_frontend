@@ -4,6 +4,7 @@ import { useMemo, useState, useEffect } from 'react'
 import { X, Calendar, TrendingUp, TrendingDown, Eye, LineChart } from 'lucide-react'
 import { formatCurrency } from '@/lib/utils'
 import { getTransacciones } from '@/services/contabilidad-service'
+import { buildBogotaOffsetIsoFromKey, getBogotaDateKey, normalizeDateKey } from '@/lib/rutas-core'
 
 interface DetalleReporteFinancieroModalProps {
   id: string
@@ -65,8 +66,14 @@ export default function DetalleReporteFinancieroModal({ id, onClose }: DetalleRe
         end.setHours(23,59,59,999)
       }
 
-      const fechaInicio = start.toISOString()
-      const fechaFin = end.toISOString()
+      const startKey = getBogotaDateKey(start)
+      const endKey = getBogotaDateKey(end)
+      const fechaInicio = startKey
+        ? buildBogotaOffsetIsoFromKey(startKey, { hh: 0, mm: 0, ss: 0, ms: 0 })
+        : ''
+      const fechaFin = endKey
+        ? buildBogotaOffsetIsoFromKey(endKey, { hh: 23, mm: 59, ss: 59, ms: 999 })
+        : ''
 
       const [ingRes, egreRes] = await Promise.all([
         getTransacciones({ tipo: 'INGRESO', fechaInicio, fechaFin, limit: 10000 }),

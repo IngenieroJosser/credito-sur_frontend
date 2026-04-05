@@ -1,4 +1,5 @@
 import { openDB, DBSchema, IDBPDatabase } from 'idb';
+import { toBogotaDateTimeOffsetIso } from '@/lib/rutas-core';
 
 // ─── Tipos para los stores offline ───────────────────────────────
 export interface OfflineCliente {
@@ -231,7 +232,7 @@ export const offlineStore = {
     const count = await metaDb.count(store);
     await metaDb.put('sync-meta', {
       key: store,
-      lastSyncAt: new Date().toISOString(),
+      lastSyncAt: toBogotaDateTimeOffsetIso(new Date()),
       recordCount: count,
     });
   },

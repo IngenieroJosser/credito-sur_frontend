@@ -8,6 +8,7 @@ import { Portal, MODAL_Z_INDEX } from '@/components/dashboards/shared/CobradorEl
 import { obtenerSaldoDisponibleRuta } from '@/services/contabilidad-service'
 import type { SaldoDisponibleRuta } from '@/services/contabilidad-service'
 import { rutasService } from '@/services/rutas-service'
+import { getBogotaDateKey } from '@/lib/rutas-core'
 
 interface GastoModalProps {
   isOpen: boolean
@@ -38,9 +39,7 @@ export default function GastoModal({ isOpen, onClose, onConfirm, cobradorId, rut
       setLoadingSaldo(true)
       setErrorSaldo('')
       try {
-        const now = new Date()
-        const localIso = new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString()
-        const hoyClave = localIso.split('T')[0]
+        const hoyClave = getBogotaDateKey(new Date())
         if (rutaId) {
           const saldo = await obtenerSaldoDisponibleRuta(rutaId, hoyClave)
           setSaldoInfo(saldo)

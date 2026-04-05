@@ -32,6 +32,7 @@ import { formatCurrency } from '@/lib/utils';
 import { Modal } from '@/components/ui/Modal';
 import FiltroRuta from '@/components/filtros/FiltroRuta';
 import NuevoClienteModal from '@/components/clientes/NuevoClienteModal';
+import { getBogotaDateKey } from '@/lib/rutas-core';
 import ClientePortalModal from '@/components/cliente/ClientePortalModal';
 
 // Tipos locales
@@ -613,7 +614,7 @@ export default function ClientesClient({ initialClientes }: ClientesClientProps)
               codigo: newClient.codigo || newClient.clienteCodigo || 'PENDIENTE',
               score: 100,
               tendencia: 'ESTABLE',
-              ultimaVisita: new Date().toISOString().split('T')[0]
+              ultimaVisita: getBogotaDateKey(new Date())
             };
             setClientes(prev => [enriched, ...prev]);
             setIsCreateModalOpen(false);

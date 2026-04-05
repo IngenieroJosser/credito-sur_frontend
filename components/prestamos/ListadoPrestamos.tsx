@@ -26,6 +26,8 @@ import {
   FileDown
 } from 'lucide-react';
 import { formatCurrency, cn } from '@/lib/utils';
+import { useNotificaciones } from '@/components/providers/NotificacionesProvider';
+import { getBogotaDateKey } from '@/lib/rutas-core';
 import FiltroRuta from '@/components/filtros/FiltroRuta';
 import EditarPrestamoModal from '@/components/prestamos/EditarPrestamoModal';
 import DetallePrestamoModal from '@/components/prestamos/DetallePrestamoModal';
@@ -40,7 +42,6 @@ import { offlineStore } from '@/lib/offline/offlineDb';
 import { prestamosService } from '@/services/prestamos-service';
 import { WifiOff } from 'lucide-react';
 import ConfirmModal from '@/components/ui/ConfirmModal';
-import { useNotificaciones } from '@/components/providers/NotificacionesProvider';
 import { useRealtimeData } from '@/hooks/useRealtimeData';
 import { usePageFocusRefresh } from '@/hooks/usePageFocusRefresh';
 
@@ -885,7 +886,7 @@ const ListadoPrestamosElegante = () => {
               cuotas: data.cuotas || data.cantidadCuotas || 0,
               frecuenciaPago: freq,
               tipoAmortizacion: data.tipoInteres || 'INTERES_SIMPLE',
-              fechaInicio: data.fechaInicio || new Date().toISOString().split('T')[0],
+              fechaInicio: data.fechaInicio || getBogotaDateKey(new Date()),
               creadoPorId: userId,
               notas: data.notas // IMPORTANTE: Pasar las notas
             };

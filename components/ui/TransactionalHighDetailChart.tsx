@@ -11,7 +11,7 @@ import {
   ResponsiveContainer,
   Cell,
 } from 'recharts';
-import { formatCurrency, cn } from '@/lib/utils';
+import { formatCurrency } from '@/lib/utils';
 import { BarChart2 } from 'lucide-react';
 
 interface ChartData {
@@ -32,6 +32,8 @@ interface FinancialDetailChartProps {
 const CustomTooltip = ({ active, payload }: any) => {
   if (active && payload && payload.length) {
     const d = payload[0].payload;
+    const hasTarget = typeof d.target === 'number' && d.target > 0;
+    const eficiencia = hasTarget ? d.value / d.target : undefined;
     return (
       <div className="bg-white/95 backdrop-blur-md p-5 rounded-3xl shadow-[0_20px_50px_rgba(0,0,0,0.12)] border border-slate-100 min-w-[220px] pointer-events-none animate-in fade-in zoom-in duration-300 relative z-[9999]">
         <div className="flex items-center justify-between mb-4 border-b border-slate-100 pb-3">
@@ -51,6 +53,29 @@ const CustomTooltip = ({ active, payload }: any) => {
               {formatCurrency(d.value)}
             </span>
           </div>
+
+          {hasTarget && (
+            <div className="flex items-center justify-between gap-6 pt-2 border-t border-slate-50">
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tight">Meta del día</span>
+              <span className="text-sm font-black text-slate-700 tracking-tight">
+                {formatCurrency(d.target)}
+              </span>
+            </div>
+          )}
+
+          {hasTarget && typeof eficiencia === 'number' && Number.isFinite(eficiencia) && (
+            <div className="flex items-center justify-between gap-6">
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tight">Eficiencia</span>
+              <span className="text-sm font-black text-emerald-700 tracking-tight tabular-nums">
+                {new Intl.NumberFormat('es-CO', {
+                  style: 'percent',
+                  minimumFractionDigits: 0,
+                  maximumFractionDigits: 0,
+                }).format(eficiencia)}
+              </span>
+            </div>
+          )}
+
           {d.secondaryValue !== undefined && (
             <div className="flex items-center justify-between gap-6 pt-2 border-t border-slate-50">
               <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tight">Egresos</span>
@@ -58,33 +83,6 @@ const CustomTooltip = ({ active, payload }: any) => {
                 {formatCurrency(d.secondaryValue)}
               </span>
             </div>
-          )}
-          {d.target && (
-            <>
-              <div className="flex items-center justify-between gap-6 pt-2 border-t border-slate-50">
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tight">Objetivo</span>
-                <span className="text-sm font-black text-slate-500 tracking-tight opacity-60">
-                  {formatCurrency(d.target)}
-                </span>
-              </div>
-              <div className="pt-3">
-                <div className="flex justify-between text-[10px] font-black uppercase mb-1.5">
-                  <span className="text-slate-400">Eficiencia</span>
-                  <span className={d.value >= d.target ? 'text-emerald-500' : 'text-amber-500'}>
-                    {((d.value / d.target) * 100).toFixed(1)}%
-                  </span>
-                </div>
-                <div className="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
-                  <div
-                    className={cn(
-                      'h-full rounded-full transition-all duration-1000',
-                      d.value >= d.target ? 'bg-emerald-500' : 'bg-amber-500',
-                    )}
-                    style={{ width: `${Math.min((d.value / d.target) * 100, 100)}%` }}
-                  />
-                </div>
-              </div>
-            </>
           )}
         </div>
       </div>
@@ -102,6 +100,8 @@ export const TransactionalHighDetailChart = ({
   // Si el array está vacío o todos los valores son 0, mostramos un placeholder
   // elegante en lugar de un gráfico en blanco que parece roto.
   const hasRealData = data.length > 0 && data.some((d) => d.value > 0);
+
+  const hasTarget = type === 'single' && data.some((d) => typeof d.target === 'number' && (d.target || 0) > 0);
 
   if (!hasRealData) {
     return (
@@ -127,9 +127,7 @@ export const TransactionalHighDetailChart = ({
   // ─── Configuración de dimensiones ─────────────────────────────────────────
   const isHighDensity = data.length > 12;
   const barSize = isHighDensity ? 28 : 42;
-  const targetSize = barSize + 12;
-  const centringGap = -(barSize + targetSize) / 2;
-  const barGapValue = type === 'double' ? 6 : centringGap;
+  const barGapValue = type === 'double' ? 6 : (hasTarget ? -barSize : undefined);
   const barCategoryGapValue = type === 'double' ? '20%' : undefined;
 
   return (
@@ -197,19 +195,24 @@ export const TransactionalHighDetailChart = ({
                 allowEscapeViewBox={{ x: false, y: true }}
               />
 
-              {/* OBJETIVO / VALOR SECUNDARIO (fondo) */}
-              {type === 'single' ? (
+              {/* META DEL DÍA (fondo) */}
+              {hasTarget && (
                 <Bar
                   dataKey="target"
-                  fill="#fbbf2405"
-                  stroke="#fbbf2450"
-                  strokeDasharray="5 3"
+                  radius={[6, 6, 0, 0]}
+                  fill="#f59e0b"
+                  fillOpacity={0.08}
+                  stroke="#f59e0b"
+                  strokeOpacity={0.35}
                   strokeWidth={1.5}
-                  radius={[12, 12, 0, 0]}
-                  barSize={targetSize}
-                  isAnimationActive={false}
+                  barSize={barSize}
+                  name="Meta del día"
+                  animationDuration={1500}
                 />
-              ) : (
+              )}
+
+              {/* VALOR SECUNDARIO */}
+              {type === 'double' && (
                 <Bar
                   dataKey="secondaryValue"
                   radius={[6, 6, 0, 0]}
@@ -229,13 +232,7 @@ export const TransactionalHighDetailChart = ({
                 animationDuration={1500}
               >
                 {data.map((entry, index) => {
-                  const isLast = index === data.length - 1;
                   let color = 'url(#barGradient)';
-                  if (type === 'single') {
-                    if (entry.target && entry.value >= entry.target) color = 'url(#successGradient)';
-                    else if (entry.target && entry.value < entry.target && !isLast)
-                      color = 'url(#failGradient)';
-                  }
                   return <Cell key={`cell-${index}`} fill={color} />;
                 })}
               </Bar>

@@ -2,21 +2,19 @@
 
 import { logger } from '@/lib/logger'
 
-
-
-import { useState, useCallback, useMemo, useEffect } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 
 import {
   CheckCircle2,
   X,
   XCircle,
+  ArrowLeft,
   Search,
   Filter,
   Wallet,
   DollarSign,
   Calendar,
   FileText as FileTextIcon,
-  ArrowLeft as ArrowLeftIcon,
   ChevronRight,
   TrendingUp,
   Sparkles,
@@ -37,8 +35,6 @@ import {
   Eye,
   Shield
 } from 'lucide-react'
-
-
 
 import { formatCurrency } from '@/lib/utils'
 
@@ -84,6 +80,10 @@ import { FrecuenciaPago } from '@/types/enums'
 
 import { obtenerSaldoDisponibleRuta } from '@/services/contabilidad-service'
 
+import RutaHeader from '@/components/rutas/RutaHeader'
+
+import RutaKpiSection from '@/components/dashboards/shared/RutaKpiSection'
+
 import { HistorialDia, mapNivelRiesgo, mapFrecuenciaToPeriodo } from '@/lib/types/cobranza'
 
 import { exportService } from '@/services/export-service'
@@ -93,6 +93,7 @@ import { toast } from 'sonner'
 import { useRealtimeData } from '@/hooks/useRealtimeData'
 import ClienteInfoModal from '@/components/cobranza/ClienteInfoModal'
 import { formatShortDate } from '@/lib/utils/format'
+import { getBogotaDateKey, getBogotaRangeByPeriod, isTodayOrPastBogota, normalizeDateKey, toBogotaDateTimeOffsetIso } from '@/lib/rutas-core'
 
 
 
@@ -181,6 +182,26 @@ const RutaClientLoaded = ({
   const [searchQuery, setSearchQuery] = useState('')
 
   const [showFilters, setShowFilters] = useState(false) // Used in render toggle
+
+  const [periodoCards, setPeriodoCards] = useState<'HOY' | 'SEM' | 'MES' | 'AÑO'>('HOY')
+
+  const [rutaStatsCards, setRutaStatsCards] = useState<{
+    recaudo: number
+    meta: number
+    eficiencia: number
+    gastos: number
+    base: number
+  }>({
+    recaudo: Number((initialRuta as any)?.estadisticas?.cobranzaDelDia || 0),
+    meta: Number((initialRuta as any)?.estadisticas?.metaDelDia || 0),
+    eficiencia: Number((initialRuta as any)?.estadisticas?.avanceDiario || 0),
+    gastos: 0,
+    base: 0,
+  })
+
+  const getDatesByPeriod = useCallback((period: 'HOY' | 'SEM' | 'MES' | 'AÑO') => {
+    return getBogotaRangeByPeriod(period)
+  }, [])
 
   // rutaCompletada is owned by the parent wrapper (RutaClient) to keep hook order stable
 
@@ -455,12 +476,12 @@ const RutaClientLoaded = ({
           prestamosProcesados.add(uniqueKey);
 
           const cuotasPrestamo = Array.isArray(prestamo?.cuotas) ? prestamo.cuotas : [];
-          const hoyClaveKey = new Date().toISOString().split('T')[0];
+          const hoyClaveKey = getBogotaDateKey(new Date());
           
           // Buscar la primera no pagada hoy o futura
-          const cuotaProgr = cuotasPrestamo.find((c: any) => 
-            (c.estado !== 'PAGADA' && c.estado !== 'ANULADA') && 
-            (c.fechaVencimiento && c.fechaVencimiento.split('T')[0] >= hoyClaveKey)
+          const cuotaProgr = cuotasPrestamo.find((c: any) =>
+            (c.estado !== 'PAGADA' && c.estado !== 'ANULADA') &&
+            (normalizeDateKey(c.fechaVencimiento) && normalizeDateKey(c.fechaVencimiento) >= hoyClaveKey),
           );
 
           // Si no hay hoy/futuro, tomamos la más antigua sin pagar
@@ -472,7 +493,7 @@ const RutaClientLoaded = ({
           const hayAlgunaMoraMapped = cuotasPrestamo.some((c: any) => {
              if (c.estado === 'VENCIDA' || c.estado === 'ATRASADA') return true;
              if (c.estado === 'PAGADA' || c.estado === 'ANULADA') return false;
-             const dO = c.fechaVencimiento?.split('T')[0];
+             const dO = normalizeDateKey(c.fechaVencimiento);
              return dO && dO < hoyClaveKey;
           });
 
@@ -692,7 +713,7 @@ const RutaClientLoaded = ({
           if (!dateStr) return '';
           return dateStr.includes('T') ? dateStr.split('T')[0] : dateStr;
         };
-        const hoyKey = new Date().toISOString().split('T')[0];
+        const hoyKey = getBogotaDateKey(new Date());
 
         return lista.flatMap((prestamo: any) => {
           const idx = globalIndex++;
@@ -702,7 +723,7 @@ const RutaClientLoaded = ({
           idsProcesados.add(uniqueKey);
 
           const cuotas = Array.isArray(prestamo?.cuotas) ? prestamo.cuotas : [];
-          const proximaCuota = cuotas.find((c: any) => toDateKey(c.fechaVencimiento) === hoyKey) || cuotas.find((c: any) => c.estado !== 'PAGADA') || cuotas[0] || {};
+          const proximaCuota = cuotas.find((c: any) => normalizeDateKey(c.fechaVencimiento) === hoyKey) || cuotas.find((c: any) => c.estado !== 'PAGADA') || cuotas[0] || {};
           const esArticulo = prestamo?.tipo === 'ARTICULO' || prestamo?.tipoPrestamo === 'ARTICULO';
           const esPendienteAprobacion = prestamo?.estado === 'PENDIENTE_APROBACION';
 
@@ -711,7 +732,7 @@ const RutaClientLoaded = ({
           if (prestamo?.cuotas && Array.isArray(prestamo.cuotas)) {
             for (const c of prestamo.cuotas) {
               if (!c.fechaVencimiento || c.estado === 'PAGADA') continue;
-              const cuotaKey = toDateKey(c.fechaVencimiento);
+              const cuotaKey = normalizeDateKey(c.fechaVencimiento);
               if (cuotaKey && cuotaKey <= hoyKey) {
                 montoAcumulado += Number(c.monto || 0);
                 if (cuotaKey < hoyKey) esMoraAtrasada = true;
@@ -729,9 +750,8 @@ const RutaClientLoaded = ({
               ? proximaCuota.fechaVencimientoProrroga
               : extension?.nuevaFechaVencimiento ?? null;
 
-          const fechaEfectiva = fechaProrrogaFecha
-            ?? proximaCuota?.fechaVencimiento
-            ?? new Date().toISOString().split('T')[0];
+          const fechaEfectiva =
+            fechaProrrogaFecha ?? proximaCuota?.fechaVencimiento ?? getBogotaDateKey(new Date());
 
           const montoFinal = montoAcumulado > 0 ? montoAcumulado : Number(proximaCuota?.monto || (prestamo?.montoCuota) || 0);
 
@@ -799,7 +819,7 @@ const RutaClientLoaded = ({
 
 
     const enriquecerConPagos = async () => {
-      const hoyBogota = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Bogota' });
+      const hoyBogota = getBogotaDateKey(new Date());
       
       // 1. Obtener todos los pagos recientes de forma masiva para evitar N peticiones API
       const pagosRecientesResp = await pagosService.obtenerPagos({ limit: 1000 });
@@ -816,12 +836,7 @@ const RutaClientLoaded = ({
             const rawDate = p.fechaPago || p.creadoEn;
             if (!rawDate) return sum;
             
-            let pDateStr = '';
-            if (typeof rawDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(rawDate)) {
-              pDateStr = rawDate;
-            } else {
-              pDateStr = new Date(rawDate).toLocaleDateString('en-CA', { timeZone: 'America/Bogota' });
-            }
+            const pDateStr = typeof rawDate === 'string' ? normalizeDateKey(rawDate) : getBogotaDateKey(rawDate);
             
             return pDateStr === hoyBogota ? sum + Number(p.montoTotal || 0) : sum;
           }, 0);
@@ -845,10 +860,10 @@ const RutaClientLoaded = ({
             const vencidas = cuotas.filter((c: any) => 
                (c.estado === 'VENCIDA' || c.estado === 'ATRASADA') || 
                (!(c.estado === 'PAGADA' || c.estado === 'ANULADA') && c.fechaVencimiento && 
-                new Date(c.fechaVencimiento).toLocaleDateString('en-CA', { timeZone: 'America/Bogota' }) < hoyBogota)
+                getBogotaDateKey(c.fechaVencimiento) < hoyBogota)
             );
             const totalVencido = vencidas.reduce((sum: number, c: any) => sum + Number(c.monto || 0), 0);
-            const isHoyPend = new Date(pendiente.fechaVencimiento).toLocaleDateString('en-CA', { timeZone: 'America/Bogota' }) === hoyBogota;
+            const isHoyPend = getBogotaDateKey(pendiente.fechaVencimiento) === hoyBogota;
             montoCuotaReal = totalVencido + (isHoyPend ? Number(pendiente.monto || 0) : 0);
             fechaReal = (pendiente.estado === 'PRORROGADA' && pendiente.fechaVencimientoProrroga)
                ? pendiente.fechaVencimientoProrroga
@@ -904,16 +919,7 @@ const RutaClientLoaded = ({
       exportarRutaDiariaPDF: async () => {},
     };
 
-    const isTodayOrMora = (dateStr: string) => {
-      if (!dateStr) return true;
-      const f = dateStr.includes('T') ? dateStr.split('T')[0] : dateStr;
-      const [year, month, day] = f.split('-').map(Number);
-      if (!year || !month || !day) return true;
-      const d = new Date(year, month - 1, day, 0, 0, 0, 0);
-      const hoy = new Date();
-      hoy.setHours(0, 0, 0, 0);
-      return d.getTime() <= hoy.getTime();
-    };
+    const isTodayOrMora = (dateStr: string) => isTodayOrPastBogota(dateStr);
 
     const filterByDate = (v: any) => {
       if (searchQuery || showMisClientes) return true;
@@ -940,8 +946,8 @@ const RutaClientLoaded = ({
 
       if (searchQuery || showMisClientes) return true
 
-      // Regla de Oro: Si ya tiene recaudo registrado hoy o está marcado como pagado, desaparece de la ruta activa
-      if (v.estado === 'pagado' || Number(v.recaudadoDelDia || 0) > 0) return false;
+      // Solo desaparece cuando la cuota quedó completa (estado pagado)
+      if (v.estado === 'pagado') return false;
 
       // Mostrar si tiene cuota/monto exigible para hoy o está en mora
       const esExigibleHoy = (v.montoCuota || 0) > 0 || isTodayOrMora(v.proximaVisita);
@@ -973,7 +979,7 @@ const RutaClientLoaded = ({
       try {
         await exportService.exportOperationalReport('excel', {
           rutaId: initialRuta.id,
-          startDate: new Date().toISOString().split('T')[0],
+          startDate: getBogotaDateKey(new Date()),
         } as any);
       } catch (e) {
         toast.error('No se pudo exportar el reporte de ruta a Excel');
@@ -985,7 +991,7 @@ const RutaClientLoaded = ({
       try {
         await exportService.exportOperationalReport('pdf', {
           rutaId: initialRuta.id,
-          startDate: new Date().toISOString().split('T')[0],
+          startDate: getBogotaDateKey(new Date()),
         } as any);
       } catch (e) {
         toast.error('No se pudo exportar el reporte de ruta a PDF');
@@ -1159,6 +1165,40 @@ const RutaClientLoaded = ({
 
   const porcentajeProgreso = estadisticas?.avanceDiario || 0;
 
+  useEffect(() => {
+    const run = async () => {
+      try {
+        const { inicio, fin } = getDatesByPeriod(periodoCards)
+        const saldo: any = await obtenerSaldoDisponibleRuta(initialRuta.id, undefined, inicio, fin)
+
+        const recaudo = Number(saldo?.cobranzaDelDia ?? saldo?.recaudoDelDia ?? estadisticas?.cobranzaDelDia ?? 0)
+        const meta = Number(estadisticas?.metaDelDia ?? 0)
+        const eficiencia = meta > 0 ? Math.round((recaudo / meta) * 100) : Number(estadisticas?.avanceDiario ?? 0)
+
+        setRutaStatsCards({
+          recaudo,
+          meta,
+          eficiencia,
+          gastos: Number(saldo?.gastosDelDia ?? 0),
+          base: Number(saldo?.baseEfectivo ?? 0),
+        })
+      } catch {
+        const recaudo = Number(estadisticas?.cobranzaDelDia ?? 0)
+        const meta = Number(estadisticas?.metaDelDia ?? 0)
+        const eficiencia = meta > 0 ? Math.round((recaudo / meta) * 100) : Number(estadisticas?.avanceDiario ?? 0)
+        setRutaStatsCards((prev) => ({
+          ...prev,
+          recaudo,
+          meta,
+          eficiencia,
+        }))
+      }
+    }
+
+    if (!initialRuta?.id) return
+    void run()
+  }, [estadisticas?.cobranzaDelDia, estadisticas?.metaDelDia, estadisticas?.avanceDiario, getDatesByPeriod, initialRuta?.id, periodoCards])
+
 
 
   const [misCreditos, setMisCreditos] = useState<VisitaRuta[]>([])
@@ -1186,7 +1226,7 @@ const RutaClientLoaded = ({
         let cuotaActual = 1;
         let cuotasTotales = Number(p.cantidadCuotas || 0);
         let montoCuota = Number(p.montoCuota || 0);
-        let proximaVisitaV = p.fechaEfectiva || (new Date().toISOString().split('T')[0]);
+        let proximaVisitaV = p.fechaEfectiva || getBogotaDateKey(new Date());
         let estadoCalculado: EstadoVisita = 'pendiente';
         let ultimoPagoDate = 0;
 
@@ -1324,83 +1364,38 @@ const RutaClientLoaded = ({
 
       <div className="relative z-10 w-full p-6 md:p-8 space-y-6">
 
-        <header className="flex flex-col gap-4">
-
-          <div className="flex items-center justify-between">
-
-            <div className="flex items-center gap-4">
-
-               <Link href="/rutas" className="p-2 bg-white rounded-full shadow-sm hover:bg-slate-100 transition-colors">
-
-                  <ArrowLeftIcon className="h-5 w-5 text-slate-600" />
-
-               </Link>
-
-               <div>
-
-                 <div className="flex items-center gap-3">
-
-                    <h1 className="text-3xl font-bold tracking-tight">
-
-                        <span className="text-blue-600">Ruta </span>
-
-                        <span className="text-orange-500">{(initialRuta.nombre || '').replace(/^Ruta\s+/i, '')}</span>
-
-                    </h1>
-
-                    <span className={`px-3 py-1 rounded-full text-xs font-bold border ${getRiesgoBadgeClasses(nivelRiesgo)}`}>
-
-                        {getRiesgoLabel(nivelRiesgo)}
-
-                    </span>
-
-                    
-
-                 </div>
-
-                 <p className="text-slate-500 font-medium text-sm">
-
-                   {new Date().toLocaleDateString('es-CO', { weekday: 'long', day: 'numeric', month: 'long' })} • {initialRuta.codigo} • {initialRuta.cobrador}
-
-                 </p>
-
-              </div>
-
+        <RutaHeader
+          backHref="/rutas"
+          backContent={
+            <div className="p-2 bg-white rounded-full shadow-sm hover:bg-slate-100 transition-colors">
+              <ArrowLeft className="h-5 w-5 text-slate-600" />
             </div>
+          }
+          title={
+            <h1 className="text-3xl font-bold tracking-tight">
+              <span className="text-blue-600">Ruta </span>
+              <span className="text-orange-500">{(initialRuta.nombre || '').replace(/^Ruta\s+/i, '')}</span>
+            </h1>
+          }
+          badge={
+            <span className={`px-3 py-1 rounded-full text-xs font-bold border ${getRiesgoBadgeClasses(nivelRiesgo)}`}>
+              {getRiesgoLabel(nivelRiesgo)}
+            </span>
+          }
+          subtitle={
+            <>
+              {new Date().toLocaleDateString('es-CO', { timeZone: 'America/Bogota', weekday: 'long', day: 'numeric', month: 'long' })} • {initialRuta.codigo} • {initialRuta.cobrador}
+            </>
+          }
+        />
 
-          </div>
+        <RutaKpiSection periodo={periodoCards} onPeriodoChange={setPeriodoCards} rutaStats={rutaStatsCards as any} />
 
-
+        {(currentUser?.rol === 'SUPER_ADMINISTRADOR' || currentUser?.rol === 'ADMIN') && (
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 
             <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm flex flex-col justify-between">
-
-              <div className="flex items-start justify-between">
-
-                <div>
-
-                  <p className="text-slate-500 text-xs font-bold uppercase tracking-wider mb-1">Recaudado Hoy</p>
-
-                  <div className="text-3xl font-bold text-slate-900">{formatCurrency(estadisticas.cobranzaDelDia)}</div>
-
-                  <p className="text-xs text-slate-400 mt-1">Meta: {formatCurrency(estadisticas.metaDelDia)}</p>
-
-                </div>
-
-                <div className="h-10 w-10 rounded-xl bg-emerald-50 border border-emerald-100 flex items-center justify-center">
-
-                  <DollarSign className="h-5 w-5 text-emerald-600" />
-
-                </div>
-
-              </div>
-
-            </div>
-
-            {(currentUser?.rol === 'SUPER_ADMINISTRADOR' || currentUser?.rol === 'ADMIN') && (
-
-              <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm flex flex-col justify-between">
 
                 <div className="flex items-start justify-between">
 
@@ -1422,13 +1417,11 @@ const RutaClientLoaded = ({
 
                 </div>
 
-              </div>
-
-            )}
+            </div>
 
           </div>
 
-        </header>
+        )}
 
 
 
@@ -2501,26 +2494,51 @@ const RutaClientLoaded = ({
           onClose={() => setPagoVisita(null)}
           onConfirm={async (monto, metodo, comprobante) => {
             try {
-              if (!pagoVisita?.visita?.clienteId || !pagoVisita?.visita?.prestamoId) {
+              const pagoActual = pagoVisita
+
+              // Cerrar inmediatamente para UX
+              setPagoVisita(null)
+
+              if (!pagoActual?.visita?.clienteId || !pagoActual?.visita?.prestamoId) {
                 showNotification('error', 'No se pudo registrar el pago: falta cliente o préstamo', 'Error');
                 return;
               }
 
               await pagosService.registrarPago({
-                clienteId: pagoVisita.visita.clienteId,
-                prestamoId: pagoVisita.visita.prestamoId,
+                clienteId: pagoActual.visita.clienteId,
+                prestamoId: pagoActual.visita.prestamoId,
                 cobradorId: initialRuta.cobradorId,
                 montoTotal: monto,
                 metodoPago: metodo,
                 comprobante: comprobante,
               } as any);
 
-              showNotification('success', `${pagoVisita.tipo === 'ABONO' ? 'Abono' : 'Pago'} registrado correctamente`, 'Éxito');
-              setPagoVisita(null);
+              // Update optimista: sumar recaudo del día y remover si completó cuota
+              const visitaId = pagoActual.visita.id
+              const montoNum = Number(monto || 0)
+              const montoCuotaPrev = Number(pagoActual.visita.montoCuota || 0)
+              const recPrev = Number(pagoActual.visita.recaudadoDelDia || 0)
+              const recNuevo = recPrev + montoNum
+              const cuotaCompletada = montoCuotaPrev > 0 && recNuevo >= (montoCuotaPrev - 1)
+
+              setVisitasCobrador((prev) => {
+                const next = prev.map((v) => {
+                  if (v.id !== visitaId) return v
+                  return {
+                    ...v,
+                    recaudadoDelDia: Number(v.recaudadoDelDia || 0) + montoNum,
+                    estado: cuotaCompletada ? ('pagado' as any) : v.estado,
+                  }
+                })
+
+                return cuotaCompletada ? next.filter((v) => v.id !== visitaId) : next
+              })
+
+              showNotification('success', `${pagoActual.tipo === 'ABONO' ? 'Abono' : 'Pago'} registrado correctamente`, 'Éxito');
 
               // Refrescar estadísticas
               try {
-                await onRutaRefresh?.();
+                void onRutaRefresh?.();
               } catch {}
             } catch (error) {
               console.error('Error registrando pago/abono:', error);
@@ -2633,14 +2651,20 @@ const RutaClientLoaded = ({
       
 
       {detalleVisita && (
-        <ClienteInfoModal
-          visita={detalleVisita}
-          onClose={() => setDetalleVisita(null)}
-          nextPagoMonto={detalleVisita.montoCuota}
-          nextPagoFecha={detalleVisita.proximaVisita}
-          recaudadoHoy={0} // Valor estático en modo auditoría admin
-          formatFechaLargaUTC={formatShortDate}
-        />
+        (() => {
+          const detalleActual = detalleVisita
+          if (!detalleActual) return null
+          return (
+            <ClienteInfoModal
+              visita={detalleActual}
+              onClose={() => setDetalleVisita(null)}
+              nextPagoMonto={detalleActual.montoCuota}
+              nextPagoFecha={detalleActual.proximaVisita}
+              recaudadoHoy={0} // Valor estático en modo auditoría admin
+              formatFechaLargaUTC={formatShortDate}
+            />
+          )
+        })()
       )}
 
       
@@ -2767,7 +2791,7 @@ const RutaClientLoaded = ({
                 cantidadCuotas: data.cantidadCuotas || data.cuotas || data.cuotasTotales || (isArticulo ? data.numCuotas : 0),
                 cuotas: data.cuotas || data.cantidadCuotas || (isArticulo ? data.numCuotas : 0),
                 frecuenciaPago: freq,
-                fechaInicio: data.fechaInicio || new Date().toISOString(),
+                fechaInicio: data.fechaInicio || toBogotaDateTimeOffsetIso(new Date()),
                 creadoPorId: currentUser?.id || '',
                 cuotaInicial: data.cuotaInicialArticulo || 0,
                 notas: isArticulo

@@ -17,6 +17,7 @@ import { clientesService, Cliente } from '@/services/clientes-service'
 import { articulosService, Articulo } from '@/services/articulos-service'
 import { offlineStore } from '@/lib/offline/offlineDb'
 import { TipoAmortizacion } from '@/types/enums'
+import { getBogotaDateKey, toBogotaDateTimeLocalInputValue } from '@/lib/rutas-core'
 
 interface CrearCreditoModalProps {
   isOpen: boolean
@@ -55,9 +56,7 @@ export default function CrearCreditoModal({ isOpen, onClose, onConfirm, defaultC
   const [cuotasPrestamoInput, setCuotasPrestamoInput] = useState('12')
   const [cuotaInicialArticuloInput, setCuotaInicialArticuloInput] = useState('')
   const [fechaCreditoInput, setFechaCreditoInput] = useState(() => {
-    const now = new Date()
-    const tzAdjusted = new Date(now.getTime() - now.getTimezoneOffset() * 60000)
-    return tzAdjusted.toISOString().slice(0, 16) // YYYY-MM-DDTHH:mm
+    return toBogotaDateTimeLocalInputValue(new Date()) // YYYY-MM-DDTHH:mm
   })
   const [frecuenciaPago, setFrecuenciaPago] = useState('DIARIO')
   const [fechaPrimerCobro, setFechaPrimerCobro] = useState('')
@@ -76,13 +75,12 @@ export default function CrearCreditoModal({ isOpen, onClose, onConfirm, defaultC
     if (isOpen) {
         if (defaultClienteId) setClienteCreditoId(defaultClienteId)
           const now = new Date()
-          const tzAdjusted = new Date(now.getTime() - now.getTimezoneOffset() * 60000)
-          let fechaBase = new Date(tzAdjusted)
+          let fechaBase = new Date(now)
           // Sugerir siempre el día siguiente
           fechaBase.setDate(fechaBase.getDate() + 1)
           // Si cae domingo y es diario, saltar al lunes
           if (fechaBase.getDay() === 0) fechaBase.setDate(fechaBase.getDate() + 1)
-          setFechaPrimerCobro(fechaBase.toISOString().split('T')[0])
+          setFechaPrimerCobro(getBogotaDateKey(fechaBase))
         Promise.all([
           clientesService.obtenerTodos(),
           articulosService.obtenerArticulos()
@@ -175,11 +173,7 @@ export default function CrearCreditoModal({ isOpen, onClose, onConfirm, defaultC
     setPlanArticuloIndex(null)
     setFrecuenciaPago('DIARIO')
     setNotasInput('')
-    {
-      const now = new Date()
-      const tzAdjusted = new Date(now.getTime() - now.getTimezoneOffset() * 60000)
-      setFechaCreditoInput(tzAdjusted.toISOString().slice(0, 16))
-    }
+    setFechaCreditoInput(toBogotaDateTimeLocalInputValue(new Date()))
     onClose()
   }
 
@@ -331,24 +325,23 @@ export default function CrearCreditoModal({ isOpen, onClose, onConfirm, defaultC
                            const val = e.target.value;
                            setFrecuenciaPago(val);
                            if (val === 'QUINCENAL') {
-                             const now = new Date();
-                             const y = now.getFullYear();
-                             const m = now.getMonth();
-                             const day = now.getDate();
-                             const target = new Date(y, day <= 15 ? m : m + 1, 15);
-                             const iso = target.toISOString().split('T')[0];
-                             setFechaPrimerCobro(iso);
-                           } else if (val === 'DIARIO') {
-                             // Ajustar fecha si ya seleccionada es domingo
-                             const fechaActual = new Date(fechaPrimerCobro + 'T12:00:00')
-                             if (fechaActual.getDay() === 0) {
-                               fechaActual.setDate(fechaActual.getDate() + 1)
-                               setFechaPrimerCobro(fechaActual.toISOString().split('T')[0])
-                             }
+                            const nowKey = getBogotaDateKey(new Date());
+                            const [yyStr, mmStr, ddStr] = nowKey.split('-');
+                            const yy = Number(yyStr);
+                            const mmNow = Number(mmStr);
+                            const ddNow = Number(ddStr);
+                            const monthIndex = ddNow <= 15 ? mmNow - 1 : mmNow; // si ya pasó el 15, ir al siguiente mes
+                            const target = new Date(yy, monthIndex, 15, 12, 0, 0, 0);
+                            setFechaPrimerCobro(getBogotaDateKey(target));
+                          } else if (val === 'DIARIO') {
+                            // Ajustar fecha si ya seleccionada es domingo
+                            const fechaActual = new Date(fechaPrimerCobro + 'T12:00:00')
+                            if (fechaActual.getDay() === 0) {
+                              fechaActual.setDate(fechaActual.getDate() + 1)
+                              setFechaPrimerCobro(getBogotaDateKey(fechaActual))
+                            }
                            } else {
-                             const now = new Date()
-                             const tzAdjusted = new Date(now.getTime() - now.getTimezoneOffset() * 60000)
-                             setFechaPrimerCobro(tzAdjusted.toISOString().split('T')[0])
+                             setFechaPrimerCobro(getBogotaDateKey(new Date()))
                            }
                          }}
                          className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-[#08557f] focus:ring-0 font-medium text-slate-900"

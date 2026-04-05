@@ -106,7 +106,7 @@ const ReportesOperativosSupervisorPage = () => {
             <div className="flex items-center gap-2">
               <span className="inline-flex items-center gap-1 text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-full border border-emerald-100">
                 <TrendingUp className="h-3 w-3" />
-                {porcentajeGlobal}% objetivo
+                {porcentajeGlobal}% eficiencia
               </span>
               <span className="text-xs text-slate-400 font-medium">vs ayer</span>
             </div>
@@ -175,7 +175,7 @@ const ReportesOperativosSupervisorPage = () => {
                 <tr>
                   <th className="px-6 py-4 tracking-wider">Ruta</th>
                   <th className="px-6 py-4 tracking-wider">Cobrador</th>
-                  <th className="px-6 py-4 tracking-wider text-right">Objetivo</th>
+                  <th className="px-6 py-4 tracking-wider text-right">Meta</th>
                   <th className="px-6 py-4 tracking-wider text-right">Recaudado</th>
                   <th className="px-6 py-4 tracking-wider text-center">Eficiencia</th>
                   <th className="px-6 py-4 tracking-wider text-center">Nuevos Prést.</th>
@@ -239,7 +239,7 @@ const ReportesOperativosSupervisorPage = () => {
 
         <section className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <div className="bg-white/80 backdrop-blur-sm p-6 rounded-2xl border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all">
-            <h3 className="font-bold text-slate-900 mb-6 text-lg">Comparativa de Recaudo vs Objetivo</h3>
+            <h3 className="font-bold text-slate-900 mb-6 text-lg">Comparativa de Recaudo vs Meta</h3>
             <div className="space-y-6">
               {rendimientoRutas.map((item, idx) => (
                 <div key={idx} className="space-y-2">
@@ -254,7 +254,7 @@ const ReportesOperativosSupervisorPage = () => {
                   <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
                     <div
                       className="bg-slate-900 h-2 rounded-full transition-all duration-1000 ease-out"
-                      style={{ width: `${(item.recaudado / item.meta) * 100}%` }}
+                      style={{ width: `${item.meta > 0 ? Math.min((item.recaudado / item.meta) * 100, 100) : 0}%` }}
                     ></div>
                   </div>
                 </div>

@@ -28,6 +28,7 @@ import { formatCurrency, cn } from '@/lib/utils'
 import { prestamosService } from '@/services/prestamos-service'
 import { clientesService, Cliente } from '@/services/clientes-service'
 import { exportService } from '@/services/export-service'
+import { toBogotaDateTimeOffsetIso } from '@/lib/rutas-core'
 import FloatingActionMenu, { FabAction } from '@/components/dashboards/shared/FloatingActionMenu'
 import NuevoClienteModal from '@/components/clientes/NuevoClienteModal'
 import CrearCreditoModal from '@/components/dashboards/shared/CrearCreditoModal'
@@ -299,7 +300,7 @@ export default function VistaPuntoDeVenta() {
         cantidadCuotas: data.cantidadCuotas || data.cuotas || data.cuotasTotales || (isArticulo ? data.numCuotas : 0),
         cuotas: data.cuotas || data.cantidadCuotas || data.cuotasTotales || (isArticulo ? data.numCuotas : 0),
         frecuenciaPago: freq,
-        fechaInicio: data.fechaInicio || new Date().toISOString(),
+        fechaInicio: data.fechaInicio || toBogotaDateTimeOffsetIso(new Date()),
         fechaPrimerCobro: data.fechaPrimerCobro,
         creadoPorId: userSession?.id || '',
         cuotaInicial: data.cuotaInicialArticulo || 0,

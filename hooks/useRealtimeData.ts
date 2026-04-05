@@ -16,7 +16,10 @@ export function useRealtimeData(
   const { socket } = useNotificaciones()
   // Ref estable para no re-suscribir si onRefresh cambia de referencia
   const refreshRef = useRef(onRefresh)
-  refreshRef.current = onRefresh
+
+  useEffect(() => {
+    refreshRef.current = onRefresh
+  }, [onRefresh])
 
   const stableHandler = useCallback((...args: any[]) => {
     refreshRef.current(...args)
@@ -30,6 +33,5 @@ export function useRealtimeData(
     return () => {
       events.forEach((ev) => socket.off(ev, stableHandler))
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [socket, stableHandler, ...events])
 }

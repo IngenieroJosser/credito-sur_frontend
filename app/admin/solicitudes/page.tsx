@@ -18,6 +18,7 @@ import {
   X
 } from 'lucide-react'
 import { formatCOPInputValue, formatCurrency, parseCOPInputToNumber, cn } from '@/lib/utils'
+import { getBogotaDateKey } from '@/lib/rutas-core'
 
 // Tipos
 interface SolicitudDinero {
@@ -169,7 +170,7 @@ const SolicitudesPage = () => {
                     <input
                       type="date"
                       className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium text-slate-900"
-                      defaultValue={new Date().toISOString().split('T')[0]}
+                      defaultValue={getBogotaDateKey(new Date())}
                     />
                   </div>
                 </div>

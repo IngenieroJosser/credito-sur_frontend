@@ -163,7 +163,7 @@ const ReportesCoordinador = () => {
             <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Recaudo Total</p>
             <h3 className="text-2xl font-bold text-slate-900 mt-1">{formatCurrency(totalRecaudo)}</h3>
             <div className="mt-2 flex items-center gap-2">
-              <span className="px-2 py-0.5 bg-emerald-50 text-emerald-600 text-[10px] font-bold rounded-full">{porcentajeGlobal}% Meta</span>
+              <span className="px-2 py-0.5 bg-emerald-50 text-emerald-600 text-[10px] font-bold rounded-full">{porcentajeGlobal}% eficiencia</span>
             </div>
           </div>
           <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm transition-all hover:shadow-md">

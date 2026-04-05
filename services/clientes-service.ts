@@ -2,6 +2,7 @@ import { logger } from '@/lib/logger'
 import { apiRequest } from "@/lib/api/api";
 import { syncService } from '@/lib/offline/syncService';
 import { NivelRiesgo, EstadoAprobacion } from '@/types/enums';
+import { toBogotaDateTimeOffsetIso } from '@/lib/rutas-core'
 
 export type { NivelRiesgo, EstadoAprobacion };
 
@@ -176,8 +177,8 @@ export const clientesService = {
            puntaje: data.puntaje || 0,
            enListaNegra: false,
            estadoAprobacion: EstadoAprobacion.PENDIENTE,
-           creadoEn: new Date().toISOString(),
-           actualizadoEn: new Date().toISOString(),
+           creadoEn: toBogotaDateTimeOffsetIso(new Date()),
+           actualizadoEn: toBogotaDateTimeOffsetIso(new Date()),
          } as any;
       }
       throw error;

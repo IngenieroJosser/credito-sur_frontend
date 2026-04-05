@@ -2,6 +2,7 @@ import { logger } from '@/lib/logger'
 import { apiRequest } from '@/lib/api/api';
 import { syncService } from '@/lib/offline/syncService';
 import { offlineStore } from '@/lib/offline/offlineDb';
+import { toBogotaDateTimeOffsetIso } from '@/lib/rutas-core'
 
 // Interfaces
 export interface Caja {
@@ -154,7 +155,7 @@ export async function createCaja(data: {
           data,
           `Crear caja: ${data.nombre}`
         );
-        return { ...data, id: `temp-caja-${Date.now()}`, estado: 'ABIERTA', saldo: data.saldoInicial || 0, ultimaActualizacion: new Date().toISOString(), responsable: 'Local', responsableId: data.responsableId, codigo: 'TEMP' } as any;
+        return { ...data, id: `temp-caja-${Date.now()}`, estado: 'ABIERTA', saldo: data.saldoInicial || 0, ultimaActualizacion: toBogotaDateTimeOffsetIso(new Date()), responsable: 'Local', responsableId: data.responsableId, codigo: 'TEMP' } as any;
     }
     console.error('Error creating caja:', error);
     throw error;
@@ -291,7 +292,7 @@ export async function createTransaccion(data: {
       return {
         id: `temp-trx-${Date.now()}`,
         numero: 'OFFLINE',
-        fecha: new Date().toISOString(),
+        fecha: toBogotaDateTimeOffsetIso(new Date()),
         tipo: data.tipo,
         monto: data.monto,
         descripcion: data.descripcion,

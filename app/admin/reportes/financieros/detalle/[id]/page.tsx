@@ -5,6 +5,7 @@ import { useRouter, useParams } from 'next/navigation'
 import { ArrowLeft, Calendar, Eye, LineChart, TrendingDown, TrendingUp } from 'lucide-react'
 import { formatCurrency } from '@/lib/utils'
 import { getTransacciones } from '@/services/contabilidad-service'
+import { buildBogotaOffsetIsoFromKey, getBogotaDateKey } from '@/lib/rutas-core'
 
 type DetalleRow = {
   label: string
@@ -48,8 +49,14 @@ export default function DetalleReporteFinancieroPage() {
         const fin = new Date(yearNum, monthIdx + 1, 0)
         fin.setHours(23, 59, 59, 999)
 
-        const fechaInicio = inicio.toISOString()
-        const fechaFin = fin.toISOString()
+        const inicioKey = getBogotaDateKey(inicio)
+        const finKey = getBogotaDateKey(fin)
+        const fechaInicio = inicioKey
+          ? buildBogotaOffsetIsoFromKey(inicioKey, { hh: 0, mm: 0, ss: 0, ms: 0 })
+          : ''
+        const fechaFin = finKey
+          ? buildBogotaOffsetIsoFromKey(finKey, { hh: 23, mm: 59, ss: 59, ms: 999 })
+          : ''
 
         const [ingRes, egreRes] = await Promise.all([
           getTransacciones({ tipo: 'INGRESO', fechaInicio, fechaFin, limit: 2000 }),

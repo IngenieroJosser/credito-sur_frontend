@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { X, Clock, AlertTriangle, CheckCircle2, Calendar, Loader2 } from 'lucide-react'
 import { VisitaRuta } from '@/lib/types/cobranza'
 import Portal, { MODAL_Z_INDEX } from '@/components/ui/Portal'
+import { getBogotaDateKey } from '@/lib/rutas-core'
 
 interface ReprogramarModalProps {
   visita: VisitaRuta
@@ -28,8 +29,8 @@ export default function ReprogramarModal({ visita, onClose, onConfirm }: Reprogr
   hoy.setHours(0, 0, 0, 0)
   const maxFecha = new Date(hoy)
   maxFecha.setDate(maxFecha.getDate() + limite)
-  const maxFechaStr = maxFecha.toISOString().split('T')[0]
-  const minFechaStr = hoy.toISOString().split('T')[0]
+  const maxFechaStr = getBogotaDateKey(maxFecha)
+  const minFechaStr = getBogotaDateKey(hoy)
 
   const manana = new Date(hoy)
   manana.setDate(manana.getDate() + 1)
@@ -40,7 +41,7 @@ export default function ReprogramarModal({ visita, onClose, onConfirm }: Reprogr
       manana.setDate(manana.getDate() + 1)
     }
   }
-  const mananaStr = manana.toISOString().split('T')[0]
+  const mananaStr = getBogotaDateKey(manana)
 
   const [reprogramFecha, setReprogramFecha] = useState(mananaStr)
   const [reprogramMotivo, setReprogramMotivo] = useState('')
@@ -54,7 +55,7 @@ export default function ReprogramarModal({ visita, onClose, onConfirm }: Reprogr
   const fechaAnteriorHoy = reprogramFecha ? diasSeleccionados < 0 : false
 
   const esDomingo = reprogramFecha
-    ? new Date(reprogramFecha + 'T12:00:00').getDay() === 0
+    ? new Date(reprogramFecha + 'T12:00:00-05:00').getDay() === 0
     : false
 
   const canSubmit = reprogramFecha && !excedeLimite && !fechaAnteriorHoy && !isSubmitting && !(esDiario && esDomingo)

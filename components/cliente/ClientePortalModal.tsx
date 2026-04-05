@@ -7,6 +7,7 @@ import { clientesService } from '@/services/clientes-service';
 import { Smartphone, DollarSign } from 'lucide-react';
 import { createPortal } from 'react-dom';
 import { offlineStore } from '@/lib/offline/offlineDb';
+import { toBogotaDateTimeOffsetIso } from '@/lib/rutas-core'
 
 interface ClientePortalModalProps {
   clientId: string;
@@ -58,7 +59,7 @@ export default function ClientePortalModal({ clientId, onClose, rolUsuario = 'co
                     puntaje: data.puntaje || 0,
                     enListaNegra: data.enListaNegra || false,
                     estadoAprobacion: data.estadoAprobacion || 'APROBADO',
-                    fechaRegistro: data.creadoEn || new Date().toISOString(),
+                    fechaRegistro: data.creadoEn || toBogotaDateTimeOffsetIso(new Date()),
                     ocupacion: 'No especificada',
                     avatarColor: 'bg-blue-600',
                     ruta: (data as any).asignacionesRuta?.[0]?.ruta?.nombre || 'Sin Ruta',
@@ -152,7 +153,7 @@ export default function ClientePortalModal({ clientId, onClose, rolUsuario = 'co
                   puntaje: offCliente.puntaje || 0,
                   enListaNegra: offCliente.enListaNegra || false,
                   estadoAprobacion: offCliente.estadoAprobacion || 'APROBADO',
-                  fechaRegistro: offCliente.creadoEn || new Date().toISOString(),
+                  fechaRegistro: offCliente.creadoEn || toBogotaDateTimeOffsetIso(new Date()),
                   ocupacion: 'No especificada',
                   avatarColor: 'bg-blue-600',
                   ruta: offCliente.rutaNombre || 'Sin Ruta',

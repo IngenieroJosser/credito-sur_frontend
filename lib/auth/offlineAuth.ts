@@ -1,4 +1,5 @@
 import { logger } from '@/lib/logger'
+import { toBogotaDateTimeOffsetIso } from '@/lib/rutas-core'
 /**
  * Sistema de Autenticación Offline
  * Permite continuar usando el sistema PWA sin conexión después de haber iniciado sesión previamente
@@ -28,8 +29,8 @@ export function cacheSession(token: string, user: any): void {
     const cachedSession: CachedSession = {
       token,
       user,
-      cachedAt: now.toISOString(),
-      expiresAt: expiresAt.toISOString(),
+      cachedAt: toBogotaDateTimeOffsetIso(now),
+      expiresAt: toBogotaDateTimeOffsetIso(expiresAt),
     };
 
     localStorage.setItem(SESSION_CACHE_KEY, JSON.stringify(cachedSession));
@@ -197,8 +198,8 @@ export function renewOfflineSession(): boolean {
 
     const renewed: CachedSession = {
       ...cached,
-      cachedAt: now.toISOString(),
-      expiresAt: expiresAt.toISOString(),
+      cachedAt: toBogotaDateTimeOffsetIso(now),
+      expiresAt: toBogotaDateTimeOffsetIso(expiresAt),
     };
 
     localStorage.setItem(SESSION_CACHE_KEY, JSON.stringify(renewed));
@@ -237,7 +238,6 @@ export function shouldShowExpirationWarning(): boolean {
   }
 
   // Marcar que se mostró el warning
-  localStorage.setItem(warningShownKey, new Date().toISOString());
+  localStorage.setItem(warningShownKey, toBogotaDateTimeOffsetIso(new Date()));
   return true;
 }
-

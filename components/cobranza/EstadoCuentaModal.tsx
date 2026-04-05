@@ -7,23 +7,22 @@ import { formatMilesCOP } from '@/lib/utils'
 import { Portal, MODAL_Z_INDEX } from '@/components/dashboards/shared/CobradorElements'
 import { prestamosService } from '@/services/prestamos-service'
 import { getLoanAmounts } from '@/lib/loan-calculations'
+import { normalizeDateKey } from '@/lib/rutas-core'
 
 interface EstadoCuentaModalProps {
   visita: VisitaRuta
   onClose: () => void
 }
 
-/**
- * Formatea una fecha UTC para evitar saltos de día.
- */
-function formatDateUTC(dateStr: string) {
-  if (!dateStr) return '---'
-  const date = new Date(dateStr)
-  if (isNaN(date.getTime())) return '---'
-  const day = date.getUTCDate()
+function formatDateBogota(dateStr: string) {
+  const key = normalizeDateKey(dateStr)
+  if (!key) return '---'
+  const d = new Date(`${key}T12:00:00-05:00`)
+  if (isNaN(d.getTime())) return key
+  const day = String(d.getDate())
   const monthNames = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"]
-  const month = monthNames[date.getUTCMonth()]
-  const year = date.getUTCFullYear()
+  const month = monthNames[d.getMonth()]
+  const year = String(d.getFullYear())
   return `${day} de ${month} de ${year}`
 }
 
@@ -111,9 +110,9 @@ export default function EstadoCuentaModal({ visita, onClose }: EstadoCuentaModal
     const pagadoD = Number(loanData.totalPagado || 0);
 
     return {
-      fechaInicio: formatDateUTC(loanData.fechaInicio),
-      fechaVencimiento: formatDateUTC(loanData.fechaFin || (cuotas.length > 0 ? cuotas[cuotas.length - 1].fechaVencimiento : null)),
-      nextPaymentDate: proxima ? formatDateUTC(proxima.fechaVencimiento) : '---',
+      fechaInicio: formatDateBogota(loanData.fechaInicio),
+      fechaVencimiento: formatDateBogota(loanData.fechaFin || (cuotas.length > 0 ? cuotas[cuotas.length - 1].fechaVencimiento : null)),
+      nextPaymentDate: proxima ? formatDateBogota(proxima.fechaVencimiento) : '---',
       nextPaymentAmount: proxima ? Number(proxima.monto || 0) : 0,
       totalPaid: pagadoD,
       totalValue: totalD,

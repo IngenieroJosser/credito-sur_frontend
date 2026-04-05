@@ -35,6 +35,7 @@ import { TimeFilter, TimeFilterPeriod } from '@/components/ui/TimeFilter';
 import CrearCreditoModal from '@/components/dashboards/shared/CrearCreditoModal';
 import { prestamosService } from '@/services/prestamos-service';
 import { exportService } from '@/services/export-service';
+import { toBogotaDateTimeOffsetIso } from '@/lib/rutas-core';
 import { toast } from 'sonner';
 
 interface Usuario {
@@ -479,16 +480,12 @@ const VistaCoordinador = () => {
                 <div className="flex items-center justify-between mb-8">
                   <div>
                     <h2 className="text-xl font-black text-slate-900 tracking-tight">Tendencia de Cobros</h2>
-                    <p className="text-sm text-slate-500 font-medium">Rendimiento semanal vs objetivos</p>
+                    <p className="text-sm text-slate-500 font-medium">Rendimiento semanal</p>
                   </div>
                   <div className="flex items-center gap-4">
                     <div className="flex items-center gap-2 group">
                       <div className="w-2.5 h-2.5 rounded-full bg-blue-600"></div>
                       <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Real</span>
-                    </div>
-                    <div className="flex items-center gap-2 group">
-                      <div className="w-3 h-3 rounded-full border-2 border-dashed border-amber-500 bg-amber-50"></div>
-                      <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Objetivo</span>
                     </div>
                   </div>
                 </div>
@@ -829,7 +826,7 @@ const VistaCoordinador = () => {
               cantidadCuotas: data.cantidadCuotas || data.cuotas || data.cuotasTotales || (isArticulo ? data.numCuotas : 0),
               cuotas: data.cuotas || data.cantidadCuotas || data.cuotasTotales || (isArticulo ? data.numCuotas : 0),
               frecuenciaPago: freq,
-              fechaInicio: data.fechaInicio || new Date().toISOString(),
+              fechaInicio: data.fechaInicio || toBogotaDateTimeOffsetIso(new Date()),
               fechaPrimerCobro: data.fechaPrimerCobro,
               creadoPorId: user?.id || '',
               cuotaInicial: data.cuotaInicialArticulo || 0,

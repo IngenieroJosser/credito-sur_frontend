@@ -4,7 +4,9 @@ import { logger } from '@/lib/logger'
 
 
 
-import { useState } from 'react'
+import { use, useState } from 'react'
+
+import RutaClient from '../../../admin/rutas/[id]/ruta-client'
 
 import {
 
@@ -47,8 +49,6 @@ import {
   CreditCard
 
 } from 'lucide-react'
-
-
 
 import { formatCOPInputValue, formatCurrency } from '@/lib/utils'
 
@@ -96,6 +96,8 @@ import { prestamosService } from '@/services/prestamos-service'
 
 import { pagosService } from '@/services/pagos-service'
 
+import { getBogotaDateKey, normalizeDateKey, toBogotaDateTimeOffsetIso } from '@/lib/rutas-core'
+
 import { exportService } from '@/services/export-service'
 
 import { obtenerSaldoDisponibleRuta } from '@/services/contabilidad-service'
@@ -132,7 +134,12 @@ interface ClienteRuta {
 
 
 
-const DetalleRutaPage = () => {
+export default function CoordinadorRutaDetallePage(props: { params: Promise<{ id: string }> }) {
+  const params = use(props.params)
+  return <RutaClient initialRuta={null} rutaId={params.id} />
+}
+
+const LegacyDetalleRutaPage = () => {
 
   const { showNotification } = useNotification()
 
@@ -308,7 +315,7 @@ const DetalleRutaPage = () => {
 
           estado: 'pendiente' as any,
 
-          proximaVisita: row?.prestamo?.fechaEfectiva || prox?.fechaVencimiento || new Date().toISOString().split('T')[0],
+          proximaVisita: row?.prestamo?.fechaEfectiva || prox?.fechaVencimiento || getBogotaDateKey(new Date()),
 
           ordenVisita: Number(row?.ordenVisita || idx + 1),
 
@@ -2392,7 +2399,7 @@ const DetalleRutaPage = () => {
 
                 frecuenciaPago: esContado ? 'MENSUAL' : (data.frecuenciaPago || 'DIARIO'),
 
-                fechaInicio: data.fechaInicio || new Date().toISOString(),
+                fechaInicio: data.fechaInicio || toBogotaDateTimeOffsetIso(new Date()),
 
                 creadoPorId: currentUser?.id,
 
@@ -2512,15 +2519,19 @@ function formatDateUTC(dateStr: string) {
 
   if (!dateStr) return '---'
 
-  const date = new Date(dateStr)
+  const key = normalizeDateKey(dateStr)
+  if (!key) return String(dateStr)
 
-  const day = date.getUTCDate()
+  const date = new Date(`${key}T12:00:00-05:00`)
+  if (isNaN(date.getTime())) return key
+
+  const day = date.getDate()
 
   const monthNames = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"]
 
-  const month = monthNames[date.getUTCMonth()]
+  const month = monthNames[date.getMonth()]
 
-  const year = date.getUTCFullYear()
+  const year = date.getFullYear()
 
   return `${day} de ${month} de ${year}`
 
@@ -3053,10 +3064,3 @@ function ClienteDetalleModal({ visita, onClose }: { visita: VisitaRuta; onClose:
   )
 
 }
-
-
-
-export default DetalleRutaPage
-
-
-
