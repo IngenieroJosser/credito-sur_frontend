@@ -31,6 +31,8 @@ import {
 import { formatCurrency, cn } from '@/lib/utils'
 import { useAuth } from '@/hooks/useAuth'
 import { routesService } from '@/services/routes-service';
+import { rutasService } from '@/services/rutas-service';
+import { getBogotaDateKey, normalizeDateKey, resolveProximaCuotaFromPrestamo } from '@/lib/rutas-core'
 import { clientesService, Cliente } from '@/services/clientes-service';
 import { useNotification } from '@/components/providers/NotificationProvider';
 import { usePermission } from '@/hooks/usePermission';
@@ -167,7 +169,73 @@ export const RutasPageView = ({
       const response = await routesService.getAll({ limit: 100 });
       const data = (response as any)?.data || (response as any) || [];
       if (Array.isArray(data) && data.length > 0) {
-        setRutasList(data as unknown as Ruta[]);
+        const enriched = await Promise.all(
+          (data as Ruta[]).map(async (r: Ruta) => {
+            if (r?.estado !== 'ACTIVA') return r;
+            try {
+              const rutaCompleta: any = await rutasService.obtenerRutaPorId(r.id);
+              const hoyBogota = getBogotaDateKey(new Date());
+
+              const asignaciones = Array.isArray(rutaCompleta?.asignaciones) ? rutaCompleta.asignaciones : [];
+
+              let metaDelDia = 0;
+
+              for (const asig of asignaciones) {
+                const cliente = asig?.cliente;
+                if (!cliente) continue;
+                const prestamos = Array.isArray(cliente?.prestamos) ? cliente.prestamos : [];
+                const prestamosValidos = prestamos.filter((p: any) => p && (p.estado === 'ACTIVO' || p.estado === 'EN_MORA' || p.estado === 'PAGADO'));
+                for (const prestamo of prestamosValidos) {
+                  const periodoRuta = String(prestamo?.frecuenciaPago || 'DIARIO') === 'DIARIO'
+                    ? 'DIA'
+                    : String(prestamo?.frecuenciaPago || '').toUpperCase() === 'SEMANAL'
+                      ? 'SEMANA'
+                      : String(prestamo?.frecuenciaPago || '').toUpperCase() === 'QUINCENAL'
+                        ? 'QUINCENA'
+                        : 'MES';
+
+                  const cuotas = Array.isArray(prestamo?.cuotas) ? prestamo.cuotas : [];
+                  if (cuotas.length === 0) continue;
+
+                  const { cuota: proxCuota, fechaEfectiva } = resolveProximaCuotaFromPrestamo(prestamo);
+                  const dueKey = normalizeDateKey(String(fechaEfectiva || (proxCuota as any)?.fechaVencimiento || ''));
+
+                  const cuotasExigibles = cuotas.filter((c: any) => {
+                    const st = String(c?.estado || '').toUpperCase();
+                    if (st === 'PAGADA' || st === 'ANULADA') return false;
+                    const effRaw = (st === 'PRORROGADA' && c?.fechaVencimientoProrroga) ? c.fechaVencimientoProrroga : c.fechaVencimiento;
+                    const key = effRaw ? normalizeDateKey(String(effRaw)) : '';
+                    return key && key <= hoyBogota;
+                  });
+
+                  const tieneMora = cuotasExigibles.some((c: any) => {
+                    const st = String(c?.estado || '').toUpperCase();
+                    const effRaw = (st === 'PRORROGADA' && c?.fechaVencimientoProrroga) ? c.fechaVencimientoProrroga : c.fechaVencimiento;
+                    const key = effRaw ? normalizeDateKey(String(effRaw)) : '';
+                    return key && key < hoyBogota;
+                  });
+
+                  const apareceHoy = tieneMora || periodoRuta === 'DIA' || (dueKey && dueKey === hoyBogota);
+                  if (!apareceHoy) continue;
+
+                  const totalExigible = cuotasExigibles.reduce((sum: number, c: any) => sum + Number(c?.monto || 0), 0);
+                  const monto = totalExigible > 0 ? totalExigible : Number((proxCuota as any)?.monto || 0);
+                  if (monto > 0) metaDelDia += monto;
+                }
+              }
+
+              if (!(metaDelDia > 0)) return r;
+              return {
+                ...r,
+                metaDelDia: Number(metaDelDia),
+              };
+            } catch {
+              return r;
+            }
+          }),
+        );
+
+        setRutasList(enriched as unknown as Ruta[]);
       }
     } catch {
       try {

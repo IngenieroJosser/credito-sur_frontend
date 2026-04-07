@@ -851,7 +851,7 @@ const RutaClientLoaded = ({
             const rawDate = p.fechaPago || p.creadoEn;
             if (!rawDate) return sum;
             
-            const pDateStr = typeof rawDate === 'string' ? normalizeDateKey(rawDate) : getBogotaDateKey(rawDate);
+            const pDateStr = typeof rawDate === 'string' ? getBogotaDateKey(new Date(rawDate)) : getBogotaDateKey(rawDate);
             
             return pDateStr === hoyBogota ? sum + Number(p.montoTotal || 0) : sum;
           }, 0);
@@ -893,8 +893,8 @@ const RutaClientLoaded = ({
           const cuotaComparar = montoCuotaReal > 0 ? montoCuotaReal : v.montoCuota;
           const cobroSuficiente = totalHoy >= (cuotaComparar - 1);
           
-          // Regla de Oro: Cualquier pago hoy = pagado (oculta de ruta activa)
-          if (Number(v.saldoTotal || 0) <= 0 || totalHoy > 0 || v.estado === 'pagado') {
+          // Solo ocultar si realmente completó la cuota del día (o si el saldo ya quedó en 0)
+          if (Number(v.saldoTotal || 0) <= 0 || (totalHoy > 0 && cobroSuficiente) || v.estado === 'pagado') {
             nuevoEstado = 'pagado';
           }
 
@@ -934,23 +934,11 @@ const RutaClientLoaded = ({
       exportarRutaDiariaPDF: async () => {},
     };
 
-    const isTodayOrMora = (dateStr: string) => isTodayOrPastBogota(dateStr);
-
-    const filterByDate = (v: any) => {
-      if (searchQuery || showMisClientes) return true;
-      return v.estado === 'en_mora' || isTodayOrMora(v.proximaVisita);
-    };
+    const hoyBogota = getBogotaDateKey(new Date());
 
     const pagosEnriquecidos = visitasCobrador.some(v => v.recaudadoTotalClient !== undefined)
 
-    if (!showHistory && !showMisClientes && !pagosEnriquecidos) {
-      return {
-        visitasAgrupadas: { MES: [], QUINCENA: [], SEMANA: [], DIA: [] },
-        totalMostradas: 0,
-        exportarRutaDiariaCSV: async () => {},
-        exportarRutaDiariaPDF: async () => {},
-      }
-    }
+    void pagosEnriquecidos
 
     let filtradas = visitasCobrador.filter(v => {
       const matchesSearch =
@@ -964,11 +952,8 @@ const RutaClientLoaded = ({
       // Solo desaparece cuando la cuota quedó completa (estado pagado)
       if (v.estado === 'pagado') return false;
 
-      // Mostrar si tiene cuota/monto exigible para hoy o está en mora
-      const esExigibleHoy = (v.montoCuota || 0) > 0 || isTodayOrMora(v.proximaVisita);
-      if (esExigibleHoy) return true;
-
-      return v.periodoRuta === 'DIA'; // Por defecto los diarios siempre se muestran si no se han filtrado por lo anterior
+      const proximaKey = v?.proximaVisita ? getBogotaDateKey(new Date(v.proximaVisita)) : '';
+      return v.estado === 'en_mora' || v.periodoRuta === 'DIA' || (proximaKey && proximaKey === hoyBogota);
     });
 
     if (periodoRutaFiltro !== 'TODOS') {
@@ -2556,7 +2541,6 @@ const RutaClientLoaded = ({
               const recPrev = Number(pagoActual.visita.recaudadoDelDia || 0)
               const recNuevo = recPrev + montoNum
               const cuotaCompletada = montoCuotaPrev > 0 && recNuevo >= (montoCuotaPrev - 1)
-              const pagadoHoy = recNuevo > 0
 
               setVisitasCobrador((prev) => {
                 const next = prev.map((v) => {
@@ -2564,11 +2548,11 @@ const RutaClientLoaded = ({
                   return {
                     ...v,
                     recaudadoDelDia: Number(v.recaudadoDelDia || 0) + montoNum,
-                    estado: (pagadoHoy || cuotaCompletada) ? ('pagado' as any) : v.estado,
+                    estado: cuotaCompletada ? ('pagado' as any) : v.estado,
                   }
                 })
 
-                return (pagadoHoy || cuotaCompletada) ? next.filter((v) => v.id !== visitaId) : next
+                return cuotaCompletada ? next.filter((v) => v.id !== visitaId) : next
               })
 
               showNotification('success', `${pagoActual.tipo === 'ABONO' ? 'Abono' : 'Pago'} registrado correctamente`, 'Éxito');
