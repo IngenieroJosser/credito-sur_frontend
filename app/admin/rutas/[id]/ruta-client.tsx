@@ -974,16 +974,12 @@ const RutaClientLoaded = ({
     filtradas.sort((a: any, b: any) => {
       if (a.estado === 'pagado' && b.estado !== 'pagado') return 1;
       if (a.estado !== 'pagado' && b.estado === 'pagado') return -1;
-      
-      if (a.periodoRuta === 'DIA' && b.periodoRuta === 'DIA') {
-        return a.ordenVisita - b.ordenVisita;
-      }
-
-      if (a.fechaUltimoPago !== b.fechaUltimoPago) {
-        return (a.fechaUltimoPago || 0) - (b.fechaUltimoPago || 0);
-      }
-
-      return a.ordenVisita - b.ordenVisita;
+      const ao = Number(a.ordenVisita ?? 0);
+      const bo = Number(b.ordenVisita ?? 0);
+      if (ao !== bo) return ao - bo;
+      const aId = String(a.id || '');
+      const bId = String(b.id || '');
+      return aId.localeCompare(bId);
     });
 
     const exportarRutaDiariaCSV = async () => {
@@ -1352,13 +1348,15 @@ const RutaClientLoaded = ({
         } as VisitaRuta
       }))
 
-      // Ordenar: Pagados final, Diarios por ordenVisita, resto por fechaUltimoPago
       const finales = mapped.sort((a: any, b: any) => {
         if (a.estado === 'pagado' && b.estado !== 'pagado') return 1;
         if (a.estado !== 'pagado' && b.estado === 'pagado') return -1;
-        if (a.periodoRuta === 'DIA' && b.periodoRuta === 'DIA') return a.ordenVisita - b.ordenVisita;
-        if (a.fechaUltimoPago !== b.fechaUltimoPago) return a.fechaUltimoPago - b.fechaUltimoPago;
-        return a.ordenVisita - b.ordenVisita;
+        const ao = Number(a.ordenVisita ?? 0);
+        const bo = Number(b.ordenVisita ?? 0);
+        if (ao !== bo) return ao - bo;
+        const aId = String(a.id || '');
+        const bId = String(b.id || '');
+        return aId.localeCompare(bId);
       });
 
       setMisCreditos(finales)

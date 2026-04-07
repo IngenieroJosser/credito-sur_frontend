@@ -1093,12 +1093,26 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
           return lista.map((prestamo: any) => {
             const cuotasList = Array.isArray(prestamo?.cuotas) ? prestamo.cuotas : [];
             const hoyBogota = getBogotaDateKey(new Date());
-            
+
+            const getCuotaVtoKey = (c: any): string => {
+              if (!c) return '';
+              const raw = (c.estado === 'PRORROGADA' && c.fechaVencimientoProrroga)
+                ? c.fechaVencimientoProrroga
+                : c.fechaVencimiento;
+              if (!raw) return '';
+              return normalizeDateKey(String(raw));
+            };
+
+            const isNoPagada = (c: any) => {
+              const s = String(c?.estado || '').toUpperCase();
+              return s !== 'PAGADA' && s !== 'PAGADO' && s !== 'ANULADA' && s !== 'ANULADO';
+            };
+
             const cuotaProgr = cuotasList.find((c: any) => {
-               const cDate = c.fechaVencimiento?.split('T')[0];
-               return (c.estado !== 'PAGADA' && c.estado !== 'ANULADA') && (cDate && cDate >= hoyBogota);
+              const vtoKey = getCuotaVtoKey(c);
+              return isNoPagada(c) && vtoKey && vtoKey >= hoyBogota;
             });
-            const proximaCuota = cuotaProgr || cuotasList.find((c: any) => (c.estado !== 'PAGADA' && c.estado !== 'ANULADA')) || prestamo?.proximaCuota || {};
+            const proximaCuota = cuotaProgr || cuotasList.find((c: any) => isNoPagada(c)) || prestamo?.proximaCuota || {};
             const esArticulo = prestamo?.tipo === 'ARTICULO' || prestamo?.tipoPrestamo === 'ARTICULO';
             const esPendienteAprobacion = prestamo?.estado === 'PENDIENTE_APROBACION';
             const idx = gIdx++;
@@ -1106,16 +1120,18 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
                if (c.estado === 'ANULADA') return false;
                if (c.estado === 'PAGADA') return false;
                if (c.estado === 'VENCIDA' || c.estado === 'ATRASADA') return true;
-               const vDate = c.fechaVencimiento?.split('T')[0];
-               return vDate && vDate < hoyBogota;
+               const vtoKey = getCuotaVtoKey(c);
+               return vtoKey && vtoKey < hoyBogota;
             });
 
             const hayAlgunaMora = cuotasVencidasList.length > 0;
             const montoVencidoTotal = cuotasVencidasList.reduce((sum: number, c: any) => sum + Number(c.monto || 0), 0);
 
             const cuotaHoy = cuotasList.find((c: any) => {
-              const cDate = c.fechaVencimiento?.split('T')[0];
-              return c.estado === 'PAGADA' && cDate === hoyBogota;
+              const s = String(c?.estado || '').toUpperCase();
+              if (s !== 'PAGADA' && s !== 'PAGADO') return false;
+              const pagoKey = c?.fechaPago ? normalizeDateKey(String(c.fechaPago)) : '';
+              return pagoKey && pagoKey === hoyBogota;
             });
             let estado: EstadoVisita = 'pendiente';
             if (cuotaHoy) estado = 'pagado';
@@ -1190,33 +1206,56 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
               );
               
               const hoyBogota = getBogotaDateKey(new Date());
-              const pendiente = cuotas.find((c: any) => c.estado !== 'PAGADA');
+              const isNoPagada = (c: any) => {
+                const s = String(c?.estado || '').toUpperCase();
+                return s !== 'PAGADA' && s !== 'PAGADO' && s !== 'ANULADA' && s !== 'ANULADO';
+              };
+
+              const getCuotaVtoKey = (c: any): string => {
+                if (!c) return '';
+                const raw = (String(c?.estado || '').toUpperCase() === 'PRORROGADA' && c?.fechaVencimientoProrroga)
+                  ? c.fechaVencimientoProrroga
+                  : c.fechaVencimiento;
+                if (!raw) return '';
+                return normalizeDateKey(String(raw));
+              };
+
+              const pendiente = cuotas.find((c: any) => isNoPagada(c));
 
               if (pendiente) {
-                const cuotasVencidas = cuotas.filter((c: any) => {
-                  if (c.estado === 'ANULADA') return false;
-                  const vDate = c.fechaVencimiento?.split('T')[0];
-                  if (c.estado === 'PAGADA') {
-                    const pDate = c.fechaPago ? c.fechaPago.split('T')[0] : '';
-                    return pDate === hoyBogota;
-                  }
-                  return (c.estado === 'VENCIDA' || c.estado === 'ATRASADA') || (vDate && vDate < hoyBogota);
+                const cuotasExigibles = cuotas.filter((c: any) => {
+                  if (!isNoPagada(c)) return false;
+                  const vtoKey = getCuotaVtoKey(c);
+                  return vtoKey && vtoKey <= hoyBogota;
                 });
 
-                const totalVencido = cuotasVencidas.reduce((sum: number, c: any) => sum + Number(c.monto || 0), 0);
-                const pendDateBogota = pendiente.fechaVencimiento ? getBogotaDateKey(pendiente.fechaVencimiento) : '';
-                const isToday = pendDateBogota === hoyBogota;
+                const totalExigible = cuotasExigibles.reduce((sum: number, c: any) => sum + Number(c.monto || 0), 0);
+                const esMora = cuotasExigibles.some((c: any) => {
+                  const s = String(c?.estado || '').toUpperCase();
+                  if (s === 'VENCIDA' || s === 'ATRASADA') return true;
+                  const vtoKey = getCuotaVtoKey(c);
+                  return vtoKey && vtoKey < hoyBogota;
+                });
+
+                const cuotaMasAntigua = cuotasExigibles.reduce((acc: any, c: any) => {
+                  const vtoKey = getCuotaVtoKey(c);
+                  if (!vtoKey) return acc;
+                  if (!acc) return { c, vtoKey };
+                  return vtoKey < acc.vtoKey ? { c, vtoKey } : acc;
+                }, null as null | { c: any; vtoKey: string });
+
+                const pendKey = getCuotaVtoKey(pendiente);
                 const montoReal = Number(pendiente.monto || (Number(pendiente.montoCapital || 0) + Number(pendiente.montoInteres || 0)) || v.montoCuota || 0);
-                const esMora = cuotasVencidas.some((c: any) => c.estado === 'VENCIDA');
                 const yaPagadoHoy = cuotas.some((c: any) => {
-                   if (c.estado !== 'PAGADA') return false;
-                   const pDate = c.fechaPago ? c.fechaPago.split('T')[0] : '';
-                   return pDate === hoyBogota;
-                 });
+                  const s = String(c?.estado || '').toUpperCase();
+                  if (s !== 'PAGADA' && s !== 'PAGADO') return false;
+                  const pKey = c?.fechaPago ? normalizeDateKey(String(c.fechaPago)) : '';
+                  return pKey && pKey === hoyBogota;
+                });
                 
                 return {
                   ...v,
-                  montoCuota: montoReal > 0 ? montoReal : v.montoCuota,
+                  montoCuota: totalExigible > 0 ? totalExigible : (montoReal > 0 ? montoReal : v.montoCuota),
                   proximaVisita: (pendiente.estado === 'PRORROGADA' && pendiente.fechaVencimientoProrroga)
                     ? pendiente.fechaVencimientoProrroga
                     : (pendiente.fechaVencimiento || v.proximaVisita),
@@ -1226,6 +1265,9 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
                   enProrroga: pendiente.estado === 'PRORROGADA' || !!pendiente.fechaVencimientoProrroga,
                   fechaProrroga: pendiente.fechaVencimientoProrroga || undefined,
                   fechaOriginalVencimiento: pendiente.fechaVencimiento || undefined,
+                  targetVencimiento: cuotaMasAntigua?.c ? ((String(cuotaMasAntigua.c?.estado || '').toUpperCase() === 'PRORROGADA' && cuotaMasAntigua.c?.fechaVencimientoProrroga)
+                    ? cuotaMasAntigua.c.fechaVencimientoProrroga
+                    : cuotaMasAntigua.c.fechaVencimiento) : v.targetVencimiento,
                 };
               }
               return { ...v, cuotasTotales: cuotas.length };
@@ -1279,7 +1321,7 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
           if (pagadoHoy > 0) return 'pagado'; // Aplicar Regla de Oro: Cualquier pago hoy = pagado (oculta de ruta activa)
           
           const cuota = Number(v.montoCuota || 0);
-          const proximoC = v.proximaVisita ? (v.proximaVisita.includes('T') ? v.proximaVisita.split('T')[0] : v.proximaVisita) : '';
+          const proximoC = v.proximaVisita ? normalizeDateKey(String(v.proximaVisita)) : '';
           
           if (proximoC <= hoyBogota && pagadoHoy >= cuota - 1 && pagadoHoy > 0) return 'pagado';
           return v.estado;
@@ -1290,9 +1332,12 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
         finales.sort((a: any, b: any) => {
           if (a.estado === 'pagado' && b.estado !== 'pagado') return 1;
           if (a.estado !== 'pagado' && b.estado === 'pagado') return -1;
-          if (a.periodoRuta === 'DIA' && b.periodoRuta === 'DIA') return a.ordenVisita - b.ordenVisita;
-          if (a.fechaUltimoPago !== b.fechaUltimoPago) return a.fechaUltimoPago - b.fechaUltimoPago;
-          return a.ordenVisita - b.ordenVisita;
+          const ao = Number(a.ordenVisita ?? 0);
+          const bo = Number(b.ordenVisita ?? 0);
+          if (ao !== bo) return ao - bo;
+          const aId = String(a.id || '');
+          const bId = String(b.id || '');
+          return aId.localeCompare(bId);
         });
 
         const hoyBogotaPrincipal = getBogotaDateKey(new Date());

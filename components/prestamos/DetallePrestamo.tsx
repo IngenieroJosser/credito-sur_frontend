@@ -137,13 +137,13 @@ export default function DetallePrestamo({ prestamo }: DetallePrestamoProps) {
   const diasMora = useMemo(() => {
     const vencidas = prestamo.cuotas.filter((c) => (c.estado || '').toUpperCase().startsWith('VENC'));
     if (vencidas.length === 0) return 0;
+    if (!nowTs) return 0;
     const oldest = vencidas.reduce((min, c) => {
       const ct = new Date(c.fecha).getTime();
       const mt = new Date(min.fecha).getTime();
       return ct < mt ? c : min;
     }, vencidas[0]);
-    const baseNow = nowTs || Date.now();
-    const diff = Math.floor((baseNow - new Date(oldest.fecha).getTime()) / (1000 * 60 * 60 * 24));
+    const diff = Math.floor((nowTs - new Date(oldest.fecha).getTime()) / (1000 * 60 * 60 * 24));
     return diff > 0 ? diff : 0;
   }, [prestamo.cuotas, nowTs]);
   // No mostrar monto sugerido de mora aquí; se asigna desde Cuentas en Mora
