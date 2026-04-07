@@ -27,6 +27,8 @@ const SyncStatusPage = () => {
   const [recordCounts, setRecordCounts] = useState<Record<string, number>>({})
   const [lastSyncResult, setLastSyncResult] = useState<string | null>(null)
   const [serverQueueCounts, setServerQueueCounts] = useState<Record<string, number> | null>(null)
+  const [serverQueueEnabled, setServerQueueEnabled] = useState<boolean | null>(null)
+  const [serverQueueReason, setServerQueueReason] = useState<string | null>(null)
   const [serverQueueJobs, setServerQueueJobs] = useState<
     Array<{
       id: string
@@ -59,18 +61,38 @@ const SyncStatusPage = () => {
   const loadServerQueueStatus = useCallback(async () => {
     if (rol !== 'SUPER_ADMINISTRADOR' || !isOnline) {
       setServerQueueCounts(null)
+      setServerQueueEnabled(null)
+      setServerQueueReason(null)
       setServerQueueJobs([])
       return
     }
 
     try {
-      const res = await apiRequest<{ counts: Record<string, number>; jobs?: any[] }>('GET', '/configuracion/colas/status', undefined, {
+      const res = await apiRequest<{
+        enabled?: boolean
+        reason?: string
+        counts?: Record<string, number>
+        jobs?: any[]
+      }>('GET', '/configuracion/colas/status', undefined, {
         cacheTTL: 0,
       })
+
+      if (res?.enabled === false) {
+        setServerQueueEnabled(false)
+        setServerQueueReason(res?.reason || 'BullMQ/MirrorSync deshabilitado')
+        setServerQueueCounts(null)
+        setServerQueueJobs([])
+        return
+      }
+
+      setServerQueueEnabled(true)
+      setServerQueueReason(null)
       setServerQueueCounts(res?.counts || null)
       setServerQueueJobs(Array.isArray(res?.jobs) ? (res.jobs as any) : [])
     } catch {
       setServerQueueCounts(null)
+      setServerQueueEnabled(null)
+      setServerQueueReason('No se pudo consultar el estado de la cola en el servidor')
       setServerQueueJobs([])
     }
   }, [isOnline, rol])
@@ -162,6 +184,18 @@ const SyncStatusPage = () => {
   const renderServerQueuePanel = () => {
     if (rol !== 'SUPER_ADMINISTRADOR') return null
 
+    if (serverQueueEnabled === false) {
+      return (
+        <div className="p-4 rounded-xl bg-slate-50 border border-slate-200">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-black text-slate-700 uppercase tracking-wider">Cola del Servidor (BullMQ)</span>
+            <span className="text-[11px] font-bold text-slate-400">Deshabilitada</span>
+          </div>
+          <div className="mt-2 text-xs font-bold text-slate-500">{serverQueueReason || 'BullMQ no está activo en este entorno.'}</div>
+        </div>
+      )
+    }
+
     return (
       <div className="p-4 rounded-xl bg-slate-50 border border-slate-200">
         <div className="flex items-center justify-between">
@@ -177,19 +211,19 @@ const SyncStatusPage = () => {
 
         <div className="grid grid-cols-4 gap-2 mt-2">
           <div className="bg-white border border-slate-200 rounded-lg p-2 text-center">
-            <div className="text-sm font-black text-slate-900">{serverQueueCounts?.waiting ?? '-'}</div>
+            <div className="text-sm font-black text-slate-900">{serverQueueCounts?.waiting ?? 0}</div>
             <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Waiting</div>
           </div>
           <div className="bg-white border border-slate-200 rounded-lg p-2 text-center">
-            <div className="text-sm font-black text-slate-900">{serverQueueCounts?.active ?? '-'}</div>
+            <div className="text-sm font-black text-slate-900">{serverQueueCounts?.active ?? 0}</div>
             <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Active</div>
           </div>
           <div className="bg-white border border-slate-200 rounded-lg p-2 text-center">
-            <div className="text-sm font-black text-slate-900">{serverQueueCounts?.delayed ?? '-'}</div>
+            <div className="text-sm font-black text-slate-900">{serverQueueCounts?.delayed ?? 0}</div>
             <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Delayed</div>
           </div>
           <div className="bg-white border border-slate-200 rounded-lg p-2 text-center">
-            <div className="text-sm font-black text-slate-900">{serverQueueCounts?.failed ?? '-'}</div>
+            <div className="text-sm font-black text-slate-900">{serverQueueCounts?.failed ?? 0}</div>
             <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Failed</div>
           </div>
         </div>

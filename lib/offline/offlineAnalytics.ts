@@ -4,6 +4,8 @@ import { logger } from '@/lib/logger'
  * Registra estadísticas de operación offline para monitoreo y optimización
  */
 
+import { toBogotaDateTimeOffsetIso } from '@/lib/rutas-core'
+
 import { getOfflineDb } from './offlineDb';
 
 export interface OfflineMetrics {
@@ -46,7 +48,7 @@ export async function trackOfflineEvent(
     
     const metric: OfflineMetrics = {
       id: `${eventType}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-      timestamp: new Date().toISOString(),
+      timestamp: toBogotaDateTimeOffsetIso(new Date()),
       eventType,
       details,
     };
@@ -91,7 +93,7 @@ function updateStats(
     switch (eventType) {
       case 'sync':
         stats.totalSyncs++;
-        stats.lastSyncAt = new Date().toISOString();
+        stats.lastSyncAt = toBogotaDateTimeOffsetIso(new Date());
         if (details.duration) {
           stats.avgSyncDuration =
             (stats.avgSyncDuration * (stats.totalSyncs - 1) + details.duration) /

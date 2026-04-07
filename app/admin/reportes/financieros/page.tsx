@@ -23,6 +23,13 @@ import { getFinancialSummary, getMonthlyEvolution, getExpenseDistribution, getFi
 import { getTransacciones } from '@/services/contabilidad-service'
 import { exportService } from '@/services/export-service'
 import { toast } from 'sonner'
+import {
+  buildBogotaOffsetIsoFromKey,
+  getBogotaDateKey,
+  getBogotaRangeForFinancialPeriod,
+  normalizeDateKey,
+  toBogotaDateTimeOffsetIso,
+} from '@/lib/rutas-core'
 
 // Interfaces
 interface FinancialSummary {
@@ -105,21 +112,10 @@ const ReportesFinancierosPage = () => {
         }
       } catch {}
       const ahora = new Date()
-      const inicio = new Date(ahora)
-      if (periodo === 'DIARIO') {
-        inicio.setHours(0, 0, 0, 0)
-      } else if (periodo === 'MENSUAL') {
-        inicio.setMonth(ahora.getMonth(), 1)
-        inicio.setHours(0, 0, 0, 0)
-      } else if (periodo === 'TRIMESTRAL') {
-        inicio.setMonth(ahora.getMonth() - 3, 1)
-        inicio.setHours(0, 0, 0, 0)
-      } else if (periodo === 'ANUAL') {
-        inicio.setMonth(0, 1)
-        inicio.setHours(0, 0, 0, 0)
-      }
-      const startDate = inicio.toISOString()
-      const endDate = ahora.toISOString()
+      const { inicio: startDate, fin: endDate } = getBogotaRangeForFinancialPeriod(
+        periodo as any,
+        ahora,
+      )
 
       const [summaryResp, monthlyRespMaybe, expensesResp] = await Promise.all([
         getFinancialSummary(startDate, endDate),
@@ -149,35 +145,57 @@ const ReportesFinancierosPage = () => {
         margen: Number(margenPeriodo.toFixed(1))
       })
 
-      const prevStart = new Date(inicio)
-      const prevEnd = new Date(inicio)
-      if (periodo === 'DIARIO') {
-        prevStart.setDate(prevStart.getDate() - 1)
-        prevStart.setHours(0,0,0,0)
-        prevEnd.setDate(prevEnd.getDate() - 1)
-        prevEnd.setHours(23,59,59,999)
-      } else if (periodo === 'MENSUAL') {
-        prevStart.setMonth(prevStart.getMonth() - 1, 1)
-        prevStart.setHours(0,0,0,0)
-        prevEnd.setMonth(prevStart.getMonth() + 1, 0)
-        prevEnd.setHours(23,59,59,999)
-      } else if (periodo === 'TRIMESTRAL') {
-        const endPrev = new Date(inicio)
-        endPrev.setDate(endPrev.getDate() - 1)
-        endPrev.setHours(23,59,59,999)
-        prevEnd.setTime(endPrev.getTime())
-        prevStart.setMonth(prevStart.getMonth() - 3, 1)
-        prevStart.setHours(0,0,0,0)
-      } else {
-        prevStart.setFullYear(prevStart.getFullYear() - 1, 0, 1)
-        prevStart.setHours(0,0,0,0)
-        prevEnd.setFullYear(prevStart.getFullYear(), 11, 31)
-        prevEnd.setHours(23,59,59,999)
+      const nowKey = getBogotaDateKey(ahora)
+      const baseNoon = new Date(`${nowKey}T12:00:00-05:00`)
+      const y = baseNoon.getFullYear()
+      const m = baseNoon.getMonth()
+      const d = baseNoon.getDate()
+
+      const getPrevRange = () => {
+        if (periodo === 'DIARIO') {
+          const prevNoon = new Date(y, m, d - 1, 12, 0, 0, 0)
+          const prevKey = getBogotaDateKey(prevNoon)
+          return {
+            inicio: buildBogotaOffsetIsoFromKey(prevKey, { hh: 0, mm: 0, ss: 0, ms: 0 }),
+            fin: buildBogotaOffsetIsoFromKey(prevKey, { hh: 23, mm: 59, ss: 59, ms: 999 }),
+          }
+        }
+
+        if (periodo === 'MENSUAL') {
+          const prevStartNoon = new Date(y, m - 1, 1, 12, 0, 0, 0)
+          const prevEndNoon = new Date(y, m, 0, 12, 0, 0, 0)
+          const sKey = getBogotaDateKey(prevStartNoon)
+          const eKey = getBogotaDateKey(prevEndNoon)
+          return {
+            inicio: buildBogotaOffsetIsoFromKey(sKey, { hh: 0, mm: 0, ss: 0, ms: 0 }),
+            fin: buildBogotaOffsetIsoFromKey(eKey, { hh: 23, mm: 59, ss: 59, ms: 999 }),
+          }
+        }
+
+        if (periodo === 'TRIMESTRAL') {
+          const prevStartNoon = new Date(y, m - 6, 1, 12, 0, 0, 0)
+          const prevEndNoon = new Date(y, m - 3, 0, 12, 0, 0, 0)
+          const sKey = getBogotaDateKey(prevStartNoon)
+          const eKey = getBogotaDateKey(prevEndNoon)
+          return {
+            inicio: buildBogotaOffsetIsoFromKey(sKey, { hh: 0, mm: 0, ss: 0, ms: 0 }),
+            fin: buildBogotaOffsetIsoFromKey(eKey, { hh: 23, mm: 59, ss: 59, ms: 999 }),
+          }
+        }
+
+        const prevStartKey = `${y - 1}-01-01`
+        const prevEndKey = `${y - 1}-12-31`
+        return {
+          inicio: buildBogotaOffsetIsoFromKey(prevStartKey, { hh: 0, mm: 0, ss: 0, ms: 0 }),
+          fin: buildBogotaOffsetIsoFromKey(prevEndKey, { hh: 23, mm: 59, ss: 59, ms: 999 }),
+        }
       }
+
+      const prevRange = getPrevRange()
       try {
         const [prevIngRes, prevEgreRes] = await Promise.all([
-          getTransacciones({ tipo: 'INGRESO', fechaInicio: prevStart.toISOString(), fechaFin: prevEnd.toISOString(), limit: 10000 }),
-          getTransacciones({ tipo: 'EGRESO', fechaInicio: prevStart.toISOString(), fechaFin: prevEnd.toISOString(), limit: 10000 })
+          getTransacciones({ tipo: 'INGRESO', fechaInicio: prevRange.inicio, fechaFin: prevRange.fin, limit: 10000 }),
+          getTransacciones({ tipo: 'EGRESO', fechaInicio: prevRange.inicio, fechaFin: prevRange.fin, limit: 10000 })
         ])
         const prevIng = prevIngRes.data
           .filter((t: any) => {
@@ -198,11 +216,10 @@ const ReportesFinancierosPage = () => {
       }
 
       if (periodo === 'DIARIO') {
-        const desde7 = new Date(ahora)
-        desde7.setDate(ahora.getDate() - 6)
-        desde7.setHours(0, 0, 0, 0)
-        const fechaInicio = desde7.toISOString()
-        const fechaFin = ahora.toISOString()
+        const desde7Noon = new Date(y, m, d - 6, 12, 0, 0, 0)
+        const desde7Key = getBogotaDateKey(desde7Noon)
+        const fechaInicio = buildBogotaOffsetIsoFromKey(desde7Key, { hh: 0, mm: 0, ss: 0, ms: 0 })
+        const fechaFin = toBogotaDateTimeOffsetIso(ahora)
 
         const [ingRes, egreRes] = await Promise.all([
           getTransacciones({ tipo: 'INGRESO', fechaInicio, fechaFin, limit: 1000 }),
@@ -212,18 +229,18 @@ const ReportesFinancierosPage = () => {
         const dias: { [key: string]: { ingresos: number; egresos: number } } = {}
         const range: Date[] = []
         for (let i = 0; i < 7; i++) {
-          const d = new Date(desde7)
-          d.setDate(desde7.getDate() + i)
-          const key = d.toISOString().slice(0, 10)
+          const dd = new Date(desde7Noon)
+          dd.setDate(desde7Noon.getDate() + i)
+          const key = getBogotaDateKey(dd)
           dias[key] = { ingresos: 0, egresos: 0 }
-          range.push(d)
+          range.push(dd)
         }
         ingRes.data.forEach(t => {
-          const key = t.fecha.slice(0, 10)
+          const key = normalizeDateKey(t.fecha)
           if (dias[key]) dias[key].ingresos += t.monto || 0
         })
         egreRes.data.forEach(t => {
-          const key = t.fecha.slice(0, 10)
+          const key = normalizeDateKey(t.fecha)
           if (dias[key]) dias[key].egresos += t.monto || 0
         })
 
@@ -237,14 +254,14 @@ const ReportesFinancierosPage = () => {
           }
         })
         const series: MonthlyEvolution[] = range.map((d, idx) => {
-          const key = d.toISOString().slice(0, 10)
+          const key = getBogotaDateKey(d)
           const v = dias[key]
           return {
             mes: labels[idx],
             ingresos: v.ingresos,
             egresos: v.egresos,
             utilidad: v.ingresos - v.egresos,
-            fecha: d.toISOString()
+            fecha: toBogotaDateTimeOffsetIso(d)
           }
         })
         setMonthlyData(series)
@@ -260,16 +277,24 @@ const ReportesFinancierosPage = () => {
           margen: Number(margen7.toFixed(1))
         })
 
-        const prevDesde7 = new Date(desde7)
-        prevDesde7.setDate(prevDesde7.getDate() - 7)
-        prevDesde7.setHours(0,0,0,0)
-        const prevFin7 = new Date(desde7)
-        prevFin7.setDate(prevFin7.getDate() - 1)
-        prevFin7.setHours(23,59,59,999)
+        const prevDesde7Noon = new Date(y, m, d - 13, 12, 0, 0, 0)
+        const prevFin7Noon = new Date(y, m, d - 7, 12, 0, 0, 0)
+        const prevDesde7Key = getBogotaDateKey(prevDesde7Noon)
+        const prevFin7Key = getBogotaDateKey(prevFin7Noon)
         try {
           const [prevIng7Res, prevEgre7Res] = await Promise.all([
-            getTransacciones({ tipo: 'INGRESO', fechaInicio: prevDesde7.toISOString(), fechaFin: prevFin7.toISOString(), limit: 1000 }),
-            getTransacciones({ tipo: 'EGRESO', fechaInicio: prevDesde7.toISOString(), fechaFin: prevFin7.toISOString(), limit: 1000 })
+            getTransacciones({
+              tipo: 'INGRESO',
+              fechaInicio: buildBogotaOffsetIsoFromKey(prevDesde7Key, { hh: 0, mm: 0, ss: 0, ms: 0 }),
+              fechaFin: buildBogotaOffsetIsoFromKey(prevFin7Key, { hh: 23, mm: 59, ss: 59, ms: 999 }),
+              limit: 1000,
+            }),
+            getTransacciones({
+              tipo: 'EGRESO',
+              fechaInicio: buildBogotaOffsetIsoFromKey(prevDesde7Key, { hh: 0, mm: 0, ss: 0, ms: 0 }),
+              fechaFin: buildBogotaOffsetIsoFromKey(prevFin7Key, { hh: 23, mm: 59, ss: 59, ms: 999 }),
+              limit: 1000,
+            })
           ])
           const prevIng7 = prevIng7Res.data.reduce((acc, t) => acc + (t.monto || 0), 0)
           const prevEgr7 = prevEgre7Res.data.reduce((acc, t) => acc + (t.monto || 0), 0)
@@ -286,28 +311,29 @@ const ReportesFinancierosPage = () => {
         const egreResAll = await getTransacciones({ tipo: 'EGRESO', fechaInicio: startDate, fechaFin: endDate, limit: 10000 })
         
         if (periodo === 'MENSUAL') {
-          const startD = new Date(inicio)
-          const endD = new Date(ahora)
+          const startKey = getBogotaDateKey(new Date(`${startDate}`))
+          const endKey = getBogotaDateKey(ahora)
+          const startD = new Date(`${startKey}T12:00:00-05:00`)
+          const endD = new Date(`${endKey}T12:00:00-05:00`)
           const days: Date[] = []
           const dayMap: Record<string, { ingresos: number; egresos: number; fecha: string }> = {}
           const iter = new Date(startD)
-          iter.setHours(0,0,0,0)
           while (iter <= endD) {
-            const key = iter.toISOString().slice(0,10)
-            dayMap[key] = { ingresos: 0, egresos: 0, fecha: iter.toISOString() }
+            const key = getBogotaDateKey(iter)
+            dayMap[key] = { ingresos: 0, egresos: 0, fecha: toBogotaDateTimeOffsetIso(iter) }
             days.push(new Date(iter))
             iter.setDate(iter.getDate() + 1)
           }
           ingResAll.data.forEach(t => {
-            const key = t.fecha.slice(0,10)
+            const key = normalizeDateKey(t.fecha)
             if (dayMap[key]) dayMap[key].ingresos += t.monto || 0
           })
           egreResAll.data.forEach(t => {
-            const key = t.fecha.slice(0,10)
+            const key = normalizeDateKey(t.fecha)
             if (dayMap[key]) dayMap[key].egresos += t.monto || 0
           })
           const series: MonthlyEvolution[] = days.map(d => {
-            const key = d.toISOString().slice(0,10)
+            const key = getBogotaDateKey(d)
             const v = dayMap[key]
             const label = d.toLocaleDateString('es-CO', { day: '2-digit', month: 'short' })
             return {
@@ -315,12 +341,13 @@ const ReportesFinancierosPage = () => {
               ingresos: v?.ingresos || 0,
               egresos: v?.egresos || 0,
               utilidad: (v?.ingresos || 0) - (v?.egresos || 0),
-              fecha: v?.fecha || d.toISOString()
+              fecha: v?.fecha || toBogotaDateTimeOffsetIso(d)
             }
           })
           setMonthlyData(series)
         } else {
-          const startM = new Date(inicio)
+          const startKey = getBogotaDateKey(new Date(`${startDate}`))
+          const startM = new Date(`${startKey}T12:00:00-05:00`)
           const endM = new Date(ahora)
           const monthMap: Record<string, { ingresos: number; egresos: number }> = {}
           const months: { key: string; label: string }[] = []

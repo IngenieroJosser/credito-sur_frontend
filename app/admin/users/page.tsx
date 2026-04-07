@@ -13,6 +13,7 @@ import { usuariosService } from "@/services/usuarios-service";
 import { RolUsuario, EstadoUsuario } from "@/types/enums";
 import { apiRequest } from "@/lib/api/api";
 import { formatShortDateTime, formatShortDate } from "@/lib/utils/format";
+import { buildBogotaOffsetIsoFromKey, getBogotaRangeForFinancialPeriod, normalizeDateKey } from '@/lib/rutas-core'
 
 import {
   Search,
@@ -505,10 +506,24 @@ const UserManagementPage = () => {
       const params = new URLSearchParams();
       params.set("page", "1");
       params.set("limit", `${timelineLimit}`);
-      if (filtroFechaInicio)
-        params.set("startDate", new Date(filtroFechaInicio).toISOString());
-      if (filtroFechaFin)
-        params.set("endDate", new Date(filtroFechaFin).toISOString());
+      if (filtroFechaInicio) {
+        const key = normalizeDateKey(filtroFechaInicio);
+        if (key) {
+          params.set(
+            "startDate",
+            buildBogotaOffsetIsoFromKey(key, { hh: 0, mm: 0, ss: 0, ms: 0 }),
+          );
+        }
+      }
+      if (filtroFechaFin) {
+        const key = normalizeDateKey(filtroFechaFin);
+        if (key) {
+          params.set(
+            "endDate",
+            buildBogotaOffsetIsoFromKey(key, { hh: 23, mm: 59, ss: 59, ms: 999 }),
+          );
+        }
+      }
       const audit = await apiRequest<any[]>(
         "GET",
         `/audit/user/${user.id}?${params.toString()}`,
@@ -660,9 +675,7 @@ const UserManagementPage = () => {
             "GET",
             `/reports/operational/coordinator?period=today`,
           );
-          const hoy = new Date();
-          const startDate = hoy.toISOString();
-          const endDate = hoy.toISOString();
+          const { inicio: startDate, fin: endDate } = getBogotaRangeForFinancialPeriod('DIARIO', new Date());
           const financiero = await apiRequest<any>(
             "GET",
             `/reports/financial/summary?startDate=${startDate}&endDate=${endDate}`,

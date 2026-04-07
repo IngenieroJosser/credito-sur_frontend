@@ -128,7 +128,11 @@ export default function DetalleCuentaMoraPage({ params }: { params: Promise<{ id
   }
 
   // Tiempo real: refrescar automáticamente cuando haya cambios
-  useRealtimeData(['pagos_actualizados'], () => { typeof window !== 'undefined' && window.location.reload() })
+  useRealtimeData(['pagos_actualizados'], () => {
+    if (typeof window !== 'undefined') {
+      window.location.reload()
+    }
+  })
 
   return (
     <div className="min-h-screen bg-slate-50 relative pb-8">

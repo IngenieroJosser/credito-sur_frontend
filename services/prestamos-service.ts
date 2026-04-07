@@ -3,6 +3,7 @@ import { apiRequest } from '@/lib/api/api';
 import { syncService } from '@/lib/offline/syncService';
 import { EstadoPrestamo, FrecuenciaPago, EstadoCuota } from '@/types/enums';
 import type { Prestamo } from '@/types/domain';
+import { toBogotaDateTimeOffsetIso } from '@/lib/rutas-core'
 
 export type { EstadoPrestamo, FrecuenciaPago, EstadoCuota, Prestamo };
 
@@ -324,7 +325,7 @@ export const prestamosService = {
           metodoPago: data.metodoPago,
           tipo: data.esAbono ? 'ABONO' : 'PAGO',
           cobradorId: data.cobradorId,
-          fechaPago: data.fecha || new Date().toISOString()
+          fechaPago: data.fecha || toBogotaDateTimeOffsetIso(new Date())
         };
 
         await syncService.enqueueOperation(

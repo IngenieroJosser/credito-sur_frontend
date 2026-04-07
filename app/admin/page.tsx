@@ -69,7 +69,6 @@ interface FrontendDashboardData {
   chartData: Array<{
     label: string;
     value: number;
-    target?: number;
     date?: string;
     time?: string;
   }>;
@@ -463,7 +462,7 @@ export default function DashboardPage() {
         { title: 'Cartera en Mora', value: moraMonto, subValue: `${moraPercent}% del capital · ${moraCount} cuentas en mora`, isCurrency: true, change: null, icon: <AlertCircle className="h-4 w-4" />, color: '#f43f5e' },
         { title: `Gastos (${PERIOD_LABEL[period]})`, value: gastosPeriodo, subValue: `Utilidad: ${formatCurrency(utilidadPeriodo)}`, isCurrency: true, change: period === 'today' ? (resumen?.porcentajeEgresosVsAyer || null) : null, icon: <Banknote className="h-4 w-4" />, color: '#f59e0b' },
       ]
-      const chartData = (dashboard?.trend || []).map((t) => ({ label: t.label, value: t.value, target: t.target }))
+      const chartData = (dashboard?.trend || []).map((t) => ({ label: t.label, value: t.value }))
       const topCollectors = (dashboard?.topCollectors || []).map(c => ({ name: c.name, collected: c.collected, efficiency: c.efficiency, trend: c.trend }))
       setState(prev => prev.dashboardData ? ({
         ...prev,

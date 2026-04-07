@@ -23,6 +23,8 @@ import ClienteDetalleElegante, { Cliente, Prestamo, Pago, Comentario } from '@/c
 import Link from 'next/link'
 import { clientesService } from '@/services/clientes-service'
 import { prestamosService } from '@/services/prestamos-service'
+import { pagosService } from '@/services/pagos-service'
+import { toBogotaDateTimeOffsetIso } from '@/lib/rutas-core'
 import { useNotification } from '@/components/providers/NotificationProvider'
 import { formatCurrency, formatCOPInputValue, formatMilesCOP, parseCOPInputToNumber } from '@/lib/utils'
 
@@ -275,11 +277,16 @@ export default function ClienteDetalleSupervisorPage() {
   }
 
   // Tiempo real: refrescar automáticamente cuando haya cambios
-  useRealtimeData(['pagos_actualizados', 'clientes_actualizados'], () => { typeof window !== 'undefined' && window.location.reload() })
+  useRealtimeData(['pagos_actualizados', 'clientes_actualizados'], () => {
+    if (typeof window !== 'undefined') {
+      window.location.reload()
+    }
+  })
 
   return (
     <div className="min-h-screen bg-slate-50 relative">
       <header className="sticky top-0 z-30 bg-slate-50/80 backdrop-blur-xl border-b border-slate-200/60">
+        
         <div className="px-6 lg:px-8 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
@@ -698,7 +705,7 @@ export default function ClienteDetalleSupervisorPage() {
                             tasaInteresMora: 5, // Default
                             plazoMeses: Math.ceil(Number(cuotasPrestamoInput || 12) / 4), // Estimado si es semanal
                             frecuenciaPago: 'SEMANAL' as any,
-                            fechaInicio: new Date().toISOString(),
+                            fechaInicio: toBogotaDateTimeOffsetIso(new Date()),
                             creadoPorId: userData?.id || ''
                           });
 

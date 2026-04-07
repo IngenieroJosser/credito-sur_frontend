@@ -1,5 +1,7 @@
 import { getOfflineDb, OfflineQueueItem } from './offlineDb';
 
+import { toBogotaDateTimeOffsetIso } from '@/lib/rutas-core'
+
 // ─── Cola de operaciones offline ─────────────────────────────────
 
 export const offlineQueue = {
@@ -9,7 +11,7 @@ export const offlineQueue = {
     const queueItem: OfflineQueueItem = {
       ...item,
       id: `offline-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-      createdAt: new Date().toISOString(),
+      createdAt: toBogotaDateTimeOffsetIso(new Date()),
       status: 'pending',
       retries: 0,
     };
@@ -140,7 +142,7 @@ export const enqueuePago = async (pagoData: {
       montoTotal: pagoData.montoTotal,
       metodoPago: pagoData.metodoPago || 'EFECTIVO',
       notas: pagoData.notas || `[Offline] Pago registrado sin conexión`,
-      fechaPago: new Date().toISOString(),
+      fechaPago: toBogotaDateTimeOffsetIso(new Date()),
     },
     description: `Pago $${pagoData.montoTotal.toLocaleString()} - ${pagoData.clienteNombre || 'Cliente'}`,
     amount: pagoData.montoTotal,
@@ -187,7 +189,7 @@ export const logSyncActivity = (description: string) => {
       detail: { 
         id: `act-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
         description,
-        timestamp: new Date().toISOString(),
+        timestamp: toBogotaDateTimeOffsetIso(new Date()),
         status: 'completed'
       } 
     }));

@@ -221,7 +221,7 @@ const ReportesOperativosPage = () => {
             <div className="flex items-center gap-2">
               <span className="inline-flex items-center gap-1 text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-full border border-emerald-100">
                 <TrendingUp className="h-3 w-3" />
-                {porcentajeGlobal}% objetivo
+                {porcentajeGlobal}% eficiencia
               </span>
               <span className="text-xs text-slate-400 font-medium">vs ayer</span>
             </div>
@@ -300,7 +300,7 @@ const ReportesOperativosPage = () => {
                 <tr>
                   <th className="px-6 py-4 tracking-wider">Ruta</th>
                   <th className="px-6 py-4 tracking-wider">Cobrador</th>
-                  <th className="px-6 py-4 tracking-wider text-right">Objetivo</th>
+                  <th className="px-6 py-4 tracking-wider text-right">Meta</th>
                   <th className="px-6 py-4 tracking-wider text-right">Recaudado</th>
                   <th className="px-6 py-4 tracking-wider text-center">Eficiencia</th>
                   <th className="px-6 py-4 tracking-wider text-center">Nuevos Prést.</th>
@@ -354,13 +354,22 @@ const ReportesOperativosPage = () => {
 
         {/* Vista de Cards - Móvil */}
         <section className="md:hidden space-y-4 mb-8">
-          <div className="bg-white/80 backdrop-blur-sm rounded-2xl border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-4">
-            <h3 className="font-bold text-slate-900 flex items-center gap-2 mb-1">
-              <div className="p-1.5 bg-white rounded-lg shadow-sm border border-slate-200">
-                <MapPin className="h-4 w-4 text-slate-500" />
-              </div>
-              Desglose por Ruta
-            </h3>
+          <div className="bg-white/80 backdrop-blur-sm p-6 rounded-2xl border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all">
+            <h3 className="font-bold text-slate-900 mb-6 text-lg">Comparativa de Recaudo vs Meta</h3>
+            <div className="space-y-6">
+              {rendimientoFiltrado.map((item: RoutePerformance, idx: number) => (
+                <div key={idx} className="space-y-2">
+                  <div className="flex justify-between text-sm">
+                    <span className="font-bold text-slate-700">{item.ruta}</span>
+                    <span className="text-slate-500">Meta: {formatCurrency(item.meta)}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="font-bold text-slate-700">Recaudado: {formatCurrency(item.recaudado)}</span>
+                    <span className="text-slate-500">{Math.min((item.recaudado / item.meta) * 100, 100)}%</span>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
 
           {rendimientoFiltrado.map((item: RoutePerformance, idx: number) => (
@@ -377,7 +386,7 @@ const ReportesOperativosPage = () => {
               {/* Objetivo y Recaudado */}
               <div className="grid grid-cols-2 gap-3 mb-3 pb-3 border-b border-slate-100">
                 <div>
-                  <div className="text-xs text-slate-500 font-bold uppercase tracking-wider mb-1">Objetivo</div>
+                  <div className="text-xs text-slate-500 font-bold uppercase tracking-wider mb-1">Meta</div>
                   <div className="text-sm font-bold text-slate-600">{formatCurrency(item.meta)}</div>
                 </div>
                 <div>
@@ -395,9 +404,9 @@ const ReportesOperativosPage = () => {
                   </span>
                   <div className="flex-1 h-2 bg-slate-100 rounded-full overflow-hidden">
                     <div 
-                      className="h-full rounded-full transition-all duration-500 bg-emerald-500"
-                      style={{ width: `${item.eficiencia}%` }}
-                    />
+                      className="bg-slate-900 h-2 rounded-full transition-all duration-1000 ease-out"
+                      style={{ width: `${item.meta > 0 ? Math.min((item.recaudado / item.meta) * 100, 100) : 0}%` }}
+                    ></div>
                   </div>
                 </div>
               </div>

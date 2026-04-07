@@ -65,7 +65,6 @@ interface FrontendDashboardData {
   chartData: Array<{
     label: string;
     value: number;
-    target?: number;
     date?: string;
     time?: string;
   }>;
@@ -287,7 +286,6 @@ export default function CoordinadorPage() {
         router.replace('/login');
       }
       isMounted = false;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [router, period])
 
   useEffect(() => {

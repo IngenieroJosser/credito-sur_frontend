@@ -10,6 +10,7 @@ import { prestamosService } from '@/services/prestamos-service';
 import { formatErrorForComponent } from '@/lib/api/api';
 import { offlineStore } from '@/lib/offline/offlineDb';
 import { articulosService } from '@/services/articulos-service';
+import { normalizeDateKey } from '@/lib/rutas-core';
 
 interface EditarPrestamoModalProps {
   id: string;
@@ -172,7 +173,7 @@ export default function EditarPrestamoModal({ id, onClose, onSuccess }: EditarPr
         const e = data.estado || 'ACTIVO';
         const tm = String(data.tasaInteresMora || 2);
         const ci = Number(data.cuotaInicial || 0);
-        const fi = data.fechaInicio ? new Date(data.fechaInicio).toISOString().split('T')[0] : '';
+        const fi = data.fechaInicio ? normalizeDateKey(data.fechaInicio) : '';
         const n = data.notas || '';
         const g = data.garantia || '';
         const ta = data.tipoAmortizacion || 'INTERES_SIMPLE';

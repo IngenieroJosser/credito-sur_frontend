@@ -5,6 +5,7 @@ import { ChevronLeft, BarChart3, TrendingUp, Users, Calendar, ArrowRight, Dollar
 import Link from 'next/link';
 import { formatCurrency, cn } from '@/lib/utils';
 import { reportesCoordinadorService } from '@/services/reportes-coordinador-service';
+import { getBogotaDateKey, normalizeDateKey } from '@/lib/rutas-core'
 
 interface ReporteDetalle {
   id: string; ruta: string; cobrador: string; fecha: string;
@@ -33,7 +34,7 @@ export default function DetalleReporteOperativoPage({
           id,
           ruta: data.ruta?.nombre || '',
           cobrador: data.ruta?.cobrador ? `${data.ruta.cobrador.nombres} ${data.ruta.cobrador.apellidos}` : '',
-          fecha: data.periodo?.inicio || new Date().toISOString().split('T')[0],
+          fecha: normalizeDateKey(data.periodo?.inicio) || getBogotaDateKey(new Date()),
           meta: 0,
           recaudado: data.estadisticas?.totalRecaudado || 0,
           eficiencia: data.estadisticas?.totalClientes ? Math.round((data.estadisticas.totalPagos / data.estadisticas.totalClientes) * 100) : 0,

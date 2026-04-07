@@ -3,6 +3,7 @@
 import React, { useState } from 'react'
 import { X, Archive, AlertTriangle, FileText, CheckCircle, Calculator } from 'lucide-react'
 import { formatCurrency, cn } from '@/lib/utils'
+import { toBogotaDateTimeOffsetIso } from '@/lib/rutas-core'
 import { createPortal } from 'react-dom'
 
 interface CastigoData {
@@ -43,7 +44,7 @@ export default function ProcesarCastigoModal({ cuenta, onClose, onConfirm }: Pro
       cuentaId: cuenta.id,
       motivo,
       tipoCastigo,
-      fecha: new Date().toISOString()
+      fecha: toBogotaDateTimeOffsetIso(new Date())
     })
     onClose()
   }

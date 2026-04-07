@@ -4,18 +4,20 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { Calendar, User, FileText, TrendingUp, Package, Image as ImageIcon, ChevronRight, ChevronLeft, Clock, BarChart3, AlertTriangle } from 'lucide-react';
 import { formatCurrency, cn, resolveMediaUrl } from '@/lib/utils';
 import ClientePortalModal from '@/components/cliente/ClientePortalModal';
+import { normalizeDateKey } from '@/lib/rutas-core'
 // imports de permiso/servicios de mora removidos: la asignación se hace en Cuentas en Mora
 
 const formatDate = (dateStr: string | undefined | null): string => {
   if (!dateStr) return '—';
   try {
-    const d = new Date(dateStr);
-    if (isNaN(d.getTime())) return dateStr;
-    // Usar UTC para evitar desplazamiento de zona horaria (UTC-5 en Colombia)
-    const day = String(d.getUTCDate()).padStart(2, '0');
+    const key = normalizeDateKey(dateStr)
+    if (!key) return String(dateStr)
+    const d = new Date(`${key}T12:00:00-05:00`)
+    if (isNaN(d.getTime())) return key;
+    const day = String(d.getDate()).padStart(2, '0');
     const monthNames = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
-    const month = monthNames[d.getUTCMonth()];
-    const year = d.getUTCFullYear();
+    const month = monthNames[d.getMonth()];
+    const year = d.getFullYear();
     return `${day} ${month} ${year}`;
   } catch { return dateStr; }
 };
@@ -140,7 +142,7 @@ export default function DetallePrestamo({ prestamo }: DetallePrestamoProps) {
       const mt = new Date(min.fecha).getTime();
       return ct < mt ? c : min;
     }, vencidas[0]);
-    const baseNow = nowTs || Date.parse(new Date().toISOString());
+    const baseNow = nowTs || Date.now();
     const diff = Math.floor((baseNow - new Date(oldest.fecha).getTime()) / (1000 * 60 * 60 * 24));
     return diff > 0 ? diff : 0;
   }, [prestamo.cuotas, nowTs]);

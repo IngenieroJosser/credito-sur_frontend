@@ -23,7 +23,8 @@ import React, { useState, Suspense, useEffect, useCallback, useMemo } from 'reac
 import { createPortal } from 'react-dom'
 import { useNotification } from '@/components/providers/NotificationProvider'
 import { Rol } from '@/lib/permissions'
-import { exportService } from '@/services/export-service'
+import { usuariosService, type Usuario } from '@/services/usuarios-service';
+import { getBogotaDateKey, normalizeDateKey } from '@/lib/rutas-core'
 import { useRealtimeData } from '@/hooks/useRealtimeData'
 
 import {
@@ -73,8 +74,8 @@ import {
   type SaldoDisponibleRuta
 } from '@/services/contabilidad-service'
 import { toast } from 'sonner'
-import { usuariosService, type Usuario as ApiUsuario } from '@/services/usuarios-service'
 import { rutasService, type Ruta as ApiRuta } from '@/services/rutas-service'
+import { exportService } from '@/services/export-service'
 import SelectCategoria from '@/components/ui/SelectCategoria'
 import AnimacionCarga from '@/components/ui/AnimacionCarga'
 import Link from 'next/link'
@@ -226,7 +227,7 @@ const ModuloContableContent = () => {
 
 
   // Usuarios del sistema para asignar responsables
-  const [usuariosList, setUsuariosList] = useState<ApiUsuario[]>([])
+  const [usuariosList, setUsuariosList] = useState<Usuario[]>([])
   // Rutas disponibles (cargadas del backend)
   const [rutasDisponibles, setRutasDisponibles] = useState<ApiRuta[]>([])
 
@@ -291,7 +292,7 @@ const ModuloContableContent = () => {
   const [fechaFinModal, setFechaFinModal] = useState<string>('')
 
   const getDefaultDetalleModalRange = (tipo: 'INGRESOS' | 'EGRESOS') => {
-    const hoy = new Date().toISOString().split('T')[0]
+    const hoy = getBogotaDateKey(new Date())
 
     const base = movimientos
       .filter((m) => {
@@ -313,7 +314,7 @@ const ModuloContableContent = () => {
 
     let min: string | null = null
     for (const m of base) {
-      const d = new Date(m.fecha).toISOString().split('T')[0]
+      const d = normalizeDateKey(m.fecha)
       if (!min || d < min) min = d
     }
 
@@ -439,7 +440,7 @@ const ModuloContableContent = () => {
 
       // 3. Traemos los números totales (Resumen histórico completo)
       // Pasamos fechaFin = hoy para forzar el rango desde 2020 hasta el día actual
-      const fechaHoy = new Date().toISOString().split('T')[0];
+      const fechaHoy = getBogotaDateKey(new Date());
       const resumen = await getResumenFinanciero('2020-01-01', fechaHoy);
       if (resumen) {
         const ingresosPagos = typeof (resumen as any).cobranzaHoy === 'number'
@@ -533,7 +534,6 @@ const ModuloContableContent = () => {
     } else if (!showDetalleModal) {
       setMovimientosModalGlobal([])
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [detalleTipo, showDetalleModal, fechaInicioModal, fechaFinModal, cajaSeleccionada])
 
   // Cargar usuarios solo cuando el rol está disponible y es admin
@@ -852,7 +852,7 @@ const ModuloContableContent = () => {
           {/* Ingresos */}
           <div 
             onClick={() => { 
-                const hoy = new Date().toISOString().split('T')[0];
+                const hoy = getBogotaDateKey(new Date());
                 setFechaInicioModal(hoy);
                 setFechaFinModal(hoy);
                 setDetalleTipo('INGRESOS'); 
@@ -885,7 +885,7 @@ const ModuloContableContent = () => {
           {/* Egresos */}
           <div 
             onClick={() => { 
-                const hoy = new Date().toISOString().split('T')[0];
+                const hoy = getBogotaDateKey(new Date());
                 setFechaInicioModal(hoy);
                 setFechaFinModal(hoy);
                 setDetalleTipo('EGRESOS'); 
@@ -906,8 +906,8 @@ const ModuloContableContent = () => {
             </div>
             {resumenData.porcentajeEgresosVsAyer != null && resumenData.porcentajeEgresosVsAyer !== 0 && (
               <div className={cn(
-                  "mt-2 text-xs font-bold w-fit px-2 py-1 rounded-full flex items-center",
-                  resumenData.esEgresoPositivo ? "text-emerald-600 bg-emerald-50" : "text-rose-600 bg-rose-50"
+                "mt-2 text-xs font-bold w-fit px-2 py-1 rounded-full flex items-center",
+                resumenData.esEgresoPositivo ? "text-emerald-600 bg-emerald-50" : "text-rose-600 bg-rose-50",
               )}>
                 {resumenData.esEgresoPositivo ? <ArrowDownLeft className="mr-1 h-3 w-3" /> : <ArrowUpRight className="mr-1 h-3 w-3" />}
                 {resumenData.porcentajeEgresosVsAyer > 0 ? '+' : ''}{resumenData.porcentajeEgresosVsAyer}% vs Ayer
@@ -1020,7 +1020,7 @@ const ModuloContableContent = () => {
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="space-y-1.5">
-                  <div className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Tipo de Movimiento</div>
+                  <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Tipo de Movimiento</div>
                   <select
                     value={filtroTipo}
                     onChange={(e) => setFiltroTipo(e.target.value as typeof filtroTipo)}
@@ -1033,7 +1033,7 @@ const ModuloContableContent = () => {
                 </div>
 
                 <div className="space-y-1.5">
-                  <div className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Origen / Fuente</div>
+                  <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Origen / Fuente</div>
                   <select
                     value={filtroOrigen}
                     onChange={(e) => setFiltroOrigen(e.target.value as typeof filtroOrigen)}
@@ -1046,7 +1046,7 @@ const ModuloContableContent = () => {
                 </div>
 
                 <div className="space-y-1.5">
-                  <div className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Ruta</div>
+                  <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Ruta</div>
                   <FiltroRuta 
                     onRutaChange={(r: string | null) => setFiltroRuta(r || 'TODOS')} 
                     selectedRutaId={filtroRuta === 'TODOS' ? null : filtroRuta}
@@ -1237,9 +1237,7 @@ const ModuloContableContent = () => {
                             setCajaSeleccionada(c)
                             if (c.tipo === 'RUTA' && c.rutaId) {
                               try {
-                                const now = new Date()
-                                const localIso = new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString()
-                                const hoyClave = localIso.split('T')[0]
+                                const hoyClave = getBogotaDateKey(new Date())
                                 const saldo = await obtenerSaldoDisponibleRuta(c.rutaId, hoyClave)
                                 setSaldoRutaSeleccionada(saldo)
                               } catch {
@@ -1247,9 +1245,7 @@ const ModuloContableContent = () => {
                               }
                             } else {
                               try {
-                                 const now = new Date()
-                                 const localIso = new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString()
-                                 const hoyClave = localIso.split('T')[0]
+                                 const hoyClave = getBogotaDateKey(new Date())
                                  
                                  const params = { cajaId: c.id, fechaInicio: hoyClave, limit: 500 };
                                  const resp = await getTransacciones(params);
@@ -2285,7 +2281,7 @@ const ModuloContableContent = () => {
                                         })
                                         .filter(m => {
                                             if (fechaInicioModal || fechaFinModal) {
-                                                const fechaM = new Date(m.fecha).toISOString().split('T')[0];
+                                                const fechaM = normalizeDateKey(m.fecha);
                                                 if (fechaInicioModal && fechaM < fechaInicioModal) return false;
                                                 if (fechaFinModal && fechaM > fechaFinModal) return false;
                                                 return true;
@@ -2386,7 +2382,7 @@ const ModuloContableContent = () => {
                                         })
                                         .filter(m => {
                                           if (fechaInicioModal || fechaFinModal) {
-                                            const fechaM = new Date(m.fecha).toISOString().split('T')[0];
+                                            const fechaM = normalizeDateKey(m.fecha);
                                             if (fechaInicioModal && fechaM < fechaInicioModal) return false;
                                             if (fechaFinModal && fechaM > fechaFinModal) return false;
                                             return true;
@@ -2540,7 +2536,7 @@ const ModuloContableContent = () => {
                               }
                               
                               if (fechaInicioModal || fechaFinModal) {
-                                const fechaM = new Date(m.fecha).toISOString().split('T')[0];
+                                const fechaM = normalizeDateKey(m.fecha);
                                 if (fechaInicioModal && fechaM < fechaInicioModal) return false;
                                 if (fechaFinModal && fechaM > fechaFinModal) return false;
                                 return true;

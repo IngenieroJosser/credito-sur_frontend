@@ -233,7 +233,7 @@ export function DashboardClient({ data }: DashboardClientProps) {
               <div className="flex items-center justify-between mb-6">
                 <div>
                   <h3 className="text-lg font-bold text-slate-800">Tendencia de Cobros</h3>
-                  <p className="text-slate-500 text-sm">Período seleccionado vs Objetivo</p>
+                  <p className="text-slate-500 text-sm">Período seleccionado</p>
                 </div>
               </div>
               

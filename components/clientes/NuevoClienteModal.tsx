@@ -7,6 +7,7 @@ import Portal, { MODAL_Z_INDEX } from '@/components/ui/Portal';
 import { clientesService, CrearClienteDto, Cliente } from '@/services/clientes-service';
 import MediaUpload from '@/components/ui/MediaUpload';
 import { enqueueClienteUpdate } from '@/lib/offline/offlineQueue';
+import { toBogotaDateTimeOffsetIso } from '@/lib/rutas-core';
 
 import { resolveMediaUrl } from '@/lib/utils';
 
@@ -229,7 +230,7 @@ export default function NuevoClienteModal({ onClose, onClienteCreado, cliente = 
             id: `offline-${Date.now()}`,
             codigo: 'OFFLINE',
             estadoAprobacion: 'PENDIENTE',
-            creadoEn: new Date().toISOString(),
+            creadoEn: toBogotaDateTimeOffsetIso(new Date()),
           } as any);
           
           onClose();

@@ -2,6 +2,7 @@ import { useState, useCallback } from 'react';
 import { reportesCoordinadorService } from '@/services/reportes-coordinador-service'; 
 import type { OperationalReportFilters, OperationalReportResponse, RouteDetailResponse } from '@/services/reportes-coordinador-service';
 import type { TimeFilterPeriod } from '@/components/ui/TimeFilter';
+import { getBogotaDateKey } from '@/lib/rutas-core';
 
 export const useReportesCoordinador = () => {
   const [loading, setLoading] = useState(false);
@@ -59,7 +60,7 @@ export const useReportesCoordinador = () => {
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `reporte-operativo-${filters.period}-${new Date().toISOString().split('T')[0]}.${
+      a.download = `reporte-operativo-${filters.period}-${getBogotaDateKey(new Date())}.${
         format === 'excel' ? 'xlsx' : 'pdf'
       }`;
       document.body.appendChild(a);

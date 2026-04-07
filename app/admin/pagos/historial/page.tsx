@@ -21,6 +21,7 @@ import { ExportButton } from '@/components/ui/ExportButton'
 import { pagosService } from '@/services/pagos-service'
 import { exportService } from '@/services/export-service'
 import { getOfflineDb } from '@/lib/offline/offlineDb'
+import { toBogotaDateTimeOffsetIso } from '@/lib/rutas-core'
 import { toast } from 'sonner'
 import { useRouter, useSearchParams, usePathname } from 'next/navigation'
 import { TimeFilter, TimeFilterPeriod } from '@/components/ui/TimeFilter'
@@ -114,7 +115,7 @@ const HistorialPagosPage = () => {
             .map((q: any) => ({
               pagoId: q.data?.pagoId || q.data?.id || q.id,
               id: q.id,
-              fecha: q.createdAt || new Date().toISOString(),
+              fecha: q.createdAt || toBogotaDateTimeOffsetIso(new Date()),
               cliente: q.description || '',
               cobrador: '',
               ruta: '',

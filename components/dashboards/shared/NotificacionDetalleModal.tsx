@@ -18,7 +18,10 @@ import {
   FileText,
 } from 'lucide-react'
 import { Portal } from '@/components/dashboards/shared/CobradorElements'
-import { formatCurrency, formatCOPInputValue, parseCOPInputToNumber, resolveMediaUrl } from '@/lib/utils'
+import { formatCOPInputValue, formatCurrency, formatMilesCOP, parseCOPInputToNumber, resolveMediaUrl } from '@/lib/utils'
+import { getBogotaDateKey, normalizeDateKey } from '@/lib/rutas-core'
+import { notificacionesService } from '@/services/notificaciones-service'
+import { prestamosService } from '@/services/prestamos-service'
 import { aprobacionesService } from '@/services/aprobaciones-service'
 import { articulosService } from '@/services/articulos-service'
 import ConfirmApproveModal from '@/components/ui/ConfirmApproveModal'
@@ -132,7 +135,7 @@ export default function NotificacionDetalleModal({
         // Frecuencia: del backend directamente
         frecuenciaPago: combined.frecuenciaPago || combined.frecuencia || 'DIARIO',
         // Fecha: del backend directamente
-        fechaInicio: combined.fechaInicio || combined.fecha || new Date().toISOString().split('T')[0],
+        fechaInicio: combined.fechaInicio || combined.fecha || getBogotaDateKey(new Date()),
         tipoAmortizacion: combined.tipoAmortizacion || 'INTERES_SIMPLE',
         articulo: combined.articulo || combined.articuloNombre || articuloFromMsg || (
           (notificacion.titulo + notificacion.mensaje).toLowerCase().includes('artículo') ||
@@ -252,10 +255,12 @@ export default function NotificacionDetalleModal({
     ;(async () => {
       try {
         const lista = await articulosService.obtenerArticulos()
-        const match = lista.find(a => (a.nombre || '').toLowerCase() === nombre.toLowerCase())
+        const match = lista.find((a: any) => (a?.nombre || '').toLowerCase() === nombre.toLowerCase())
         setArticuloData(match || null)
         if (match) {
-          const idx = match.opcionesCuotas.findIndex(op => Number(op.numeroCuotas) === Number(dets?.plazoMeses || meta?.plazoMeses || 0))
+          const idx = match.opcionesCuotas.findIndex(
+            (op: any) => Number(op?.numeroCuotas) === Number(dets?.plazoMeses || meta?.plazoMeses || 0),
+          )
           setPlanIndex(idx >= 0 ? idx : null)
         }
       } catch {}
@@ -849,15 +854,12 @@ export default function NotificacionDetalleModal({
                           try {
                             // ISO completo: 2026-04-01T05:00:00.000Z
                             if (typeof dateStr === 'string' && dateStr.includes('T')) {
-                              const d = new Date(dateStr);
-                              if (!isNaN(d.getTime())) {
-                                // Ajustar a UTC para evitar off-by-one por zona horaria
-                                return new Date(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()).toLocaleDateString('es-CO');
-                              }
+                              const key = normalizeDateKey(dateStr)
+                              if (key) return new Date(`${key}T12:00:00-05:00`).toLocaleDateString('es-CO')
                             }
                             // Formato YYYY-MM-DD
                             if (typeof dateStr === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
-                              return new Date(dateStr + 'T12:00:00').toLocaleDateString('es-CO');
+                              return new Date(dateStr + 'T12:00:00-05:00').toLocaleDateString('es-CO');
                             }
                             // Cualquier otro formato
                             const d = new Date(dateStr);
