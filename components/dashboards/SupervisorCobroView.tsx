@@ -1123,6 +1123,20 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
             else if (proximaCuota.estado === 'PAGADA') estado = 'pagado';
             else if (!prestamo?.id) estado = 'pendiente';
 
+            const periodoRuta = toPeriodo(prestamo?.frecuenciaPago || 'DIARIO');
+            const fechaEfectivaKey = normalizeDateKey(String((proximaCuota?.estado === 'PRORROGADA' && proximaCuota?.fechaVencimientoProrroga)
+              ? proximaCuota.fechaVencimientoProrroga
+              : (proximaCuota?.fechaVencimiento || '')));
+
+            const apareceHoy = (() => {
+              if (hayAlgunaMora) return true;
+              if (periodoRuta === 'DIA') return true;
+              if (!fechaEfectivaKey || !hoyBogota) return true;
+              return fechaEfectivaKey === hoyBogota;
+            })();
+
+            if (!apareceHoy) return null;
+
             return {
               id: prestamo ? `${asig.id}-${prestamo.id}` : (asig.id || `asig-${idx}`),
               cliente: `${cliente.nombres || ''} ${cliente.apellidos || ''}`.trim() || 'Cliente Sin Nombre',
@@ -1138,7 +1152,7 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
               prioridad: (asig.prioridad?.toLowerCase() as 'alta' | 'media' | 'baja') || (estado === 'en_mora' ? 'alta' : 'media'),
               nivelRiesgo: toNivel(cliente.nivelRiesgo || 'VERDE'),
               cobradorId: ruta.cobradorId,
-              periodoRuta: toPeriodo(prestamo?.frecuenciaPago || 'DIARIO'),
+              periodoRuta,
               clienteId: cliente.id || asig.clienteId || asig.id_cliente || '',
               prestamoId: prestamo?.id,
               tipoPrestamo: esArticulo ? 'ARTICULO' : 'EFECTIVO',
@@ -1150,7 +1164,7 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
               pendienteAprobacion: esPendienteAprobacion,
             } as any;
           });
-        });
+        }).filter(Boolean);
 
         const clientesConPrestamo = new Set<string>();
         visitasRaw.forEach((v: any) => {
@@ -1289,6 +1303,20 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
           v.pendienteAprobacion ||
           v.periodoRuta === 'DIA'
         );
+
+        // Meta HOY: solo sumar lo que realmente corresponde al día (hoy exacto para no-diarios, diarios siempre, mora siempre)
+        const metaHoy = finalesFiltrados.reduce((sum: number, v: any) => {
+          if (v?.estado === 'pagado') return sum;
+          const proximaKey = v?.proximaVisita ? normalizeDateKey(String(v.proximaVisita)) : '';
+          const incluye = v?.estado === 'en_mora' || v?.periodoRuta === 'DIA' || (proximaKey && proximaKey === hoyBogotaPrincipal);
+          if (!incluye) return sum;
+          return sum + Number(v?.montoCuota || 0);
+        }, 0);
+
+        setRutaStats((prev: any) => ({
+          ...prev,
+          meta: periodoCards === 'HOY' ? metaHoy : prev.meta,
+        }));
 
         setVisitasBase(finalesFiltrados);
         setVisitasOrden(finalesFiltrados.map((v: any) => v.id));

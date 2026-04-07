@@ -60,6 +60,34 @@ export interface VisitaDelDia {
 
 }
 
+export interface DailyVisitsResponse {
+
+  fecha: string;
+
+  rutaId: string;
+
+  totalVisitas: number;
+
+  resumen: {
+
+    recaudo: number;
+
+    meta: number;
+
+    gastos: number;
+
+    efectividad: number;
+
+    visitados: number;
+
+    total: number;
+
+  };
+
+  visitas: any[];
+
+}
+
 
 
 export interface ReordenarClientesResult {
@@ -718,11 +746,11 @@ export const rutasService = {
 
    */
 
-  async obtenerVisitasDelDia(rutaId: string, fecha?: string): Promise<VisitaDelDia[]> {
+  async obtenerVisitasDelDia(rutaId: string, fecha?: string): Promise<DailyVisitsResponse> {
 
     const params = fecha ? `?fecha=${fecha}` : '';
 
-    return apiRequest<VisitaDelDia[]>('GET', `/routes/${rutaId}/daily-visits${params}`);
+    return apiRequest<DailyVisitsResponse>('GET', `/routes/${rutaId}/daily-visits${params}`);
 
   },
 
