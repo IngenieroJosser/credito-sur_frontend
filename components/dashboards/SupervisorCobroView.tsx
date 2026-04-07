@@ -222,7 +222,7 @@ import { useNotificaciones } from '@/components/providers/NotificacionesProvider
 
 import { toast } from 'sonner'
 
-import { getBogotaDateKey, getBogotaRangeByPeriod, getLocalDateKey, isTodayOrPastBogota, normalizeDateKey, toBogotaDateTimeOffsetIso } from '@/lib/rutas-core'
+import { getBogotaDateKey, getBogotaRangeByPeriod, getLocalDateKey, isTodayOrPastBogota, normalizeDateKey, resolveProximaCuotaFromPrestamo, resolveCuotaProgressFromPrestamo, toBogotaDateTimeOffsetIso } from '@/lib/rutas-core'
 
 import SundayNoticeBanner from '@/components/rutas/SundayNoticeBanner'
 
@@ -300,6 +300,9 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
 
 
   const [visitaClienteSeleccionada, setVisitaClienteSeleccionada] = useState<VisitaRuta | null>(null)
+
+  const [nextPagoFecha, setNextPagoFecha] = useState<string | null>(null)
+  const [nextPagoMonto, setNextPagoMonto] = useState<number | null>(null)
 
 
   const [showEstadoCuentaModal, setShowEstadoCuentaModal] = useState(false)
@@ -559,7 +562,17 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
       const mapped: VisitaRuta[] = await Promise.all(filas.map(async (row: any, idx: number) => {
         const c = row?.cliente || {}
         const p = row?.prestamo || {}
-        const prox = p?.proximaCuota || null
+        let prestamoAutoritativo: any = p
+        if (p?.id) {
+          try {
+            const detalle = await prestamosService.obtenerPrestamoPorId(p.id)
+            if (detalle) prestamoAutoritativo = detalle
+          } catch {
+            // ignore
+          }
+        }
+
+        const { cuota: prox, fechaEfectiva } = resolveProximaCuotaFromPrestamo(prestamoAutoritativo)
         const esArticulo = p?.tipo === 'ARTICULO'
 
         const toNivel = (nivel: string) => {
@@ -570,59 +583,20 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
           return 'bajo'
         }
 
-        let cuotaActual = prox?.numeroCuota;
-        let cuotasTotales = p?.cantidadCuotas;
-        let montoCuota = Number(prox?.monto || 0);
-        let proximaVisitaV = null;
-        let estadoCalculado = (prox?.estado === 'VENCIDA' ? 'en_mora' : 'pendiente') as any;
+        const { cuotaActual, cuotasTotales } = resolveCuotaProgressFromPrestamo(prestamoAutoritativo)
+        const montoCuota = Number((prox as any)?.montoNominal ?? (prox as any)?.monto ?? 0)
+        const proximaVisitaV = fechaEfectiva || (prox as any)?.fechaVencimiento || row?.prestamo?.fechaEfectiva || getBogotaDateKey(new Date())
 
-        // Enriquecemos con datos reales de cuotas
-        if (p?.id) {
-          try {
-            const rawCuotas = await prestamosService.obtenerCuotas(p.id);
-            const cuotas = rawCuotas.sort((a, b) => 
-              new Date(a.fechaVencimiento).getTime() - new Date(b.fechaVencimiento).getTime()
-            );
-            
-            const pendiente = cuotas.find(cuo => cuo.estado !== 'PAGADA');
-            if (pendiente) {
-              cuotaActual = pendiente.numeroCuota;
-              montoCuota = Number(pendiente.monto || (pendiente.montoCapital + pendiente.montoInteres) || 0);
-              proximaVisitaV = pendiente.fechaVencimiento;
-              
-              // CÁLCULO DINÁMICO DE ESTADO (Hoy 02/04 es PENDIENTE)
-              const isTodayOrMora = (dateStr: string) => {
-                if (!dateStr) return true;
-                const f = dateStr.includes('T') ? dateStr.split('T')[0] : dateStr;
-                const hoyBogota = getBogotaDateKey(new Date());
-                return f <= hoyBogota;
-              };
-              
-              const vtoDate = new Date(pendiente.fechaVencimiento.split('T')[0].replace(/-/g, '/'));
-              const hoy = new Date();
-              hoy.setHours(0,0,0,0);
-              
-              if (vtoDate.getTime() < hoy.getTime() || pendiente.estado === 'VENCIDA') {
-                estadoCalculado = 'en_mora';
-              } else {
-                estadoCalculado = 'pendiente';
-              }
-
-              const hoyKey = getBogotaDateKey(new Date());
-              const cuotaHoy = cuotas.find(
-                (c) => c.estado === 'PAGADA' && normalizeDateKey(c.fechaVencimiento) === hoyKey,
-              );
-              if (cuotaHoy) {
-                estadoCalculado = 'pagado';
-              }
-            } else {
-              estadoCalculado = 'pagado';
-            }
-            cuotasTotales = cuotas.length;
-          } catch (e) {
-            console.warn('Error enriqueciendo Mis Clientes:', e);
-          }
-        }
+        const hoyBogota = getBogotaDateKey(new Date())
+        const proxKey = normalizeDateKey(String(proximaVisitaV || ''))
+        const proxEstado = String((prox as any)?.estado || '').toUpperCase()
+        const estadoCalculado: EstadoVisita = (() => {
+          if (Number(p?.saldoPendiente || 0) <= 0) return 'pagado'
+          if (proxEstado === 'PAGADA' || proxEstado === 'PAGADO') return 'pagado'
+          if (proxEstado === 'VENCIDA' || proxEstado === 'ATRASADA') return 'en_mora'
+          if (proxKey && hoyBogota && proxKey < hoyBogota) return 'en_mora'
+          return 'pendiente'
+        })()
 
         return {
           id: `${row?.asignacionId || 'asig'}-${p?.id || idx}`,
@@ -633,7 +607,7 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
           montoCuota,
           saldoTotal: Number(p?.saldoPendiente || 0),
           estado: estadoCalculado,
-          proximaVisita: proximaVisitaV || row?.prestamo?.fechaEfectiva || prox?.fechaVencimiento || getBogotaDateKey(new Date()),
+          proximaVisita: proximaVisitaV,
           ordenVisita: Number(row?.ordenVisita || idx + 1),
           prioridad: 'media' as any,
           nivelRiesgo: toNivel(c?.nivelRiesgo || 'VERDE') as any,
@@ -648,7 +622,18 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
         } as any
       }))
 
-      setMisCreditos(mapped)
+      const finales = mapped.sort((a: any, b: any) => {
+        if (a.estado === 'pagado' && b.estado !== 'pagado') return 1;
+        if (a.estado !== 'pagado' && b.estado === 'pagado') return -1;
+        const ao = Number(a.ordenVisita ?? 0);
+        const bo = Number(b.ordenVisita ?? 0);
+        if (ao !== bo) return ao - bo;
+        const aId = String(a.id || '');
+        const bId = String(b.id || '');
+        return aId.localeCompare(bId);
+      });
+
+      setMisCreditos(finales)
     } catch (e: any) {
       console.error('Error cargando mis clientes:', e)
     } finally {
@@ -2439,8 +2424,53 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
     }
 
     setVisitaClienteSeleccionada(visita)
+    setNextPagoFecha(null)
+    setNextPagoMonto(null)
     setShowClienteInfoModal(true)
   }, [])
+
+  useEffect(() => {
+    const cargarNextPagoCliente = async () => {
+      if (!showClienteInfoModal || !visitaClienteSeleccionada) {
+        setNextPagoFecha(null)
+        setNextPagoMonto(null)
+        return
+      }
+
+      if (!visitaClienteSeleccionada?.prestamoId) {
+        setNextPagoFecha(null)
+        setNextPagoMonto(null)
+        return
+      }
+
+      try {
+        const detalle = await prestamosService.obtenerPrestamoPorId(visitaClienteSeleccionada.prestamoId)
+        const backendProx = (detalle as any)?.proximaCuota ?? null
+        const backendFecha = backendProx
+          ? (backendProx?.fechaVencimientoProrroga || backendProx?.fechaVencimiento || null)
+          : null
+        const backendMonto = backendProx ? Number(backendProx?.montoNominal ?? backendProx?.monto ?? 0) : null
+
+        setNextPagoFecha(backendFecha)
+        setNextPagoMonto(typeof backendMonto === 'number' ? backendMonto : null)
+
+        const prog = resolveCuotaProgressFromPrestamo(detalle)
+        setVisitaClienteSeleccionada((prev) => {
+          if (!prev) return prev
+          return {
+            ...prev,
+            cuotaActual: prog.cuotaActual ?? (prev as any).cuotaActual,
+            cuotasTotales: prog.cuotasTotales ?? (prev as any).cuotasTotales,
+          } as any
+        })
+      } catch {
+        setNextPagoFecha(null)
+        setNextPagoMonto(null)
+      }
+    }
+
+    void cargarNextPagoCliente()
+  }, [showClienteInfoModal, visitaClienteSeleccionada?.prestamoId])
 
 
 
@@ -3481,6 +3511,8 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
 
                                           e.stopPropagation()
 
+                                          if (!rutaOperable) return
+
                                           setVisitaPagoSeleccionadaId(visita.id)
 
                                           setPagoInitialIsAbono(false)
@@ -3489,7 +3521,9 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
 
                                         }}
 
-                                        className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 transition-all active:scale-95 text-[11px] font-bold"
+                                        disabled={!rutaOperable}
+
+                                        className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-lg transition-all active:scale-95 text-[11px] font-bold ${!rutaOperable ? 'bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed' : 'bg-emerald-600 text-white hover:bg-emerald-700'}`}
 
                                       >
 
@@ -3505,13 +3539,17 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
 
                                           e.stopPropagation()
 
+                                          if (!rutaOperable) return
+
                                           setVisitaEstadoCuentaSeleccionada(visita)
 
                                           setShowEstadoCuentaModal(true)
 
                                         }}
 
-                                        className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-white text-slate-600 border border-slate-200 hover:bg-slate-50 transition-all active:scale-95 text-[11px] font-bold"
+                                        disabled={!rutaOperable}
+
+                                        className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border transition-all active:scale-95 text-[11px] font-bold ${!rutaOperable ? 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'}`}
 
                                       >
 
@@ -3862,9 +3900,9 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
 
             visita={visitaClienteSeleccionada}
 
-            nextPagoMonto={visitaClienteSeleccionada.montoCuota || 0}
+            nextPagoMonto={nextPagoMonto ?? (visitaClienteSeleccionada.montoCuota || 0)}
 
-            nextPagoFecha={visitaClienteSeleccionada.proximaVisita || ''}
+            nextPagoFecha={nextPagoFecha ?? (visitaClienteSeleccionada.proximaVisita || '')}
 
             recaudadoHoy={Number((visitaClienteSeleccionada as any).recaudadoDelDia || 0)}
 

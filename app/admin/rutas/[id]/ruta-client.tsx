@@ -93,7 +93,7 @@ import { toast } from 'sonner'
 import { useRealtimeData } from '@/hooks/useRealtimeData'
 import ClienteInfoModal from '@/components/cobranza/ClienteInfoModal'
 import { formatShortDate } from '@/lib/utils/format'
-import { getBogotaDateKey, getBogotaRangeByPeriod, isTodayOrPastBogota, normalizeDateKey, toBogotaDateTimeOffsetIso } from '@/lib/rutas-core'
+import { getBogotaDateKey, getBogotaRangeByPeriod, isTodayOrPastBogota, normalizeDateKey, toBogotaDateTimeOffsetIso, resolveProximaCuotaFromPrestamo } from '@/lib/rutas-core'
 
 
 
@@ -723,7 +723,8 @@ const RutaClientLoaded = ({
           idsProcesados.add(uniqueKey);
 
           const cuotas = Array.isArray(prestamo?.cuotas) ? prestamo.cuotas : [];
-          const proximaCuota = cuotas.find((c: any) => normalizeDateKey(c.fechaVencimiento) === hoyKey) || cuotas.find((c: any) => c.estado !== 'PAGADA') || cuotas[0] || {};
+          const { cuota: proximaCuotaRaw, fechaEfectiva: fechaEfectivaRawFromHelper } = resolveProximaCuotaFromPrestamo(prestamo);
+          const proximaCuota = proximaCuotaRaw || {};
           const esArticulo = prestamo?.tipo === 'ARTICULO' || prestamo?.tipoPrestamo === 'ARTICULO';
           const esPendienteAprobacion = prestamo?.estado === 'PENDIENTE_APROBACION';
 
@@ -751,7 +752,10 @@ const RutaClientLoaded = ({
               : extension?.nuevaFechaVencimiento ?? null;
 
           const fechaEfectiva =
-            fechaProrrogaFecha ?? proximaCuota?.fechaVencimiento ?? getBogotaDateKey(new Date());
+            fechaProrrogaFecha
+              ?? fechaEfectivaRawFromHelper
+              ?? proximaCuota?.fechaVencimiento
+              ?? getBogotaDateKey(new Date());
 
           const montoFinal = montoAcumulado > 0 ? montoAcumulado : Number(proximaCuota?.monto || (prestamo?.montoCuota) || 0);
 
@@ -2552,6 +2556,7 @@ const RutaClientLoaded = ({
               const recPrev = Number(pagoActual.visita.recaudadoDelDia || 0)
               const recNuevo = recPrev + montoNum
               const cuotaCompletada = montoCuotaPrev > 0 && recNuevo >= (montoCuotaPrev - 1)
+              const pagadoHoy = recNuevo > 0
 
               setVisitasCobrador((prev) => {
                 const next = prev.map((v) => {
@@ -2559,11 +2564,11 @@ const RutaClientLoaded = ({
                   return {
                     ...v,
                     recaudadoDelDia: Number(v.recaudadoDelDia || 0) + montoNum,
-                    estado: cuotaCompletada ? ('pagado' as any) : v.estado,
+                    estado: (pagadoHoy || cuotaCompletada) ? ('pagado' as any) : v.estado,
                   }
                 })
 
-                return cuotaCompletada ? next.filter((v) => v.id !== visitaId) : next
+                return (pagadoHoy || cuotaCompletada) ? next.filter((v) => v.id !== visitaId) : next
               })
 
               showNotification('success', `${pagoActual.tipo === 'ABONO' ? 'Abono' : 'Pago'} registrado correctamente`, 'Éxito');
