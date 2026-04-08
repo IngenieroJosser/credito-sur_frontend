@@ -233,3 +233,80 @@ export const isTodayOrPastBogota = (raw: string | Date | null | undefined): bool
 export const frecuenciaToPeriodoRuta = (frecuencia: string | null | undefined): PeriodoRuta => {
   return mapFrecuenciaToPeriodo(String(frecuencia || '').toUpperCase());
 };
+
+export const resolveFechaEfectivaCuota = (cuota: any): string => {
+  if (!cuota) return '';
+  const estado = String(cuota?.estado || '').toUpperCase();
+  const raw = (estado === 'PRORROGADA' && cuota?.fechaVencimientoProrroga)
+    ? cuota.fechaVencimientoProrroga
+    : cuota?.fechaVencimiento;
+  return raw ? String(raw) : '';
+};
+
+export const resolveProximaCuotaFromPrestamo = (prestamo: any): { cuota: any | null; fechaEfectiva: string } => {
+  if (!prestamo) return { cuota: null, fechaEfectiva: '' };
+
+  const backendProx = prestamo?.proximaCuota ?? null;
+  if (backendProx) {
+    const fechaEfectiva = resolveFechaEfectivaCuota(backendProx) || String(backendProx?.fechaVencimiento || '');
+    return { cuota: backendProx, fechaEfectiva };
+  }
+
+  const cuotas = Array.isArray(prestamo?.cuotas) ? prestamo.cuotas : [];
+  if (cuotas.length === 0) return { cuota: null, fechaEfectiva: '' };
+
+  const cuotasSorted = [...cuotas].sort((a, b) => {
+    const aKey = normalizeDateKey(resolveFechaEfectivaCuota(a));
+    const bKey = normalizeDateKey(resolveFechaEfectivaCuota(b));
+    if (aKey && bKey) return aKey.localeCompare(bKey);
+    if (aKey) return -1;
+    if (bKey) return 1;
+    return 0;
+  });
+
+  const noPagada = (c: any) => {
+    const s = String(c?.estado || '').toUpperCase();
+    return s !== 'PAGADA' && s !== 'PAGADO' && s !== 'ANULADA' && s !== 'ANULADO';
+  };
+  const cuota = cuotasSorted.find(noPagada) || cuotasSorted[0] || null;
+  const fechaEfectiva = cuota ? (resolveFechaEfectivaCuota(cuota) || String(cuota?.fechaVencimiento || '')) : '';
+  return { cuota, fechaEfectiva };
+};
+
+export const resolveNextPagoFromPrestamo = (prestamo: any): { monto: number | null; fecha: string | null; cuota: any | null; fechaEfectiva: string } => {
+  const { cuota, fechaEfectiva } = resolveProximaCuotaFromPrestamo(prestamo);
+  if (!cuota) return { monto: null, fecha: null, cuota: null, fechaEfectiva: '' };
+  const monto = Number((cuota as any)?.montoNominal ?? (cuota as any)?.monto ?? 0);
+  const fecha = String(fechaEfectiva || (cuota as any)?.fechaVencimiento || '') || null;
+  return { monto, fecha, cuota, fechaEfectiva: String(fechaEfectiva || '') };
+};
+
+export const resolveCuotaProgressFromPrestamo = (prestamo: any): { cuotaActual: number | null; cuotasTotales: number | null } => {
+  if (!prestamo) return { cuotaActual: null, cuotasTotales: null };
+
+  const cuotas = Array.isArray(prestamo?.cuotas) ? prestamo.cuotas : [];
+  const cuotasTotales = Number(prestamo?.cantidadCuotas ?? cuotas.length ?? 0) || null;
+
+  const noPagada = (c: any) => {
+    const s = String(c?.estado || '').toUpperCase();
+    return s !== 'PAGADA' && s !== 'PAGADO' && s !== 'ANULADA' && s !== 'ANULADO';
+  };
+
+  if (cuotas.length > 0) {
+    const cuotasSorted = [...cuotas].sort((a, b) => {
+      const aKey = normalizeDateKey(resolveFechaEfectivaCuota(a));
+      const bKey = normalizeDateKey(resolveFechaEfectivaCuota(b));
+      if (aKey && bKey) return aKey.localeCompare(bKey);
+      if (aKey) return -1;
+      if (bKey) return 1;
+      return 0;
+    });
+    const cuota = cuotasSorted.find(noPagada) || cuotasSorted[0] || null;
+    const cuotaActual = cuota?.numeroCuota != null ? Number(cuota.numeroCuota) : null;
+    return { cuotaActual, cuotasTotales };
+  }
+
+  const backendProx = prestamo?.proximaCuota ?? null;
+  const cuotaActual = backendProx?.numeroCuota != null ? Number(backendProx.numeroCuota) : null;
+  return { cuotaActual, cuotasTotales };
+};

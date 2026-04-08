@@ -93,7 +93,7 @@ import { toast } from 'sonner'
 import { useRealtimeData } from '@/hooks/useRealtimeData'
 import ClienteInfoModal from '@/components/cobranza/ClienteInfoModal'
 import { formatShortDate } from '@/lib/utils/format'
-import { getBogotaDateKey, getBogotaRangeByPeriod, isTodayOrPastBogota, normalizeDateKey, toBogotaDateTimeOffsetIso } from '@/lib/rutas-core'
+import { getBogotaDateKey, getBogotaRangeByPeriod, isTodayOrPastBogota, normalizeDateKey, toBogotaDateTimeOffsetIso, resolveProximaCuotaFromPrestamo } from '@/lib/rutas-core'
 
 
 
@@ -723,7 +723,8 @@ const RutaClientLoaded = ({
           idsProcesados.add(uniqueKey);
 
           const cuotas = Array.isArray(prestamo?.cuotas) ? prestamo.cuotas : [];
-          const proximaCuota = cuotas.find((c: any) => normalizeDateKey(c.fechaVencimiento) === hoyKey) || cuotas.find((c: any) => c.estado !== 'PAGADA') || cuotas[0] || {};
+          const { cuota: proximaCuotaRaw, fechaEfectiva: fechaEfectivaRawFromHelper } = resolveProximaCuotaFromPrestamo(prestamo);
+          const proximaCuota = proximaCuotaRaw || {};
           const esArticulo = prestamo?.tipo === 'ARTICULO' || prestamo?.tipoPrestamo === 'ARTICULO';
           const esPendienteAprobacion = prestamo?.estado === 'PENDIENTE_APROBACION';
 
@@ -751,9 +752,23 @@ const RutaClientLoaded = ({
               : extension?.nuevaFechaVencimiento ?? null;
 
           const fechaEfectiva =
-            fechaProrrogaFecha ?? proximaCuota?.fechaVencimiento ?? getBogotaDateKey(new Date());
+            fechaProrrogaFecha
+              ?? fechaEfectivaRawFromHelper
+              ?? proximaCuota?.fechaVencimiento
+              ?? getBogotaDateKey(new Date());
 
           const montoFinal = montoAcumulado > 0 ? montoAcumulado : Number(proximaCuota?.monto || (prestamo?.montoCuota) || 0);
+
+          const periodoRuta = toPeriodo(prestamo?.frecuenciaPago || 'DIARIO') as any;
+          const dueKey = normalizeDateKey(String(fechaEfectiva || ''));
+          const apareceHoy = (() => {
+            if (esMoraAtrasada) return true;
+            if (periodoRuta === 'DIA') return true;
+            if (!dueKey || !hoyKey) return true;
+            return dueKey === hoyKey;
+          })();
+
+          if (!apareceHoy) return [];
 
           return [{
             id: prestamo ? `${asig.id}-${prestamo.id}` : (asig.id || `temp-${idx}`),
@@ -768,7 +783,7 @@ const RutaClientLoaded = ({
             ordenVisita: asig.ordenVisita || idx + 1,
             prioridad: (asig.prioridad?.toLowerCase() as any) || 'media',
             cobradorId: initialRuta?.cobradorId || '',
-            periodoRuta: toPeriodo(prestamo?.frecuenciaPago || 'DIARIO') as any,
+            periodoRuta,
             nivelRiesgo: toNivelRiesgo(asig.cliente?.nivelRiesgo || 'VERDE') as any,
             clienteId: asig.cliente?.id || '',
             prestamoId: prestamo?.id || '',
@@ -836,7 +851,7 @@ const RutaClientLoaded = ({
             const rawDate = p.fechaPago || p.creadoEn;
             if (!rawDate) return sum;
             
-            const pDateStr = typeof rawDate === 'string' ? normalizeDateKey(rawDate) : getBogotaDateKey(rawDate);
+            const pDateStr = typeof rawDate === 'string' ? getBogotaDateKey(new Date(rawDate)) : getBogotaDateKey(rawDate);
             
             return pDateStr === hoyBogota ? sum + Number(p.montoTotal || 0) : sum;
           }, 0);
@@ -878,8 +893,8 @@ const RutaClientLoaded = ({
           const cuotaComparar = montoCuotaReal > 0 ? montoCuotaReal : v.montoCuota;
           const cobroSuficiente = totalHoy >= (cuotaComparar - 1);
           
-          // Regla de Oro: Cualquier pago hoy = pagado (oculta de ruta activa)
-          if (Number(v.saldoTotal || 0) <= 0 || totalHoy > 0 || v.estado === 'pagado') {
+          // Solo ocultar si realmente completó la cuota del día (o si el saldo ya quedó en 0)
+          if (Number(v.saldoTotal || 0) <= 0 || (totalHoy > 0 && cobroSuficiente) || v.estado === 'pagado') {
             nuevoEstado = 'pagado';
           }
 
@@ -919,23 +934,11 @@ const RutaClientLoaded = ({
       exportarRutaDiariaPDF: async () => {},
     };
 
-    const isTodayOrMora = (dateStr: string) => isTodayOrPastBogota(dateStr);
-
-    const filterByDate = (v: any) => {
-      if (searchQuery || showMisClientes) return true;
-      return v.estado === 'en_mora' || isTodayOrMora(v.proximaVisita);
-    };
+    const hoyBogota = getBogotaDateKey(new Date());
 
     const pagosEnriquecidos = visitasCobrador.some(v => v.recaudadoTotalClient !== undefined)
 
-    if (!showHistory && !showMisClientes && !pagosEnriquecidos) {
-      return {
-        visitasAgrupadas: { MES: [], QUINCENA: [], SEMANA: [], DIA: [] },
-        totalMostradas: 0,
-        exportarRutaDiariaCSV: async () => {},
-        exportarRutaDiariaPDF: async () => {},
-      }
-    }
+    void pagosEnriquecidos
 
     let filtradas = visitasCobrador.filter(v => {
       const matchesSearch =
@@ -949,11 +952,8 @@ const RutaClientLoaded = ({
       // Solo desaparece cuando la cuota quedó completa (estado pagado)
       if (v.estado === 'pagado') return false;
 
-      // Mostrar si tiene cuota/monto exigible para hoy o está en mora
-      const esExigibleHoy = (v.montoCuota || 0) > 0 || isTodayOrMora(v.proximaVisita);
-      if (esExigibleHoy) return true;
-
-      return v.periodoRuta === 'DIA'; // Por defecto los diarios siempre se muestran si no se han filtrado por lo anterior
+      const proximaKey = v?.proximaVisita ? getBogotaDateKey(new Date(v.proximaVisita)) : '';
+      return v.estado === 'en_mora' || v.periodoRuta === 'DIA' || (proximaKey && proximaKey === hoyBogota);
     });
 
     if (periodoRutaFiltro !== 'TODOS') {
@@ -963,16 +963,12 @@ const RutaClientLoaded = ({
     filtradas.sort((a: any, b: any) => {
       if (a.estado === 'pagado' && b.estado !== 'pagado') return 1;
       if (a.estado !== 'pagado' && b.estado === 'pagado') return -1;
-      
-      if (a.periodoRuta === 'DIA' && b.periodoRuta === 'DIA') {
-        return a.ordenVisita - b.ordenVisita;
-      }
-
-      if (a.fechaUltimoPago !== b.fechaUltimoPago) {
-        return (a.fechaUltimoPago || 0) - (b.fechaUltimoPago || 0);
-      }
-
-      return a.ordenVisita - b.ordenVisita;
+      const ao = Number(a.ordenVisita ?? 0);
+      const bo = Number(b.ordenVisita ?? 0);
+      if (ao !== bo) return ao - bo;
+      const aId = String(a.id || '');
+      const bId = String(b.id || '');
+      return aId.localeCompare(bId);
     });
 
     const exportarRutaDiariaCSV = async () => {
@@ -1172,7 +1168,20 @@ const RutaClientLoaded = ({
         const saldo: any = await obtenerSaldoDisponibleRuta(initialRuta.id, undefined, inicio, fin)
 
         const recaudo = Number(saldo?.cobranzaDelDia ?? saldo?.recaudoDelDia ?? estadisticas?.cobranzaDelDia ?? 0)
-        const meta = Number(estadisticas?.metaDelDia ?? 0)
+
+        const hoyKey = getBogotaDateKey(new Date())
+        const visitasCobradorFiltradas = (visitasCobrador || []).filter(v => {
+          const proximaKey = v?.proximaVisita ? normalizeDateKey(String(v.proximaVisita)) : ''
+          const incluye = v?.estado === 'en_mora' || v?.periodoRuta === 'DIA' || (proximaKey && proximaKey === hoyKey)
+          return incluye
+        })
+
+        const metaHoy = visitasCobradorFiltradas.reduce((sum, v: any) => {
+          if (v?.estado === 'pagado') return sum
+          return sum + Number(v?.montoCuota || 0)
+        }, 0)
+
+        const meta = periodoCards === 'HOY' ? metaHoy : Number(estadisticas?.metaDelDia ?? 0)
         const eficiencia = meta > 0 ? Math.round((recaudo / meta) * 100) : Number(estadisticas?.avanceDiario ?? 0)
 
         setRutaStatsCards({
@@ -1180,11 +1189,21 @@ const RutaClientLoaded = ({
           meta,
           eficiencia,
           gastos: Number(saldo?.gastosDelDia ?? 0),
-          base: Number(saldo?.baseEfectivo ?? 0),
+          base: Number(saldo?.baseEfectivo ?? 0)
         })
       } catch {
         const recaudo = Number(estadisticas?.cobranzaDelDia ?? 0)
-        const meta = Number(estadisticas?.metaDelDia ?? 0)
+
+        const hoyKey = getBogotaDateKey(new Date())
+        const metaHoy = (visitasCobrador || []).reduce((sum, v: any) => {
+          const proximaKey = v?.proximaVisita ? normalizeDateKey(String(v.proximaVisita)) : ''
+          const incluye = v?.estado === 'en_mora' || v?.periodoRuta === 'DIA' || (proximaKey && proximaKey === hoyKey)
+          if (!incluye) return sum
+          if (v?.estado === 'pagado') return sum
+          return sum + Number(v?.montoCuota || 0)
+        }, 0)
+
+        const meta = periodoCards === 'HOY' ? metaHoy : Number(estadisticas?.metaDelDia ?? 0)
         const eficiencia = meta > 0 ? Math.round((recaudo / meta) * 100) : Number(estadisticas?.avanceDiario ?? 0)
         setRutaStatsCards((prev) => ({
           ...prev,
@@ -1197,7 +1216,7 @@ const RutaClientLoaded = ({
 
     if (!initialRuta?.id) return
     void run()
-  }, [estadisticas?.cobranzaDelDia, estadisticas?.metaDelDia, estadisticas?.avanceDiario, getDatesByPeriod, initialRuta?.id, periodoCards])
+  }, [estadisticas?.cobranzaDelDia, estadisticas?.metaDelDia, estadisticas?.avanceDiario, getDatesByPeriod, initialRuta?.id, periodoCards, visitasCobrador])
 
 
 
@@ -1318,13 +1337,15 @@ const RutaClientLoaded = ({
         } as VisitaRuta
       }))
 
-      // Ordenar: Pagados final, Diarios por ordenVisita, resto por fechaUltimoPago
       const finales = mapped.sort((a: any, b: any) => {
         if (a.estado === 'pagado' && b.estado !== 'pagado') return 1;
         if (a.estado !== 'pagado' && b.estado === 'pagado') return -1;
-        if (a.periodoRuta === 'DIA' && b.periodoRuta === 'DIA') return a.ordenVisita - b.ordenVisita;
-        if (a.fechaUltimoPago !== b.fechaUltimoPago) return a.fechaUltimoPago - b.fechaUltimoPago;
-        return a.ordenVisita - b.ordenVisita;
+        const ao = Number(a.ordenVisita ?? 0);
+        const bo = Number(b.ordenVisita ?? 0);
+        if (ao !== bo) return ao - bo;
+        const aId = String(a.id || '');
+        const bId = String(b.id || '');
+        return aId.localeCompare(bId);
       });
 
       setMisCreditos(finales)
