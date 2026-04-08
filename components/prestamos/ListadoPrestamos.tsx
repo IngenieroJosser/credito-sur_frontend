@@ -530,9 +530,15 @@ const ListadoPrestamosElegante = () => {
                     </tr>
                   ))
                 ) : prestamosPaginados.length > 0 ? (
-                  prestamosPaginados.map((prestamo) => (
-                    <tr 
-                      key={prestamo.id} 
+                  prestamosPaginados.map((prestamo) => {
+                    const diasMora = Number((prestamo as any)?.diasMora || 0)
+                    const estadoUI = (String(prestamo.estado || '').toUpperCase() === 'EN_MORA' && diasMora <= 0)
+                      ? 'ACTIVO'
+                      : prestamo.estado
+
+                    return (
+                    <tr
+                      key={prestamo.id}
                       onClick={() => irADetallePrestamo(prestamo.id)}
                       className="hover:bg-slate-50 transition-colors group cursor-pointer"
                     >
@@ -551,10 +557,10 @@ const ListadoPrestamosElegante = () => {
                       <td className="px-6 py-4">
                         <span className={cn(
                           "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold tracking-wide uppercase border",
-                          getEstadoColor(prestamo.estado)
+                          getEstadoColor(estadoUI)
                         )}>
-                          {getEstadoIcono(prestamo.estado)}
-                          {prestamo.estado.replace(/_/g, ' ')}
+                          {getEstadoIcono(estadoUI)}
+                          {String(estadoUI || '').replace(/_/g, ' ')}
                         </span>
                       </td>
                       <td className="px-6 py-4 text-right font-bold text-slate-900">
@@ -626,7 +632,8 @@ const ListadoPrestamosElegante = () => {
                         </div>
                       </td>
                     </tr>
-                  ))
+                    )
+                  })
                 ) : (
                   <tr>
                     <td colSpan={7} className="py-16 text-center">
@@ -677,7 +684,13 @@ const ListadoPrestamosElegante = () => {
               </div>
             ))
           ) : prestamosPaginados.length > 0 ? (
-            prestamosPaginados.map((prestamo) => (
+            prestamosPaginados.map((prestamo) => {
+              const diasMora = Number((prestamo as any)?.diasMora || 0)
+              const estadoUI = (String(prestamo.estado || '').toUpperCase() === 'EN_MORA' && diasMora <= 0)
+                ? 'ACTIVO'
+                : prestamo.estado
+
+              return (
               <div
                 key={prestamo.id}
                 className="bg-white rounded-2xl border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-4 hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all"
@@ -691,10 +704,10 @@ const ListadoPrestamosElegante = () => {
                   </div>
                   <span className={cn(
                     "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold tracking-wide uppercase border flex-shrink-0 ml-2",
-                    getEstadoColor(prestamo.estado)
+                    getEstadoColor(estadoUI)
                   )}>
-                    {getEstadoIcono(prestamo.estado)}
-                    {prestamo.estado.replace(/_/g, ' ')}
+                    {getEstadoIcono(estadoUI)}
+                    {String(estadoUI || '').replace(/_/g, ' ')}
                   </span>
                 </div>
 
@@ -781,7 +794,8 @@ const ListadoPrestamosElegante = () => {
                   ) : null}
                 </div>
               </div>
-            ))
+              )
+            })
           ) : (
             <div className="bg-white rounded-2xl border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-8">
               <div className="flex flex-col items-center gap-3 text-center">

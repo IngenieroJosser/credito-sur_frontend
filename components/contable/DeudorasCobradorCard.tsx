@@ -25,12 +25,11 @@ function parseCOP(val: string): number {
 type AbonoModalProps = {
   cobrador: DeudaCobrador
   onClose: () => void
-  onConfirm: (cobradorId: string, monto: number, nota: string) => Promise<void>
+  onConfirm: (cobradorId: string, monto: number) => Promise<void>
 }
 
 function AbonoModal({ cobrador, onClose, onConfirm }: AbonoModalProps) {
   const [valorInput, setValorInput] = useState('')
-  const [nota, setNota] = useState('')
   const [loading, setLoading] = useState(false)
   const monto = parseCOP(valorInput)
   const valido = monto > 0 && monto <= cobrador.totalDeuda
@@ -39,7 +38,7 @@ function AbonoModal({ cobrador, onClose, onConfirm }: AbonoModalProps) {
     if (!valido) return
     setLoading(true)
     try {
-      await onConfirm(cobrador.cobradorId, monto, nota)
+      await onConfirm(cobrador.cobradorId, monto)
       onClose()
     } finally {
       setLoading(false)
@@ -47,8 +46,14 @@ function AbonoModal({ cobrador, onClose, onConfirm }: AbonoModalProps) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4">
-      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm border border-slate-100 overflow-hidden">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4"
+      onClick={onClose}
+    >
+      <div
+        className="bg-white rounded-3xl shadow-2xl w-full max-w-sm border border-slate-100 overflow-hidden"
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="px-6 pt-6 pb-4 flex items-center justify-between border-b border-slate-100">
           <div>
             <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Registrar Abono</p>
@@ -80,19 +85,6 @@ function AbonoModal({ cobrador, onClose, onConfirm }: AbonoModalProps) {
             {monto > cobrador.totalDeuda && (
               <p className="text-[10px] text-rose-500 font-bold mt-1 ml-1">El abono no puede superar la deuda actual</p>
             )}
-          </div>
-
-          <div>
-            <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest block mb-1.5">
-              Concepto / Nota (Opcional)
-            </label>
-            <input
-              type="text"
-              placeholder="Ej: Descuento nómina semana 14..."
-              value={nota}
-              onChange={e => setNota(e.target.value)}
-              className="w-full text-sm text-slate-700 border border-slate-200 rounded-xl px-4 py-2.5 outline-none focus:ring-2 focus:ring-emerald-300 transition-all bg-slate-50"
-            />
           </div>
 
           {valido && (
@@ -150,9 +142,9 @@ export default function DeudorasCobradorCard() {
 
   useEffect(() => { cargar() }, [cargar])
 
-  const handleAbono = async (cobradorId: string, monto: number, nota: string) => {
+  const handleAbono = async (cobradorId: string, monto: number) => {
     try {
-      await registrarAbonoDeudaCobrador(cobradorId, monto, nota);
+      await registrarAbonoDeudaCobrador(cobradorId, monto, '');
       showNotification('success', 'Abono registrado correctamente', 'Éxito');
       await cargar();
     } catch (error) {

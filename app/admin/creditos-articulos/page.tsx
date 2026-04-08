@@ -59,7 +59,9 @@ export default function CreditosArticulosPage() {
         fechaInicio: p.fechaInicio || '',
         fechaVencimiento: p.fechaFin || p.fechaVencimiento || '',
         proximoPago: p.proximoPago || '',
-        estado: p.estado || 'ACTIVO',
+        estado: (String(p.estado || 'ACTIVO').toUpperCase() === 'EN_MORA' && Number(p.diasMora || 0) <= 0)
+          ? 'ACTIVO'
+          : (p.estado || 'ACTIVO'),
         tasaInteres: p.tasaInteres || 0,
         diasMora: p.diasMora || 0,
         moraAcumulada: p.moraAcumulada || 0,
