@@ -4,7 +4,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { Calendar, User, FileText, TrendingUp, Package, Image as ImageIcon, ChevronRight, ChevronLeft, Clock, BarChart3, AlertTriangle } from 'lucide-react';
 import { formatCurrency, cn, resolveMediaUrl } from '@/lib/utils';
 import ClientePortalModal from '@/components/cliente/ClientePortalModal';
-import { normalizeDateKey } from '@/lib/rutas-core'
+import { getBogotaDateKey, normalizeDateKey } from '@/lib/rutas-core'
 // imports de permiso/servicios de mora removidos: la asignación se hace en Cuentas en Mora
 
 const formatDate = (dateStr: string | undefined | null): string => {
@@ -134,18 +134,58 @@ export default function DetallePrestamo({ prestamo }: DetallePrestamoProps) {
   useEffect(() => {
     setNowTs(Date.now());
   }, []);
+
+  const hoyBogotaKey = useMemo(() => getBogotaDateKey(new Date()), [])
+
   const diasMora = useMemo(() => {
-    const vencidas = prestamo.cuotas.filter((c) => (c.estado || '').toUpperCase().startsWith('VENC'));
-    if (vencidas.length === 0) return 0;
-    if (!nowTs) return 0;
-    const oldest = vencidas.reduce((min, c) => {
-      const ct = new Date(c.fecha).getTime();
-      const mt = new Date(min.fecha).getTime();
-      return ct < mt ? c : min;
-    }, vencidas[0]);
-    const diff = Math.floor((nowTs - new Date(oldest.fecha).getTime()) / (1000 * 60 * 60 * 24));
-    return diff > 0 ? diff : 0;
-  }, [prestamo.cuotas, nowTs]);
+    const vencidas = prestamo.cuotas.filter((c) => {
+      const st = String(c.estado || '').toUpperCase()
+      if (st === 'PAGADA' || st === 'PAGADO' || st === 'ANULADA' || st === 'ANULADO') return false
+      const vtoKey = normalizeDateKey(c.fecha)
+      return !!vtoKey && !!hoyBogotaKey && vtoKey < hoyBogotaKey
+    })
+    if (vencidas.length === 0) return 0
+    if (!nowTs) return 0
+    const oldestKey = vencidas
+      .map((c) => normalizeDateKey(c.fecha))
+      .filter(Boolean)
+      .reduce((min, k) => (k < min ? k : min), normalizeDateKey(vencidas[0].fecha))
+
+    if (!oldestKey) return 0
+    const [y, m, d] = oldestKey.split('-').map(Number)
+    const oldestTs = new Date(y, m - 1, d, 0, 0, 0, 0).getTime()
+    const diff = Math.floor((nowTs - oldestTs) / (1000 * 60 * 60 * 24))
+    return diff > 0 ? diff : 0
+  }, [prestamo.cuotas, nowTs, hoyBogotaKey]);
+
+  const estadoPrestamoUI = useMemo(() => {
+    const st = String(prestamo.estado || '').toUpperCase()
+    if (st === 'EN_MORA' && Number(diasMora || 0) <= 0) return 'ACTIVO'
+    return prestamo.estado
+  }, [prestamo.estado, diasMora])
+
+  const cuotasConSaldoUI = useMemo(() => {
+    return (cuotasConSaldo || []).map((c: any) => {
+      const st = String(c?.estado || '').toUpperCase()
+      const vtoKey = normalizeDateKey(c?.fecha)
+      const esVencidaUI = (st === 'VENCIDA' || st === 'VENCIDO') && vtoKey && hoyBogotaKey && vtoKey === hoyBogotaKey
+      return {
+        ...c,
+        estadoUI: esVencidaUI ? 'PENDIENTE' : c.estado,
+      }
+    })
+  }, [cuotasConSaldo, hoyBogotaKey]);
+
+  const cuotaActualUI = useMemo(() => {
+    if (!cuotaActual) return cuotaActual
+    const st = String((cuotaActual as any)?.estado || '').toUpperCase()
+    const vtoKey = normalizeDateKey((cuotaActual as any)?.fecha)
+    const esVencidaUI = (st === 'VENCIDA' || st === 'VENCIDO') && vtoKey && hoyBogotaKey && vtoKey === hoyBogotaKey
+    return {
+      ...(cuotaActual as any),
+      estadoUI: esVencidaUI ? 'PENDIENTE' : (cuotaActual as any).estado,
+    }
+  }, [cuotaActual, hoyBogotaKey])
   // No mostrar monto sugerido de mora aquí; se asigna desde Cuentas en Mora
 
   return (
@@ -176,8 +216,8 @@ export default function DetallePrestamo({ prestamo }: DetallePrestamoProps) {
                    </button>
                 </div>
              </div>
-             <span className={cn("px-4 py-1.5 rounded-full text-xs font-black tracking-widest uppercase border", getEstadoColor(prestamo.estado))}>
-                {prestamo.estado === 'PENDIENTE_APROBACION' ? 'Pendiente de Aprobación' : (prestamo.estado || '').replace(/_/g, ' ')}
+             <span className={cn("px-4 py-1.5 rounded-full text-xs font-black tracking-widest uppercase border", getEstadoColor(estadoPrestamoUI))}>
+                {estadoPrestamoUI === 'PENDIENTE_APROBACION' ? 'Pendiente de Aprobación' : (String(estadoPrestamoUI || '')).replace(/_/g, ' ')}
              </span>
           </div>
 
@@ -401,17 +441,17 @@ export default function DetallePrestamo({ prestamo }: DetallePrestamoProps) {
                         <h4 className="text-xs font-bold text-slate-500 uppercase tracking-widest">
                           {prestamo.tipoAmortizacion === 'FRANCESA' ? 'Amortización' : 'Plan de Pagos'}
                         </h4>
-                        <p className="text-sm font-bold text-slate-900">Cuota #{cuotaActual.numero} de {totalCuotas}</p>
+                        <p className="text-sm font-bold text-slate-900">Cuota #{cuotaActualUI?.numero} de {totalCuotas}</p>
                       </div>
                     </div>
                     <span className={cn(
                       "px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wide",
-                      (cuotaActual.estado === 'VENCIDO' || cuotaActual.estado === 'VENCIDA') ? 'bg-rose-100 text-rose-700 border border-rose-200' :
-                      cuotaActual.estado === 'PARCIAL' ? 'bg-amber-100 text-amber-700 border border-amber-200' :
-                      (cuotaActual.estado === 'PAGADO' || cuotaActual.estado === 'PAGADA') ? 'bg-emerald-100 text-emerald-700 border border-emerald-200' :
+                      (cuotaActualUI?.estadoUI === 'VENCIDO' || cuotaActualUI?.estadoUI === 'VENCIDA') ? 'bg-rose-100 text-rose-700 border border-rose-200' :
+                      cuotaActualUI?.estadoUI === 'PARCIAL' ? 'bg-amber-100 text-amber-700 border border-amber-200' :
+                      (cuotaActualUI?.estadoUI === 'PAGADO' || cuotaActualUI?.estadoUI === 'PAGADA') ? 'bg-emerald-100 text-emerald-700 border border-emerald-200' :
                       'bg-blue-100 text-blue-700 border border-blue-200'
                     )}>
-                      {(cuotaActual.estado === 'PAGADO' || cuotaActual.estado === 'PAGADA') ? 'Completado' : (cuotaActual.estado === 'VENCIDO' || cuotaActual.estado === 'VENCIDA') ? 'Vencida' : 'Próxima cuota'}
+                      {(cuotaActualUI?.estadoUI === 'PAGADO' || cuotaActualUI?.estadoUI === 'PAGADA') ? 'Completado' : (cuotaActualUI?.estadoUI === 'VENCIDO' || cuotaActualUI?.estadoUI === 'VENCIDA') ? 'Vencida' : 'Próxima cuota'}
                     </span>
                   </div>
 
@@ -470,7 +510,7 @@ export default function DetallePrestamo({ prestamo }: DetallePrestamoProps) {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-slate-100">
-                {cuotasConSaldo.map((cuota) => {
+                {cuotasConSaldoUI.map((cuota: any) => {
                     const esCuotaActual = cuotaActual && cuota.numero === cuotaActual.numero;
                     return (
                   <tr key={cuota.numero} className={cn(
@@ -499,8 +539,8 @@ export default function DetallePrestamo({ prestamo }: DetallePrestamoProps) {
                       {formatCurrency(cuota.saldoRestante)}
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap">
-                      <span className={cn("px-2.5 py-1 rounded-full text-[10px] font-black tracking-wide uppercase border", getCuotaEstadoColor(cuota.estado))}>
-                        {cuota.estado}
+                      <span className={cn("px-2.5 py-1 rounded-full text-[10px] font-black tracking-wide uppercase border", getCuotaEstadoColor(cuota.estadoUI))}>
+                        {cuota.estadoUI}
                       </span>
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap text-xs font-bold text-slate-500">

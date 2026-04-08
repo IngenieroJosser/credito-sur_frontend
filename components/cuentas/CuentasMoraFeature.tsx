@@ -473,6 +473,7 @@ export default function CuentasMoraFeature() {
                   {cuentas.map(cuenta => {
                     const nivel = (cuenta.etiquetaMora || calcularNivelMora(cuenta.diasMora)) as NivelMoraKey
                     const cfg = NIVEL_COLORS[nivel]
+                    const cuotasVencidasUI = (cuenta.diasMora || 0) > 0 ? (cuenta.cuotasVencidas || 0) : 0
                     return (
                       <tr key={cuenta.id} className="hover:bg-slate-50/50 transition-colors group">
                         <td className="px-6 py-4">
@@ -492,7 +493,7 @@ export default function CuentasMoraFeature() {
                               <NivelIcon nivel={nivel} className="h-3 w-3" />
                               {NIVEL_LABEL[nivel] ?? nivel} · {cuenta.diasMora}d
                             </span>
-                            <span className="text-[10px] text-slate-400 font-medium">{cuenta.cuotasVencidas} cuota{cuenta.cuotasVencidas !== 1 ? 's' : ''} vencida{cuenta.cuotasVencidas !== 1 ? 's' : ''}</span>
+                            <span className="text-[10px] text-slate-400 font-medium">{cuotasVencidasUI} cuota{cuotasVencidasUI !== 1 ? 's' : ''} vencida{cuotasVencidasUI !== 1 ? 's' : ''}</span>
                           </div>
                         </td>
                         <td className="px-6 py-4">
@@ -548,6 +549,7 @@ export default function CuentasMoraFeature() {
             {cuentas.map(cuenta => {
               const nivel = (cuenta.etiquetaMora || calcularNivelMora(cuenta.diasMora)) as NivelMoraKey
               const cfg = NIVEL_COLORS[nivel]
+              const cuotasVencidasUI = (cuenta.diasMora || 0) > 0 ? (cuenta.cuotasVencidas || 0) : 0
               return (
                 <div key={cuenta.id} className="bg-white rounded-2xl border border-slate-200 shadow-sm hover:shadow-lg hover:-translate-y-1 transition-all duration-300 overflow-hidden flex flex-col group">
                   <div className={cn('h-1 w-full', cfg?.bar)} />
@@ -568,7 +570,7 @@ export default function CuentasMoraFeature() {
                       <Clock className="h-4 w-4 text-slate-400" />
                       <span className="font-bold text-slate-700">{cuenta.diasMora} dias en mora</span>
                       <span className="text-slate-400">·</span>
-                      <span className="text-slate-500 text-xs">{cuenta.cuotasVencidas} cuota{cuenta.cuotasVencidas !== 1 ? 's' : ''}</span>
+                      <span className="text-slate-500 text-xs">{cuotasVencidasUI} cuota{cuotasVencidasUI !== 1 ? 's' : ''}</span>
                     </div>
 
                     <div className="grid grid-cols-2 gap-3">

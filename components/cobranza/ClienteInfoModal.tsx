@@ -115,6 +115,11 @@ export default function ClienteInfoModal({
     visita.nivelRiesgo === 'critico'   ? 'bg-red-100 text-red-700' :
     'bg-slate-100 text-slate-600'
 
+  const cuotaProyectada =
+    visita.estado === 'en_mora'
+      ? (visita.montoCuota ?? 0)
+      : (nextPagoMonto ?? visita.montoCuota ?? 0)
+
   // ── Render ───────────────────────────────────────────────────────────────────
 
   return (
@@ -286,7 +291,7 @@ export default function ClienteInfoModal({
                   <div>
                     <p className="text-[10px] text-slate-500 font-black uppercase mb-0.5">Cuota Proyectada</p>
                     <p className="text-slate-900 font-black text-lg">
-                      {formatCurrency(nextPagoMonto ?? visita.montoCuota ?? 0)}
+                      {formatCurrency(cuotaProyectada)}
                     </p>
                   </div>
 

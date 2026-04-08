@@ -6,7 +6,7 @@ import {
   ShieldAlert, AlertTriangle, Minus, Plus, Check, X
 } from 'lucide-react'
 import { formatCurrency, cn } from '@/lib/utils'
-import { getDeudoresCobrador, registrarAbonoDeudaCobrador, type DeudaCobrador } from '@/services/contabilidad-service'
+import { getCajas, getDeudoresCobrador, registrarAbonoDeudaCobrador, type DeudaCobrador } from '@/services/contabilidad-service'
 import { useAuth } from '@/hooks/useAuth'
 import { useNotification } from '@/components/providers/NotificationProvider'
 
@@ -25,12 +25,14 @@ function parseCOP(val: string): number {
 type AbonoModalProps = {
   cobrador: DeudaCobrador
   onClose: () => void
-  onConfirm: (cobradorId: string, monto: number, nota: string) => Promise<void>
+  cajas: Array<{ id: string; nombre: string; codigo?: string }>
+  onConfirm: (cobradorId: string, monto: number, cajaIdDestino?: string) => Promise<void>
 }
 
-function AbonoModal({ cobrador, onClose, onConfirm }: AbonoModalProps) {
+function AbonoModal({ cobrador, onClose, onConfirm, cajas }: AbonoModalProps) {
   const [valorInput, setValorInput] = useState('')
-  const [nota, setNota] = useState('')
+  const cajaPrincipal = cajas.find((c) => String(c.codigo || '').toUpperCase() === 'CAJA-PRINCIPAL')
+  const [cajaIdDestino, setCajaIdDestino] = useState<string>(cajaPrincipal?.id || '')
   const [loading, setLoading] = useState(false)
   const monto = parseCOP(valorInput)
   const valido = monto > 0 && monto <= cobrador.totalDeuda
@@ -39,7 +41,7 @@ function AbonoModal({ cobrador, onClose, onConfirm }: AbonoModalProps) {
     if (!valido) return
     setLoading(true)
     try {
-      await onConfirm(cobrador.cobradorId, monto, nota)
+      await onConfirm(cobrador.cobradorId, monto, cajaIdDestino ? cajaIdDestino : undefined)
       onClose()
     } finally {
       setLoading(false)
@@ -47,8 +49,14 @@ function AbonoModal({ cobrador, onClose, onConfirm }: AbonoModalProps) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4">
-      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm border border-slate-100 overflow-hidden">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4"
+      onClick={onClose}
+    >
+      <div
+        className="bg-white rounded-3xl shadow-2xl w-full max-w-sm border border-slate-100 overflow-hidden"
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="px-6 pt-6 pb-4 flex items-center justify-between border-b border-slate-100">
           <div>
             <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Registrar Abono</p>
@@ -82,25 +90,30 @@ function AbonoModal({ cobrador, onClose, onConfirm }: AbonoModalProps) {
             )}
           </div>
 
-          <div>
-            <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest block mb-1.5">
-              Concepto / Nota (Opcional)
-            </label>
-            <input
-              type="text"
-              placeholder="Ej: Descuento nómina semana 14..."
-              value={nota}
-              onChange={e => setNota(e.target.value)}
-              className="w-full text-sm text-slate-700 border border-slate-200 rounded-xl px-4 py-2.5 outline-none focus:ring-2 focus:ring-emerald-300 transition-all bg-slate-50"
-            />
-          </div>
-
           {valido && (
             <div className="flex items-center justify-between p-3 bg-emerald-50 rounded-xl border border-emerald-100">
               <span className="text-xs text-emerald-600 font-bold">Deuda restante</span>
               <span className="text-sm font-black text-emerald-700">{formatCurrency(cobrador.totalDeuda - monto)}</span>
             </div>
           )}
+
+          <div>
+            <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest block mb-1.5">
+              Caja destino
+            </label>
+            <select
+              value={cajaIdDestino}
+              onChange={(e) => setCajaIdDestino(e.target.value)}
+              disabled={!cajas.length}
+              className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-xs font-bold text-slate-700 shadow-sm focus:border-emerald-400 focus:ring-4 focus:ring-emerald-300/20 outline-none transition-all"
+            >
+              {cajas.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.nombre}{c.codigo ? ` (${c.codigo})` : ''}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
 
         <div className="px-6 pb-6 flex gap-3">
@@ -133,10 +146,19 @@ export default function DeudorasCobradorCard() {
   const puedeAbonar = ['SUPER_ADMINISTRADOR', 'ADMIN', 'COORDINADOR', 'CONTADOR'].includes(rol ?? '')
 
   const [deudores, setDeudores] = useState<DeudaCobrador[]>([])
+  const [cajas, setCajas] = useState<Array<{ id: string; nombre: string; codigo?: string }>>([])
   const [loading, setLoading] = useState(true)
   const [expanded, setExpanded] = useState(true)
   const [expandedRow, setExpandedRow] = useState<string | null>(null)
   const [modalAbono, setModalAbono] = useState<DeudaCobrador | null>(null)
+  const [ultimoAbono, setUltimoAbono] = useState<{
+    cobradorId: string
+    nombre: string
+    monto: number
+    saldoAnterior: number
+    saldoNuevo: number
+    cajaNombre?: string
+  } | null>(null)
 
   const cargar = useCallback(async () => {
     setLoading(true)
@@ -150,9 +172,58 @@ export default function DeudorasCobradorCard() {
 
   useEffect(() => { cargar() }, [cargar])
 
-  const handleAbono = async (cobradorId: string, monto: number, nota: string) => {
+  useEffect(() => {
+    let mounted = true
+    ;(async () => {
+      try {
+        const arr = await getCajas()
+        if (!mounted) return
+        setCajas((Array.isArray(arr) ? arr : []).map((c: any) => ({
+          id: c.id,
+          nombre: c.nombre,
+          codigo: c.codigo,
+        })))
+      } catch {
+        if (!mounted) return
+        setCajas([])
+      }
+    })()
+    return () => {
+      mounted = false
+    }
+  }, [])
+
+  const handleAbono = async (cobradorId: string, monto: number, cajaIdDestino?: string) => {
     try {
-      await registrarAbonoDeudaCobrador(cobradorId, monto, nota);
+      const snapshot = deudores.find((d) => d.cobradorId === cobradorId)
+      const saldoAnterior = Number(snapshot?.totalDeuda || 0)
+      const saldoNuevo = Math.max(0, saldoAnterior - Number(monto || 0))
+      const cajaNombre = cajaIdDestino
+        ? (cajas.find((c) => c.id === cajaIdDestino)?.nombre || 'Caja')
+        : (cajas.find((c) => String(c.codigo || '').toUpperCase() === 'CAJA-PRINCIPAL')?.nombre || 'Caja Principal')
+
+      // Optimista: actualizar UI de inmediato (y si quedó en 0, sacarlo de la lista)
+      setDeudores((prev) => {
+        const next = prev
+          .map((d) => (d.cobradorId === cobradorId ? { ...d, totalDeuda: saldoNuevo } : d))
+          .filter((d) => Math.round(Number(d.totalDeuda || 0)) > 0)
+        return next
+      })
+
+      await registrarAbonoDeudaCobrador(cobradorId, monto, '', cajaIdDestino);
+
+      if (snapshot) {
+        setUltimoAbono({
+          cobradorId,
+          nombre: snapshot.nombreCobrador,
+          monto,
+          saldoAnterior,
+          saldoNuevo,
+          cajaNombre,
+        })
+        window.setTimeout(() => setUltimoAbono(null), 6500)
+      }
+
       showNotification('success', 'Abono registrado correctamente', 'Éxito');
       await cargar();
     } catch (error) {
@@ -160,11 +231,33 @@ export default function DeudorasCobradorCard() {
     }
   }
 
-  const totalGlobal = deudores.reduce((sum, d) => sum + d.totalDeuda, 0)
+  const deudoresActivos = deudores.filter((d) => Math.round(Number(d?.totalDeuda || 0)) > 0)
+  const totalGlobal = deudoresActivos.reduce((sum, d) => sum + Number(d.totalDeuda || 0), 0)
 
   return (
     <>
       <div className="rounded-2xl bg-white/80 backdrop-blur-sm border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden">
+
+        {ultimoAbono && (
+          <div className="px-6 py-4 border-b border-slate-100 bg-emerald-50/60">
+            <div className="flex items-start gap-3">
+              <div className="mt-0.5 h-8 w-8 rounded-full bg-emerald-100 border border-emerald-200 flex items-center justify-center shrink-0">
+                <Check className="h-4 w-4 text-emerald-700" />
+              </div>
+              <div className="min-w-0">
+                <div className="text-xs font-black text-emerald-900 truncate">
+                  {ultimoAbono.saldoNuevo <= 0 ? 'Deuda saldada' : 'Abono registrado'} — {ultimoAbono.nombre}
+                </div>
+                <div className="mt-0.5 text-[10px] font-bold text-emerald-800/80">
+                  Abono: {formatCurrency(ultimoAbono.monto)} · Caja: {ultimoAbono.cajaNombre || 'Caja Principal'}
+                </div>
+                <div className="mt-0.5 text-[10px] font-bold text-slate-500">
+                  Saldo: {formatCurrency(ultimoAbono.saldoAnterior)} → {formatCurrency(ultimoAbono.saldoNuevo)}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Header */}
         <button
@@ -183,9 +276,9 @@ export default function DeudorasCobradorCard() {
               <p className="text-[10px] text-slate-400 font-medium mt-0.5">
                 {loading
                   ? 'Calculando...'
-                  : deudores.length === 0
+                  : deudoresActivos.length === 0
                   ? 'Sin deudas pendientes'
-                  : `${deudores.length} colaborador(es) · Total: ${formatCurrency(totalGlobal)}`}
+                  : `${deudoresActivos.length} colaborador(es) · Total: ${formatCurrency(totalGlobal)}`}
               </p>
             </div>
           </div>
@@ -214,7 +307,7 @@ export default function DeudorasCobradorCard() {
                 <RefreshCw className="h-4 w-4 animate-spin" />
                 <span className="text-xs font-bold">Cargando deudas...</span>
               </div>
-            ) : deudores.length === 0 ? (
+            ) : deudoresActivos.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-10 gap-3">
                 <div className="p-4 bg-emerald-50 rounded-2xl border border-emerald-100">
                   <ShieldAlert className="h-7 w-7 text-emerald-400" />
@@ -226,7 +319,7 @@ export default function DeudorasCobradorCard() {
               </div>
             ) : (
               <div className="space-y-2">
-                {deudores.map((d) => (
+                {deudoresActivos.map((d) => (
                   <div key={d.cobradorId} className="border border-slate-100 rounded-xl overflow-hidden">
 
                     {/* Fila del cobrador */}
@@ -314,6 +407,7 @@ export default function DeudorasCobradorCard() {
         <AbonoModal
           cobrador={modalAbono}
           onClose={() => setModalAbono(null)}
+          cajas={cajas}
           onConfirm={handleAbono}
         />
       )}
