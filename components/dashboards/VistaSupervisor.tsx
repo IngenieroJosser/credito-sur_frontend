@@ -1,16 +1,12 @@
 'use client'
 
-import Link from 'next/link'
 import { useState, type ReactNode, useMemo, useEffect, useCallback } from 'react'
 import { useRealtimeData } from '@/hooks/useRealtimeData'
 
 import {
   AlertCircle,
-  ArrowRight,
   Calendar,
-  Clock,
   Eye,
-  Filter,
   Map,
   Plus,
   RefreshCw,
@@ -34,7 +30,6 @@ import { formatErrorForComponent } from '@/lib/api/api'
 
 import PagoModal from '@/components/dashboards/shared/PagoModal'
 import CrearCreditoModal from '@/components/dashboards/shared/CrearCreditoModal'
-import DetalleMoraModal from '@/components/cobranza/DetalleMoraModal'
 import FloatingActionMenu, { FabAction } from '@/components/dashboards/shared/FloatingActionMenu'
 import { prestamosService } from '@/services/prestamos-service'
 import { exportService } from '@/services/export-service'
@@ -53,28 +48,9 @@ interface MetricCard {
   trendData: number[]
 }
 
-interface DelinquentClient {
-  id: string
-  client: string
-  route: string
-  collector: string
-  daysLate: number
-  amountDue: number
-  status: 'critical' | 'moderate' | 'mild'
-}
-
-interface CollectorPerformance {
-  id: string
-  name: string
-  route: string
-  collected: number
-  effectiveness: number
-  trend: 'up' | 'down'
-}
-
 const VistaSupervisor = () => {
   const { user } = useAuth()
-  const [timeFilter, setTimeFilter] = useState<TimeFilterPeriod>('month')
+  const [timeFilter, setTimeFilter] = useState<TimeFilterPeriod>('today')
   const currentDate = new Date()
 
   const [dashboardData, setDashboardData] = useState<DashboardData | null>(null)
@@ -94,9 +70,6 @@ const VistaSupervisor = () => {
     montoCuota: number;
     saldoTotal: number;
   } | undefined>(undefined)
-  
-  const [showMoraModal, setShowMoraModal] = useState(false)
-  const [selectedMoraClient, setSelectedMoraClient] = useState<DelinquentClient | null>(null)
   
   const router = useRouter()
 
@@ -203,13 +176,6 @@ const VistaSupervisor = () => {
     return date.toLocaleDateString('es-CO', options)
   }
 
-
-  const getStatusColor = (status: DelinquentClient['status']) => {
-    if (status === 'critical') return '#ef4444'
-    if (status === 'moderate') return '#fb851b'
-    return '#10b981'
-  }
-
   const mainMetrics: MetricCard[] = useMemo(() => {
     if (!dashboardData) return []
     const metrics = dashboardData.metrics
@@ -263,31 +229,6 @@ const VistaSupervisor = () => {
       },
     ]
   }, [dashboardData, timeFilter])
-
-  const delinquentClients: DelinquentClient[] = useMemo(() => {
-    if (!dashboardData) return []
-    return (dashboardData.delinquentAccounts || []).map((account) => ({
-      id: account.id,
-      client: account.client,
-      route: account.route,
-      collector: account.collector,
-      daysLate: account.daysLate,
-      amountDue: account.amountDue,
-      status: account.status,
-    }))
-  }, [dashboardData])
-
-  const collectors: CollectorPerformance[] = useMemo(() => {
-    if (!dashboardData?.topCollectors) return []
-    return dashboardData.topCollectors.map((collector, index) => ({
-      id: String(index),
-      name: collector.name,
-      route: 'Por asignar',
-      collected: collector.collected,
-      effectiveness: collector.efficiency,
-      trend: collector.trend,
-    }))
-  }, [dashboardData])
 
   if (loading && !dashboardData) {
     return (
@@ -354,21 +295,15 @@ const VistaSupervisor = () => {
             </div>
 
             <div className="flex items-center gap-3">
-              <button
-                onClick={handleRefresh}
-                className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-lg hover:border-gray-300 transition-colors disabled:opacity-50"
-                disabled={refreshing}
-              >
-                <RefreshCw className={`h-4 w-4 text-gray-500 ${refreshing ? 'animate-spin' : ''}`} />
-                <span className="text-sm text-gray-600">Actualizar</span>
-              </button>
               <ExportButton label="Exportar" onExportExcel={handleExportExcel} onExportPDF={handleExportPDF} />
             </div>
           </div>
 
-          <div className="mt-4">
-            <TimeFilter activePeriod={timeFilter} onPeriodChange={setTimeFilter} />
-          </div>
+          <TimeFilter
+            activePeriod={timeFilter}
+            onPeriodChange={setTimeFilter}
+            className="mt-6"
+          />
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 mb-8">
@@ -445,155 +380,10 @@ const VistaSupervisor = () => {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-          <div className="bg-white border border-gray-100 rounded-xl p-6">
-            <div className="flex items-center justify-between mb-6">
-              <div>
-                <h2 className="text-lg font-light text-gray-800">Clientes Atrasados</h2>
-                <p className="text-sm text-gray-500">Prioriza la mora crítica y gestiona en campo</p>
-              </div>
-              <div className="flex items-center gap-2">
-                <Filter className="h-5 w-5 text-gray-400" />
-                <Link href="/supervisor/clientes" className="text-sm text-gray-500 hover:text-gray-700 transition-colors">
-                  Ver módulo <ArrowRight className="inline h-4 w-4 ml-1" />
-                </Link>
-              </div>
-            </div>
-
-            <div className="space-y-3">
-              {delinquentClients.map((client) => (
-                <div
-                  key={client.id}
-                  className="flex items-center justify-between p-4 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 transition-colors group"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="h-3 w-3 rounded-full" style={{ backgroundColor: getStatusColor(client.status) }} />
-                    <div>
-                      <div className="text-sm font-bold text-slate-900">{client.client}</div>
-                      <div className="text-xs font-medium text-slate-500">Ruta: {client.route} · Cobrador: {client.collector}</div>
-                    </div>
-                  </div>
-                  <div className="flex flex-col items-end gap-2">
-                    <div className="text-right">
-                      <div className="text-sm font-bold text-slate-900">{formatCurrency(client.amountDue)}</div>
-                      <div className="text-xs font-bold text-slate-500">{client.daysLate} días</div>
-                    </div>
-                    <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <button 
-                        onClick={() => {
-                          setPagoInitialIsAbono(true)
-                          setSelectedVisitaForPago({
-                            id: String(client.id),
-                            cliente: client.client,
-                            direccion: 'Dirección no disponible',
-                            montoCuota: client.amountDue / 10,
-                            saldoTotal: client.amountDue * 2
-                          })
-                          setShowPagoModal(true)
-                        }}
-                        className="p-1 px-2 text-[10px] font-bold bg-orange-100 text-orange-700 rounded transition-colors hover:bg-orange-200 flex items-center gap-1"
-                      >
-                        <RefreshCw className="h-2.5 w-2.5" />
-                        Abonar
-                      </button>
-                      <button 
-                        onClick={() => {
-                          setPagoInitialIsAbono(false)
-                          setSelectedVisitaForPago({
-                            id: String(client.id),
-                            cliente: client.client,
-                            direccion: 'Dirección no disponible',
-                            montoCuota: client.amountDue,
-                            saldoTotal: client.amountDue * 2
-                          })
-                          setShowPagoModal(true)
-                        }}
-                        className="p-1 px-2 text-[10px] font-bold bg-blue-100 text-blue-700 rounded transition-colors hover:bg-blue-200 flex items-center gap-1"
-                      >
-                        <DollarSign className="h-2.5 w-2.5" />
-                        Pagar
-                      </button>
-                      <button 
-                        onClick={() => {
-                          setSelectedMoraClient(client)
-                          setShowMoraModal(true)
-                        }}
-                        className="p-1 px-2 text-[10px] font-bold bg-slate-100 text-slate-700 rounded transition-colors hover:bg-slate-200 flex items-center gap-1"
-                      >
-                         <AlertCircle className="h-2.5 w-2.5" />
-                         Gestionar
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="bg-white border border-gray-100 rounded-xl p-6">
-            <div className="flex items-center justify-between mb-6">
-              <div>
-                <h2 className="text-lg font-light text-gray-800">Rendimiento</h2>
-                <p className="text-sm text-gray-500">Cobradores por ruta</p>
-              </div>
-              <div className="flex items-center gap-2 text-sm text-gray-500">
-                <Clock className="h-4 w-4" />
-                Últimos 30 días
-              </div>
-            </div>
-
-            <div className="space-y-3">
-              {collectors.map((c) => (
-                <div
-                  key={c.id}
-                  className="flex items-center justify-between p-4 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 transition-colors"
-                >
-                  <div>
-                    <div className="text-sm font-bold text-slate-900">{c.name}</div>
-                    <div className="text-xs font-medium text-slate-500">Ruta: {c.route}</div>
-                  </div>
-                  <div className="text-right">
-                    <div className="text-sm font-bold text-slate-900">{formatCurrency(c.collected)}</div>
-                    <div className="text-xs font-bold text-slate-500">
-                      Efectividad: {c.effectiveness}% {c.trend === 'up' ? '↑' : '↓'}
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
       </div>
 
 
 
-
-      {showMoraModal && selectedMoraClient && (
-        <DetalleMoraModal
-          cuenta={{
-            id: String(selectedMoraClient.id),
-            numeroPrestamo: `P-${selectedMoraClient.id}`,
-            cliente: {
-              nombre: selectedMoraClient.client,
-              documento: 'N/A',
-              telefono: 'N/A',
-              direccion: 'N/A'
-            },
-            diasMora: selectedMoraClient.daysLate,
-            montoMora: selectedMoraClient.amountDue,
-            montoTotalDeuda: selectedMoraClient.amountDue * 1.5,
-            cuotasVencidas: Math.ceil(selectedMoraClient.daysLate / 30),
-            ruta: selectedMoraClient.route,
-            cobrador: selectedMoraClient.collector,
-            nivelRiesgo: selectedMoraClient.status === 'critical' ? 'ROJO' :
-                         selectedMoraClient.status === 'moderate' ? 'AMARILLO' : 'VERDE'
-          }}
-          onClose={() => {
-            setShowMoraModal(false)
-            setSelectedMoraClient(null)
-          }}
-        />
-      )}
 
       <PagoModal 
         isOpen={showPagoModal}

@@ -21,12 +21,12 @@ export function TimeFilter({ activePeriod, onPeriodChange, className = '' }: Tim
   return (
     <div className={className}>
       {/* Desktop View */}
-      <div className="hidden md:flex rounded-xl border border-slate-200 bg-white p-1 shadow-sm">
+      <div className="hidden md:flex rounded-xl border border-slate-200 bg-white p-1 shadow-sm w-fit">
         {periods.map((period) => (
           <button
             key={period.id}
             onClick={() => onPeriodChange(period.id)}
-            className={`px-4 py-2 text-xs font-bold rounded-lg transition-all ${
+            className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all ${
               activePeriod === period.id
                 ? 'bg-blue-600 text-white shadow-md'
                 : 'text-slate-600 hover:text-blue-600 hover:bg-blue-50'
