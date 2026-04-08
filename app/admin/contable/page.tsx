@@ -572,7 +572,7 @@ const ModuloContableContent = () => {
     let cumpleTipo = filtroTipo === 'TODOS';
     if (!cumpleTipo) {
       if (filtroTipo === 'DEUDA_COBRADOR' as any) {
-        cumpleTipo = mov.tipoReferencia === 'DEUDA_COBRADOR';
+        cumpleTipo = mov.tipoReferencia === 'DEUDA_COBRADOR' || mov.tipoReferencia === 'ABONO_DEUDA';
       } else if (filtroTipo === 'TRANSFERENCIA') {
         cumpleTipo = mov.tipo === 'TRANSFERENCIA' && mov.tipoReferencia !== 'DEUDA_COBRADOR';
       } else {
@@ -821,31 +821,6 @@ const ModuloContableContent = () => {
             </div>
         </header>
 
-        {/* Banner Informativo - Elegant Compact Version */}
-        <div className="flex justify-end">
-          <div className="inline-flex w-fit bg-white rounded-2xl p-4 shadow-lg shadow-slate-200/60 flex-col md:flex-row items-center justify-end gap-4 border border-blue-50 animate-in fade-in slide-in-from-top-4 duration-700 relative overflow-hidden group">
-            <div className="absolute right-0 top-0 w-24 h-24 bg-blue-50/50 rounded-full -mr-12 -mt-12 opacity-50 group-hover:scale-110 transition-transform duration-1000"></div>
-
-            <div className="flex items-center gap-3 px-4 py-2 bg-slate-50 rounded-xl border border-slate-100 relative z-10">
-              <div className="flex flex-col items-end">
-                <span className="text-[9px] font-bold text-orange-500 uppercase tracking-widest">Estado</span>
-                <span className="text-xs font-black text-slate-900 flex items-center gap-1.5 mt-0.5">
-                  <Clock className="h-3 w-3 text-blue-600" />
-                  {resumenData.rutasAbiertas > 0 ? `FALTAN ${resumenData.rutasAbiertas} RUTAS` : 'TODAS LAS RUTAS CERRADAS'}
-                </span>
-              </div>
-              <div className="h-6 w-10 rounded-full border-2 border-slate-200 flex items-center justify-center text-[10px] font-black text-blue-600 shadow-inner shrink-0">
-                 <div 
-                   className="absolute inset-0 border-2 border-blue-600 rounded-full" 
-                   style={{ clipPath: `inset(${100 - resumenData.porcentajeCierre}% 0 0 0)` }}
-                 ></div>
-                 {resumenData.porcentajeCierre}%
-              </div>
-            </div>
-
-          </div>
-        </div>
-
         {/* Tarjetas de Resumen Minimalistas */}
         <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-6">
           {/* Ingresos */}
@@ -1057,7 +1032,7 @@ const ModuloContableContent = () => {
               </div>
             </div>
 
-            <div className="divide-y divide-slate-100">
+            <div className="divide-y divide-slate-100 max-h-[520px] overflow-y-auto">
               {movimientosFiltrados.slice(currentPageMovimientos * 7, (currentPageMovimientos + 1) * 7).map((m) => {
                 // Determinar si es un movimiento positivo (Ingreso/Entrada) o negativo (Egreso/Salida)
                 // Nos guiamos PRINCIPALMENTE por la categoría base que se asignó al crear el movimiento

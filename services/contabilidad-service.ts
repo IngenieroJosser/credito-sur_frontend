@@ -550,12 +550,14 @@ export async function getDeudoresCobrador(): Promise<DeudaCobrador[]> {
 export async function registrarAbonoDeudaCobrador(
   cobradorId: string,
   monto: number,
-  nota: string
+  nota: string,
+  cajaIdDestino?: string,
 ): Promise<Transaccion | null> {
   try {
     return await apiRequest<Transaccion>('POST', `/accounting/deudas-cobradores/${cobradorId}/abono`, {
       monto,
-      nota
+      nota,
+      cajaIdDestino,
     });
   } catch (error) {
     logger.error('Error al registrar el abono:', error);
