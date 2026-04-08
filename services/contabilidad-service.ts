@@ -26,7 +26,7 @@ export interface Transaccion {
   id: string;
   numero: string;
   fecha: string;
-  tipo: 'INGRESO' | 'EGRESO';
+  tipo: 'INGRESO' | 'EGRESO' | 'TRANSFERENCIA';
   monto: number;
   descripcion: string;
   caja: string;
@@ -238,7 +238,7 @@ export async function getDesglosePagosCaja(cajaId: string, fecha?: string): Prom
 
 export async function getTransacciones(filtros?: {
   cajaId?: string;
-  tipo?: 'INGRESO' | 'EGRESO';
+  tipo?: 'INGRESO' | 'EGRESO' | 'TRANSFERENCIA';
   fechaInicio?: string;
   fechaFin?: string;
   page?: number;

@@ -134,12 +134,12 @@ export default function GestionarVencidaModal({ cuenta, onClose, onConfirm }: Ge
         onClick={onClose}
       />
       <div
-        className="fixed inset-0 flex items-center justify-center p-4"
+        className="fixed inset-0 flex items-end sm:items-center justify-center p-0 sm:p-4"
         style={{ zIndex: 2147483601 }}
         onClick={onClose}
       >
         <div
-          className="bg-white rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden animate-in zoom-in-95 duration-200 flex flex-col max-h-[90vh] border border-slate-100"
+          className="bg-white shadow-2xl w-full overflow-hidden animate-in zoom-in-95 duration-200 flex flex-col border border-slate-100 h-[100dvh] sm:h-auto sm:max-h-[90vh] rounded-none sm:rounded-3xl sm:max-w-lg"
           onClick={e => e.stopPropagation()}
         >
           {/* ── Header ── */}

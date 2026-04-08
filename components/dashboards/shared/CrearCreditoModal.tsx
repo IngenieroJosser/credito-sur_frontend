@@ -180,7 +180,7 @@ export default function CrearCreditoModal({ isOpen, onClose, onConfirm, defaultC
   return (
     <Portal>
       <div
-        className="fixed inset-0 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-200"
+        className="fixed inset-0 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-200"
         style={{ zIndex: MODAL_Z_INDEX }}
         onMouseDown={(e) => { mouseDownTargetRef.current = e.target }}
         onMouseUp={(e) => {
@@ -191,12 +191,14 @@ export default function CrearCreditoModal({ isOpen, onClose, onConfirm, defaultC
         }}
       >
         <div
-          className="w-full max-w-2xl bg-white rounded-3xl shadow-2xl animate-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto"
+          className="w-full bg-white shadow-2xl animate-in zoom-in-95 duration-200 h-[100dvh] sm:h-auto sm:max-h-[90vh] rounded-none sm:rounded-3xl sm:max-w-2xl overflow-y-auto"
           onClick={(e) => e.stopPropagation()}
         >
           <div className="p-6">
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="text-xl font-bold text-slate-900">Crear Nuevo Crédito</h3>
+            <div className="flex justify-between items-start mb-6">
+              <div>
+                <h3 className="text-xl font-bold text-slate-900">Crear Nuevo Crédito</h3>
+              </div>
               <button
                 type="button"
                 onClick={handleReset}

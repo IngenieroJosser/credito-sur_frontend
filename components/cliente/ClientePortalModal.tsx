@@ -207,12 +207,12 @@ export default function ClientePortalModal({ clientId, onClose, rolUsuario = 'co
   return (
     <Portal>
       <div 
-        className="fixed inset-0 flex items-center justify-center p-0 md:p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200"
+        className="fixed inset-0 flex items-end md:items-center justify-center p-0 md:p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200"
         style={{ zIndex: MODAL_Z_INDEX }}
         onClick={onClose}
       >
         <div 
-          className="w-full h-full md:h-[95vh] max-w-6xl bg-white md:rounded-3xl shadow-2xl relative flex flex-col overflow-hidden animate-in zoom-in-95 duration-200"
+          className="w-full bg-white shadow-2xl relative flex flex-col overflow-hidden animate-in zoom-in-95 duration-200 h-[100dvh] md:h-[95vh] rounded-none md:rounded-3xl md:max-w-6xl"
           onClick={(e) => e.stopPropagation()}
         >
           {/* Header del Modal */}

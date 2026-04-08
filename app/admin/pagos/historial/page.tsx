@@ -200,6 +200,19 @@ const HistorialPagosPage = () => {
   const endIdx = startIdx + ITEMS_PER_PAGE
   const pagosPaginados = pagosFiltrados.slice(startIdx, endIdx)
 
+  const kpis = (() => {
+    const count = pagosFiltrados.length
+    const total = pagosFiltrados.reduce((acc, p) => acc + Number(p.monto || 0), 0)
+    const efectivo = pagosFiltrados
+      .filter((p) => String(p.metodo || '').toUpperCase() !== 'TRANSFERENCIA')
+      .reduce((acc, p) => acc + Number(p.monto || 0), 0)
+    const transferencia = pagosFiltrados
+      .filter((p) => String(p.metodo || '').toUpperCase() === 'TRANSFERENCIA')
+      .reduce((acc, p) => acc + Number(p.monto || 0), 0)
+    const promedio = count > 0 ? total / count : 0
+    return { count, total, efectivo, transferencia, promedio }
+  })()
+
   const openDetallePago = (pagoId: string) => {
     if (!pagoId) return
     setDetallePagoId(pagoId)
@@ -268,6 +281,38 @@ const HistorialPagosPage = () => {
         </header>
 
         <section className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-700">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-[0_8px_30px_rgb(0,0,0,0.04)]">
+              <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Total Recaudado</div>
+              <div className="mt-2 text-2xl font-black tracking-tight text-slate-900 tabular-nums">{formatCurrency(kpis.total)}</div>
+              <div className="mt-2 text-xs font-medium text-slate-500">Según el período seleccionado</div>
+            </div>
+            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-[0_8px_30px_rgb(0,0,0,0.04)]">
+              <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Pagos Registrados</div>
+              <div className="mt-2 text-2xl font-black tracking-tight text-slate-900 tabular-nums">{kpis.count}</div>
+              <div className="mt-2 text-xs font-medium text-slate-500">Total de operaciones</div>
+            </div>
+            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-[0_8px_30px_rgb(0,0,0,0.04)]">
+              <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Ticket Promedio</div>
+              <div className="mt-2 text-2xl font-black tracking-tight text-slate-900 tabular-nums">{formatCurrency(kpis.promedio)}</div>
+              <div className="mt-2 text-xs font-medium text-slate-500">Promedio por pago</div>
+            </div>
+            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-[0_8px_30px_rgb(0,0,0,0.04)]">
+              <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Métodos</div>
+              <div className="mt-2 space-y-1">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="font-bold text-slate-600">Efectivo</span>
+                  <span className="font-black text-slate-900 tabular-nums">{formatCurrency(kpis.efectivo)}</span>
+                </div>
+                <div className="flex items-center justify-between text-sm">
+                  <span className="font-bold text-slate-600">Transferencia</span>
+                  <span className="font-black text-slate-900 tabular-nums">{formatCurrency(kpis.transferencia)}</span>
+                </div>
+              </div>
+              <div className="mt-2 text-xs font-medium text-slate-500">Desglose por método</div>
+            </div>
+          </div>
+
           <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
             <div className="flex flex-1 gap-3">
               <div className="relative flex-1 max-w-md">
@@ -320,12 +365,12 @@ const HistorialPagosPage = () => {
                   <Calendar className="h-4 w-4 text-slate-400" />
                   <span>
                     Hoy se han registrado{' '}
-                    <span className="font-bold text-slate-900">{pagos.length}</span> pagos
+                    <span className="font-bold text-slate-900">{pagosFiltrados.length}</span> pagos
                   </span>
                 </div>
                 <div className="flex items-center gap-2 text-[10px] font-bold text-slate-400 bg-white px-2 py-1 rounded border border-slate-200">
                   <AlertCircle className="h-3 w-3" />
-                  <span>{pagos.length} registros</span>
+                  <span>{pagosFiltrados.length} registros</span>
                 </div>
               </div>
 
@@ -344,7 +389,7 @@ const HistorialPagosPage = () => {
                   <tbody className="divide-y divide-slate-100">
                     {pagosPaginados.map((pago) => (
                       <tr
-                        key={pago.id}
+                        key={pago.pagoId}
                         className="hover:bg-slate-50/80 transition-colors group"
                         onClick={() => openDetallePago(pago.pagoId)}
                         role="button"
@@ -438,7 +483,7 @@ const HistorialPagosPage = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {pagosPaginados.map((pago) => (
                   <div 
-                    key={pago.id} 
+                    key={pago.pagoId} 
                     className="bg-white border border-slate-200 rounded-2xl p-5 hover:shadow-[0_8px_30px_rgb(0,0,0,0.12)] hover:border-slate-300 transition-all group relative overflow-hidden cursor-pointer"
                     onClick={() => openDetallePago(pago.pagoId)}
                   >

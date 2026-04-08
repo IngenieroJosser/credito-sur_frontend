@@ -81,11 +81,11 @@ export default function GestionarMoraModal({ cuenta, onClose, onConfirm }: Gesti
 
   return createPortal(
     <div
-      className="fixed inset-0 z-[2147483601] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200"
+      className="fixed inset-0 z-[2147483601] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200"
       onClick={onClose}
     >
       <div
-        className="bg-white rounded-3xl w-full max-w-lg overflow-hidden shadow-2xl border border-slate-100 animate-in zoom-in-95 duration-200 flex flex-col max-h-[90vh]"
+        className="bg-white w-full overflow-hidden shadow-2xl border border-slate-100 animate-in zoom-in-95 duration-200 flex flex-col h-[100dvh] sm:h-auto sm:max-h-[90vh] rounded-none sm:rounded-3xl sm:max-w-lg"
         onClick={e => e.stopPropagation()}
       >
         {/* ── Header ── */}

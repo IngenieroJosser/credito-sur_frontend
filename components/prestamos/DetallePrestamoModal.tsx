@@ -183,13 +183,13 @@ export default function DetallePrestamoModal({ id, onClose, includeArchived = fa
   if (!mounted) return null;
 
   return createPortal(
-    <div className="fixed inset-0 z-[2147483620] flex items-center justify-center p-4" onClick={handleClose}>
+    <div className="fixed inset-0 z-[2147483620] flex items-end sm:items-center justify-center p-0 sm:p-4" onClick={handleClose}>
       {/* Backdrop */}
       <div className={`fixed inset-0 bg-slate-900/50 backdrop-blur-sm transition-opacity duration-200 ${visible ? 'opacity-100' : 'opacity-0'}`} />
 
       {/* Centered modal panel */}
       <div
-        className={`relative w-full max-w-5xl max-h-[92vh] bg-white rounded-2xl shadow-2xl flex flex-col transition-all duration-200 ease-out ${visible ? 'opacity-100 scale-100' : 'opacity-0 scale-95'}`}
+        className={`relative w-full bg-white shadow-2xl flex flex-col transition-all duration-200 ease-out h-[100dvh] sm:h-auto sm:max-h-[92vh] rounded-none sm:rounded-2xl sm:max-w-5xl ${visible ? 'opacity-100 scale-100' : 'opacity-0 scale-95'}`}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Close button */}
@@ -201,7 +201,7 @@ export default function DetallePrestamoModal({ id, onClose, includeArchived = fa
         </button>
 
         {/* Scrollable content */}
-        <div className="flex-1 overflow-y-auto rounded-2xl">
+        <div className="flex-1 overflow-y-auto sm:rounded-2xl">
           {loading ? (
             <div className="flex flex-col items-center justify-center min-h-[50vh] gap-3">
               <Loader2 className="w-10 h-10 text-blue-600 animate-spin" />

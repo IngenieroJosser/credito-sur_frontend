@@ -292,7 +292,7 @@ export default function ClientesFeature({
         )}
 
         <div className="grid grid-cols-2 md:grid-cols-5 gap-6">
-          <div className="p-5 rounded-2xl border border-slate-200 bg-white/80 backdrop-blur-sm shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all">
+          <div className="p-5 rounded-2xl border border-slate-200 bg-white sm:bg-white/80 sm:backdrop-blur-sm shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all">
             <div className="flex items-center justify-between mb-4">
               <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Total Clientes</span>
               <User className="w-4 h-4 text-primary" />
@@ -300,7 +300,7 @@ export default function ClientesFeature({
             <p className="text-3xl font-bold text-slate-900">{stats.total}</p>
           </div>
           
-          <div className="p-5 rounded-2xl border border-slate-200 bg-white/80 backdrop-blur-sm shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all">
+          <div className="p-5 rounded-2xl border border-slate-200 bg-white sm:bg-white/80 sm:backdrop-blur-sm shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all">
             <div className="flex items-center justify-between mb-4">
               <span className="text-xs font-bold text-emerald-600 uppercase tracking-wider">Buen Estado</span>
               <CheckCircle className="w-4 h-4 text-emerald-600" />
@@ -308,7 +308,7 @@ export default function ClientesFeature({
             <p className="text-3xl font-bold text-slate-900">{stats.verde}</p>
           </div>
 
-          <div className="p-5 rounded-2xl border border-slate-200 bg-white/80 backdrop-blur-sm shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all">
+          <div className="p-5 rounded-2xl border border-slate-200 bg-white sm:bg-white/80 sm:backdrop-blur-sm shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all">
             <div className="flex items-center justify-between mb-4">
               <span className="text-xs font-bold text-amber-600 uppercase tracking-wider">Riesgo Medio</span>
               <AlertTriangle className="w-4 h-4 text-amber-600" />
@@ -316,7 +316,7 @@ export default function ClientesFeature({
             <p className="text-3xl font-bold text-slate-900">{stats.amarillo}</p>
           </div>
 
-          <div className="p-5 rounded-2xl border border-slate-200 bg-white/80 backdrop-blur-sm shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all">
+          <div className="p-5 rounded-2xl border border-slate-200 bg-white sm:bg-white/80 sm:backdrop-blur-sm shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all">
             <div className="flex items-center justify-between mb-4">
               <span className="text-xs font-bold text-rose-600 uppercase tracking-wider">Alto Riesgo</span>
               <AlertCircle className="w-4 h-4 text-rose-600" />
@@ -324,7 +324,7 @@ export default function ClientesFeature({
             <p className="text-3xl font-bold text-slate-900">{stats.rojo}</p>
           </div>
 
-          <div className="p-5 rounded-2xl border border-slate-200 bg-white/80 backdrop-blur-sm shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all">
+          <div className="p-5 rounded-2xl border border-slate-200 bg-white sm:bg-white/80 sm:backdrop-blur-sm shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all">
             <div className="flex items-center justify-between mb-4">
               <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Mora Total</span>
               <DollarSign className="w-4 h-4 text-slate-400" />
@@ -333,7 +333,7 @@ export default function ClientesFeature({
           </div>
         </div>
 
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white/80 backdrop-blur-sm p-4 rounded-2xl border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)]">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white sm:bg-white/80 sm:backdrop-blur-sm p-4 rounded-2xl border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)]">
           <div className="flex flex-col gap-4 md:flex-row md:items-center">
             <div className="flex items-center gap-1.5 flex-wrap">
               <Filter className="h-3.5 w-3.5 text-slate-400 shrink-0 mr-1" />
@@ -438,7 +438,7 @@ export default function ClientesFeature({
           </div>
         </div>
 
-        <div className="hidden md:block bg-white/80 backdrop-blur-sm border border-slate-200 rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden">
+        <div className="hidden md:block bg-white sm:bg-white/80 sm:backdrop-blur-sm border border-slate-200 rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
