@@ -298,9 +298,9 @@ export default function EditarPrestamoModal({ id, onClose, onSuccess }: EditarPr
   if (!mounted) return null;
 
   return createPortal(
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm" onClick={handleClose}>
+    <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-slate-900/50 backdrop-blur-sm" onClick={handleClose}>
       <div
-        className={`bg-white rounded-[2rem] shadow-2xl w-full max-w-2xl overflow-hidden border border-slate-100 transition-all duration-300 ${visible ? 'opacity-100 scale-100' : 'opacity-0 scale-95'}`}
+        className={`bg-white shadow-2xl w-full overflow-hidden border border-slate-100 transition-all duration-300 h-[100dvh] sm:h-auto sm:max-h-[92vh] rounded-none sm:rounded-[2rem] sm:max-w-2xl ${visible ? 'opacity-100 scale-100' : 'opacity-0 scale-95'}`}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
@@ -338,7 +338,7 @@ export default function EditarPrestamoModal({ id, onClose, onSuccess }: EditarPr
         </div>
 
         {/* Content */}
-        <div className="max-h-[75vh] overflow-y-auto bg-white/50">
+        <div className="flex-1 overflow-y-auto bg-white/50">
           {fetching ? (
             <div className="flex flex-col items-center justify-center py-16 gap-3">
               <Loader2 className={`w-8 h-8 text-${themeColor}-600 animate-spin`} />

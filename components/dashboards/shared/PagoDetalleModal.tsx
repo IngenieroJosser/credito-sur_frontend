@@ -152,15 +152,22 @@ export default function PagoDetalleModal({
   // ── Datos combinados: API primero, metadata como fallback ─────────────────
   const monto = pago?.montoTotal ?? metadata.monto ?? 0
 
-  const computedCapital = (pago?.detalles ?? []).reduce((s: number, d: any) => s + Number(d.montoCapital || 0), 0)
-  const computedInteres = (pago?.detalles ?? []).reduce((s: number, d: any) => s + Number(d.montoInteres || 0), 0)
-  const computedCuotasAfectadas = (pago?.detalles ?? []).length
+  const detallesAfectados = (pago?.detalles ?? []).filter((d: any) => {
+    const capital = Number(d?.montoCapital || 0)
+    const interes = Number(d?.montoInteres || 0)
+    const mora = Number(d?.montoInteresMora || 0)
+    return capital + interes + mora > 0
+  })
+
+  const computedCapital = detallesAfectados.reduce((s: number, d: any) => s + Number(d.montoCapital || 0), 0)
+  const computedInteres = detallesAfectados.reduce((s: number, d: any) => s + Number(d.montoInteres || 0), 0)
+  const computedCuotasAfectadas = detallesAfectados.length
 
   const computedSaldoNuevo = pago?.prestamo?.saldoPendiente != null
     ? Number(pago.prestamo.saldoPendiente)
     : null
   const computedSaldoAnterior = computedSaldoNuevo != null
-    ? computedSaldoNuevo + Number(monto || 0)
+    ? computedSaldoNuevo + Number(computedCapital || 0)
     : null
   const computedQuedoPagado = computedSaldoNuevo != null
     ? computedSaldoNuevo <= 0
@@ -206,17 +213,24 @@ export default function PagoDetalleModal({
     a => a.tipoContenido === 'COMPROBANTE_TRANSFERENCIA'
   )
 
+  const getCuotaLabel = (det: any, fallbackIndex: number) => {
+    const n = det?.numeroCuota ?? det?.cuotaNumero ?? det?.cuota?.numeroCuota ?? det?.cuota?.numero
+    if (typeof n === 'number' && Number.isFinite(n)) return `Cuota ${n}`
+    if (typeof n === 'string' && n.trim()) return `Cuota ${n.trim()}`
+    return `Cuota ${fallbackIndex + 1}`
+  }
+
   // ─────────────────────────────────────────────────────────────────────────
   return (
     <Portal>
       {/* Backdrop — mismo estilo que NotificacionDetalleModal */}
       <div
-        className="fixed inset-0 z-[2147483640] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-200"
+        className="fixed inset-0 z-[2147483640] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-200"
         onClick={handleClose}
       >
         {/* Panel — mismo estilo border-radius que el resto del sistema */}
         <div
-          className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-lg flex flex-col max-h-[90vh] overflow-hidden animate-in zoom-in-95 duration-200 border border-slate-100"
+          className="bg-white shadow-2xl w-full flex flex-col overflow-hidden animate-in zoom-in-95 duration-200 border border-slate-100 h-[100dvh] sm:h-auto sm:max-h-[90vh] rounded-none sm:rounded-[2.5rem] sm:max-w-lg"
           onClick={e => e.stopPropagation()}
         >
           {/* ── Header ──────────────────────────────────────────────────────── */}
@@ -411,21 +425,21 @@ export default function PagoDetalleModal({
             </div>
 
             {/* ── 6. Detalle por cuotas (solo si disponible desde API) ─────────── */}
-            {pago?.detalles && pago.detalles.length > 0 && (
+            {detallesAfectados.length > 0 && (
               <div className="bg-white rounded-2xl border border-slate-100 p-5">
                 <div className="flex items-center gap-2 mb-3 pb-2 border-b border-slate-100">
                   <CreditCard className="h-4 w-4 text-slate-400" />
                   <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">
-                    Cuotas Afectadas ({pago.detalles.length})
+                    Cuotas Afectadas ({detallesAfectados.length})
                   </p>
                 </div>
                 <div className="space-y-2">
-                  {pago.detalles.map((det, idx) => (
+                  {detallesAfectados.map((det, idx) => (
                     <div
                       key={det.id || idx}
                       className="flex items-center justify-between p-2.5 bg-slate-50 rounded-xl border border-slate-100 text-xs"
                     >
-                      <span className="font-black text-slate-700">Cuota {idx + 1}</span>
+                      <span className="font-black text-slate-700">{getCuotaLabel(det, idx)}</span>
                       <div className="flex gap-4">
                         <div className="text-right">
                           <p className="text-[9px] text-slate-400">Capital</p>

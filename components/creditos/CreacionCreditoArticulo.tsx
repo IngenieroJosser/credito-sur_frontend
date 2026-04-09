@@ -205,6 +205,15 @@ export default function CreacionCreditoArticulo({
     };
   }, [articulosSeleccionados, numeroCuotas, cuotaInicial, frecuenciaPago, esContado]);
 
+  const margenEstimado = useMemo(() => {
+    const costoTotal = articulosSeleccionados.reduce((sum, item) => {
+      const costoUnit = Number((item as any).costo || 0)
+      return sum + (costoUnit * item.cantidad)
+    }, 0)
+
+    return Number(resumenFinanciero.totalFinanciadoBruto || 0) - Number(costoTotal || 0)
+  }, [articulosSeleccionados, resumenFinanciero.totalFinanciadoBruto])
+
   // --- Handlers ---
 
   const handleAgregarArticulo = (articulo: Articulo) => {
@@ -731,6 +740,20 @@ export default function CreacionCreditoArticulo({
                   </div>
    
                   <div className="p-8 space-y-8">
+                    {margenEstimado < 0 && (
+                      <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
+                        <div className="text-xs font-black uppercase tracking-widest text-amber-800 mb-1">
+                          Advertencia
+                        </div>
+                        <div className="text-sm font-bold text-amber-900">
+                          El margen estimado de este crédito es negativo.
+                        </div>
+                        <div className="mt-2 text-xs font-bold text-amber-800">
+                          Margen estimado: {formatCurrency(margenEstimado)}
+                        </div>
+                      </div>
+                    )}
+
                     {/* Resumen Principal */}
                     <div className="flex flex-col md:flex-row gap-8 pb-8 border-b border-slate-100">
                       <div className="flex-1 space-y-4">

@@ -95,7 +95,18 @@ export const apiRequest = async <T>(
         message: "La solicitud está tardando demasiado. Por favor, verifique su conexión.",
         error: "Request timeout"
       };
-      console.error('Timeout error:', timeoutError);
+      logger.warn('[API] Timeout', {
+        method: method?.toString?.() || method,
+        url,
+        timeout,
+        error: timeoutError,
+        errorSerialized: JSON.stringify(timeoutError),
+        axios: {
+          code: err.code,
+          message: err.message,
+          baseURL: err.config?.baseURL,
+        },
+      });
       throw timeoutError;
     }
 

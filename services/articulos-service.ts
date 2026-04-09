@@ -12,6 +12,7 @@ export interface Articulo {
   id: string
   nombre: string
   descripcion: string
+  costo?: number
   precioBase: number
   precioContado?: number
   precioContadoId?: string
@@ -83,6 +84,7 @@ class ArticulosService {
                 id: String(item.id),
                 nombre: item.name || item.nombre,
                 descripcion: item.description || item.descripcion || '',
+                costo: Number(item.costo || 0),
                 precioBase,
                 precioContado,
                 precioContadoId: contadoItem?.id,
@@ -134,6 +136,7 @@ class ArticulosService {
             id: String(item.id),
             nombre: item.name || item.nombre,
             descripcion: item.description || item.descripcion || '',
+            costo: Number(item.costo || 0),
             precioBase,
             precioContado,
             precioContadoId: contadoItem?.id,

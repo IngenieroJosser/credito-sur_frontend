@@ -50,11 +50,11 @@ export default function DetalleProductoModal({ id, onClose }: DetalleProductoMod
   if (!mounted) return null
 
   return createPortal(
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={handleClose}>
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4" onClick={handleClose}>
       <div className={`fixed inset-0 bg-slate-900/50 backdrop-blur-sm transition-opacity duration-200 ${visible ? 'opacity-100' : 'opacity-0'}`} />
 
       <div
-        className={`relative w-full max-w-3xl max-h-[92vh] bg-white rounded-2xl shadow-2xl flex flex-col transition-all duration-200 ease-out ${visible ? 'opacity-100 scale-100' : 'opacity-0 scale-95'}`}
+        className={`relative w-full bg-white shadow-2xl flex flex-col transition-all duration-200 ease-out h-[100dvh] sm:h-auto sm:max-h-[92vh] rounded-none sm:rounded-2xl sm:max-w-3xl ${visible ? 'opacity-100 scale-100' : 'opacity-0 scale-95'}`}
         onClick={(e) => e.stopPropagation()}
       >
         <button
@@ -64,7 +64,7 @@ export default function DetalleProductoModal({ id, onClose }: DetalleProductoMod
           <X className="w-5 h-5" />
         </button>
 
-        <div className="flex-1 overflow-y-auto rounded-2xl p-6">
+        <div className="flex-1 overflow-y-auto sm:rounded-2xl p-6">
           {loading ? (
             <div className="flex flex-col items-center justify-center min-h-[40vh] gap-3">
               <Loader2 className="w-10 h-10 text-blue-600 animate-spin" />

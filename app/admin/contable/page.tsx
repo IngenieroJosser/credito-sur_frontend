@@ -137,6 +137,7 @@ interface ResumenFinanciero {
   egresosHoy: number
   cuotaInicialHoy: number
   utilidadNeta: number
+  margenArticulosHoy?: number
   deudaCobradorHoy?: number
   capitalEnCalle: number // Dinero prestado que aún no ha regresado
   cajaActual: number // Dinero disponible ya mismo
@@ -218,7 +219,14 @@ const ModuloContableContent = () => {
   const [movimientoSeleccionado, setMovimientoSeleccionado] = useState<MovimientoContable | null>(null)
 
   const [showDetalleModal, setShowDetalleModal] = useState(false)
-  const [detalleTipo, setDetalleTipo] = useState<'INGRESOS' | 'EGRESOS' | 'CIERRES' | 'CIERRES_RUTA' | null>(null)
+  const [detalleTipo, setDetalleTipo] = useState<'INGRESOS' | 'EGRESOS' | 'CUOTAS_INICIALES' | 'UTILIDAD' | 'CIERRES' | 'CIERRES_RUTA' | null>(null)
+
+  const [resumenUtilidadModal, setResumenUtilidadModal] = useState<{
+    totalUtilidad: number
+    margen: number
+    egresosOperativos: number
+    utilidadFinanciera: number
+  } | null>(null)
 
   // Estados para Paginación de Listas Locales (Máximo 3 por vista)
   const [currentPageMovimientos, setCurrentPageMovimientos] = useState(0)
@@ -299,9 +307,10 @@ const ModuloContableContent = () => {
         if (!cajaSeleccionada && m.categoria === 'CONSOLIDACION') return false
 
         if (tipo === 'INGRESOS') {
-          if (m.tipo !== 'INGRESO') return false
-          const categoria = String(m.categoria || '').toUpperCase()
-          return categoria === 'PAGO' || categoria === 'ABONO'
+          if (m.tipo !== 'TRANSFERENCIA') return false
+          if (String(m.tipoReferencia || '').toUpperCase() !== 'RECOLECCION') return false
+          const desc = String((m as any).descripcion || m.concepto || '').toUpperCase()
+          return desc.includes('RECIBIDA')
         }
 
         return m.tipo === 'EGRESO'
@@ -341,8 +350,8 @@ const ModuloContableContent = () => {
     }
   }
 
-  // Carga movimientos globales filtrados por tipo (INGRESO o EGRESO) para el historial sem filtro de caja
-  const loadMovimientosGlobalPorTipo = async (tipo: 'INGRESO' | 'EGRESO', fechaInicio?: string, fechaFin?: string) => {
+  // Carga movimientos globales filtrados por tipo para el historial sin filtro de caja
+  const loadMovimientosGlobalPorTipo = async (tipo: 'INGRESO' | 'EGRESO' | 'TRANSFERENCIA', fechaInicio?: string, fechaFin?: string) => {
     try {
       const params: any = { tipo, limit: 500 }
       if (fechaInicio) params.fechaInicio = fechaInicio
@@ -353,6 +362,30 @@ const ModuloContableContent = () => {
       } else {
         setMovimientosModalGlobal([])
       }
+    } catch {
+      setMovimientosModalGlobal([])
+    }
+  }
+
+  const loadMovimientosGlobalUtilidad = async (fechaInicio?: string, fechaFin?: string) => {
+    try {
+      const [transIngresos, transEgresos] = await Promise.all([
+        fetchTransaccionesAll({
+          tipo: 'TRANSFERENCIA',
+          fechaInicio,
+          fechaFin,
+          limit: 500,
+        }),
+        fetchTransaccionesAll({
+          tipo: 'EGRESO',
+          fechaInicio,
+          fechaFin,
+          limit: 500,
+        }),
+      ])
+
+      const merged = ([] as any[]).concat(transIngresos || [], transEgresos || [])
+      setMovimientosModalGlobal(merged.map(mapTransaccion))
     } catch {
       setMovimientosModalGlobal([])
     }
@@ -382,6 +415,7 @@ const ModuloContableContent = () => {
     egresosHoy: 0,
     cuotaInicialHoy: 0,
     utilidadNeta: 0,
+    margenArticulosHoy: 0,
     capitalEnCalle: 0,
     cajaActual: 0,
     porcentajeIngresosVsAyer: null,
@@ -438,42 +472,62 @@ const ModuloContableContent = () => {
         })));
       }
 
-      // 3. Traemos los números totales (Resumen histórico completo)
-      // Pasamos fechaFin = hoy para forzar el rango desde 2020 hasta el día actual
+      // 3. Traemos los números del día (KPIs HOY)
       const fechaHoy = getBogotaDateKey(new Date());
-      const resumen = await getResumenFinanciero('2020-01-01', fechaHoy);
+      const resumen = await getResumenFinanciero(fechaHoy, fechaHoy);
       if (resumen) {
-        const ingresosPagos = typeof (resumen as any).cobranzaHoy === 'number'
-          ? Number((resumen as any).cobranzaHoy || 0)
-          : await (async () => {
-            const trans = await fetchTransaccionesAll({
-              tipo: 'INGRESO',
-              fechaInicio: '2020-01-01',
-              fechaFin: fechaHoy,
-              limit: 500,
-            })
+        const fechaAyer = getBogotaDateKey(new Date(Date.now() - 24 * 60 * 60 * 1000));
 
-            return trans
-              .filter((t: any) => String(t?.estado || '').toUpperCase() === 'APROBADO')
-              .filter((t: any) => {
-                const cat = String(t?.categoria || '').toUpperCase()
-                return cat === 'PAGO' || cat === 'ABONO'
-              })
-              .reduce((acc: number, t: any) => acc + Number(t?.monto || 0), 0)
-          })()
+        const ingresosRecoleccionHoy = await (async () => {
+          const trans = await fetchTransaccionesAll({
+            tipo: 'TRANSFERENCIA',
+            fechaInicio: fechaHoy,
+            fechaFin: fechaHoy,
+            limit: 500,
+          })
+
+          return trans
+            .filter((t: any) => String(t?.estado || '').toUpperCase() === 'APROBADO')
+            .filter((t: any) => String(t?.tipoReferencia || '').toUpperCase() === 'RECOLECCION')
+            .filter((t: any) => String(t?.descripcion || '').toUpperCase().includes('RECIBIDA'))
+            .reduce((acc: number, t: any) => acc + Number(t?.monto || 0), 0)
+        })()
+
+        const ingresosRecoleccionAyer = await (async () => {
+          const trans = await fetchTransaccionesAll({
+            tipo: 'TRANSFERENCIA',
+            fechaInicio: fechaAyer,
+            fechaFin: fechaAyer,
+            limit: 500,
+          })
+
+          return trans
+            .filter((t: any) => String(t?.estado || '').toUpperCase() === 'APROBADO')
+            .filter((t: any) => String(t?.tipoReferencia || '').toUpperCase() === 'RECOLECCION')
+            .filter((t: any) => String(t?.descripcion || '').toUpperCase().includes('RECIBIDA'))
+            .reduce((acc: number, t: any) => acc + Number(t?.monto || 0), 0)
+        })()
+
+        const ingresosHoyVal = Number(ingresosRecoleccionHoy || 0);
+        const ingresosAyerVal = Number(ingresosRecoleccionAyer || 0);
+        const porcentajeIngresosVsAyer = (() => {
+          if (ingresosAyerVal === 0) return ingresosHoyVal > 0 ? 100 : 0;
+          return Number((((ingresosHoyVal - ingresosAyerVal) / ingresosAyerVal) * 100).toFixed(2));
+        })();
 
         setResumenData({
-          ingresosHoy: ingresosPagos,
+          ingresosHoy: ingresosHoyVal,
           egresosHoy: resumen.egresosHoy,
           cuotaInicialHoy: Number((resumen as any).cuotaInicialHoy || 0),
           utilidadNeta: Number((resumen as any).utilidadReal ?? resumen.gananciaNeta ?? 0),
+          margenArticulosHoy: Number((resumen as any).margenArticulosHoy ?? 0),
           deudaCobradorHoy: Number((resumen as any).deudaCobradorHoy ?? 0),
           capitalEnCalle: resumen.capitalEnCalle,
           cajaActual: resumen.saldoCajas,
-          porcentajeIngresosVsAyer: resumen.porcentajeIngresosVsAyer ?? null,
+          porcentajeIngresosVsAyer,
           porcentajeEgresosVsAyer: resumen.porcentajeEgresosVsAyer ?? null,
           porcentajeCuotaInicialVsAyer: (resumen as any).porcentajeCuotaInicialVsAyer ?? null,
-          esIngresoPositivo: resumen.esIngresoPositivo ?? true,
+          esIngresoPositivo: porcentajeIngresosVsAyer >= 0,
           esEgresoPositivo: resumen.esEgresoPositivo ?? true,
           rutasTotales: resumen.rutasTotales || 0,
           rutasAbiertas: resumen.rutasAbiertas || 0,
@@ -527,14 +581,57 @@ const ModuloContableContent = () => {
   useEffect(() => {
     if (showDetalleModal && !cajaSeleccionada) {
       if (detalleTipo === 'INGRESOS') {
-        loadMovimientosGlobalPorTipo('INGRESO', fechaInicioModal || undefined, fechaFinModal || undefined)
+        loadMovimientosGlobalPorTipo('TRANSFERENCIA', fechaInicioModal || undefined, fechaFinModal || undefined)
       } else if (detalleTipo === 'EGRESOS') {
         loadMovimientosGlobalPorTipo('EGRESO', fechaInicioModal || undefined, fechaFinModal || undefined)
+      } else if (detalleTipo === 'CUOTAS_INICIALES') {
+        loadMovimientosGlobalPorTipo('INGRESO', fechaInicioModal || undefined, fechaFinModal || undefined)
+      } else if (detalleTipo === 'UTILIDAD') {
+        loadMovimientosGlobalUtilidad(fechaInicioModal || undefined, fechaFinModal || undefined)
       }
     } else if (!showDetalleModal) {
       setMovimientosModalGlobal([])
+      setResumenUtilidadModal(null)
     }
   }, [detalleTipo, showDetalleModal, fechaInicioModal, fechaFinModal, cajaSeleccionada])
+
+  useEffect(() => {
+    if (!showDetalleModal) return
+    if (cajaSeleccionada) return
+    if (detalleTipo !== 'UTILIDAD') {
+      setResumenUtilidadModal(null)
+      return
+    }
+    if (!fechaInicioModal || !fechaFinModal) return
+
+    let cancelled = false
+
+    ;(async () => {
+      try {
+        const resumen = await getResumenFinanciero(fechaInicioModal, fechaFinModal)
+        if (cancelled) return
+
+        const totalUtilidad = Number((resumen as any).utilidadReal ?? (resumen as any).gananciaNeta ?? 0)
+        const margen = Number((resumen as any).margenArticulosHoy ?? 0)
+        const egresosOperativos = Number((resumen as any).egresosHoy ?? 0)
+        const utilidadFinanciera = totalUtilidad + egresosOperativos - margen
+
+        setResumenUtilidadModal({
+          totalUtilidad,
+          margen,
+          egresosOperativos,
+          utilidadFinanciera,
+        })
+      } catch {
+        if (cancelled) return
+        setResumenUtilidadModal(null)
+      }
+    })()
+
+    return () => {
+      cancelled = true
+    }
+  }, [showDetalleModal, detalleTipo, cajaSeleccionada, fechaInicioModal, fechaFinModal])
 
   // Cargar usuarios solo cuando el rol está disponible y es admin
   useEffect(() => {
@@ -839,12 +936,20 @@ const ModuloContableContent = () => {
               <div className="text-xs font-bold uppercase tracking-wider text-slate-500">
                 Total Ingresos
               </div>
-              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-50 text-emerald-600 border border-emerald-100">
-                <TrendingUp className="h-4 w-4" />
+              <div className="flex items-center gap-2">
+                <span className="px-2 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border bg-slate-50 text-slate-600 border-slate-200">
+                  Hoy
+                </span>
+                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-50 text-emerald-600 border border-emerald-100">
+                  <TrendingUp className="h-4 w-4" />
+                </div>
               </div>
             </div>
-            <div className="text-2xl font-bold text-slate-900 tracking-tight">
-              <MoneyAmount value={resumenData.ingresosHoy} amountClassName="text-2xl font-bold text-slate-900 tracking-tight" />
+            <div className="text-2xl font-bold text-slate-900 tracking-tight min-w-0 w-full">
+              <MoneyAmount
+                value={resumenData.ingresosHoy}
+                amountClassName="text-[clamp(0.95rem,2vw,1.4rem)] font-bold text-slate-900 tracking-tight leading-none"
+              />
             </div>
             {resumenData.porcentajeIngresosVsAyer != null && resumenData.porcentajeIngresosVsAyer !== 0 && (
               <div className={cn(
@@ -872,12 +977,21 @@ const ModuloContableContent = () => {
               <div className="text-xs font-bold uppercase tracking-wider text-slate-500">
                 Total Gastos
               </div>
-              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-rose-50 text-rose-600 border border-rose-100">
-                <TrendingDown className="h-4 w-4" />
+              <div className="flex items-center gap-2">
+                <span className="px-2 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border bg-slate-50 text-slate-600 border-slate-200">
+                  Hoy
+                </span>
+                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-rose-50 text-rose-600 border border-rose-100">
+                  <TrendingDown className="h-4 w-4" />
+                </div>
               </div>
             </div>
-            <div className="text-2xl font-bold text-slate-900 tracking-tight">
-              <MoneyAmount value={resumenData.egresosHoy} meaning="expense" amountClassName="text-2xl font-bold text-slate-900 tracking-tight" />
+            <div className="text-2xl font-bold text-slate-900 tracking-tight min-w-0 w-full">
+              <MoneyAmount
+                value={resumenData.egresosHoy}
+                meaning="expense"
+                amountClassName="text-[clamp(0.95rem,2vw,1.4rem)] font-bold text-slate-900 tracking-tight leading-none"
+              />
             </div>
             {resumenData.porcentajeEgresosVsAyer != null && resumenData.porcentajeEgresosVsAyer !== 0 && (
               <div className={cn(
@@ -891,17 +1005,34 @@ const ModuloContableContent = () => {
           </div>
 
           {/* Ganancia / Utilidad Operativa */}
-          <div className="group relative overflow-hidden rounded-2xl bg-white/80 backdrop-blur-sm p-6 border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] transition-all">
+          <div
+            onClick={() => {
+              const hoy = getBogotaDateKey(new Date())
+              setFechaInicioModal(hoy)
+              setFechaFinModal(hoy)
+              setDetalleTipo('UTILIDAD')
+              setShowDetalleModal(true)
+            }}
+            className="cursor-pointer group relative overflow-hidden rounded-2xl bg-white/80 backdrop-blur-sm p-6 border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all"
+          >
             <div className="flex items-center justify-between mb-4">
               <div className="text-xs font-bold uppercase tracking-wider text-slate-500">
                 Utilidad Operativa
               </div>
-              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-indigo-50 text-indigo-600 border border-indigo-100">
-                <Zap className="h-4 w-4" />
+              <div className="flex items-center gap-2">
+                <span className="px-2 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border bg-slate-50 text-slate-600 border-slate-200">
+                  Hoy
+                </span>
+                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-indigo-50 text-indigo-600 border border-indigo-100">
+                  <Zap className="h-4 w-4" />
+                </div>
               </div>
             </div>
-            <div className="text-2xl font-bold text-slate-900 tracking-tight">
-              <MoneyAmount value={resumenData.utilidadNeta} amountClassName="text-2xl font-bold text-slate-900" />
+            <div className="text-2xl font-bold text-slate-900 tracking-tight min-w-0 w-full">
+              <MoneyAmount
+                value={resumenData.utilidadNeta}
+                amountClassName="text-[clamp(0.95rem,2vw,1.4rem)] font-bold text-slate-900 leading-none"
+              />
             </div>
             <div className="mt-2 text-xs text-slate-500 font-medium">
               Utilidad operativa
@@ -909,17 +1040,34 @@ const ModuloContableContent = () => {
           </div>
 
           {/* Cuota Inicial (NO es ingreso) */}
-          <div className="group relative overflow-hidden rounded-2xl bg-white/80 backdrop-blur-sm p-6 border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] transition-all">
+          <div
+            onClick={() => {
+              const hoy = getBogotaDateKey(new Date())
+              setFechaInicioModal(hoy)
+              setFechaFinModal(hoy)
+              setDetalleTipo('CUOTAS_INICIALES')
+              setShowDetalleModal(true)
+            }}
+            className="cursor-pointer group relative overflow-hidden rounded-2xl bg-white/80 backdrop-blur-sm p-6 border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all"
+          >
             <div className="flex items-center justify-between mb-4">
               <div className="text-xs font-bold uppercase tracking-wider text-slate-500">
                 Cuotas Iniciales
               </div>
-              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-amber-50 text-amber-700 border border-amber-100">
-                <CreditCard className="h-4 w-4" />
+              <div className="flex items-center gap-2">
+                <span className="px-2 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border bg-slate-50 text-slate-600 border-slate-200">
+                  Hoy
+                </span>
+                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-amber-50 text-amber-700 border border-amber-100">
+                  <CreditCard className="h-4 w-4" />
+                </div>
               </div>
             </div>
-            <div className="text-2xl font-bold text-slate-900 tracking-tight">
-              <MoneyAmount value={resumenData.cuotaInicialHoy || 0} amountClassName="text-2xl font-bold text-slate-900 tracking-tight" />
+            <div className="text-2xl font-bold text-slate-900 tracking-tight min-w-0 w-full">
+              <MoneyAmount
+                value={resumenData.cuotaInicialHoy || 0}
+                amountClassName="text-[clamp(0.95rem,2vw,1.4rem)] font-bold text-slate-900 tracking-tight leading-none"
+              />
             </div>
             {resumenData.porcentajeCuotaInicialVsAyer != null && resumenData.porcentajeCuotaInicialVsAyer !== 0 && (
               <div className={cn(
@@ -945,11 +1093,10 @@ const ModuloContableContent = () => {
                 <CreditCard className="h-4 w-4" />
               </div>
             </div>
-            <div className="text-2xl font-bold text-slate-900 tracking-tight">
+            <div className="text-2xl font-bold text-slate-900 tracking-tight min-w-0 w-full">
               <MoneyAmount
                 value={resumenData.capitalEnCalle}
-                showBadge={false}
-                amountClassName="text-2xl font-bold text-slate-900 tracking-tight"
+                amountClassName="text-[clamp(0.95rem,2vw,1.4rem)] font-bold text-slate-900 tracking-tight leading-none"
               />
             </div>
           </div>
@@ -960,11 +1107,16 @@ const ModuloContableContent = () => {
               <div className="text-xs font-bold uppercase tracking-wider text-slate-500">
                 Cajas Abiertas
               </div>
-              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-50 text-blue-600 border border-blue-100">
-                <Briefcase className="h-4 w-4" />
+              <div className="flex items-center gap-2">
+                <span className="px-2 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border bg-slate-50 text-slate-600 border-slate-200">
+                  Hoy
+                </span>
+                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-50 text-blue-600 border border-blue-100">
+                  <Briefcase className="h-4 w-4" />
+                </div>
               </div>
             </div>
-            <div className="text-2xl font-bold text-slate-900 tracking-tight">
+            <div className="text-2xl font-bold text-slate-900 tracking-tight min-w-0 overflow-hidden">
               {cajas.filter((c) => c.estado === 'ABIERTA').length}
             </div>
             <div className="mt-2 text-xs text-slate-500 font-medium">
@@ -2167,6 +2319,10 @@ const ModuloContableContent = () => {
                         ? 'Historial de Ingresos'
                         : detalleTipo === 'EGRESOS'
                           ? 'Historial de Egresos'
+                          : detalleTipo === 'CUOTAS_INICIALES'
+                            ? 'Historial de Cuotas Iniciales'
+                            : detalleTipo === 'UTILIDAD'
+                              ? 'Detalle de Utilidad Operativa'
                           : detalleTipo === 'CIERRES_RUTA'
                             ? 'Historial de Cierres de Ruta'
                             : 'Historial de Cierres'}
@@ -2223,14 +2379,39 @@ const ModuloContableContent = () => {
                     ) : (
                         <div className={cn(
                           "rounded-xl border p-5 flex justify-between items-center transition-colors shadow-sm",
-                          detalleTipo === 'INGRESOS' ? "border-emerald-100 bg-emerald-50/50" : "border-red-100 bg-red-50/50"
+                          detalleTipo === 'INGRESOS'
+                            ? "border-emerald-100 bg-emerald-50/50"
+                            : detalleTipo === 'EGRESOS'
+                              ? "border-red-100 bg-red-50/50"
+                              : detalleTipo === 'CUOTAS_INICIALES'
+                                ? "border-amber-100 bg-amber-50/50"
+                                : "border-indigo-100 bg-indigo-50/50"
                         )}>
                            <div className="flex flex-col">
-                               <span className={cn("text-xs font-bold uppercase tracking-wider mb-1", detalleTipo === 'INGRESOS' ? "text-emerald-600" : "text-red-600")}>
+                               <span className={cn(
+                                 "text-xs font-bold uppercase tracking-wider mb-1",
+                                 detalleTipo === 'INGRESOS'
+                                   ? "text-emerald-600"
+                                   : detalleTipo === 'EGRESOS'
+                                     ? "text-red-600"
+                                     : detalleTipo === 'CUOTAS_INICIALES'
+                                       ? "text-amber-700"
+                                       : "text-indigo-700"
+                               )}>
                                  Total Registrado
                                </span>
-                               <span className={cn("text-3xl font-black tracking-tight", detalleTipo === 'INGRESOS' ? "text-emerald-800" : "text-red-800")}>
+                               <span className={cn(
+                                 "text-3xl font-black tracking-tight",
+                                 detalleTipo === 'INGRESOS'
+                                   ? "text-emerald-800"
+                                   : detalleTipo === 'EGRESOS'
+                                     ? "text-red-800"
+                                     : detalleTipo === 'CUOTAS_INICIALES'
+                                       ? "text-amber-800"
+                                       : "text-indigo-800"
+                               )}>
                                  {(() => {
+                                    const hoyKey = getBogotaDateKey(new Date())
                                     const source = movimientosDetalle.length ? movimientosDetalle : (!cajaSeleccionada && movimientosModalGlobal.length ? movimientosModalGlobal : movimientos)
                                     const filtered = source
                                         .filter(m => {
@@ -2239,15 +2420,28 @@ const ModuloContableContent = () => {
                                         })
                                         .filter(m => {
                                             if (detalleTipo === 'INGRESOS') {
-                                              if (m.tipo === 'INGRESO') return true;
-                                              if (m.tipo === 'TRANSFERENCIA') {
-                                                const conc = String((m as any).descripcion || m.concepto || '').toUpperCase();
-                                                return !(conc.includes('SALIDA') || conc.includes('ENVIADA A') || conc.includes('EGRESO'));
-                                              }
-                                              return false;
+                                              if (m.tipo !== 'TRANSFERENCIA') return false;
+                                              if (String(m.tipoReferencia || '').toUpperCase() !== 'RECOLECCION') return false;
+                                              const conc = String((m as any).descripcion || m.concepto || '').toUpperCase();
+                                              return conc.includes('RECIBIDA');
+                                            } else if (detalleTipo === 'CUOTAS_INICIALES') {
+                                              if (m.tipo !== 'INGRESO') return false;
+                                              if (String(m.tipoReferencia || '').toUpperCase() !== 'CUOTA_INICIAL') return false;
+                                              return true;
+                                            } else if (detalleTipo === 'UTILIDAD') {
+                                              const esIngresoRecoleccion =
+                                                m.tipo === 'TRANSFERENCIA' &&
+                                                String(m.tipoReferencia || '').toUpperCase() === 'RECOLECCION' &&
+                                                String((m as any).descripcion || m.concepto || '').toUpperCase().includes('RECIBIDA')
+                                              const esEgreso = m.tipo === 'EGRESO'
+                                              return esIngresoRecoleccion || esEgreso
                                             } else {
-                                              if (m.tipo === 'EGRESO') return true;
+                                              if (m.tipo === 'EGRESO') {
+                                                if (String(m.tipoReferencia || '').toUpperCase() === 'DEUDA_COBRADOR') return false
+                                                return true
+                                              }
                                               if (m.tipo === 'TRANSFERENCIA') {
+                                                if (String(m.tipoReferencia || '').toUpperCase() === 'DEUDA_COBRADOR') return false
                                                 const conc = String((m as any).descripcion || m.concepto || '').toUpperCase();
                                                 return conc.includes('SALIDA') || conc.includes('ENVIADA A') || conc.includes('EGRESO');
                                               }
@@ -2263,7 +2457,34 @@ const ModuloContableContent = () => {
                                             }
                                             return true;
                                         });
-                                    const total = filtered.reduce((acc, m) => acc + m.monto, 0);
+                                    const total = (() => {
+                                      if (
+                                        !cajaSeleccionada &&
+                                        fechaInicioModal === hoyKey &&
+                                        fechaFinModal === hoyKey
+                                      ) {
+                                        if (detalleTipo === 'CUOTAS_INICIALES') return Number(resumenData.cuotaInicialHoy || 0)
+                                        if (detalleTipo === 'UTILIDAD') return Number(resumenData.utilidadNeta || 0)
+                                      }
+
+                                      if (detalleTipo !== 'UTILIDAD') {
+                                        return filtered.reduce((acc, m) => acc + m.monto, 0)
+                                      }
+                                      const ingresos = filtered
+                                        .filter((m) =>
+                                          m.tipo === 'TRANSFERENCIA' &&
+                                          String(m.tipoReferencia || '').toUpperCase() === 'RECOLECCION' &&
+                                          String((m as any).descripcion || m.concepto || '').toUpperCase().includes('RECIBIDA')
+                                        )
+                                        .reduce((acc, m) => acc + m.monto, 0)
+                                      const egresos = filtered
+                                        .filter((m) => {
+                                          if (m.tipo === 'EGRESO') return true
+                                          return false
+                                        })
+                                        .reduce((acc, m) => acc + m.monto, 0)
+                                      return ingresos - egresos
+                                    })()
 
                                     if (cajaSeleccionada?.tipo === 'RUTA' && saldoRutaSeleccionada && total === 0) {
                                       if (detalleTipo === 'INGRESOS') {
@@ -2283,11 +2504,57 @@ const ModuloContableContent = () => {
                            </div>
                            <div className={cn(
                                "p-4 rounded-full border shadow-sm",
-                               detalleTipo === 'INGRESOS' ? "bg-white border-emerald-100 text-emerald-600" : "bg-white border-red-100 text-red-600"
+                               detalleTipo === 'INGRESOS'
+                                 ? "bg-white border-emerald-100 text-emerald-600"
+                                 : detalleTipo === 'EGRESOS'
+                                   ? "bg-white border-red-100 text-red-600"
+                                   : detalleTipo === 'CUOTAS_INICIALES'
+                                     ? "bg-white border-amber-100 text-amber-700"
+                                     : "bg-white border-indigo-100 text-indigo-700"
                            )}>
-                               {detalleTipo === 'INGRESOS' ? <TrendingUp className="w-6 h-6"/> : <TrendingDown className="w-6 h-6"/>}
+                               {detalleTipo === 'INGRESOS'
+                                 ? <TrendingUp className="w-6 h-6"/>
+                                 : detalleTipo === 'EGRESOS'
+                                   ? <TrendingDown className="w-6 h-6"/>
+                                   : detalleTipo === 'CUOTAS_INICIALES'
+                                     ? <CreditCard className="w-6 h-6"/>
+                                     : <Zap className="w-6 h-6"/>}
                            </div>
                         </div>
+                    )}
+
+                    {detalleTipo === 'UTILIDAD' && resumenUtilidadModal && (
+                      <div className="rounded-xl border border-indigo-100 bg-indigo-50/40 p-4">
+                        <div className="text-xs font-black uppercase tracking-widest text-indigo-700 mb-3">
+                          Desglose
+                        </div>
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between">
+                            <div className="text-xs font-bold text-slate-700">Utilidad financiera (Interés + Mora)</div>
+                            <div className="text-xs font-black text-slate-900">
+                              <MoneyAmount value={resumenUtilidadModal.utilidadFinanciera} amountClassName="text-xs font-black text-slate-900" />
+                            </div>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <div className="text-xs font-bold text-slate-700">Margen artículos</div>
+                            <div className="text-xs font-black text-slate-900">
+                              <MoneyAmount value={resumenUtilidadModal.margen} amountClassName="text-xs font-black text-slate-900" />
+                            </div>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <div className="text-xs font-bold text-slate-700">Gastos operativos</div>
+                            <div className="text-xs font-black text-slate-900">
+                              <MoneyAmount value={resumenUtilidadModal.egresosOperativos} meaning="expense" amountClassName="text-xs font-black text-slate-900" />
+                            </div>
+                          </div>
+                          <div className="pt-2 mt-2 border-t border-indigo-100 flex items-center justify-between">
+                            <div className="text-xs font-black text-indigo-900">Total utilidad operativa</div>
+                            <div className="text-xs font-black text-indigo-900">
+                              <MoneyAmount value={resumenUtilidadModal.totalUtilidad} amountClassName="text-xs font-black text-indigo-900" />
+                            </div>
+                          </div>
+                        </div>
+                      </div>
                     )}
 
                     {/* Lista de Movimientos / Arqueos */}
@@ -2338,13 +2605,32 @@ const ModuloContableContent = () => {
                                         .filter(m => {
                                           if (!cajaSeleccionada && m.categoria === 'CONSOLIDACION') return false;
                                           if (detalleTipo === 'INGRESOS') {
-                                            if (m.tipo === 'INGRESO') {
-                                              const categoria = String(m.categoria || '').toUpperCase();
-                                              return categoria === 'PAGO' || categoria === 'ABONO' || categoria === 'CUOTA_INICIAL';
-                                            }
-                                            return false;
+                                            if (m.tipo !== 'TRANSFERENCIA') return false;
+                                            if (String(m.tipoReferencia || '').toUpperCase() !== 'RECOLECCION') return false;
+                                            const conc = String((m as any).descripcion || m.concepto || '').toUpperCase();
+                                            return conc.includes('RECIBIDA');
+                                          } else if (detalleTipo === 'CUOTAS_INICIALES') {
+                                            if (m.tipo !== 'INGRESO') return false;
+                                            if (String(m.tipoReferencia || '').toUpperCase() !== 'CUOTA_INICIAL') return false;
+                                            return true;
+                                          } else if (detalleTipo === 'UTILIDAD') {
+                                            const esIngresoRecoleccion =
+                                              m.tipo === 'TRANSFERENCIA' &&
+                                              String(m.tipoReferencia || '').toUpperCase() === 'RECOLECCION' &&
+                                              String((m as any).descripcion || m.concepto || '').toUpperCase().includes('RECIBIDA')
+                                            const esEgreso = m.tipo === 'EGRESO'
+                                            const esTransferEgreso =
+                                              m.tipo === 'TRANSFERENCIA' &&
+                                              (() => {
+                                                const conc = String((m as any).descripcion || m.concepto || '').toUpperCase()
+                                                return conc.includes('SALIDA') || conc.includes('ENVIADA A') || conc.includes('EGRESO')
+                                              })()
+                                            return esIngresoRecoleccion || esEgreso || esTransferEgreso
                                           } else {
-                                            if (m.tipo === 'EGRESO') return true;
+                                            if (m.tipo === 'EGRESO') {
+                                              if (String(m.tipoReferencia || '').toUpperCase() === 'DEUDA_COBRADOR') return false
+                                              return true
+                                            }
                                             return false;
                                           }
                                         })
@@ -2485,19 +2771,35 @@ const ModuloContableContent = () => {
                           {(movimientosDetalle.length ? movimientosDetalle : (!cajaSeleccionada && movimientosModalGlobal.length ? movimientosModalGlobal : movimientos))
                             .filter(m => {
                               if (!cajaSeleccionada && m.categoria === 'CONSOLIDACION') return false;
-                              if (detalleTipo === 'INGRESOS') {
-                                if (m.tipo === 'INGRESO') {
-                                  const cat = String(m.categoria || '').toUpperCase();
-                                  return cat === 'PAGO' || cat === 'ABONO' || cat === 'CUOTA_INICIAL';
-                                }
-                                if (m.tipo === 'TRANSFERENCIA') {
-                                  const conc = String((m as any).descripcion || m.concepto || '').toUpperCase();
-                                  return !(conc.includes('SALIDA') || conc.includes('ENVIADA A') || conc.includes('EGRESO'));
-                                }
-                                return false;
+                             if (detalleTipo === 'INGRESOS') {
+                                if (m.tipo !== 'TRANSFERENCIA') return false;
+                                if (String(m.tipoReferencia || '').toUpperCase() !== 'RECOLECCION') return false;
+                                const conc = String((m as any).descripcion || m.concepto || '').toUpperCase();
+                                return conc.includes('RECIBIDA');
+                              } else if (detalleTipo === 'CUOTAS_INICIALES') {
+                                if (m.tipo !== 'INGRESO') return false;
+                                if (String(m.tipoReferencia || '').toUpperCase() !== 'CUOTA_INICIAL') return false;
+                                return true;
+                              } else if (detalleTipo === 'UTILIDAD') {
+                                const esIngresoRecoleccion =
+                                  m.tipo === 'TRANSFERENCIA' &&
+                                  String(m.tipoReferencia || '').toUpperCase() === 'RECOLECCION' &&
+                                  String((m as any).descripcion || m.concepto || '').toUpperCase().includes('RECIBIDA')
+                                const esEgreso =
+                                  m.tipo === 'EGRESO' ||
+                                  (m.tipo === 'TRANSFERENCIA' &&
+                                    (() => {
+                                      const conc = String((m as any).descripcion || m.concepto || '').toUpperCase()
+                                      return conc.includes('SALIDA') || conc.includes('ENVIADA A') || conc.includes('EGRESO')
+                                    })())
+                                return esIngresoRecoleccion || esEgreso
                               } else {
-                                if (m.tipo === 'EGRESO') return true;
+                                if (m.tipo === 'EGRESO') {
+                                  if (String(m.tipoReferencia || '').toUpperCase() === 'DEUDA_COBRADOR') return false
+                                  return true
+                                }
                                 if (m.tipo === 'TRANSFERENCIA') {
+                                  if (String(m.tipoReferencia || '').toUpperCase() === 'DEUDA_COBRADOR') return false
                                   const conc = String((m as any).descripcion || m.concepto || '').toUpperCase();
                                   return conc.includes('SALIDA') || conc.includes('ENVIADA A') || conc.includes('EGRESO');
                                 }
@@ -2525,9 +2827,24 @@ const ModuloContableContent = () => {
                                 .replace(/^Transferencia enviada a .*?: |^Transferencia recibida de .*?: /i, '')
                                 .replace(/\(Entrada\)|\(Salida\)/gi, '')
                                 .trim();
+
+                              const esIngresoRecoleccion =
+                                m.tipo === 'TRANSFERENCIA' &&
+                                String(m.tipoReferencia || '').toUpperCase() === 'RECOLECCION' &&
+                                String((m as any).descripcion || m.concepto || '').toUpperCase().includes('RECIBIDA')
+
+                              const isPositivo = (() => {
+                                if (detalleTipo === 'INGRESOS') return true
+                                if (detalleTipo === 'CUOTAS_INICIALES') return true
+                                if (detalleTipo === 'EGRESOS') return false
+                                if (detalleTipo === 'UTILIDAD') return esIngresoRecoleccion
+                                return false
+                              })()
                               
                               if (m.tipo === 'TRANSFERENCIA' || m.categoria === 'CONSOLIDACION') {
-                                if (detalleTipo === 'INGRESOS') {
+                                if (detalleTipo === 'INGRESOS' || detalleTipo === 'CUOTAS_INICIALES') {
+                                  conceptoMostrar = `Ingreso de: ${m.concepto.match(/desde (.*?)[:\(]/i)?.[1] || m.concepto.match(/de (.*?)($|[:\(])/i)?.[1] || 'Caja Origen'}`;
+                                } else if (detalleTipo === 'UTILIDAD' && isPositivo) {
                                   conceptoMostrar = `Ingreso de: ${m.concepto.match(/desde (.*?)[:\(]/i)?.[1] || m.concepto.match(/de (.*?)($|[:\(])/i)?.[1] || 'Caja Origen'}`;
                                 } else {
                                   conceptoMostrar = `Egreso a: ${m.concepto.match(/hacia (.*?)[:\(]/i)?.[1] || m.concepto.match(/a (.*?)($|[:\(])/i)?.[1] || 'Caja Destino'}`;
@@ -2548,7 +2865,7 @@ const ModuloContableContent = () => {
                                     <div className="flex items-start gap-3">
                                       <div className={cn(
                                         "mt-1.5 w-2.5 h-2.5 rounded-full ring-2 ring-offset-2",
-                                        detalleTipo === 'INGRESOS' ? "bg-emerald-500 ring-emerald-100" : "bg-rose-500 ring-rose-100"
+                                        isPositivo ? "bg-emerald-500 ring-emerald-100" : "bg-rose-500 ring-rose-100"
                                       )} />
                                       <div>
                                         <div className="font-bold text-slate-900 text-base leading-snug">
@@ -2558,9 +2875,9 @@ const ModuloContableContent = () => {
                                     </div>
                                     <div className={cn(
                                       "font-black text-lg tabular-nums tracking-tight whitespace-nowrap",
-                                      detalleTipo === 'INGRESOS' ? "text-emerald-700" : "text-rose-700"
+                                      isPositivo ? "text-emerald-700" : "text-rose-700"
                                     )}>
-                                      {detalleTipo === 'INGRESOS' ? '+' : '-'}{formatCurrency(m.monto)}
+                                      {isPositivo ? '+' : '-'}{formatCurrency(m.monto)}
                                     </div>
                                   </div>
                                   
@@ -2601,13 +2918,24 @@ const ModuloContableContent = () => {
 
                                     <div>
                                       <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block mb-0.5">Origen</span>
-                                      <span className={cn(
-                                        "inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold uppercase border w-fit",
-                                        m.origen === 'COBRADOR' ? "bg-orange-50 text-orange-700 border-orange-100" : "bg-blue-50 text-blue-700 border-blue-100"
-                                      )}>
-                                        <Briefcase className="w-2.5 h-2.5" />
-                                        {m.origen}
-                                      </span>
+                                      {(() => {
+                                        const isCuotaInicial = String(m.tipoReferencia || '').toUpperCase() === 'CUOTA_INICIAL'
+                                        const label = (detalleTipo === 'CUOTAS_INICIALES' && isCuotaInicial) ? 'CLIENTE' : m.origen
+                                        const color = (detalleTipo === 'CUOTAS_INICIALES' && isCuotaInicial)
+                                          ? "bg-orange-50 text-orange-700 border-orange-100"
+                                          : m.origen === 'COBRADOR'
+                                            ? "bg-orange-50 text-orange-700 border-orange-100"
+                                            : "bg-blue-50 text-blue-700 border-blue-100"
+                                        return (
+                                          <span className={cn(
+                                            "inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold uppercase border w-fit",
+                                            color,
+                                          )}>
+                                            <Briefcase className="w-2.5 h-2.5" />
+                                            {label}
+                                          </span>
+                                        )
+                                      })()}
                                     </div>
                                   </div>
                                 </div>
