@@ -112,7 +112,12 @@ export async function getCajas(): Promise<Caja[]> {
       const cached = await offlineStore.getAll<Caja>('cajas');
       if (cached.length > 0) return cached;
     }
-    console.error('Error fetching cajas:', error);
+    const err: any = error as any;
+    console.error('Error fetching cajas:', {
+      statusCode: err?.statusCode,
+      message: err?.message,
+      error: err?.error,
+    });
     return [];
   }
 }
@@ -126,7 +131,12 @@ export async function getCajaById(id: string): Promise<Caja | null> {
        const cached = await offlineStore.getById<Caja>('cajas', id);
        if (cached) return cached;
     }
-    console.error('Error fetching caja:', error);
+    const err: any = error as any;
+    console.error('Error fetching caja:', {
+      statusCode: err?.statusCode,
+      message: err?.message,
+      error: err?.error,
+    });
     return null;
   }
 }

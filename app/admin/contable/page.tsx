@@ -137,6 +137,7 @@ interface ResumenFinanciero {
   egresosHoy: number
   cuotaInicialHoy: number
   utilidadNeta: number
+  margenArticulosHoy?: number
   deudaCobradorHoy?: number
   capitalEnCalle: number // Dinero prestado que aún no ha regresado
   cajaActual: number // Dinero disponible ya mismo
@@ -219,6 +220,13 @@ const ModuloContableContent = () => {
 
   const [showDetalleModal, setShowDetalleModal] = useState(false)
   const [detalleTipo, setDetalleTipo] = useState<'INGRESOS' | 'EGRESOS' | 'CUOTAS_INICIALES' | 'UTILIDAD' | 'CIERRES' | 'CIERRES_RUTA' | null>(null)
+
+  const [resumenUtilidadModal, setResumenUtilidadModal] = useState<{
+    totalUtilidad: number
+    margen: number
+    egresosOperativos: number
+    utilidadFinanciera: number
+  } | null>(null)
 
   // Estados para Paginación de Listas Locales (Máximo 3 por vista)
   const [currentPageMovimientos, setCurrentPageMovimientos] = useState(0)
@@ -407,6 +415,7 @@ const ModuloContableContent = () => {
     egresosHoy: 0,
     cuotaInicialHoy: 0,
     utilidadNeta: 0,
+    margenArticulosHoy: 0,
     capitalEnCalle: 0,
     cajaActual: 0,
     porcentajeIngresosVsAyer: null,
@@ -463,11 +472,12 @@ const ModuloContableContent = () => {
         })));
       }
 
-      // 3. Traemos los números totales (Resumen histórico completo)
-      // Pasamos fechaFin = hoy para forzar el rango desde 2020 hasta el día actual
+      // 3. Traemos los números del día (KPIs HOY)
       const fechaHoy = getBogotaDateKey(new Date());
-      const resumen = await getResumenFinanciero('2020-01-01', fechaHoy);
+      const resumen = await getResumenFinanciero(fechaHoy, fechaHoy);
       if (resumen) {
+        const fechaAyer = getBogotaDateKey(new Date(Date.now() - 24 * 60 * 60 * 1000));
+
         const ingresosRecoleccionHoy = await (async () => {
           const trans = await fetchTransaccionesAll({
             tipo: 'TRANSFERENCIA',
@@ -483,18 +493,41 @@ const ModuloContableContent = () => {
             .reduce((acc: number, t: any) => acc + Number(t?.monto || 0), 0)
         })()
 
+        const ingresosRecoleccionAyer = await (async () => {
+          const trans = await fetchTransaccionesAll({
+            tipo: 'TRANSFERENCIA',
+            fechaInicio: fechaAyer,
+            fechaFin: fechaAyer,
+            limit: 500,
+          })
+
+          return trans
+            .filter((t: any) => String(t?.estado || '').toUpperCase() === 'APROBADO')
+            .filter((t: any) => String(t?.tipoReferencia || '').toUpperCase() === 'RECOLECCION')
+            .filter((t: any) => String(t?.descripcion || '').toUpperCase().includes('RECIBIDA'))
+            .reduce((acc: number, t: any) => acc + Number(t?.monto || 0), 0)
+        })()
+
+        const ingresosHoyVal = Number(ingresosRecoleccionHoy || 0);
+        const ingresosAyerVal = Number(ingresosRecoleccionAyer || 0);
+        const porcentajeIngresosVsAyer = (() => {
+          if (ingresosAyerVal === 0) return ingresosHoyVal > 0 ? 100 : 0;
+          return Number((((ingresosHoyVal - ingresosAyerVal) / ingresosAyerVal) * 100).toFixed(2));
+        })();
+
         setResumenData({
-          ingresosHoy: Number(ingresosRecoleccionHoy || 0),
+          ingresosHoy: ingresosHoyVal,
           egresosHoy: resumen.egresosHoy,
           cuotaInicialHoy: Number((resumen as any).cuotaInicialHoy || 0),
           utilidadNeta: Number((resumen as any).utilidadReal ?? resumen.gananciaNeta ?? 0),
+          margenArticulosHoy: Number((resumen as any).margenArticulosHoy ?? 0),
           deudaCobradorHoy: Number((resumen as any).deudaCobradorHoy ?? 0),
           capitalEnCalle: resumen.capitalEnCalle,
           cajaActual: resumen.saldoCajas,
-          porcentajeIngresosVsAyer: resumen.porcentajeIngresosVsAyer ?? null,
+          porcentajeIngresosVsAyer,
           porcentajeEgresosVsAyer: resumen.porcentajeEgresosVsAyer ?? null,
           porcentajeCuotaInicialVsAyer: (resumen as any).porcentajeCuotaInicialVsAyer ?? null,
-          esIngresoPositivo: resumen.esIngresoPositivo ?? true,
+          esIngresoPositivo: porcentajeIngresosVsAyer >= 0,
           esEgresoPositivo: resumen.esEgresoPositivo ?? true,
           rutasTotales: resumen.rutasTotales || 0,
           rutasAbiertas: resumen.rutasAbiertas || 0,
@@ -558,8 +591,47 @@ const ModuloContableContent = () => {
       }
     } else if (!showDetalleModal) {
       setMovimientosModalGlobal([])
+      setResumenUtilidadModal(null)
     }
   }, [detalleTipo, showDetalleModal, fechaInicioModal, fechaFinModal, cajaSeleccionada])
+
+  useEffect(() => {
+    if (!showDetalleModal) return
+    if (cajaSeleccionada) return
+    if (detalleTipo !== 'UTILIDAD') {
+      setResumenUtilidadModal(null)
+      return
+    }
+    if (!fechaInicioModal || !fechaFinModal) return
+
+    let cancelled = false
+
+    ;(async () => {
+      try {
+        const resumen = await getResumenFinanciero(fechaInicioModal, fechaFinModal)
+        if (cancelled) return
+
+        const totalUtilidad = Number((resumen as any).utilidadReal ?? (resumen as any).gananciaNeta ?? 0)
+        const margen = Number((resumen as any).margenArticulosHoy ?? 0)
+        const egresosOperativos = Number((resumen as any).egresosHoy ?? 0)
+        const utilidadFinanciera = totalUtilidad + egresosOperativos - margen
+
+        setResumenUtilidadModal({
+          totalUtilidad,
+          margen,
+          egresosOperativos,
+          utilidadFinanciera,
+        })
+      } catch {
+        if (cancelled) return
+        setResumenUtilidadModal(null)
+      }
+    })()
+
+    return () => {
+      cancelled = true
+    }
+  }, [showDetalleModal, detalleTipo, cajaSeleccionada, fechaInicioModal, fechaFinModal])
 
   // Cargar usuarios solo cuando el rol está disponible y es admin
   useEffect(() => {
@@ -2449,6 +2521,40 @@ const ModuloContableContent = () => {
                                      : <Zap className="w-6 h-6"/>}
                            </div>
                         </div>
+                    )}
+
+                    {detalleTipo === 'UTILIDAD' && resumenUtilidadModal && (
+                      <div className="rounded-xl border border-indigo-100 bg-indigo-50/40 p-4">
+                        <div className="text-xs font-black uppercase tracking-widest text-indigo-700 mb-3">
+                          Desglose
+                        </div>
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between">
+                            <div className="text-xs font-bold text-slate-700">Utilidad financiera (Interés + Mora)</div>
+                            <div className="text-xs font-black text-slate-900">
+                              <MoneyAmount value={resumenUtilidadModal.utilidadFinanciera} amountClassName="text-xs font-black text-slate-900" />
+                            </div>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <div className="text-xs font-bold text-slate-700">Margen artículos</div>
+                            <div className="text-xs font-black text-slate-900">
+                              <MoneyAmount value={resumenUtilidadModal.margen} amountClassName="text-xs font-black text-slate-900" />
+                            </div>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <div className="text-xs font-bold text-slate-700">Gastos operativos</div>
+                            <div className="text-xs font-black text-slate-900">
+                              <MoneyAmount value={resumenUtilidadModal.egresosOperativos} meaning="expense" amountClassName="text-xs font-black text-slate-900" />
+                            </div>
+                          </div>
+                          <div className="pt-2 mt-2 border-t border-indigo-100 flex items-center justify-between">
+                            <div className="text-xs font-black text-indigo-900">Total utilidad operativa</div>
+                            <div className="text-xs font-black text-indigo-900">
+                              <MoneyAmount value={resumenUtilidadModal.totalUtilidad} amountClassName="text-xs font-black text-indigo-900" />
+                            </div>
+                          </div>
+                        </div>
+                      </div>
                     )}
 
                     {/* Lista de Movimientos / Arqueos */}
