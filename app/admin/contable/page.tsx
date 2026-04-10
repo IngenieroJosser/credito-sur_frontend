@@ -162,22 +162,40 @@ type RutaResumen = {
 // ─── Helper: mapea ApiTransaccion → MovimientoContable ───────────────────────
 // Centraliza la lógica que antes estaba duplicada 3 veces en fetchData,
 // loadMovimientosDetalle y loadMovimientosGlobalPorTipo.
-const mapTransaccion = (t: ApiTransaccion): MovimientoContable => ({
-  id: t.id,
-  numero: t.numero,
-  fecha: t.fecha,
-  concepto: t.descripcion,
-  tipo: t.tipo,
-  monto: t.monto,
-  categoria: t.categoria || 'GENERAL',
-  responsable: t.responsable,
-  origen: (t as any).origen || 'EMPRESA',
-  estado: (t.estado as any) || 'APROBADO',
-  cajaId: (t as any).cajaId,
-  cajaOrigenId: (t as any).cajaOrigenId,
-  tipoReferencia: (t as any).tipoReferencia,
-  referenciaId: (t as any).referenciaId,
-})
+const mapTransaccion = (t: ApiTransaccion): MovimientoContable => {
+  const tipoRefRaw = String((t as any).tipoReferencia || '').toUpperCase()
+  const origenBackend = (t as any).origen
+
+  const origenInferido = (() => {
+    // Abonos de deuda del cobrador: el origen real es el COBRADOR.
+    if (tipoRefRaw.includes('ABONO_DEUDA')) return 'COBRADOR'
+
+    // Pagos de clientes: el origen real es el CLIENTE.
+    if (['PAGO', 'ABONO', 'CUOTA_INICIAL'].includes(tipoRefRaw)) return 'CLIENTE'
+
+    // Si el backend manda origen explícito (y no es un fallback genérico), respetarlo.
+    if (origenBackend && String(origenBackend).toUpperCase() !== 'EMPRESA') return origenBackend
+
+    return 'EMPRESA'
+  })()
+
+  return {
+    id: t.id,
+    numero: t.numero,
+    fecha: t.fecha,
+    concepto: t.descripcion,
+    tipo: t.tipo,
+    monto: t.monto,
+    categoria: t.categoria || 'GENERAL',
+    responsable: t.responsable,
+    origen: origenInferido as any,
+    estado: (t.estado as any) || 'APROBADO',
+    cajaId: (t as any).cajaId,
+    cajaOrigenId: (t as any).cajaOrigenId,
+    tipoReferencia: (t as any).tipoReferencia,
+    referenciaId: (t as any).referenciaId,
+  }
+}
 
 const ModuloContableContent = () => {
   // --- AUTENTICACIÓN Y PERMISOS ---
@@ -219,7 +237,8 @@ const ModuloContableContent = () => {
   const [movimientoSeleccionado, setMovimientoSeleccionado] = useState<MovimientoContable | null>(null)
 
   const [showDetalleModal, setShowDetalleModal] = useState(false)
-  const [detalleTipo, setDetalleTipo] = useState<'INGRESOS' | 'EGRESOS' | 'CUOTAS_INICIALES' | 'UTILIDAD' | 'CIERRES' | 'CIERRES_RUTA' | null>(null)
+  const [detalleTipo, setDetalleTipo] = useState<'INGRESOS' | 'EGRESOS' | 'CUOTAS_INICIALES' | 'UTILIDAD' | 'CIERRES' | 'CIERRES_RUTA' | 'CAJA_TODOS' | null>(null)
+  const [detalleCajaFocus, setDetalleCajaFocus] = useState<'RECAUDO' | 'GASTOS' | null>(null)
 
   const [resumenUtilidadModal, setResumenUtilidadModal] = useState<{
     totalUtilidad: number
@@ -330,15 +349,18 @@ const ModuloContableContent = () => {
     return { inicio: min ?? hoy, fin: hoy }
   }
 
-  const loadMovimientosDetalle = async () => {
-    if (!cajaSeleccionada) {
+  const loadMovimientosDetalle = async (opts?: { cajaId?: string; fechaInicio?: string; fechaFin?: string }) => {
+    const cajaId = opts?.cajaId ?? cajaSeleccionada?.id
+    if (!cajaId) {
       setMovimientosDetalle([])
       return
     }
     try {
-      const params: any = { cajaId: cajaSeleccionada.id, limit: 500 }
-      if (fechaInicioModal) params.fechaInicio = fechaInicioModal
-      if (fechaFinModal) params.fechaFin = fechaFinModal
+      const params: any = { cajaId, limit: 500 }
+      const inicio = opts?.fechaInicio ?? fechaInicioModal
+      const fin = opts?.fechaFin ?? fechaFinModal
+      if (inicio) params.fechaInicio = inicio
+      if (fin) params.fechaFin = fin
       const resp = await getTransacciones(params)
       if (resp && Array.isArray(resp.data)) {
         setMovimientosDetalle(resp.data.map(mapTransaccion))
@@ -592,8 +614,34 @@ const ModuloContableContent = () => {
     } else if (!showDetalleModal) {
       setMovimientosModalGlobal([])
       setResumenUtilidadModal(null)
+      setDetalleCajaFocus(null)
     }
   }, [detalleTipo, showDetalleModal, fechaInicioModal, fechaFinModal, cajaSeleccionada])
+
+  // Modal de caja: al cambiar fechas, recargar transacciones de esa caja.
+  useEffect(() => {
+    if (!showDetalleModal) return
+    if (!cajaSeleccionada) return
+    if (!fechaInicioModal || !fechaFinModal) return
+
+    let cancelled = false
+
+    ;(async () => {
+      try {
+        await loadMovimientosDetalle({
+          cajaId: cajaSeleccionada.id,
+          fechaInicio: fechaInicioModal,
+          fechaFin: fechaFinModal,
+        })
+      } catch {
+        if (cancelled) return
+      }
+    })()
+
+    return () => {
+      cancelled = true
+    }
+  }, [showDetalleModal, cajaSeleccionada?.id, fechaInicioModal, fechaFinModal])
 
   useEffect(() => {
     if (!showDetalleModal) return
@@ -925,6 +973,9 @@ const ModuloContableContent = () => {
           <div 
             onClick={() => { 
                 const hoy = getBogotaDateKey(new Date());
+                setCajaSeleccionada(null)
+                setSaldoRutaSeleccionada(null)
+                setMovimientosDetalle([])
                 setFechaInicioModal(hoy);
                 setFechaFinModal(hoy);
                 setDetalleTipo('INGRESOS'); 
@@ -966,6 +1017,9 @@ const ModuloContableContent = () => {
           <div 
             onClick={() => { 
                 const hoy = getBogotaDateKey(new Date());
+                setCajaSeleccionada(null)
+                setSaldoRutaSeleccionada(null)
+                setMovimientosDetalle([])
                 setFechaInicioModal(hoy);
                 setFechaFinModal(hoy);
                 setDetalleTipo('EGRESOS'); 
@@ -1008,6 +1062,9 @@ const ModuloContableContent = () => {
           <div
             onClick={() => {
               const hoy = getBogotaDateKey(new Date())
+              setCajaSeleccionada(null)
+              setSaldoRutaSeleccionada(null)
+              setMovimientosDetalle([])
               setFechaInicioModal(hoy)
               setFechaFinModal(hoy)
               setDetalleTipo('UTILIDAD')
@@ -2139,11 +2196,12 @@ const ModuloContableContent = () => {
                       {/* Recaudado */}
                       <div 
                         onClick={async () => {
-                            const { inicio, fin } = getDefaultDetalleModalRange('INGRESOS')
-                            setFechaInicioModal(inicio)
-                            setFechaFinModal(fin)
-                            setDetalleTipo('INGRESOS');
-                            await loadMovimientosDetalle();
+                            const hoy = getBogotaDateKey(new Date())
+                            setFechaInicioModal(hoy)
+                            setFechaFinModal(hoy)
+                            setDetalleTipo('CAJA_TODOS');
+                            setDetalleCajaFocus('RECAUDO')
+                            await loadMovimientosDetalle({ cajaId: cajaSeleccionada.id, fechaInicio: hoy, fechaFin: hoy });
                             setShowDetalleModal(true);
                         }}
                         className="bg-emerald-50 p-4 rounded-2xl border border-emerald-100 cursor-pointer hover:bg-emerald-100/80 transition-colors group"
@@ -2190,11 +2248,12 @@ const ModuloContableContent = () => {
                       {/* Gastado/Invertido */}
                       <div 
                         onClick={async () => {
-                            const { inicio, fin } = getDefaultDetalleModalRange('EGRESOS')
-                            setFechaInicioModal(inicio)
-                            setFechaFinModal(fin)
-                            setDetalleTipo('EGRESOS');
-                            await loadMovimientosDetalle();
+                            const hoy = getBogotaDateKey(new Date())
+                            setFechaInicioModal(hoy)
+                            setFechaFinModal(hoy)
+                            setDetalleTipo('CAJA_TODOS');
+                            setDetalleCajaFocus('GASTOS')
+                            await loadMovimientosDetalle({ cajaId: cajaSeleccionada.id, fechaInicio: hoy, fechaFin: hoy });
                             setShowDetalleModal(true);
                         }}
                         className="bg-rose-50 p-4 rounded-2xl border border-rose-100 cursor-pointer hover:bg-rose-100/80 transition-colors group"
@@ -2253,40 +2312,6 @@ const ModuloContableContent = () => {
                      </div>
                    </div>
                  )}
-
-                 <div className="mt-4 p-4 bg-slate-50 rounded-2xl border border-slate-100">
-                      <div className="flex justify-between items-center mb-2">
-                          <span className="text-xs font-bold text-slate-500 uppercase">Utilidad Diaria</span>
-                          <span className="text-[10px] font-bold text-slate-400">Estimado</span>
-                      </div>
-                      <div className="text-2xl font-black text-slate-900">
-                          {(() => {
-                                if (cajaSeleccionada?.tipo === 'RUTA' && saldoRutaSeleccionada) {
-                                  // La utilidad diaria operativa: lo recaudado menos los gastos
-                                  const valor = saldoRutaSeleccionada.recaudoDelDia - saldoRutaSeleccionada.gastosDelDia;
-                                  return (
-                                    <div className="flex items-center gap-2">
-                                      <span>{formatCurrency(Math.abs(Number(valor || 0)))}</span>
-                                      <span className={cn(
-                                        "px-2 py-0.5 rounded-full text-[9px] font-black uppercase border",
-                                        Number(valor || 0) < 0
-                                          ? "bg-red-50 text-red-700 border-red-100"
-                                          : "bg-emerald-50 text-emerald-700 border-emerald-100",
-                                      )}>
-                                        {Number(valor || 0) < 0 ? 'PÉRDIDA' : 'GANANCIA'}
-                                      </span>
-                                    </div>
-                                  )
-                                }
-                                // Las cajas principales no generan utilidad por sí mismas, solo almacenan saldos y transferencias.
-                                return (
-                                  <div className="flex items-center gap-2">
-                                     <span className="text-slate-400 font-bold text-sm">No aplica a esta caja</span>
-                                  </div>
-                                )
-                          })()}
-                      </div>
-                 </div>
               </div>
 
 
@@ -2309,7 +2334,7 @@ const ModuloContableContent = () => {
         
         {/* Modal de Detalle */}
         {showDetalleModal && renderInPortal(
-          <div className="fixed inset-0 z-[2147483647] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm" onClick={() => { setShowDetalleModal(false); setMovimientosDetalle([]); setFechaInicioModal(''); setFechaFinModal(''); }}>
+          <div className="fixed inset-0 z-[2147483647] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm" onClick={() => { setShowDetalleModal(false); setMovimientosDetalle([]); setFechaInicioModal(''); setFechaFinModal(''); setCajaSeleccionada(null); setSaldoRutaSeleccionada(null); }}>
             <div className="w-full max-w-2xl rounded-2xl bg-white border border-slate-200 shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200 flex flex-col max-h-[90vh]" onClick={(e) => e.stopPropagation()}>
               {/* Modal Header */}
               <div className="p-6 border-b border-slate-100 flex items-center justify-between shrink-0">
@@ -2323,6 +2348,8 @@ const ModuloContableContent = () => {
                             ? 'Historial de Cuotas Iniciales'
                             : detalleTipo === 'UTILIDAD'
                               ? 'Detalle de Utilidad Operativa'
+                              : detalleTipo === 'CAJA_TODOS'
+                                ? 'Movimientos de Caja'
                           : detalleTipo === 'CIERRES_RUTA'
                             ? 'Historial de Cierres de Ruta'
                             : 'Historial de Cierres'}
@@ -2333,7 +2360,7 @@ const ModuloContableContent = () => {
                     </p>
                 </div>
                 <button
-                  onClick={() => { setShowDetalleModal(false); setMovimientosDetalle([]); setFechaInicioModal(''); setFechaFinModal(''); }}
+                  onClick={() => { setShowDetalleModal(false); setMovimientosDetalle([]); setFechaInicioModal(''); setFechaFinModal(''); setCajaSeleccionada(null); setSaldoRutaSeleccionada(null); }}
                   className="p-2 rounded-2xl hover:bg-slate-100 text-slate-500 transition-colors"
                 >
                   <XCircle className="h-6 w-6" />
@@ -2412,14 +2439,18 @@ const ModuloContableContent = () => {
                                )}>
                                  {(() => {
                                     const hoyKey = getBogotaDateKey(new Date())
-                                    const source = movimientosDetalle.length ? movimientosDetalle : (!cajaSeleccionada && movimientosModalGlobal.length ? movimientosModalGlobal : movimientos)
+                                    const source = cajaSeleccionada
+                                      ? movimientosDetalle
+                                      : (movimientosModalGlobal.length ? movimientosModalGlobal : movimientos)
                                     const filtered = source
                                         .filter(m => {
                                             if (!cajaSeleccionada && m.categoria === 'CONSOLIDACION') return false;
                                             return true;
                                         })
                                         .filter(m => {
-                                            if (detalleTipo === 'INGRESOS') {
+                                            if (detalleTipo === 'CAJA_TODOS') {
+                                              return true
+                                            } else if (detalleTipo === 'INGRESOS') {
                                               if (m.tipo !== 'TRANSFERENCIA') return false;
                                               if (String(m.tipoReferencia || '').toUpperCase() !== 'RECOLECCION') return false;
                                               const conc = String((m as any).descripcion || m.concepto || '').toUpperCase();
@@ -2465,6 +2496,32 @@ const ModuloContableContent = () => {
                                       ) {
                                         if (detalleTipo === 'CUOTAS_INICIALES') return Number(resumenData.cuotaInicialHoy || 0)
                                         if (detalleTipo === 'UTILIDAD') return Number(resumenData.utilidadNeta || 0)
+                                      }
+
+                                      if (detalleTipo === 'CAJA_TODOS') {
+                                        const ingresosBrutos = filtered
+                                          .filter((m) => m.tipo === 'INGRESO')
+                                          .reduce((acc, m) => acc + Number(m.monto || 0), 0)
+                                        const egresosBrutos = filtered
+                                          .filter((m) => m.tipo === 'EGRESO')
+                                          .reduce((acc, m) => acc + Number(m.monto || 0), 0)
+
+                                        if (cajaSeleccionada?.tipo === 'RUTA') {
+                                          if (detalleCajaFocus === 'RECAUDO') return ingresosBrutos
+                                          if (detalleCajaFocus === 'GASTOS') return egresosBrutos
+                                        }
+
+                                        // Para otras cajas, mostramos el neto (considerando entradas y salidas)
+                                        return filtered.reduce((acc, m) => {
+                                          const monto = Number(m.monto || 0)
+                                          if (m.tipo === 'EGRESO') return acc - monto
+                                          if (m.tipo === 'TRANSFERENCIA') {
+                                            const numero = String((m as any).numero || '')
+                                            const esSalida = numero.toUpperCase().startsWith('TRX-OUT')
+                                            return acc + (esSalida ? -monto : monto)
+                                          }
+                                          return acc + monto
+                                        }, 0)
                                       }
 
                                       if (detalleTipo !== 'UTILIDAD') {
@@ -2599,60 +2656,67 @@ const ModuloContableContent = () => {
                                         if (!cajaId) return 0
                                         return historialCierres.filter((c: any) => c.tipo === 'CIERRE_RUTA' && c.cajaId === cajaId).length
                                       })()
-                                 : (() => {
-                                      const base = movimientosDetalle.length ? movimientosDetalle : (!cajaSeleccionada && movimientosModalGlobal.length ? movimientosModalGlobal : movimientos);
-                                      const filtrados = base
-                                        .filter(m => {
-                                          if (!cajaSeleccionada && m.categoria === 'CONSOLIDACION') return false;
-                                          if (detalleTipo === 'INGRESOS') {
-                                            if (m.tipo !== 'TRANSFERENCIA') return false;
-                                            if (String(m.tipoReferencia || '').toUpperCase() !== 'RECOLECCION') return false;
-                                            const conc = String((m as any).descripcion || m.concepto || '').toUpperCase();
-                                            return conc.includes('RECIBIDA');
-                                          } else if (detalleTipo === 'CUOTAS_INICIALES') {
-                                            if (m.tipo !== 'INGRESO') return false;
-                                            if (String(m.tipoReferencia || '').toUpperCase() !== 'CUOTA_INICIAL') return false;
-                                            return true;
-                                          } else if (detalleTipo === 'UTILIDAD') {
-                                            const esIngresoRecoleccion =
-                                              m.tipo === 'TRANSFERENCIA' &&
-                                              String(m.tipoReferencia || '').toUpperCase() === 'RECOLECCION' &&
-                                              String((m as any).descripcion || m.concepto || '').toUpperCase().includes('RECIBIDA')
-                                            const esEgreso = m.tipo === 'EGRESO'
-                                            const esTransferEgreso =
-                                              m.tipo === 'TRANSFERENCIA' &&
-                                              (() => {
-                                                const conc = String((m as any).descripcion || m.concepto || '').toUpperCase()
-                                                return conc.includes('SALIDA') || conc.includes('ENVIADA A') || conc.includes('EGRESO')
-                                              })()
-                                            return esIngresoRecoleccion || esEgreso || esTransferEgreso
-                                          } else {
-                                            if (m.tipo === 'EGRESO') {
-                                              if (String(m.tipoReferencia || '').toUpperCase() === 'DEUDA_COBRADOR') return false
-                                              return true
-                                            }
-                                            return false;
-                                          }
-                                        })
-                                        .filter(m => {
-                                          return String(m.estado || '').toUpperCase() === 'APROBADO';
-                                        })
-                                        .filter(m => {
-                                          if (!cajaSeleccionada) return true;
-                                          return m.cajaId === cajaSeleccionada.id;
-                                        })
-                                        .filter(m => {
-                                          if (fechaInicioModal || fechaFinModal) {
-                                            const fechaM = normalizeDateKey(m.fecha);
-                                            if (fechaInicioModal && fechaM < fechaInicioModal) return false;
-                                            if (fechaFinModal && fechaM > fechaFinModal) return false;
-                                            return true;
-                                          }
-                                          return true;
-                                        });
-                                      return filtrados.length;
-                                    })()} {detalleTipo === 'CIERRES' ? 'consolidaciones' : detalleTipo === 'CIERRES_RUTA' ? 'cierres' : 'registros'}
-                           </span>
+                                  : (() => {
+                                      const base = cajaSeleccionada
+                                       ? movimientosDetalle
+                                       : (movimientosModalGlobal.length ? movimientosModalGlobal : movimientos);
+                                     const filtrados = base
+                                       .filter(m => {
+                                         if (!cajaSeleccionada && m.categoria === 'CONSOLIDACION') return false;
+                                         return true;
+                                       })
+                                       .filter(m => {
+                                         if (detalleTipo === 'CAJA_TODOS') {
+                                           return true
+                                         }
+                                         if (detalleTipo === 'INGRESOS') {
+                                           if (m.tipo !== 'TRANSFERENCIA') return false;
+                                           if (String(m.tipoReferencia || '').toUpperCase() !== 'RECOLECCION') return false;
+                                           const conc = String((m as any).descripcion || m.concepto || '').toUpperCase();
+                                           return conc.includes('RECIBIDA');
+                                         } else if (detalleTipo === 'CUOTAS_INICIALES') {
+                                           if (m.tipo !== 'INGRESO') return false;
+                                           if (String(m.tipoReferencia || '').toUpperCase() !== 'CUOTA_INICIAL') return false;
+                                           return true;
+                                         } else if (detalleTipo === 'UTILIDAD') {
+                                           const esIngresoRecoleccion =
+                                             m.tipo === 'TRANSFERENCIA' &&
+                                             String(m.tipoReferencia || '').toUpperCase() === 'RECOLECCION' &&
+                                             String((m as any).descripcion || m.concepto || '').toUpperCase().includes('RECIBIDA')
+                                           const esEgreso =
+                                             m.tipo === 'EGRESO' ||
+                                             (m.tipo === 'TRANSFERENCIA' &&
+                                               (() => {
+                                                 const conc = String((m as any).descripcion || m.concepto || '').toUpperCase()
+                                                 return conc.includes('SALIDA') || conc.includes('ENVIADA A') || conc.includes('EGRESO')
+                                               })())
+                                           return esIngresoRecoleccion || esEgreso
+                                         } else {
+                                           if (m.tipo === 'EGRESO') {
+                                             if (String(m.tipoReferencia || '').toUpperCase() === 'DEUDA_COBRADOR') return false
+                                             return true
+                                           }
+                                           if (m.tipo === 'TRANSFERENCIA') {
+                                             if (String(m.tipoReferencia || '').toUpperCase() === 'DEUDA_COBRADOR') return false
+                                             const conc = String((m as any).descripcion || m.concepto || '').toUpperCase();
+                                             return conc.includes('SALIDA') || conc.includes('ENVIADA A') || conc.includes('EGRESO');
+                                           }
+                                           return false;
+                                         }
+                                       })
+                                       .filter(m => String(m.estado || '').toUpperCase() === 'APROBADO')
+                                       .filter(m => {
+                                         if (fechaInicioModal || fechaFinModal) {
+                                           const fechaM = normalizeDateKey(m.fecha);
+                                           if (fechaInicioModal && fechaM < fechaInicioModal) return false;
+                                           if (fechaFinModal && fechaM > fechaFinModal) return false;
+                                           return true;
+                                         }
+                                         return true;
+                                       });
+                                     return filtrados.length;
+                                   })()} {detalleTipo === 'CIERRES' ? 'consolidaciones' : detalleTipo === 'CIERRES_RUTA' ? 'cierres' : 'registros'}
+                          </span>
                        </div>
                        
                        {detalleTipo === 'CIERRES' ? (
@@ -2768,9 +2832,12 @@ const ModuloContableContent = () => {
                          </div>
                        ) : (
                          <>
-                          {(movimientosDetalle.length ? movimientosDetalle : (!cajaSeleccionada && movimientosModalGlobal.length ? movimientosModalGlobal : movimientos))
+                          {(cajaSeleccionada ? movimientosDetalle : (movimientosModalGlobal.length ? movimientosModalGlobal : movimientos))
                             .filter(m => {
                               if (!cajaSeleccionada && m.categoria === 'CONSOLIDACION') return false;
+                              if (detalleTipo === 'CAJA_TODOS') {
+                                return true
+                              }
                              if (detalleTipo === 'INGRESOS') {
                                 if (m.tipo !== 'TRANSFERENCIA') return false;
                                 if (String(m.tipoReferencia || '').toUpperCase() !== 'RECOLECCION') return false;
@@ -2838,6 +2905,15 @@ const ModuloContableContent = () => {
                                 if (detalleTipo === 'CUOTAS_INICIALES') return true
                                 if (detalleTipo === 'EGRESOS') return false
                                 if (detalleTipo === 'UTILIDAD') return esIngresoRecoleccion
+                                if (detalleTipo === 'CAJA_TODOS') {
+                                  if (m.tipo === 'EGRESO') return false
+                                  if (m.tipo === 'TRANSFERENCIA') {
+                                    const numero = String((m as any).numero || '')
+                                    const esSalida = numero.toUpperCase().startsWith('TRX-OUT')
+                                    return !esSalida
+                                  }
+                                  return true
+                                }
                                 return false
                               })()
                               
