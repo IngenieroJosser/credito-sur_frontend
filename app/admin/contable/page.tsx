@@ -242,6 +242,8 @@ const ModuloContableContent = () => {
 
   const [resumenUtilidadModal, setResumenUtilidadModal] = useState<{
     totalUtilidad: number
+    interes: number
+    mora: number
     margen: number
     egresosOperativos: number
     utilidadFinanciera: number
@@ -662,10 +664,14 @@ const ModuloContableContent = () => {
         const totalUtilidad = Number((resumen as any).utilidadReal ?? (resumen as any).gananciaNeta ?? 0)
         const margen = Number((resumen as any).margenArticulosHoy ?? 0)
         const egresosOperativos = Number((resumen as any).egresosHoy ?? 0)
-        const utilidadFinanciera = totalUtilidad + egresosOperativos - margen
+        const interes = Number((resumen as any).interesHoy ?? 0)
+        const mora = Number((resumen as any).moraHoy ?? 0)
+        const utilidadFinanciera = interes + mora
 
         setResumenUtilidadModal({
           totalUtilidad,
+          interes,
+          mora,
           margen,
           egresosOperativos,
           utilidadFinanciera,
@@ -2588,9 +2594,15 @@ const ModuloContableContent = () => {
                         </div>
                         <div className="space-y-2">
                           <div className="flex items-center justify-between">
-                            <div className="text-xs font-bold text-slate-700">Utilidad financiera (Interés + Mora)</div>
+                            <div className="text-xs font-bold text-slate-700">Interés</div>
                             <div className="text-xs font-black text-slate-900">
-                              <MoneyAmount value={resumenUtilidadModal.utilidadFinanciera} amountClassName="text-xs font-black text-slate-900" />
+                              <MoneyAmount value={resumenUtilidadModal.interes} amountClassName="text-xs font-black text-slate-900" />
+                            </div>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <div className="text-xs font-bold text-slate-700">Mora</div>
+                            <div className="text-xs font-black text-slate-900">
+                              <MoneyAmount value={resumenUtilidadModal.mora} amountClassName="text-xs font-black text-slate-900" />
                             </div>
                           </div>
                           <div className="flex items-center justify-between">
