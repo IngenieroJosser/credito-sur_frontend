@@ -2471,7 +2471,9 @@ const ModuloContableContent = () => {
                                                 m.tipo === 'TRANSFERENCIA' &&
                                                 String(m.tipoReferencia || '').toUpperCase() === 'RECOLECCION' &&
                                                 String((m as any).descripcion || m.concepto || '').toUpperCase().includes('RECIBIDA')
-                                              const esEgreso = m.tipo === 'EGRESO'
+                                              const esEgreso =
+                                                m.tipo === 'EGRESO' &&
+                                                String(m.tipoReferencia || '').toUpperCase() !== 'DEUDA_COBRADOR'
                                               return esIngresoRecoleccion || esEgreso
                                             } else {
                                               if (m.tipo === 'EGRESO') {
@@ -2692,17 +2694,18 @@ const ModuloContableContent = () => {
                                            if (String(m.tipoReferencia || '').toUpperCase() !== 'CUOTA_INICIAL') return false;
                                            return true;
                                          } else if (detalleTipo === 'UTILIDAD') {
-                                           const esIngresoRecoleccion =
-                                             m.tipo === 'TRANSFERENCIA' &&
-                                             String(m.tipoReferencia || '').toUpperCase() === 'RECOLECCION' &&
-                                             String((m as any).descripcion || m.concepto || '').toUpperCase().includes('RECIBIDA')
-                                           const esEgreso =
-                                             m.tipo === 'EGRESO' ||
-                                             (m.tipo === 'TRANSFERENCIA' &&
-                                               (() => {
-                                                 const conc = String((m as any).descripcion || m.concepto || '').toUpperCase()
-                                                 return conc.includes('SALIDA') || conc.includes('ENVIADA A') || conc.includes('EGRESO')
-                                               })())
+                                          const esIngresoRecoleccion =
+                                            m.tipo === 'TRANSFERENCIA' &&
+                                            String(m.tipoReferencia || '').toUpperCase() === 'RECOLECCION' &&
+                                            String((m as any).descripcion || m.concepto || '').toUpperCase().includes('RECIBIDA')
+                                          const esEgreso =
+                                            (m.tipo === 'EGRESO' &&
+                                              String(m.tipoReferencia || '').toUpperCase() !== 'DEUDA_COBRADOR') ||
+                                            (m.tipo === 'TRANSFERENCIA' &&
+                                              (() => {
+                                                const conc = String((m as any).descripcion || m.concepto || '').toUpperCase()
+                                                return conc.includes('SALIDA') || conc.includes('ENVIADA A') || conc.includes('EGRESO')
+                                              })())
                                            return esIngresoRecoleccion || esEgreso
                                          } else {
                                            if (m.tipo === 'EGRESO') {
@@ -2870,7 +2873,8 @@ const ModuloContableContent = () => {
                                   String(m.tipoReferencia || '').toUpperCase() === 'RECOLECCION' &&
                                   String((m as any).descripcion || m.concepto || '').toUpperCase().includes('RECIBIDA')
                                 const esEgreso =
-                                  m.tipo === 'EGRESO' ||
+                                  (m.tipo === 'EGRESO' &&
+                                    String(m.tipoReferencia || '').toUpperCase() !== 'DEUDA_COBRADOR') ||
                                   (m.tipo === 'TRANSFERENCIA' &&
                                     (() => {
                                       const conc = String((m as any).descripcion || m.concepto || '').toUpperCase()
