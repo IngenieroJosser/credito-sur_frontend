@@ -2253,40 +2253,6 @@ const ModuloContableContent = () => {
                      </div>
                    </div>
                  )}
-
-                 <div className="mt-4 p-4 bg-slate-50 rounded-2xl border border-slate-100">
-                      <div className="flex justify-between items-center mb-2">
-                          <span className="text-xs font-bold text-slate-500 uppercase">Utilidad Diaria</span>
-                          <span className="text-[10px] font-bold text-slate-400">Estimado</span>
-                      </div>
-                      <div className="text-2xl font-black text-slate-900">
-                          {(() => {
-                                if (cajaSeleccionada?.tipo === 'RUTA' && saldoRutaSeleccionada) {
-                                  // La utilidad diaria operativa: lo recaudado menos los gastos
-                                  const valor = saldoRutaSeleccionada.recaudoDelDia - saldoRutaSeleccionada.gastosDelDia;
-                                  return (
-                                    <div className="flex items-center gap-2">
-                                      <span>{formatCurrency(Math.abs(Number(valor || 0)))}</span>
-                                      <span className={cn(
-                                        "px-2 py-0.5 rounded-full text-[9px] font-black uppercase border",
-                                        Number(valor || 0) < 0
-                                          ? "bg-red-50 text-red-700 border-red-100"
-                                          : "bg-emerald-50 text-emerald-700 border-emerald-100",
-                                      )}>
-                                        {Number(valor || 0) < 0 ? 'PÉRDIDA' : 'GANANCIA'}
-                                      </span>
-                                    </div>
-                                  )
-                                }
-                                // Las cajas principales no generan utilidad por sí mismas, solo almacenan saldos y transferencias.
-                                return (
-                                  <div className="flex items-center gap-2">
-                                     <span className="text-slate-400 font-bold text-sm">No aplica a esta caja</span>
-                                  </div>
-                                )
-                          })()}
-                      </div>
-                 </div>
               </div>
 
 
