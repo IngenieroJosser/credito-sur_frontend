@@ -2214,73 +2214,74 @@ const ModuloContableContent = () => {
                              <ArrowUpRight className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" />
                          </div>
                          <div className="font-extrabold text-emerald-800 text-lg">
-                             {(() => {
-                                 if (saldoRutaSeleccionada) {
-                                   const valor =
-                                     saldoRutaSeleccionada.recaudoDelDia ||
-                                     saldoRutaSeleccionada.saldoCaja ||
-                                     cajaSeleccionada?.saldo || 0;
-                                   return (
-                                     <MoneyAmount
-                                       value={valor}
-                                       amountClassName="text-lg font-extrabold text-emerald-800"
-                                     />
-                                   )
-                                 }
-                                 
-                                 if (cajaSeleccionada?.saldo) {
-                                   const valor = Number(cajaSeleccionada.saldo || 0)
-                                   return (
-                                     <MoneyAmount
-                                       value={valor}
-                                       amountClassName="text-lg font-extrabold text-emerald-800"
-                                     />
-                                   )
-                                 }
-                                 
-                                 return (
-                                    <div className="text-emerald-700 font-semibold text-xs mt-1">Ver Historial ➔</div>
-                                 )
-                             })()}
-                         </div>
-                      </div>
+                           {(() => {
+                             if (saldoRutaSeleccionada) {
+                               const valor =
+                                 (saldoRutaSeleccionada.recaudoDelDia ??
+                                   saldoRutaSeleccionada.saldoCaja ??
+                                   cajaSeleccionada?.saldo ??
+                                   0)
+                               return (
+                                 <MoneyAmount
+                                   value={valor}
+                                   amountClassName="font-extrabold text-emerald-800 text-lg"
+                                 />
+                               )
+                             }
 
-                      {/* Gastado/Invertido */}
-                      <div 
-                        onClick={async () => {
-                            const hoy = getBogotaDateKey(new Date())
-                            setFechaInicioModal(hoy)
-                            setFechaFinModal(hoy)
-                            setDetalleTipo('CAJA_TODOS');
-                            setDetalleCajaFocus('GASTOS')
-                            await loadMovimientosDetalle({ cajaId: cajaSeleccionada.id, fechaInicio: hoy, fechaFin: hoy });
-                            setShowDetalleModal(true);
-                        }}
-                        className="bg-rose-50 p-4 rounded-2xl border border-rose-100 cursor-pointer hover:bg-rose-100/80 transition-colors group"
-                      >
-                         <div className="text-[10px] font-bold text-rose-600 uppercase mb-1 flex items-center gap-1 justify-between">
-                             <div className="flex items-center gap-1">
-                                <TrendingDown className="w-3 h-3" />
-                                Egresos
-                             </div>
-                             <ArrowUpRight className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" />
+                             if (cajaSeleccionada?.saldo != null) {
+                               const valor = Number(cajaSeleccionada.saldo || 0)
+                               return (
+                                 <MoneyAmount
+                                   value={valor}
+                                   amountClassName="font-extrabold text-emerald-800 text-lg"
+                                 />
+                               )
+                             }
+
+                             return (
+                               <div className="text-emerald-700 font-semibold text-xs mt-1">Ver Historial ➔</div>
+                             )
+                           })()}
                          </div>
-                         <div className="font-extrabold text-rose-800 text-lg">
-                             {(() => {
-                                if (saldoRutaSeleccionada) {
-                                  // Los egresos de una ruta incluyen gastos operativos y desembolsos
-                                  const valor = saldoRutaSeleccionada.gastosDelDia + (saldoRutaSeleccionada.desembolsos || 0);
-                                  return (
-                                    <MoneyAmount
-                                      value={valor}
-                                      meaning="expense"
-                                      amountClassName="text-lg font-extrabold text-rose-800"
-                                    />
-                                  )
-                                }
+                    </div>
+
+                    {/* Gastado/Invertido */}
+                    <div 
+                      onClick={async () => {
+                          const hoy = getBogotaDateKey(new Date())
+                          setFechaInicioModal(hoy)
+                          setFechaFinModal(hoy)
+                          setDetalleTipo('CAJA_TODOS');
+                          setDetalleCajaFocus('GASTOS')
+                          await loadMovimientosDetalle({ cajaId: cajaSeleccionada.id, fechaInicio: hoy, fechaFin: hoy });
+                          setShowDetalleModal(true);
+                      }}
+                      className="bg-rose-50 p-4 rounded-2xl border border-rose-100 cursor-pointer hover:bg-rose-100/80 transition-colors group"
+                    >
+                       <div className="text-[10px] font-bold text-rose-600 uppercase mb-1 flex items-center gap-1 justify-between">
+                           <div className="flex items-center gap-1">
+                              <TrendingDown className="w-3 h-3" />
+                              Egresos
+                           </div>
+                           <ArrowUpRight className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" />
+                       </div>
+                       <div className="font-extrabold text-rose-800 text-lg">
+                           {(() => {
+                              if (saldoRutaSeleccionada) {
+                                // Los egresos de una ruta incluyen gastos operativos y desembolsos
+                                const valor = saldoRutaSeleccionada.gastosDelDia + (saldoRutaSeleccionada.desembolsos ?? 0)
                                 return (
-                                    <div className="text-rose-700 font-semibold text-xs mt-1">Ver Historial ➔</div>
+                                  <MoneyAmount
+                                    value={valor}
+                                    meaning="expense"
+                                    amountClassName="text-lg font-extrabold text-rose-800"
+                                  />
                                 )
+                              }
+                              return (
+                                <div className="text-rose-700 font-semibold text-xs mt-1">Ver Historial ➔</div>
+                              )
                              })()}
                          </div>
                       </div>
@@ -2836,6 +2837,10 @@ const ModuloContableContent = () => {
                             .filter(m => {
                               if (!cajaSeleccionada && m.categoria === 'CONSOLIDACION') return false;
                               if (detalleTipo === 'CAJA_TODOS') {
+                                if (cajaSeleccionada?.tipo === 'RUTA') {
+                                  if (detalleCajaFocus === 'RECAUDO') return m.tipo === 'INGRESO'
+                                  if (detalleCajaFocus === 'GASTOS') return m.tipo === 'EGRESO'
+                                }
                                 return true
                               }
                              if (detalleTipo === 'INGRESOS') {
