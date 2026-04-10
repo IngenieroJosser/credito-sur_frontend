@@ -190,6 +190,7 @@ const mapTransaccion = (t: ApiTransaccion): MovimientoContable => {
     responsable: t.responsable,
     origen: origenInferido as any,
     estado: (t.estado as any) || 'APROBADO',
+    rutaId: (t as any).rutaId,
     cajaId: (t as any).cajaId,
     cajaOrigenId: (t as any).cajaOrigenId,
     tipoReferencia: (t as any).tipoReferencia,
@@ -248,6 +249,17 @@ const ModuloContableContent = () => {
     egresosOperativos: number
     utilidadFinanciera: number
   } | null>(null)
+
+  const esReferenciaCobranza = (m: any) => {
+    const ref = String(m?.tipoReferencia || '').toUpperCase()
+    return ref === 'PAGO' || ref === 'ABONO' || ref === 'CUOTA_INICIAL'
+  }
+
+  const esTransferenciaSalida = (m: any) => {
+    if (String(m?.tipo || '').toUpperCase() !== 'TRANSFERENCIA') return false
+    const numero = String((m as any)?.numero || (m as any)?.numeroTransaccion || '')
+    return numero.toUpperCase().startsWith('TRX-OUT')
+  }
 
   // Estados para Paginación de Listas Locales (Máximo 3 por vista)
   const [currentPageMovimientos, setCurrentPageMovimientos] = useState(0)
@@ -733,7 +745,30 @@ const ModuloContableContent = () => {
 
     const cumpleOrigen = filtroOrigen === 'TODOS' || mov.origen === filtroOrigen
     const cumpleEstado = filtroEstado === 'TODOS' || mov.estado === filtroEstado
-    const cumpleRuta = filtroRuta === 'TODOS' || mov.rutaId === filtroRuta
+    const cajaRutaId = filtroRuta === 'TODOS'
+      ? null
+      : (cajas.find((c: any) => c?.rutaId === filtroRuta)?.id ?? null)
+
+    const rutaObj = filtroRuta === 'TODOS' ? null : (rutasDisponibles.find((r: any) => r?.id === filtroRuta) as any)
+    const cajaRuta = filtroRuta === 'TODOS' ? null : (cajas.find((c: any) => c?.rutaId === filtroRuta) as any)
+    const rutaKeywordRaw = String(
+      rutaObj?.nombre ||
+      (cajaRuta as any)?.rutaNombre ||
+      (cajaRuta as any)?.nombre ||
+      ''
+    )
+    const rutaKeyword = rutaKeywordRaw
+      .replace(/^caja\s+/i, '')
+      .replace(/^ruta\s+/i, '')
+      .replace(/^caja\s+ruta\s+/i, '')
+      .trim()
+      .toUpperCase()
+
+    const cumpleRuta =
+      filtroRuta === 'TODOS' ||
+      mov.rutaId === filtroRuta ||
+      (cajaRutaId != null && (mov.cajaId === cajaRutaId || mov.cajaOrigenId === cajaRutaId)) ||
+      (rutaKeyword.length > 2 && String(mov?.concepto || '').toUpperCase().includes(rutaKeyword))
 
     return cumpleBusqueda && cumpleTipo && cumpleOrigen && cumpleEstado && cumpleRuta
   })
@@ -927,49 +962,58 @@ const ModuloContableContent = () => {
 
   return (
     <div className="min-h-screen bg-slate-50 relative">
+      <style jsx global>{`
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 9999px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #cbd5e1; }
+        .custom-scrollbar { scrollbar-width: thin; scrollbar-color: #e2e8f0 transparent; }
+      `}</style>
       {/* Fondo arquitectónico standard */}
       <div className="fixed inset-0 pointer-events-none">
-        <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px]"></div>
-        <div className="absolute left-0 right-0 top-0 -z-10 m-auto h-[310px] w-[310px] rounded-full bg-primary opacity-20 blur-[100px]"></div>
+        <div className="absolute inset-0 bg-gradient-to-br from-blue-50/40 via-slate-50 to-orange-50/30" />
+        <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-gradient-to-bl from-blue-100/30 to-transparent rounded-full blur-3xl" />
+        <div className="absolute bottom-0 left-0 w-[600px] h-[600px] bg-gradient-to-tr from-orange-100/20 to-transparent rounded-full blur-3xl" />
       </div>
 
       <div className="relative z-10 w-full p-4 md:p-8 space-y-6 md:space-y-8">
         {/* Header Ultra Clean */}
         <header className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between mb-8">
-            <div className="space-y-2">
-              <div className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-600 ring-1 ring-slate-200">
-                <Wallet className="h-3.5 w-3.5" />
-                <span>Gestión Financiera</span>
-              </div>
-              <h1 className="text-4xl md:text-5xl font-bold tracking-tight">
-                <span className="text-blue-600">Gestión </span><span className="text-orange-500">Contable</span>
-              </h1>
-              <p className="text-base text-slate-500 max-w-xl font-medium">
-                Administración centralizada de Cajas, Saldos y Recursos.
-              </p>
+          <div className="space-y-2">
+            <div className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-600 ring-1 ring-slate-200">
+              <Wallet className="h-3.5 w-3.5" />
+              <span>Gestión Financiera</span>
             </div>
-            
-            <div className="flex items-start gap-3">
-              <ExportButton 
-                label="Exportar" 
-                onExportExcel={handleExportExcel} 
-                onExportPDF={handleExportPDF} 
-              />
-              <Link
-                href="/pagos/historial"
-                className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-5 py-2.5 text-sm font-bold text-slate-700 hover:bg-slate-50 hover:border-slate-300 transition-all shadow-sm"
-              >
-                Ver cobranzas
-              </Link>
-              <button
-                type="button"
-                onClick={() => setShowCrearCajaModal(true)}
-                className="inline-flex items-center gap-2 rounded-2xl bg-blue-600 px-5 py-2.5 text-sm font-bold text-white hover:bg-blue-700 transition-all shadow-lg shadow-blue-600/20 transform active:scale-95"
-              >
-                  <Plus className="h-4 w-4" />
-                  Crear Caja
-              </button>
-            </div>
+            <h1 className="text-4xl md:text-5xl font-bold tracking-tight">
+              <span className="text-blue-600">Gestión </span>
+              <span className="text-orange-500">Contable</span>
+            </h1>
+            <p className="text-base text-slate-500 max-w-xl font-medium">
+              Administración centralizada de Cajas, Saldos y Recursos.
+            </p>
+          </div>
+
+          <div className="flex items-start gap-3">
+            <ExportButton
+              label="Exportar"
+              onExportExcel={handleExportExcel}
+              onExportPDF={handleExportPDF}
+            />
+            <Link
+              href="/pagos/historial"
+              className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-5 py-2.5 text-sm font-bold text-slate-700 hover:bg-slate-50 hover:border-slate-300 transition-all shadow-sm"
+            >
+              Ver cobranzas
+            </Link>
+            <button
+              type="button"
+              onClick={() => setShowCrearCajaModal(true)}
+              className="inline-flex items-center gap-2 rounded-2xl bg-blue-600 px-5 py-2.5 text-sm font-bold text-white hover:bg-blue-700 transition-all shadow-lg shadow-blue-600/20 transform active:scale-95"
+            >
+              <Plus className="h-4 w-4" />
+              Crear Caja
+            </button>
+          </div>
         </header>
 
         {/* Tarjetas de Resumen Minimalistas */}
@@ -1247,8 +1291,8 @@ const ModuloContableContent = () => {
               </div>
             </div>
 
-            <div className="divide-y divide-slate-100 max-h-[520px] overflow-y-auto">
-              {movimientosFiltrados.slice(currentPageMovimientos * 7, (currentPageMovimientos + 1) * 7).map((m) => {
+            <div className="divide-y divide-slate-100 max-h-[520px] overflow-y-scroll custom-scrollbar pr-1">
+              {movimientosFiltrados.map((m) => {
                 // Determinar si es un movimiento positivo (Ingreso/Entrada) o negativo (Egreso/Salida)
                 // Nos guiamos PRINCIPALMENTE por la categoría base que se asignó al crear el movimiento
                 // Si la categoría contiene "INGRESO" o "ENTRADA", es positivo. Si es "EGRESO", "GASTO" o "SALIDA", es negativo.
@@ -1341,30 +1385,6 @@ const ModuloContableContent = () => {
               )})}
             </div>
 
-            {/* Controles de Paginación para Movimientos */}
-            {movimientosFiltrados.length > 7 && (
-                <div className="p-4 border-t border-slate-100 bg-slate-50/20 flex items-center justify-between">
-                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-                        Página {currentPageMovimientos + 1} de {Math.ceil(movimientosFiltrados.length / 7)}
-                    </span>
-                    <div className="flex gap-2">
-                        <button 
-                            onClick={() => setCurrentPageMovimientos(p => Math.max(0, p - 1))}
-                            disabled={currentPageMovimientos === 0}
-                            className="p-2 rounded-xl border border-slate-200 bg-white text-slate-600 disabled:opacity-30 hover:bg-slate-50 transition-all"
-                        >
-                            <ChevronLeft className="h-4 w-4" />
-                        </button>
-                        <button 
-                            onClick={() => setCurrentPageMovimientos(p => (p + 1) * 7 < movimientosFiltrados.length ? p + 1 : p)}
-                            disabled={(currentPageMovimientos + 1) * 7 >= movimientosFiltrados.length}
-                            className="p-2 rounded-xl border border-slate-200 bg-white text-slate-600 disabled:opacity-30 hover:bg-slate-50 transition-all"
-                        >
-                            <ChevronRight className="h-4 w-4" />
-                        </button>
-                    </div>
-                </div>
-            )}
           </div>
           </section>
 
@@ -2207,8 +2227,8 @@ const ModuloContableContent = () => {
                             setFechaFinModal(hoy)
                             setDetalleTipo('CAJA_TODOS');
                             setDetalleCajaFocus('RECAUDO')
-                            await loadMovimientosDetalle({ cajaId: cajaSeleccionada.id, fechaInicio: hoy, fechaFin: hoy });
                             setShowDetalleModal(true);
+                            void loadMovimientosDetalle({ cajaId: cajaSeleccionada.id, fechaInicio: hoy, fechaFin: hoy });
                         }}
                         className="bg-emerald-50 p-4 rounded-2xl border border-emerald-100 cursor-pointer hover:bg-emerald-100/80 transition-colors group"
                       >
@@ -2260,8 +2280,8 @@ const ModuloContableContent = () => {
                           setFechaFinModal(hoy)
                           setDetalleTipo('CAJA_TODOS');
                           setDetalleCajaFocus('GASTOS')
-                          await loadMovimientosDetalle({ cajaId: cajaSeleccionada.id, fechaInicio: hoy, fechaFin: hoy });
                           setShowDetalleModal(true);
+                          void loadMovimientosDetalle({ cajaId: cajaSeleccionada.id, fechaInicio: hoy, fechaFin: hoy });
                       }}
                       className="bg-rose-50 p-4 rounded-2xl border border-rose-100 cursor-pointer hover:bg-rose-100/80 transition-colors group"
                     >
@@ -2275,8 +2295,7 @@ const ModuloContableContent = () => {
                        <div className="font-extrabold text-rose-800 text-lg">
                            {(() => {
                               if (saldoRutaSeleccionada) {
-                                // Los egresos de una ruta incluyen gastos operativos y desembolsos
-                                const valor = saldoRutaSeleccionada.gastosDelDia + (saldoRutaSeleccionada.desembolsos ?? 0)
+                                const valor = saldoRutaSeleccionada.gastosDelDia
                                 return (
                                   <MoneyAmount
                                     value={valor}
@@ -2508,6 +2527,7 @@ const ModuloContableContent = () => {
                                       }
 
                                       if (detalleTipo === 'CAJA_TODOS') {
+                                        const focus = detalleCajaFocus || (cajaSeleccionada ? 'GASTOS' : null)
                                         const ingresosBrutos = filtered
                                           .filter((m) => m.tipo === 'INGRESO')
                                           .reduce((acc, m) => acc + Number(m.monto || 0), 0)
@@ -2515,10 +2535,30 @@ const ModuloContableContent = () => {
                                           .filter((m) => m.tipo === 'EGRESO')
                                           .reduce((acc, m) => acc + Number(m.monto || 0), 0)
 
-                                        if (cajaSeleccionada?.tipo === 'RUTA') {
-                                          if (detalleCajaFocus === 'RECAUDO') return ingresosBrutos
-                                          if (detalleCajaFocus === 'GASTOS') return egresosBrutos
-                                        }
+                                        const ingresosFocus = filtered
+                                          .filter((m: any) => {
+                                            if (esReferenciaCobranza(m)) return true
+                                            return String(m?.tipo || '').toUpperCase() === 'INGRESO'
+                                          })
+                                          .reduce((acc: number, m: any) => acc + Number(m.monto || 0), 0)
+
+                                        const egresosFocus = filtered
+                                          .filter((m: any) => {
+                                            const ref = String(m?.tipoReferencia || '').toUpperCase()
+                                            if (esReferenciaCobranza(m)) return false
+                                            if (ref === 'DEUDA_COBRADOR') return false
+                                            if (ref === 'CIERRE_RUTA') return false
+                                            if (ref === 'ACTIVACION_RUTA') return false
+                                            return String(m?.tipo || '').toUpperCase() === 'EGRESO'
+                                          })
+                                          .reduce((acc: number, m: any) => acc + Number(m.monto || 0), 0)
+
+                                        const transferenciasSalida = filtered
+                                          .filter((m: any) => esTransferenciaSalida(m))
+                                          .reduce((acc: number, m: any) => acc + Number(m.monto || 0), 0)
+
+                                        if (focus === 'RECAUDO') return ingresosFocus
+                                        if (focus === 'GASTOS') return egresosFocus + transferenciasSalida
 
                                         // Para otras cajas, mostramos el neto (considerando entradas y salidas)
                                         return filtered.reduce((acc, m) => {
@@ -2852,9 +2892,20 @@ const ModuloContableContent = () => {
                             .filter(m => {
                               if (!cajaSeleccionada && m.categoria === 'CONSOLIDACION') return false;
                               if (detalleTipo === 'CAJA_TODOS') {
-                                if (cajaSeleccionada?.tipo === 'RUTA') {
-                                  if (detalleCajaFocus === 'RECAUDO') return m.tipo === 'INGRESO'
-                                  if (detalleCajaFocus === 'GASTOS') return m.tipo === 'EGRESO'
+                                const focus = detalleCajaFocus || (cajaSeleccionada ? 'GASTOS' : null)
+                                const ref = String(m?.tipoReferencia || '').toUpperCase()
+                                if (focus === 'RECAUDO') {
+                                  if (esReferenciaCobranza(m)) return true
+                                  return String(m?.tipo || '').toUpperCase() === 'INGRESO'
+                                }
+                                if (focus === 'GASTOS') {
+                                  if (esReferenciaCobranza(m)) return false
+                                  if (ref === 'DEUDA_COBRADOR') return false
+                                  if (ref === 'CIERRE_RUTA') return false
+                                  if (ref === 'ACTIVACION_RUTA') return false
+                                  if (String(m?.tipo || '').toUpperCase() === 'EGRESO') return true
+                                  if (esTransferenciaSalida(m)) return true
+                                  return false
                                 }
                                 return true
                               }
