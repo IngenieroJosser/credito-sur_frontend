@@ -84,6 +84,14 @@ const CATEGORIAS: Record<string, { label: string; icon: any; color: string; bgCo
     borderColor: 'border-purple-200',
     tipoNotif: 'SOLICITUD_DINERO',
   },
+  PAGO_TRANSFERENCIA: {
+    label: 'Pagos por transferencia',
+    icon: Landmark,
+    color: 'text-sky-700',
+    bgColor: 'bg-sky-50',
+    borderColor: 'border-sky-200',
+    tipoNotif: 'PAGO',
+  },
   PRORROGA_PAGO: {
     label: 'Prórrogas',
     icon: Clock,
