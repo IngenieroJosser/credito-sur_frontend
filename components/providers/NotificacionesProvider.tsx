@@ -46,7 +46,21 @@ export function NotificacionesProvider({ children }: { children: React.ReactNode
       const data = await notificacionesService.obtenerTodas()
       setNotificaciones(data)
     } catch (e) {
-      console.error('Error fetching notifications:', e)
+      const err: any = e as any
+      const statusCode = err?.statusCode || err?.response?.status
+      if (statusCode === 401 || statusCode === 403) {
+        return
+      }
+      const details = {
+        statusCode,
+        message: err?.message,
+        error: err?.error,
+      }
+      try {
+        console.error(`Error fetching notifications: ${JSON.stringify(details)}`)
+      } catch {
+        console.error('Error fetching notifications')
+      }
     }
   }
 

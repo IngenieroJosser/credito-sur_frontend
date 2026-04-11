@@ -234,6 +234,12 @@ const ModuloContableContent = () => {
   const [showVerMovimientoModal, setShowVerMovimientoModal] = useState(false)
   const [showVerCajaModal, setShowVerCajaModal] = useState(false)
   const [cajaSeleccionada, setCajaSeleccionada] = useState<Caja | null>(null)
+  const [verCajaRangoStats, setVerCajaRangoStats] = useState<{
+    totalRegistrado: number
+    saldoPrevio: number
+    inicio: string
+    fin: string
+  } | null>(null)
   const [saldoRutaSeleccionada, setSaldoRutaSeleccionada] = useState<SaldoDisponibleRuta | null>(null)
   const [movimientoSeleccionado, setMovimientoSeleccionado] = useState<MovimientoContable | null>(null)
 
@@ -259,6 +265,12 @@ const ModuloContableContent = () => {
     if (String(m?.tipo || '').toUpperCase() !== 'TRANSFERENCIA') return false
     const numero = String((m as any)?.numero || (m as any)?.numeroTransaccion || '')
     return numero.toUpperCase().startsWith('TRX-OUT')
+  }
+
+  const esTransferenciaEntrada = (m: any) => {
+    if (String(m?.tipo || '').toUpperCase() !== 'TRANSFERENCIA') return false
+    const numero = String((m as any)?.numero || (m as any)?.numeroTransaccion || '')
+    return numero.toUpperCase().startsWith('TRX-IN')
   }
 
   // Estados para Paginación de Listas Locales (Máximo 3 por vista)
@@ -348,7 +360,10 @@ const ModuloContableContent = () => {
 
         return m.tipo === 'EGRESO'
       })
-      .filter((m) => String(m.estado || '').toUpperCase() === 'APROBADO')
+      .filter((m) => {
+        const est = String(m.estado || '').toUpperCase()
+        return est !== 'ANULADO' && est !== 'RECHAZADO'
+      })
       .filter((m) => {
         if (!cajaSeleccionada) return true
         return m.cajaId === cajaSeleccionada.id
@@ -377,7 +392,17 @@ const ModuloContableContent = () => {
       if (fin) params.fechaFin = fin
       const resp = await getTransacciones(params)
       if (resp && Array.isArray(resp.data)) {
-        setMovimientosDetalle(resp.data.map(mapTransaccion))
+        let next = resp.data.map(mapTransaccion)
+
+        const codigoCaja = String((cajaSeleccionada as any)?.codigo || '').toUpperCase()
+        if (codigoCaja === 'CAJA-PRINCIPAL' || codigoCaja === 'CAJA-BANCO') {
+          next = next.filter((m: any) => {
+            const ref = String(m?.tipoReferencia || '').toUpperCase()
+            return ref !== 'CUOTA_INICIAL' && ref !== 'ABONO_DEUDA'
+          })
+        }
+
+        setMovimientosDetalle(next)
       } else {
         setMovimientosDetalle([])
       }
@@ -523,7 +548,10 @@ const ModuloContableContent = () => {
           })
 
           return trans
-            .filter((t: any) => String(t?.estado || '').toUpperCase() === 'APROBADO')
+            .filter((t: any) => {
+              const est = String(t?.estado || '').toUpperCase()
+              return est !== 'ANULADO' && est !== 'RECHAZADO'
+            })
             .filter((t: any) => String(t?.tipoReferencia || '').toUpperCase() === 'RECOLECCION')
             .filter((t: any) => String(t?.descripcion || '').toUpperCase().includes('RECIBIDA'))
             .reduce((acc: number, t: any) => acc + Number(t?.monto || 0), 0)
@@ -538,7 +566,10 @@ const ModuloContableContent = () => {
           })
 
           return trans
-            .filter((t: any) => String(t?.estado || '').toUpperCase() === 'APROBADO')
+            .filter((t: any) => {
+              const est = String(t?.estado || '').toUpperCase()
+              return est !== 'ANULADO' && est !== 'RECHAZADO'
+            })
             .filter((t: any) => String(t?.tipoReferencia || '').toUpperCase() === 'RECOLECCION')
             .filter((t: any) => String(t?.descripcion || '').toUpperCase().includes('RECIBIDA'))
             .reduce((acc: number, t: any) => acc + Number(t?.monto || 0), 0)
@@ -1440,61 +1471,151 @@ const ModuloContableContent = () => {
                         {c.estado}
                       </div>
                       <MoneyAmount value={c.saldo} amountClassName="text-sm font-extrabold text-slate-900" />
-                      <div className="flex gap-2">
-
-                        <button 
+                      <div className="flex items-center gap-2">
+                        <button
                           onClick={async () => {
                             setCajaSeleccionada(c)
-                            if (c.tipo === 'RUTA' && c.rutaId) {
+                            setVerCajaRangoStats(null)
+                            try {
+                              const inicioKey = fechaInicioModal || ''
+                              const finKey = fechaFinModal || ''
+
+                              const params: any = { cajaId: c.id, limit: 500 }
+                              if (inicioKey) params.fechaInicio = inicioKey
+                              if (finKey) params.fechaFin = finKey
+
+                              const respCaja = await getTransacciones(params)
+                              const movs = (respCaja?.data || []).map(mapTransaccion)
+                              const codigoCaja = String((c as any)?.codigo || '').toUpperCase()
+
+                              let filtered = movs.filter((m: any) => {
+                                const est = String(m?.estado || '').toUpperCase()
+                                if (est === 'ANULADO' || est === 'RECHAZADO') return false
+                                const fechaM = normalizeDateKey(m.fecha)
+                                if (inicioKey && fechaM < inicioKey) return false
+                                if (finKey && fechaM > finKey) return false
+                                return true
+                              })
+
+                              if (codigoCaja === 'CAJA-PRINCIPAL' || codigoCaja === 'CAJA-BANCO') {
+                                filtered = filtered.filter((m: any) => {
+                                  const ref = String(m?.tipoReferencia || '').toUpperCase()
+                                  return ref !== 'CUOTA_INICIAL' && ref !== 'ABONO_DEUDA'
+                                })
+                              }
+
+                              const totalRegistrado = filtered.reduce((acc: number, m: any) => {
+                                const monto = Number(m?.monto || 0)
+                                if (String(m?.tipo || '').toUpperCase() === 'INGRESO') return acc + monto
+                                if (String(m?.tipo || '').toUpperCase() === 'EGRESO') return acc - monto
+                                if (String(m?.tipo || '').toUpperCase() === 'TRANSFERENCIA') {
+                                  return acc + (esTransferenciaSalida(m) ? -monto : monto)
+                                }
+                                return acc
+                              }, 0)
+
+                              const saldoActual = Number(c?.saldo || 0)
+                              setVerCajaRangoStats({
+                                totalRegistrado,
+                                saldoPrevio: saldoActual - totalRegistrado,
+                                inicio: inicioKey || 'HISTÓRICO',
+                                fin: finKey || 'HISTÓRICO',
+                              })
+                            } catch {
+                              setVerCajaRangoStats(null)
+                            }
+
+                            if (c.tipo === 'RUTA') {
                               try {
-                                const hoyClave = getBogotaDateKey(new Date())
-                                const saldo = await obtenerSaldoDisponibleRuta(c.rutaId, hoyClave)
-                                setSaldoRutaSeleccionada(saldo)
+                                const resp = await getTransacciones({ cajaId: c.id, limit: 50 })
+                                if (resp?.data?.length) {
+                                  const ingresos = resp.data
+                                    .filter((m: any) => m.tipo === 'INGRESO' || m.tipo === 'TRANSFERENCIA')
+                                    .filter((m: any) => {
+                                      if (m.tipo === 'TRANSFERENCIA') {
+                                        const concepto = String(m.descripcion || '').toUpperCase()
+                                        return !(concepto.includes('SALIDA') || concepto.includes('ENVIADA A') || concepto.includes('EGRESO'))
+                                      }
+                                      return true
+                                    })
+                                    .reduce((acc: number, m: any) => acc + Number(m.monto), 0)
+
+                                  const egresos = resp.data
+                                    .filter((m: any) => m.tipo === 'EGRESO' || m.tipo === 'TRANSFERENCIA')
+                                    .filter((m: any) => {
+                                      if (m.tipo === 'TRANSFERENCIA') {
+                                        const concepto = String(m.descripcion || '').toUpperCase()
+                                        return concepto.includes('SALIDA') || concepto.includes('ENVIADA A') || concepto.includes('EGRESO')
+                                      }
+                                      return true
+                                    })
+                                    .reduce((acc: number, m: any) => acc + Number(m.monto), 0)
+
+                                  setSaldoRutaSeleccionada({
+                                    recaudoDelDia: ingresos,
+                                    gastosDelDia: egresos,
+                                    desembolsos: 0,
+                                    saldoCaja: Number(c.saldo) || 0,
+                                  } as any)
+                                } else {
+                                  setSaldoRutaSeleccionada(null)
+                                }
                               } catch {
                                 setSaldoRutaSeleccionada(null)
                               }
                             } else {
+                              setSaldoRutaSeleccionada(null)
                               try {
-                                 const hoyClave = getBogotaDateKey(new Date())
-                                 
-                                 const params = { cajaId: c.id, fechaInicio: hoyClave, limit: 500 };
-                                 const resp = await getTransacciones(params);
-                                 if (resp && Array.isArray(resp.data)) {
-                                   const ingresos = resp.data
-                                     .filter((m: any) => m.tipo === 'INGRESO' || m.tipo === 'TRANSFERENCIA')
-                                     .filter((m: any) => {
-                                        if (m.tipo === 'TRANSFERENCIA') {
-                                           const concepto = String(m.descripcion || '').toUpperCase();
-                                           return !(concepto.includes('SALIDA') || concepto.includes('ENVIADA A') || concepto.includes('EGRESO'));
-                                        }
-                                        return true;
-                                     })
-                                     .reduce((acc: number, m: any) => acc + Number(m.monto), 0);
+                                const hoyClave = getBogotaDateKey(new Date())
 
-                                   const egresos = resp.data
-                                     .filter((m: any) => m.tipo === 'EGRESO' || m.tipo === 'TRANSFERENCIA')
-                                     .filter((m: any) => {
-                                        if (m.tipo === 'TRANSFERENCIA') {
-                                           const concepto = String(m.descripcion || '').toUpperCase();
-                                           return concepto.includes('SALIDA') || concepto.includes('ENVIADA A') || concepto.includes('EGRESO');
-                                        }
-                                        return true;
-                                     })
-                                     .reduce((acc: number, m: any) => acc + Number(m.monto), 0);
+                                const params = { cajaId: c.id, fechaInicio: hoyClave, limit: 500 }
+                                const resp = await getTransacciones(params)
+                                if (resp && Array.isArray(resp.data)) {
+                                  const codigoCaja = String((c as any)?.codigo || '').toUpperCase()
+                                  const omitRefs = codigoCaja === 'CAJA-PRINCIPAL' || codigoCaja === 'CAJA-BANCO'
 
-                                   setSaldoRutaSeleccionada({
-                                      recaudoDelDia: ingresos,
-                                      gastosDelDia: egresos,
-                                      desembolsos: 0,
-                                      saldoCaja: Number(c.saldo) || 0
-                                   } as any);
-                                 } else {
-                                   setSaldoRutaSeleccionada(null)
-                                 }
-                              } catch (err) {
+                                  const base = resp.data.filter((m: any) => {
+                                    if (!omitRefs) return true
+                                    const ref = String(m?.tipoReferencia || '').toUpperCase()
+                                    return ref !== 'CUOTA_INICIAL' && ref !== 'ABONO_DEUDA'
+                                  })
+
+                                  const ingresos = base
+                                    .filter((m: any) => m.tipo === 'INGRESO' || m.tipo === 'TRANSFERENCIA')
+                                    .filter((m: any) => {
+                                      if (m.tipo === 'TRANSFERENCIA') {
+                                        const concepto = String(m.descripcion || '').toUpperCase()
+                                        return !(concepto.includes('SALIDA') || concepto.includes('ENVIADA A') || concepto.includes('EGRESO'))
+                                      }
+                                      return true
+                                    })
+                                    .reduce((acc: number, m: any) => acc + Number(m.monto), 0)
+
+                                  const egresos = base
+                                    .filter((m: any) => m.tipo === 'EGRESO' || m.tipo === 'TRANSFERENCIA')
+                                    .filter((m: any) => {
+                                      if (m.tipo === 'TRANSFERENCIA') {
+                                        const concepto = String(m.descripcion || '').toUpperCase()
+                                        return concepto.includes('SALIDA') || concepto.includes('ENVIADA A') || concepto.includes('EGRESO')
+                                      }
+                                      return true
+                                    })
+                                    .reduce((acc: number, m: any) => acc + Number(m.monto), 0)
+
+                                  setSaldoRutaSeleccionada({
+                                    recaudoDelDia: ingresos,
+                                    gastosDelDia: egresos,
+                                    desembolsos: 0,
+                                    saldoCaja: Number(c.saldo) || 0,
+                                  } as any)
+                                } else {
+                                  setSaldoRutaSeleccionada(null)
+                                }
+                              } catch {
                                 setSaldoRutaSeleccionada(null)
                               }
                             }
+
                             setShowVerCajaModal(true)
                           }}
                           className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-100 text-slate-600 text-xs font-bold hover:bg-slate-200 transition-colors"
@@ -1502,7 +1623,7 @@ const ModuloContableContent = () => {
                           <Eye className="h-3.5 w-3.5" />
                           Ver
                         </button>
-                        <button 
+                        <button
                           onClick={() => openEditarCaja(c)}
                           className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-50 text-blue-700 text-xs font-bold hover:bg-blue-100 transition-colors"
                         >
@@ -2166,6 +2287,14 @@ const ModuloContableContent = () => {
                       amountClassName="text-4xl font-extrabold text-slate-900"
                       badgeClassName="text-[10px] px-3 py-1 tracking-widest"
                     />
+                    {verCajaRangoStats && (
+                      <div className="mt-3 w-full flex flex-col items-center gap-1">
+                        <p className="text-xs font-medium text-slate-500">Total registrado ({verCajaRangoStats.inicio} → {verCajaRangoStats.fin})</p>
+                        <MoneyAmount value={verCajaRangoStats.totalRegistrado} meaning="signed" amountClassName="text-sm font-bold text-slate-900" />
+                        <p className="text-xs font-medium text-slate-500">Saldo previo al rango</p>
+                        <MoneyAmount value={verCajaRangoStats.saldoPrevio} amountClassName="text-sm font-bold text-slate-900" />
+                      </div>
+                    )}
                 </div>
 
                 <div className="grid grid-cols-2 gap-6">
@@ -2360,7 +2489,7 @@ const ModuloContableContent = () => {
         
         {/* Modal de Detalle */}
         {showDetalleModal && renderInPortal(
-          <div className="fixed inset-0 z-[2147483647] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm" onClick={() => { setShowDetalleModal(false); setMovimientosDetalle([]); setFechaInicioModal(''); setFechaFinModal(''); setCajaSeleccionada(null); setSaldoRutaSeleccionada(null); }}>
+          <div className="fixed inset-0 z-[2147483647] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm" onClick={() => { setShowDetalleModal(false); setMovimientosDetalle([]); setCajaSeleccionada(null); setSaldoRutaSeleccionada(null); }}>
             <div className="w-full max-w-2xl rounded-2xl bg-white border border-slate-200 shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200 flex flex-col max-h-[90vh]" onClick={(e) => e.stopPropagation()}>
               {/* Modal Header */}
               <div className="p-6 border-b border-slate-100 flex items-center justify-between shrink-0">
@@ -2386,7 +2515,7 @@ const ModuloContableContent = () => {
                     </p>
                 </div>
                 <button
-                  onClick={() => { setShowDetalleModal(false); setMovimientosDetalle([]); setFechaInicioModal(''); setFechaFinModal(''); setCajaSeleccionada(null); setSaldoRutaSeleccionada(null); }}
+                  onClick={() => { setShowDetalleModal(false); setMovimientosDetalle([]); setCajaSeleccionada(null); setSaldoRutaSeleccionada(null); }}
                   className="p-2 rounded-2xl hover:bg-slate-100 text-slate-500 transition-colors"
                 >
                   <XCircle className="h-6 w-6" />
@@ -2478,9 +2607,11 @@ const ModuloContableContent = () => {
                                               return true
                                             } else if (detalleTipo === 'INGRESOS') {
                                               if (m.tipo !== 'TRANSFERENCIA') return false;
-                                              if (String(m.tipoReferencia || '').toUpperCase() !== 'RECOLECCION') return false;
                                               const conc = String((m as any).descripcion || m.concepto || '').toUpperCase();
-                                              return conc.includes('RECIBIDA');
+                                              const ref = String(m.tipoReferencia || '').toUpperCase();
+                                              const esRecoleccion = ref === 'RECOLECCION' && conc.includes('RECIBIDA');
+                                              const esTransferenciaInterna = ref === 'TRANSFERENCIA_INTERNA' && conc.includes('RECIBIDA');
+                                              return esRecoleccion || esTransferenciaInterna;
                                             } else if (detalleTipo === 'CUOTAS_INICIALES') {
                                               if (m.tipo !== 'INGRESO') return false;
                                               if (String(m.tipoReferencia || '').toUpperCase() !== 'CUOTA_INICIAL') return false;
@@ -2502,6 +2633,10 @@ const ModuloContableContent = () => {
                                               if (m.tipo === 'TRANSFERENCIA') {
                                                 if (String(m.tipoReferencia || '').toUpperCase() === 'DEUDA_COBRADOR') return false
                                                 const conc = String((m as any).descripcion || m.concepto || '').toUpperCase();
+                                                const ref = String(m.tipoReferencia || '').toUpperCase()
+                                                if (ref === 'TRANSFERENCIA_INTERNA') {
+                                                  return conc.includes('ENVIADA A') || conc.includes('SALIDA')
+                                                }
                                                 return conc.includes('SALIDA') || conc.includes('ENVIADA A') || conc.includes('EGRESO');
                                               }
                                               return false;
@@ -2527,49 +2662,16 @@ const ModuloContableContent = () => {
                                       }
 
                                       if (detalleTipo === 'CAJA_TODOS') {
-                                        const focus = detalleCajaFocus || (cajaSeleccionada ? 'GASTOS' : null)
-                                        const ingresosBrutos = filtered
-                                          .filter((m) => m.tipo === 'INGRESO')
-                                          .reduce((acc, m) => acc + Number(m.monto || 0), 0)
-                                        const egresosBrutos = filtered
-                                          .filter((m) => m.tipo === 'EGRESO')
-                                          .reduce((acc, m) => acc + Number(m.monto || 0), 0)
-
-                                        const ingresosFocus = filtered
-                                          .filter((m: any) => {
-                                            if (esReferenciaCobranza(m)) return true
-                                            return String(m?.tipo || '').toUpperCase() === 'INGRESO'
-                                          })
-                                          .reduce((acc: number, m: any) => acc + Number(m.monto || 0), 0)
-
-                                        const egresosFocus = filtered
-                                          .filter((m: any) => {
-                                            const ref = String(m?.tipoReferencia || '').toUpperCase()
-                                            if (esReferenciaCobranza(m)) return false
-                                            if (ref === 'DEUDA_COBRADOR') return false
-                                            if (ref === 'CIERRE_RUTA') return false
-                                            if (ref === 'ACTIVACION_RUTA') return false
-                                            return String(m?.tipo || '').toUpperCase() === 'EGRESO'
-                                          })
-                                          .reduce((acc: number, m: any) => acc + Number(m.monto || 0), 0)
-
-                                        const transferenciasSalida = filtered
-                                          .filter((m: any) => esTransferenciaSalida(m))
-                                          .reduce((acc: number, m: any) => acc + Number(m.monto || 0), 0)
-
-                                        if (focus === 'RECAUDO') return ingresosFocus
-                                        if (focus === 'GASTOS') return egresosFocus + transferenciasSalida
-
-                                        // Para otras cajas, mostramos el neto (considerando entradas y salidas)
                                         return filtered.reduce((acc, m) => {
                                           const monto = Number(m.monto || 0)
-                                          if (m.tipo === 'EGRESO') return acc - monto
-                                          if (m.tipo === 'TRANSFERENCIA') {
-                                            const numero = String((m as any).numero || '')
-                                            const esSalida = numero.toUpperCase().startsWith('TRX-OUT')
-                                            return acc + (esSalida ? -monto : monto)
+                                          const tipo = String((m as any)?.tipo || '').toUpperCase()
+                                          const numero = String((m as any)?.numero || (m as any)?.numeroTransaccion || '')
+                                          if (tipo === 'INGRESO') return acc + monto
+                                          if (tipo === 'EGRESO') return acc - monto
+                                          if (tipo === 'TRANSFERENCIA') {
+                                            return numero.toUpperCase().startsWith('TRX-OUT') ? acc - monto : acc + monto
                                           }
-                                          return acc + monto
+                                          return acc
                                         }, 0)
                                       }
 
@@ -2726,9 +2828,11 @@ const ModuloContableContent = () => {
                                          }
                                          if (detalleTipo === 'INGRESOS') {
                                            if (m.tipo !== 'TRANSFERENCIA') return false;
-                                           if (String(m.tipoReferencia || '').toUpperCase() !== 'RECOLECCION') return false;
                                            const conc = String((m as any).descripcion || m.concepto || '').toUpperCase();
-                                           return conc.includes('RECIBIDA');
+                                           const ref = String(m.tipoReferencia || '').toUpperCase();
+                                           const esRecoleccion = ref === 'RECOLECCION' && conc.includes('RECIBIDA');
+                                           const esTransferenciaInterna = ref === 'TRANSFERENCIA_INTERNA' && conc.includes('RECIBIDA');
+                                           return esRecoleccion || esTransferenciaInterna;
                                          } else if (detalleTipo === 'CUOTAS_INICIALES') {
                                            if (m.tipo !== 'INGRESO') return false;
                                            if (String(m.tipoReferencia || '').toUpperCase() !== 'CUOTA_INICIAL') return false;
@@ -2760,7 +2864,10 @@ const ModuloContableContent = () => {
                                            return false;
                                          }
                                        })
-                                       .filter(m => String(m.estado || '').toUpperCase() === 'APROBADO')
+                                       .filter(m => {
+                                         const est = String(m.estado || '').toUpperCase()
+                                         return est !== 'ANULADO' && est !== 'RECHAZADO'
+                                       })
                                        .filter(m => {
                                          if (fechaInicioModal || fechaFinModal) {
                                            const fechaM = normalizeDateKey(m.fecha);
@@ -2892,28 +2999,15 @@ const ModuloContableContent = () => {
                             .filter(m => {
                               if (!cajaSeleccionada && m.categoria === 'CONSOLIDACION') return false;
                               if (detalleTipo === 'CAJA_TODOS') {
-                                const focus = detalleCajaFocus || (cajaSeleccionada ? 'GASTOS' : null)
-                                const ref = String(m?.tipoReferencia || '').toUpperCase()
-                                if (focus === 'RECAUDO') {
-                                  if (esReferenciaCobranza(m)) return true
-                                  return String(m?.tipo || '').toUpperCase() === 'INGRESO'
-                                }
-                                if (focus === 'GASTOS') {
-                                  if (esReferenciaCobranza(m)) return false
-                                  if (ref === 'DEUDA_COBRADOR') return false
-                                  if (ref === 'CIERRE_RUTA') return false
-                                  if (ref === 'ACTIVACION_RUTA') return false
-                                  if (String(m?.tipo || '').toUpperCase() === 'EGRESO') return true
-                                  if (esTransferenciaSalida(m)) return true
-                                  return false
-                                }
                                 return true
                               }
                              if (detalleTipo === 'INGRESOS') {
                                 if (m.tipo !== 'TRANSFERENCIA') return false;
-                                if (String(m.tipoReferencia || '').toUpperCase() !== 'RECOLECCION') return false;
                                 const conc = String((m as any).descripcion || m.concepto || '').toUpperCase();
-                                return conc.includes('RECIBIDA');
+                                const ref = String(m.tipoReferencia || '').toUpperCase();
+                                const esRecoleccion = ref === 'RECOLECCION' && conc.includes('RECIBIDA');
+                                const esTransferenciaInterna = ref === 'TRANSFERENCIA_INTERNA' && conc.includes('RECIBIDA');
+                                return esRecoleccion || esTransferenciaInterna;
                               } else if (detalleTipo === 'CUOTAS_INICIALES') {
                                 if (m.tipo !== 'INGRESO') return false;
                                 if (String(m.tipoReferencia || '').toUpperCase() !== 'CUOTA_INICIAL') return false;
@@ -2940,12 +3034,19 @@ const ModuloContableContent = () => {
                                 if (m.tipo === 'TRANSFERENCIA') {
                                   if (String(m.tipoReferencia || '').toUpperCase() === 'DEUDA_COBRADOR') return false
                                   const conc = String((m as any).descripcion || m.concepto || '').toUpperCase();
+                                  const ref = String(m.tipoReferencia || '').toUpperCase()
+                                  if (ref === 'TRANSFERENCIA_INTERNA') {
+                                    return conc.includes('ENVIADA A') || conc.includes('SALIDA')
+                                  }
                                   return conc.includes('SALIDA') || conc.includes('ENVIADA A') || conc.includes('EGRESO');
                                 }
                                 return false;
                               }
                             })
-                            .filter(m => String(m.estado || '').toUpperCase() === 'APROBADO')
+                            .filter(m => {
+                              const est = String(m.estado || '').toUpperCase()
+                              return est !== 'ANULADO' && est !== 'RECHAZADO'
+                            })
                             .filter(m => {
                               if (cajaSeleccionada) {
                                 return m.cajaId === cajaSeleccionada.id;
@@ -2959,6 +3060,21 @@ const ModuloContableContent = () => {
                               }
                               
                               return true;
+                            })
+                            .filter(m => {
+                              if (detalleTipo === 'INGRESOS' || detalleTipo === 'EGRESOS') {
+                                if (m.tipo === 'TRANSFERENCIA') {
+                                  const ref = String(m.tipoReferencia || '').toUpperCase()
+                                  if (ref === 'TRANSFERENCIA_INTERNA') return true
+                                  const conc = String((m as any).descripcion || m.concepto || '').toUpperCase()
+                                  if (detalleTipo === 'INGRESOS') {
+                                    return conc.includes('RECIBIDA')
+                                  }
+                                  return conc.includes('SALIDA') || conc.includes('ENVIADA A') || conc.includes('EGRESO')
+                                }
+                                return true
+                              }
+                              return true
                             })
                             .map((m) => {
                               let conceptoMostrar = m.concepto

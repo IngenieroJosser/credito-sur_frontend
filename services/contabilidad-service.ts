@@ -113,11 +113,22 @@ export async function getCajas(): Promise<Caja[]> {
       if (cached.length > 0) return cached;
     }
     const err: any = error as any;
-    console.error('Error fetching cajas:', {
+    const statusCode = err?.statusCode;
+    if (statusCode === 401 || statusCode === 403) {
+      logger.log('[Contabilidad] getCajas omitido por permisos.');
+      return [];
+    }
+
+    const errorDetails = {
       statusCode: err?.statusCode,
       message: err?.message,
       error: err?.error,
-    });
+    };
+    try {
+      console.error(`Error fetching cajas: ${JSON.stringify(errorDetails)}`);
+    } catch {
+      console.error('Error fetching cajas');
+    }
     return [];
   }
 }
@@ -132,11 +143,22 @@ export async function getCajaById(id: string): Promise<Caja | null> {
        if (cached) return cached;
     }
     const err: any = error as any;
-    console.error('Error fetching caja:', {
+    const statusCode = err?.statusCode;
+    if (statusCode === 401 || statusCode === 403) {
+      logger.log('[Contabilidad] getCajaById omitido por permisos.');
+      return null;
+    }
+
+    const errorDetails = {
       statusCode: err?.statusCode,
       message: err?.message,
       error: err?.error,
-    });
+    };
+    try {
+      console.error(`Error fetching caja: ${JSON.stringify(errorDetails)}`);
+    } catch {
+      console.error('Error fetching caja');
+    }
     return null;
   }
 }
@@ -268,7 +290,29 @@ export async function getTransacciones(filtros?: {
     
     return await apiRequest<PaginatedResponse<Transaccion>>('GET', url);
   } catch (error) {
-    console.error('Error fetching transacciones:', error);
+    const e: any = error as any;
+    console.error('Error fetching transacciones:', {
+      urlRequested: (() => {
+        try {
+          const params = new URLSearchParams();
+          if (filtros?.cajaId) params.append('cajaId', filtros.cajaId);
+          if (filtros?.tipo) params.append('tipo', filtros.tipo);
+          if (filtros?.fechaInicio) params.append('fechaInicio', filtros.fechaInicio);
+          if (filtros?.fechaFin) params.append('fechaFin', filtros.fechaFin);
+          if (filtros?.page) params.append('page', filtros.page.toString());
+          if (filtros?.limit) params.append('limit', filtros.limit.toString());
+          const qs = params.toString();
+          return `/accounting/transacciones${qs ? `?${qs}` : ''}`;
+        } catch {
+          return '/accounting/transacciones';
+        }
+      })(),
+      statusCode: e?.statusCode,
+      message: e?.message,
+      error: e?.error,
+      rawType: typeof e,
+      rawKeys: e && typeof e === 'object' ? Object.keys(e) : null,
+    });
     return { data: [], meta: { total: 0, page: 1, limit: 50, totalPages: 0 } };
   }
 }
@@ -340,7 +384,23 @@ export async function getResumenFinanciero(fechaInicio?: string, fechaFin?: stri
     
     return await apiRequest<ResumenFinanciero>('GET', url);
   } catch (error) {
-    console.error('Error fetching resumen financiero:', error);
+    const err: any = error as any
+    const statusCode = err?.statusCode
+    if (statusCode === 401 || statusCode === 403) {
+      logger.log('[Contabilidad] getResumenFinanciero omitido por permisos.')
+      return null
+    }
+
+    const details = {
+      statusCode: err?.statusCode,
+      message: err?.message,
+      error: err?.error,
+    }
+    try {
+      console.error(`Error fetching resumen financiero: ${JSON.stringify(details)}`)
+    } catch {
+      console.error('Error fetching resumen financiero')
+    }
     return null;
   }
 }
@@ -552,7 +612,23 @@ export async function getDeudoresCobrador(): Promise<DeudaCobrador[]> {
   try {
     return await apiRequest<DeudaCobrador[]>('GET', '/accounting/deudas-cobradores');
   } catch (error) {
-    logger.error('Error fetching deudas cobrador:', error);
+    const err: any = error as any
+    const statusCode = err?.statusCode
+    if (statusCode === 401 || statusCode === 403) {
+      logger.log('[Contabilidad] getDeudoresCobrador omitido por permisos.')
+      return []
+    }
+
+    const details = {
+      statusCode: err?.statusCode,
+      message: err?.message,
+      error: err?.error,
+    }
+    try {
+      logger.error(`Error fetching deudas cobrador: ${JSON.stringify(details)}`)
+    } catch {
+      logger.error('Error fetching deudas cobrador')
+    }
     return [];
   }
 }
