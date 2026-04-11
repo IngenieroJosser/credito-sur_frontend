@@ -429,7 +429,7 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
         meta: Number(saldo?.metaDelDia ?? prev.meta ?? 0),
         eficiencia: Number(saldo?.eficiencia ?? prev.eficiencia ?? 0),
         gastos: Number(saldo?.gastosDelDia ?? prev.gastos ?? 0),
-        base: Number(saldo?.baseEfectivo ?? prev.base ?? 0),
+        base: Number(saldo?.saldoCaja ?? saldo?.baseEfectivo ?? prev.base ?? 0),
       }))
 
       return (saldo?.recaudosPorReferencia || {}) as Record<string, number>

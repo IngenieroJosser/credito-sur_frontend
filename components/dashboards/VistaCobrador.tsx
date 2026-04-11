@@ -644,6 +644,8 @@ const VistaCobrador = () => {
 
         gastos: Number(saldo?.gastosDelDia ?? 0),
 
+        base: Number((saldo as any)?.saldoCaja ?? (saldo as any)?.baseEfectivo ?? prev.base ?? 0),
+
         eficiencia: prev.meta > 0 ? Math.round((Number(saldo?.recaudoDelDia ?? 0) / prev.meta) * 100) : prev.eficiencia
 
       }));
@@ -1017,7 +1019,7 @@ const VistaCobrador = () => {
             meta: (periodoCards === 'HOY' && Number(prev?.meta || 0) > 0) ? Number(prev.meta || 0) : Number(est.metaDelDia ?? 0),
             eficiencia: (est.metaDelDia > 0) ? Math.round((Number(saldo?.cobranzaDelDia ?? saldo?.recaudoDelDia ?? 0) / est.metaDelDia) * 100) : Number(est.avanceDiario ?? 0),
             gastos: Number(saldo?.gastosDelDia ?? 0),
-            base: Number(saldo?.baseEfectivo ?? 0)
+            base: Number(saldo?.saldoCaja ?? saldo?.baseEfectivo ?? 0)
           }));
         } catch (errSaldo) {
           console.error("Error al obtener saldo de la ruta:", errSaldo);

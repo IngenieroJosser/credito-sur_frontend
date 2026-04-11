@@ -748,7 +748,7 @@ const RutaClientLoaded = ({
           meta,
           eficiencia,
           gastos: Number(saldo?.gastosDelDia ?? 0),
-          base: Number(saldo?.baseEfectivo ?? 0)
+          base: Number(saldo?.saldoCaja ?? saldo?.baseEfectivo ?? 0)
         })
       } catch {
         const recaudo = Number(estadisticas?.cobranzaDelDia ?? 0)
