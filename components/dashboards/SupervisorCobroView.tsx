@@ -3437,19 +3437,10 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
           <RutaProvisionalModal
 
             visitas={visitasCobrador.filter((v: any) => {
-
-              const pending = ['pendiente', 'en_mora'].includes(v?.estado)
-
+              const pending = ['pendiente', 'en_mora'].includes(String(v?.estado || '').toLowerCase())
               if (!pending) return false
-
-              if (!v?.proximaVisita) return true
-
               const hoyBogota = getBogotaDateKey(new Date())
-
-              const vKey = getBogotaDateKey(new Date(v.proximaVisita))
-
-              return !vKey || vKey <= hoyBogota
-
+              return isVisitaExigibleHoy(v, hoyBogota)
             })}
 
             initialOrder={visitasOrden}
@@ -3730,19 +3721,17 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
 
         <FloatingActionMenu actions={[
 
-            { label: 'Crear Crédito', icon: <CreditCard className="h-5 w-5" />, onClick: () => { if(!rutaOperable) return; setShowCreditModal(true); } },
+            { label: 'Crear Crédito', icon: <CreditCard className="h-5 w-5" />, onClick: () => { setShowCreditModal(true); } },
 
-            { label: 'Nuevo Cliente', icon: <UserPlus className="h-5 w-5" />, onClick: () => { if(!rutaOperable) return; setShowNewClientModal(true); } },
+            { label: 'Nuevo Cliente', icon: <UserPlus className="h-5 w-5" />, onClick: () => { setShowNewClientModal(true); } },
 
-            { label: 'Registrar abono', icon: <RefreshCw className="h-5 w-5" />, color: 'orange', onClick: () => { if(!rutaOperable) return; setPendingAction('ABONO'); setShowClientSelector(true); } },
+            { label: 'Registrar abono', icon: <RefreshCw className="h-5 w-5" />, color: 'orange', onClick: () => { setPendingAction('ABONO'); setShowClientSelector(true); } },
 
-            { label: 'Registrar pago', icon: <DollarSign className="h-5 w-5" />, onClick: () => { if(!rutaOperable) return; setPendingAction('PAGO'); setShowClientSelector(true); } },
+            { label: 'Registrar pago', icon: <DollarSign className="h-5 w-5" />, onClick: () => { setPendingAction('PAGO'); setShowClientSelector(true); } },
 
-            { label: 'Solicitudes', icon: <ClipboardList className="h-5 w-5" />, onClick: () => router.push('/supervisor/revisiones') },
+            { label: 'Pedir Base', icon: <Wallet className="h-5 w-5" />, color: 'emerald', onClick: () => { setShowBaseModal(true); } },
 
-            { label: 'Pedir Base', icon: <Wallet className="h-5 w-5" />, color: 'emerald', onClick: () => { if(!rutaOperable) return; setShowBaseModal(true); } },
-
-            { label: 'Gastos', icon: <ReceiptText className="h-5 w-5" />, color: 'rose', onClick: () => { if(!rutaOperable) return; setShowGastoModal(true); } },
+            { label: 'Gastos', icon: <ReceiptText className="h-5 w-5" />, color: 'rose', onClick: () => { setShowGastoModal(true); } },
 
           ] as FabAction[]} />
 

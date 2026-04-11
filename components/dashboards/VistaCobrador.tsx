@@ -4465,19 +4465,17 @@ const VistaCobrador = () => {
 
         <FloatingActionMenu actions={[
 
-          { label: 'Crear Crédito', icon: <CreditCard className="h-5 w-5" />, onClick: () => { if(!rutaOperable) return; setShowCreditModal(true); } },
+          { label: 'Crear Crédito', icon: <CreditCard className="h-5 w-5" />, onClick: () => { setShowCreditModal(true); } },
 
-          { label: 'Nuevo Cliente', icon: <UserPlus className="h-5 w-5" />, onClick: () => { if(!rutaOperable) return; setShowNewClientModal(true); } },
+          { label: 'Nuevo Cliente', icon: <UserPlus className="h-5 w-5" />, onClick: () => { setShowNewClientModal(true); } },
 
-          { label: 'Registrar abono', icon: <RefreshCw className="h-5 w-5" />, color: 'orange', onClick: () => { if(!rutaOperable) return; setAccionPendiente('ABONO'); setShowClientSelector(true); } },
+          { label: 'Registrar abono', icon: <RefreshCw className="h-5 w-5" />, color: 'orange', onClick: () => { setAccionPendiente('ABONO'); setShowClientSelector(true); } },
 
-          { label: 'Registrar pago', icon: <DollarSign className="h-5 w-5" />, onClick: () => { if(!rutaOperable) return; setAccionPendiente('PAGO'); setShowClientSelector(true); } },
+          { label: 'Registrar pago', icon: <DollarSign className="h-5 w-5" />, onClick: () => { setAccionPendiente('PAGO'); setShowClientSelector(true); } },
 
-          { label: 'Solicitudes', icon: <ClipboardList className="h-5 w-5" />, onClick: () => router.push('/cobranzas/solicitudes') },
+          { label: 'Pedir Base', icon: <Wallet className="h-5 w-5" />, color: 'emerald', onClick: () => { setShowBaseModal(true); } },
 
-          { label: 'Pedir Base', icon: <Wallet className="h-5 w-5" />, color: 'emerald', onClick: () => { if(!rutaOperable) return; setShowBaseModal(true); } },
-
-          { label: 'Gastos', icon: <ReceiptText className="h-5 w-5" />, color: 'rose', onClick: () => { if(!rutaOperable) return; setShowGastoModal(true); } },
+          { label: 'Gastos', icon: <ReceiptText className="h-5 w-5" />, color: 'rose', onClick: () => { setShowGastoModal(true); } },
 
         ] as FabAction[]} />
 
@@ -4545,22 +4543,10 @@ const VistaCobrador = () => {
 
           <RutaProvisionalModal
 
-            visitas={visitasCobrador.filter(v => {
-
-              const pending = ['pendiente', 'en_mora'].includes(v.estado);
-
-              if (!pending) return false;
-
-              if (!v.proximaVisita) return true;
-
-              const f = v.proximaVisita.includes('T') ? v.proximaVisita.split('T')[0] : v.proximaVisita;
-              const [year, month, day] = f.split('-').map(Number);
-              if (!year || !month || !day) return true;
-              const d = new Date(year, month - 1, day, 0, 0, 0, 0);
-              const hoy = new Date();
-              hoy.setHours(0, 0, 0, 0);
-              return d.getTime() <= hoy.getTime();
-
+            visitas={visitasCobrador.filter((v: any) => {
+              const pending = ['pendiente', 'en_mora'].includes(String(v?.estado || '').toLowerCase())
+              if (!pending) return false
+              return isVisitaExigibleHoy(v, hoyBogotaKey)
             })}
 
             initialOrder={visitasOrden}
