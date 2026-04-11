@@ -795,6 +795,7 @@ const RutaClientLoaded = ({
       const mapped = await Promise.all(filas.map(async (row: any, idx: number) => {
         const c = row?.cliente || {}
         const p = row?.prestamo || {}
+        const hoyBogotaKey = getBogotaDateKey(new Date())
         
         let cuotaActual = 1;
         let cuotasTotales = Number(p.cantidadCuotas || 0);
@@ -836,20 +837,19 @@ const RutaClientLoaded = ({
             const pendiente = cuotas.find(cuo => cuo.estado !== 'PAGADA');
             if (pendiente) {
               cuotaActual = pendiente.numeroCuota;
-              montoCuota = Number(pendiente.monto || (pendiente.montoCapital + pendiente.montoInteres) || 0);
+              const montoCuotaBruto = Number(pendiente.monto || (pendiente.montoCapital + pendiente.montoInteres) || 0);
+              const montoCuotaPagado = Number(pendiente.montoPagado || 0);
+              montoCuota = Math.max(0, montoCuotaBruto - montoCuotaPagado);
               proximaVisitaV = pendiente.fechaVencimiento;
 
-              const hoy = new Date();
-              hoy.setHours(0,0,0,0);
-              const dateOnly = pendiente.fechaVencimiento.split('T')[0];
-              const [y, m, d] = dateOnly.split('-').map(Number);
-              const vtoDate = new Date(y, m-1, d, 0, 0, 0, 0);
-              
-              if (vtoDate.getTime() < hoy.getTime() || pendiente.estado === 'VENCIDA') {
-                 estadoCalculado = 'en_mora';
-              } else {
-                 estadoCalculado = 'pendiente';
-              }
+              const tieneMora = cuotas.some((cuo: any) => {
+                if (!cuo || !isCuotaNoPagada(cuo)) return false
+                const vtoRaw = resolveFechaEfectivaCuota(cuo) || String(cuo?.fechaVencimiento || '')
+                const vtoKey = normalizeDateKey(vtoRaw)
+                return !!vtoKey && !!hoyBogotaKey && vtoKey < hoyBogotaKey
+              })
+
+              estadoCalculado = tieneMora ? 'en_mora' : 'pendiente'
             } else {
                estadoCalculado = 'pagado';
             }
@@ -891,7 +891,16 @@ const RutaClientLoaded = ({
         } as VisitaRuta
       }))
 
-      const finales = mapped.sort((a: any, b: any) => {
+      const seen = new Set<string>()
+      const uniques = mapped.filter((v: any) => {
+        const key = String(v?.prestamoId || v?.clienteId || v?.id || '')
+        if (!key) return true
+        if (seen.has(key)) return false
+        seen.add(key)
+        return true
+      })
+
+      const finales = uniques.sort((a: any, b: any) => {
         if (a.estado === 'pagado' && b.estado !== 'pagado') return 1;
         if (a.estado !== 'pagado' && b.estado === 'pagado') return -1;
         const ao = Number(a.ordenVisita ?? 0);

@@ -120,6 +120,7 @@ export default function DetallePrestamoModal({ id, onClose, includeArchived = fa
             numero: c.numeroCuota,
             fecha: c.fechaVencimiento,
             monto: c.monto,
+            montoPagado: c.montoPagado != null ? Number(c.montoPagado) : undefined,
             montoCapital: c.montoCapital != null ? Number(c.montoCapital) : undefined,
             montoInteres: c.montoInteres != null ? Number(c.montoInteres) : undefined,
             estado: c.estado,

@@ -60,6 +60,7 @@ export interface PrestamoDetalle {
     numero: number;
     fecha: string;
     monto: number;
+    montoPagado?: number;
     montoCapital?: number;
     montoInteres?: number;
     estado: string; // Permitir cualquier string para manejar variaciones de enum
@@ -502,6 +503,8 @@ export default function DetallePrestamo({ prestamo }: DetallePrestamoProps) {
                   <th scope="col" className="px-4 py-4 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">#</th>
                   <th scope="col" className="px-4 py-4 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">Vencimiento</th>
                   <th scope="col" className="px-4 py-4 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">Cuota</th>
+                  <th scope="col" className="px-4 py-4 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">Abono</th>
+                  <th scope="col" className="px-4 py-4 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">Pendiente</th>
                   <th scope="col" className="px-4 py-4 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">Capital</th>
                   <th scope="col" className="px-4 py-4 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">Interés</th>
                   <th scope="col" className="px-4 py-4 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">Saldo</th>
@@ -512,6 +515,9 @@ export default function DetallePrestamo({ prestamo }: DetallePrestamoProps) {
               <tbody className="bg-white divide-y divide-slate-100">
                 {cuotasConSaldoUI.map((cuota: any) => {
                     const esCuotaActual = cuotaActual && cuota.numero === cuotaActual.numero;
+                    const montoPagado = Number(cuota?.montoPagado ?? 0)
+                    const montoCuota = Number(cuota?.monto ?? 0)
+                    const pendienteCuota = Math.max(0, montoCuota - montoPagado)
                     return (
                   <tr key={cuota.numero} className={cn(
                     "transition-colors group",
@@ -528,6 +534,12 @@ export default function DetallePrestamo({ prestamo }: DetallePrestamoProps) {
                     <td className="px-4 py-3 whitespace-nowrap text-sm text-slate-700 font-medium">{formatDate(cuota.fecha)}</td>
                     <td className="px-4 py-3 whitespace-nowrap text-sm font-bold text-slate-900">
                       {formatCurrency(cuota.monto)}
+                    </td>
+                    <td className="px-4 py-3 whitespace-nowrap text-sm font-bold text-amber-700">
+                      {montoPagado > 0 ? formatCurrency(montoPagado) : '—'}
+                    </td>
+                    <td className="px-4 py-3 whitespace-nowrap text-sm font-bold text-slate-700">
+                      {montoPagado > 0 ? formatCurrency(pendienteCuota) : '—'}
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap text-sm text-blue-700 font-medium">
                       {cuota.montoCapital != null ? formatCurrency(cuota.montoCapital) : '-'}

@@ -113,7 +113,7 @@ export default function EstadoCuentaModal({ visita, onClose }: EstadoCuentaModal
       fechaInicio: formatDateBogota(loanData.fechaInicio),
       fechaVencimiento: formatDateBogota(loanData.fechaFin || (cuotas.length > 0 ? cuotas[cuotas.length - 1].fechaVencimiento : null)),
       nextPaymentDate: proxima ? formatDateBogota(proxima.fechaVencimiento) : '---',
-      nextPaymentAmount: proxima ? Number(proxima.monto || 0) : 0,
+      nextPaymentAmount: proxima ? Math.max(0, Number(proxima.monto || 0) - Number(proxima.montoPagado || 0)) : 0,
       totalPaid: pagadoD,
       totalValue: totalD,
       articleValue: amounts.totalContrato,

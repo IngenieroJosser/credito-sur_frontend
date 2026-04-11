@@ -179,7 +179,7 @@ function VisitaCardContent({
           {/* Badge cuota actual */}
           {visita.cuotaActual && (
             <span className="text-[9px] font-black bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded border border-slate-200">
-              #{visita.cuotaActual}{visita.cuotasTotales ? `/${visita.cuotasTotales}` : ''}
+              Cuota: {visita.cuotaActual}{visita.cuotasTotales ? `/${visita.cuotasTotales}` : ''}
             </span>
           )}
           {/* Badge estado visita */}

@@ -715,6 +715,18 @@ const VistaCobrador = () => {
           }
         }
 
+        // Asegurar cuotas autoritativas para calcular exigible (incluye abonos).
+        try {
+          const cuotasEmb = Array.isArray((prestamoAutoritativo as any)?.cuotas) ? (prestamoAutoritativo as any).cuotas : []
+          const faltanAbonos = cuotasEmb.some((c: any) => c && c.montoPagado === undefined)
+          if (p?.id && (cuotasEmb.length === 0 || faltanAbonos)) {
+            const cuotas = await prestamosService.obtenerCuotas(p.id)
+            prestamoAutoritativo = { ...prestamoAutoritativo, cuotas }
+          }
+        } catch {
+          // ignore
+        }
+
         const { cuota: prox, fechaEfectiva } = resolveProximaCuotaFromPrestamo(prestamoAutoritativo)
         const esArticulo = p?.tipo === 'ARTICULO';
         const toNivel = (nivel: string) => {
@@ -727,17 +739,30 @@ const VistaCobrador = () => {
 
         const nombreCredito = esArticulo ? (p?.articulo || 'Artículo') : 'Préstamo'
         const { cuotaActual, cuotasTotales } = resolveCuotaProgressFromPrestamo(prestamoAutoritativo)
-        const montoCuota = Number((prox as any)?.montoNominal ?? (prox as any)?.monto ?? 0)
+        const cuotasForMonto = Array.isArray((prestamoAutoritativo as any)?.cuotas) ? (prestamoAutoritativo as any).cuotas : []
+        const montoExigible = computeMontoExigibleHastaHoyFromCuotas(cuotasForMonto as any, hoyBogotaKey)
+        const montoNominalProx = Number((prox as any)?.montoNominal ?? (prox as any)?.monto ?? 0)
+        const montoPagadoProx = Number((prox as any)?.montoPagado ?? 0)
+        const pendienteProx = Math.max(0, montoNominalProx - montoPagadoProx)
+        const montoCuota = montoExigible > 0
+          ? montoExigible
+          : pendienteProx
         const proximaVisitaV = fechaEfectiva || (prox as any)?.fechaVencimiento || row?.prestamo?.fechaEfectiva || hoyBogotaKey
 
         const hoyBogota = hoyBogotaKey
-        const proxKey = normalizeDateKey(String(proximaVisitaV || ''))
+        const cuotasForEstado = Array.isArray((prestamoAutoritativo as any)?.cuotas) ? (prestamoAutoritativo as any).cuotas : []
+        const tieneMora = (Array.isArray(cuotasForEstado) ? cuotasForEstado : []).some((c: any) => {
+          if (!c || !isCuotaNoPagada(c)) return false
+          const vtoRaw = resolveFechaEfectivaCuota(c) || String(c?.fechaVencimiento || '')
+          const vtoKey = normalizeDateKey(vtoRaw)
+          return !!vtoKey && !!hoyBogota && vtoKey < hoyBogota
+        })
+
         const proxEstado = String((prox as any)?.estado || '').toUpperCase()
         const estadoCalculado: EstadoVisita = (() => {
           if (Number(p?.saldoPendiente || 0) <= 0) return 'pagado'
           if (proxEstado === 'PAGADA' || proxEstado === 'PAGADO') return 'pagado'
-          if (proxEstado === 'VENCIDA' || proxEstado === 'ATRASADA') return 'en_mora'
-          if (proxKey && hoyBogota && proxKey < hoyBogota) return 'en_mora'
+          if (tieneMora) return 'en_mora'
           return 'pendiente'
         })()
 
@@ -772,7 +797,21 @@ const VistaCobrador = () => {
         } as any;
       }));
 
-      const finales = mapped.sort((a, b) => {
+      // Dedupe igual que admin: evita préstamos repetidos / filas duplicadas.
+      const idsProcesados = new Set<string>()
+      const firstPass = (Array.isArray(mapped) ? mapped : []).flatMap((v: any) => {
+        const uniqueKey = v?.prestamoId ? `loan-${v.prestamoId}` : `client-${v.clienteId}`
+        if (idsProcesados.has(uniqueKey)) return []
+        idsProcesados.add(uniqueKey)
+        return [v]
+      })
+      const clientesConPrestamo = new Set(firstPass.filter((v: any) => v?.prestamoId).map((v: any) => v?.clienteId))
+      const mappedDedupe = firstPass.filter((v: any) => {
+        if (!v?.prestamoId && clientesConPrestamo.has(v?.clienteId)) return false
+        return true
+      }) as any
+
+      const finales = mappedDedupe.sort((a: any, b: any) => {
         if (a.estado === 'pagado' && b.estado !== 'pagado') return 1;
         if (a.estado !== 'pagado' && b.estado === 'pagado') return -1;
         const ao = Number((a as any).ordenVisita ?? 0);
@@ -1050,9 +1089,23 @@ const VistaCobrador = () => {
           cobradorId: rutaCompleta.cobradorId,
         }) as any
 
-        visitasMapeadas.sort((a, b) => (a.ordenVisita || 0) - (b.ordenVisita || 0))
+        const idsProcesados = new Set<string>()
+        const firstPass = (Array.isArray(visitasMapeadas) ? visitasMapeadas : []).flatMap((v: any) => {
+          const uniqueKey = v?.prestamoId ? `loan-${v.prestamoId}` : `client-${v.clienteId}`
+          if (idsProcesados.has(uniqueKey)) return []
+          idsProcesados.add(uniqueKey)
+          return [v]
+        })
 
-        let visitasEnriquecidas = visitasMapeadas
+        const clientesConPrestamo = new Set(firstPass.filter((v: any) => v?.prestamoId).map((v: any) => v?.clienteId))
+        const visitasMapeadasDedupe = firstPass.filter((v: any) => {
+          if (!v?.prestamoId && clientesConPrestamo.has(v?.clienteId)) return false
+          return true
+        }) as any
+
+        visitasMapeadasDedupe.sort((a: any, b: any) => (a.ordenVisita || 0) - (b.ordenVisita || 0))
+
+        let visitasEnriquecidas = visitasMapeadasDedupe
         try {
           const getCuotasByPrestamoId = memoizePromiseByKey(
             (prestamoId) => prestamosService.obtenerCuotas(prestamoId) as Promise<any[]>,
@@ -1060,7 +1113,7 @@ const VistaCobrador = () => {
           )
 
           visitasEnriquecidas = await mapWithConcurrency(
-            visitasMapeadas,
+            visitasMapeadasDedupe,
             async (v: any) => {
               if (!v?.prestamoId) return v
               const cuotas = await getCuotasByPrestamoId(String(v.prestamoId))
@@ -1082,7 +1135,7 @@ const VistaCobrador = () => {
             6,
           ) as any
         } catch {
-          visitasEnriquecidas = visitasMapeadas
+          visitasEnriquecidas = visitasMapeadasDedupe
         }
 
         // Enriquecer con recaudo HOY para poder marcar correctamente como 'pagado'

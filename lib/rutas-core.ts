@@ -449,6 +449,8 @@ export const computeMontoExigibleHastaHoyFromCuotas = (cuotas: any[], hoyBogotaK
     const montoDirecto = (c as any)?.montoNominal ?? (c as any)?.monto
     const montoFallback = Number((c as any)?.montoCapital || 0) + Number((c as any)?.montoInteres || 0)
     const monto = Number(montoDirecto ?? montoFallback ?? 0)
-    return sum + (monto > 0 ? monto : 0);
+    const pagado = Number((c as any)?.montoPagado ?? 0)
+    const pendiente = monto - pagado
+    return sum + (pendiente > 0 ? pendiente : 0);
   }, 0);
 };

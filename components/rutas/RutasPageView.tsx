@@ -32,7 +32,8 @@ import { formatCurrency, cn } from '@/lib/utils'
 import { useAuth } from '@/hooks/useAuth'
 import { routesService } from '@/services/routes-service';
 import { rutasService } from '@/services/rutas-service';
-import { getBogotaDateKey, normalizeDateKey, resolveProximaCuotaFromPrestamo } from '@/lib/rutas-core'
+import { computeMetaHoyFromVisitas, getBogotaDateKey } from '@/lib/rutas-core'
+import { mapAsignacionesToVisitasLite } from '@/lib/ruta-visitas-mapper'
 import { clientesService, Cliente } from '@/services/clientes-service';
 import { useNotification } from '@/components/providers/NotificationProvider';
 import { usePermission } from '@/hooks/usePermission';
@@ -167,7 +168,11 @@ export const RutasPageView = ({
   const fetchRutas = useCallback(async () => {
     try {
       const response = await routesService.getAll({ limit: 100 });
-      const data = (response as any)?.data || (response as any) || [];
+      const payload = (response as any)?.data ?? response
+      const data = Array.isArray(payload)
+        ? payload
+        : (Array.isArray((payload as any)?.data) ? (payload as any).data : [])
+
       if (Array.isArray(data) && data.length > 0) {
         const enriched = await Promise.all(
           (data as Ruta[]).map(async (r: Ruta) => {
@@ -178,53 +183,57 @@ export const RutasPageView = ({
 
               const asignaciones = Array.isArray(rutaCompleta?.asignaciones) ? rutaCompleta.asignaciones : [];
 
-              let metaDelDia = 0;
+              // Normalizar cuotas (incluyendo montoPagado) para que el cálculo de exigible/meta
+              // sea consistente con cobrador/admin ruta.
+              const asigsConCuotas = await Promise.all(asignaciones.map(async (asig: any) => {
+                const cliente = asig?.cliente || null
+                if (!cliente) return asig
 
-              for (const asig of asignaciones) {
-                const cliente = asig?.cliente;
-                if (!cliente) continue;
-                const prestamos = Array.isArray(cliente?.prestamos) ? cliente.prestamos : [];
-                const prestamosValidos = prestamos.filter((p: any) => p && (p.estado === 'ACTIVO' || p.estado === 'EN_MORA' || p.estado === 'PAGADO'));
-                for (const prestamo of prestamosValidos) {
-                  const periodoRuta = String(prestamo?.frecuenciaPago || 'DIARIO') === 'DIARIO'
-                    ? 'DIA'
-                    : String(prestamo?.frecuenciaPago || '').toUpperCase() === 'SEMANAL'
-                      ? 'SEMANA'
-                      : String(prestamo?.frecuenciaPago || '').toUpperCase() === 'QUINCENAL'
-                        ? 'QUINCENA'
-                        : 'MES';
+                const prestamosRaw = Array.isArray(cliente?.prestamos) ? cliente.prestamos : []
+                const seenPrestamos = new Set<string>()
+                const prestamosValidos = prestamosRaw
+                  .filter((p: any) => p && (p.estado === 'ACTIVO' || p.estado === 'EN_MORA'))
+                  .filter((p: any) => {
+                    const id = String(p?.id || '')
+                    if (!id) return true
+                    if (seenPrestamos.has(id)) return false
+                    seenPrestamos.add(id)
+                    return true
+                  })
 
-                  const cuotas = Array.isArray(prestamo?.cuotas) ? prestamo.cuotas : [];
-                  if (cuotas.length === 0) continue;
+                const prestamos = await Promise.all(prestamosValidos.map(async (p: any) => {
+                  if (!p?.id) return p
+                  const cuotasEmbebidas = Array.isArray(p?.cuotas) ? p.cuotas : []
+                  const cuotas = await prestamosService.obtenerCuotas(p.id).catch(() => cuotasEmbebidas)
+                  return { ...p, cuotas }
+                }))
 
-                  const { cuota: proxCuota, fechaEfectiva } = resolveProximaCuotaFromPrestamo(prestamo);
-                  const dueKey = normalizeDateKey(String(fechaEfectiva || (proxCuota as any)?.fechaVencimiento || ''));
+                return { ...asig, cliente: { ...cliente, prestamos } }
+              }))
 
-                  const cuotasExigibles = cuotas.filter((c: any) => {
-                    const st = String(c?.estado || '').toUpperCase();
-                    if (st === 'PAGADA' || st === 'ANULADA') return false;
-                    const effRaw = (st === 'PRORROGADA' && c?.fechaVencimientoProrroga) ? c.fechaVencimientoProrroga : c.fechaVencimiento;
-                    const key = effRaw ? normalizeDateKey(String(effRaw)) : '';
-                    return key && key <= hoyBogota;
-                  });
+              const visitasLite = mapAsignacionesToVisitasLite({
+                asignaciones: asigsConCuotas as any,
+                hoyKey: hoyBogota,
+                cobradorId: String(rutaCompleta?.cobradorId || r?.cobradorId || ''),
+              })
 
-                  const tieneMora = cuotasExigibles.some((c: any) => {
-                    const st = String(c?.estado || '').toUpperCase();
-                    const effRaw = (st === 'PRORROGADA' && c?.fechaVencimientoProrroga) ? c.fechaVencimientoProrroga : c.fechaVencimiento;
-                    const key = effRaw ? normalizeDateKey(String(effRaw)) : '';
-                    return key && key < hoyBogota;
-                  });
+              // Dedupe igual que en admin ruta-client para evitar doble conteo.
+              const idsProcesados = new Set<string>()
+              const firstPass = (Array.isArray(visitasLite) ? visitasLite : []).flatMap((v: any) => {
+                const uniqueKey = v?.prestamoId ? `loan-${v.prestamoId}` : `client-${v.clienteId}`
+                if (idsProcesados.has(uniqueKey)) return []
+                idsProcesados.add(uniqueKey)
+                return [v]
+              })
 
-                  const apareceHoy = tieneMora || periodoRuta === 'DIA' || (dueKey && dueKey === hoyBogota);
-                  if (!apareceHoy) continue;
+              const clientesConPrestamo = new Set(firstPass.filter((v: any) => v?.prestamoId).map((v: any) => v?.clienteId))
+              const visitasDedupe = firstPass.filter((v: any) => {
+                if (!v?.prestamoId && clientesConPrestamo.has(v?.clienteId)) return false
+                return true
+              })
 
-                  const totalExigible = cuotasExigibles.reduce((sum: number, c: any) => sum + Number(c?.monto || 0), 0);
-                  const monto = totalExigible > 0 ? totalExigible : Number((proxCuota as any)?.monto || 0);
-                  if (monto > 0) metaDelDia += monto;
-                }
-              }
+              const metaDelDia = computeMetaHoyFromVisitas(visitasDedupe as any, hoyBogota)
 
-              if (!(metaDelDia > 0)) return r;
               return {
                 ...r,
                 metaDelDia: Number(metaDelDia),
