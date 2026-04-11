@@ -558,6 +558,13 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
 
   const [visitasBase, setVisitasBase] = useState<VisitaRuta[]>([])
 
+  const visitasBaseRef = useRef<any[]>([])
+  useEffect(() => {
+    visitasBaseRef.current = Array.isArray(visitasBase) ? (visitasBase as any[]) : []
+  }, [visitasBase])
+
+  const pagosInFlightRef = useRef<Set<string>>(new Set())
+
 
 
   const [visitasOrden, setVisitasOrden] = useState<string[]>([])
@@ -851,8 +858,43 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
           meta: periodoCards === 'HOY' ? metaHoy : prev.meta,
         }));
 
-        setVisitasBase(finalesFiltrados as any);
-        setVisitasOrden((finalesFiltrados as any[]).map((v: any) => v.id));
+        const prevList = visitasBaseRef.current
+        const prevById = new Map<string, any>((Array.isArray(prevList) ? prevList : []).map((v: any) => [String(v?.id || ''), v]))
+
+        const merged = (finalesFiltrados as any[]).map((v: any) => {
+          const id = String(v?.id || '')
+          const local = prevById.get(id)
+          if (!local) return v
+
+          const localRecaudoDia = Number(local?.recaudadoDelDia || 0)
+          const nextRecaudoDia = Number(v?.recaudadoDelDia || 0)
+          const recaudadoDelDia = Math.max(localRecaudoDia, nextRecaudoDia)
+
+          const localRecaudoTotal = Number(local?.recaudadoTotalClient || 0)
+          const nextRecaudoTotal = Number(v?.recaudadoTotalClient || 0)
+          const recaudadoTotalClient = Math.max(localRecaudoTotal, nextRecaudoTotal)
+
+          const estadoLocal = String(local?.estado || '')
+          const estadoBackend = String(v?.estado || '')
+          const saldoBackend = Number(v?.saldoTotal || 0)
+          const proxBackend = String(v?.proximaVisita || '')
+          const proxLocal = String(local?.proximaVisita || '')
+          const esNuevaCuota = !!proxBackend && !!proxLocal && proxBackend !== proxLocal
+
+          const estado = (estadoLocal === 'pagado' && !esNuevaCuota && saldoBackend > 0)
+            ? 'pagado'
+            : (estadoBackend as any)
+
+          return {
+            ...v,
+            recaudadoDelDia,
+            recaudadoTotalClient,
+            estado,
+          }
+        })
+
+        setVisitasBase(merged as any);
+        setVisitasOrden((merged as any[]).map((v: any) => v.id));
       }
     } catch (error) {
       console.error('Error al cargar visitas de ruta (supervisor):', error);
@@ -876,8 +918,12 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
     const prestamoId = payload?.prestamoId || payload?.metadata?.prestamoId;
     const clienteId = payload?.clienteId || payload?.metadata?.clienteId;
 
+    if (prestamoId && pagosInFlightRef.current.has(String(prestamoId))) {
+      return
+    }
+
     if (prestamoId) {
-      const existeEnVisitas = visitasBase.some((v: any) => v?.prestamoId === prestamoId);
+      const existeEnVisitas = visitasBaseRef.current.some((v: any) => v?.prestamoId === prestamoId);
       if (existeEnVisitas) {
         try {
           const p = await prestamosService.obtenerPrestamoPorId(prestamoId);
@@ -962,7 +1008,7 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
 
     if (showMisClientes) await cargarMisCreditos();
 
-  }, [cargarVisitasRuta, showMisClientes, cargarMisCreditos, visitasBase, cargarEstadisticasRuta])
+  }, [cargarVisitasRuta, showMisClientes, cargarMisCreditos, cargarEstadisticasRuta])
 
 
 
@@ -1588,6 +1634,8 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
 
       setIsLoading(true)
 
+      pagosInFlightRef.current.add(String(visita.prestamoId))
+
       await prestamosService.registrarPago({
 
         prestamoId: visita.prestamoId,
@@ -1633,20 +1681,15 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
 
       }))
 
-      if (cuotaCompletadaLocal) {
-        setVisitasBase((prev) => prev.filter((v) => v.id !== visitaId))
-        setVisitasOrden((prev) => prev.filter((id) => id !== visitaId))
-      }
-
 
 
       toast.success('Pago registrado')
 
-      // Refresh en background para reconciliar con backend (sin bloquear UI)
+      // Reconciliar una sola vez contra backend (y mantener lock durante la reconciliación)
       try {
-        void cargarEstadisticasRuta()
-        void cargarVisitasRuta()
-        if (showMisClientes) void cargarMisCreditos()
+        await cargarVisitasRuta()
+        await cargarEstadisticasRuta()
+        if (showMisClientes) await cargarMisCreditos()
       } catch {}
 
       setShowPaymentModal(false)
@@ -1659,11 +1702,15 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
 
     } finally {
 
+      if (visita?.prestamoId) {
+        pagosInFlightRef.current.delete(String(visita.prestamoId))
+      }
+
       setIsLoading(false)
 
     }
 
-  }, [visitasBase, userSession?.id, pagoInitialIsAbono, cargarVisitasRuta, showMisClientes, cargarMisCreditos])
+  }, [visitasBase, userSession?.id, pagoInitialIsAbono, cargarVisitasRuta, showMisClientes, cargarMisCreditos, cargarEstadisticasRuta])
 
   const handleCrearCredito = useCallback(async (data: any) => {
 

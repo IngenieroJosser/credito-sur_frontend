@@ -121,7 +121,7 @@ type RutaClientLoadedProps = {
   rutaCompletada: boolean
   setRutaCompletada: React.Dispatch<React.SetStateAction<boolean>>
   currentUser: any
-  onRutaRefresh?: () => Promise<void> | void
+  onRutaRefresh?: (prestamoId?: string) => Promise<void> | void
 }
 
 const RutaClientLoaded = ({
@@ -324,7 +324,47 @@ const RutaClientLoaded = ({
   // Mantener visitas actualizadas cuando cambian los datos de la ruta (WebSocket)
   useEffect(() => {
     if (rutaData) {
-      setVisitasCobrador(mapearAsignacionesAVisitas(rutaData));
+      const nextList = mapearAsignacionesAVisitas(rutaData)
+      const prevList = visitasCobradorRef.current
+      const prevById = new Map<string, any>((Array.isArray(prevList) ? prevList : []).map((v: any) => [String(v?.id || ''), v]))
+
+      const merged = (Array.isArray(nextList) ? nextList : []).map((v: any) => {
+        const id = String(v?.id || '')
+        const local = prevById.get(id)
+        if (!local) return v
+
+        const localRecaudoDia = Number(local?.recaudadoDelDia || 0)
+        const nextRecaudoDia = Number(v?.recaudadoDelDia || 0)
+        const recaudadoDelDia = Math.max(localRecaudoDia, nextRecaudoDia)
+
+        const localRecaudoTotal = Number(local?.recaudadoTotalClient || 0)
+        const nextRecaudoTotal = Number(v?.recaudadoTotalClient || 0)
+        const localHasRecaudoTotal = local?.recaudadoTotalClient !== undefined && local?.recaudadoTotalClient !== null
+        const nextHasRecaudoTotal = v?.recaudadoTotalClient !== undefined && v?.recaudadoTotalClient !== null
+        const recaudadoTotalClient = (localHasRecaudoTotal || nextHasRecaudoTotal)
+          ? Math.max(localRecaudoTotal, nextRecaudoTotal)
+          : undefined
+
+        const estadoLocal = String(local?.estado || '')
+        const estadoBackend = String(v?.estado || '')
+        const saldoBackend = Number(v?.saldoTotal || 0)
+        const proxBackend = String(v?.proximaVisita || '')
+        const proxLocal = String(local?.proximaVisita || '')
+        const esNuevaCuota = !!proxBackend && !!proxLocal && proxBackend !== proxLocal
+
+        const estado = (estadoLocal === 'pagado' && !esNuevaCuota && saldoBackend > 0)
+          ? 'pagado'
+          : (estadoBackend as any)
+
+        return {
+          ...v,
+          recaudadoDelDia,
+          recaudadoTotalClient,
+          estado,
+        }
+      })
+
+      setVisitasCobrador(merged as any);
     }
   }, [rutaData, mapearAsignacionesAVisitas]);
 
@@ -2041,14 +2081,14 @@ const RutaClientLoaded = ({
                   }
                 })
 
-                return cuotaCompletada ? next.filter((v) => v.id !== visitaId) : next
+                return next
               })
 
               showNotification('success', `${pagoActual.tipo === 'ABONO' ? 'Abono' : 'Pago'} registrado correctamente`, 'Éxito');
 
               // Refrescar estadísticas
               try {
-                void onRutaRefresh?.();
+                await onRutaRefresh?.(pagoActual.visita.prestamoId);
               } catch {}
             } catch (error) {
               console.error('Error registrando pago/abono:', error);
@@ -2392,6 +2432,8 @@ const RutaClient = ({ initialRuta: initialRutaProp, rutaId }: RutaClientProps) =
 
   const { user: currentUser } = useAuth()
 
+  const pagosInFlightRef = useRef<Set<string>>(new Set())
+
 
 
   const [rutaData, setRutaData] = useState<RutaDetalleMock | null>(initialRutaProp)
@@ -2402,9 +2444,13 @@ const RutaClient = ({ initialRuta: initialRutaProp, rutaId }: RutaClientProps) =
 
 
 
-  const refreshRuta = useCallback(async () => {
+  const refreshRuta = useCallback(async (prestamoIdToLock?: string) => {
 
     if (!rutaId) return;
+
+    if (prestamoIdToLock) {
+      pagosInFlightRef.current.add(String(prestamoIdToLock))
+    }
 
     try {
 
@@ -2419,12 +2465,20 @@ const RutaClient = ({ initialRuta: initialRutaProp, rutaId }: RutaClientProps) =
       console.error('Error refrescando ruta:', e);
 
     }
+    finally {
+      if (prestamoIdToLock) {
+        pagosInFlightRef.current.delete(String(prestamoIdToLock))
+      }
+    }
 
   }, [rutaId]);
 
 
 
-  useRealtimeData(['pagos_actualizados', 'rutas_actualizadas', 'prestamos_actualizados'], async () => {
+  useRealtimeData(['pagos_actualizados', 'rutas_actualizadas', 'prestamos_actualizados'], async (payload?: any) => {
+
+    const prestamoId = payload?.prestamoId || payload?.metadata?.prestamoId
+    if (prestamoId && pagosInFlightRef.current.has(String(prestamoId))) return
 
     await refreshRuta()
 
@@ -2535,31 +2589,23 @@ const RutaClient = ({ initialRuta: initialRutaProp, rutaId }: RutaClientProps) =
   }
 
 
-
   return (
 
     <RutaClientLoaded
-
       initialRuta={initialRuta}
-
-      rutaData={initialRuta}
-
+      rutaData={rutaData as any}
       rutaId={rutaId}
-
       rutaCompletada={rutaCompletada}
-
       setRutaCompletada={setRutaCompletada}
-
       currentUser={currentUser}
-
-      onRutaRefresh={refreshRuta}
-
+      onRutaRefresh={(prestamoIdToLock?: string) => refreshRuta(prestamoIdToLock)}
     />
 
   )
 
 }
 
+// ...
 
 
 /**

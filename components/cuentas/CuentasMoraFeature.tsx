@@ -236,9 +236,15 @@ export default function CuentasMoraFeature() {
         etiquetaMora: p.etiquetaMora || calcularNivelMora(p.diasMora || 0),
       }))
 
+      const soloEnMora = enriched.filter((c) => {
+        const dias = Number(c?.diasMora || 0)
+        const vencidas = Number(c?.cuotasVencidas || 0)
+        return dias > 0 || vencidas > 0
+      })
+
       const filtradas = filtroNivel === 'TODOS'
-        ? enriched
-        : enriched.filter(c => c.etiquetaMora === filtroNivel)
+        ? soloEnMora
+        : soloEnMora.filter(c => c.etiquetaMora === filtroNivel)
 
       setCuentas(filtradas)
     } catch (error) {
@@ -473,7 +479,7 @@ export default function CuentasMoraFeature() {
                   {cuentas.map(cuenta => {
                     const nivel = (cuenta.etiquetaMora || calcularNivelMora(cuenta.diasMora)) as NivelMoraKey
                     const cfg = NIVEL_COLORS[nivel]
-                    const cuotasVencidasUI = (cuenta.diasMora || 0) > 0 ? (cuenta.cuotasVencidas || 0) : 0
+                    const cuotasVencidasUI = Number(cuenta.cuotasVencidas || 0)
                     return (
                       <tr key={cuenta.id} className="hover:bg-slate-50/50 transition-colors group">
                         <td className="px-6 py-4">
@@ -549,7 +555,7 @@ export default function CuentasMoraFeature() {
             {cuentas.map(cuenta => {
               const nivel = (cuenta.etiquetaMora || calcularNivelMora(cuenta.diasMora)) as NivelMoraKey
               const cfg = NIVEL_COLORS[nivel]
-              const cuotasVencidasUI = (cuenta.diasMora || 0) > 0 ? (cuenta.cuotasVencidas || 0) : 0
+              const cuotasVencidasUI = Number(cuenta.cuotasVencidas || 0)
               return (
                 <div key={cuenta.id} className="bg-white rounded-2xl border border-slate-200 shadow-sm hover:shadow-lg hover:-translate-y-1 transition-all duration-300 overflow-hidden flex flex-col group">
                   <div className={cn('h-1 w-full', cfg?.bar)} />
