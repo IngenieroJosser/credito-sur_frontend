@@ -2823,21 +2823,48 @@ const ModuloContableContent = () => {
                                          return true;
                                        })
                                        .filter(m => {
-                                         if (detalleTipo === 'CAJA_TODOS') {
-                                           return true
-                                         }
-                                         if (detalleTipo === 'INGRESOS') {
-                                           if (m.tipo !== 'TRANSFERENCIA') return false;
+                                         if (cajaSeleccionada && detalleCajaFocus) {
+                                          const conc = String((m as any).descripcion || m.concepto || '').toUpperCase();
+                                          const ref = String(m.tipoReferencia || '').toUpperCase();
+
+                                          const esTransferencia = String(m.tipo || '').toUpperCase() === 'TRANSFERENCIA'
+                                          const esIngreso = String(m.tipo || '').toUpperCase() === 'INGRESO'
+                                          const esEgreso = String(m.tipo || '').toUpperCase() === 'EGRESO'
+
+                                          const esTransferenciaEntrada =
+                                            esTransferencia &&
+                                            ((ref === 'RECOLECCION' && conc.includes('RECIBIDA')) ||
+                                              (ref === 'TRANSFERENCIA_INTERNA' && conc.includes('RECIBIDA')))
+
+                                          const esTransferenciaSalida =
+                                            esTransferencia &&
+                                            (conc.includes('SALIDA') || conc.includes('ENVIADA A') || conc.includes('EGRESO'))
+
+                                          if (detalleCajaFocus === 'RECAUDO') {
+                                            return esIngreso || esTransferenciaEntrada
+                                          }
+
+                                          if (detalleCajaFocus === 'GASTOS') {
+                                            if (ref === 'DEUDA_COBRADOR') return false
+                                            return esEgreso || esTransferenciaSalida
+                                          }
+                                        }
+
+                                        if (detalleTipo === 'CAJA_TODOS') {
+                                          return true
+                                        }
+                                        if (detalleTipo === 'INGRESOS') {
+                                          if (m.tipo !== 'TRANSFERENCIA') return false;
                                            const conc = String((m as any).descripcion || m.concepto || '').toUpperCase();
                                            const ref = String(m.tipoReferencia || '').toUpperCase();
                                            const esRecoleccion = ref === 'RECOLECCION' && conc.includes('RECIBIDA');
                                            const esTransferenciaInterna = ref === 'TRANSFERENCIA_INTERNA' && conc.includes('RECIBIDA');
                                            return esRecoleccion || esTransferenciaInterna;
-                                         } else if (detalleTipo === 'CUOTAS_INICIALES') {
-                                           if (m.tipo !== 'INGRESO') return false;
-                                           if (String(m.tipoReferencia || '').toUpperCase() !== 'CUOTA_INICIAL') return false;
-                                           return true;
-                                         } else if (detalleTipo === 'UTILIDAD') {
+                                        } else if (detalleTipo === 'CUOTAS_INICIALES') {
+                                          if (m.tipo !== 'INGRESO') return false;
+                                          if (String(m.tipoReferencia || '').toUpperCase() !== 'CUOTA_INICIAL') return false;
+                                          return true;
+                                        } else if (detalleTipo === 'UTILIDAD') {
                                           const esIngresoRecoleccion =
                                             m.tipo === 'TRANSFERENCIA' &&
                                             String(m.tipoReferencia || '').toUpperCase() === 'RECOLECCION' &&
@@ -2998,6 +3025,32 @@ const ModuloContableContent = () => {
                           {(cajaSeleccionada ? movimientosDetalle : (movimientosModalGlobal.length ? movimientosModalGlobal : movimientos))
                             .filter(m => {
                               if (!cajaSeleccionada && m.categoria === 'CONSOLIDACION') return false;
+                              if (cajaSeleccionada && detalleCajaFocus) {
+                                const conc = String((m as any).descripcion || m.concepto || '').toUpperCase();
+                                const ref = String(m.tipoReferencia || '').toUpperCase();
+
+                                const esTransferencia = String(m.tipo || '').toUpperCase() === 'TRANSFERENCIA'
+                                const esIngreso = String(m.tipo || '').toUpperCase() === 'INGRESO'
+                                const esEgreso = String(m.tipo || '').toUpperCase() === 'EGRESO'
+
+                                const esTransferenciaEntrada =
+                                  esTransferencia &&
+                                  ((ref === 'RECOLECCION' && conc.includes('RECIBIDA')) ||
+                                    (ref === 'TRANSFERENCIA_INTERNA' && conc.includes('RECIBIDA')))
+
+                                const esTransferenciaSalida =
+                                  esTransferencia &&
+                                  (conc.includes('SALIDA') || conc.includes('ENVIADA A') || conc.includes('EGRESO'))
+
+                                if (detalleCajaFocus === 'RECAUDO') {
+                                  return esIngreso || esTransferenciaEntrada
+                                }
+
+                                if (detalleCajaFocus === 'GASTOS') {
+                                  if (ref === 'DEUDA_COBRADOR') return false
+                                  return esEgreso || esTransferenciaSalida
+                                }
+                              }
                               if (detalleTipo === 'CAJA_TODOS') {
                                 return true
                               }
