@@ -426,8 +426,15 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
       setRutaStats((prev: any) => ({
         ...prev,
         recaudo: Number(saldo?.cobranzaDelDia ?? saldo?.recaudoDelDia ?? prev.recaudo ?? 0),
-        meta: Number(saldo?.metaDelDia ?? prev.meta ?? 0),
-        eficiencia: Number(saldo?.eficiencia ?? prev.eficiencia ?? 0),
+        meta: Number(prev.meta ?? 0),
+        eficiencia:
+          Number(prev.meta ?? 0) > 0
+            ? Math.round(
+                (Number(saldo?.cobranzaDelDia ?? saldo?.recaudoDelDia ?? prev.recaudo ?? 0) /
+                  Number(prev.meta ?? 0)) *
+                  100,
+              )
+            : Number(prev.eficiencia ?? 0),
         gastos: Number(saldo?.gastosDelDia ?? prev.gastos ?? 0),
         base: Number(saldo?.saldoCaja ?? saldo?.baseEfectivo ?? prev.base ?? 0),
       }))

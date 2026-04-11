@@ -740,7 +740,9 @@ const RutaClientLoaded = ({
         const visitasExigiblesHoy = (visitasCobrador || []).filter((v: any) => isVisitaExigibleHoy(v, hoyKey))
         const metaHoy = computeMetaHoyFromVisitas(visitasExigiblesHoy as any, hoyKey)
 
-        const meta = periodoCards === 'HOY' ? metaHoy : Number(estadisticas?.metaDelDia ?? 0)
+        const meta = periodoCards === 'HOY'
+          ? (metaHoy > 0 ? metaHoy : Number(estadisticas?.metaDelDia ?? 0))
+          : Number(estadisticas?.metaDelDia ?? 0)
         const eficiencia = meta > 0 ? Math.round((recaudo / meta) * 100) : Number(estadisticas?.avanceDiario ?? 0)
 
         setRutaStatsCards({
@@ -757,7 +759,9 @@ const RutaClientLoaded = ({
         const visitasExigiblesHoy = (visitasCobrador || []).filter((v: any) => isVisitaExigibleHoy(v, hoyKey))
         const metaHoy = computeMetaHoyFromVisitas(visitasExigiblesHoy as any, hoyKey)
 
-        const meta = periodoCards === 'HOY' ? metaHoy : Number(estadisticas?.metaDelDia ?? 0)
+        const meta = periodoCards === 'HOY'
+          ? (metaHoy > 0 ? metaHoy : Number(estadisticas?.metaDelDia ?? 0))
+          : Number(estadisticas?.metaDelDia ?? 0)
         const eficiencia = meta > 0 ? Math.round((recaudo / meta) * 100) : Number(estadisticas?.avanceDiario ?? 0)
         setRutaStatsCards((prev) => ({
           ...prev,
