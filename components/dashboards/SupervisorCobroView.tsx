@@ -3471,18 +3471,16 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
 
             }}
 
-            onConfirm={async (data: any) => {
+            onConfirm={async (monto: number, metodo: 'EFECTIVO' | 'TRANSFERENCIA', comprobante: File | null) => {
 
               const visitaId = visitaPagoSeleccionadaId
-              const monto = Number(data?.monto || 0)
-              const comp = (data as any)?.comprobante || null
 
               // Cerrar inmediatamente para UX
               setShowPaymentModal(false)
               setVisitaPagoSeleccionadaId(null)
 
               // Registrar en background (y actualizar optimista)
-              void handleRegistrarPago(visitaId, monto, 'EFECTIVO', comp)
+              void handleRegistrarPago(visitaId, Number(monto || 0), metodo, comprobante)
 
             }}
 
