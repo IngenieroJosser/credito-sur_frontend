@@ -804,7 +804,7 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
                   return vtoKey && vtoKey <= hoyBogota;
                 });
 
-                const totalExigible = cuotasExigibles.reduce((sum: number, c: any) => sum + Number(c.monto || 0), 0);
+                const totalExigible = computeMontoExigibleHastaHoyFromCuotas(cuotasExigibles, hoyBogota);
                 const esMora = cuotasExigibles.some((c: any) => {
                   const vtoKey = getCuotaVtoKey(c)
                   return vtoKey && vtoKey < hoyBogota
