@@ -611,7 +611,8 @@ export const RutasPageView = ({
   const totalClientes = displayRutas.reduce((acc, curr) => acc + curr.clientesAsignados, 0)
   const objetivoTotal = displayRutas.reduce((acc, curr) => acc + curr.metaDelDia, 0)
   const cobranzaTotal = displayRutas.reduce((acc, curr) => acc + curr.cobranzaDelDia, 0)
-  const porcentajeAvance = objetivoTotal > 0 ? (cobranzaTotal / objetivoTotal) * 100 : 0
+  const objetivoTotalShown = Math.max(objetivoTotal, cobranzaTotal)
+  const porcentajeAvance = objetivoTotal > 0 ? Math.min(100, (cobranzaTotal / objetivoTotal) * 100) : 0
 
   // Force list view for Coordinador, Admin and Supervisor
   if ((rutasBasePath.includes('/coordinador') || rutasBasePath.includes('/admin') || rutasBasePath.includes('/supervisor')) && vista !== 'list') {
@@ -723,7 +724,7 @@ export const RutasPageView = ({
               {
                 label: 'Avance Cobranza',
                 value: `${porcentajeAvance.toFixed(1)}%`,
-                sub: `Objetivo: ${formatCurrency(objetivoTotal)}`,
+                sub: `Objetivo: ${formatCurrency(objetivoTotalShown)}`,
                 icon: TrendingUp,
                 color: 'text-slate-900',
                 subColor: 'text-slate-500',
@@ -930,7 +931,7 @@ export const RutasPageView = ({
                             <p className="font-bold text-slate-900">{formatCurrency(ruta.cobranzaDelDia)}</p>
                           </div>
                           <span className="text-sm font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-100">
-                            {ruta.metaDelDia > 0 ? ((ruta.cobranzaDelDia / ruta.metaDelDia) * 100).toFixed(0) : 0}%
+                            {ruta.metaDelDia > 0 ? Math.min(100, (ruta.cobranzaDelDia / ruta.metaDelDia) * 100).toFixed(0) : 0}%
                           </span>
                         </div>
                         <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden border border-slate-200">
@@ -1104,7 +1105,7 @@ export const RutasPageView = ({
                           {ruta.estado === 'ACTIVA' ? (
                             <div className="w-32 space-y-1">
                               <div className="flex justify-between text-xs">
-                                <span className="font-bold text-primary">{ruta.metaDelDia > 0 ? ((ruta.cobranzaDelDia / ruta.metaDelDia) * 100).toFixed(0) : 0}%</span>
+                                <span className="font-bold text-primary">{ruta.metaDelDia > 0 ? Math.min(100, (ruta.cobranzaDelDia / ruta.metaDelDia) * 100).toFixed(0) : 0}%</span>
                                 <span className="text-slate-500 font-medium">{formatCurrency(ruta.cobranzaDelDia)}</span>
                               </div>
                               <div className="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden border border-slate-200">
@@ -1241,7 +1242,7 @@ export const RutasPageView = ({
                       <div className="space-y-2">
                         <div className="flex justify-between items-center">
                           <span className="text-sm font-bold text-slate-900">{formatCurrency(ruta.cobranzaDelDia)}</span>
-                          <span className="text-sm font-bold text-primary">{ruta.metaDelDia > 0 ? ((ruta.cobranzaDelDia / ruta.metaDelDia) * 100).toFixed(0) : 0}%</span>
+                          <span className="text-sm font-bold text-primary">{ruta.metaDelDia > 0 ? Math.min(100, (ruta.cobranzaDelDia / ruta.metaDelDia) * 100).toFixed(0) : 0}%</span>
                         </div>
                         <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden border border-slate-200">
                           <div

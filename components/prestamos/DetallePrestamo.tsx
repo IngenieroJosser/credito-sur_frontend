@@ -22,6 +22,20 @@ const formatDate = (dateStr: string | undefined | null): string => {
   } catch { return dateStr; }
 };
 
+const formatFechaPagoBogota = (dateStr: string | undefined | null): string => {
+  if (!dateStr) return '—'
+  try {
+    const d = new Date(dateStr)
+    if (!isNaN(d.getTime())) {
+      const key = getBogotaDateKey(d)
+      if (key) return formatDate(key)
+    }
+  } catch {
+    // ignore
+  }
+  return formatDate(dateStr)
+}
+
 export interface PrestamoDetalle {
   id: string;
   clienteId: string;
@@ -138,7 +152,7 @@ export default function DetallePrestamo({ prestamo }: DetallePrestamoProps) {
 
   const hoyBogotaKey = getBogotaDateKey(new Date())
 
-  const diasMora = useMemo(() => {
+  const diasMora = (() => {
     const vencidas = prestamo.cuotas.filter((c) => {
       const st = String(c.estado || '').toUpperCase()
       if (st === 'PAGADA' || st === 'PAGADO' || st === 'ANULADA' || st === 'ANULADO') return false
@@ -178,7 +192,7 @@ export default function DetallePrestamo({ prestamo }: DetallePrestamoProps) {
       cur.setDate(cur.getDate() + 1)
     }
     return count
-  }, [prestamo.cuotas, nowTs, hoyBogotaKey]);
+  })();
 
   const estadoPrestamoUI = useMemo(() => {
     const st = String(prestamo.estado || '').toUpperCase()
@@ -484,7 +498,9 @@ export default function DetallePrestamo({ prestamo }: DetallePrestamoProps) {
                     </div>
                     <div className="bg-slate-50 rounded-xl p-3 border border-slate-100">
                       <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Cuota</span>
-                      <span className="text-lg font-bold text-slate-900">{formatCurrency(cuotaActual.monto)}</span>
+                      <span className="text-lg font-bold text-slate-900">{formatCurrency(
+                        Number((cuotaActual as any)?.montoNominal ?? (cuotaActual as any)?.monto ?? (Number((cuotaActual as any)?.montoCapital || 0) + Number((cuotaActual as any)?.montoInteres || 0)))
+                      )}</span>
                     </div>
                     <div className="bg-blue-50 rounded-xl p-3 border border-blue-100">
                       <span className="text-[10px] font-bold text-blue-600 uppercase tracking-wider block">Capital</span>
@@ -537,7 +553,9 @@ export default function DetallePrestamo({ prestamo }: DetallePrestamoProps) {
                 {cuotasConSaldoUI.map((cuota: any) => {
                     const esCuotaActual = cuotaActual && cuota.numero === cuotaActual.numero;
                     const montoPagado = Number(cuota?.montoPagado ?? 0)
-                    const montoCuota = Number(cuota?.monto ?? 0)
+                    const montoCuota = Number(
+                      cuota?.montoNominal ?? cuota?.monto ?? (Number(cuota?.montoCapital || 0) + Number(cuota?.montoInteres || 0))
+                    )
                     const pendienteCuota = Math.max(0, montoCuota - montoPagado)
                     return (
                   <tr key={cuota.numero} className={cn(
@@ -554,7 +572,7 @@ export default function DetallePrestamo({ prestamo }: DetallePrestamoProps) {
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap text-sm text-slate-700 font-medium">{formatDate(cuota.fecha)}</td>
                     <td className="px-4 py-3 whitespace-nowrap text-sm font-bold text-slate-900">
-                      {formatCurrency(cuota.monto)}
+                      {formatCurrency(montoCuota)}
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap text-sm font-bold text-amber-700">
                       {montoPagado > 0 ? formatCurrency(montoPagado) : '—'}
@@ -577,7 +595,7 @@ export default function DetallePrestamo({ prestamo }: DetallePrestamoProps) {
                       </span>
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap text-xs font-bold text-slate-500 min-w-[110px]">
-                      {cuota.fechaPago ? formatDate(cuota.fechaPago) : '—'}
+                      {cuota.fechaPago ? formatFechaPagoBogota(cuota.fechaPago) : '—'}
                     </td>
                   </tr>
                     );

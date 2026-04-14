@@ -6,6 +6,7 @@ import { VisitaRuta } from '@/lib/types/cobranza'
 import { formatMilesCOP } from '@/lib/utils'
 import { Portal, MODAL_Z_INDEX } from '@/components/dashboards/shared/CobradorElements'
 import { prestamosService } from '@/services/prestamos-service'
+import { pagosService } from '@/services/pagos-service'
 import { getLoanAmounts } from '@/lib/loan-calculations'
 import { normalizeDateKey, resolveNextPagoFromPrestamo } from '@/lib/rutas-core'
 
@@ -34,6 +35,7 @@ function formatDateTime(dateStr: string) {
   const date = new Date(dateStr)
   if (isNaN(date.getTime())) return '---'
   return date.toLocaleString('es-CO', {
+    timeZone: 'America/Bogota',
     day: '2-digit',
     month: 'short',
     year: 'numeric',
@@ -46,6 +48,7 @@ function formatDateTime(dateStr: string) {
 export default function EstadoCuentaModal({ visita, onClose }: EstadoCuentaModalProps) {
   const [loading, setLoading] = useState(true)
   const [loanData, setLoanData] = useState<any>(null)
+  const [pagosFull, setPagosFull] = useState<any[]>([])
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
@@ -80,6 +83,28 @@ export default function EstadoCuentaModal({ visita, onClose }: EstadoCuentaModal
         
         if (detail) {
           setLoanData(detail)
+
+          const prestamoId = String(detail?.id || visita?.prestamoId || '')
+          if (prestamoId) {
+            try {
+              const all: any[] = []
+              let page = 1
+              const limit = 100
+              while (true) {
+                const resp = await pagosService.obtenerPagos({ prestamoId, page, limit })
+                const items = (resp as any)?.pagos || []
+                all.push(...items)
+                const totalPaginas = Number((resp as any)?.paginacion?.totalPaginas || 1)
+                if (page >= totalPaginas) break
+                page += 1
+              }
+              setPagosFull(all)
+            } catch {
+              setPagosFull([])
+            }
+          } else {
+            setPagosFull([])
+          }
         } else {
           setError("No se encontró información del crédito.")
         }
@@ -132,24 +157,62 @@ export default function EstadoCuentaModal({ visita, onClose }: EstadoCuentaModal
   }, [loanData]);
 
   const historialPagos = useMemo(() => {
-    if (!loanData?.pagos) return [];
-    return [...loanData.pagos]
-      .sort((a, b) => new Date(b.fechaPago).getTime() - new Date(a.fechaPago).getTime())
-      .map((p: any) => {
-        const montoTop = Number(p?.montoTotal ?? p?.monto ?? 0)
-        const detalles = Array.isArray(p?.detalles) ? p.detalles : []
-        const montoDetalles = detalles.reduce((sum: number, d: any) => {
-          return sum + Number(d?.montoTotal ?? d?.monto ?? 0)
-        }, 0)
-        const monto = montoTop > 0 ? montoTop : montoDetalles
-        return {
-          fecha: formatDateTime(p.fechaPago),
-          detalle: p.referencia || `Abono a Crédito`,
-          metodo: p.metodoPago || 'EFECTIVO',
-          monto,
-        }
-      });
-  }, [loanData]);
+    const source = (Array.isArray(pagosFull) && pagosFull.length > 0)
+      ? pagosFull
+      : (loanData?.pagos || [])
+    if (!Array.isArray(source) || source.length === 0) return [];
+
+    const cuotas = Array.isArray(loanData?.cuotas) ? loanData.cuotas : []
+    const cuotaById = new Map<string, any>()
+    cuotas.forEach((c: any) => {
+      const id = String(c?.id || '')
+      if (!id) return
+      cuotaById.set(id, c)
+    })
+
+    const montoCuotaFrom = (c: any): number => {
+      if (!c) return 0
+      const montoDirecto = Number(c?.montoNominal ?? c?.monto ?? 0)
+      if (montoDirecto > 0) return montoDirecto
+      return Number(c?.montoCapital || 0) + Number(c?.montoInteres || 0)
+    }
+
+    const ordered = [...source].sort((a, b) => new Date(b.fechaPago).getTime() - new Date(a.fechaPago).getTime())
+    const rows = ordered.flatMap((p: any) => {
+      const detalles = Array.isArray(p?.detalles) ? p.detalles : []
+      if (detalles.length > 0) {
+        return detalles.map((d: any) => {
+          const monto = Number(d?.montoTotal ?? d?.monto ?? 0)
+          const cuotaId = String(d?.cuotaId || d?.cuota?.id || '')
+          const cuota = (cuotaId && cuotaById.has(cuotaId)) ? cuotaById.get(cuotaId) : (d?.cuota || null)
+          const numeroCuota = cuota?.numeroCuota ?? cuota?.numero ?? d?.numeroCuota ?? null
+          const montoCuota = montoCuotaFrom(cuota)
+          const COP_TOLERANCE = 1
+          const esAbono = montoCuota > 0 && monto > 0 && monto < (montoCuota - COP_TOLERANCE)
+          const tipoLabel = esAbono ? 'Abono' : 'Pago'
+          const cuotaLabel = numeroCuota != null ? `${tipoLabel} Cuota #${numeroCuota}` : `${tipoLabel} a cuota`
+          const ref = p?.numeroReferencia || p?.referencia || null
+          return {
+            fecha: formatDateTime(p.fechaPago),
+            detalle: ref ? `${cuotaLabel} (Ref: ${ref})` : cuotaLabel,
+            metodo: p.metodoPago || 'EFECTIVO',
+            monto,
+          }
+        })
+      }
+
+      const montoTop = Number(p?.montoTotal ?? p?.monto ?? 0)
+      const ref = p?.numeroReferencia || p?.referencia || null
+      return [{
+        fecha: formatDateTime(p.fechaPago),
+        detalle: ref ? `Pago (Ref: ${ref})` : 'Pago',
+        metodo: p.metodoPago || 'EFECTIVO',
+        monto: montoTop,
+      }]
+    })
+
+    return rows
+  }, [loanData, pagosFull]);
 
   const articleName = loanData?.producto?.nombre || (loanData ? 'Préstamo Efectivo' : '---');
   const isArticle = !!loanData?.productoId;

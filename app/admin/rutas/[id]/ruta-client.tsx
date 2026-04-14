@@ -98,8 +98,8 @@ import { computeMontoExigibleHastaHoyFromCuotas, computeMetaHoyFromVisitas, getB
 
 import { mapAsignacionesToVisitasLite } from '@/lib/ruta-visitas-mapper'
 import { buildRecaudosHoyMapByPrestamoId, indexPagosByPrestamoId, sumMontoTotalPagosByBogotaDateKey } from '@/lib/ruta-recaudos'
-import { buildHistorialDiaFromBackend } from '@/lib/ruta-historial'
 import { mapWithConcurrency, memoizePromiseByKey } from '@/lib/async-utils'
+import { buildHistorialDiaFromBackend } from '@/lib/ruta-historial'
 
 interface GastoRuta {
   id: string
@@ -295,6 +295,93 @@ const RutaClientLoaded = ({
   }, [historialRutas, historyByMonth, historyMonthKeys])
 
   const cargarHistorialFecha = historial.cargarHistorialFecha
+
+  const cuotasHistorialCacheRef = useRef<Map<string, any[]>>(new Map())
+
+  const enriquecerHistorialDiaConCuotas = useCallback(async (fechaClave: string) => {
+    const dayData = (historialRutas as any)?.[fechaClave]
+    if (!dayData?.loaded) return
+    const visitasRaw = Array.isArray(dayData?.visitas) ? dayData.visitas : []
+
+    const visitasConPrestamo = visitasRaw.filter((v: any) => !!String(v?.prestamoId || ''))
+    const yaEnriquecido = visitasConPrestamo.length > 0
+      && visitasConPrestamo.every((v: any) => (v as any)?.enMoraHistorico !== undefined)
+    if (yaEnriquecido) return
+
+    const prestamoIds = Array.from(new Set(visitasConPrestamo.map((v: any) => String(v?.prestamoId || '')).filter(Boolean)))
+    if (prestamoIds.length === 0) return
+
+    const getCuotasByPrestamoId = memoizePromiseByKey(
+      async (prestamoId: string) => {
+        const cache = cuotasHistorialCacheRef.current
+        if (cache.has(prestamoId)) return cache.get(prestamoId) || []
+        const cuotas = await prestamosService.obtenerCuotas(prestamoId).catch(() => [])
+        cache.set(prestamoId, cuotas as any[])
+        return cuotas as any[]
+      },
+      () => [],
+    )
+
+    const nextVisitas = await mapWithConcurrency(
+      visitasRaw,
+      async (v: any) => {
+        const pid = String(v?.prestamoId || '')
+        if (!pid) return v
+        const cuotas = await getCuotasByPrestamoId(pid)
+        const exigible = computeMontoExigibleHastaHoyFromCuotas(cuotas as any, fechaClave)
+        const tieneMora = (Array.isArray(cuotas) ? cuotas : []).some((c: any) => {
+          if (!c || !isCuotaNoPagada(c)) return false
+          const vtoRaw = resolveFechaEfectivaCuota(c) || String(c?.fechaVencimiento || '')
+          const vtoKey = normalizeDateKey(vtoRaw)
+          return !!vtoKey && vtoKey < fechaClave
+        })
+        const enProrrogaHistorico = (Array.isArray(cuotas) ? cuotas : []).some((c: any) => {
+          if (!c || !isCuotaNoPagada(c)) return false
+          const prRaw = String(c?.fechaVencimientoProrroga || '')
+          if (!prRaw) return false
+          const prKey = normalizeDateKey(prRaw)
+          if (!prKey) return false
+          const vtoKey = normalizeDateKey(resolveFechaEfectivaCuota(c) || String(c?.fechaVencimiento || ''))
+          if (prKey < fechaClave) return false
+          if (vtoKey && vtoKey > fechaClave) return false
+          return true
+        })
+        return {
+          ...v,
+          montoCuota: (exigible > Number(v?.montoCuota || 0)) ? exigible : v?.montoCuota,
+          enMoraHistorico: tieneMora,
+          enProrrogaHistorico,
+        }
+      },
+      6,
+    )
+
+    setHistorialRutas((prev: any) => {
+      const prevDia = (prev || {})[fechaClave]
+      if (!prevDia) return prev
+      return {
+        ...(prev || {}),
+        [fechaClave]: {
+          ...prevDia,
+          visitas: nextVisitas,
+        },
+      }
+    })
+  }, [historialRutas])
+
+  useEffect(() => {
+    if (!showHistory) return
+    const hoy = hoyBogotaKey
+    const dayData = (historialRutas as any)?.[hoy]
+    if (!dayData?.loaded) return
+    void enriquecerHistorialDiaConCuotas(hoy)
+  }, [showHistory, historialRutas, hoyBogotaKey, enriquecerHistorialDiaConCuotas])
+
+  useEffect(() => {
+    if (!showHistory) return
+    if (!selectedHistoryDate) return
+    void enriquecerHistorialDiaConCuotas(selectedHistoryDate)
+  }, [showHistory, selectedHistoryDate, enriquecerHistorialDiaConCuotas])
 
 
 
@@ -778,12 +865,39 @@ const RutaClientLoaded = ({
 
         const hoyKey = getBogotaDateKey(new Date())
         const visitasExigiblesHoy = (visitasCobrador || []).filter((v: any) => isVisitaExigibleHoy(v, hoyKey))
-        const metaHoy = computeMetaHoyFromVisitas(visitasExigiblesHoy as any, hoyKey)
+        const metaHoyExigible = computeMetaHoyFromVisitas(visitasExigiblesHoy as any, hoyKey)
 
-        const meta = periodoCards === 'HOY'
-          ? (metaHoy > 0 ? metaHoy : Number(estadisticas?.metaDelDia ?? 0))
-          : Number(estadisticas?.metaDelDia ?? 0)
-        const eficiencia = meta > 0 ? Math.round((recaudo / meta) * 100) : Number(estadisticas?.avanceDiario ?? 0)
+        const meta = (() => {
+          if (periodoCards !== 'HOY') return Number(estadisticas?.metaDelDia ?? 0)
+          const base = metaHoyExigible > 0 ? metaHoyExigible : Number(estadisticas?.metaDelDia ?? 0)
+
+          // Ajuste coherente con mora: meta = recaudo real de pagadas + exigible de pendientes.
+          // Esto evita % > 100 cuando se cobra mora extra.
+          const visitasHoyConEstado = (visitasExigiblesHoy || []).map((v: any) => {
+            const pagado = shouldMarkVisitaAsPagado({
+              saldoTotal: v?.saldoTotal,
+              recaudadoHoy: v?.recaudadoDelDia,
+              montoCuotaExigible: v?.montoCuota,
+              estadoActual: v?.estado,
+            })
+            return { ...v, estado: pagado ? 'pagado' : v?.estado }
+          })
+
+          const metaPagadas = visitasHoyConEstado
+            .filter((v: any) => String(v?.estado || '').toLowerCase() === 'pagado')
+            .reduce((s: number, v: any) => s + Number(v?.recaudadoDelDia || 0), 0)
+          const metaPendientes = visitasHoyConEstado
+            .filter((v: any) => String(v?.estado || '').toLowerCase() !== 'pagado')
+            .reduce((s: number, v: any) => s + Number(v?.montoCuota || 0), 0)
+          const metaCoherente = metaPagadas + metaPendientes
+
+          // Si no hay visitas para calcular, caer al base.
+          return metaCoherente > 0 ? metaCoherente : base
+        })()
+
+        const eficiencia = meta > 0
+          ? Math.min(100, Math.max(0, Math.round((recaudo / meta) * 100)))
+          : Number(estadisticas?.avanceDiario ?? 0)
 
         setRutaStatsCards({
           recaudo,
@@ -797,12 +911,34 @@ const RutaClientLoaded = ({
 
         const hoyKey = getBogotaDateKey(new Date())
         const visitasExigiblesHoy = (visitasCobrador || []).filter((v: any) => isVisitaExigibleHoy(v, hoyKey))
-        const metaHoy = computeMetaHoyFromVisitas(visitasExigiblesHoy as any, hoyKey)
+        const metaHoyExigible = computeMetaHoyFromVisitas(visitasExigiblesHoy as any, hoyKey)
 
-        const meta = periodoCards === 'HOY'
-          ? (metaHoy > 0 ? metaHoy : Number(estadisticas?.metaDelDia ?? 0))
-          : Number(estadisticas?.metaDelDia ?? 0)
-        const eficiencia = meta > 0 ? Math.round((recaudo / meta) * 100) : Number(estadisticas?.avanceDiario ?? 0)
+        const meta = (() => {
+          if (periodoCards !== 'HOY') return Number(estadisticas?.metaDelDia ?? 0)
+          const base = metaHoyExigible > 0 ? metaHoyExigible : Number(estadisticas?.metaDelDia ?? 0)
+          const visitasHoyConEstado = (visitasExigiblesHoy || []).map((v: any) => {
+            const pagado = shouldMarkVisitaAsPagado({
+              saldoTotal: v?.saldoTotal,
+              recaudadoHoy: v?.recaudadoDelDia,
+              montoCuotaExigible: v?.montoCuota,
+              estadoActual: v?.estado,
+            })
+            return { ...v, estado: pagado ? 'pagado' : v?.estado }
+          })
+
+          const metaPagadas = visitasHoyConEstado
+            .filter((v: any) => String(v?.estado || '').toLowerCase() === 'pagado')
+            .reduce((s: number, v: any) => s + Number(v?.recaudadoDelDia || 0), 0)
+          const metaPendientes = visitasHoyConEstado
+            .filter((v: any) => String(v?.estado || '').toLowerCase() !== 'pagado')
+            .reduce((s: number, v: any) => s + Number(v?.montoCuota || 0), 0)
+          const metaCoherente = metaPagadas + metaPendientes
+          return metaCoherente > 0 ? metaCoherente : base
+        })()
+
+        const eficiencia = meta > 0
+          ? Math.min(100, Math.max(0, Math.round((recaudo / meta) * 100)))
+          : Number(estadisticas?.avanceDiario ?? 0)
         setRutaStatsCards((prev) => ({
           ...prev,
           recaudo,
