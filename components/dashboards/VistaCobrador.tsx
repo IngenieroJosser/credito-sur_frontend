@@ -3001,9 +3001,36 @@ const VistaCobrador = () => {
 
           ), vencidas[0])
 
-          const diff = Math.floor((Date.now() - new Date(oldest.fechaVencimiento).getTime()) / (1000 * 60 * 60 * 24))
-
-          diasMora = diff > 0 ? diff : 0
+          const freq = String((info as any)?.frecuenciaPago || (info as any)?.frecuencia || '').toUpperCase()
+          if (freq === 'DIARIO') {
+            const oldestKey = normalizeDateKey(String(oldest.fechaVencimiento || ''))
+            const endKey = hoyBogotaKey
+            if (oldestKey && endKey) {
+              const start = new Date(`${oldestKey}T12:00:00-05:00`)
+              const end = new Date(`${endKey}T12:00:00-05:00`)
+              if (!isNaN(start.getTime()) && !isNaN(end.getTime())) {
+                let count = 0
+                const cur = new Date(start)
+                cur.setDate(cur.getDate() + 1)
+                while (cur.getTime() <= end.getTime()) {
+                  if (cur.getDay() !== 0) count++
+                  cur.setDate(cur.getDate() + 1)
+                }
+                diasMora = count
+              }
+            }
+          } else {
+            const oldestKey = normalizeDateKey(String(oldest.fechaVencimiento || ''))
+            const endKey = hoyBogotaKey
+            if (oldestKey && endKey) {
+              const start = new Date(`${oldestKey}T12:00:00-05:00`)
+              const end = new Date(`${endKey}T12:00:00-05:00`)
+              if (!isNaN(start.getTime()) && !isNaN(end.getTime())) {
+                const diff = Math.floor((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24))
+                diasMora = diff > 0 ? diff : 0
+              }
+            }
+          }
 
         }
 

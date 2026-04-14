@@ -136,7 +136,7 @@ export default function DetallePrestamo({ prestamo }: DetallePrestamoProps) {
     setNowTs(Date.now());
   }, []);
 
-  const hoyBogotaKey = useMemo(() => getBogotaDateKey(new Date()), [])
+  const hoyBogotaKey = getBogotaDateKey(new Date())
 
   const diasMora = useMemo(() => {
     const vencidas = prestamo.cuotas.filter((c) => {
@@ -153,10 +153,31 @@ export default function DetallePrestamo({ prestamo }: DetallePrestamoProps) {
       .reduce((min, k) => (k < min ? k : min), normalizeDateKey(vencidas[0].fecha))
 
     if (!oldestKey) return 0
-    const [y, m, d] = oldestKey.split('-').map(Number)
-    const oldestTs = new Date(y, m - 1, d, 0, 0, 0, 0).getTime()
-    const diff = Math.floor((nowTs - oldestTs) / (1000 * 60 * 60 * 24))
-    return diff > 0 ? diff : 0
+    const isDiario = String((prestamo as any)?.frecuencia || '').toUpperCase() === 'DIARIO'
+    if (!isDiario) {
+      const parseKeyToBogotaMidday = (key: string) => new Date(`${key}T12:00:00-05:00`)
+      const start = parseKeyToBogotaMidday(oldestKey)
+      const end = parseKeyToBogotaMidday(hoyBogotaKey)
+      if (isNaN(start.getTime()) || isNaN(end.getTime())) return 0
+      const diff = Math.floor((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24))
+      return diff > 0 ? diff : 0
+    }
+
+    const parseKeyToBogotaMidday = (key: string) => new Date(`${key}T12:00:00-05:00`)
+    const start = parseKeyToBogotaMidday(oldestKey)
+    const end = parseKeyToBogotaMidday(hoyBogotaKey)
+    if (isNaN(start.getTime()) || isNaN(end.getTime())) return 0
+
+    // Regla: contar días de mora como los días transcurridos DESPUÉS del vencimiento
+    // hasta hoy inclusive, excluyendo domingos (no se cobra).
+    let count = 0
+    const cur = new Date(start)
+    cur.setDate(cur.getDate() + 1)
+    while (cur.getTime() <= end.getTime()) {
+      if (cur.getDay() !== 0) count++
+      cur.setDate(cur.getDate() + 1)
+    }
+    return count
   }, [prestamo.cuotas, nowTs, hoyBogotaKey]);
 
   const estadoPrestamoUI = useMemo(() => {
@@ -229,7 +250,7 @@ export default function DetallePrestamo({ prestamo }: DetallePrestamoProps) {
              </div>
              <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Teléfono</span>
-               <span className="text-sm font-bold text-slate-700 block">{prestamo.clienteTelefono || 'No registrado'}</span>
+               <span className="text-sm font-bold text-slate-700 block break-all">{prestamo.clienteTelefono || 'No registrado'}</span>
              </div>
              <div className="md:col-span-2 p-4 bg-slate-50 rounded-2xl border border-slate-100">
                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Dirección</span>
@@ -496,7 +517,7 @@ export default function DetallePrestamo({ prestamo }: DetallePrestamoProps) {
             )}
 
             {/* Tabla de Amortización */}
-            <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+            <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-slate-200">
               <thead className="bg-slate-50/50">
                 <tr>
@@ -509,7 +530,7 @@ export default function DetallePrestamo({ prestamo }: DetallePrestamoProps) {
                   <th scope="col" className="px-4 py-4 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">Interés</th>
                   <th scope="col" className="px-4 py-4 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">Saldo</th>
                   <th scope="col" className="px-4 py-4 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">Estado</th>
-                  <th scope="col" className="px-4 py-4 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">Fecha Pago</th>
+                  <th scope="col" className="px-4 py-4 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest min-w-[110px]">Fecha Pago</th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-slate-100">
@@ -555,7 +576,7 @@ export default function DetallePrestamo({ prestamo }: DetallePrestamoProps) {
                         {cuota.estadoUI}
                       </span>
                     </td>
-                    <td className="px-4 py-3 whitespace-nowrap text-xs font-bold text-slate-500">
+                    <td className="px-4 py-3 whitespace-nowrap text-xs font-bold text-slate-500 min-w-[110px]">
                       {cuota.fechaPago ? formatDate(cuota.fechaPago) : '—'}
                     </td>
                   </tr>

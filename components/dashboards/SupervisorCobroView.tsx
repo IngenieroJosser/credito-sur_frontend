@@ -1209,16 +1209,32 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
 
 
     const DIAS_PERIODO: Record<string, number> = { DIA: 1, SEMANA: 7, QUINCENA: 15, MES: 30 }
-    const filtered = searched.filter(v => {
+    const filtered = searched.filter((v: any) => {
+      // Supervisor operativo: solo ver
+      // - en mora
+      // - vencidas (por fecha) aunque el backend no haya actualizado estados
+      // - en prórroga
+      // - "duritos" (solo no-diarios)
       if (v.estado === 'pagado') return false
+
+      // 1) En mora siempre aparece
       if (v.estado === 'en_mora') return true
 
+      // 2) En prórroga siempre aparece
+      if (v.enProrroga) return true
+
+      // 3) Vencida por fecha: próxima visita (fecha efectiva) ya quedó atrás
+      const proxKey = v?.proximaVisita ? normalizeDateKey(String(v.proximaVisita)) : ''
+      if (proxKey && hoyBogotaKey && proxKey < hoyBogotaKey) return true
+
+      // 4) Duritos
       const periodo = String(v.periodoRuta || 'DIA').toUpperCase()
       const dias = DIAS_PERIODO[periodo] ?? 1
       const umbral = dias * 1.5 * 24 * 60 * 60 * 1000
       const lastPago = Number((v as any).fechaUltimoPago || 0)
+      if (!(lastPago > 0)) return false
       const msDesde = Date.now() - lastPago
-      return lastPago > 0 && msDesde > umbral
+      return msDesde > umbral
     })
 
 
@@ -1249,7 +1265,7 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
 
     return sorted
 
-  }, [visitasBase, searchQuery])
+  }, [visitasBase, searchQuery, hoyBogotaKey])
 
 
 
@@ -1481,9 +1497,36 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
 
           ), vencidas[0])
 
-          const diff = Math.floor((Date.now() - new Date(oldest.fechaVencimiento).getTime()) / (1000 * 60 * 60 * 24))
-
-          diasMora = diff > 0 ? diff : 0
+          const freq = String((info as any)?.frecuenciaPago || (info as any)?.frecuencia || '').toUpperCase()
+          if (freq === 'DIARIO') {
+            const oldestKey = normalizeDateKey(String(oldest.fechaVencimiento || ''))
+            const endKey = hoyBogotaKey
+            if (oldestKey && endKey) {
+              const start = new Date(`${oldestKey}T12:00:00-05:00`)
+              const end = new Date(`${endKey}T12:00:00-05:00`)
+              if (!isNaN(start.getTime()) && !isNaN(end.getTime())) {
+                let count = 0
+                const cur = new Date(start)
+                cur.setDate(cur.getDate() + 1)
+                while (cur.getTime() <= end.getTime()) {
+                  if (cur.getDay() !== 0) count++
+                  cur.setDate(cur.getDate() + 1)
+                }
+                diasMora = count
+              }
+            }
+          } else {
+            const oldestKey = normalizeDateKey(String(oldest.fechaVencimiento || ''))
+            const endKey = hoyBogotaKey
+            if (oldestKey && endKey) {
+              const start = new Date(`${oldestKey}T12:00:00-05:00`)
+              const end = new Date(`${endKey}T12:00:00-05:00`)
+              if (!isNaN(start.getTime()) && !isNaN(end.getTime())) {
+                const diff = Math.floor((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24))
+                diasMora = diff > 0 ? diff : 0
+              }
+            }
+          }
 
         }
 

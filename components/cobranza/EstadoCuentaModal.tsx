@@ -133,12 +133,22 @@ export default function EstadoCuentaModal({ visita, onClose }: EstadoCuentaModal
 
   const historialPagos = useMemo(() => {
     if (!loanData?.pagos) return [];
-    return [...loanData.pagos].sort((a, b) => new Date(b.fechaPago).getTime() - new Date(a.fechaPago).getTime()).map((p: any) => ({
-        fecha: formatDateTime(p.fechaPago),
-        detalle: p.referencia || `Abono a Crédito`,
-        metodo: p.metodoPago || 'EFECTIVO',
-        monto: p.montoTotal || p.monto
-    }));
+    return [...loanData.pagos]
+      .sort((a, b) => new Date(b.fechaPago).getTime() - new Date(a.fechaPago).getTime())
+      .map((p: any) => {
+        const montoTop = Number(p?.montoTotal ?? p?.monto ?? 0)
+        const detalles = Array.isArray(p?.detalles) ? p.detalles : []
+        const montoDetalles = detalles.reduce((sum: number, d: any) => {
+          return sum + Number(d?.montoTotal ?? d?.monto ?? 0)
+        }, 0)
+        const monto = montoTop > 0 ? montoTop : montoDetalles
+        return {
+          fecha: formatDateTime(p.fechaPago),
+          detalle: p.referencia || `Abono a Crédito`,
+          metodo: p.metodoPago || 'EFECTIVO',
+          monto,
+        }
+      });
   }, [loanData]);
 
   const articleName = loanData?.producto?.nombre || (loanData ? 'Préstamo Efectivo' : '---');
