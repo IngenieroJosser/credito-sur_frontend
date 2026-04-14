@@ -5,7 +5,7 @@ import {
   ChevronDown, ChevronUp, User, RefreshCw,
   ShieldAlert, AlertTriangle, Minus, Plus, Check, X
 } from 'lucide-react'
-import { formatCurrency, cn } from '@/lib/utils'
+import { formatCurrency, formatMilesCOP, cn } from '@/lib/utils'
 import { getCajas, getDeudoresCobrador, registrarAbonoDeudaCobrador, type DeudaCobrador } from '@/services/contabilidad-service'
 import { useAuth } from '@/hooks/useAuth'
 import { useNotification } from '@/components/providers/NotificationProvider'
@@ -14,7 +14,7 @@ import { useNotification } from '@/components/providers/NotificationProvider'
 function fmtCOPInput(val: string): string {
   const num = val.replace(/\D/g, '')
   if (!num) return ''
-  return Number(num).toLocaleString('es-CO')
+  return formatMilesCOP(Number(num))
 }
 function parseCOP(val: string): number {
   return Number(val.replace(/\D/g, '')) || 0

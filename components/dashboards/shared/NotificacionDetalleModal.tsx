@@ -451,7 +451,7 @@ export default function NotificacionDetalleModal({
 
   const formatCOPInput = (val: number | undefined) => {
     if (val === undefined || val === 0) return ''
-    return val.toLocaleString('es-CO')
+    return formatMilesCOP(val)
   }
 
   const parseCOPInput = (val: string) => {

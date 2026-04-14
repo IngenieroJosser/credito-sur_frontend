@@ -36,7 +36,7 @@ import {
   Shield
 } from 'lucide-react'
 
-import { formatCurrency } from '@/lib/utils'
+import { formatCurrency, formatMilesCOP } from '@/lib/utils'
 
 import Link from 'next/link'
 
@@ -144,6 +144,38 @@ const RutaClientLoaded = ({
   const [searchQuery, setSearchQuery] = useState('')
   const [showFilters, setShowFilters] = useState(false)
   const [periodoCards, setPeriodoCards] = useState<'HOY' | 'SEM' | 'MES' | 'AÑO'>('HOY')
+
+  const computeHoyBogotaKey = useCallback(() => {
+    const d = new Date()
+    return getBogotaDateKey(d)
+      || `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+  }, [])
+
+  const [hoyBogotaKey, setHoyBogotaKey] = useState<string>(() => computeHoyBogotaKey())
+
+  useEffect(() => {
+    let timeout: ReturnType<typeof setTimeout> | undefined
+
+    const msHastaMedianocheBogota = () => {
+      const ahora = new Date()
+      const key = getBogotaDateKey(ahora)
+      if (!key) return 60_000
+      const nextMidnight = new Date(`${key}T24:00:00-05:00`).getTime()
+      return Math.max(1_000, nextMidnight - ahora.getTime())
+    }
+
+    const programar = () => {
+      timeout = setTimeout(() => {
+        setHoyBogotaKey(computeHoyBogotaKey())
+        programar()
+      }, msHastaMedianocheBogota())
+    }
+
+    programar()
+    return () => {
+      if (timeout) clearTimeout(timeout)
+    }
+  }, [computeHoyBogotaKey])
   const [rutaStatsCards, setRutaStatsCards] = useState<{
     recaudo: number
     meta: number
@@ -270,9 +302,7 @@ const RutaClientLoaded = ({
 
     if (!showHistory || !initialRuta?.id) return;
 
-    const hoyD = new Date();
-    const hoy = getBogotaDateKey(hoyD)
-      || `${hoyD.getFullYear()}-${String(hoyD.getMonth() + 1).padStart(2, '0')}-${String(hoyD.getDate()).padStart(2, '0')}`;
+    const hoy = hoyBogotaKey;
     const existing = (historialRutas || {})[hoy];
 
     if (!existing || (!existing.loaded)) {
@@ -287,7 +317,7 @@ const RutaClientLoaded = ({
     const asignaciones = data?.asignaciones || data?.asignacionesRuta;
     if (!asignaciones || !Array.isArray(asignaciones)) return [];
 
-    const hoyKey = getBogotaDateKey(new Date())
+    const hoyKey = hoyBogotaKey
     const visitasRaw = mapAsignacionesToVisitasLite({
       asignaciones,
       hoyKey,
@@ -530,6 +560,16 @@ const RutaClientLoaded = ({
     filtradas.sort((a: any, b: any) => {
       if (a.estado === 'pagado' && b.estado !== 'pagado') return 1;
       if (a.estado !== 'pagado' && b.estado === 'pagado') return -1;
+
+      if (a.estado === 'en_mora' && b.estado !== 'en_mora') return -1;
+      if (a.estado !== 'en_mora' && b.estado === 'en_mora') return 1;
+
+      if (a.periodoRuta !== 'DIA' || b.periodoRuta !== 'DIA') {
+        if (a.fechaUltimoPago !== b.fechaUltimoPago) {
+          return (a.fechaUltimoPago || 0) - (b.fechaUltimoPago || 0);
+        }
+      }
+
       const ao = Number(a.ordenVisita ?? 0);
       const bo = Number(b.ordenVisita ?? 0);
       if (ao !== bo) return ao - bo;
@@ -1430,7 +1470,7 @@ const RutaClientLoaded = ({
 
                                           <div className="font-bold text-slate-900 capitalize">{monthName}</div>
 
-                                          <div className="text-xs text-slate-500">{daysInMonth.length} días · Recaudo: <b>${monthRecaudo.toLocaleString('es-CO')}</b></div>
+                                          <div className="text-xs text-slate-500">{daysInMonth.length} días · Recaudo: <b>${formatMilesCOP(monthRecaudo)}</b></div>
 
                                         </div>
 
@@ -1482,7 +1522,7 @@ const RutaClientLoaded = ({
 
                                                     <span className="text-sm font-semibold text-slate-700 capitalize">{dayNameStr}</span>
 
-                                                    <div className="text-[11px] text-slate-400">Recaudo: <b>${(dayData?.resumen?.recaudo || 0).toLocaleString('es-CO')}</b>{dayData?.loaded && dayData.visitas.length > 0 && <span className="ml-2">· {dayData.visitas.length} clientes</span>}</div>
+                                                    <div className="text-[11px] text-slate-400">Recaudo: <b>${formatMilesCOP((dayData?.resumen?.recaudo || 0) as any)}</b>{dayData?.loaded && dayData.visitas.length > 0 && <span className="ml-2">· {dayData.visitas.length} clientes</span>}</div>
 
                                                   </div>
 
@@ -1581,7 +1621,7 @@ const RutaClientLoaded = ({
 
                                          <div className="font-bold text-slate-900 capitalize flex items-center gap-2">{dayName}{isCompleted && <span className="text-[10px] bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full font-bold uppercase border border-emerald-200">Completada</span>}</div>
 
-                                         <div className="text-xs text-slate-500">Recaudo: <b>${data.resumen.recaudo.toLocaleString('es-CO')}</b></div>
+                                         <div className="text-xs text-slate-500">Recaudo: <b>${formatMilesCOP(data.resumen.recaudo)}</b></div>
 
                                       </div>
 
@@ -1603,9 +1643,9 @@ const RutaClientLoaded = ({
 
                                        <div className="grid grid-cols-3 gap-2">
 
-                                          <div className="bg-slate-50 p-2 rounded-xl border border-slate-100 text-center"><div className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter">Recaudo</div><div className="text-xs font-black text-slate-700">${data.resumen.recaudo.toLocaleString('es-CO')}</div></div>
+                                          <div className="bg-slate-50 p-2 rounded-xl border border-slate-100 text-center"><div className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter">Recaudo</div><div className="text-xs font-black text-slate-700">${formatMilesCOP(data.resumen.recaudo)}</div></div>
 
-                                          <div className="bg-slate-50 p-2 rounded-xl border border-slate-100 text-center"><div className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter">Gastos</div><div className="text-xs font-black text-rose-600">${data.resumen.gastos.toLocaleString('es-CO')}</div></div>
+                                          <div className="bg-slate-50 p-2 rounded-xl border border-slate-100 text-center"><div className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter">Gastos</div><div className="text-xs font-black text-rose-600">${formatMilesCOP(data.resumen.gastos)}</div></div>
 
                                           <div className="bg-slate-50 p-2 rounded-xl border border-slate-100 text-center"><div className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter">Visitados</div><div className="text-xs font-black text-blue-600">{data.resumen.visitados}/{data.resumen.total}</div></div>
 

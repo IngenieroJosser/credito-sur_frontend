@@ -6,19 +6,21 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 export const formatCurrency = (amount: number) => {
+  const safe = Number.isFinite(amount) ? Math.trunc(amount) : 0
   return new Intl.NumberFormat('es-CO', {
     style: 'currency',
     currency: 'COP',
     minimumFractionDigits: 0,
     maximumFractionDigits: 0
-  }).format(amount)
+  }).format(safe)
 }
 
 export const formatMilesCOP = (amount: number) => {
+  const safe = Number.isFinite(amount) ? Math.trunc(amount) : 0
   return new Intl.NumberFormat('es-CO', {
     minimumFractionDigits: 0,
     maximumFractionDigits: 0,
-  }).format(amount)
+  }).format(safe)
 }
 
 export const formatCOPInputValue = (raw: string) => {
@@ -33,10 +35,11 @@ export const parseCOPInputToNumber = (raw: string) => {
 }
 
 export const formatMilesCOPDecimal = (amount: number) => {
+  const safe = Number.isFinite(amount) ? Math.trunc(amount * 100) / 100 : 0
   return new Intl.NumberFormat('es-CO', {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
-  }).format(amount)
+  }).format(safe)
 }
 
 const splitCopDecimalParts = (raw: string) => {

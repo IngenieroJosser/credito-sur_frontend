@@ -39,7 +39,7 @@ import {
   TrendingDown,
   Gavel,
 } from 'lucide-react'
-import { formatCurrency } from '@/lib/utils'
+import { formatCurrency, formatMilesCOP } from '@/lib/utils'
 import { aprobacionesService, type Aprobacion, type PendingResponse, type SuperadminReviewResponse } from '@/services/aprobaciones-service'
 import { prestamosService } from '@/services/prestamos-service'
 import { TipoAprobacion } from '@/types/enums'
@@ -164,9 +164,9 @@ const aprobacionToNotificacion = (item: Aprobacion) => {
     }
     titulo = `${DECISION_LABEL[decision] || cat.label} — ${clienteNombre}`
     if (decision === 'PRORROGAR' && datos.diasGracia) {
-      mensaje = `${item.solicitante} solicitó una prórroga de ${datos.diasGracia} días para ${clienteNombre}${datos.numeroPrestamo ? ` (${datos.numeroPrestamo})` : ''}. Saldo: ${datos.saldoPendiente ? `$${Number(datos.saldoPendiente).toLocaleString('es-CO')}` : '—'}.`
+      mensaje = `${item.solicitante} solicitó una prórroga de ${datos.diasGracia} días para ${clienteNombre}${datos.numeroPrestamo ? ` (${datos.numeroPrestamo})` : ''}. Saldo: ${datos.saldoPendiente ? `$${formatMilesCOP(Number(datos.saldoPendiente))}` : '—'}.`
     } else if (decision === 'ASIGNAR_MORA') {
-      mensaje = `${item.solicitante} asignó $${Number(datos.montoInteres || 0).toLocaleString('es-CO')} de mora a ${clienteNombre}${datos.numeroPrestamo ? ` (${datos.numeroPrestamo})` : ''}.`
+      mensaje = `${item.solicitante} asignó $${formatMilesCOP(Number(datos.montoInteres || 0))} de mora a ${clienteNombre}${datos.numeroPrestamo ? ` (${datos.numeroPrestamo})` : ''}.`
     } else {
       mensaje = `${item.solicitante} solicitó ${(DECISION_LABEL[decision] || decision).toLowerCase()} para ${clienteNombre}${datos.numeroPrestamo ? ` (${datos.numeroPrestamo})` : ''}.`
     }

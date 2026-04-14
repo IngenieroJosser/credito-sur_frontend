@@ -16,6 +16,7 @@ import { useRutaHistorial } from '@/hooks/useRutaHistorial'
 
 import { buildHistorialDiaFromBackend } from '@/lib/ruta-historial'
 import { mapWithConcurrency, memoizePromiseByKey } from '@/lib/async-utils'
+import { formatMilesCOP } from '@/lib/utils'
 
 import {
   DndContext,
@@ -286,6 +287,38 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
 
   const [showHistory, setShowHistory] = useState(false)
 
+  const computeHoyBogotaKey = useCallback(() => {
+    const d = new Date()
+    return getBogotaDateKey(d)
+      || `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+  }, [])
+
+  const [hoyBogotaKey, setHoyBogotaKey] = useState<string>(() => computeHoyBogotaKey())
+
+  useEffect(() => {
+    let timeout: ReturnType<typeof setTimeout> | undefined
+
+    const msHastaMedianocheBogota = () => {
+      const ahora = new Date()
+      const key = getBogotaDateKey(ahora)
+      if (!key) return 60_000
+      const nextMidnight = new Date(`${key}T24:00:00-05:00`).getTime()
+      return Math.max(1_000, nextMidnight - ahora.getTime())
+    }
+
+    const programar = () => {
+      timeout = setTimeout(() => {
+        setHoyBogotaKey(computeHoyBogotaKey())
+        programar()
+      }, msHastaMedianocheBogota())
+    }
+
+    programar()
+    return () => {
+      if (timeout) clearTimeout(timeout)
+    }
+  }, [computeHoyBogotaKey])
+
 
   const [showMisClientes, setShowMisClientes] = useState(false)
 
@@ -502,7 +535,7 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
 
         const { cuotaActual, cuotasTotales } = resolveCuotaProgressFromPrestamo(prestamoAutoritativo)
         const cuotasForMonto = Array.isArray((prestamoAutoritativo as any)?.cuotas) ? (prestamoAutoritativo as any).cuotas : []
-        const hoyKey = getBogotaDateKey(new Date())
+        const hoyKey = hoyBogotaKey
         const montoExigible = computeMontoExigibleHastaHoyFromCuotas(cuotasForMonto, hoyKey)
         const montoNominalProx = Number((prox as any)?.montoNominal ?? (prox as any)?.monto ?? 0)
         const montoPagadoProx = Number((prox as any)?.montoPagado ?? 0)
@@ -699,7 +732,7 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
 
     if (!showHistory || !rutaId) return;
 
-    const hoy = getBogotaDateKey(new Date());
+    const hoy = hoyBogotaKey;
 
     const existing = (historialRutas || {})[hoy];
 
@@ -786,7 +819,7 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
                 new Date(a.fechaVencimiento).getTime() - new Date(b.fechaVencimiento).getTime()
               );
               
-              const hoyBogota = getBogotaDateKey(new Date());
+              const hoyBogota = hoyBogotaKey;
 
               const getCuotaVtoKey = (c: any): string => {
                 if (!c) return ''
@@ -882,17 +915,14 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
           return aId.localeCompare(bId);
         });
 
-        const hoyBogotaPrincipal = getBogotaDateKey(new Date());
+        const hoyBogotaPrincipal = hoyBogotaKey;
 
         const visitasExigiblesHoy = (finales || []).filter((v: any) => isVisitaExigibleHoy(v, hoyBogotaPrincipal))
         const metaHoy = computeMetaHoyFromVisitas(visitasExigiblesHoy as any, hoyBogotaPrincipal)
 
         const finalesFiltrados = finales.filter((v: any) => {
           if (v?.estado === 'pagado') return false;
-          // Preferir el flag calculado con la misma lógica del cobrador.
-          if (v?.apareceHoy === true) return true;
-          const proximaKey = v?.proximaVisita ? normalizeDateKey(String(v.proximaVisita)) : '';
-          return v?.estado === 'en_mora' || v?.periodoRuta === 'DIA' || (proximaKey && proximaKey === hoyBogotaPrincipal);
+          return Number(v?.saldoTotal || 0) > 0;
         });
 
         setRutaStats((prev: any) => ({
@@ -1178,12 +1208,17 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
     )
 
 
-
-    // Al pagar la cuota, desaparece de la ruta hasta el próximo vencimiento
+    const DIAS_PERIODO: Record<string, number> = { DIA: 1, SEMANA: 7, QUINCENA: 15, MES: 30 }
     const filtered = searched.filter(v => {
-      // Desaparecer si ya está pagado o tiene recaudo hoy
-      if (v.estado === 'pagado') return false;
-      return true;
+      if (v.estado === 'pagado') return false
+      if (v.estado === 'en_mora') return true
+
+      const periodo = String(v.periodoRuta || 'DIA').toUpperCase()
+      const dias = DIAS_PERIODO[periodo] ?? 1
+      const umbral = dias * 1.5 * 24 * 60 * 60 * 1000
+      const lastPago = Number((v as any).fechaUltimoPago || 0)
+      const msDesde = Date.now() - lastPago
+      return lastPago > 0 && msDesde > umbral
     })
 
 
@@ -1192,6 +1227,10 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
       // 1. Pagados al final (aunque filtrados, por consistencia)
       if (a.estado === 'pagado' && b.estado !== 'pagado') return 1;
       if (a.estado !== 'pagado' && b.estado === 'pagado') return -1;
+
+      // En mora primero
+      if (a.estado === 'en_mora' && b.estado !== 'en_mora') return -1;
+      if (a.estado !== 'en_mora' && b.estado === 'en_mora') return 1;
 
       if (a.periodoRuta === 'DIA' && b.periodoRuta === 'DIA') {
         return a.ordenVisita - b.ordenVisita;
@@ -2556,7 +2595,7 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
 
                                                     <div className="text-xs text-slate-500">
 
-                                                       Recaudo: <b>${data.resumen.recaudo.toLocaleString('es-CO')}</b>
+                                                       Recaudo: <b>${formatMilesCOP(data.resumen.recaudo)}</b>
 
                                                     </div>
 
@@ -2719,7 +2758,7 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
 
                                                   <span>{daysInMonth.length} días · </span>
 
-                                                  <span>Recaudo: <b>${monthRecaudo.toLocaleString('es-CO')}</b></span>
+                                                  <span>Recaudo: <b>${formatMilesCOP(monthRecaudo)}</b></span>
 
                                                 </div>
 
@@ -2801,7 +2840,7 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
 
                                                           <div className="text-[11px] text-slate-400">
 
-                                                            Recaudo: <b>${(dayData?.resumen?.recaudo || 0).toLocaleString('es-CO')}</b>
+                                                            Recaudo: <b>${formatMilesCOP((dayData?.resumen?.recaudo || 0) as any)}</b>
 
                                                             {dayData?.loaded && dayData.visitas.length > 0 && (
 
@@ -3439,7 +3478,7 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
             visitas={visitasCobrador.filter((v: any) => {
               const pending = ['pendiente', 'en_mora'].includes(String(v?.estado || '').toLowerCase())
               if (!pending) return false
-              const hoyBogota = getBogotaDateKey(new Date())
+              const hoyBogota = hoyBogotaKey
               return isVisitaExigibleHoy(v, hoyBogota)
             })}
 
@@ -3588,20 +3627,7 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
                 comprobante: data.comprobante,
                 rutaId: rutaId as string,
                 cobradorId: cobradorIdReal,
-                ...(data.categoriaId ? { categoriaId: data.categoriaId } : {}),
               })
-
-              try {
-                const hoyClave = getBogotaDateKey(new Date())
-                const saldo = await obtenerSaldoDisponibleRuta(rutaId as string, hoyClave)
-                setRutaStats((prev: any) => ({
-                  ...prev,
-                  gastos: Number((saldo as any)?.gastosDelDia ?? prev.gastos),
-                }))
-              } catch {
-                setRutaStats((prev: any) => ({ ...prev, gastos: Number(prev?.gastos || 0) + Number(data.valor || 0) }))
-              }
-
               toast.success('Gasto registrado. Se envió a aprobación.')
               setShowGastoModal(false)
             } catch (e: any) {

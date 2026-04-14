@@ -167,7 +167,11 @@ export const RutasPageView = ({
 
   const fetchRutas = useCallback(async () => {
     try {
-      const response = await routesService.getAll({ limit: 100 });
+      const isSupervisorPath = (rutasBasePath || '').toLowerCase().includes('/supervisor')
+      const response = await routesService.getAll({
+        limit: 100,
+        ...(isSupervisorPath && currentUser?.id ? { supervisorId: currentUser.id } : {}),
+      });
       const payload = (response as any)?.data ?? response
       const data = Array.isArray(payload)
         ? payload
@@ -259,7 +263,7 @@ export const RutasPageView = ({
         }
       } catch {}
     }
-  }, [])
+  }, [currentUser?.id, rutasBasePath])
 
   useEffect(() => {
     const fetchLists = async () => {
@@ -482,7 +486,7 @@ export const RutasPageView = ({
     const monto = parseMonto(montoRecolectar)
     if (!monto || monto <= 0) { setErrorRecolectar('Ingresa un monto valido'); return }
     if (saldoDisponibleRecolectar !== null && monto > saldoDisponibleRecolectar) {
-      setErrorRecolectar(`El monto supera el saldo disponible (${saldoDisponibleRecolectar.toLocaleString('es-CO', { style: 'currency', currency: 'COP' })})`);
+      setErrorRecolectar(`El monto supera el saldo disponible (${formatCurrency(saldoDisponibleRecolectar)})`);
       return
     }
     if (!cajaRutaIdRecolectar) { setErrorRecolectar('No se encontro la caja de la ruta'); return }
@@ -491,7 +495,7 @@ export const RutasPageView = ({
     try {
       await consolidarCaja(cajaRutaIdRecolectar, monto)
       setShowRecolectarModal(false)
-      showNotification('success', `Se recolectaron ${monto.toLocaleString('es-CO', { style: 'currency', currency: 'COP' })} de la ruta hacia Caja de Oficina`, 'Recoleccion exitosa')
+      showNotification('success', `Se recolectaron ${formatCurrency(monto)} de la ruta hacia Caja de Oficina`, 'Recoleccion exitosa')
       await fetchRutas()
     } catch (e: any) {
       setErrorRecolectar(e?.message || 'No se pudo recolectar. Intenta de nuevo.')
@@ -1761,19 +1765,14 @@ export const RutasPageView = ({
               <div className="bg-slate-50 rounded-xl p-4 border border-slate-200">
                 <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Saldo disponible en ruta</p>
                 {saldoDisponibleRecolectar === null ? (
-                  <div className="flex items-center gap-2 text-slate-400 text-sm">
-                    <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/></svg>
-                    Cargando saldo...
-                  </div>
+                  <div className="flex items-center gap-2 text-slate-400 text-sm" />
                 ) : (
                   <p className="text-2xl font-bold text-emerald-700">
-                    {saldoDisponibleRecolectar.toLocaleString('es-CO', { style: 'currency', currency: 'COP' })}
+                    {formatCurrency(saldoDisponibleRecolectar)}
                   </p>
                 )}
                 <p className="text-xs text-slate-400 mt-1">Sera enviado a la <strong>Caja de Oficina</strong></p>
               </div>
-
-              {/* Input monto con formato automático de puntos */}
               <div>
                 <label className="block text-sm font-bold text-slate-700 mb-2">Monto a recolectar</label>
                 <div className="relative">

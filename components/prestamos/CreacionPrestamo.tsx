@@ -8,7 +8,7 @@ import {
   ChevronRight, ChevronDown, Search, Filter
 } from 'lucide-react';
 import { usePathname, useRouter } from 'next/navigation';
-import { formatCurrency, cn } from '@/lib/utils';
+import { formatCurrency, cn, formatMilesCOP } from '@/lib/utils';
 import { useNotification } from '@/components/providers/NotificationProvider';
 import NuevoClienteModal from '@/components/clientes/NuevoClienteModal';
 import { clientesService, Cliente } from '@/services/clientes-service';
@@ -148,10 +148,10 @@ const calcularCuotasYResumen = (form: FormularioPrestamo) => {
         month: 'short',
         year: 'numeric'
       }),
-      capital: Math.round(capitalFinal),
-      interes: Math.round(interes),
-      total: Math.round(capitalFinal + interes),
-      saldo: Math.round(Math.max(0, saldo))
+      capital: Math.trunc(capitalFinal),
+      interes: Math.trunc(interes),
+      total: Math.trunc(capitalFinal + interes),
+      saldo: Math.trunc(Math.max(0, saldo))
     });
   }
 
@@ -164,13 +164,13 @@ const calcularCuotasYResumen = (form: FormularioPrestamo) => {
     cuotas: cuotasCalculadas.slice(0, 6),
     resumenPrestamo: {
       totalFinanciado: montoFinanciado,
-      totalInteres: Math.round(totalInteres),
-      totalPagar: Math.round(totalPagar),
-      valorCuota: Math.round(cuotaFija),
-      costoTotalCredito: Math.round(totalInteres + form.gastosAdministrativos + comisionTotal),
+      totalInteres: Math.trunc(totalInteres),
+      totalPagar: Math.trunc(totalPagar),
+      valorCuota: Math.trunc(cuotaFija),
+      costoTotalCredito: Math.trunc(totalInteres + form.gastosAdministrativos + comisionTotal),
       tea: Number((tea * 100).toFixed(2)),
       tae: Number((tae * 100).toFixed(2)),
-      comisionTotal: Math.round(comisionTotal)
+      comisionTotal: Math.trunc(comisionTotal)
     }
   };
 };
@@ -385,10 +385,7 @@ const CreacionPrestamoElegante = ({ initialClienteId, isModal }: { initialClient
     }
 
     const value = Number(digits)
-    const formatted = new Intl.NumberFormat('es-CO', {
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(value)
+    const formatted = formatMilesCOP(value)
     setMontoTotalInput(formatted)
     setForm(prev => ({ ...prev, montoTotal: value }))
   };

@@ -6,6 +6,7 @@ import { MapPin, Eye, Phone, GripVertical, XCircle, ChevronDown, Timer, CheckCir
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { VisitaRuta, EstadoVisita } from '@/lib/types/cobranza'
+import { formatMilesCOP } from '@/lib/utils'
 
 export const MODAL_Z_INDEX = 2147483600
 
@@ -22,12 +23,16 @@ export function Portal({ children }: { children: ReactNode }) {
 function formatMontoCorto(amount: number): string {
   const abs = Math.abs(amount)
   if (abs >= 1_000_000_000) {
-    return `$${(amount / 1_000_000_000).toLocaleString('es-CO', { maximumFractionDigits: 2 })}B`
+    const scaled = amount / 1_000_000_000
+    const safe = Math.trunc(scaled * 100) / 100
+    return `$${new Intl.NumberFormat('es-CO', { minimumFractionDigits: 0, maximumFractionDigits: 2 }).format(safe)}B`
   }
   if (abs >= 1_000_000) {
-    return `$${(amount / 1_000_000).toLocaleString('es-CO', { maximumFractionDigits: 2 })}M`
+    const scaled = amount / 1_000_000
+    const safe = Math.trunc(scaled * 100) / 100
+    return `$${new Intl.NumberFormat('es-CO', { minimumFractionDigits: 0, maximumFractionDigits: 2 }).format(safe)}M`
   }
-  return `$${new Intl.NumberFormat('es-CO', { maximumFractionDigits: 0 }).format(amount)}`
+  return `$${formatMilesCOP(amount)}`
 }
 
 // ── Helpers de color de semáforo ─────────────────────────────────────────────

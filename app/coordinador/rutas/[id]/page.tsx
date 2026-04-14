@@ -50,7 +50,7 @@ import {
 
 } from 'lucide-react'
 
-import { formatCOPInputValue, formatCurrency } from '@/lib/utils'
+import { formatCOPInputValue, formatCurrency, formatMilesCOP } from '@/lib/utils'
 
 import Link from 'next/link'
 
@@ -1734,7 +1734,7 @@ const LegacyDetalleRutaPage = () => {
 
                                    <div className="text-xs text-slate-500">
 
-                                      Recaudo: <b>${data.resumen.recaudo.toLocaleString('es-CO')}</b>
+                                      Recaudo: <b>${formatMilesCOP(data.resumen.recaudo)}</b>
 
                                    </div>
 
@@ -1772,7 +1772,7 @@ const LegacyDetalleRutaPage = () => {
 
                                         <div className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter">Recaudo</div>
 
-                                        <div className="text-xs font-black text-slate-700">${data.resumen.recaudo.toLocaleString('es-CO')}</div>
+                                        <div className="text-xs font-black text-slate-700">${formatMilesCOP(data.resumen.recaudo)}</div>
 
                                     </div>
 
@@ -1780,7 +1780,7 @@ const LegacyDetalleRutaPage = () => {
 
                                         <div className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter">Gastos</div>
 
-                                        <div className="text-xs font-black text-rose-600">${data.resumen.gastos.toLocaleString('es-CO')}</div>
+                                        <div className="text-xs font-black text-rose-600">${formatMilesCOP(data.resumen.gastos)}</div>
 
                                     </div>
 

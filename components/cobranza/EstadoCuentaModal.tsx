@@ -7,7 +7,7 @@ import { formatMilesCOP } from '@/lib/utils'
 import { Portal, MODAL_Z_INDEX } from '@/components/dashboards/shared/CobradorElements'
 import { prestamosService } from '@/services/prestamos-service'
 import { getLoanAmounts } from '@/lib/loan-calculations'
-import { normalizeDateKey } from '@/lib/rutas-core'
+import { normalizeDateKey, resolveNextPagoFromPrestamo } from '@/lib/rutas-core'
 
 interface EstadoCuentaModalProps {
   visita: VisitaRuta
@@ -97,7 +97,7 @@ export default function EstadoCuentaModal({ visita, onClose }: EstadoCuentaModal
 
     const cuotas = loanData.cuotas || [];
     const pagadas = cuotas.filter((c: any) => c.estado === 'PAGADA');
-    const proxima = cuotas.find((c: any) => c.estado === 'PENDIENTE' || c.estado === 'ATRASADA' || c.estado === 'PARCIAL');
+    const prox = resolveNextPagoFromPrestamo(loanData);
 
     const amounts = getLoanAmounts({
       tipoPrestamo: loanData.tipoPrestamo,
@@ -112,8 +112,16 @@ export default function EstadoCuentaModal({ visita, onClose }: EstadoCuentaModal
     return {
       fechaInicio: formatDateBogota(loanData.fechaInicio),
       fechaVencimiento: formatDateBogota(loanData.fechaFin || (cuotas.length > 0 ? cuotas[cuotas.length - 1].fechaVencimiento : null)),
-      nextPaymentDate: proxima ? formatDateBogota(proxima.fechaVencimiento) : '---',
-      nextPaymentAmount: proxima ? Math.max(0, Number(proxima.monto || 0) - Number(proxima.montoPagado || 0)) : 0,
+      nextPaymentDate: prox?.fecha ? formatDateBogota(prox.fecha) : '---',
+      nextPaymentAmount: (() => {
+        const cuota = prox?.cuota;
+        if (!cuota) return 0;
+        const montoDirecto = (cuota as any)?.montoNominal ?? (cuota as any)?.monto;
+        const montoFallback = Number((cuota as any)?.montoCapital || 0) + Number((cuota as any)?.montoInteres || 0);
+        const monto = Number(montoDirecto ?? montoFallback ?? 0);
+        const pagado = Number((cuota as any)?.montoPagado ?? 0);
+        return Math.max(0, monto - pagado);
+      })(),
       totalPaid: pagadoD,
       totalValue: totalD,
       articleValue: amounts.totalContrato,

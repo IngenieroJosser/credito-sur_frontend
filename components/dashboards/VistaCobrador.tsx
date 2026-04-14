@@ -148,7 +148,7 @@ import { RolUsuario } from '@/lib/types/autenticacion-type'
 import { obtenerPerfil } from '@/services/autenticacion-service'
 
 
-import { formatCurrency, resolveMediaUrl } from '@/lib/utils'
+import { formatCurrency, formatMilesCOP, resolveMediaUrl } from '@/lib/utils'
 
 import { rutasService, Ruta } from '@/services/rutas-service'
 
@@ -674,11 +674,37 @@ const VistaCobrador = () => {
 
 
 
-  const hoyBogotaKey = useMemo(() => {
+  const computeHoyBogotaKey = useCallback(() => {
     const d = new Date()
     return getBogotaDateKey(d)
       || `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
   }, [])
+
+  const [hoyBogotaKey, setHoyBogotaKey] = useState<string>(() => computeHoyBogotaKey())
+
+  useEffect(() => {
+    let timeout: ReturnType<typeof setTimeout> | undefined
+
+    const msHastaMedianocheBogota = () => {
+      const ahora = new Date()
+      const key = getBogotaDateKey(ahora)
+      if (!key) return 60_000
+      const nextMidnight = new Date(`${key}T24:00:00-05:00`).getTime()
+      return Math.max(1_000, nextMidnight - ahora.getTime())
+    }
+
+    const programar = () => {
+      timeout = setTimeout(() => {
+        setHoyBogotaKey(computeHoyBogotaKey())
+        programar()
+      }, msHastaMedianocheBogota())
+    }
+
+    programar()
+    return () => {
+      if (timeout) clearTimeout(timeout)
+    }
+  }, [computeHoyBogotaKey])
 
 
 
@@ -751,12 +777,19 @@ const VistaCobrador = () => {
 
         const hoyBogota = hoyBogotaKey
         const cuotasForEstado = Array.isArray((prestamoAutoritativo as any)?.cuotas) ? (prestamoAutoritativo as any).cuotas : []
-        const tieneMora = (Array.isArray(cuotasForEstado) ? cuotasForEstado : []).some((c: any) => {
-          if (!c || !isCuotaNoPagada(c)) return false
-          const vtoRaw = resolveFechaEfectivaCuota(c) || String(c?.fechaVencimiento || '')
-          const vtoKey = normalizeDateKey(vtoRaw)
-          return !!vtoKey && !!hoyBogota && vtoKey < hoyBogota
-        })
+        const tieneMora = (() => {
+          const byCuotas = (Array.isArray(cuotasForEstado) ? cuotasForEstado : []).some((c: any) => {
+            if (!c || !isCuotaNoPagada(c)) return false
+            const vtoRaw = resolveFechaEfectivaCuota(c) || String(c?.fechaVencimiento || '')
+            const vtoKey = normalizeDateKey(vtoRaw)
+            return !!vtoKey && !!hoyBogota && vtoKey < hoyBogota
+          })
+          if (byCuotas) return true
+
+          // Fallback: si no vinieron cuotas, inferir mora comparando la próxima visita
+          const proxKey = proximaVisitaV ? normalizeDateKey(String(proximaVisitaV)) : ''
+          return !!proxKey && !!hoyBogota && proxKey < hoyBogota
+        })()
 
         const proxEstado = String((prox as any)?.estado || '').toUpperCase()
         const estadoCalculado: EstadoVisita = (() => {
@@ -1318,16 +1351,11 @@ const VistaCobrador = () => {
         }
 
       } finally {
-
-        setIsLoading(false);
-
+        if (!silent) setIsLoading(false)
       }
 
-  }, [userSession?.id, periodoCards, mergeVisitasPreservingLocal]);
+  }, [userSession?.id, periodoCards, getDatesByPeriod, hoyBogotaKey, mergeVisitasPreservingLocal])
 
-
-
-  // Cargar visitas al montar y cuando cambie el usuario o el trigger manual (refreshTrigger)
 
   useEffect(() => {
 
@@ -1944,6 +1972,14 @@ const VistaCobrador = () => {
     // Ordenar por Periodo (Mensual -> Quincenal -> Semanal -> Diario)
 
     const sorted = visibles.sort((a, b) => {
+
+        // En mora primero
+        if (a.estado === 'en_mora' && b.estado !== 'en_mora') return -1;
+        if (a.estado !== 'en_mora' && b.estado === 'en_mora') return 1;
+
+        // Pagados al final (aunque en la mayoría de casos ya se filtran)
+        if (a.estado === 'pagado' && b.estado !== 'pagado') return 1;
+        if (a.estado !== 'pagado' && b.estado === 'pagado') return -1;
 
         const priority: Record<string, number> = { 'MES': 0, 'QUINCENA': 1, 'SEMANA': 2, 'DIA': 3 };
 
@@ -3691,7 +3727,7 @@ const VistaCobrador = () => {
 
                                                <div className="font-bold text-slate-900 capitalize">{monthName}</div>
 
-                                               <div className="text-xs text-slate-500">{daysInMonth.length} días · Recaudo: <b>${monthRecaudo.toLocaleString('es-CO')}</b></div>
+                                               <div className="text-xs text-slate-500">{daysInMonth.length} días · Recaudo: <b>${formatMilesCOP(monthRecaudo)}</b></div>
 
                                              </div>
 
@@ -3747,7 +3783,7 @@ const VistaCobrador = () => {
 
                                                          <span className="text-sm font-semibold text-slate-700 capitalize">{dayNameStr}</span>
 
-                                                         <div className="text-[11px] text-slate-400">Recaudo: <b>${(dayData?.resumen?.recaudo || 0).toLocaleString('es-CO')}</b>{dayData?.loaded && dayData.visitas.length > 0 && <span className="ml-2">· {dayData.visitas.length} clientes</span>}</div>
+                                                         <div className="text-[11px] text-slate-400">Recaudo: <b>${formatMilesCOP((dayData?.resumen?.recaudo || 0) as any)}</b>{dayData?.loaded && dayData.visitas.length > 0 && <span className="ml-2">· {dayData.visitas.length} clientes</span>}</div>
 
                                                        </div>
 
@@ -3901,7 +3937,7 @@ const VistaCobrador = () => {
 
                                                    <div className="text-xs text-slate-500">
 
-                                                      Recaudo: <b>${data.resumen.recaudo.toLocaleString('es-CO')}</b>
+                                                      Recaudo: <b>${formatMilesCOP(data.resumen.recaudo)}</b>
 
                                                     </div>
 
