@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { X, Receipt, Save, Banknote, Camera, AlertCircle, Loader2 } from 'lucide-react'
-import { formatCOPInputValue } from '@/lib/utils'
+import { formatCOPInputValue, formatMilesCOP } from '@/lib/utils'
 import SelectCategoria from '@/components/ui/SelectCategoria'
 import { Portal, MODAL_Z_INDEX } from '@/components/dashboards/shared/CobradorElements'
 import { obtenerSaldoDisponibleRuta } from '@/services/contabilidad-service'
@@ -97,7 +97,7 @@ export default function GastoModal({ isOpen, onClose, onConfirm, cobradorId, rut
       ? saldoInfo.saldoDisponible
       : (rec - gas)
     if (typeof maxDisponible === 'number' && valor > maxDisponible) {
-      setErrorSaldo(`El gasto excede el saldo disponible ($${maxDisponible.toLocaleString('es-CO')})`)
+      setErrorSaldo(`El gasto excede el saldo disponible ($${formatMilesCOP(maxDisponible)})`)
       return
     }
     
@@ -170,10 +170,10 @@ export default function GastoModal({ isOpen, onClose, onConfirm, cobradorId, rut
                 <div className="flex items-center gap-2 text-sm">
                   <Banknote className="w-4 h-4 text-green-600" />
                   <span className="font-medium text-green-900">Saldo disponible:</span>
-                  <span className="font-bold text-green-700">${Number(saldo || 0).toLocaleString('es-CO')}</span>
+                  <span className="font-bold text-green-700">${formatMilesCOP(Number(saldo || 0))}</span>
                 </div>
                 <p className="text-xs text-green-700 mt-1">
-                  Recaudo del día: ${Number(rec || 0).toLocaleString('es-CO')} · Gastos: ${Number(gas || 0).toLocaleString('es-CO')}
+                  Recaudo del día: ${formatMilesCOP(Number(rec || 0))} · Gastos: ${formatMilesCOP(Number(gas || 0))}
                 </p>
                     </>
                   )

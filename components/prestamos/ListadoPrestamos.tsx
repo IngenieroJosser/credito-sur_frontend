@@ -532,9 +532,7 @@ const ListadoPrestamosElegante = () => {
                 ) : prestamosPaginados.length > 0 ? (
                   prestamosPaginados.map((prestamo) => {
                     const diasMora = Number((prestamo as any)?.diasMora || 0)
-                    const estadoUI = (String(prestamo.estado || '').toUpperCase() === 'EN_MORA' && diasMora <= 0)
-                      ? 'ACTIVO'
-                      : prestamo.estado
+                    const estadoUI = prestamo.estado
 
                     return (
                     <tr
@@ -686,9 +684,7 @@ const ListadoPrestamosElegante = () => {
           ) : prestamosPaginados.length > 0 ? (
             prestamosPaginados.map((prestamo) => {
               const diasMora = Number((prestamo as any)?.diasMora || 0)
-              const estadoUI = (String(prestamo.estado || '').toUpperCase() === 'EN_MORA' && diasMora <= 0)
-                ? 'ACTIVO'
-                : prestamo.estado
+              const estadoUI = prestamo.estado
 
               return (
               <div

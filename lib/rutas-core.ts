@@ -295,8 +295,15 @@ export const resolveProximaCuotaFromPrestamo = (prestamo: any): { cuota: any | n
   // 2) primera cuota no pagada del array prestamo.cuotas (ordenadas por fecha efectiva)
   if (!prestamo) return { cuota: null, fechaEfectiva: '' };
 
+  const noPagada = (c: any) => {
+    const s = String(c?.estado || '').toUpperCase();
+    return s !== 'PAGADA' && s !== 'PAGADO' && s !== 'ANULADA' && s !== 'ANULADO';
+  };
+
   const backendProx = prestamo?.proximaCuota ?? null;
-  if (backendProx) {
+  // Solo confiar en proximaCuota si realmente es exigible (no pagada/anulada).
+  // En algunos registros el backend puede entregar una proximaCuota desactualizada.
+  if (backendProx && noPagada(backendProx)) {
     const fechaEfectiva = resolveFechaEfectivaCuota(backendProx) || String(backendProx?.fechaVencimiento || '');
     return { cuota: backendProx, fechaEfectiva };
   }
@@ -313,10 +320,6 @@ export const resolveProximaCuotaFromPrestamo = (prestamo: any): { cuota: any | n
     return 0;
   });
 
-  const noPagada = (c: any) => {
-    const s = String(c?.estado || '').toUpperCase();
-    return s !== 'PAGADA' && s !== 'PAGADO' && s !== 'ANULADA' && s !== 'ANULADO';
-  };
   const cuota = cuotasSorted.find(noPagada) || cuotasSorted[0] || null;
   const fechaEfectiva = cuota ? (resolveFechaEfectivaCuota(cuota) || String(cuota?.fechaVencimiento || '')) : '';
   return { cuota, fechaEfectiva };
@@ -449,6 +452,8 @@ export const computeMontoExigibleHastaHoyFromCuotas = (cuotas: any[], hoyBogotaK
     const montoDirecto = (c as any)?.montoNominal ?? (c as any)?.monto
     const montoFallback = Number((c as any)?.montoCapital || 0) + Number((c as any)?.montoInteres || 0)
     const monto = Number(montoDirecto ?? montoFallback ?? 0)
-    return sum + (monto > 0 ? monto : 0);
+    const pagado = Number((c as any)?.montoPagado ?? 0)
+    const pendiente = monto - pagado
+    return sum + (pendiente > 0 ? pendiente : 0);
   }, 0);
 };

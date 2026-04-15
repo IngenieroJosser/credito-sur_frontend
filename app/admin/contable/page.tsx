@@ -190,6 +190,7 @@ const mapTransaccion = (t: ApiTransaccion): MovimientoContable => {
     responsable: t.responsable,
     origen: origenInferido as any,
     estado: (t.estado as any) || 'APROBADO',
+    rutaId: (t as any).rutaId,
     cajaId: (t as any).cajaId,
     cajaOrigenId: (t as any).cajaOrigenId,
     tipoReferencia: (t as any).tipoReferencia,
@@ -233,6 +234,12 @@ const ModuloContableContent = () => {
   const [showVerMovimientoModal, setShowVerMovimientoModal] = useState(false)
   const [showVerCajaModal, setShowVerCajaModal] = useState(false)
   const [cajaSeleccionada, setCajaSeleccionada] = useState<Caja | null>(null)
+  const [verCajaRangoStats, setVerCajaRangoStats] = useState<{
+    totalRegistrado: number
+    saldoPrevio: number
+    inicio: string
+    fin: string
+  } | null>(null)
   const [saldoRutaSeleccionada, setSaldoRutaSeleccionada] = useState<SaldoDisponibleRuta | null>(null)
   const [movimientoSeleccionado, setMovimientoSeleccionado] = useState<MovimientoContable | null>(null)
 
@@ -242,10 +249,29 @@ const ModuloContableContent = () => {
 
   const [resumenUtilidadModal, setResumenUtilidadModal] = useState<{
     totalUtilidad: number
+    interes: number
+    mora: number
     margen: number
     egresosOperativos: number
     utilidadFinanciera: number
   } | null>(null)
+
+  const esReferenciaCobranza = (m: any) => {
+    const ref = String(m?.tipoReferencia || '').toUpperCase()
+    return ref === 'PAGO' || ref === 'ABONO' || ref === 'CUOTA_INICIAL'
+  }
+
+  const esTransferenciaSalida = (m: any) => {
+    if (String(m?.tipo || '').toUpperCase() !== 'TRANSFERENCIA') return false
+    const numero = String((m as any)?.numero || (m as any)?.numeroTransaccion || '')
+    return numero.toUpperCase().startsWith('TRX-OUT')
+  }
+
+  const esTransferenciaEntrada = (m: any) => {
+    if (String(m?.tipo || '').toUpperCase() !== 'TRANSFERENCIA') return false
+    const numero = String((m as any)?.numero || (m as any)?.numeroTransaccion || '')
+    return numero.toUpperCase().startsWith('TRX-IN')
+  }
 
   // Estados para Paginación de Listas Locales (Máximo 3 por vista)
   const [currentPageMovimientos, setCurrentPageMovimientos] = useState(0)
@@ -334,7 +360,10 @@ const ModuloContableContent = () => {
 
         return m.tipo === 'EGRESO'
       })
-      .filter((m) => String(m.estado || '').toUpperCase() === 'APROBADO')
+      .filter((m) => {
+        const est = String(m.estado || '').toUpperCase()
+        return est !== 'ANULADO' && est !== 'RECHAZADO'
+      })
       .filter((m) => {
         if (!cajaSeleccionada) return true
         return m.cajaId === cajaSeleccionada.id
@@ -363,7 +392,17 @@ const ModuloContableContent = () => {
       if (fin) params.fechaFin = fin
       const resp = await getTransacciones(params)
       if (resp && Array.isArray(resp.data)) {
-        setMovimientosDetalle(resp.data.map(mapTransaccion))
+        let next = resp.data.map(mapTransaccion)
+
+        const codigoCaja = String((cajaSeleccionada as any)?.codigo || '').toUpperCase()
+        if (codigoCaja === 'CAJA-PRINCIPAL' || codigoCaja === 'CAJA-BANCO') {
+          next = next.filter((m: any) => {
+            const ref = String(m?.tipoReferencia || '').toUpperCase()
+            return ref !== 'CUOTA_INICIAL' && ref !== 'ABONO_DEUDA'
+          })
+        }
+
+        setMovimientosDetalle(next)
       } else {
         setMovimientosDetalle([])
       }
@@ -509,7 +548,10 @@ const ModuloContableContent = () => {
           })
 
           return trans
-            .filter((t: any) => String(t?.estado || '').toUpperCase() === 'APROBADO')
+            .filter((t: any) => {
+              const est = String(t?.estado || '').toUpperCase()
+              return est !== 'ANULADO' && est !== 'RECHAZADO'
+            })
             .filter((t: any) => String(t?.tipoReferencia || '').toUpperCase() === 'RECOLECCION')
             .filter((t: any) => String(t?.descripcion || '').toUpperCase().includes('RECIBIDA'))
             .reduce((acc: number, t: any) => acc + Number(t?.monto || 0), 0)
@@ -524,7 +566,10 @@ const ModuloContableContent = () => {
           })
 
           return trans
-            .filter((t: any) => String(t?.estado || '').toUpperCase() === 'APROBADO')
+            .filter((t: any) => {
+              const est = String(t?.estado || '').toUpperCase()
+              return est !== 'ANULADO' && est !== 'RECHAZADO'
+            })
             .filter((t: any) => String(t?.tipoReferencia || '').toUpperCase() === 'RECOLECCION')
             .filter((t: any) => String(t?.descripcion || '').toUpperCase().includes('RECIBIDA'))
             .reduce((acc: number, t: any) => acc + Number(t?.monto || 0), 0)
@@ -662,10 +707,14 @@ const ModuloContableContent = () => {
         const totalUtilidad = Number((resumen as any).utilidadReal ?? (resumen as any).gananciaNeta ?? 0)
         const margen = Number((resumen as any).margenArticulosHoy ?? 0)
         const egresosOperativos = Number((resumen as any).egresosHoy ?? 0)
-        const utilidadFinanciera = totalUtilidad + egresosOperativos - margen
+        const interes = Number((resumen as any).interesHoy ?? 0)
+        const mora = Number((resumen as any).moraHoy ?? 0)
+        const utilidadFinanciera = interes + mora
 
         setResumenUtilidadModal({
           totalUtilidad,
+          interes,
+          mora,
           margen,
           egresosOperativos,
           utilidadFinanciera,
@@ -727,7 +776,30 @@ const ModuloContableContent = () => {
 
     const cumpleOrigen = filtroOrigen === 'TODOS' || mov.origen === filtroOrigen
     const cumpleEstado = filtroEstado === 'TODOS' || mov.estado === filtroEstado
-    const cumpleRuta = filtroRuta === 'TODOS' || mov.rutaId === filtroRuta
+    const cajaRutaId = filtroRuta === 'TODOS'
+      ? null
+      : (cajas.find((c: any) => c?.rutaId === filtroRuta)?.id ?? null)
+
+    const rutaObj = filtroRuta === 'TODOS' ? null : (rutasDisponibles.find((r: any) => r?.id === filtroRuta) as any)
+    const cajaRuta = filtroRuta === 'TODOS' ? null : (cajas.find((c: any) => c?.rutaId === filtroRuta) as any)
+    const rutaKeywordRaw = String(
+      rutaObj?.nombre ||
+      (cajaRuta as any)?.rutaNombre ||
+      (cajaRuta as any)?.nombre ||
+      ''
+    )
+    const rutaKeyword = rutaKeywordRaw
+      .replace(/^caja\s+/i, '')
+      .replace(/^ruta\s+/i, '')
+      .replace(/^caja\s+ruta\s+/i, '')
+      .trim()
+      .toUpperCase()
+
+    const cumpleRuta =
+      filtroRuta === 'TODOS' ||
+      mov.rutaId === filtroRuta ||
+      (cajaRutaId != null && (mov.cajaId === cajaRutaId || mov.cajaOrigenId === cajaRutaId)) ||
+      (rutaKeyword.length > 2 && String(mov?.concepto || '').toUpperCase().includes(rutaKeyword))
 
     return cumpleBusqueda && cumpleTipo && cumpleOrigen && cumpleEstado && cumpleRuta
   })
@@ -921,49 +993,58 @@ const ModuloContableContent = () => {
 
   return (
     <div className="min-h-screen bg-slate-50 relative">
+      <style jsx global>{`
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 9999px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #cbd5e1; }
+        .custom-scrollbar { scrollbar-width: thin; scrollbar-color: #e2e8f0 transparent; }
+      `}</style>
       {/* Fondo arquitectónico standard */}
       <div className="fixed inset-0 pointer-events-none">
-        <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px]"></div>
-        <div className="absolute left-0 right-0 top-0 -z-10 m-auto h-[310px] w-[310px] rounded-full bg-primary opacity-20 blur-[100px]"></div>
+        <div className="absolute inset-0 bg-gradient-to-br from-blue-50/40 via-slate-50 to-orange-50/30" />
+        <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-gradient-to-bl from-blue-100/30 to-transparent rounded-full blur-3xl" />
+        <div className="absolute bottom-0 left-0 w-[600px] h-[600px] bg-gradient-to-tr from-orange-100/20 to-transparent rounded-full blur-3xl" />
       </div>
 
       <div className="relative z-10 w-full p-4 md:p-8 space-y-6 md:space-y-8">
         {/* Header Ultra Clean */}
         <header className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between mb-8">
-            <div className="space-y-2">
-              <div className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-600 ring-1 ring-slate-200">
-                <Wallet className="h-3.5 w-3.5" />
-                <span>Gestión Financiera</span>
-              </div>
-              <h1 className="text-4xl md:text-5xl font-bold tracking-tight">
-                <span className="text-blue-600">Gestión </span><span className="text-orange-500">Contable</span>
-              </h1>
-              <p className="text-base text-slate-500 max-w-xl font-medium">
-                Administración centralizada de Cajas, Saldos y Recursos.
-              </p>
+          <div className="space-y-2">
+            <div className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-600 ring-1 ring-slate-200">
+              <Wallet className="h-3.5 w-3.5" />
+              <span>Gestión Financiera</span>
             </div>
-            
-            <div className="flex items-start gap-3">
-              <ExportButton 
-                label="Exportar" 
-                onExportExcel={handleExportExcel} 
-                onExportPDF={handleExportPDF} 
-              />
-              <Link
-                href="/pagos/historial"
-                className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-5 py-2.5 text-sm font-bold text-slate-700 hover:bg-slate-50 hover:border-slate-300 transition-all shadow-sm"
-              >
-                Ver cobranzas
-              </Link>
-              <button
-                type="button"
-                onClick={() => setShowCrearCajaModal(true)}
-                className="inline-flex items-center gap-2 rounded-2xl bg-blue-600 px-5 py-2.5 text-sm font-bold text-white hover:bg-blue-700 transition-all shadow-lg shadow-blue-600/20 transform active:scale-95"
-              >
-                  <Plus className="h-4 w-4" />
-                  Crear Caja
-              </button>
-            </div>
+            <h1 className="text-4xl md:text-5xl font-bold tracking-tight">
+              <span className="text-blue-600">Gestión </span>
+              <span className="text-orange-500">Contable</span>
+            </h1>
+            <p className="text-base text-slate-500 max-w-xl font-medium">
+              Administración centralizada de Cajas, Saldos y Recursos.
+            </p>
+          </div>
+
+          <div className="flex items-start gap-3">
+            <ExportButton
+              label="Exportar"
+              onExportExcel={handleExportExcel}
+              onExportPDF={handleExportPDF}
+            />
+            <Link
+              href="/pagos/historial"
+              className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-5 py-2.5 text-sm font-bold text-slate-700 hover:bg-slate-50 hover:border-slate-300 transition-all shadow-sm"
+            >
+              Ver cobranzas
+            </Link>
+            <button
+              type="button"
+              onClick={() => setShowCrearCajaModal(true)}
+              className="inline-flex items-center gap-2 rounded-2xl bg-blue-600 px-5 py-2.5 text-sm font-bold text-white hover:bg-blue-700 transition-all shadow-lg shadow-blue-600/20 transform active:scale-95"
+            >
+              <Plus className="h-4 w-4" />
+              Crear Caja
+            </button>
+          </div>
         </header>
 
         {/* Tarjetas de Resumen Minimalistas */}
@@ -1241,8 +1322,8 @@ const ModuloContableContent = () => {
               </div>
             </div>
 
-            <div className="divide-y divide-slate-100 max-h-[520px] overflow-y-auto">
-              {movimientosFiltrados.slice(currentPageMovimientos * 7, (currentPageMovimientos + 1) * 7).map((m) => {
+            <div className="divide-y divide-slate-100 max-h-[520px] overflow-y-scroll custom-scrollbar pr-1">
+              {movimientosFiltrados.map((m) => {
                 // Determinar si es un movimiento positivo (Ingreso/Entrada) o negativo (Egreso/Salida)
                 // Nos guiamos PRINCIPALMENTE por la categoría base que se asignó al crear el movimiento
                 // Si la categoría contiene "INGRESO" o "ENTRADA", es positivo. Si es "EGRESO", "GASTO" o "SALIDA", es negativo.
@@ -1335,30 +1416,6 @@ const ModuloContableContent = () => {
               )})}
             </div>
 
-            {/* Controles de Paginación para Movimientos */}
-            {movimientosFiltrados.length > 7 && (
-                <div className="p-4 border-t border-slate-100 bg-slate-50/20 flex items-center justify-between">
-                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-                        Página {currentPageMovimientos + 1} de {Math.ceil(movimientosFiltrados.length / 7)}
-                    </span>
-                    <div className="flex gap-2">
-                        <button 
-                            onClick={() => setCurrentPageMovimientos(p => Math.max(0, p - 1))}
-                            disabled={currentPageMovimientos === 0}
-                            className="p-2 rounded-xl border border-slate-200 bg-white text-slate-600 disabled:opacity-30 hover:bg-slate-50 transition-all"
-                        >
-                            <ChevronLeft className="h-4 w-4" />
-                        </button>
-                        <button 
-                            onClick={() => setCurrentPageMovimientos(p => (p + 1) * 7 < movimientosFiltrados.length ? p + 1 : p)}
-                            disabled={(currentPageMovimientos + 1) * 7 >= movimientosFiltrados.length}
-                            className="p-2 rounded-xl border border-slate-200 bg-white text-slate-600 disabled:opacity-30 hover:bg-slate-50 transition-all"
-                        >
-                            <ChevronRight className="h-4 w-4" />
-                        </button>
-                    </div>
-                </div>
-            )}
           </div>
           </section>
 
@@ -1414,61 +1471,151 @@ const ModuloContableContent = () => {
                         {c.estado}
                       </div>
                       <MoneyAmount value={c.saldo} amountClassName="text-sm font-extrabold text-slate-900" />
-                      <div className="flex gap-2">
-
-                        <button 
+                      <div className="flex items-center gap-2">
+                        <button
                           onClick={async () => {
                             setCajaSeleccionada(c)
-                            if (c.tipo === 'RUTA' && c.rutaId) {
+                            setVerCajaRangoStats(null)
+                            try {
+                              const inicioKey = fechaInicioModal || ''
+                              const finKey = fechaFinModal || ''
+
+                              const params: any = { cajaId: c.id, limit: 500 }
+                              if (inicioKey) params.fechaInicio = inicioKey
+                              if (finKey) params.fechaFin = finKey
+
+                              const respCaja = await getTransacciones(params)
+                              const movs = (respCaja?.data || []).map(mapTransaccion)
+                              const codigoCaja = String((c as any)?.codigo || '').toUpperCase()
+
+                              let filtered = movs.filter((m: any) => {
+                                const est = String(m?.estado || '').toUpperCase()
+                                if (est === 'ANULADO' || est === 'RECHAZADO') return false
+                                const fechaM = normalizeDateKey(m.fecha)
+                                if (inicioKey && fechaM < inicioKey) return false
+                                if (finKey && fechaM > finKey) return false
+                                return true
+                              })
+
+                              if (codigoCaja === 'CAJA-PRINCIPAL' || codigoCaja === 'CAJA-BANCO') {
+                                filtered = filtered.filter((m: any) => {
+                                  const ref = String(m?.tipoReferencia || '').toUpperCase()
+                                  return ref !== 'CUOTA_INICIAL' && ref !== 'ABONO_DEUDA'
+                                })
+                              }
+
+                              const totalRegistrado = filtered.reduce((acc: number, m: any) => {
+                                const monto = Number(m?.monto || 0)
+                                if (String(m?.tipo || '').toUpperCase() === 'INGRESO') return acc + monto
+                                if (String(m?.tipo || '').toUpperCase() === 'EGRESO') return acc - monto
+                                if (String(m?.tipo || '').toUpperCase() === 'TRANSFERENCIA') {
+                                  return acc + (esTransferenciaSalida(m) ? -monto : monto)
+                                }
+                                return acc
+                              }, 0)
+
+                              const saldoActual = Number(c?.saldo || 0)
+                              setVerCajaRangoStats({
+                                totalRegistrado,
+                                saldoPrevio: saldoActual - totalRegistrado,
+                                inicio: inicioKey || 'HISTÓRICO',
+                                fin: finKey || 'HISTÓRICO',
+                              })
+                            } catch {
+                              setVerCajaRangoStats(null)
+                            }
+
+                            if (c.tipo === 'RUTA') {
                               try {
-                                const hoyClave = getBogotaDateKey(new Date())
-                                const saldo = await obtenerSaldoDisponibleRuta(c.rutaId, hoyClave)
-                                setSaldoRutaSeleccionada(saldo)
+                                const resp = await getTransacciones({ cajaId: c.id, limit: 50 })
+                                if (resp?.data?.length) {
+                                  const ingresos = resp.data
+                                    .filter((m: any) => m.tipo === 'INGRESO' || m.tipo === 'TRANSFERENCIA')
+                                    .filter((m: any) => {
+                                      if (m.tipo === 'TRANSFERENCIA') {
+                                        const concepto = String(m.descripcion || '').toUpperCase()
+                                        return !(concepto.includes('SALIDA') || concepto.includes('ENVIADA A') || concepto.includes('EGRESO'))
+                                      }
+                                      return true
+                                    })
+                                    .reduce((acc: number, m: any) => acc + Number(m.monto), 0)
+
+                                  const egresos = resp.data
+                                    .filter((m: any) => m.tipo === 'EGRESO' || m.tipo === 'TRANSFERENCIA')
+                                    .filter((m: any) => {
+                                      if (m.tipo === 'TRANSFERENCIA') {
+                                        const concepto = String(m.descripcion || '').toUpperCase()
+                                        return concepto.includes('SALIDA') || concepto.includes('ENVIADA A') || concepto.includes('EGRESO')
+                                      }
+                                      return true
+                                    })
+                                    .reduce((acc: number, m: any) => acc + Number(m.monto), 0)
+
+                                  setSaldoRutaSeleccionada({
+                                    recaudoDelDia: ingresos,
+                                    gastosDelDia: egresos,
+                                    desembolsos: 0,
+                                    saldoCaja: Number(c.saldo) || 0,
+                                  } as any)
+                                } else {
+                                  setSaldoRutaSeleccionada(null)
+                                }
                               } catch {
                                 setSaldoRutaSeleccionada(null)
                               }
                             } else {
+                              setSaldoRutaSeleccionada(null)
                               try {
-                                 const hoyClave = getBogotaDateKey(new Date())
-                                 
-                                 const params = { cajaId: c.id, fechaInicio: hoyClave, limit: 500 };
-                                 const resp = await getTransacciones(params);
-                                 if (resp && Array.isArray(resp.data)) {
-                                   const ingresos = resp.data
-                                     .filter((m: any) => m.tipo === 'INGRESO' || m.tipo === 'TRANSFERENCIA')
-                                     .filter((m: any) => {
-                                        if (m.tipo === 'TRANSFERENCIA') {
-                                           const concepto = String(m.descripcion || '').toUpperCase();
-                                           return !(concepto.includes('SALIDA') || concepto.includes('ENVIADA A') || concepto.includes('EGRESO'));
-                                        }
-                                        return true;
-                                     })
-                                     .reduce((acc: number, m: any) => acc + Number(m.monto), 0);
+                                const hoyClave = getBogotaDateKey(new Date())
 
-                                   const egresos = resp.data
-                                     .filter((m: any) => m.tipo === 'EGRESO' || m.tipo === 'TRANSFERENCIA')
-                                     .filter((m: any) => {
-                                        if (m.tipo === 'TRANSFERENCIA') {
-                                           const concepto = String(m.descripcion || '').toUpperCase();
-                                           return concepto.includes('SALIDA') || concepto.includes('ENVIADA A') || concepto.includes('EGRESO');
-                                        }
-                                        return true;
-                                     })
-                                     .reduce((acc: number, m: any) => acc + Number(m.monto), 0);
+                                const params = { cajaId: c.id, fechaInicio: hoyClave, limit: 500 }
+                                const resp = await getTransacciones(params)
+                                if (resp && Array.isArray(resp.data)) {
+                                  const codigoCaja = String((c as any)?.codigo || '').toUpperCase()
+                                  const omitRefs = codigoCaja === 'CAJA-PRINCIPAL' || codigoCaja === 'CAJA-BANCO'
 
-                                   setSaldoRutaSeleccionada({
-                                      recaudoDelDia: ingresos,
-                                      gastosDelDia: egresos,
-                                      desembolsos: 0,
-                                      saldoCaja: Number(c.saldo) || 0
-                                   } as any);
-                                 } else {
-                                   setSaldoRutaSeleccionada(null)
-                                 }
-                              } catch (err) {
+                                  const base = resp.data.filter((m: any) => {
+                                    if (!omitRefs) return true
+                                    const ref = String(m?.tipoReferencia || '').toUpperCase()
+                                    return ref !== 'CUOTA_INICIAL' && ref !== 'ABONO_DEUDA'
+                                  })
+
+                                  const ingresos = base
+                                    .filter((m: any) => m.tipo === 'INGRESO' || m.tipo === 'TRANSFERENCIA')
+                                    .filter((m: any) => {
+                                      if (m.tipo === 'TRANSFERENCIA') {
+                                        const concepto = String(m.descripcion || '').toUpperCase()
+                                        return !(concepto.includes('SALIDA') || concepto.includes('ENVIADA A') || concepto.includes('EGRESO'))
+                                      }
+                                      return true
+                                    })
+                                    .reduce((acc: number, m: any) => acc + Number(m.monto), 0)
+
+                                  const egresos = base
+                                    .filter((m: any) => m.tipo === 'EGRESO' || m.tipo === 'TRANSFERENCIA')
+                                    .filter((m: any) => {
+                                      if (m.tipo === 'TRANSFERENCIA') {
+                                        const concepto = String(m.descripcion || '').toUpperCase()
+                                        return concepto.includes('SALIDA') || concepto.includes('ENVIADA A') || concepto.includes('EGRESO')
+                                      }
+                                      return true
+                                    })
+                                    .reduce((acc: number, m: any) => acc + Number(m.monto), 0)
+
+                                  setSaldoRutaSeleccionada({
+                                    recaudoDelDia: ingresos,
+                                    gastosDelDia: egresos,
+                                    desembolsos: 0,
+                                    saldoCaja: Number(c.saldo) || 0,
+                                  } as any)
+                                } else {
+                                  setSaldoRutaSeleccionada(null)
+                                }
+                              } catch {
                                 setSaldoRutaSeleccionada(null)
                               }
                             }
+
                             setShowVerCajaModal(true)
                           }}
                           className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-100 text-slate-600 text-xs font-bold hover:bg-slate-200 transition-colors"
@@ -1476,7 +1623,7 @@ const ModuloContableContent = () => {
                           <Eye className="h-3.5 w-3.5" />
                           Ver
                         </button>
-                        <button 
+                        <button
                           onClick={() => openEditarCaja(c)}
                           className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-50 text-blue-700 text-xs font-bold hover:bg-blue-100 transition-colors"
                         >
@@ -2140,6 +2287,14 @@ const ModuloContableContent = () => {
                       amountClassName="text-4xl font-extrabold text-slate-900"
                       badgeClassName="text-[10px] px-3 py-1 tracking-widest"
                     />
+                    {verCajaRangoStats && (
+                      <div className="mt-3 w-full flex flex-col items-center gap-1">
+                        <p className="text-xs font-medium text-slate-500">Total registrado ({verCajaRangoStats.inicio} → {verCajaRangoStats.fin})</p>
+                        <MoneyAmount value={verCajaRangoStats.totalRegistrado} meaning="signed" amountClassName="text-sm font-bold text-slate-900" />
+                        <p className="text-xs font-medium text-slate-500">Saldo previo al rango</p>
+                        <MoneyAmount value={verCajaRangoStats.saldoPrevio} amountClassName="text-sm font-bold text-slate-900" />
+                      </div>
+                    )}
                 </div>
 
                 <div className="grid grid-cols-2 gap-6">
@@ -2201,8 +2356,8 @@ const ModuloContableContent = () => {
                             setFechaFinModal(hoy)
                             setDetalleTipo('CAJA_TODOS');
                             setDetalleCajaFocus('RECAUDO')
-                            await loadMovimientosDetalle({ cajaId: cajaSeleccionada.id, fechaInicio: hoy, fechaFin: hoy });
                             setShowDetalleModal(true);
+                            void loadMovimientosDetalle({ cajaId: cajaSeleccionada.id, fechaInicio: hoy, fechaFin: hoy });
                         }}
                         className="bg-emerald-50 p-4 rounded-2xl border border-emerald-100 cursor-pointer hover:bg-emerald-100/80 transition-colors group"
                       >
@@ -2214,73 +2369,73 @@ const ModuloContableContent = () => {
                              <ArrowUpRight className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" />
                          </div>
                          <div className="font-extrabold text-emerald-800 text-lg">
-                             {(() => {
-                                 if (saldoRutaSeleccionada) {
-                                   const valor =
-                                     saldoRutaSeleccionada.recaudoDelDia ||
-                                     saldoRutaSeleccionada.saldoCaja ||
-                                     cajaSeleccionada?.saldo || 0;
-                                   return (
-                                     <MoneyAmount
-                                       value={valor}
-                                       amountClassName="text-lg font-extrabold text-emerald-800"
-                                     />
-                                   )
-                                 }
-                                 
-                                 if (cajaSeleccionada?.saldo) {
-                                   const valor = Number(cajaSeleccionada.saldo || 0)
-                                   return (
-                                     <MoneyAmount
-                                       value={valor}
-                                       amountClassName="text-lg font-extrabold text-emerald-800"
-                                     />
-                                   )
-                                 }
-                                 
-                                 return (
-                                    <div className="text-emerald-700 font-semibold text-xs mt-1">Ver Historial ➔</div>
-                                 )
-                             })()}
-                         </div>
-                      </div>
+                           {(() => {
+                             if (saldoRutaSeleccionada) {
+                               const valor =
+                                 (saldoRutaSeleccionada.recaudoDelDia ??
+                                   saldoRutaSeleccionada.saldoCaja ??
+                                   cajaSeleccionada?.saldo ??
+                                   0)
+                               return (
+                                 <MoneyAmount
+                                   value={valor}
+                                   amountClassName="font-extrabold text-emerald-800 text-lg"
+                                 />
+                               )
+                             }
 
-                      {/* Gastado/Invertido */}
-                      <div 
-                        onClick={async () => {
-                            const hoy = getBogotaDateKey(new Date())
-                            setFechaInicioModal(hoy)
-                            setFechaFinModal(hoy)
-                            setDetalleTipo('CAJA_TODOS');
-                            setDetalleCajaFocus('GASTOS')
-                            await loadMovimientosDetalle({ cajaId: cajaSeleccionada.id, fechaInicio: hoy, fechaFin: hoy });
-                            setShowDetalleModal(true);
-                        }}
-                        className="bg-rose-50 p-4 rounded-2xl border border-rose-100 cursor-pointer hover:bg-rose-100/80 transition-colors group"
-                      >
-                         <div className="text-[10px] font-bold text-rose-600 uppercase mb-1 flex items-center gap-1 justify-between">
-                             <div className="flex items-center gap-1">
-                                <TrendingDown className="w-3 h-3" />
-                                Egresos
-                             </div>
-                             <ArrowUpRight className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" />
+                             if (cajaSeleccionada?.saldo != null) {
+                               const valor = Number(cajaSeleccionada.saldo || 0)
+                               return (
+                                 <MoneyAmount
+                                   value={valor}
+                                   amountClassName="font-extrabold text-emerald-800 text-lg"
+                                 />
+                               )
+                             }
+
+                             return (
+                               <div className="text-emerald-700 font-semibold text-xs mt-1">Ver Historial ➔</div>
+                             )
+                           })()}
                          </div>
-                         <div className="font-extrabold text-rose-800 text-lg">
-                             {(() => {
-                                if (saldoRutaSeleccionada) {
-                                  // Los egresos de una ruta incluyen gastos operativos y desembolsos
-                                  const valor = saldoRutaSeleccionada.gastosDelDia + (saldoRutaSeleccionada.desembolsos || 0);
-                                  return (
-                                    <MoneyAmount
-                                      value={valor}
-                                      meaning="expense"
-                                      amountClassName="text-lg font-extrabold text-rose-800"
-                                    />
-                                  )
-                                }
+                    </div>
+
+                    {/* Gastado/Invertido */}
+                    <div 
+                      onClick={async () => {
+                          const hoy = getBogotaDateKey(new Date())
+                          setFechaInicioModal(hoy)
+                          setFechaFinModal(hoy)
+                          setDetalleTipo('CAJA_TODOS');
+                          setDetalleCajaFocus('GASTOS')
+                          setShowDetalleModal(true);
+                          void loadMovimientosDetalle({ cajaId: cajaSeleccionada.id, fechaInicio: hoy, fechaFin: hoy });
+                      }}
+                      className="bg-rose-50 p-4 rounded-2xl border border-rose-100 cursor-pointer hover:bg-rose-100/80 transition-colors group"
+                    >
+                       <div className="text-[10px] font-bold text-rose-600 uppercase mb-1 flex items-center gap-1 justify-between">
+                           <div className="flex items-center gap-1">
+                              <TrendingDown className="w-3 h-3" />
+                              Egresos
+                           </div>
+                           <ArrowUpRight className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" />
+                       </div>
+                       <div className="font-extrabold text-rose-800 text-lg">
+                           {(() => {
+                              if (saldoRutaSeleccionada) {
+                                const valor = saldoRutaSeleccionada.gastosDelDia
                                 return (
-                                    <div className="text-rose-700 font-semibold text-xs mt-1">Ver Historial ➔</div>
+                                  <MoneyAmount
+                                    value={valor}
+                                    meaning="expense"
+                                    amountClassName="text-lg font-extrabold text-rose-800"
+                                  />
                                 )
+                              }
+                              return (
+                                <div className="text-rose-700 font-semibold text-xs mt-1">Ver Historial ➔</div>
+                              )
                              })()}
                          </div>
                       </div>
@@ -2334,7 +2489,7 @@ const ModuloContableContent = () => {
         
         {/* Modal de Detalle */}
         {showDetalleModal && renderInPortal(
-          <div className="fixed inset-0 z-[2147483647] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm" onClick={() => { setShowDetalleModal(false); setMovimientosDetalle([]); setFechaInicioModal(''); setFechaFinModal(''); setCajaSeleccionada(null); setSaldoRutaSeleccionada(null); }}>
+          <div className="fixed inset-0 z-[2147483647] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm" onClick={() => { setShowDetalleModal(false); setMovimientosDetalle([]); setCajaSeleccionada(null); setSaldoRutaSeleccionada(null); }}>
             <div className="w-full max-w-2xl rounded-2xl bg-white border border-slate-200 shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200 flex flex-col max-h-[90vh]" onClick={(e) => e.stopPropagation()}>
               {/* Modal Header */}
               <div className="p-6 border-b border-slate-100 flex items-center justify-between shrink-0">
@@ -2360,7 +2515,7 @@ const ModuloContableContent = () => {
                     </p>
                 </div>
                 <button
-                  onClick={() => { setShowDetalleModal(false); setMovimientosDetalle([]); setFechaInicioModal(''); setFechaFinModal(''); setCajaSeleccionada(null); setSaldoRutaSeleccionada(null); }}
+                  onClick={() => { setShowDetalleModal(false); setMovimientosDetalle([]); setCajaSeleccionada(null); setSaldoRutaSeleccionada(null); }}
                   className="p-2 rounded-2xl hover:bg-slate-100 text-slate-500 transition-colors"
                 >
                   <XCircle className="h-6 w-6" />
@@ -2452,9 +2607,11 @@ const ModuloContableContent = () => {
                                               return true
                                             } else if (detalleTipo === 'INGRESOS') {
                                               if (m.tipo !== 'TRANSFERENCIA') return false;
-                                              if (String(m.tipoReferencia || '').toUpperCase() !== 'RECOLECCION') return false;
                                               const conc = String((m as any).descripcion || m.concepto || '').toUpperCase();
-                                              return conc.includes('RECIBIDA');
+                                              const ref = String(m.tipoReferencia || '').toUpperCase();
+                                              const esRecoleccion = ref === 'RECOLECCION' && conc.includes('RECIBIDA');
+                                              const esTransferenciaInterna = ref === 'TRANSFERENCIA_INTERNA' && conc.includes('RECIBIDA');
+                                              return esRecoleccion || esTransferenciaInterna;
                                             } else if (detalleTipo === 'CUOTAS_INICIALES') {
                                               if (m.tipo !== 'INGRESO') return false;
                                               if (String(m.tipoReferencia || '').toUpperCase() !== 'CUOTA_INICIAL') return false;
@@ -2464,7 +2621,9 @@ const ModuloContableContent = () => {
                                                 m.tipo === 'TRANSFERENCIA' &&
                                                 String(m.tipoReferencia || '').toUpperCase() === 'RECOLECCION' &&
                                                 String((m as any).descripcion || m.concepto || '').toUpperCase().includes('RECIBIDA')
-                                              const esEgreso = m.tipo === 'EGRESO'
+                                              const esEgreso =
+                                                m.tipo === 'EGRESO' &&
+                                                String(m.tipoReferencia || '').toUpperCase() !== 'DEUDA_COBRADOR'
                                               return esIngresoRecoleccion || esEgreso
                                             } else {
                                               if (m.tipo === 'EGRESO') {
@@ -2474,6 +2633,10 @@ const ModuloContableContent = () => {
                                               if (m.tipo === 'TRANSFERENCIA') {
                                                 if (String(m.tipoReferencia || '').toUpperCase() === 'DEUDA_COBRADOR') return false
                                                 const conc = String((m as any).descripcion || m.concepto || '').toUpperCase();
+                                                const ref = String(m.tipoReferencia || '').toUpperCase()
+                                                if (ref === 'TRANSFERENCIA_INTERNA') {
+                                                  return conc.includes('ENVIADA A') || conc.includes('SALIDA')
+                                                }
                                                 return conc.includes('SALIDA') || conc.includes('ENVIADA A') || conc.includes('EGRESO');
                                               }
                                               return false;
@@ -2499,28 +2662,16 @@ const ModuloContableContent = () => {
                                       }
 
                                       if (detalleTipo === 'CAJA_TODOS') {
-                                        const ingresosBrutos = filtered
-                                          .filter((m) => m.tipo === 'INGRESO')
-                                          .reduce((acc, m) => acc + Number(m.monto || 0), 0)
-                                        const egresosBrutos = filtered
-                                          .filter((m) => m.tipo === 'EGRESO')
-                                          .reduce((acc, m) => acc + Number(m.monto || 0), 0)
-
-                                        if (cajaSeleccionada?.tipo === 'RUTA') {
-                                          if (detalleCajaFocus === 'RECAUDO') return ingresosBrutos
-                                          if (detalleCajaFocus === 'GASTOS') return egresosBrutos
-                                        }
-
-                                        // Para otras cajas, mostramos el neto (considerando entradas y salidas)
                                         return filtered.reduce((acc, m) => {
                                           const monto = Number(m.monto || 0)
-                                          if (m.tipo === 'EGRESO') return acc - monto
-                                          if (m.tipo === 'TRANSFERENCIA') {
-                                            const numero = String((m as any).numero || '')
-                                            const esSalida = numero.toUpperCase().startsWith('TRX-OUT')
-                                            return acc + (esSalida ? -monto : monto)
+                                          const tipo = String((m as any)?.tipo || '').toUpperCase()
+                                          const numero = String((m as any)?.numero || (m as any)?.numeroTransaccion || '')
+                                          if (tipo === 'INGRESO') return acc + monto
+                                          if (tipo === 'EGRESO') return acc - monto
+                                          if (tipo === 'TRANSFERENCIA') {
+                                            return numero.toUpperCase().startsWith('TRX-OUT') ? acc - monto : acc + monto
                                           }
-                                          return acc + monto
+                                          return acc
                                         }, 0)
                                       }
 
@@ -2587,9 +2738,15 @@ const ModuloContableContent = () => {
                         </div>
                         <div className="space-y-2">
                           <div className="flex items-center justify-between">
-                            <div className="text-xs font-bold text-slate-700">Utilidad financiera (Interés + Mora)</div>
+                            <div className="text-xs font-bold text-slate-700">Interés</div>
                             <div className="text-xs font-black text-slate-900">
-                              <MoneyAmount value={resumenUtilidadModal.utilidadFinanciera} amountClassName="text-xs font-black text-slate-900" />
+                              <MoneyAmount value={resumenUtilidadModal.interes} amountClassName="text-xs font-black text-slate-900" />
+                            </div>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <div className="text-xs font-bold text-slate-700">Mora</div>
+                            <div className="text-xs font-black text-slate-900">
+                              <MoneyAmount value={resumenUtilidadModal.mora} amountClassName="text-xs font-black text-slate-900" />
                             </div>
                           </div>
                           <div className="flex items-center justify-between">
@@ -2666,30 +2823,60 @@ const ModuloContableContent = () => {
                                          return true;
                                        })
                                        .filter(m => {
-                                         if (detalleTipo === 'CAJA_TODOS') {
-                                           return true
-                                         }
-                                         if (detalleTipo === 'INGRESOS') {
-                                           if (m.tipo !== 'TRANSFERENCIA') return false;
-                                           if (String(m.tipoReferencia || '').toUpperCase() !== 'RECOLECCION') return false;
+                                         if (cajaSeleccionada && detalleCajaFocus) {
+                                          const conc = String((m as any).descripcion || m.concepto || '').toUpperCase();
+                                          const ref = String(m.tipoReferencia || '').toUpperCase();
+
+                                          const esTransferencia = String(m.tipo || '').toUpperCase() === 'TRANSFERENCIA'
+                                          const esIngreso = String(m.tipo || '').toUpperCase() === 'INGRESO'
+                                          const esEgreso = String(m.tipo || '').toUpperCase() === 'EGRESO'
+
+                                          const esTransferenciaEntrada =
+                                            esTransferencia &&
+                                            ((ref === 'RECOLECCION' && conc.includes('RECIBIDA')) ||
+                                              (ref === 'TRANSFERENCIA_INTERNA' && conc.includes('RECIBIDA')))
+
+                                          const esTransferenciaSalida =
+                                            esTransferencia &&
+                                            (conc.includes('SALIDA') || conc.includes('ENVIADA A') || conc.includes('EGRESO'))
+
+                                          if (detalleCajaFocus === 'RECAUDO') {
+                                            return esIngreso || esTransferenciaEntrada
+                                          }
+
+                                          if (detalleCajaFocus === 'GASTOS') {
+                                            if (ref === 'DEUDA_COBRADOR') return false
+                                            return esEgreso || esTransferenciaSalida
+                                          }
+                                        }
+
+                                        if (detalleTipo === 'CAJA_TODOS') {
+                                          return true
+                                        }
+                                        if (detalleTipo === 'INGRESOS') {
+                                          if (m.tipo !== 'TRANSFERENCIA') return false;
                                            const conc = String((m as any).descripcion || m.concepto || '').toUpperCase();
-                                           return conc.includes('RECIBIDA');
-                                         } else if (detalleTipo === 'CUOTAS_INICIALES') {
-                                           if (m.tipo !== 'INGRESO') return false;
-                                           if (String(m.tipoReferencia || '').toUpperCase() !== 'CUOTA_INICIAL') return false;
-                                           return true;
-                                         } else if (detalleTipo === 'UTILIDAD') {
-                                           const esIngresoRecoleccion =
-                                             m.tipo === 'TRANSFERENCIA' &&
-                                             String(m.tipoReferencia || '').toUpperCase() === 'RECOLECCION' &&
-                                             String((m as any).descripcion || m.concepto || '').toUpperCase().includes('RECIBIDA')
-                                           const esEgreso =
-                                             m.tipo === 'EGRESO' ||
-                                             (m.tipo === 'TRANSFERENCIA' &&
-                                               (() => {
-                                                 const conc = String((m as any).descripcion || m.concepto || '').toUpperCase()
-                                                 return conc.includes('SALIDA') || conc.includes('ENVIADA A') || conc.includes('EGRESO')
-                                               })())
+                                           const ref = String(m.tipoReferencia || '').toUpperCase();
+                                           const esRecoleccion = ref === 'RECOLECCION' && conc.includes('RECIBIDA');
+                                           const esTransferenciaInterna = ref === 'TRANSFERENCIA_INTERNA' && conc.includes('RECIBIDA');
+                                           return esRecoleccion || esTransferenciaInterna;
+                                        } else if (detalleTipo === 'CUOTAS_INICIALES') {
+                                          if (m.tipo !== 'INGRESO') return false;
+                                          if (String(m.tipoReferencia || '').toUpperCase() !== 'CUOTA_INICIAL') return false;
+                                          return true;
+                                        } else if (detalleTipo === 'UTILIDAD') {
+                                          const esIngresoRecoleccion =
+                                            m.tipo === 'TRANSFERENCIA' &&
+                                            String(m.tipoReferencia || '').toUpperCase() === 'RECOLECCION' &&
+                                            String((m as any).descripcion || m.concepto || '').toUpperCase().includes('RECIBIDA')
+                                          const esEgreso =
+                                            (m.tipo === 'EGRESO' &&
+                                              String(m.tipoReferencia || '').toUpperCase() !== 'DEUDA_COBRADOR') ||
+                                            (m.tipo === 'TRANSFERENCIA' &&
+                                              (() => {
+                                                const conc = String((m as any).descripcion || m.concepto || '').toUpperCase()
+                                                return conc.includes('SALIDA') || conc.includes('ENVIADA A') || conc.includes('EGRESO')
+                                              })())
                                            return esIngresoRecoleccion || esEgreso
                                          } else {
                                            if (m.tipo === 'EGRESO') {
@@ -2704,7 +2891,10 @@ const ModuloContableContent = () => {
                                            return false;
                                          }
                                        })
-                                       .filter(m => String(m.estado || '').toUpperCase() === 'APROBADO')
+                                       .filter(m => {
+                                         const est = String(m.estado || '').toUpperCase()
+                                         return est !== 'ANULADO' && est !== 'RECHAZADO'
+                                       })
                                        .filter(m => {
                                          if (fechaInicioModal || fechaFinModal) {
                                            const fechaM = normalizeDateKey(m.fecha);
@@ -2835,14 +3025,42 @@ const ModuloContableContent = () => {
                           {(cajaSeleccionada ? movimientosDetalle : (movimientosModalGlobal.length ? movimientosModalGlobal : movimientos))
                             .filter(m => {
                               if (!cajaSeleccionada && m.categoria === 'CONSOLIDACION') return false;
+                              if (cajaSeleccionada && detalleCajaFocus) {
+                                const conc = String((m as any).descripcion || m.concepto || '').toUpperCase();
+                                const ref = String(m.tipoReferencia || '').toUpperCase();
+
+                                const esTransferencia = String(m.tipo || '').toUpperCase() === 'TRANSFERENCIA'
+                                const esIngreso = String(m.tipo || '').toUpperCase() === 'INGRESO'
+                                const esEgreso = String(m.tipo || '').toUpperCase() === 'EGRESO'
+
+                                const esTransferenciaEntrada =
+                                  esTransferencia &&
+                                  ((ref === 'RECOLECCION' && conc.includes('RECIBIDA')) ||
+                                    (ref === 'TRANSFERENCIA_INTERNA' && conc.includes('RECIBIDA')))
+
+                                const esTransferenciaSalida =
+                                  esTransferencia &&
+                                  (conc.includes('SALIDA') || conc.includes('ENVIADA A') || conc.includes('EGRESO'))
+
+                                if (detalleCajaFocus === 'RECAUDO') {
+                                  return esIngreso || esTransferenciaEntrada
+                                }
+
+                                if (detalleCajaFocus === 'GASTOS') {
+                                  if (ref === 'DEUDA_COBRADOR') return false
+                                  return esEgreso || esTransferenciaSalida
+                                }
+                              }
                               if (detalleTipo === 'CAJA_TODOS') {
                                 return true
                               }
                              if (detalleTipo === 'INGRESOS') {
                                 if (m.tipo !== 'TRANSFERENCIA') return false;
-                                if (String(m.tipoReferencia || '').toUpperCase() !== 'RECOLECCION') return false;
                                 const conc = String((m as any).descripcion || m.concepto || '').toUpperCase();
-                                return conc.includes('RECIBIDA');
+                                const ref = String(m.tipoReferencia || '').toUpperCase();
+                                const esRecoleccion = ref === 'RECOLECCION' && conc.includes('RECIBIDA');
+                                const esTransferenciaInterna = ref === 'TRANSFERENCIA_INTERNA' && conc.includes('RECIBIDA');
+                                return esRecoleccion || esTransferenciaInterna;
                               } else if (detalleTipo === 'CUOTAS_INICIALES') {
                                 if (m.tipo !== 'INGRESO') return false;
                                 if (String(m.tipoReferencia || '').toUpperCase() !== 'CUOTA_INICIAL') return false;
@@ -2853,7 +3071,8 @@ const ModuloContableContent = () => {
                                   String(m.tipoReferencia || '').toUpperCase() === 'RECOLECCION' &&
                                   String((m as any).descripcion || m.concepto || '').toUpperCase().includes('RECIBIDA')
                                 const esEgreso =
-                                  m.tipo === 'EGRESO' ||
+                                  (m.tipo === 'EGRESO' &&
+                                    String(m.tipoReferencia || '').toUpperCase() !== 'DEUDA_COBRADOR') ||
                                   (m.tipo === 'TRANSFERENCIA' &&
                                     (() => {
                                       const conc = String((m as any).descripcion || m.concepto || '').toUpperCase()
@@ -2868,12 +3087,19 @@ const ModuloContableContent = () => {
                                 if (m.tipo === 'TRANSFERENCIA') {
                                   if (String(m.tipoReferencia || '').toUpperCase() === 'DEUDA_COBRADOR') return false
                                   const conc = String((m as any).descripcion || m.concepto || '').toUpperCase();
+                                  const ref = String(m.tipoReferencia || '').toUpperCase()
+                                  if (ref === 'TRANSFERENCIA_INTERNA') {
+                                    return conc.includes('ENVIADA A') || conc.includes('SALIDA')
+                                  }
                                   return conc.includes('SALIDA') || conc.includes('ENVIADA A') || conc.includes('EGRESO');
                                 }
                                 return false;
                               }
                             })
-                            .filter(m => String(m.estado || '').toUpperCase() === 'APROBADO')
+                            .filter(m => {
+                              const est = String(m.estado || '').toUpperCase()
+                              return est !== 'ANULADO' && est !== 'RECHAZADO'
+                            })
                             .filter(m => {
                               if (cajaSeleccionada) {
                                 return m.cajaId === cajaSeleccionada.id;
@@ -2887,6 +3113,21 @@ const ModuloContableContent = () => {
                               }
                               
                               return true;
+                            })
+                            .filter(m => {
+                              if (detalleTipo === 'INGRESOS' || detalleTipo === 'EGRESOS') {
+                                if (m.tipo === 'TRANSFERENCIA') {
+                                  const ref = String(m.tipoReferencia || '').toUpperCase()
+                                  if (ref === 'TRANSFERENCIA_INTERNA') return true
+                                  const conc = String((m as any).descripcion || m.concepto || '').toUpperCase()
+                                  if (detalleTipo === 'INGRESOS') {
+                                    return conc.includes('RECIBIDA')
+                                  }
+                                  return conc.includes('SALIDA') || conc.includes('ENVIADA A') || conc.includes('EGRESO')
+                                }
+                                return true
+                              }
+                              return true
                             })
                             .map((m) => {
                               let conceptoMostrar = m.concepto

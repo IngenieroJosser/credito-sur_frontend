@@ -16,6 +16,7 @@ import { useRutaHistorial } from '@/hooks/useRutaHistorial'
 
 import { buildHistorialDiaFromBackend } from '@/lib/ruta-historial'
 import { mapWithConcurrency, memoizePromiseByKey } from '@/lib/async-utils'
+import { formatMilesCOP } from '@/lib/utils'
 
 import {
   DndContext,
@@ -112,8 +113,6 @@ import { exportService } from '@/services/export-service'
 import { useNotificaciones } from '@/components/providers/NotificacionesProvider'
 
 
-import { toast } from 'sonner'
-
 import { computeMontoExigibleHastaHoyFromCuotas, computeMetaHoyFromVisitas, getBogotaDateKey, getBogotaRangeByPeriod, getLocalDateKey, getPagoBogotaDateKey, isCuotaNoPagada, isTodayOrPastBogota, isVisitaExigibleHoy, normalizeDateKey, resolveFechaEfectivaCuota, resolveProximaCuotaFromPrestamo, resolveCuotaProgressFromPrestamo, shouldMarkVisitaAsPagado, toBogotaDateTimeOffsetIso } from '@/lib/rutas-core'
 
 import { mapAsignacionesToVisitasLite } from '@/lib/ruta-visitas-mapper'
@@ -121,6 +120,17 @@ import { mapAsignacionesToVisitasLite } from '@/lib/ruta-visitas-mapper'
 import SundayNoticeBanner from '@/components/rutas/SundayNoticeBanner'
 
 import RutaProvisionalModal from '@/components/dashboards/shared/RutaProvisionalModal'
+
+import { toast } from 'sonner'
+
+const normalizePeriodoRuta = (raw: any): any => {
+  const v = String(raw || '').toUpperCase()
+  if (v === 'DIARIO' || v === 'DIA') return 'DIA'
+  if (v === 'SEMANAL' || v === 'SEMANA') return 'SEMANA'
+  if (v === 'QUINCENAL' || v === 'QUINCENA') return 'QUINCENA'
+  if (v === 'MENSUAL' || v === 'MES') return 'MES'
+  return 'DIA'
+}
 
 
 /**
@@ -286,6 +296,38 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
 
   const [showHistory, setShowHistory] = useState(false)
 
+  const computeHoyBogotaKey = useCallback(() => {
+    const d = new Date()
+    return getBogotaDateKey(d)
+      || `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+  }, [])
+
+  const [hoyBogotaKey, setHoyBogotaKey] = useState<string>(() => computeHoyBogotaKey())
+
+  useEffect(() => {
+    let timeout: ReturnType<typeof setTimeout> | undefined
+
+    const msHastaMedianocheBogota = () => {
+      const ahora = new Date()
+      const key = getBogotaDateKey(ahora)
+      if (!key) return 60_000
+      const nextMidnight = new Date(`${key}T24:00:00-05:00`).getTime()
+      return Math.max(1_000, nextMidnight - ahora.getTime())
+    }
+
+    const programar = () => {
+      timeout = setTimeout(() => {
+        setHoyBogotaKey(computeHoyBogotaKey())
+        programar()
+      }, msHastaMedianocheBogota())
+    }
+
+    programar()
+    return () => {
+      if (timeout) clearTimeout(timeout)
+    }
+  }, [computeHoyBogotaKey])
+
 
   const [showMisClientes, setShowMisClientes] = useState(false)
 
@@ -423,14 +465,56 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
 
     try {
       const saldo: any = await obtenerSaldoDisponibleRuta(rutaId as string, undefined, cardInicio, cardFin)
-      setRutaStats((prev: any) => ({
-        ...prev,
-        recaudo: Number(saldo?.cobranzaDelDia ?? saldo?.recaudoDelDia ?? prev.recaudo ?? 0),
-        meta: Number(saldo?.metaDelDia ?? prev.meta ?? 0),
-        eficiencia: Number(saldo?.eficiencia ?? prev.eficiencia ?? 0),
-        gastos: Number(saldo?.gastosDelDia ?? prev.gastos ?? 0),
-        base: Number(saldo?.baseEfectivo ?? prev.base ?? 0),
-      }))
+
+      const recaudoBackend = Number(saldo?.cobranzaDelDia ?? saldo?.recaudoDelDia ?? 0)
+
+      setRutaStats((prev: any) => {
+        // Para HOY: meta coherente con recaudo real (incluye mora) usando visitas visibles.
+        // Para otros periodos: conservamos el comportamiento existente.
+        if (periodoCards === 'HOY') {
+          const hoyKey = getBogotaDateKey(new Date())
+          const visitasExigibles = (visitasBaseRef.current || [])
+            .map((v: any) => {
+              const pagadoHoy = Number(v?.recaudadoDelDia || 0)
+              const cuota = Number(v?.montoCuota || 0)
+              const pagado = pagadoHoy > 0 && cuota > 0 && pagadoHoy >= (cuota - 1)
+              const estado = pagado ? 'pagado' : v?.estado
+              return { ...v, estado }
+            })
+            .filter((v: any) => isVisitaExigibleHoy(v, hoyKey))
+
+          const recaudo = visitasExigibles.reduce((s: number, v: any) => s + Number(v?.recaudadoDelDia || 0), 0)
+          const metaPagadas = visitasExigibles
+            .filter((v: any) => String(v?.estado || '').toLowerCase() === 'pagado')
+            .reduce((s: number, v: any) => s + Number(v?.recaudadoDelDia || 0), 0)
+          const metaPendientes = visitasExigibles
+            .filter((v: any) => String(v?.estado || '').toLowerCase() !== 'pagado')
+            .reduce((s: number, v: any) => s + Number(v?.montoCuota || 0), 0)
+          const meta = metaPagadas + metaPendientes
+          const eficiencia = meta > 0 ? Math.min(100, Math.max(0, Math.round((recaudo / meta) * 100))) : 0
+
+          return {
+            ...prev,
+            recaudo: recaudo > 0 ? recaudo : recaudoBackend,
+            meta,
+            eficiencia,
+            gastos: Number(saldo?.gastosDelDia ?? prev.gastos ?? 0),
+            base: Number(saldo?.saldoCaja ?? saldo?.baseEfectivo ?? prev.base ?? 0),
+          }
+        }
+
+        const meta = Number(prev.meta ?? 0)
+        const recaudo = recaudoBackend > 0 ? recaudoBackend : Number(prev.recaudo ?? 0)
+        const eficiencia = meta > 0 ? Math.round((recaudo / meta) * 100) : Number(prev.eficiencia ?? 0)
+        return {
+          ...prev,
+          recaudo,
+          meta,
+          eficiencia,
+          gastos: Number(saldo?.gastosDelDia ?? prev.gastos ?? 0),
+          base: Number(saldo?.saldoCaja ?? saldo?.baseEfectivo ?? prev.base ?? 0),
+        }
+      })
 
       return (saldo?.recaudosPorReferencia || {}) as Record<string, number>
     } catch (e) {
@@ -470,6 +554,18 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
           }
         }
 
+        // Asegurar cuotas autoritativas para calcular exigible (incluye abonos).
+        try {
+          const cuotasEmb = Array.isArray((prestamoAutoritativo as any)?.cuotas) ? (prestamoAutoritativo as any).cuotas : []
+          const faltanAbonos = cuotasEmb.some((c: any) => c && c.montoPagado === undefined)
+          if (p?.id && (cuotasEmb.length === 0 || faltanAbonos)) {
+            const cuotas = await prestamosService.obtenerCuotas(p.id)
+            prestamoAutoritativo = { ...prestamoAutoritativo, cuotas }
+          }
+        } catch {
+          // ignore
+        }
+
         const { cuota: prox, fechaEfectiva } = resolveProximaCuotaFromPrestamo(prestamoAutoritativo)
         const esArticulo = p?.tipo === 'ARTICULO'
 
@@ -483,19 +579,28 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
 
         const { cuotaActual, cuotasTotales } = resolveCuotaProgressFromPrestamo(prestamoAutoritativo)
         const cuotasForMonto = Array.isArray((prestamoAutoritativo as any)?.cuotas) ? (prestamoAutoritativo as any).cuotas : []
-        const hoyKey = getBogotaDateKey(new Date())
+        const hoyKey = hoyBogotaKey
         const montoExigible = computeMontoExigibleHastaHoyFromCuotas(cuotasForMonto, hoyKey)
-        const montoCuota = montoExigible > 0 ? montoExigible : Number((prox as any)?.montoNominal ?? (prox as any)?.monto ?? 0)
+        const montoNominalProx = Number((prox as any)?.montoNominal ?? (prox as any)?.monto ?? 0)
+        const montoPagadoProx = Number((prox as any)?.montoPagado ?? 0)
+        const pendienteProx = Math.max(0, montoNominalProx - montoPagadoProx)
+        const montoCuota = montoExigible > 0 ? montoExigible : pendienteProx
         const proximaVisitaV = fechaEfectiva || (prox as any)?.fechaVencimiento || row?.prestamo?.fechaEfectiva || getBogotaDateKey(new Date())
 
         const hoyBogota = getBogotaDateKey(new Date())
-        const proxKey = normalizeDateKey(String(proximaVisitaV || ''))
+        const cuotasForEstado = Array.isArray((prestamoAutoritativo as any)?.cuotas) ? (prestamoAutoritativo as any).cuotas : []
+        const tieneMora = (Array.isArray(cuotasForEstado) ? cuotasForEstado : []).some((c: any) => {
+          if (!c || !isCuotaNoPagada(c)) return false
+          const vtoRaw = resolveFechaEfectivaCuota(c) || String(c?.fechaVencimiento || '')
+          const vtoKey = normalizeDateKey(vtoRaw)
+          return !!vtoKey && !!hoyBogota && vtoKey < hoyBogota
+        })
+
         const proxEstado = String((prox as any)?.estado || '').toUpperCase()
         const estadoCalculado: EstadoVisita = (() => {
           if (Number(p?.saldoPendiente || 0) <= 0) return 'pagado'
           if (proxEstado === 'PAGADA' || proxEstado === 'PAGADO') return 'pagado'
-          if (proxEstado === 'VENCIDA' || proxEstado === 'ATRASADA') return 'en_mora'
-          if (proxKey && hoyBogota && proxKey < hoyBogota) return 'en_mora'
+          if (tieneMora) return 'en_mora'
           return 'pendiente'
         })()
 
@@ -523,7 +628,21 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
         } as any
       }))
 
-      const finales = mapped.sort((a: any, b: any) => {
+      // Dedupe igual que admin: evita préstamos repetidos / filas duplicadas.
+      const idsProcesados = new Set<string>()
+      const firstPass = (Array.isArray(mapped) ? mapped : []).flatMap((v: any) => {
+        const uniqueKey = v?.prestamoId ? `loan-${v.prestamoId}` : `client-${v.clienteId}`
+        if (idsProcesados.has(uniqueKey)) return []
+        idsProcesados.add(uniqueKey)
+        return [v]
+      })
+      const clientesConPrestamo = new Set(firstPass.filter((v: any) => v?.prestamoId).map((v: any) => v?.clienteId))
+      const mappedDedupe = firstPass.filter((v: any) => {
+        if (!v?.prestamoId && clientesConPrestamo.has(v?.clienteId)) return false
+        return true
+      }) as any
+
+      const finales = mappedDedupe.sort((a: any, b: any) => {
         if (a.estado === 'pagado' && b.estado !== 'pagado') return 1;
         if (a.estado !== 'pagado' && b.estado === 'pagado') return -1;
         const ao = Number(a.ordenVisita ?? 0);
@@ -557,6 +676,13 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
   // Datos base
 
   const [visitasBase, setVisitasBase] = useState<VisitaRuta[]>([])
+
+  const visitasBaseRef = useRef<any[]>([])
+  useEffect(() => {
+    visitasBaseRef.current = Array.isArray(visitasBase) ? (visitasBase as any[]) : []
+  }, [visitasBase])
+
+  const pagosInFlightRef = useRef<Set<string>>(new Set())
 
 
 
@@ -642,6 +768,94 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
 
   const cargarHistorialFecha = historial.cargarHistorialFecha
 
+  const cuotasHistorialCacheRef = useRef<Map<string, any[]>>(new Map())
+
+  const enriquecerHistorialDiaConCuotas = useCallback(async (fechaClave: string) => {
+    const dayData = (historialRutas || {})[fechaClave]
+    if (!dayData?.loaded) return
+    const visitasRaw = Array.isArray(dayData?.visitas) ? dayData.visitas : []
+
+    const visitasConPrestamo = visitasRaw.filter((v: any) => !!String(v?.prestamoId || ''))
+    const yaEnriquecido = visitasConPrestamo.length > 0
+      && visitasConPrestamo.every((v: any) => (v as any)?.enMoraHistorico !== undefined)
+    if (yaEnriquecido) return
+
+    const prestamoIds = Array.from(new Set(visitasConPrestamo.map((v: any) => String(v?.prestamoId || '')).filter(Boolean)))
+    if (prestamoIds.length === 0) return
+
+    const getCuotasByPrestamoId = memoizePromiseByKey(
+      async (prestamoId: string) => {
+        const cache = cuotasHistorialCacheRef.current
+        if (cache.has(prestamoId)) return cache.get(prestamoId) || []
+        const cuotas = await prestamosService.obtenerCuotas(prestamoId).catch(() => [])
+        cache.set(prestamoId, cuotas as any[])
+        return cuotas as any[]
+      },
+      () => [],
+    )
+
+    const nextVisitas = await mapWithConcurrency(
+      visitasRaw,
+      async (v: any) => {
+        const pid = String(v?.prestamoId || '')
+        if (!pid) return v
+        const cuotas = await getCuotasByPrestamoId(pid)
+        const exigible = computeMontoExigibleHastaHoyFromCuotas(cuotas as any, fechaClave)
+        const tieneMora = (Array.isArray(cuotas) ? cuotas : []).some((c: any) => {
+          if (!c || !isCuotaNoPagada(c)) return false
+          const vtoRaw = resolveFechaEfectivaCuota(c) || String(c?.fechaVencimiento || '')
+          const vtoKey = normalizeDateKey(vtoRaw)
+          return !!vtoKey && vtoKey < fechaClave
+        })
+        const enProrrogaHistorico = (Array.isArray(cuotas) ? cuotas : []).some((c: any) => {
+          if (!c || !isCuotaNoPagada(c)) return false
+          const prRaw = String(c?.fechaVencimientoProrroga || '')
+          if (!prRaw) return false
+          const prKey = normalizeDateKey(prRaw)
+          if (!prKey) return false
+          const vtoKey = normalizeDateKey(resolveFechaEfectivaCuota(c) || String(c?.fechaVencimiento || ''))
+          if (prKey < fechaClave) return false
+          if (vtoKey && vtoKey > fechaClave) return false
+          return true
+        })
+        return {
+          ...v,
+          periodoRuta: normalizePeriodoRuta((v as any)?.periodoRuta) as any,
+          montoCuota: (exigible > Number(v?.montoCuota || 0)) ? exigible : v?.montoCuota,
+          enMoraHistorico: tieneMora,
+          enProrrogaHistorico,
+        }
+      },
+      6,
+    )
+
+    setHistorialRutas((prev: any) => {
+      const prevDia = (prev || {})[fechaClave]
+      if (!prevDia) return prev
+      return {
+        ...(prev || {}),
+        [fechaClave]: {
+          ...prevDia,
+          visitas: nextVisitas,
+        },
+      }
+    })
+  }, [historialRutas])
+
+  useEffect(() => {
+    if (!showHistory) return
+    const hoy = hoyBogotaKey
+    const dayData = (historialRutas || {})[hoy]
+    if (!dayData?.loaded) return
+    void enriquecerHistorialDiaConCuotas(hoy)
+  }, [showHistory, historialRutas, hoyBogotaKey, enriquecerHistorialDiaConCuotas])
+
+  useEffect(() => {
+    if (!showHistory) return
+    if (!selectedHistoryDate) return
+    void enriquecerHistorialDiaConCuotas(selectedHistoryDate)
+  }, [showHistory, selectedHistoryDate, enriquecerHistorialDiaConCuotas])
+
 
 
   // Al abrir el historial, cargar hoy automáticamente
@@ -650,7 +864,7 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
 
     if (!showHistory || !rutaId) return;
 
-    const hoy = getBogotaDateKey(new Date());
+    const hoy = hoyBogotaKey;
 
     const existing = (historialRutas || {})[hoy];
 
@@ -737,7 +951,7 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
                 new Date(a.fechaVencimiento).getTime() - new Date(b.fechaVencimiento).getTime()
               );
               
-              const hoyBogota = getBogotaDateKey(new Date());
+              const hoyBogota = hoyBogotaKey;
 
               const getCuotaVtoKey = (c: any): string => {
                 if (!c) return ''
@@ -755,7 +969,7 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
                   return vtoKey && vtoKey <= hoyBogota;
                 });
 
-                const totalExigible = cuotasExigibles.reduce((sum: number, c: any) => sum + Number(c.monto || 0), 0);
+                const totalExigible = computeMontoExigibleHastaHoyFromCuotas(cuotasExigibles, hoyBogota);
                 const esMora = cuotasExigibles.some((c: any) => {
                   const vtoKey = getCuotaVtoKey(c)
                   return vtoKey && vtoKey < hoyBogota
@@ -833,17 +1047,14 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
           return aId.localeCompare(bId);
         });
 
-        const hoyBogotaPrincipal = getBogotaDateKey(new Date());
+        const hoyBogotaPrincipal = hoyBogotaKey;
 
         const visitasExigiblesHoy = (finales || []).filter((v: any) => isVisitaExigibleHoy(v, hoyBogotaPrincipal))
         const metaHoy = computeMetaHoyFromVisitas(visitasExigiblesHoy as any, hoyBogotaPrincipal)
 
         const finalesFiltrados = finales.filter((v: any) => {
           if (v?.estado === 'pagado') return false;
-          // Preferir el flag calculado con la misma lógica del cobrador.
-          if (v?.apareceHoy === true) return true;
-          const proximaKey = v?.proximaVisita ? normalizeDateKey(String(v.proximaVisita)) : '';
-          return v?.estado === 'en_mora' || v?.periodoRuta === 'DIA' || (proximaKey && proximaKey === hoyBogotaPrincipal);
+          return Number(v?.saldoTotal || 0) > 0;
         });
 
         setRutaStats((prev: any) => ({
@@ -851,8 +1062,43 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
           meta: periodoCards === 'HOY' ? metaHoy : prev.meta,
         }));
 
-        setVisitasBase(finalesFiltrados as any);
-        setVisitasOrden((finalesFiltrados as any[]).map((v: any) => v.id));
+        const prevList = visitasBaseRef.current
+        const prevById = new Map<string, any>((Array.isArray(prevList) ? prevList : []).map((v: any) => [String(v?.id || ''), v]))
+
+        const merged = (finalesFiltrados as any[]).map((v: any) => {
+          const id = String(v?.id || '')
+          const local = prevById.get(id)
+          if (!local) return v
+
+          const localRecaudoDia = Number(local?.recaudadoDelDia || 0)
+          const nextRecaudoDia = Number(v?.recaudadoDelDia || 0)
+          const recaudadoDelDia = Math.max(localRecaudoDia, nextRecaudoDia)
+
+          const localRecaudoTotal = Number(local?.recaudadoTotalClient || 0)
+          const nextRecaudoTotal = Number(v?.recaudadoTotalClient || 0)
+          const recaudadoTotalClient = Math.max(localRecaudoTotal, nextRecaudoTotal)
+
+          const estadoLocal = String(local?.estado || '')
+          const estadoBackend = String(v?.estado || '')
+          const saldoBackend = Number(v?.saldoTotal || 0)
+          const proxBackend = String(v?.proximaVisita || '')
+          const proxLocal = String(local?.proximaVisita || '')
+          const esNuevaCuota = !!proxBackend && !!proxLocal && proxBackend !== proxLocal
+
+          const estado = (estadoLocal === 'pagado' && !esNuevaCuota && saldoBackend > 0)
+            ? 'pagado'
+            : (estadoBackend as any)
+
+          return {
+            ...v,
+            recaudadoDelDia,
+            recaudadoTotalClient,
+            estado,
+          }
+        })
+
+        setVisitasBase(merged as any);
+        setVisitasOrden((merged as any[]).map((v: any) => v.id));
       }
     } catch (error) {
       console.error('Error al cargar visitas de ruta (supervisor):', error);
@@ -876,8 +1122,12 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
     const prestamoId = payload?.prestamoId || payload?.metadata?.prestamoId;
     const clienteId = payload?.clienteId || payload?.metadata?.clienteId;
 
+    if (prestamoId && pagosInFlightRef.current.has(String(prestamoId))) {
+      return
+    }
+
     if (prestamoId) {
-      const existeEnVisitas = visitasBase.some((v: any) => v?.prestamoId === prestamoId);
+      const existeEnVisitas = visitasBaseRef.current.some((v: any) => v?.prestamoId === prestamoId);
       if (existeEnVisitas) {
         try {
           const p = await prestamosService.obtenerPrestamoPorId(prestamoId);
@@ -962,7 +1212,7 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
 
     if (showMisClientes) await cargarMisCreditos();
 
-  }, [cargarVisitasRuta, showMisClientes, cargarMisCreditos, visitasBase, cargarEstadisticasRuta])
+  }, [cargarVisitasRuta, showMisClientes, cargarMisCreditos, cargarEstadisticasRuta])
 
 
 
@@ -1090,12 +1340,33 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
     )
 
 
+    const DIAS_PERIODO: Record<string, number> = { DIA: 1, SEMANA: 7, QUINCENA: 15, MES: 30 }
+    const filtered = searched.filter((v: any) => {
+      // Supervisor operativo: solo ver
+      // - en mora
+      // - vencidas (por fecha) aunque el backend no haya actualizado estados
+      // - en prórroga
+      // - "duritos" (solo no-diarios)
+      if (v.estado === 'pagado') return false
 
-    // Al pagar la cuota, desaparece de la ruta hasta el próximo vencimiento
-    const filtered = searched.filter(v => {
-      // Desaparecer si ya está pagado o tiene recaudo hoy
-      if (v.estado === 'pagado') return false;
-      return true;
+      // 1) En mora siempre aparece
+      if (v.estado === 'en_mora') return true
+
+      // 2) En prórroga siempre aparece
+      if (v.enProrroga) return true
+
+      // 3) Vencida por fecha: próxima visita (fecha efectiva) ya quedó atrás
+      const proxKey = v?.proximaVisita ? normalizeDateKey(String(v.proximaVisita)) : ''
+      if (proxKey && hoyBogotaKey && proxKey < hoyBogotaKey) return true
+
+      // 4) Duritos
+      const periodo = String(v.periodoRuta || 'DIA').toUpperCase()
+      const dias = DIAS_PERIODO[periodo] ?? 1
+      const umbral = dias * 1.5 * 24 * 60 * 60 * 1000
+      const lastPago = Number((v as any).fechaUltimoPago || 0)
+      if (!(lastPago > 0)) return false
+      const msDesde = Date.now() - lastPago
+      return msDesde > umbral
     })
 
 
@@ -1104,6 +1375,10 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
       // 1. Pagados al final (aunque filtrados, por consistencia)
       if (a.estado === 'pagado' && b.estado !== 'pagado') return 1;
       if (a.estado !== 'pagado' && b.estado === 'pagado') return -1;
+
+      // En mora primero
+      if (a.estado === 'en_mora' && b.estado !== 'en_mora') return -1;
+      if (a.estado !== 'en_mora' && b.estado === 'en_mora') return 1;
 
       if (a.periodoRuta === 'DIA' && b.periodoRuta === 'DIA') {
         return a.ordenVisita - b.ordenVisita;
@@ -1122,7 +1397,7 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
 
     return sorted
 
-  }, [visitasBase, searchQuery])
+  }, [visitasBase, searchQuery, hoyBogotaKey])
 
 
 
@@ -1354,9 +1629,36 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
 
           ), vencidas[0])
 
-          const diff = Math.floor((Date.now() - new Date(oldest.fechaVencimiento).getTime()) / (1000 * 60 * 60 * 24))
-
-          diasMora = diff > 0 ? diff : 0
+          const freq = String((info as any)?.frecuenciaPago || (info as any)?.frecuencia || '').toUpperCase()
+          if (freq === 'DIARIO') {
+            const oldestKey = normalizeDateKey(String(oldest.fechaVencimiento || ''))
+            const endKey = hoyBogotaKey
+            if (oldestKey && endKey) {
+              const start = new Date(`${oldestKey}T12:00:00-05:00`)
+              const end = new Date(`${endKey}T12:00:00-05:00`)
+              if (!isNaN(start.getTime()) && !isNaN(end.getTime())) {
+                let count = 0
+                const cur = new Date(start)
+                cur.setDate(cur.getDate() + 1)
+                while (cur.getTime() <= end.getTime()) {
+                  if (cur.getDay() !== 0) count++
+                  cur.setDate(cur.getDate() + 1)
+                }
+                diasMora = count
+              }
+            }
+          } else {
+            const oldestKey = normalizeDateKey(String(oldest.fechaVencimiento || ''))
+            const endKey = hoyBogotaKey
+            if (oldestKey && endKey) {
+              const start = new Date(`${oldestKey}T12:00:00-05:00`)
+              const end = new Date(`${endKey}T12:00:00-05:00`)
+              if (!isNaN(start.getTime()) && !isNaN(end.getTime())) {
+                const diff = Math.floor((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24))
+                diasMora = diff > 0 ? diff : 0
+              }
+            }
+          }
 
         }
 
@@ -1588,6 +1890,8 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
 
       setIsLoading(true)
 
+      pagosInFlightRef.current.add(String(visita.prestamoId))
+
       await prestamosService.registrarPago({
 
         prestamoId: visita.prestamoId,
@@ -1633,20 +1937,15 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
 
       }))
 
-      if (cuotaCompletadaLocal) {
-        setVisitasBase((prev) => prev.filter((v) => v.id !== visitaId))
-        setVisitasOrden((prev) => prev.filter((id) => id !== visitaId))
-      }
-
 
 
       toast.success('Pago registrado')
 
-      // Refresh en background para reconciliar con backend (sin bloquear UI)
+      // Reconciliar una sola vez contra backend (y mantener lock durante la reconciliación)
       try {
-        void cargarEstadisticasRuta()
-        void cargarVisitasRuta()
-        if (showMisClientes) void cargarMisCreditos()
+        await cargarVisitasRuta()
+        await cargarEstadisticasRuta()
+        if (showMisClientes) await cargarMisCreditos()
       } catch {}
 
       setShowPaymentModal(false)
@@ -1659,11 +1958,15 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
 
     } finally {
 
+      if (visita?.prestamoId) {
+        pagosInFlightRef.current.delete(String(visita.prestamoId))
+      }
+
       setIsLoading(false)
 
     }
 
-  }, [visitasBase, userSession?.id, pagoInitialIsAbono, cargarVisitasRuta, showMisClientes, cargarMisCreditos])
+  }, [visitasBase, userSession?.id, pagoInitialIsAbono, cargarVisitasRuta, showMisClientes, cargarMisCreditos, cargarEstadisticasRuta])
 
   const handleCrearCredito = useCallback(async (data: any) => {
 
@@ -2467,7 +2770,7 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
 
                                                     <div className="text-xs text-slate-500">
 
-                                                       Recaudo: <b>${data.resumen.recaudo.toLocaleString('es-CO')}</b>
+                                                       Recaudo: <b>${formatMilesCOP(data.resumen.recaudo)}</b>
 
                                                     </div>
 
@@ -2630,7 +2933,7 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
 
                                                   <span>{daysInMonth.length} días · </span>
 
-                                                  <span>Recaudo: <b>${monthRecaudo.toLocaleString('es-CO')}</b></span>
+                                                  <span>Recaudo: <b>${formatMilesCOP(monthRecaudo)}</b></span>
 
                                                 </div>
 
@@ -2712,7 +3015,7 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
 
                                                           <div className="text-[11px] text-slate-400">
 
-                                                            Recaudo: <b>${(dayData?.resumen?.recaudo || 0).toLocaleString('es-CO')}</b>
+                                                            Recaudo: <b>${formatMilesCOP((dayData?.resumen?.recaudo || 0) as any)}</b>
 
                                                             {dayData?.loaded && dayData.visitas.length > 0 && (
 
@@ -3348,19 +3651,10 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
           <RutaProvisionalModal
 
             visitas={visitasCobrador.filter((v: any) => {
-
-              const pending = ['pendiente', 'en_mora'].includes(v?.estado)
-
+              const pending = ['pendiente', 'en_mora'].includes(String(v?.estado || '').toLowerCase())
               if (!pending) return false
-
-              if (!v?.proximaVisita) return true
-
-              const hoyBogota = getBogotaDateKey(new Date())
-
-              const vKey = getBogotaDateKey(new Date(v.proximaVisita))
-
-              return !vKey || vKey <= hoyBogota
-
+              const hoyBogota = hoyBogotaKey
+              return isVisitaExigibleHoy(v, hoyBogota)
             })}
 
             initialOrder={visitasOrden}
@@ -3391,18 +3685,16 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
 
             }}
 
-            onConfirm={async (data: any) => {
+            onConfirm={async (monto: number, metodo: 'EFECTIVO' | 'TRANSFERENCIA', comprobante: File | null) => {
 
               const visitaId = visitaPagoSeleccionadaId
-              const monto = Number(data?.monto || 0)
-              const comp = (data as any)?.comprobante || null
 
               // Cerrar inmediatamente para UX
               setShowPaymentModal(false)
               setVisitaPagoSeleccionadaId(null)
 
               // Registrar en background (y actualizar optimista)
-              void handleRegistrarPago(visitaId, monto, 'EFECTIVO', comp)
+              void handleRegistrarPago(visitaId, Number(monto || 0), metodo, comprobante)
 
             }}
 
@@ -3510,20 +3802,7 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
                 comprobante: data.comprobante,
                 rutaId: rutaId as string,
                 cobradorId: cobradorIdReal,
-                ...(data.categoriaId ? { categoriaId: data.categoriaId } : {}),
               })
-
-              try {
-                const hoyClave = getBogotaDateKey(new Date())
-                const saldo = await obtenerSaldoDisponibleRuta(rutaId as string, hoyClave)
-                setRutaStats((prev: any) => ({
-                  ...prev,
-                  gastos: Number((saldo as any)?.gastosDelDia ?? prev.gastos),
-                }))
-              } catch {
-                setRutaStats((prev: any) => ({ ...prev, gastos: Number(prev?.gastos || 0) + Number(data.valor || 0) }))
-              }
-
               toast.success('Gasto registrado. Se envió a aprobación.')
               setShowGastoModal(false)
             } catch (e: any) {
@@ -3641,19 +3920,17 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
 
         <FloatingActionMenu actions={[
 
-            { label: 'Crear Crédito', icon: <CreditCard className="h-5 w-5" />, onClick: () => { if(!rutaOperable) return; setShowCreditModal(true); } },
+            { label: 'Crear Crédito', icon: <CreditCard className="h-5 w-5" />, onClick: () => { setShowCreditModal(true); } },
 
-            { label: 'Nuevo Cliente', icon: <UserPlus className="h-5 w-5" />, onClick: () => { if(!rutaOperable) return; setShowNewClientModal(true); } },
+            { label: 'Nuevo Cliente', icon: <UserPlus className="h-5 w-5" />, onClick: () => { setShowNewClientModal(true); } },
 
-            { label: 'Registrar abono', icon: <RefreshCw className="h-5 w-5" />, color: 'orange', onClick: () => { if(!rutaOperable) return; setPendingAction('ABONO'); setShowClientSelector(true); } },
+            { label: 'Registrar abono', icon: <RefreshCw className="h-5 w-5" />, color: 'orange', onClick: () => { setPendingAction('ABONO'); setShowClientSelector(true); } },
 
-            { label: 'Registrar pago', icon: <DollarSign className="h-5 w-5" />, onClick: () => { if(!rutaOperable) return; setPendingAction('PAGO'); setShowClientSelector(true); } },
+            { label: 'Registrar pago', icon: <DollarSign className="h-5 w-5" />, onClick: () => { setPendingAction('PAGO'); setShowClientSelector(true); } },
 
-            { label: 'Solicitudes', icon: <ClipboardList className="h-5 w-5" />, onClick: () => router.push('/supervisor/revisiones') },
+            { label: 'Pedir Base', icon: <Wallet className="h-5 w-5" />, color: 'emerald', onClick: () => { setShowBaseModal(true); } },
 
-            { label: 'Pedir Base', icon: <Wallet className="h-5 w-5" />, color: 'emerald', onClick: () => { if(!rutaOperable) return; setShowBaseModal(true); } },
-
-            { label: 'Gastos', icon: <ReceiptText className="h-5 w-5" />, color: 'rose', onClick: () => { if(!rutaOperable) return; setShowGastoModal(true); } },
+            { label: 'Gastos', icon: <ReceiptText className="h-5 w-5" />, color: 'rose', onClick: () => { setShowGastoModal(true); } },
 
           ] as FabAction[]} />
 

@@ -18,6 +18,10 @@ interface CajaDetalle {
   estado: string
   saldoActual: number
   saldoInicial: number
+  totalRegistradoRango: number
+  saldoPrevioRango: number
+  rangoInicio: string
+  rangoFin: string
   ingresosDia: number
   egresosDia: number
   fechaApertura: string
@@ -51,29 +55,93 @@ export default function DetalleCajaPage({ params }: { params: Promise<{ id: stri
   const fetchCaja = async () => {
     setLoadingCaja(true)
     try {
+      const getBogotaDateKey = (d: Date) => d.toLocaleDateString('en-CA', { timeZone: 'America/Bogota' })
+
+      const hoyKey = getBogotaDateKey(new Date())
+      const ayerTmp = new Date()
+      ayerTmp.setDate(ayerTmp.getDate() - 1)
+      const ayerKey = getBogotaDateKey(ayerTmp)
+
       const cajaData = await getCajaById(id)
-      const txRes = await getTransacciones({ cajaId: id, limit: 50 })
-      const ingresos = txRes.data.filter(t => t.tipo === 'INGRESO').reduce((s, t) => s + t.monto, 0)
-      const egresos = txRes.data.filter(t => t.tipo === 'EGRESO').reduce((s, t) => s + t.monto, 0)
+      const txRes = await getTransacciones({ cajaId: id, limit: 500 })
+
+      const esTransferOut = (t: any) => {
+        const num = String(t?.numero || (t as any)?.numeroTransaccion || '')
+        if (num.toUpperCase().startsWith('TRX-OUT')) return true
+        return String(t?.cajaOrigenId || '') === id && t.tipo === 'TRANSFERENCIA'
+      }
+
+      const txEnRango = (t: any) => {
+        const key = new Date(t.fecha).toLocaleDateString('en-CA', { timeZone: 'America/Bogota' })
+        return key >= ayerKey && key <= hoyKey
+      }
+
+      const totalRegistradoRango = (txRes.data || [])
+        .filter((t: any) => {
+          const est = String(t?.estado || '').toUpperCase()
+          if (est === 'ANULADO' || est === 'RECHAZADO') return false
+          return txEnRango(t)
+        })
+        .reduce((s: number, t: any) => {
+          const monto = Number(t.monto || 0)
+          if (t.tipo === 'INGRESO') return s + monto
+          if (t.tipo === 'EGRESO') return s - monto
+          if (t.tipo === 'TRANSFERENCIA') return s + (esTransferOut(t) ? -monto : monto)
+          return s
+        }, 0)
+
+      const saldoActual = cajaData?.saldo || 0
+      const saldoPrevioRango = saldoActual - totalRegistradoRango
+
+      const ingresos = txRes.data
+        .filter((t: any) => {
+          const est = String(t?.estado || '').toUpperCase()
+          if (est === 'ANULADO' || est === 'RECHAZADO') return false
+          if (t.tipo === 'INGRESO') return true
+          if (t.tipo === 'TRANSFERENCIA') return !esTransferOut(t)
+          return false
+        })
+        .reduce((s, t: any) => s + Number(t.monto || 0), 0)
+
+      const egresos = txRes.data
+        .filter((t: any) => {
+          const est = String(t?.estado || '').toUpperCase()
+          if (est === 'ANULADO' || est === 'RECHAZADO') return false
+          if (t.tipo === 'EGRESO') return true
+          if (t.tipo === 'TRANSFERENCIA') return esTransferOut(t)
+          return false
+        })
+        .reduce((s, t: any) => s + Number(t.monto || 0), 0)
+
       setCaja({
         id: cajaData?.id || id,
         nombre: cajaData?.nombre || '',
         responsable: cajaData?.responsable || '',
         tipo: cajaData?.tipo || 'PRINCIPAL',
         estado: cajaData?.estado || 'ABIERTA',
-        saldoActual: cajaData?.saldo || 0,
+        saldoActual,
         saldoInicial: 0,
+        totalRegistradoRango,
+        saldoPrevioRango,
+        rangoInicio: ayerKey,
+        rangoFin: hoyKey,
         ingresosDia: ingresos,
         egresosDia: egresos,
         fechaApertura: cajaData?.ultimaActualizacion || '',
-        movimientos: txRes.data.map(t => ({
-          id: t.id,
-          tipo: t.tipo,
-          concepto: t.descripcion,
-          monto: t.monto,
-          hora: new Date(t.fecha).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' }),
-          usuario: t.responsable,
-        })),
+        movimientos: txRes.data.map(t => {
+          const esTransferSalida = esTransferOut(t)
+          const tipoMostrar =
+            t.tipo === 'TRANSFERENCIA' ? (esTransferSalida ? 'EGRESO' : 'INGRESO') : t.tipo
+
+          return {
+            id: t.id,
+            tipo: tipoMostrar,
+            concepto: t.descripcion,
+            monto: t.monto,
+            hora: new Date(t.fecha).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' }),
+            usuario: t.responsable,
+          }
+        }),
       })
       setEditForm({ nombre: cajaData?.nombre || '', responsable: cajaData?.responsable || '', saldoInicialInput: '' })
       try {
@@ -269,6 +337,12 @@ export default function DetalleCajaPage({ params }: { params: Promise<{ id: stri
               <div className="text-right">
                 <p className="text-sm text-slate-500 mb-1">Saldo Actual</p>
                 <MoneyAmount value={caja.saldoActual} amountClassName="text-3xl font-bold text-slate-900" />
+                <div className="mt-3 space-y-1">
+                  <p className="text-xs font-medium text-slate-500">Total registrado ({caja.rangoInicio} → {caja.rangoFin})</p>
+                  <MoneyAmount value={caja.totalRegistradoRango} meaning="signed" amountClassName="text-sm font-bold text-slate-900" />
+                  <p className="text-xs font-medium text-slate-500">Saldo previo al rango</p>
+                  <MoneyAmount value={caja.saldoPrevioRango} amountClassName="text-sm font-bold text-slate-900" />
+                </div>
               </div>
             </div>
 

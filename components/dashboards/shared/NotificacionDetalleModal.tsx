@@ -451,7 +451,7 @@ export default function NotificacionDetalleModal({
 
   const formatCOPInput = (val: number | undefined) => {
     if (val === undefined || val === 0) return ''
-    return val.toLocaleString('es-CO')
+    return formatMilesCOP(val)
   }
 
   const parseCOPInput = (val: string) => {
@@ -772,10 +772,18 @@ export default function NotificacionDetalleModal({
                         {(() => {
                           const total = (() => {
                             const va = Number(editedDetails?.valorArticulo ?? safeMeta?.valorArticulo ?? 0)
-                            if (va > 0) return va
                             const m = Number(editedDetails?.monto ?? safeMeta?.monto ?? 0)
                             const ci = Number(editedDetails?.cuotaInicial ?? safeMeta?.cuotaInicial ?? 0)
-                            return m + ci
+                            if (isArticle) return va > 0 ? va : (m + ci)
+
+                            const mt = Number(editedDetails?.montoTotal || safeMeta?.montoTotal || 0)
+                            if (mt > 0) return mt
+                            const it = Number(editedDetails?.interesTotal || safeMeta?.interesTotal || 0)
+                            if (it > 0) return m + it
+                            const tasa = Number(editedDetails?.tasaInteres || safeMeta?.tasaInteres || Number(editedDetails?.porcentaje || safeMeta?.porcentaje || 0))
+                            const meses = Number(editedDetails?.plazoMeses || safeMeta?.plazoMeses || 1)
+                            const mesesInteres = Math.max(1, meses)
+                            return m + ((m * tasa * mesesInteres) / 100)
                           })()
                           return formatCurrency(isNaN(total) ? 0 : total)
                         })()}

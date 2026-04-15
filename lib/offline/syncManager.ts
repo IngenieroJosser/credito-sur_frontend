@@ -185,13 +185,29 @@ export const syncManager = {
     } catch (err: any) {
       const errorMessage = err?.message || err?.error?.message || 'Error desconocido';
       const statusCode = err?.statusCode || err?.response?.status || 'N/A';
-      
-      console.error('[Offline Sync] Error descargando clientes:', {
+
+      if (statusCode === 401 || statusCode === 403) {
+        logger.log('[Offline Sync] Descarga de clientes omitida por permisos.');
+        return 0;
+      }
+
+      const errorDetails = {
         message: errorMessage,
         statusCode,
-        error: err,
+        url: err?.config?.url,
+        method: err?.config?.method,
+        baseURL: err?.config?.baseURL,
+        responseData: err?.response?.data || err?.error,
+        code: err?.code,
+        rawKeys: err && typeof err === 'object' ? Object.keys(err) : null,
         stack: err?.stack,
-      });
+      };
+
+      try {
+        console.error(`[Offline Sync] Error descargando clientes: ${JSON.stringify(errorDetails)}`)
+      } catch {
+        console.error('[Offline Sync] Error descargando clientes (no-serialize)')
+      }
       
       // Si es un error de red, no lanzar excepción para evitar que detenga otras descargas
       if (statusCode === 0 || err?.code === 'ERR_NETWORK' || err?.message?.includes('Network Error')) {
@@ -272,8 +288,30 @@ export const syncManager = {
       }
 
       return prestamos.length;
-    } catch (err) {
-      console.error('[Offline Sync] Error descargando préstamos:', err);
+    } catch (err: any) {
+      const statusCode = err?.statusCode || err?.response?.status || 'N/A'
+      if (statusCode === 401 || statusCode === 403) {
+        logger.log('[Offline Sync] Descarga de préstamos omitida por permisos.');
+        return 0;
+      }
+
+      const errorDetails = {
+        message: err?.message || err?.error?.message || 'Error desconocido',
+        statusCode,
+        url: err?.config?.url,
+        method: err?.config?.method,
+        baseURL: err?.config?.baseURL,
+        responseData: err?.response?.data || err?.error,
+        code: err?.code,
+        rawKeys: err && typeof err === 'object' ? Object.keys(err) : null,
+        stack: err?.stack,
+      }
+
+      try {
+        console.error(`[Offline Sync] Error descargando préstamos: ${JSON.stringify(errorDetails)}`)
+      } catch {
+        console.error('[Offline Sync] Error descargando préstamos (no-serialize)')
+      }
       return 0;
     }
   },
@@ -305,8 +343,32 @@ export const syncManager = {
       await offlineStore.saveMany('rutas', rutas, true);
       await trackOfflineEvent('download', { storeName: 'rutas', recordCount: rutas.length });
       return rutas.length;
-    } catch (err) {
-      console.error('[Offline Sync] Error descargando rutas:', err);
+    } catch (err: any) {
+      const errorMessage = err?.message || err?.error?.message || 'Error desconocido'
+      const statusCode = err?.statusCode || err?.response?.status || 'N/A'
+
+      if (statusCode === 401 || statusCode === 403) {
+        logger.log('[Offline Sync] Descarga de rutas omitida por permisos.');
+        return 0;
+      }
+
+      const errorDetails = {
+        message: errorMessage,
+        statusCode,
+        url: err?.config?.url,
+        method: err?.config?.method,
+        baseURL: err?.config?.baseURL,
+        responseData: err?.response?.data || err?.error,
+        code: err?.code,
+        rawKeys: err && typeof err === 'object' ? Object.keys(err) : null,
+        stack: err?.stack,
+      }
+
+      try {
+        console.error(`[Offline Sync] Error descargando rutas: ${JSON.stringify(errorDetails)}`)
+      } catch {
+        console.error('[Offline Sync] Error descargando rutas (no-serialize)')
+      }
       return 0;
     }
   },
@@ -350,8 +412,32 @@ export const syncManager = {
       await offlineStore.saveMany('cajas', cajas, true);
       await trackOfflineEvent('download', { storeName: 'cajas', recordCount: cajas.length });
       return cajas.length;
-    } catch (err) {
-      console.error('[Offline Sync] Error descargando cajas:', err);
+    } catch (err: any) {
+      const errorMessage = err?.message || err?.error?.message || 'Error desconocido'
+      const statusCode = err?.statusCode || err?.response?.status || 'N/A'
+
+      if (statusCode === 401 || statusCode === 403) {
+        logger.log('[Offline Sync] Descarga de cajas omitida por permisos.');
+        return 0;
+      }
+
+      const errorDetails = {
+        message: errorMessage,
+        statusCode,
+        url: err?.config?.url,
+        method: err?.config?.method,
+        baseURL: err?.config?.baseURL,
+        responseData: err?.response?.data || err?.error,
+        code: err?.code,
+        rawKeys: err && typeof err === 'object' ? Object.keys(err) : null,
+        stack: err?.stack,
+      }
+
+      try {
+        console.error(`[Offline Sync] Error descargando cajas: ${JSON.stringify(errorDetails)}`)
+      } catch {
+        console.error('[Offline Sync] Error descargando cajas (no-serialize)')
+      }
       return 0;
     }
   },
@@ -372,11 +458,34 @@ export const syncManager = {
       await trackOfflineEvent('download', { storeName: 'usuarios', recordCount: usuarios.length });
       return usuarios.length;
     } catch (err: any) {
-      if (err?.statusCode === 403 || err?.message?.includes('403') || err?.message?.toLowerCase().includes('forbidden')) {
+      const statusCode = err?.statusCode || err?.response?.status || 'N/A'
+      if (
+        statusCode === 401 ||
+        statusCode === 403 ||
+        err?.message?.includes('403') ||
+        err?.message?.toLowerCase().includes('forbidden')
+      ) {
         logger.log('[Offline Sync] Descarga de usuarios omitida por permisos (SUPERVISOR/COBRADOR).');
         return 0;
       }
-      console.error('[Offline Sync] Error descargando usuarios:', err);
+
+      const errorDetails = {
+        message: err?.message || err?.error?.message || 'Error desconocido',
+        statusCode,
+        url: err?.config?.url,
+        method: err?.config?.method,
+        baseURL: err?.config?.baseURL,
+        responseData: err?.response?.data || err?.error,
+        code: err?.code,
+        rawKeys: err && typeof err === 'object' ? Object.keys(err) : null,
+        stack: err?.stack,
+      }
+
+      try {
+        console.error(`[Offline Sync] Error descargando usuarios: ${JSON.stringify(errorDetails)}`)
+      } catch {
+        console.error('[Offline Sync] Error descargando usuarios (no-serialize)')
+      }
       return 0;
     }
   },

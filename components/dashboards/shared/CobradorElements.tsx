@@ -6,6 +6,7 @@ import { MapPin, Eye, Phone, GripVertical, XCircle, ChevronDown, Timer, CheckCir
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { VisitaRuta, EstadoVisita } from '@/lib/types/cobranza'
+import { formatMilesCOP } from '@/lib/utils'
 
 export const MODAL_Z_INDEX = 2147483600
 
@@ -22,12 +23,16 @@ export function Portal({ children }: { children: ReactNode }) {
 function formatMontoCorto(amount: number): string {
   const abs = Math.abs(amount)
   if (abs >= 1_000_000_000) {
-    return `$${(amount / 1_000_000_000).toLocaleString('es-CO', { maximumFractionDigits: 2 })}B`
+    const scaled = amount / 1_000_000_000
+    const safe = Math.trunc(scaled * 100) / 100
+    return `$${new Intl.NumberFormat('es-CO', { minimumFractionDigits: 0, maximumFractionDigits: 2 }).format(safe)}B`
   }
   if (abs >= 1_000_000) {
-    return `$${(amount / 1_000_000).toLocaleString('es-CO', { maximumFractionDigits: 2 })}M`
+    const scaled = amount / 1_000_000
+    const safe = Math.trunc(scaled * 100) / 100
+    return `$${new Intl.NumberFormat('es-CO', { minimumFractionDigits: 0, maximumFractionDigits: 2 }).format(safe)}M`
   }
-  return `$${new Intl.NumberFormat('es-CO', { maximumFractionDigits: 0 }).format(amount)}`
+  return `$${formatMilesCOP(amount)}`
 }
 
 // ── Helpers de color de semáforo ─────────────────────────────────────────────
@@ -179,13 +184,25 @@ function VisitaCardContent({
           {/* Badge cuota actual */}
           {visita.cuotaActual && (
             <span className="text-[9px] font-black bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded border border-slate-200">
-              #{visita.cuotaActual}{visita.cuotasTotales ? `/${visita.cuotasTotales}` : ''}
+              Cuota: {visita.cuotaActual}{visita.cuotasTotales ? `/${visita.cuotasTotales}` : ''}
             </span>
           )}
           {/* Badge estado visita */}
           <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-md border uppercase ${getEstadoClasses(visita.estado)}`}>
             {visita.estado.replace('_', ' ')}
           </span>
+
+          {(((visita as any)?.enMoraHistorico) || String(visita.estado || '').toLowerCase() === 'en_mora') && (
+            <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-md border uppercase bg-rose-50 text-rose-700 border-rose-200">
+              en mora
+            </span>
+          )}
+
+          {(((visita as any)?.enProrrogaHistorico) || (visita as any)?.enProrroga || !!(visita as any)?.fechaProrroga) && (
+            <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-md border uppercase bg-amber-50 text-amber-700 border-amber-200">
+              prórroga
+            </span>
+          )}
         </div>
 
         {/* Botones de acción centrados */}

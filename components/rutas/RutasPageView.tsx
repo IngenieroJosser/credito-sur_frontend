@@ -32,7 +32,8 @@ import { formatCurrency, cn } from '@/lib/utils'
 import { useAuth } from '@/hooks/useAuth'
 import { routesService } from '@/services/routes-service';
 import { rutasService } from '@/services/rutas-service';
-import { getBogotaDateKey, normalizeDateKey, resolveProximaCuotaFromPrestamo } from '@/lib/rutas-core'
+import { computeMetaHoyFromVisitas, getBogotaDateKey } from '@/lib/rutas-core'
+import { mapAsignacionesToVisitasLite } from '@/lib/ruta-visitas-mapper'
 import { clientesService, Cliente } from '@/services/clientes-service';
 import { useNotification } from '@/components/providers/NotificationProvider';
 import { usePermission } from '@/hooks/usePermission';
@@ -166,8 +167,16 @@ export const RutasPageView = ({
 
   const fetchRutas = useCallback(async () => {
     try {
-      const response = await routesService.getAll({ limit: 100 });
-      const data = (response as any)?.data || (response as any) || [];
+      const isSupervisorPath = (rutasBasePath || '').toLowerCase().includes('/supervisor')
+      const response = await routesService.getAll({
+        limit: 100,
+        ...(isSupervisorPath && currentUser?.id ? { supervisorId: currentUser.id } : {}),
+      });
+      const payload = (response as any)?.data ?? response
+      const data = Array.isArray(payload)
+        ? payload
+        : (Array.isArray((payload as any)?.data) ? (payload as any).data : [])
+
       if (Array.isArray(data) && data.length > 0) {
         const enriched = await Promise.all(
           (data as Ruta[]).map(async (r: Ruta) => {
@@ -178,53 +187,57 @@ export const RutasPageView = ({
 
               const asignaciones = Array.isArray(rutaCompleta?.asignaciones) ? rutaCompleta.asignaciones : [];
 
-              let metaDelDia = 0;
+              // Normalizar cuotas (incluyendo montoPagado) para que el cálculo de exigible/meta
+              // sea consistente con cobrador/admin ruta.
+              const asigsConCuotas = await Promise.all(asignaciones.map(async (asig: any) => {
+                const cliente = asig?.cliente || null
+                if (!cliente) return asig
 
-              for (const asig of asignaciones) {
-                const cliente = asig?.cliente;
-                if (!cliente) continue;
-                const prestamos = Array.isArray(cliente?.prestamos) ? cliente.prestamos : [];
-                const prestamosValidos = prestamos.filter((p: any) => p && (p.estado === 'ACTIVO' || p.estado === 'EN_MORA' || p.estado === 'PAGADO'));
-                for (const prestamo of prestamosValidos) {
-                  const periodoRuta = String(prestamo?.frecuenciaPago || 'DIARIO') === 'DIARIO'
-                    ? 'DIA'
-                    : String(prestamo?.frecuenciaPago || '').toUpperCase() === 'SEMANAL'
-                      ? 'SEMANA'
-                      : String(prestamo?.frecuenciaPago || '').toUpperCase() === 'QUINCENAL'
-                        ? 'QUINCENA'
-                        : 'MES';
+                const prestamosRaw = Array.isArray(cliente?.prestamos) ? cliente.prestamos : []
+                const seenPrestamos = new Set<string>()
+                const prestamosValidos = prestamosRaw
+                  .filter((p: any) => p && (p.estado === 'ACTIVO' || p.estado === 'EN_MORA'))
+                  .filter((p: any) => {
+                    const id = String(p?.id || '')
+                    if (!id) return true
+                    if (seenPrestamos.has(id)) return false
+                    seenPrestamos.add(id)
+                    return true
+                  })
 
-                  const cuotas = Array.isArray(prestamo?.cuotas) ? prestamo.cuotas : [];
-                  if (cuotas.length === 0) continue;
+                const prestamos = await Promise.all(prestamosValidos.map(async (p: any) => {
+                  if (!p?.id) return p
+                  const cuotasEmbebidas = Array.isArray(p?.cuotas) ? p.cuotas : []
+                  const cuotas = await prestamosService.obtenerCuotas(p.id).catch(() => cuotasEmbebidas)
+                  return { ...p, cuotas }
+                }))
 
-                  const { cuota: proxCuota, fechaEfectiva } = resolveProximaCuotaFromPrestamo(prestamo);
-                  const dueKey = normalizeDateKey(String(fechaEfectiva || (proxCuota as any)?.fechaVencimiento || ''));
+                return { ...asig, cliente: { ...cliente, prestamos } }
+              }))
 
-                  const cuotasExigibles = cuotas.filter((c: any) => {
-                    const st = String(c?.estado || '').toUpperCase();
-                    if (st === 'PAGADA' || st === 'ANULADA') return false;
-                    const effRaw = (st === 'PRORROGADA' && c?.fechaVencimientoProrroga) ? c.fechaVencimientoProrroga : c.fechaVencimiento;
-                    const key = effRaw ? normalizeDateKey(String(effRaw)) : '';
-                    return key && key <= hoyBogota;
-                  });
+              const visitasLite = mapAsignacionesToVisitasLite({
+                asignaciones: asigsConCuotas as any,
+                hoyKey: hoyBogota,
+                cobradorId: String(rutaCompleta?.cobradorId || r?.cobradorId || ''),
+              })
 
-                  const tieneMora = cuotasExigibles.some((c: any) => {
-                    const st = String(c?.estado || '').toUpperCase();
-                    const effRaw = (st === 'PRORROGADA' && c?.fechaVencimientoProrroga) ? c.fechaVencimientoProrroga : c.fechaVencimiento;
-                    const key = effRaw ? normalizeDateKey(String(effRaw)) : '';
-                    return key && key < hoyBogota;
-                  });
+              // Dedupe igual que en admin ruta-client para evitar doble conteo.
+              const idsProcesados = new Set<string>()
+              const firstPass = (Array.isArray(visitasLite) ? visitasLite : []).flatMap((v: any) => {
+                const uniqueKey = v?.prestamoId ? `loan-${v.prestamoId}` : `client-${v.clienteId}`
+                if (idsProcesados.has(uniqueKey)) return []
+                idsProcesados.add(uniqueKey)
+                return [v]
+              })
 
-                  const apareceHoy = tieneMora || periodoRuta === 'DIA' || (dueKey && dueKey === hoyBogota);
-                  if (!apareceHoy) continue;
+              const clientesConPrestamo = new Set(firstPass.filter((v: any) => v?.prestamoId).map((v: any) => v?.clienteId))
+              const visitasDedupe = firstPass.filter((v: any) => {
+                if (!v?.prestamoId && clientesConPrestamo.has(v?.clienteId)) return false
+                return true
+              })
 
-                  const totalExigible = cuotasExigibles.reduce((sum: number, c: any) => sum + Number(c?.monto || 0), 0);
-                  const monto = totalExigible > 0 ? totalExigible : Number((proxCuota as any)?.monto || 0);
-                  if (monto > 0) metaDelDia += monto;
-                }
-              }
+              const metaDelDia = computeMetaHoyFromVisitas(visitasDedupe as any, hoyBogota)
 
-              if (!(metaDelDia > 0)) return r;
               return {
                 ...r,
                 metaDelDia: Number(metaDelDia),
@@ -250,7 +263,7 @@ export const RutasPageView = ({
         }
       } catch {}
     }
-  }, [])
+  }, [currentUser?.id, rutasBasePath])
 
   useEffect(() => {
     const fetchLists = async () => {
@@ -473,7 +486,7 @@ export const RutasPageView = ({
     const monto = parseMonto(montoRecolectar)
     if (!monto || monto <= 0) { setErrorRecolectar('Ingresa un monto valido'); return }
     if (saldoDisponibleRecolectar !== null && monto > saldoDisponibleRecolectar) {
-      setErrorRecolectar(`El monto supera el saldo disponible (${saldoDisponibleRecolectar.toLocaleString('es-CO', { style: 'currency', currency: 'COP' })})`);
+      setErrorRecolectar(`El monto supera el saldo disponible (${formatCurrency(saldoDisponibleRecolectar)})`);
       return
     }
     if (!cajaRutaIdRecolectar) { setErrorRecolectar('No se encontro la caja de la ruta'); return }
@@ -482,7 +495,7 @@ export const RutasPageView = ({
     try {
       await consolidarCaja(cajaRutaIdRecolectar, monto)
       setShowRecolectarModal(false)
-      showNotification('success', `Se recolectaron ${monto.toLocaleString('es-CO', { style: 'currency', currency: 'COP' })} de la ruta hacia Caja de Oficina`, 'Recoleccion exitosa')
+      showNotification('success', `Se recolectaron ${formatCurrency(monto)} de la ruta hacia Caja de Oficina`, 'Recoleccion exitosa')
       await fetchRutas()
     } catch (e: any) {
       setErrorRecolectar(e?.message || 'No se pudo recolectar. Intenta de nuevo.')
@@ -598,7 +611,8 @@ export const RutasPageView = ({
   const totalClientes = displayRutas.reduce((acc, curr) => acc + curr.clientesAsignados, 0)
   const objetivoTotal = displayRutas.reduce((acc, curr) => acc + curr.metaDelDia, 0)
   const cobranzaTotal = displayRutas.reduce((acc, curr) => acc + curr.cobranzaDelDia, 0)
-  const porcentajeAvance = objetivoTotal > 0 ? (cobranzaTotal / objetivoTotal) * 100 : 0
+  const objetivoTotalShown = Math.max(objetivoTotal, cobranzaTotal)
+  const porcentajeAvance = objetivoTotal > 0 ? Math.min(100, (cobranzaTotal / objetivoTotal) * 100) : 0
 
   // Force list view for Coordinador, Admin and Supervisor
   if ((rutasBasePath.includes('/coordinador') || rutasBasePath.includes('/admin') || rutasBasePath.includes('/supervisor')) && vista !== 'list') {
@@ -710,7 +724,7 @@ export const RutasPageView = ({
               {
                 label: 'Avance Cobranza',
                 value: `${porcentajeAvance.toFixed(1)}%`,
-                sub: `Objetivo: ${formatCurrency(objetivoTotal)}`,
+                sub: `Objetivo: ${formatCurrency(objetivoTotalShown)}`,
                 icon: TrendingUp,
                 color: 'text-slate-900',
                 subColor: 'text-slate-500',
@@ -917,7 +931,7 @@ export const RutasPageView = ({
                             <p className="font-bold text-slate-900">{formatCurrency(ruta.cobranzaDelDia)}</p>
                           </div>
                           <span className="text-sm font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-100">
-                            {ruta.metaDelDia > 0 ? ((ruta.cobranzaDelDia / ruta.metaDelDia) * 100).toFixed(0) : 0}%
+                            {ruta.metaDelDia > 0 ? Math.min(100, (ruta.cobranzaDelDia / ruta.metaDelDia) * 100).toFixed(0) : 0}%
                           </span>
                         </div>
                         <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden border border-slate-200">
@@ -1091,7 +1105,7 @@ export const RutasPageView = ({
                           {ruta.estado === 'ACTIVA' ? (
                             <div className="w-32 space-y-1">
                               <div className="flex justify-between text-xs">
-                                <span className="font-bold text-primary">{ruta.metaDelDia > 0 ? ((ruta.cobranzaDelDia / ruta.metaDelDia) * 100).toFixed(0) : 0}%</span>
+                                <span className="font-bold text-primary">{ruta.metaDelDia > 0 ? Math.min(100, (ruta.cobranzaDelDia / ruta.metaDelDia) * 100).toFixed(0) : 0}%</span>
                                 <span className="text-slate-500 font-medium">{formatCurrency(ruta.cobranzaDelDia)}</span>
                               </div>
                               <div className="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden border border-slate-200">
@@ -1228,7 +1242,7 @@ export const RutasPageView = ({
                       <div className="space-y-2">
                         <div className="flex justify-between items-center">
                           <span className="text-sm font-bold text-slate-900">{formatCurrency(ruta.cobranzaDelDia)}</span>
-                          <span className="text-sm font-bold text-primary">{ruta.metaDelDia > 0 ? ((ruta.cobranzaDelDia / ruta.metaDelDia) * 100).toFixed(0) : 0}%</span>
+                          <span className="text-sm font-bold text-primary">{ruta.metaDelDia > 0 ? Math.min(100, (ruta.cobranzaDelDia / ruta.metaDelDia) * 100).toFixed(0) : 0}%</span>
                         </div>
                         <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden border border-slate-200">
                           <div
@@ -1752,19 +1766,14 @@ export const RutasPageView = ({
               <div className="bg-slate-50 rounded-xl p-4 border border-slate-200">
                 <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Saldo disponible en ruta</p>
                 {saldoDisponibleRecolectar === null ? (
-                  <div className="flex items-center gap-2 text-slate-400 text-sm">
-                    <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/></svg>
-                    Cargando saldo...
-                  </div>
+                  <div className="flex items-center gap-2 text-slate-400 text-sm" />
                 ) : (
                   <p className="text-2xl font-bold text-emerald-700">
-                    {saldoDisponibleRecolectar.toLocaleString('es-CO', { style: 'currency', currency: 'COP' })}
+                    {formatCurrency(saldoDisponibleRecolectar)}
                   </p>
                 )}
                 <p className="text-xs text-slate-400 mt-1">Sera enviado a la <strong>Caja de Oficina</strong></p>
               </div>
-
-              {/* Input monto con formato automático de puntos */}
               <div>
                 <label className="block text-sm font-bold text-slate-700 mb-2">Monto a recolectar</label>
                 <div className="relative">

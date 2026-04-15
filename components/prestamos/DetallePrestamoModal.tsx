@@ -7,6 +7,7 @@ import DetallePrestamo, { PrestamoDetalle } from '@/components/prestamos/Detalle
 import { prestamosService } from '@/services/prestamos-service';
 import { getLoanAmounts } from '@/lib/loan-calculations';
 import { offlineStore } from '@/lib/offline/offlineDb';
+import { normalizeDateKey } from '@/lib/rutas-core';
 
 interface DetallePrestamoModalProps {
   id: string;
@@ -40,6 +41,28 @@ export default function DetallePrestamoModal({ id, onClose, includeArchived = fa
           ? await prestamosService.obtenerPrestamoArchivadoPorId(id)
           : await prestamosService.obtenerPrestamoPorId(id);
         const cuotasData = await prestamosService.obtenerCuotas(id).catch(() => []);
+
+        const proximoPagoDesdeCuotas = (() => {
+          const cuotasArr = Array.isArray(cuotasData) ? cuotasData : [];
+          if (cuotasArr.length === 0) return undefined;
+
+          const isNoPagada = (c: any) => {
+            const st = String(c?.estado || '').toUpperCase();
+            return st !== 'PAGADA' && st !== 'PAGADO' && st !== 'ANULADA' && st !== 'ANULADO';
+          };
+
+          const sorted = [...cuotasArr].sort((a: any, b: any) => {
+            const ak = normalizeDateKey(String(a?.fechaVencimiento || ''));
+            const bk = normalizeDateKey(String(b?.fechaVencimiento || ''));
+            if (ak && bk) return ak.localeCompare(bk);
+            if (ak) return -1;
+            if (bk) return 1;
+            return 0;
+          });
+
+          const next = sorted.find(isNoPagada);
+          return next?.fechaVencimiento ? String(next.fechaVencimiento) : undefined;
+        })();
         
         const principal = Number(data.monto || 0);
         const tasa = Number(data.tasaInteres || 0);
@@ -100,7 +123,7 @@ export default function DetallePrestamoModal({ id, onClose, includeArchived = fa
           frecuencia: data.frecuenciaPago || data.frecuencia || 'SEMANAL',
           fechaInicio: data.fechaInicio || '',
           fechaPrimerCobro: data.fechaPrimerCobro || undefined,
-          fechaProximoPago: data.proximoPago || undefined,
+          fechaProximoPago: proximoPagoDesdeCuotas || data.proximoPago || undefined,
           fechaVencimiento: data.fechaFin || data.fechaVencimiento || '',
           estado: data.estado || 'ACTIVO',
           tipoAmortizacion: (data.tipoAmortizacion || 'INTERES_SIMPLE') as 'INTERES_SIMPLE' | 'FRANCESA',
@@ -120,6 +143,7 @@ export default function DetallePrestamoModal({ id, onClose, includeArchived = fa
             numero: c.numeroCuota,
             fecha: c.fechaVencimiento,
             monto: c.monto,
+            montoPagado: c.montoPagado != null ? Number(c.montoPagado) : undefined,
             montoCapital: c.montoCapital != null ? Number(c.montoCapital) : undefined,
             montoInteres: c.montoInteres != null ? Number(c.montoInteres) : undefined,
             estado: c.estado,

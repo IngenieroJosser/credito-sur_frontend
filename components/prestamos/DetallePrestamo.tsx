@@ -22,6 +22,20 @@ const formatDate = (dateStr: string | undefined | null): string => {
   } catch { return dateStr; }
 };
 
+const formatFechaPagoBogota = (dateStr: string | undefined | null): string => {
+  if (!dateStr) return '—'
+  try {
+    const d = new Date(dateStr)
+    if (!isNaN(d.getTime())) {
+      const key = getBogotaDateKey(d)
+      if (key) return formatDate(key)
+    }
+  } catch {
+    // ignore
+  }
+  return formatDate(dateStr)
+}
+
 export interface PrestamoDetalle {
   id: string;
   clienteId: string;
@@ -60,6 +74,7 @@ export interface PrestamoDetalle {
     numero: number;
     fecha: string;
     monto: number;
+    montoPagado?: number;
     montoCapital?: number;
     montoInteres?: number;
     estado: string; // Permitir cualquier string para manejar variaciones de enum
@@ -135,9 +150,9 @@ export default function DetallePrestamo({ prestamo }: DetallePrestamoProps) {
     setNowTs(Date.now());
   }, []);
 
-  const hoyBogotaKey = useMemo(() => getBogotaDateKey(new Date()), [])
+  const hoyBogotaKey = getBogotaDateKey(new Date())
 
-  const diasMora = useMemo(() => {
+  const diasMora = (() => {
     const vencidas = prestamo.cuotas.filter((c) => {
       const st = String(c.estado || '').toUpperCase()
       if (st === 'PAGADA' || st === 'PAGADO' || st === 'ANULADA' || st === 'ANULADO') return false
@@ -152,11 +167,32 @@ export default function DetallePrestamo({ prestamo }: DetallePrestamoProps) {
       .reduce((min, k) => (k < min ? k : min), normalizeDateKey(vencidas[0].fecha))
 
     if (!oldestKey) return 0
-    const [y, m, d] = oldestKey.split('-').map(Number)
-    const oldestTs = new Date(y, m - 1, d, 0, 0, 0, 0).getTime()
-    const diff = Math.floor((nowTs - oldestTs) / (1000 * 60 * 60 * 24))
-    return diff > 0 ? diff : 0
-  }, [prestamo.cuotas, nowTs, hoyBogotaKey]);
+    const isDiario = String((prestamo as any)?.frecuencia || '').toUpperCase() === 'DIARIO'
+    if (!isDiario) {
+      const parseKeyToBogotaMidday = (key: string) => new Date(`${key}T12:00:00-05:00`)
+      const start = parseKeyToBogotaMidday(oldestKey)
+      const end = parseKeyToBogotaMidday(hoyBogotaKey)
+      if (isNaN(start.getTime()) || isNaN(end.getTime())) return 0
+      const diff = Math.floor((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24))
+      return diff > 0 ? diff : 0
+    }
+
+    const parseKeyToBogotaMidday = (key: string) => new Date(`${key}T12:00:00-05:00`)
+    const start = parseKeyToBogotaMidday(oldestKey)
+    const end = parseKeyToBogotaMidday(hoyBogotaKey)
+    if (isNaN(start.getTime()) || isNaN(end.getTime())) return 0
+
+    // Regla: contar días de mora como los días transcurridos DESPUÉS del vencimiento
+    // hasta hoy inclusive, excluyendo domingos (no se cobra).
+    let count = 0
+    const cur = new Date(start)
+    cur.setDate(cur.getDate() + 1)
+    while (cur.getTime() <= end.getTime()) {
+      if (cur.getDay() !== 0) count++
+      cur.setDate(cur.getDate() + 1)
+    }
+    return count
+  })();
 
   const estadoPrestamoUI = useMemo(() => {
     const st = String(prestamo.estado || '').toUpperCase()
@@ -228,7 +264,7 @@ export default function DetallePrestamo({ prestamo }: DetallePrestamoProps) {
              </div>
              <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Teléfono</span>
-               <span className="text-sm font-bold text-slate-700 block">{prestamo.clienteTelefono || 'No registrado'}</span>
+               <span className="text-sm font-bold text-slate-700 block break-all">{prestamo.clienteTelefono || 'No registrado'}</span>
              </div>
              <div className="md:col-span-2 p-4 bg-slate-50 rounded-2xl border border-slate-100">
                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Dirección</span>
@@ -462,7 +498,9 @@ export default function DetallePrestamo({ prestamo }: DetallePrestamoProps) {
                     </div>
                     <div className="bg-slate-50 rounded-xl p-3 border border-slate-100">
                       <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Cuota</span>
-                      <span className="text-lg font-bold text-slate-900">{formatCurrency(cuotaActual.monto)}</span>
+                      <span className="text-lg font-bold text-slate-900">{formatCurrency(
+                        Number((cuotaActual as any)?.montoNominal ?? (cuotaActual as any)?.monto ?? (Number((cuotaActual as any)?.montoCapital || 0) + Number((cuotaActual as any)?.montoInteres || 0)))
+                      )}</span>
                     </div>
                     <div className="bg-blue-50 rounded-xl p-3 border border-blue-100">
                       <span className="text-[10px] font-bold text-blue-600 uppercase tracking-wider block">Capital</span>
@@ -495,23 +533,30 @@ export default function DetallePrestamo({ prestamo }: DetallePrestamoProps) {
             )}
 
             {/* Tabla de Amortización */}
-            <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+            <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-slate-200">
               <thead className="bg-slate-50/50">
                 <tr>
                   <th scope="col" className="px-4 py-4 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">#</th>
                   <th scope="col" className="px-4 py-4 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">Vencimiento</th>
                   <th scope="col" className="px-4 py-4 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">Cuota</th>
+                  <th scope="col" className="px-4 py-4 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">Abono</th>
+                  <th scope="col" className="px-4 py-4 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">Pendiente</th>
                   <th scope="col" className="px-4 py-4 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">Capital</th>
                   <th scope="col" className="px-4 py-4 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">Interés</th>
                   <th scope="col" className="px-4 py-4 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">Saldo</th>
                   <th scope="col" className="px-4 py-4 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">Estado</th>
-                  <th scope="col" className="px-4 py-4 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">Fecha Pago</th>
+                  <th scope="col" className="px-4 py-4 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest min-w-[110px]">Fecha Pago</th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-slate-100">
                 {cuotasConSaldoUI.map((cuota: any) => {
                     const esCuotaActual = cuotaActual && cuota.numero === cuotaActual.numero;
+                    const montoPagado = Number(cuota?.montoPagado ?? 0)
+                    const montoCuota = Number(
+                      cuota?.montoNominal ?? cuota?.monto ?? (Number(cuota?.montoCapital || 0) + Number(cuota?.montoInteres || 0))
+                    )
+                    const pendienteCuota = Math.max(0, montoCuota - montoPagado)
                     return (
                   <tr key={cuota.numero} className={cn(
                     "transition-colors group",
@@ -527,7 +572,13 @@ export default function DetallePrestamo({ prestamo }: DetallePrestamoProps) {
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap text-sm text-slate-700 font-medium">{formatDate(cuota.fecha)}</td>
                     <td className="px-4 py-3 whitespace-nowrap text-sm font-bold text-slate-900">
-                      {formatCurrency(cuota.monto)}
+                      {formatCurrency(montoCuota)}
+                    </td>
+                    <td className="px-4 py-3 whitespace-nowrap text-sm font-bold text-amber-700">
+                      {montoPagado > 0 ? formatCurrency(montoPagado) : '—'}
+                    </td>
+                    <td className="px-4 py-3 whitespace-nowrap text-sm font-bold text-slate-700">
+                      {montoPagado > 0 ? formatCurrency(pendienteCuota) : '—'}
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap text-sm text-blue-700 font-medium">
                       {cuota.montoCapital != null ? formatCurrency(cuota.montoCapital) : '-'}
@@ -543,8 +594,8 @@ export default function DetallePrestamo({ prestamo }: DetallePrestamoProps) {
                         {cuota.estadoUI}
                       </span>
                     </td>
-                    <td className="px-4 py-3 whitespace-nowrap text-xs font-bold text-slate-500">
-                      {cuota.fechaPago ? formatDate(cuota.fechaPago) : '—'}
+                    <td className="px-4 py-3 whitespace-nowrap text-xs font-bold text-slate-500 min-w-[110px]">
+                      {cuota.fechaPago ? formatFechaPagoBogota(cuota.fechaPago) : '—'}
                     </td>
                   </tr>
                     );

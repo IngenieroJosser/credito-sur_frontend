@@ -32,6 +32,7 @@ import EditarPrestamoModal from '@/components/prestamos/EditarPrestamoModal'
 import { aprobacionesService } from '@/services/aprobaciones-service'
 import { TipoAprobacion } from '@/types/enums'
 import NotificacionDetalleModal from '@/components/dashboards/shared/NotificacionDetalleModal'
+import { formatCurrency, formatMilesCOP } from '@/lib/utils'
 
 // MOCKS ELIMINADOS - La aplicación solo funciona con datos reales del backend
 
@@ -289,19 +290,10 @@ export default function NotificacionesPage() {
     setCurrentPage(1);
   }, [filter, tipoFilter, filterRuta, search, sortBy]);
 
-  const formatCurrency = (amount: number | undefined) => {
-    if (amount === undefined) return '---'
-    return new Intl.NumberFormat('es-CO', {
-      style: 'currency',
-      currency: 'COP',
-      minimumFractionDigits: 0,
-    }).format(amount)
-  }
-
   // Helper for formatted numeric inputs
   const formatCOPInput = (val: number | undefined) => {
     if (val === undefined || val === 0) return ''
-    return val.toLocaleString('es-CO')
+    return formatMilesCOP(val)
   }
 
   const parseCOPInput = (val: string) => {

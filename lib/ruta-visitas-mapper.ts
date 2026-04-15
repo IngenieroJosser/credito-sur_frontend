@@ -125,18 +125,28 @@ export const mapAsignacionesToVisitasLite = (params: {
         return 0
       })
 
-      const proxima = cuotasOrdenadas.find((c: any) => c && !isPagada(c) && !isAnulada(c)) || null
+      const proxima = cuotasOrdenadas.find((c: any) => c && !isPagada(c) && !isAnulada(c)) || (prestamo?.proximaCuota ?? null)
       const dueKey = getCuotaEffectiveVtoKey(proxima)
       const fechaEfectiva = proxima ? (resolveFechaEfectivaCuota(proxima) || String((proxima as any)?.fechaVencimiento || '')) : ''
 
       const frecuencia = String(prestamo?.frecuenciaPago || 'DIARIO').toUpperCase()
       const periodoRuta = toPeriodo(frecuencia)
 
-      const tieneMora = cuotasOrdenadas.some((c: any) => {
-        if (!c || isPagada(c) || isAnulada(c)) return false
-        const vtoKey = getCuotaEffectiveVtoKey(c)
-        return !!vtoKey && !!hoyKey && vtoKey < hoyKey
-      })
+      const tieneMora = (() => {
+        const byCuotas = cuotasOrdenadas.some((c: any) => {
+          if (!c || isPagada(c) || isAnulada(c)) return false
+          const vtoKey = getCuotaEffectiveVtoKey(c)
+          return !!vtoKey && !!hoyKey && vtoKey < hoyKey
+        })
+        if (byCuotas) return true
+
+        // Fallback defensivo: si no hay cuotas cargadas, inferir mora comparando
+        // la fecha efectiva de la próxima cuota (si existe) contra hoyKey.
+        // Esto evita que un préstamo aparezca como "pendiente" cuando ya pasó
+        // el vencimiento pero el payload no trae cuotas.
+        const proxKey = dueKey ? normalizeDateKey(String(dueKey)) : ''
+        return !!proxKey && !!hoyKey && proxKey < hoyKey
+      })()
 
       // Regla de aparición (apareceHoy):
       // - Si está en mora, aparece siempre.

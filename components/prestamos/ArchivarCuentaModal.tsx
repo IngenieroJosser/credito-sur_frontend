@@ -1,7 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { X, AlertTriangle, FileText } from 'lucide-react';
+import { AlertTriangle, X, FileText } from 'lucide-react'
+import { formatMilesCOP } from '@/lib/utils'
 import { prestamosService } from '@/services/prestamos-service';
 
 interface ArchivarCuentaModalProps {
@@ -90,7 +91,7 @@ export default function ArchivarCuentaModal({
             <div className="flex justify-between text-sm">
               <span className="text-gray-600">Saldo Pendiente:</span>
               <span className="font-semibold text-red-600">
-                ${saldoPendiente.toLocaleString('es-CO')}
+                ${formatMilesCOP(saldoPendiente)}
               </span>
             </div>
           </div>

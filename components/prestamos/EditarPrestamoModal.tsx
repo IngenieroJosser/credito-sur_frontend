@@ -5,7 +5,7 @@ import { X, Save, Clock, Edit3, Lock, User, Loader2, Package } from 'lucide-reac
 import { createPortal } from 'react-dom';
 import { useNotification } from '@/components/providers/NotificationProvider';
 import { useNotificaciones } from '@/components/providers/NotificacionesProvider';
-import { formatCurrency } from '@/lib/utils';
+import { formatCurrency, formatMilesCOP } from '@/lib/utils';
 import { prestamosService } from '@/services/prestamos-service';
 import { formatErrorForComponent } from '@/lib/api/api';
 import { offlineStore } from '@/lib/offline/offlineDb';
@@ -20,7 +20,7 @@ interface EditarPrestamoModalProps {
 
 const formatCOPInput = (val: number | undefined) => {
   if (val === undefined || val === 0) return '';
-  return val.toLocaleString('es-CO');
+  return formatMilesCOP(val);
 };
 
 const parseCOP = (val: string) => Number(val.replace(/\D/g, ''));
