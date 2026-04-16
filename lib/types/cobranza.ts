@@ -17,7 +17,7 @@ export interface VisitaRuta {
   targetVencimiento?: string
   ordenVisita: number
   prioridad: 'alta' | 'media' | 'baja'
-  nivelRiesgo?: 'bajo' | 'leve' | 'moderado' | 'critico'
+  nivelRiesgo?: 'bajo' | 'leve' | 'precaucion' | 'moderado' | 'critico'
   cobradorId: string
   periodoRuta: PeriodoRuta
   clienteId: string
@@ -31,6 +31,7 @@ export interface VisitaRuta {
   // Detalle de cuotas
   cuotaActual?: number
   cuotasTotales?: number
+  diasMora?: number
   // Crédito pendiente de aprobación: el cliente aparece en la ruta pero aún no se puede cobrar
   pendienteAprobacion?: boolean
   fechaUltimoPago?: number      // Timestamp del último pago realizado para ordenamiento rápido

@@ -40,7 +40,7 @@ function formatMontoCorto(amount: number): string {
 function dotColor(nivelRiesgo: string | undefined): string {
   switch (nivelRiesgo) {
     case 'bajo':       return 'bg-emerald-500'
-    case 'leve':       return 'bg-yellow-400'
+    case 'leve':       return 'bg-blue-500'
     case 'precaucion': return 'bg-amber-400'
     case 'moderado':   return 'bg-orange-500'
     case 'critico':    return 'bg-red-600'
@@ -52,10 +52,58 @@ function dotColor(nivelRiesgo: string | undefined): string {
   }
 }
 
+function resolveNivelRiesgoForVisita(visita: VisitaRuta): string | undefined {
+  const base = String(visita?.nivelRiesgo || '') || undefined
+  const enMora = ((visita as any)?.enMoraHistorico) || String(visita?.estado || '').toLowerCase() === 'en_mora'
+  const enProrroga = ((visita as any)?.enProrrogaHistorico) || (visita as any)?.enProrroga || !!(visita as any)?.fechaProrroga
+  const diasMora = Number((visita as any)?.diasMora ?? 0)
+
+  const nivelPorDias = (() => {
+    if (!(diasMora > 0)) return undefined
+    if (diasMora >= 8) return 'critico'
+    if (diasMora >= 5) return 'moderado'
+    if (diasMora >= 3) return 'precaucion'
+    return 'leve'
+  })()
+
+  if (!enMora && !enProrroga && !nivelPorDias) return base
+
+  const severity = (nivel: string | undefined) => {
+    switch (nivel) {
+      case 'critico': return 5
+      case 'LISTA_NEGRA': return 5
+      case 'moderado': return 4
+      case 'ROJO': return 4
+      case 'precaucion': return 3
+      case 'AMARILLO': return 3
+      case 'leve': return 2
+      case 'bajo': return 1
+      case 'VERDE': return 1
+      default: return 0
+    }
+  }
+
+  // Criterio por días (prioritario):
+  // - 1-2 => leve
+  // - 3-4 => precaucion
+  // - 5-7 => moderado
+  // - 8+  => critico
+  // Si no tenemos `diasMora` pero el backend ya marcó `en_mora`, degradamos a un mínimo
+  // razonable (leve) en vez de forzar moderado.
+  const target = nivelPorDias
+    || (enProrroga ? 'precaucion' : undefined)
+    || (enMora ? 'leve' : undefined)
+    || base
+
+  const merged = severity(base) >= severity(target) ? base : target
+  if (nivelPorDias && severity(merged) < severity(nivelPorDias)) return nivelPorDias
+  return merged
+}
+
 function nivelBadgeColor(nivelRiesgo: string | undefined): string {
   switch (nivelRiesgo) {
     case 'bajo':       return 'text-emerald-700 bg-emerald-50 border-emerald-100'
-    case 'leve':       return 'text-yellow-700 bg-yellow-50 border-yellow-100'
+    case 'leve':       return 'text-blue-700 bg-blue-50 border-blue-100'
     case 'precaucion': return 'text-amber-700 bg-amber-50 border-amber-100'
     case 'moderado':   return 'text-orange-700 bg-orange-50 border-orange-100'
     case 'critico':    return 'text-red-700 bg-red-50 border-red-100'
@@ -101,7 +149,7 @@ function borderColor(nivelRiesgo: string | undefined, isSelected: boolean): stri
   if (isSelected) return 'ring-2 ring-[#08557f] shadow-md bg-blue-50/30 border-[#08557f]'
   switch (nivelRiesgo) {
     case 'bajo':       return 'border-emerald-400 shadow-sm'
-    case 'leve':       return 'border-yellow-400 shadow-sm'
+    case 'leve':       return 'border-blue-400 shadow-sm'
     case 'precaucion': return 'border-amber-400 shadow-sm'
     case 'moderado':   return 'border-orange-500 shadow-sm'
     case 'critico':    return 'border-red-600 shadow-md'
@@ -147,6 +195,7 @@ function VisitaCardContent({
   actions?: ReactNode
   children?: ReactNode
 }) {
+  const nivelRiesgoUI = resolveNivelRiesgoForVisita(visita)
   return (
     <>
       {/* Fila 1: grip + nombre + botón ojo */}
@@ -174,12 +223,12 @@ function VisitaCardContent({
         <div className="flex items-center gap-1 flex-wrap shrink-0">
           {/* Dot semáforo */}
           <span
-            title={nivelTitle(visita.nivelRiesgo)}
-            className={`w-2 h-2 rounded-full shrink-0 ${dotColor(visita.nivelRiesgo)}`}
+            title={nivelTitle(nivelRiesgoUI)}
+            className={`w-2 h-2 rounded-full shrink-0 ${dotColor(nivelRiesgoUI)}`}
           />
           {/* Badge nivel riesgo */}
-          <span className={`text-[9px] font-black uppercase px-1.5 py-0.5 rounded border ${nivelBadgeColor(visita.nivelRiesgo)}`}>
-            {nivelLabel(visita.nivelRiesgo)}
+          <span className={`text-[9px] font-black uppercase px-1.5 py-0.5 rounded border ${nivelBadgeColor(nivelRiesgoUI)}`}>
+            {nivelLabel(nivelRiesgoUI)}
           </span>
           {/* Badge cuota actual */}
           {visita.cuotaActual && (
@@ -330,12 +379,13 @@ export function StaticVisitaItem({
   actions?: ReactNode
   children?: ReactNode
 }) {
+  const nivelRiesgoUI = resolveNivelRiesgoForVisita(visita)
   return (
     <div
       onClick={() => allowClick && onSelect && onSelect(visita.id)}
       className={`relative z-10 w-full rounded-xl px-2.5 py-1.5 transition-all bg-white border-2 ${
         allowClick ? 'cursor-pointer hover:shadow-md active:scale-[0.99]' : 'cursor-default'
-      } ${borderColor(visita.nivelRiesgo, !!isSelected)}`}
+      } ${borderColor(nivelRiesgoUI, !!isSelected)}`}
     >
       <VisitaCardContent
         visita={visita}
@@ -377,6 +427,8 @@ export function SortableItem({
     disabled: !!disableSort,
   })
 
+  const nivelRiesgoUI = resolveNivelRiesgoForVisita(visita)
+
   const style = { transform: CSS.Transform.toString(transform), transition }
 
   const grip = disableSort ? null : (
@@ -393,7 +445,7 @@ export function SortableItem({
     <div
       ref={setNodeRef}
       style={style}
-      className={`relative z-10 w-full rounded-xl px-2.5 py-1.5 transition-all bg-white border-2 ${borderColor(visita.nivelRiesgo, !!isSelected)}`}
+      className={`relative z-10 w-full rounded-xl px-2.5 py-1.5 transition-all bg-white border-2 ${borderColor(nivelRiesgoUI, !!isSelected)}`}
     >
       <VisitaCardContent
         visita={visita}

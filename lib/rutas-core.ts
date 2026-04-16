@@ -432,6 +432,44 @@ export const isCuotaNoPagada = (cuota: any): boolean => {
   return st !== 'PAGADA' && st !== 'PAGADO' && st !== 'ANULADA' && st !== 'ANULADO';
 };
 
+export const computeDiasMoraFromCuotas = (
+  cuotas: any[],
+  hoyBogotaKey: string,
+  frecuenciaPagoRaw?: string | null,
+): number => {
+  if (!Array.isArray(cuotas) || cuotas.length === 0) return 0;
+  if (!hoyBogotaKey) return 0;
+
+  const frecuencia = String(frecuenciaPagoRaw || '').toUpperCase();
+  const vencidasKeys = (cuotas || [])
+    .filter((c: any) => c && isCuotaNoPagada(c))
+    .map((c: any) => normalizeDateKey(resolveFechaEfectivaCuota(c) || String(c?.fechaVencimiento || '')))
+    .filter((k: any) => !!k && k < hoyBogotaKey) as string[];
+
+  if (vencidasKeys.length === 0) return 0;
+  const oldestKey = vencidasKeys.reduce((min, k) => (k < min ? k : min), vencidasKeys[0]);
+  if (!oldestKey) return 0;
+
+  const parseKeyToBogotaMidday = (key: string) => new Date(`${key}T12:00:00-05:00`);
+  const start = parseKeyToBogotaMidday(oldestKey);
+  const end = parseKeyToBogotaMidday(hoyBogotaKey);
+  if (isNaN(start.getTime()) || isNaN(end.getTime())) return 0;
+
+  if (frecuencia === 'DIARIO') {
+    let count = 0;
+    const cur = new Date(start);
+    cur.setDate(cur.getDate() + 1);
+    while (cur.getTime() <= end.getTime()) {
+      if (cur.getDay() !== 0) count++;
+      cur.setDate(cur.getDate() + 1);
+    }
+    return count;
+  }
+
+  const diff = Math.floor((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
+  return diff > 0 ? diff : 0;
+};
+
 export const computeMontoExigibleHastaHoyFromCuotas = (cuotas: any[], hoyBogotaKey: string): number => {
   // Regla de negocio clave (mora / abonos parciales):
   // Devuelve el total exigible acumulado hasta HOY (inclusive):
