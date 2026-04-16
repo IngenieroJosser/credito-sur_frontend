@@ -1,5 +1,6 @@
 import type { PeriodoRuta } from '@/lib/types/cobranza'
 import {
+  computeDiasMoraFromCuotas,
   computeMontoExigibleHastaHoyFromCuotas,
   getBogotaDateKey,
   isVisitaExigibleHoy,
@@ -46,6 +47,7 @@ export type VisitaRutaLite = {
   prestamoId?: string
   cuotaActual?: number
   cuotasTotales?: number
+  diasMora?: number
   tipoPrestamo?: any
   articuloNombre?: string
   pendienteAprobacion?: boolean
@@ -132,6 +134,8 @@ export const mapAsignacionesToVisitasLite = (params: {
       const frecuencia = String(prestamo?.frecuenciaPago || 'DIARIO').toUpperCase()
       const periodoRuta = toPeriodo(frecuencia)
 
+      const diasMora = computeDiasMoraFromCuotas(cuotasOrdenadas as any, hoyKey, frecuencia)
+
       const tieneMora = (() => {
         const byCuotas = cuotasOrdenadas.some((c: any) => {
           if (!c || isPagada(c) || isAnulada(c)) return false
@@ -211,6 +215,7 @@ export const mapAsignacionesToVisitasLite = (params: {
         prestamoId: prestamo?.id,
         cuotaActual: (proxima as any)?.numeroCuota,
         cuotasTotales: prestamo?.cantidadCuotas,
+        diasMora,
         tipoPrestamo: esArticulo ? 'ARTICULO' : 'EFECTIVO',
         articuloNombre: nombreCredito,
         pendienteAprobacion: prestamo?.estado === 'PENDIENTE_APROBACION',

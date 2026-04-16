@@ -29,6 +29,7 @@ import FiltroRuta from '@/components/filtros/FiltroRuta'
 import ClientePortalModal from '@/components/cliente/ClientePortalModal'
 import { usePermission } from '@/hooks/usePermission'
 import { apiRequest } from '@/lib/api/api'
+import { formatErrorForComponent } from '@/lib/api/api'
 import { exportService } from '@/services/export-service'
 import { toast } from 'sonner'
 
@@ -247,9 +248,17 @@ export default function CuentasMoraFeature() {
         : soloEnMora.filter(c => c.etiquetaMora === filtroNivel)
 
       setCuentas(filtradas)
-    } catch (error) {
-      console.error('Error al cargar cuentas en mora:', error)
-      toast.error('Error al cargar la lista de cuentas en mora')
+    } catch (error: any) {
+      const msg = formatErrorForComponent(error)
+      console.error('Error al cargar cuentas en mora:', {
+        error,
+        statusCode: error?.statusCode,
+        message: error?.message,
+        serialized: (() => {
+          try { return JSON.stringify(error) } catch { return String(error) }
+        })(),
+      })
+      toast.error(msg)
     } finally {
       setIsDataLoading(false)
     }
