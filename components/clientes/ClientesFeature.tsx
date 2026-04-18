@@ -40,6 +40,13 @@ import { offlineStore } from '@/lib/offline/offlineDb';
 import { WifiOff } from 'lucide-react';
 import { ExportButton } from '@/components/ui/ExportButton';
 import { exportService } from '@/services/export-service';
+import {
+  computeDiasMoraFromCuotas,
+  getBogotaDateKey,
+  isCuotaNoPagada,
+  normalizeDateKey,
+  resolveFechaEfectivaCuota,
+} from '@/lib/rutas-core'
 
 // Tipos locales
 type NivelRiesgo = 'VERDE' | 'AMARILLO' | 'ROJO' | 'LISTA_NEGRA';
@@ -124,15 +131,40 @@ export default function ClientesFeature({
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
   const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
+  const [isClientModalOpen, setIsClientModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [clientToEdit, setClientToEdit] = useState<Cliente | null>(null);
+  const [clientToEdit, setClientToEdit] = useState<ClienteAdmin | null>(null);
+  const [diasMoraByClientId, setDiasMoraByClientId] = useState<Record<string, number>>({});
 
-  const getScoreColor = (score: number) => {
-    if (score >= 85) return 'text-emerald-600';
-    if (score >= 70) return 'text-blue-600';
-    if (score >= 50) return 'text-amber-600';
-    return 'text-rose-600';
-  };
+  const calcularNivelMora = (dias: number) => {
+    if (dias >= 8) return 'critico'
+    if (dias >= 5) return 'moderado'
+    if (dias >= 3) return 'precaucion'
+    if (dias >= 1) return 'leve'
+    return 'bajo'
+  }
+
+  const getEstadoMoraColor = (nivel: string) => {
+    switch (nivel) {
+      case 'bajo':       return 'text-emerald-700 bg-emerald-50 ring-emerald-600/20'
+      case 'leve':       return 'text-blue-700 bg-blue-50 ring-blue-600/20'
+      case 'precaucion': return 'text-amber-700 bg-amber-50 ring-amber-600/20'
+      case 'moderado':   return 'text-orange-700 bg-orange-50 ring-orange-600/20'
+      case 'critico':    return 'text-red-700 bg-red-50 ring-red-600/20'
+      default:           return 'text-slate-600 bg-slate-50 ring-slate-600/20'
+    }
+  }
+
+  const getEstadoMoraLabel = (nivel: string) => {
+    switch (nivel) {
+      case 'bajo':       return 'Mínimo'
+      case 'leve':       return 'Leve'
+      case 'precaucion': return 'Precaución'
+      case 'moderado':   return 'Moderado'
+      case 'critico':    return 'Crítico'
+      default:           return '—'
+    }
+  }
 
   const RenderTendencia =({ t }: { t: string }) => {
     if (t === 'SUBE') return <TrendingUp className="h-4 w-4 text-emerald-500" />;
@@ -188,16 +220,6 @@ export default function ClientesFeature({
     }
   };
 
-  const stats = {
-    total: clientes.length,
-    verde: clientes.filter(c => c.nivelRiesgo === 'VERDE').length,
-    amarillo: clientes.filter(c => c.nivelRiesgo === 'AMARILLO').length,
-    rojo: clientes.filter(c => c.nivelRiesgo === 'ROJO').length,
-    listaNegra: clientes.filter(c => c.enListaNegra).length,
-    totalDeuda: clientes.reduce((sum, c) => sum + (c.montoTotal ?? 0), 0),
-    totalMora: clientes.reduce((sum, c) => sum + (c.montoMora ?? 0), 0)
-  };
-
   const esMora = (cliente: ClienteAdmin) => (cliente.montoMora ?? 0) > 0 || (cliente.diasMora ?? 0) > 0;
   const esVencida = (cliente: ClienteAdmin) => (cliente.diasMora ?? 0) >= 30;
 
@@ -219,10 +241,86 @@ export default function ClientesFeature({
     return matchesSearch && matchesRiesgo && matchesRuta && matchesEstado;
   });
 
+  const stats = useMemo(() => {
+    const base = Array.isArray(filteredClientes) ? filteredClientes : []
+    const getDias = (c: any) => Number(diasMoraByClientId[String(c?.id || '')] ?? c?.diasMora ?? 0)
+
+    const buenEstado = base.filter((c: any) => getDias(c) <= 0).length
+    const riesgoMedio = base.filter((c: any) => {
+      const d = getDias(c)
+      return d >= 1 && d <= 4
+    }).length
+    const altoRiesgo = base.filter((c: any) => getDias(c) >= 5).length
+
+    return {
+      total: base.length,
+      buenEstado,
+      riesgoMedio,
+      altoRiesgo,
+      totalDeuda: base.reduce((sum: number, c: any) => sum + Number(c?.montoTotal ?? 0), 0),
+      totalMora: base.reduce((sum: number, c: any) => sum + Number(c?.montoMora ?? 0), 0),
+    }
+  }, [filteredClientes, diasMoraByClientId])
+
   const totalPages = Math.ceil(filteredClientes.length / itemsPerPage);
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
   const currentItems = filteredClientes.slice(indexOfFirstItem, indexOfLastItem);
+
+  useEffect(() => {
+    let cancelled = false
+
+    const run = async () => {
+      const visibles = (Array.isArray(currentItems) ? currentItems : [])
+        .map((c) => ({ id: String((c as any)?.id || ''), isPending: (c as any)?.estadoAprobacion === 'PENDIENTE' }))
+        .filter((c) => !!c.id && !c.id.includes('offline') && !c.id.includes('temp') && !c.isPending)
+
+      if (visibles.length === 0) return
+
+      const hoyKey = getBogotaDateKey(new Date())
+      const updates: Record<string, number> = {}
+
+      await Promise.all(visibles.map(async ({ id }) => {
+        try {
+          // Solo recalcular si el backend no manda diasMora o viene en 0.
+          const existing = Number((diasMoraByClientId as any)?.[id])
+          if (existing > 0) return
+
+          const detalle: any = await clientesService.obtenerPorId(id)
+          const prestamos = Array.isArray(detalle?.prestamos) ? detalle.prestamos : []
+
+          let maxDias = 0
+          for (const p of prestamos) {
+            const cuotas = Array.isArray(p?.cuotas) ? p.cuotas : []
+            if (cuotas.length === 0) continue
+
+            const frecuencia = String(p?.frecuenciaPago || 'DIARIO').toUpperCase()
+            const vencidas = cuotas.some((c: any) => {
+              if (!c || !isCuotaNoPagada(c)) return false
+              const raw = resolveFechaEfectivaCuota(c) || String(c?.fechaVencimiento || '')
+              const k = normalizeDateKey(raw)
+              return !!k && !!hoyKey && k < hoyKey
+            })
+            if (!vencidas) continue
+
+            const dm = computeDiasMoraFromCuotas(cuotas as any, hoyKey, frecuencia)
+            if (dm > maxDias) maxDias = dm
+          }
+
+          updates[id] = maxDias
+        } catch {
+          // ignore
+        }
+      }))
+
+      if (cancelled) return
+      if (Object.keys(updates).length === 0) return
+      setDiasMoraByClientId((prev) => ({ ...prev, ...updates }))
+    }
+
+    run()
+    return () => { cancelled = true }
+  }, [currentItems])
 
   if (!permitido) {
     return (
@@ -291,7 +389,7 @@ export default function ClientesFeature({
           </div>
         )}
 
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-6">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
           <div className="p-5 rounded-2xl border border-slate-200 bg-white sm:bg-white/80 sm:backdrop-blur-sm shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all">
             <div className="flex items-center justify-between mb-4">
               <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Total Clientes</span>
@@ -299,13 +397,13 @@ export default function ClientesFeature({
             </div>
             <p className="text-3xl font-bold text-slate-900">{stats.total}</p>
           </div>
-          
+
           <div className="p-5 rounded-2xl border border-slate-200 bg-white sm:bg-white/80 sm:backdrop-blur-sm shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all">
             <div className="flex items-center justify-between mb-4">
               <span className="text-xs font-bold text-emerald-600 uppercase tracking-wider">Buen Estado</span>
               <CheckCircle className="w-4 h-4 text-emerald-600" />
             </div>
-            <p className="text-3xl font-bold text-slate-900">{stats.verde}</p>
+            <p className="text-3xl font-bold text-slate-900">{stats.buenEstado}</p>
           </div>
 
           <div className="p-5 rounded-2xl border border-slate-200 bg-white sm:bg-white/80 sm:backdrop-blur-sm shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all">
@@ -313,7 +411,7 @@ export default function ClientesFeature({
               <span className="text-xs font-bold text-amber-600 uppercase tracking-wider">Riesgo Medio</span>
               <AlertTriangle className="w-4 h-4 text-amber-600" />
             </div>
-            <p className="text-3xl font-bold text-slate-900">{stats.amarillo}</p>
+            <p className="text-3xl font-bold text-slate-900">{stats.riesgoMedio}</p>
           </div>
 
           <div className="p-5 rounded-2xl border border-slate-200 bg-white sm:bg-white/80 sm:backdrop-blur-sm shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all">
@@ -321,15 +419,7 @@ export default function ClientesFeature({
               <span className="text-xs font-bold text-rose-600 uppercase tracking-wider">Alto Riesgo</span>
               <AlertCircle className="w-4 h-4 text-rose-600" />
             </div>
-            <p className="text-3xl font-bold text-slate-900">{stats.rojo}</p>
-          </div>
-
-          <div className="p-5 rounded-2xl border border-slate-200 bg-white sm:bg-white/80 sm:backdrop-blur-sm shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all">
-            <div className="flex items-center justify-between mb-4">
-              <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Mora Total</span>
-              <DollarSign className="w-4 h-4 text-slate-400" />
-            </div>
-            <p className="text-3xl font-bold text-slate-900">{formatCurrency(stats.totalMora)}</p>
+            <p className="text-3xl font-bold text-slate-900">{stats.altoRiesgo}</p>
           </div>
         </div>
 
@@ -337,47 +427,23 @@ export default function ClientesFeature({
           <div className="flex flex-col gap-4 md:flex-row md:items-center">
             <div className="flex items-center gap-1.5 flex-wrap">
               <Filter className="h-3.5 w-3.5 text-slate-400 shrink-0 mr-1" />
-              <div className="flex items-center gap-1.5 bg-slate-100/50 p-1 rounded-xl border border-slate-200">
-                {[
-                  { id: 'GENERAL' as const, label: `Todos (${stats.total})` },
-                  { id: 'MORA' as const, label: `Mora (${totalClientesMora})` },
-                  { id: 'VENCIDAS' as const, label: `Vencidas (${totalClientesVencidas})` },
-                ].map((filtro) => (
-                  <button
-                    key={filtro.id}
-                    onClick={() => {
-                      setFilterEstadoCuenta(filtro.id);
-                      setCurrentPage(1);
-                    }}
-                    className={`px-3 py-1.5 text-[10px] font-bold rounded-lg transition-all whitespace-nowrap ${
-                      filterEstadoCuenta === filtro.id 
-                        ? 'bg-white text-primary shadow-sm' 
-                        : 'text-slate-500 hover:text-slate-700'
-                    }`}
-                  >
-                    {filtro.label}
-                  </button>
-                ))}
-              </div>
-
-              <div className="h-4 w-px bg-slate-200 mx-1 md:block hidden" />
 
               {[
                 { id: 'all', label: 'Riesgo: Todos' },
                 { id: 'VERDE', label: 'Al Día' },
                 { id: 'AMARILLO', label: 'Riesgo' },
                 { id: 'ROJO', label: 'Rojo' },
-                { id: 'LISTA_NEGRA', label: 'Lista Negra' }
+                { id: 'LISTA_NEGRA', label: 'Lista Negra' },
               ].map((filtro) => (
                 <button
                   key={filtro.id}
                   onClick={() => {
-                    setFilterRiesgo(filtro.id);
-                    setCurrentPage(1);
+                    setFilterRiesgo(filtro.id)
+                    setCurrentPage(1)
                   }}
                   className={`px-3 py-1.5 text-[11px] font-bold rounded-xl transition-all whitespace-nowrap ${
-                    filterRiesgo === filtro.id 
-                      ? 'bg-primary text-white shadow-md shadow-primary/20' 
+                    filterRiesgo === filtro.id
+                      ? 'bg-primary text-white shadow-md shadow-primary/20'
                       : 'bg-slate-100/50 text-slate-600 hover:bg-slate-200/70 border border-slate-200'
                   }`}
                 >
@@ -387,42 +453,16 @@ export default function ClientesFeature({
 
               <div className="h-4 w-px bg-slate-200 mx-1 md:block hidden" />
 
-              <FiltroRuta 
-                  onRutaChange={setFilterRuta} 
-                  selectedRutaId={filterRuta}
-                  layout="wrap"
-                  showAllOption={true}
-                  hideLabel={true}
+              <FiltroRuta
+                onRutaChange={setFilterRuta}
+                selectedRutaId={filterRuta}
+                layout="wrap"
+                showAllOption={true}
+                hideLabel={true}
               />
             </div>
-
-            <div className="flex items-center gap-1.5 flex-wrap">
-              <Filter className="h-3.5 w-3.5 text-slate-400 shrink-0 mr-1" />
-              {[
-                { id: 'all', label: 'Todos' },
-                { id: 'VERDE', label: 'Al Día' },
-                { id: 'AMARILLO', label: 'Riesgo' },
-                { id: 'ROJO', label: 'Mora' },
-                { id: 'LISTA_NEGRA', label: 'Lista' }
-              ].map((filtro) => (
-                <button
-                  key={filtro.id}
-                  onClick={() => {
-                    setFilterRiesgo(filtro.id);
-                    setCurrentPage(1);
-                  }}
-                  className={`px-3 py-1.5 text-[11px] font-bold rounded-xl transition-all whitespace-nowrap ${
-                    filterRiesgo === filtro.id 
-                      ? 'bg-primary text-white shadow-md shadow-primary/20' 
-                      : 'bg-slate-100/50 text-slate-600 hover:bg-slate-200/70 border border-slate-200'
-                  }`}
-                >
-                  {filtro.label}
-                </button>
-              ))}
-            </div>
           </div>
-          
+
           <div className="relative w-full md:w-80">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
             <input
@@ -430,8 +470,8 @@ export default function ClientesFeature({
               placeholder="Buscar cliente, cédula o teléfono..."
               value={searchTerm}
               onChange={(e) => {
-                setSearchTerm(e.target.value);
-                setCurrentPage(1);
+                setSearchTerm(e.target.value)
+                setCurrentPage(1)
               }}
               className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-sm font-medium text-primary transition-all placeholder:text-slate-400"
             />
@@ -445,7 +485,6 @@ export default function ClientesFeature({
                 <tr className="bg-slate-50/50 border-b border-slate-200">
                   <th className="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Cliente</th>
                   <th className="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Estado</th>
-                  <th className="px-6 py-4 text-center text-xs font-bold text-slate-500 uppercase tracking-wider">Score</th>
                   <th className="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Finanzas</th>
                   <th className="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Tendencia</th>
                   <th className="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Contacto</th>
@@ -456,6 +495,7 @@ export default function ClientesFeature({
                 {currentItems.length > 0 ? (
                   currentItems.map((cliente, index) => {
                     const isPending = cliente.estadoAprobacion === 'PENDIENTE' || cliente.id?.includes('offline') || cliente.id?.includes('temp');
+                    const diasMoraUI = Number(diasMoraByClientId[String((cliente as any)?.id || '')] ?? (cliente as any)?.diasMora ?? 0)
                     return (
                     <tr
                       key={cliente.id || `client-${index}`}
@@ -508,25 +548,13 @@ export default function ClientesFeature({
                       <td className="px-6 py-4">
                         <div className="space-y-1">
                           <div
-                            className={`inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-bold ring-1 ring-inset ${getRiesgoColor(
-                              cliente.nivelRiesgo || 'VERDE' as any
+                            className={`inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-bold ring-1 ring-inset ${getEstadoMoraColor(
+                              calcularNivelMora(diasMoraUI)
                             )}`}
                           >
-                            <span className="mr-1.5">{getRiesgoIcon(cliente.nivelRiesgo || 'VERDE' as any)}</span>
-                            {(cliente.nivelRiesgo || 'VERDE').replace('_', ' ')}
+                            {getEstadoMoraLabel(calcularNivelMora(diasMoraUI))}
                           </div>
                         </div>
-                      </td>
-
-                      <td className="px-6 py-4 text-center font-bold">
-                         {cliente.score && (
-                          <div className="flex flex-col items-center">
-                            <span className={`text-lg ${getScoreColor(cliente.score)}`}>{cliente.score}</span>
-                            <div className="w-12 h-1 bg-slate-100 rounded-full mt-1 overflow-hidden">
-                              <div className={`h-full ${cliente.score >= 70 ? 'bg-emerald-500' : 'bg-rose-500'}`} style={{ width: `${cliente.score}%` }} />
-                            </div>
-                          </div>
-                         )}
                       </td>
 
                       <td className="px-6 py-4">
@@ -609,7 +637,7 @@ export default function ClientesFeature({
                   })
                 ) : (
                   <tr>
-                    <td colSpan={7} className="px-6 py-20 text-center text-slate-500">
+                    <td colSpan={6} className="px-6 py-20 text-center text-slate-500">
                       No se encontraron resultados
                     </td>
                   </tr>
@@ -630,6 +658,7 @@ export default function ClientesFeature({
         <div className="md:hidden space-y-4">
           {currentItems.map((cliente, index) => {
             const isPending = cliente.estadoAprobacion === 'PENDIENTE' || cliente.id?.includes('offline') || cliente.id?.includes('temp');
+            const diasMoraUI = Number(diasMoraByClientId[String((cliente as any)?.id || '')] ?? (cliente as any)?.diasMora ?? 0)
             return (
             <div 
               key={cliente.id || `client-${index}`} 
@@ -659,9 +688,11 @@ export default function ClientesFeature({
                 </div>
                 <div className={cn(
                   "px-2 py-1 rounded-lg text-[10px] font-bold",
-                  isPending ? "bg-amber-200/50 text-amber-700" : getRiesgoColor(cliente.nivelRiesgo || 'VERDE' as any)
+                  isPending
+                    ? "bg-amber-200/50 text-amber-700"
+                    : getEstadoMoraColor(calcularNivelMora(diasMoraUI))
                 )}>
-                  {isPending ? 'PENDIENTE' : (cliente.nivelRiesgo || 'VERDE').replace('_', ' ')}
+                  {isPending ? 'PENDIENTE' : getEstadoMoraLabel(calcularNivelMora(diasMoraUI))}
                 </div>
               </div>
               <div className="flex justify-between items-center pt-3 border-t border-slate-100">
@@ -732,7 +763,6 @@ export default function ClientesFeature({
               return {
                 ...c,
                 ...patch,
-                score: patch.score ?? c.score,
                 tendencia: patch.tendencia ?? c.tendencia,
                 montoTotal: patch.montoTotal ?? c.montoTotal,
                 montoMora: patch.montoMora ?? c.montoMora,
@@ -749,7 +779,7 @@ export default function ClientesFeature({
 
 
       {isDetailsModalOpen && selectedClientId && (
-        <ClientePortalModal clientId={selectedClientId} onClose={() => { setIsDetailsModalOpen(false); setSelectedClientId(null); }} />
+        <ClientePortalModal clientId={String(selectedClientId)} onClose={() => { setIsDetailsModalOpen(false); setSelectedClientId(null); }} />
       )}
     </div>
   );

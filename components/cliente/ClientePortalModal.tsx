@@ -7,7 +7,14 @@ import { clientesService } from '@/services/clientes-service';
 import { Smartphone, DollarSign } from 'lucide-react';
 import { createPortal } from 'react-dom';
 import { offlineStore } from '@/lib/offline/offlineDb';
-import { toBogotaDateTimeOffsetIso } from '@/lib/rutas-core'
+import {
+  computeDiasMoraFromCuotas,
+  getBogotaDateKey,
+  isCuotaNoPagada,
+  normalizeDateKey,
+  resolveFechaEfectivaCuota,
+  toBogotaDateTimeOffsetIso,
+} from '@/lib/rutas-core'
 
 interface ClientePortalModalProps {
   clientId: string;
@@ -71,6 +78,17 @@ export default function ClientePortalModal({ clientId, onClose, rolUsuario = 'co
                     const cuotas = p.cuotas || [];
                     const cuotasPagadas = cuotas.filter((c: any) => c.estado === 'PAGADO' || c.estado === 'PAGADA').length;
                     const totalCuotas = p.cantidadCuotas || cuotas.length || 0;
+
+                    const hoyKey = getBogotaDateKey(new Date())
+                    const frecuencia = String(p.frecuenciaPago || 'DIARIO').toUpperCase()
+                    const cuotasVencidas = (Array.isArray(cuotas) ? cuotas : []).filter((c: any) => {
+                      if (!c || !isCuotaNoPagada(c)) return false
+                      const raw = resolveFechaEfectivaCuota(c) || String(c?.fechaVencimiento || '')
+                      const k = normalizeDateKey(raw)
+                      return !!k && !!hoyKey && k < hoyKey
+                    }).length
+                    const diasMora = computeDiasMoraFromCuotas(cuotas as any, hoyKey, frecuencia)
+                    const estadoUI = cuotasVencidas > 0 || diasMora > 0 ? 'EN_MORA' : (p.estado || 'ACTIVO')
                     
                     const principal = Number(p.monto || 0);
                     const tasa = Number(p.tasaInteres || 0);
@@ -84,19 +102,7 @@ export default function ClientePortalModal({ clientId, onClose, rolUsuario = 'co
                     const montoTotal = principal + interesTotal;
                     const saldoPendiente = Number(p.saldoPendiente || 0);
 
-                    const cuotasVencidas = cuotas.filter((c: any) => c.estado === 'VENCIDA' || c.estado === 'VENCIDO').length;
                     const moraAcumulada = cuotas.reduce((sum: number, c: any) => sum + Number(c.montoInteresMora || 0), 0);
-                    
-                    // Calcular días de mora si tiene cuotas vencidas
-                    let mayorMora = 0;
-                    if (cuotasVencidas > 0) {
-                      const hoy = new Date();
-                      const fechasVencidas = cuotas
-                        .filter((c: any) => c.estado === 'VENCIDA' || c.estado === 'VENCIDO')
-                        .map((c: any) => new Date(c.fechaVencimiento));
-                      const masAntigua = new Date(Math.min(...fechasVencidas.map((d: Date) => d.getTime())));
-                      mayorMora = Math.max(0, Math.ceil((hoy.getTime() - masAntigua.getTime()) / (1000 * 60 * 60 * 24)));
-                    }
 
                     return {
                         id: p.id,
@@ -110,14 +116,14 @@ export default function ClientePortalModal({ clientId, onClose, rolUsuario = 'co
                         fechaInicio: p.fechaInicio,
                         fechaVencimiento: p.fechaFin,
                         proximoPago: cuotas.find((c: any) => c.estado === 'PENDIENTE' || c.estado === 'PARCIAL' || c.estado === 'VENCIDA' || c.estado === 'VENCIDO')?.fechaVencimiento || p.fechaFin,
-                        estado: p.estado || 'ACTIVO',
+                        estado: estadoUI,
                         tasaInteres: tasa,
                         frecuencia: p.frecuenciaPago || 'SEMANAL',
                         icono: <Smartphone className="w-5 h-5" />,
                         categoria: p.tipoPrestamo || 'General',
                         cuotasVencidas,
                         moraAcumulada,
-                        diasMora: mayorMora
+                        diasMora,
                     };
                 }));
                 

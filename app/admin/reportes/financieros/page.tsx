@@ -10,16 +10,13 @@ import {
   TrendingDown, 
   PieChart, 
   ArrowUpRight, 
-  Target,
-  Eye
+  Target
 } from 'lucide-react'
 import { formatCurrency } from '@/lib/utils'
 import { ExportButton } from '@/components/ui/ExportButton'
 import { TransactionalHighDetailChart } from '@/components/ui/TransactionalHighDetailChart'
-import DetalleReporteFinancieroModal from '@/components/reportes/DetalleReporteFinancieroModal'
-import DetalleGastoModal from '../../../../components/reportes/DetalleGastoModal'
 import AnimacionCarga from '@/components/ui/AnimacionCarga'
-import { getFinancialSummary, getMonthlyEvolution, getExpenseDistribution, getFinancialTargets } from '@/services/reportes-service'
+import { getFinancialSummary, getMonthlyEvolution, getFinancialTargets } from '@/services/reportes-service'
 import { getTransacciones } from '@/services/contabilidad-service'
 import { exportService } from '@/services/export-service'
 import { toast } from 'sonner'
@@ -48,22 +45,12 @@ interface MonthlyEvolution {
   yearMonth?: string;
 }
 
-interface ExpenseDistribution {
-  categoria: string;
-  monto: number;
-}
-
-type ExpenseWithPercentage = ExpenseDistribution & {
-  porcentaje: number
-}
-
 const ReportesFinancierosPage = () => {
   const router = useRouter()
   const pathname = usePathname()
   const [periodo, setPeriodo] = useState('ANUAL')
   const [loading, setLoading] = useState(true)
   const [mounted, setMounted] = useState(false)
-  const [reporteId, setReporteId] = useState<string | null>(null)
   
   const [summary, setSummary] = useState<FinancialSummary>({
     ingresos: 0,
@@ -73,8 +60,6 @@ const ReportesFinancierosPage = () => {
   })
   
   const [monthlyData, setMonthlyData] = useState<MonthlyEvolution[]>([])
-  const [expenseData, setExpenseData] = useState<ExpenseWithPercentage[]>([])
-  const [categoriaSeleccionada, setCategoriaSeleccionada] = useState<ExpenseWithPercentage | null>(null)
   const [trendIngresos, setTrendIngresos] = useState<number | null>(null)
   const [trendEgresos, setTrendEgresos] = useState<number | null>(null)
   const [metaMargen, setMetaMargen] = useState<number | null>(null)
@@ -117,10 +102,9 @@ const ReportesFinancierosPage = () => {
         ahora,
       )
 
-      const [summaryResp, monthlyRespMaybe, expensesResp] = await Promise.all([
+      const [summaryResp, monthlyRespMaybe] = await Promise.all([
         getFinancialSummary(startDate, endDate),
         periodo === 'DIARIO' ? Promise.resolve(null) : getMonthlyEvolution(ahora.getFullYear()),
-        getExpenseDistribution(startDate, endDate)
       ])
 
       const [ingSumRes, egreSumRes] = await Promise.all([
@@ -383,17 +367,6 @@ const ReportesFinancierosPage = () => {
         }
       }
 
-      if (expensesResp) {
-        const e = expensesResp as ExpenseDistribution[]
-        const total = e.reduce((acc, curr) => acc + (curr.monto || 0), 0)
-        const withPct = e.map(item => ({
-          categoria: item.categoria,
-          monto: item.monto,
-          porcentaje: total > 0 ? Math.round((item.monto / total) * 100) : 0
-        })).sort((a, b) => b.monto - a.monto)
-        setExpenseData(withPct)
-      }
-
     } catch (error) {
       console.error('Error fetching financial reports:', error)
     } finally {
@@ -567,183 +540,7 @@ const ReportesFinancierosPage = () => {
           </div>
         </div>
 
-        {/* Distribución de Gastos (Full Width) */}
-        <div className="bg-white/80 backdrop-blur-sm rounded-2xl border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-4">
-          <h3 className="text-base font-bold text-slate-900 mb-3">Distribución de Gastos</h3>
-          <div className="flex flex-wrap gap-1 max-h-40 overflow-y-auto">
-            {expenseData.length > 0 ? (
-              expenseData.map((cat) => (
-                <button
-                  key={cat.categoria}
-                  onClick={() => setCategoriaSeleccionada(cat)}
-                  title="Ver detalles del gasto"
-                  className="inline-flex items-center gap-1.5 px-2 py-1 rounded-full border border-slate-200 bg-white text-slate-700 text-xs font-bold hover:bg-blue-50 hover:border-blue-200 hover:text-blue-700 transition-colors"
-                >
-                  <span>{cat.categoria}</span>
-                  <Eye className="h-3 w-3" />
-                </button>
-              ))
-            ) : (
-              <p className="text-sm text-slate-500 text-center py-4">No hay gastos registrados en este periodo.</p>
-            )}
-          </div>
-        </div>
-
-        {/* Tabla Detalle Financiero - Desktop */}
-        <div className="hidden md:block bg-white/80 backdrop-blur-sm rounded-2xl border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden">
-          <div className="px-4 md:px-8 py-4 md:py-6 border-b border-slate-200 flex justify-between items-center bg-white/50">
-            <div>
-              <h3 className="text-base md:text-lg font-bold text-slate-900">Detalle Financiero</h3>
-              <p className="text-xs md:text-sm text-slate-400 font-medium">Desglose por periodo contable</p>
-            </div>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm text-left">
-              <thead className="bg-slate-50/50 text-slate-400 font-bold uppercase tracking-wider text-xs">
-                <tr>
-                  <th className="px-8 py-4">Periodo</th>
-                  <th className="px-8 py-4 text-right">Ingresos Operativos</th>
-                  <th className="px-8 py-4 text-right">Gastos & Costos</th>
-                  <th className="px-8 py-4 text-right">Utilidad Bruta</th>
-                  <th className="px-8 py-4 text-right">Margen</th>
-                  <th className="px-8 py-4 text-center">Estado</th>
-                  <th className="px-8 py-4 text-right">Acciones</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {monthlyData.map((row) => (
-                  <tr key={row.mes} className="hover:bg-slate-50/80 transition-colors group">
-                    <td className="px-8 py-5 font-bold text-slate-800 group-hover:text-slate-900">
-                      {row.fecha 
-                        ? new Date(row.fecha).toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' })
-                        : `${row.mes} ${yearLabel}`}
-                    </td>
-                    <td className="px-8 py-5 text-right text-slate-600 font-medium">{formatCurrency(row.ingresos)}</td>
-                    <td className="px-8 py-5 text-right text-rose-500 font-medium">-{formatCurrency(row.egresos)}</td>
-                    <td className="px-8 py-5 text-right font-bold text-slate-900 bg-slate-50/30">{formatCurrency(row.utilidad)}</td>
-                    <td className="px-8 py-5 text-right text-slate-600 font-medium">
-                      {row.ingresos > 0 ? ((row.utilidad / row.ingresos) * 100).toFixed(1) : '0.0'}%
-                    </td>
-                    <td className="px-8 py-5 text-center">
-                      <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-700 border border-emerald-200">
-                        Cerrado
-                      </span>
-                    </td>
-                    <td className="px-8 py-5 text-right">
-                      <button 
-                        onClick={() => {
-                          if (row.fecha && periodo === 'DIARIO') {
-                            setReporteId(`DIARIO:${row.fecha}`)
-                          } else if (row.yearMonth) {
-                            setReporteId(`MES:${row.yearMonth}`)
-                          } else {
-                            setReporteId(`${row.mes}-${yearLabel}`)
-                          }
-                        }}
-                        className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                        title="Ver Detalles"
-                      >
-                        <Eye className="h-4 w-4" />
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        {/* Vista de Cards - Móvil */}
-        <div className="md:hidden space-y-4">
-          <div className="bg-white/80 backdrop-blur-sm rounded-2xl border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-4">
-            <h3 className="text-base font-bold text-slate-900 mb-1">Detalle Financiero</h3>
-            <p className="text-xs text-slate-400 font-medium mb-4">Desglose por periodo contable</p>
-          </div>
-
-          {monthlyData.map((row) => (
-            <div
-              key={row.mes}
-              className="bg-white/80 backdrop-blur-sm rounded-2xl border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-4"
-            >
-              {/* Periodo y Estado */}
-              <div className="flex items-start justify-between mb-3 pb-3 border-b border-slate-100">
-                <div>
-                  <div className="text-xs text-slate-500 font-bold uppercase tracking-wider mb-1">Periodo</div>
-                  <div className="font-bold text-slate-900">
-                    {row.fecha 
-                      ? new Date(row.fecha).toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' })
-                      : `${row.mes} ${yearLabel}`}
-                  </div>
-                </div>
-                <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-700 border border-emerald-200">
-                  Cerrado
-                </span>
-              </div>
-
-              {/* Ingresos y Egresos */}
-              <div className="grid grid-cols-2 gap-3 mb-3 pb-3 border-b border-slate-100">
-                <div>
-                  <div className="text-xs text-slate-500 font-bold uppercase tracking-wider mb-1">Ingresos</div>
-                  <div className="text-sm font-bold text-emerald-600">{formatCurrency(row.ingresos)}</div>
-                </div>
-                <div>
-                  <div className="text-xs text-slate-500 font-bold uppercase tracking-wider mb-1">Gastos</div>
-                  <div className="text-sm font-bold text-rose-500">-{formatCurrency(row.egresos)}</div>
-                </div>
-              </div>
-
-              {/* Utilidad y Margen */}
-              <div className="grid grid-cols-2 gap-3 mb-3">
-                <div>
-                  <div className="text-xs text-slate-500 font-bold uppercase tracking-wider mb-1">Utilidad Bruta</div>
-                  <div className="text-lg font-bold text-slate-900">{formatCurrency(row.utilidad)}</div>
-                </div>
-                <div>
-                  <div className="text-xs text-slate-500 font-bold uppercase tracking-wider mb-1">Margen</div>
-                  <div className="text-lg font-bold text-blue-600">
-                    {row.ingresos > 0 ? ((row.utilidad / row.ingresos) * 100).toFixed(1) : '0.0'}%
-                  </div>
-                </div>
-              </div>
-
-              {/* Acción */}
-              <div className="flex justify-end pt-3 border-t border-slate-100">
-                <button 
-                  onClick={() => {
-                    if (row.fecha && periodo === 'DIARIO') {
-                      setReporteId(`DIARIO:${row.fecha}`)
-                    } else if (row.yearMonth) {
-                      setReporteId(`MES:${row.yearMonth}`)
-                    } else {
-                      setReporteId(`${row.mes}-${yearLabel}`)
-                    }
-                  }}
-                  className="inline-flex items-center gap-2 px-4 py-2 text-xs font-bold text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors"
-                >
-                  <Eye className="h-4 w-4" />
-                  Ver Detalles
-                </button>
-              </div>
-            </div>
-          ))}
-        </div>
       </div>
-      
-      {reporteId && (
-        <DetalleReporteFinancieroModal
-          id={reporteId}
-          onClose={() => setReporteId(null)}
-        />
-      )}
-      
-      {categoriaSeleccionada && (
-        <DetalleGastoModal 
-          categoria={categoriaSeleccionada.categoria}
-          porcentaje={categoriaSeleccionada.porcentaje}
-          monto={categoriaSeleccionada.monto}
-          onClose={() => setCategoriaSeleccionada(null)}
-        />
-      )}
     </div>
   )
 }
