@@ -883,20 +883,17 @@ const RutaClientLoaded = ({
             return { ...v, estado: pagado ? 'pagado' : v?.estado }
           })
 
-          const metaPagadas = visitasHoyConEstado
-            .filter((v: any) => String(v?.estado || '').toLowerCase() === 'pagado')
-            .reduce((s: number, v: any) => s + Number(v?.recaudadoDelDia || 0), 0)
-          const metaPendientes = visitasHoyConEstado
-            .filter((v: any) => String(v?.estado || '').toLowerCase() !== 'pagado')
+          // Meta HOY basada en CUOTAS exigibles (incluye pagadas y pendientes).
+          // Esto hace que Pendiente = Meta - Recaudo cuadre con la suma real de cuotas del día.
+          const metaCuotas = visitasHoyConEstado
             .reduce((s: number, v: any) => s + Number(v?.montoCuota || 0), 0)
-          const metaCoherente = metaPagadas + metaPendientes
 
           // Si no hay visitas para calcular, caer al base.
-          return metaCoherente > 0 ? metaCoherente : base
+          return metaCuotas > 0 ? metaCuotas : base
         })()
 
         const eficiencia = meta > 0
-          ? Math.min(100, Math.max(0, Math.round((recaudo / meta) * 100)))
+          ? Math.min(100, Math.max(0, Number(((recaudo / meta) * 100).toFixed(1))))
           : Number(estadisticas?.avanceDiario ?? 0)
 
         setRutaStatsCards({
@@ -926,18 +923,13 @@ const RutaClientLoaded = ({
             return { ...v, estado: pagado ? 'pagado' : v?.estado }
           })
 
-          const metaPagadas = visitasHoyConEstado
-            .filter((v: any) => String(v?.estado || '').toLowerCase() === 'pagado')
-            .reduce((s: number, v: any) => s + Number(v?.recaudadoDelDia || 0), 0)
-          const metaPendientes = visitasHoyConEstado
-            .filter((v: any) => String(v?.estado || '').toLowerCase() !== 'pagado')
+          const metaCuotas = visitasHoyConEstado
             .reduce((s: number, v: any) => s + Number(v?.montoCuota || 0), 0)
-          const metaCoherente = metaPagadas + metaPendientes
-          return metaCoherente > 0 ? metaCoherente : base
+          return metaCuotas > 0 ? metaCuotas : base
         })()
 
         const eficiencia = meta > 0
-          ? Math.min(100, Math.max(0, Math.round((recaudo / meta) * 100)))
+          ? Math.min(100, Math.max(0, Number(((recaudo / meta) * 100).toFixed(1))))
           : Number(estadisticas?.avanceDiario ?? 0)
         setRutaStatsCards((prev) => ({
           ...prev,

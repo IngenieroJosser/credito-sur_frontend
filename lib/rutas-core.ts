@@ -386,11 +386,12 @@ export const isVisitaExigibleHoy = (visita: any, hoyBogotaKey: string): boolean 
   // - Si es ruta DIARIA, aparece siempre.
   // - Si no, solo aparece cuando proximaVisita == HOY (llave Bogotá).
   if (!visita) return false;
-  const estado = String(visita?.estado || '').toLowerCase();
-  if (estado === 'en_mora') return true;
+  const estadoRaw = String(visita?.estado || '').toLowerCase();
+  const estado = estadoRaw.replace(/\s+/g, '_');
+  if (estado === 'en_mora' || estado.includes('mora')) return true;
   if (String(visita?.periodoRuta || '').toUpperCase() === 'DIA') return true;
   const proximaKey = visita?.proximaVisita ? normalizeDateKey(String(visita.proximaVisita)) : '';
-  return !!proximaKey && !!hoyBogotaKey && proximaKey === hoyBogotaKey;
+  return !!proximaKey && !!hoyBogotaKey && proximaKey <= hoyBogotaKey;
 };
 
 export const shouldMarkVisitaAsPagado = (params: {

@@ -1202,13 +1202,7 @@ const VistaCobrador = () => {
             .filter((v: any) => isVisitaExigibleHoy(v, hoyBogotaKey))
 
           const recaudo = exigibles.reduce((s: number, v: any) => s + Number(v?.recaudadoDelDia || 0), 0)
-          const metaPagadas = exigibles
-            .filter((v: any) => String(v?.estado || '').toLowerCase() === 'pagado')
-            .reduce((s: number, v: any) => s + Number(v?.recaudadoDelDia || 0), 0)
-          const metaPendientes = exigibles
-            .filter((v: any) => String(v?.estado || '').toLowerCase() !== 'pagado')
-            .reduce((s: number, v: any) => s + Number(v?.montoCuota || 0), 0)
-          const metaHoy = metaPagadas + metaPendientes
+          const metaHoy = exigibles.reduce((s: number, v: any) => s + Number(v?.montoCuota || 0), 0)
           const eficiencia = metaHoy > 0 ? Math.min(100, Math.max(0, Math.round((recaudo / metaHoy) * 100))) : 0
 
           setRutaStats(prev => ({
@@ -2144,13 +2138,7 @@ const VistaCobrador = () => {
       .filter((v: any) => isVisitaExigibleHoy(v, hoyBogotaKey))
 
     const recaudo = visitasExigibles.reduce((s: number, v: any) => s + Number(v?.recaudadoDelDia || 0), 0)
-    const metaPagadas = visitasExigibles
-      .filter((v: any) => String(v?.estado || '').toLowerCase() === 'pagado')
-      .reduce((s: number, v: any) => s + Number(v?.recaudadoDelDia || 0), 0)
-    const metaPendientes = visitasExigibles
-      .filter((v: any) => String(v?.estado || '').toLowerCase() !== 'pagado')
-      .reduce((s: number, v: any) => s + Number(v?.montoCuota || 0), 0)
-    const metaTotal = metaPagadas + metaPendientes
+    const metaTotal = visitasExigibles.reduce((s: number, v: any) => s + Number(v?.montoCuota || 0), 0)
     const eficiencia = metaTotal > 0 ? Math.min(100, Math.max(0, Math.round((recaudo / metaTotal) * 100))) : 0
 
     return {
@@ -2177,7 +2165,7 @@ const VistaCobrador = () => {
     }, 0)
     const recaudo = visitasExigiblesHoy.reduce((sum: number, v: any) => sum + Number(v?.recaudadoDelDia || 0), 0)
     const pendientes = visitasExigiblesHoy.filter((v: any) => String(v?.estado || '').toLowerCase() !== 'pagado').length
-    const efectividadRaw = meta > 0 ? Math.round((recaudo / meta) * 100) : 0
+    const efectividadRaw = meta > 0 ? Number(((recaudo / meta) * 100).toFixed(1)) : 0
     const efectividad = Math.min(100, Math.max(0, efectividadRaw))
 
     return {
@@ -2832,7 +2820,7 @@ const VistaCobrador = () => {
 
     const meta = Number(kpisHoy.meta || 0)
     const recaudo = Number(rutaStats.recaudo || 0) > 0 ? Number(rutaStats.recaudo || 0) : Number(kpisHoy.recaudo || 0)
-    const efectividad = meta > 0 ? Math.round((recaudo / meta) * 100) : 0
+    const efectividad = meta > 0 ? Number(((recaudo / meta) * 100).toFixed(1)) : 0
     const clientesFaltantes = Number(kpisHoy.pendientes || 0)
 
 

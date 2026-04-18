@@ -484,14 +484,11 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
             .filter((v: any) => isVisitaExigibleHoy(v, hoyKey))
 
           const recaudo = visitasExigibles.reduce((s: number, v: any) => s + Number(v?.recaudadoDelDia || 0), 0)
-          const metaPagadas = visitasExigibles
-            .filter((v: any) => String(v?.estado || '').toLowerCase() === 'pagado')
-            .reduce((s: number, v: any) => s + Number(v?.recaudadoDelDia || 0), 0)
-          const metaPendientes = visitasExigibles
-            .filter((v: any) => String(v?.estado || '').toLowerCase() !== 'pagado')
+          const meta = visitasExigibles
             .reduce((s: number, v: any) => s + Number(v?.montoCuota || 0), 0)
-          const meta = metaPagadas + metaPendientes
-          const eficiencia = meta > 0 ? Math.min(100, Math.max(0, Math.round((recaudo / meta) * 100))) : 0
+          const eficiencia = meta > 0
+            ? Math.min(100, Math.max(0, Number(((recaudo / meta) * 100).toFixed(1))))
+            : 0
 
           return {
             ...prev,
@@ -505,7 +502,9 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
 
         const meta = Number(prev.meta ?? 0)
         const recaudo = recaudoBackend > 0 ? recaudoBackend : Number(prev.recaudo ?? 0)
-        const eficiencia = meta > 0 ? Math.round((recaudo / meta) * 100) : Number(prev.eficiencia ?? 0)
+        const eficiencia = meta > 0
+          ? Number(((recaudo / meta) * 100).toFixed(1))
+          : Number(prev.eficiencia ?? 0)
         return {
           ...prev,
           recaudo,

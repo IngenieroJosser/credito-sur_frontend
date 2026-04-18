@@ -26,6 +26,7 @@ export default function PagoModal({ visita, tipo, onClose, onConfirm }: PagoModa
   const [comprobanteTransferencia, setComprobanteTransferencia] = useState<File | null>(null)
   const [comprobanteTransferenciaPreviewUrl, setComprobanteTransferenciaPreviewUrl] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [errorMsg, setErrorMsg] = useState<string | null>(null)
 
   // Cleanup preview URL on unmount or change
   useEffect(() => {
@@ -35,6 +36,10 @@ export default function PagoModal({ visita, tipo, onClose, onConfirm }: PagoModa
       }
     }
   }, [comprobanteTransferenciaPreviewUrl])
+
+  useEffect(() => {
+    setErrorMsg(null)
+  }, [tipo, visita?.id])
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0] || null
@@ -49,9 +54,17 @@ export default function PagoModal({ visita, tipo, onClose, onConfirm }: PagoModa
 
   const handleConfirmClick = async () => {
     if (isSubmitting) return
+    const montoNum = parseCOPInputToNumber(montoPagoInput)
+    if (tipo === 'PAGO') {
+      const cuota = Number(visita?.montoCuota || 0)
+      if (cuota > 0 && montoNum > 0 && montoNum < cuota) {
+        setErrorMsg('El pago debe ser por el monto completo de la cuota. Si deseas pagar un valor menor, registra un ABONO.')
+        return
+      }
+    }
     setIsSubmitting(true)
     try {
-      await onConfirm(parseCOPInputToNumber(montoPagoInput), metodoPago, comprobanteTransferencia)
+      await onConfirm(montoNum, metodoPago, comprobanteTransferencia)
     } catch (error) {
       console.error('Error al confirmar pago:', error)
       setIsSubmitting(false)
@@ -125,13 +138,22 @@ export default function PagoModal({ visita, tipo, onClose, onConfirm }: PagoModa
                     type="text"
                     inputMode="numeric"
                     value={montoPagoInput}
-                    onChange={(e) => setMontoPagoInput(formatCOPInputValue(e.target.value))}
+                    onChange={(e) => {
+                      setMontoPagoInput(formatCOPInputValue(e.target.value))
+                      setErrorMsg(null)
+                    }}
                     className="w-full pl-10 pr-4 py-4 bg-white border-2 border-slate-200 rounded-xl focus:border-[#08557f] focus:ring-0 font-bold text-2xl text-slate-900 placeholder:text-slate-300"
                     placeholder="0"
                     autoFocus
                   />
                 </div>
               </div>
+
+              {errorMsg && (
+                <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-bold text-rose-700">
+                  {errorMsg}
+                </div>
+              )}
 
 
 
