@@ -407,13 +407,11 @@ export const shouldMarkVisitaAsPagado = (params: {
   const saldoTotal = Number(params?.saldoTotal || 0);
   if (saldoTotal <= 0) return true;
 
-  const estadoActual = String(params?.estadoActual || '').toLowerCase();
-  if (estadoActual === 'pagado') return true;
-
   const recaudadoHoy = Number(params?.recaudadoHoy || 0);
   const cuota = Number(params?.montoCuotaExigible || 0);
   if (!(cuota > 0)) return false;
-  return recaudadoHoy > 0 && recaudadoHoy >= (cuota - 1);
+
+  return recaudadoHoy > 0 && recaudadoHoy >= cuota;
 };
 
 export const computeMetaHoyFromVisitas = (visitas: any[], hoyBogotaKey: string): number => {
@@ -494,5 +492,23 @@ export const computeMontoExigibleHastaHoyFromCuotas = (cuotas: any[], hoyBogotaK
     const pagado = Number((c as any)?.montoPagado ?? 0)
     const pendiente = monto - pagado
     return sum + (pendiente > 0 ? pendiente : 0);
+  }, 0);
+};
+
+export const computeMontoNominalHastaHoyFromCuotas = (cuotas: any[], hoyBogotaKey: string): number => {
+  if (!Array.isArray(cuotas) || cuotas.length === 0) return 0;
+  if (!hoyBogotaKey) return 0;
+
+  return cuotas.reduce((sum: number, c: any) => {
+    if (!c || !isCuotaNoPagada(c)) return sum;
+    const vtoRaw = resolveFechaEfectivaCuota(c) || String(c?.fechaVencimiento || '');
+    const vtoKey = normalizeDateKey(vtoRaw);
+    if (!vtoKey) return sum;
+    if (vtoKey > hoyBogotaKey) return sum;
+
+    const montoDirecto = (c as any)?.montoNominal ?? (c as any)?.monto;
+    const montoFallback = Number((c as any)?.montoCapital || 0) + Number((c as any)?.montoInteres || 0);
+    const monto = Number(montoDirecto ?? montoFallback ?? 0);
+    return sum + (monto > 0 ? monto : 0);
   }, 0);
 };

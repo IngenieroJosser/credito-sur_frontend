@@ -34,7 +34,8 @@ export const buildRecaudosHoyMapByPrestamoId = (
     if (!prestamoId) return
 
     if (pDateStr === hoyBogotaKey) {
-      recaudosHoyMap[prestamoId] = (recaudosHoyMap[prestamoId] || 0) + Number(p?.montoTotal || 0)
+      const monto = Number(p?.montoTotal ?? p?.monto ?? p?.valor ?? 0)
+      recaudosHoyMap[prestamoId] = (recaudosHoyMap[prestamoId] || 0) + monto
     }
   })
 
@@ -54,14 +55,14 @@ export const sumMontoTotalPagosByBogotaDateKey = (
     const pDateStr = getPagoBogotaDateKey(rawDate)
     if (pDateStr !== targetBogotaKey) return sum
 
-    return sum + Number(p?.montoTotal || 0)
+    return sum + Number(p?.montoTotal ?? p?.monto ?? p?.valor ?? 0)
   }, 0)
 }
 
 export const sumMontoTotalPagosHistorico = (pagos: any[]): number => {
   // Suma total histórica de una lista de pagos (sin filtro por fecha).
   return (Array.isArray(pagos) ? pagos : []).reduce((sum: number, p: any) => {
-    return sum + Number(p?.montoTotal || 0)
+    return sum + Number(p?.montoTotal ?? p?.monto ?? p?.valor ?? 0)
   }, 0)
 }
 
@@ -122,13 +123,16 @@ export const applyRecaudoHoyToVisitas = <T extends Record<string, any>>(
 
     const recHoy = v?.prestamoId ? Number(recaudosHoyMap[v.prestamoId] || 0) : 0
 
+    const estadoRaw = String(v?.estado || '').toLowerCase().replace(/\s+/g, '_')
+    const esMora = estadoRaw === 'en_mora' || estadoRaw.includes('mora')
+
     const estadoFinal = shouldMarkVisitaAsPagado({
       saldoTotal: v?.saldoTotal,
       recaudadoHoy: recHoy,
       montoCuotaExigible: v?.montoCuota,
       estadoActual: v?.estado,
     })
-      ? 'pagado'
+      ? (esMora ? v?.estado : 'pagado')
       : v?.estado
 
     return {

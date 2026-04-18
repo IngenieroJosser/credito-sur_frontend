@@ -94,7 +94,7 @@ import { useRealtimeData } from '@/hooks/useRealtimeData'
 import { useRutaHistorial } from '@/hooks/useRutaHistorial'
 import ClienteInfoModal from '@/components/cobranza/ClienteInfoModal'
 import { formatShortDate } from '@/lib/utils/format'
-import { computeMontoExigibleHastaHoyFromCuotas, computeMetaHoyFromVisitas, getBogotaDateKey, getBogotaRangeByPeriod, getPagoBogotaDateKey, isCuotaNoPagada, isTodayOrPastBogota, isVisitaExigibleHoy, normalizeDateKey, resolveFechaEfectivaCuota, shouldMarkVisitaAsPagado, toBogotaDateTimeOffsetIso, resolveProximaCuotaFromPrestamo } from '@/lib/rutas-core'
+import { computeMontoExigibleHastaHoyFromCuotas, computeMontoNominalHastaHoyFromCuotas, computeMetaHoyFromVisitas, getBogotaDateKey, getBogotaRangeByPeriod, getPagoBogotaDateKey, isCuotaNoPagada, isTodayOrPastBogota, isVisitaExigibleHoy, normalizeDateKey, resolveFechaEfectivaCuota, shouldMarkVisitaAsPagado, toBogotaDateTimeOffsetIso, resolveProximaCuotaFromPrestamo } from '@/lib/rutas-core'
 
 import { mapAsignacionesToVisitasLite } from '@/lib/ruta-visitas-mapper'
 import { buildRecaudosHoyMapByPrestamoId, indexPagosByPrestamoId, sumMontoTotalPagosByBogotaDateKey } from '@/lib/ruta-recaudos'
@@ -540,8 +540,14 @@ const RutaClientLoaded = ({
             const pendiente = (Array.isArray(cuotas) ? cuotas : []).find((c: any) => isCuotaNoPagada(c));
 
             if (pendiente) {
-              const exigible = computeMontoExigibleHastaHoyFromCuotas(cuotas as any, hoyBogota)
-              montoCuotaReal = exigible > 0 ? exigible : montoCuotaReal
+              const tipoPrestamoUpper = String((v as any)?.tipoPrestamo || '').toUpperCase()
+              const esArticulo = tipoPrestamoUpper === 'ARTICULO'
+              const exigiblePendiente = computeMontoExigibleHastaHoyFromCuotas(cuotas as any, hoyBogota)
+              const exigibleNominal = esArticulo ? computeMontoNominalHastaHoyFromCuotas(cuotas as any, hoyBogota) : 0
+
+              montoCuotaReal = esArticulo
+                ? (exigibleNominal > 0 ? exigibleNominal : montoCuotaReal)
+                : (exigiblePendiente > 0 ? exigiblePendiente : montoCuotaReal)
 
               fechaReal = resolveFechaEfectivaCuota(pendiente) || (pendiente.fechaVencimiento || v.proximaVisita);
               
@@ -584,6 +590,9 @@ const RutaClientLoaded = ({
               recaudadoTotalClient: totalHistorico, 
               fechaUltimoPago: ultimoPagoDate,
               montoCuota: cuotaComparar,
+              montoCuotaPendiente: String((v as any)?.tipoPrestamo || '').toUpperCase() === 'ARTICULO'
+                ? computeMontoExigibleHastaHoyFromCuotas(cuotas as any, hoyBogota)
+                : undefined,
               proximaVisita: fechaReal,
               cuotaActual,
               cuotasTotales,

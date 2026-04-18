@@ -113,7 +113,24 @@ import { exportService } from '@/services/export-service'
 import { useNotificaciones } from '@/components/providers/NotificacionesProvider'
 
 
-import { computeMontoExigibleHastaHoyFromCuotas, computeMetaHoyFromVisitas, getBogotaDateKey, getBogotaRangeByPeriod, getLocalDateKey, getPagoBogotaDateKey, isCuotaNoPagada, isTodayOrPastBogota, isVisitaExigibleHoy, normalizeDateKey, resolveFechaEfectivaCuota, resolveProximaCuotaFromPrestamo, resolveCuotaProgressFromPrestamo, shouldMarkVisitaAsPagado, toBogotaDateTimeOffsetIso } from '@/lib/rutas-core'
+import {
+  buildBogotaOffsetIsoFromKey,
+  computeMontoExigibleHastaHoyFromCuotas,
+  computeMontoNominalHastaHoyFromCuotas,
+  computeMetaHoyFromVisitas,
+  getBogotaDateKey,
+  getBogotaRangeByPeriod,
+  getPagoBogotaDateKey,
+  isCuotaNoPagada,
+  isTodayOrPastBogota,
+  isVisitaExigibleHoy,
+  normalizeDateKey,
+  resolveFechaEfectivaCuota,
+  resolveProximaCuotaFromPrestamo,
+  resolveCuotaProgressFromPrestamo,
+  shouldMarkVisitaAsPagado,
+  toBogotaDateTimeOffsetIso,
+} from '@/lib/rutas-core'
 
 import { mapAsignacionesToVisitasLite } from '@/lib/ruta-visitas-mapper'
 
@@ -968,7 +985,12 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
                   return vtoKey && vtoKey <= hoyBogota;
                 });
 
+                const tipoPrestamoUpper = String((v as any)?.tipoPrestamo || '').toUpperCase()
+                const esArticulo = tipoPrestamoUpper === 'ARTICULO'
                 const totalExigible = computeMontoExigibleHastaHoyFromCuotas(cuotasExigibles, hoyBogota);
+                const totalNominal = esArticulo
+                  ? computeMontoNominalHastaHoyFromCuotas(cuotasExigibles, hoyBogota)
+                  : 0
                 const esMora = cuotasExigibles.some((c: any) => {
                   const vtoKey = getCuotaVtoKey(c)
                   return vtoKey && vtoKey < hoyBogota
@@ -992,7 +1014,10 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
                 
                 return {
                   ...v,
-                  montoCuota: totalExigible > 0 ? totalExigible : (montoReal > 0 ? montoReal : v.montoCuota),
+                  montoCuota: esArticulo
+                    ? ((totalNominal > 0 ? totalNominal : (montoReal > 0 ? montoReal : v.montoCuota)))
+                    : (totalExigible > 0 ? totalExigible : (montoReal > 0 ? montoReal : v.montoCuota)),
+                  montoCuotaPendiente: esArticulo ? totalExigible : undefined,
                   proximaVisita: (pendiente.estado === 'PRORROGADA' && pendiente.fechaVencimientoProrroga)
                     ? pendiente.fechaVencimientoProrroga
                     : (pendiente.fechaVencimiento || v.proximaVisita),

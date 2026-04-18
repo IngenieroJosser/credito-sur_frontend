@@ -13,6 +13,7 @@ export interface RutaStatsData {
   eficiencia: number
   gastos: number
   base: number
+  pendiente?: number
 }
 
 type Periodo = 'HOY' | 'SEM' | 'MES' | 'AÑO'
@@ -63,9 +64,9 @@ export function RutaStatsCards({ rutaStats, periodo = 'HOY' }: RutaStatsCardsPro
     ? Number(rutaStats.eficiencia).toFixed(1)
     : '0.0'
   const porcentajeRecaudo = rutaStats.meta > 0
-    ? `+${((rutaStats.recaudo / rutaStats.meta) * 100).toFixed(1)}%`
+    ? `${eficienciaShown}%`
     : '---'
-  const pendiente = Math.max(0, rutaStats.meta)
+  const pendiente = Math.max(0, Number(rutaStats?.meta || 0))
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
