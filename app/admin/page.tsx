@@ -21,6 +21,7 @@ import { dashboardService } from '@/services/dashboard-coordinador-service';
 import { prestamosService } from '@/services/prestamos-service';
 import { getResumenFinanciero } from '@/services/contabilidad-service';
 import { formatCurrency } from '@/lib/utils';
+import { computeOperationalMetaTotalForTimeFilter } from '@/lib/dashboard-operational-meta'
 
 interface UserData {
   id: string;
@@ -69,6 +70,7 @@ interface FrontendDashboardData {
   chartData: Array<{
     label: string;
     value: number;
+    target?: number;
     date?: string;
     time?: string;
   }>;
@@ -354,11 +356,17 @@ export default function DashboardPage() {
           };
         });
 
-        // Build chart data from backend trend
+        let metaOperativaTotal = 0
+        try {
+          metaOperativaTotal = await computeOperationalMetaTotalForTimeFilter(requestedPeriod)
+        } catch {
+          metaOperativaTotal = 0
+        }
+
         const chartData = (dashboard?.trend || []).map((t) => ({
           label: t.label,
           value: t.value,
-          target: t.target,
+          target: metaOperativaTotal > 0 ? metaOperativaTotal : t.target,
         }));
 
         // Build top collectors from real backend data
