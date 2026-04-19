@@ -289,52 +289,6 @@ export const RutasPageView = ({
 
               const metaDelDiaPendiente = computeMetaHoyFromVisitas(visitasConRecaudoHoy as any, hoyBogota)
 
-              if (process.env.NODE_ENV !== 'production') {
-                try {
-                  const recaudosPrestamoIds = Object.keys(recaudosHoyMap || {})
-                  const pagosPid = recaudosPrestamoIds[0] ? String(recaudosPrestamoIds[0]) : ''
-                  const contribs = (Array.isArray(visitasConRecaudoHoy) ? visitasConRecaudoHoy : []).map((v: any) => {
-                    const saldo = Number(v?.saldoTotal ?? 0)
-                    const tieneCuotaPendiente = (v as any)?.montoCuotaPendiente != null
-                    const cuotaBase = Number(((v as any)?.montoCuotaPendiente ?? v?.montoCuota) || 0)
-                    const recHoy = Number((v as any)?.recaudadoDelDia || 0)
-                    const cuotaPendiente = saldo > 0 ? (tieneCuotaPendiente ? cuotaBase : Math.max(0, cuotaBase - recHoy)) : 0
-                    const cuotaUI = saldo > 0 ? Math.min(cuotaPendiente, saldo) : 0
-                    return {
-                      cliente: v?.cliente,
-                      clienteId: v?.clienteId,
-                      prestamoId: v?.prestamoId,
-                      tipoPrestamo: (v as any)?.tipoPrestamo,
-                      periodoRuta: v?.periodoRuta,
-                      proximaVisita: v?.proximaVisita,
-                      estado: v?.estado,
-                      saldo,
-                      cuotaBase,
-                      recHoy,
-                      cuotaUI,
-                      pagoHit: !!pagosPid && String(v?.prestamoId || '') === pagosPid,
-                    }
-                  })
-                  const top = contribs
-                    .filter((c: any) => (c.cuotaUI || 0) > 0)
-                    .sort((a: any, b: any) => (b.cuotaUI || 0) - (a.cuotaUI || 0))
-                    .slice(0, 10)
-                  const hit = contribs.find((c: any) => c.pagoHit) || null
-                  console.warn('[RutasPageView][metaDelDiaPendiente]', {
-                    rutaId: r.id,
-                    hoyBogota,
-                    metaDelDiaPendiente,
-                    metaDelDia,
-                    pagosPrestamoId: pagosPid,
-                    pagoPrestamoRecaudo: pagosPid ? Number((recaudosHoyMap || {})[pagosPid] || 0) : 0,
-                    pagoVisita: hit,
-                    top,
-                  })
-                } catch {
-                  // ignore
-                }
-              }
-
               return {
                 ...r,
                 metaDelDia: Number((metaDelDiaPendiente ?? metaDelDia) ?? 0),

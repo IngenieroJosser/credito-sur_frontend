@@ -34,7 +34,7 @@ import DetallePrestamoModal from '@/components/prestamos/DetallePrestamoModal';
 import CrearCreditoModal from '@/components/dashboards/shared/CrearCreditoModal';
 import { useNotification } from '@/components/providers/NotificationProvider';
 import { loansServiceExt as loansService, type Loan, type LoansFilters } from '@/services/loans-service';
-import { formatErrorForComponent } from '@/lib/api/api';
+import { apiRequest, formatErrorForComponent } from '@/lib/api/api';
 import { usePermission } from '@/hooks/usePermission';
 import { ExportButton } from '@/components/ui/ExportButton';
 import { exportService } from '@/services/export-service';
@@ -122,8 +122,16 @@ const ListadoPrestamosElegante = () => {
       if (!refreshing) setCargando(true);
       setError(null);
       
+      const wantsClientSideMoraFilter = filtros.estado === 'EN_MORA'
+      const wantsClientSideActivoFilter = filtros.estado === 'ACTIVO'
+
       const filters: LoansFilters = {
-        estado: filtros.estado !== 'todos' ? filtros.estado : undefined,
+        // Si el backend no está marcando EN_MORA en `estado`, no podemos confiar en ese filtro.
+        // Filtramos en cliente por `diasMora` (ver `prestamosFiltrados` más abajo).
+        estado:
+          wantsClientSideMoraFilter || wantsClientSideActivoFilter
+            ? undefined
+            : (filtros.estado !== 'todos' ? filtros.estado : undefined),
         ruta: filtros.ruta !== 'todas' ? filtros.ruta : undefined,
         search: filtros.busqueda || undefined,
         page: paginaActual,
@@ -131,12 +139,70 @@ const ListadoPrestamosElegante = () => {
       };
 
       const response = await loansService.getLoans(filters);
-      setPrestamos(response.prestamos);
-      setEstadisticas(response.estadisticas);
+      const nextPrestamosBase = Array.isArray(response?.prestamos) ? response.prestamos : []
+
+      // Si el backend no manda `diasMora/cuotasVencidas` en /loans, cruzamos con el reporte canónico.
+      let moraMap = new Map<string, { diasMora: number; cuotasVencidas: number; estado?: string }>()
+      try {
+        const params: any = { pagina: 1, limite: 500 }
+        if (filtros.busqueda) params.busqueda = filtros.busqueda
+        if (filtros.ruta !== 'todas') params.rutaId = filtros.ruta
+
+        const moraResp: any = await apiRequest<any>('GET', '/reports/prestamos-mora', undefined, { params } as any)
+        const raw: any[] = Array.isArray(moraResp)
+          ? moraResp
+          : Array.isArray((moraResp as any)?.prestamos)
+            ? (moraResp as any).prestamos
+            : Array.isArray((moraResp as any)?.data)
+              ? (moraResp as any).data
+              : []
+
+        moraMap = new Map(
+          raw
+            .filter((p: any) => p && p.id)
+            .map((p: any) => [
+              String(p.id),
+              {
+                diasMora: Number(p?.diasMora || 0),
+                cuotasVencidas: Number(p?.cuotasVencidas || 0),
+                estado: p?.estado,
+              },
+            ]),
+        )
+      } catch {
+        moraMap = new Map()
+      }
+
+      const nextPrestamos = nextPrestamosBase.map((p: any) => {
+        const m = moraMap.get(String(p?.id || ''))
+        if (!m) return p
+        return {
+          ...p,
+          diasMora: Number(m.diasMora || 0),
+          cuotasVencidas: Number(m.cuotasVencidas || 0),
+          // Si el backend de /loans no marca EN_MORA pero el reporte sí, lo reflejamos.
+          estado: String(m?.estado || p?.estado || ''),
+        }
+      })
+
+      setPrestamos(nextPrestamos);
+
+      // Recalcular 'en mora' basado en `diasMora` para que la tarjeta sea consistente con el listado.
+      const moraCount = nextPrestamos.filter((p: any) => {
+        const diasMora = Number(p?.diasMora || 0)
+        const cuotasVencidas = Number(p?.cuotasVencidas || 0)
+        const estado = String(p?.estado || '').toUpperCase()
+        return diasMora > 0 || cuotasVencidas > 0 || estado === 'EN_MORA'
+      }).length
+
+      setEstadisticas({
+        ...(response.estadisticas as any),
+        atrasados: moraCount,
+      });
       setTotalPrestamos(response.paginacion.total);
       setDataSource('online');
       // Cache para offline
-      offlineStore.saveMany('prestamos', response.prestamos).catch(() => {});
+      offlineStore.saveMany('prestamos', nextPrestamos).catch(() => {});
       
     } catch (err) {
       // Fallback offline
@@ -250,6 +316,15 @@ const ListadoPrestamosElegante = () => {
   const prestamosFiltrados = prestamos.filter(prestamo => {
     if (filtros.riesgo !== 'todos' && prestamo.riesgo !== filtros.riesgo) return false;
     if (filtros.cliente !== 'todos' && prestamo.clienteId !== filtros.cliente) return false;
+
+    // Estado UI: si tiene días de mora, se considera EN_MORA aunque el backend lo marque ACTIVO.
+    const diasMora = Number((prestamo as any)?.diasMora || 0)
+    const cuotasVencidas = Number((prestamo as any)?.cuotasVencidas || 0)
+    const estadoRaw = String((prestamo as any)?.estado || '').toUpperCase()
+    const estadoUI = (diasMora > 0 || cuotasVencidas > 0) ? 'EN_MORA' : estadoRaw
+
+    if (filtros.estado === 'EN_MORA') return estadoUI === 'EN_MORA'
+    if (filtros.estado === 'ACTIVO') return estadoUI === 'ACTIVO'
     return true;
   });
 
@@ -532,7 +607,8 @@ const ListadoPrestamosElegante = () => {
                 ) : prestamosPaginados.length > 0 ? (
                   prestamosPaginados.map((prestamo) => {
                     const diasMora = Number((prestamo as any)?.diasMora || 0)
-                    const estadoUI = prestamo.estado
+                    const cuotasVencidas = Number((prestamo as any)?.cuotasVencidas || 0)
+                    const estadoUI = (diasMora > 0 || cuotasVencidas > 0) ? 'EN_MORA' : prestamo.estado
 
                     return (
                     <tr
@@ -684,7 +760,8 @@ const ListadoPrestamosElegante = () => {
           ) : prestamosPaginados.length > 0 ? (
             prestamosPaginados.map((prestamo) => {
               const diasMora = Number((prestamo as any)?.diasMora || 0)
-              const estadoUI = prestamo.estado
+              const cuotasVencidas = Number((prestamo as any)?.cuotasVencidas || 0)
+              const estadoUI = (diasMora > 0 || cuotasVencidas > 0) ? 'EN_MORA' : prestamo.estado
 
               return (
               <div
