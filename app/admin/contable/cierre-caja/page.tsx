@@ -64,13 +64,11 @@ export default function CierreCajaPage() {
     const total = cierres.length
     let cuadradas = 0
     let descuadradas = 0
-    let difTotal = 0
     cierres.forEach((c: any) => {
       if (String(c.estado) === 'DESCUADRADA') descuadradas++
       else cuadradas++
-      difTotal += Number(c.diferencia || 0)
     })
-    return { total, cuadradas, descuadradas, difTotal }
+    return { total, cuadradas, descuadradas }
   }, [cierres])
   const [showDetalleCierreModal, setShowDetalleCierreModal] = useState(false)
   const [ingresosHoyCalc, setIngresosHoyCalc] = useState<number | null>(null)
@@ -197,14 +195,15 @@ export default function CierreCajaPage() {
       <div className="fixed inset-0 pointer-events-none">
         <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px]"></div>
         <div className="absolute left-0 right-0 top-0 -z-10 m-auto h-[310px] w-[310px] rounded-full bg-blue-500 opacity-20 blur-[100px]"></div>
+        <div className="absolute left-0 right-0 top-[220px] -z-10 m-auto h-[260px] w-[260px] rounded-full bg-orange-500 opacity-10 blur-[110px]"></div>
       </div>
 
       <div className="relative z-10 w-full p-6 md:p-8 space-y-8">
         {/* Header */}
-        <div className="flex items-center gap-4">
+        <div className="flex items-start gap-4">
           <Link 
             href="/contable"
-            className="inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-slate-600 shadow-sm transition-colors hover:bg-slate-50 hover:text-slate-900"
+            className="inline-flex items-center justify-center rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-slate-600 shadow-sm transition-colors hover:bg-slate-50 hover:text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-200"
           >
             <ArrowLeft className="h-6 w-6" />
           </Link>
@@ -212,8 +211,10 @@ export default function CierreCajaPage() {
             <h1 className="text-3xl font-bold tracking-tight text-slate-900">
               <span className="text-blue-600">Cierre de</span> <span className="text-orange-500">Caja</span>
             </h1>
-            <p className="text-slate-500 font-medium">
-              {'Caja Principal'} • {new Date().toLocaleDateString('es-CO', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+            <p className="text-slate-500 font-medium mt-1">
+              {'Caja Principal'}
+              <span className="mx-2 text-slate-300">•</span>
+              {new Date().toLocaleDateString('es-CO', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
             </p>
           </div>
         </div>
@@ -222,17 +223,17 @@ export default function CierreCajaPage() {
           <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
             {/* Resumen del Día */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
+              <div className="bg-white p-5 rounded-3xl border border-slate-200 shadow-sm">
                 <div className="text-xs font-bold text-slate-500 uppercase mb-1">Saldo Sistema</div>
                 <div className="text-xl font-bold text-slate-900">
                   <MoneyAmount value={saldoSistema} amountClassName="text-xl font-bold text-slate-900" />
                 </div>
               </div>
-              <div className="bg-emerald-50 p-4 rounded-2xl border border-emerald-100 shadow-sm">
+              <div className="bg-emerald-50 p-5 rounded-3xl border border-emerald-100 shadow-sm">
                 <div className="text-xs font-bold text-emerald-600 uppercase mb-1">Ingresos Hoy</div>
-                <div className="text-xl font-bold text-slate-900">+{formatCurrency(Math.abs(Number(ingresosHoy || 0)))}</div>
+                <div className="text-xl font-bold text-slate-900 tabular-nums">+{formatCurrency(Math.abs(Number(ingresosHoy || 0)))}</div>
               </div>
-              <div className="bg-rose-50 p-4 rounded-2xl border border-rose-100 shadow-sm">
+              <div className="bg-rose-50 p-5 rounded-3xl border border-rose-100 shadow-sm">
                 <div className="text-xs font-bold text-rose-600 uppercase mb-1">Egresos Hoy</div>
                 <div className="text-xl font-bold text-slate-900">
                   <MoneyAmount value={egresosHoy} meaning="expense" amountClassName="text-xl font-bold text-slate-900" />
@@ -240,18 +241,18 @@ export default function CierreCajaPage() {
               </div>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="bg-white rounded-2xl p-6 border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all duration-300 group">
+              <div className="bg-white rounded-3xl p-6 border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all duration-300 group">
                 <div className="text-xs font-bold text-slate-500 uppercase mb-1">Cajas Abiertas</div>
                 <div className="text-2xl font-bold text-slate-900">{resumen ? resumen.cajasAbiertasCount : 0}</div>
               </div>
-              <div className="bg-white rounded-2xl p-6 border border-orange-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all duration-300 group">
+              <div className="bg-white rounded-3xl p-6 border border-orange-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all duration-300 group">
                 <div className="text-xs font-bold text-orange-600 uppercase mb-1">Rutas Pendientes</div>
                 <div className="text-2xl font-bold text-slate-900">{resumen ? resumen.rutasPendientesConsolidacion : 0}</div>
               </div>
               <button
                 type="button"
                 onClick={() => setShowHistorialModal(true)}
-                className="bg-white rounded-2xl p-6 border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all duration-300 text-left"
+                className="bg-white rounded-3xl p-6 border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all duration-300 text-left focus:outline-none focus:ring-2 focus:ring-blue-200"
               >
                 <div className="text-xs font-bold text-slate-500 uppercase mb-1">Historial de Cierres</div>
                 <div className="text-sm font-bold text-slate-900">
@@ -262,8 +263,8 @@ export default function CierreCajaPage() {
             </div>
 
             {/* Formulario de Conteo */}
-            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-              <div className="p-6 border-b border-slate-100 bg-slate-50/50">
+            <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
+              <div className="p-6 border-b border-slate-100 bg-slate-50/60">
                 <h3 className="font-bold text-slate-900 flex items-center gap-2">
                   <Calculator className="h-5 w-5 text-blue-600" />
                   Arqueo de Efectivo
@@ -285,7 +286,7 @@ export default function CierreCajaPage() {
                         inputMode="numeric"
                         value={form.efectivoReal}
                         onChange={(e) => setForm({ ...form, efectivoReal: formatCOPInputValue(e.target.value) })}
-                        className="pl-8 w-full rounded-xl border-slate-300 py-3 text-lg font-bold text-slate-900 focus:ring-2 focus:ring-blue-600 focus:border-transparent"
+                        className="pl-8 w-full rounded-2xl border-slate-300 py-3.5 text-lg font-bold text-slate-900 focus:ring-2 focus:ring-blue-600 focus:border-transparent shadow-sm"
                         placeholder="0"
                         autoFocus
                       />
@@ -334,11 +335,11 @@ export default function CierreCajaPage() {
                 </div>
               </div>
               
-              <div className="p-6 border-t border-slate-100 bg-slate-50/50 flex justify-end">
+              <div className="p-6 border-t border-slate-100 bg-slate-50/60 flex justify-end">
                 <button
                   onClick={() => setStep(2)}
                   disabled={!form.efectivoReal}
-                  className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-6 py-3 text-sm font-bold text-white hover:bg-blue-700 transition-all shadow-lg shadow-blue-600/20 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="inline-flex items-center gap-2 rounded-2xl bg-blue-600 px-6 py-3 text-sm font-bold text-white hover:bg-blue-700 transition-all shadow-lg shadow-blue-600/20 disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-blue-200"
                 >
                   Continuar a Confirmación
                 </button>
@@ -438,97 +439,99 @@ export default function CierreCajaPage() {
           <Portal>
           <div className="fixed inset-0 flex items-center justify-center p-6 md:p-8 bg-slate-900/60 backdrop-blur-md animate-in fade-in duration-300" style={{ zIndex: MODAL_Z_INDEX }} onClick={() => setShowHistorialModal(false)}>
             <div className="w-full max-w-5xl 2xl:max-w-6xl bg-white rounded-3xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200" onClick={(e) => e.stopPropagation()}>
-              <div className="p-6 border-b border-slate-100">
-                <h3 className="text-xl font-bold text-slate-900">Historial de Cierres</h3>
+              <div className="p-6 md:p-7 border-b border-slate-100 bg-slate-50/60">
+                <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4 md:gap-6">
+                  <div className="min-w-0">
+                    <h3 className="text-xl font-black text-slate-900 leading-tight">Historial de Cierres</h3>
+                    <div className="text-sm md:text-xs font-medium text-slate-500 mt-2 leading-relaxed">
+                      Filtra por tipo, estado y fechas
+                    </div>
+                  </div>
+                  <div className="md:shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => setShowHistorialModal(false)}
+                      className="inline-flex w-full md:w-auto items-center justify-center rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-xs font-bold text-slate-700 shadow-sm transition-colors hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                    >
+                      Cerrar
+                    </button>
+                  </div>
+                </div>
                 <div className="mt-4 grid grid-cols-1 md:grid-cols-12 gap-3">
-                  <div className="md:col-span-4 flex items-center gap-1 bg-white border border-slate-200 rounded-xl p-1 shadow-sm">
+                  <div className="md:col-span-4 flex items-center gap-1 bg-white border border-slate-200 rounded-2xl p-1 shadow-sm">
                     <button
                       type="button"
                       onClick={() => setFiltroTipo('TODOS')}
-                      className={cn("text-xs font-bold px-3 py-1 rounded-lg", filtroTipo === 'TODOS' ? "bg-blue-50 text-blue-700" : "text-slate-600")}
+                      className={cn("text-xs font-bold px-3 py-1.5 rounded-xl transition-colors", filtroTipo === 'TODOS' ? "bg-blue-50 text-blue-700" : "text-slate-600 hover:bg-slate-50")}
                     >Todos</button>
                     <button
                       type="button"
                       onClick={() => setFiltroTipo('ARQUEO')}
-                      className={cn("text-xs font-bold px-3 py-1 rounded-lg", filtroTipo === 'ARQUEO' ? "bg-emerald-50 text-emerald-700" : "text-slate-600")}
+                      className={cn("text-xs font-bold px-3 py-1.5 rounded-xl transition-colors", filtroTipo === 'ARQUEO' ? "bg-emerald-50 text-emerald-700" : "text-slate-600 hover:bg-slate-50")}
                     >Arqueos</button>
                     <button
                       type="button"
                       onClick={() => setFiltroTipo('CONSOLIDACION')}
-                      className={cn("text-xs font-bold px-3 py-1 rounded-lg", filtroTipo === 'CONSOLIDACION' ? "bg-orange-50 text-orange-700" : "text-slate-600")}
+                      className={cn("text-xs font-bold px-3 py-1.5 rounded-xl transition-colors", filtroTipo === 'CONSOLIDACION' ? "bg-orange-50 text-orange-700" : "text-slate-600 hover:bg-slate-50")}
                     >Consolidaciones</button>
                   </div>
-                  <div className="md:col-span-4 flex items-center gap-1 bg-white border border-slate-200 rounded-xl p-1 shadow-sm">
+                  <div className="md:col-span-4 flex items-center gap-1 bg-white border border-slate-200 rounded-2xl p-1 shadow-sm">
                     <button
                       type="button"
                       onClick={() => setEstadoFiltro('TODOS')}
-                      className={cn("text-xs font-bold px-3 py-1 rounded-lg", estadoFiltro === 'TODOS' ? "bg-blue-50 text-blue-700" : "text-slate-600")}
+                      className={cn("text-xs font-bold px-3 py-1.5 rounded-xl transition-colors", estadoFiltro === 'TODOS' ? "bg-blue-50 text-blue-700" : "text-slate-600 hover:bg-slate-50")}
                     >Estado: Todos</button>
                     <button
                       type="button"
                       onClick={() => setEstadoFiltro('DESCUADRADA')}
-                      className={cn("text-xs font-bold px-3 py-1 rounded-lg", estadoFiltro === 'DESCUADRADA' ? "bg-rose-50 text-rose-700" : "text-slate-600")}
+                      className={cn("text-xs font-bold px-3 py-1.5 rounded-xl transition-colors", estadoFiltro === 'DESCUADRADA' ? "bg-rose-50 text-rose-700" : "text-slate-600 hover:bg-slate-50")}
                     >Descuadradas</button>
                     <button
                       type="button"
                       onClick={() => setEstadoFiltro('CUADRADA')}
-                      className={cn("text-xs font-bold px-3 py-1 rounded-lg", estadoFiltro === 'CUADRADA' ? "bg-emerald-50 text-emerald-700" : "text-slate-600")}
+                      className={cn("text-xs font-bold px-3 py-1.5 rounded-xl transition-colors", estadoFiltro === 'CUADRADA' ? "bg-emerald-50 text-emerald-700" : "text-slate-600 hover:bg-slate-50")}
                     >Cuadradas</button>
                   </div>
                   <div className="md:col-span-4 flex items-center justify-between gap-3">
                     <label className="flex-1">
                       <span className="text-[10px] font-bold text-slate-400 uppercase block mb-1">Desde</span>
-                      <input type="date" value={fechaInicio} onChange={(e) => setFechaInicio(e.target.value)} className="w-full text-xs font-bold text-slate-700 bg-white border border-slate-200 rounded-lg px-2 py-1.5 focus:ring-2 focus:ring-blue-100 outline-none" />
+                      <input type="date" value={fechaInicio} onChange={(e) => setFechaInicio(e.target.value)} className="w-full text-xs font-bold text-slate-700 bg-white border border-slate-200 rounded-xl px-3 py-2 focus:ring-2 focus:ring-blue-100 outline-none" />
                     </label>
                     <label className="flex-1">
                       <span className="text-[10px] font-bold text-slate-400 uppercase block mb-1">Hasta</span>
-                      <input type="date" value={fechaFin} onChange={(e) => setFechaFin(e.target.value)} className="w-full text-xs font-bold text-slate-700 bg-white border border-slate-200 rounded-lg px-2 py-1.5 focus:ring-2 focus:ring-blue-100 outline-none" />
+                      <input type="date" value={fechaFin} onChange={(e) => setFechaFin(e.target.value)} className="w-full text-xs font-bold text-slate-700 bg-white border border-slate-200 rounded-xl px-3 py-2 focus:ring-2 focus:ring-blue-100 outline-none" />
                     </label>
                   </div>
                 </div>
                 <div className="mt-3 grid grid-cols-1 md:grid-cols-12 gap-3">
-                  <div className="md:col-span-4 flex items-center justify-between bg-white border border-slate-200 rounded-xl p-2 shadow-sm">
+                  <div className="md:col-span-4 flex items-center justify-between bg-white border border-slate-200 rounded-2xl p-3 shadow-sm">
                     <label className="flex items-center gap-2">
                       <input type="checkbox" checked={soloRutas} onChange={(e) => setSoloRutas(e.target.checked)} className="rounded-md border-slate-300" />
                       <span className="text-xs font-bold text-slate-700">Solo Cobradores (Rutas)</span>
                     </label>
                   </div>
                   <div className="md:col-span-8 grid grid-cols-4 gap-2">
-                    <div className="bg-white border border-slate-200 rounded-xl px-3 py-2 shadow-sm">
+                    <div className="bg-white border border-slate-200 rounded-2xl px-3 py-2 shadow-sm">
                       <div className="text-[10px] font-bold text-slate-500 uppercase">Registros</div>
                       <div className="text-sm font-black text-slate-900">{stats.total}</div>
                     </div>
-                    <div className="bg-white border border-slate-200 rounded-xl px-3 py-2 shadow-sm">
+                    <div className="bg-white border border-slate-200 rounded-2xl px-3 py-2 shadow-sm">
                       <div className="text-[10px] font-bold text-emerald-600 uppercase">Cuadradas</div>
                       <div className="text-sm font-black text-emerald-800">{stats.cuadradas}</div>
                     </div>
-                    <div className="bg-white border border-slate-200 rounded-xl px-3 py-2 shadow-sm">
+                    <div className="bg-white border border-slate-200 rounded-2xl px-3 py-2 shadow-sm">
                       <div className="text-[10px] font-bold text-rose-600 uppercase">Descuadradas</div>
                       <div className="text-sm font-black text-rose-800">{stats.descuadradas}</div>
-                    </div>
-                    <div className={cn("rounded-xl px-3 py-2 border shadow-sm", stats.difTotal === 0 ? "bg-slate-50 border-slate-200" : stats.difTotal > 0 ? "bg-emerald-50 border-emerald-100" : "bg-rose-50 border-rose-100")}>
-                      <div className={cn("text-[10px] font-bold uppercase", stats.difTotal === 0 ? "text-slate-500" : stats.difTotal > 0 ? "text-emerald-600" : "text-rose-600")}>Dif. Neta</div>
-                      <MoneyAmount
-                        value={stats.difTotal}
-                        amountClassName={cn(
-                          'text-sm font-black',
-                          stats.difTotal === 0
-                            ? 'text-slate-800'
-                            : stats.difTotal > 0
-                              ? 'text-emerald-800'
-                              : 'text-rose-800',
-                        )}
-                      />
                     </div>
                   </div>
                 </div>
               </div>
-              <div className="max-h-[75vh] overflow-y-auto">
-                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-2">
+              <div className="max-h-[75vh] overflow-y-auto px-6 pb-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-3">
                   {cierres.map((c, i) => (
                     <div
                       key={c.id || i}
-                      className="p-3 bg-white border border-slate-200 rounded-xl shadow-sm hover:shadow-md transition-all"
+                      className="p-4 bg-white border border-slate-200 rounded-2xl shadow-sm hover:shadow-md hover:border-slate-300 transition-all"
                     >
                       <div className="space-y-2">
                         <div className="flex items-center justify-between">
@@ -544,7 +547,7 @@ export default function CierreCajaPage() {
                             type="button"
                             title="Ver detalles"
                             onClick={() => { setSelectedCierre(c); setShowDetalleCierreModal(true) }}
-                            className="inline-flex items-center justify-center rounded-lg bg-white border border-slate-200 px-2.5 py-1.5 text-[11px] font-bold text-slate-700 hover:bg-slate-50 transition-all shadow-sm"
+                            className="inline-flex items-center justify-center rounded-xl bg-white border border-slate-200 px-2.5 py-1.5 text-[11px] font-bold text-slate-700 hover:bg-slate-50 transition-all shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
                           >
                             <Eye className="h-4 w-4" />
                           </button>
@@ -565,11 +568,7 @@ export default function CierreCajaPage() {
                   )}
                 </div>
               </div>
-              <div className="p-6 border-t border-slate-100 bg-slate-50 text-right">
-                <button className="inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-bold text-slate-600 hover:bg-slate-100" onClick={() => setShowHistorialModal(false)}>
-                  Cerrar
-                </button>
-              </div>
+              <div className="p-6 border-t border-slate-100 bg-slate-50/60 text-right"></div>
             </div>
           </div>
           </Portal>
@@ -578,35 +577,60 @@ export default function CierreCajaPage() {
           <Portal>
           <div className="fixed inset-0 flex items-center justify-center p-6 md:p-8 bg-slate-900/60 backdrop-blur-md animate-in fade-in duration-300" style={{ zIndex: MODAL_Z_INDEX }} onClick={() => setShowDetalleCierreModal(false)}>
             <div className="w-full max-w-2xl bg-white rounded-3xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200" onClick={(e) => e.stopPropagation()}>
-              <div className="p-6 border-b border-slate-100">
-                <h3 className="text-xl font-bold text-slate-900">Detalle de Cierre</h3>
-                <p className="text-sm text-slate-500">{selectedCierre.caja}</p>
+              <div className="p-6 md:p-7 border-b border-slate-100 bg-slate-50/60">
+                <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4 md:gap-6">
+                  <div className="min-w-0">
+                    <h3 className="text-xl font-black text-slate-900 leading-tight">Detalle de Cierre</h3>
+                    <div className="mt-2 flex flex-wrap items-center gap-2">
+                      <span className="inline-flex items-center rounded-xl border border-slate-200 bg-white px-3 py-1 text-xs font-bold text-slate-700">
+                        {selectedCierre.caja}
+                      </span>
+                      {selectedCierre.estado && (
+                        <span className={cn(
+                          "inline-flex items-center rounded-xl px-3 py-1 text-xs font-bold",
+                          selectedCierre.estado === 'DESCUADRADA' ? "bg-rose-100 text-rose-700" : "bg-emerald-100 text-emerald-700",
+                        )}>
+                          {selectedCierre.estado}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <div className="md:shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => setShowDetalleCierreModal(false)}
+                      className="inline-flex w-full md:w-auto items-center justify-center rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-xs font-bold text-slate-700 shadow-sm transition-colors hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                    >
+                      Cerrar
+                    </button>
+                  </div>
+                </div>
               </div>
-              <div className="p-6 space-y-4">
-                <div className="grid grid-cols-2 gap-4">
+              <div className="p-6 space-y-5">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <div className="text-[10px] font-bold text-slate-400 uppercase">Responsable</div>
                     <div className="text-sm font-bold text-slate-900">{selectedCierre.responsable}</div>
                   </div>
-                  <div className="text-right">
+                  <div className="sm:text-right">
                     <div className="text-[10px] font-bold text-slate-400 uppercase">Fecha</div>
                     <div className="text-sm font-bold text-slate-900">{new Date(selectedCierre.fecha).toLocaleString('es-CO')}</div>
                   </div>
                 </div>
-                <div className="grid grid-cols-3 gap-4">
-                  <div className="bg-slate-50 border border-slate-100 rounded-xl px-3 py-3 text-right">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div className="bg-white border border-slate-200 rounded-2xl px-4 py-4 shadow-sm sm:text-right">
                     <div className="text-[10px] font-bold text-slate-500 uppercase">Sistema</div>
                     <div className="text-lg font-black text-slate-900">
                       <MoneyAmount value={selectedCierre.saldoSistema ?? 0} amountClassName="text-lg font-black text-slate-900" />
                     </div>
                   </div>
-                  <div className="bg-slate-50 border border-slate-100 rounded-xl px-3 py-3 text-right">
+                  <div className="bg-white border border-slate-200 rounded-2xl px-4 py-4 shadow-sm sm:text-right">
                     <div className="text-[10px] font-bold text-slate-500 uppercase">Real</div>
                     <div className="text-lg font-black text-slate-900">
                       <MoneyAmount value={selectedCierre.saldoReal ?? 0} amountClassName="text-lg font-black text-slate-900" />
                     </div>
                   </div>
-                  <div className={cn("rounded-xl px-3 py-3 text-right border", (Number(selectedCierre.diferencia || 0) === 0) ? "bg-emerald-50 border-emerald-100" : "bg-rose-50 border-rose-100")}>
+                  <div className={cn("rounded-2xl px-4 py-4 border shadow-sm sm:text-right", (Number(selectedCierre.diferencia || 0) === 0) ? "bg-emerald-50 border-emerald-100" : "bg-rose-50 border-rose-100")}>
                     <div className={cn("text-[10px] font-bold uppercase", (Number(selectedCierre.diferencia || 0) === 0) ? "text-emerald-600" : "text-rose-600")}>Diferencia</div>
                     <div className="flex items-center justify-end">
                       <MoneyAmount
@@ -619,44 +643,34 @@ export default function CierreCajaPage() {
                     </div>
                   </div>
                 </div>
-                <div className="grid grid-cols-2 gap-4">
-                  {selectedCierre.estado && (
-                    <div className="bg-white border border-slate-200 rounded-xl px-3 py-3">
-                      <div className="text-[10px] font-bold text-slate-400 uppercase">Estado</div>
-                      <div className={cn("inline-block text-xs font-bold px-2 py-1 rounded-md", selectedCierre.estado === 'DESCUADRADA' ? "bg-rose-100 text-rose-700" : "bg-emerald-100 text-emerald-700")}>{selectedCierre.estado}</div>
-                    </div>
-                  )}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   {selectedCierre.tipo && (
-                    <div className="bg-white border border-slate-200 rounded-xl px-3 py-3">
+                    <div className="bg-white border border-slate-200 rounded-2xl px-4 py-4 shadow-sm">
                       <div className="text-[10px] font-bold text-slate-400 uppercase">Tipo</div>
-                      <div className="text-sm font-bold text-slate-900">{selectedCierre.tipo}</div>
+                      <div className="mt-1 inline-flex items-center rounded-xl bg-slate-50 border border-slate-200 px-3 py-1 text-xs font-bold text-slate-800">{selectedCierre.tipo}</div>
                     </div>
                   )}
                   {selectedCierre.referenciaId && (
-                    <div className="bg-white border border-slate-200 rounded-xl px-3 py-3">
+                    <div className="bg-white border border-slate-200 rounded-2xl px-4 py-4 shadow-sm">
                       <div className="text-[10px] font-bold text-slate-400 uppercase">Referencia</div>
-                      <div className="text-sm font-bold text-slate-900">{selectedCierre.referenciaId}</div>
+                      <div className="mt-1 text-xs font-bold text-slate-900 font-mono break-all">{selectedCierre.referenciaId}</div>
                     </div>
                   )}
                   {selectedCierre.cajaId && (
-                    <div className="bg-white border border-slate-200 rounded-xl px-3 py-3">
+                    <div className="bg-white border border-slate-200 rounded-2xl px-4 py-4 shadow-sm">
                       <div className="text-[10px] font-bold text-slate-400 uppercase">Caja ID</div>
-                      <div className="text-sm font-bold text-slate-900">{selectedCierre.cajaId}</div>
+                      <div className="mt-1 text-xs font-bold text-slate-900 font-mono break-all">{selectedCierre.cajaId}</div>
                     </div>
                   )}
                 </div>
                 { (selectedCierre.observaciones || selectedCierre.descripcion) && (
-                  <div className="bg-slate-50 border border-slate-100 rounded-xl px-3 py-3">
+                  <div className="bg-slate-50 border border-slate-200 rounded-2xl px-4 py-4">
                     <div className="text-[10px] font-bold text-slate-400 uppercase">Observaciones</div>
-                    <div className="text-sm font-bold text-slate-900 whitespace-pre-line">{selectedCierre.observaciones || selectedCierre.descripcion}</div>
+                    <div className="mt-1 text-sm font-semibold text-slate-900 whitespace-pre-line leading-relaxed">{selectedCierre.observaciones || selectedCierre.descripcion}</div>
                   </div>
                 )}
               </div>
-              <div className="p-6 border-t border-slate-100 bg-slate-50 text-right">
-                <button className="inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-bold text-slate-600 hover:bg-slate-100" onClick={() => setShowDetalleCierreModal(false)}>
-                  Cerrar
-                </button>
-              </div>
+              <div className="p-6 border-t border-slate-100 bg-slate-50/60"></div>
             </div>
           </div>
           </Portal>
