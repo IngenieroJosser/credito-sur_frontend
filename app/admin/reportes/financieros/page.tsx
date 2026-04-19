@@ -16,8 +16,8 @@ import { formatCurrency } from '@/lib/utils'
 import { ExportButton } from '@/components/ui/ExportButton'
 import { TransactionalHighDetailChart } from '@/components/ui/TransactionalHighDetailChart'
 import AnimacionCarga from '@/components/ui/AnimacionCarga'
-import { getFinancialSummary, getMonthlyEvolution, getFinancialTargets } from '@/services/reportes-service'
-import { getTransacciones } from '@/services/contabilidad-service'
+import { getMonthlyEvolution, getFinancialTargets } from '@/services/reportes-service'
+import { getResumenFinanciero, getTransacciones } from '@/services/contabilidad-service'
 import { exportService } from '@/services/export-service'
 import { toast } from 'sonner'
 import {
@@ -43,6 +43,24 @@ interface MonthlyEvolution {
   utilidad: number;
   fecha?: string;
   yearMonth?: string;
+}
+
+const isIngresoOperativo = (t: any): boolean => {
+  const est = String(t?.estado || '').toUpperCase()
+  if (est === 'ANULADO' || est === 'RECHAZADO') return false
+  const ref = String((t as any)?.tipoReferencia || t?.categoria || '').toUpperCase()
+  const desc = String((t as any)?.descripcion || '').toUpperCase()
+  const esRecoleccion = ref === 'RECOLECCION' && desc.includes('RECIBIDA')
+  const esTransferenciaInterna = ref === 'TRANSFERENCIA_INTERNA' && desc.includes('RECIBIDA')
+  return esRecoleccion || esTransferenciaInterna
+}
+
+const isEgresoOperativo = (t: any): boolean => {
+  const est = String(t?.estado || '').toUpperCase()
+  if (est === 'ANULADO' || est === 'RECHAZADO') return false
+  const cat = String(t?.categoria || '').toUpperCase()
+  const ref = String((t as any)?.tipoReferencia || '').toUpperCase()
+  return cat !== 'DEUDA_COBRADOR' && ref !== 'DEUDA_COBRADOR'
 }
 
 const ReportesFinancierosPage = () => {
@@ -102,31 +120,34 @@ const ReportesFinancierosPage = () => {
         ahora,
       )
 
-      const [summaryResp, monthlyRespMaybe] = await Promise.all([
-        getFinancialSummary(startDate, endDate),
-        periodo === 'DIARIO' ? Promise.resolve(null) : getMonthlyEvolution(ahora.getFullYear()),
+      const monthlyRespMaybe = periodo === 'DIARIO'
+        ? null
+        : await getMonthlyEvolution(ahora.getFullYear())
+
+      const [ingRes, egreRes] = await Promise.all([
+        getTransacciones({ tipo: 'TRANSFERENCIA', fechaInicio: startDate, fechaFin: endDate, limit: 10000 }),
+        getTransacciones({ tipo: 'EGRESO', fechaInicio: startDate, fechaFin: endDate, limit: 10000 }),
       ])
 
-      const [ingSumRes, egreSumRes] = await Promise.all([
-        getTransacciones({ tipo: 'INGRESO', fechaInicio: startDate, fechaFin: endDate, limit: 10000 }),
-        getTransacciones({ tipo: 'EGRESO', fechaInicio: startDate, fechaFin: endDate, limit: 10000 })
-      ])
-      const totalIngresosPeriodo = ingSumRes.data
-        .filter((t: any) => {
-          const cat = String(t?.categoria || '').toUpperCase()
-          return cat === 'PAGO' || cat === 'ABONO'
-        })
+      const totalIngresosPeriodo = ingRes.data
+        .filter(isIngresoOperativo)
         .reduce((acc, t) => acc + (t.monto || 0), 0)
-      const totalEgresosPeriodo = egreSumRes.data
-        .filter((t: any) => String(t?.categoria || '').toUpperCase() !== 'DEUDA_COBRADOR')
+      const totalEgresosPeriodo = egreRes.data
+        .filter(isEgresoOperativo)
         .reduce((acc, t) => acc + (t.monto || 0), 0)
-      const utilidadPeriodo = totalIngresosPeriodo - totalEgresosPeriodo
+
+      const startKey = getBogotaDateKey(new Date(startDate))
+      const endKey = getBogotaDateKey(new Date(endDate))
+      const resumenPeriodo = await getResumenFinanciero(startKey, endKey)
+      const utilidadPeriodo = Number((resumenPeriodo as any)?.utilidadReal ?? (resumenPeriodo as any)?.gananciaNeta ?? (totalIngresosPeriodo - totalEgresosPeriodo))
+
       const margenPeriodo = totalIngresosPeriodo > 0 ? (utilidadPeriodo / totalIngresosPeriodo) * 100 : 0
+
       setSummary({
         ingresos: totalIngresosPeriodo,
         egresos: totalEgresosPeriodo,
         utilidad: utilidadPeriodo,
-        margen: Number(margenPeriodo.toFixed(1))
+        margen: Number(margenPeriodo.toFixed(1)),
       })
 
       const nowKey = getBogotaDateKey(ahora)
@@ -177,21 +198,18 @@ const ReportesFinancierosPage = () => {
 
       const prevRange = getPrevRange()
       try {
-        const [prevIngRes, prevEgreRes] = await Promise.all([
-          getTransacciones({ tipo: 'INGRESO', fechaInicio: prevRange.inicio, fechaFin: prevRange.fin, limit: 10000 }),
-          getTransacciones({ tipo: 'EGRESO', fechaInicio: prevRange.inicio, fechaFin: prevRange.fin, limit: 10000 })
+        const [prevIngRes, prevEgrRes] = await Promise.all([
+          getTransacciones({ tipo: 'TRANSFERENCIA', fechaInicio: prevRange.inicio, fechaFin: prevRange.fin, limit: 10000 }),
+          getTransacciones({ tipo: 'EGRESO', fechaInicio: prevRange.inicio, fechaFin: prevRange.fin, limit: 10000 }),
         ])
-        const prevIng = prevIngRes.data
-          .filter((t: any) => {
-            const cat = String(t?.categoria || '').toUpperCase()
-            return cat === 'PAGO' || cat === 'ABONO'
-          })
-          .reduce((acc, t) => acc + (t.monto || 0), 0)
-        const prevEgr = prevEgreRes.data
-          .filter((t: any) => String(t?.categoria || '').toUpperCase() !== 'DEUDA_COBRADOR')
-          .reduce((acc, t) => acc + (t.monto || 0), 0)
-        const ingresosPerc = prevIng > 0 ? ((totalIngresosPeriodo - prevIng) / prevIng) * 100 : (totalIngresosPeriodo > 0 ? 100 : 0)
-        const egresosPerc = prevEgr > 0 ? ((totalEgresosPeriodo - prevEgr) / prevEgr) * 100 : (totalEgresosPeriodo > 0 ? 100 : 0)
+        const prevIngresos = prevIngRes.data.filter(isIngresoOperativo).reduce((acc, t) => acc + (t.monto || 0), 0)
+        const prevEgresos = prevEgrRes.data.filter(isEgresoOperativo).reduce((acc, t) => acc + (t.monto || 0), 0)
+        const ingresosPerc = prevIngresos > 0
+          ? ((totalIngresosPeriodo - prevIngresos) / prevIngresos) * 100
+          : (totalIngresosPeriodo > 0 ? 100 : 0)
+        const egresosPerc = prevEgresos > 0
+          ? ((totalEgresosPeriodo - prevEgresos) / prevEgresos) * 100
+          : (totalEgresosPeriodo > 0 ? 100 : 0)
         setTrendIngresos(Number(ingresosPerc.toFixed(1)))
         setTrendEgresos(Number(egresosPerc.toFixed(1)))
       } catch {
@@ -206,7 +224,7 @@ const ReportesFinancierosPage = () => {
         const fechaFin = toBogotaDateTimeOffsetIso(ahora)
 
         const [ingRes, egreRes] = await Promise.all([
-          getTransacciones({ tipo: 'INGRESO', fechaInicio, fechaFin, limit: 1000 }),
+          getTransacciones({ tipo: 'TRANSFERENCIA', fechaInicio, fechaFin, limit: 1000 }),
           getTransacciones({ tipo: 'EGRESO', fechaInicio, fechaFin, limit: 1000 })
         ])
 
@@ -219,11 +237,11 @@ const ReportesFinancierosPage = () => {
           dias[key] = { ingresos: 0, egresos: 0 }
           range.push(dd)
         }
-        ingRes.data.forEach(t => {
+        ingRes.data.filter(isIngresoOperativo).forEach(t => {
           const key = normalizeDateKey(t.fecha)
           if (dias[key]) dias[key].ingresos += t.monto || 0
         })
-        egreRes.data.forEach(t => {
+        egreRes.data.filter(isEgresoOperativo).forEach(t => {
           const key = normalizeDateKey(t.fecha)
           if (dias[key]) dias[key].egresos += t.monto || 0
         })
@@ -252,7 +270,10 @@ const ReportesFinancierosPage = () => {
 
         const totalIngresos7 = Object.values(dias).reduce((acc, v) => acc + v.ingresos, 0)
         const totalEgresos7 = Object.values(dias).reduce((acc, v) => acc + v.egresos, 0)
-        const utilidad7 = totalIngresos7 - totalEgresos7
+
+        const nowKey7 = getBogotaDateKey(ahora)
+        const resumen7 = await getResumenFinanciero(desde7Key, nowKey7)
+        const utilidad7 = Number((resumen7 as any)?.utilidadReal ?? (resumen7 as any)?.gananciaNeta ?? (totalIngresos7 - totalEgresos7))
         const margen7 = totalIngresos7 > 0 ? (utilidad7 / totalIngresos7) * 100 : 0
         setSummary({
           ingresos: totalIngresos7,
@@ -268,7 +289,7 @@ const ReportesFinancierosPage = () => {
         try {
           const [prevIng7Res, prevEgre7Res] = await Promise.all([
             getTransacciones({
-              tipo: 'INGRESO',
+              tipo: 'TRANSFERENCIA',
               fechaInicio: buildBogotaOffsetIsoFromKey(prevDesde7Key, { hh: 0, mm: 0, ss: 0, ms: 0 }),
               fechaFin: buildBogotaOffsetIsoFromKey(prevFin7Key, { hh: 23, mm: 59, ss: 59, ms: 999 }),
               limit: 1000,
@@ -278,10 +299,10 @@ const ReportesFinancierosPage = () => {
               fechaInicio: buildBogotaOffsetIsoFromKey(prevDesde7Key, { hh: 0, mm: 0, ss: 0, ms: 0 }),
               fechaFin: buildBogotaOffsetIsoFromKey(prevFin7Key, { hh: 23, mm: 59, ss: 59, ms: 999 }),
               limit: 1000,
-            })
+            }),
           ])
-          const prevIng7 = prevIng7Res.data.reduce((acc, t) => acc + (t.monto || 0), 0)
-          const prevEgr7 = prevEgre7Res.data.reduce((acc, t) => acc + (t.monto || 0), 0)
+          const prevIng7 = prevIng7Res.data.filter(isIngresoOperativo).reduce((acc, t) => acc + (t.monto || 0), 0)
+          const prevEgr7 = prevEgre7Res.data.filter(isEgresoOperativo).reduce((acc, t) => acc + (t.monto || 0), 0)
           const ingresosPerc7 = prevIng7 > 0 ? ((totalIngresos7 - prevIng7) / prevIng7) * 100 : (totalIngresos7 > 0 ? 100 : 0)
           const egresosPerc7 = prevEgr7 > 0 ? ((totalEgresos7 - prevEgr7) / prevEgr7) * 100 : (totalEgresos7 > 0 ? 100 : 0)
           setTrendIngresos(Number(ingresosPerc7.toFixed(1)))
@@ -291,14 +312,12 @@ const ReportesFinancierosPage = () => {
           setTrendEgresos(null)
         }
       } else {
-        const ingResAll = await getTransacciones({ tipo: 'INGRESO', fechaInicio: startDate, fechaFin: endDate, limit: 10000 })
+        const ingResAll = await getTransacciones({ tipo: 'TRANSFERENCIA', fechaInicio: startDate, fechaFin: endDate, limit: 10000 })
         const egreResAll = await getTransacciones({ tipo: 'EGRESO', fechaInicio: startDate, fechaFin: endDate, limit: 10000 })
-        
+
         if (periodo === 'MENSUAL') {
-          const startKey = getBogotaDateKey(new Date(`${startDate}`))
-          const endKey = getBogotaDateKey(ahora)
-          const startD = new Date(`${startKey}T12:00:00-05:00`)
-          const endD = new Date(`${endKey}T12:00:00-05:00`)
+          const startD = new Date(startDate)
+          const endD = new Date(endDate)
           const days: Date[] = []
           const dayMap: Record<string, { ingresos: number; egresos: number; fecha: string }> = {}
           const iter = new Date(startD)
@@ -308,11 +327,11 @@ const ReportesFinancierosPage = () => {
             days.push(new Date(iter))
             iter.setDate(iter.getDate() + 1)
           }
-          ingResAll.data.forEach(t => {
+          ingResAll.data.filter(isIngresoOperativo).forEach(t => {
             const key = normalizeDateKey(t.fecha)
             if (dayMap[key]) dayMap[key].ingresos += t.monto || 0
           })
-          egreResAll.data.forEach(t => {
+          egreResAll.data.filter(isEgresoOperativo).forEach(t => {
             const key = normalizeDateKey(t.fecha)
             if (dayMap[key]) dayMap[key].egresos += t.monto || 0
           })
@@ -343,12 +362,12 @@ const ReportesFinancierosPage = () => {
             months.push({ key, label })
             iter.setMonth(iter.getMonth() + 1, 1)
           }
-          ingResAll.data.forEach(t => {
+          ingResAll.data.filter(isIngresoOperativo).forEach(t => {
             const d = new Date(t.fecha)
             const key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`
             if (monthMap[key]) monthMap[key].ingresos += t.monto || 0
           })
-          egreResAll.data.forEach(t => {
+          egreResAll.data.filter(isEgresoOperativo).forEach(t => {
             const d = new Date(t.fecha)
             const key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`
             if (monthMap[key]) monthMap[key].egresos += t.monto || 0
