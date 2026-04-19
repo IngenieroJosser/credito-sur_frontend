@@ -1138,12 +1138,10 @@ const ModuloContableContent = () => {
               </div>
             )}
           </div>
-
-          {/* Ganancia / Utilidad Operativa */}
           <div
             onClick={() => {
               const hoy = getBogotaDateKey(new Date())
-              setCajaSeleccionada(null)
+              setDetalleTipo('UTILIDAD')
               setSaldoRutaSeleccionada(null)
               setMovimientosDetalle([])
               setFechaInicioModal(hoy)
