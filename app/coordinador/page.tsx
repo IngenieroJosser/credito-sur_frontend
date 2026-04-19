@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { dashboardService } from '@/services/dashboard-coordinador-service';
 import { prestamosService } from '@/services/prestamos-service';
+import { computeOperationalMetaTotalForTimeFilter } from '@/lib/dashboard-operational-meta';
 import { useRealtimeData } from '@/hooks/useRealtimeData';
 
 interface UserData {
@@ -65,6 +66,7 @@ interface FrontendDashboardData {
   chartData: Array<{
     label: string;
     value: number;
+    target?: number;
     date?: string;
     time?: string;
   }>;
@@ -250,10 +252,17 @@ export default function CoordinadorPage() {
           };
         });
 
+        let metaOperativaTotal = 0
+        try {
+          metaOperativaTotal = await computeOperationalMetaTotalForTimeFilter(period as any)
+        } catch {
+          metaOperativaTotal = 0
+        }
+
         const chartData = (dashboard?.trend || []).map((t) => ({
           label: t.label,
           value: t.value,
-          target: t.target,
+          target: metaOperativaTotal > 0 ? metaOperativaTotal : t.target,
         }));
 
         const topCollectors = (dashboard?.topCollectors || []).slice(0, 5).map((c: any) => ({

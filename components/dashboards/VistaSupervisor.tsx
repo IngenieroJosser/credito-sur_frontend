@@ -27,6 +27,7 @@ import { Sparkline } from '@/components/ui/PremiumCharts'
 import { TransactionalHighDetailChart } from '@/components/ui/TransactionalHighDetailChart'
 import { dashboardService, type DashboardData } from '@/services/dashboard-coordinador-service'
 import { formatErrorForComponent } from '@/lib/api/api'
+import { computeOperationalMetaTotalForTimeFilter } from '@/lib/dashboard-operational-meta'
 
 import PagoModal from '@/components/dashboards/shared/PagoModal'
 import CrearCreditoModal from '@/components/dashboards/shared/CrearCreditoModal'
@@ -77,8 +78,21 @@ const VistaSupervisor = () => {
     try {
       if (!refreshing) setLoading(true)
       setError(null)
-      const data = await dashboardService.getDashboardData(timeFilter)
-      setDashboardData(data)
+      const [data, metaOperativa] = await Promise.all([
+        dashboardService.getDashboardData(timeFilter),
+        computeOperationalMetaTotalForTimeFilter(timeFilter as any).catch(() => 0),
+      ])
+      const meta = Number(metaOperativa || 0)
+      const next = meta > 0
+        ? ({
+            ...(data as any),
+            trend: (Array.isArray((data as any)?.trend) ? (data as any).trend : []).map((t: any) => ({
+              ...t,
+              target: meta,
+            })),
+          } as any)
+        : data
+      setDashboardData(next)
     } catch (err) {
       setError(formatErrorForComponent(err))
     } finally {
