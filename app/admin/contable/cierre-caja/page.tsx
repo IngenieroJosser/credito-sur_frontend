@@ -5,8 +5,38 @@ import Link from 'next/link'
 import { ArrowLeft, CheckCircle2, AlertCircle, Calculator, Wallet, Receipt, Eye } from 'lucide-react'
 import { formatCOPInputValue, formatCurrency, parseCOPInputToNumber, cn } from '@/lib/utils'
 import MoneyAmount from '@/components/contable/MoneyAmount'
-import { getResumenFinanciero, getHistorialCierres, getHistorialCierresFiltrado, getCajas, consolidarCaja, registrarArqueo } from '@/services/contabilidad-service'
+import { getResumenFinanciero, getHistorialCierres, getHistorialCierresFiltrado, getCajas, consolidarCaja, registrarArqueo, getTransacciones } from '@/services/contabilidad-service'
 import { Portal, MODAL_Z_INDEX } from '@/components/dashboards/shared/CobradorElements'
+import { getBogotaDateKey } from '@/lib/rutas-core'
+
+const isIngresoOperativo = (t: any): boolean => {
+  const est = String(t?.estado || '').toUpperCase()
+  if (est === 'ANULADO' || est === 'RECHAZADO') return false
+  const ref = String((t as any)?.tipoReferencia || t?.categoria || '').toUpperCase()
+  const desc = String((t as any)?.descripcion || '').toUpperCase()
+  const esRecoleccion = ref === 'RECOLECCION' && desc.includes('RECIBIDA')
+  const esTransferenciaInterna = ref === 'TRANSFERENCIA_INTERNA' && desc.includes('RECIBIDA')
+  return esRecoleccion || esTransferenciaInterna
+}
+
+const isEgresoOperativo = (t: any): boolean => {
+  const est = String(t?.estado || '').toUpperCase()
+  if (est === 'ANULADO' || est === 'RECHAZADO') return false
+  const cat = String(t?.categoria || '').toUpperCase()
+  const ref = String((t as any)?.tipoReferencia || '').toUpperCase()
+  return cat !== 'DEUDA_COBRADOR' && ref !== 'DEUDA_COBRADOR'
+}
+
+const parseSaldoCaja = (raw: any): number => {
+  if (typeof raw === 'number') return Number.isFinite(raw) ? raw : 0
+  if (typeof raw === 'string') {
+    const cleaned = raw.replace(/[\s.,$]/g, '')
+    const n = Number(cleaned)
+    return Number.isFinite(n) ? n : 0
+  }
+  const n = Number(raw)
+  return Number.isFinite(n) ? n : 0
+}
 
 export default function CierreCajaPage() {
   const [step, setStep] = useState(1)
@@ -43,23 +73,59 @@ export default function CierreCajaPage() {
     return { total, cuadradas, descuadradas, difTotal }
   }, [cierres])
   const [showDetalleCierreModal, setShowDetalleCierreModal] = useState(false)
+  const [ingresosHoyCalc, setIngresosHoyCalc] = useState<number | null>(null)
+  const [egresosHoyCalc, setEgresosHoyCalc] = useState<number | null>(null)
 
   useEffect(() => {
     let mounted = true
     const load = async () => {
       try {
         setCargando(true)
-        const [res, cierresResp, cajasResp] = await Promise.all([
+        const hoyKey = getBogotaDateKey(new Date())
+
+        const fetchTransaccionesAll = async (params: Parameters<typeof getTransacciones>[0]) => {
+          const first = await getTransacciones({ ...params, page: 1, limit: params?.limit ?? 500 })
+          const data = [...(first?.data || [])]
+          const totalPages = Number(first?.meta?.totalPages || 1)
+          for (let page = 2; page <= totalPages; page++) {
+            const resp = await getTransacciones({ ...params, page, limit: params?.limit ?? 500 })
+            if (resp?.data?.length) data.push(...resp.data)
+          }
+          return data
+        }
+
+        const [res, cierresResp, cajasResp, ingresosData, egresosData] = await Promise.all([
           getResumenFinanciero(),
           getHistorialCierres(),
-          getCajas()
+          getCajas(),
+          fetchTransaccionesAll({ tipo: 'TRANSFERENCIA', fechaInicio: hoyKey, fechaFin: hoyKey, limit: 500 }),
+          fetchTransaccionesAll({ tipo: 'EGRESO', fechaInicio: hoyKey, fechaFin: hoyKey, limit: 500 }),
         ])
         if (!mounted) return
         setResumen(res)
+
+        const ingresosList = (ingresosData || []).filter(isIngresoOperativo)
+        const egresosList = (egresosData || []).filter(isEgresoOperativo)
+        setIngresosHoyCalc(ingresosList.reduce((acc: number, t: any) => acc + Number(t?.monto || 0), 0))
+        setEgresosHoyCalc(egresosList.reduce((acc: number, t: any) => acc + Number(t?.monto || 0), 0))
+
         const list = Array.isArray(cierresResp) ? cierresResp : []
         setCierres(list)
         setUltimoCierre(list.length ? list[0] : null)
-        const principal = (cajasResp || []).find((c: any) => c.tipo === 'PRINCIPAL')
+        const cajasList = Array.isArray(cajasResp) ? cajasResp : []
+        const cajasNoBanco = cajasList.filter((c: any) => {
+          const nombre = String(c?.nombre || '').trim().toUpperCase()
+          const codigo = String(c?.codigo || '').trim().toUpperCase()
+          return !nombre.includes('BANCO') && !codigo.includes('BANCO')
+        })
+
+        const principal =
+          cajasNoBanco.find((c: any) => String(c?.nombre || '').trim().toUpperCase().includes('CAJA DE OFICINA')) ||
+          cajasNoBanco.find((c: any) => String(c?.nombre || '').trim().toUpperCase().includes('OFICINA')) ||
+          cajasNoBanco.find((c: any) => String(c?.codigo || '').trim().toUpperCase() === 'CAJA-PRINCIPAL') ||
+          cajasNoBanco.find((c: any) => String(c?.tipo || '').trim().toUpperCase() === 'PRINCIPAL') ||
+          cajasNoBanco[0] ||
+          cajasList[0]
         setPrincipalCaja(principal || null)
       } finally {
         setCargando(false)
@@ -85,12 +151,17 @@ export default function CierreCajaPage() {
     fetchFilter()
   }, [showHistorialModal, filtroTipo, soloRutas, estadoFiltro, fechaInicio, fechaFin])
 
-  const diferencia = form.efectivoReal 
-    ? parseCOPInputToNumber(form.efectivoReal) - (resumen ? resumen.saldoCajas : 0) 
+  const saldoSistema = useMemo(() => {
+    const caja: any = principalCaja as any
+    const rawSaldo = caja?.saldo ?? caja?.saldoActual ?? caja?.saldoCaja ?? caja?.cajaSaldo
+    return parseSaldoCaja(rawSaldo)
+  }, [principalCaja])
+
+  const diferencia = form.efectivoReal
+    ? parseCOPInputToNumber(form.efectivoReal) - saldoSistema
     : 0
-  const saldoSistema = useMemo(() => resumen ? resumen.saldoCajas : 0, [resumen])
-  const ingresosHoy = useMemo(() => resumen ? resumen.ingresosHoy : 0, [resumen])
-  const egresosHoy = useMemo(() => resumen ? resumen.egresosHoy : 0, [resumen])
+  const ingresosHoy = useMemo(() => ingresosHoyCalc ?? (resumen ? resumen.ingresosHoy : 0), [ingresosHoyCalc, resumen])
+  const egresosHoy = useMemo(() => egresosHoyCalc ?? (resumen ? resumen.egresosHoy : 0), [egresosHoyCalc, resumen])
 
   const handleCierre = async () => {
     setLoading(true)
@@ -142,7 +213,7 @@ export default function CierreCajaPage() {
               <span className="text-blue-600">Cierre de</span> <span className="text-orange-500">Caja</span>
             </h1>
             <p className="text-slate-500 font-medium">
-              {(principalCaja?.nombre || 'Caja Principal')} • {new Date().toLocaleDateString('es-CO', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+              {'Caja Principal'} • {new Date().toLocaleDateString('es-CO', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
             </p>
           </div>
         </div>
