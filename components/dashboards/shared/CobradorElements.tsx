@@ -195,6 +195,16 @@ function VisitaCardContent({
   actions?: ReactNode
   children?: ReactNode
 }) {
+  const estadoLower = String((visita as any)?.estado || '').toLowerCase().replace(/\s+/g, '_')
+  const tieneCuotaPendiente = (visita as any)?.montoCuotaPendiente != null
+  const cuotaBase = Number(((visita as any)?.montoCuotaPendiente ?? (visita as any)?.montoCuota) || 0)
+  const recHoy = Number((visita as any)?.recaudadoDelDia || 0)
+  const saldo = Number((visita as any)?.saldoTotal || 0)
+  const cuotaPendiente = tieneCuotaPendiente ? cuotaBase : Math.max(0, cuotaBase - recHoy)
+  const cuotaUI = estadoLower === 'pagado'
+    ? cuotaBase
+    : Math.min(cuotaPendiente, saldo > 0 ? saldo : cuotaPendiente)
+
   const nivelRiesgoUI = resolveNivelRiesgoForVisita(visita)
   return (
     <>
@@ -265,7 +275,7 @@ function VisitaCardContent({
         <div className="flex items-center gap-1.5 shrink-0 ml-auto">
           <div className="text-center">
             <div className="text-[8px] font-bold text-slate-400 uppercase leading-none mb-0.5">Cuota</div>
-            <div className="text-[11px] font-black text-slate-800 tabular-nums">{formatMontoCorto(visita.montoCuota)}</div>
+            <div className="text-[11px] font-black text-slate-800 tabular-nums">{formatMontoCorto(cuotaUI)}</div>
           </div>
           <div className="w-px h-5 bg-slate-200" />
           <div className="text-center">

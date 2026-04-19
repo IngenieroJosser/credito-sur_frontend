@@ -119,8 +119,22 @@ export default function DetallePrestamo({ prestamo }: DetallePrestamoProps) {
     }
   };
 
-  const montoAbonado = prestamo.montoTotal - prestamo.saldoPendiente;
-  const progresoPorcentaje = prestamo.montoTotal > 0 ? Math.round((montoAbonado / prestamo.montoTotal) * 100) : 0;
+  // Abonado a la fecha:
+  // - En EFECTIVO: (montoTotal - saldoPendiente)
+  // - En ARTICULO: no debe contar la cuota inicial como "abonado".
+  //   La base financiada es (montoTotal - cuotaInicial) y el abono real es la reducción
+  //   del saldoPendiente contra esa base.
+  const baseFinanciada = isArticle
+    ? Math.max(0, Number(prestamo.montoTotal || 0) - cuotaInicialNum)
+    : Number(prestamo.montoTotal || 0)
+
+  const montoAbonado = isArticle
+    ? Math.max(0, baseFinanciada - Number(prestamo.saldoPendiente || 0))
+    : (Number(prestamo.montoTotal || 0) - Number(prestamo.saldoPendiente || 0))
+
+  const progresoPorcentaje = baseFinanciada > 0
+    ? Math.round((montoAbonado / baseFinanciada) * 100)
+    : 0;
 
   // Calcular saldo restante acumulado por cuota y detectar cuota actual
   const cuotasConSaldo = useMemo(() => {
@@ -196,8 +210,18 @@ export default function DetallePrestamo({ prestamo }: DetallePrestamoProps) {
 
   const estadoPrestamoUI = useMemo(() => {
     const st = String(prestamo.estado || '').toUpperCase()
-    if (st === 'EN_MORA' && Number(diasMora || 0) <= 0) return 'ACTIVO'
-    return prestamo.estado
+    const dm = Number(diasMora || 0)
+
+    // Si el crédito ya está saldado, nunca debe mostrarse en mora.
+    if (Number(prestamo?.saldoPendiente || 0) <= 0) return 'PAGADO'
+
+    // Regla UI: si hay días en mora calculados por cuotas vencidas, forzamos EN_MORA
+    // aunque el backend todavía marque el préstamo como ACTIVO.
+    if (dm > 0) return 'EN_MORA'
+
+    // Si el backend marca EN_MORA pero no hay días calculados (caso borde), bajamos a ACTIVO.
+    if (st === 'EN_MORA' && dm <= 0) return 'ACTIVO'
+    return st || 'ACTIVO'
   }, [prestamo.estado, diasMora])
 
   const cuotasConSaldoUI = useMemo(() => {

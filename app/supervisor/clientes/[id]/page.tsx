@@ -21,6 +21,13 @@ import {
 } from 'lucide-react'
 import ClienteDetalleElegante, { Cliente, Prestamo, Pago, Comentario } from '@/components/cliente/DetalleCliente'
 import Link from 'next/link'
+import {
+  computeDiasMoraFromCuotas,
+  getBogotaDateKey,
+  isCuotaNoPagada,
+  normalizeDateKey,
+  resolveFechaEfectivaCuota,
+} from '@/lib/rutas-core'
 import { clientesService } from '@/services/clientes-service'
 import { prestamosService } from '@/services/prestamos-service'
 import { pagosService } from '@/services/pagos-service'
@@ -151,6 +158,17 @@ export default function ClienteDetalleSupervisorPage() {
     const cuotasPagadas = cuotas.filter((c: any) => c.estado === 'PAGADO' || c.estado === 'PAGADA').length
     const totalCuotas = p.cantidadCuotas || cuotas.length || 0
 
+    const hoyKey = getBogotaDateKey(new Date())
+    const frecuencia = String(p.frecuenciaPago || 'DIARIO').toUpperCase()
+    const cuotasVencidas = (Array.isArray(cuotas) ? cuotas : []).filter((c: any) => {
+      if (!c || !isCuotaNoPagada(c)) return false
+      const raw = resolveFechaEfectivaCuota(c) || String(c?.fechaVencimiento || '')
+      const k = normalizeDateKey(raw)
+      return !!k && !!hoyKey && k < hoyKey
+    }).length
+    const diasMora = computeDiasMoraFromCuotas(cuotas as any, hoyKey, frecuencia)
+    const estadoUI = cuotasVencidas > 0 || diasMora > 0 ? 'EN_MORA' : p.estado
+
     const principal = Number(p.monto || 0)
     const tasa = Number(p.tasaInteres || 0)
     const meses = Number(p.plazoMeses || 1)
@@ -175,9 +193,11 @@ export default function ClienteDetalleSupervisorPage() {
       fechaInicio: p.fechaInicio,
       fechaVencimiento: p.fechaFin,
       proximoPago: cuotas.find((c: any) => c.estado === 'PENDIENTE' || c.estado === 'PARCIAL' || c.estado === 'VENCIDA' || c.estado === 'VENCIDO')?.fechaVencimiento || p.fechaFin,
-      estado: p.estado,
+      estado: estadoUI,
       tasaInteres: tasa,
       moraAcumulada: Number(p.interesMoraPagado || 0),
+      cuotasVencidas,
+      diasMora,
       icono: <Smartphone className="w-5 h-5" />,
       categoria: p.tipoPrestamo || 'General',
     } as Prestamo

@@ -313,7 +313,8 @@ export default function CuentasMoraFeature() {
   const totalMora = estadisticas?.totalMora ?? cuentas.reduce((a, c) => a + c.montoMora, 0)
   const totalDeuda = estadisticas?.totalDeudaRiesgo ?? cuentas.reduce((a, c) => a + c.montoTotalDeuda, 0)
   const clientesAfectados = estadisticas?.totalClientesAfectados ?? cuentas.length
-  const clientesCriticos = estadisticas?.clientesCriticos ?? cuentas.filter(c => c.nivelRiesgo === 'ROJO').length
+  const clientesCriticos = estadisticas?.clientesCriticos
+    ?? cuentas.filter(c => calcularNivelMora(Number(c?.diasMora || 0)) === 'Critico').length
 
   const porNivel: Partial<Record<NivelMoraKey, number>> = {}
   cuentas.forEach(c => {

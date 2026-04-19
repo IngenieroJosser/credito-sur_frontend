@@ -7,6 +7,13 @@ import { ChevronLeft, BarChart3, Smartphone, DollarSign, Loader2 } from 'lucide-
 import ClienteDetalleElegante, { Cliente, Prestamo, Pago, Comentario } from '@/components/cliente/DetalleCliente';
 import Link from 'next/link';
 import { clientesService } from '@/services/clientes-service';
+import {
+  computeDiasMoraFromCuotas,
+  getBogotaDateKey,
+  isCuotaNoPagada,
+  normalizeDateKey,
+  resolveFechaEfectivaCuota,
+} from '@/lib/rutas-core'
 
 export default function ClienteDetallePage() {
   const params = useParams();
@@ -80,6 +87,17 @@ export default function ClienteDetallePage() {
     const cuotas = p.cuotas || [];
     const cuotasPagadas = cuotas.filter((c: any) => c.estado === 'PAGADO' || c.estado === 'PAGADA').length;
     const totalCuotas = p.cantidadCuotas || cuotas.length || 0;
+
+    const hoyKey = getBogotaDateKey(new Date())
+    const frecuencia = String(p.frecuenciaPago || 'DIARIO').toUpperCase()
+    const cuotasVencidas = (Array.isArray(cuotas) ? cuotas : []).filter((c: any) => {
+      if (!c || !isCuotaNoPagada(c)) return false
+      const raw = resolveFechaEfectivaCuota(c) || String(c?.fechaVencimiento || '')
+      const k = normalizeDateKey(raw)
+      return !!k && !!hoyKey && k < hoyKey
+    }).length
+    const diasMora = computeDiasMoraFromCuotas(cuotas as any, hoyKey, frecuencia)
+    const estadoUI = cuotasVencidas > 0 || diasMora > 0 ? 'EN_MORA' : p.estado
     
     // El backend devuelve Decimal como string/objeto, aseguramos conversión a número
     const principal = Number(p.monto || 0);
@@ -108,9 +126,11 @@ export default function ClienteDetallePage() {
       fechaInicio: p.fechaInicio,
       fechaVencimiento: p.fechaFin,
       proximoPago: cuotas.find((c: any) => c.estado === 'PENDIENTE' || c.estado === 'PARCIAL' || c.estado === 'VENCIDA' || c.estado === 'VENCIDO')?.fechaVencimiento || p.fechaFin,
-      estado: p.estado,
+      estado: estadoUI,
       tasaInteres: tasa,
       moraAcumulada: Number(p.interesMoraPagado || 0),
+      cuotasVencidas,
+      diasMora,
       icono: <Smartphone className="w-5 h-5" />,
       categoria: p.tipoPrestamo || 'General',
     } as Prestamo;

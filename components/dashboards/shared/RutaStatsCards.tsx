@@ -13,6 +13,7 @@ export interface RutaStatsData {
   eficiencia: number
   gastos: number
   base: number
+  pendiente?: number
 }
 
 type Periodo = 'HOY' | 'SEM' | 'MES' | 'AÑO'
@@ -59,10 +60,15 @@ const StatCard = ({ children }: StatCardProps) => (
 // ─────────────────────────────────────────────────
 export function RutaStatsCards({ rutaStats, periodo = 'HOY' }: RutaStatsCardsProps) {
   const ef = eficienciaLabel(rutaStats.eficiencia)
+  const eficienciaShown = Number.isFinite(Number(rutaStats.eficiencia))
+    ? Number(rutaStats.eficiencia).toFixed(1)
+    : '0.0'
   const porcentajeRecaudo = rutaStats.meta > 0
-    ? `+${((rutaStats.recaudo / rutaStats.meta) * 100).toFixed(1)}%`
+    ? `${eficienciaShown}%`
     : '---'
-  const pendiente = Math.max(0, rutaStats.meta - rutaStats.recaudo)
+  const pendiente = rutaStats.pendiente != null
+    ? Math.max(0, Number(rutaStats.pendiente || 0))
+    : Math.max(0, Number(rutaStats?.meta || 0) - Number(rutaStats?.recaudo || 0))
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -101,7 +107,7 @@ export function RutaStatsCards({ rutaStats, periodo = 'HOY' }: RutaStatsCardsPro
             </p>
             <div className="flex items-baseline gap-2 mt-2">
               <h3 className="text-2xl font-bold text-slate-900">
-                {rutaStats.eficiencia}%
+                {eficienciaShown}%
               </h3>
               <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${ef.clase}`}>
                 {ef.texto}

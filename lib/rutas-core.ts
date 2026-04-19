@@ -386,11 +386,12 @@ export const isVisitaExigibleHoy = (visita: any, hoyBogotaKey: string): boolean 
   // - Si es ruta DIARIA, aparece siempre.
   // - Si no, solo aparece cuando proximaVisita == HOY (llave Bogotá).
   if (!visita) return false;
-  const estado = String(visita?.estado || '').toLowerCase();
-  if (estado === 'en_mora') return true;
+  const estadoRaw = String(visita?.estado || '').toLowerCase();
+  const estado = estadoRaw.replace(/\s+/g, '_');
+  if (estado === 'en_mora' || estado.includes('mora')) return true;
   if (String(visita?.periodoRuta || '').toUpperCase() === 'DIA') return true;
   const proximaKey = visita?.proximaVisita ? normalizeDateKey(String(visita.proximaVisita)) : '';
-  return !!proximaKey && !!hoyBogotaKey && proximaKey === hoyBogotaKey;
+  return !!proximaKey && !!hoyBogotaKey && proximaKey <= hoyBogotaKey;
 };
 
 export const shouldMarkVisitaAsPagado = (params: {
@@ -406,13 +407,11 @@ export const shouldMarkVisitaAsPagado = (params: {
   const saldoTotal = Number(params?.saldoTotal || 0);
   if (saldoTotal <= 0) return true;
 
-  const estadoActual = String(params?.estadoActual || '').toLowerCase();
-  if (estadoActual === 'pagado') return true;
-
   const recaudadoHoy = Number(params?.recaudadoHoy || 0);
   const cuota = Number(params?.montoCuotaExigible || 0);
   if (!(cuota > 0)) return false;
-  return recaudadoHoy > 0 && recaudadoHoy >= (cuota - 1);
+
+  return recaudadoHoy > 0 && recaudadoHoy >= cuota;
 };
 
 export const computeMetaHoyFromVisitas = (visitas: any[], hoyBogotaKey: string): number => {
@@ -422,7 +421,14 @@ export const computeMetaHoyFromVisitas = (visitas: any[], hoyBogotaKey: string):
   return visitas.reduce((sum: number, v: any) => {
     if (!isVisitaExigibleHoy(v, hoyBogotaKey)) return sum;
     if (String(v?.estado || '').toLowerCase() === 'pagado') return sum;
-    return sum + Number(v?.montoCuota || 0);
+    const saldo = Number((v as any)?.saldoTotal ?? 0);
+    if (saldo <= 0) return sum;
+
+    const cuotaBase = Number(((v as any)?.montoCuotaPendiente ?? v?.montoCuota) || 0);
+    const recHoy = Number((v as any)?.recaudadoDelDia || 0);
+    const cuotaPendiente = Math.max(0, cuotaBase - recHoy);
+    const cuotaUI = Math.min(cuotaPendiente, saldo > 0 ? saldo : cuotaPendiente);
+    return sum + Number(cuotaUI || 0);
   }, 0);
 };
 
@@ -493,5 +499,23 @@ export const computeMontoExigibleHastaHoyFromCuotas = (cuotas: any[], hoyBogotaK
     const pagado = Number((c as any)?.montoPagado ?? 0)
     const pendiente = monto - pagado
     return sum + (pendiente > 0 ? pendiente : 0);
+  }, 0);
+};
+
+export const computeMontoNominalHastaHoyFromCuotas = (cuotas: any[], hoyBogotaKey: string): number => {
+  if (!Array.isArray(cuotas) || cuotas.length === 0) return 0;
+  if (!hoyBogotaKey) return 0;
+
+  return cuotas.reduce((sum: number, c: any) => {
+    if (!c || !isCuotaNoPagada(c)) return sum;
+    const vtoRaw = resolveFechaEfectivaCuota(c) || String(c?.fechaVencimiento || '');
+    const vtoKey = normalizeDateKey(vtoRaw);
+    if (!vtoKey) return sum;
+    if (vtoKey > hoyBogotaKey) return sum;
+
+    const montoDirecto = (c as any)?.montoNominal ?? (c as any)?.monto;
+    const montoFallback = Number((c as any)?.montoCapital || 0) + Number((c as any)?.montoInteres || 0);
+    const monto = Number(montoDirecto ?? montoFallback ?? 0);
+    return sum + (monto > 0 ? monto : 0);
   }, 0);
 };

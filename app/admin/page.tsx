@@ -273,9 +273,7 @@ export default function DashboardPage() {
             value: recaudo,
             subValue: recaudo > 0 ? `${formatCurrency(recaudo)} cobrado` : 'Sin pagos en el período',
             isCurrency: true,
-            // Solo disponible cuando period=today y el backend devuelve un porcentaje != 0
-            // (0 puede ser el valor por defecto cuando no hay datos de ayer para comparar)
-            change: requestedPeriod === 'today' ? (resumen?.porcentajeIngresosVsAyer || null) : null,
+            change: null,
             icon: <Target className="h-4 w-4" />,
             color: '#8b5cf6'
           },
@@ -458,7 +456,7 @@ export default function DashboardPage() {
       const utilidadPeriodo = resumen?.gananciaNeta || 0
       const mainMetrics: MetricItem[] = [
         { title: `Capital Prestado (${PERIOD_LABEL[period]})`, value: capitalPrestado, isCurrency: true, change: null, icon: <CreditCard className="h-4 w-4" />, color: '#3b82f6' },
-        { title: `Recaudo (${PERIOD_LABEL[period]})`, value: recaudo, subValue: recaudo > 0 ? `${formatCurrency(recaudo)} cobrado` : 'Sin pagos en el período', isCurrency: true, change: period === 'today' ? (resumen?.porcentajeIngresosVsAyer || null) : null, icon: <Target className="h-4 w-4" />, color: '#8b5cf6' },
+        { title: `Recaudo (${PERIOD_LABEL[period]})`, value: recaudo, subValue: recaudo > 0 ? `${formatCurrency(recaudo)} cobrado` : 'Sin pagos en el período', isCurrency: true, change: null, icon: <Target className="h-4 w-4" />, color: '#8b5cf6' },
         { title: 'Cartera en Mora', value: moraMonto, subValue: `${moraPercent}% del capital · ${moraCount} cuentas en mora`, isCurrency: true, change: null, icon: <AlertCircle className="h-4 w-4" />, color: '#f43f5e' },
         { title: `Gastos (${PERIOD_LABEL[period]})`, value: gastosPeriodo, subValue: `Utilidad: ${formatCurrency(utilidadPeriodo)}`, isCurrency: true, change: period === 'today' ? (resumen?.porcentajeEgresosVsAyer || null) : null, icon: <Banknote className="h-4 w-4" />, color: '#f59e0b' },
       ]

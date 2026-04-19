@@ -2,6 +2,7 @@ import type { PeriodoRuta } from '@/lib/types/cobranza'
 import {
   computeDiasMoraFromCuotas,
   computeMontoExigibleHastaHoyFromCuotas,
+  computeMontoNominalHastaHoyFromCuotas,
   getBogotaDateKey,
   isVisitaExigibleHoy,
   normalizeDateKey,
@@ -34,6 +35,7 @@ export type VisitaRutaLite = {
   telefono: string
   horaSugerida: string
   montoCuota: number
+  montoCuotaPendiente?: number
   saldoTotal: number
   estado: EstadoVisita
   proximaVisita: any
@@ -168,10 +170,26 @@ export const mapAsignacionesToVisitasLite = (params: {
 
       if (!apareceHoy) return []
 
-      const montoExigible = computeMontoExigibleHastaHoyFromCuotas(cuotasOrdenadas as any, hoyKey)
-      const montoCuota = montoExigible > 0
-        ? montoExigible
-        : Number((proxima as any)?.montoNominal ?? (proxima as any)?.monto ?? 0)
+      const esArticulo = prestamo?.tipo === 'ARTICULO' || prestamo?.tipoPrestamo === 'ARTICULO'
+
+      const montoNominalProxima = Number((proxima as any)?.montoNominal ?? (proxima as any)?.monto ?? 0)
+      const montoNominalPrestamo = Number((prestamo as any)?.valorCuota ?? (prestamo as any)?.montoCuota ?? 0)
+      const montoCuotaBase = esArticulo
+        ? Math.max(montoNominalProxima, montoNominalPrestamo)
+        : (montoNominalPrestamo > 0 ? montoNominalPrestamo : montoNominalProxima)
+      const montoCuota = esArticulo
+        ? (() => {
+          const montoNominal = computeMontoNominalHastaHoyFromCuotas(cuotasOrdenadas as any, hoyKey)
+          return montoNominal > 0 ? Math.max(montoNominal, montoCuotaBase) : montoCuotaBase
+        })()
+        : montoCuotaBase
+
+      const montoCuotaPendiente = esArticulo
+        ? (() => {
+          const montoExigible = computeMontoExigibleHastaHoyFromCuotas(cuotasOrdenadas as any, hoyKey)
+          return montoExigible > 0 ? montoExigible : 0
+        })()
+        : undefined
 
       // Regla de montoCuota:
       // - Si hay cuotas vencidas/no pagadas hasta hoy, se acumulan (mora) y se cobra ese total.
@@ -187,7 +205,6 @@ export const mapAsignacionesToVisitasLite = (params: {
       // - La vista puede sobre-escribir este estado con pagos del día (recaudo) o
       //   información más actualizada del backend (enriquecimiento posterior).
 
-      const esArticulo = prestamo?.tipo === 'ARTICULO' || prestamo?.tipoPrestamo === 'ARTICULO'
       const nombreCredito = esArticulo ? (prestamo?.articulo || prestamo?.descripcionArticulo || 'Artículo') : 'Préstamo'
 
       const estadoCuota = String((proxima as any)?.estado || '').toUpperCase()
@@ -202,6 +219,7 @@ export const mapAsignacionesToVisitasLite = (params: {
         telefono: cliente.telefono || '',
         horaSugerida: asig.horaSugerida || '08:00 AM',
         montoCuota,
+        montoCuotaPendiente,
         saldoTotal: saldoTotalToken,
         estado,
         proximaVisita: fechaEfectiva || (proxima as any)?.fechaVencimiento || hoyKey,

@@ -271,9 +271,9 @@ const ClienteDetalleElegante: React.FC<ClienteDetalleProps> = ({
   };
 
   // Función para obtener porcentaje de progreso
-  const getProgressPercentage = (pagado: number, total: number) => {
-    if (total === 0) return 0;
-    return (pagado / total) * 100;
+  const getProgressPercentage = (pagadas: number, totales: number) => {
+    if (totales === 0) return 0;
+    return (pagadas / totales) * 100;
   };
 
   const formatFecha = (fechaStr: string) => {
@@ -673,13 +673,13 @@ const ClienteDetalleElegante: React.FC<ClienteDetalleProps> = ({
                           <div className="mb-4">
                             <div className="flex justify-between text-xs mb-1 font-medium">
                               <span className="text-slate-500">
-                                Progreso de pago
+                                Progreso de pago (cuotas)
                               </span>
                               <span className="font-bold text-slate-900">
                                 {Math.round(
                                   getProgressPercentage(
-                                    prestamo.montoPagado,
-                                    prestamo.montoTotal,
+                                    prestamo.cuotasPagadas,
+                                    prestamo.cuotasTotales,
                                   ),
                                 )}
                                 %
@@ -689,7 +689,7 @@ const ClienteDetalleElegante: React.FC<ClienteDetalleProps> = ({
                               <div
                                 className="h-full bg-slate-900 rounded-full transition-all duration-500"
                                 style={{
-                                  width: `${getProgressPercentage(prestamo.montoPagado, prestamo.montoTotal)}%`,
+                                  width: `${getProgressPercentage(prestamo.cuotasPagadas, prestamo.cuotasTotales)}%`,
                                 }}
                               />
                             </div>
