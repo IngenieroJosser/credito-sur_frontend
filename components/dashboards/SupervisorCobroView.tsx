@@ -487,36 +487,6 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
 
       setRutaStats((prev: any) => {
         // Para HOY: meta coherente con recaudo real (incluye mora) usando visitas visibles.
-        // Para otros periodos: conservamos el comportamiento existente.
-        if (periodoCards === 'HOY') {
-          const hoyKey = getBogotaDateKey(new Date())
-          const visitasExigibles = (visitasBaseRef.current || [])
-            .map((v: any) => {
-              const pagadoHoy = Number(v?.recaudadoDelDia || 0)
-              const cuota = Number(v?.montoCuota || 0)
-              const pagado = pagadoHoy > 0 && cuota > 0 && pagadoHoy >= (cuota - 1)
-              const estado = pagado ? 'pagado' : v?.estado
-              return { ...v, estado }
-            })
-            .filter((v: any) => isVisitaExigibleHoy(v, hoyKey))
-
-          const recaudo = visitasExigibles.reduce((s: number, v: any) => s + Number(v?.recaudadoDelDia || 0), 0)
-          const meta = visitasExigibles
-            .reduce((s: number, v: any) => s + Number(v?.montoCuota || 0), 0)
-          const eficiencia = meta > 0
-            ? Math.min(100, Math.max(0, Number(((recaudo / meta) * 100).toFixed(1))))
-            : 0
-
-          return {
-            ...prev,
-            recaudo: recaudo > 0 ? recaudo : recaudoBackend,
-            meta,
-            eficiencia,
-            gastos: Number(saldo?.gastosDelDia ?? prev.gastos ?? 0),
-            base: Number(saldo?.saldoCaja ?? saldo?.baseEfectivo ?? prev.base ?? 0),
-          }
-        }
-
         const meta = Number(prev.meta ?? 0)
         const recaudo = recaudoBackend > 0 ? recaudoBackend : Number(prev.recaudo ?? 0)
         const eficiencia = meta > 0
@@ -1074,16 +1044,31 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
         const hoyBogotaPrincipal = hoyBogotaKey;
 
         const visitasExigiblesHoy = (finales || []).filter((v: any) => isVisitaExigibleHoy(v, hoyBogotaPrincipal))
-        const metaHoy = computeMetaHoyFromVisitas(visitasExigiblesHoy as any, hoyBogotaPrincipal)
 
         const finalesFiltrados = finales.filter((v: any) => {
           if (v?.estado === 'pagado') return false;
           return Number(v?.saldoTotal || 0) > 0;
         });
 
+        const metaHoy = (Array.isArray(finalesFiltrados) ? finalesFiltrados : []).reduce((sum: number, v: any) => {
+          if (!v) return sum
+          const estadoLower = String(v?.estado || '').toLowerCase().replace(/\s+/g, '_')
+          if (estadoLower === 'pagado') return sum
+
+          const tieneCuotaPendiente = (v as any)?.montoCuotaPendiente != null
+          const cuotaBase = Number(((v as any)?.montoCuotaPendiente ?? v?.montoCuota) || 0)
+          const recHoy = Number((v as any)?.recaudadoDelDia || 0)
+          const saldo = Number((v as any)?.saldoTotal || 0)
+
+          const cuotaPendiente = tieneCuotaPendiente ? cuotaBase : Math.max(0, cuotaBase - recHoy)
+          const cuotaUI = Math.min(cuotaPendiente, saldo > 0 ? saldo : cuotaPendiente)
+          return sum + Number(cuotaUI || 0)
+        }, 0)
+
         setRutaStats((prev: any) => ({
           ...prev,
           meta: periodoCards === 'HOY' ? metaHoy : prev.meta,
+          pendiente: periodoCards === 'HOY' ? metaHoy : prev.pendiente,
         }));
 
         const prevList = visitasBaseRef.current
@@ -1371,7 +1356,10 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
       // - vencidas (por fecha) aunque el backend no haya actualizado estados
       // - en prórroga
       // - "duritos" (solo no-diarios)
-      if (v.estado === 'pagado') return false
+      if (v.estado === 'pagado' && Number((v as any)?.saldoTotal || 0) <= 0) return false
+
+      // Si es exigible hoy (misma regla que Cobrador/Admin), debe aparecer.
+      if (isVisitaExigibleHoy(v, hoyBogotaKey)) return true
 
       // 1) En mora siempre aparece
       if (v.estado === 'en_mora') return true

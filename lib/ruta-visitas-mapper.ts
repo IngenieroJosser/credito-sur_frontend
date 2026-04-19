@@ -35,6 +35,7 @@ export type VisitaRutaLite = {
   telefono: string
   horaSugerida: string
   montoCuota: number
+  montoCuotaPendiente?: number
   saldoTotal: number
   estado: EstadoVisita
   proximaVisita: any
@@ -183,6 +184,13 @@ export const mapAsignacionesToVisitasLite = (params: {
         })()
         : montoCuotaBase
 
+      const montoCuotaPendiente = esArticulo
+        ? (() => {
+          const montoExigible = computeMontoExigibleHastaHoyFromCuotas(cuotasOrdenadas as any, hoyKey)
+          return montoExigible > 0 ? montoExigible : 0
+        })()
+        : undefined
+
       // Regla de montoCuota:
       // - Si hay cuotas vencidas/no pagadas hasta hoy, se acumulan (mora) y se cobra ese total.
       // - Si no hay mora, se usa el monto nominal de la próxima cuota.
@@ -211,6 +219,7 @@ export const mapAsignacionesToVisitasLite = (params: {
         telefono: cliente.telefono || '',
         horaSugerida: asig.horaSugerida || '08:00 AM',
         montoCuota,
+        montoCuotaPendiente,
         saldoTotal: saldoTotalToken,
         estado,
         proximaVisita: fechaEfectiva || (proxima as any)?.fechaVencimiento || hoyKey,

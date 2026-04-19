@@ -66,7 +66,9 @@ export function RutaStatsCards({ rutaStats, periodo = 'HOY' }: RutaStatsCardsPro
   const porcentajeRecaudo = rutaStats.meta > 0
     ? `${eficienciaShown}%`
     : '---'
-  const pendiente = Math.max(0, Number(rutaStats?.meta || 0))
+  const pendiente = rutaStats.pendiente != null
+    ? Math.max(0, Number(rutaStats.pendiente || 0))
+    : Math.max(0, Number(rutaStats?.meta || 0) - Number(rutaStats?.recaudo || 0))
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">

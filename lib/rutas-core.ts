@@ -421,7 +421,14 @@ export const computeMetaHoyFromVisitas = (visitas: any[], hoyBogotaKey: string):
   return visitas.reduce((sum: number, v: any) => {
     if (!isVisitaExigibleHoy(v, hoyBogotaKey)) return sum;
     if (String(v?.estado || '').toLowerCase() === 'pagado') return sum;
-    return sum + Number(v?.montoCuota || 0);
+    const saldo = Number((v as any)?.saldoTotal ?? 0);
+    if (saldo <= 0) return sum;
+
+    const cuotaBase = Number(((v as any)?.montoCuotaPendiente ?? v?.montoCuota) || 0);
+    const recHoy = Number((v as any)?.recaudadoDelDia || 0);
+    const cuotaPendiente = Math.max(0, cuotaBase - recHoy);
+    const cuotaUI = Math.min(cuotaPendiente, saldo > 0 ? saldo : cuotaPendiente);
+    return sum + Number(cuotaUI || 0);
   }, 0);
 };
 

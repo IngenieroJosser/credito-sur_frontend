@@ -2166,26 +2166,44 @@ const VistaCobrador = () => {
       ? buscadas
       : buscadas.filter((v: any) => String(v?.estado || '').toLowerCase() !== 'pagado')
 
-    // Ordenar por Periodo (Mensual -> Quincenal -> Semanal -> Diario)
+    // Ordenar consistente con Supervisor/Admin
 
-    const sorted = visibles.sort((a, b) => {
+    const sorted = visibles.sort((a: any, b: any) => {
+      // En mora primero
+      if (a.estado === 'en_mora' && b.estado !== 'en_mora') return -1;
+      if (a.estado !== 'en_mora' && b.estado === 'en_mora') return 1;
 
-        // En mora primero
-        if (a.estado === 'en_mora' && b.estado !== 'en_mora') return -1;
-        if (a.estado !== 'en_mora' && b.estado === 'en_mora') return 1;
+      // Pagados al final (aunque en la mayoría de casos ya se filtran)
+      if (a.estado === 'pagado' && b.estado !== 'pagado') return 1;
+      if (a.estado !== 'pagado' && b.estado === 'pagado') return -1;
 
-        // Pagados al final (aunque en la mayoría de casos ya se filtran)
-        if (a.estado === 'pagado' && b.estado !== 'pagado') return 1;
-        if (a.estado !== 'pagado' && b.estado === 'pagado') return -1;
+      // Para DIA respetar el orden de visita
+      if (a.periodoRuta === 'DIA' && b.periodoRuta === 'DIA') {
+        const ao = Number(a.ordenVisita ?? 0)
+        const bo = Number(b.ordenVisita ?? 0)
+        if (ao !== bo) return ao - bo
+      }
 
-        const priority: Record<string, number> = { 'MES': 0, 'QUINCENA': 1, 'SEMANA': 2, 'DIA': 3 };
+      // Para no-DIA, priorizar por fechaUltimoPago (más antiguo arriba) si existe
+      if (a.periodoRuta !== 'DIA' || b.periodoRuta !== 'DIA') {
+        const aLast = Number(a.fechaUltimoPago || 0)
+        const bLast = Number(b.fechaUltimoPago || 0)
+        if (aLast !== bLast) return aLast - bLast
+      }
 
-        const pA = priority[a.periodoRuta] ?? 99;
+      // Fallback por periodo (Mensual -> Quincenal -> Semanal -> Diario)
+      const priority: Record<string, number> = { MES: 0, QUINCENA: 1, SEMANA: 2, DIA: 3 };
+      const pA = priority[String(a.periodoRuta || '').toUpperCase()] ?? 99;
+      const pB = priority[String(b.periodoRuta || '').toUpperCase()] ?? 99;
+      if (pA !== pB) return pA - pB;
 
-        const pB = priority[b.periodoRuta] ?? 99;
-
-        return pA - pB;
-
+      // Fallback final estable
+      const ao = Number(a.ordenVisita ?? 0)
+      const bo = Number(b.ordenVisita ?? 0)
+      if (ao !== bo) return ao - bo
+      const aId = String(a.id || '')
+      const bId = String(b.id || '')
+      return aId.localeCompare(bId)
     });
 
 
@@ -2202,7 +2220,25 @@ const VistaCobrador = () => {
     if (periodoCards !== 'HOY') return rutaStats
 
     const recaudo = Number((rutaStats as any)?.recaudo || 0)
-    const meta = Number((rutaStats as any)?.meta || 0)
+
+    // Para HOY, la "Meta" mostrada en las tarjetas debe reflejar lo que falta por cobrar
+    // (lo mismo que se muestra como cuota restante en las tarjetas de clientes).
+    const metaPendiente = (Array.isArray(visitasCobrador) ? visitasCobrador : []).reduce((sum: number, v: any) => {
+      if (!v) return sum
+      const estadoLower = String(v?.estado || '').toLowerCase().replace(/\s+/g, '_')
+      if (estadoLower === 'pagado') return sum
+
+      const tieneCuotaPendiente = (v as any)?.montoCuotaPendiente != null
+      const cuotaBase = Number(((v as any)?.montoCuotaPendiente ?? v?.montoCuota) || 0)
+      const recHoy = Number((v as any)?.recaudadoDelDia || 0)
+      const saldo = Number((v as any)?.saldoTotal || 0)
+
+      const cuotaPendiente = tieneCuotaPendiente ? cuotaBase : Math.max(0, cuotaBase - recHoy)
+      const cuotaUI = Math.min(cuotaPendiente, saldo > 0 ? saldo : cuotaPendiente)
+      return sum + Number(cuotaUI || 0)
+    }, 0)
+
+    const meta = Number(metaPendiente || 0)
     const eficienciaRaw = meta > 0 ? Number(((recaudo / meta) * 100).toFixed(1)) : 0
     const eficiencia = Math.min(100, Math.max(0, eficienciaRaw))
 
@@ -2211,9 +2247,9 @@ const VistaCobrador = () => {
       recaudo,
       meta,
       eficiencia,
-      pendiente: Math.max(0, meta - recaudo),
+      pendiente: meta,
     }
-  }, [periodoCards, rutaStats])
+  }, [periodoCards, rutaStats, visitasCobrador])
 
   const kpisHoy = useMemo(() => {
     const visitasExigiblesHoy = (visitasBase || [])

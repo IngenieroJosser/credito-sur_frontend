@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, ChangeEvent, FormEvent, useEffect, useCallback } from 'react'
+import { useState, ChangeEvent, FormEvent, useEffect, useCallback, useMemo } from 'react'
 import { useRealtimeData } from '@/hooks/useRealtimeData'
 import { usePageFocusRefresh } from '@/hooks/usePageFocusRefresh'
 import Link from 'next/link'
@@ -32,7 +32,12 @@ import { formatCurrency, cn } from '@/lib/utils'
 import { useAuth } from '@/hooks/useAuth'
 import { routesService } from '@/services/routes-service';
 import { rutasService } from '@/services/rutas-service';
-import { computeMetaHoyFromVisitas, getBogotaDateKey } from '@/lib/rutas-core'
+import {
+  computeMetaHoyFromVisitas,
+  computeMontoExigibleHastaHoyFromCuotas,
+  computeMontoNominalHastaHoyFromCuotas,
+  getBogotaDateKey,
+} from '@/lib/rutas-core'
 import { mapAsignacionesToVisitasLite } from '@/lib/ruta-visitas-mapper'
 import { clientesService, Cliente } from '@/services/clientes-service';
 import { useNotification } from '@/components/providers/NotificationProvider';
@@ -43,6 +48,8 @@ import { getCajas, consolidarCaja, obtenerSaldoDisponibleRuta, Caja } from '@/se
 import { prestamosService } from '@/services/prestamos-service';
 import { creditosService } from '@/services/creditos-service';
 import ConfirmModal from '@/components/ui/ConfirmModal';
+import { buildRecaudosHoyMapByPrestamoId, applyRecaudoHoyToVisitas } from '@/lib/ruta-recaudos'
+import { apiRequest } from '@/lib/api/api'
 
 interface Ruta {
   id: string;
@@ -108,7 +115,7 @@ export const RutasPageView = ({
     }
     return 'grid'
   })
-  // const [loading, setLoading]... removed unused
+  const [loading, setLoading] = useState(false)
   const { showNotification } = useNotification();
   const [showModal, setShowModal] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -166,6 +173,7 @@ export const RutasPageView = ({
   }
 
   const fetchRutas = useCallback(async () => {
+    setLoading(true);
     try {
       const isSupervisorPath = (rutasBasePath || '').toLowerCase().includes('/supervisor')
       const response = await routesService.getAll({
@@ -178,13 +186,21 @@ export const RutasPageView = ({
         : (Array.isArray((payload as any)?.data) ? (payload as any).data : [])
 
       if (Array.isArray(data) && data.length > 0) {
+        const hoyBogota = getBogotaDateKey(new Date())
+        let recaudosHoyMap: Record<string, number> = {}
+        try {
+          const pagosResp: any = await apiRequest<any>('GET', '/payments?limit=5000', undefined, { cacheTTL: 0 } as any)
+          const pagosData = (pagosResp as any)?.pagos || (pagosResp as any)?.data?.pagos || pagosResp || []
+          recaudosHoyMap = buildRecaudosHoyMapByPrestamoId((Array.isArray(pagosData) ? pagosData : []) as any, hoyBogota)
+        } catch {
+          recaudosHoyMap = {}
+        }
+
         const enriched = await Promise.all(
           (data as Ruta[]).map(async (r: Ruta) => {
             if (r?.estado !== 'ACTIVA') return r;
             try {
               const rutaCompleta: any = await rutasService.obtenerRutaPorId(r.id);
-              const hoyBogota = getBogotaDateKey(new Date());
-
               const asignaciones = Array.isArray(rutaCompleta?.asignaciones) ? rutaCompleta.asignaciones : [];
 
               // Normalizar cuotas (incluyendo montoPagado) para que el cálculo de exigible/meta
@@ -236,11 +252,92 @@ export const RutasPageView = ({
                 return true
               })
 
-              const metaDelDia = computeMetaHoyFromVisitas(visitasDedupe as any, hoyBogota)
+              // Construir mapa prestamoId → cuotas para recalcular montoCuota real
+              const cuotasMap = new Map<string, any[]>()
+              for (const asig of asigsConCuotas as any[]) {
+                for (const p of (asig?.cliente?.prestamos || [])) {
+                  if (p?.id && Array.isArray(p?.cuotas)) {
+                    cuotasMap.set(String(p.id), p.cuotas)
+                  }
+                }
+              }
+
+              // Corregir montoCuota descontando montoPagado histórico de cada cuota
+              const visitasConMontoCorrecto = (Array.isArray(visitasDedupe) ? visitasDedupe : []).map((v: any) => {
+                const pid = String(v?.prestamoId || '')
+                if (!pid) return v
+                const cuotas = cuotasMap.get(pid)
+                if (!cuotas || cuotas.length === 0) return v
+                const esArticulo = String((v as any)?.tipoPrestamo || '').toUpperCase() === 'ARTICULO'
+                const exigible = esArticulo
+                  ? computeMontoNominalHastaHoyFromCuotas(cuotas, hoyBogota)
+                  : computeMontoExigibleHastaHoyFromCuotas(cuotas, hoyBogota)
+                if (exigible <= 0) return v
+                return {
+                  ...v,
+                  montoCuota: exigible,
+                  ...(esArticulo ? { montoCuotaPendiente: computeMontoExigibleHastaHoyFromCuotas(cuotas, hoyBogota) } : {}),
+                }
+              })
+
+              const metaDelDia = computeMetaHoyFromVisitas(visitasConMontoCorrecto as any, hoyBogota)
+
+              const visitasConRecaudoHoy = applyRecaudoHoyToVisitas(visitasConMontoCorrecto as any, {
+                hoyBogotaKey: hoyBogota,
+                recaudosHoyMap: recaudosHoyMap || {},
+              }) as any
+
+              const metaDelDiaPendiente = computeMetaHoyFromVisitas(visitasConRecaudoHoy as any, hoyBogota)
+
+              if (process.env.NODE_ENV !== 'production') {
+                try {
+                  const recaudosPrestamoIds = Object.keys(recaudosHoyMap || {})
+                  const pagosPid = recaudosPrestamoIds[0] ? String(recaudosPrestamoIds[0]) : ''
+                  const contribs = (Array.isArray(visitasConRecaudoHoy) ? visitasConRecaudoHoy : []).map((v: any) => {
+                    const saldo = Number(v?.saldoTotal ?? 0)
+                    const tieneCuotaPendiente = (v as any)?.montoCuotaPendiente != null
+                    const cuotaBase = Number(((v as any)?.montoCuotaPendiente ?? v?.montoCuota) || 0)
+                    const recHoy = Number((v as any)?.recaudadoDelDia || 0)
+                    const cuotaPendiente = saldo > 0 ? (tieneCuotaPendiente ? cuotaBase : Math.max(0, cuotaBase - recHoy)) : 0
+                    const cuotaUI = saldo > 0 ? Math.min(cuotaPendiente, saldo) : 0
+                    return {
+                      cliente: v?.cliente,
+                      clienteId: v?.clienteId,
+                      prestamoId: v?.prestamoId,
+                      tipoPrestamo: (v as any)?.tipoPrestamo,
+                      periodoRuta: v?.periodoRuta,
+                      proximaVisita: v?.proximaVisita,
+                      estado: v?.estado,
+                      saldo,
+                      cuotaBase,
+                      recHoy,
+                      cuotaUI,
+                      pagoHit: !!pagosPid && String(v?.prestamoId || '') === pagosPid,
+                    }
+                  })
+                  const top = contribs
+                    .filter((c: any) => (c.cuotaUI || 0) > 0)
+                    .sort((a: any, b: any) => (b.cuotaUI || 0) - (a.cuotaUI || 0))
+                    .slice(0, 10)
+                  const hit = contribs.find((c: any) => c.pagoHit) || null
+                  console.warn('[RutasPageView][metaDelDiaPendiente]', {
+                    rutaId: r.id,
+                    hoyBogota,
+                    metaDelDiaPendiente,
+                    metaDelDia,
+                    pagosPrestamoId: pagosPid,
+                    pagoPrestamoRecaudo: pagosPid ? Number((recaudosHoyMap || {})[pagosPid] || 0) : 0,
+                    pagoVisita: hit,
+                    top,
+                  })
+                } catch {
+                  // ignore
+                }
+              }
 
               return {
                 ...r,
-                metaDelDia: Number(metaDelDia),
+                metaDelDia: Number((metaDelDiaPendiente ?? metaDelDia) ?? 0),
               };
             } catch {
               return r;
@@ -609,10 +706,26 @@ export const RutasPageView = ({
   const rutasActivas = displayRutas.filter((ruta) => ruta.estado === 'ACTIVA').length
   const rutasPendientes = displayRutas.filter((ruta) => ruta.estado === 'PENDIENTE_ACTIVACION').length
   const totalClientes = displayRutas.reduce((acc, curr) => acc + curr.clientesAsignados, 0)
-  const objetivoTotal = displayRutas.reduce((acc, curr) => acc + curr.metaDelDia, 0)
-  const cobranzaTotal = displayRutas.reduce((acc, curr) => acc + curr.cobranzaDelDia, 0)
-  const objetivoTotalShown = Math.max(objetivoTotal, cobranzaTotal)
-  const porcentajeAvance = objetivoTotal > 0 ? Math.min(100, (cobranzaTotal / objetivoTotal) * 100) : 0
+
+  const { objetivoTotalShown, cobranzaTotal, porcentajeAvance } = useMemo(() => {
+    const rutasOperativas = (Array.isArray(displayRutas) ? displayRutas : []).filter((r: any) => r && r.estado === 'ACTIVA')
+
+    const objetivoTotal = rutasOperativas.reduce((acc, curr) => {
+      const meta = Number(curr?.metaDelDia ?? 0)
+      return acc + Math.max(0, meta)
+    }, 0)
+
+    const recTotal = rutasOperativas.reduce((acc, curr) => {
+      const recaudo = Number(curr?.cobranzaDelDia ?? 0)
+      return acc + recaudo
+    }, 0)
+
+    return {
+      objetivoTotalShown: objetivoTotal,
+      cobranzaTotal: recTotal,
+      porcentajeAvance: objetivoTotal > 0 ? Math.min(100, (recTotal / objetivoTotal) * 100) : 0,
+    }
+  }, [displayRutas])
 
   // Force list view for Coordinador, Admin and Supervisor
   if ((rutasBasePath.includes('/coordinador') || rutasBasePath.includes('/admin') || rutasBasePath.includes('/supervisor')) && vista !== 'list') {
