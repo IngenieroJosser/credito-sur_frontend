@@ -227,10 +227,10 @@ function VisitaCardContent({
         </button>
       </div>
 
-      {/* Fila 2: badges | KPIs | botones de acción */}
-      <div className="mt-1 flex flex-col gap-2">
+      {/* Fila 2: badges | acciones | KPIs (en PC como antes; en móvil apilado) */}
+      <div className="mt-1 flex flex-col gap-2 md:flex-row md:items-center md:gap-1.5">
         {/* Badges */}
-        <div className="flex items-center gap-1 flex-wrap">
+        <div className="flex items-center gap-1 flex-wrap shrink-0">
           {/* Dot semáforo */}
           <span
             title={nivelTitle(nivelRiesgoUI)}
@@ -264,8 +264,17 @@ function VisitaCardContent({
           )}
         </div>
 
+        {/* Botones de acción (móvil: fila propia con scroll; PC: centrado como antes) */}
+        {actions && (
+          <div className="w-full overflow-x-auto -mx-0.5 px-0.5 md:w-auto md:overflow-visible md:mx-0 md:px-0 md:flex-1 md:flex md:items-center md:justify-center md:gap-1 md:flex-wrap">
+            <div className="flex items-center gap-1 flex-nowrap min-w-0 shrink-0 md:flex-wrap md:justify-center">
+              {actions}
+            </div>
+          </div>
+        )}
+
         {/* KPIs: cuota · saldo · período */}
-        <div className="flex items-center gap-1.5 shrink-0">
+        <div className="flex items-center gap-1.5 shrink-0 md:ml-auto">
           <div className="text-center">
             <div className="text-[8px] font-bold text-slate-400 uppercase leading-none mb-0.5">Cuota</div>
             <div className="text-[11px] font-black text-slate-800 tabular-nums">{formatMontoCorto(cuotaUI)}</div>
@@ -282,15 +291,6 @@ function VisitaCardContent({
             {periodoLabel(visita.periodoRuta)}
           </span>
         </div>
-
-        {/* Botones de acción (scroll horizontal en móvil) */}
-        {actions && (
-          <div className="w-full overflow-x-auto -mx-0.5 px-0.5">
-            <div className="flex items-center gap-1 flex-nowrap min-w-0 shrink-0">
-              {actions}
-            </div>
-          </div>
-        )}
       </div>
 
       {/* Fila 2b: Banner "Pendiente de aprobación" */}
