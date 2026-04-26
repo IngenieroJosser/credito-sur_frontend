@@ -11,7 +11,7 @@ import { refreshSesion } from '@/services/autenticacion-service'
 import { useNotificaciones } from "@/components/providers/NotificacionesProvider";
 import { usuariosService } from "@/services/usuarios-service";
 import { RolUsuario, EstadoUsuario } from "@/types/enums";
-import { apiRequest } from "@/lib/api/api";
+import { apiRequest, formatErrorForComponent } from "@/lib/api/api";
 import { formatShortDateTime, formatShortDate } from "@/lib/utils/format";
 import { buildBogotaOffsetIsoFromKey, getBogotaRangeForFinancialPeriod, normalizeDateKey } from '@/lib/rutas-core'
 
@@ -71,7 +71,7 @@ interface User {
 }
 
 interface Role {
-  id: RolUsuario;
+  id: string;
   nombre: string;
   label: string;
   descripcion: string;
@@ -79,6 +79,67 @@ interface Role {
   bgColor: string;
   icon: React.ReactNode;
 }
+
+const GLOBAL_MODULE_CATALOG = (() => {
+  const EXCLUDED_ACTION_IDS = new Set([
+    'prestamos-dinero',
+    'creditos-articulos',
+    'notificaciones',
+    'solicitudes',
+    'revisiones',
+    'seguimiento-pdv',
+  ])
+
+  const preferredOrder = [
+    'SUPER_ADMINISTRADOR',
+    'ADMIN',
+    'COORDINADOR',
+    'SUPERVISOR',
+    'CONTADOR',
+    'COBRADOR',
+    'PUNTO_DE_VENTA',
+  ]
+
+  const existingRoles = Object.keys(permisosPorRol || {})
+  const roleOrder = [
+    ...preferredOrder.filter((r) => existingRoles.includes(r)),
+    ...existingRoles.filter((r) => !preferredOrder.includes(r)),
+  ]
+
+  const flattenedModules: any[] = []
+  const seen = new Set<string>()
+
+  roleOrder.forEach((rol) => {
+    const modules = (permisosPorRol as any)?.[rol] || []
+    modules.forEach((module: any) => {
+      if (module.submodulos && module.submodulos.length > 0) {
+        module.submodulos.forEach((sub: any) => {
+          if (!sub?.id || seen.has(sub.id) || EXCLUDED_ACTION_IDS.has(sub.id)) return
+          seen.add(sub.id)
+          flattenedModules.push({
+            id: sub.id,
+            label: sub.nombre,
+            description: sub.nombre,
+            category: module.nombre,
+            roles: sub.roles,
+          })
+        })
+      } else {
+        if (!module?.id || seen.has(module.id) || EXCLUDED_ACTION_IDS.has(module.id)) return
+        seen.add(module.id)
+        flattenedModules.push({
+          id: module.id,
+          label: module.nombre,
+          description: module.nombre,
+          category: 'General',
+          roles: module.roles,
+        })
+      }
+    })
+  })
+
+  return flattenedModules
+})()
 
 const UserManagementPage = () => {
   const { showNotification } = useNotification();
@@ -116,7 +177,11 @@ const UserManagementPage = () => {
         estado: u.estado as EstadoUsuario,
         fechaCreacion: formatShortDate(u.creadoEn),
         ultimoAcceso: formatShortDateTime(u.ultimoIngreso),
-        permisos: u.permisos || [],
+        permisos: (Array.isArray(u.permisos)
+          ? (u.permisos as any[])
+              .map((p) => (p?.codigo || p?.id || p))
+              .filter((p) => typeof p === 'string' && p.trim() !== '')
+          : []),
       }));
       setUsers(mappedUsers);
     } catch (error) {
@@ -252,55 +317,7 @@ const UserManagementPage = () => {
     }
   }, [selectedUser]);
 
-  // Define available modules based on the selected user's role using useMemo to avoid bad setState calls
-  const availableModules = React.useMemo(() => {
-    if (!selectedUser) return [];
-
-    // Catálogo completo: unión de módulos de todos los roles (evita que falten módulos en el modal)
-    const allRoleModules = Object.values(permisosPorRol).flat();
-    const flattenedModules: any[] = [];
-
-    allRoleModules.forEach((module) => {
-      if (module.submodulos && module.submodulos.length > 0) {
-        module.submodulos.forEach((sub) => {
-          flattenedModules.push({
-            id: sub.id,
-            label: sub.nombre,
-            description: sub.nombre,
-            category: module.nombre,
-            roles: sub.roles,
-          });
-        });
-      } else {
-        flattenedModules.push({
-          id: module.id,
-          label: module.nombre,
-          description: module.nombre,
-          category: "General",
-          roles: module.roles,
-        });
-      }
-    });
-
-    const byId = new Map<string, any>();
-    flattenedModules.forEach((m) => {
-      const existing = byId.get(m.id);
-      if (!existing) {
-        byId.set(m.id, m);
-        return;
-      }
-
-      // Merge roles/categories if needed
-      const mergedRoles = Array.from(new Set([...(existing.roles || []), ...(m.roles || [])]));
-      byId.set(m.id, {
-        ...existing,
-        roles: mergedRoles,
-        category: existing.category || m.category,
-      });
-    });
-
-    return Array.from(byId.values());
-  }, [selectedUser]);
+  const availableModules = GLOBAL_MODULE_CATALOG
 
   useEffect(() => {
     const timer = setTimeout(() => setMounted(true), 100);
@@ -771,8 +788,6 @@ const UserManagementPage = () => {
       return;
     }
 
-    setSelectedUser(user);
-
     const flattenPermissionIds = (modules: any[]): string[] => {
       const ids: string[] = [];
       modules.forEach((m) => {
@@ -793,11 +808,40 @@ const UserManagementPage = () => {
     const permisosDefaultRol = flattenPermissionIds(
       permisosPorRol[user.rol as any] || [],
     );
-    const permisosIniciales =
-      permisosGuardados.length > 0 ? permisosGuardados : permisosDefaultRol;
 
+    const expandGroupIds = (ids: string[]): string[] => {
+      const allModules = Object.values(permisosPorRol || {}).flat() as any[]
+      const expanded = new Set<string>()
+
+      ids.forEach((id) => {
+        const group = allModules.find((m: any) => m?.id === id && Array.isArray(m?.submodulos) && m.submodulos.length > 0)
+        if (group) {
+          group.submodulos.forEach((s: any) => {
+            if (s?.id) expanded.add(s.id)
+          })
+          return
+        }
+        expanded.add(id)
+      })
+
+      return Array.from(expanded)
+    }
+
+    let permisosIniciales: string[]
+    if (user.rol === RolUsuario.SUPER_ADMINISTRADOR) {
+      permisosIniciales = permisosDefaultRol
+    } else {
+      const permisosGuardadosExpandidos = expandGroupIds(permisosGuardados)
+      permisosIniciales = Array.from(
+        new Set([...permisosDefaultRol, ...permisosGuardadosExpandidos]),
+      )
+    }
+
+    setSelectedUser(user);
     setSelectedPermissions(permisosIniciales);
-    setIsPermissionsModalOpen(true);
+    setTimeout(() => {
+      setIsPermissionsModalOpen(true);
+    }, 0);
   };
 
   const handleOpenDeleteModal = (user: User) => {
@@ -958,10 +1002,10 @@ const UserManagementPage = () => {
     if (!selectedUser) return;
 
     try {
-      await usuariosService.asignarPermisos(
-        selectedUser.id,
-        selectedPermissions,
-      );
+      const validIds = new Set(availableModules.map((m: any) => m.id));
+      const permissionsToSave = selectedPermissions.filter((p) => validIds.has(p));
+
+      await usuariosService.asignarPermisos(selectedUser.id, permissionsToSave);
 
       // Si el usuario editado es el mismo que tiene la sesión, refrescar token/permisos/sidebar
       // para evitar que el menú quede desactualizado hasta el próximo login.
@@ -998,7 +1042,7 @@ const UserManagementPage = () => {
         if (user.id === selectedUser.id) {
           return {
             ...user,
-            permisos: selectedPermissions,
+            permisos: permissionsToSave,
           };
         }
         return user;
@@ -1011,13 +1055,19 @@ const UserManagementPage = () => {
         "Los permisos del usuario han sido actualizados",
         "Permisos Actualizados",
       );
-    } catch (error) {
-      console.error("Error updating permissions:", error);
-      showNotification(
-        "error",
-        "No se pudieron actualizar los permisos",
-        "Error",
-      );
+    } catch (error: any) {
+      const msg =
+        error?.response?.data?.message ??
+        error?.message ??
+        error?.toString?.() ??
+        'Error desconocido';
+
+      console.error("Error actualizando los permisos:", msg, {
+        status: error?.response?.status,
+        data: error?.response?.data,
+      });
+
+      showNotification("error", msg, "Error");
     }
   };
 

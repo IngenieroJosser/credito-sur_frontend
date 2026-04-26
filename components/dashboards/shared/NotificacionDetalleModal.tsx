@@ -860,18 +860,12 @@ export default function NotificacionDetalleModal({
                             safeMetaDetalles?.fechaInicio;
                           if (!dateStr || dateStr === 'N/A') return 'N/A';
                           try {
-                            // ISO completo: 2026-04-01T05:00:00.000Z
-                            if (typeof dateStr === 'string' && dateStr.includes('T')) {
-                              const key = normalizeDateKey(dateStr)
-                              if (key) return new Date(`${key}T12:00:00-05:00`).toLocaleDateString('es-CO')
+                            const key = normalizeDateKey(String(dateStr))
+                            if (key) {
+                              const base = new Date(`${key}T12:00:00-05:00`)
+                              base.setDate(base.getDate() + 1)
+                              return base.toLocaleDateString('es-CO')
                             }
-                            // Formato YYYY-MM-DD
-                            if (typeof dateStr === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
-                              return new Date(dateStr + 'T12:00:00-05:00').toLocaleDateString('es-CO');
-                            }
-                            // Cualquier otro formato
-                            const d = new Date(dateStr);
-                            if (!isNaN(d.getTime())) return d.toLocaleDateString('es-CO');
                           } catch (e) {
                             return String(dateStr);
                           }

@@ -108,6 +108,7 @@ export const permisosPorRol: Record<Rol, ModuloPermiso[]> = {
       submodulos: [
         T.CREDITOS('ADMIN', '/admin/creditos'),
         T.RUTAS('ADMIN', '/admin/rutas'),
+        T.PDV_FOLLOW('ADMIN', '/admin/operaciones/punto-de-venta'),
       ]
     },
     {
@@ -131,6 +132,7 @@ export const permisosPorRol: Record<Rol, ModuloPermiso[]> = {
     {
       id: 'administracion', nombre: 'Administración', icono: 'Shield', path: '#', roles: ['ADMIN'],
       submodulos: [
+        T.USUARIOS('ADMIN', '/admin/users'),
         T.INVENTARIO('ADMIN', '/admin/articulos'),
       ]
     },
