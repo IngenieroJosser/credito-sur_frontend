@@ -33,6 +33,7 @@ import FiltroRuta from '@/components/filtros/FiltroRuta'
 import { TimeFilter, TimeFilterPeriod } from '@/components/ui/TimeFilter'
 import type { RoutePerformance } from '@/services/reportes-coordinador-service'
 import { useReportesCoordinador } from '@/hooks/useReportesCoordinador'
+import { computeOperationalMetaByRouteIdsForTimeFilter } from '@/lib/dashboard-operational-meta'
 import { toast } from 'sonner'
 
 const ReportesOperativosPage = () => {
@@ -73,6 +74,7 @@ const ReportesOperativosPage = () => {
 
   // Filtro específico para ver el rendimiento de una sola ruta
   const [filterRuta, setFilterRuta] = useState<string | null>(null);
+  const [metaByRuta, setMetaByRuta] = useState<Record<string, number>>({})
 
   const handleExportExcel = async () => {
     setExporting(true)
@@ -137,6 +139,33 @@ const ReportesOperativosPage = () => {
     }
   }, [period, filterRuta, mounted, fetchOperationalReport]);
 
+  useEffect(() => {
+    if (!mounted) return
+    const rutas = (reportData as any)?.rendimientoRutas
+    const ids = (Array.isArray(rutas) ? rutas : []).map((r: any) => String(r?.id || '')).filter(Boolean)
+    if (ids.length === 0) {
+      setMetaByRuta({})
+      return
+    }
+
+    const mapPeriod = (p: TimeFilterPeriod): 'today' | 'week' | 'month' | 'year' => {
+      if (p === 'week') return 'week'
+      if (p === 'month') return 'month'
+      if (p === 'year') return 'year'
+      return 'today'
+    }
+
+    const run = async () => {
+      try {
+        const metas = await computeOperationalMetaByRouteIdsForTimeFilter(mapPeriod(period), ids)
+        setMetaByRuta(metas || {})
+      } catch {
+        setMetaByRuta({})
+      }
+    }
+    void run()
+  }, [mounted, period, reportData])
+
   const handleRealtimeRefresh = useCallback(() => {
     if (!mounted) return;
     fetchOperationalReport({ period, routeId: filterRuta || undefined })
@@ -168,9 +197,34 @@ const ReportesOperativosPage = () => {
     fechaFin: ''
   };
 
-  const rendimientoFiltrado = data.rendimientoRutas;
-  const totalRecaudo = data.totalRecaudo;
-  const porcentajeGlobal = data.porcentajeGlobal;
+  const pickMeta = (item: any): number => {
+    const id = String(item?.id || '')
+    const fromComputed = id && Object.prototype.hasOwnProperty.call(metaByRuta, id) ? Number((metaByRuta as any)[id] || 0) : null
+    if (fromComputed !== null && Number.isFinite(fromComputed)) return Math.max(0, fromComputed)
+    const raw = item?.metaPendiente ?? item?.metaHoy ?? item?.metaDelDia ?? item?.meta
+    const meta = Number(raw || 0)
+    return Number.isFinite(meta) ? meta : 0
+  }
+
+  const pickRecaudado = (item: any): number => {
+    const n = Number(item?.recaudado || 0)
+    return Number.isFinite(n) ? n : 0
+  }
+
+  const rendimientoFiltrado = (Array.isArray(data.rendimientoRutas) ? data.rendimientoRutas : []).map((item: any) => {
+    const meta = pickMeta(item)
+    const recaudado = pickRecaudado(item)
+    const eficiencia = meta > 0 ? Math.min(100, Math.max(0, Number(((recaudado / meta) * 100).toFixed(1)))) : 0
+    return { ...item, meta, recaudado, eficiencia }
+  })
+
+  const totalRecaudo = rendimientoFiltrado.reduce((acc: number, r: any) => acc + Number(r?.recaudado || 0), 0)
+  const totalMeta = rendimientoFiltrado.reduce((acc: number, r: any) => acc + Number(r?.meta || 0), 0)
+  const porcentajeGlobal = (() => {
+    const raw = Number((data as any).porcentajeGlobal)
+    if (Number.isFinite(raw) && raw >= 0) return raw
+    return totalMeta > 0 ? Number(((totalRecaudo / totalMeta) * 100).toFixed(1)) : 0
+  })()
 
 
 
@@ -359,14 +413,23 @@ const ReportesOperativosPage = () => {
             <div className="space-y-6">
               {rendimientoFiltrado.map((item: RoutePerformance, idx: number) => (
                 <div key={idx} className="space-y-2">
-                  <div className="flex justify-between text-sm">
-                    <span className="font-bold text-slate-700">{item.ruta}</span>
-                    <span className="text-slate-500">Meta: {formatCurrency(item.meta)}</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="font-bold text-slate-700">Recaudado: {formatCurrency(item.recaudado)}</span>
-                    <span className="text-slate-500">{Math.min((item.recaudado / item.meta) * 100, 100)}%</span>
-                  </div>
+                  {(() => {
+                    const meta = Number((item as any).meta || 0)
+                    const recaudado = Number((item as any).recaudado || 0)
+                    const pct = meta > 0 ? Math.min((recaudado / meta) * 100, 100) : 0
+                    return (
+                      <>
+                        <div className="flex justify-between text-sm">
+                          <span className="font-bold text-slate-700">{item.ruta}</span>
+                          <span className="text-slate-500">Meta: {formatCurrency(item.meta)}</span>
+                        </div>
+                        <div className="flex justify-between text-sm">
+                          <span className="font-bold text-slate-700">Recaudado: {formatCurrency(item.recaudado)}</span>
+                          <span className="text-slate-500">{pct.toFixed(0)}%</span>
+                        </div>
+                      </>
+                    )
+                  })()}
                 </div>
               ))}
             </div>
@@ -405,7 +468,13 @@ const ReportesOperativosPage = () => {
                   <div className="flex-1 h-2 bg-slate-100 rounded-full overflow-hidden">
                     <div 
                       className="bg-slate-900 h-2 rounded-full transition-all duration-1000 ease-out"
-                      style={{ width: `${item.meta > 0 ? Math.min((item.recaudado / item.meta) * 100, 100) : 0}%` }}
+                      style={{
+                        width: `${(() => {
+                          const meta = Number((item as any).meta || 0)
+                          const recaudado = Number((item as any).recaudado || 0)
+                          return meta > 0 ? Math.min((recaudado / meta) * 100, 100) : 0
+                        })()}%`,
+                      }}
                     ></div>
                   </div>
                 </div>

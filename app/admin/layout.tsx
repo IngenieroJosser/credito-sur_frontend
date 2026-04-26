@@ -703,7 +703,7 @@ export default function AdminLayout({
 
       {/* Contenido principal animado */}
       <main 
-        className={`pt-16 ${showSidebar ? 'lg:pl-64' : ''} transition-all duration-700 ease-out ${(isMenuOpen && showSidebar) ? 'lg:pl-64' : ''} ${isPageLoaded ? 'opacity-100 transform-none' : 'translate-y-4 opacity-0 scale-[0.99]'}`}
+        className={`pt-16 ${showSidebar ? 'lg:pl-64' : ''} transition-all duration-700 ease-out ${(isMenuOpen && showSidebar) ? 'lg:pl-64' : ''} ${showSidebar ? 'pb-[calc(72px+env(safe-area-inset-bottom,0px))] lg:pb-0' : ''} ${isPageLoaded ? 'opacity-100 transform-none' : 'translate-y-4 opacity-0 scale-[0.99]'}`}
         style={{ opacity: isPageLoaded ? 1 : 0 }}
       >
         {children}
