@@ -11,7 +11,7 @@ import { refreshSesion } from '@/services/autenticacion-service'
 import { useNotificaciones } from "@/components/providers/NotificacionesProvider";
 import { usuariosService } from "@/services/usuarios-service";
 import { RolUsuario, EstadoUsuario } from "@/types/enums";
-import { apiRequest } from "@/lib/api/api";
+import { apiRequest, formatErrorForComponent } from "@/lib/api/api";
 import { formatShortDateTime, formatShortDate } from "@/lib/utils/format";
 import { buildBogotaOffsetIsoFromKey, getBogotaRangeForFinancialPeriod, normalizeDateKey } from '@/lib/rutas-core'
 
@@ -86,6 +86,8 @@ const GLOBAL_MODULE_CATALOG = (() => {
     'creditos-articulos',
     'notificaciones',
     'solicitudes',
+    'revisiones',
+    'seguimiento-pdv',
   ])
 
   const preferredOrder = [
@@ -1000,10 +1002,10 @@ const UserManagementPage = () => {
     if (!selectedUser) return;
 
     try {
-      await usuariosService.asignarPermisos(
-        selectedUser.id,
-        selectedPermissions,
-      );
+      const validIds = new Set(availableModules.map((m: any) => m.id));
+      const permissionsToSave = selectedPermissions.filter((p) => validIds.has(p));
+
+      await usuariosService.asignarPermisos(selectedUser.id, permissionsToSave);
 
       // Si el usuario editado es el mismo que tiene la sesión, refrescar token/permisos/sidebar
       // para evitar que el menú quede desactualizado hasta el próximo login.
@@ -1040,7 +1042,7 @@ const UserManagementPage = () => {
         if (user.id === selectedUser.id) {
           return {
             ...user,
-            permisos: selectedPermissions,
+            permisos: permissionsToSave,
           };
         }
         return user;
@@ -1053,13 +1055,19 @@ const UserManagementPage = () => {
         "Los permisos del usuario han sido actualizados",
         "Permisos Actualizados",
       );
-    } catch (error) {
-      console.error("Error updating permissions:", error);
-      showNotification(
-        "error",
-        "No se pudieron actualizar los permisos",
-        "Error",
-      );
+    } catch (error: any) {
+      const msg =
+        error?.response?.data?.message ??
+        error?.message ??
+        error?.toString?.() ??
+        'Error desconocido';
+
+      console.error("Error actualizando los permisos:", msg, {
+        status: error?.response?.status,
+        data: error?.response?.data,
+      });
+
+      showNotification("error", msg, "Error");
     }
   };
 
