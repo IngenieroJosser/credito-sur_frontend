@@ -71,7 +71,7 @@ interface User {
 }
 
 interface Role {
-  id: RolUsuario;
+  id: string;
   nombre: string;
   label: string;
   descripcion: string;
@@ -79,6 +79,65 @@ interface Role {
   bgColor: string;
   icon: React.ReactNode;
 }
+
+const GLOBAL_MODULE_CATALOG = (() => {
+  const EXCLUDED_ACTION_IDS = new Set([
+    'prestamos-dinero',
+    'creditos-articulos',
+    'notificaciones',
+    'solicitudes',
+  ])
+
+  const preferredOrder = [
+    'SUPER_ADMINISTRADOR',
+    'ADMIN',
+    'COORDINADOR',
+    'SUPERVISOR',
+    'CONTADOR',
+    'COBRADOR',
+    'PUNTO_DE_VENTA',
+  ]
+
+  const existingRoles = Object.keys(permisosPorRol || {})
+  const roleOrder = [
+    ...preferredOrder.filter((r) => existingRoles.includes(r)),
+    ...existingRoles.filter((r) => !preferredOrder.includes(r)),
+  ]
+
+  const flattenedModules: any[] = []
+  const seen = new Set<string>()
+
+  roleOrder.forEach((rol) => {
+    const modules = (permisosPorRol as any)?.[rol] || []
+    modules.forEach((module: any) => {
+      if (module.submodulos && module.submodulos.length > 0) {
+        module.submodulos.forEach((sub: any) => {
+          if (!sub?.id || seen.has(sub.id) || EXCLUDED_ACTION_IDS.has(sub.id)) return
+          seen.add(sub.id)
+          flattenedModules.push({
+            id: sub.id,
+            label: sub.nombre,
+            description: sub.nombre,
+            category: module.nombre,
+            roles: sub.roles,
+          })
+        })
+      } else {
+        if (!module?.id || seen.has(module.id) || EXCLUDED_ACTION_IDS.has(module.id)) return
+        seen.add(module.id)
+        flattenedModules.push({
+          id: module.id,
+          label: module.nombre,
+          description: module.nombre,
+          category: 'General',
+          roles: module.roles,
+        })
+      }
+    })
+  })
+
+  return flattenedModules
+})()
 
 const UserManagementPage = () => {
   const { showNotification } = useNotification();
@@ -256,42 +315,7 @@ const UserManagementPage = () => {
     }
   }, [selectedUser]);
 
-  // Define available modules based on the selected user's role using useMemo to avoid bad setState calls
-  const availableModules = React.useMemo(() => {
-    if (!selectedUser) return [];
-
-    const roleModules = (permisosPorRol as any)?.[selectedUser.rol] || [];
-    const flattenedModules: any[] = [];
-
-    roleModules.forEach((module: any) => {
-      if (module.submodulos && module.submodulos.length > 0) {
-        module.submodulos.forEach((sub: any) => {
-          flattenedModules.push({
-            id: sub.id,
-            label: sub.nombre,
-            description: sub.nombre,
-            category: module.nombre,
-            roles: sub.roles,
-          });
-        });
-      } else {
-        flattenedModules.push({
-          id: module.id,
-          label: module.nombre,
-          description: module.nombre,
-          category: "General",
-          roles: module.roles,
-        });
-      }
-    });
-
-    const seen = new Set<string>();
-    return flattenedModules.filter((m) => {
-      if (!m?.id || seen.has(m.id)) return false;
-      seen.add(m.id);
-      return true;
-    });
-  }, [selectedUser]);
+  const availableModules = GLOBAL_MODULE_CATALOG
 
   useEffect(() => {
     const timer = setTimeout(() => setMounted(true), 100);
@@ -762,8 +786,6 @@ const UserManagementPage = () => {
       return;
     }
 
-    setSelectedUser(user);
-
     const flattenPermissionIds = (modules: any[]): string[] => {
       const ids: string[] = [];
       modules.forEach((m) => {
@@ -785,12 +807,39 @@ const UserManagementPage = () => {
       permisosPorRol[user.rol as any] || [],
     );
 
-    const permisosIniciales = permisosGuardados.length > 0
-      ? Array.from(new Set([...permisosDefaultRol, ...permisosGuardados]))
-      : permisosDefaultRol;
+    const expandGroupIds = (ids: string[]): string[] => {
+      const allModules = Object.values(permisosPorRol || {}).flat() as any[]
+      const expanded = new Set<string>()
 
+      ids.forEach((id) => {
+        const group = allModules.find((m: any) => m?.id === id && Array.isArray(m?.submodulos) && m.submodulos.length > 0)
+        if (group) {
+          group.submodulos.forEach((s: any) => {
+            if (s?.id) expanded.add(s.id)
+          })
+          return
+        }
+        expanded.add(id)
+      })
+
+      return Array.from(expanded)
+    }
+
+    let permisosIniciales: string[]
+    if (user.rol === RolUsuario.SUPER_ADMINISTRADOR) {
+      permisosIniciales = permisosDefaultRol
+    } else {
+      const permisosGuardadosExpandidos = expandGroupIds(permisosGuardados)
+      permisosIniciales = Array.from(
+        new Set([...permisosDefaultRol, ...permisosGuardadosExpandidos]),
+      )
+    }
+
+    setSelectedUser(user);
     setSelectedPermissions(permisosIniciales);
-    setIsPermissionsModalOpen(true);
+    setTimeout(() => {
+      setIsPermissionsModalOpen(true);
+    }, 0);
   };
 
   const handleOpenDeleteModal = (user: User) => {
