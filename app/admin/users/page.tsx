@@ -116,7 +116,11 @@ const UserManagementPage = () => {
         estado: u.estado as EstadoUsuario,
         fechaCreacion: formatShortDate(u.creadoEn),
         ultimoAcceso: formatShortDateTime(u.ultimoIngreso),
-        permisos: u.permisos || [],
+        permisos: (Array.isArray(u.permisos)
+          ? (u.permisos as any[])
+              .map((p) => (p?.codigo || p?.id || p))
+              .filter((p) => typeof p === 'string' && p.trim() !== '')
+          : []),
       }));
       setUsers(mappedUsers);
     } catch (error) {
@@ -256,13 +260,12 @@ const UserManagementPage = () => {
   const availableModules = React.useMemo(() => {
     if (!selectedUser) return [];
 
-    // Catálogo completo: unión de módulos de todos los roles (evita que falten módulos en el modal)
-    const allRoleModules = Object.values(permisosPorRol).flat();
+    const roleModules = (permisosPorRol as any)?.[selectedUser.rol] || [];
     const flattenedModules: any[] = [];
 
-    allRoleModules.forEach((module) => {
+    roleModules.forEach((module: any) => {
       if (module.submodulos && module.submodulos.length > 0) {
-        module.submodulos.forEach((sub) => {
+        module.submodulos.forEach((sub: any) => {
           flattenedModules.push({
             id: sub.id,
             label: sub.nombre,
@@ -282,24 +285,12 @@ const UserManagementPage = () => {
       }
     });
 
-    const byId = new Map<string, any>();
-    flattenedModules.forEach((m) => {
-      const existing = byId.get(m.id);
-      if (!existing) {
-        byId.set(m.id, m);
-        return;
-      }
-
-      // Merge roles/categories if needed
-      const mergedRoles = Array.from(new Set([...(existing.roles || []), ...(m.roles || [])]));
-      byId.set(m.id, {
-        ...existing,
-        roles: mergedRoles,
-        category: existing.category || m.category,
-      });
+    const seen = new Set<string>();
+    return flattenedModules.filter((m) => {
+      if (!m?.id || seen.has(m.id)) return false;
+      seen.add(m.id);
+      return true;
     });
-
-    return Array.from(byId.values());
   }, [selectedUser]);
 
   useEffect(() => {
@@ -793,8 +784,10 @@ const UserManagementPage = () => {
     const permisosDefaultRol = flattenPermissionIds(
       permisosPorRol[user.rol as any] || [],
     );
-    const permisosIniciales =
-      permisosGuardados.length > 0 ? permisosGuardados : permisosDefaultRol;
+
+    const permisosIniciales = permisosGuardados.length > 0
+      ? Array.from(new Set([...permisosDefaultRol, ...permisosGuardados]))
+      : permisosDefaultRol;
 
     setSelectedPermissions(permisosIniciales);
     setIsPermissionsModalOpen(true);
