@@ -227,10 +227,10 @@ function VisitaCardContent({
         </button>
       </div>
 
-      {/* Fila 2: badges | botones de acción (centro) | KPIs */}
-      <div className="mt-1 flex items-center gap-1.5">
+      {/* Fila 2: badges | KPIs | botones de acción */}
+      <div className="mt-1 flex flex-col gap-2">
         {/* Badges */}
-        <div className="flex items-center gap-1 flex-wrap shrink-0">
+        <div className="flex items-center gap-1 flex-wrap">
           {/* Dot semáforo */}
           <span
             title={nivelTitle(nivelRiesgoUI)}
@@ -264,15 +264,8 @@ function VisitaCardContent({
           )}
         </div>
 
-        {/* Botones de acción centrados */}
-        {actions && (
-          <div className="flex-1 flex items-center justify-center gap-1 flex-wrap">
-            {actions}
-          </div>
-        )}
-
         {/* KPIs: cuota · saldo · período */}
-        <div className="flex items-center gap-1.5 shrink-0 ml-auto">
+        <div className="flex items-center gap-1.5 shrink-0">
           <div className="text-center">
             <div className="text-[8px] font-bold text-slate-400 uppercase leading-none mb-0.5">Cuota</div>
             <div className="text-[11px] font-black text-slate-800 tabular-nums">{formatMontoCorto(cuotaUI)}</div>
@@ -289,6 +282,15 @@ function VisitaCardContent({
             {periodoLabel(visita.periodoRuta)}
           </span>
         </div>
+
+        {/* Botones de acción (scroll horizontal en móvil) */}
+        {actions && (
+          <div className="w-full overflow-x-auto -mx-0.5 px-0.5">
+            <div className="flex items-center gap-1 flex-nowrap min-w-0 shrink-0">
+              {actions}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Fila 2b: Banner "Pendiente de aprobación" */}
@@ -393,7 +395,7 @@ export function StaticVisitaItem({
   return (
     <div
       onClick={() => allowClick && onSelect && onSelect(visita.id)}
-      className={`relative z-10 w-full rounded-xl px-2.5 py-1.5 transition-all bg-white border-2 ${
+      className={`relative z-10 w-full rounded-xl px-2.5 py-1.5 transition-all bg-white border-2 overflow-hidden ${
         allowClick ? 'cursor-pointer hover:shadow-md active:scale-[0.99]' : 'cursor-default'
       } ${borderColor(nivelRiesgoUI, !!isSelected)}`}
     >
@@ -455,7 +457,7 @@ export function SortableItem({
     <div
       ref={setNodeRef}
       style={style}
-      className={`relative z-10 w-full rounded-xl px-2.5 py-1.5 transition-all bg-white border-2 ${borderColor(nivelRiesgoUI, !!isSelected)}`}
+      className={`relative z-10 w-full rounded-xl px-2.5 py-1.5 transition-all bg-white border-2 overflow-hidden ${borderColor(nivelRiesgoUI, !!isSelected)}`}
     >
       <VisitaCardContent
         visita={visita}
