@@ -594,7 +594,11 @@ export default function DetallePrestamo({ prestamo }: DetallePrestamoProps) {
 
                   <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-4">
                     <div className="bg-slate-50 rounded-xl p-3 border border-slate-100">
-                      <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Próxima Cuota</span>
+                      <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
+                        {(cuotaActualUI?.estadoUI === 'VENCIDO' || cuotaActualUI?.estadoUI === 'VENCIDA')
+                          ? 'Cuota Vencida'
+                          : 'Próxima Cuota'}
+                      </span>
                       <span className="text-sm font-bold text-slate-900">{formatDate(cuotaActual.fecha)}</span>
                     </div>
                     <div className="bg-slate-50 rounded-xl p-3 border border-slate-100">
