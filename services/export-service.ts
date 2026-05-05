@@ -28,10 +28,30 @@ export const exportService = {
 
     const response = await axios.get(url, {
       responseType: 'blob',
+      validateStatus: () => true,
       headers: {
-        Authorization: token ? `Bearer ${token}` : '',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
       },
     });
+
+    if (response.status < 200 || response.status >= 300) {
+      let mensajeError = `Error al descargar archivo (HTTP ${response.status})`;
+      try {
+        const texto = await (response.data as Blob).text();
+        try {
+          const json = JSON.parse(texto);
+          const msg = (json as any)?.message;
+          if (Array.isArray(msg)) mensajeError = msg.join(' | ');
+          else if (typeof msg === 'string' && msg.trim()) mensajeError = msg;
+          else if (typeof (json as any)?.error === 'string') mensajeError = (json as any).error;
+        } catch {
+          if (typeof texto === 'string' && texto.trim()) mensajeError = texto;
+        }
+      } catch {
+        // ignore
+      }
+      throw new Error(mensajeError);
+    }
 
     // Extract filename from Content-Disposition header or use fallback
     const contentDisposition = response.headers['content-disposition'];
@@ -83,11 +103,31 @@ export const exportService = {
 
     const response = await axios.post(url, body, {
       responseType: 'blob',
+      validateStatus: () => true,
       headers: {
-        Authorization: token ? `Bearer ${token}` : '',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
         'Content-Type': 'application/json',
       },
     });
+
+    if (response.status < 200 || response.status >= 300) {
+      let mensajeError = `Error al descargar archivo (HTTP ${response.status})`;
+      try {
+        const texto = await (response.data as Blob).text();
+        try {
+          const json = JSON.parse(texto);
+          const msg = (json as any)?.message;
+          if (Array.isArray(msg)) mensajeError = msg.join(' | ');
+          else if (typeof msg === 'string' && msg.trim()) mensajeError = msg;
+          else if (typeof (json as any)?.error === 'string') mensajeError = (json as any).error;
+        } catch {
+          if (typeof texto === 'string' && texto.trim()) mensajeError = texto;
+        }
+      } catch {
+        // ignore
+      }
+      throw new Error(mensajeError);
+    }
 
     const contentDisposition = response.headers['content-disposition'];
     let filename = fallbackFilename;

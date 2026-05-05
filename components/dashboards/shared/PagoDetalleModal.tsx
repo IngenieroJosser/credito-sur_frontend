@@ -150,18 +150,29 @@ export default function PagoDetalleModal({
   if (!isOpen) return null
 
   // ── Datos combinados: API primero, metadata como fallback ─────────────────
-  const monto = pago?.montoTotal ?? metadata.monto ?? 0
-
   const detallesAfectados = (pago?.detalles ?? []).filter((d: any) => {
     const capital = Number(d?.montoCapital || 0)
     const interes = Number(d?.montoInteres || 0)
     const mora = Number(d?.montoInteresMora || 0)
-    return capital + interes + mora > 0
+    const monto = Number(d?.monto || 0)
+    return capital + interes + mora > 0 || monto > 0
   })
 
   const computedCapital = detallesAfectados.reduce((s: number, d: any) => s + Number(d.montoCapital || 0), 0)
   const computedInteres = detallesAfectados.reduce((s: number, d: any) => s + Number(d.montoInteres || 0), 0)
+  const computedMora = detallesAfectados.reduce((s: number, d: any) => s + Number(d.montoInteresMora || 0), 0)
   const computedCuotasAfectadas = detallesAfectados.length
+
+  const computedMontoAplicado = detallesAfectados.reduce((s: number, d: any) => s + Number(d.monto || 0), 0)
+
+  const monto = (() => {
+    const apiTotal = Number(pago?.montoTotal ?? 0)
+    if (Number.isFinite(apiTotal) && apiTotal > 0) return apiTotal
+    const sumDetalles = Number(computedCapital || 0) + Number(computedInteres || 0) + Number(computedMora || 0)
+    if (Number.isFinite(sumDetalles) && sumDetalles > 0) return sumDetalles
+    const meta = Number((metadata as any)?.monto ?? 0)
+    return Number.isFinite(meta) ? meta : 0
+  })()
 
   const computedSaldoNuevo = pago?.prestamo?.saldoPendiente != null
     ? Number(pago.prestamo.saldoPendiente)
@@ -435,6 +446,19 @@ export default function PagoDetalleModal({
                 </div>
                 <div className="space-y-2">
                   {detallesAfectados.map((det, idx) => (
+                    (() => {
+                      const detMonto = Number(det?.monto || 0)
+                      const detCapitalRaw = Number(det?.montoCapital || 0)
+                      const detInteresRaw = Number(det?.montoInteres || 0)
+                      const detMoraRaw = Number(det?.montoInteresMora || 0)
+                      const detTieneDesglose = detCapitalRaw + detInteresRaw + detMoraRaw > 0
+
+                      const ratio = computedMontoAplicado > 0 ? (detMonto / computedMontoAplicado) : 0
+                      const detCapitalUI = detTieneDesglose ? detCapitalRaw : (ratio > 0 ? (capitalRec * ratio) : 0)
+                      const detInteresUI = detTieneDesglose ? detInteresRaw : (ratio > 0 ? (interesRec * ratio) : 0)
+                      const detMoraUI = detTieneDesglose ? detMoraRaw : (ratio > 0 ? ((pago ? computedMora : 0) * ratio) : 0)
+
+                      return (
                     <div
                       key={det.id || idx}
                       className="flex items-center justify-between p-2.5 bg-slate-50 rounded-xl border border-slate-100 text-xs"
@@ -443,20 +467,22 @@ export default function PagoDetalleModal({
                       <div className="flex gap-4">
                         <div className="text-right">
                           <p className="text-[9px] text-slate-400">Capital</p>
-                          <p className="font-bold text-emerald-600">{formatCurrency(det.montoCapital)}</p>
+                          <p className="font-bold text-emerald-600">{formatCurrency(detCapitalUI)}</p>
                         </div>
                         <div className="text-right">
                           <p className="text-[9px] text-slate-400">Interés</p>
-                          <p className="font-bold text-amber-500">{formatCurrency(det.montoInteres)}</p>
+                          <p className="font-bold text-amber-500">{formatCurrency(detInteresUI)}</p>
                         </div>
-                        {det.montoInteresMora > 0 && (
+                        {detMoraUI > 0 && (
                           <div className="text-right">
                             <p className="text-[9px] text-slate-400">Mora</p>
-                            <p className="font-bold text-rose-500">{formatCurrency(det.montoInteresMora)}</p>
+                            <p className="font-bold text-rose-500">{formatCurrency(detMoraUI)}</p>
                           </div>
                         )}
                       </div>
                     </div>
+                      )
+                    })()
                   ))}
                 </div>
               </div>

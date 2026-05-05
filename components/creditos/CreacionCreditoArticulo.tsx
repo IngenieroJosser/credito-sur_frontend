@@ -316,13 +316,23 @@ export default function CreacionCreditoArticulo({
       const creado = await prestamosService.crearPrestamo(payload as any);
 
       try {
-        const loanId = creado?.data?.id || creado?.id || (creado?.prestamo && creado?.prestamo?.id) || creado?.data?.prestamo?.id;
+        const loanIdRaw =
+          creado?.data?.id ||
+          creado?.id ||
+          (creado?.prestamo && creado?.prestamo?.id) ||
+          creado?.data?.prestamo?.id ||
+          creado?.data?.data?.id ||
+          creado?.data?.loan?.id ||
+          creado?.data?.prestamoId;
+
+        const loanId = typeof loanIdRaw === 'string' || typeof loanIdRaw === 'number' ? String(loanIdRaw) : '';
+
         console.log('ID rescatado para el PDF: ', loanId);
         const esOffline = Boolean(creado?.esOffline) || String(loanId || '').startsWith('temp-loan-');
         if (loanId && !esOffline && !esContado) {
-          await exportService.exportContrato(String(loanId));
+          await exportService.exportContrato(loanId);
         } else if (!esOffline && !esContado) {
-          console.warn('No se encontró el id del prestamo para imprimir contrato.');
+          console.warn('No se encontró el id del prestamo para imprimir contrato.', { loanIdRaw });
         }
       } catch (err) {
         console.error('Error exportando contrato automáticamente:', err);

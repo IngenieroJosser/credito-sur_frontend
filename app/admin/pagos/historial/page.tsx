@@ -100,7 +100,17 @@ const HistorialPagosPage = () => {
           cliente: p.cliente ? `${p.cliente.nombres} ${p.cliente.apellidos}` : (p.clienteId || ''),
           cobrador: p.cobrador ? `${p.cobrador.nombres} ${p.cobrador.apellidos}` : (p.cobradorId || ''),
           ruta: p.ruta || '',
-          monto: p.montoTotal || 0,
+          monto: (() => {
+            const montoTotal = Number(p?.montoTotal ?? 0)
+            if (Number.isFinite(montoTotal) && montoTotal > 0) return montoTotal
+            const sumCampos = Number(p?.montoCapital ?? 0) + Number(p?.montoInteres ?? 0) + Number(p?.montoMora ?? 0)
+            if (Number.isFinite(sumCampos) && sumCampos > 0) return sumCampos
+            const detalles = Array.isArray(p?.detalles) ? p.detalles : []
+            const sumDetalles = detalles.reduce((acc: number, d: any) => {
+              return acc + Number(d?.montoCapital || 0) + Number(d?.montoInteres || 0) + Number(d?.montoInteresMora || 0)
+            }, 0)
+            return Number.isFinite(sumDetalles) ? sumDetalles : 0
+          })(),
           metodo: p.metodoPago || 'Efectivo',
           estado: (p.estado || 'completado').toLowerCase() as EstadoPago,
         }))
