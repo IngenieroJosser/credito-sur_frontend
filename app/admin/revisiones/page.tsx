@@ -486,10 +486,10 @@ export default function RevisionesPage() {
           return {
             titulo: datos.cliente || 'Crédito nuevo',
             subtitulo: `${isArticulo ? `Artículo: ${datos.articulo || 'N/A'}` : 'Efectivo'} • ${numCuotas} cuotas${freqLabel}`,
-            monto: isArticulo ? valorTotal : aFinanciar,
-            labelMonto: isArticulo ? 'Valor total' : undefined,
-            montoSecundario: isArticulo ? aFinanciar : undefined,
-            labelSecundario: isArticulo ? 'A financiar' : undefined,
+            monto: valorTotal,
+            labelMonto: 'Valor total',
+            montoSecundario: aFinanciar,
+            labelSecundario: 'A financiar',
           }
         }
         case 'REPROGRAMACION_CUOTA': {
