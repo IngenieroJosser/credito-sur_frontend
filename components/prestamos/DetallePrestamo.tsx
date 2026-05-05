@@ -70,6 +70,16 @@ export interface PrestamoDetalle {
   garantia?: string;
   notas?: string;
   fotos?: string[];
+  pagos?: {
+    id?: string;
+    numeroPago?: string;
+    fechaPago?: string;
+    detalles?: {
+      montoCapital?: number;
+      montoInteres?: number;
+      montoInteresMora?: number;
+    }[];
+  }[];
   cuotas: {
     numero: number;
     fecha: string;
@@ -159,6 +169,38 @@ export default function DetallePrestamo({ prestamo }: DetallePrestamoProps) {
   const cuotasPagadas = prestamo.cuotas.filter((c) => c.estado === 'PAGADO' || c.estado === 'PAGADA').length;
   const totalCuotas = prestamo.cuotas.length;
   const progresoCuotas = totalCuotas > 0 ? Math.round((cuotasPagadas / totalCuotas) * 100) : 0;
+
+  const totalesDesdePagos = useMemo(() => {
+    const pagos = Array.isArray((prestamo as any)?.pagos) ? ((prestamo as any).pagos as any[]) : []
+    let capital = 0
+    let interes = 0
+    let interesMora = 0
+    for (const p of pagos) {
+      const detalles = Array.isArray(p?.detalles) ? p.detalles : []
+      for (const d of detalles) {
+        capital += Number(d?.montoCapital || 0)
+        interes += Number(d?.montoInteres || 0)
+        interesMora += Number(d?.montoInteresMora || 0)
+      }
+    }
+    return {
+      capitalPagado: capital,
+      interesPagado: interes,
+      interesMoraPagado: interesMora,
+    }
+  }, [prestamo])
+
+  const capitalPagadoUI = (() => {
+    const v = Number((prestamo as any)?.capitalPagado ?? 0)
+    if (v > 0) return v
+    return totalesDesdePagos.capitalPagado
+  })()
+
+  const interesPagadoUI = (() => {
+    const v = Number((prestamo as any)?.interesPagado ?? 0)
+    if (v > 0) return v
+    return totalesDesdePagos.interesPagado
+  })()
   const [nowTs, setNowTs] = useState<number>(0);
   useEffect(() => {
     setNowTs(Date.now());
@@ -391,13 +433,13 @@ export default function DetallePrestamo({ prestamo }: DetallePrestamoProps) {
           {/* Capital Pagado */}
           <div className="bg-blue-50/50 p-5 rounded-2xl border border-blue-100 shadow-sm flex flex-col justify-between h-28">
              <span className="text-[10px] font-black text-blue-600/70 uppercase tracking-widest">Capital Pagado</span>
-             <p className="text-2xl font-bold text-blue-700 tracking-tight">{formatCurrency(prestamo.capitalPagado || 0)}</p>
+             <p className="text-2xl font-bold text-blue-700 tracking-tight">{formatCurrency(capitalPagadoUI || 0)}</p>
           </div>
 
           {/* Interés Pagado */}
           <div className="bg-violet-50/50 p-5 rounded-2xl border border-violet-100 shadow-sm flex flex-col justify-between h-28">
              <span className="text-[10px] font-black text-violet-600/70 uppercase tracking-widest">Interés Pagado</span>
-             <p className="text-2xl font-bold text-violet-700 tracking-tight">{formatCurrency(prestamo.interesPagado || 0)}</p>
+             <p className="text-2xl font-bold text-violet-700 tracking-tight">{formatCurrency(interesPagadoUI || 0)}</p>
           </div>
 
           {/* Frecuencia (now Row 2) */}
@@ -427,61 +469,57 @@ export default function DetallePrestamo({ prestamo }: DetallePrestamoProps) {
           </div>
 
           {/* Cuota vencida / Próximo pago programado */}
-          {(cuotaVencidaDesdeKey || proximoPagoProgramadoKey || prestamo.fechaPrimerCobro) && (
-            <div className="space-y-3">
-              {cuotaVencidaDesdeKey ? (
-                <div className="bg-rose-50/60 p-5 rounded-2xl border border-rose-200 shadow-sm flex flex-col justify-center gap-1 h-24">
-                  <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 rounded-full bg-rose-100 flex items-center justify-center text-rose-600">
-                      <Clock className="w-4 h-4" />
-                    </div>
-                    <div>
-                      <span className="text-[10px] font-black text-rose-700/80 uppercase tracking-widest block">
-                        Cuota vencida desde
-                      </span>
-                      <span className="text-lg font-bold text-rose-900 block leading-none mt-1">
-                        {formatDate(cuotaVencidaDesdeKey)}
-                      </span>
-                    </div>
-                  </div>
+          {cuotaVencidaDesdeKey ? (
+            <div className="bg-rose-50/60 p-5 rounded-2xl border border-rose-200 shadow-sm flex flex-col justify-center gap-1 h-24">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-full bg-rose-100 flex items-center justify-center text-rose-600">
+                  <Clock className="w-4 h-4" />
                 </div>
-              ) : null}
-
-              {proximoPagoProgramadoKey ? (
-                <div className="bg-blue-50/50 p-5 rounded-2xl border border-blue-100 shadow-sm flex flex-col justify-center gap-1 h-24">
-                  <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600">
-                      <Clock className="w-4 h-4" />
-                    </div>
-                    <div>
-                      <span className="text-[10px] font-black text-blue-600/70 uppercase tracking-widest block">
-                        Próximo pago programado
-                      </span>
-                      <span className="text-lg font-bold text-blue-900 block leading-none mt-1">
-                        {formatDate(proximoPagoProgramadoKey)}
-                      </span>
-                    </div>
-                  </div>
+                <div>
+                  <span className="text-[10px] font-black text-rose-700/80 uppercase tracking-widest block">
+                    Cuota vencida desde
+                  </span>
+                  <span className="text-lg font-bold text-rose-900 block leading-none mt-1">
+                    {formatDate(cuotaVencidaDesdeKey)}
+                  </span>
                 </div>
-              ) : (prestamo.fechaPrimerCobro ? (
-                <div className="bg-blue-50/50 p-5 rounded-2xl border border-blue-100 shadow-sm flex flex-col justify-center gap-1 h-24">
-                  <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600">
-                      <Clock className="w-4 h-4" />
-                    </div>
-                    <div>
-                      <span className="text-[10px] font-black text-blue-600/70 uppercase tracking-widest block">
-                        Primer cobro
-                      </span>
-                      <span className="text-lg font-bold text-blue-900 block leading-none mt-1">
-                        {formatDate(prestamo.fechaPrimerCobro)}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              ) : null)}
+              </div>
             </div>
-          )}
+          ) : null}
+
+          {proximoPagoProgramadoKey ? (
+            <div className="bg-blue-50/50 p-5 rounded-2xl border border-blue-100 shadow-sm flex flex-col justify-center gap-1 h-24">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600">
+                  <Clock className="w-4 h-4" />
+                </div>
+                <div>
+                  <span className="text-[10px] font-black text-blue-600/70 uppercase tracking-widest block">
+                    Próximo pago programado
+                  </span>
+                  <span className="text-lg font-bold text-blue-900 block leading-none mt-1">
+                    {formatDate(proximoPagoProgramadoKey)}
+                  </span>
+                </div>
+              </div>
+            </div>
+          ) : (prestamo.fechaPrimerCobro ? (
+            <div className="bg-blue-50/50 p-5 rounded-2xl border border-blue-100 shadow-sm flex flex-col justify-center gap-1 h-24">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600">
+                  <Clock className="w-4 h-4" />
+                </div>
+                <div>
+                  <span className="text-[10px] font-black text-blue-600/70 uppercase tracking-widest block">
+                    Primer cobro
+                  </span>
+                  <span className="text-lg font-bold text-blue-900 block leading-none mt-1">
+                    {formatDate(prestamo.fechaPrimerCobro)}
+                  </span>
+                </div>
+              </div>
+            </div>
+          ) : null)}
 
           {/* Fecha Vencimiento */}
           <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm flex flex-col justify-center gap-1 h-24">
@@ -504,7 +542,7 @@ export default function DetallePrestamo({ prestamo }: DetallePrestamoProps) {
           </div>
           )}
           
-          <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm flex flex-col justify-between h-28">
+          <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm flex flex-col gap-2 min-h-[7rem]">
             <div className="flex items-center justify-between">
               <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Interés por Mora</span>
               <AlertTriangle className="w-4 h-4 text-amber-600" />
@@ -592,7 +630,7 @@ export default function DetallePrestamo({ prestamo }: DetallePrestamoProps) {
                     </span>
                   </div>
 
-                  <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-4">
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
                     <div className="bg-slate-50 rounded-xl p-3 border border-slate-100">
                       <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
                         {(cuotaActualUI?.estadoUI === 'VENCIDO' || cuotaActualUI?.estadoUI === 'VENCIDA')
@@ -614,10 +652,6 @@ export default function DetallePrestamo({ prestamo }: DetallePrestamoProps) {
                     <div className="bg-violet-50 rounded-xl p-3 border border-violet-100">
                       <span className="text-[10px] font-bold text-violet-600 uppercase tracking-wider block">Interés</span>
                       <span className="text-lg font-bold text-violet-700">{cuotaActual.montoInteres != null ? formatCurrency(cuotaActual.montoInteres) : '-'}</span>
-                    </div>
-                    <div className="bg-emerald-50 rounded-xl p-3 border border-emerald-100">
-                      <span className="text-[10px] font-bold text-emerald-600 uppercase tracking-wider block">Saldo Capital</span>
-                      <span className="text-lg font-bold text-emerald-700">{formatCurrency(cuotaActual.saldoRestante)}</span>
                     </div>
                   </div>
 
