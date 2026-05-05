@@ -496,12 +496,11 @@ export default function RevisionesPage() {
 
           const capital = Number(datos.monto || 0) || Number(item.montoSolicitud || 0);
           const porcentaje = Number(datos.porcentaje || datos.tasaInteres || 0);
-          const plazoMeses = Number(datos.plazoMeses || 1);
 
           const totalDevolver = (() => {
             if (datos.montoTotal && Number(datos.montoTotal) > 0) return Number(datos.montoTotal);
             if (datos.interesTotal && Number(datos.interesTotal) > 0) return capital + Number(datos.interesTotal);
-            if (porcentaje > 0 && plazoMeses > 0) return capital + (capital * porcentaje * plazoMeses) / 100;
+            if (porcentaje > 0) return capital + (capital * porcentaje) / 100;
             return 0;
           })();
 
