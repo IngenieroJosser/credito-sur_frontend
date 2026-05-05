@@ -93,7 +93,7 @@ export default function GestionarVencidaModal({ cuenta, onClose, onConfirm }: Ge
   const [decision, setDecision] = useState<Decision>('PRORROGAR')
   const [cobrarInteres, setCobrarInteres] = useState(true)
   const [montoInteres, setMontoInteres] = useState<string>('')
-  const [diasGracia, setDiasGracia] = useState<string>('30')
+  const [diasGracia, setDiasGracia] = useState<string>('')
   const [comentarios, setComentarios] = useState('')
   const [isLoading, setIsLoading] = useState(false)
 
