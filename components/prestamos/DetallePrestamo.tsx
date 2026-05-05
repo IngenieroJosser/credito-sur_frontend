@@ -166,6 +166,32 @@ export default function DetallePrestamo({ prestamo }: DetallePrestamoProps) {
 
   const hoyBogotaKey = getBogotaDateKey(new Date())
 
+  const { cuotaVencidaDesdeKey, proximoPagoProgramadoKey } = useMemo(() => {
+    const cuotas = Array.isArray(prestamo?.cuotas) ? prestamo.cuotas : []
+    const unpaid = cuotas.filter((c: any) => {
+      const st = String(c?.estado || '').toUpperCase()
+      if (st === 'PAGADA' || st === 'PAGADO' || st === 'ANULADA' || st === 'ANULADO') return false
+      return true
+    })
+
+    const keys = unpaid
+      .map((c: any) => normalizeDateKey(String((c as any)?.fecha || (c as any)?.fechaVencimiento || '')))
+      .filter(Boolean) as string[]
+
+    const vencidas = keys.filter((k) => !!hoyBogotaKey && k < hoyBogotaKey)
+    const futuras = keys.filter((k) => !!hoyBogotaKey && k > hoyBogotaKey)
+
+    const cuotaVencidaDesdeKey = vencidas.length
+      ? vencidas.reduce((min, k) => (k < min ? k : min), vencidas[0])
+      : ''
+
+    const proximoPagoProgramadoKey = futuras.length
+      ? futuras.reduce((min, k) => (k < min ? k : min), futuras[0])
+      : ''
+
+    return { cuotaVencidaDesdeKey, proximoPagoProgramadoKey }
+  }, [prestamo?.cuotas, hoyBogotaKey])
+
   const diasMora = (() => {
     const vencidas = prestamo.cuotas.filter((c) => {
       const st = String(c.estado || '').toUpperCase()
@@ -228,10 +254,18 @@ export default function DetallePrestamo({ prestamo }: DetallePrestamoProps) {
     return (cuotasConSaldo || []).map((c: any) => {
       const st = String(c?.estado || '').toUpperCase()
       const vtoKey = normalizeDateKey(c?.fecha)
-      const esVencidaUI = (st === 'VENCIDA' || st === 'VENCIDO') && vtoKey && hoyBogotaKey && vtoKey === hoyBogotaKey
+      const esNoPagada = st !== 'PAGADA' && st !== 'PAGADO' && st !== 'ANULADA' && st !== 'ANULADO'
+      const esVencidaHoyBackend = (st === 'VENCIDA' || st === 'VENCIDO') && vtoKey && hoyBogotaKey && vtoKey === hoyBogotaKey
+      const esVencidaPorFecha = esNoPagada && vtoKey && hoyBogotaKey && vtoKey < hoyBogotaKey
+
+      const estadoUI = esVencidaHoyBackend
+        ? 'PENDIENTE'
+        : esVencidaPorFecha
+          ? 'VENCIDA'
+          : c.estado
       return {
         ...c,
-        estadoUI: esVencidaUI ? 'PENDIENTE' : c.estado,
+        estadoUI,
       }
     })
   }, [cuotasConSaldo, hoyBogotaKey]);
@@ -240,10 +274,17 @@ export default function DetallePrestamo({ prestamo }: DetallePrestamoProps) {
     if (!cuotaActual) return cuotaActual
     const st = String((cuotaActual as any)?.estado || '').toUpperCase()
     const vtoKey = normalizeDateKey((cuotaActual as any)?.fecha)
-    const esVencidaUI = (st === 'VENCIDA' || st === 'VENCIDO') && vtoKey && hoyBogotaKey && vtoKey === hoyBogotaKey
+    const esNoPagada = st !== 'PAGADA' && st !== 'PAGADO' && st !== 'ANULADA' && st !== 'ANULADO'
+    const esVencidaHoyBackend = (st === 'VENCIDA' || st === 'VENCIDO') && vtoKey && hoyBogotaKey && vtoKey === hoyBogotaKey
+    const esVencidaPorFecha = esNoPagada && vtoKey && hoyBogotaKey && vtoKey < hoyBogotaKey
+    const estadoUI = esVencidaHoyBackend
+      ? 'PENDIENTE'
+      : esVencidaPorFecha
+        ? 'VENCIDA'
+        : (cuotaActual as any).estado
     return {
       ...(cuotaActual as any),
-      estadoUI: esVencidaUI ? 'PENDIENTE' : (cuotaActual as any).estado,
+      estadoUI,
     }
   }, [cuotaActual, hoyBogotaKey])
   // No mostrar monto sugerido de mora aquí; se asigna desde Cuentas en Mora
@@ -385,24 +426,60 @@ export default function DetallePrestamo({ prestamo }: DetallePrestamoProps) {
              </div>
           </div>
 
-          {/* Fecha Primer Cobro / Próximo Pago */}
-          {(prestamo.fechaPrimerCobro || prestamo.fechaProximoPago) && (
-            <div className="bg-blue-50/50 p-5 rounded-2xl border border-blue-100 shadow-sm flex flex-col justify-center gap-1 h-24">
-              <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600">
-                    <Clock className="w-4 h-4" />
+          {/* Cuota vencida / Próximo pago programado */}
+          {(cuotaVencidaDesdeKey || proximoPagoProgramadoKey || prestamo.fechaPrimerCobro) && (
+            <div className="space-y-3">
+              {cuotaVencidaDesdeKey ? (
+                <div className="bg-rose-50/60 p-5 rounded-2xl border border-rose-200 shadow-sm flex flex-col justify-center gap-1 h-24">
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-full bg-rose-100 flex items-center justify-center text-rose-600">
+                      <Clock className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <span className="text-[10px] font-black text-rose-700/80 uppercase tracking-widest block">
+                        Cuota vencida desde
+                      </span>
+                      <span className="text-lg font-bold text-rose-900 block leading-none mt-1">
+                        {formatDate(cuotaVencidaDesdeKey)}
+                      </span>
+                    </div>
                   </div>
-                  <div>
-                    <span className="text-[10px] font-black text-blue-600/70 uppercase tracking-widest block">
-                      {prestamo.estado === 'PENDIENTE_APROBACION' || prestamo.estado === 'BORRADOR' 
-                        ? 'Primer Cobro' 
-                        : 'Próximo Pago'}
-                    </span>
-                    <span className="text-lg font-bold text-blue-900 block leading-none mt-1">
-                      {formatDate(prestamo.fechaProximoPago || prestamo.fechaPrimerCobro)}
-                    </span>
+                </div>
+              ) : null}
+
+              {proximoPagoProgramadoKey ? (
+                <div className="bg-blue-50/50 p-5 rounded-2xl border border-blue-100 shadow-sm flex flex-col justify-center gap-1 h-24">
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600">
+                      <Clock className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <span className="text-[10px] font-black text-blue-600/70 uppercase tracking-widest block">
+                        Próximo pago programado
+                      </span>
+                      <span className="text-lg font-bold text-blue-900 block leading-none mt-1">
+                        {formatDate(proximoPagoProgramadoKey)}
+                      </span>
+                    </div>
                   </div>
-              </div>
+                </div>
+              ) : (prestamo.fechaPrimerCobro ? (
+                <div className="bg-blue-50/50 p-5 rounded-2xl border border-blue-100 shadow-sm flex flex-col justify-center gap-1 h-24">
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600">
+                      <Clock className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <span className="text-[10px] font-black text-blue-600/70 uppercase tracking-widest block">
+                        Primer cobro
+                      </span>
+                      <span className="text-lg font-bold text-blue-900 block leading-none mt-1">
+                        {formatDate(prestamo.fechaPrimerCobro)}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              ) : null)}
             </div>
           )}
 
