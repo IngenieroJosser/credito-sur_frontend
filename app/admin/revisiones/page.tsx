@@ -475,21 +475,43 @@ export default function RevisionesPage() {
           }
         case 'NUEVO_PRESTAMO': {
           const isArticulo = datos.tipo === 'ARTICULO' || datos.tipoPrestamo === 'ARTICULO';
-          const valorTotal = Number(datos.valorArticulo || 0) || Number(item.montoSolicitud || 0);
           const cuotaInicial = Number(datos.cuotaInicial || 0);
-          // "A financiar" = valorTotal - cuotaInicial, o datos.monto si está disponible
-          const aFinanciar = datos.monto != null && Number(datos.monto) > 0
-            ? Number(datos.monto)
-            : Math.max(0, valorTotal - cuotaInicial);
           const numCuotas = datos.cantidadCuotas || datos.cuotas || datos.numCuotas || '?';
           const freqLabel = datos.frecuenciaPago ? ` ${datos.frecuenciaPago}` : '';
+
+          if (isArticulo) {
+            const valorArticulo = Number(datos.valorArticulo || 0) || Number(item.montoSolicitud || 0);
+            const aFinanciar = datos.monto != null && Number(datos.monto) > 0
+              ? Number(datos.monto)
+              : Math.max(0, valorArticulo - cuotaInicial);
+            return {
+              titulo: datos.cliente || 'Crédito nuevo',
+              subtitulo: `Artículo: ${datos.articulo || 'N/A'} • ${numCuotas} cuotas${freqLabel}`,
+              monto: valorArticulo,
+              labelMonto: 'Valor artículo',
+              montoSecundario: aFinanciar,
+              labelSecundario: 'A financiar',
+            }
+          }
+
+          const capital = Number(datos.monto || 0) || Number(item.montoSolicitud || 0);
+          const porcentaje = Number(datos.porcentaje || datos.tasaInteres || 0);
+          const plazoMeses = Number(datos.plazoMeses || 1);
+
+          const totalDevolver = (() => {
+            if (datos.montoTotal && Number(datos.montoTotal) > 0) return Number(datos.montoTotal);
+            if (datos.interesTotal && Number(datos.interesTotal) > 0) return capital + Number(datos.interesTotal);
+            if (porcentaje > 0 && plazoMeses > 0) return capital + (capital * porcentaje * plazoMeses) / 100;
+            return 0;
+          })();
+
           return {
             titulo: datos.cliente || 'Crédito nuevo',
-            subtitulo: `${isArticulo ? `Artículo: ${datos.articulo || 'N/A'}` : 'Efectivo'} • ${numCuotas} cuotas${freqLabel}`,
-            monto: valorTotal,
-            labelMonto: 'Valor total',
-            montoSecundario: aFinanciar,
-            labelSecundario: 'A financiar',
+            subtitulo: `Efectivo • ${numCuotas} cuotas${freqLabel}`,
+            monto: capital,
+            labelMonto: 'Capital',
+            montoSecundario: totalDevolver > capital ? totalDevolver : null,
+            labelSecundario: 'Total a devolver',
           }
         }
         case 'REPROGRAMACION_CUOTA': {
