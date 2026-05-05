@@ -13,6 +13,7 @@ jest.mock('next/navigation', () => ({
     replace: mockReplace,
     refresh: mockRefresh,
   }),
+  useSearchParams: () => new URLSearchParams(),
 }))
 
 // 2. Mock de next/image
@@ -48,6 +49,7 @@ jest.mock('@/app/login/actions', () => ({
 describe('LoginPage', () => {
   beforeEach(() => {
     jest.clearAllMocks()
+    global.fetch = jest.fn().mockResolvedValue({ ok: true }) as jest.Mock
     
     // Mock de localStorage
     const localStorageMock = (function() {
@@ -75,7 +77,7 @@ describe('LoginPage', () => {
     render(<LoginPage />)
     
     // Verificar elementos principales
-    expect(screen.getByPlaceholderText(/Usuario/i)).toBeInTheDocument()
+    expect(screen.getByPlaceholderText(/Nombre/i)).toBeInTheDocument()
     expect(screen.getByPlaceholderText(/Contraseña/i)).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /Acceder al Panel/i })).toBeInTheDocument()
     // El título está dividido en spans, usamos heading role que los concatena
@@ -101,7 +103,7 @@ describe('LoginPage', () => {
   it('debería permitir escribir usuario y contraseña', () => {
     render(<LoginPage />)
     
-    const userInput = screen.getByPlaceholderText(/Usuario/i)
+    const userInput = screen.getByPlaceholderText(/Nombre/i)
     const passwordInput = screen.getByPlaceholderText(/Contraseña/i)
     
     fireEvent.change(userInput, { target: { value: 'admin' } })
