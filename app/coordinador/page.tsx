@@ -154,7 +154,7 @@ export default function CoordinadorPage() {
         const mainMetrics: MetricItem[] = [
           {
             title: `Capital Prestado (${PERIOD_LABEL[period]})`,
-            value: stats?.montoTotal || 0,
+            value: Number(dashboard?.metrics?.capitalPrestado ?? 0),
             isCurrency: true,
             change: 0,
             icon: <CreditCard className="h-4 w-4" />,
