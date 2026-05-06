@@ -57,10 +57,16 @@ export default function PagoModal({ visita, tipo, onClose, onConfirm }: PagoModa
     const montoNum = parseCOPInputToNumber(montoPagoInput)
     if (tipo === 'PAGO') {
       const cuota = Number(visita?.montoCuota || 0)
-      if (cuota > 0 && montoNum > 0 && montoNum < cuota) {
-        setErrorMsg('El pago debe ser por el monto completo de la cuota. Si deseas pagar un valor menor, registra un ABONO.')
+      if (cuota > 0 && Math.abs(montoNum - cuota) > 0.01) {
+        setErrorMsg(`Para un PAGO, el monto debe ser exactamente $${formatMilesCOP(cuota)}. Para otros valores use ABONO.`)
         return
       }
+    }
+
+    const saldoTotal = Number(visita?.saldoTotal || 0)
+    if (saldoTotal > 0 && montoNum > saldoTotal + 1) {
+      setErrorMsg(`El monto no puede exceder el saldo total del préstamo ($${formatMilesCOP(saldoTotal)})`)
+      return
     }
     setIsSubmitting(true)
     try {
