@@ -2326,8 +2326,7 @@ const VistaCobrador = () => {
     const hoyBogota = getBogotaDateKey(new Date())
     const recaudoEsperado = visitasCobrador.reduce((sum, v: any) => {
       if (v?.estado === 'pagado') return sum
-      const proximaKey = v?.proximaVisita ? normalizeDateKey(String(v.proximaVisita)) : ''
-      const incluye = v?.estado === 'en_mora' || v?.periodoRuta === 'DIA' || (proximaKey && proximaKey === hoyBogota)
+      const incluye = isVisitaExigibleHoy(v, hoyBogota)
       if (!incluye) return sum
       return sum + Number(v?.montoCuota || 0)
     }, 0)
@@ -4470,9 +4469,7 @@ const VistaCobrador = () => {
 
                       const filterByDate = (v: any) =>
                         searchQuery ||
-                        v.periodoRuta === 'DIA' ||
-                        Number(v.montoCuota) > 0 ||
-                        isTodayOrMora(v.proximaVisita);
+                        isVisitaExigibleHoy(v, hoyBogotaKey);
 
                       const porPeriodo = {
                         DIA: visitasCobrador.filter(v => v.periodoRuta === 'DIA' && filterByDate(v)),

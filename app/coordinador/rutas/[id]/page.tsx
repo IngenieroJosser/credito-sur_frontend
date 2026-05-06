@@ -96,7 +96,7 @@ import { prestamosService } from '@/services/prestamos-service'
 
 import { pagosService } from '@/services/pagos-service'
 
-import { getBogotaDateKey, normalizeDateKey, toBogotaDateTimeOffsetIso } from '@/lib/rutas-core'
+import { getBogotaDateKey, isVisitaExigibleHoy, normalizeDateKey, toBogotaDateTimeOffsetIso } from '@/lib/rutas-core'
 
 import { exportService } from '@/services/export-service'
 
@@ -835,9 +835,14 @@ const LegacyDetalleRutaPage = () => {
 
 
 
-            setVisitasCobrador(finales);
+            const hoyBogota = getBogotaDateKey(new Date());
+            const finalesFiltradas = finales.filter(v => {
+              if (searchQuery || showMisClientes || showHistory) return true;
+              return isVisitaExigibleHoy(v, hoyBogota);
+            });
 
-            setClientes(finales.map((v: any) => ({
+            setVisitasCobrador(finalesFiltradas);
+            setClientes(finalesFiltradas.map((v: any) => ({
 
                 id: v.id,
 
