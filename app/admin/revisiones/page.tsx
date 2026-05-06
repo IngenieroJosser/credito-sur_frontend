@@ -335,7 +335,25 @@ export default function RevisionesPage() {
 
   const handleApproveFromModal = async (entityId: string) => {
     const item = Object.values(data?.items || {}).flat().find(i => i.id === entityId)
-    if (item) handleAprobar(item)
+    if (!item) return
+    
+    setProcessingId(item.id)
+    try {
+      if (item.tipoAprobacion === TipoAprobacion.REPROGRAMACION_CUOTA) {
+        await prestamosService.aprobarReprogramacion(item.id)
+      } else {
+        await aprobacionesService.aprobar(item.id, {
+          type: item.tipoAprobacion as TipoAprobacion
+        })
+      }
+      toast.success('Solicitud aprobada correctamente')
+      closeAllDetailModals()
+      await loadData()
+    } catch (error: any) {
+      toast.error(error?.message || 'Error al aprobar')
+    } finally {
+      setProcessingId(null)
+    }
   }
 
   const handleRejectFromModal = async (entityId: string) => {
@@ -653,9 +671,7 @@ export default function RevisionesPage() {
         canApprove={canReviewRejected || userRol === 'COORDINADOR' || userRol === 'SUPERVISOR'}
         isProcessing={!!processingId}
         onApprove={(id) => {
-          setProrrogaModalOpen(false)
-          const item = Object.values(data?.items || {}).flat().find(i => i.id === id)
-          if (item) handleAprobar(item)
+          handleApproveFromModal(id)
         }}
         onReject={(id) => {
           setProrrogaModalOpen(false)
@@ -672,9 +688,7 @@ export default function RevisionesPage() {
         canApprove={canReviewRejected || userRol === 'COORDINADOR' || userRol === 'SUPERVISOR'}
         isProcessing={!!processingId}
         onApprove={(id) => {
-          setReprogramacionModalOpen(false)
-          const item = Object.values(data?.items || {}).flat().find(i => i.id === id)
-          if (item) handleAprobar(item)
+          handleApproveFromModal(id)
         }}
         onReject={(id) => {
           setReprogramacionModalOpen(false)

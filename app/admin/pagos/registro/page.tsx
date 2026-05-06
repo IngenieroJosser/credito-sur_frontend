@@ -146,6 +146,12 @@ const RegistroPagoPage = () => {
       return
     }
 
+    const montoNum = parseCOPInputToNumber(monto)
+    if (montoNum > prestamo.saldoPendiente + 1) {
+      toast.error(`El monto ($${formatCurrency(montoNum)}) no puede ser mayor al saldo pendiente del préstamo ($${formatCurrency(prestamo.saldoPendiente)})`)
+      return
+    }
+
     setEstadoEnvio('enviando')
 
     // Obtener el usuario activo para el cobradorId

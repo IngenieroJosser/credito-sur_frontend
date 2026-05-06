@@ -220,10 +220,10 @@ function VisitaCardContent({
         {/* Botón ver detalles */}
         <button
           onClick={(e) => { e.stopPropagation(); onVerCliente(visita) }}
-          className="p-1.5 bg-slate-100/60 rounded-lg hover:bg-white text-slate-400 hover:text-[#08557f] transition-all border border-transparent hover:border-slate-200 shrink-0 active:scale-95"
+          className="p-2 bg-slate-100/60 rounded-lg hover:bg-white text-slate-400 hover:text-[#08557f] transition-all border border-transparent hover:border-slate-200 shrink-0 active:scale-95"
           title="Ver expediente del cliente"
         >
-          <Eye className="w-3.5 h-3.5" />
+          <Eye className="w-5 h-5" />
         </button>
       </div>
 

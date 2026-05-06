@@ -2326,8 +2326,7 @@ const VistaCobrador = () => {
     const hoyBogota = getBogotaDateKey(new Date())
     const recaudoEsperado = visitasCobrador.reduce((sum, v: any) => {
       if (v?.estado === 'pagado') return sum
-      const proximaKey = v?.proximaVisita ? normalizeDateKey(String(v.proximaVisita)) : ''
-      const incluye = v?.estado === 'en_mora' || v?.periodoRuta === 'DIA' || (proximaKey && proximaKey === hoyBogota)
+      const incluye = isVisitaExigibleHoy(v, hoyBogota)
       if (!incluye) return sum
       return sum + Number(v?.montoCuota || 0)
     }, 0)
@@ -2775,14 +2774,24 @@ const VistaCobrador = () => {
     if (!esAbonoSnapshot) {
       const cuota = Number(visitaSnapshot?.montoCuota || 0)
       const montoNum = Number(monto || 0)
-      if (cuota > 0 && montoNum > 0 && montoNum < cuota) {
+      if (cuota > 0 && Math.abs(montoNum - cuota) > 0.01) {
         setModalAlerta({
-          titulo: 'Pago incompleto',
-          mensaje: 'El pago debe ser por el monto completo de la cuota. Si deseas pagar un valor menor, registra un ABONO.',
+          titulo: 'Monto no coincide',
+          mensaje: `Para registrar un PAGO el monto debe ser exactamente $${formatMilesCOP(cuota)}. Si el valor es diferente, use la opción ABONO.`,
           tipo: 'error',
         })
         return
       }
+    }
+
+    const saldoTotal = Number(visitaSnapshot?.saldoTotal || 0)
+    if (saldoTotal > 0 && monto > saldoTotal + 1) {
+      setModalAlerta({
+        titulo: 'Monto inválido',
+        mensaje: `El monto ($${formatMilesCOP(monto)}) no puede ser mayor al saldo total del préstamo ($${formatMilesCOP(saldoTotal)}).`,
+        tipo: 'error',
+      })
+      return
     }
 
     // Cerrar el modal lo más rápido posible para mejorar UX (no esperar request)
@@ -4460,9 +4469,7 @@ const VistaCobrador = () => {
 
                       const filterByDate = (v: any) =>
                         searchQuery ||
-                        v.periodoRuta === 'DIA' ||
-                        Number(v.montoCuota) > 0 ||
-                        isTodayOrMora(v.proximaVisita);
+                        isVisitaExigibleHoy(v, hoyBogotaKey);
 
                       const porPeriodo = {
                         DIA: visitasCobrador.filter(v => v.periodoRuta === 'DIA' && filterByDate(v)),
